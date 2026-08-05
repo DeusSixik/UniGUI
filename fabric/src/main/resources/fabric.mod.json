@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "unigui",
+  "version": "${version}",
+  "name": "UniGUI",
+  "description": "",
+  "authors": [
+    "Sixik"
+  ],
+  "contact": {
+    "homepage": ""
+  },
+  "license": "LGPL-3.0",
+  "icon": "assets/unigui/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "dev.sixik.unigui.fabric.UniGuiFabric"
+    ],
+    "client": [
+      "dev.sixik.unigui.fabric.client.UniGuiFabricClient"
+    ]
+  },
+  "mixins": [
+    "unigui.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~1.20.1",
+    "java": ">=17"
+  },
+  "suggests": {
+    "another-mod": "*"
+  }
+}
