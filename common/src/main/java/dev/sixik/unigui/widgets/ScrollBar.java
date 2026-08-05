@@ -11,7 +11,7 @@ import dev.sixik.unigui.api.event.PointerEvent;
 import dev.sixik.unigui.api.event.PointerMovedEvent;
 import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.event.PointerReleasedEvent;
-import dev.sixik.unigui.api.event.SliderValueChangedEvent;
+import dev.sixik.unigui.api.event.ScrollBarValueChangedEvent;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.math.MutableColor;
@@ -19,24 +19,34 @@ import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.StyleKeys;
 
-public class Slider extends Box {
-    private static final float KNOB_WIDTH = 8.0f;
-
-    private final MutableColor trackColor = new MutableColor(0.25f, 0.25f, 0.25f, 1.0f);
-    private final MutableColor fillColor = new MutableColor(0.25f, 0.78f, 1.0f, 1.0f);
-    private final MutableColor knobColor = new MutableColor(0.95f, 0.95f, 0.95f, 1.0f);
+public class ScrollBar extends Box {
+    private final MutableColor trackColor = new MutableColor(0.0f, 0.0f, 0.0f, 0.28f);
+    private final MutableColor thumbColor = new MutableColor(0.25f, 0.78f, 1.0f, 0.75f);
+    private Orientation orientation = Orientation.VERTICAL;
     private float min;
-    private float max = 1.0f;
+    private float max;
     private float value;
-    private float step;
+    private float pageSize = 1.0f;
+    private float step = 16.0f;
     private boolean dragging;
 
-    public Slider() {
+    public ScrollBar() {
         backgroundVisible(false);
         borderVisible(false);
         trackColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
-        fillColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
-        knobColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
+        thumbColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
+    }
+
+    public Orientation orientation() {
+        return orientation;
+    }
+
+    public ScrollBar orientation(Orientation orientation) {
+        Orientation normalized = orientation == null ? Orientation.VERTICAL : orientation;
+        if (this.orientation == normalized) return this;
+        this.orientation = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
     }
 
     public float min() {
@@ -47,7 +57,7 @@ public class Slider extends Box {
         return max;
     }
 
-    public Slider range(float min, float max) {
+    public ScrollBar range(float min, float max) {
         if (max < min) {
             float swap = min;
             min = max;
@@ -56,7 +66,7 @@ public class Slider extends Box {
         if (this.min == min && this.max == max) return this;
         this.min = min;
         this.max = max;
-        value(value);
+        silentValue(value);
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
@@ -65,8 +75,25 @@ public class Slider extends Box {
         return value;
     }
 
-    public Slider value(float value) {
+    public ScrollBar value(float value) {
         setValue(value, true);
+        return this;
+    }
+
+    public ScrollBar silentValue(float value) {
+        setValue(value, false);
+        return this;
+    }
+
+    public float pageSize() {
+        return pageSize;
+    }
+
+    public ScrollBar pageSize(float pageSize) {
+        float normalized = Math.max(1.0f, pageSize);
+        if (this.pageSize == normalized) return this;
+        this.pageSize = normalized;
+        invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 
@@ -74,8 +101,8 @@ public class Slider extends Box {
         return step;
     }
 
-    public Slider step(float step) {
-        this.step = Math.max(0.0f, step);
+    public ScrollBar step(float step) {
+        this.step = Math.max(1.0f, step);
         return this;
     }
 
@@ -87,24 +114,19 @@ public class Slider extends Box {
         return trackColor;
     }
 
-    public MutableColor fillColor() {
-        return fillColor;
+    public MutableColor thumbColor() {
+        return thumbColor;
     }
 
-    public MutableColor knobColor() {
-        return knobColor;
-    }
-
-    public EventSubscription onValueChanged(EventListener<? super SliderValueChangedEvent> listener) {
-        return on(SliderValueChangedEvent.TYPE, listener);
+    public EventSubscription onValueChanged(EventListener<? super ScrollBarValueChangedEvent> listener) {
+        return on(ScrollBarValueChangedEvent.TYPE, listener);
     }
 
     @Override
     protected void applyTheme() {
         super.applyTheme();
         trackColor.set(styleValue(StyleKeys.TRACK_COLOR, trackColor));
-        fillColor.set(styleValue(StyleKeys.ACCENT_COLOR, fillColor));
-        knobColor.set(styleValue(StyleKeys.THUMB_COLOR, knobColor));
+        thumbColor.set(styleValue(StyleKeys.THUMB_COLOR, thumbColor));
     }
 
     @Override
@@ -119,20 +141,20 @@ public class Slider extends Box {
                 context.focusManager().requestFocus(this);
             }
             dragging = true;
-            updateFromLocalX(pointer.localX());
+            updateFromLocal(pointer.localX(), pointer.localY());
             event.cancel();
         } else if (event instanceof PointerMovedEvent pointer && dragging) {
-            updateFromLocalX(pointer.localX());
+            updateFromLocal(pointer.localX(), pointer.localY());
             event.cancel();
         } else if (event instanceof PointerReleasedEvent pointer && pointer.button() == PointerButton.PRIMARY && dragging) {
-            updateFromLocalX(pointer.localX());
+            updateFromLocal(pointer.localX(), pointer.localY());
             dragging = false;
             event.cancel();
         } else if (event instanceof KeyPressedEvent key && key.phase() == EventPhase.TARGET && isFocused()) {
-            if (key.keyCode() == KeyCodes.LEFT) {
+            if (key.keyCode() == KeyCodes.LEFT || key.keyCode() == KeyCodes.UP) {
                 nudge(-1.0f);
                 event.cancel();
-            } else if (key.keyCode() == KeyCodes.RIGHT) {
+            } else if (key.keyCode() == KeyCodes.RIGHT || key.keyCode() == KeyCodes.DOWN) {
                 nudge(1.0f);
                 event.cancel();
             }
@@ -145,14 +167,17 @@ public class Slider extends Box {
         float y = layoutBounds().y();
         float width = layoutBounds().width();
         float height = layoutBounds().height();
-        float trackHeight = Math.max(2.0f, Math.min(4.0f, height * 0.25f));
-        float trackY = y + (height - trackHeight) * 0.5f;
-        float fillWidth = width * normalizedValue();
-        float knobX = x + fillWidth - KNOB_WIDTH * 0.5f;
 
-        context.roundedRect(x, trackY, width, trackHeight, trackHeight * 0.5f, Paint.fill(trackColor), transform());
-        context.roundedRect(x, trackY, fillWidth, trackHeight, trackHeight * 0.5f, Paint.fill(fillColor), transform());
-        context.roundedRect(knobX, y + 2.0f, KNOB_WIDTH, Math.max(1.0f, height - 4.0f), 2.0f, Paint.fill(knobColor), transform());
+        context.roundedRect(x, y, width, height, Math.min(width, height) * 0.5f, Paint.fill(trackColor), transform());
+        if (orientation == Orientation.VERTICAL) {
+            float thumbHeight = thumbLength(height);
+            float thumbY = y + (height - thumbHeight) * normalizedValue();
+            context.roundedRect(x, thumbY, width, thumbHeight, width * 0.5f, Paint.fill(thumbColor), transform());
+        } else {
+            float thumbWidth = thumbLength(width);
+            float thumbX = x + (width - thumbWidth) * normalizedValue();
+            context.roundedRect(thumbX, y, thumbWidth, height, height * 0.5f, Paint.fill(thumbColor), transform());
+        }
 
         super.renderContent(context);
     }
@@ -162,40 +187,39 @@ public class Slider extends Box {
         return context != null && context.focusManager().isFocused(this);
     }
 
-    private void updateFromLocalX(float localX) {
-        float width = Math.max(1.0f, layoutBounds().width());
-        float normalized = clamp(localX / width, 0.0f, 1.0f);
+    private void updateFromLocal(float localX, float localY) {
+        float length = Math.max(1.0f, orientation == Orientation.VERTICAL ? layoutBounds().height() : layoutBounds().width());
+        float thumbLength = thumbLength(length);
+        float position = orientation == Orientation.VERTICAL ? localY : localX;
+        float trackTravel = Math.max(1.0f, length - thumbLength);
+        float normalized = clamp((position - thumbLength * 0.5f) / trackTravel, 0.0f, 1.0f);
         setValue(min + normalized * (max - min), true);
     }
 
     private void nudge(float direction) {
-        float increment = step > 0.0f ? step : (max - min) / 20.0f;
-        setValue(value + increment * direction, true);
+        setValue(value + step * direction, true);
     }
 
     private float normalizedValue() {
         float range = max - min;
-        if (range == 0.0f) return 0.0f;
+        if (range <= 0.0f) return 0.0f;
         return clamp((value - min) / range, 0.0f, 1.0f);
     }
 
+    private float thumbLength(float trackLength) {
+        float contentExtent = Math.max(pageSize, pageSize + Math.max(0.0f, max - min));
+        return Math.max(8.0f, trackLength * (pageSize / contentExtent));
+    }
+
     private void setValue(float value, boolean emitChange) {
-        float normalized = normalizeValue(value);
+        float normalized = clamp(value, min, max);
         if (this.value == normalized) return;
         float oldValue = this.value;
         this.value = normalized;
         invalidate(InvalidationFlags.VISUAL);
         if (emitChange) {
-            emit(new SliderValueChangedEvent(this, oldValue, this.value));
+            emit(new ScrollBarValueChangedEvent(this, oldValue, this.value));
         }
-    }
-
-    private float normalizeValue(float value) {
-        float clamped = clamp(value, min, max);
-        if (step > 0.0f) {
-            clamped = min + Math.round((clamped - min) / step) * step;
-        }
-        return clamp(clamped, min, max);
     }
 
     private static float clamp(float value, float min, float max) {

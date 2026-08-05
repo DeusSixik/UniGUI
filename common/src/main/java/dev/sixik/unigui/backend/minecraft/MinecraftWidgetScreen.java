@@ -37,11 +37,11 @@ public class MinecraftWidgetScreen extends Screen {
     private long frameIndex;
 
     public MinecraftWidgetScreen(Widget root) {
-        this(Component.empty(), root, new DefaultUIContext());
+        this(Component.empty(), root, new DefaultUIContext(new MinecraftClipboardService()));
     }
 
     public MinecraftWidgetScreen(Component title, Widget root) {
-        this(title, root, new DefaultUIContext());
+        this(title, root, new DefaultUIContext(new MinecraftClipboardService()));
     }
 
     public MinecraftWidgetScreen(Component title, Widget root, UIContext uiContext) {

@@ -15,6 +15,14 @@ public final class Widgets {
         return new Button(text);
     }
 
+    public static ToggleButton toggleButton(String text) {
+        return new ToggleButton(text);
+    }
+
+    public static Checkbox checkbox(String text) {
+        return new Checkbox(text);
+    }
+
     public static Text text(String text) {
         return new Text(text);
     }
@@ -71,8 +79,36 @@ public final class Widgets {
         return new TextField(text);
     }
 
+    public static PasswordField passwordField() {
+        return new PasswordField();
+    }
+
+    public static PasswordField passwordField(String text) {
+        return new PasswordField(text);
+    }
+
+    public static SearchField searchField() {
+        return new SearchField();
+    }
+
+    public static SearchField searchField(String query) {
+        return new SearchField(query);
+    }
+
     public static Slider slider() {
         return new Slider();
+    }
+
+    public static ProgressBar progressBar() {
+        return new ProgressBar();
+    }
+
+    public static NumberField numberField() {
+        return new NumberField();
+    }
+
+    public static ScrollBar scrollBar() {
+        return new ScrollBar();
     }
 
     public static ScrollView scrollView(Widget content) {

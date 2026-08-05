@@ -22,4 +22,21 @@ public final class StyleKey<T> {
     public Class<T> type() {
         return type;
     }
+
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) return true;
+        if (!(other instanceof StyleKey<?> styleKey)) return false;
+        return id.equals(styleKey.id) && type.equals(styleKey.type);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, type);
+    }
+
+    @Override
+    public String toString() {
+        return "StyleKey[" + id + "]";
+    }
 }

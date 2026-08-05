@@ -14,6 +14,8 @@ import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.style.WidgetState;
 
 import java.util.Objects;
 
@@ -89,6 +91,7 @@ public class Button extends Box {
 
     @Override
     protected void renderContent(RenderContext context) {
+        applyTheme();
         if (!text.isEmpty()) {
             context.text(text,
                     layoutBounds().x(),
@@ -103,6 +106,17 @@ public class Button extends Box {
 
     private static String normalize(String text) {
         return text == null ? "" : text;
+    }
+
+    @Override
+    protected void applyTheme() {
+        super.applyTheme();
+        textColor.set(styleValue(StyleKeys.TEXT_COLOR, textColor));
+    }
+
+    @Override
+    protected WidgetState styleState() {
+        return pressed ? WidgetState.PRESSED : super.styleState();
     }
 
     private void setPressed(boolean pressed) {

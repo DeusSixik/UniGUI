@@ -14,10 +14,13 @@ import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.event.TextChangedEvent;
 import dev.sixik.unigui.api.event.TextInputEvent;
 import dev.sixik.unigui.api.input.KeyCodes;
+import dev.sixik.unigui.api.input.KeyModifiers;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.style.WidgetState;
 
 import java.util.Objects;
 
@@ -31,6 +34,8 @@ public class TextField extends Box {
     private String text = "";
     private String placeholder = "";
     private int cursorIndex;
+    private int selectionAnchor = -1;
+    private int selectionFocus = -1;
     private int maxLength = Integer.MAX_VALUE;
     private boolean focused;
 
@@ -79,6 +84,43 @@ public class TextField extends Box {
         int clamped = clamp(cursorIndex, 0, text.length());
         if (this.cursorIndex == clamped) return this;
         this.cursorIndex = clamped;
+        clearSelection();
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public int selectionStart() {
+        return hasSelection() ? Math.min(selectionAnchor, selectionFocus) : cursorIndex;
+    }
+
+    public int selectionEnd() {
+        return hasSelection() ? Math.max(selectionAnchor, selectionFocus) : cursorIndex;
+    }
+
+    public boolean hasSelection() {
+        return selectionAnchor >= 0 && selectionFocus >= 0 && selectionAnchor != selectionFocus;
+    }
+
+    public String selectedText() {
+        return hasSelection() ? text.substring(selectionStart(), selectionEnd()) : "";
+    }
+
+    public TextField select(int start, int end) {
+        selectionAnchor = clamp(start, 0, text.length());
+        selectionFocus = clamp(end, 0, text.length());
+        cursorIndex = selectionEnd();
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public TextField selectAll() {
+        return select(0, text.length());
+    }
+
+    public TextField clearSelection() {
+        if (selectionAnchor < 0 && selectionFocus < 0) return this;
+        selectionAnchor = -1;
+        selectionFocus = -1;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
@@ -118,6 +160,19 @@ public class TextField extends Box {
     }
 
     @Override
+    protected void applyTheme() {
+        super.applyTheme();
+        textColor.set(styleValue(StyleKeys.TEXT_COLOR, textColor));
+        placeholderColor.set(styleValue(StyleKeys.PLACEHOLDER_COLOR, placeholderColor));
+        caretColor.set(styleValue(StyleKeys.ACCENT_COLOR, caretColor));
+    }
+
+    @Override
+    protected WidgetState styleState() {
+        return focused ? WidgetState.FOCUSED : WidgetState.NORMAL;
+    }
+
+    @Override
     public void handle(Event event) {
         super.handle(event);
         if (event.isCancelled()) return;
@@ -140,6 +195,7 @@ public class TextField extends Box {
                 setFocused(true);
             }
             cursorIndex(Math.round(Math.max(0.0f, pointer.localX() - TEXT_PADDING) / APPROX_CHAR_WIDTH));
+            clearSelection();
             event.cancel();
             return;
         }
@@ -150,7 +206,7 @@ public class TextField extends Box {
             insert(input.codePoint());
             event.cancel();
         } else if (event instanceof KeyPressedEvent key && key.phase() == EventPhase.TARGET) {
-            if (handleKey(key.keyCode())) {
+            if (handleKey(key.keyCode(), key.modifiers())) {
                 event.cancel();
             }
         }
@@ -158,7 +214,20 @@ public class TextField extends Box {
 
     @Override
     protected void renderContent(RenderContext context) {
-        String visibleText = text.isEmpty() ? placeholder : text;
+        String visibleText = displayText();
+        if (hasSelection()) {
+            int start = selectionStart();
+            int end = selectionEnd();
+            float selectionX = layoutBounds().x() + TEXT_PADDING + start * APPROX_CHAR_WIDTH;
+            float selectionWidth = Math.max(1.0f, (end - start) * APPROX_CHAR_WIDTH);
+            context.rect(selectionX,
+                    layoutBounds().y() + 3.0f,
+                    selectionWidth,
+                    Math.max(1.0f, layoutBounds().height() - 6.0f),
+                    Paint.fill(caretColor),
+                    transform());
+        }
+
         if (!visibleText.isEmpty()) {
             context.text(visibleText,
                     layoutBounds().x() + TEXT_PADDING,
@@ -182,7 +251,19 @@ public class TextField extends Box {
         super.renderContent(context);
     }
 
-    private boolean handleKey(int keyCode) {
+    protected String displayText() {
+        return text.isEmpty() ? placeholder : text;
+    }
+
+    protected boolean isShowingPlaceholder() {
+        return text.isEmpty() && !placeholder.isEmpty();
+    }
+
+    private boolean handleKey(int keyCode, int modifiers) {
+        if (KeyModifiers.has(modifiers, KeyModifiers.CONTROL)) {
+            return handleControlKey(keyCode);
+        }
+
         return switch (keyCode) {
             case KeyCodes.BACKSPACE -> {
                 backspace();
@@ -221,15 +302,41 @@ public class TextField extends Box {
         };
     }
 
+    private boolean handleControlKey(int keyCode) {
+        return switch (keyCode) {
+            case KeyCodes.A -> {
+                selectAll();
+                yield true;
+            }
+            case KeyCodes.C -> {
+                copySelection();
+                yield true;
+            }
+            case KeyCodes.X -> {
+                cutSelection();
+                yield true;
+            }
+            case KeyCodes.V -> {
+                pasteClipboard();
+                yield true;
+            }
+            default -> false;
+        };
+    }
+
     private void insert(int codePoint) {
-        if (!isPrintable(codePoint) || text.length() >= maxLength) return;
+        if (!isPrintable(codePoint)) return;
         String inserted = new String(Character.toChars(codePoint));
+        replaceSelectionIfNeeded();
+        if (text.length() >= maxLength) return;
+        if (text.length() + inserted.length() > maxLength) return;
         setText(text.substring(0, cursorIndex) + inserted + text.substring(cursorIndex), true);
         cursorIndex += inserted.length();
         invalidate(InvalidationFlags.VISUAL);
     }
 
     private void backspace() {
+        if (deleteSelectionIfNeeded()) return;
         if (cursorIndex <= 0 || text.isEmpty()) return;
         int previous = text.offsetByCodePoints(cursorIndex, -1);
         setText(text.substring(0, previous) + text.substring(cursorIndex), true);
@@ -238,16 +345,65 @@ public class TextField extends Box {
     }
 
     private void delete() {
+        if (deleteSelectionIfNeeded()) return;
         if (cursorIndex >= text.length() || text.isEmpty()) return;
         int next = text.offsetByCodePoints(cursorIndex, 1);
         setText(text.substring(0, cursorIndex) + text.substring(next), true);
         invalidate(InvalidationFlags.VISUAL);
     }
 
+    private boolean deleteSelectionIfNeeded() {
+        if (!hasSelection()) return false;
+        int start = selectionStart();
+        int end = selectionEnd();
+        setText(text.substring(0, start) + text.substring(end), true);
+        cursorIndex = start;
+        clearSelection();
+        invalidate(InvalidationFlags.VISUAL);
+        return true;
+    }
+
+    private void replaceSelectionIfNeeded() {
+        deleteSelectionIfNeeded();
+    }
+
+    private void copySelection() {
+        UIContext context = uiContext();
+        if (context != null && hasSelection()) {
+            context.clipboard().setText(selectedText());
+        }
+    }
+
+    private void cutSelection() {
+        copySelection();
+        deleteSelectionIfNeeded();
+    }
+
+    private void pasteClipboard() {
+        UIContext context = uiContext();
+        if (context == null) return;
+        String clipboard = context.clipboard().getText();
+        if (clipboard == null || clipboard.isEmpty()) return;
+        replaceSelectionIfNeeded();
+        String sanitized = sanitizeTextInput(clipboard);
+        if (sanitized.isEmpty()) return;
+        int remaining = Math.max(0, maxLength - text.length());
+        if (sanitized.length() > remaining) {
+            sanitized = sanitized.substring(0, remaining);
+        }
+        setText(text.substring(0, cursorIndex) + sanitized + text.substring(cursorIndex), true);
+        cursorIndex += sanitized.length();
+        invalidate(InvalidationFlags.VISUAL);
+    }
+
+    protected String sanitizeTextInput(String text) {
+        return sanitizePrintable(text);
+    }
+
     private void setFocused(boolean focused) {
         if (this.focused == focused) return;
         this.focused = focused;
-        borderColor().set(focused ? 0.25f : 0.35f, focused ? 0.78f : 0.35f, focused ? 1.0f : 0.35f, 1.0f);
+        applyTheme();
         invalidate(InvalidationFlags.VISUAL);
     }
 
@@ -257,6 +413,9 @@ public class TextField extends Box {
         String oldText = this.text;
         this.text = normalized;
         cursorIndex = clamp(cursorIndex, 0, this.text.length());
+        if (selectionAnchor > this.text.length() || selectionFocus > this.text.length()) {
+            clearSelection();
+        }
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         if (emitChange) {
             emit(new TextChangedEvent(this, oldText, this.text));
@@ -269,6 +428,14 @@ public class TextField extends Box {
 
     private static boolean isPrintable(int codePoint) {
         return codePoint >= 32 && !Character.isISOControl(codePoint);
+    }
+
+    private static String sanitizePrintable(String text) {
+        StringBuilder builder = new StringBuilder(text.length());
+        text.codePoints()
+                .filter(TextField::isPrintable)
+                .forEach(builder::appendCodePoint);
+        return builder.toString();
     }
 
     private static String normalize(String text) {

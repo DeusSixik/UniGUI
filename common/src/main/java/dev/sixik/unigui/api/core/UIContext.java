@@ -4,6 +4,7 @@ import dev.sixik.unigui.api.debug.UiProfiler;
 import dev.sixik.unigui.api.debug.UiDebugCounters;
 import dev.sixik.unigui.api.event.EventEmitter;
 import dev.sixik.unigui.api.event.RoutedEventDispatcher;
+import dev.sixik.unigui.api.input.ClipboardService;
 import dev.sixik.unigui.api.input.FocusManager;
 import dev.sixik.unigui.api.input.HitTester;
 import dev.sixik.unigui.api.style.Theme;
@@ -25,6 +26,10 @@ public interface UIContext {
 
     default FocusManager focusManager() {
         return FocusManager.NONE;
+    }
+
+    default ClipboardService clipboard() {
+        return ClipboardService.EMPTY;
     }
 
     default Theme theme() {

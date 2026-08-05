@@ -7,14 +7,18 @@ import dev.sixik.unigui.api.debug.UiDebugCounters;
 import dev.sixik.unigui.api.debug.UiProfiler;
 import dev.sixik.unigui.api.event.EventEmitter;
 import dev.sixik.unigui.api.event.RoutedEventDispatcher;
+import dev.sixik.unigui.api.input.ClipboardService;
 import dev.sixik.unigui.api.input.FocusManager;
 import dev.sixik.unigui.api.input.HitTester;
+import dev.sixik.unigui.api.style.Theme;
 import dev.sixik.unigui.impl.debug.FrameDebugCounters;
 import dev.sixik.unigui.impl.debug.FrameProfiler;
 import dev.sixik.unigui.impl.event.DefaultRoutedEventDispatcher;
 import dev.sixik.unigui.impl.event.FastEventEmitter;
 import dev.sixik.unigui.impl.input.DefaultFocusManager;
+import dev.sixik.unigui.impl.input.MemoryClipboardService;
 import dev.sixik.unigui.impl.input.TransformHitTester;
+import dev.sixik.unigui.impl.style.DefaultTheme;
 
 public final class DefaultUIContext implements UIContext {
     private final UiDispatcher dispatcher;
@@ -23,12 +27,20 @@ public final class DefaultUIContext implements UIContext {
     private final RoutedEventDispatcher routedEvents;
     private final HitTester hitTester;
     private final FocusManager focusManager;
+    private final ClipboardService clipboard;
+    private final Theme theme;
     private final UiProfiler profiler;
     private final UiDebugCounters debugCounters;
     private int debugFlags;
 
     public DefaultUIContext() {
         this(new QueuedUiDispatcher(), UIScaleProvider.IDENTITY, new FastEventEmitter(), DefaultRoutedEventDispatcher.INSTANCE, new TransformHitTester());
+    }
+
+    public DefaultUIContext(ClipboardService clipboard) {
+        this(new QueuedUiDispatcher(), UIScaleProvider.IDENTITY, new FastEventEmitter(),
+                DefaultRoutedEventDispatcher.INSTANCE, new TransformHitTester(),
+                new DefaultFocusManager(), clipboard, DefaultTheme.INSTANCE, new FrameProfiler(), new FrameDebugCounters());
     }
 
     public DefaultUIContext(UiDispatcher dispatcher, UIScaleProvider scaleProvider, EventEmitter events) {
@@ -40,18 +52,26 @@ public final class DefaultUIContext implements UIContext {
     }
 
     public DefaultUIContext(UiDispatcher dispatcher, UIScaleProvider scaleProvider, EventEmitter events, RoutedEventDispatcher routedEvents, HitTester hitTester) {
-        this(dispatcher, scaleProvider, events, routedEvents, hitTester, new DefaultFocusManager(), new FrameProfiler(), new FrameDebugCounters());
+        this(dispatcher, scaleProvider, events, routedEvents, hitTester, new DefaultFocusManager(), new MemoryClipboardService(), DefaultTheme.INSTANCE, new FrameProfiler(), new FrameDebugCounters());
     }
 
     public DefaultUIContext(UiDispatcher dispatcher, UIScaleProvider scaleProvider, EventEmitter events,
                             RoutedEventDispatcher routedEvents, HitTester hitTester, FocusManager focusManager,
-                            UiProfiler profiler, UiDebugCounters debugCounters) {
+                            ClipboardService clipboard, UiProfiler profiler, UiDebugCounters debugCounters) {
+        this(dispatcher, scaleProvider, events, routedEvents, hitTester, focusManager, clipboard, DefaultTheme.INSTANCE, profiler, debugCounters);
+    }
+
+    public DefaultUIContext(UiDispatcher dispatcher, UIScaleProvider scaleProvider, EventEmitter events,
+                            RoutedEventDispatcher routedEvents, HitTester hitTester, FocusManager focusManager,
+                            ClipboardService clipboard, Theme theme, UiProfiler profiler, UiDebugCounters debugCounters) {
         this.dispatcher = dispatcher;
         this.scaleProvider = scaleProvider;
         this.events = events;
         this.routedEvents = routedEvents == null ? RoutedEventDispatcher.DIRECT : routedEvents;
         this.hitTester = hitTester == null ? HitTester.NONE : hitTester;
         this.focusManager = focusManager == null ? FocusManager.NONE : focusManager;
+        this.clipboard = clipboard == null ? ClipboardService.EMPTY : clipboard;
+        this.theme = theme == null ? Theme.EMPTY : theme;
         this.profiler = profiler == null ? UiProfiler.NOOP : profiler;
         this.debugCounters = debugCounters == null ? UiDebugCounters.NOOP : debugCounters;
     }
@@ -84,6 +104,16 @@ public final class DefaultUIContext implements UIContext {
     @Override
     public FocusManager focusManager() {
         return focusManager;
+    }
+
+    @Override
+    public ClipboardService clipboard() {
+        return clipboard;
+    }
+
+    @Override
+    public Theme theme() {
+        return theme;
     }
 
     @Override

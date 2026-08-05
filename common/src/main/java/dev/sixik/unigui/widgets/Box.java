@@ -1,9 +1,16 @@
 package dev.sixik.unigui.widgets;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.api.core.UIContext;
+import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.style.Style;
+import dev.sixik.unigui.api.style.StyleKey;
+import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.style.Theme;
+import dev.sixik.unigui.api.style.WidgetState;
 
 public class Box extends PanelWidget {
     private final MutableColor background = new MutableColor(0.0f, 0.0f, 0.0f, 0.0f);
@@ -12,6 +19,7 @@ public class Box extends PanelWidget {
     private boolean borderVisible;
     private float borderWidth = 1.0f;
     private float radius;
+    private boolean themeEnabled = true;
 
     public Box() {
         background.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
@@ -70,6 +78,17 @@ public class Box extends PanelWidget {
         return this;
     }
 
+    public boolean themeEnabled() {
+        return themeEnabled;
+    }
+
+    public Box themeEnabled(boolean themeEnabled) {
+        if (this.themeEnabled == themeEnabled) return this;
+        this.themeEnabled = themeEnabled;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
     @Override
     public void render(RenderContext context) {
         renderBox(context);
@@ -77,6 +96,8 @@ public class Box extends PanelWidget {
     }
 
     protected void renderBox(RenderContext context) {
+        applyTheme();
+
         float x = layoutBounds().x();
         float y = layoutBounds().y();
         float width = layoutBounds().width();
@@ -93,5 +114,49 @@ public class Box extends PanelWidget {
 
     protected void renderContent(RenderContext context) {
         super.render(context);
+    }
+
+    protected void applyTheme() {
+        if (!themeEnabled) return;
+
+        ColorView themedBackground = styleValue(StyleKeys.BACKGROUND_COLOR, background);
+        ColorView themedBorder = styleValue(StyleKeys.BORDER_COLOR, borderColor);
+        Float themedBorderWidth = styleValue(StyleKeys.BORDER_WIDTH, borderWidth);
+        Float themedRadius = styleValue(StyleKeys.RADIUS, radius);
+
+        if (themedBackground != null) {
+            background.set(themedBackground);
+        }
+        if (themedBorder != null) {
+            borderColor.set(themedBorder);
+        }
+        if (themedBorderWidth != null && borderWidth != themedBorderWidth) {
+            borderWidth = themedBorderWidth;
+            invalidate(InvalidationFlags.VISUAL);
+        }
+        if (themedRadius != null && radius != themedRadius) {
+            radius = themedRadius;
+            invalidate(InvalidationFlags.VISUAL);
+        }
+    }
+
+    protected WidgetState styleState() {
+        return WidgetState.NORMAL;
+    }
+
+    protected String styleType() {
+        return getClass().getSimpleName();
+    }
+
+    protected <T> T styleValue(StyleKey<T> key, T fallback) {
+        return styleValue(key, styleState(), fallback);
+    }
+
+    protected <T> T styleValue(StyleKey<T> key, WidgetState state, T fallback) {
+        if (!themeEnabled) return fallback;
+        UIContext context = uiContext();
+        Theme theme = context == null ? Theme.EMPTY : context.theme();
+        Style style = theme.styleFor(styleType());
+        return style.get(key, state, fallback);
     }
 }

@@ -10,19 +10,20 @@ import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
-import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 
 import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
 
 public class ScrollView extends WidgetBase {
-    private static final float SCROLLBAR_WIDTH = 4.0f;
+    private static final float SCROLLBAR_WIDTH = 6.0f;
 
     private final MutableColor scrollbarTrackColor = new MutableColor(0.0f, 0.0f, 0.0f, 0.28f);
     private final MutableColor scrollbarThumbColor = new MutableColor(0.25f, 0.78f, 1.0f, 0.75f);
+    private final ScrollBar verticalScrollBar = new ScrollBar().orientation(Orientation.VERTICAL);
     private Widget content;
     private float contentWidth;
     private float contentHeight;
@@ -31,8 +32,18 @@ public class ScrollView extends WidgetBase {
     private float scrollStep = 16.0f;
 
     public ScrollView() {
-        scrollbarTrackColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
-        scrollbarThumbColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
+        scrollbarTrackColor.onChanged(() -> {
+            verticalScrollBar.trackColor().set(scrollbarTrackColor);
+            invalidate(InvalidationFlags.VISUAL);
+        });
+        scrollbarThumbColor.onChanged(() -> {
+            verticalScrollBar.thumbColor().set(scrollbarThumbColor);
+            invalidate(InvalidationFlags.VISUAL);
+        });
+        verticalScrollBar.setParentInternal(this);
+        verticalScrollBar.trackColor().set(scrollbarTrackColor);
+        verticalScrollBar.thumbColor().set(scrollbarThumbColor);
+        verticalScrollBar.onValueChanged(event -> scrollTo(scrollX, event.newValue()));
     }
 
     public ScrollView(Widget content) {
@@ -96,6 +107,7 @@ public class ScrollView extends WidgetBase {
         if (scrollX == clampedX && scrollY == clampedY) return this;
         scrollX = clampedX;
         scrollY = clampedY;
+        syncScrollBars();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
@@ -120,15 +132,30 @@ public class ScrollView extends WidgetBase {
         return scrollbarThumbColor;
     }
 
+    public ScrollBar verticalScrollBar() {
+        return verticalScrollBar;
+    }
+
     @Override
     public void setUiContextInternal(UIContext uiContext) {
         super.setUiContextInternal(uiContext);
         attachContent(content);
+        verticalScrollBar.setParentInternal(this);
+        verticalScrollBar.setUiContextInternal(uiContext);
     }
 
     @Override
     public List<Widget> children() {
-        return content == null ? Collections.emptyList() : List.of(content);
+        if (content == null && !hasVerticalScrollBar()) return Collections.emptyList();
+
+        List<Widget> children = new ArrayList<>(2);
+        if (content != null) {
+            children.add(content);
+        }
+        if (hasVerticalScrollBar()) {
+            children.add(verticalScrollBar);
+        }
+        return Collections.unmodifiableList(children);
     }
 
     @Override
@@ -143,6 +170,7 @@ public class ScrollView extends WidgetBase {
         super.arrange(bounds);
         scrollTo(scrollX, scrollY);
         arrangeContent();
+        arrangeScrollBars();
     }
 
     @Override
@@ -155,11 +183,13 @@ public class ScrollView extends WidgetBase {
     @Override
     public void render(RenderContext context) {
         if (content != null) {
-            context.pushClip(layoutBounds().x(), layoutBounds().y(), layoutBounds().width(), layoutBounds().height());
+            context.pushClip(layoutBounds().x(), layoutBounds().y(), viewportWidth(), layoutBounds().height());
             content.render(context);
             context.popClip();
         }
-        renderScrollbars(context);
+        if (hasVerticalScrollBar()) {
+            verticalScrollBar.render(context);
+        }
     }
 
     @Override
@@ -171,6 +201,7 @@ public class ScrollView extends WidgetBase {
             float beforeY = scrollY;
             scrollBy(-scroll.deltaX() * scrollStep, -scroll.deltaY() * scrollStep);
             if (beforeX != scrollX || beforeY != scrollY) {
+                syncScrollBars();
                 event.cancel();
             }
         }
@@ -194,19 +225,31 @@ public class ScrollView extends WidgetBase {
                 effectiveContentHeight()));
     }
 
-    private void renderScrollbars(RenderContext context) {
-        float maxY = maxScrollY();
-        if (maxY <= 0.0f) return;
+    private void arrangeScrollBars() {
+        if (!hasVerticalScrollBar()) return;
 
-        float x = layoutBounds().x() + layoutBounds().width() - SCROLLBAR_WIDTH;
-        float y = layoutBounds().y();
-        float height = Math.max(1.0f, layoutBounds().height());
-        float contentExtent = Math.max(height, effectiveContentHeight());
-        float thumbHeight = Math.max(8.0f, height * (height / contentExtent));
-        float thumbY = y + (height - thumbHeight) * (scrollY / maxY);
+        verticalScrollBar.arrange(new MutableRect(
+                layoutBounds().x() + layoutBounds().width() - SCROLLBAR_WIDTH,
+                layoutBounds().y(),
+                SCROLLBAR_WIDTH,
+                layoutBounds().height()));
+        syncScrollBars();
+    }
 
-        context.rect(x, y, SCROLLBAR_WIDTH, height, Paint.fill(scrollbarTrackColor), transform());
-        context.roundedRect(x, thumbY, SCROLLBAR_WIDTH, thumbHeight, SCROLLBAR_WIDTH * 0.5f, Paint.fill(scrollbarThumbColor), transform());
+    private void syncScrollBars() {
+        verticalScrollBar
+                .range(0.0f, maxScrollY())
+                .pageSize(Math.max(1.0f, layoutBounds().height()))
+                .step(scrollStep)
+                .silentValue(scrollY);
+    }
+
+    private boolean hasVerticalScrollBar() {
+        return maxScrollY() > 0.0f;
+    }
+
+    private float viewportWidth() {
+        return Math.max(0.0f, layoutBounds().width() - (hasVerticalScrollBar() ? SCROLLBAR_WIDTH : 0.0f));
     }
 
     private float effectiveContentWidth() {

@@ -2484,15 +2484,19 @@ try (ProfileScope ignored = profiler.scope("layout")) {
 - `MinecraftGuiRenderBackend`, `MinecraftTextureHandle`, `MinecraftRenderTarget` и `MinecraftWidgetScreen` для первого Minecraft GUI/offscreen render/scissor path;
 - Minecraft backend теперь рендерит rounded rect/circle/path через базовую tessellation, а не только MVP rect/scanline fallback;
 - primitive widgets: `Text`, `Label`, `TextBlock`, `TextureWidget`, `ImageView`, `Shape`, `Border`, `Separator`, `CanvasWidget`, `Path`;
-- basic widgets/layout shells: `Box`, `Button`, `TextField`, `Slider`, `ScrollView` с axis-aligned clip/scissor, `CachedSubtreeWidget` с cache hit/miss counters, общими frame counters и `DebugFlags.CACHED_SUBTREE` overlay, `VBox`, `HBox`, `GridBox`, `Widgets` factory;
+- basic widgets/layout shells: `Box`, `Button`, `ToggleButton`, `Checkbox`, `TextField`, `NumberField`, `PasswordField`, `SearchField`, `Slider`, `ProgressBar`, `ScrollBar`, `ScrollView` с axis-aligned clip/scissor и встроенной vertical scrollbar binding, `CachedSubtreeWidget` с cache hit/miss counters, общими frame counters и `DebugFlags.CACHED_SUBTREE` overlay, `VBox`, `HBox`, `GridBox`, `Widgets` factory;
+- text editing core: caret, selection API, delete/replace selection, Ctrl+A/C/X/V clipboard flow, `ClipboardService` abstraction, `MemoryClipboardService` and Minecraft clipboard bridge;
+- theme/style seed: `StyleKey`, `StyleKeys`, `MutableStyle`, `WidgetState`, `DefaultTheme` and `UIContext.theme()` default lookup layer;
+- runtime theme application: `Box.applyTheme()` reads state-aware style tokens before render, standard controls apply background/border/text/accent/track/thumb defaults, and `themeEnabled(false)` keeps manual visual overrides;
+- reproducible Gradle launcher: `gradlew`, `gradlew.bat`, `gradle/wrapper/gradle-wrapper.jar` and Gradle 8.12.1 wrapper properties;
 - no-dependency `CachedSubtreeInvalidationSelfTest`, который проверяет first miss, stable hit, child dirty, resize, manual dirty и общий overlay output;
-- no-dependency `BasicControlsSelfTest`, который проверяет TextField focus/editing, Slider pointer/key input и ScrollView bubbled wheel input.
+- no-dependency `BasicControlsSelfTest`, который проверяет TextField focus/editing, selection/clipboard, PasswordField masking, SearchField submit/clear, theme defaults, Slider pointer/key input, ScrollView bubbled wheel input, clip commands, ScrollBar drag binding, ToggleButton/Checkbox, ProgressBar и NumberField.
 
 Следующий практический блок:
 
-1. добавить следующие controls: `ToggleButton`, `Checkbox`, `ProgressBar`, `NumberField`;
-2. добавить Gradle wrapper launcher files, чтобы full build был воспроизводим без локального gradle;
-3. добавить ScrollBar как отдельный интерактивный control и связать его со ScrollView.
+1. вынести TextField editing mechanics в общий `TextEditorModel` для переиспользования в TextInput, PasswordField, NumberField и будущих controls;
+2. добавить lightweight style invalidation/versioning, чтобы смена theme могла массово обновлять attached widget tree;
+3. начать keyboard focus traversal: Tab/Shift+Tab, focus scopes and default focus order.
 
 ---
 
