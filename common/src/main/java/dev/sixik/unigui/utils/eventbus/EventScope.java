@@ -23,7 +23,7 @@ public final class EventScope implements AutoCloseable {
         return new EventScope(false);
     }
 
-    public synchronized <T> EventSubscription listen(EventPtr<T> event, DODEventBus.EventListener<T> listener) {
+    public synchronized <T> EventSubscription listen(EventPtr<T> event, FastEventBus.EventListener<T> listener) {
         Objects.requireNonNull(event, "event");
         Objects.requireNonNull(listener, "listener");
 

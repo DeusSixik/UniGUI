@@ -11,10 +11,10 @@ import java.util.concurrent.atomic.AtomicReferenceArray;
  * Сверхбыстрый Lock-Free EventBus.
  * Не использует рефлексию, не использует хэш-мапы, не создает мусор при диспетчеризации.
  */
-public final class DODEventBus {
+public final class FastEventBus {
 
-    public static final DODEventBus DEFAULT_BUS = new DODEventBus();
-    private static final Logger LOGGER = LoggerFactory.getLogger(DODEventBus.class);
+    public static final FastEventBus DEFAULT_BUS = new FastEventBus();
+    private static final Logger LOGGER = LoggerFactory.getLogger(FastEventBus.class);
 
     /**
      * Глобальный генератор ID для типов событий.
@@ -75,7 +75,7 @@ public final class DODEventBus {
                 }
 
                 closed = true;
-                DODEventBus.this.unsubscribe(type, listener);
+                FastEventBus.this.unsubscribe(type, listener);
             }
         };
     }

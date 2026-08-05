@@ -1258,6 +1258,54 @@ button.onClick(event -> {
 
 Эти изменения не должны ломать текущий event traversal. Они должны попасть в mutation queue и примениться на safe point.
 
+### fastutil collections contract
+
+Для hot path framework использует `it.unimi.dsi.fastutil` как внутренний performance foundation. Приоритет — specialized primitive collections из fastutil; если для конкретной задачи нет подходящего fastutil-решения или участок не является hot path, используется стандартный Java Collections API.
+
+Общее правило выбора:
+
+~~~text
+hot path + primitive key/value      -> fastutil primitive collections
+hot path + object-only storage      -> fastutil object collections, если они реально дают пользу
+public API / моддинг-контракт       -> Java Collections interfaces / Iterable / собственные stable views
+редкий setup/debug/tooling path     -> Java Collections
+нет подходящей fastutil структуры   -> Java Collections
+~~~
+
+Правила:
+
+- fastutil подключается как implementation detail через `it.unimi.dsi:fastutil`; публичный API не должен заставлять пользователей импортировать fastutil classes;
+- в `impl`, `backend`, `widgets` и performance-sensitive subsystems fastutil является предпочтительным вариантом для maps/sets/lists с primitive keys или values: `Int2ObjectMap`, `Long2ObjectMap`, `IntArrayList`, `IntOpenHashSet` и аналоги;
+- в hot path нельзя без причины использовать `HashMap<Integer, ...>`, `Map<Long, ...>`, `List<Integer>` и похожие boxed collections, если есть прямой fastutil-аналог;
+- Java Collections допустимы для стабильных внешних контрактов, маленьких списков, редко изменяемых setup-структур, debug/profiler tooling, тестов и compatibility adapters;
+- если fastutil используется внутри класса, наружу отдаётся `List`, `Collection`, `Iterable`, read-only view или собственный API, а не mutable fastutil container;
+- конвертация fastutil -> Java Collections не должна происходить каждый кадр; если нужен внешний view, он должен быть cached/snapshot-based;
+- конкретный выбор коллекции фиксируется по access pattern: array/list для dense id, primitive map для sparse id, set для membership checks, object collection только если boxing не является проблемой;
+- fallback на Java Collections является осознанным решением, а не default для hot path: причина должна быть очевидна из контекста или комментария в сложном месте.
+
+Event system решение MVP:
+
+- `FastEventBus` является default EventBus implementation для widgets, `UIContext` и внутренних dispatchers;
+- публичный контракт остаётся на уровне `api.event.EventType`, `EventEmitter`, `EventListener`, `EventSubscription`; пользовательский код не обязан напрямую зависеть от `FastEventBus`;
+- `api.event.EventType` может хранить bridge на `FastEventBus.EventType`, чтобы dispatch шёл через int id + array lookup без `HashMap` на кадр;
+- подписки могут быть copy-on-write, потому что они редкие; dispatch должен быть allocation-free или close to allocation-free;
+- listeners не должны менять текущий traversal напрямую: изменения widget tree идут через mutation queue / `UiDispatcher`; FastEventBus отвечает только за доставку event object;
+- cancellation (`event.cancel()`) считается частью event semantics; adapter поверх FastEventBus обязан не вызывать следующие user listeners после отмены, либо делать no-op guard без изменения hot-path структуры;
+- альтернативные EventBus реализации допустимы только для тестов, debug tooling или compatibility adapters, но не как default runtime path.
+
+Практическое решение MVP:
+
+~~~text
+api.event.EventType
+  owns FastEventBus.EventType bridge
+
+impl.event.FastEventEmitter
+  adapts EventEmitter API to FastEventBus
+
+WidgetBase / DefaultUIContext
+  use FastEventEmitter by default
+~~~
+
 ---
 
 ## Animation API
@@ -2187,6 +2235,203 @@ public interface RenderPass {
 
 ---
 
+## Зафиксированные решения для первого этапа
+
+Эти решения принимаются как стартовые. Их можно поменять позже, но первый каркас должен строиться вокруг них.
+
+### Frame lifecycle
+
+Базовый порядок кадра:
+
+~~~text
+beginFrame
+applyQueuedMutations
+input/events
+layout
+animation/tick
+buildDrawList
+batch
+render
+endFrame
+~~~
+
+Правило:
+
+- изменения widget tree применяются только в safe point;
+- события могут поставить add/remove child в очередь, но не ломают текущий traversal;
+- render phase получает стабильный snapshot draw commands;
+- backend не читает mutable widget state напрямую.
+
+### Coordinates and scale
+
+Внутри engine используются logical UI pixels в `float`.
+
+~~~text
+UniGUI core:
+  float logical coordinates
+
+Scale provider:
+  logical UI pixels <-> backend/Minecraft scaled pixels
+
+Backend:
+  округляет/приводит координаты только на render boundary при необходимости
+~~~
+
+Для этого нужен `UIScaleProvider`:
+
+~~~java
+public interface UIScaleProvider {
+    float scale();
+
+    float toBackendPixels(float logicalPixels);
+
+    float toLogicalPixels(float backendPixels);
+}
+~~~
+
+Minecraft GUI scale не должен быть зашит в widgets. Его должен отдавать Minecraft-specific provider/backend.
+
+### Transform and clipping
+
+Transform применяется после layout.
+
+~~~text
+Yoga/custom layout:
+  x, y, width, height
+
+Visual transform:
+  position, scale, rotation, pivot
+
+World transform:
+  parent * local
+
+Hit-test:
+  inverse(world transform)
+~~~
+
+Clipping для MVP:
+
+~~~text
+axis-aligned scissor для обычных containers
+flush/barrier при смене clip
+rotated clipping позже через stencil/mask/render-to-texture
+~~~
+
+То есть rotated widget может рендериться, но сложный rotated clip не обязан быть в MVP.
+
+### Public API and internal API
+
+Сразу разделяем API и implementation:
+
+~~~text
+dev.sixik.unigui.api
+  стабильные интерфейсы и value objects
+
+dev.sixik.unigui.impl
+  внутренние реализации, которые можно менять
+
+dev.sixik.unigui.widgets
+  стандартные widgets
+
+dev.sixik.unigui.backend
+  backend implementations
+~~~
+
+Пользовательские внешние виджеты должны предпочитать `WidgetExtern`, а не наследование от внутренних implementation classes.
+
+### Ownership and lifecycle
+
+Widget tree владеет своими children.
+
+Правила:
+
+- `addChild` передаёт widget под управление parent/root;
+- `removeChild` отсоединяет widget и сбрасывает parent/context;
+- `dispose` вызывается при окончательном удалении subtree/root;
+- GPU resources (`TextureHandle`, `RenderTarget`, `ShaderProgram`) должны иметь явный lifecycle;
+- cached render-to-texture targets принадлежат cache/subtree owner и освобождаются через resource manager.
+
+Для MVP достаточно:
+
+~~~text
+Widget.dispose()
+PanelWidget.addChild/removeChild/clearChildren
+Resource owner позже в render backend
+~~~
+
+### DrawCommand snapshot
+
+DrawCommand не хранит живые ссылки на mutable widget state.
+
+Плохо:
+
+~~~java
+command.transform = widget.transform();
+~~~
+
+Правильно:
+
+~~~java
+command.transform().copyFrom(widget.transform());
+~~~
+
+Или через packed command buffer для hot path.
+
+### Theme/style
+
+Theme/style нужно заложить сразу, но не обязательно строить полный CSS-like движок в MVP.
+
+Минимальный MVP:
+
+~~~text
+Theme
+Style
+StyleKey
+WidgetState: normal / hovered / pressed / disabled / focused / selected / checked
+~~~
+
+Позже можно добавить:
+
+~~~text
+selectors
+style inheritance
+transitions between states
+theme reload
+per-mod theme packs
+~~~
+
+### Text system
+
+На MVP используется Minecraft text renderer через backend/barrier.
+
+Но public API должен быть таким, чтобы позже заменить его на batched text renderer без переписывания widgets.
+
+### Debug and profiler
+
+Нужно заложить debug/profiler как в игровых движках.
+
+MVP flags:
+
+~~~text
+widget bounds
+dirty flags
+draw command count
+batch count
+overdraw debug
+focused/hovered widget
+profiler overlay
+~~~
+
+Profiler должен поддерживать scopes:
+
+~~~java
+try (ProfileScope ignored = profiler.scope("layout")) {
+    // layout work
+}
+~~~
+
+Позже можно добавить overlay в стиле game engine: frame time, layout time, render time, batch count, draw command count, texture cache stats.
+
 ## Минимальный MVP
 
 Не стоит начинать сразу с GraphView и shader graph.
@@ -2222,6 +2467,32 @@ public interface RenderPass {
 27. Cached item/entity preview.
 28. Virtualized ListView/RecyclerView prototype.
 29. GraphView / NodeGraph prototype.
+
+### Текущий checkpoint реализации
+
+В `common` уже заложен первый retained-mode слой:
+
+- core value objects, invalidation flags, `FrameContext`, `UiDispatcher`, `UIContext`;
+- `WidgetBase` и `PanelWidget` с deferred child mutations, snapshot traversal и propagated subtree dirty flags;
+- `RenderContext`, `DrawCommand`, `DrawList`, backend/target/texture/clip abstractions;
+- snapshot `VectorPath` и `PATH` draw command, чтобы `Path` не уходил в immediate render;
+- event API, pointer/keyboard/text/scroll/focus events, минимальный `ButtonClickEvent` и routed dispatch с capture/target/bubble;
+- `HitTester` + `TransformHitTester` для transform-aware hit-test;
+- `SimpleDrawBatcher` для последовательного batching `RECT` и `TEXTURE` команд;
+- `RenderTargetOptions`, `RenderTargetCache`, `WidgetTextureRenderer` и Minecraft `TextureTarget` wrapper для render-to-texture subtree;
+- `UiDebugCounters`, `FrameDebugCounters`, `FrameProfiler` и `DebugOverlayRenderer` для общего profiler/debug overlay с draw/batch/cache counters;
+- `MinecraftGuiRenderBackend`, `MinecraftTextureHandle`, `MinecraftRenderTarget` и `MinecraftWidgetScreen` для первого Minecraft GUI/offscreen render/scissor path;
+- Minecraft backend теперь рендерит rounded rect/circle/path через базовую tessellation, а не только MVP rect/scanline fallback;
+- primitive widgets: `Text`, `Label`, `TextBlock`, `TextureWidget`, `ImageView`, `Shape`, `Border`, `Separator`, `CanvasWidget`, `Path`;
+- basic widgets/layout shells: `Box`, `Button`, `TextField`, `Slider`, `ScrollView` с axis-aligned clip/scissor, `CachedSubtreeWidget` с cache hit/miss counters, общими frame counters и `DebugFlags.CACHED_SUBTREE` overlay, `VBox`, `HBox`, `GridBox`, `Widgets` factory;
+- no-dependency `CachedSubtreeInvalidationSelfTest`, который проверяет first miss, stable hit, child dirty, resize, manual dirty и общий overlay output;
+- no-dependency `BasicControlsSelfTest`, который проверяет TextField focus/editing, Slider pointer/key input и ScrollView bubbled wheel input.
+
+Следующий практический блок:
+
+1. добавить следующие controls: `ToggleButton`, `Checkbox`, `ProgressBar`, `NumberField`;
+2. добавить Gradle wrapper launcher files, чтобы full build был воспроизводим без локального gradle;
+3. добавить ScrollBar как отдельный интерактивный control и связать его со ScrollView.
 
 ---
 
