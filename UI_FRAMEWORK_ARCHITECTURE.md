@@ -141,15 +141,28 @@ dev.sixik.unigui.widgets
   Box
   Text
   Image
+  TextureWidget
+  Shape
+  Border
+  Separator
+  Path
   Button
   ScrollView
   StackPanel
   CanvasWidget
+  controls
+  containers
+  data
+  overlays
+  graph
 
 dev.sixik.unigui.interop
   WidgetHost
   WidgetRenderer
   WidgetTextureRenderer
+  WidgetExtern
+  WidgetExternHost
+  WidgetExternAdapter
   ExternalWidgetWrapper
   MinecraftScreenBridge
 ```
@@ -189,6 +202,105 @@ public interface RenderContext {
     void custom(DrawCommand command);
 }
 ```
+
+---
+
+## WidgetExtern contract
+
+WidgetExtern обязателен как стабильный контракт для внешних пользовательских виджетов.
+
+Идея:
+
+~~~text
+Core widgets:
+  пишутся внутри UniGUI и могут наследоваться от WidgetBase.
+
+WidgetExtern:
+  пишется пользователем/другим модом/интеграцией
+  и подключается к UniGUI через adapter.
+~~~
+
+Это нужно, чтобы любой мод мог создать свой виджет, но не зависел от внутренних классов engine-а, которые могут меняться.
+
+Пример API:
+
+~~~java
+public interface WidgetExtern {
+    void onAttach(WidgetExternHost host);
+
+    void onDetach();
+
+    void measure(ExternMeasureContext context);
+
+    void render(ExternRenderContext context);
+
+    void handle(Event event);
+
+    default void tick(FrameContext frame) {
+    }
+
+    default void dispose() {
+    }
+}
+~~~
+
+Host API:
+
+~~~java
+public interface WidgetExternHost {
+    Widget widget();
+
+    UIContext ui();
+
+    UiDispatcher dispatcher();
+
+    void invalidateLayout();
+
+    void invalidateVisual();
+
+    void invalidateTexture();
+
+    void emit(Event event);
+}
+~~~
+
+Adapter:
+
+~~~java
+public final class WidgetExternAdapter extends WidgetBase {
+    private final WidgetExtern extern;
+}
+~~~
+
+Правила WidgetExtern:
+
+- extern-widget не должен хранить RenderContext после render-вызова;
+- extern-widget не должен напрямую менять children list во время traversal;
+- любые add/remove child должны идти через host/dispatcher и deferred mutation queue;
+- render должен создавать DrawCommands, CanvasCommands или вызывать разрешённый RenderContext API;
+- прямой OpenGL/Minecraft render внутри WidgetExtern допустим только через явный CustomDrawCommand/barrier;
+- WidgetExtern должен получать events через тот же event pipeline, что и обычные widgets;
+- WidgetExtern должен работать в render-to-texture без отдельного специального пути.
+
+WidgetExtern отличается от ExternalWidgetWrapper:
+
+~~~text
+WidgetExtern:
+  внешний код создаёт custom widget для UniGUI.
+
+ExternalWidgetWrapper:
+  UniGUI widget встраивается в UI другого framework-а или другого мода.
+~~~
+
+Оба механизма нужны.
+
+~~~text
+Other mod creates custom UniGUI widget:
+  WidgetExtern -> WidgetExternAdapter -> UniGUI tree
+
+Other mod wants to draw existing UniGUI widget inside its own UI:
+  Widget -> ExternalWidgetWrapper -> foreign UI render
+~~~
 
 ---
 
@@ -1203,6 +1315,750 @@ texture dirty:
 
 ## Будущие виджеты
 
+Framework должен иметь понятную taxonomy виджетов, иначе быстро появятся дубли, которые делают одно и то же, но называются по-разному.
+
+Правило:
+
+~~~text
+Публичный API может иметь удобные aliases.
+Внутри engine должен быть один canonical widget или один общий base class.
+~~~
+
+Например:
+
+~~~text
+TextInput / TextField:
+  можно оставить оба имени как aliases/builders,
+  но внутри это один LineEdit-like widget.
+
+ScrollView / ScrollPanel:
+  можно оставить оба имени,
+  но внутри это один scrollable container.
+
+TabView / TabControl:
+  aliases над одним tab container.
+
+NodeGraph / GraphView:
+  NodeGraph может быть специализацией GraphView.
+~~~
+
+### Widget library layers
+
+Список виджетов лучше делить не на один огромный пакет, а на уровни.
+
+~~~text
+Core primitives:
+  минимальные building blocks, из которых собираются остальные widgets.
+
+Standard controls:
+  обычные controls, которые нужны почти любому UI.
+
+Composite widgets:
+  собраны из primitives/controls и могут жить в standard widgets package.
+
+Optional extension widgets:
+  тяжёлые или платформенно-зависимые widgets, которые лучше делать через WidgetExtern или отдельный module.
+~~~
+
+Так framework не превращается в God-Widget/God-Package, но остаётся удобным.
+
+Общий принцип:
+
+~~~text
+Core должен быть маленьким, стабильным и быстрым.
+Большая библиотека widgets может расти вокруг core.
+Редкие тяжёлые widgets подключаются как extensions.
+~~~
+
+### Game UI widget set
+
+Из предложенного game-framework списка стоит взять не всё одинаково глубоко.
+
+Обязательные core primitives:
+
+~~~text
+Text
+TextureWidget
+ImageView
+Shape
+Border
+Separator
+CanvasWidget
+Path
+Button
+TextField
+ScrollBar
+Slider
+ProgressBar
+Popup
+Tooltip
+Window
+Viewport3D
+Chart
+~~~
+
+Пояснения:
+
+~~~text
+TextureWidget:
+  низкоуровневый widget для TextureHandle, atlas region, icon, item preview texture.
+
+ImageView:
+  более высокий image widget с fit/fill/stretch/tint режимами.
+
+Shape:
+  rect/circle/rounded/line primitive widget для простых декоративных элементов.
+
+Border:
+  decorator widget или primitive для рамок/outline/focus ring.
+
+Separator:
+  тонкая линия/разделитель, может быть Shape alias.
+
+Path:
+  retained vector path widget, полезен для graph edges, curves, charts.
+
+Viewport3D:
+  render target для 3D preview: block, item, entity, model, custom scene.
+
+Chart:
+  Canvas-based виджет, не отдельный rendering backend.
+~~~
+
+Standard/composite widgets, которые стоит держать в основной библиотеке:
+
+~~~text
+CheckBox
+RadioButton
+Switch
+ComboBox
+ListBox
+ListView
+RecyclerView
+TreeView
+DataGrid
+TableView
+PropertyGrid
+ColorPicker
+TabBar
+TabView
+Accordion
+Breadcrumb
+Notification
+Toast
+Dialog
+Card
+Badge
+Chip
+Tag
+Gauge
+Spinner
+ActivityIndicator
+RatingBar
+Knob
+Dial
+SplitButton
+ContextMenu
+PopupMenu
+SearchField
+PasswordField
+RichText
+~~~
+
+Aliases/canonical mapping:
+
+~~~text
+ActivityIndicator -> Spinner / LoadingRing family
+Switch -> ToggleButton specialization
+ListBox -> ListView with selection model
+DataGrid -> TableView with editing/sorting/filtering options
+PopupMenu -> ContextMenu or MenuPopup
+SearchField -> TextField with search affordances
+RichText -> TextBlock with styled spans, links and inline objects
+Gauge -> CanvasWidget/Shape-based progress visualization
+Knob / Dial -> rotary Slider specialization
+Badge / Chip / Tag -> small label-like composite widgets
+~~~
+
+Optional extension widgets:
+
+~~~text
+Calendar
+DatePicker
+MarkdownView
+HTMLView
+PDFViewer
+ImageViewer
+VideoPlayer
+AudioPlayer
+ModelViewer
+TerminalView
+Avatar
+~~~
+
+Почему optional:
+
+~~~text
+Calendar / DatePicker:
+  полезны, но редко нужны в Minecraft/game UI.
+
+MarkdownView:
+  можно сделать поверх RichText, но parser лучше вынести отдельно.
+
+HTMLView / PDFViewer:
+  тяжёлые viewer-ы, не должны раздувать core.
+
+VideoPlayer / AudioPlayer:
+  зависят от codec/backend и лучше живут в extension module.
+
+ModelViewer:
+  может использовать Viewport3D и Minecraft/custom model rendering.
+
+TerminalView:
+  полезен для debug/dev tools, но не для runtime core.
+
+Avatar:
+  обычно composite над TextureWidget/ImageView, можно оставить в optional design widgets.
+~~~
+
+Все optional widgets должны быть реализуемы через WidgetExtern, чтобы сторонний мод или отдельный пакет мог добавить их без переписывания core.
+
+### Layout containers
+
+Базовые layout widgets:
+
+~~~text
+VBox
+HBox
+GridBox
+StackPanel
+DockPanel
+AbsolutePanel
+OverlayPanel
+CanvasPanel
+~~~
+
+Canonical design:
+
+~~~text
+VBox:
+  LinearBox with vertical direction
+
+HBox:
+  LinearBox with horizontal direction
+
+GridBox:
+  grid layout container
+
+StackPanel:
+  simple stack layout, may alias VBox/HBox depending on direction
+
+DockPanel:
+  custom layout strategy
+
+AbsolutePanel:
+  children positioned by explicit x/y
+
+OverlayPanel:
+  children rendered in layers
+
+CanvasPanel:
+  low-level drawable area + optional child hosting
+~~~
+
+Возможный API:
+
+~~~java
+VBox box = Widgets.vbox();
+HBox row = Widgets.hbox();
+GridBox grid = Widgets.grid();
+~~~
+
+Или через один configurable widget:
+
+~~~java
+LinearBox box = new LinearBox(Direction.VERTICAL);
+~~~
+
+### Buttons and state controls
+
+Виджеты:
+
+~~~text
+Button
+ToggleButton
+Switch
+Checkbox
+RadioButton
+Slider
+Knob
+Dial
+ProgressBar
+Spinner
+LoadingRing
+ActivityIndicator
+RatingBar
+SplitButton
+~~~
+
+Canonical design:
+
+~~~text
+Button:
+  clickable semantic action
+
+ToggleButton:
+  button with selected/on/off state
+
+Switch:
+  ToggleButton specialization with switch visual style
+
+Checkbox:
+  boolean toggle with check mark
+
+RadioButton:
+  exclusive selection inside RadioGroup
+
+Slider:
+  numeric value editor with min/max/step
+
+Knob / Dial:
+  rotary Slider specialization
+
+ProgressBar:
+  visual progress indicator
+
+Spinner:
+  indeterminate or determinate activity indicator
+
+LoadingRing:
+  circular spinner; can be alias/specialization of Spinner
+
+ActivityIndicator:
+  alias/family name for Spinner/LoadingRing
+
+RatingBar:
+  discrete rating input, usually stars/icons over ToggleButton-like items
+
+SplitButton:
+  Button + dropdown action menu
+~~~
+
+События:
+
+~~~text
+ButtonClickEvent
+ToggleChangedEvent
+CheckedChangedEvent
+RadioSelectedEvent
+ValueChangedEvent
+ProgressChangedEvent
+~~~
+
+### Text widgets and fields
+
+Виджеты:
+
+~~~text
+Label
+TextBlock
+TextField
+TextInput
+TextArea
+NumberField
+SpinBox
+PasswordField
+KeybindingField
+SearchField
+RichText
+~~~
+
+Canonical design:
+
+~~~text
+Label:
+  simple single-line or lightweight text display
+
+TextBlock:
+  rich/multiline/wrapping text display
+
+TextField / TextInput:
+  single-line editable text input
+
+TextArea:
+  multiline editable text input
+
+NumberField:
+  text input constrained to numeric value
+
+SpinBox:
+  NumberField + increment/decrement buttons
+
+PasswordField:
+  TextField with masked display
+
+KeybindingField:
+  captures keyboard/mouse input and stores binding
+
+SearchField:
+  TextField with search icon, clear button and search events
+
+RichText:
+  TextBlock with styled spans, links, inline images and optional markup source
+~~~
+
+Важно:
+
+- text editing, caret, selection и clipboard лучше вынести в отдельный TextEditorModel;
+- rendering текста можно сначала делать через Minecraft font renderer, потом заменить на batched text renderer;
+- TextField, TextInput, PasswordField, NumberField и KeybindingField должны переиспользовать общий input/editing core.
+
+### Scroll, tabs and collapsible containers
+
+Виджеты:
+
+~~~text
+ScrollView
+ScrollPanel
+ScrollBar
+SplitView
+SplitPane
+TabView
+TabControl
+TabBar
+Foldout
+CollapsiblePanel
+Accordion
+Breadcrumb
+GroupBox
+~~~
+
+Canonical design:
+
+~~~text
+ScrollView / ScrollPanel:
+  one scrollable viewport container
+
+ScrollBar:
+  standalone or internal scrollbar widget
+
+SplitView / SplitPane:
+  resizable two-pane or multi-pane container
+
+TabView / TabControl:
+  tab header + active content panel
+
+TabBar:
+  header-only tab selector, can be part of TabView
+
+Foldout:
+  small expandable section, often header + body
+
+Accordion:
+  group of Foldout/CollapsiblePanel items with optional single-open policy
+
+Breadcrumb:
+  navigation path widget, usually a row of buttons/separators
+
+CollapsiblePanel:
+  larger animated expandable container
+
+GroupBox:
+  visual grouping container with optional title/border
+~~~
+
+Aliases:
+
+~~~text
+ScrollPanel -> ScrollView
+SplitPane -> SplitView
+TabControl -> TabView
+~~~
+
+### Data and collection widgets
+
+Виджеты:
+
+~~~text
+ListView
+ListBox
+RecyclerView
+TreeView
+ComboBox
+Dropdown
+DataGrid
+TableView
+PropertyGrid
+~~~
+
+Canonical design:
+
+~~~text
+ListView:
+  vertical/horizontal item list
+
+ListBox:
+  ListView with built-in selection model
+
+RecyclerView:
+  virtualized ListView for large data
+
+TreeView:
+  hierarchical list with expand/collapse nodes
+
+ComboBox:
+  input/select field + dropdown popup
+
+Dropdown:
+  popup list selector; can be internal part of ComboBox
+
+DataGrid / TableView:
+  tabular data widget with rows/columns
+
+PropertyGrid:
+  inspector-like table for object properties, useful for editors/debug panels
+~~~
+
+Aliases:
+
+~~~text
+Dropdown:
+  low-level popup selector
+
+ComboBox:
+  field-like control that uses Dropdown
+
+DataGrid / TableView:
+  likely same canonical widget unless DataGrid later gets editing/sorting/filtering features
+~~~
+
+Для больших списков и таблиц обязательно нужна virtualization:
+
+~~~text
+visible range calculation
+   ↓
+recycle item renderers
+   ↓
+stable data model index
+   ↓
+only visible widgets/render commands are built
+~~~
+
+Иначе complex UI будет умирать на больших коллекциях.
+
+### Windows, popups and overlays
+
+Виджеты:
+
+~~~text
+Window
+Dialog
+ContextMenu
+PopupMenu
+Menu
+Tooltip
+VanillaTooltip
+Notification
+Toast
+ModalWindow
+~~~
+
+Canonical design:
+
+~~~text
+Window:
+  movable/resizable top-level panel
+
+Dialog / ModalWindow:
+  modal window with focus trap and input barrier
+
+ContextMenu:
+  popup menu anchored to mouse/widget
+
+PopupMenu / Menu:
+  generic menu popup; ContextMenu is a pointer-anchored specialization
+
+Tooltip:
+  UniGUI-rendered tooltip
+
+VanillaTooltip:
+  adapter for Minecraft vanilla tooltip rendering
+
+Notification / Toast:
+  timed overlay message
+~~~
+
+Всё это должно жить в top-level overlay layer:
+
+~~~text
+root content layer
+popup layer
+tooltip layer
+modal layer
+toast/notification layer
+debug layer
+~~~
+
+### Media, color, graph and canvas widgets
+
+Виджеты:
+
+~~~text
+ImageView
+TextureWidget
+TextureRect
+Shape
+Border
+Separator
+Path
+ColorPicker
+Chart
+Gauge
+VideoPlayer
+AudioPlayer
+Viewport3D
+ModelViewer
+ImageViewer
+GraphView
+NodeGraph
+CanvasWidget
+~~~
+
+Canonical design:
+
+~~~text
+ImageView / TextureRect:
+  texture/image drawing widget with fit/fill/stretch modes
+
+TextureWidget:
+  lower-level texture/icon widget around TextureHandle and atlas regions
+
+Shape:
+  simple primitive widget for rects, circles, lines and rounded shapes
+
+Border:
+  decorator or primitive for outlines, focus rings and framed panels
+
+Separator:
+  lightweight horizontal/vertical divider, often Shape alias
+
+Path:
+  retained vector path widget for curves, graph edges and icons
+
+ColorPicker:
+  compound widget for HSV/RGB/alpha selection
+
+Chart / Gauge:
+  Canvas-based data/progress visualization widgets
+
+Viewport3D / ModelViewer:
+  offscreen 3D preview surface for models, items, blocks or entities
+
+VideoPlayer / AudioPlayer / ImageViewer:
+  optional media widgets; should be extension-friendly rather than required core dependencies
+
+GraphView:
+  generic graph/canvas viewport with pan/zoom, culling and spatial index
+
+NodeGraph:
+  specialization of GraphView for node editor workflows
+
+CanvasWidget:
+  low-level immediate-style drawing surface that still outputs DrawCommands
+~~~
+
+Aliases:
+
+~~~text
+TextureWidget -> low-level texture/icon widget
+TextureRect -> ImageView
+NodeGraph -> specialized GraphView
+Gauge -> Chart/Canvas visualization specialization
+ModelViewer -> Viewport3D specialization
+~~~
+
+### Canvas and primitive drawing API
+
+Framework должен позволять не только компоновать готовые widgets, но и рисовать фигуры/примитивы. Для этого нужен CanvasWidget.
+
+Важно: CanvasWidget не должен рисовать сразу через OpenGL. Он тоже должен писать команды в DrawList, чтобы сохранялись batching, render-to-texture, clipping и shader pipeline.
+
+Пример API:
+
+~~~java
+CanvasWidget canvas = new CanvasWidget();
+
+canvas.onDraw(ctx -> {
+    ctx.rect(10, 10, 100, 30, Paint.fill(Color.rgb(40, 40, 40)));
+    ctx.roundedRect(10, 50, 100, 30, 6, Paint.fill(Color.rgb(80, 80, 120)));
+    ctx.line(10, 100, 200, 100, Paint.stroke(Color.white(), 1));
+    ctx.circle(40, 140, 20, Paint.fill(Color.red()));
+    ctx.path(path -> {
+        path.moveTo(10, 180);
+        path.lineTo(80, 220);
+        path.quadTo(120, 120, 180, 180);
+    }, Paint.stroke(Color.green(), 2));
+});
+~~~
+
+Canvas drawing primitives:
+
+~~~text
+rect
+roundedRect
+line
+polyline
+polygon
+circle
+ellipse
+arc
+path
+bezier / quadratic curve
+image
+text
+mesh
+gradient
+shadow
+clip
+mask
+custom shader primitive
+~~~
+
+Canvas use cases:
+
+~~~text
+custom controls
+graph edges
+node backgrounds
+debug overlays
+mini maps
+shader previews
+charts
+progress arcs
+selection rectangles
+custom item slots
+~~~
+
+Canvas должен поддерживать retained и callback modes.
+
+~~~text
+Callback mode:
+  canvas.onDraw(ctx -> ...)
+  удобно для быстрых custom widgets
+
+Retained mode:
+  canvas.commands().add(...)
+  удобно для static geometry, graph edges, cached drawings
+~~~
+
+Для производительности:
+
+- Canvas commands должны попадать в обычный batcher;
+- static Canvas geometry можно кэшировать;
+- complex Canvas можно рендерить в texture;
+- path tessellation лучше кэшировать до изменения geometry;
+- GraphView edges должны использовать Canvas/mesh pipeline, а не тысячи отдельных widgets.
+
 ### DockPanel
 
 DockPanel лучше делать не через Yoga напрямую, а через custom layout strategy:
@@ -1349,14 +2205,23 @@ public interface RenderPass {
 10. RenderTarget abstraction.
 11. Render-to-texture для widget subtree.
 12. WidgetRenderer / ExternalWidgetWrapper для embedding в UI других модов.
-13. Yoga wrapper.
-14. Event system: EventBus, EventEmitter, WidgetEvent, ButtonClickEvent.
-15. Input + transform-aware hit-test.
-16. Basic widgets: Box, Text, Image, Button, PanelWidget.
-17. Animation property system.
-18. Minecraft item/block/entity commands.
-19. Cached item/entity preview.
-20. GraphView prototype.
+13. WidgetExtern / WidgetExternAdapter для внешних пользовательских виджетов.
+14. Yoga wrapper.
+15. Event system: EventBus, EventEmitter, WidgetEvent, ButtonClickEvent.
+16. Input + transform-aware hit-test.
+17. Basic primitives: Text, TextureWidget, ImageView, Shape, Border, Separator, Path.
+18. Basic widgets: Box, Button, PanelWidget.
+19. Basic layout widgets: VBox, HBox, GridBox.
+20. CanvasWidget + primitive drawing API.
+21. Basic controls: ToggleButton, Switch, Checkbox, Slider, ProgressBar, Spinner.
+22. Basic text inputs: TextField/TextInput, NumberField, PasswordField, SearchField.
+23. ScrollView + ScrollBar.
+24. Window/Popup/Tooltip basics.
+25. Animation property system.
+26. Minecraft item/block/entity commands.
+27. Cached item/entity preview.
+28. Virtualized ListView/RecyclerView prototype.
+29. GraphView / NodeGraph prototype.
 
 ---
 
@@ -1377,7 +2242,13 @@ public interface RenderPass {
 - можно отрендерить widget subtree в texture;
 - эту texture можно потом использовать как обычную image command;
 - widget subtree можно встроить в чужой widget через direct render или render-to-texture wrapper;
+- WidgetExtern может быть подключён через adapter и участвовать в layout/events/render-to-texture;
 - button click и другие действия проходят через Event API;
+- VBox/HBox/GridBox могут раскладывать children через общий layout pipeline;
+- CanvasWidget может добавлять primitive draw commands без immediate OpenGL render;
+- TextureWidget/ImageView могут рисовать icon/texture/atlas region через общий batching pipeline;
+- Shape/Border/Separator/Path не создают отдельный render path, а используют Canvas/DrawCommand primitives;
+- базовые aliases не плодят разные реализации одного и того же widget-а;
 - Minecraft-specific API не протекает в core widget classes.
 
 ---
@@ -1445,6 +2316,7 @@ retained widgets
 + mutable value objects with controlled invalidation
 + deferred widget mutations
 + event-driven interaction model
++ WidgetExtern for external custom widgets
 + external widget embedding
 + transform-aware input
 + animation system
