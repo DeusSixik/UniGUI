@@ -155,7 +155,12 @@ public class MinecraftWidgetScreen extends Screen {
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         return hit(mouseX, mouseY)
                 .map(hit -> {
-                    uiContext.focusManager().requestFocus(hit.widget());
+                    Widget focusTarget = nearestFocusable(hit.widget());
+                    if (focusTarget == null) {
+                        uiContext.focusManager().clearFocus();
+                    } else {
+                        uiContext.focusManager().requestFocus(focusTarget);
+                    }
                     PointerPressedEvent event = new PointerPressedEvent(
                             hit.widget(),
                             (float) mouseX,
@@ -322,6 +327,17 @@ public class MinecraftWidgetScreen extends Screen {
             case 4 -> PointerButton.FORWARD;
             default -> PointerButton.UNKNOWN;
         };
+    }
+
+    private static Widget nearestFocusable(Widget widget) {
+        Widget current = widget;
+        while (current != null) {
+            if (current.enabled() && current.visible() && current.focusable()) {
+                return current;
+            }
+            current = current.parent();
+        }
+        return null;
     }
 
     private static FocusDirection focusDirection(int keyCode) {

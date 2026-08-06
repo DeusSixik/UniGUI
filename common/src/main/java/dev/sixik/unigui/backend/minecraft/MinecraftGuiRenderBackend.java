@@ -80,6 +80,11 @@ public final class MinecraftGuiRenderBackend implements RenderBackend {
     }
 
     @Override
+    public float measureTextWidth(String text) {
+        return text == null || text.isEmpty() ? 0.0f : minecraft.font.width(text);
+    }
+
+    @Override
     public RenderTarget createRenderTarget(int width, int height, RenderTargetOptions options) {
         return new MinecraftRenderTarget(width, height, options);
     }

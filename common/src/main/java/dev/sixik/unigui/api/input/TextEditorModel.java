@@ -41,6 +41,14 @@ public final class TextEditorModel {
         return hasSelection() ? Math.max(selectionAnchor, selectionFocus) : cursorIndex;
     }
 
+    public int selectionAnchor() {
+        return selectionAnchor;
+    }
+
+    public int selectionFocus() {
+        return selectionFocus;
+    }
+
     public boolean hasSelection() {
         return selectionAnchor >= 0 && selectionFocus >= 0 && selectionAnchor != selectionFocus;
     }
@@ -52,12 +60,24 @@ public final class TextEditorModel {
     public boolean select(int start, int end) {
         int normalizedAnchor = clamp(start, 0, text.length());
         int normalizedFocus = clamp(end, 0, text.length());
-        int normalizedCursor = Math.max(normalizedAnchor, normalizedFocus);
+        int normalizedCursor = normalizedFocus;
         boolean changed = selectionAnchor != normalizedAnchor || selectionFocus != normalizedFocus || cursorIndex != normalizedCursor;
         selectionAnchor = normalizedAnchor;
         selectionFocus = normalizedFocus;
         cursorIndex = normalizedCursor;
         return changed;
+    }
+
+    public boolean moveCursor(int cursorIndex, boolean extendSelection) {
+        int clamped = clamp(cursorIndex, 0, text.length());
+        if (extendSelection) {
+            int anchor = selectionAnchor >= 0 ? selectionAnchor : this.cursorIndex;
+            return select(anchor, clamped);
+        }
+
+        boolean changed = this.cursorIndex != clamped;
+        this.cursorIndex = clamped;
+        return clearSelection() || changed;
     }
 
     public boolean selectAll() {

@@ -1,6 +1,7 @@
 package dev.sixik.unigui.tests;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.event.KeyPressedEvent;
 import dev.sixik.unigui.api.event.PointerEnteredEvent;
 import dev.sixik.unigui.api.event.PointerExitedEvent;
@@ -27,6 +28,8 @@ import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.render.DrawCommandType;
 import dev.sixik.unigui.api.render.DrawList;
+import dev.sixik.unigui.api.render.RenderBackend;
+import dev.sixik.unigui.api.render.RenderTarget;
 import dev.sixik.unigui.api.selection.SelectionMode;
 import dev.sixik.unigui.api.sort.SortDirection;
 import dev.sixik.unigui.api.style.MutableStyle;
@@ -34,6 +37,7 @@ import dev.sixik.unigui.api.style.MutableTheme;
 import dev.sixik.unigui.api.style.StyleKey;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
+import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.virtualization.FixedRowVirtualizer;
 import dev.sixik.unigui.api.virtualization.VirtualRange;
@@ -75,8 +79,10 @@ public final class BasicControlsSelfTest {
     private void run() {
         testTextEditorModelCore();
         testTextInputShellAndTextFieldChrome();
+        testTextOverflowModes();
         testTextFieldFocusAndEditing();
         testTextFieldSelectionAndClipboard();
+        testTextInputClippingMetricsAndSelection();
         testPasswordAndSearchFields();
         testDefaultThemeContracts();
         testStyleInheritanceAndScopes();
@@ -146,6 +152,37 @@ public final class BasicControlsSelfTest {
         expect(new PasswordField() instanceof TextInput, "PasswordField should reuse TextInput shell directly");
         expect(new NumberField() instanceof TextInput, "NumberField should reuse TextInput shell directly");
         expect(new SearchField() instanceof TextInput, "SearchField should reuse TextInput shell directly");
+    }
+
+    private void testTextOverflowModes() {
+        TextBlock clipped = new TextBlock("abcdefghijklmnop");
+        clipped.overflowMode(TextOverflowMode.CLIP);
+        clipped.arrange(new MutableRect(0.0f, 0.0f, 30.0f, 12.0f));
+        DrawList clippedDrawList = new DrawList();
+        clipped.render(new DefaultRenderContext(clippedDrawList));
+        expect(clippedDrawList.commands().get(0).type() == DrawCommandType.PUSH_CLIP,
+                "TextWidget CLIP overflow should push a clip before text");
+        expect(hasCommand(clippedDrawList, DrawCommandType.POP_CLIP),
+                "TextWidget CLIP overflow should pop its clip");
+
+        TextBlock shrink = new TextBlock("abcdefghijklmnop");
+        shrink.overflowMode(TextOverflowMode.SHRINK_TO_FIT);
+        shrink.arrange(new MutableRect(0.0f, 0.0f, 24.0f, 12.0f));
+        DrawList shrinkDrawList = new DrawList();
+        shrink.render(new DefaultRenderContext(shrinkDrawList));
+        int shrinkTextIndex = firstCommandIndex(shrinkDrawList, DrawCommandType.TEXT, 0);
+        expect(shrinkTextIndex >= 0 && shrinkDrawList.commands().get(shrinkTextIndex).transform().scale().x() < 1.0f,
+                "TextWidget SHRINK_TO_FIT should scale overflowing text down");
+
+        TextBlock marquee = new TextBlock("abcdefghijklmnop");
+        marquee.overflowMode(TextOverflowMode.MARQUEE_ON_HOVER).marqueeSpeed(30.0f);
+        marquee.arrange(new MutableRect(0.0f, 0.0f, 30.0f, 12.0f));
+        marquee.handle(new PointerEnteredEvent(marquee, 1.0f, 1.0f, 1.0f, 1.0f, 0));
+        marquee.tick(new FrameContext(1, 0.5f, 0.0f, dev.sixik.unigui.api.core.FramePhase.RENDER));
+        DrawList marqueeDrawList = new DrawList();
+        marquee.render(new DefaultRenderContext(marqueeDrawList));
+        expect(marqueeDrawList.commands().stream().filter(command -> command.type() == DrawCommandType.TEXT).count() == 2,
+                "TextWidget MARQUEE_ON_HOVER should draw a wrapped marquee copy while hovered");
     }
 
     private void testTextFieldFocusAndEditing() {
@@ -220,6 +257,65 @@ public final class BasicControlsSelfTest {
         int selectionRectIndex = firstCommandIndex(selectedDrawList, DrawCommandType.RECT, 1);
         int textIndex = firstCommandIndex(selectedDrawList, DrawCommandType.TEXT, 0);
         expect(selectionRectIndex >= 0 && textIndex > selectionRectIndex, "TextField should draw selection highlight under text");
+    }
+
+    private void testTextInputClippingMetricsAndSelection() {
+        DefaultUIContext uiContext = new DefaultUIContext();
+        TextField measuredField = new TextField("abcde");
+        measuredField.setUiContextInternal(uiContext);
+        measuredField.arrange(new MutableRect(0.0f, 0.0f, 120.0f, 18.0f));
+        uiContext.focusManager().requestFocus(measuredField);
+        measuredField.cursorIndex(measuredField.text().length());
+
+        DrawList measuredDrawList = new DrawList();
+        measuredField.render(new DefaultRenderContext(measuredDrawList).backend(new FixedTextMetricsBackend(2.0f)));
+        int caretIndex = lastCommandIndex(measuredDrawList, DrawCommandType.RECT);
+        expect(caretIndex >= 0 && near(measuredDrawList.commands().get(caretIndex).bounds().x(), 14.0f),
+                "TextInput caret should use backend text metrics instead of fixed approximate width");
+
+        TextField longField = new TextField("abcdefghijklmnopqrstuvwxyz");
+        longField.setUiContextInternal(uiContext);
+        longField.arrange(new MutableRect(0.0f, 0.0f, 50.0f, 18.0f));
+        uiContext.focusManager().requestFocus(longField);
+        longField.cursorIndex(longField.text().length());
+        DrawList longDrawList = new DrawList();
+        longField.render(new DefaultRenderContext(longDrawList));
+        int textIndex = firstCommandIndex(longDrawList, DrawCommandType.TEXT, 0);
+        int longCaretIndex = lastCommandIndex(longDrawList, DrawCommandType.RECT);
+        expect(firstCommandIndex(longDrawList, DrawCommandType.PUSH_CLIP, 0) < textIndex
+                        && firstCommandIndex(longDrawList, DrawCommandType.POP_CLIP, textIndex) > textIndex,
+                "TextInput should clip long text inside its text viewport");
+        expect(longCaretIndex >= 0 && longDrawList.commands().get(longCaretIndex).bounds().x() <= 46.0f,
+                "TextInput should horizontally scroll to keep the caret inside the viewport");
+
+        TextField shiftField = new TextField("abcd");
+        shiftField.setUiContextInternal(uiContext);
+        shiftField.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 18.0f));
+        uiContext.focusManager().requestFocus(shiftField);
+        shiftField.cursorIndex(2);
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(shiftField, KeyCodes.RIGHT, 0, KeyModifiers.SHIFT));
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(shiftField, KeyCodes.RIGHT, 0, KeyModifiers.SHIFT));
+        expect(shiftField.hasSelection() && shiftField.selectedText().equals("cd") && shiftField.cursorIndex() == 4,
+                "Shift+Right should extend TextInput selection from the caret");
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(shiftField, KeyCodes.LEFT, 0, KeyModifiers.SHIFT));
+        expect(shiftField.hasSelection() && shiftField.selectedText().equals("c") && shiftField.cursorIndex() == 3,
+                "Shift+Left should contract TextInput selection toward the anchor");
+
+        TextField dragField = new TextField("abcdef");
+        dragField.setUiContextInternal(uiContext);
+        dragField.arrange(new MutableRect(0.0f, 0.0f, 120.0f, 18.0f));
+        DrawList dragWarmup = new DrawList();
+        dragField.render(new DefaultRenderContext(dragWarmup));
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(dragField, 4.0f, 8.0f, 4.0f, 8.0f, 0, PointerButton.PRIMARY));
+        uiContext.routedEvents().dispatch(new PointerMovedEvent(dragField, 22.0f, 8.0f, 22.0f, 8.0f, 0));
+        expect(dragField.hasSelection() && dragField.selectedText().equals("abc"),
+                "Dragging inside TextInput should select the covered character range");
+        uiContext.routedEvents().dispatch(new PointerReleasedEvent(dragField, 22.0f, 8.0f, 22.0f, 8.0f, 0, PointerButton.PRIMARY));
+        expect(uiContext.capturedPointer(0) == null, "TextInput should release pointer capture after drag selection");
+
+        dragField.select(0, 2);
+        uiContext.focusManager().clearFocus();
+        expect(!dragField.focused() && !dragField.hasSelection(), "TextInput should clear selection when focus is lost");
     }
 
     private void testPasswordAndSearchFields() {
@@ -1227,6 +1323,15 @@ public final class BasicControlsSelfTest {
         return -1;
     }
 
+    private static int lastCommandIndex(DrawList drawList, DrawCommandType type) {
+        for (int i = drawList.commands().size() - 1; i >= 0; i--) {
+            if (drawList.commands().get(i).type() == type) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     private static boolean hasCommand(DrawList drawList, DrawCommandType type) {
         return drawList.commands().stream().anyMatch(command -> command.type() == type);
     }
@@ -1262,6 +1367,31 @@ public final class BasicControlsSelfTest {
     private static void expect(boolean condition, String message) {
         if (!condition) {
             throw new AssertionError(message);
+        }
+    }
+
+    private static final class FixedTextMetricsBackend implements RenderBackend {
+        private final float charWidth;
+
+        private FixedTextMetricsBackend(float charWidth) {
+            this.charWidth = charWidth;
+        }
+
+        @Override
+        public float measureTextWidth(String text) {
+            return text == null ? 0.0f : text.length() * charWidth;
+        }
+
+        @Override
+        public void beginFrame(FrameContext frame) {
+        }
+
+        @Override
+        public void render(DrawList drawList, RenderTarget target) {
+        }
+
+        @Override
+        public void endFrame() {
         }
     }
 

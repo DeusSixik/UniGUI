@@ -7,6 +7,7 @@ import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.selection.SelectionMode;
 import dev.sixik.unigui.api.sort.SortDirection;
+import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.backend.minecraft.MinecraftClipboardService;
 import dev.sixik.unigui.backend.minecraft.MinecraftWidgetScreen;
@@ -83,6 +84,7 @@ public final class TestCommands {
         Separator navSeparator = new Separator();
         navSeparator.preferredSize(LayoutConstraints.AUTO, 1.0f).margin(0.0f, 2.0f).grow(0.0f);
         TextBlock navHint = new TextBlock("Wheel list/table. Click headers to sort.");
+        navHint.overflowMode(TextOverflowMode.MARQUEE_ON_HOVER);
         navHint.preferredSize(LayoutConstraints.AUTO, 40.0f).grow(0.0f);
         nav.addChild(navTitle);
         nav.addChild(dashboard);

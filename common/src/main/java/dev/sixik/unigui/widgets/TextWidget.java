@@ -1,11 +1,14 @@
 package dev.sixik.unigui.widgets;
 
+import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.math.Transform;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 
@@ -18,6 +21,10 @@ public class TextWidget extends WidgetBase {
     private String text = "";
     private final MutableColor color = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private boolean wrap;
+    private TextOverflowMode overflowMode = TextOverflowMode.VISIBLE;
+    private float marqueeSpeed = 24.0f;
+    private float marqueeGap = 24.0f;
+    private float marqueeOffset;
 
     public TextWidget() {
         color.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
@@ -55,6 +62,55 @@ public class TextWidget extends WidgetBase {
         return this;
     }
 
+    public TextOverflowMode overflowMode() {
+        return overflowMode;
+    }
+
+    public TextWidget overflowMode(TextOverflowMode overflowMode) {
+        TextOverflowMode normalized = overflowMode == null ? TextOverflowMode.VISIBLE : overflowMode;
+        if (this.overflowMode == normalized) return this;
+        this.overflowMode = normalized;
+        marqueeOffset = 0.0f;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public TextWidget clipOverflow() {
+        return overflowMode(TextOverflowMode.CLIP);
+    }
+
+    public TextWidget shrinkToFit() {
+        return overflowMode(TextOverflowMode.SHRINK_TO_FIT);
+    }
+
+    public TextWidget marqueeOnHover() {
+        return overflowMode(TextOverflowMode.MARQUEE_ON_HOVER);
+    }
+
+    public float marqueeSpeed() {
+        return marqueeSpeed;
+    }
+
+    public TextWidget marqueeSpeed(float marqueeSpeed) {
+        float normalized = Math.max(0.0f, marqueeSpeed);
+        if (this.marqueeSpeed == normalized) return this;
+        this.marqueeSpeed = normalized;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public float marqueeGap() {
+        return marqueeGap;
+    }
+
+    public TextWidget marqueeGap(float marqueeGap) {
+        float normalized = Math.max(0.0f, marqueeGap);
+        if (this.marqueeGap == normalized) return this;
+        this.marqueeGap = normalized;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
     @Override
     public void measure(LayoutContext context) {
         if (visibility() == dev.sixik.unigui.api.widget.Visibility.COLLAPSED) {
@@ -67,6 +123,47 @@ public class TextWidget extends WidgetBase {
     @Override
     public void render(RenderContext context) {
         if (text.isEmpty()) return;
+        switch (overflowMode) {
+            case CLIP -> renderClipped(context);
+            case SHRINK_TO_FIT -> renderShrinkToFit(context);
+            case MARQUEE_ON_HOVER -> renderMarquee(context);
+            case VISIBLE -> renderVisible(context);
+        }
+    }
+
+    @Override
+    public void tick(FrameContext frame) {
+        if (overflowMode != TextOverflowMode.MARQUEE_ON_HOVER || !hovered() || text.isEmpty()) {
+            if (marqueeOffset != 0.0f) {
+                marqueeOffset = 0.0f;
+                invalidate(InvalidationFlags.VISUAL);
+            }
+            return;
+        }
+
+        float textWidth = TextEngine.measureLineWidth(text);
+        if (textWidth <= Math.max(0.0f, layoutBounds().width())) {
+            if (marqueeOffset != 0.0f) {
+                marqueeOffset = 0.0f;
+                invalidate(InvalidationFlags.VISUAL);
+            }
+            return;
+        }
+
+        float deltaSeconds = frame == null || frame.deltaSeconds() <= 0.0f ? 1.0f / 60.0f : frame.deltaSeconds();
+        marqueeOffset += marqueeSpeed * deltaSeconds;
+        float period = Math.max(1.0f, textWidth + marqueeGap);
+        if (marqueeOffset >= period) {
+            marqueeOffset %= period;
+        }
+        invalidate(InvalidationFlags.VISUAL);
+    }
+
+    protected Alignment textVerticalAlignment() {
+        return Alignment.CENTER;
+    }
+
+    private void renderVisible(RenderContext context) {
         TextEngine.draw(context,
                 text,
                 layoutBounds().x(),
@@ -79,8 +176,58 @@ public class TextWidget extends WidgetBase {
                 textVerticalAlignment());
     }
 
-    protected Alignment textVerticalAlignment() {
-        return Alignment.CENTER;
+    private void renderClipped(RenderContext context) {
+        context.pushClip(layoutBounds().x(), layoutBounds().y(), layoutBounds().width(), layoutBounds().height());
+        renderVisible(context);
+        context.popClip();
+    }
+
+    private void renderShrinkToFit(RenderContext context) {
+        float availableWidth = Math.max(0.0f, layoutBounds().width());
+        float availableHeight = Math.max(0.0f, layoutBounds().height());
+        float textWidth = TextEngine.measureLineWidth(context, text);
+        float scale = textWidth <= 0.0f || availableWidth <= 0.0f ? 1.0f : Math.min(1.0f, availableWidth / textWidth);
+        float textHeight = Math.min(availableHeight, LINE_HEIGHT * scale);
+        float drawY = TextEngine.alignedStart(layoutBounds().y(), availableHeight, textHeight, textVerticalAlignment());
+        Transform scaled = scaledTransform(scale);
+        context.pushClip(layoutBounds().x(), layoutBounds().y(), availableWidth, availableHeight);
+        context.text(text,
+                layoutBounds().x(),
+                drawY,
+                textWidth,
+                LINE_HEIGHT,
+                Paint.fill(color),
+                scaled);
+        context.popClip();
+    }
+
+    private void renderMarquee(RenderContext context) {
+        float availableWidth = Math.max(0.0f, layoutBounds().width());
+        float availableHeight = Math.max(0.0f, layoutBounds().height());
+        float textWidth = TextEngine.measureLineWidth(context, text);
+        if (textWidth <= availableWidth) {
+            renderVisible(context);
+            return;
+        }
+
+        float textHeight = Math.min(availableHeight, LINE_HEIGHT);
+        float drawY = TextEngine.alignedStart(layoutBounds().y(), availableHeight, textHeight, textVerticalAlignment());
+        float period = Math.max(1.0f, textWidth + marqueeGap);
+        float offset = hovered() ? marqueeOffset % period : 0.0f;
+        float firstX = layoutBounds().x() - offset;
+
+        context.pushClip(layoutBounds().x(), layoutBounds().y(), availableWidth, availableHeight);
+        context.text(text, firstX, drawY, textWidth, textHeight, Paint.fill(color), transform());
+        if (hovered()) {
+            context.text(text, firstX + textWidth + marqueeGap, drawY, textWidth, textHeight, Paint.fill(color), transform());
+        }
+        context.popClip();
+    }
+
+    private Transform scaledTransform(float scale) {
+        Transform scaled = transform().copy();
+        scaled.scale().set(transform().scale().x() * scale, transform().scale().y() * scale);
+        return scaled;
     }
 
     private static String normalize(String text) {

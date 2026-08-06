@@ -37,6 +37,11 @@ public class SearchField extends TextInput {
     }
 
     @Override
+    protected float rightTextPadding() {
+        return super.rightTextPadding() + (text().isEmpty() ? 0.0f : CLEAR_ZONE_WIDTH);
+    }
+
+    @Override
     public void handle(Event event) {
         if (event instanceof PointerEvent pointerEvent && pointerEvent.phase() == EventPhase.CAPTURE) return;
         if (event instanceof PointerPressedEvent pointer

@@ -10,7 +10,9 @@ import dev.sixik.unigui.api.event.FocusGainedEvent;
 import dev.sixik.unigui.api.event.FocusLostEvent;
 import dev.sixik.unigui.api.event.KeyPressedEvent;
 import dev.sixik.unigui.api.event.PointerEvent;
+import dev.sixik.unigui.api.event.PointerMovedEvent;
 import dev.sixik.unigui.api.event.PointerPressedEvent;
+import dev.sixik.unigui.api.event.PointerReleasedEvent;
 import dev.sixik.unigui.api.event.TextChangedEvent;
 import dev.sixik.unigui.api.event.TextInputEvent;
 import dev.sixik.unigui.api.input.KeyCodes;
@@ -24,12 +26,13 @@ import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.impl.text.TextEngine;
 
 import java.util.Objects;
 
 public class TextInput extends Box {
     protected static final float TEXT_PADDING = 4.0f;
-    protected static final float APPROX_CHAR_WIDTH = 6.0f;
+    protected static final float APPROX_CHAR_WIDTH = TextEngine.APPROX_CHAR_WIDTH;
 
     private final TextEditorModel editor = new TextEditorModel();
     private final MutableColor textColor = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -37,6 +40,12 @@ public class TextInput extends Box {
     private final MutableColor caretColor = new MutableColor(0.25f, 0.78f, 1.0f, 1.0f);
     private String placeholder = "";
     private boolean focused;
+    private boolean selectingWithPointer;
+    private int pointerSelectionAnchor;
+    private float horizontalScrollPixels;
+    private String measuredDisplayText = "";
+    private Object measuredMetricsSource;
+    private float[] measuredPrefixWidths = new float[]{0.0f};
 
     public TextInput() {
         focusable(true);
@@ -170,7 +179,9 @@ public class TextInput extends Box {
             return;
         }
         String measuredText = displayText();
-        float width = measuredText.codePointCount(0, measuredText.length()) * APPROX_CHAR_WIDTH + TEXT_PADDING * 2.0f;
+        float width = measuredText.codePointCount(0, measuredText.length()) * APPROX_CHAR_WIDTH
+                + leftTextPadding()
+                + rightTextPadding();
         setDesiredSize(resolveDesiredSize(context, width, 18.0f));
     }
 
@@ -199,6 +210,12 @@ public class TextInput extends Box {
             return;
         }
         if (event instanceof FocusLostEvent) {
+            selectingWithPointer = false;
+            UIContext context = uiContext();
+            if (context != null) {
+                context.releasePointer(0, this);
+            }
+            clearSelection();
             setFocused(false);
             return;
         }
@@ -211,8 +228,29 @@ public class TextInput extends Box {
             } else {
                 setFocused(true);
             }
-            cursorIndex(Math.round(Math.max(0.0f, pointer.localX() - TEXT_PADDING) / APPROX_CHAR_WIDTH));
-            clearSelection();
+            int cursor = indexAtLocalX(pointer.localX());
+            moveCursor(cursor, false);
+            pointerSelectionAnchor = cursor;
+            selectingWithPointer = true;
+            if (context != null) {
+                context.capturePointer(pointer.pointerId(), this);
+            }
+            event.cancel();
+            return;
+        }
+
+        if (event instanceof PointerMovedEvent pointer && selectingWithPointer) {
+            moveCursor(indexAtLocalX(pointer.localX()), true, pointerSelectionAnchor);
+            event.cancel();
+            return;
+        }
+
+        if (event instanceof PointerReleasedEvent pointer && selectingWithPointer) {
+            selectingWithPointer = false;
+            UIContext context = uiContext();
+            if (context != null) {
+                context.releasePointer(pointer.pointerId(), this);
+            }
             event.cancel();
             return;
         }
@@ -237,38 +275,51 @@ public class TextInput extends Box {
 
     protected void renderTextInput(RenderContext context) {
         String visibleText = displayText();
-        if (hasSelection()) {
+        updateMeasuredPrefixWidths(context, visibleText);
+        ensureCursorVisible(context, visibleText);
+
+        float viewportX = textViewportX();
+        float viewportY = layoutBounds().y() + 3.0f;
+        float viewportWidth = textViewportWidth();
+        float viewportHeight = Math.max(1.0f, layoutBounds().height() - 6.0f);
+        float textY = layoutBounds().y() + 4.0f;
+
+        context.pushClip(viewportX, viewportY, viewportWidth, viewportHeight);
+
+        if (focused && hasSelection() && !isShowingPlaceholder()) {
             int start = selectionStart();
             int end = selectionEnd();
-            float selectionX = layoutBounds().x() + TEXT_PADDING + start * APPROX_CHAR_WIDTH;
-            float selectionWidth = Math.max(1.0f, (end - start) * APPROX_CHAR_WIDTH);
+            float selectionX = viewportX + prefixWidth(start) - horizontalScrollPixels;
+            float selectionWidth = Math.max(1.0f, prefixWidth(end) - prefixWidth(start));
             context.rect(selectionX,
-                    layoutBounds().y() + 3.0f,
+                    viewportY,
                     selectionWidth,
-                    Math.max(1.0f, layoutBounds().height() - 6.0f),
+                    viewportHeight,
                     Paint.fill(caretColor),
                     transform());
         }
 
         if (!visibleText.isEmpty()) {
             context.text(visibleText,
-                    layoutBounds().x() + TEXT_PADDING,
-                    layoutBounds().y() + 4.0f,
-                    Math.max(0.0f, layoutBounds().width() - TEXT_PADDING * 2.0f),
+                    viewportX - horizontalScrollPixels,
+                    textY,
+                    Math.max(viewportWidth, measuredTextWidth()),
                     Math.max(0.0f, layoutBounds().height() - 8.0f),
                     Paint.fill(text().isEmpty() ? placeholderColor : textColor),
                     transform());
         }
 
         if (focused) {
-            float caretX = layoutBounds().x() + TEXT_PADDING + cursorIndex() * APPROX_CHAR_WIDTH;
+            float caretX = viewportX + prefixWidth(cursorIndex()) - horizontalScrollPixels;
             context.rect(caretX,
-                    layoutBounds().y() + 3.0f,
+                    viewportY,
                     1.0f,
-                    Math.max(1.0f, layoutBounds().height() - 6.0f),
+                    viewportHeight,
                     Paint.fill(caretColor),
                     transform());
         }
+
+        context.popClip();
     }
 
     protected String displayText() {
@@ -279,11 +330,114 @@ public class TextInput extends Box {
         return text().isEmpty() && !placeholder.isEmpty();
     }
 
+    protected float leftTextPadding() {
+        return TEXT_PADDING;
+    }
+
+    protected float rightTextPadding() {
+        return TEXT_PADDING;
+    }
+
+    protected float textViewportX() {
+        return layoutBounds().x() + leftTextPadding();
+    }
+
+    protected float textViewportWidth() {
+        return Math.max(0.0f, layoutBounds().width() - leftTextPadding() - rightTextPadding());
+    }
+
+    private void updateMeasuredPrefixWidths(RenderContext context, String displayText) {
+        String measured = displayText == null ? "" : displayText;
+        Object metricsSource = context == null ? null : context.backend();
+        if (measured.equals(measuredDisplayText)
+                && measuredMetricsSource == metricsSource
+                && measuredPrefixWidths.length == measured.length() + 1) {
+            return;
+        }
+        measuredDisplayText = measured;
+        measuredMetricsSource = metricsSource;
+        measuredPrefixWidths = new float[measured.length() + 1];
+        for (int i = 1; i <= measured.length(); i++) {
+            measuredPrefixWidths[i] = TextEngine.measureLineWidth(context, measured.substring(0, i));
+        }
+    }
+
+    private void ensureCursorVisible(RenderContext context, String displayText) {
+        if (isShowingPlaceholder() || text().isEmpty()) {
+            horizontalScrollPixels = 0.0f;
+            return;
+        }
+
+        float viewportWidth = textViewportWidth();
+        float textWidth = measuredTextWidth();
+        if (viewportWidth <= 0.0f || textWidth <= viewportWidth) {
+            horizontalScrollPixels = 0.0f;
+            return;
+        }
+
+        float caret = prefixWidth(cursorIndex());
+        if (caret - horizontalScrollPixels > viewportWidth) {
+            horizontalScrollPixels = caret - viewportWidth + 1.0f;
+        } else if (caret - horizontalScrollPixels < 0.0f) {
+            horizontalScrollPixels = caret;
+        }
+        horizontalScrollPixels = clamp(horizontalScrollPixels, 0.0f, Math.max(0.0f, textWidth - viewportWidth));
+    }
+
+    private float measuredTextWidth() {
+        return measuredPrefixWidths.length == 0 ? 0.0f : measuredPrefixWidths[measuredPrefixWidths.length - 1];
+    }
+
+    private float prefixWidth(int index) {
+        int clamped = Math.max(0, Math.min(index, measuredPrefixWidths.length - 1));
+        return measuredPrefixWidths[clamped];
+    }
+
+    private int indexAtLocalX(float localX) {
+        if (text().isEmpty()) return 0;
+        String displayText = displayText();
+        float x = Math.max(0.0f, localX - leftTextPadding() + horizontalScrollPixels);
+        if (displayText.equals(measuredDisplayText) && measuredPrefixWidths.length == displayText.length() + 1) {
+            for (int i = 0; i < displayText.length(); i++) {
+                float midpoint = (measuredPrefixWidths[i] + measuredPrefixWidths[i + 1]) * 0.5f;
+                if (x < midpoint) return i;
+            }
+            return displayText.length();
+        }
+        return Math.max(0, Math.min(displayText.length(), Math.round(x / APPROX_CHAR_WIDTH)));
+    }
+
+    private void moveCursor(int cursorIndex, boolean extendSelection) {
+        if (editor.moveCursor(cursorIndex, extendSelection)) {
+            invalidate(InvalidationFlags.VISUAL);
+        }
+    }
+
+    private void moveCursor(int cursorIndex, boolean extendSelection, int selectionAnchor) {
+        boolean changed = extendSelection
+                ? editor.select(selectionAnchor, cursorIndex)
+                : editor.moveCursor(cursorIndex, false);
+        if (changed) {
+            invalidate(InvalidationFlags.VISUAL);
+        }
+    }
+
+    private int previousCursorIndex() {
+        if (cursorIndex() <= 0 || text().isEmpty()) return 0;
+        return text().offsetByCodePoints(cursorIndex(), -1);
+    }
+
+    private int nextCursorIndex() {
+        if (cursorIndex() >= text().length() || text().isEmpty()) return text().length();
+        return text().offsetByCodePoints(cursorIndex(), 1);
+    }
+
     private boolean handleKey(int keyCode, int modifiers) {
         if (KeyModifiers.has(modifiers, KeyModifiers.CONTROL)) {
             return handleControlKey(keyCode);
         }
 
+        boolean extendSelection = KeyModifiers.has(modifiers, KeyModifiers.SHIFT);
         return switch (keyCode) {
             case KeyCodes.BACKSPACE -> {
                 backspace();
@@ -294,19 +448,19 @@ public class TextInput extends Box {
                 yield true;
             }
             case KeyCodes.LEFT -> {
-                cursorIndex(cursorIndex() - 1);
+                moveCursor(previousCursorIndex(), extendSelection);
                 yield true;
             }
             case KeyCodes.RIGHT -> {
-                cursorIndex(cursorIndex() + 1);
+                moveCursor(nextCursorIndex(), extendSelection);
                 yield true;
             }
             case KeyCodes.HOME -> {
-                cursorIndex(0);
+                moveCursor(0, extendSelection);
                 yield true;
             }
             case KeyCodes.END -> {
-                cursorIndex(text().length());
+                moveCursor(text().length(), extendSelection);
                 yield true;
             }
             case KeyCodes.ESCAPE, KeyCodes.ENTER, KeyCodes.KEYPAD_ENTER -> {
@@ -400,5 +554,9 @@ public class TextInput extends Box {
 
     private static String normalize(String text) {
         return text == null ? "" : text;
+    }
+
+    private static float clamp(float value, float min, float max) {
+        return Math.max(min, Math.min(max, value));
     }
 }
