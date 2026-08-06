@@ -10,12 +10,15 @@ import dev.sixik.unigui.api.event.RoutedEventDispatcher;
 import dev.sixik.unigui.api.input.ClipboardService;
 import dev.sixik.unigui.api.input.FocusManager;
 import dev.sixik.unigui.api.input.HitTester;
+import dev.sixik.unigui.api.input.HoverManager;
 import dev.sixik.unigui.api.style.Theme;
+import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.impl.debug.FrameDebugCounters;
 import dev.sixik.unigui.impl.debug.FrameProfiler;
 import dev.sixik.unigui.impl.event.DefaultRoutedEventDispatcher;
 import dev.sixik.unigui.impl.event.FastEventEmitter;
 import dev.sixik.unigui.impl.input.DefaultFocusManager;
+import dev.sixik.unigui.impl.input.DefaultHoverManager;
 import dev.sixik.unigui.impl.input.MemoryClipboardService;
 import dev.sixik.unigui.impl.input.TransformHitTester;
 import dev.sixik.unigui.impl.style.DefaultTheme;
@@ -27,8 +30,10 @@ public final class DefaultUIContext implements UIContext {
     private final RoutedEventDispatcher routedEvents;
     private final HitTester hitTester;
     private final FocusManager focusManager;
+    private final HoverManager hoverManager;
     private final ClipboardService clipboard;
-    private final Theme theme;
+    private Theme theme;
+    private long styleVersion;
     private final UiProfiler profiler;
     private final UiDebugCounters debugCounters;
     private int debugFlags;
@@ -70,6 +75,7 @@ public final class DefaultUIContext implements UIContext {
         this.routedEvents = routedEvents == null ? RoutedEventDispatcher.DIRECT : routedEvents;
         this.hitTester = hitTester == null ? HitTester.NONE : hitTester;
         this.focusManager = focusManager == null ? FocusManager.NONE : focusManager;
+        this.hoverManager = new DefaultHoverManager();
         this.clipboard = clipboard == null ? ClipboardService.EMPTY : clipboard;
         this.theme = theme == null ? Theme.EMPTY : theme;
         this.profiler = profiler == null ? UiProfiler.NOOP : profiler;
@@ -107,6 +113,11 @@ public final class DefaultUIContext implements UIContext {
     }
 
     @Override
+    public HoverManager hoverManager() {
+        return hoverManager;
+    }
+
+    @Override
     public ClipboardService clipboard() {
         return clipboard;
     }
@@ -114,6 +125,25 @@ public final class DefaultUIContext implements UIContext {
     @Override
     public Theme theme() {
         return theme;
+    }
+
+    @Override
+    public long styleVersion() {
+        return styleVersion + theme.version();
+    }
+
+    public DefaultUIContext theme(Theme theme) {
+        Theme normalized = theme == null ? Theme.EMPTY : theme;
+        if (this.theme == normalized) return this;
+        this.theme = normalized;
+        styleVersion++;
+        return this;
+    }
+
+    public DefaultUIContext theme(Theme theme, Widget root) {
+        theme(theme);
+        invalidateStyles(root);
+        return this;
     }
 
     @Override

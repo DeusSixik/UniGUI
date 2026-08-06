@@ -67,6 +67,18 @@ public final class Widgets {
         return new PanelWidget();
     }
 
+    public static StackPanel stack() {
+        return new StackPanel();
+    }
+
+    public static DockPanel dock() {
+        return new DockPanel();
+    }
+
+    public static WrapPanel wrap() {
+        return new WrapPanel();
+    }
+
     public static CachedSubtreeWidget cached(Widget widget) {
         return new CachedSubtreeWidget(widget);
     }
@@ -77,6 +89,14 @@ public final class Widgets {
 
     public static TextField textField(String text) {
         return new TextField(text);
+    }
+
+    public static TextInput textInput() {
+        return new TextInput();
+    }
+
+    public static TextInput textInput(String text) {
+        return new TextInput(text);
     }
 
     public static PasswordField passwordField() {
@@ -113,6 +133,14 @@ public final class Widgets {
 
     public static ScrollView scrollView(Widget content) {
         return new ScrollView(content);
+    }
+
+    public static VirtualListView virtualList() {
+        return new VirtualListView();
+    }
+
+    public static VirtualTableView virtualTable() {
+        return new VirtualTableView();
     }
 
     public static VBox vbox() {

@@ -30,7 +30,9 @@ public final class WidgetExternAdapter extends WidgetBase implements WidgetExter
 
     @Override
     public void measure(LayoutContext context) {
-        extern.measure(new ExternMeasureContext(context));
+        ExternMeasureContext externContext = new ExternMeasureContext(context);
+        extern.measure(externContext);
+        setDesiredSize(resolveDesiredSize(context, externContext.desiredSize().width(), externContext.desiredSize().height()));
     }
 
     @Override

@@ -1,5 +1,6 @@
 package dev.sixik.unigui.widgets;
 
+import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 
@@ -14,6 +15,16 @@ public class Checkbox extends ToggleButton {
         super(text);
         backgroundVisible(false);
         borderVisible(false);
+    }
+
+    @Override
+    public void measure(LayoutContext context) {
+        if (visibility() == dev.sixik.unigui.api.widget.Visibility.COLLAPSED) {
+            setDesiredSize(0.0f, 0.0f);
+            return;
+        }
+        float textWidth = text().isEmpty() ? 0.0f : 4.0f + text().codePointCount(0, text().length()) * APPROX_CHAR_WIDTH;
+        setDesiredSize(resolveDesiredSize(context, BOX_SIZE + textWidth, DEFAULT_HEIGHT));
     }
 
     @Override

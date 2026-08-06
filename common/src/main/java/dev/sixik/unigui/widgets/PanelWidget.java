@@ -3,9 +3,13 @@ package dev.sixik.unigui.widgets;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
+import dev.sixik.unigui.api.layout.EdgeInsets;
+import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.layout.LayoutContext;
+import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 
@@ -64,33 +68,54 @@ public class PanelWidget extends WidgetBase {
 
     @Override
     public void measure(LayoutContext context) {
-        applyQueuedMutations();
-        for (Widget child : snapshotChildren()) {
-            child.measure(context);
+        if (visibility() == Visibility.COLLAPSED) {
+            setDesiredSize(LayoutSize.ZERO);
+            return;
         }
+        applyQueuedMutations();
+        float desiredWidth = 0.0f;
+        float desiredHeight = 0.0f;
+        for (Widget child : snapshotChildren()) {
+            if (child.visibility() != Visibility.COLLAPSED) {
+                child.measure(context);
+                EdgeInsets margin = child.layoutConstraints().margin();
+                desiredWidth = Math.max(desiredWidth, child.desiredSize().width() + margin.horizontal());
+                desiredHeight = Math.max(desiredHeight, child.desiredSize().height() + margin.vertical());
+            }
+        }
+        setDesiredSize(resolveDesiredSize(context, desiredWidth, desiredHeight));
     }
 
     @Override
     public void arrange(RectView bounds) {
         super.arrange(bounds);
+        if (visibility() == Visibility.COLLAPSED) return;
         for (Widget child : snapshotChildren()) {
-            child.arrange(bounds);
+            if (child.visibility() != Visibility.COLLAPSED) {
+                child.arrange(bounds);
+            }
         }
     }
 
     @Override
     public void render(RenderContext context) {
+        if (visibility() != Visibility.VISIBLE) return;
         applyQueuedMutations();
         for (Widget child : snapshotChildren()) {
-            child.render(context);
+            if (child.visibility() == Visibility.VISIBLE) {
+                child.render(context);
+            }
         }
     }
 
     @Override
     public void tick(FrameContext frame) {
+        if (visibility() != Visibility.VISIBLE) return;
         applyQueuedMutations();
         for (Widget child : snapshotChildren()) {
-            child.tick(frame);
+            if (child.visibility() == Visibility.VISIBLE) {
+                child.tick(frame);
+            }
         }
     }
 

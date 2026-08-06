@@ -2,14 +2,17 @@ package dev.sixik.unigui.widgets;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
 
-public class PasswordField extends TextField {
+public class PasswordField extends TextInput {
     private char mask = '\u2022';
 
     public PasswordField() {
+        enableDefaultTextInputChrome();
     }
 
     public PasswordField(String text) {
-        super(text);
+        this();
+        editorModel().silentText(text);
+        editorModel().cursorIndex(text().length());
     }
 
     public char mask() {

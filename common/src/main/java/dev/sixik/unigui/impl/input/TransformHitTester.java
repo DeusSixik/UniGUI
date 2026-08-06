@@ -4,6 +4,7 @@ import dev.sixik.unigui.api.input.HitTestResult;
 import dev.sixik.unigui.api.input.HitTester;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.math.Transform;
+import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 
 import java.util.List;
@@ -12,11 +13,15 @@ import java.util.Optional;
 public final class TransformHitTester implements HitTester {
     @Override
     public Optional<HitTestResult> hitTest(Widget root, float rootX, float rootY) {
-        if (root == null) return Optional.empty();
+        if (root == null || root.visibility() != Visibility.VISIBLE || !root.enabled()) return Optional.empty();
         return hitTestRecursive(root, rootX, rootY, rootX, rootY);
     }
 
     private Optional<HitTestResult> hitTestRecursive(Widget widget, float rootX, float rootY, float x, float y) {
+        if (widget.visibility() != Visibility.VISIBLE || !widget.enabled()) {
+            return Optional.empty();
+        }
+
         Point untransformed = inverseTransform(widget, x, y);
         RectView bounds = widget.layoutBounds();
         if (!contains(bounds, untransformed.x, untransformed.y)) {

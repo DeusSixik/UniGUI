@@ -5,6 +5,7 @@ import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
 import dev.sixik.unigui.api.debug.DebugFlags;
 import dev.sixik.unigui.api.layout.LayoutContext;
+import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.Paint;
@@ -120,8 +121,17 @@ public final class CachedSubtreeWidget extends WidgetBase {
 
     @Override
     public void measure(LayoutContext context) {
+        if (content == null) {
+            setDesiredSize(resolveDesiredSize(context, 0.0f, 0.0f));
+            return;
+        }
+        if (visibility() == dev.sixik.unigui.api.widget.Visibility.COLLAPSED) {
+            setDesiredSize(LayoutSize.ZERO);
+            return;
+        }
         if (content != null) {
             content.measure(context);
+            setDesiredSize(resolveDesiredSize(context, content.desiredSize().width(), content.desiredSize().height()));
         }
     }
 

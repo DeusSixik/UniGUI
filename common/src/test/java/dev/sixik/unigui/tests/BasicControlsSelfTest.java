@@ -1,6 +1,9 @@
 package dev.sixik.unigui.tests;
 
+import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.event.KeyPressedEvent;
+import dev.sixik.unigui.api.event.PointerEnteredEvent;
+import dev.sixik.unigui.api.event.PointerExitedEvent;
 import dev.sixik.unigui.api.event.PointerMovedEvent;
 import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.event.PointerReleasedEvent;
@@ -8,30 +11,54 @@ import dev.sixik.unigui.api.event.ScrollEvent;
 import dev.sixik.unigui.api.event.SliderValueChangedEvent;
 import dev.sixik.unigui.api.event.TextChangedEvent;
 import dev.sixik.unigui.api.event.TextInputEvent;
+import dev.sixik.unigui.api.layout.Alignment;
+import dev.sixik.unigui.api.layout.EdgeInsets;
+import dev.sixik.unigui.api.layout.LayoutConstraints;
+import dev.sixik.unigui.api.layout.LayoutContext;
+import dev.sixik.unigui.api.input.FocusDirection;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.input.KeyModifiers;
 import dev.sixik.unigui.api.input.PointerButton;
+import dev.sixik.unigui.api.input.TextEditorModel;
 import dev.sixik.unigui.api.math.ColorView;
+import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.render.DrawCommandType;
 import dev.sixik.unigui.api.render.DrawList;
 import dev.sixik.unigui.api.style.MutableStyle;
+import dev.sixik.unigui.api.style.MutableTheme;
 import dev.sixik.unigui.api.style.StyleKey;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
+import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.impl.input.TransformHitTester;
 import dev.sixik.unigui.impl.render.DefaultRenderContext;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.widgets.Button;
 import dev.sixik.unigui.widgets.Box;
 import dev.sixik.unigui.widgets.Checkbox;
+import dev.sixik.unigui.widgets.DockPanel;
+import dev.sixik.unigui.widgets.DockSide;
+import dev.sixik.unigui.widgets.GridBox;
+import dev.sixik.unigui.widgets.HBox;
+import dev.sixik.unigui.widgets.Label;
 import dev.sixik.unigui.widgets.NumberField;
+import dev.sixik.unigui.widgets.Orientation;
 import dev.sixik.unigui.widgets.PasswordField;
 import dev.sixik.unigui.widgets.ProgressBar;
 import dev.sixik.unigui.widgets.SearchField;
 import dev.sixik.unigui.widgets.ScrollView;
 import dev.sixik.unigui.widgets.Slider;
+import dev.sixik.unigui.widgets.StackPanel;
+import dev.sixik.unigui.widgets.TextBlock;
 import dev.sixik.unigui.widgets.TextField;
+import dev.sixik.unigui.widgets.TextInput;
 import dev.sixik.unigui.widgets.ToggleButton;
+import dev.sixik.unigui.widgets.VBox;
+import dev.sixik.unigui.widgets.VirtualListView;
+import dev.sixik.unigui.widgets.VirtualTableView;
+import dev.sixik.unigui.widgets.Widgets;
+import dev.sixik.unigui.widgets.WrapPanel;
 
 public final class BasicControlsSelfTest {
     public static void main(String[] args) {
@@ -39,14 +66,75 @@ public final class BasicControlsSelfTest {
     }
 
     private void run() {
+        testTextEditorModelCore();
+        testTextInputShellAndTextFieldChrome();
         testTextFieldFocusAndEditing();
         testTextFieldSelectionAndClipboard();
         testPasswordAndSearchFields();
         testDefaultThemeContracts();
+        testStyleInheritanceAndScopes();
+        testKeyboardFocusTraversal();
+        testDirectionalFocusNavigation();
+        testHoverTrackingAndStyleState();
+        testEnabledVisibleStateFlags();
+        testDesiredSizeMeasurement();
+        testLayoutConstraintsAndSlotSizing();
+        testRicherLayoutContainers();
         testSliderPointerAndKeyboardInput();
         testScrollViewBubbledWheelInput();
+        testVirtualListViewRealizationAndScrolling();
+        testVirtualTableViewVirtualRowsAndRendering();
         testToggleCheckboxProgressAndNumberField();
         System.out.println("BasicControlsSelfTest passed");
+    }
+
+    private void testTextEditorModelCore() {
+        TextEditorModel editor = new TextEditorModel();
+        Counter changes = new Counter();
+        editor.onChanged((oldText, newText) -> {
+            changes.count++;
+            changes.lastText = newText;
+        });
+
+        editor.silentText("abcd");
+        editor.cursorIndex(editor.text().length());
+        editor.select(1, 3);
+        expect(editor.hasSelection() && editor.selectedText().equals("bc"), "TextEditorModel should expose selected text");
+
+        editor.insertText("XYZ");
+        expect(editor.text().equals("aXYZd"), "TextEditorModel should replace selection with inserted text");
+        expect(editor.cursorIndex() == 4 && !editor.hasSelection(), "TextEditorModel should collapse selection after insertion");
+
+        editor.backspace();
+        expect(editor.text().equals("aXYd") && editor.cursorIndex() == 3, "TextEditorModel should backspace by code point");
+
+        editor.delete();
+        expect(editor.text().equals("aXY"), "TextEditorModel should delete next code point");
+
+        editor.maxLength(2);
+        expect(editor.text().equals("aX"), "TextEditorModel should trim text when maxLength shrinks");
+        expect(changes.count == 4 && changes.lastText.equals("aX"), "TextEditorModel should emit text change callbacks");
+        expect(TextEditorModel.sanitizePrintable("a\nb\tc").equals("abc"), "TextEditorModel should sanitize non-printable input");
+    }
+
+    private void testTextInputShellAndTextFieldChrome() {
+        TextInput input = new TextInput("core");
+        input.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 18.0f));
+        DrawList inputDrawList = new DrawList();
+        input.render(new DefaultRenderContext(inputDrawList));
+        expect(hasText(inputDrawList, "core"), "TextInput shell should render editor text");
+        expect(!hasCommand(inputDrawList, DrawCommandType.ROUNDED_RECT), "TextInput shell should not force field chrome");
+
+        TextField field = new TextField("field");
+        field.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 18.0f));
+        DrawList fieldDrawList = new DrawList();
+        field.render(new DefaultRenderContext(fieldDrawList));
+        expect(hasText(fieldDrawList, "field"), "TextField chrome should preserve TextInput text rendering");
+        expect(hasCommand(fieldDrawList, DrawCommandType.ROUNDED_RECT), "TextField should add default field chrome");
+
+        expect(new PasswordField() instanceof TextInput, "PasswordField should reuse TextInput shell directly");
+        expect(new NumberField() instanceof TextInput, "NumberField should reuse TextInput shell directly");
+        expect(new SearchField() instanceof TextInput, "SearchField should reuse TextInput shell directly");
     }
 
     private void testTextFieldFocusAndEditing() {
@@ -184,6 +272,486 @@ public final class BasicControlsSelfTest {
         DrawList manualButtonDrawList = new DrawList();
         manualButton.render(new DefaultRenderContext(manualButtonDrawList));
         expect(hasFillColor(manualButtonDrawList, 0.9f, 0.1f, 0.2f, 1.0f), "themeEnabled(false) should preserve manual colors");
+
+        MutableStyle customButtonStyle = new MutableStyle()
+                .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.4f, 0.2f, 0.8f, 1.0f))
+                .put(StyleKeys.TEXT_COLOR, MutableColor.rgba(0.9f, 0.9f, 0.2f, 1.0f));
+        MutableTheme customTheme = new MutableTheme().fallback(style).put("Button", customButtonStyle);
+        long previousStyleVersion = uiContext.styleVersion();
+        uiContext.theme(customTheme, themedButton);
+        expect(uiContext.styleVersion() != previousStyleVersion, "DefaultUIContext should bump styleVersion when theme changes");
+        DrawList customThemeDrawList = new DrawList();
+        themedButton.render(new DefaultRenderContext(customThemeDrawList));
+        expect(hasFillColor(customThemeDrawList, 0.4f, 0.2f, 0.8f, 1.0f), "Button should apply newly assigned theme on next render");
+
+        Box root = new Box();
+        Button child = new Button("Child");
+        root.setUiContextInternal(uiContext);
+        root.addChild(child);
+        root.applyQueuedMutations();
+        root.clearInvalidation(InvalidationFlags.ALL);
+        child.clearInvalidation(InvalidationFlags.ALL);
+        uiContext.theme(new MutableTheme().put("Button", customButtonStyle), root);
+        expect(hasFlag(root.invalidationFlags(), InvalidationFlags.VISUAL), "theme(root) should invalidate root visuals");
+        expect(hasFlag(child.invalidationFlags(), InvalidationFlags.VISUAL), "theme(root) should invalidate child visuals");
+    }
+
+    private void testStyleInheritanceAndScopes() {
+        DefaultUIContext uiContext = new DefaultUIContext();
+        Box root = new Box();
+        Box scoped = new Box();
+        Button inherited = new Button("Inherited");
+        Button local = new Button("Local");
+        Button isolated = new Button("Isolated");
+        Box boundary = new Box();
+        boundary.styleScope(true);
+
+        root.setUiContextInternal(uiContext);
+        root.localStyle("*", new MutableStyle()
+                .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.7f, 0.1f, 0.1f, 1.0f)));
+        scoped.localStyle("Button", new MutableStyle()
+                .put(StyleKeys.TEXT_COLOR, MutableColor.rgba(0.2f, 0.8f, 0.2f, 1.0f)));
+        local.localStyle("Button", new MutableStyle()
+                .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.1f, 0.2f, 0.9f, 1.0f)));
+        boundary.localStyle("Button", new MutableStyle()
+                .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.2f, 0.2f, 0.2f, 1.0f)));
+
+        root.addChild(scoped);
+        scoped.addChild(inherited);
+        scoped.addChild(local);
+        scoped.addChild(boundary);
+        boundary.addChild(isolated);
+        root.applyQueuedMutations();
+        scoped.applyQueuedMutations();
+        boundary.applyQueuedMutations();
+        inherited.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 18.0f));
+        local.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 18.0f));
+        isolated.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 18.0f));
+
+        DrawList inheritedDrawList = new DrawList();
+        inherited.render(new DefaultRenderContext(inheritedDrawList));
+        expect(hasFillColor(inheritedDrawList, 0.7f, 0.1f, 0.1f, 1.0f), "Widget should inherit wildcard background from ancestor local style");
+        expect(hasFillColor(inheritedDrawList, 0.2f, 0.8f, 0.2f, 1.0f), "Widget should inherit typed text color from ancestor local style");
+
+        DrawList localDrawList = new DrawList();
+        local.render(new DefaultRenderContext(localDrawList));
+        expect(hasFillColor(localDrawList, 0.1f, 0.2f, 0.9f, 1.0f), "Widget local style should override ancestor local style");
+
+        DrawList isolatedDrawList = new DrawList();
+        isolated.render(new DefaultRenderContext(isolatedDrawList));
+        expect(hasFillColor(isolatedDrawList, 0.2f, 0.2f, 0.2f, 1.0f), "Nearest style scope should provide local style inside boundary");
+        expect(!hasFillColor(isolatedDrawList, 0.7f, 0.1f, 0.1f, 1.0f), "Nearest style scope should stop outer local style inheritance");
+    }
+
+    private void testKeyboardFocusTraversal() {
+        DefaultUIContext uiContext = new DefaultUIContext();
+        Box root = new Box();
+        root.setUiContextInternal(uiContext);
+
+        Button first = new Button("First");
+        TextField second = new TextField("Second");
+        Button skipped = new Button("Skipped");
+        skipped.focusable(false);
+        first.focusOrder(20);
+        second.focusOrder(10);
+
+        root.addChild(first);
+        root.addChild(second);
+        root.addChild(skipped);
+        root.applyQueuedMutations();
+
+        expect(uiContext.focusManager().focusNext(root), "focusNext should focus the first available widget");
+        expect(uiContext.focusManager().focusedWidget() == second, "focusNext should respect focusOrder before tree order");
+        expect(uiContext.focusManager().focusNext(root), "focusNext should advance to next focusable widget");
+        expect(uiContext.focusManager().focusedWidget() == first, "focusNext should advance through ordered focusables");
+        expect(uiContext.focusManager().focusNext(root), "focusNext should wrap around");
+        expect(uiContext.focusManager().focusedWidget() == second, "focusNext should skip non-focusable widgets");
+        uiContext.focusManager().requestFocus(skipped);
+        expect(uiContext.focusManager().focusedWidget() == second, "requestFocus should ignore non-focusable widgets");
+        expect(uiContext.focusManager().focusPrevious(root), "focusPrevious should move backwards");
+        expect(uiContext.focusManager().focusedWidget() == first, "focusPrevious should wrap backwards");
+
+        Box scope = new Box();
+        scope.focusScope(true);
+        Button scopeA = new Button("Scope A");
+        Button scopeB = new Button("Scope B");
+        scope.addChild(scopeA);
+        scope.addChild(scopeB);
+        scope.applyQueuedMutations();
+        root.addChild(scope);
+        root.applyQueuedMutations();
+
+        uiContext.focusManager().requestFocus(scopeA);
+        expect(uiContext.focusManager().focusNext(root), "focusNext should work inside nearest focus scope");
+        expect(uiContext.focusManager().focusedWidget() == scopeB, "focusNext should stay inside nearest focus scope");
+        expect(uiContext.focusManager().focusNext(root), "focusNext should wrap inside nearest focus scope");
+        expect(uiContext.focusManager().focusedWidget() == scopeA, "focusNext should not escape nearest focus scope");
+        expect(uiContext.focusManager().focusPrevious(root), "focusPrevious should stay inside nearest focus scope");
+        expect(uiContext.focusManager().focusedWidget() == scopeB, "focusPrevious should wrap inside nearest focus scope");
+    }
+
+    private void testDirectionalFocusNavigation() {
+        DefaultUIContext uiContext = new DefaultUIContext();
+        Box root = new Box();
+        root.setUiContextInternal(uiContext);
+
+        Button center = new Button("Center");
+        Button left = new Button("Left");
+        Button right = new Button("Right");
+        Button up = new Button("Up");
+        Button down = new Button("Down");
+        Button hiddenRight = new Button("Hidden right");
+        hiddenRight.visibility(Visibility.HIDDEN);
+
+        root.addChild(center);
+        root.addChild(left);
+        root.addChild(right);
+        root.addChild(up);
+        root.addChild(down);
+        root.addChild(hiddenRight);
+        root.applyQueuedMutations();
+        center.arrange(new MutableRect(90.0f, 90.0f, 20.0f, 20.0f));
+        left.arrange(new MutableRect(40.0f, 90.0f, 20.0f, 20.0f));
+        right.arrange(new MutableRect(140.0f, 90.0f, 20.0f, 20.0f));
+        up.arrange(new MutableRect(90.0f, 40.0f, 20.0f, 20.0f));
+        down.arrange(new MutableRect(90.0f, 140.0f, 20.0f, 20.0f));
+        hiddenRight.arrange(new MutableRect(112.0f, 90.0f, 20.0f, 20.0f));
+
+        uiContext.focusManager().requestFocus(center);
+        expect(uiContext.focusManager().focusDirectional(root, FocusDirection.RIGHT), "Directional focus should move right");
+        expect(uiContext.focusManager().focusedWidget() == right, "Directional focus should skip hidden candidates");
+        expect(uiContext.focusManager().focusDirectional(root, FocusDirection.LEFT), "Directional focus should move left from right");
+        expect(uiContext.focusManager().focusedWidget() == center, "Directional focus should pick nearest left candidate");
+        expect(uiContext.focusManager().focusDown(root), "Directional focus convenience should move down");
+        expect(uiContext.focusManager().focusedWidget() == down, "focusDown should pick the lower candidate");
+        expect(!uiContext.focusManager().focusDown(root), "Directional focus should not wrap when no candidate exists");
+        expect(uiContext.focusManager().focusedWidget() == down, "Directional focus should keep current focus when blocked");
+
+        Box scope = new Box();
+        scope.focusScope(true);
+        Button scopedCenter = new Button("Scoped center");
+        Button scopedRight = new Button("Scoped right");
+        Button outsideRight = new Button("Outside right");
+        root.addChild(scope);
+        root.addChild(outsideRight);
+        root.applyQueuedMutations();
+        scope.addChild(scopedCenter);
+        scope.addChild(scopedRight);
+        scope.applyQueuedMutations();
+        scopedCenter.arrange(new MutableRect(10.0f, 210.0f, 20.0f, 20.0f));
+        scopedRight.arrange(new MutableRect(60.0f, 210.0f, 20.0f, 20.0f));
+        outsideRight.arrange(new MutableRect(110.0f, 210.0f, 20.0f, 20.0f));
+
+        uiContext.focusManager().requestFocus(scopedCenter);
+        expect(uiContext.focusManager().focusRight(root), "Directional focus should work inside focus scopes");
+        expect(uiContext.focusManager().focusedWidget() == scopedRight, "Directional focus should stay inside nearest focus scope");
+    }
+
+    private void testHoverTrackingAndStyleState() {
+        DefaultUIContext uiContext = new DefaultUIContext();
+        Box root = new Box();
+        Button first = new Button("First");
+        Button second = new Button("Second");
+        root.setUiContextInternal(uiContext);
+        root.addChild(first);
+        root.addChild(second);
+        root.applyQueuedMutations();
+        first.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 18.0f));
+        second.arrange(new MutableRect(90.0f, 0.0f, 80.0f, 18.0f));
+
+        Counter firstEnter = new Counter();
+        Counter firstExit = new Counter();
+        first.on(PointerEnteredEvent.TYPE, event -> firstEnter.count++);
+        first.on(PointerExitedEvent.TYPE, event -> firstExit.count++);
+
+        uiContext.hoverManager().updateHover(first, 4.0f, 4.0f, 4.0f, 4.0f, 0);
+        expect(uiContext.hoverManager().hoveredWidget() == first && first.hovered(), "HoverManager should mark entered widget hovered");
+        expect(firstEnter.count == 1 && firstExit.count == 0, "HoverManager should emit pointer entered once");
+        uiContext.hoverManager().updateHover(first, 5.0f, 4.0f, 5.0f, 4.0f, 0);
+        expect(firstEnter.count == 1, "HoverManager should not re-enter the same widget");
+
+        DrawList hoveredDrawList = new DrawList();
+        first.render(new DefaultRenderContext(hoveredDrawList));
+        expect(hasFillColor(hoveredDrawList, 0.16f, 0.16f, 0.16f, 1.0f), "Hovered Button should use HOVERED background style");
+
+        uiContext.hoverManager().updateHover(second, 94.0f, 4.0f, 4.0f, 4.0f, 0);
+        expect(!first.hovered() && second.hovered(), "HoverManager should transfer hover between widgets");
+        expect(firstExit.count == 1, "HoverManager should emit pointer exited when hover leaves");
+        uiContext.hoverManager().clearHover();
+        expect(uiContext.hoverManager().hoveredWidget() == null && !second.hovered(), "clearHover should clear current hover state");
+    }
+
+    private void testEnabledVisibleStateFlags() {
+        DefaultUIContext uiContext = new DefaultUIContext();
+        Box root = new Box();
+        Button disabled = new Button("Disabled");
+        Button hidden = new Button("Hidden");
+        Button collapsed = new Button("Collapsed");
+        Button active = new Button("Active");
+        root.setUiContextInternal(uiContext);
+        disabled.enabled(false);
+        hidden.visible(false);
+        collapsed.visibility(Visibility.COLLAPSED);
+        collapsed.arrange(new MutableRect(11.0f, 12.0f, 13.0f, 14.0f));
+        root.addChild(disabled);
+        root.addChild(hidden);
+        root.addChild(collapsed);
+        root.addChild(active);
+        root.applyQueuedMutations();
+        root.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 20.0f));
+
+        expect(!disabled.enabled() && !hidden.visible() && hidden.visibility() == Visibility.HIDDEN, "Widget state flags should be mutable");
+        expect(collapsed.visibility() == Visibility.COLLAPSED, "Collapsed visibility should be mutable");
+        expect(hidden.layoutBounds().x() == 0.0f && hidden.layoutBounds().width() == 100.0f,
+                "Hidden widgets should keep participating in layout");
+        expect(collapsed.layoutBounds().x() == 11.0f && collapsed.layoutBounds().width() == 13.0f,
+                "Collapsed widgets should be skipped by parent layout");
+        uiContext.focusManager().requestFocus(disabled);
+        expect(uiContext.focusManager().focusedWidget() == null, "requestFocus should ignore disabled widgets");
+        expect(uiContext.focusManager().focusNext(root), "focusNext should find an enabled visible widget");
+        expect(uiContext.focusManager().focusedWidget() == active, "focusNext should skip disabled, hidden and collapsed widgets");
+
+        Counter clicks = new Counter();
+        disabled.onClick(event -> clicks.count++);
+        disabled.handle(new PointerPressedEvent(disabled, 5.0f, 5.0f, 5.0f, 5.0f, 0, PointerButton.PRIMARY));
+        disabled.handle(new PointerReleasedEvent(disabled, 5.0f, 5.0f, 5.0f, 5.0f, 0, PointerButton.PRIMARY));
+        expect(clicks.count == 0, "Disabled Button should ignore pointer input");
+
+        DrawList disabledDrawList = new DrawList();
+        disabled.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 18.0f));
+        disabled.render(new DefaultRenderContext(disabledDrawList));
+        expect(hasFillColor(disabledDrawList, 0.08f, 0.08f, 0.08f, 0.75f), "Disabled Button should use DISABLED style state");
+
+        DrawList hiddenDrawList = new DrawList();
+        hidden.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 18.0f));
+        hidden.render(new DefaultRenderContext(hiddenDrawList));
+        expect(hiddenDrawList.size() == 0, "Hidden widget should not render commands");
+
+        TransformHitTester hitTester = new TransformHitTester();
+        root.visible(true);
+        root.enabled(true);
+        disabled.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 20.0f));
+        hidden.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 20.0f));
+        active.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 20.0f));
+        expect(hitTester.hitTest(disabled, 5.0f, 5.0f).isEmpty(), "Hit-test should skip disabled root widgets");
+        expect(hitTester.hitTest(hidden, 5.0f, 5.0f).isEmpty(), "Hit-test should skip hidden root widgets");
+        expect(hitTester.hitTest(collapsed, 5.0f, 5.0f).isEmpty(), "Hit-test should skip collapsed root widgets");
+    }
+
+    private void testDesiredSizeMeasurement() {
+        LayoutContext generous = new LayoutContext(500.0f, 100.0f);
+
+        Label label = new Label("Hello");
+        label.measure(generous);
+        expect(near(label.desiredSize().width(), 30.0f) && near(label.desiredSize().height(), 10.0f),
+                "Label should measure intrinsic single-line text size");
+
+        TextBlock block = new TextBlock("abcdefghijklmnopqrstuvwx");
+        block.measure(new LayoutContext(60.0f, 100.0f));
+        expect(near(block.desiredSize().width(), 60.0f) && near(block.desiredSize().height(), 30.0f),
+                "TextBlock should aggregate wrapped desired height from available width");
+
+        TextField field = new TextField("name");
+        field.measure(generous);
+        expect(near(field.desiredSize().width(), 32.0f) && near(field.desiredSize().height(), 18.0f),
+                "TextInput/TextField should include text padding in desired size");
+        field.preferredSize(100.0f, LayoutConstraints.AUTO);
+        field.measure(generous);
+        expect(near(field.desiredSize().width(), 100.0f) && near(field.desiredSize().height(), 18.0f),
+                "Explicit preferred width should override measured text width");
+
+        HBox hbox = new HBox();
+        hbox.spacing(5.0f);
+        Label first = new Label("AA");
+        Label second = new Label("BBBB");
+        hbox.addChild(first);
+        hbox.addChild(second);
+        hbox.measure(new LayoutContext(200.0f, 100.0f));
+        expect(near(hbox.desiredSize().width(), 41.0f) && near(hbox.desiredSize().height(), 10.0f),
+                "HBox should aggregate measured child widths plus spacing");
+        hbox.arrange(new MutableRect(0.0f, 0.0f, hbox.desiredSize().width(), hbox.desiredSize().height()));
+        expect(near(first.layoutBounds().width(), 12.0f) && near(second.layoutBounds().x(), 17.0f)
+                        && near(second.layoutBounds().width(), 24.0f),
+                "HBox should use measured desired width as AUTO main-axis fallback after measure");
+
+        GridBox grid = new GridBox().columns(2).spacing(5.0f);
+        grid.addChild(new Label("AA"));
+        grid.addChild(new Label("BBBB"));
+        grid.measure(new LayoutContext(200.0f, 100.0f));
+        expect(near(grid.desiredSize().width(), 53.0f) && near(grid.desiredSize().height(), 10.0f),
+                "GridBox should aggregate measured max cell size plus spacing");
+
+        WrapPanel wrap = new WrapPanel().spacing(5.0f).lineSpacing(2.0f);
+        wrap.addChild(new Label("AAAAAA"));
+        wrap.addChild(new Label("BBBBBB"));
+        wrap.addChild(new Label("CCCCCC"));
+        wrap.measure(new LayoutContext(80.0f, 100.0f));
+        expect(near(wrap.desiredSize().width(), 77.0f) && near(wrap.desiredSize().height(), 22.0f),
+                "WrapPanel should aggregate measured wrapped lines under available width");
+    }
+
+    private void testLayoutConstraintsAndSlotSizing() {
+        HBox hbox = new HBox();
+        hbox.spacing(10.0f);
+        Button fixed = new Button("Fixed");
+        Button growA = new Button("Grow A");
+        Button growB = new Button("Grow B");
+        fixed.preferredSize(40.0f, LayoutConstraints.AUTO).grow(0.0f).margin(5.0f, 0.0f);
+        growA.grow(1.0f);
+        growB.grow(2.0f);
+        hbox.addChild(fixed);
+        hbox.addChild(growA);
+        hbox.addChild(growB);
+        hbox.applyQueuedMutations();
+        hbox.arrange(new MutableRect(0.0f, 0.0f, 210.0f, 30.0f));
+
+        expect(near(fixed.layoutBounds().x(), 5.0f) && near(fixed.layoutBounds().width(), 40.0f),
+                "HBox should honor preferred width and horizontal margin");
+        expect(near(growA.layoutBounds().x(), 60.0f) && near(growA.layoutBounds().width(), 46.67f),
+                "HBox should allocate grow weight after fixed slots");
+        expect(near(growB.layoutBounds().x(), 116.67f) && near(growB.layoutBounds().width(), 93.33f),
+                "HBox should allocate larger grow weight proportionally");
+
+        VBox vbox = new VBox();
+        vbox.spacing(5.0f);
+        Button top = new Button("Top");
+        Button centered = new Button("Centered");
+        Button collapsed = new Button("Collapsed");
+        top.preferredSize(LayoutConstraints.AUTO, 20.0f).grow(0.0f);
+        centered.preferredSize(60.0f, 10.0f).grow(0.0f).margin(4.0f).align(Alignment.CENTER, Alignment.CENTER);
+        collapsed.visibility(Visibility.COLLAPSED);
+        collapsed.arrange(new MutableRect(7.0f, 8.0f, 9.0f, 10.0f));
+        vbox.addChild(top);
+        vbox.addChild(centered);
+        vbox.addChild(collapsed);
+        vbox.applyQueuedMutations();
+        vbox.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 60.0f));
+
+        expect(near(top.layoutBounds().height(), 20.0f), "VBox should honor preferred height");
+        expect(near(centered.layoutBounds().x(), 20.0f) && near(centered.layoutBounds().y(), 29.0f)
+                       && near(centered.layoutBounds().width(), 60.0f) && near(centered.layoutBounds().height(), 10.0f),
+                "VBox should apply margin and center alignment inside the child slot");
+        expect(near(collapsed.layoutBounds().x(), 7.0f) && near(collapsed.layoutBounds().width(), 9.0f),
+                "VBox should skip collapsed children during layout");
+
+        GridBox grid = new GridBox().columns(2).spacing(10.0f);
+        Button stretched = new Button("Stretch");
+        Button endAligned = new Button("End");
+        endAligned.layoutConstraints(new LayoutConstraints(
+                30.0f, 20.0f,
+                0.0f, 0.0f,
+                Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY,
+                EdgeInsets.all(5.0f),
+                Alignment.END, Alignment.CENTER,
+                0.0f));
+        grid.addChild(stretched);
+        grid.addChild(endAligned);
+        grid.applyQueuedMutations();
+        grid.arrange(new MutableRect(0.0f, 0.0f, 110.0f, 30.0f));
+
+        expect(near(stretched.layoutBounds().width(), 50.0f) && near(stretched.layoutBounds().height(), 30.0f),
+                "GridBox should stretch default children to the cell");
+        expect(near(endAligned.layoutBounds().x(), 75.0f) && near(endAligned.layoutBounds().y(), 5.0f)
+                        && near(endAligned.layoutBounds().width(), 30.0f) && near(endAligned.layoutBounds().height(), 20.0f),
+                "GridBox should honor margin, preferred size and alignment inside cells");
+    }
+
+    private void testRicherLayoutContainers() {
+        expect(Widgets.stack() instanceof StackPanel, "Widgets.stack should create StackPanel");
+        expect(Widgets.dock() instanceof DockPanel, "Widgets.dock should create DockPanel");
+        expect(Widgets.wrap() instanceof WrapPanel, "Widgets.wrap should create WrapPanel");
+
+        StackPanel stack = new StackPanel();
+        Button full = new Button("Full");
+        Button overlay = new Button("Overlay");
+        overlay.preferredSize(40.0f, 20.0f).margin(5.0f).align(Alignment.END, Alignment.CENTER);
+        stack.addChild(full);
+        stack.addChild(overlay);
+        stack.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 60.0f));
+
+        expect(near(full.layoutBounds().x(), 0.0f) && near(full.layoutBounds().y(), 0.0f)
+                        && near(full.layoutBounds().width(), 100.0f) && near(full.layoutBounds().height(), 60.0f),
+                "StackPanel should stretch default children over the full slot");
+        expect(near(overlay.layoutBounds().x(), 55.0f) && near(overlay.layoutBounds().y(), 20.0f)
+                        && near(overlay.layoutBounds().width(), 40.0f) && near(overlay.layoutBounds().height(), 20.0f),
+                "StackPanel should honor margin, preferred size and alignment for overlays");
+
+        DockPanel dock = new DockPanel();
+        Button top = new Button("Top");
+        Button left = new Button("Left");
+        Button right = new Button("Right");
+        Button fill = new Button("Fill");
+        top.preferredSize(LayoutConstraints.AUTO, 20.0f);
+        left.preferredSize(30.0f, LayoutConstraints.AUTO);
+        right.preferredSize(40.0f, LayoutConstraints.AUTO);
+        dock.addChild(top, DockSide.TOP);
+        dock.addChild(left, DockSide.LEFT);
+        dock.addChild(right, DockSide.RIGHT);
+        dock.addChild(fill, DockSide.LEFT);
+        dock.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 100.0f));
+
+        expect(near(top.layoutBounds().x(), 0.0f) && near(top.layoutBounds().y(), 0.0f)
+                        && near(top.layoutBounds().width(), 200.0f) && near(top.layoutBounds().height(), 20.0f),
+                "DockPanel should dock top children across the remaining width");
+        expect(near(left.layoutBounds().x(), 0.0f) && near(left.layoutBounds().y(), 20.0f)
+                        && near(left.layoutBounds().width(), 30.0f) && near(left.layoutBounds().height(), 80.0f),
+                "DockPanel should dock left children and shrink the remaining rect");
+        expect(near(right.layoutBounds().x(), 160.0f) && near(right.layoutBounds().y(), 20.0f)
+                        && near(right.layoutBounds().width(), 40.0f) && near(right.layoutBounds().height(), 80.0f),
+                "DockPanel should dock right children against the remaining edge");
+        expect(near(fill.layoutBounds().x(), 30.0f) && near(fill.layoutBounds().y(), 20.0f)
+                        && near(fill.layoutBounds().width(), 130.0f) && near(fill.layoutBounds().height(), 80.0f),
+                "DockPanel should fill the remaining rect with the last child by default");
+
+        WrapPanel wrap = new WrapPanel().spacing(5.0f).lineSpacing(10.0f);
+        Button first = new Button("A");
+        Button second = new Button("B");
+        Button skipped = new Button("Skipped");
+        Button third = new Button("C");
+        first.preferredSize(40.0f, 10.0f);
+        second.preferredSize(40.0f, 20.0f);
+        skipped.preferredSize(100.0f, 100.0f).visibility(Visibility.COLLAPSED);
+        skipped.arrange(new MutableRect(7.0f, 8.0f, 9.0f, 10.0f));
+        third.preferredSize(40.0f, 10.0f);
+        wrap.addChild(first);
+        wrap.addChild(second);
+        wrap.addChild(skipped);
+        wrap.addChild(third);
+        wrap.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 100.0f));
+
+        expect(near(first.layoutBounds().x(), 0.0f) && near(first.layoutBounds().y(), 0.0f)
+                        && near(first.layoutBounds().width(), 40.0f) && near(first.layoutBounds().height(), 10.0f),
+                "WrapPanel should place the first horizontal item at the line origin");
+        expect(near(second.layoutBounds().x(), 45.0f) && near(second.layoutBounds().y(), 0.0f)
+                        && near(second.layoutBounds().width(), 40.0f) && near(second.layoutBounds().height(), 20.0f),
+                "WrapPanel should apply horizontal spacing inside a line");
+        expect(near(third.layoutBounds().x(), 0.0f) && near(third.layoutBounds().y(), 30.0f)
+                        && near(third.layoutBounds().width(), 40.0f) && near(third.layoutBounds().height(), 10.0f),
+                "WrapPanel should wrap to the next line when the next item exceeds available width");
+        expect(near(skipped.layoutBounds().x(), 7.0f) && near(skipped.layoutBounds().width(), 9.0f),
+                "WrapPanel should skip collapsed children during layout");
+
+        WrapPanel verticalWrap = new WrapPanel().orientation(Orientation.VERTICAL).spacing(5.0f).lineSpacing(10.0f);
+        Button verticalFirst = new Button("VA");
+        Button verticalSecond = new Button("VB");
+        Button verticalThird = new Button("VC");
+        verticalFirst.preferredSize(10.0f, 40.0f);
+        verticalSecond.preferredSize(20.0f, 40.0f);
+        verticalThird.preferredSize(10.0f, 40.0f);
+        verticalWrap.addChild(verticalFirst);
+        verticalWrap.addChild(verticalSecond);
+        verticalWrap.addChild(verticalThird);
+        verticalWrap.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 100.0f));
+
+        expect(near(verticalFirst.layoutBounds().x(), 0.0f) && near(verticalFirst.layoutBounds().y(), 0.0f)
+                        && near(verticalFirst.layoutBounds().width(), 10.0f) && near(verticalFirst.layoutBounds().height(), 40.0f),
+                "Vertical WrapPanel should place the first item at the column origin");
+        expect(near(verticalSecond.layoutBounds().x(), 0.0f) && near(verticalSecond.layoutBounds().y(), 45.0f)
+                        && near(verticalSecond.layoutBounds().width(), 20.0f) && near(verticalSecond.layoutBounds().height(), 40.0f),
+                "Vertical WrapPanel should apply spacing inside a column");
+        expect(near(verticalThird.layoutBounds().x(), 30.0f) && near(verticalThird.layoutBounds().y(), 0.0f)
+                        && near(verticalThird.layoutBounds().width(), 10.0f) && near(verticalThird.layoutBounds().height(), 40.0f),
+                "Vertical WrapPanel should wrap to the next column when the next item exceeds available height");
     }
 
     private void testSliderPointerAndKeyboardInput() {
@@ -243,6 +811,99 @@ public final class BasicControlsSelfTest {
         scrollView.render(new DefaultRenderContext(drawList));
         expect(drawList.commands().get(0).type() == DrawCommandType.PUSH_CLIP, "ScrollView should push a clip before rendering content");
         expect(hasCommand(drawList, DrawCommandType.POP_CLIP), "ScrollView should pop the clip after rendering content");
+    }
+
+    private void testVirtualListViewRealizationAndScrolling() {
+        DefaultUIContext uiContext = new DefaultUIContext();
+        Counter created = new Counter();
+        VirtualListView list = new VirtualListView()
+                .itemCount(1_000)
+                .itemHeight(10.0f)
+                .overscan(1)
+                .scrollStep(20.0f)
+                .itemFactory(index -> {
+                    created.count++;
+                    return new Label("Row " + index);
+                });
+        list.setUiContextInternal(uiContext);
+        list.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 50.0f));
+
+        expect(list.contentHeight() == 10_000.0f, "VirtualListView should expose virtual content height");
+        expect(list.realizedCount() == 8, "VirtualListView should realize only visible rows plus overscan");
+        expect(created.count == 8, "VirtualListView should not materialize all rows");
+        expect(list.firstVisibleIndex() == 0 && list.lastVisibleIndexExclusive() == 8, "VirtualListView should track realized range");
+        expect(list.children().size() == 9, "VirtualListView children should include realized rows plus scrollbar");
+        expect(list.children().get(0).layoutBounds().y() == 0.0f, "First realized row should be arranged at viewport origin");
+
+        list.scrollTo(95.0f);
+        list.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 50.0f));
+        expect(list.scrollY() == 95.0f, "VirtualListView should keep explicit scroll offset");
+        expect(list.firstVisibleIndex() == 8 && list.lastVisibleIndexExclusive() == 16, "VirtualListView should shift realized range with scroll");
+        expect(list.realizedCount() == 8, "VirtualListView should keep realized window bounded after scroll");
+        expect(created.count < 20, "VirtualListView should create only newly visible rows after scroll");
+
+        boolean consumed = uiContext.routedEvents().dispatch(new ScrollEvent(list, 5.0f, 5.0f, 5.0f, 5.0f, 0.0f, -1.0f));
+        expect(consumed && list.scrollY() == 115.0f, "VirtualListView should consume wheel scroll when offset changes");
+        list.scrollTo(20_000.0f);
+        expect(list.scrollY() == 9_950.0f, "VirtualListView should clamp to max scroll");
+
+        DrawList drawList = new DrawList();
+        list.render(new DefaultRenderContext(drawList));
+        expect(drawList.commands().get(0).type() == DrawCommandType.PUSH_CLIP, "VirtualListView should clip realized rows");
+        expect(hasCommand(drawList, DrawCommandType.POP_CLIP), "VirtualListView should pop row clip");
+    }
+
+    private void testVirtualTableViewVirtualRowsAndRendering() {
+        DefaultUIContext uiContext = new DefaultUIContext();
+        Counter cellRequests = new Counter();
+        VirtualTableView table = new VirtualTableView()
+                .addColumn("Name", 60.0f)
+                .addColumn("Value", 50.0f)
+                .rowCount(1_000)
+                .rowHeight(10.0f)
+                .headerHeight(10.0f)
+                .overscan(1)
+                .scrollStep(20.0f)
+                .cellTextProvider((row, column) -> {
+                    cellRequests.count++;
+                    return "R" + row + "C" + column;
+                });
+        table.setUiContextInternal(uiContext);
+        table.arrange(new MutableRect(0.0f, 0.0f, 120.0f, 60.0f));
+
+        expect(table.contentWidth() == 110.0f && table.contentHeight() == 10_000.0f,
+                "VirtualTableView should expose virtual content size");
+        expect(table.firstVisibleRow() == 0 && table.lastVisibleRowExclusive() == 8,
+                "VirtualTableView should track visible row range with overscan");
+        expect(table.realizedRowCount() == 8, "VirtualTableView should bound realized row count");
+        expect(table.children().size() == 1 && table.children().get(0) == table.verticalScrollBar(),
+                "VirtualTableView should expose only scrollbar as child, not every cell");
+
+        DrawList initialDrawList = new DrawList();
+        table.render(new DefaultRenderContext(initialDrawList));
+        expect(initialDrawList.commands().get(0).type() == DrawCommandType.RECT, "VirtualTableView should draw a fixed header first");
+        expect(hasText(initialDrawList, "Name") && hasText(initialDrawList, "Value"), "VirtualTableView should render column headers");
+        expect(hasText(initialDrawList, "R0C0") && hasText(initialDrawList, "R7C1"), "VirtualTableView should render visible cells");
+        expect(!hasText(initialDrawList, "R100C0"), "VirtualTableView should not render offscreen cells");
+        expect(cellRequests.count <= table.realizedRowCount() * table.columns().size(),
+                "VirtualTableView should request cell text only for rendered virtual rows");
+
+        table.scrollTo(95.0f);
+        table.arrange(new MutableRect(0.0f, 0.0f, 120.0f, 60.0f));
+        expect(table.scrollY() == 95.0f, "VirtualTableView should keep explicit scroll offset");
+        expect(table.firstVisibleRow() == 8 && table.lastVisibleRowExclusive() == 16,
+                "VirtualTableView should shift visible rows with scroll");
+
+        DrawList scrolledDrawList = new DrawList();
+        table.render(new DefaultRenderContext(scrolledDrawList));
+        expect(hasText(scrolledDrawList, "R8C0") && hasText(scrolledDrawList, "R15C1"),
+                "VirtualTableView should render scrolled virtual rows");
+        expect(!hasText(scrolledDrawList, "R0C0"), "VirtualTableView should stop rendering rows outside the realized window");
+
+        boolean consumed = uiContext.routedEvents().dispatch(new ScrollEvent(table, 4.0f, 14.0f, 4.0f, 4.0f, 0.0f, -1.0f));
+        expect(consumed && table.scrollY() == 115.0f, "VirtualTableView should consume wheel scroll when offset changes");
+        table.scrollTo(20_000.0f);
+        expect(table.scrollY() == 9_950.0f, "VirtualTableView should clamp to max row scroll");
     }
 
     private void testToggleCheckboxProgressAndNumberField() {
@@ -330,6 +991,10 @@ public final class BasicControlsSelfTest {
 
     private static boolean near(float left, float right) {
         return Math.abs(left - right) < 0.01f;
+    }
+
+    private static boolean hasFlag(int flags, int flag) {
+        return (flags & flag) == flag;
     }
 
     private static void expect(boolean condition, String message) {

@@ -14,10 +14,11 @@ import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 
-public class SearchField extends TextField {
+public class SearchField extends TextInput {
     private static final float CLEAR_ZONE_WIDTH = 14.0f;
 
     public SearchField() {
+        enableDefaultTextInputChrome();
         placeholder("Search...");
     }
 

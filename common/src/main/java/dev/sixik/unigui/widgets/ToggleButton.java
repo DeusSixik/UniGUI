@@ -63,8 +63,9 @@ public class ToggleButton extends Button {
 
     @Override
     protected WidgetState styleState() {
+        if (!enabled()) return super.styleState();
         if (pressed()) return WidgetState.PRESSED;
-        return checked ? WidgetState.CHECKED : WidgetState.NORMAL;
+        return checked ? WidgetState.CHECKED : super.styleState();
     }
 
     @Override

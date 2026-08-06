@@ -11,13 +11,14 @@ import dev.sixik.unigui.api.input.KeyCodes;
 
 import java.util.Locale;
 
-public class NumberField extends TextField {
+public class NumberField extends TextInput {
     private double min = -Double.MAX_VALUE;
     private double max = Double.MAX_VALUE;
     private double value;
     private double step = 1.0d;
 
     public NumberField() {
+        enableDefaultTextInputChrome();
         text("0");
     }
 

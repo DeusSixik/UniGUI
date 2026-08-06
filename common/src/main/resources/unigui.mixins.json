@@ -1,11 +1,12 @@
 {
   "required": true,
-  "package": "dev.sixik.unigui.mixin",
+  "package": "dev.sixik.unigui.tests.mixin",
   "compatibilityLevel": "JAVA_17",
   "minVersion": "0.8",
   "client": [
   ],
   "mixins": [
+    "MixinCommands"
   ],
   "injectors": {
     "defaultRequire": 1

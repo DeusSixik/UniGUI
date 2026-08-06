@@ -11,6 +11,12 @@ import dev.sixik.unigui.api.style.StyleKey;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.Theme;
 import dev.sixik.unigui.api.style.WidgetState;
+import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.api.widget.Widget;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public class Box extends PanelWidget {
     private final MutableColor background = new MutableColor(0.0f, 0.0f, 0.0f, 0.0f);
@@ -20,6 +26,8 @@ public class Box extends PanelWidget {
     private float borderWidth = 1.0f;
     private float radius;
     private boolean themeEnabled = true;
+    private long lastAppliedStyleVersion = Long.MIN_VALUE;
+    private long lastAppliedScopeStyleVersion = Long.MIN_VALUE;
 
     public Box() {
         background.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
@@ -91,6 +99,7 @@ public class Box extends PanelWidget {
 
     @Override
     public void render(RenderContext context) {
+        if (visibility() != Visibility.VISIBLE) return;
         renderBox(context);
         renderContent(context);
     }
@@ -118,6 +127,15 @@ public class Box extends PanelWidget {
 
     protected void applyTheme() {
         if (!themeEnabled) return;
+        UIContext context = uiContext();
+        long styleVersion = context == null ? Theme.EMPTY.version() : context.styleVersion();
+        long scopeStyleVersion = scopeStyleVersion();
+        if ((lastAppliedStyleVersion != Long.MIN_VALUE && lastAppliedStyleVersion != styleVersion)
+                || (lastAppliedScopeStyleVersion != Long.MIN_VALUE && lastAppliedScopeStyleVersion != scopeStyleVersion)) {
+            invalidate(InvalidationFlags.VISUAL);
+        }
+        lastAppliedStyleVersion = styleVersion;
+        lastAppliedScopeStyleVersion = scopeStyleVersion;
 
         ColorView themedBackground = styleValue(StyleKeys.BACKGROUND_COLOR, background);
         ColorView themedBorder = styleValue(StyleKeys.BORDER_COLOR, borderColor);
@@ -141,7 +159,8 @@ public class Box extends PanelWidget {
     }
 
     protected WidgetState styleState() {
-        return WidgetState.NORMAL;
+        if (!enabled()) return WidgetState.DISABLED;
+        return hovered() ? WidgetState.HOVERED : WidgetState.NORMAL;
     }
 
     protected String styleType() {
@@ -156,7 +175,35 @@ public class Box extends PanelWidget {
         if (!themeEnabled) return fallback;
         UIContext context = uiContext();
         Theme theme = context == null ? Theme.EMPTY : context.theme();
-        Style style = theme.styleFor(styleType());
-        return style.get(key, state, fallback);
+        String type = styleType();
+        T value = theme.styleFor(type).get(key, state, fallback);
+        for (Widget current : styleLookupChain()) {
+            Style localStyle = current.localStyle(type);
+            value = localStyle.get(key, state, value);
+        }
+        return value;
+    }
+
+    private long scopeStyleVersion() {
+        long version = 0L;
+        String type = styleType();
+        for (Widget current : styleLookupChain()) {
+            version += current.localStyle(type).version();
+        }
+        return version;
+    }
+
+    private List<Widget> styleLookupChain() {
+        List<Widget> chain = new ArrayList<>();
+        Widget current = this;
+        while (current != null) {
+            chain.add(current);
+            if (current != this && current.styleScope()) {
+                break;
+            }
+            current = current.parent();
+        }
+        Collections.reverse(chain);
+        return chain;
     }
 }

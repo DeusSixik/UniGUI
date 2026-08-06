@@ -7,7 +7,9 @@ import dev.sixik.unigui.api.event.RoutedEventDispatcher;
 import dev.sixik.unigui.api.input.ClipboardService;
 import dev.sixik.unigui.api.input.FocusManager;
 import dev.sixik.unigui.api.input.HitTester;
+import dev.sixik.unigui.api.input.HoverManager;
 import dev.sixik.unigui.api.style.Theme;
+import dev.sixik.unigui.api.widget.Widget;
 
 public interface UIContext {
     UiDispatcher dispatcher();
@@ -28,12 +30,28 @@ public interface UIContext {
         return FocusManager.NONE;
     }
 
+    default HoverManager hoverManager() {
+        return HoverManager.NONE;
+    }
+
     default ClipboardService clipboard() {
         return ClipboardService.EMPTY;
     }
 
     default Theme theme() {
         return Theme.EMPTY;
+    }
+
+    default long styleVersion() {
+        return theme().version();
+    }
+
+    default void invalidateStyles(Widget root) {
+        if (root == null) return;
+        root.invalidate(InvalidationFlags.VISUAL);
+        for (Widget child : root.children()) {
+            invalidateStyles(child);
+        }
     }
 
     default UiProfiler profiler() {

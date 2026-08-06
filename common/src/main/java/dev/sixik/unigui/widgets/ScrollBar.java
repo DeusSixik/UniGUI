@@ -18,6 +18,7 @@ import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.widget.Visibility;
 
 public class ScrollBar extends Box {
     private final MutableColor trackColor = new MutableColor(0.0f, 0.0f, 0.0f, 0.28f);
@@ -33,6 +34,7 @@ public class ScrollBar extends Box {
     public ScrollBar() {
         backgroundVisible(false);
         borderVisible(false);
+        focusable(true);
         trackColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         thumbColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
     }
@@ -131,6 +133,7 @@ public class ScrollBar extends Box {
 
     @Override
     public void handle(Event event) {
+        if (visibility() != Visibility.VISIBLE || !enabled()) return;
         super.handle(event);
         if (event.isCancelled()) return;
         if (event instanceof PointerEvent pointerEvent && pointerEvent.phase() == EventPhase.CAPTURE) return;

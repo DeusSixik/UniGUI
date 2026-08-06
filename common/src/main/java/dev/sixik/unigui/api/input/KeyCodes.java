@@ -2,6 +2,7 @@ package dev.sixik.unigui.api.input;
 
 public final class KeyCodes {
     public static final int ENTER = 257;
+    public static final int TAB = 258;
     public static final int ESCAPE = 256;
     public static final int SPACE = 32;
     public static final int A = 65;

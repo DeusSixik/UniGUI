@@ -18,6 +18,7 @@ import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.widget.Visibility;
 
 public class Slider extends Box {
     private static final float KNOB_WIDTH = 8.0f;
@@ -34,6 +35,7 @@ public class Slider extends Box {
     public Slider() {
         backgroundVisible(false);
         borderVisible(false);
+        focusable(true);
         trackColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         fillColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         knobColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
@@ -109,6 +111,7 @@ public class Slider extends Box {
 
     @Override
     public void handle(Event event) {
+        if (visibility() != Visibility.VISIBLE || !enabled()) return;
         super.handle(event);
         if (event.isCancelled()) return;
         if (event instanceof PointerEvent pointerEvent && pointerEvent.phase() == EventPhase.CAPTURE) return;

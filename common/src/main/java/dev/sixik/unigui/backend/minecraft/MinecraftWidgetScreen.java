@@ -12,6 +12,9 @@ import dev.sixik.unigui.api.event.PointerReleasedEvent;
 import dev.sixik.unigui.api.event.ScrollEvent;
 import dev.sixik.unigui.api.event.TextInputEvent;
 import dev.sixik.unigui.api.input.HitTestResult;
+import dev.sixik.unigui.api.input.FocusDirection;
+import dev.sixik.unigui.api.input.KeyCodes;
+import dev.sixik.unigui.api.input.KeyModifiers;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.render.DrawList;
@@ -107,13 +110,26 @@ public class MinecraftWidgetScreen extends Screen {
 
     @Override
     public void mouseMoved(double mouseX, double mouseY) {
-        hit(mouseX, mouseY).ifPresent(hit -> uiContext.routedEvents().dispatch(new PointerMovedEvent(
-                hit.widget(),
+        Optional<HitTestResult> hit = hit(mouseX, mouseY);
+        if (hit.isEmpty()) {
+            uiContext.hoverManager().clearHover();
+            return;
+        }
+
+        HitTestResult result = hit.get();
+        uiContext.hoverManager().updateHover(result.widget(),
                 (float) mouseX,
                 (float) mouseY,
-                hit.localX(),
-                hit.localY(),
-                0)));
+                result.localX(),
+                result.localY(),
+                0);
+        uiContext.routedEvents().dispatch(new PointerMovedEvent(
+                result.widget(),
+                (float) mouseX,
+                (float) mouseY,
+                result.localX(),
+                result.localY(),
+                0));
     }
 
     @Override
@@ -173,6 +189,21 @@ public class MinecraftWidgetScreen extends Screen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (keyCode == KeyCodes.TAB) {
+            return KeyModifiers.has(modifiers, KeyModifiers.SHIFT)
+                    ? uiContext.focusManager().focusPrevious(root)
+                    : uiContext.focusManager().focusNext(root);
+        }
+
+        FocusDirection focusDirection = focusDirection(keyCode);
+        if (focusDirection != null) {
+            Widget focused = uiContext.focusManager().focusedWidget();
+            if (focused != null && uiContext.routedEvents().dispatch(new KeyPressedEvent(focused, keyCode, scanCode, modifiers))) {
+                return true;
+            }
+            return uiContext.focusManager().focusDirectional(root, focusDirection) || super.keyPressed(keyCode, scanCode, modifiers);
+        }
+
         Widget focused = uiContext.focusManager().focusedWidget();
         if (focused == null) {
             return super.keyPressed(keyCode, scanCode, modifiers);
@@ -193,6 +224,7 @@ public class MinecraftWidgetScreen extends Screen {
 
     @Override
     public void removed() {
+        uiContext.hoverManager().clearHover();
         uiContext.focusManager().clearFocus();
         root.dispose();
     }
@@ -227,6 +259,16 @@ public class MinecraftWidgetScreen extends Screen {
             case 3 -> PointerButton.BACK;
             case 4 -> PointerButton.FORWARD;
             default -> PointerButton.UNKNOWN;
+        };
+    }
+
+    private static FocusDirection focusDirection(int keyCode) {
+        return switch (keyCode) {
+            case KeyCodes.LEFT -> FocusDirection.LEFT;
+            case KeyCodes.RIGHT -> FocusDirection.RIGHT;
+            case KeyCodes.UP -> FocusDirection.UP;
+            case KeyCodes.DOWN -> FocusDirection.DOWN;
+            default -> null;
         };
     }
 }

@@ -5,8 +5,8 @@ public final class LayoutContext {
     private final float availableHeight;
 
     public LayoutContext(float availableWidth, float availableHeight) {
-        this.availableWidth = availableWidth;
-        this.availableHeight = availableHeight;
+        this.availableWidth = sanitizeAvailable(availableWidth);
+        this.availableHeight = sanitizeAvailable(availableHeight);
     }
 
     public float availableWidth() {
@@ -15,5 +15,10 @@ public final class LayoutContext {
 
     public float availableHeight() {
         return availableHeight;
+    }
+
+    private static float sanitizeAvailable(float value) {
+        if (Float.isNaN(value)) return 0.0f;
+        return Float.isFinite(value) ? Math.max(0.0f, value) : Float.POSITIVE_INFINITY;
     }
 }

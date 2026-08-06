@@ -7,6 +7,7 @@ import dev.sixik.unigui.api.event.Event;
 import dev.sixik.unigui.api.event.EventPhase;
 import dev.sixik.unigui.api.event.ScrollEvent;
 import dev.sixik.unigui.api.layout.LayoutContext;
+import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
@@ -160,8 +161,17 @@ public class ScrollView extends WidgetBase {
 
     @Override
     public void measure(LayoutContext context) {
+        if (visibility() == dev.sixik.unigui.api.widget.Visibility.COLLAPSED) {
+            setDesiredSize(LayoutSize.ZERO);
+            return;
+        }
         if (content != null) {
             content.measure(context);
+            float desiredWidth = contentWidth > 0.0f ? contentWidth : content.desiredSize().width();
+            float desiredHeight = contentHeight > 0.0f ? contentHeight : content.desiredSize().height();
+            setDesiredSize(resolveDesiredSize(context, desiredWidth, desiredHeight));
+        } else {
+            setDesiredSize(resolveDesiredSize(context, 0.0f, 0.0f));
         }
     }
 
