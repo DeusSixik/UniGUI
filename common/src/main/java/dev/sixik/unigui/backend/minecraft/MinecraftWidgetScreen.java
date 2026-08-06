@@ -16,6 +16,7 @@ import dev.sixik.unigui.api.input.FocusDirection;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.input.KeyModifiers;
 import dev.sixik.unigui.api.input.PointerButton;
+import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.render.DrawList;
 import dev.sixik.unigui.api.widget.Widget;
@@ -38,6 +39,7 @@ public class MinecraftWidgetScreen extends Screen {
     private final DefaultRenderContext renderContext = new DefaultRenderContext(drawList);
     private MinecraftGuiRenderBackend backend;
     private long frameIndex;
+    private float lastFrameCpuMillis;
 
     public MinecraftWidgetScreen(Widget root) {
         this(Component.empty(), root, new DefaultUIContext(new MinecraftClipboardService()));
@@ -68,11 +70,13 @@ public class MinecraftWidgetScreen extends Screen {
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        long uiCpuStartNanos = System.nanoTime();
         FrameContext layoutFrame = new FrameContext(frameIndex, 0.0f, partialTick, FramePhase.LAYOUT);
         FrameContext renderFrame = new FrameContext(frameIndex, 0.0f, partialTick, FramePhase.RENDER);
 
         uiContext.profiler().beginFrame(frameIndex);
         uiContext.debugCounters().beginFrame(frameIndex);
+        uiContext.debugCounters().recordFrameCpuMillis(lastFrameCpuMillis);
 
         try (ProfileScope ignored = uiContext.profiler().scope("dispatcher")) {
             uiContext.dispatcher().drain();
@@ -81,6 +85,7 @@ public class MinecraftWidgetScreen extends Screen {
             root.tick(layoutFrame);
         }
         try (ProfileScope ignored = uiContext.profiler().scope("layout")) {
+            root.measure(new LayoutContext(width, height));
             root.arrange(new MutableRect(0.0f, 0.0f, width, height));
         }
 
@@ -91,6 +96,7 @@ public class MinecraftWidgetScreen extends Screen {
         }
 
         backend.beginFrame(renderFrame);
+        uiContext.debugCounters().recordFrameGpuMillis(backend.lastFrameGpuMillis());
         renderContext.backend(backend);
 
         drawList.clear();
@@ -100,6 +106,7 @@ public class MinecraftWidgetScreen extends Screen {
 
         recordDebugDrawStats();
         DebugOverlayRenderer.render(renderContext, uiContext);
+        lastFrameCpuMillis = (System.nanoTime() - uiCpuStartNanos) / 1_000_000.0f;
 
         try (ProfileScope ignored = uiContext.profiler().scope("renderBackend")) {
             backend.render(drawList, null);
@@ -110,6 +117,18 @@ public class MinecraftWidgetScreen extends Screen {
 
     @Override
     public void mouseMoved(double mouseX, double mouseY) {
+        Widget captured = uiContext.capturedPointer(0);
+        if (captured != null) {
+            uiContext.routedEvents().dispatch(new PointerMovedEvent(
+                    captured,
+                    (float) mouseX,
+                    (float) mouseY,
+                    localX(captured, mouseX),
+                    localY(captured, mouseY),
+                    0));
+            return;
+        }
+
         Optional<HitTestResult> hit = hit(mouseX, mouseY);
         if (hit.isEmpty()) {
             uiContext.hoverManager().clearHover();
@@ -155,6 +174,23 @@ public class MinecraftWidgetScreen extends Screen {
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        Widget captured = uiContext.capturedPointer(0);
+        if (captured != null) {
+            PointerReleasedEvent event = new PointerReleasedEvent(
+                    captured,
+                    (float) mouseX,
+                    (float) mouseY,
+                    localX(captured, mouseX),
+                    localY(captured, mouseY),
+                    0,
+                    pointerButton(button));
+            boolean consumed = uiContext.routedEvents().dispatch(event);
+            if (button == 0) {
+                uiContext.clearPointerCapture(0);
+            }
+            return consumed;
+        }
+
         return hit(mouseX, mouseY)
                 .map(hit -> {
                     PointerReleasedEvent event = new PointerReleasedEvent(
@@ -168,6 +204,23 @@ public class MinecraftWidgetScreen extends Screen {
                     return uiContext.routedEvents().dispatch(event);
                 })
                 .orElse(false);
+    }
+
+    @Override
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+        Widget captured = uiContext.capturedPointer(0);
+        if (captured == null) {
+            return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
+        }
+
+        PointerMovedEvent event = new PointerMovedEvent(
+                captured,
+                (float) mouseX,
+                (float) mouseY,
+                localX(captured, mouseX),
+                localY(captured, mouseY),
+                0);
+        return uiContext.routedEvents().dispatch(event);
     }
 
     @Override
@@ -226,11 +279,20 @@ public class MinecraftWidgetScreen extends Screen {
     public void removed() {
         uiContext.hoverManager().clearHover();
         uiContext.focusManager().clearFocus();
+        uiContext.clearPointerCapture(0);
         root.dispose();
     }
 
     private Optional<HitTestResult> hit(double mouseX, double mouseY) {
         return uiContext.hitTester().hitTest(root, (float) mouseX, (float) mouseY);
+    }
+
+    private static float localX(Widget widget, double rootX) {
+        return (float) rootX - widget.layoutBounds().x();
+    }
+
+    private static float localY(Widget widget, double rootY) {
+        return (float) rootY - widget.layoutBounds().y();
     }
 
     private void recordDebugDrawStats() {

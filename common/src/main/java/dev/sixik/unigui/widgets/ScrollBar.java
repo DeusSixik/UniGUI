@@ -142,16 +142,21 @@ public class ScrollBar extends Box {
             UIContext context = uiContext();
             if (context != null) {
                 context.focusManager().requestFocus(this);
+                context.capturePointer(pointer.pointerId(), this);
             }
             dragging = true;
-            updateFromLocal(pointer.localX(), pointer.localY());
+            updateFromRoot(pointer.rootX(), pointer.rootY());
             event.cancel();
         } else if (event instanceof PointerMovedEvent pointer && dragging) {
-            updateFromLocal(pointer.localX(), pointer.localY());
+            updateFromRoot(pointer.rootX(), pointer.rootY());
             event.cancel();
         } else if (event instanceof PointerReleasedEvent pointer && pointer.button() == PointerButton.PRIMARY && dragging) {
-            updateFromLocal(pointer.localX(), pointer.localY());
+            updateFromRoot(pointer.rootX(), pointer.rootY());
             dragging = false;
+            UIContext context = uiContext();
+            if (context != null) {
+                context.releasePointer(pointer.pointerId(), this);
+            }
             event.cancel();
         } else if (event instanceof KeyPressedEvent key && key.phase() == EventPhase.TARGET && isFocused()) {
             if (key.keyCode() == KeyCodes.LEFT || key.keyCode() == KeyCodes.UP) {
@@ -197,6 +202,10 @@ public class ScrollBar extends Box {
         float trackTravel = Math.max(1.0f, length - thumbLength);
         float normalized = clamp((position - thumbLength * 0.5f) / trackTravel, 0.0f, 1.0f);
         setValue(min + normalized * (max - min), true);
+    }
+
+    private void updateFromRoot(float rootX, float rootY) {
+        updateFromLocal(rootX - layoutBounds().x(), rootY - layoutBounds().y());
     }
 
     private void nudge(float direction) {

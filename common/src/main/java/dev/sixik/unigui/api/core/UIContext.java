@@ -34,6 +34,19 @@ public interface UIContext {
         return HoverManager.NONE;
     }
 
+    default Widget capturedPointer(int pointerId) {
+        return null;
+    }
+
+    default void capturePointer(int pointerId, Widget widget) {
+    }
+
+    default void releasePointer(int pointerId, Widget widget) {
+    }
+
+    default void clearPointerCapture(int pointerId) {
+    }
+
     default ClipboardService clipboard() {
         return ClipboardService.EMPTY;
     }

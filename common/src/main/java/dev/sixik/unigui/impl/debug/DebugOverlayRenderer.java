@@ -30,18 +30,20 @@ public final class DebugOverlayRenderer {
         float x = 4.0f;
         float y = 4.0f;
         float width = 276.0f;
-        float height = 40.0f + scopeLines * 10.0f;
+        float height = 50.0f + scopeLines * 10.0f;
 
         context.rect(x, y, width, height, Paint.fill(BACKGROUND));
         line(context, "UniGUI frame " + debug.frameIndex(), x, y, 0, HEADER);
-        line(context, "draw=" + debug.drawCommandCount() + " batches=" + debug.batchCount(), x, y, 1, TEXT);
-        line(context, "cache hit=" + debug.textureCacheHits() + " miss=" + debug.textureCacheMisses()
-                + " tex=" + debug.textureRenders() + " last=" + debug.lastTextureCacheMissReason(), x, y, 2,
+        line(context, "fps=" + formatFps(debug.framesPerSecond()) + " cpu=" + formatMillis(debug.frameCpuMillis())
+                + "ms gpu=" + formatGpuMillis(debug.frameGpuMillis()) + "ms", x, y, 1, TEXT);
+        line(context, "draw=" + debug.drawCommandCount() + " batches=" + debug.batchCount()
+                + " cache hit=" + debug.textureCacheHits() + " miss=" + debug.textureCacheMisses(), x, y, 2, TEXT);
+        line(context, "tex=" + debug.textureRenders() + " last=" + debug.lastTextureCacheMissReason(), x, y, 3,
                 debug.textureCacheMisses() > 0L ? WARN : TEXT);
 
-        int line = 3;
+        int line = 4;
         for (ProfileScopeSnapshot scope : profiler.scopes()) {
-            if (line >= 3 + scopeLines) break;
+            if (line >= 4 + scopeLines) break;
             line(context, scope.name() + " " + formatMillis(scope.totalMillis()) + "ms x" + scope.calls(), x, y, line, TEXT);
             line++;
         }
@@ -53,5 +55,16 @@ public final class DebugOverlayRenderer {
 
     private static String formatMillis(float millis) {
         return String.format(Locale.ROOT, "%.2f", millis);
+    }
+
+    private static String formatFps(float framesPerSecond) {
+        return String.format(Locale.ROOT, "%.1f", framesPerSecond);
+    }
+
+    private static String formatGpuMillis(float millis) {
+        if (!Float.isFinite(millis) || millis < 0.0f) {
+            return "n/a";
+        }
+        return formatMillis(millis);
     }
 }

@@ -23,12 +23,18 @@ import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.VectorPath;
 import dev.sixik.unigui.impl.render.DrawBatch;
 import dev.sixik.unigui.impl.render.DrawBatcher;
+import dev.sixik.unigui.impl.render.ScissorStack;
 import dev.sixik.unigui.impl.render.SimpleDrawBatcher;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.resources.ResourceLocation;
 import org.joml.Matrix4f;
+import org.lwjgl.opengl.GL;
+import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.ARBTimerQuery;
+import org.lwjgl.opengl.GL15;
+import org.lwjgl.opengl.GL33;
 
 import java.util.Arrays;
 import java.util.List;
@@ -37,7 +43,14 @@ import java.util.Objects;
 public final class MinecraftGuiRenderBackend implements RenderBackend {
     private final Minecraft minecraft;
     private final DrawBatcher batcher;
+    private final ScissorStack scissorStack = new ScissorStack();
     private GuiGraphics graphics;
+    private boolean scissorEnabledByBackend;
+    private int gpuTimerQueryId;
+    private boolean gpuTimerQueryInFlight;
+    private boolean gpuTimerUnavailable;
+    private boolean gpuTimerUsesArb;
+    private float lastFrameGpuMillis = -1.0f;
 
     public MinecraftGuiRenderBackend(GuiGraphics graphics) {
         this(graphics, Minecraft.getInstance(), SimpleDrawBatcher.INSTANCE);
@@ -56,6 +69,14 @@ public final class MinecraftGuiRenderBackend implements RenderBackend {
 
     @Override
     public void beginFrame(FrameContext frame) {
+        scissorStack.clear();
+        scissorEnabledByBackend = false;
+        pollGpuTimer();
+    }
+
+    public float lastFrameGpuMillis() {
+        pollGpuTimer();
+        return lastFrameGpuMillis;
     }
 
     @Override
@@ -65,8 +86,15 @@ public final class MinecraftGuiRenderBackend implements RenderBackend {
 
     @Override
     public void render(DrawList drawList, RenderTarget target) {
+        clearScissorStack();
         if (target == null) {
-            renderBatches(drawList);
+            boolean gpuTimerActive = beginGpuTimer();
+            try {
+                renderBatches(drawList);
+            } finally {
+                endGpuTimer(gpuTimerActive);
+                clearScissorStack();
+            }
             return;
         }
 
@@ -89,6 +117,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend {
             renderBatches(drawList);
             graphics.flush();
         } finally {
+            clearScissorStack();
             target.unbindWrite();
             minecraft.getMainRenderTarget().bindWrite(true);
         }
@@ -101,6 +130,88 @@ public final class MinecraftGuiRenderBackend implements RenderBackend {
                 graphics.flush();
             }
         }
+    }
+
+    private boolean beginGpuTimer() {
+        pollGpuTimer();
+        TimerQuerySupport support = timerQuerySupport();
+        if (gpuTimerUnavailable || gpuTimerQueryInFlight || support == TimerQuerySupport.NONE) {
+            return false;
+        }
+
+        try {
+            if (gpuTimerQueryId == 0) {
+                gpuTimerQueryId = GL15.glGenQueries();
+            }
+            gpuTimerUsesArb = support == TimerQuerySupport.ARB;
+            GL15.glBeginQuery(timeElapsedTarget(), gpuTimerQueryId);
+            return true;
+        } catch (Throwable ignored) {
+            gpuTimerUnavailable = true;
+            lastFrameGpuMillis = -1.0f;
+            return false;
+        }
+    }
+
+    private void endGpuTimer(boolean active) {
+        if (!active) return;
+        try {
+            GL15.glEndQuery(timeElapsedTarget());
+            gpuTimerQueryInFlight = true;
+        } catch (Throwable ignored) {
+            gpuTimerUnavailable = true;
+            gpuTimerQueryInFlight = false;
+            lastFrameGpuMillis = -1.0f;
+        }
+    }
+
+    private void pollGpuTimer() {
+        if (!gpuTimerQueryInFlight || gpuTimerQueryId == 0 || gpuTimerUnavailable) {
+            return;
+        }
+
+        try {
+            int available = GL15.glGetQueryObjecti(gpuTimerQueryId, GL15.GL_QUERY_RESULT_AVAILABLE);
+            if (available != GL11.GL_TRUE) {
+                return;
+            }
+            long elapsedNanos = gpuTimerUsesArb
+                    ? ARBTimerQuery.glGetQueryObjecti64(gpuTimerQueryId, GL15.GL_QUERY_RESULT)
+                    : GL33.glGetQueryObjecti64(gpuTimerQueryId, GL15.GL_QUERY_RESULT);
+            lastFrameGpuMillis = Math.max(0.0f, elapsedNanos / 1_000_000.0f);
+            gpuTimerQueryInFlight = false;
+        } catch (Throwable ignored) {
+            gpuTimerUnavailable = true;
+            gpuTimerQueryInFlight = false;
+            lastFrameGpuMillis = -1.0f;
+        }
+    }
+
+    private int timeElapsedTarget() {
+        return gpuTimerUsesArb ? ARBTimerQuery.GL_TIME_ELAPSED : GL33.GL_TIME_ELAPSED;
+    }
+
+    private static TimerQuerySupport timerQuerySupport() {
+        try {
+            if (GL.getCapabilities() == null) {
+                return TimerQuerySupport.NONE;
+            }
+            if (GL.getCapabilities().OpenGL33) {
+                return TimerQuerySupport.OPENGL33;
+            }
+            if (GL.getCapabilities().GL_ARB_timer_query) {
+                return TimerQuerySupport.ARB;
+            }
+            return TimerQuerySupport.NONE;
+        } catch (Throwable ignored) {
+            return TimerQuerySupport.NONE;
+        }
+    }
+
+    private enum TimerQuerySupport {
+        NONE,
+        OPENGL33,
+        ARB
     }
 
     private void renderBatch(DrawBatch batch) {
@@ -165,18 +276,41 @@ public final class MinecraftGuiRenderBackend implements RenderBackend {
 
     private void pushClip(DrawCommand command) {
         RectView bounds = command.bounds();
-        int x1 = round(Math.min(bounds.x(), bounds.x() + bounds.width()));
-        int y1 = round(Math.min(bounds.y(), bounds.y() + bounds.height()));
-        int x2 = round(Math.max(bounds.x(), bounds.x() + bounds.width()));
-        int y2 = round(Math.max(bounds.y(), bounds.y() + bounds.height()));
-
-        graphics.flush();
-        graphics.enableScissor(x1, y1, x2, y2);
+        ScissorStack.Rect next = scissorStack.push(bounds);
+        applyScissor(next);
     }
 
     private void popClip() {
+        if (scissorStack.isEmpty()) {
+            clearScissorStack();
+            return;
+        }
+
+        ScissorStack.Rect current = scissorStack.pop();
+        if (scissorStack.isEmpty()) {
+            clearScissorStack();
+            return;
+        }
+
+        applyScissor(current);
+    }
+
+    private void applyScissor(ScissorStack.Rect rect) {
+        graphics.flush();
+        graphics.enableScissor(rect.x1(), rect.y1(), rect.x2(), rect.y2());
+        scissorEnabledByBackend = true;
+    }
+
+    private void clearScissorStack() {
+        if (!scissorStack.isEmpty()) {
+            scissorStack.clear();
+        }
+        if (!scissorEnabledByBackend) {
+            return;
+        }
         graphics.flush();
         graphics.disableScissor();
+        scissorEnabledByBackend = false;
     }
 
     private void renderRoundedRect(DrawCommand command) {

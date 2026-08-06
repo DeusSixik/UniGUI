@@ -8,7 +8,9 @@ import dev.sixik.unigui.api.event.PointerMovedEvent;
 import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.event.PointerReleasedEvent;
 import dev.sixik.unigui.api.event.ScrollEvent;
+import dev.sixik.unigui.api.event.SelectionChangedEvent;
 import dev.sixik.unigui.api.event.SliderValueChangedEvent;
+import dev.sixik.unigui.api.event.TableSortChangedEvent;
 import dev.sixik.unigui.api.event.TextChangedEvent;
 import dev.sixik.unigui.api.event.TextInputEvent;
 import dev.sixik.unigui.api.layout.Alignment;
@@ -25,14 +27,19 @@ import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.render.DrawCommandType;
 import dev.sixik.unigui.api.render.DrawList;
+import dev.sixik.unigui.api.selection.SelectionMode;
+import dev.sixik.unigui.api.sort.SortDirection;
 import dev.sixik.unigui.api.style.MutableStyle;
 import dev.sixik.unigui.api.style.MutableTheme;
 import dev.sixik.unigui.api.style.StyleKey;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.api.virtualization.FixedRowVirtualizer;
+import dev.sixik.unigui.api.virtualization.VirtualRange;
 import dev.sixik.unigui.impl.input.TransformHitTester;
 import dev.sixik.unigui.impl.render.DefaultRenderContext;
+import dev.sixik.unigui.impl.render.ScissorStack;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.widgets.Button;
 import dev.sixik.unigui.widgets.Box;
@@ -82,7 +89,11 @@ public final class BasicControlsSelfTest {
         testRicherLayoutContainers();
         testSliderPointerAndKeyboardInput();
         testScrollViewBubbledWheelInput();
+        testNestedScissorStack();
+        testFixedRowVirtualizationCore();
+        testVirtualizedSelectionContracts();
         testVirtualListViewRealizationAndScrolling();
+        testVirtualTableSortingContracts();
         testVirtualTableViewVirtualRowsAndRendering();
         testToggleCheckboxProgressAndNumberField();
         System.out.println("BasicControlsSelfTest passed");
@@ -731,6 +742,34 @@ public final class BasicControlsSelfTest {
         expect(near(skipped.layoutBounds().x(), 7.0f) && near(skipped.layoutBounds().width(), 9.0f),
                 "WrapPanel should skip collapsed children during layout");
 
+        VBox wrappedToolbarLayout = new VBox();
+        wrappedToolbarLayout.spacing(8.0f);
+        WrapPanel toolbar = new WrapPanel().spacing(6.0f).lineSpacing(4.0f);
+        Button search = new Button("Search");
+        Button slider = new Button("Slider");
+        Button progress = new Button("Progress");
+        Button number = new Button("42");
+        search.preferredSize(120.0f, 20.0f).grow(0.0f);
+        slider.preferredSize(130.0f, 20.0f).grow(0.0f);
+        progress.preferredSize(100.0f, 12.0f).grow(0.0f);
+        number.preferredSize(70.0f, 20.0f).grow(0.0f);
+        toolbar.grow(0.0f);
+        toolbar.addChild(search);
+        toolbar.addChild(slider);
+        toolbar.addChild(progress);
+        toolbar.addChild(number);
+        Box main = new Box();
+        main.grow(1.0f);
+        wrappedToolbarLayout.addChild(toolbar);
+        wrappedToolbarLayout.addChild(main);
+        wrappedToolbarLayout.measure(new LayoutContext(260.0f, 140.0f));
+        wrappedToolbarLayout.arrange(new MutableRect(0.0f, 0.0f, 260.0f, 140.0f));
+
+        expect(toolbar.layoutBounds().height() >= 44.0f,
+                "VBox should reserve measured multi-line WrapPanel height");
+        expect(main.layoutBounds().y() >= toolbar.layoutBounds().y() + toolbar.layoutBounds().height() + 8.0f,
+                "VBox should arrange grow content below a wrapped toolbar without overlap");
+
         WrapPanel verticalWrap = new WrapPanel().orientation(Orientation.VERTICAL).spacing(5.0f).lineSpacing(10.0f);
         Button verticalFirst = new Button("VA");
         Button verticalSecond = new Button("VB");
@@ -770,16 +809,18 @@ public final class BasicControlsSelfTest {
         expect(slider.dragging(), "Slider should start dragging on primary pointer press");
         expect(slider.value() == 25.0f, "Slider should map pointer position to stepped value");
         expect(uiContext.focusManager().focusedWidget() == slider, "Slider should request focus on pointer press");
+        expect(uiContext.capturedPointer(0) == slider, "Slider should capture pointer while dragging");
 
-        uiContext.routedEvents().dispatch(new PointerMovedEvent(slider, 180.0f, 10.0f, 180.0f, 10.0f, 0));
-        expect(slider.value() == 90.0f, "Slider should update value while dragging");
+        uiContext.routedEvents().dispatch(new PointerMovedEvent(slider, 260.0f, 10.0f, 260.0f, 10.0f, 0));
+        expect(slider.value() == 100.0f, "Captured Slider drag should continue and clamp outside its visual bounds");
 
-        uiContext.routedEvents().dispatch(new PointerReleasedEvent(slider, 180.0f, 10.0f, 180.0f, 10.0f, 0, PointerButton.PRIMARY));
+        uiContext.routedEvents().dispatch(new PointerReleasedEvent(slider, 260.0f, 10.0f, 260.0f, 10.0f, 0, PointerButton.PRIMARY));
         expect(!slider.dragging(), "Slider should stop dragging on release");
+        expect(uiContext.capturedPointer(0) == null, "Slider should release pointer capture after drag release");
 
         uiContext.routedEvents().dispatch(new KeyPressedEvent(slider, KeyCodes.LEFT, 0, 0));
-        expect(slider.value() == 85.0f, "Focused Slider should nudge left by step");
-        expect(changes.count >= 3 && changes.lastValue == 85.0f, "Slider should emit value changed events");
+        expect(slider.value() == 95.0f, "Focused Slider should nudge left by step");
+        expect(changes.count >= 3 && changes.lastValue == 95.0f, "Slider should emit value changed events");
     }
 
     private void testScrollViewBubbledWheelInput() {
@@ -802,15 +843,137 @@ public final class BasicControlsSelfTest {
         uiContext.routedEvents().dispatch(new PointerPressedEvent(scrollView.verticalScrollBar(),
                 97.0f, 50.0f, 3.0f, 50.0f, 0, PointerButton.PRIMARY));
         expect(scrollView.verticalScrollBar().dragging(), "ScrollBar should start dragging on primary pointer press");
+        expect(uiContext.capturedPointer(0) == scrollView.verticalScrollBar(), "ScrollBar should capture pointer while dragging");
         expect(near(scrollView.scrollY(), 100.0f), "Dragging vertical ScrollBar should update ScrollView scrollY");
+        uiContext.routedEvents().dispatch(new PointerMovedEvent(scrollView.verticalScrollBar(),
+                97.0f, 180.0f, 3.0f, 180.0f, 0));
+        expect(near(scrollView.scrollY(), 200.0f), "Captured ScrollBar drag should continue outside its visual bounds");
         uiContext.routedEvents().dispatch(new PointerReleasedEvent(scrollView.verticalScrollBar(),
-                97.0f, 50.0f, 3.0f, 50.0f, 0, PointerButton.PRIMARY));
+                97.0f, 180.0f, 3.0f, 180.0f, 0, PointerButton.PRIMARY));
         expect(!scrollView.verticalScrollBar().dragging(), "ScrollBar should stop dragging on release");
+        expect(uiContext.capturedPointer(0) == null, "ScrollBar should release pointer capture after drag release");
 
         DrawList drawList = new DrawList();
         scrollView.render(new DefaultRenderContext(drawList));
         expect(drawList.commands().get(0).type() == DrawCommandType.PUSH_CLIP, "ScrollView should push a clip before rendering content");
         expect(hasCommand(drawList, DrawCommandType.POP_CLIP), "ScrollView should pop the clip after rendering content");
+    }
+
+    private void testNestedScissorStack() {
+        ScissorStack scissorStack = new ScissorStack();
+
+        ScissorStack.Rect root = scissorStack.push(new MutableRect(10.0f, 10.0f, 100.0f, 80.0f));
+        expect(root.equals(new ScissorStack.Rect(10, 10, 110, 90)), "ScissorStack should push root clip bounds");
+
+        ScissorStack.Rect nested = scissorStack.push(new MutableRect(50.0f, 0.0f, 80.0f, 50.0f));
+        expect(nested.equals(new ScissorStack.Rect(50, 10, 110, 50)), "Nested scissor should intersect with parent bounds");
+
+        ScissorStack.Rect restored = scissorStack.pop();
+        expect(restored.equals(root), "Popping nested scissor should restore parent clip");
+
+        ScissorStack.Rect empty = scissorStack.push(new MutableRect(500.0f, 500.0f, 20.0f, 20.0f));
+        expect(empty.equals(new ScissorStack.Rect(500, 500, 500, 500)), "Non-overlapping nested scissor should collapse to empty rect");
+
+        scissorStack.clear();
+        expect(scissorStack.isEmpty(), "ScissorStack clear should remove all clip state");
+    }
+
+    private void testFixedRowVirtualizationCore() {
+        FixedRowVirtualizer virtualizer = new FixedRowVirtualizer()
+                .itemCount(1_000)
+                .itemExtent(10.0f)
+                .overscan(1)
+                .viewportExtent(50.0f);
+
+        VirtualRange initial = virtualizer.visibleRange();
+        expect(initial.firstIndex() == 0 && initial.lastIndexExclusive() == 8 && initial.count() == 8,
+                "FixedRowVirtualizer should calculate the first realized range with overscan");
+        expect(virtualizer.contentExtent() == 10_000.0f && virtualizer.maxScrollOffset() == 9_950.0f,
+                "FixedRowVirtualizer should expose content and max scroll extents");
+
+        virtualizer.scrollOffset(95.0f);
+        VirtualRange scrolled = virtualizer.visibleRange();
+        expect(scrolled.firstIndex() == 8 && scrolled.lastIndexExclusive() == 16,
+                "FixedRowVirtualizer should shift range with scroll offset");
+        expect(near(virtualizer.itemOffset(8), -15.0f),
+                "FixedRowVirtualizer should map item index to viewport-relative offset");
+
+        virtualizer.itemCount(10).scrollOffset(20_000.0f);
+        expect(virtualizer.scrollOffset() == 50.0f && virtualizer.visibleRange().lastIndexExclusive() == 10,
+                "FixedRowVirtualizer should clamp scroll and ranges when item count shrinks");
+    }
+
+    private void testVirtualizedSelectionContracts() {
+        DefaultUIContext uiContext = new DefaultUIContext();
+        VirtualListView list = new VirtualListView()
+                .itemCount(20)
+                .itemHeight(10.0f)
+                .selectionMode(SelectionMode.MULTIPLE);
+        list.setUiContextInternal(uiContext);
+        list.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 50.0f));
+        Counter listSelectionChanges = new Counter();
+        list.onSelectionChanged((SelectionChangedEvent event) -> {
+            listSelectionChanges.count++;
+            listSelectionChanges.lastSelection = event.newSelection();
+        });
+
+        list.selectIndex(2);
+        expect(list.selectedIndex() == 2 && list.selectedIndices().equals(java.util.List.of(2)),
+                "VirtualListView should expose single selected index");
+        list.toggleIndex(4);
+        expect(list.selectedIndices().equals(java.util.List.of(2, 4)) && listSelectionChanges.count == 2,
+                "VirtualListView should support multi-selection toggle and emit changes");
+        expect(listSelectionChanges.lastSelection.equals(java.util.List.of(2, 4)),
+                "VirtualListView selection event should expose new selection snapshot");
+
+        DrawList selectedListDrawList = new DrawList();
+        list.render(new DefaultRenderContext(selectedListDrawList));
+        expect(hasFillColor(selectedListDrawList, 0.18f, 0.45f, 0.75f, 0.35f),
+                "VirtualListView should render selected row highlight");
+
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(list, 5.0f, 35.0f, 5.0f, 35.0f, 0, PointerButton.PRIMARY));
+        expect(list.selectedIndices().equals(java.util.List.of(3)),
+                "VirtualListView primary click should single-select clicked row");
+        list.selectIndex(0);
+        var row3 = list.children().get(3);
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(row3, 5.0f, 35.0f, 5.0f, 5.0f, 0, PointerButton.PRIMARY));
+        expect(list.selectedIndices().equals(java.util.List.of(3)),
+                "VirtualListView bubbled row-child click should use list-local coordinates");
+        list.itemCount(3);
+        expect(list.selectedIndices().isEmpty(), "VirtualListView should prune selected indices when item count shrinks");
+
+        VirtualTableView table = new VirtualTableView()
+                .addColumn("Name", 60.0f)
+                .addColumn("Value", 50.0f)
+                .rowCount(20)
+                .rowHeight(10.0f)
+                .headerHeight(10.0f)
+                .selectionMode(SelectionMode.MULTIPLE);
+        table.setUiContextInternal(uiContext);
+        table.arrange(new MutableRect(0.0f, 0.0f, 120.0f, 60.0f));
+        Counter tableSelectionChanges = new Counter();
+        table.onSelectionChanged((SelectionChangedEvent event) -> {
+            tableSelectionChanges.count++;
+            tableSelectionChanges.lastSelection = event.newSelection();
+        });
+
+        table.selectRow(1);
+        table.toggleRow(3);
+        expect(table.selectedRow() == 1 && table.selectedRows().equals(java.util.List.of(1, 3)),
+                "VirtualTableView should support row multi-selection");
+        expect(tableSelectionChanges.count == 2 && tableSelectionChanges.lastSelection.equals(java.util.List.of(1, 3)),
+                "VirtualTableView should emit row selection changes");
+
+        DrawList selectedTableDrawList = new DrawList();
+        table.render(new DefaultRenderContext(selectedTableDrawList));
+        expect(hasFillColor(selectedTableDrawList, 0.18f, 0.45f, 0.75f, 0.42f),
+                "VirtualTableView should render selected row highlight");
+
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(table, 5.0f, 35.0f, 5.0f, 35.0f, 0, PointerButton.PRIMARY));
+        expect(table.selectedRows().equals(java.util.List.of(2)),
+                "VirtualTableView primary click should single-select clicked row below header");
+        table.rowCount(2);
+        expect(table.selectedRows().isEmpty(), "VirtualTableView should prune selected rows when row count shrinks");
     }
 
     private void testVirtualListViewRealizationAndScrolling() {
@@ -830,6 +993,7 @@ public final class BasicControlsSelfTest {
 
         expect(list.contentHeight() == 10_000.0f, "VirtualListView should expose virtual content height");
         expect(list.realizedCount() == 8, "VirtualListView should realize only visible rows plus overscan");
+        expect(list.realizedRange().equals(new VirtualRange(0, 8)), "VirtualListView should expose shared realized range");
         expect(created.count == 8, "VirtualListView should not materialize all rows");
         expect(list.firstVisibleIndex() == 0 && list.lastVisibleIndexExclusive() == 8, "VirtualListView should track realized range");
         expect(list.children().size() == 9, "VirtualListView children should include realized rows plus scrollbar");
@@ -839,6 +1003,7 @@ public final class BasicControlsSelfTest {
         list.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 50.0f));
         expect(list.scrollY() == 95.0f, "VirtualListView should keep explicit scroll offset");
         expect(list.firstVisibleIndex() == 8 && list.lastVisibleIndexExclusive() == 16, "VirtualListView should shift realized range with scroll");
+        expect(list.realizedRange().equals(new VirtualRange(8, 16)), "VirtualListView range should be sourced from shared virtualization core");
         expect(list.realizedCount() == 8, "VirtualListView should keep realized window bounded after scroll");
         expect(created.count < 20, "VirtualListView should create only newly visible rows after scroll");
 
@@ -875,6 +1040,8 @@ public final class BasicControlsSelfTest {
                 "VirtualTableView should expose virtual content size");
         expect(table.firstVisibleRow() == 0 && table.lastVisibleRowExclusive() == 8,
                 "VirtualTableView should track visible row range with overscan");
+        expect(table.realizedRange().equals(new VirtualRange(0, 8)),
+                "VirtualTableView should expose shared realized range");
         expect(table.realizedRowCount() == 8, "VirtualTableView should bound realized row count");
         expect(table.children().size() == 1 && table.children().get(0) == table.verticalScrollBar(),
                 "VirtualTableView should expose only scrollbar as child, not every cell");
@@ -893,6 +1060,8 @@ public final class BasicControlsSelfTest {
         expect(table.scrollY() == 95.0f, "VirtualTableView should keep explicit scroll offset");
         expect(table.firstVisibleRow() == 8 && table.lastVisibleRowExclusive() == 16,
                 "VirtualTableView should shift visible rows with scroll");
+        expect(table.realizedRange().equals(new VirtualRange(8, 16)),
+                "VirtualTableView range should be sourced from shared virtualization core");
 
         DrawList scrolledDrawList = new DrawList();
         table.render(new DefaultRenderContext(scrolledDrawList));
@@ -906,12 +1075,77 @@ public final class BasicControlsSelfTest {
         expect(table.scrollY() == 9_950.0f, "VirtualTableView should clamp to max row scroll");
     }
 
+    private void testVirtualTableSortingContracts() {
+        DefaultUIContext uiContext = new DefaultUIContext();
+        String[] names = {"Bob", "Alice", "Carol"};
+        int[] scores = {20, 10, 30};
+        VirtualTableView table = new VirtualTableView()
+                .addColumn("Name", 60.0f)
+                .addColumn("Score", 50.0f)
+                .rowCount(names.length)
+                .rowHeight(10.0f)
+                .headerHeight(10.0f)
+                .cellTextProvider((row, column) -> column == 0 ? names[row] : Integer.toString(scores[row]))
+                .sortKeyProvider((row, column) -> column == 0 ? names[row] : scores[row]);
+        table.setUiContextInternal(uiContext);
+        table.arrange(new MutableRect(0.0f, 0.0f, 120.0f, 50.0f));
+
+        Counter sortChanges = new Counter();
+        table.onSortChanged((TableSortChangedEvent event) -> {
+            sortChanges.count++;
+            sortChanges.lastSortColumn = event.newColumnIndex();
+            sortChanges.lastSortDirection = event.newDirection();
+        });
+
+        table.sortBy(0, SortDirection.ASCENDING);
+        DrawList nameAscendingDrawList = new DrawList();
+        table.render(new DefaultRenderContext(nameAscendingDrawList));
+        expect(table.sortColumnIndex() == 0 && table.sortDirection() == SortDirection.ASCENDING,
+                "VirtualTableView should expose ascending sort state");
+        expect(hasText(nameAscendingDrawList, "Name ↑"), "VirtualTableView should render ascending sort marker in header");
+        expect(textCommandIndex(nameAscendingDrawList, "Alice", 0) < textCommandIndex(nameAscendingDrawList, "Bob", 0),
+                "VirtualTableView should render rows in ascending sort-key order");
+
+        table.sortBy(1, SortDirection.DESCENDING);
+        DrawList scoreDescendingDrawList = new DrawList();
+        table.render(new DefaultRenderContext(scoreDescendingDrawList));
+        expect(hasText(scoreDescendingDrawList, "Score ↓"), "VirtualTableView should render descending sort marker in header");
+        expect(textCommandIndex(scoreDescendingDrawList, "30", 0) < textCommandIndex(scoreDescendingDrawList, "20", 0),
+                "VirtualTableView should render rows in descending numeric sort-key order");
+        expect(sortChanges.count == 2 && sortChanges.lastSortColumn == 1 && sortChanges.lastSortDirection == SortDirection.DESCENDING,
+                "VirtualTableView should emit sort changed events");
+
+        table.columnComparator(0, (left, right) -> Integer.compare(right, left));
+        table.sortBy(0, SortDirection.ASCENDING);
+        DrawList customComparatorDrawList = new DrawList();
+        table.render(new DefaultRenderContext(customComparatorDrawList));
+        expect(textCommandIndex(customComparatorDrawList, "Carol", 0) < textCommandIndex(customComparatorDrawList, "Alice", 0),
+                "VirtualTableView should allow per-column row comparator hooks");
+
+        table.clearSort();
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(table, 5.0f, 5.0f, 5.0f, 5.0f, 0, PointerButton.PRIMARY));
+        expect(table.sortColumnIndex() == 0 && table.sortDirection() == SortDirection.ASCENDING,
+                "VirtualTableView header click should start ascending sort for clicked column");
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(table, 5.0f, 5.0f, 5.0f, 5.0f, 0, PointerButton.PRIMARY));
+        expect(table.sortColumnIndex() == 0 && table.sortDirection() == SortDirection.DESCENDING,
+                "VirtualTableView repeated header click should cycle to descending sort");
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(table, 5.0f, 5.0f, 5.0f, 5.0f, 0, PointerButton.PRIMARY));
+        expect(table.sortColumnIndex() == -1 && table.sortDirection() == SortDirection.NONE,
+                "VirtualTableView third header click should clear sort");
+    }
+
     private void testToggleCheckboxProgressAndNumberField() {
         DefaultUIContext uiContext = new DefaultUIContext();
 
         ToggleButton toggle = new ToggleButton("Power");
         toggle.setUiContextInternal(uiContext);
         toggle.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 20.0f));
+        DrawList toggleDrawList = new DrawList();
+        toggle.render(new DefaultRenderContext(toggleDrawList));
+        int toggleTextIndex = textCommandIndex(toggleDrawList, "Power", 0);
+        expect(toggleTextIndex < Integer.MAX_VALUE && near(toggleDrawList.commands().get(toggleTextIndex).bounds().y(), 5.0f),
+                "Button text should be vertically centered in the control bounds");
+
         Counter checkedChanges = new Counter();
         toggle.onCheckedChanged(event -> {
             checkedChanges.count++;
@@ -926,6 +1160,12 @@ public final class BasicControlsSelfTest {
         Checkbox checkbox = new Checkbox("Enabled");
         checkbox.setUiContextInternal(uiContext);
         checkbox.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 20.0f));
+        DrawList checkboxDrawList = new DrawList();
+        checkbox.render(new DefaultRenderContext(checkboxDrawList));
+        int checkboxTextIndex = textCommandIndex(checkboxDrawList, "Enabled", 0);
+        expect(checkboxTextIndex < Integer.MAX_VALUE && near(checkboxDrawList.commands().get(checkboxTextIndex).bounds().y(), 5.0f),
+                "Checkbox label should be vertically centered against the check mark");
+
         uiContext.routedEvents().dispatch(new PointerPressedEvent(checkbox, 6.0f, 8.0f, 6.0f, 8.0f, 0, PointerButton.PRIMARY));
         uiContext.routedEvents().dispatch(new PointerReleasedEvent(checkbox, 6.0f, 8.0f, 6.0f, 8.0f, 0, PointerButton.PRIMARY));
         expect(checkbox.checked(), "Checkbox should reuse ToggleButton checked behavior");
@@ -938,6 +1178,19 @@ public final class BasicControlsSelfTest {
         DrawList progressDrawList = new DrawList();
         progressBar.render(new DefaultRenderContext(progressDrawList));
         expect(progressDrawList.size() >= 2, "ProgressBar should render track and fill commands");
+
+        ProgressBar lowProgressBar = new ProgressBar().range(0.0f, 100.0f);
+        lowProgressBar.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 12.0f));
+        for (int value = 1; value <= 13; value++) {
+            lowProgressBar.value(value);
+            DrawList lowProgressDrawList = new DrawList();
+            lowProgressBar.render(new DefaultRenderContext(lowProgressDrawList));
+            expect(lowProgressDrawList.size() >= 2, "ProgressBar should render small non-zero fill values");
+            var fill = lowProgressDrawList.commands().get(1);
+            expect(fill.type() == DrawCommandType.RECT, "ProgressBar fill should use stable rectangular geometry");
+            expect(near(fill.bounds().x(), 0.0f), "ProgressBar fill should stay anchored to the track origin");
+            expect(near(fill.bounds().width(), value), "ProgressBar fill width should match normalized low percent values");
+        }
 
         NumberField numberField = new NumberField().range(0.0d, 10.0d).step(2.0d);
         numberField.setUiContextInternal(uiContext);
@@ -982,6 +1235,15 @@ public final class BasicControlsSelfTest {
         return drawList.commands().stream().anyMatch(command -> text.equals(command.text()));
     }
 
+    private static int textCommandIndex(DrawList drawList, String text, int startIndex) {
+        for (int i = Math.max(0, startIndex); i < drawList.commands().size(); i++) {
+            if (text.equals(drawList.commands().get(i).text())) {
+                return i;
+            }
+        }
+        return Integer.MAX_VALUE;
+    }
+
     private static boolean hasFillColor(DrawList drawList, float r, float g, float b, float a) {
         return drawList.commands().stream()
                 .filter(command -> command.paint() != null && !command.paint().isStroke())
@@ -1009,5 +1271,8 @@ public final class BasicControlsSelfTest {
         private float lastValue;
         private boolean lastChecked;
         private double lastNumber;
+        private java.util.List<Integer> lastSelection = java.util.List.of();
+        private int lastSortColumn = -1;
+        private SortDirection lastSortDirection = SortDirection.NONE;
     }
 }

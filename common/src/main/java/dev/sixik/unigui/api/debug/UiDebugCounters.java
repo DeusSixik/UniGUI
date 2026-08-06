@@ -13,6 +13,12 @@ public interface UiDebugCounters {
     default void recordBatches(int count) {
     }
 
+    default void recordFrameCpuMillis(float millis) {
+    }
+
+    default void recordFrameGpuMillis(float millis) {
+    }
+
     default void recordTextureCacheHit() {
     }
 

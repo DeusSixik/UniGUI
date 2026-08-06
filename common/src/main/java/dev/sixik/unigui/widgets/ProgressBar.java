@@ -71,9 +71,11 @@ public class ProgressBar extends Box {
         float y = layoutBounds().y();
         float width = layoutBounds().width();
         float height = layoutBounds().height();
-        float radius = Math.min(width, height) * 0.5f;
-        context.roundedRect(x, y, width, height, radius, Paint.fill(trackColor), transform());
-        context.roundedRect(x, y, width * progress(), height, radius, Paint.fill(fillColor), transform());
+        float fillWidth = Math.max(0.0f, Math.min(width, width * progress()));
+        context.rect(x, y, width, height, Paint.fill(trackColor), transform());
+        if (fillWidth > 0.0f) {
+            context.rect(x, y, fillWidth, height, Paint.fill(fillColor), transform());
+        }
         super.renderContent(context);
     }
 

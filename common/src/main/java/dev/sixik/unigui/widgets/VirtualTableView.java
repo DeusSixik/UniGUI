@@ -4,21 +4,35 @@ import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
 import dev.sixik.unigui.api.event.Event;
+import dev.sixik.unigui.api.event.EventListener;
 import dev.sixik.unigui.api.event.EventPhase;
+import dev.sixik.unigui.api.event.EventSubscription;
+import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.event.ScrollEvent;
+import dev.sixik.unigui.api.event.SelectionChangedEvent;
+import dev.sixik.unigui.api.event.TableSortChangedEvent;
+import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.selection.IndexSelectionModel;
+import dev.sixik.unigui.api.selection.SelectionMode;
+import dev.sixik.unigui.api.sort.SortDirection;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.virtualization.FixedRowVirtualizer;
+import dev.sixik.unigui.api.virtualization.VirtualRange;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BiFunction;
 
 /**
@@ -29,20 +43,23 @@ public class VirtualTableView extends WidgetBase {
     private static final MutableColor HEADER_BACKGROUND = new MutableColor(0.10f, 0.10f, 0.10f, 1.0f);
     private static final MutableColor ROW_BACKGROUND = new MutableColor(0.04f, 0.04f, 0.04f, 0.35f);
     private static final MutableColor ALTERNATE_ROW_BACKGROUND = new MutableColor(0.08f, 0.08f, 0.08f, 0.35f);
+    private static final MutableColor SELECTED_ROW_BACKGROUND = new MutableColor(0.18f, 0.45f, 0.75f, 0.42f);
     private static final MutableColor GRID_COLOR = new MutableColor(0.25f, 0.25f, 0.25f, 0.65f);
     private static final MutableColor TEXT_COLOR = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
 
     private final ScrollBar verticalScrollBar = new ScrollBar().orientation(Orientation.VERTICAL);
+    private final FixedRowVirtualizer virtualizer = new FixedRowVirtualizer();
+    private final IndexSelectionModel selection = new IndexSelectionModel();
     private final List<VirtualTableColumn> columns = new ArrayList<>();
     private BiFunction<Integer, Integer, String> cellTextProvider = (row, column) -> "";
-    private int rowCount;
-    private float rowHeight = 18.0f;
+    private BiFunction<Integer, Integer, ? extends Comparable<?>> sortKeyProvider = (row, column) -> cellText(row, column);
+    private final Map<Integer, Comparator<Integer>> columnComparators = new HashMap<>();
+    private int sortColumnIndex = -1;
+    private SortDirection sortDirection = SortDirection.NONE;
+    private int[] sortedRows;
+    private boolean sortDirty = true;
     private float headerHeight = 18.0f;
-    private int overscan = 1;
-    private float scrollY;
     private float scrollStep = 16.0f;
-    private int firstVisibleRow;
-    private int lastVisibleRowExclusive;
 
     public VirtualTableView() {
         verticalScrollBar.setParentInternal(this);
@@ -50,14 +67,16 @@ public class VirtualTableView extends WidgetBase {
     }
 
     public int rowCount() {
-        return rowCount;
+        return virtualizer.itemCount();
     }
 
     public VirtualTableView rowCount(int rowCount) {
-        int normalized = Math.max(0, rowCount);
-        if (this.rowCount == normalized) return this;
-        this.rowCount = normalized;
-        scrollTo(scrollY);
+        if (virtualizer.itemCount() == Math.max(0, rowCount)) return this;
+        List<Integer> oldSelection = selection.selectedIndices();
+        virtualizer.itemCount(rowCount);
+        sortDirty = true;
+        emitSelectionChangeIfChanged(oldSelection, selection.retainWithin(virtualizer.itemCount()));
+        scrollTo(virtualizer.scrollOffset());
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
@@ -71,6 +90,7 @@ public class VirtualTableView extends WidgetBase {
                 }
             }
         }
+        normalizeSortColumn();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
@@ -87,19 +107,39 @@ public class VirtualTableView extends WidgetBase {
 
     public VirtualTableView cellTextProvider(BiFunction<Integer, Integer, String> cellTextProvider) {
         this.cellTextProvider = cellTextProvider == null ? (row, column) -> "" : cellTextProvider;
+        sortDirty = true;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public VirtualTableView sortKeyProvider(BiFunction<Integer, Integer, ? extends Comparable<?>> sortKeyProvider) {
+        this.sortKeyProvider = sortKeyProvider == null ? (row, column) -> cellText(row, column) : sortKeyProvider;
+        sortDirty = true;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public VirtualTableView columnComparator(int columnIndex, Comparator<Integer> comparator) {
+        if (columnIndex < 0) return this;
+        if (comparator == null) {
+            columnComparators.remove(columnIndex);
+        } else {
+            columnComparators.put(columnIndex, comparator);
+        }
+        sortDirty = true;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 
     public float rowHeight() {
-        return rowHeight;
+        return virtualizer.itemExtent();
     }
 
     public VirtualTableView rowHeight(float rowHeight) {
-        float normalized = Float.isFinite(rowHeight) ? Math.max(1.0f, rowHeight) : 18.0f;
-        if (this.rowHeight == normalized) return this;
-        this.rowHeight = normalized;
-        scrollTo(scrollY);
+        float previous = virtualizer.itemExtent();
+        virtualizer.itemExtent(rowHeight);
+        if (previous == virtualizer.itemExtent()) return this;
+        scrollTo(virtualizer.scrollOffset());
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
@@ -112,19 +152,19 @@ public class VirtualTableView extends WidgetBase {
         float normalized = Float.isFinite(headerHeight) ? Math.max(0.0f, headerHeight) : 18.0f;
         if (this.headerHeight == normalized) return this;
         this.headerHeight = normalized;
-        scrollTo(scrollY);
+        scrollTo(virtualizer.scrollOffset());
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
 
     public int overscan() {
-        return overscan;
+        return virtualizer.overscan();
     }
 
     public VirtualTableView overscan(int overscan) {
-        int normalized = Math.max(0, overscan);
-        if (this.overscan == normalized) return this;
-        this.overscan = normalized;
+        int previous = virtualizer.overscan();
+        virtualizer.overscan(overscan);
+        if (previous == virtualizer.overscan()) return this;
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
@@ -136,7 +176,7 @@ public class VirtualTableView extends WidgetBase {
     }
 
     public float scrollY() {
-        return scrollY;
+        return virtualizer.scrollOffset();
     }
 
     public float contentWidth() {
@@ -148,7 +188,7 @@ public class VirtualTableView extends WidgetBase {
     }
 
     public float contentHeight() {
-        return rowCount * rowHeight;
+        return virtualizer.contentExtent();
     }
 
     public float maxScrollY() {
@@ -156,15 +196,115 @@ public class VirtualTableView extends WidgetBase {
     }
 
     public int firstVisibleRow() {
-        return firstVisibleRow;
+        return realizedRange().firstIndex();
     }
 
     public int lastVisibleRowExclusive() {
-        return lastVisibleRowExclusive;
+        return realizedRange().lastIndexExclusive();
+    }
+
+    public VirtualRange realizedRange() {
+        return virtualizer.visibleRange();
     }
 
     public int realizedRowCount() {
-        return Math.max(0, lastVisibleRowExclusive - firstVisibleRow);
+        return realizedRange().count();
+    }
+
+    public SelectionMode selectionMode() {
+        return selection.mode();
+    }
+
+    public VirtualTableView selectionMode(SelectionMode mode) {
+        List<Integer> oldSelection = selection.selectedIndices();
+        selection.mode(mode);
+        emitSelectionChangeIfChanged(oldSelection, !oldSelection.equals(selection.selectedIndices()));
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public int selectedRow() {
+        return selection.selectedIndex();
+    }
+
+    public List<Integer> selectedRows() {
+        return selection.selectedIndices();
+    }
+
+    public boolean isRowSelected(int row) {
+        return selection.isSelected(row);
+    }
+
+    public VirtualTableView selectRow(int row) {
+        List<Integer> oldSelection = selection.selectedIndices();
+        emitSelectionChangeIfChanged(oldSelection, selection.select(row));
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public VirtualTableView toggleRow(int row) {
+        List<Integer> oldSelection = selection.selectedIndices();
+        emitSelectionChangeIfChanged(oldSelection, selection.toggle(row));
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public VirtualTableView clearSelection() {
+        List<Integer> oldSelection = selection.selectedIndices();
+        emitSelectionChangeIfChanged(oldSelection, selection.clear());
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public EventSubscription onSelectionChanged(EventListener<? super SelectionChangedEvent> listener) {
+        return on(SelectionChangedEvent.TYPE, listener);
+    }
+
+    public int sortColumnIndex() {
+        return sortColumnIndex;
+    }
+
+    public SortDirection sortDirection() {
+        return sortDirection;
+    }
+
+    public VirtualTableView sortBy(int columnIndex, SortDirection direction) {
+        SortDirection normalizedDirection = direction == null ? SortDirection.NONE : direction;
+        int normalizedColumn = normalizedDirection == SortDirection.NONE ? -1 : normalizeColumnIndex(columnIndex);
+        if (normalizedColumn < 0) {
+            normalizedDirection = SortDirection.NONE;
+        }
+        if (sortColumnIndex == normalizedColumn && sortDirection == normalizedDirection) return this;
+
+        int oldColumn = sortColumnIndex;
+        SortDirection oldDirection = sortDirection;
+        sortColumnIndex = normalizedColumn;
+        sortDirection = normalizedDirection;
+        sortDirty = true;
+        scrollTo(0.0f);
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        emit(new TableSortChangedEvent(this, oldColumn, oldDirection, sortColumnIndex, sortDirection));
+        return this;
+    }
+
+    public VirtualTableView clearSort() {
+        return sortBy(-1, SortDirection.NONE);
+    }
+
+    public VirtualTableView cycleSort(int columnIndex) {
+        int normalizedColumn = normalizeColumnIndex(columnIndex);
+        if (normalizedColumn < 0) return this;
+        if (sortColumnIndex != normalizedColumn || sortDirection == SortDirection.NONE) {
+            return sortBy(normalizedColumn, SortDirection.ASCENDING);
+        }
+        if (sortDirection == SortDirection.ASCENDING) {
+            return sortBy(normalizedColumn, SortDirection.DESCENDING);
+        }
+        return clearSort();
+    }
+
+    public EventSubscription onSortChanged(EventListener<? super TableSortChangedEvent> listener) {
+        return on(TableSortChangedEvent.TYPE, listener);
     }
 
     public ScrollBar verticalScrollBar() {
@@ -172,16 +312,17 @@ public class VirtualTableView extends WidgetBase {
     }
 
     public VirtualTableView scrollTo(float y) {
-        float clamped = clamp(y, 0.0f, maxScrollY());
-        if (scrollY == clamped) return this;
-        scrollY = clamped;
+        updateVirtualizerViewport();
+        float before = virtualizer.scrollOffset();
+        virtualizer.scrollOffset(y);
+        if (before == virtualizer.scrollOffset()) return this;
         syncScrollBar();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
 
     public VirtualTableView scrollBy(float dy) {
-        return scrollTo(scrollY + dy);
+        return scrollTo(virtualizer.scrollOffset() + dy);
     }
 
     @Override
@@ -198,13 +339,19 @@ public class VirtualTableView extends WidgetBase {
 
     @Override
     public void measure(LayoutContext context) {
+        if (visibility() == Visibility.COLLAPSED) {
+            setDesiredSize(0.0f, 0.0f);
+            return;
+        }
+        setDesiredSize(resolveDesiredSize(context, contentWidth(), headerHeight + Math.min(contentHeight(), Math.max(0.0f, rowHeight() * 8.0f))));
     }
 
     @Override
     public void arrange(RectView bounds) {
         super.arrange(bounds);
         if (visibility() == Visibility.COLLAPSED) return;
-        scrollTo(scrollY);
+        updateVirtualizerViewport();
+        virtualizer.scrollOffset(virtualizer.scrollOffset());
         updateVisibleRows();
         arrangeScrollBar();
     }
@@ -234,20 +381,40 @@ public class VirtualTableView extends WidgetBase {
         super.handle(event);
         if (event.isCancelled()) return;
         if (event instanceof ScrollEvent scroll && scroll.phase() != EventPhase.CAPTURE) {
-            float before = scrollY;
+            float before = virtualizer.scrollOffset();
             scrollBy(-scroll.deltaY() * scrollStep);
-            if (before != scrollY) {
+            if (before != virtualizer.scrollOffset()) {
+                event.cancel();
+            }
+        } else if (event instanceof PointerPressedEvent pointer
+                && pointer.phase() != EventPhase.CAPTURE
+                && pointer.button() == PointerButton.PRIMARY
+                && localX(pointer) >= 0.0f
+                && localX(pointer) < viewportWidth()
+                && localY(pointer) >= 0.0f
+                && localY(pointer) < Math.min(headerHeight, Math.max(0.0f, layoutBounds().height()))) {
+            int column = columnAt(localX(pointer));
+            if (column >= 0) {
+                cycleSort(column);
+                event.cancel();
+            }
+        } else if (event instanceof PointerPressedEvent pointer
+                && pointer.phase() != EventPhase.CAPTURE
+                && pointer.button() == PointerButton.PRIMARY
+                && localX(pointer) >= 0.0f
+                && localX(pointer) < viewportWidth()
+                && localY(pointer) >= Math.min(headerHeight, Math.max(0.0f, layoutBounds().height()))
+                && localY(pointer) < layoutBounds().height()) {
+            int row = rowAt(localY(pointer));
+            if (row >= 0) {
+                selectRow(sourceRowAt(row));
                 event.cancel();
             }
         }
     }
 
     private void updateVisibleRows() {
-        int first = rowCount == 0 ? 0 : clampRow((int) Math.floor(scrollY / rowHeight) - overscan);
-        int visibleRows = (int) Math.ceil(rowViewportHeight() / rowHeight) + overscan * 2 + 1;
-        int last = Math.min(rowCount, first + Math.max(0, visibleRows));
-        firstVisibleRow = first;
-        lastVisibleRowExclusive = last;
+        updateVirtualizerViewport();
     }
 
     private void renderHeader(RenderContext context) {
@@ -256,10 +423,11 @@ public class VirtualTableView extends WidgetBase {
         float height = Math.min(headerHeight, Math.max(0.0f, layoutBounds().height()));
         context.rect(x, y, viewportWidth(), height, Paint.fill(HEADER_BACKGROUND), transform());
         float columnX = x;
-        for (VirtualTableColumn column : columns) {
+        for (int columnIndex = 0; columnIndex < columns.size(); columnIndex++) {
+            VirtualTableColumn column = columns.get(columnIndex);
             float width = Math.min(column.width(), Math.max(0.0f, viewportWidth() - (columnX - x)));
             if (width <= 0.0f) break;
-            context.text(column.header(), columnX + 3.0f, y, Math.max(0.0f, width - 6.0f), height, Paint.fill(TEXT_COLOR), transform());
+            context.text(headerText(columnIndex), columnX + 3.0f, y, Math.max(0.0f, width - 6.0f), height, Paint.fill(TEXT_COLOR), transform());
             context.line(columnX + width, y, columnX + width, y + height, Paint.stroke(GRID_COLOR, 1.0f), transform());
             columnX += column.width();
         }
@@ -268,9 +436,15 @@ public class VirtualTableView extends WidgetBase {
 
     private void renderRows(RenderContext context) {
         float tableX = layoutBounds().x();
-        for (int row = firstVisibleRow; row < lastVisibleRowExclusive; row++) {
-            float y = rowViewportY() + row * rowHeight - scrollY;
-            context.rect(tableX, y, viewportWidth(), rowHeight, Paint.fill((row & 1) == 0 ? ROW_BACKGROUND : ALTERNATE_ROW_BACKGROUND), transform());
+        ensureSortIndex();
+        for (int visualRow = firstVisibleRow(); visualRow < lastVisibleRowExclusive(); visualRow++) {
+            int row = sourceRowAt(visualRow);
+            float y = rowViewportY() + virtualizer.itemOffset(visualRow);
+            float rowHeight = rowHeight();
+            MutableColor rowColor = selection.isSelected(row)
+                    ? SELECTED_ROW_BACKGROUND
+                    : ((visualRow & 1) == 0 ? ROW_BACKGROUND : ALTERNATE_ROW_BACKGROUND);
+            context.rect(tableX, y, viewportWidth(), rowHeight, Paint.fill(rowColor), transform());
             float columnX = tableX;
             for (int columnIndex = 0; columnIndex < columns.size(); columnIndex++) {
                 VirtualTableColumn column = columns.get(columnIndex);
@@ -307,7 +481,7 @@ public class VirtualTableView extends WidgetBase {
                 .range(0.0f, maxScrollY())
                 .pageSize(Math.max(1.0f, rowViewportHeight()))
                 .step(scrollStep)
-                .silentValue(scrollY);
+                .silentValue(virtualizer.scrollOffset());
     }
 
     private boolean hasVerticalScrollBar() {
@@ -326,11 +500,111 @@ public class VirtualTableView extends WidgetBase {
         return Math.max(0.0f, layoutBounds().height() - headerHeight);
     }
 
-    private int clampRow(int index) {
-        return Math.max(0, Math.min(rowCount, index));
+    private void updateVirtualizerViewport() {
+        virtualizer.viewportExtent(rowViewportHeight());
     }
 
-    private static float clamp(float value, float min, float max) {
-        return Math.max(min, Math.min(max, value));
+    private int rowAt(float localY) {
+        float localRowY = localY - Math.min(headerHeight, Math.max(0.0f, layoutBounds().height()));
+        int row = (int) Math.floor((localRowY + virtualizer.scrollOffset()) / virtualizer.itemExtent());
+        return row >= 0 && row < virtualizer.itemCount() ? row : -1;
+    }
+
+    private int columnAt(float localX) {
+        float x = 0.0f;
+        for (int columnIndex = 0; columnIndex < columns.size(); columnIndex++) {
+            float width = columns.get(columnIndex).width();
+            if (localX >= x && localX < x + width) {
+                return columnIndex;
+            }
+            x += width;
+        }
+        return -1;
+    }
+
+    private float localX(PointerPressedEvent pointer) {
+        return pointer.rootX() - layoutBounds().x();
+    }
+
+    private float localY(PointerPressedEvent pointer) {
+        return pointer.rootY() - layoutBounds().y();
+    }
+
+    private String headerText(int columnIndex) {
+        String header = columns.get(columnIndex).header();
+        if (columnIndex != sortColumnIndex) return header;
+        return switch (sortDirection) {
+            case ASCENDING -> header + " ↑";
+            case DESCENDING -> header + " ↓";
+            case NONE -> header;
+        };
+    }
+
+    private int sourceRowAt(int visualRow) {
+        ensureSortIndex();
+        if (visualRow < 0 || visualRow >= virtualizer.itemCount()) return visualRow;
+        return sortedRows == null ? visualRow : sortedRows[visualRow];
+    }
+
+    private void ensureSortIndex() {
+        if (!sortDirty) return;
+        sortDirty = false;
+        if (sortColumnIndex < 0 || sortDirection == SortDirection.NONE || virtualizer.itemCount() == 0) {
+            sortedRows = null;
+            return;
+        }
+
+        List<Integer> rows = new ArrayList<>(virtualizer.itemCount());
+        for (int row = 0; row < virtualizer.itemCount(); row++) {
+            rows.add(row);
+        }
+
+        Comparator<Integer> comparator = rowComparator();
+        if (sortDirection == SortDirection.DESCENDING) {
+            comparator = comparator.reversed();
+        }
+        rows.sort(comparator.thenComparingInt(Integer::intValue));
+
+        sortedRows = new int[rows.size()];
+        for (int index = 0; index < rows.size(); index++) {
+            sortedRows[index] = rows.get(index);
+        }
+    }
+
+    private Comparator<Integer> rowComparator() {
+        Comparator<Integer> custom = columnComparators.get(sortColumnIndex);
+        if (custom != null) return custom;
+        return (left, right) -> compareSortKeys(sortKey(left, sortColumnIndex), sortKey(right, sortColumnIndex));
+    }
+
+    private Comparable<?> sortKey(int row, int column) {
+        Comparable<?> key = sortKeyProvider.apply(row, column);
+        return key == null ? "" : key;
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static int compareSortKeys(Comparable left, Comparable right) {
+        if (left == right) return 0;
+        if (left == null) return -1;
+        if (right == null) return 1;
+        return left.compareTo(right);
+    }
+
+    private void normalizeSortColumn() {
+        if (sortColumnIndex >= columns.size()) {
+            sortColumnIndex = -1;
+            sortDirection = SortDirection.NONE;
+        }
+        sortDirty = true;
+    }
+
+    private int normalizeColumnIndex(int columnIndex) {
+        return columnIndex >= 0 && columnIndex < columns.size() ? columnIndex : -1;
+    }
+
+    private void emitSelectionChangeIfChanged(List<Integer> oldSelection, boolean changed) {
+        if (changed) {
+            emit(new SelectionChangedEvent(this, oldSelection, selection.selectedIndices()));
+        }
     }
 }

@@ -97,6 +97,9 @@ public final class CachedSubtreeInvalidationSelfTest {
         DebugOverlayRenderer.render(new DefaultRenderContext(overlay), uiContext);
 
         expect(overlay.size() >= 4, "debug overlay should emit background + text commands");
+        expect(containsText(overlay, "fps="), "debug overlay should include FPS counter");
+        expect(containsText(overlay, "cpu="), "debug overlay should include CPU frame timing");
+        expect(containsText(overlay, "gpu="), "debug overlay should include GPU frame timing");
         expect(containsText(overlay, "draw=7 batches=3"), "debug overlay should include draw/batch counters");
         expect(containsText(overlay, "cache hit=1 miss=0"), "debug overlay should include cache counters");
         expect(containsText(overlay, "render"), "debug overlay should include profiler scope names");

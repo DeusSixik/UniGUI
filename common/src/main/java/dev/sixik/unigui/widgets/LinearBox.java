@@ -84,7 +84,9 @@ public class LinearBox extends PanelWidget {
         float availableMain = Math.max(0.0f, main(bounds) - totalSpacing);
         float fixedMain = 0.0f;
         float totalGrow = 0.0f;
+        LayoutContext childContext = new LayoutContext(Math.max(0.0f, bounds.width()), Math.max(0.0f, bounds.height()));
         for (Widget child : snapshot) {
+            child.measure(childContext);
             LayoutConstraints constraints = child.layoutConstraints();
             fixedMain += mainMargin(constraints);
             fixedMain += preferredMainOrMeasured(child);
@@ -155,6 +157,9 @@ public class LinearBox extends PanelWidget {
         float max = orientation == Orientation.HORIZONTAL ? constraints.maxWidth() : constraints.maxHeight();
         if (!LayoutConstraints.isAuto(preferred)) {
             return clamp(preferred, min, max);
+        }
+        if (constraints.grow() > 0.0f) {
+            return clamp(0.0f, min, max);
         }
         float measured = orientation == Orientation.HORIZONTAL ? child.desiredSize().width() : child.desiredSize().height();
         return clamp(measured, min, max);

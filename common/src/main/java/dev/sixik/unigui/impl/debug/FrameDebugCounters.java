@@ -5,6 +5,10 @@ import dev.sixik.unigui.api.debug.UiDebugSnapshot;
 
 public final class FrameDebugCounters implements UiDebugCounters {
     private long frameIndex;
+    private long lastFrameStartNanos;
+    private float framesPerSecond;
+    private float frameCpuMillis;
+    private float frameGpuMillis = -1.0f;
     private int drawCommandCount;
     private int batchCount;
     private long textureCacheHits;
@@ -14,6 +18,15 @@ public final class FrameDebugCounters implements UiDebugCounters {
 
     @Override
     public void beginFrame(long frameIndex) {
+        long now = System.nanoTime();
+        if (lastFrameStartNanos > 0L) {
+            long deltaNanos = now - lastFrameStartNanos;
+            if (deltaNanos > 0L) {
+                framesPerSecond = 1_000_000_000.0f / deltaNanos;
+            }
+        }
+        lastFrameStartNanos = now;
+
         this.frameIndex = frameIndex;
         drawCommandCount = 0;
         batchCount = 0;
@@ -34,6 +47,16 @@ public final class FrameDebugCounters implements UiDebugCounters {
     }
 
     @Override
+    public void recordFrameCpuMillis(float millis) {
+        frameCpuMillis = Float.isFinite(millis) ? Math.max(0.0f, millis) : 0.0f;
+    }
+
+    @Override
+    public void recordFrameGpuMillis(float millis) {
+        frameGpuMillis = Float.isFinite(millis) ? millis : -1.0f;
+    }
+
+    @Override
     public void recordTextureCacheHit() {
         textureCacheHits++;
     }
@@ -51,7 +74,8 @@ public final class FrameDebugCounters implements UiDebugCounters {
 
     @Override
     public UiDebugSnapshot snapshot() {
-        return new UiDebugSnapshot(frameIndex, drawCommandCount, batchCount,
+        return new UiDebugSnapshot(frameIndex, framesPerSecond, frameCpuMillis, frameGpuMillis,
+                drawCommandCount, batchCount,
                 textureCacheHits, textureCacheMisses, textureRenders, lastTextureCacheMissReason);
     }
 }

@@ -8,7 +8,7 @@ public final class LayoutConstraints {
             Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY,
             EdgeInsets.ZERO,
             Alignment.STRETCH, Alignment.STRETCH,
-            1.0f);
+            0.0f);
 
     private final float preferredWidth;
     private final float preferredHeight;

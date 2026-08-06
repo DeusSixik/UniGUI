@@ -1,8 +1,10 @@
 package dev.sixik.unigui.widgets;
 
 import dev.sixik.unigui.api.layout.LayoutContext;
+import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.impl.text.TextEngine;
 
 public class Checkbox extends ToggleButton {
     private static final float BOX_SIZE = 12.0f;
@@ -36,13 +38,16 @@ public class Checkbox extends ToggleButton {
             context.rect(x + 3.0f, y + 3.0f, BOX_SIZE - 6.0f, BOX_SIZE - 6.0f, Paint.fill(checkedBackground()), transform());
         }
         if (!text().isEmpty()) {
-            context.text(text(),
+            TextEngine.draw(context,
+                    text(),
                     x + BOX_SIZE + 4.0f,
                     layoutBounds().y(),
                     Math.max(0.0f, layoutBounds().width() - BOX_SIZE - 4.0f),
                     layoutBounds().height(),
                     Paint.fill(textColor()),
-                    transform());
+                    transform(),
+                    Alignment.START,
+                    Alignment.CENTER);
         }
     }
 }

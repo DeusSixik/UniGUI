@@ -11,6 +11,7 @@ import dev.sixik.unigui.api.event.PointerEvent;
 import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.event.PointerReleasedEvent;
 import dev.sixik.unigui.api.input.PointerButton;
+import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.Paint;
@@ -18,13 +19,14 @@ import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.impl.text.TextEngine;
 
 import java.util.Objects;
 
 public class Button extends Box {
     protected static final float TEXT_PADDING_X = 8.0f;
     protected static final float DEFAULT_HEIGHT = 18.0f;
-    protected static final float APPROX_CHAR_WIDTH = 6.0f;
+    protected static final float APPROX_CHAR_WIDTH = TextEngine.APPROX_CHAR_WIDTH;
 
     private String text = "";
     private final MutableColor textColor = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -111,13 +113,16 @@ public class Button extends Box {
     protected void renderContent(RenderContext context) {
         applyTheme();
         if (!text.isEmpty()) {
-            context.text(text,
-                    layoutBounds().x(),
+            TextEngine.draw(context,
+                    text,
+                    layoutBounds().x() + TEXT_PADDING_X,
                     layoutBounds().y(),
-                    layoutBounds().width(),
+                    Math.max(0.0f, layoutBounds().width() - TEXT_PADDING_X * 2.0f),
                     layoutBounds().height(),
                     Paint.fill(textColor),
-                    transform());
+                    transform(),
+                    Alignment.CENTER,
+                    Alignment.CENTER);
         }
         super.renderContent(context);
     }

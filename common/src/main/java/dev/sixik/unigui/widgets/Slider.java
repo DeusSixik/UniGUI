@@ -120,16 +120,21 @@ public class Slider extends Box {
             UIContext context = uiContext();
             if (context != null) {
                 context.focusManager().requestFocus(this);
+                context.capturePointer(pointer.pointerId(), this);
             }
             dragging = true;
-            updateFromLocalX(pointer.localX());
+            updateFromRootX(pointer.rootX());
             event.cancel();
         } else if (event instanceof PointerMovedEvent pointer && dragging) {
-            updateFromLocalX(pointer.localX());
+            updateFromRootX(pointer.rootX());
             event.cancel();
         } else if (event instanceof PointerReleasedEvent pointer && pointer.button() == PointerButton.PRIMARY && dragging) {
-            updateFromLocalX(pointer.localX());
+            updateFromRootX(pointer.rootX());
             dragging = false;
+            UIContext context = uiContext();
+            if (context != null) {
+                context.releasePointer(pointer.pointerId(), this);
+            }
             event.cancel();
         } else if (event instanceof KeyPressedEvent key && key.phase() == EventPhase.TARGET && isFocused()) {
             if (key.keyCode() == KeyCodes.LEFT) {
@@ -169,6 +174,10 @@ public class Slider extends Box {
         float width = Math.max(1.0f, layoutBounds().width());
         float normalized = clamp(localX / width, 0.0f, 1.0f);
         setValue(min + normalized * (max - min), true);
+    }
+
+    private void updateFromRootX(float rootX) {
+        updateFromLocalX(rootX - layoutBounds().x());
     }
 
     private void nudge(float direction) {

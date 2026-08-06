@@ -1,17 +1,19 @@
 package dev.sixik.unigui.widgets;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 
 import java.util.Objects;
 
 public class TextWidget extends WidgetBase {
-    protected static final float APPROX_CHAR_WIDTH = 6.0f;
-    protected static final float LINE_HEIGHT = 10.0f;
+    protected static final float APPROX_CHAR_WIDTH = TextEngine.APPROX_CHAR_WIDTH;
+    protected static final float LINE_HEIGHT = TextEngine.LINE_HEIGHT;
 
     private String text = "";
     private final MutableColor color = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -65,13 +67,20 @@ public class TextWidget extends WidgetBase {
     @Override
     public void render(RenderContext context) {
         if (text.isEmpty()) return;
-        context.text(text,
+        TextEngine.draw(context,
+                text,
                 layoutBounds().x(),
                 layoutBounds().y(),
                 layoutBounds().width(),
                 layoutBounds().height(),
                 Paint.fill(color),
-                transform());
+                transform(),
+                Alignment.START,
+                textVerticalAlignment());
+    }
+
+    protected Alignment textVerticalAlignment() {
+        return Alignment.CENTER;
     }
 
     private static String normalize(String text) {

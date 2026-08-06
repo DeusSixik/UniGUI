@@ -23,6 +23,9 @@ import dev.sixik.unigui.impl.input.MemoryClipboardService;
 import dev.sixik.unigui.impl.input.TransformHitTester;
 import dev.sixik.unigui.impl.style.DefaultTheme;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public final class DefaultUIContext implements UIContext {
     private final UiDispatcher dispatcher;
     private final UIScaleProvider scaleProvider;
@@ -36,6 +39,7 @@ public final class DefaultUIContext implements UIContext {
     private long styleVersion;
     private final UiProfiler profiler;
     private final UiDebugCounters debugCounters;
+    private final Map<Integer, Widget> pointerCaptures = new HashMap<>();
     private int debugFlags;
 
     public DefaultUIContext() {
@@ -115,6 +119,32 @@ public final class DefaultUIContext implements UIContext {
     @Override
     public HoverManager hoverManager() {
         return hoverManager;
+    }
+
+    @Override
+    public Widget capturedPointer(int pointerId) {
+        return pointerCaptures.get(pointerId);
+    }
+
+    @Override
+    public void capturePointer(int pointerId, Widget widget) {
+        if (widget == null) {
+            pointerCaptures.remove(pointerId);
+        } else {
+            pointerCaptures.put(pointerId, widget);
+        }
+    }
+
+    @Override
+    public void releasePointer(int pointerId, Widget widget) {
+        if (widget == null || pointerCaptures.get(pointerId) == widget) {
+            pointerCaptures.remove(pointerId);
+        }
+    }
+
+    @Override
+    public void clearPointerCapture(int pointerId) {
+        pointerCaptures.remove(pointerId);
     }
 
     @Override

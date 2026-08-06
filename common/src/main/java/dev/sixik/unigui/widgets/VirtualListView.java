@@ -4,14 +4,26 @@ import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
 import dev.sixik.unigui.api.event.Event;
+import dev.sixik.unigui.api.event.EventListener;
 import dev.sixik.unigui.api.event.EventPhase;
+import dev.sixik.unigui.api.event.EventSubscription;
+import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.event.ScrollEvent;
+import dev.sixik.unigui.api.event.SelectionChangedEvent;
+import dev.sixik.unigui.api.input.KeyModifiers;
+import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.layout.LayoutContext;
+import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.selection.IndexSelectionModel;
+import dev.sixik.unigui.api.selection.SelectionMode;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.virtualization.FixedRowVirtualizer;
+import dev.sixik.unigui.api.virtualization.VirtualRange;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 
 import java.util.ArrayList;
@@ -27,17 +39,14 @@ import java.util.function.IntFunction;
  */
 public class VirtualListView extends WidgetBase {
     private static final float SCROLLBAR_WIDTH = 6.0f;
+    private static final MutableColor SELECTED_ROW_COLOR = new MutableColor(0.18f, 0.45f, 0.75f, 0.35f);
 
     private final ScrollBar verticalScrollBar = new ScrollBar().orientation(Orientation.VERTICAL);
+    private final FixedRowVirtualizer virtualizer = new FixedRowVirtualizer();
+    private final IndexSelectionModel selection = new IndexSelectionModel();
     private final Map<Integer, Widget> realized = new LinkedHashMap<>();
     private IntFunction<? extends Widget> itemFactory = index -> new Label(String.valueOf(index));
-    private int itemCount;
-    private float itemHeight = 18.0f;
-    private int overscan = 1;
-    private float scrollY;
     private float scrollStep = 16.0f;
-    private int firstVisibleIndex;
-    private int lastVisibleIndexExclusive;
 
     public VirtualListView() {
         verticalScrollBar.setParentInternal(this);
@@ -45,40 +54,41 @@ public class VirtualListView extends WidgetBase {
     }
 
     public int itemCount() {
-        return itemCount;
+        return virtualizer.itemCount();
     }
 
     public VirtualListView itemCount(int itemCount) {
-        int normalized = Math.max(0, itemCount);
-        if (this.itemCount == normalized) return this;
-        this.itemCount = normalized;
+        if (virtualizer.itemCount() == Math.max(0, itemCount)) return this;
+        List<Integer> oldSelection = selection.selectedIndices();
+        virtualizer.itemCount(itemCount);
         pruneRealized();
-        scrollTo(scrollY);
+        emitSelectionChangeIfChanged(oldSelection, selection.retainWithin(virtualizer.itemCount()));
+        scrollTo(virtualizer.scrollOffset());
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
 
     public float itemHeight() {
-        return itemHeight;
+        return virtualizer.itemExtent();
     }
 
     public VirtualListView itemHeight(float itemHeight) {
-        float normalized = Float.isFinite(itemHeight) ? Math.max(1.0f, itemHeight) : 18.0f;
-        if (this.itemHeight == normalized) return this;
-        this.itemHeight = normalized;
-        scrollTo(scrollY);
+        float previous = virtualizer.itemExtent();
+        virtualizer.itemExtent(itemHeight);
+        if (previous == virtualizer.itemExtent()) return this;
+        scrollTo(virtualizer.scrollOffset());
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
 
     public int overscan() {
-        return overscan;
+        return virtualizer.overscan();
     }
 
     public VirtualListView overscan(int overscan) {
-        int normalized = Math.max(0, overscan);
-        if (this.overscan == normalized) return this;
-        this.overscan = normalized;
+        int previous = virtualizer.overscan();
+        virtualizer.overscan(overscan);
+        if (previous == virtualizer.overscan()) return this;
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
@@ -91,7 +101,7 @@ public class VirtualListView extends WidgetBase {
     }
 
     public float scrollY() {
-        return scrollY;
+        return virtualizer.scrollOffset();
     }
 
     public VirtualListView scrollStep(float scrollStep) {
@@ -101,7 +111,7 @@ public class VirtualListView extends WidgetBase {
     }
 
     public float contentHeight() {
-        return itemCount * itemHeight;
+        return virtualizer.contentExtent();
     }
 
     public float maxScrollY() {
@@ -109,15 +119,68 @@ public class VirtualListView extends WidgetBase {
     }
 
     public int firstVisibleIndex() {
-        return firstVisibleIndex;
+        return realizedRange().firstIndex();
     }
 
     public int lastVisibleIndexExclusive() {
-        return lastVisibleIndexExclusive;
+        return realizedRange().lastIndexExclusive();
+    }
+
+    public VirtualRange realizedRange() {
+        return virtualizer.visibleRange();
     }
 
     public int realizedCount() {
-        return realized.size();
+        return realizedRange().count();
+    }
+
+    public SelectionMode selectionMode() {
+        return selection.mode();
+    }
+
+    public VirtualListView selectionMode(SelectionMode mode) {
+        List<Integer> oldSelection = selection.selectedIndices();
+        selection.mode(mode);
+        emitSelectionChangeIfChanged(oldSelection, !oldSelection.equals(selection.selectedIndices()));
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public int selectedIndex() {
+        return selection.selectedIndex();
+    }
+
+    public List<Integer> selectedIndices() {
+        return selection.selectedIndices();
+    }
+
+    public boolean isSelectedIndex(int index) {
+        return selection.isSelected(index);
+    }
+
+    public VirtualListView selectIndex(int index) {
+        List<Integer> oldSelection = selection.selectedIndices();
+        emitSelectionChangeIfChanged(oldSelection, selection.select(index));
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public VirtualListView toggleIndex(int index) {
+        List<Integer> oldSelection = selection.selectedIndices();
+        emitSelectionChangeIfChanged(oldSelection, selection.toggle(index));
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public VirtualListView clearSelection() {
+        List<Integer> oldSelection = selection.selectedIndices();
+        emitSelectionChangeIfChanged(oldSelection, selection.clear());
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public EventSubscription onSelectionChanged(EventListener<? super SelectionChangedEvent> listener) {
+        return on(SelectionChangedEvent.TYPE, listener);
     }
 
     public ScrollBar verticalScrollBar() {
@@ -125,16 +188,17 @@ public class VirtualListView extends WidgetBase {
     }
 
     public VirtualListView scrollTo(float y) {
-        float clamped = clamp(y, 0.0f, maxScrollY());
-        if (scrollY == clamped) return this;
-        scrollY = clamped;
+        updateVirtualizerViewport();
+        float before = virtualizer.scrollOffset();
+        virtualizer.scrollOffset(y);
+        if (before == virtualizer.scrollOffset()) return this;
         syncScrollBar();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
 
     public VirtualListView scrollBy(float dy) {
-        return scrollTo(scrollY + dy);
+        return scrollTo(virtualizer.scrollOffset() + dy);
     }
 
     @Override
@@ -160,16 +224,25 @@ public class VirtualListView extends WidgetBase {
 
     @Override
     public void measure(LayoutContext context) {
+        if (visibility() == Visibility.COLLAPSED) {
+            setDesiredSize(0.0f, 0.0f);
+            return;
+        }
+        float desiredWidth = 0.0f;
         for (Widget item : realized.values()) {
             item.measure(context);
+            desiredWidth = Math.max(desiredWidth, item.desiredSize().width());
         }
+        float desiredHeight = Math.min(contentHeight(), Math.max(0.0f, virtualizer.itemExtent() * 8.0f));
+        setDesiredSize(resolveDesiredSize(context, desiredWidth, desiredHeight));
     }
 
     @Override
     public void arrange(RectView bounds) {
         super.arrange(bounds);
         if (visibility() == Visibility.COLLAPSED) return;
-        scrollTo(scrollY);
+        updateVirtualizerViewport();
+        virtualizer.scrollOffset(virtualizer.scrollOffset());
         updateRealizedWindow();
         arrangeItems();
         arrangeScrollBar();
@@ -192,8 +265,13 @@ public class VirtualListView extends WidgetBase {
     public void render(RenderContext context) {
         if (visibility() != Visibility.VISIBLE) return;
         context.pushClip(layoutBounds().x(), layoutBounds().y(), viewportWidth(), layoutBounds().height());
-        for (Widget item : List.copyOf(realized.values())) {
+        for (Map.Entry<Integer, Widget> entry : List.copyOf(realized.entrySet())) {
+            Widget item = entry.getValue();
             if (item.visibility() == Visibility.VISIBLE) {
+                if (selection.isSelected(entry.getKey())) {
+                    context.rect(item.layoutBounds().x(), item.layoutBounds().y(), item.layoutBounds().width(), item.layoutBounds().height(),
+                            Paint.fill(SELECTED_ROW_COLOR), transform());
+                }
                 item.render(context);
             }
         }
@@ -208,9 +286,21 @@ public class VirtualListView extends WidgetBase {
         super.handle(event);
         if (event.isCancelled()) return;
         if (event instanceof ScrollEvent scroll && scroll.phase() != EventPhase.CAPTURE) {
-            float before = scrollY;
+            float before = virtualizer.scrollOffset();
             scrollBy(-scroll.deltaY() * scrollStep);
-            if (before != scrollY) {
+            if (before != virtualizer.scrollOffset()) {
+                event.cancel();
+            }
+        } else if (event instanceof PointerPressedEvent pointer
+                && pointer.phase() != EventPhase.CAPTURE
+                && pointer.button() == PointerButton.PRIMARY
+                && localX(pointer) >= 0.0f
+                && localX(pointer) < viewportWidth()
+                && localY(pointer) >= 0.0f
+                && localY(pointer) < layoutBounds().height()) {
+            int index = indexAt(localY(pointer));
+            if (index >= 0) {
+                selectFromPointer(index, 0);
                 event.cancel();
             }
         }
@@ -222,11 +312,10 @@ public class VirtualListView extends WidgetBase {
     }
 
     private void updateRealizedWindow() {
-        int first = itemCount == 0 ? 0 : clampIndex((int) Math.floor(scrollY / itemHeight) - overscan);
-        int visibleRows = (int) Math.ceil(Math.max(0.0f, layoutBounds().height()) / itemHeight) + overscan * 2 + 1;
-        int last = Math.min(itemCount, first + Math.max(0, visibleRows));
-        firstVisibleIndex = first;
-        lastVisibleIndexExclusive = last;
+        updateVirtualizerViewport();
+        VirtualRange range = realizedRange();
+        int first = range.firstIndex();
+        int last = range.lastIndexExclusive();
 
         Iterator<Map.Entry<Integer, Widget>> iterator = realized.entrySet().iterator();
         while (iterator.hasNext()) {
@@ -259,8 +348,8 @@ public class VirtualListView extends WidgetBase {
         for (Map.Entry<Integer, Widget> entry : realized.entrySet()) {
             int index = entry.getKey();
             Widget item = entry.getValue();
-            float y = layoutBounds().y() + index * itemHeight - scrollY;
-            item.arrange(new MutableRect(x, y, width, itemHeight));
+            float y = layoutBounds().y() + virtualizer.itemOffset(index);
+            item.arrange(new MutableRect(x, y, width, virtualizer.itemExtent()));
         }
     }
 
@@ -279,7 +368,7 @@ public class VirtualListView extends WidgetBase {
                 .range(0.0f, maxScrollY())
                 .pageSize(Math.max(1.0f, layoutBounds().height()))
                 .step(scrollStep)
-                .silentValue(scrollY);
+                .silentValue(virtualizer.scrollOffset());
     }
 
     private boolean hasVerticalScrollBar() {
@@ -294,7 +383,7 @@ public class VirtualListView extends WidgetBase {
         Iterator<Map.Entry<Integer, Widget>> iterator = realized.entrySet().iterator();
         while (iterator.hasNext()) {
             Map.Entry<Integer, Widget> entry = iterator.next();
-            if (entry.getKey() >= itemCount) {
+            if (entry.getKey() >= virtualizer.itemCount()) {
                 detachItem(entry.getValue());
                 entry.getValue().dispose();
                 iterator.remove();
@@ -324,11 +413,40 @@ public class VirtualListView extends WidgetBase {
         }
     }
 
-    private int clampIndex(int index) {
-        return Math.max(0, Math.min(itemCount, index));
+    private void updateVirtualizerViewport() {
+        virtualizer.viewportExtent(Math.max(0.0f, layoutBounds().height()));
     }
 
-    private static float clamp(float value, float min, float max) {
-        return Math.max(min, Math.min(max, value));
+    private int indexAt(float localY) {
+        int index = (int) Math.floor((localY + virtualizer.scrollOffset()) / virtualizer.itemExtent());
+        return index >= 0 && index < virtualizer.itemCount() ? index : -1;
+    }
+
+    private float localX(PointerPressedEvent pointer) {
+        return pointer.rootX() - layoutBounds().x();
+    }
+
+    private float localY(PointerPressedEvent pointer) {
+        return pointer.rootY() - layoutBounds().y();
+    }
+
+    private void selectFromPointer(int index, int modifiers) {
+        List<Integer> oldSelection = selection.selectedIndices();
+        boolean changed;
+        if (KeyModifiers.has(modifiers, KeyModifiers.SHIFT)) {
+            changed = selection.selectRange(index);
+        } else if (KeyModifiers.has(modifiers, KeyModifiers.CONTROL)) {
+            changed = selection.toggle(index);
+        } else {
+            changed = selection.select(index);
+        }
+        emitSelectionChangeIfChanged(oldSelection, changed);
+        invalidate(InvalidationFlags.VISUAL);
+    }
+
+    private void emitSelectionChangeIfChanged(List<Integer> oldSelection, boolean changed) {
+        if (changed) {
+            emit(new SelectionChangedEvent(this, oldSelection, selection.selectedIndices()));
+        }
     }
 }
