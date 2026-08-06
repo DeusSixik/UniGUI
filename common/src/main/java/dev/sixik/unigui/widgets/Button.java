@@ -1,5 +1,7 @@
 package dev.sixik.unigui.widgets;
 
+import dev.sixik.unigui.api.animation.AnimationEasing;
+import dev.sixik.unigui.api.animation.TransitionSpec;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
 import dev.sixik.unigui.api.event.ButtonClickEvent;
@@ -8,6 +10,8 @@ import dev.sixik.unigui.api.event.Event;
 import dev.sixik.unigui.api.event.EventListener;
 import dev.sixik.unigui.api.event.EventSubscription;
 import dev.sixik.unigui.api.event.PointerEvent;
+import dev.sixik.unigui.api.event.PointerEnteredEvent;
+import dev.sixik.unigui.api.event.PointerExitedEvent;
 import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.event.PointerReleasedEvent;
 import dev.sixik.unigui.api.input.PointerButton;
@@ -31,6 +35,14 @@ public class Button extends Box {
     private String text = "";
     private final MutableColor textColor = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private boolean pressed;
+    private boolean interactionTransitions;
+    private TransitionSpec interactionTransition = TransitionSpec.of(0.10f, AnimationEasing.EASE_OUT);
+    private float normalScale = 1.0f;
+    private float hoveredScale = 1.025f;
+    private float pressedScale = 0.970f;
+    private float normalOpacity = 1.0f;
+    private float pressedOpacity = 0.88f;
+    private float disabledOpacity = 0.55f;
 
     public Button() {
         backgroundVisible(true);
@@ -64,8 +76,50 @@ public class Button extends Box {
         return pressed;
     }
 
+    public boolean interactionTransitions() {
+        return interactionTransitions;
+    }
+
+    public Button interactionTransitions(boolean interactionTransitions) {
+        if (this.interactionTransitions == interactionTransitions) return this;
+        this.interactionTransitions = interactionTransitions;
+        applyInteractionTransition();
+        return this;
+    }
+
+    public Button interactionTransition(TransitionSpec interactionTransition) {
+        this.interactionTransition = interactionTransition == null ? TransitionSpec.DEFAULT : interactionTransition;
+        return this;
+    }
+
+    public Button interactionScales(float normal, float hovered, float pressed) {
+        normalScale = sanitizeScale(normal);
+        hoveredScale = sanitizeScale(hovered);
+        pressedScale = sanitizeScale(pressed);
+        applyInteractionTransition();
+        return this;
+    }
+
+    public Button interactionOpacities(float normal, float pressed, float disabled) {
+        normalOpacity = clamp01(normal);
+        pressedOpacity = clamp01(pressed);
+        disabledOpacity = clamp01(disabled);
+        applyInteractionTransition();
+        return this;
+    }
+
     public EventSubscription onClick(EventListener<? super ButtonClickEvent> listener) {
         return on(ButtonClickEvent.TYPE, listener);
+    }
+
+    @Override
+    public Button enabled(boolean enabled) {
+        boolean changed = enabled() != enabled;
+        super.enabled(enabled);
+        if (changed) {
+            applyInteractionTransition();
+        }
+        return this;
     }
 
     @Override
@@ -92,7 +146,12 @@ public class Button extends Box {
     @Override
     public void handle(Event event) {
         if (visibility() != Visibility.VISIBLE || !enabled()) return;
+        boolean hoverChanged = event instanceof PointerEnteredEvent entered && entered.phase() == EventPhase.TARGET
+                || event instanceof PointerExitedEvent exited && exited.phase() == EventPhase.TARGET;
         super.handle(event);
+        if (hoverChanged) {
+            applyInteractionTransition();
+        }
         if (event.isCancelled()) return;
         if (event instanceof PointerEvent pointerEvent && pointerEvent.phase() == EventPhase.CAPTURE) return;
 
@@ -147,5 +206,23 @@ public class Button extends Box {
         if (this.pressed == pressed) return;
         this.pressed = pressed;
         invalidate(InvalidationFlags.VISUAL);
+        applyInteractionTransition();
+    }
+
+    private void applyInteractionTransition() {
+        if (!interactionTransitions) return;
+        float targetScale = pressed ? pressedScale : hovered() ? hoveredScale : normalScale;
+        float targetOpacity = !enabled() ? disabledOpacity : pressed ? pressedOpacity : normalOpacity;
+        animateScale(targetScale, targetScale, interactionTransition);
+        animateOpacity(targetOpacity, interactionTransition);
+    }
+
+    private static float sanitizeScale(float value) {
+        return Float.isFinite(value) ? Math.max(0.01f, value) : 1.0f;
+    }
+
+    private static float clamp01(float value) {
+        if (!Float.isFinite(value)) return 1.0f;
+        return Math.max(0.0f, Math.min(1.0f, value));
     }
 }

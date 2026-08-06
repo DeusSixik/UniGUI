@@ -44,10 +44,15 @@ public final class Separator extends WidgetBase {
 
     @Override
     public void render(RenderContext context) {
-        float x = layoutBounds().x();
-        float y = layoutBounds().y();
-        float width = orientation == Orientation.HORIZONTAL ? layoutBounds().width() : thickness;
-        float height = orientation == Orientation.HORIZONTAL ? thickness : layoutBounds().height();
-        context.rect(x, y, width, height, Paint.fill(color), transform());
+        pushOpacity(context);
+        try {
+            float x = layoutBounds().x();
+            float y = layoutBounds().y();
+            float width = orientation == Orientation.HORIZONTAL ? layoutBounds().width() : thickness;
+            float height = orientation == Orientation.HORIZONTAL ? thickness : layoutBounds().height();
+            context.rect(x, y, width, height, Paint.fill(color), transform());
+        } finally {
+            popOpacity(context);
+        }
     }
 }

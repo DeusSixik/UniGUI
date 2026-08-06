@@ -38,12 +38,17 @@ public class TextureWidget extends WidgetBase {
     @Override
     public void render(RenderContext context) {
         if (texture == null) return;
-        context.texture(texture,
-                layoutBounds().x(),
-                layoutBounds().y(),
-                layoutBounds().width(),
-                layoutBounds().height(),
-                Paint.fill(tint),
-                transform());
+        pushOpacity(context);
+        try {
+            context.texture(texture,
+                    layoutBounds().x(),
+                    layoutBounds().y(),
+                    layoutBounds().width(),
+                    layoutBounds().height(),
+                    Paint.fill(tint),
+                    transform());
+        } finally {
+            popOpacity(context);
+        }
     }
 }

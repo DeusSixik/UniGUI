@@ -27,8 +27,12 @@ import dev.sixik.unigui.impl.render.ScissorStack;
 import dev.sixik.unigui.impl.render.SimpleDrawBatcher;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemStack;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL11;
@@ -76,6 +80,57 @@ public final class MinecraftGuiRenderBackend implements RenderBackend {
     public float lastFrameGpuMillis() {
         pollGpuTimer();
         return lastFrameGpuMillis;
+    }
+
+    public Minecraft minecraft() {
+        return minecraft;
+    }
+
+    public GuiGraphics graphics() {
+        return graphics;
+    }
+
+    public void renderItemPreview(ItemStack stack, float x, float y, float size, float opacity, boolean decorations) {
+        if (stack == null || stack.isEmpty() || size <= 0.0f) return;
+        float scale = Math.max(0.01f, size / 16.0f);
+        PoseStack pose = graphics.pose();
+        pose.pushPose();
+        try {
+            RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, clamp01(opacity));
+            pose.translate(x, y, 160.0f);
+            pose.scale(scale, scale, 1.0f);
+            graphics.renderItem(stack, 0, 0);
+            if (decorations) {
+                graphics.renderItemDecorations(minecraft.font, stack, 0, 0);
+            }
+        } finally {
+            RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+            pose.popPose();
+        }
+    }
+
+    public boolean renderEntityPreview(EntityType<? extends LivingEntity> entityType, float x, float y, float size,
+                                       float mouseX, float mouseY, float opacity) {
+        if (entityType == null || minecraft.level == null || size <= 0.0f) return false;
+        LivingEntity entity = entityType.create(minecraft.level);
+        if (entity == null) return false;
+
+        RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, clamp01(opacity));
+        try {
+            int centerX = Math.round(x + size * 0.5f);
+            int bottomY = Math.round(y + size * 0.92f);
+            int entityScale = Math.max(1, Math.round(size * 0.72f));
+            InventoryScreen.renderEntityInInventoryFollowsMouse(graphics,
+                    centerX,
+                    bottomY,
+                    entityScale,
+                    x + mouseX,
+                    y + mouseY,
+                    entity);
+            return true;
+        } finally {
+            RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+        }
     }
 
     @Override
@@ -770,6 +825,11 @@ public final class MinecraftGuiRenderBackend implements RenderBackend {
 
     private static float clamp(float value, float min, float max) {
         return Math.max(min, Math.min(max, value));
+    }
+
+    private static float clamp01(float value) {
+        if (!Float.isFinite(value)) return 1.0f;
+        return Math.max(0.0f, Math.min(1.0f, value));
     }
 
     private static int segmentsFor(float radius) {

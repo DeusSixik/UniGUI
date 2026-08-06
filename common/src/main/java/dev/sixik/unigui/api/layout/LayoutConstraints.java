@@ -1,5 +1,12 @@
 package dev.sixik.unigui.api.layout;
 
+/**
+ * Immutable compatibility layout contract used by the original widget helpers.
+ *
+ * <p>It remains public and supported for integrations that construct constraints
+ * directly. New advanced layout code should prefer {@link LayoutStyle} through
+ * {@code WidgetBase.layout(style -> ...)}.</p>
+ */
 public final class LayoutConstraints {
     public static final float AUTO = Float.NaN;
     public static final LayoutConstraints DEFAULT = new LayoutConstraints(

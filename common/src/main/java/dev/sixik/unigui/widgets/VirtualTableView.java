@@ -10,12 +10,17 @@ import dev.sixik.unigui.api.event.EventSubscription;
 import dev.sixik.unigui.api.event.FocusGainedEvent;
 import dev.sixik.unigui.api.event.FocusLostEvent;
 import dev.sixik.unigui.api.event.KeyPressedEvent;
+import dev.sixik.unigui.api.event.PointerEvent;
+import dev.sixik.unigui.api.event.PointerMovedEvent;
 import dev.sixik.unigui.api.event.PointerPressedEvent;
+import dev.sixik.unigui.api.event.PointerReleasedEvent;
 import dev.sixik.unigui.api.event.ScrollEvent;
 import dev.sixik.unigui.api.event.SelectionChangedEvent;
 import dev.sixik.unigui.api.event.TableCellEditCancelledEvent;
 import dev.sixik.unigui.api.event.TableCellEditCommittedEvent;
 import dev.sixik.unigui.api.event.TableCellEditStartedEvent;
+import dev.sixik.unigui.api.event.TableColumnMovedEvent;
+import dev.sixik.unigui.api.event.TableColumnResizedEvent;
 import dev.sixik.unigui.api.event.TableSortChangedEvent;
 import dev.sixik.unigui.api.event.TextInputEvent;
 import dev.sixik.unigui.api.input.KeyCodes;
@@ -49,6 +54,8 @@ import java.util.function.BiFunction;
  */
 public class VirtualTableView extends WidgetBase {
     private static final float SCROLLBAR_WIDTH = 6.0f;
+    private static final float HEADER_RESIZE_HIT_SLOP = 4.0f;
+    private static final float DEFAULT_MIN_COLUMN_WIDTH = 24.0f;
     private static final MutableColor HEADER_BACKGROUND = new MutableColor(0.10f, 0.10f, 0.10f, 1.0f);
     private static final MutableColor ROW_BACKGROUND = new MutableColor(0.04f, 0.04f, 0.04f, 0.35f);
     private static final MutableColor ALTERNATE_ROW_BACKGROUND = new MutableColor(0.08f, 0.08f, 0.08f, 0.35f);
@@ -77,6 +84,11 @@ public class VirtualTableView extends WidgetBase {
     private int editingRow = -1;
     private int editingColumn = -1;
     private String editingOriginalText = "";
+    private boolean columnResizeEnabled = true;
+    private float minColumnWidth = DEFAULT_MIN_COLUMN_WIDTH;
+    private int resizingColumn = -1;
+    private float resizeStartRootX;
+    private float resizeStartWidth;
 
     public VirtualTableView() {
         focusable(true);
@@ -135,6 +147,78 @@ public class VirtualTableView extends WidgetBase {
 
     public List<VirtualTableColumn> columns() {
         return Collections.unmodifiableList(columns);
+    }
+
+    public float columnWidth(int columnIndex) {
+        int normalized = normalizeColumnIndex(columnIndex);
+        return normalized < 0 ? 0.0f : columns.get(normalized).width();
+    }
+
+    public VirtualTableView resizeColumn(int columnIndex, float width) {
+        setColumnWidth(columnIndex, width, true);
+        return this;
+    }
+
+    public boolean columnResizeEnabled() {
+        return columnResizeEnabled;
+    }
+
+    public VirtualTableView columnResizeEnabled(boolean columnResizeEnabled) {
+        if (this.columnResizeEnabled == columnResizeEnabled) return this;
+        this.columnResizeEnabled = columnResizeEnabled;
+        if (!columnResizeEnabled) {
+            endColumnResize();
+        }
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public float minColumnWidth() {
+        return minColumnWidth;
+    }
+
+    public VirtualTableView minColumnWidth(float minColumnWidth) {
+        float normalized = Float.isFinite(minColumnWidth) ? Math.max(1.0f, minColumnWidth) : DEFAULT_MIN_COLUMN_WIDTH;
+        if (this.minColumnWidth == normalized) return this;
+        this.minColumnWidth = normalized;
+        for (int columnIndex = 0; columnIndex < columns.size(); columnIndex++) {
+            setColumnWidth(columnIndex, columns.get(columnIndex).width(), false);
+        }
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public VirtualTableView moveColumn(int oldIndex, int newIndex) {
+        int from = normalizeColumnIndex(oldIndex);
+        int to = normalizeColumnIndex(newIndex);
+        if (from < 0 || to < 0 || from == to) return this;
+
+        VirtualTableColumn column = columns.remove(from);
+        columns.add(to, column);
+        activeColumn = remapColumnIndex(activeColumn, from, to);
+        editingColumn = remapColumnIndex(editingColumn, from, to);
+        sortColumnIndex = remapColumnIndex(sortColumnIndex, from, to);
+        remapColumnComparators(from, to);
+        arrangeCellEditor();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        emit(new TableColumnMovedEvent(this, from, to));
+        return this;
+    }
+
+    public boolean resizingColumn() {
+        return resizingColumn >= 0;
+    }
+
+    public int resizingColumnIndex() {
+        return resizingColumn;
+    }
+
+    public EventSubscription onColumnResized(EventListener<? super TableColumnResizedEvent> listener) {
+        return on(TableColumnResizedEvent.TYPE, listener);
+    }
+
+    public EventSubscription onColumnMoved(EventListener<? super TableColumnMovedEvent> listener) {
+        return on(TableColumnMovedEvent.TYPE, listener);
     }
 
     public VirtualTableView cellTextProvider(BiFunction<Integer, Integer, String> cellTextProvider) {
@@ -530,23 +614,32 @@ public class VirtualTableView extends WidgetBase {
     @Override
     public void tick(FrameContext frame) {
         if (visibility() != Visibility.VISIBLE) return;
+        super.tick(frame);
         if (hasVerticalScrollBar()) {
             verticalScrollBar.tick(frame);
+        }
+        if (editing()) {
+            cellEditor.tick(frame);
         }
     }
 
     @Override
     public void render(RenderContext context) {
         if (visibility() != Visibility.VISIBLE) return;
-        renderHeader(context);
-        context.pushClip(layoutBounds().x(), rowViewportY(), viewportWidth(), rowViewportHeight());
-        renderRows(context);
-        if (editing()) {
-            cellEditor.render(context);
-        }
-        context.popClip();
-        if (hasVerticalScrollBar()) {
-            verticalScrollBar.render(context);
+        pushOpacity(context);
+        try {
+            renderHeader(context);
+            context.pushClip(layoutBounds().x(), rowViewportY(), viewportWidth(), rowViewportHeight());
+            renderRows(context);
+            if (editing()) {
+                cellEditor.render(context);
+            }
+            context.popClip();
+            if (hasVerticalScrollBar()) {
+                verticalScrollBar.render(context);
+            }
+        } finally {
+            popOpacity(context);
         }
     }
 
@@ -554,6 +647,10 @@ public class VirtualTableView extends WidgetBase {
     public void handle(Event event) {
         super.handle(event);
         if (event.isCancelled()) return;
+        if (handleColumnResizeEvent(event)) {
+            event.cancel();
+            return;
+        }
         if (editing() && handleEditingEvent(event)) {
             event.cancel();
             return;
@@ -624,7 +721,9 @@ public class VirtualTableView extends WidgetBase {
             float width = Math.min(column.width(), Math.max(0.0f, viewportWidth() - (columnX - x)));
             if (width <= 0.0f) break;
             context.text(headerText(columnIndex), columnX + 3.0f, y, Math.max(0.0f, width - 6.0f), height, Paint.fill(TEXT_COLOR), transform());
-            context.line(columnX + width, y, columnX + width, y + height, Paint.stroke(GRID_COLOR, 1.0f), transform());
+            context.line(columnX + width, y, columnX + width, y + height,
+                    Paint.stroke(columnIndex == resizingColumn ? ACTIVE_CELL_COLOR : GRID_COLOR, columnIndex == resizingColumn ? 2.0f : 1.0f),
+                    transform());
             columnX += column.width();
         }
         context.line(x, y + height, x + viewportWidth(), y + height, Paint.stroke(GRID_COLOR, 1.0f), transform());
@@ -678,6 +777,37 @@ public class VirtualTableView extends WidgetBase {
             cellEditor.handle(new KeyPressedEvent(cellEditor, key.keyCode(), key.scanCode(), key.modifiers()));
             invalidate(InvalidationFlags.VISUAL);
             return true;
+        }
+        return false;
+    }
+
+    private boolean handleColumnResizeEvent(Event event) {
+        if (!columnResizeEnabled || visibility() != Visibility.VISIBLE || !enabled()) return false;
+        if (event instanceof PointerMovedEvent pointer && pointer.phase() != EventPhase.CAPTURE && resizingColumn >= 0) {
+            updateColumnResize(pointer.rootX());
+            return true;
+        }
+        if (event instanceof PointerReleasedEvent pointer
+                && pointer.phase() != EventPhase.CAPTURE
+                && pointer.button() == PointerButton.PRIMARY
+                && resizingColumn >= 0) {
+            updateColumnResize(pointer.rootX());
+            UIContext context = uiContext();
+            if (context != null) {
+                context.releasePointer(pointer.pointerId(), this);
+            }
+            endColumnResize();
+            return true;
+        }
+        if (event instanceof PointerPressedEvent pointer
+                && pointer.phase() != EventPhase.CAPTURE
+                && pointer.button() == PointerButton.PRIMARY
+                && isHeaderLocalY(localY(pointer))) {
+            int column = resizeColumnAt(localX(pointer));
+            if (column >= 0) {
+                startColumnResize(column, pointer.rootX(), pointer.pointerId());
+                return true;
+            }
         }
         return false;
     }
@@ -773,11 +903,91 @@ public class VirtualTableView extends WidgetBase {
         return -1;
     }
 
-    private float localX(PointerPressedEvent pointer) {
+    private int resizeColumnAt(float localX) {
+        if (localX < 0.0f || localX >= viewportWidth()) return -1;
+        float x = 0.0f;
+        for (int columnIndex = 0; columnIndex < columns.size(); columnIndex++) {
+            x += columns.get(columnIndex).width();
+            if (Math.abs(localX - x) <= HEADER_RESIZE_HIT_SLOP) {
+                return columnIndex;
+            }
+        }
+        return -1;
+    }
+
+    private boolean isHeaderLocalY(float localY) {
+        return localY >= 0.0f && localY < Math.min(headerHeight, Math.max(0.0f, layoutBounds().height()));
+    }
+
+    private void startColumnResize(int columnIndex, float rootX, int pointerId) {
+        resizingColumn = normalizeColumnIndex(columnIndex);
+        if (resizingColumn < 0) return;
+        resizeStartRootX = rootX;
+        resizeStartWidth = columns.get(resizingColumn).width();
+        if (editing()) {
+            commitEdit();
+        }
+        UIContext context = uiContext();
+        if (context != null) {
+            context.focusManager().requestFocus(this);
+            context.capturePointer(pointerId, this);
+        }
+        invalidate(InvalidationFlags.VISUAL);
+    }
+
+    private void updateColumnResize(float rootX) {
+        if (resizingColumn < 0) return;
+        setColumnWidth(resizingColumn, resizeStartWidth + rootX - resizeStartRootX, true);
+    }
+
+    private void endColumnResize() {
+        if (resizingColumn < 0) return;
+        resizingColumn = -1;
+        resizeStartRootX = 0.0f;
+        resizeStartWidth = 0.0f;
+        invalidate(InvalidationFlags.VISUAL);
+    }
+
+    private void setColumnWidth(int columnIndex, float width, boolean emitChange) {
+        int normalizedColumn = normalizeColumnIndex(columnIndex);
+        if (normalizedColumn < 0) return;
+        VirtualTableColumn column = columns.get(normalizedColumn);
+        float normalizedWidth = Float.isFinite(width) ? Math.max(minColumnWidth, width) : Math.max(minColumnWidth, column.width());
+        if (column.width() == normalizedWidth) return;
+        columns.set(normalizedColumn, new VirtualTableColumn(column.header(), normalizedWidth));
+        arrangeCellEditor();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        if (emitChange) {
+            emit(new TableColumnResizedEvent(this, normalizedColumn, column.width(), normalizedWidth));
+        }
+    }
+
+    private void remapColumnComparators(int oldIndex, int newIndex) {
+        if (columnComparators.isEmpty()) return;
+        Map<Integer, Comparator<Integer>> remapped = new HashMap<>();
+        for (Map.Entry<Integer, Comparator<Integer>> entry : columnComparators.entrySet()) {
+            int key = remapColumnIndex(entry.getKey(), oldIndex, newIndex);
+            if (key >= 0) {
+                remapped.put(key, entry.getValue());
+            }
+        }
+        columnComparators.clear();
+        columnComparators.putAll(remapped);
+    }
+
+    private int remapColumnIndex(int columnIndex, int oldIndex, int newIndex) {
+        if (columnIndex < 0) return -1;
+        if (columnIndex == oldIndex) return newIndex;
+        if (oldIndex < newIndex && columnIndex > oldIndex && columnIndex <= newIndex) return columnIndex - 1;
+        if (oldIndex > newIndex && columnIndex >= newIndex && columnIndex < oldIndex) return columnIndex + 1;
+        return columnIndex;
+    }
+
+    private float localX(PointerEvent pointer) {
         return pointer.rootX() - layoutBounds().x();
     }
 
-    private float localY(PointerPressedEvent pointer) {
+    private float localY(PointerEvent pointer) {
         return pointer.rootY() - layoutBounds().y();
     }
 

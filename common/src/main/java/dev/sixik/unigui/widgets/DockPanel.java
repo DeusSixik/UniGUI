@@ -7,6 +7,7 @@ import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
 
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
@@ -73,6 +74,8 @@ public final class DockPanel extends PanelWidget {
         applyQueuedMutations();
 
         List<Widget> snapshot = visibleLayoutChildren();
+        LayoutContext childContext = AbsoluteLayoutEngine.contentContext(this, context);
+        AbsoluteLayoutEngine.measureChildren(children(), childContext);
         float dockedWidth = 0.0f;
         float dockedHeight = 0.0f;
         float desiredWidth = 0.0f;
@@ -80,7 +83,7 @@ public final class DockPanel extends PanelWidget {
 
         for (int index = 0; index < snapshot.size(); index++) {
             Widget child = snapshot.get(index);
-            child.measure(context);
+            child.measure(childContext);
             float childWidth = StackPanel.outerDesiredWidth(child);
             float childHeight = StackPanel.outerDesiredHeight(child);
             boolean fill = lastChildFill && index == snapshot.size() - 1;
@@ -103,8 +106,10 @@ public final class DockPanel extends PanelWidget {
                 }
             }
         }
-
-        setDesiredSize(resolveDesiredSize(context, desiredWidth, desiredHeight));
+        var padding = layoutStyle().padding();
+        setDesiredSize(resolveDesiredSize(context,
+                desiredWidth + padding.horizontal(),
+                desiredHeight + padding.vertical()));
     }
 
     @Override
@@ -112,14 +117,18 @@ public final class DockPanel extends PanelWidget {
         mutableLayoutBounds().set(bounds);
         if (visibility() == Visibility.COLLAPSED) return;
         applyQueuedMutations();
+        MutableRect contentBounds = AbsoluteLayoutEngine.contentBounds(this, bounds);
 
         List<Widget> snapshot = visibleLayoutChildren();
-        if (snapshot.isEmpty()) return;
+        if (snapshot.isEmpty()) {
+            AbsoluteLayoutEngine.arrangeChildren(children(), contentBounds);
+            return;
+        }
 
-        float left = bounds.x();
-        float top = bounds.y();
-        float right = bounds.x() + bounds.width();
-        float bottom = bounds.y() + bounds.height();
+        float left = contentBounds.x();
+        float top = contentBounds.y();
+        float right = contentBounds.x() + contentBounds.width();
+        float bottom = contentBounds.y() + contentBounds.height();
 
         for (int index = 0; index < snapshot.size(); index++) {
             Widget child = snapshot.get(index);
@@ -153,12 +162,14 @@ public final class DockPanel extends PanelWidget {
                 }
             }
         }
+        AbsoluteLayoutEngine.arrangeChildren(children(), contentBounds);
     }
 
     private List<Widget> visibleLayoutChildren() {
         List<Widget> output = new ArrayList<>();
         for (Widget child : children()) {
             if (child.visibility() != Visibility.COLLAPSED) {
+                if (AbsoluteLayoutEngine.isAbsolute(child)) continue;
                 output.add(child);
             }
         }

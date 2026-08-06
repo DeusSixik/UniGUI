@@ -43,13 +43,18 @@ public final class Border extends WidgetBase {
 
     @Override
     public void render(RenderContext context) {
-        context.roundedRect(
-                layoutBounds().x(),
-                layoutBounds().y(),
-                layoutBounds().width(),
-                layoutBounds().height(),
-                radius,
-                Paint.stroke(color, thickness),
-                transform());
+        pushOpacity(context);
+        try {
+            context.roundedRect(
+                    layoutBounds().x(),
+                    layoutBounds().y(),
+                    layoutBounds().width(),
+                    layoutBounds().height(),
+                    radius,
+                    Paint.stroke(color, thickness),
+                    transform());
+        } finally {
+            popOpacity(context);
+        }
     }
 }

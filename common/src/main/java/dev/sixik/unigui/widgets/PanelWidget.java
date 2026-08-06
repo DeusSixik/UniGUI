@@ -7,10 +7,13 @@ import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
+import dev.sixik.unigui.api.layout.Overflow;
+import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 
 import java.util.ArrayList;
@@ -73,26 +76,36 @@ public class PanelWidget extends WidgetBase {
             return;
         }
         applyQueuedMutations();
+        LayoutContext childContext = AbsoluteLayoutEngine.contentContext(this, context);
         float desiredWidth = 0.0f;
         float desiredHeight = 0.0f;
         for (Widget child : snapshotChildren()) {
             if (child.visibility() != Visibility.COLLAPSED) {
-                child.measure(context);
+                child.measure(childContext);
+                if (AbsoluteLayoutEngine.isAbsolute(child)) continue;
                 EdgeInsets margin = child.layoutConstraints().margin();
                 desiredWidth = Math.max(desiredWidth, child.desiredSize().width() + margin.horizontal());
                 desiredHeight = Math.max(desiredHeight, child.desiredSize().height() + margin.vertical());
             }
         }
-        setDesiredSize(resolveDesiredSize(context, desiredWidth, desiredHeight));
+        EdgeInsets padding = layoutStyle().padding();
+        setDesiredSize(resolveDesiredSize(context,
+                desiredWidth + padding.horizontal(),
+                desiredHeight + padding.vertical()));
     }
 
     @Override
     public void arrange(RectView bounds) {
         super.arrange(bounds);
         if (visibility() == Visibility.COLLAPSED) return;
+        MutableRect contentBounds = AbsoluteLayoutEngine.contentBounds(this, bounds);
         for (Widget child : snapshotChildren()) {
             if (child.visibility() != Visibility.COLLAPSED) {
-                child.arrange(bounds);
+                if (AbsoluteLayoutEngine.isAbsolute(child)) {
+                    AbsoluteLayoutEngine.arrange(child, contentBounds);
+                } else {
+                    child.arrange(contentBounds);
+                }
             }
         }
     }
@@ -100,10 +113,34 @@ public class PanelWidget extends WidgetBase {
     @Override
     public void render(RenderContext context) {
         if (visibility() != Visibility.VISIBLE) return;
+        pushOpacity(context);
+        try {
+            renderChildren(context);
+        } finally {
+            popOpacity(context);
+        }
+    }
+
+    protected void renderChildren(RenderContext context) {
         applyQueuedMutations();
-        for (Widget child : snapshotChildren()) {
-            if (child.visibility() == Visibility.VISIBLE) {
-                child.render(context);
+        boolean clipsChildren = layoutStyle().overflowX() != Overflow.VISIBLE
+                || layoutStyle().overflowY() != Overflow.VISIBLE;
+        if (clipsChildren) {
+            context.pushClip(
+                    layoutBounds().x(),
+                    layoutBounds().y(),
+                    layoutBounds().width(),
+                    layoutBounds().height());
+        }
+        try {
+            for (Widget child : snapshotChildren()) {
+                if (child.visibility() == Visibility.VISIBLE) {
+                    child.render(context);
+                }
+            }
+        } finally {
+            if (clipsChildren) {
+                context.popClip();
             }
         }
     }
@@ -111,6 +148,7 @@ public class PanelWidget extends WidgetBase {
     @Override
     public void tick(FrameContext frame) {
         if (visibility() != Visibility.VISIBLE) return;
+        super.tick(frame);
         applyQueuedMutations();
         for (Widget child : snapshotChildren()) {
             if (child.visibility() == Visibility.VISIBLE) {

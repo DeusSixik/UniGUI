@@ -100,8 +100,13 @@ public class Box extends PanelWidget {
     @Override
     public void render(RenderContext context) {
         if (visibility() != Visibility.VISIBLE) return;
-        renderBox(context);
-        renderContent(context);
+        pushOpacity(context);
+        try {
+            renderBox(context);
+            renderContent(context);
+        } finally {
+            popOpacity(context);
+        }
     }
 
     protected void renderBox(RenderContext context) {
@@ -122,7 +127,7 @@ public class Box extends PanelWidget {
     }
 
     protected void renderContent(RenderContext context) {
-        super.render(context);
+        renderChildren(context);
     }
 
     protected void applyTheme() {

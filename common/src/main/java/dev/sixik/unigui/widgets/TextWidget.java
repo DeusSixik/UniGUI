@@ -123,16 +123,22 @@ public class TextWidget extends WidgetBase {
     @Override
     public void render(RenderContext context) {
         if (text.isEmpty()) return;
-        switch (overflowMode) {
-            case CLIP -> renderClipped(context);
-            case SHRINK_TO_FIT -> renderShrinkToFit(context);
-            case MARQUEE_ON_HOVER -> renderMarquee(context);
-            case VISIBLE -> renderVisible(context);
+        pushOpacity(context);
+        try {
+            switch (overflowMode) {
+                case CLIP -> renderClipped(context);
+                case SHRINK_TO_FIT -> renderShrinkToFit(context);
+                case MARQUEE_ON_HOVER -> renderMarquee(context);
+                case VISIBLE -> renderVisible(context);
+            }
+        } finally {
+            popOpacity(context);
         }
     }
 
     @Override
     public void tick(FrameContext frame) {
+        super.tick(frame);
         if (overflowMode != TextOverflowMode.MARQUEE_ON_HOVER || !hovered() || text.isEmpty()) {
             if (marqueeOffset != 0.0f) {
                 marqueeOffset = 0.0f;

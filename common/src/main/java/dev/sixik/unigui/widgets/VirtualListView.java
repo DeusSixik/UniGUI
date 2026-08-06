@@ -272,6 +272,7 @@ public class VirtualListView extends WidgetBase {
     @Override
     public void tick(FrameContext frame) {
         if (visibility() != Visibility.VISIBLE) return;
+        super.tick(frame);
         for (Widget item : List.copyOf(realized.values())) {
             if (item.visibility() == Visibility.VISIBLE) {
                 item.tick(frame);
@@ -285,24 +286,29 @@ public class VirtualListView extends WidgetBase {
     @Override
     public void render(RenderContext context) {
         if (visibility() != Visibility.VISIBLE) return;
-        context.pushClip(layoutBounds().x(), layoutBounds().y(), viewportWidth(), layoutBounds().height());
-        for (Map.Entry<Integer, Widget> entry : List.copyOf(realized.entrySet())) {
-            Widget item = entry.getValue();
-            if (item.visibility() == Visibility.VISIBLE) {
-                if (selection.isSelected(entry.getKey())) {
-                    context.rect(item.layoutBounds().x(), item.layoutBounds().y(), item.layoutBounds().width(), item.layoutBounds().height(),
-                            Paint.fill(SELECTED_ROW_COLOR), transform());
-                }
-                item.render(context);
-                if (isFocused() && entry.getKey() == activeIndex) {
-                    context.rect(item.layoutBounds().x(), item.layoutBounds().y(), item.layoutBounds().width(), item.layoutBounds().height(),
-                            Paint.stroke(ACTIVE_ROW_COLOR, 1.0f), transform());
+        pushOpacity(context);
+        try {
+            context.pushClip(layoutBounds().x(), layoutBounds().y(), viewportWidth(), layoutBounds().height());
+            for (Map.Entry<Integer, Widget> entry : List.copyOf(realized.entrySet())) {
+                Widget item = entry.getValue();
+                if (item.visibility() == Visibility.VISIBLE) {
+                    if (selection.isSelected(entry.getKey())) {
+                        context.rect(item.layoutBounds().x(), item.layoutBounds().y(), item.layoutBounds().width(), item.layoutBounds().height(),
+                                Paint.fill(SELECTED_ROW_COLOR), transform());
+                    }
+                    item.render(context);
+                    if (isFocused() && entry.getKey() == activeIndex) {
+                        context.rect(item.layoutBounds().x(), item.layoutBounds().y(), item.layoutBounds().width(), item.layoutBounds().height(),
+                                Paint.stroke(ACTIVE_ROW_COLOR, 1.0f), transform());
+                    }
                 }
             }
-        }
-        context.popClip();
-        if (hasVerticalScrollBar()) {
-            verticalScrollBar.render(context);
+            context.popClip();
+            if (hasVerticalScrollBar()) {
+                verticalScrollBar.render(context);
+            }
+        } finally {
+            popOpacity(context);
         }
     }
 

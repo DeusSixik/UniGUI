@@ -10,6 +10,7 @@ import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -66,15 +67,18 @@ public final class GridBox extends PanelWidget {
         applyQueuedMutations();
 
         List<Widget> snapshot = visibleLayoutChildren();
+        LayoutContext childContext = AbsoluteLayoutEngine.contentContext(this, context);
+        AbsoluteLayoutEngine.measureChildren(children(), childContext);
         if (snapshot.isEmpty()) {
-            setDesiredSize(resolveDesiredSize(context, 0.0f, 0.0f));
+            var padding = layoutStyle().padding();
+            setDesiredSize(resolveDesiredSize(context, padding.horizontal(), padding.vertical()));
             return;
         }
 
         float maxCellWidth = 0.0f;
         float maxCellHeight = 0.0f;
         for (Widget child : snapshot) {
-            child.measure(context);
+            child.measure(childContext);
             LayoutSize childSize = child.desiredSize().withMargin(child.layoutConstraints().margin());
             maxCellWidth = Math.max(maxCellWidth, childSize.width());
             maxCellHeight = Math.max(maxCellHeight, childSize.height());
@@ -84,7 +88,10 @@ public final class GridBox extends PanelWidget {
         int rows = (int) Math.ceil(snapshot.size() / (double) columns);
         float desiredWidth = maxCellWidth * visibleColumns + horizontalSpacing * Math.max(0, visibleColumns - 1);
         float desiredHeight = maxCellHeight * rows + verticalSpacing * Math.max(0, rows - 1);
-        setDesiredSize(resolveDesiredSize(context, desiredWidth, desiredHeight));
+        var padding = layoutStyle().padding();
+        setDesiredSize(resolveDesiredSize(context,
+                desiredWidth + padding.horizontal(),
+                desiredHeight + padding.vertical()));
     }
 
     @Override
@@ -92,29 +99,35 @@ public final class GridBox extends PanelWidget {
         mutableLayoutBounds().set(bounds);
         if (visibility() == Visibility.COLLAPSED) return;
         applyQueuedMutations();
+        MutableRect contentBounds = AbsoluteLayoutEngine.contentBounds(this, bounds);
 
         List<Widget> snapshot = visibleLayoutChildren();
-        if (snapshot.isEmpty()) return;
+        if (snapshot.isEmpty()) {
+            AbsoluteLayoutEngine.arrangeChildren(children(), contentBounds);
+            return;
+        }
 
         int rows = (int) Math.ceil(snapshot.size() / (double) columns);
         float totalHorizontalSpacing = horizontalSpacing * Math.max(0, columns - 1);
         float totalVerticalSpacing = verticalSpacing * Math.max(0, rows - 1);
-        float cellWidth = Math.max(0.0f, bounds.width() - totalHorizontalSpacing) / columns;
-        float cellHeight = Math.max(0.0f, bounds.height() - totalVerticalSpacing) / rows;
+        float cellWidth = Math.max(0.0f, contentBounds.width() - totalHorizontalSpacing) / columns;
+        float cellHeight = Math.max(0.0f, contentBounds.height() - totalVerticalSpacing) / rows;
 
         for (int index = 0; index < snapshot.size(); index++) {
             int row = index / columns;
             int column = index % columns;
-            float x = bounds.x() + column * (cellWidth + horizontalSpacing);
-            float y = bounds.y() + row * (cellHeight + verticalSpacing);
+            float x = contentBounds.x() + column * (cellWidth + horizontalSpacing);
+            float y = contentBounds.y() + row * (cellHeight + verticalSpacing);
             arrangeChild(snapshot.get(index), x, y, cellWidth, cellHeight);
         }
+        AbsoluteLayoutEngine.arrangeChildren(children(), contentBounds);
     }
 
     private List<Widget> visibleLayoutChildren() {
         List<Widget> output = new ArrayList<>();
         for (Widget child : children()) {
             if (child.visibility() != Visibility.COLLAPSED) {
+                if (AbsoluteLayoutEngine.isAbsolute(child)) continue;
                 output.add(child);
             }
         }

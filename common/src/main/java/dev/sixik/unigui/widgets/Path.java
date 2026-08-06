@@ -51,13 +51,18 @@ public final class Path extends WidgetBase {
     @Override
     public void render(RenderContext context) {
         if (path.isEmpty()) return;
-        Paint paint = stroke ? Paint.stroke(color, strokeWidth) : Paint.fill(color);
-        context.path(path,
-                layoutBounds().x(),
-                layoutBounds().y(),
-                layoutBounds().width(),
-                layoutBounds().height(),
-                paint,
-                transform());
+        pushOpacity(context);
+        try {
+            Paint paint = stroke ? Paint.stroke(color, strokeWidth) : Paint.fill(color);
+            context.path(path,
+                    layoutBounds().x(),
+                    layoutBounds().y(),
+                    layoutBounds().width(),
+                    layoutBounds().height(),
+                    paint,
+                    transform());
+        } finally {
+            popOpacity(context);
+        }
     }
 }

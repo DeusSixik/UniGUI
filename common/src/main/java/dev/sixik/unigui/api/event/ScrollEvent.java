@@ -16,13 +16,25 @@ public final class ScrollEvent extends BaseEvent implements RoutableWidgetEvent 
     private final float localY;
     private final float deltaX;
     private final float deltaY;
+    private final int modifiers;
 
     public ScrollEvent(Widget target, float rootX, float rootY, float localX, float localY, float deltaX, float deltaY) {
-        this(target, target, EventPhase.TARGET, rootX, rootY, localX, localY, deltaX, deltaY);
+        this(target, rootX, rootY, localX, localY, deltaX, deltaY, 0);
+    }
+
+    public ScrollEvent(Widget target, float rootX, float rootY, float localX, float localY,
+                       float deltaX, float deltaY, int modifiers) {
+        this(target, target, EventPhase.TARGET, rootX, rootY, localX, localY, deltaX, deltaY, modifiers);
     }
 
     public ScrollEvent(Widget target, Widget currentTarget, EventPhase phase,
                        float rootX, float rootY, float localX, float localY, float deltaX, float deltaY) {
+        this(target, currentTarget, phase, rootX, rootY, localX, localY, deltaX, deltaY, 0);
+    }
+
+    public ScrollEvent(Widget target, Widget currentTarget, EventPhase phase,
+                       float rootX, float rootY, float localX, float localY,
+                       float deltaX, float deltaY, int modifiers) {
         this.target = Objects.requireNonNull(target, "target");
         this.currentTarget = Objects.requireNonNull(currentTarget, "currentTarget");
         this.phase = Objects.requireNonNull(phase, "phase");
@@ -32,6 +44,7 @@ public final class ScrollEvent extends BaseEvent implements RoutableWidgetEvent 
         this.localY = localY;
         this.deltaX = deltaX;
         this.deltaY = deltaY;
+        this.modifiers = modifiers;
     }
 
     @Override
@@ -78,9 +91,16 @@ public final class ScrollEvent extends BaseEvent implements RoutableWidgetEvent 
         return deltaY;
     }
 
+    public int modifiers() {
+        return modifiers;
+    }
+
     @Override
     public ScrollEvent routeTo(Widget currentTarget, EventPhase phase) {
-        ScrollEvent event = new ScrollEvent(target, currentTarget, phase, rootX, rootY, localX, localY, deltaX, deltaY);
+        ScrollEvent event = new ScrollEvent(
+                target, currentTarget, phase,
+                rootX, rootY, localX, localY,
+                deltaX, deltaY, modifiers);
         if (isCancelled()) {
             event.cancel();
         }

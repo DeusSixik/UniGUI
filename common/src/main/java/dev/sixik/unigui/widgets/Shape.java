@@ -68,17 +68,22 @@ public class Shape extends WidgetBase {
 
     @Override
     public void render(RenderContext context) {
-        Paint paint = stroke ? Paint.stroke(color, strokeWidth) : Paint.fill(color);
-        float x = layoutBounds().x();
-        float y = layoutBounds().y();
-        float width = layoutBounds().width();
-        float height = layoutBounds().height();
+        pushOpacity(context);
+        try {
+            Paint paint = stroke ? Paint.stroke(color, strokeWidth) : Paint.fill(color);
+            float x = layoutBounds().x();
+            float y = layoutBounds().y();
+            float width = layoutBounds().width();
+            float height = layoutBounds().height();
 
-        switch (type) {
-            case RECT -> context.rect(x, y, width, height, paint, transform());
-            case ROUNDED_RECT -> context.roundedRect(x, y, width, height, radius, paint, transform());
-            case CIRCLE -> context.circle(x, y, width, height, paint, transform());
-            case LINE -> context.line(x, y, x + width, y + height, paint, transform());
+            switch (type) {
+                case RECT -> context.rect(x, y, width, height, paint, transform());
+                case ROUNDED_RECT -> context.roundedRect(x, y, width, height, radius, paint, transform());
+                case CIRCLE -> context.circle(x, y, width, height, paint, transform());
+                case LINE -> context.line(x, y, x + width, y + height, paint, transform());
+            }
+        } finally {
+            popOpacity(context);
         }
     }
 

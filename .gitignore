@@ -130,3 +130,4 @@ fabric/build/
 fabric/run/
 fabric/.gradle/
 /common/logs
+/ldlib

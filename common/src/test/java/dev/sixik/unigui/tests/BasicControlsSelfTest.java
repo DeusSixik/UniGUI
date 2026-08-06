@@ -1,7 +1,11 @@
 package dev.sixik.unigui.tests;
 
+import dev.sixik.unigui.api.animation.AnimatedProperty;
+import dev.sixik.unigui.api.animation.AnimationEasing;
+import dev.sixik.unigui.api.animation.TransitionSpec;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.FrameContext;
+import dev.sixik.unigui.api.core.FramePhase;
 import dev.sixik.unigui.api.event.KeyPressedEvent;
 import dev.sixik.unigui.api.event.PointerEnteredEvent;
 import dev.sixik.unigui.api.event.PointerExitedEvent;
@@ -14,13 +18,21 @@ import dev.sixik.unigui.api.event.SliderValueChangedEvent;
 import dev.sixik.unigui.api.event.TableCellEditCancelledEvent;
 import dev.sixik.unigui.api.event.TableCellEditCommittedEvent;
 import dev.sixik.unigui.api.event.TableCellEditStartedEvent;
+import dev.sixik.unigui.api.event.TableColumnMovedEvent;
+import dev.sixik.unigui.api.event.TableColumnResizedEvent;
 import dev.sixik.unigui.api.event.TableSortChangedEvent;
 import dev.sixik.unigui.api.event.TextChangedEvent;
 import dev.sixik.unigui.api.event.TextInputEvent;
 import dev.sixik.unigui.api.layout.Alignment;
+import dev.sixik.unigui.api.layout.Align;
 import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.layout.LayoutContext;
+import dev.sixik.unigui.api.layout.LayoutStyle;
+import dev.sixik.unigui.api.layout.Justify;
+import dev.sixik.unigui.api.layout.Overflow;
+import dev.sixik.unigui.api.layout.PositionType;
+import dev.sixik.unigui.api.layout.SizeValue;
 import dev.sixik.unigui.api.input.FocusDirection;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.input.KeyModifiers;
@@ -44,9 +56,12 @@ import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.virtualization.FixedRowVirtualizer;
 import dev.sixik.unigui.api.virtualization.VirtualRange;
+import dev.sixik.unigui.backend.minecraft.MinecraftGuiRenderBackend;
+import dev.sixik.unigui.backend.minecraft.MinecraftPreviewWidget;
 import dev.sixik.unigui.impl.input.TransformHitTester;
 import dev.sixik.unigui.impl.render.DefaultRenderContext;
 import dev.sixik.unigui.impl.render.ScissorStack;
+import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.widgets.Button;
 import dev.sixik.unigui.widgets.Box;
@@ -58,7 +73,10 @@ import dev.sixik.unigui.widgets.HBox;
 import dev.sixik.unigui.widgets.Label;
 import dev.sixik.unigui.widgets.NumberField;
 import dev.sixik.unigui.widgets.Orientation;
+import dev.sixik.unigui.widgets.OverlayLayer;
+import dev.sixik.unigui.widgets.PanelWidget;
 import dev.sixik.unigui.widgets.PasswordField;
+import dev.sixik.unigui.widgets.Popup;
 import dev.sixik.unigui.widgets.ProgressBar;
 import dev.sixik.unigui.widgets.SearchField;
 import dev.sixik.unigui.widgets.ScrollView;
@@ -67,11 +85,13 @@ import dev.sixik.unigui.widgets.StackPanel;
 import dev.sixik.unigui.widgets.TextBlock;
 import dev.sixik.unigui.widgets.TextField;
 import dev.sixik.unigui.widgets.TextInput;
+import dev.sixik.unigui.widgets.Tooltip;
 import dev.sixik.unigui.widgets.ToggleButton;
 import dev.sixik.unigui.widgets.VBox;
 import dev.sixik.unigui.widgets.VirtualListView;
 import dev.sixik.unigui.widgets.VirtualTableView;
 import dev.sixik.unigui.widgets.Widgets;
+import dev.sixik.unigui.widgets.WindowWidget;
 import dev.sixik.unigui.widgets.WrapPanel;
 
 public final class BasicControlsSelfTest {
@@ -95,15 +115,24 @@ public final class BasicControlsSelfTest {
         testEnabledVisibleStateFlags();
         testDesiredSizeMeasurement();
         testLayoutConstraintsAndSlotSizing();
+        testLayoutV2CompatibilityContracts();
+        testPublicLayoutApiContracts();
+        testFlexLayoutV2Resolver();
+        testOverflowAndScrollContracts();
+        testAbsoluteLayoutContracts();
         testRicherLayoutContainers();
         testSliderPointerAndKeyboardInput();
         testScrollViewBubbledWheelInput();
         testNestedScissorStack();
+        testWidgetAnimationTransitions();
+        testMinecraftPreviewWidgetFallbacks();
+        testOverlayLayerAndTooltipBasics();
         testFixedRowVirtualizationCore();
         testVirtualizedSelectionContracts();
         testVirtualListKeyboardNavigation();
         testVirtualListViewRealizationAndScrolling();
         testVirtualTableSortingContracts();
+        testVirtualTableColumnResizeAndMoveContracts();
         testVirtualTableKeyboardNavigation();
         testVirtualTableCellEditingContracts();
         testVirtualTableViewVirtualRowsAndRendering();
@@ -769,10 +798,349 @@ public final class BasicControlsSelfTest {
                 "GridBox should honor margin, preferred size and alignment inside cells");
     }
 
+    private void testLayoutV2CompatibilityContracts() {
+        Box legacyConfigured = new Box();
+        legacyConfigured
+                .preferredSize(120.0f, LayoutConstraints.AUTO)
+                .minSize(10.0f, 12.0f)
+                .maxSize(180.0f, 90.0f)
+                .margin(4.0f, 6.0f)
+                .grow(2.0f);
+
+        LayoutStyle legacyStyle = legacyConfigured.layoutStyle();
+        expect(legacyStyle.width().equals(SizeValue.px(120.0f)) && legacyStyle.height().isAuto(),
+                "Legacy preferredSize should populate LayoutStyle pixel/auto values");
+        expect(legacyStyle.minWidth().equals(SizeValue.px(10.0f))
+                        && legacyStyle.minHeight().equals(SizeValue.px(12.0f))
+                        && legacyStyle.maxWidth().equals(SizeValue.px(180.0f))
+                        && legacyStyle.maxHeight().equals(SizeValue.px(90.0f)),
+                "Legacy min/max constraints should populate LayoutStyle");
+        expect(legacyStyle.margin().equals(EdgeInsets.symmetric(4.0f, 6.0f)),
+                "Legacy margin should populate LayoutStyle box model values");
+        expect(near(legacyStyle.flexGrow(), 2.0f) && near(legacyStyle.flexShrink(), 1.0f),
+                "Legacy grow should map to LayoutStyle grow and shrink compatibility values");
+
+        legacyConfigured.layout(style -> style
+                .width(90.0f)
+                .height(30.0f)
+                .minWidth(20.0f)
+                .maxWidth(100.0f)
+                .margin(3.0f)
+                .flexGrow(1.0f)
+                .alignSelf(Align.CENTER)
+                .overflowY(Overflow.AUTO));
+
+        LayoutConstraints bridged = legacyConfigured.layoutConstraints();
+        expect(near(bridged.preferredWidth(), 90.0f) && near(bridged.preferredHeight(), 30.0f),
+                "LayoutStyle pixel sizes should bridge into current LayoutConstraints");
+        expect(near(bridged.minWidth(), 20.0f) && near(bridged.maxWidth(), 100.0f),
+                "LayoutStyle pixel min/max values should bridge into current LayoutConstraints");
+        expect(bridged.margin().equals(EdgeInsets.all(3.0f))
+                        && near(bridged.grow(), 1.0f)
+                        && bridged.horizontalAlignment() == Alignment.CENTER
+                        && bridged.verticalAlignment() == Alignment.CENTER,
+                "LayoutStyle margin, grow and alignSelf should bridge into current layout behavior");
+        expect(legacyConfigured.layoutStyle().overflowY() == Overflow.AUTO,
+                "LayoutStyle should retain v2-only overflow metadata before overflow engine migration");
+
+        legacyConfigured.layout(style -> style
+                .widthPercent(50.0f)
+                .overflowX(Overflow.HIDDEN));
+        expect(legacyConfigured.layoutStyle().width().equals(SizeValue.percent(50.0f)),
+                "LayoutStyle should retain percent values for the future flex resolver");
+        expect(near(legacyConfigured.layoutConstraints().preferredWidth(), 90.0f),
+                "Percent width should preserve current legacy width until Layout v2 resolves percentages");
+    }
+
+    private void testPublicLayoutApiContracts() {
+        LayoutStyle composite = new LayoutStyle()
+                .sizePercent(75.0f, 50.0f)
+                .minSize(40.0f, 20.0f)
+                .maxSizePercent(100.0f, 90.0f)
+                .margin(1.0f, 2.0f, 3.0f, 4.0f)
+                .padding(5.0f, 6.0f, 7.0f, 8.0f)
+                .flex(2.0f, 0.5f, SizeValue.px(60.0f))
+                .inset(9.0f, 10.0f, 11.0f, 12.0f);
+        expect(composite.width().equals(SizeValue.percent(75.0f))
+                        && composite.height().equals(SizeValue.percent(50.0f))
+                        && composite.minWidth().equals(SizeValue.px(40.0f))
+                        && composite.maxHeight().equals(SizeValue.percent(90.0f)),
+                "LayoutStyle composite sizing helpers should map to explicit SizeValue fields");
+        expect(composite.margin().equals(new EdgeInsets(1.0f, 2.0f, 3.0f, 4.0f))
+                        && composite.padding().equals(new EdgeInsets(5.0f, 6.0f, 7.0f, 8.0f))
+                        && near(composite.flexGrow(), 2.0f)
+                        && near(composite.flexShrink(), 0.5f)
+                        && composite.flexBasis().equals(SizeValue.px(60.0f))
+                        && composite.left().equals(SizeValue.px(9.0f))
+                        && composite.bottom().equals(SizeValue.px(12.0f)),
+                "LayoutStyle box, flex and inset helpers should update their grouped fields");
+
+        Box mixedApi = new Box();
+        mixedApi.layout(style -> style
+                .widthPercent(50.0f)
+                .height(24.0f)
+                .padding(7.0f)
+                .overflow(Overflow.HIDDEN));
+        mixedApi.grow(2.0f)
+                .margin(3.0f)
+                .align(Alignment.CENTER, Alignment.END)
+                .minSize(30.0f, 12.0f);
+
+        expect(mixedApi.layoutStyle().width().equals(SizeValue.percent(50.0f))
+                        && mixedApi.layoutStyle().height().equals(SizeValue.px(24.0f))
+                        && mixedApi.layoutStyle().padding().equals(EdgeInsets.all(7.0f))
+                        && mixedApi.layoutStyle().overflowX() == Overflow.HIDDEN
+                        && mixedApi.layoutStyle().overflowY() == Overflow.HIDDEN,
+                "Legacy convenience methods should preserve unrelated Layout v2 properties");
+        expect(near(mixedApi.layoutStyle().flexGrow(), 2.0f)
+                        && near(mixedApi.layoutStyle().flexShrink(), 1.0f)
+                        && mixedApi.layoutStyle().margin().equals(EdgeInsets.all(3.0f))
+                        && mixedApi.layoutStyle().alignSelf() == Align.AUTO
+                        && mixedApi.layoutConstraints().horizontalAlignment() == Alignment.CENTER
+                        && mixedApi.layoutConstraints().verticalAlignment() == Alignment.END,
+                "Legacy grow/margin/alignment helpers should retain their compatibility projection");
+
+        mixedApi.preferredSize(90.0f, LayoutConstraints.AUTO);
+        expect(mixedApi.layoutStyle().width().equals(SizeValue.px(90.0f))
+                        && mixedApi.layoutStyle().height().isAuto()
+                        && mixedApi.layoutStyle().padding().equals(EdgeInsets.all(7.0f))
+                        && mixedApi.layoutStyle().overflowX() == Overflow.HIDDEN,
+                "preferredSize should intentionally replace size fields without resetting v2-only metadata");
+    }
+
+    private void testFlexLayoutV2Resolver() {
+        HBox shrinkRow = new HBox();
+        shrinkRow.spacing(10.0f);
+        Box shrinkA = new Box();
+        Box shrinkB = new Box();
+        shrinkA.layout(style -> style.width(100.0f).height(20.0f).minWidth(20.0f).flexShrink(1.0f));
+        shrinkB.layout(style -> style.width(100.0f).height(20.0f).minWidth(20.0f).flexShrink(1.0f));
+        shrinkRow.addChild(shrinkA);
+        shrinkRow.addChild(shrinkB);
+        shrinkRow.arrange(new MutableRect(0.0f, 0.0f, 150.0f, 20.0f));
+        expect(near(shrinkA.layoutBounds().width(), 70.0f)
+                        && near(shrinkB.layoutBounds().x(), 80.0f)
+                        && near(shrinkB.layoutBounds().width(), 70.0f),
+                "Flex resolver should shrink oversized row children into available width");
+
+        HBox fixedAndFlexible = new HBox();
+        fixedAndFlexible.spacing(10.0f);
+        Box fixed = new Box();
+        Box flexible = new Box();
+        fixed.layout(style -> style.width(80.0f).height(20.0f).flexShrink(0.0f));
+        flexible.layout(style -> style.width(100.0f).height(20.0f).minWidth(20.0f).flexShrink(1.0f));
+        fixedAndFlexible.addChild(fixed);
+        fixedAndFlexible.addChild(flexible);
+        fixedAndFlexible.arrange(new MutableRect(0.0f, 0.0f, 130.0f, 20.0f));
+        expect(near(fixed.layoutBounds().width(), 80.0f)
+                        && near(flexible.layoutBounds().x(), 90.0f)
+                        && near(flexible.layoutBounds().width(), 40.0f),
+                "Flex shrink should preserve fixed children and reduce flexible siblings");
+
+        HBox basisGrow = new HBox();
+        Box basisA = new Box();
+        Box basisB = new Box();
+        basisA.layout(style -> style.flexBasis(50.0f).flexGrow(1.0f).flexShrink(1.0f));
+        basisB.layout(style -> style.flexBasis(50.0f).flexGrow(3.0f).flexShrink(1.0f));
+        basisGrow.addChild(basisA);
+        basisGrow.addChild(basisB);
+        basisGrow.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 20.0f));
+        expect(near(basisA.layoutBounds().width(), 75.0f)
+                        && near(basisB.layoutBounds().x(), 75.0f)
+                        && near(basisB.layoutBounds().width(), 125.0f),
+                "Flex basis and grow weights should distribute positive free space");
+
+        HBox percentRow = new HBox();
+        Box percentChild = new Box();
+        percentChild.layout(style -> style.widthPercent(50.0f).height(12.0f).flexShrink(0.0f));
+        percentRow.addChild(percentChild);
+        percentRow.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 20.0f));
+        expect(near(percentChild.layoutBounds().width(), 100.0f),
+                "Flex resolver should resolve percent main-axis sizes against parent content width");
+
+        HBox paddedRow = new HBox();
+        paddedRow.layout(style -> style.padding(10.0f));
+        Box paddedChild = new Box();
+        paddedChild.layout(style -> style.flexGrow(1.0f).flexShrink(1.0f));
+        paddedRow.addChild(paddedChild);
+        paddedRow.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 40.0f));
+        expect(near(paddedChild.layoutBounds().x(), 10.0f)
+                        && near(paddedChild.layoutBounds().y(), 10.0f)
+                        && near(paddedChild.layoutBounds().width(), 180.0f)
+                        && near(paddedChild.layoutBounds().height(), 20.0f),
+                "Flex resolver should arrange children inside the container padding box");
+
+        HBox centeredRow = new HBox();
+        centeredRow.layout(style -> style
+                .justifyContent(Justify.CENTER)
+                .alignItems(Align.CENTER));
+        Box centeredChild = new Box();
+        centeredChild.layout(style -> style.width(40.0f).height(10.0f).flexShrink(0.0f));
+        centeredRow.addChild(centeredChild);
+        centeredRow.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 40.0f));
+        expect(near(centeredChild.layoutBounds().x(), 30.0f)
+                        && near(centeredChild.layoutBounds().y(), 15.0f),
+                "Flex resolver should apply parent justifyContent and alignItems");
+    }
+
+    private void testOverflowAndScrollContracts() {
+        PanelWidget visiblePanel = overflowPanel(Overflow.VISIBLE);
+        DrawList visibleDrawList = new DrawList();
+        visiblePanel.render(new DefaultRenderContext(visibleDrawList));
+        expect(!hasCommand(visibleDrawList, DrawCommandType.PUSH_CLIP)
+                        && !hasCommand(visibleDrawList, DrawCommandType.POP_CLIP),
+                "Overflow.VISIBLE should render panel children without an automatic clip");
+
+        for (Overflow overflow : new Overflow[]{Overflow.HIDDEN, Overflow.AUTO, Overflow.SCROLL}) {
+            PanelWidget clippedPanel = overflowPanel(overflow);
+            DrawList clippedDrawList = new DrawList();
+            clippedPanel.render(new DefaultRenderContext(clippedDrawList));
+            expect(clippedDrawList.commands().get(0).type() == DrawCommandType.PUSH_CLIP
+                            && clippedDrawList.commands().get(clippedDrawList.size() - 1).type() == DrawCommandType.POP_CLIP,
+                    "Non-visible panel overflow should wrap child rendering in a balanced clip: " + overflow);
+        }
+
+        PanelWidget outer = new PanelWidget();
+        PanelWidget inner = new PanelWidget();
+        Box nestedChild = solidTestBox();
+        outer.layout(style -> style.overflow(Overflow.HIDDEN));
+        inner.layout(style -> style.overflow(Overflow.AUTO));
+        inner.addChild(nestedChild);
+        outer.addChild(inner);
+        inner.applyQueuedMutations();
+        outer.applyQueuedMutations();
+        outer.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 40.0f));
+        DrawList nestedDrawList = new DrawList();
+        outer.render(new DefaultRenderContext(nestedDrawList));
+        expect(countCommands(nestedDrawList, DrawCommandType.PUSH_CLIP) == 2
+                        && countCommands(nestedDrawList, DrawCommandType.POP_CLIP) == 2,
+                "Nested overflow panels should keep the clip stack balanced");
+
+        ScrollView defaults = new ScrollView();
+        expect(defaults.layoutStyle().overflowX() == Overflow.HIDDEN
+                        && defaults.layoutStyle().overflowY() == Overflow.AUTO,
+                "ScrollView should default to hidden horizontal overflow and automatic vertical overflow");
+
+        DefaultUIContext uiContext = new DefaultUIContext();
+        Box autoContent = new Box();
+        ScrollView automatic = new ScrollView(autoContent).contentSize(200.0f, 300.0f);
+        automatic.layout(style -> style.overflowX(Overflow.AUTO).overflowY(Overflow.AUTO));
+        automatic.setUiContextInternal(uiContext);
+        automatic.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 100.0f));
+        expect(automatic.children().size() == 3,
+                "AUTO overflow should expose content and both scrollbars when both axes overflow");
+        expect(near(autoContent.layoutBounds().width(), 200.0f)
+                        && near(automatic.horizontalScrollBar().layoutBounds().width(), 94.0f)
+                        && near(automatic.verticalScrollBar().layoutBounds().height(), 94.0f),
+                "Visible scrollbars should reduce the opposite viewport axis");
+        expect(near(automatic.maxScrollX(), 106.0f) && near(automatic.maxScrollY(), 206.0f),
+                "Scroll ranges should use the viewport remaining after both scrollbars");
+
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(automatic.horizontalScrollBar(),
+                47.0f, 97.0f, 47.0f, 3.0f, 0, PointerButton.PRIMARY));
+        expect(automatic.horizontalScrollBar().dragging()
+                        && uiContext.capturedPointer(0) == automatic.horizontalScrollBar()
+                        && near(automatic.scrollX(), 53.0f),
+                "Dragging the horizontal scrollbar should capture the pointer and update scrollX");
+        uiContext.routedEvents().dispatch(new PointerReleasedEvent(automatic.horizontalScrollBar(),
+                160.0f, 130.0f, 160.0f, 130.0f, 0, PointerButton.PRIMARY));
+        expect(!automatic.horizontalScrollBar().dragging() && uiContext.capturedPointer(0) == null,
+                "Horizontal scrollbar drag should release capture outside its visual bounds");
+
+        automatic.scrollTo(0.0f, 0.0f);
+        boolean shiftWheelConsumed = uiContext.routedEvents().dispatch(new ScrollEvent(
+                autoContent, 20.0f, 20.0f, 20.0f, 20.0f,
+                0.0f, -1.0f, KeyModifiers.SHIFT));
+        expect(shiftWheelConsumed
+                        && near(automatic.scrollX(), automatic.scrollStep())
+                        && automatic.scrollY() == 0.0f,
+                "Shift + vertical wheel should scroll a horizontal ScrollView axis");
+
+        automatic.scrollTo(100.0f, 100.0f);
+        automatic.layout(style -> style.overflow(Overflow.HIDDEN));
+        automatic.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 100.0f));
+        expect(automatic.scrollX() == 0.0f && automatic.scrollY() == 0.0f
+                        && automatic.children().size() == 1,
+                "HIDDEN overflow should disable scrolling, hide bars and reset stale offsets");
+
+        ScrollView forced = new ScrollView(new Box()).contentSize(20.0f, 20.0f);
+        forced.layout(style -> style.overflow(Overflow.SCROLL));
+        forced.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 100.0f));
+        expect(forced.children().size() == 3
+                        && forced.maxScrollX() == 0.0f
+                        && forced.maxScrollY() == 0.0f,
+                "SCROLL overflow should keep both bars visible even when content fits");
+    }
+
+    private void testAbsoluteLayoutContracts() {
+        StackPanel host = new StackPanel();
+        host.layout(style -> style.padding(10.0f));
+
+        Box relative = new Box();
+        relative.preferredSize(40.0f, 20.0f)
+                .align(Alignment.START, Alignment.START)
+                .grow(0.0f);
+
+        Box positioned = new Box();
+        positioned.layout(style -> style
+                .position(PositionType.ABSOLUTE)
+                .left(5.0f)
+                .top(6.0f)
+                .width(30.0f)
+                .height(12.0f));
+
+        Box insetStretch = new Box();
+        insetStretch.layout(style -> style
+                .position(PositionType.ABSOLUTE)
+                .left(10.0f)
+                .right(20.0f)
+                .top(5.0f)
+                .bottom(15.0f));
+
+        host.addChild(relative);
+        host.addChild(positioned);
+        host.addChild(insetStretch);
+        host.measure(new LayoutContext(200.0f, 100.0f));
+        expect(near(host.desiredSize().width(), 60.0f) && near(host.desiredSize().height(), 40.0f),
+                "Absolute children should not contribute to parent desired size while padding remains in the box model");
+
+        host.arrange(new MutableRect(100.0f, 50.0f, 200.0f, 100.0f));
+        expect(near(relative.layoutBounds().x(), 110.0f) && near(relative.layoutBounds().y(), 60.0f),
+                "Relative children should use the parent content box after padding");
+        expect(near(positioned.layoutBounds().x(), 115.0f)
+                        && near(positioned.layoutBounds().y(), 66.0f)
+                        && near(positioned.layoutBounds().width(), 30.0f)
+                        && near(positioned.layoutBounds().height(), 12.0f),
+                "Absolute left/top offsets should resolve from the parent content box");
+        expect(near(insetStretch.layoutBounds().x(), 120.0f)
+                        && near(insetStretch.layoutBounds().y(), 65.0f)
+                        && near(insetStretch.layoutBounds().width(), 150.0f)
+                        && near(insetStretch.layoutBounds().height(), 60.0f),
+                "Absolute left/right/top/bottom insets should stretch an auto-sized child");
+
+        Box unclampedHost = new Box();
+        Box unclampedChild = new Box();
+        unclampedChild.layout(style -> style
+                .position(PositionType.ABSOLUTE)
+                .left(90.0f)
+                .top(4.0f)
+                .width(30.0f)
+                .height(10.0f));
+        unclampedHost.addChild(unclampedChild);
+        unclampedHost.measure(new LayoutContext(100.0f, 50.0f));
+        unclampedHost.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 50.0f));
+        expect(unclampedHost.desiredSize().width() == 0.0f
+                        && near(unclampedChild.layoutBounds().x(), 90.0f)
+                        && near(unclampedChild.layoutBounds().width(), 30.0f),
+                "Generic absolute children should stay out of flow without implicit host clamping");
+    }
+
     private void testRicherLayoutContainers() {
         expect(Widgets.stack() instanceof StackPanel, "Widgets.stack should create StackPanel");
         expect(Widgets.dock() instanceof DockPanel, "Widgets.dock should create DockPanel");
         expect(Widgets.wrap() instanceof WrapPanel, "Widgets.wrap should create WrapPanel");
+        expect(Widgets.scrollView() instanceof ScrollView, "Widgets.scrollView should create an empty ScrollView");
+        expect(Widgets.overlayLayer() instanceof OverlayLayer, "Widgets.overlayLayer should create an empty OverlayLayer");
 
         StackPanel stack = new StackPanel();
         Button full = new Button("Full");
@@ -843,6 +1211,15 @@ public final class BasicControlsSelfTest {
                 "WrapPanel should wrap to the next line when the next item exceeds available width");
         expect(near(skipped.layoutBounds().x(), 7.0f) && near(skipped.layoutBounds().width(), 9.0f),
                 "WrapPanel should skip collapsed children during layout");
+
+        WrapPanel narrowWrap = new WrapPanel();
+        Button oversized = new Button("Oversized");
+        oversized.preferredSize(140.0f, 14.0f).grow(0.0f);
+        narrowWrap.addChild(oversized);
+        narrowWrap.measure(new LayoutContext(80.0f, 40.0f));
+        narrowWrap.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 40.0f));
+        expect(near(oversized.layoutBounds().width(), 80.0f),
+                "WrapPanel should clamp oversized horizontal children to the available line width");
 
         VBox wrappedToolbarLayout = new VBox();
         wrappedToolbarLayout.spacing(8.0f);
@@ -959,6 +1336,24 @@ public final class BasicControlsSelfTest {
         scrollView.render(new DefaultRenderContext(drawList));
         expect(drawList.commands().get(0).type() == DrawCommandType.PUSH_CLIP, "ScrollView should push a clip before rendering content");
         expect(hasCommand(drawList, DrawCommandType.POP_CLIP), "ScrollView should pop the clip after rendering content");
+
+        Box measuredContent = new Box();
+        measuredContent.preferredSize(100.0f, 260.0f).grow(0.0f);
+        ScrollView autoContentScrollView = new ScrollView(measuredContent).scrollStep(10.0f);
+        autoContentScrollView.setUiContextInternal(uiContext);
+        autoContentScrollView.measure(new LayoutContext(100.0f, 80.0f));
+        autoContentScrollView.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 80.0f));
+        autoContentScrollView.scrollTo(0.0f, 500.0f);
+        expect(autoContentScrollView.scrollY() == 180.0f, "ScrollView should use measured content height when contentSize is not explicit");
+
+        Box viewportWidthContent = new Box();
+        viewportWidthContent.preferredSize(240.0f, 120.0f).grow(0.0f);
+        ScrollView viewportWidthScrollView = new ScrollView(viewportWidthContent);
+        viewportWidthScrollView.measure(new LayoutContext(240.0f, 80.0f));
+        viewportWidthScrollView.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 80.0f));
+        expect(viewportWidthScrollView.maxScrollX() == 0.0f, "ScrollView should not create implicit horizontal overflow without explicit content width");
+        expect(viewportWidthContent.layoutBounds().width() == 94.0f,
+                "ScrollView should arrange implicit-width content to viewport width after the vertical scrollbar");
     }
 
     private void testNestedScissorStack() {
@@ -978,6 +1373,235 @@ public final class BasicControlsSelfTest {
 
         scissorStack.clear();
         expect(scissorStack.isEmpty(), "ScissorStack clear should remove all clip state");
+    }
+
+    private void testWidgetAnimationTransitions() {
+        TransitionSpec linear = TransitionSpec.of(1.0f, AnimationEasing.LINEAR);
+        Box box = new Box();
+        box.opacity(0.20f)
+                .animateOpacity(1.0f, linear)
+                .animatePosition(30.0f, 12.0f, linear)
+                .animateScale(2.0f, 0.5f, linear);
+
+        box.tick(new FrameContext(1, 0.5f, 0.0f, FramePhase.ANIMATION));
+        expect(near(box.opacity(), 0.60f), "Widget opacity transition should interpolate with frame delta");
+        expect(near(box.transform().position().x(), 15.0f) && near(box.transform().position().y(), 6.0f),
+                "Widget position transition should interpolate transform position");
+        expect(near(box.transform().scale().x(), 1.5f) && near(box.transform().scale().y(), 0.75f),
+                "Widget scale transition should interpolate transform scale");
+        expect(box.animationRunning(AnimatedProperty.OPACITY), "Widget transition should report running state before completion");
+
+        box.tick(new FrameContext(2, 0.5f, 0.0f, FramePhase.ANIMATION));
+        expect(near(box.opacity(), 1.0f) && !box.animationsRunning(),
+                "Widget transitions should finish and clear running state");
+
+        StackPanel root = new StackPanel();
+        root.opacity(0.50f);
+        Box child = new Box();
+        child.backgroundVisible(true);
+        child.themeEnabled(false);
+        child.background().set(0.3f, 0.4f, 0.5f, 0.8f);
+        child.opacity(0.50f);
+        child.preferredSize(40.0f, 20.0f).grow(0.0f);
+        root.addChild(child);
+        root.measure(new LayoutContext(80.0f, 40.0f));
+        root.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 40.0f));
+        DrawList fadedDrawList = new DrawList();
+        root.render(new DefaultRenderContext(fadedDrawList));
+        expect(hasFillColor(fadedDrawList, 0.3f, 0.4f, 0.5f, 0.20f),
+                "Nested widget opacity should multiply rendered paint alpha");
+
+        Button button = new Button("Animated");
+        button.interactionTransitions(true)
+                .interactionTransition(TransitionSpec.of(0.10f, AnimationEasing.LINEAR))
+                .interactionScales(1.0f, 1.10f, 0.90f)
+                .interactionOpacities(1.0f, 0.80f, 0.50f);
+        button.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 18.0f));
+        button.handle(new PointerEnteredEvent(button, 4.0f, 4.0f, 4.0f, 4.0f, 0));
+        button.tick(new FrameContext(3, 0.10f, 0.0f, FramePhase.ANIMATION));
+        expect(near(button.transform().scale().x(), 1.10f), "Button hover interaction transition should animate scale");
+
+        button.handle(new PointerPressedEvent(button, 4.0f, 4.0f, 4.0f, 4.0f, 0, PointerButton.PRIMARY));
+        button.tick(new FrameContext(4, 0.10f, 0.0f, FramePhase.ANIMATION));
+        expect(near(button.opacity(), 0.80f) && near(button.transform().scale().x(), 0.90f),
+                "Button pressed interaction transition should animate opacity and scale");
+    }
+
+    private void testMinecraftPreviewWidgetFallbacks() {
+        TestMinecraftPreviewWidget preview = new TestMinecraftPreviewWidget("Preview", "fallback");
+        preview.previewSize(32.0f).preferredSize(70.0f, 58.0f).grow(0.0f);
+        preview.measure(new LayoutContext(100.0f, 80.0f));
+        preview.arrange(new MutableRect(0.0f, 0.0f, 70.0f, 58.0f));
+        DrawList drawList = new DrawList();
+        preview.render(new DefaultRenderContext(drawList));
+        expect(hasCommand(drawList, DrawCommandType.CUSTOM), "Minecraft preview shell should emit backend custom draw command");
+        expect(hasText(drawList, "fallback") && hasText(drawList, "Preview"),
+                "Minecraft preview shell should render fallback text and label without Minecraft backend");
+
+        preview.label("Updated").labelVisible(false).previewSize(40.0f);
+        preview.measure(new LayoutContext(100.0f, 80.0f));
+        expect(preview.label().equals("Updated") && !preview.labelVisible() && preview.previewSize() == 40.0f,
+                "Minecraft preview shell should expose label and sizing contracts without bootstrapping Minecraft registries");
+    }
+
+    private void testOverlayLayerAndTooltipBasics() {
+        DefaultUIContext uiContext = new DefaultUIContext();
+        TransformHitTester hitTester = new TransformHitTester();
+
+        StackPanel content = new StackPanel();
+        Button button = new Button("Hover me");
+        button.preferredSize(80.0f, 20.0f).align(Alignment.START, Alignment.START).grow(0.0f);
+        content.addChild(button);
+
+        Tooltip tooltip = new Tooltip(button, "Tooltip text");
+        Button popupButton = new Button("Popup action");
+        popupButton.preferredSize(90.0f, 20.0f).grow(0.0f);
+        Popup popup = new Popup(button, popupButton);
+        OverlayLayer layer = new OverlayLayer(content)
+                .addOverlay(tooltip)
+                .addOverlay(popup);
+        layer.setUiContextInternal(uiContext);
+        layer.measure(new LayoutContext(200.0f, 100.0f));
+        layer.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 100.0f));
+
+        DrawList idleDrawList = new DrawList();
+        layer.render(new DefaultRenderContext(idleDrawList));
+        expect(hasText(idleDrawList, "Hover me") && !hasText(idleDrawList, "Tooltip text"),
+                "Tooltip should not render while its anchor is not hovered");
+
+        button.handle(new PointerEnteredEvent(button, 4.0f, 4.0f, 4.0f, 4.0f, 0));
+        layer.measure(new LayoutContext(200.0f, 100.0f));
+        layer.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 100.0f));
+        DrawList hoveredDrawList = new DrawList();
+        layer.render(new DefaultRenderContext(hoveredDrawList));
+        expect(tooltip.showing() && hasText(hoveredDrawList, "Tooltip text"),
+                "Tooltip should render above content while its anchor is hovered");
+        expect(hitTester.hitTest(layer, tooltip.layoutBounds().x() + 1.0f, tooltip.layoutBounds().y() + 1.0f).orElseThrow().widget() == content,
+                "Disabled tooltip overlay should not capture hit-test input");
+
+        StackPanel narrowContent = new StackPanel();
+        Button narrowButton = new Button("Hover");
+        narrowButton.preferredSize(70.0f, 20.0f).align(Alignment.START, Alignment.START).grow(0.0f);
+        narrowButton.handle(new PointerEnteredEvent(narrowButton, 4.0f, 4.0f, 4.0f, 4.0f, 0));
+        narrowContent.addChild(narrowButton);
+        Tooltip narrowTooltip = new Tooltip(narrowButton, "Tooltip overlays render above content and do not capture pointer input.");
+        narrowTooltip.maxWidth(180.0f);
+        OverlayLayer narrowLayer = new OverlayLayer(narrowContent).addOverlay(narrowTooltip);
+        narrowLayer.setUiContextInternal(uiContext);
+        narrowLayer.measure(new LayoutContext(110.0f, 100.0f));
+        narrowLayer.arrange(new MutableRect(0.0f, 0.0f, 110.0f, 100.0f));
+        DrawList narrowTooltipDrawList = new DrawList();
+        narrowLayer.render(new DefaultRenderContext(narrowTooltipDrawList));
+        expect(narrowTooltip.layoutBounds().width() <= 110.0f,
+                "Tooltip should clamp wrapped width to the overlay host width");
+        expect(narrowTooltip.layoutBounds().height() > TextEngine.LINE_HEIGHT + 8.0f,
+                "Tooltip should wrap long text vertically when host width is narrow");
+        expect(countTextCommands(narrowTooltipDrawList) >= 2,
+                "Tooltip should render wrapped long text as multiple clipped lines");
+
+        popup.open();
+        layer.measure(new LayoutContext(200.0f, 100.0f));
+        layer.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 100.0f));
+        DrawList popupDrawList = new DrawList();
+        layer.render(new DefaultRenderContext(popupDrawList));
+        expect(hasText(popupDrawList, "Popup action"), "Open Popup should render its content above the base content");
+        expect(hitTester.hitTest(layer, popupButton.layoutBounds().x() + 2.0f, popupButton.layoutBounds().y() + 2.0f).orElseThrow().widget() == popupButton,
+                "Open Popup should participate in hit-test for its interactive content");
+
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(button, 4.0f, 4.0f, 4.0f, 4.0f, 0, PointerButton.PRIMARY));
+        expect(popup.opened(), "Clicking an open Popup anchor should not close it before the anchor toggles it");
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(content, 120.0f, 70.0f, 120.0f, 70.0f, 0, PointerButton.PRIMARY));
+        expect(!popup.opened(), "OverlayLayer should close Popup on outside primary click");
+
+        StackPanel edgeContent = new StackPanel();
+        Button edgeAnchor = new Button("Edge");
+        edgeAnchor.preferredSize(20.0f, 10.0f)
+                .align(Alignment.END, Alignment.END)
+                .grow(0.0f);
+        edgeContent.addChild(edgeAnchor);
+        Tooltip edgeTooltip = new Tooltip(edgeAnchor, "Edge tooltip");
+        Button edgePopupContent = new Button("Edge popup action");
+        edgePopupContent.preferredSize(80.0f, 24.0f).grow(0.0f);
+        Popup edgePopup = new Popup(edgeAnchor, edgePopupContent).open();
+        OverlayLayer edgeLayer = new OverlayLayer(edgeContent)
+                .addOverlay(edgeTooltip)
+                .addOverlay(edgePopup);
+        edgeLayer.measure(new LayoutContext(120.0f, 60.0f));
+        edgeLayer.arrange(new MutableRect(0.0f, 0.0f, 120.0f, 60.0f));
+        expect(edgeTooltip.layoutBounds().x() < edgeAnchor.layoutBounds().x()
+                        && edgeTooltip.layoutBounds().y() < edgeAnchor.layoutBounds().y()
+                        && edgeTooltip.layoutBounds().x() >= 0.0f
+                        && edgeTooltip.layoutBounds().y() >= 0.0f,
+                "Tooltip should flip left/up and remain clamped near the host bottom-right edge");
+        expect(edgePopup.layoutBounds().x() < edgeAnchor.layoutBounds().x()
+                        && edgePopup.layoutBounds().y() < edgeAnchor.layoutBounds().y()
+                        && edgePopup.layoutBounds().x() + edgePopup.layoutBounds().width() <= 120.0f
+                        && edgePopup.layoutBounds().y() + edgePopup.layoutBounds().height() <= 60.0f,
+                "Popup should flip and clamp inside a small overlay host");
+
+        Button dialogAction = new Button("Dialog OK");
+        dialogAction.preferredSize(82.0f, 20.0f).grow(0.0f);
+        WindowWidget window = new WindowWidget("Dialog title", dialogAction)
+                .position(20.0f, 8.0f)
+                .closeOnOutsideClick(true)
+                .open();
+        window.preferredSize(150.0f, 70.0f).grow(0.0f);
+        layer.addOverlay(window);
+        layer.measure(new LayoutContext(200.0f, 100.0f));
+        layer.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 100.0f));
+        DrawList windowDrawList = new DrawList();
+        layer.render(new DefaultRenderContext(windowDrawList));
+        expect(hasText(windowDrawList, "Dialog title") && hasText(windowDrawList, "Dialog OK"),
+                "Open WindowWidget should render title and content above base content");
+        expect(hitTester.hitTest(layer, dialogAction.layoutBounds().x() + 2.0f, dialogAction.layoutBounds().y() + 2.0f).orElseThrow().widget() == dialogAction,
+                "WindowWidget content should participate in hit-test");
+
+        window.position(500.0f, 500.0f);
+        layer.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 100.0f));
+        expect(near(window.layoutBounds().x(), 50.0f) && near(window.layoutBounds().y(), 30.0f),
+                "Host-constrained WindowWidget should clamp programmatic positions to the host");
+        window.position(20.0f, 8.0f);
+        layer.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 100.0f));
+
+        float oldWindowX = window.layoutBounds().x();
+        float oldWindowY = window.layoutBounds().y();
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(window, oldWindowX + 16.0f, oldWindowY + 6.0f, 16.0f, 6.0f, 0, PointerButton.PRIMARY));
+        expect(window.dragging() && uiContext.capturedPointer(0) == window,
+                "WindowWidget title press should start drag and capture pointer");
+        uiContext.routedEvents().dispatch(new PointerMovedEvent(window, oldWindowX + 46.0f, oldWindowY + 21.0f, 46.0f, 21.0f, 0));
+        layer.measure(new LayoutContext(200.0f, 100.0f));
+        layer.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 100.0f));
+        expect(window.layoutBounds().x() > oldWindowX && window.layoutBounds().y() > oldWindowY,
+                "WindowWidget drag should update arranged position");
+        uiContext.routedEvents().dispatch(new PointerReleasedEvent(window, window.layoutBounds().x() + 16.0f, window.layoutBounds().y() + 6.0f, 16.0f, 6.0f, 0, PointerButton.PRIMARY));
+        expect(!window.dragging() && uiContext.capturedPointer(0) == null,
+                "WindowWidget release should stop drag and release pointer capture");
+
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(button, 4.0f, 4.0f, 4.0f, 4.0f, 0, PointerButton.PRIMARY));
+        expect(!window.opened(), "OverlayLayer should close WindowWidget on outside primary click when enabled");
+
+        window.open();
+        layer.measure(new LayoutContext(200.0f, 100.0f));
+        layer.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 100.0f));
+        Button closeButton = window.closeButton();
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(closeButton, closeButton.layoutBounds().x() + 2.0f, closeButton.layoutBounds().y() + 2.0f, 2.0f, 2.0f, 0, PointerButton.PRIMARY));
+        uiContext.routedEvents().dispatch(new PointerReleasedEvent(closeButton, closeButton.layoutBounds().x() + 2.0f, closeButton.layoutBounds().y() + 2.0f, 2.0f, 2.0f, 0, PointerButton.PRIMARY));
+        expect(!window.opened(), "WindowWidget close button should close the overlay shell");
+
+        WindowWidget freeWindow = new WindowWidget("Free", null)
+                .position(180.0f, 80.0f)
+                .constrainToHost(false)
+                .open();
+        freeWindow.preferredSize(60.0f, 40.0f).grow(0.0f);
+        layer.addOverlay(freeWindow);
+        layer.measure(new LayoutContext(200.0f, 100.0f));
+        layer.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 100.0f));
+        expect(near(freeWindow.layoutBounds().x(), 180.0f) && near(freeWindow.layoutBounds().y(), 80.0f),
+                "WindowWidget should allow explicit opt-out from host constraints");
+        freeWindow.constrainToHost(true);
+        layer.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 100.0f));
+        expect(near(freeWindow.layoutBounds().x(), 140.0f) && near(freeWindow.layoutBounds().y(), 60.0f),
+                "Re-enabled WindowWidget host constraints should clamp the absolute rect again");
     }
 
     private void testFixedRowVirtualizationCore() {
@@ -1425,6 +2049,63 @@ public final class BasicControlsSelfTest {
                 "VirtualTableView third header click should clear sort");
     }
 
+    private void testVirtualTableColumnResizeAndMoveContracts() {
+        DefaultUIContext uiContext = new DefaultUIContext();
+        VirtualTableView table = new VirtualTableView()
+                .addColumn("Name", 60.0f)
+                .addColumn("Score", 50.0f)
+                .addColumn("Kind", 40.0f)
+                .rowCount(2)
+                .rowHeight(10.0f)
+                .headerHeight(10.0f)
+                .minColumnWidth(30.0f)
+                .cellTextProvider((row, column) -> "R" + row + "C" + column);
+        table.setUiContextInternal(uiContext);
+        table.arrange(new MutableRect(0.0f, 0.0f, 180.0f, 40.0f));
+
+        Counter columnEvents = new Counter();
+        table.onColumnResized((TableColumnResizedEvent event) -> {
+            columnEvents.resized++;
+            columnEvents.lastColumn = event.column();
+            columnEvents.lastOldWidth = event.oldWidth();
+            columnEvents.lastNewWidth = event.newWidth();
+        });
+        table.onColumnMoved((TableColumnMovedEvent event) -> {
+            columnEvents.moved++;
+            columnEvents.lastOldColumn = event.oldIndex();
+            columnEvents.lastNewColumn = event.newIndex();
+        });
+
+        table.resizeColumn(1, 20.0f);
+        expect(table.columnWidth(1) == 30.0f,
+                "VirtualTableView resizeColumn should clamp to minColumnWidth");
+        expect(columnEvents.resized == 1 && columnEvents.lastColumn == 1 && columnEvents.lastOldWidth == 50.0f && columnEvents.lastNewWidth == 30.0f,
+                "VirtualTableView resizeColumn should emit old/new width event");
+
+        table.sortBy(2, SortDirection.ASCENDING);
+        table.activeCell(0, 2);
+        table.moveColumn(2, 0);
+        expect(table.columns().get(0).header().equals("Kind") && table.sortColumnIndex() == 0 && table.activeColumn() == 0,
+                "VirtualTableView moveColumn should reorder headers and remap sort/active column indices");
+        expect(columnEvents.moved == 1 && columnEvents.lastOldColumn == 2 && columnEvents.lastNewColumn == 0,
+                "VirtualTableView moveColumn should emit moved event");
+
+        table.clearSort();
+        table.resizeColumn(0, 60.0f);
+        columnEvents.resized = 0;
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(table, 60.0f, 5.0f, 60.0f, 5.0f, 0, PointerButton.PRIMARY));
+        expect(table.resizingColumn() && table.resizingColumnIndex() == 0 && uiContext.capturedPointer(0) == table,
+                "VirtualTableView divider press should start column resize and capture pointer");
+        uiContext.routedEvents().dispatch(new PointerMovedEvent(table, 85.0f, 5.0f, 85.0f, 5.0f, 0));
+        expect(table.columnWidth(0) == 85.0f && columnEvents.resized == 1,
+                "VirtualTableView divider drag should resize the captured column");
+        expect(table.sortColumnIndex() == -1,
+                "VirtualTableView divider drag should not trigger header sorting");
+        uiContext.routedEvents().dispatch(new PointerReleasedEvent(table, 85.0f, 5.0f, 85.0f, 5.0f, 0, PointerButton.PRIMARY));
+        expect(!table.resizingColumn() && uiContext.capturedPointer(0) == null,
+                "VirtualTableView divider release should end resize and release pointer capture");
+    }
+
     private void testToggleCheckboxProgressAndNumberField() {
         DefaultUIContext uiContext = new DefaultUIContext();
 
@@ -1531,8 +2212,33 @@ public final class BasicControlsSelfTest {
         return drawList.commands().stream().anyMatch(command -> command.type() == type);
     }
 
+    private static long countCommands(DrawList drawList, DrawCommandType type) {
+        return drawList.commands().stream().filter(command -> command.type() == type).count();
+    }
+
+    private static PanelWidget overflowPanel(Overflow overflow) {
+        PanelWidget panel = new PanelWidget();
+        panel.layout(style -> style.overflow(overflow));
+        panel.addChild(solidTestBox());
+        panel.applyQueuedMutations();
+        panel.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 40.0f));
+        return panel;
+    }
+
+    private static Box solidTestBox() {
+        Box box = new Box();
+        box.themeEnabled(false);
+        box.backgroundVisible(true);
+        box.background().set(0.25f, 0.50f, 0.75f, 1.0f);
+        return box;
+    }
+
     private static boolean hasText(DrawList drawList, String text) {
         return drawList.commands().stream().anyMatch(command -> text.equals(command.text()));
+    }
+
+    private static long countTextCommands(DrawList drawList) {
+        return drawList.commands().stream().filter(command -> command.type() == DrawCommandType.TEXT).count();
     }
 
     private static int textCommandIndex(DrawList drawList, String text, int startIndex) {
@@ -1605,5 +2311,29 @@ public final class BasicControlsSelfTest {
         private int cancelled;
         private int lastRow = -1;
         private int lastColumn = -1;
+        private int resized;
+        private int moved;
+        private int lastOldColumn = -1;
+        private int lastNewColumn = -1;
+        private float lastOldWidth;
+        private float lastNewWidth;
+    }
+
+    private static final class TestMinecraftPreviewWidget extends MinecraftPreviewWidget {
+        private final String fallback;
+
+        private TestMinecraftPreviewWidget(String label, String fallback) {
+            super(label);
+            this.fallback = fallback;
+        }
+
+        @Override
+        protected void renderMinecraftPreview(MinecraftGuiRenderBackend backend, float x, float y, float size, float opacity) {
+        }
+
+        @Override
+        protected String fallbackText() {
+            return fallback;
+        }
     }
 }

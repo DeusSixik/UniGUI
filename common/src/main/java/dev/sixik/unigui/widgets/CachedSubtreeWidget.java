@@ -145,6 +145,7 @@ public final class CachedSubtreeWidget extends WidgetBase {
 
     @Override
     public void tick(FrameContext frame) {
+        super.tick(frame);
         if (content != null) {
             content.tick(frame);
         }
@@ -153,6 +154,15 @@ public final class CachedSubtreeWidget extends WidgetBase {
     @Override
     public void render(RenderContext context) {
         if (content == null) return;
+        pushOpacity(context);
+        try {
+            renderCachedContent(context);
+        } finally {
+            popOpacity(context);
+        }
+    }
+
+    private void renderCachedContent(RenderContext context) {
         renderCalls++;
 
         RenderBackend backend = context.backend();

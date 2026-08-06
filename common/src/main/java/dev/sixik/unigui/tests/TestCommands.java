@@ -2,14 +2,22 @@ package dev.sixik.unigui.tests;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.brigadier.CommandDispatcher;
+import dev.sixik.unigui.api.animation.AnimationEasing;
+import dev.sixik.unigui.api.animation.TransitionSpec;
 import dev.sixik.unigui.api.debug.DebugFlags;
+import dev.sixik.unigui.api.layout.Align;
 import dev.sixik.unigui.api.layout.Alignment;
+import dev.sixik.unigui.api.layout.Justify;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
+import dev.sixik.unigui.api.layout.Overflow;
 import dev.sixik.unigui.api.selection.SelectionMode;
 import dev.sixik.unigui.api.sort.SortDirection;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.backend.minecraft.MinecraftClipboardService;
+import dev.sixik.unigui.backend.minecraft.MinecraftBlockPreviewWidget;
+import dev.sixik.unigui.backend.minecraft.MinecraftEntityPreviewWidget;
+import dev.sixik.unigui.backend.minecraft.MinecraftItemPreviewWidget;
 import dev.sixik.unigui.backend.minecraft.MinecraftWidgetScreen;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.impl.widget.WidgetBase;
@@ -18,12 +26,20 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.Blocks;
 
 public final class TestCommands {
     private static final int SAMPLE_OVERVIEW = 0;
     private static final int SAMPLE_CONTROLS_TEXT = 1;
     private static final int SAMPLE_VIRTUAL_DATA = 2;
     private static final int SAMPLE_EDITABLE_TABLE = 3;
+    private static final int SAMPLE_OVERLAYS = 4;
+    private static final int SAMPLE_ANIMATIONS = 5;
+    private static final int SAMPLE_MINECRAFT = 6;
+    private static final int SAMPLE_LAYOUT_V2 = 7;
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("unigui").executes(ctx -> {
@@ -42,9 +58,9 @@ public final class TestCommands {
         StackPanel viewport = new StackPanel();
 
         Box frame = panelBox(0.025f, 0.028f, 0.035f, 0.96f);
-        frame.preferredSize(620.0f, 340.0f)
-                .align(Alignment.CENTER, Alignment.CENTER)
-                .grow(0.0f);
+        frame.align(Alignment.STRETCH, Alignment.STRETCH)
+                .margin(6.0f)
+                .grow(1.0f);
 
         StackPanel frameContent = new StackPanel();
         DockPanel root = new DockPanel();
@@ -56,13 +72,16 @@ public final class TestCommands {
         root.addChild(header(), DockSide.TOP);
 
         StackPanel sampleHost = new StackPanel();
-        sampleHost.margin(8.0f);
 
         WidgetBase[] samples = new WidgetBase[]{
                 overviewSample(),
                 controlsAndTextSample(),
                 virtualDataSample(),
-                editableTableSample()
+                editableTableSample(),
+                overlaysSample(),
+                animationsSample(),
+                minecraftSample(),
+                layoutV2Sample()
         };
         for (WidgetBase sample : samples) {
             sampleHost.addChild(sample);
@@ -72,13 +91,24 @@ public final class TestCommands {
                 navButton("Overview"),
                 navButton("Controls + Text"),
                 navButton("Virtual Data"),
-                navButton("Editable Table")
+                navButton("Editable Table"),
+                navButton("Overlays"),
+                navButton("Animations"),
+                navButton("Minecraft"),
+                navButton("Layout v2")
         };
 
         Box navBox = navigation(context, navButtons, samples);
+        ScrollView sampleScroll = new ScrollView(sampleHost);
+        sampleScroll.preferredSize(LayoutConstraints.AUTO, LayoutConstraints.AUTO)
+                .align(Alignment.STRETCH, Alignment.STRETCH)
+                .margin(8.0f)
+                .grow(1.0f);
+        sampleScroll.scrollStep(16.0f);
+
         root.addChild(navBox, DockSide.LEFT);
         root.addChild(footer(), DockSide.BOTTOM);
-        root.addChild(sampleHost, DockSide.LEFT);
+        root.addChild(sampleScroll);
         selectSample(SAMPLE_OVERVIEW, navButtons, samples);
 
         return viewport;
@@ -138,7 +168,13 @@ public final class TestCommands {
 
         Box navBox = panelBox(0.035f, 0.04f, 0.055f, 0.90f);
         navBox.preferredSize(160.0f, LayoutConstraints.AUTO).grow(0.0f);
-        navBox.addChild(padded(nav, 6.0f));
+
+        ScrollView navScroll = new ScrollView(nav);
+        navScroll.preferredSize(LayoutConstraints.AUTO, LayoutConstraints.AUTO)
+                .align(Alignment.STRETCH, Alignment.STRETCH)
+                .grow(1.0f);
+        navScroll.scrollStep(12.0f);
+        navBox.addChild(padded(navScroll, 6.0f));
         return navBox;
     }
 
@@ -164,13 +200,294 @@ public final class TestCommands {
         text.preferredSize(LayoutConstraints.AUTO, 40.0f).grow(0.0f);
         sample.addChild(text);
 
-        HBox cards = new HBox();
+        WrapPanel cards = new WrapPanel();
         cards.spacing(8.0f);
+        cards.lineSpacing(8.0f);
         cards.grow(1.0f);
         cards.addChild(infoCard("Layout", "Dock / Stack / Wrap / VBox / HBox"));
         cards.addChild(infoCard("Input", "Focus / pointer capture / text editing"));
         cards.addChild(infoCard("Virtual", "List + table + sorted navigation"));
         sample.addChild(cards);
+
+        return sample;
+    }
+
+    private static OverlayLayer overlaysSample() {
+        VBox content = samplePanel("Overlays", "Hover controls for tooltips; click Inspect for popup or Window for draggable dialog.");
+
+        WrapPanel row = new WrapPanel();
+        row.spacing(8.0f);
+        row.lineSpacing(6.0f);
+        row.grow(0.0f);
+
+        Button craft = new Button("Craft");
+        craft.preferredSize(72.0f, 22.0f).grow(0.0f);
+
+        Button inspect = new Button("Inspect");
+        inspect.preferredSize(82.0f, 22.0f).grow(0.0f);
+
+        Button openWindow = new Button("Window");
+        openWindow.preferredSize(82.0f, 22.0f).grow(0.0f);
+
+        ToggleButton freeDrag = new ToggleButton("Free drag");
+        freeDrag.preferredSize(86.0f, 22.0f).grow(0.0f);
+
+        TextBlock hint = new TextBlock("Tooltip overlays render above content and do not capture pointer input.");
+        hint.overflowMode(TextOverflowMode.MARQUEE_ON_HOVER);
+        hint.preferredSize(LayoutConstraints.AUTO, 24.0f).grow(0.0f);
+
+        row.addChild(craft);
+        row.addChild(inspect);
+        row.addChild(openWindow);
+        row.addChild(freeDrag);
+        row.addChild(hint);
+        content.addChild(row);
+
+        TextBlock body = new TextBlock("Popup flips/clamps at host edges. Window drag is host-constrained unless Free drag is enabled.");
+        body.overflowMode(TextOverflowMode.CLIP);
+        body.preferredSize(LayoutConstraints.AUTO, 42.0f).grow(0.0f);
+        content.addChild(body);
+
+        OverlayLayer layer = new OverlayLayer(content);
+        Popup popup = new Popup(inspect, popupContent());
+        WindowWidget window = new WindowWidget("Recipe dialog", windowContent())
+                .position(248.0f, 62.0f)
+                .closeOnOutsideClick(false);
+        window.preferredSize(210.0f, 124.0f).grow(0.0f);
+        inspect.onClick(event -> popup.toggle());
+        openWindow.onClick(event -> window.toggle());
+        freeDrag.onCheckedChanged(event -> window.constrainToHost(!event.newValue()));
+        layer.addOverlay(new Tooltip(craft, "Runs the selected recipe once."));
+        layer.addOverlay(new Tooltip(inspect, "Opens a retained popup anchored to this button."));
+        layer.addOverlay(new Tooltip(openWindow, "Opens a draggable overlay window/dialog shell."));
+        layer.addOverlay(new Tooltip(freeDrag, "Allows the window to move outside the OverlayLayer host."));
+        layer.addOverlay(new Tooltip(hint, "Long hints can use this instead of stealing layout space."));
+        layer.addOverlay(popup);
+        layer.addOverlay(window);
+        return layer;
+    }
+
+    private static VBox popupContent() {
+        VBox popup = new VBox();
+        popup.spacing(5.0f);
+        popup.preferredSize(150.0f, 82.0f).grow(0.0f);
+
+        Label title = new Label("Popup inspector");
+        title.preferredSize(LayoutConstraints.AUTO, 16.0f).grow(0.0f);
+
+        TextBlock body = new TextBlock("Anchored overlay with outside-click close.");
+        body.overflowMode(TextOverflowMode.CLIP);
+        body.preferredSize(LayoutConstraints.AUTO, 32.0f).grow(0.0f);
+
+        Button action = new Button("Action");
+        action.preferredSize(64.0f, 20.0f).grow(0.0f);
+
+        popup.addChild(title);
+        popup.addChild(body);
+        popup.addChild(action);
+        return popup;
+    }
+
+    private static VBox windowContent() {
+        VBox content = new VBox();
+        content.spacing(6.0f);
+        content.preferredSize(170.0f, 70.0f).grow(0.0f);
+
+        TextBlock description = new TextBlock("Drag the title bar. The x button closes this retained overlay.");
+        description.overflowMode(TextOverflowMode.CLIP);
+        description.preferredSize(LayoutConstraints.AUTO, 34.0f).grow(0.0f);
+
+        HBox actions = new HBox();
+        actions.spacing(6.0f);
+        actions.grow(0.0f);
+
+        Button apply = new Button("Apply");
+        apply.preferredSize(62.0f, 20.0f).grow(0.0f);
+
+        Button reset = new Button("Reset");
+        reset.preferredSize(58.0f, 20.0f).grow(0.0f);
+
+        actions.addChild(apply);
+        actions.addChild(reset);
+        content.addChild(description);
+        content.addChild(actions);
+        return content;
+    }
+
+    private static VBox animationsSample() {
+        VBox sample = samplePanel("Animations", "Property transitions for opacity, position and scale. Hover button uses interaction transitions.");
+
+        TransitionSpec smooth = TransitionSpec.of(0.28f, AnimationEasing.EASE_IN_OUT);
+        TextBlock status = new TextBlock("Click controls to animate the preview card.");
+        status.overflowMode(TextOverflowMode.CLIP);
+        status.preferredSize(LayoutConstraints.AUTO, 20.0f).grow(0.0f);
+        sample.addChild(status);
+
+        WrapPanel controls = new WrapPanel();
+        controls.spacing(6.0f);
+        controls.lineSpacing(5.0f);
+        controls.grow(0.0f);
+
+        Button fade = new Button("Fade");
+        fade.preferredSize(58.0f, 22.0f).grow(0.0f);
+
+        Button move = new Button("Move");
+        move.preferredSize(58.0f, 22.0f).grow(0.0f);
+
+        Button scale = new Button("Scale");
+        scale.preferredSize(58.0f, 22.0f).grow(0.0f);
+
+        Button reset = new Button("Reset");
+        reset.preferredSize(58.0f, 22.0f).grow(0.0f);
+
+        Button hover = new Button("Hover transition");
+        hover.preferredSize(118.0f, 22.0f).grow(0.0f);
+        hover.interactionTransitions(true)
+                .interactionTransition(TransitionSpec.of(0.12f, AnimationEasing.EASE_OUT))
+                .interactionScales(1.0f, 1.045f, 0.965f)
+                .interactionOpacities(1.0f, 0.86f, 0.55f);
+
+        controls.addChild(fade);
+        controls.addChild(move);
+        controls.addChild(scale);
+        controls.addChild(reset);
+        controls.addChild(hover);
+        sample.addChild(controls);
+
+        WrapPanel preview = new WrapPanel();
+        preview.spacing(10.0f);
+        preview.lineSpacing(8.0f);
+        preview.grow(1.0f);
+
+        Box card = panelBox(0.055f, 0.065f, 0.095f, 0.96f);
+        card.preferredSize(150.0f, 82.0f).align(Alignment.START, Alignment.START).grow(0.0f);
+        card.transform().pivot().set(75.0f, 41.0f);
+
+        VBox cardContent = new VBox();
+        cardContent.spacing(5.0f);
+        Label cardTitle = new Label("Animated card");
+        cardTitle.preferredSize(LayoutConstraints.AUTO, 16.0f).grow(0.0f);
+        TextBlock cardBody = new TextBlock("Opacity, position and scale are driven by WidgetBase transitions.");
+        cardBody.overflowMode(TextOverflowMode.CLIP);
+        cardBody.preferredSize(LayoutConstraints.AUTO, 42.0f).grow(0.0f);
+        cardContent.addChild(cardTitle);
+        cardContent.addChild(cardBody);
+        card.addChild(padded(cardContent, 8.0f));
+
+        TextBlock notes = new TextBlock("The hover button is opt-in so existing controls do not move unless the sample enables transitions.");
+        notes.overflowMode(TextOverflowMode.MARQUEE_ON_HOVER);
+        notes.preferredSize(220.0f, 72.0f).grow(0.0f);
+
+        preview.addChild(card);
+        preview.addChild(notes);
+        sample.addChild(preview);
+
+        fade.onClick(event -> {
+            float target = card.opacity() > 0.6f ? 0.38f : 1.0f;
+            card.animateOpacity(target, smooth);
+            status.text("Animating opacity -> " + Math.round(target * 100.0f) + "%");
+        });
+        move.onClick(event -> {
+            float targetX = card.transform().position().x() == 0.0f ? 28.0f : 0.0f;
+            card.animatePosition(targetX, 0.0f, smooth);
+            status.text("Animating position x -> " + Math.round(targetX));
+        });
+        scale.onClick(event -> {
+            float targetScale = card.transform().scale().x() < 1.1f ? 1.18f : 1.0f;
+            card.animateScale(targetScale, targetScale, smooth);
+            status.text("Animating scale -> " + Math.round(targetScale * 100.0f) + "%");
+        });
+        reset.onClick(event -> {
+            card.animateOpacity(1.0f, smooth);
+            card.animatePosition(0.0f, 0.0f, smooth);
+            card.animateScale(1.0f, 1.0f, smooth);
+            status.text("Resetting animation properties.");
+        });
+
+        return sample;
+    }
+
+    private static VBox minecraftSample() {
+        VBox sample = samplePanel("Minecraft previews", "Backend-specific custom draw widgets for item, block and entity previews.");
+
+        TextBlock status = new TextBlock("These widgets fall back to text in non-Minecraft render backends.");
+        status.overflowMode(TextOverflowMode.CLIP);
+        status.preferredSize(LayoutConstraints.AUTO, 20.0f).grow(0.0f);
+        sample.addChild(status);
+
+        WrapPanel previews = new WrapPanel();
+        previews.spacing(8.0f);
+        previews.lineSpacing(8.0f);
+        previews.grow(0.0f);
+
+        MinecraftItemPreviewWidget item = new MinecraftItemPreviewWidget("Diamond", new ItemStack(Items.DIAMOND, 7));
+        item.preferredSize(92.0f, 80.0f).grow(0.0f);
+
+        MinecraftItemPreviewWidget tool = new MinecraftItemPreviewWidget("Pickaxe", Items.DIAMOND_PICKAXE);
+        tool.decorations(false);
+        tool.preferredSize(92.0f, 80.0f).grow(0.0f);
+
+        MinecraftBlockPreviewWidget block = new MinecraftBlockPreviewWidget("Crafting", Blocks.CRAFTING_TABLE);
+        block.preferredSize(92.0f, 80.0f).grow(0.0f);
+
+        MinecraftEntityPreviewWidget entity = new MinecraftEntityPreviewWidget("Zombie", EntityType.ZOMBIE);
+        entity.previewSize(58.0f);
+        entity.preferredSize(98.0f, 84.0f).grow(0.0f);
+
+        previews.addChild(item);
+        previews.addChild(tool);
+        previews.addChild(block);
+        previews.addChild(entity);
+        sample.addChild(previews);
+
+        WrapPanel controls = new WrapPanel();
+        controls.spacing(6.0f);
+        controls.lineSpacing(5.0f);
+        controls.grow(0.0f);
+
+        Button swapItem = new Button("Swap item");
+        swapItem.preferredSize(82.0f, 22.0f).grow(0.0f);
+
+        Button swapBlock = new Button("Swap block");
+        swapBlock.preferredSize(86.0f, 22.0f).grow(0.0f);
+
+        Button swapEntity = new Button("Swap entity");
+        swapEntity.preferredSize(88.0f, 22.0f).grow(0.0f);
+
+        swapItem.onClick(event -> {
+            if (item.stack().is(Items.DIAMOND)) {
+                item.stack(new ItemStack(Items.EMERALD, 11)).label("Emerald");
+                status.text("Item preview -> Emerald x11");
+            } else {
+                item.stack(new ItemStack(Items.DIAMOND, 7)).label("Diamond");
+                status.text("Item preview -> Diamond x7");
+            }
+        });
+        swapBlock.onClick(event -> {
+            if (block.block() == Blocks.CRAFTING_TABLE) {
+                block.block(Blocks.FURNACE).label("Furnace");
+                status.text("Block preview -> Furnace");
+            } else {
+                block.block(Blocks.CRAFTING_TABLE).label("Crafting");
+                status.text("Block preview -> Crafting Table");
+            }
+        });
+        swapEntity.onClick(event -> {
+            if (entity.entityType() == EntityType.ZOMBIE) {
+                entity.entityType(EntityType.CREEPER).look(14.0f, 20.0f);
+                entity.label("Creeper");
+                status.text("Entity preview -> Creeper");
+            } else {
+                entity.entityType(EntityType.ZOMBIE).look(22.0f, 12.0f);
+                entity.label("Zombie");
+                status.text("Entity preview -> Zombie");
+            }
+        });
+
+        controls.addChild(swapItem);
+        controls.addChild(swapBlock);
+        controls.addChild(swapEntity);
+        sample.addChild(controls);
 
         return sample;
     }
@@ -200,13 +517,193 @@ public final class TestCommands {
         toolbar.addChild(number);
         sample.addChild(toolbar);
 
-        HBox textModes = new HBox();
+        WrapPanel textModes = new WrapPanel();
         textModes.spacing(8.0f);
+        textModes.lineSpacing(8.0f);
         textModes.grow(1.0f);
         textModes.addChild(textModeCard("CLIP", TextOverflowMode.CLIP));
         textModes.addChild(textModeCard("SHRINK", TextOverflowMode.SHRINK_TO_FIT));
         textModes.addChild(textModeCard("MARQUEE", TextOverflowMode.MARQUEE_ON_HOVER));
         sample.addChild(textModes);
+
+        return sample;
+    }
+
+    private static VBox layoutV2Sample() {
+        VBox sample = samplePanel(
+                "Layout v2",
+                "Flex resolver and overflow smoke test: shrink, basis, grow, percent, clipping and two-axis scrolling.");
+
+        TextBlock status = new TextBlock("Resize the Minecraft window or change GUI Scale to see the rows resolve again.");
+        status.overflowMode(TextOverflowMode.CLIP);
+        status.preferredSize(LayoutConstraints.AUTO, 20.0f).grow(0.0f);
+        sample.addChild(status);
+
+        TextBlock apiContract = new TextBlock(
+                "Public API: preferredSize/grow stay as compatibility helpers; layout(style -> ...) is the advanced Layout v2 entry point.");
+        apiContract.overflowMode(TextOverflowMode.MARQUEE_ON_HOVER);
+        apiContract.preferredSize(LayoutConstraints.AUTO, 22.0f).grow(0.0f);
+        sample.addChild(apiContract);
+
+        Label shrinkTitle = new Label("Shrink: fixed control + flexible text");
+        shrinkTitle.preferredSize(LayoutConstraints.AUTO, 16.0f).grow(0.0f);
+        sample.addChild(shrinkTitle);
+
+        HBox shrinkRow = new HBox();
+        shrinkRow.spacing(6.0f);
+        shrinkRow.preferredSize(LayoutConstraints.AUTO, 24.0f).grow(0.0f);
+
+        Button fixed = new Button("Fixed 80");
+        fixed.layout(style -> style.size(80.0f, 22.0f).flexShrink(0.0f));
+
+        Button flexible = new Button("Flexible / shrink");
+        flexible.layout(style -> style
+                .size(180.0f, 22.0f)
+                .minWidth(42.0f)
+                .flexGrow(1.0f)
+                .flexShrink(1.0f));
+
+        shrinkRow.addChild(fixed);
+        shrinkRow.addChild(flexible);
+        sample.addChild(shrinkRow);
+
+        Label basisTitle = new Label("Basis + grow: 1:2 free-space split");
+        basisTitle.preferredSize(LayoutConstraints.AUTO, 16.0f).grow(0.0f);
+        sample.addChild(basisTitle);
+
+        HBox basisRow = new HBox();
+        basisRow.spacing(6.0f);
+        basisRow.preferredSize(LayoutConstraints.AUTO, 24.0f).grow(0.0f);
+
+        Button basisOne = new Button("Basis 40 / grow 1");
+        basisOne.layout(style -> style
+                .flexBasis(40.0f)
+                .height(22.0f)
+                .flexGrow(1.0f)
+                .flexShrink(1.0f));
+
+        Button basisTwo = new Button("Basis 40 / grow 2");
+        basisTwo.layout(style -> style
+                .flexBasis(40.0f)
+                .height(22.0f)
+                .flexGrow(2.0f)
+                .flexShrink(1.0f));
+
+        basisRow.addChild(basisOne);
+        basisRow.addChild(basisTwo);
+        sample.addChild(basisRow);
+
+        Label percentTitle = new Label("Percent + padding");
+        percentTitle.preferredSize(LayoutConstraints.AUTO, 16.0f).grow(0.0f);
+        sample.addChild(percentTitle);
+
+        HBox percentRow = new HBox();
+        percentRow.layout(style -> style.padding(4.0f).gap(6.0f));
+        percentRow.preferredSize(LayoutConstraints.AUTO, 30.0f).grow(0.0f);
+
+        Button half = new Button("50%");
+        half.layout(style -> style.widthPercent(50.0f).height(22.0f).flexShrink(0.0f));
+
+        Button remainder = new Button("Remaining");
+        remainder.layout(style -> style.height(22.0f).flexGrow(1.0f).flexShrink(1.0f));
+
+        percentRow.addChild(half);
+        percentRow.addChild(remainder);
+        sample.addChild(percentRow);
+
+        WrapPanel justifyControls = new WrapPanel().spacing(6.0f).lineSpacing(4.0f);
+        justifyControls.preferredSize(LayoutConstraints.AUTO, 22.0f).grow(0.0f);
+
+        Button start = new Button("Justify start");
+        Button center = new Button("Justify center");
+        Button between = new Button("Space between");
+        start.preferredSize(92.0f, 20.0f).grow(0.0f);
+        center.preferredSize(100.0f, 20.0f).grow(0.0f);
+        between.preferredSize(104.0f, 20.0f).grow(0.0f);
+        justifyControls.addChild(start);
+        justifyControls.addChild(center);
+        justifyControls.addChild(between);
+        sample.addChild(justifyControls);
+
+        HBox justifyRow = new HBox();
+        justifyRow.preferredSize(LayoutConstraints.AUTO, 24.0f).grow(0.0f);
+        justifyRow.layout(style -> style
+                .alignItems(Align.CENTER)
+                .justifyContent(Justify.START));
+
+        Button left = new Button("Left");
+        Button right = new Button("Right");
+        left.preferredSize(50.0f, 22.0f).grow(0.0f);
+        right.preferredSize(58.0f, 22.0f).grow(0.0f);
+        justifyRow.addChild(left);
+        justifyRow.addChild(right);
+        sample.addChild(justifyRow);
+
+        start.onClick(event -> {
+            justifyRow.layout(style -> style.justifyContent(Justify.START));
+            status.text("justifyContent = START");
+        });
+        center.onClick(event -> {
+            justifyRow.layout(style -> style.justifyContent(Justify.CENTER));
+            status.text("justifyContent = CENTER");
+        });
+        between.onClick(event -> {
+            justifyRow.layout(style -> style.justifyContent(Justify.SPACE_BETWEEN));
+            status.text("justifyContent = SPACE_BETWEEN");
+        });
+
+        Label overflowTitle = new Label("Overflow + ScrollView");
+        overflowTitle.preferredSize(LayoutConstraints.AUTO, 16.0f).grow(0.0f);
+        sample.addChild(overflowTitle);
+
+        TextBlock overflowStatus = new TextBlock("overflow-x/y = AUTO; use Shift + wheel for horizontal scrolling.");
+        overflowStatus.overflowMode(TextOverflowMode.CLIP);
+        overflowStatus.preferredSize(LayoutConstraints.AUTO, 18.0f).grow(0.0f);
+        sample.addChild(overflowStatus);
+
+        Box overflowContent = panelBox(0.055f, 0.065f, 0.085f, 0.98f);
+        VBox overflowRows = new VBox();
+        overflowRows.spacing(5.0f);
+        for (int row = 1; row <= 7; row++) {
+            Label line = new Label("Scrollable content row " + row
+                    + "  |  this intentionally wide line demonstrates horizontal overflow and clipping");
+            line.preferredSize(500.0f, 16.0f).grow(0.0f);
+            overflowRows.addChild(line);
+        }
+        overflowContent.addChild(padded(overflowRows, 8.0f));
+
+        ScrollView overflowView = new ScrollView(overflowContent).contentSize(520.0f, 156.0f);
+        overflowView.preferredSize(LayoutConstraints.AUTO, 92.0f).grow(0.0f);
+        overflowView.layout(style -> style.overflowX(Overflow.AUTO).overflowY(Overflow.AUTO));
+        overflowView.scrollStep(14.0f);
+
+        WrapPanel overflowControls = new WrapPanel().spacing(6.0f).lineSpacing(4.0f);
+        overflowControls.preferredSize(LayoutConstraints.AUTO, 22.0f).grow(0.0f);
+
+        Button automatic = new Button("AUTO");
+        Button hidden = new Button("HIDDEN");
+        Button forced = new Button("SCROLL");
+        automatic.preferredSize(58.0f, 20.0f).grow(0.0f);
+        hidden.preferredSize(66.0f, 20.0f).grow(0.0f);
+        forced.preferredSize(66.0f, 20.0f).grow(0.0f);
+        automatic.onClick(event -> {
+            overflowView.layout(style -> style.overflowX(Overflow.AUTO).overflowY(Overflow.AUTO));
+            overflowStatus.text("overflow-x/y = AUTO; Shift + wheel scrolls horizontally.");
+        });
+        hidden.onClick(event -> {
+            overflowView.layout(style -> style.overflow(Overflow.HIDDEN));
+            overflowView.scrollTo(0.0f, 0.0f);
+            overflowStatus.text("overflow-x/y = HIDDEN; content is clipped and scrolling is disabled.");
+        });
+        forced.onClick(event -> {
+            overflowView.layout(style -> style.overflow(Overflow.SCROLL));
+            overflowStatus.text("overflow-x/y = SCROLL; both scrollbars remain visible.");
+        });
+        overflowControls.addChild(automatic);
+        overflowControls.addChild(hidden);
+        overflowControls.addChild(forced);
+        sample.addChild(overflowControls);
+        sample.addChild(overflowView);
 
         return sample;
     }
@@ -253,6 +750,7 @@ public final class TestCommands {
         status.preferredSize(LayoutConstraints.AUTO, 20.0f).grow(0.0f);
         sample.addChild(status);
 
+        final VirtualTableView[] tableRef = new VirtualTableView[1];
         VirtualTableView table = new VirtualTableView()
                 .addColumn("Name", 130.0f)
                 .addColumn("Category", 90.0f)
@@ -263,17 +761,42 @@ public final class TestCommands {
                 .overscan(2)
                 .selectionMode(SelectionMode.MULTIPLE)
                 .editable(true)
-                .cellTextProvider((row, column) -> rows[row][column])
-                .sortKeyProvider((row, column) -> column == 2 ? Integer.parseInt(rows[row][column]) : rows[row][column]);
+                .cellTextProvider((row, column) -> editableCellText(rows, tableRef[0], row, column))
+                .sortKeyProvider((row, column) -> editableSortKey(rows, tableRef[0], row, column));
+        tableRef[0] = table;
         table.grow(1.0f);
         table.activeCell(0, 0);
         table.selectRow(0);
         table.onCellEditStarted(event -> status.text("Editing row " + event.row() + ", col " + event.column() + ": " + event.text()));
         table.onCellEditCommitted(event -> {
-            rows[event.row()][event.column()] = event.newText();
+            rows[event.row()][editableModelColumn(table, event.column())] = event.newText();
             status.text("Committed row " + event.row() + ", col " + event.column() + ": " + event.oldText() + " -> " + event.newText());
         });
         table.onCellEditCancelled(event -> status.text("Cancelled row " + event.row() + ", col " + event.column()));
+        table.onColumnResized(event -> status.text("Resized column " + event.column() + ": " + Math.round(event.oldWidth()) + " -> " + Math.round(event.newWidth())));
+        table.onColumnMoved(event -> status.text("Moved column " + event.oldIndex() + " -> " + event.newIndex()));
+
+        WrapPanel columnTools = new WrapPanel();
+        columnTools.spacing(6.0f);
+        columnTools.lineSpacing(5.0f);
+        columnTools.grow(0.0f);
+
+        Button widenName = new Button("Widen first");
+        widenName.preferredSize(82.0f, 20.0f).grow(0.0f);
+        widenName.onClick(event -> table.resizeColumn(0, table.columnWidth(0) + 16.0f));
+
+        Button resetWidths = new Button("Reset widths");
+        resetWidths.preferredSize(86.0f, 20.0f).grow(0.0f);
+        resetWidths.onClick(event -> resetEditableColumnWidths(table));
+
+        Button cycleColumns = new Button("Cycle columns");
+        cycleColumns.preferredSize(94.0f, 20.0f).grow(0.0f);
+        cycleColumns.onClick(event -> table.moveColumn(0, table.columns().size() - 1));
+
+        columnTools.addChild(widenName);
+        columnTools.addChild(resetWidths);
+        columnTools.addChild(cycleColumns);
+        sample.addChild(columnTools);
         sample.addChild(table);
 
         return sample;
@@ -349,6 +872,7 @@ public final class TestCommands {
     private static Box textModeCard(String title, TextOverflowMode mode) {
         Box card = panelBox(0.045f, 0.050f, 0.070f, 0.92f);
         card.grow(1.0f);
+        card.maxSize(40, 40);
 
         VBox content = new VBox();
         content.spacing(4.0f);
@@ -396,6 +920,38 @@ public final class TestCommands {
             case 2 -> prices[row];
             default -> row;
         };
+    }
+
+    private static String editableCellText(String[][] rows, VirtualTableView table, int row, int column) {
+        return rows[row][editableModelColumn(table, column)];
+    }
+
+    private static Comparable<?> editableSortKey(String[][] rows, VirtualTableView table, int row, int column) {
+        int modelColumn = editableModelColumn(table, column);
+        return modelColumn == 2 ? Integer.parseInt(rows[row][modelColumn]) : rows[row][modelColumn];
+    }
+
+    private static int editableModelColumn(VirtualTableView table, int visualColumn) {
+        if (table == null || visualColumn < 0 || visualColumn >= table.columns().size()) {
+            return Math.max(0, Math.min(2, visualColumn));
+        }
+        return switch (table.columns().get(visualColumn).header()) {
+            case "Category" -> 1;
+            case "Price" -> 2;
+            default -> 0;
+        };
+    }
+
+    private static void resetEditableColumnWidths(VirtualTableView table) {
+        for (int column = 0; column < table.columns().size(); column++) {
+            switch (table.columns().get(column).header()) {
+                case "Name" -> table.resizeColumn(column, 130.0f);
+                case "Category" -> table.resizeColumn(column, 90.0f);
+                case "Price" -> table.resizeColumn(column, 58.0f);
+                default -> {
+                }
+            }
+        }
     }
 
     private static Box panelBox(float r, float g, float b, float a) {

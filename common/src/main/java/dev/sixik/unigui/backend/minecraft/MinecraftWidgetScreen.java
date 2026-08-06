@@ -40,6 +40,7 @@ public class MinecraftWidgetScreen extends Screen {
     private MinecraftGuiRenderBackend backend;
     private long frameIndex;
     private float lastFrameCpuMillis;
+    private long lastFrameStartNanos;
 
     public MinecraftWidgetScreen(Widget root) {
         this(Component.empty(), root, new DefaultUIContext(new MinecraftClipboardService()));
@@ -71,7 +72,11 @@ public class MinecraftWidgetScreen extends Screen {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         long uiCpuStartNanos = System.nanoTime();
-        FrameContext layoutFrame = new FrameContext(frameIndex, 0.0f, partialTick, FramePhase.LAYOUT);
+        float deltaSeconds = lastFrameStartNanos == 0L
+                ? 1.0f / 60.0f
+                : Math.max(0.0f, (uiCpuStartNanos - lastFrameStartNanos) / 1_000_000_000.0f);
+        lastFrameStartNanos = uiCpuStartNanos;
+        FrameContext animationFrame = new FrameContext(frameIndex, deltaSeconds, partialTick, FramePhase.ANIMATION);
         FrameContext renderFrame = new FrameContext(frameIndex, 0.0f, partialTick, FramePhase.RENDER);
 
         uiContext.profiler().beginFrame(frameIndex);
@@ -81,8 +86,8 @@ public class MinecraftWidgetScreen extends Screen {
         try (ProfileScope ignored = uiContext.profiler().scope("dispatcher")) {
             uiContext.dispatcher().drain();
         }
-        try (ProfileScope ignored = uiContext.profiler().scope("tick")) {
-            root.tick(layoutFrame);
+        try (ProfileScope ignored = uiContext.profiler().scope("animation")) {
+            root.tick(animationFrame);
         }
         try (ProfileScope ignored = uiContext.profiler().scope("layout")) {
             root.measure(new LayoutContext(width, height));
@@ -239,7 +244,8 @@ public class MinecraftWidgetScreen extends Screen {
                             hit.localX(),
                             hit.localY(),
                             0.0f,
-                            (float) delta);
+                            (float) delta,
+                            Screen.hasShiftDown() ? KeyModifiers.SHIFT : 0);
                     return uiContext.routedEvents().dispatch(event);
                 })
                 .orElse(false);

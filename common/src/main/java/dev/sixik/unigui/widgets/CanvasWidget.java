@@ -25,8 +25,13 @@ public final class CanvasWidget extends WidgetBase {
 
     @Override
     public void render(RenderContext context) {
-        for (CanvasDrawCallback callback : List.copyOf(callbacks)) {
-            callback.draw(context);
+        pushOpacity(context);
+        try {
+            for (CanvasDrawCallback callback : List.copyOf(callbacks)) {
+                callback.draw(context);
+            }
+        } finally {
+            popOpacity(context);
         }
     }
 }

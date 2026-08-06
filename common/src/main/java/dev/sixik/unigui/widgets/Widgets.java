@@ -3,6 +3,7 @@ package dev.sixik.unigui.widgets;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.widget.Widget;
 
+/** Concise factory entry points for the built-in retained widgets. */
 public final class Widgets {
     private Widgets() {
     }
@@ -65,6 +66,26 @@ public final class Widgets {
 
     public static PanelWidget panel() {
         return new PanelWidget();
+    }
+
+    public static OverlayLayer overlayLayer(Widget content) {
+        return new OverlayLayer(content);
+    }
+
+    public static OverlayLayer overlayLayer() {
+        return new OverlayLayer();
+    }
+
+    public static Tooltip tooltip(Widget anchor, String text) {
+        return new Tooltip(anchor, text);
+    }
+
+    public static Popup popup(Widget anchor, Widget content) {
+        return new Popup(anchor, content);
+    }
+
+    public static WindowWidget window(String title, Widget content) {
+        return new WindowWidget(title, content);
     }
 
     public static StackPanel stack() {
@@ -133,6 +154,10 @@ public final class Widgets {
 
     public static ScrollView scrollView(Widget content) {
         return new ScrollView(content);
+    }
+
+    public static ScrollView scrollView() {
+        return new ScrollView();
     }
 
     public static VirtualListView virtualList() {

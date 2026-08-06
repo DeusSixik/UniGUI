@@ -2489,21 +2489,27 @@ try (ProfileScope ignored = profiler.scope("layout")) {
 - virtualization core: `VirtualRange` and `FixedRowVirtualizer` hold shared fixed-row content extent, max scroll, overscan window and viewport-relative item offset logic used by both `VirtualListView` and `VirtualTableView`;
 - selection contracts: `SelectionMode`, `IndexSelectionModel` and `SelectionChangedEvent` provide shared single/multiple index selection for virtualized list/table rows, including selected row highlight, change events and pruning when item/row count shrinks;
 - table sorting contracts: `SortDirection` and `TableSortChangedEvent` expose `VirtualTableView` column sort state, sort-key provider, per-column row comparator hooks, header click cycle and header sort markers;
+- table column contracts: `TableColumnResizedEvent` and `TableColumnMovedEvent` expose `VirtualTableView` column width changes, divider drag resize with pointer capture, min column width clamping and API-level column reorder/remap semantics;
 - text editing core: reusable `TextEditorModel`, reusable `TextInput` shell separated from `TextField` chrome, caret, selection API, delete/replace selection, Ctrl+A/C/X/V clipboard flow, `ClipboardService` abstraction, `MemoryClipboardService` and Minecraft clipboard bridge;
 - theme/style seed: `StyleKey`, `StyleKeys`, `MutableStyle`, `MutableTheme`, `WidgetState`, `DefaultTheme` and `UIContext.theme()` default lookup layer;
 - runtime theme application, inheritance and invalidation: `Box.applyTheme()` reads state-aware style tokens before render, walks local style scopes from ancestors to widget, tracks `UIContext.styleVersion()` plus local scope style versions, standard controls apply background/border/text/accent/track/thumb defaults, `DefaultUIContext.theme(theme, root)` invalidates attached widget trees, and `themeEnabled(false)` keeps manual visual overrides;
 - keyboard focus traversal: `Widget.focusable()`, `focusOrder()`, `focusScope()`, `FocusDirection`, `DefaultFocusManager.focusNext/focusPrevious/focusDirectional`, Minecraft `Tab` / `Shift+Tab` dispatch path, and arrow/D-pad-style directional fallback when focused widgets do not consume navigation keys;
 - hover/style state tracking: `HoverManager`, `DefaultHoverManager`, `PointerEnteredEvent`, `PointerExitedEvent`, `Widget.hovered()`, `WidgetState.HOVERED` default theme tokens, and render/style invalidation on hover transitions;
 - base widget state flags: `Widget.visibility()` with `Visibility.VISIBLE/HIDDEN/COLLAPSED`, backwards-compatible `visible(false) -> HIDDEN`, `Widget.enabled()`, mutable `WidgetBase.visibility/visible/enabled`, disabled style state, HIDDEN layout participation, COLLAPSED layout skip, render/input/hit-test/focus/hover traversal opt-out for non-visible/disabled widgets;
+- overlay basics: `OverlayLayer` hosts render-on-top widgets above normal content without stealing layout from the content subtree, and `Tooltip` provides hover-driven non-interactive retained tooltip rendering anchored to another widget;
+- popup basics: `Popup` builds on `OverlayLayer` with open/close/toggle state, anchor-based positioning, interactive popup content and non-modal outside-click close handled at overlay capture phase;
+- window/dialog basics: `WindowWidget` builds on `OverlayLayer` with open/close/toggle state, title bar rendering, close button, draggable pointer-captured movement, bounds clamping and optional outside-click close;
+- animation property system: `AnimatedProperty`, `AnimationEasing`, `TransitionSpec` and `FloatTransition` provide tick-driven opacity/position/scale transitions on `WidgetBase`, render-time opacity stacking through `RenderContext`, real frame delta from `MinecraftWidgetScreen`, and opt-in `Button` hover/pressed interaction transitions;
+- Minecraft preview widgets: `MinecraftPreviewWidget`, `MinecraftItemPreviewWidget`, `MinecraftBlockPreviewWidget` and `MinecraftEntityPreviewWidget` provide backend-specific custom draw previews for item stacks, block-as-item previews and living entities, with text fallback for non-Minecraft render backends;
 - reproducible Gradle launcher: `gradlew`, `gradlew.bat`, `gradle/wrapper/gradle-wrapper.jar` and Gradle 8.12.1 wrapper properties;
 - no-dependency `CachedSubtreeInvalidationSelfTest`, который проверяет first miss, stable hit, child dirty, resize, manual dirty и общий overlay output;
 - no-dependency `BasicControlsSelfTest`, который проверяет TextEditorModel core mutations, TextInput shell vs TextField chrome split, TextField focus/editing, selection/clipboard, PasswordField masking, SearchField submit/clear, theme defaults/style version invalidation, style inheritance/scopes, keyboard + directional focus traversal/scopes, hover enter/exit/style state, disabled/visible state flags, desired-size measurement для Label/TextBlock/TextField и container aggregation, layout constraints/slot sizing, StackPanel/DockPanel/WrapPanel layout contracts, `FixedRowVirtualizer` range/scroll clamp/item offset, VirtualListView/VirtualTableView selection contracts/events/highlight/pruning, VirtualTableView sorting state/events/sort-key provider/comparator/header click cycle, VirtualListView realized window/scroll clamp/clip, VirtualTableView virtual rows/headers/cells/scroll clamp, Slider pointer/key input, ScrollView bubbled wheel input, clip commands, ScrollBar drag binding, ToggleButton/Checkbox, ProgressBar и NumberField.
 
 Следующий практический блок:
 
-1. протянуть keyboard/gamepad row navigation и table/list focus semantics поверх selection;
-2. добавить editing hooks для virtualized table cells;
-3. после этого выделить column resize/reorder contracts для `VirtualTableView`.
+1. перейти к Animation property system как следующему MVP пункту после Window/Popup/Tooltip basics;
+2. заложить animatable property/transition contracts для opacity, position, scale и hover/pressed style transitions;
+3. после этого перейти к Minecraft item/block/entity commands.
 
 ---
 
