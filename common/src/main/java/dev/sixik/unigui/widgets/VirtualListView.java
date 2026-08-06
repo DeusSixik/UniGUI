@@ -7,9 +7,11 @@ import dev.sixik.unigui.api.event.Event;
 import dev.sixik.unigui.api.event.EventListener;
 import dev.sixik.unigui.api.event.EventPhase;
 import dev.sixik.unigui.api.event.EventSubscription;
+import dev.sixik.unigui.api.event.KeyPressedEvent;
 import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.event.ScrollEvent;
 import dev.sixik.unigui.api.event.SelectionChangedEvent;
+import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.input.KeyModifiers;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.layout.LayoutContext;
@@ -40,6 +42,7 @@ import java.util.function.IntFunction;
 public class VirtualListView extends WidgetBase {
     private static final float SCROLLBAR_WIDTH = 6.0f;
     private static final MutableColor SELECTED_ROW_COLOR = new MutableColor(0.18f, 0.45f, 0.75f, 0.35f);
+    private static final MutableColor ACTIVE_ROW_COLOR = new MutableColor(1.0f, 1.0f, 1.0f, 0.70f);
 
     private final ScrollBar verticalScrollBar = new ScrollBar().orientation(Orientation.VERTICAL);
     private final FixedRowVirtualizer virtualizer = new FixedRowVirtualizer();
@@ -47,8 +50,10 @@ public class VirtualListView extends WidgetBase {
     private final Map<Integer, Widget> realized = new LinkedHashMap<>();
     private IntFunction<? extends Widget> itemFactory = index -> new Label(String.valueOf(index));
     private float scrollStep = 16.0f;
+    private int activeIndex = -1;
 
     public VirtualListView() {
+        focusable(true);
         verticalScrollBar.setParentInternal(this);
         verticalScrollBar.onValueChanged(event -> scrollTo(event.newValue()));
     }
@@ -61,6 +66,7 @@ public class VirtualListView extends WidgetBase {
         if (virtualizer.itemCount() == Math.max(0, itemCount)) return this;
         List<Integer> oldSelection = selection.selectedIndices();
         virtualizer.itemCount(itemCount);
+        activeIndex = clampIndexOrNone(activeIndex);
         pruneRealized();
         emitSelectionChangeIfChanged(oldSelection, selection.retainWithin(virtualizer.itemCount()));
         scrollTo(virtualizer.scrollOffset());
@@ -158,9 +164,24 @@ public class VirtualListView extends WidgetBase {
         return selection.isSelected(index);
     }
 
+    public int activeIndex() {
+        return activeIndex;
+    }
+
+    public VirtualListView activeIndex(int index) {
+        int normalized = clampIndexOrNone(index);
+        if (activeIndex == normalized) return this;
+        activeIndex = normalized;
+        ensureActiveVisible();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
     public VirtualListView selectIndex(int index) {
         List<Integer> oldSelection = selection.selectedIndices();
+        activeIndex = clampIndexOrNone(index);
         emitSelectionChangeIfChanged(oldSelection, selection.select(index));
+        ensureActiveVisible();
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
@@ -273,6 +294,10 @@ public class VirtualListView extends WidgetBase {
                             Paint.fill(SELECTED_ROW_COLOR), transform());
                 }
                 item.render(context);
+                if (isFocused() && entry.getKey() == activeIndex) {
+                    context.rect(item.layoutBounds().x(), item.layoutBounds().y(), item.layoutBounds().width(), item.layoutBounds().height(),
+                            Paint.stroke(ACTIVE_ROW_COLOR, 1.0f), transform());
+                }
             }
         }
         context.popClip();
@@ -291,6 +316,10 @@ public class VirtualListView extends WidgetBase {
             if (before != virtualizer.scrollOffset()) {
                 event.cancel();
             }
+        } else if (event instanceof KeyPressedEvent key && key.phase() != EventPhase.CAPTURE) {
+            if (handleKey(key.keyCode(), key.modifiers())) {
+                event.cancel();
+            }
         } else if (event instanceof PointerPressedEvent pointer
                 && pointer.phase() != EventPhase.CAPTURE
                 && pointer.button() == PointerButton.PRIMARY
@@ -300,6 +329,8 @@ public class VirtualListView extends WidgetBase {
                 && localY(pointer) < layoutBounds().height()) {
             int index = indexAt(localY(pointer));
             if (index >= 0) {
+                requestFocus();
+                activeIndex = index;
                 selectFromPointer(index, 0);
                 event.cancel();
             }
@@ -442,6 +473,97 @@ public class VirtualListView extends WidgetBase {
         }
         emitSelectionChangeIfChanged(oldSelection, changed);
         invalidate(InvalidationFlags.VISUAL);
+    }
+
+    private boolean handleKey(int keyCode, int modifiers) {
+        if (virtualizer.itemCount() <= 0) return false;
+        int target = switch (keyCode) {
+            case KeyCodes.UP -> navigationBaseIndex() - 1;
+            case KeyCodes.DOWN -> navigationBaseIndex() + 1;
+            case KeyCodes.HOME -> 0;
+            case KeyCodes.END -> virtualizer.itemCount() - 1;
+            case KeyCodes.PAGE_UP -> navigationBaseIndex() - pageRowCount();
+            case KeyCodes.PAGE_DOWN -> navigationBaseIndex() + pageRowCount();
+            case KeyCodes.SPACE, KeyCodes.ENTER, KeyCodes.KEYPAD_ENTER -> {
+                selectActive(KeyModifiers.has(modifiers, KeyModifiers.CONTROL), KeyModifiers.has(modifiers, KeyModifiers.SHIFT));
+                yield activeIndex;
+            }
+            default -> Integer.MIN_VALUE;
+        };
+        if (target == Integer.MIN_VALUE) return false;
+        if (target != activeIndex) {
+            moveActive(target, modifiers);
+        }
+        return true;
+    }
+
+    private void moveActive(int index, int modifiers) {
+        int target = clampIndexOrNone(index);
+        if (target < 0) return;
+        activeIndex = target;
+        ensureActiveVisible();
+        if (!KeyModifiers.has(modifiers, KeyModifiers.CONTROL)) {
+            List<Integer> oldSelection = selection.selectedIndices();
+            boolean changed = KeyModifiers.has(modifiers, KeyModifiers.SHIFT)
+                    ? selection.selectRange(target)
+                    : selection.select(target);
+            emitSelectionChangeIfChanged(oldSelection, changed);
+        }
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+    }
+
+    private void selectActive(boolean toggle, boolean range) {
+        if (activeIndex < 0) {
+            activeIndex = navigationBaseIndex();
+        }
+        if (activeIndex < 0) return;
+        List<Integer> oldSelection = selection.selectedIndices();
+        boolean changed = range ? selection.selectRange(activeIndex) : (toggle ? selection.toggle(activeIndex) : selection.select(activeIndex));
+        emitSelectionChangeIfChanged(oldSelection, changed);
+        ensureActiveVisible();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+    }
+
+    private int navigationBaseIndex() {
+        if (activeIndex >= 0 && activeIndex < virtualizer.itemCount()) return activeIndex;
+        int selected = selection.selectedIndex();
+        if (selected >= 0 && selected < virtualizer.itemCount()) return selected;
+        return Math.min(Math.max(0, firstVisibleIndex()), Math.max(0, virtualizer.itemCount() - 1));
+    }
+
+    private int pageRowCount() {
+        float extent = Math.max(1.0f, virtualizer.itemExtent());
+        return Math.max(1, (int) Math.floor(Math.max(extent, layoutBounds().height()) / extent));
+    }
+
+    private void ensureActiveVisible() {
+        if (activeIndex < 0) return;
+        updateVirtualizerViewport();
+        float itemTop = activeIndex * virtualizer.itemExtent();
+        float itemBottom = itemTop + virtualizer.itemExtent();
+        float viewportTop = virtualizer.scrollOffset();
+        float viewportBottom = viewportTop + Math.max(0.0f, layoutBounds().height());
+        if (itemTop < viewportTop) {
+            scrollTo(itemTop);
+        } else if (itemBottom > viewportBottom) {
+            scrollTo(itemBottom - Math.max(0.0f, layoutBounds().height()));
+        }
+    }
+
+    private int clampIndexOrNone(int index) {
+        return index >= 0 && index < virtualizer.itemCount() ? index : -1;
+    }
+
+    private void requestFocus() {
+        UIContext context = uiContext();
+        if (context != null) {
+            context.focusManager().requestFocus(this);
+        }
+    }
+
+    private boolean isFocused() {
+        UIContext context = uiContext();
+        return context != null && context.focusManager().isFocused(this);
     }
 
     private void emitSelectionChangeIfChanged(List<Integer> oldSelection, boolean changed) {

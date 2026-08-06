@@ -1,9 +1,11 @@
 package dev.sixik.unigui.tests;
 
 import dev.sixik.unigui.api.core.FrameContext;
+import dev.sixik.unigui.api.core.FramePhase;
 import dev.sixik.unigui.api.debug.DebugFlags;
 import dev.sixik.unigui.api.debug.ProfileScope;
 import dev.sixik.unigui.api.debug.UiDebugSnapshot;
+import dev.sixik.unigui.api.event.TextInputEvent;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.render.DrawCommand;
 import dev.sixik.unigui.api.render.DrawCommandType;
@@ -19,6 +21,7 @@ import dev.sixik.unigui.widgets.Box;
 import dev.sixik.unigui.widgets.CachedSubtreeMissReason;
 import dev.sixik.unigui.widgets.CachedSubtreeStats;
 import dev.sixik.unigui.widgets.CachedSubtreeWidget;
+import dev.sixik.unigui.widgets.VirtualTableView;
 
 public final class CachedSubtreeInvalidationSelfTest {
     public static void main(String[] args) {
@@ -27,6 +30,7 @@ public final class CachedSubtreeInvalidationSelfTest {
 
     private void run() {
         testCacheInvalidationReasonsAndCounters();
+        testVirtualTableEditingKeepsCachedSubtreeLive();
         testProfilerOverlayWritesDrawCommands();
         System.out.println("CachedSubtreeInvalidationSelfTest passed");
     }
@@ -82,6 +86,57 @@ public final class CachedSubtreeInvalidationSelfTest {
         expect(backend.targetRenderCalls == 4, "manual dirty should refresh the offscreen target");
     }
 
+    private void testVirtualTableEditingKeepsCachedSubtreeLive() {
+        DefaultUIContext uiContext = new DefaultUIContext();
+        TestRenderBackend backend = new TestRenderBackend();
+        DrawList drawList = new DrawList();
+        DefaultRenderContext renderContext = new DefaultRenderContext(drawList).backend(backend);
+
+        String[][] rows = {{"Copper Gear", "12"}};
+        VirtualTableView table = new VirtualTableView()
+                .addColumn("Name", 72.0f)
+                .addColumn("Count", 44.0f)
+                .rowCount(rows.length)
+                .rowHeight(14.0f)
+                .headerHeight(14.0f)
+                .editable(true)
+                .cellTextProvider((row, column) -> rows[row][column]);
+
+        CachedSubtreeWidget cached = new CachedSubtreeWidget(table);
+        cached.setUiContextInternal(uiContext);
+        cached.arrange(new MutableRect(0.0f, 0.0f, 128.0f, 42.0f));
+
+        renderCachedFrame(uiContext, cached, renderContext, drawList, 10L);
+        expect(backend.targetRenderCalls == 1, "initial table cache render should draw one offscreen target");
+
+        renderCachedFrame(uiContext, cached, renderContext, drawList, 11L);
+        expect(backend.targetRenderCalls == 1, "stable table cache render should reuse the offscreen target");
+
+        table.activeCell(0, 0);
+        table.beginEdit();
+
+        renderCachedFrame(uiContext, cached, renderContext, drawList, 12L);
+        expect(backend.targetRenderCalls == 2, "begin table edit should refresh cached table texture");
+        expect(cached.cacheStats().lastMissReason() == CachedSubtreeMissReason.CHILD_SUBTREE_DIRTY,
+                "begin table edit should be observed as child subtree dirty");
+
+        renderCachedFrame(uiContext, cached, renderContext, drawList, 13L);
+        expect(backend.targetRenderCalls == 2, "idle table edit should reuse the cached editor texture");
+
+        table.handle(new TextInputEvent(table, 'X', 0));
+        renderCachedFrame(uiContext, cached, renderContext, drawList, 14L);
+        expect(backend.targetRenderCalls == 3, "typing in table edit should refresh cached table texture");
+        expect(cached.cacheStats().lastMissReason() == CachedSubtreeMissReason.CHILD_SUBTREE_DIRTY,
+                "typing in table edit should be observed as child subtree dirty");
+
+        table.commitEdit();
+        renderCachedFrame(uiContext, cached, renderContext, drawList, 15L);
+        expect(backend.targetRenderCalls == 4, "commit table edit should refresh cached table texture once");
+
+        renderCachedFrame(uiContext, cached, renderContext, drawList, 16L);
+        expect(backend.targetRenderCalls == 4, "finished table edit should allow cache hits again");
+    }
+
     private void testProfilerOverlayWritesDrawCommands() {
         DefaultUIContext uiContext = new DefaultUIContext().enableDebugFlags(DebugFlags.PROFILER_OVERLAY);
         uiContext.profiler().beginFrame(42L);
@@ -128,6 +183,14 @@ public final class CachedSubtreeInvalidationSelfTest {
             }
         }
         return false;
+    }
+
+    private static void renderCachedFrame(DefaultUIContext uiContext, CachedSubtreeWidget cached,
+                                          DefaultRenderContext renderContext, DrawList drawList, long frameIndex) {
+        uiContext.debugCounters().beginFrame(frameIndex);
+        cached.tick(new FrameContext(frameIndex, 1.0f / 60.0f, 0.0f, FramePhase.RENDER));
+        drawList.clear();
+        cached.render(renderContext);
     }
 
     private static void expect(boolean condition, String message) {

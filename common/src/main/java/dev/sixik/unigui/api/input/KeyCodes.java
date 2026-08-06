@@ -15,8 +15,11 @@ public final class KeyCodes {
     public static final int LEFT = 263;
     public static final int DOWN = 264;
     public static final int UP = 265;
+    public static final int PAGE_UP = 266;
+    public static final int PAGE_DOWN = 267;
     public static final int HOME = 268;
     public static final int END = 269;
+    public static final int F2 = 291;
     public static final int KEYPAD_ENTER = 335;
 
     private KeyCodes() {

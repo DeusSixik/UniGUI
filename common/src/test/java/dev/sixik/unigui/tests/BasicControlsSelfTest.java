@@ -11,6 +11,9 @@ import dev.sixik.unigui.api.event.PointerReleasedEvent;
 import dev.sixik.unigui.api.event.ScrollEvent;
 import dev.sixik.unigui.api.event.SelectionChangedEvent;
 import dev.sixik.unigui.api.event.SliderValueChangedEvent;
+import dev.sixik.unigui.api.event.TableCellEditCancelledEvent;
+import dev.sixik.unigui.api.event.TableCellEditCommittedEvent;
+import dev.sixik.unigui.api.event.TableCellEditStartedEvent;
 import dev.sixik.unigui.api.event.TableSortChangedEvent;
 import dev.sixik.unigui.api.event.TextChangedEvent;
 import dev.sixik.unigui.api.event.TextInputEvent;
@@ -98,8 +101,11 @@ public final class BasicControlsSelfTest {
         testNestedScissorStack();
         testFixedRowVirtualizationCore();
         testVirtualizedSelectionContracts();
+        testVirtualListKeyboardNavigation();
         testVirtualListViewRealizationAndScrolling();
         testVirtualTableSortingContracts();
+        testVirtualTableKeyboardNavigation();
+        testVirtualTableCellEditingContracts();
         testVirtualTableViewVirtualRowsAndRendering();
         testToggleCheckboxProgressAndNumberField();
         System.out.println("BasicControlsSelfTest passed");
@@ -1114,6 +1120,49 @@ public final class BasicControlsSelfTest {
         expect(hasCommand(drawList, DrawCommandType.POP_CLIP), "VirtualListView should pop row clip");
     }
 
+    private void testVirtualListKeyboardNavigation() {
+        DefaultUIContext uiContext = new DefaultUIContext();
+        VirtualListView list = new VirtualListView()
+                .itemCount(20)
+                .itemHeight(10.0f)
+                .overscan(0)
+                .selectionMode(SelectionMode.MULTIPLE)
+                .itemFactory(index -> new Label("Row " + index));
+        list.setUiContextInternal(uiContext);
+        list.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 30.0f));
+
+        expect(list.focusable(), "VirtualListView should be focusable for keyboard/gamepad navigation");
+        uiContext.focusManager().requestFocus(list);
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(list, KeyCodes.DOWN, 0, 0));
+        expect(list.activeIndex() == 1 && list.selectedIndex() == 1,
+                "VirtualListView Down should move active row and select it");
+
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(list, KeyCodes.DOWN, 0, KeyModifiers.CONTROL));
+        expect(list.activeIndex() == 2 && list.selectedIndex() == 1,
+                "VirtualListView Ctrl+Down should move active row without changing selection");
+
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(list, KeyCodes.DOWN, 0, KeyModifiers.SHIFT));
+        expect(list.activeIndex() == 3 && list.selectedIndices().equals(java.util.List.of(1, 2, 3)),
+                "VirtualListView Shift+Down should extend range selection from the selection anchor");
+
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(list, KeyCodes.PAGE_DOWN, 0, 0));
+        expect(list.activeIndex() == 6 && list.selectedIndex() == 6 && list.scrollY() > 0.0f,
+                "VirtualListView PageDown should advance by visible rows and scroll active row into view");
+
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(list, KeyCodes.HOME, 0, 0));
+        expect(list.activeIndex() == 0 && list.selectedIndex() == 0 && list.scrollY() == 0.0f,
+                "VirtualListView Home should jump to the first row and reveal it");
+
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(list, 5.0f, 15.0f, 5.0f, 15.0f, 0, PointerButton.PRIMARY));
+        expect(uiContext.focusManager().focusedWidget() == list && list.activeIndex() == 1 && list.selectedIndex() == 1,
+                "VirtualListView pointer row click should focus, activate and select the clicked row");
+
+        DrawList focusedDrawList = new DrawList();
+        list.render(new DefaultRenderContext(focusedDrawList));
+        expect(focusedDrawList.commands().stream().anyMatch(command -> command.type() == DrawCommandType.RECT && command.paint().isStroke()),
+                "Focused VirtualListView should draw an active row outline");
+    }
+
     private void testVirtualTableViewVirtualRowsAndRendering() {
         DefaultUIContext uiContext = new DefaultUIContext();
         Counter cellRequests = new Counter();
@@ -1169,6 +1218,152 @@ public final class BasicControlsSelfTest {
         expect(consumed && table.scrollY() == 115.0f, "VirtualTableView should consume wheel scroll when offset changes");
         table.scrollTo(20_000.0f);
         expect(table.scrollY() == 9_950.0f, "VirtualTableView should clamp to max row scroll");
+    }
+
+    private void testVirtualTableKeyboardNavigation() {
+        DefaultUIContext uiContext = new DefaultUIContext();
+        VirtualTableView table = new VirtualTableView()
+                .addColumn("Name", 60.0f)
+                .addColumn("Score", 50.0f)
+                .rowCount(20)
+                .rowHeight(10.0f)
+                .headerHeight(10.0f)
+                .selectionMode(SelectionMode.MULTIPLE)
+                .cellTextProvider((row, column) -> "R" + row + "C" + column);
+        table.setUiContextInternal(uiContext);
+        table.arrange(new MutableRect(0.0f, 0.0f, 120.0f, 40.0f));
+
+        expect(table.focusable(), "VirtualTableView should be focusable for keyboard/gamepad navigation");
+        uiContext.focusManager().requestFocus(table);
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(table, KeyCodes.DOWN, 0, 0));
+        expect(table.activeRow() == 1 && table.activeColumn() == 0 && table.selectedRow() == 1,
+                "VirtualTableView Down should move active cell row and select the source row");
+
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(table, KeyCodes.RIGHT, 0, 0));
+        expect(table.activeRow() == 1 && table.activeColumn() == 1 && table.selectedRow() == 1,
+                "VirtualTableView Right should move active column without changing row selection");
+
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(table, KeyCodes.DOWN, 0, KeyModifiers.CONTROL));
+        expect(table.activeRow() == 2 && table.activeColumn() == 1 && table.selectedRow() == 1,
+                "VirtualTableView Ctrl+Down should move active row without changing selection");
+
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(table, KeyCodes.DOWN, 0, KeyModifiers.SHIFT));
+        expect(table.activeRow() == 3 && table.selectedRows().equals(java.util.List.of(1, 2, 3)),
+                "VirtualTableView Shift+Down should extend row range selection");
+
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(table, KeyCodes.PAGE_DOWN, 0, 0));
+        expect(table.activeRow() == 6 && table.selectedRow() == 6 && table.scrollY() > 0.0f,
+                "VirtualTableView PageDown should advance by visible body rows and reveal the active row");
+
+        table.scrollTo(0.0f);
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(table, 65.0f, 25.0f, 65.0f, 25.0f, 0, PointerButton.PRIMARY));
+        expect(uiContext.focusManager().focusedWidget() == table && table.activeRow() == 1 && table.activeColumn() == 1,
+                "VirtualTableView body click should focus and activate the clicked cell");
+
+        String[] names = {"Bob", "Alice", "Carol"};
+        VirtualTableView sorted = new VirtualTableView()
+                .addColumn("Name", 60.0f)
+                .rowCount(names.length)
+                .rowHeight(10.0f)
+                .headerHeight(10.0f)
+                .cellTextProvider((row, column) -> names[row])
+                .sortKeyProvider((row, column) -> names[row]);
+        sorted.setUiContextInternal(uiContext);
+        sorted.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 40.0f));
+        sorted.sortBy(0, SortDirection.ASCENDING);
+        uiContext.focusManager().requestFocus(sorted);
+        sorted.activeCell(1, 0);
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(sorted, KeyCodes.DOWN, 0, 0));
+        expect(sorted.activeRow() == 0 && sorted.selectedRow() == 0,
+                "VirtualTableView row navigation should follow sorted visual order while selecting source rows");
+
+        uiContext.focusManager().requestFocus(table);
+        DrawList focusedDrawList = new DrawList();
+        table.render(new DefaultRenderContext(focusedDrawList));
+        expect(focusedDrawList.commands().stream().anyMatch(command -> command.type() == DrawCommandType.RECT && command.paint().isStroke()),
+                "Focused VirtualTableView should draw an active cell outline");
+    }
+
+    private void testVirtualTableCellEditingContracts() {
+        DefaultUIContext uiContext = new DefaultUIContext();
+        String[][] cells = {
+                {"Alice", "10"},
+                {"Bob", "20"},
+                {"Carol", "30"}
+        };
+        VirtualTableView table = new VirtualTableView()
+                .addColumn("Name", 60.0f)
+                .addColumn("Score", 50.0f)
+                .rowCount(cells.length)
+                .rowHeight(10.0f)
+                .headerHeight(10.0f)
+                .editable(true)
+                .cellTextProvider((row, column) -> cells[row][column]);
+        table.setUiContextInternal(uiContext);
+        table.arrange(new MutableRect(0.0f, 0.0f, 120.0f, 40.0f));
+
+        Counter editEvents = new Counter();
+        table.onCellEditStarted((TableCellEditStartedEvent event) -> {
+            editEvents.started++;
+            editEvents.lastRow = event.row();
+            editEvents.lastColumn = event.column();
+            editEvents.lastText = event.text();
+        });
+        table.onCellEditCommitted((TableCellEditCommittedEvent event) -> {
+            editEvents.committed++;
+            editEvents.lastRow = event.row();
+            editEvents.lastColumn = event.column();
+            editEvents.lastOldText = event.oldText();
+            editEvents.lastText = event.newText();
+            cells[event.row()][event.column()] = event.newText();
+        });
+        table.onCellEditCancelled((TableCellEditCancelledEvent event) -> {
+            editEvents.cancelled++;
+            editEvents.lastRow = event.row();
+            editEvents.lastColumn = event.column();
+            editEvents.lastText = event.text();
+        });
+
+        uiContext.focusManager().requestFocus(table);
+        table.activeCell(0, 0);
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(table, KeyCodes.ENTER, 0, 0));
+        expect(table.editing() && table.editingRow() == 0 && table.editingColumn() == 0,
+                "VirtualTableView Enter should begin editing the active editable cell");
+        expect(editEvents.started == 1 && editEvents.lastText.equals("Alice"),
+                "VirtualTableView should emit cell edit started with the original cell text");
+
+        DrawList editingDrawList = new DrawList();
+        table.render(new DefaultRenderContext(editingDrawList));
+        expect(hasText(editingDrawList, "Alice"),
+                "VirtualTableView should render the active TextField editor over the editing cell");
+
+        table.clearInvalidation(InvalidationFlags.ALL);
+        uiContext.routedEvents().dispatch(new TextInputEvent(table, 'Z', 0));
+        expect(table.editingText().equals("Z"),
+                "VirtualTableView should route text input into the active cell editor");
+        expect(hasFlag(table.invalidationFlags(), InvalidationFlags.VISUAL)
+                        && !hasFlag(table.invalidationFlags(), InvalidationFlags.LAYOUT),
+                "VirtualTableView cell editor typing should invalidate visuals without forcing table layout");
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(table, KeyCodes.ENTER, 0, 0));
+        expect(!table.editing() && editEvents.committed == 1 && editEvents.lastOldText.equals("Alice") && editEvents.lastText.equals("Z"),
+                "VirtualTableView Enter inside editor should commit edited text");
+        expect(cells[0][0].equals("Z"),
+                "VirtualTableView commit event should let data owners update their backing model");
+
+        table.activeCell(1, 1);
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(table, KeyCodes.F2, 0, 0));
+        expect(table.editing() && table.editingText().equals("20"),
+                "VirtualTableView F2 should begin editing the active cell");
+        uiContext.routedEvents().dispatch(new TextInputEvent(table, '9', 0));
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(table, KeyCodes.ESCAPE, 0, 0));
+        expect(!table.editing() && editEvents.cancelled == 1 && cells[1][1].equals("20"),
+                "VirtualTableView Escape inside editor should cancel without mutating backing data");
+
+        table.editable(false);
+        table.activeCell(2, 0);
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(table, KeyCodes.ENTER, 0, 0));
+        expect(!table.editing(),
+                "VirtualTableView should not start editing when editable(false)");
     }
 
     private void testVirtualTableSortingContracts() {
@@ -1398,11 +1593,17 @@ public final class BasicControlsSelfTest {
     private static final class Counter {
         private int count;
         private String lastText = "";
+        private String lastOldText = "";
         private float lastValue;
         private boolean lastChecked;
         private double lastNumber;
         private java.util.List<Integer> lastSelection = java.util.List.of();
         private int lastSortColumn = -1;
         private SortDirection lastSortDirection = SortDirection.NONE;
+        private int started;
+        private int committed;
+        private int cancelled;
+        private int lastRow = -1;
+        private int lastColumn = -1;
     }
 }

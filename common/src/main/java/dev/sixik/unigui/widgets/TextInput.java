@@ -46,11 +46,12 @@ public class TextInput extends Box {
     private String measuredDisplayText = "";
     private Object measuredMetricsSource;
     private float[] measuredPrefixWidths = new float[]{0.0f};
+    private boolean visualOnlyTextChanges;
 
     public TextInput() {
         focusable(true);
         editor.onChanged((oldText, newText) -> {
-            invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+            invalidate(visualOnlyTextChanges ? InvalidationFlags.VISUAL : InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
             emit(new TextChangedEvent(this, oldText, newText));
         });
         textColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
@@ -166,6 +167,16 @@ public class TextInput extends Box {
 
     public MutableColor caretColor() {
         return caretColor;
+    }
+
+    public boolean visualOnlyTextChanges() {
+        return visualOnlyTextChanges;
+    }
+
+    public TextInput visualOnlyTextChanges(boolean visualOnlyTextChanges) {
+        if (this.visualOnlyTextChanges == visualOnlyTextChanges) return this;
+        this.visualOnlyTextChanges = visualOnlyTextChanges;
+        return this;
     }
 
     public EventSubscription onTextChanged(EventListener<? super TextChangedEvent> listener) {

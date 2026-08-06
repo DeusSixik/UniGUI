@@ -7,10 +7,19 @@ import dev.sixik.unigui.api.event.Event;
 import dev.sixik.unigui.api.event.EventListener;
 import dev.sixik.unigui.api.event.EventPhase;
 import dev.sixik.unigui.api.event.EventSubscription;
+import dev.sixik.unigui.api.event.FocusGainedEvent;
+import dev.sixik.unigui.api.event.FocusLostEvent;
+import dev.sixik.unigui.api.event.KeyPressedEvent;
 import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.event.ScrollEvent;
 import dev.sixik.unigui.api.event.SelectionChangedEvent;
+import dev.sixik.unigui.api.event.TableCellEditCancelledEvent;
+import dev.sixik.unigui.api.event.TableCellEditCommittedEvent;
+import dev.sixik.unigui.api.event.TableCellEditStartedEvent;
 import dev.sixik.unigui.api.event.TableSortChangedEvent;
+import dev.sixik.unigui.api.event.TextInputEvent;
+import dev.sixik.unigui.api.input.KeyCodes;
+import dev.sixik.unigui.api.input.KeyModifiers;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableColor;
@@ -44,6 +53,7 @@ public class VirtualTableView extends WidgetBase {
     private static final MutableColor ROW_BACKGROUND = new MutableColor(0.04f, 0.04f, 0.04f, 0.35f);
     private static final MutableColor ALTERNATE_ROW_BACKGROUND = new MutableColor(0.08f, 0.08f, 0.08f, 0.35f);
     private static final MutableColor SELECTED_ROW_BACKGROUND = new MutableColor(0.18f, 0.45f, 0.75f, 0.42f);
+    private static final MutableColor ACTIVE_CELL_COLOR = new MutableColor(1.0f, 1.0f, 1.0f, 0.72f);
     private static final MutableColor GRID_COLOR = new MutableColor(0.25f, 0.25f, 0.25f, 0.65f);
     private static final MutableColor TEXT_COLOR = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
 
@@ -60,10 +70,24 @@ public class VirtualTableView extends WidgetBase {
     private boolean sortDirty = true;
     private float headerHeight = 18.0f;
     private float scrollStep = 16.0f;
+    private int activeRow = -1;
+    private int activeColumn = -1;
+    private boolean editable;
+    private final TextField cellEditor = new TextField();
+    private int editingRow = -1;
+    private int editingColumn = -1;
+    private String editingOriginalText = "";
 
     public VirtualTableView() {
+        focusable(true);
         verticalScrollBar.setParentInternal(this);
         verticalScrollBar.onValueChanged(event -> scrollTo(event.newValue()));
+        cellEditor.themeEnabled(false);
+        cellEditor.background().set(0.025f, 0.030f, 0.040f, 0.98f);
+        cellEditor.borderColor().set(0.25f, 0.78f, 1.0f, 1.0f);
+        cellEditor.textColor().set(1.0f, 1.0f, 1.0f, 1.0f);
+        cellEditor.caretColor().set(0.25f, 0.78f, 1.0f, 1.0f);
+        cellEditor.visualOnlyTextChanges(true);
     }
 
     public int rowCount() {
@@ -74,6 +98,10 @@ public class VirtualTableView extends WidgetBase {
         if (virtualizer.itemCount() == Math.max(0, rowCount)) return this;
         List<Integer> oldSelection = selection.selectedIndices();
         virtualizer.itemCount(rowCount);
+        activeRow = clampRowOrNone(activeRow);
+        if (editingRow >= virtualizer.itemCount()) {
+            cancelEdit();
+        }
         sortDirty = true;
         emitSelectionChangeIfChanged(oldSelection, selection.retainWithin(virtualizer.itemCount()));
         scrollTo(virtualizer.scrollOffset());
@@ -91,6 +119,10 @@ public class VirtualTableView extends WidgetBase {
             }
         }
         normalizeSortColumn();
+        activeColumn = clampColumnOrNone(activeColumn);
+        if (editingColumn >= this.columns.size()) {
+            cancelEdit();
+        }
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
@@ -108,6 +140,20 @@ public class VirtualTableView extends WidgetBase {
     public VirtualTableView cellTextProvider(BiFunction<Integer, Integer, String> cellTextProvider) {
         this.cellTextProvider = cellTextProvider == null ? (row, column) -> "" : cellTextProvider;
         sortDirty = true;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public boolean editable() {
+        return editable;
+    }
+
+    public VirtualTableView editable(boolean editable) {
+        if (this.editable == editable) return this;
+        this.editable = editable;
+        if (!editable) {
+            cancelEdit();
+        }
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
@@ -235,9 +281,33 @@ public class VirtualTableView extends WidgetBase {
         return selection.isSelected(row);
     }
 
+    public int activeRow() {
+        return activeRow;
+    }
+
+    public int activeColumn() {
+        return activeColumn;
+    }
+
+    public VirtualTableView activeCell(int row, int column) {
+        int normalizedRow = clampRowOrNone(row);
+        int normalizedColumn = clampColumnOrNone(column);
+        if (activeRow == normalizedRow && activeColumn == normalizedColumn) return this;
+        activeRow = normalizedRow;
+        activeColumn = normalizedColumn;
+        ensureActiveVisible();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
     public VirtualTableView selectRow(int row) {
         List<Integer> oldSelection = selection.selectedIndices();
+        activeRow = clampRowOrNone(row);
+        if (activeColumn < 0) {
+            activeColumn = firstColumnOrNone();
+        }
         emitSelectionChangeIfChanged(oldSelection, selection.select(row));
+        ensureActiveVisible();
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
@@ -258,6 +328,102 @@ public class VirtualTableView extends WidgetBase {
 
     public EventSubscription onSelectionChanged(EventListener<? super SelectionChangedEvent> listener) {
         return on(SelectionChangedEvent.TYPE, listener);
+    }
+
+    public boolean editing() {
+        return editingRow >= 0 && editingColumn >= 0;
+    }
+
+    public int editingRow() {
+        return editingRow;
+    }
+
+    public int editingColumn() {
+        return editingColumn;
+    }
+
+    public String editingText() {
+        return editing() ? cellEditor.text() : "";
+    }
+
+    public VirtualTableView editingText(String text) {
+        if (editing()) {
+            cellEditor.text(text);
+            invalidate(InvalidationFlags.VISUAL);
+        }
+        return this;
+    }
+
+    public VirtualTableView beginEdit() {
+        return beginEdit(activeRow, activeColumn);
+    }
+
+    public VirtualTableView beginEdit(int row, int column) {
+        if (!editable) return this;
+        int normalizedRow = clampRowOrNone(row);
+        int normalizedColumn = clampColumnOrNone(column);
+        if (normalizedRow < 0 || normalizedColumn < 0) return this;
+        if (editing() && editingRow == normalizedRow && editingColumn == normalizedColumn) return this;
+        if (editing()) {
+            commitEdit();
+        }
+
+        activeRow = normalizedRow;
+        activeColumn = normalizedColumn;
+        ensureActiveVisible();
+        editingRow = normalizedRow;
+        editingColumn = normalizedColumn;
+        editingOriginalText = cellText(normalizedRow, normalizedColumn);
+        cellEditor.setUiContextInternal(uiContext());
+        cellEditor.text(editingOriginalText);
+        cellEditor.selectAll();
+        cellEditor.handle(new FocusGainedEvent(cellEditor, this));
+        arrangeCellEditor();
+        emit(new TableCellEditStartedEvent(this, editingRow, editingColumn, editingOriginalText));
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public VirtualTableView commitEdit() {
+        if (!editing()) return this;
+        int row = editingRow;
+        int column = editingColumn;
+        String oldText = editingOriginalText;
+        String newText = cellEditor.text();
+        endEditFocus();
+        editingRow = -1;
+        editingColumn = -1;
+        editingOriginalText = "";
+        sortDirty = true;
+        emit(new TableCellEditCommittedEvent(this, row, column, oldText, newText));
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public VirtualTableView cancelEdit() {
+        if (!editing()) return this;
+        int row = editingRow;
+        int column = editingColumn;
+        String text = cellEditor.text();
+        endEditFocus();
+        editingRow = -1;
+        editingColumn = -1;
+        editingOriginalText = "";
+        emit(new TableCellEditCancelledEvent(this, row, column, text));
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public EventSubscription onCellEditStarted(EventListener<? super TableCellEditStartedEvent> listener) {
+        return on(TableCellEditStartedEvent.TYPE, listener);
+    }
+
+    public EventSubscription onCellEditCommitted(EventListener<? super TableCellEditCommittedEvent> listener) {
+        return on(TableCellEditCommittedEvent.TYPE, listener);
+    }
+
+    public EventSubscription onCellEditCancelled(EventListener<? super TableCellEditCancelledEvent> listener) {
+        return on(TableCellEditCancelledEvent.TYPE, listener);
     }
 
     public int sortColumnIndex() {
@@ -330,11 +496,15 @@ public class VirtualTableView extends WidgetBase {
         super.setUiContextInternal(uiContext);
         verticalScrollBar.setParentInternal(this);
         verticalScrollBar.setUiContextInternal(uiContext);
+        cellEditor.setUiContextInternal(uiContext);
     }
 
     @Override
     public List<Widget> children() {
-        return hasVerticalScrollBar() ? List.of(verticalScrollBar) : Collections.emptyList();
+        if (hasVerticalScrollBar()) {
+            return List.of(verticalScrollBar);
+        }
+        return Collections.emptyList();
     }
 
     @Override
@@ -353,6 +523,7 @@ public class VirtualTableView extends WidgetBase {
         updateVirtualizerViewport();
         virtualizer.scrollOffset(virtualizer.scrollOffset());
         updateVisibleRows();
+        arrangeCellEditor();
         arrangeScrollBar();
     }
 
@@ -370,6 +541,9 @@ public class VirtualTableView extends WidgetBase {
         renderHeader(context);
         context.pushClip(layoutBounds().x(), rowViewportY(), viewportWidth(), rowViewportHeight());
         renderRows(context);
+        if (editing()) {
+            cellEditor.render(context);
+        }
         context.popClip();
         if (hasVerticalScrollBar()) {
             verticalScrollBar.render(context);
@@ -380,10 +554,18 @@ public class VirtualTableView extends WidgetBase {
     public void handle(Event event) {
         super.handle(event);
         if (event.isCancelled()) return;
+        if (editing() && handleEditingEvent(event)) {
+            event.cancel();
+            return;
+        }
         if (event instanceof ScrollEvent scroll && scroll.phase() != EventPhase.CAPTURE) {
             float before = virtualizer.scrollOffset();
             scrollBy(-scroll.deltaY() * scrollStep);
             if (before != virtualizer.scrollOffset()) {
+                event.cancel();
+            }
+        } else if (event instanceof KeyPressedEvent key && key.phase() != EventPhase.CAPTURE) {
+            if (handleKey(key.keyCode(), key.modifiers())) {
                 event.cancel();
             }
         } else if (event instanceof PointerPressedEvent pointer
@@ -395,6 +577,11 @@ public class VirtualTableView extends WidgetBase {
                 && localY(pointer) < Math.min(headerHeight, Math.max(0.0f, layoutBounds().height()))) {
             int column = columnAt(localX(pointer));
             if (column >= 0) {
+                requestFocus();
+                activeColumn = column;
+                if (editing()) {
+                    commitEdit();
+                }
                 cycleSort(column);
                 event.cancel();
             }
@@ -407,7 +594,16 @@ public class VirtualTableView extends WidgetBase {
                 && localY(pointer) < layoutBounds().height()) {
             int row = rowAt(localY(pointer));
             if (row >= 0) {
-                selectRow(sourceRowAt(row));
+                requestFocus();
+                if (editing()) {
+                    commitEdit();
+                }
+                activeRow = sourceRowAt(row);
+                activeColumn = columnAt(localX(pointer));
+                if (activeColumn < 0) {
+                    activeColumn = firstColumnOrNone();
+                }
+                selectRow(activeRow);
                 event.cancel();
             }
         }
@@ -451,14 +647,69 @@ public class VirtualTableView extends WidgetBase {
                 float width = Math.min(column.width(), Math.max(0.0f, viewportWidth() - (columnX - tableX)));
                 if (width <= 0.0f) break;
                 String text = cellText(row, columnIndex);
-                if (!text.isEmpty()) {
+                if (!text.isEmpty() && !(editing() && row == editingRow && columnIndex == editingColumn)) {
                     context.text(text, columnX + 3.0f, y, Math.max(0.0f, width - 6.0f), rowHeight, Paint.fill(TEXT_COLOR), transform());
                 }
                 context.line(columnX + width, y, columnX + width, y + rowHeight, Paint.stroke(GRID_COLOR, 1.0f), transform());
+                if (isFocused() && row == activeRow && columnIndex == activeColumn) {
+                    context.rect(columnX, y, width, rowHeight, Paint.stroke(ACTIVE_CELL_COLOR, 1.0f), transform());
+                }
                 columnX += column.width();
             }
             context.line(tableX, y + rowHeight, tableX + viewportWidth(), y + rowHeight, Paint.stroke(GRID_COLOR, 1.0f), transform());
         }
+    }
+
+    private boolean handleEditingEvent(Event event) {
+        if (event instanceof TextInputEvent input && input.phase() == EventPhase.TARGET) {
+            cellEditor.handle(new TextInputEvent(cellEditor, input.codePoint(), input.modifiers()));
+            invalidate(InvalidationFlags.VISUAL);
+            return true;
+        }
+        if (event instanceof KeyPressedEvent key && key.phase() == EventPhase.TARGET) {
+            if (key.keyCode() == KeyCodes.ENTER || key.keyCode() == KeyCodes.KEYPAD_ENTER) {
+                commitEdit();
+                return true;
+            }
+            if (key.keyCode() == KeyCodes.ESCAPE) {
+                cancelEdit();
+                return true;
+            }
+            cellEditor.handle(new KeyPressedEvent(cellEditor, key.keyCode(), key.scanCode(), key.modifiers()));
+            invalidate(InvalidationFlags.VISUAL);
+            return true;
+        }
+        return false;
+    }
+
+    private void arrangeCellEditor() {
+        if (!editing()) return;
+        MutableRect cellBounds = cellBounds(editingRow, editingColumn);
+        if (cellBounds == null) {
+            cellEditor.arrange(new MutableRect(0.0f, 0.0f, 0.0f, 0.0f));
+            return;
+        }
+        cellEditor.arrange(cellBounds);
+    }
+
+    private MutableRect cellBounds(int sourceRow, int columnIndex) {
+        int visualRow = visualRowOfSource(sourceRow);
+        if (visualRow < 0 || columnIndex < 0 || columnIndex >= columns.size()) return null;
+        float y = rowViewportY() + virtualizer.itemOffset(visualRow);
+        float height = rowHeight();
+        if (y + height <= rowViewportY() || y >= rowViewportY() + rowViewportHeight()) return null;
+        float x = layoutBounds().x();
+        for (int current = 0; current < columnIndex; current++) {
+            x += columns.get(current).width();
+        }
+        float width = Math.min(columns.get(columnIndex).width(), Math.max(0.0f, viewportWidth() - (x - layoutBounds().x())));
+        if (width <= 0.0f) return null;
+        return new MutableRect(x, y, width, height);
+    }
+
+    private void endEditFocus() {
+        cellEditor.handle(new FocusLostEvent(cellEditor, this));
+        cellEditor.clearSelection();
     }
 
     private String cellText(int row, int column) {
@@ -546,6 +797,16 @@ public class VirtualTableView extends WidgetBase {
         return sortedRows == null ? visualRow : sortedRows[visualRow];
     }
 
+    private int visualRowOfSource(int sourceRow) {
+        if (sourceRow < 0 || sourceRow >= virtualizer.itemCount()) return -1;
+        ensureSortIndex();
+        if (sortedRows == null) return sourceRow;
+        for (int visualRow = 0; visualRow < sortedRows.length; visualRow++) {
+            if (sortedRows[visualRow] == sourceRow) return visualRow;
+        }
+        return -1;
+    }
+
     private void ensureSortIndex() {
         if (!sortDirty) return;
         sortDirty = false;
@@ -600,6 +861,159 @@ public class VirtualTableView extends WidgetBase {
 
     private int normalizeColumnIndex(int columnIndex) {
         return columnIndex >= 0 && columnIndex < columns.size() ? columnIndex : -1;
+    }
+
+    private boolean handleKey(int keyCode, int modifiers) {
+        if (virtualizer.itemCount() <= 0) return false;
+        return switch (keyCode) {
+            case KeyCodes.UP -> {
+                moveActiveRow(navigationBaseVisualRow() - 1, modifiers);
+                yield true;
+            }
+            case KeyCodes.DOWN -> {
+                moveActiveRow(navigationBaseVisualRow() + 1, modifiers);
+                yield true;
+            }
+            case KeyCodes.PAGE_UP -> {
+                moveActiveRow(navigationBaseVisualRow() - pageRowCount(), modifiers);
+                yield true;
+            }
+            case KeyCodes.PAGE_DOWN -> {
+                moveActiveRow(navigationBaseVisualRow() + pageRowCount(), modifiers);
+                yield true;
+            }
+            case KeyCodes.HOME -> {
+                moveActiveRow(0, modifiers);
+                yield true;
+            }
+            case KeyCodes.END -> {
+                moveActiveRow(virtualizer.itemCount() - 1, modifiers);
+                yield true;
+            }
+            case KeyCodes.LEFT -> {
+                moveActiveColumn(activeColumn < 0 ? firstColumnOrNone() : activeColumn - 1);
+                yield true;
+            }
+            case KeyCodes.RIGHT -> {
+                moveActiveColumn(activeColumn < 0 ? firstColumnOrNone() : activeColumn + 1);
+                yield true;
+            }
+            case KeyCodes.F2 -> {
+                beginEdit();
+                yield editable;
+            }
+            case KeyCodes.SPACE, KeyCodes.ENTER, KeyCodes.KEYPAD_ENTER -> {
+                if (editable && (keyCode == KeyCodes.ENTER || keyCode == KeyCodes.KEYPAD_ENTER) && !KeyModifiers.has(modifiers, KeyModifiers.SHIFT) && !KeyModifiers.has(modifiers, KeyModifiers.CONTROL)) {
+                    if (activeRow < 0) {
+                        activeRow = sourceRowAt(navigationBaseVisualRow());
+                    }
+                    if (activeColumn < 0) {
+                        activeColumn = firstColumnOrNone();
+                    }
+                    beginEdit();
+                } else {
+                    selectActiveRow(KeyModifiers.has(modifiers, KeyModifiers.CONTROL), KeyModifiers.has(modifiers, KeyModifiers.SHIFT));
+                }
+                yield true;
+            }
+            default -> false;
+        };
+    }
+
+    private void moveActiveRow(int visualRow, int modifiers) {
+        int targetVisualRow = Math.max(0, Math.min(virtualizer.itemCount() - 1, visualRow));
+        int targetSourceRow = sourceRowAt(targetVisualRow);
+        activeRow = targetSourceRow;
+        if (activeColumn < 0) {
+            activeColumn = firstColumnOrNone();
+        }
+        ensureActiveVisible();
+        if (!KeyModifiers.has(modifiers, KeyModifiers.CONTROL)) {
+            List<Integer> oldSelection = selection.selectedIndices();
+            boolean changed = KeyModifiers.has(modifiers, KeyModifiers.SHIFT)
+                    ? selection.selectRange(targetSourceRow)
+                    : selection.select(targetSourceRow);
+            emitSelectionChangeIfChanged(oldSelection, changed);
+        }
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+    }
+
+    private void moveActiveColumn(int column) {
+        int normalized = clampColumnOrNone(column);
+        if (normalized < 0) return;
+        if (activeRow < 0) {
+            activeRow = sourceRowAt(navigationBaseVisualRow());
+        }
+        activeColumn = normalized;
+        ensureActiveVisible();
+        invalidate(InvalidationFlags.VISUAL);
+    }
+
+    private void selectActiveRow(boolean toggle, boolean range) {
+        if (activeRow < 0) {
+            activeRow = sourceRowAt(navigationBaseVisualRow());
+        }
+        if (activeColumn < 0) {
+            activeColumn = firstColumnOrNone();
+        }
+        if (activeRow < 0) return;
+        List<Integer> oldSelection = selection.selectedIndices();
+        boolean changed = range ? selection.selectRange(activeRow) : (toggle ? selection.toggle(activeRow) : selection.select(activeRow));
+        emitSelectionChangeIfChanged(oldSelection, changed);
+        ensureActiveVisible();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+    }
+
+    private int navigationBaseVisualRow() {
+        int activeVisual = visualRowOfSource(activeRow);
+        if (activeVisual >= 0) return activeVisual;
+        int selectedVisual = visualRowOfSource(selection.selectedIndex());
+        if (selectedVisual >= 0) return selectedVisual;
+        return Math.min(Math.max(0, firstVisibleRow()), Math.max(0, virtualizer.itemCount() - 1));
+    }
+
+    private int pageRowCount() {
+        float extent = Math.max(1.0f, virtualizer.itemExtent());
+        return Math.max(1, (int) Math.floor(Math.max(extent, rowViewportHeight()) / extent));
+    }
+
+    private void ensureActiveVisible() {
+        int visualRow = visualRowOfSource(activeRow);
+        if (visualRow < 0) return;
+        updateVirtualizerViewport();
+        float rowTop = visualRow * virtualizer.itemExtent();
+        float rowBottom = rowTop + virtualizer.itemExtent();
+        float viewportTop = virtualizer.scrollOffset();
+        float viewportBottom = viewportTop + rowViewportHeight();
+        if (rowTop < viewportTop) {
+            scrollTo(rowTop);
+        } else if (rowBottom > viewportBottom) {
+            scrollTo(rowBottom - rowViewportHeight());
+        }
+    }
+
+    private int clampRowOrNone(int row) {
+        return row >= 0 && row < virtualizer.itemCount() ? row : -1;
+    }
+
+    private int clampColumnOrNone(int column) {
+        return column >= 0 && column < columns.size() ? column : -1;
+    }
+
+    private int firstColumnOrNone() {
+        return columns.isEmpty() ? -1 : 0;
+    }
+
+    private void requestFocus() {
+        UIContext context = uiContext();
+        if (context != null) {
+            context.focusManager().requestFocus(this);
+        }
+    }
+
+    private boolean isFocused() {
+        UIContext context = uiContext();
+        return context != null && context.focusManager().isFocused(this);
     }
 
     private void emitSelectionChangeIfChanged(List<Integer> oldSelection, boolean changed) {

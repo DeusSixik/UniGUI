@@ -45,7 +45,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend {
     private final DrawBatcher batcher;
     private final ScissorStack scissorStack = new ScissorStack();
     private GuiGraphics graphics;
-    private boolean scissorEnabledByBackend;
+    private int appliedScissorDepth;
     private int gpuTimerQueryId;
     private boolean gpuTimerQueryInFlight;
     private boolean gpuTimerUnavailable;
@@ -69,8 +69,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend {
 
     @Override
     public void beginFrame(FrameContext frame) {
-        scissorStack.clear();
-        scissorEnabledByBackend = false;
+        clearScissorStack();
         pollGpuTimer();
     }
 
@@ -291,31 +290,47 @@ public final class MinecraftGuiRenderBackend implements RenderBackend {
             return;
         }
 
-        ScissorStack.Rect current = scissorStack.pop();
-        if (scissorStack.isEmpty()) {
-            clearScissorStack();
-            return;
-        }
-
-        applyScissor(current);
+        scissorStack.pop();
+        disableOneScissor();
     }
 
     private void applyScissor(ScissorStack.Rect rect) {
         graphics.flush();
         graphics.enableScissor(rect.x1(), rect.y1(), rect.x2(), rect.y2());
-        scissorEnabledByBackend = true;
+        appliedScissorDepth++;
     }
 
     private void clearScissorStack() {
-        if (!scissorStack.isEmpty()) {
-            scissorStack.clear();
+        scissorStack.clear();
+        if (appliedScissorDepth <= 0) return;
+
+        graphics.flush();
+        while (appliedScissorDepth > 0) {
+            try {
+                graphics.disableScissor();
+            } catch (IllegalStateException ignored) {
+                appliedScissorDepth = 0;
+                return;
+            }
+            appliedScissorDepth--;
         }
-        if (!scissorEnabledByBackend) {
+    }
+
+    private void disableOneScissor() {
+        if (appliedScissorDepth <= 0) {
+            clearScissorStack();
             return;
         }
+
         graphics.flush();
-        graphics.disableScissor();
-        scissorEnabledByBackend = false;
+        try {
+            graphics.disableScissor();
+        } catch (IllegalStateException ignored) {
+            appliedScissorDepth = 0;
+            scissorStack.clear();
+            return;
+        }
+        appliedScissorDepth--;
     }
 
     private void renderRoundedRect(DrawCommand command) {
