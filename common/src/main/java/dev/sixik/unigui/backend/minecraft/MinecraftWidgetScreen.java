@@ -18,13 +18,18 @@ import dev.sixik.unigui.api.input.KeyModifiers;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableRect;
+import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawList;
+import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.render.TextureHandle;
+import dev.sixik.unigui.api.render.UiRenderPolicy;
 import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.impl.debug.DebugOverlayRenderer;
 import dev.sixik.unigui.impl.render.DefaultRenderContext;
 import dev.sixik.unigui.impl.render.SimpleDrawBatcher;
+import dev.sixik.unigui.impl.render.WidgetTextureRenderer;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -34,6 +39,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 public class MinecraftWidgetScreen extends Screen {
+    private static final MutableColor CACHE_TINT = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private final Widget root;
     private final UIContext uiContext;
     private final DrawList drawList = new DrawList();
@@ -43,6 +49,12 @@ public class MinecraftWidgetScreen extends Screen {
     private long frameIndex;
     private float lastFrameCpuMillis;
     private long lastFrameStartNanos;
+    private UiRenderPolicy renderPolicy = UiRenderPolicy.continuous();
+    private WidgetTextureRenderer cachedRenderer;
+    private TextureHandle cachedTexture;
+    private int cachedWidth;
+    private int cachedHeight;
+    private long lastCachedRenderNanos;
 
     public MinecraftWidgetScreen(Widget root) {
         this(Component.empty(), root, new DefaultUIContext(new MinecraftClipboardService()));
@@ -78,6 +90,26 @@ public class MinecraftWidgetScreen extends Screen {
     public MinecraftWidgetScreen defaultFont(FontFace defaultFont) {
         this.defaultFont = defaultFont == null ? MinecraftFonts.defaultFace() : defaultFont;
         if (backend != null) backend.defaultFont(this.defaultFont);
+        return this;
+    }
+
+    public UiRenderPolicy renderPolicy() {
+        return renderPolicy;
+    }
+
+    public MinecraftWidgetScreen renderPolicy(UiRenderPolicy policy) {
+        this.renderPolicy = policy == null ? UiRenderPolicy.continuous() : policy;
+        if (this.renderPolicy.mode() == UiRenderPolicy.Mode.CONTINUOUS) {
+            releaseRenderCache();
+        }
+        invalidateRenderCache();
+        return this;
+    }
+
+    /** Forces the cached UI to be rebuilt on the next Minecraft frame. */
+    public MinecraftWidgetScreen invalidateRenderCache() {
+        cachedTexture = null;
+        lastCachedRenderNanos = 0L;
         return this;
     }
 
@@ -119,7 +151,17 @@ public class MinecraftWidgetScreen extends Screen {
 
         drawList.clear();
         try (ProfileScope ignored = uiContext.profiler().scope("buildDrawList")) {
-            root.render(renderContext);
+            if (renderPolicy.mode() == UiRenderPolicy.Mode.CONTINUOUS) {
+                root.render(renderContext);
+            } else {
+                if (shouldRenderCachedUi(uiCpuStartNanos)) {
+                    renderCachedUi();
+                }
+                if (cachedTexture != null) {
+                    renderContext.texture(cachedTexture, 0.0f, 0.0f, width, height,
+                            Paint.fill(CACHE_TINT));
+                }
+            }
         }
 
         recordDebugDrawStats();
@@ -308,7 +350,65 @@ public class MinecraftWidgetScreen extends Screen {
             backend.close();
             backend = null;
         }
+        releaseRenderCache();
         root.dispose();
+    }
+
+    private boolean shouldRenderCachedUi(long nowNanos) {
+        if (renderPolicy.mode() == UiRenderPolicy.Mode.CONTINUOUS || cachedTexture == null) return true;
+        if (renderPolicy.mode() == UiRenderPolicy.Mode.ON_DIRTY) {
+            return hasRunningAnimations(root)
+                    || root.subtreeInvalidationFlags() != dev.sixik.unigui.api.core.InvalidationFlags.NONE;
+        }
+        return lastCachedRenderNanos == 0L || nowNanos - lastCachedRenderNanos >= renderIntervalNanos();
+    }
+
+    private long renderIntervalNanos() {
+        if (renderPolicy.mode() == UiRenderPolicy.Mode.VSYNC) {
+            int refreshRate = backend == null || backend.minecraft().getWindow() == null
+                    ? 60
+                    : backend.minecraft().getWindow().getRefreshRate();
+            float safeRefreshRate = refreshRate > 0 ? refreshRate : 60.0f;
+            return Math.max(1L, Math.round(1_000_000_000.0 / safeRefreshRate));
+        }
+        return renderPolicy.intervalNanos();
+    }
+
+    private void renderCachedUi() {
+        if (cachedRenderer == null || cachedWidth != width || cachedHeight != height) {
+            if (cachedRenderer != null) cachedRenderer.close();
+            cachedRenderer = new WidgetTextureRenderer(backend);
+            cachedWidth = Math.max(1, width);
+            cachedHeight = Math.max(1, height);
+            cachedTexture = null;
+        }
+        cachedTexture = cachedRenderer.renderWidgetToTexture(root, cachedWidth, cachedHeight, 0.0f, 0.0f);
+        lastCachedRenderNanos = System.nanoTime();
+        clearSubtreeInvalidation(root);
+    }
+
+    private static boolean hasRunningAnimations(Widget widget) {
+        if (widget instanceof WidgetBase base && base.animationsRunning()) return true;
+        for (Widget child : widget.children()) {
+            if (hasRunningAnimations(child)) return true;
+        }
+        return false;
+    }
+
+    private static void clearSubtreeInvalidation(Widget widget) {
+        widget.clearInvalidation(dev.sixik.unigui.api.core.InvalidationFlags.ALL);
+        for (Widget child : widget.children()) clearSubtreeInvalidation(child);
+    }
+
+    private void releaseRenderCache() {
+        if (cachedRenderer != null) {
+            cachedRenderer.close();
+            cachedRenderer = null;
+        }
+        cachedTexture = null;
+        cachedWidth = 0;
+        cachedHeight = 0;
+        lastCachedRenderNanos = 0L;
     }
 
     private Optional<HitTestResult> hit(double mouseX, double mouseY) {

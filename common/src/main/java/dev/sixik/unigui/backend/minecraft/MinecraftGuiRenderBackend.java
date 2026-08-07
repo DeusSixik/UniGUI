@@ -60,6 +60,8 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
     private final MinecraftTextureBatchRenderer textureBatchRenderer = new MinecraftTextureBatchRenderer();
     private GuiGraphics graphics;
     private int appliedScissorDepth;
+    private MinecraftRenderTarget activeRenderTarget;
+    private boolean renderTargetScissorEnabled;
     private int gpuTimerQueryId;
     private boolean gpuTimerQueryInFlight;
     private boolean gpuTimerUnavailable;
@@ -200,11 +202,13 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
     private void renderToTarget(DrawList drawList, MinecraftRenderTarget target) {
         graphics.flush();
         target.bindWrite();
+        activeRenderTarget = target;
         try {
             renderBatches(drawList);
             graphics.flush();
         } finally {
             clearScissorStack();
+            activeRenderTarget = null;
             target.unbindWrite();
             minecraft.getMainRenderTarget().bindWrite(true);
         }
@@ -400,11 +404,23 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
             return;
         }
 
-        scissorStack.pop();
+        ScissorStack.Rect parent = scissorStack.pop();
+        if (activeRenderTarget != null) {
+            if (parent == null) {
+                disableRenderTargetScissor();
+            } else {
+                applyRenderTargetScissor(parent);
+            }
+            return;
+        }
         disableOneScissor();
     }
 
     private void applyScissor(ScissorStack.Rect rect) {
+        if (activeRenderTarget != null) {
+            applyRenderTargetScissor(rect);
+            return;
+        }
         graphics.flush();
         graphics.enableScissor(rect.x1(), rect.y1(), rect.x2(), rect.y2());
         appliedScissorDepth++;
@@ -412,6 +428,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
 
     private void clearScissorStack() {
         scissorStack.clear();
+        disableRenderTargetScissor();
         if (appliedScissorDepth <= 0) return;
 
         graphics.flush();
@@ -441,6 +458,26 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
             return;
         }
         appliedScissorDepth--;
+    }
+
+    private void applyRenderTargetScissor(ScissorStack.Rect rect) {
+        int targetWidth = activeRenderTarget.width();
+        int targetHeight = activeRenderTarget.height();
+        int x1 = Math.max(0, Math.min(targetWidth, rect.x1()));
+        int y1 = Math.max(0, Math.min(targetHeight, rect.y1()));
+        int x2 = Math.max(x1, Math.min(targetWidth, rect.x2()));
+        int y2 = Math.max(y1, Math.min(targetHeight, rect.y2()));
+
+        graphics.flush();
+        RenderSystem.enableScissor(x1, targetHeight - y2, x2 - x1, y2 - y1);
+        renderTargetScissorEnabled = true;
+    }
+
+    private void disableRenderTargetScissor() {
+        if (!renderTargetScissorEnabled) return;
+        graphics.flush();
+        RenderSystem.disableScissor();
+        renderTargetScissorEnabled = false;
     }
 
     private void renderRoundedRect(DrawCommand command) {

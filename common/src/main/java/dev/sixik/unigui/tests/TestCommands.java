@@ -12,6 +12,7 @@ import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.layout.Overflow;
 import dev.sixik.unigui.api.render.ImageFit;
 import dev.sixik.unigui.api.render.SimpleTextureHandle;
+import dev.sixik.unigui.api.render.UiRenderPolicy;
 import dev.sixik.unigui.api.selection.SelectionMode;
 import dev.sixik.unigui.api.sort.SortDirection;
 import dev.sixik.unigui.api.text.RichText;
@@ -36,6 +37,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 
+import java.util.function.Supplier;
+
 public final class TestCommands {
     private static final int SAMPLE_OVERVIEW = 0;
     private static final int SAMPLE_CONTROLS_TEXT = 1;
@@ -47,12 +50,36 @@ public final class TestCommands {
     private static final int SAMPLE_LAYOUT_V2 = 7;
     private static final int SAMPLE_FONTS = 8;
 
+    private static Runnable changeMode;
+    private static Supplier<String> renderMode = () -> "none";
+
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("unigui").executes(ctx -> {
             RenderSystem.recordRenderCall(() -> {
                 final DefaultUIContext context = new DefaultUIContext(new MinecraftClipboardService());
                 final Widget widget = demoInterface(context);
                 final MinecraftWidgetScreen screen = new MinecraftWidgetScreen(Component.empty(), widget, context);
+                screen.renderPolicy(UiRenderPolicy.onDirty());
+
+                renderMode = () -> screen.renderPolicy().mode().name();
+                changeMode = () -> {
+                    final UiRenderPolicy.Mode mode = screen.renderPolicy().mode();
+                    switch (mode) {
+                        case CONTINUOUS -> {
+                            screen.renderPolicy(UiRenderPolicy.vsync());
+                        }
+                        case VSYNC -> {
+                            screen.renderPolicy(UiRenderPolicy.onDirty());
+                        }
+                        case ON_DIRTY -> {
+                            screen.renderPolicy(UiRenderPolicy.fixedFps(60));
+                        }
+                        case FIXED_FPS -> {
+                            screen.renderPolicy(UiRenderPolicy.continuous());
+                        }
+                    }
+                };
+
                 Minecraft.getInstance().setScreen(screen);
             });
 
@@ -168,6 +195,13 @@ public final class TestCommands {
             context.debugFlags(event.newValue() ? DebugFlags.ALL : DebugFlags.NONE);
         });
         nav.addChild(debugTools);
+
+        Button changeRenderMode = new Button("Render Mod: NONE");
+        changeRenderMode.onClick((event -> {
+            changeMode.run();
+            changeRenderMode.text("Render Mod: " + renderMode.get());
+        }));
+        nav.addChild(changeRenderMode);
 
         TextBlock navHint = new TextBlock("Tip: add each new framework feature as a new sample panel here.");
         navHint.overflowMode(TextOverflowMode.MARQUEE_ON_HOVER);
