@@ -102,6 +102,11 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
     }
 
     public boolean render(GuiGraphics graphics, List<DrawCommand> commands, PoseStack pose) {
+        return render(graphics, commands, pose, false);
+    }
+
+    public boolean render(GuiGraphics graphics, List<DrawCommand> commands, PoseStack pose,
+                          boolean renderingToPremultipliedTarget) {
         if (graphics == null || commands == null || commands.isEmpty() || pose == null || unavailable) return false;
         for (DrawCommand command : commands) {
             if (!canRender(command)) return false;
@@ -124,7 +129,7 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
             GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, vertexBuffer);
             RenderSystem.activeTexture(GL13.GL_TEXTURE0);
             RenderSystem.enableBlend();
-            RenderSystem.defaultBlendFunc();
+            MinecraftUiBlend.applyStraightAlpha(renderingToPremultipliedTarget);
             RenderSystem.disableDepthTest();
             RenderSystem.depthMask(false);
             RenderSystem.disableCull();

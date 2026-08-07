@@ -2,6 +2,7 @@ package dev.sixik.unigui.api.core;
 
 import dev.sixik.unigui.api.debug.UiProfiler;
 import dev.sixik.unigui.api.debug.UiDebugCounters;
+import dev.sixik.unigui.api.debug.DebugOverlaySettings;
 import dev.sixik.unigui.api.event.EventEmitter;
 import dev.sixik.unigui.api.event.RoutedEventDispatcher;
 import dev.sixik.unigui.api.input.ClipboardService;
@@ -73,6 +74,10 @@ public interface UIContext {
 
     default UiDebugCounters debugCounters() {
         return UiDebugCounters.NOOP;
+    }
+
+    default DebugOverlaySettings debugOverlaySettings() {
+        return new DebugOverlaySettings();
     }
 
     default int debugFlags() {

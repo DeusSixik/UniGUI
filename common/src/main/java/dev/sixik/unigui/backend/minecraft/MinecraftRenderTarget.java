@@ -67,11 +67,12 @@ public final class MinecraftRenderTarget implements ManagedRenderTarget {
 
     void bindWrite() {
         ensureAlive();
+        nativeTarget.bindWrite(true);
         if (options.clearBeforeRender()) {
             nativeTarget.setClearColor(0.0f, 0.0f, 0.0f, 0.0f);
             nativeTarget.clear(Minecraft.ON_OSX);
+            nativeTarget.bindWrite(true);
         }
-        nativeTarget.bindWrite(true);
     }
 
     void unbindWrite() {

@@ -1,10 +1,11 @@
 package dev.sixik.unigui.api.debug;
 
 public final class UiDebugSnapshot {
-    public static final UiDebugSnapshot EMPTY = new UiDebugSnapshot(0L, 0.0f, 0.0f, -1.0f, 0, 0, 0L, 0L, 0L, "NONE");
+    public static final UiDebugSnapshot EMPTY = new UiDebugSnapshot(0L, 0.0f, 0.0f, 0.0f, -1.0f, 0, 0, 0L, 0L, 0L, "NONE");
 
     private final long frameIndex;
     private final float framesPerSecond;
+    private final float frameTotalMillis;
     private final float frameCpuMillis;
     private final float frameGpuMillis;
     private final int drawCommandCount;
@@ -32,8 +33,19 @@ public final class UiDebugSnapshot {
                            int drawCommandCount, int batchCount,
                            long textureCacheHits, long textureCacheMisses, long textureRenders,
                            String lastTextureCacheMissReason) {
+        this(frameIndex, framesPerSecond, frameCpuMillis, frameCpuMillis, frameGpuMillis,
+                drawCommandCount, batchCount, textureCacheHits, textureCacheMisses, textureRenders,
+                lastTextureCacheMissReason);
+    }
+
+    public UiDebugSnapshot(long frameIndex, float framesPerSecond, float frameTotalMillis,
+                           float frameCpuMillis, float frameGpuMillis,
+                           int drawCommandCount, int batchCount,
+                           long textureCacheHits, long textureCacheMisses, long textureRenders,
+                           String lastTextureCacheMissReason) {
         this.frameIndex = frameIndex;
         this.framesPerSecond = Float.isFinite(framesPerSecond) ? Math.max(0.0f, framesPerSecond) : 0.0f;
+        this.frameTotalMillis = Float.isFinite(frameTotalMillis) ? Math.max(0.0f, frameTotalMillis) : 0.0f;
         this.frameCpuMillis = Float.isFinite(frameCpuMillis) ? Math.max(0.0f, frameCpuMillis) : 0.0f;
         this.frameGpuMillis = Float.isFinite(frameGpuMillis) ? frameGpuMillis : -1.0f;
         this.drawCommandCount = Math.max(0, drawCommandCount);
@@ -54,6 +66,10 @@ public final class UiDebugSnapshot {
 
     public float frameCpuMillis() {
         return frameCpuMillis;
+    }
+
+    public float frameTotalMillis() {
+        return frameTotalMillis;
     }
 
     public float frameGpuMillis() {

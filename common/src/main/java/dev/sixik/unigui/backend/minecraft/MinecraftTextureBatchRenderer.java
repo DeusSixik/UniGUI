@@ -30,7 +30,7 @@ final class MinecraftTextureBatchRenderer {
     private static final Logger LOGGER = LoggerFactory.getLogger(MinecraftTextureBatchRenderer.class);
     private static final float TAU = (float) (Math.PI * 2.0);
 
-    boolean render(GuiGraphics graphics, List<DrawCommand> commands) {
+    boolean render(GuiGraphics graphics, List<DrawCommand> commands, boolean renderingToPremultipliedTarget) {
         if (graphics == null || commands == null || commands.isEmpty()) return false;
         TextureHandle texture = commands.get(0).texture();
         if (texture == null) return false;
@@ -51,7 +51,7 @@ final class MinecraftTextureBatchRenderer {
             RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
             binding.bind();
             RenderSystem.enableBlend();
-            RenderSystem.defaultBlendFunc();
+            MinecraftUiBlend.applyTextureAlpha(binding.premultipliedAlpha(), renderingToPremultipliedTarget);
             RenderSystem.disableDepthTest();
             RenderSystem.depthMask(false);
             RenderSystem.disableCull();
@@ -214,19 +214,19 @@ final class MinecraftTextureBatchRenderer {
         }
     }
 
-    private record TextureBinding(Integer textureId, ResourceLocation location, boolean flipY) {
+    private record TextureBinding(Integer textureId, ResourceLocation location, boolean flipY, boolean premultipliedAlpha) {
         private static TextureBinding resolve(TextureHandle texture) {
             Object nativeHandle = texture.nativeHandle();
             if (nativeHandle instanceof MinecraftRenderTarget.ColorTextureHandle colorTexture) {
-                return new TextureBinding(colorTexture.textureId(), null, colorTexture.flipY());
+                return new TextureBinding(colorTexture.textureId(), null, colorTexture.flipY(), true);
             }
             if (nativeHandle instanceof Integer textureId) {
-                return new TextureBinding(textureId, null, false);
+                return new TextureBinding(textureId, null, false, false);
             }
             ResourceLocation location = nativeHandle instanceof ResourceLocation resourceLocation
                     ? resourceLocation
                     : ResourceLocation.tryParse(texture.id());
-            return location == null ? null : new TextureBinding(null, location, false);
+            return location == null ? null : new TextureBinding(null, location, false, false);
         }
 
         private void bind() {

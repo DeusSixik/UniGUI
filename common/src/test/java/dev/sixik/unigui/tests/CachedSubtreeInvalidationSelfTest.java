@@ -3,6 +3,7 @@ package dev.sixik.unigui.tests;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.FramePhase;
 import dev.sixik.unigui.api.debug.DebugFlags;
+import dev.sixik.unigui.api.debug.DebugOverlayAnchor;
 import dev.sixik.unigui.api.debug.ProfileScope;
 import dev.sixik.unigui.api.debug.UiDebugSnapshot;
 import dev.sixik.unigui.api.event.TextInputEvent;
@@ -139,8 +140,15 @@ public final class CachedSubtreeInvalidationSelfTest {
 
     private void testProfilerOverlayWritesDrawCommands() {
         DefaultUIContext uiContext = new DefaultUIContext().enableDebugFlags(DebugFlags.PROFILER_OVERLAY);
+        uiContext.debugOverlaySettings()
+                .anchor(DebugOverlayAnchor.BOTTOM_RIGHT)
+                .scale(0.5f)
+                .sampleWindow(2);
         uiContext.profiler().beginFrame(42L);
         uiContext.debugCounters().beginFrame(42L);
+        uiContext.debugCounters().recordFrameTotalMillis(8.0f);
+        uiContext.debugCounters().recordFrameCpuMillis(6.0f);
+        uiContext.debugCounters().recordFrameGpuMillis(2.0f);
         uiContext.debugCounters().recordDrawCommands(7);
         uiContext.debugCounters().recordBatches(3);
         uiContext.debugCounters().recordTextureCacheHit();
@@ -149,15 +157,35 @@ public final class CachedSubtreeInvalidationSelfTest {
         }
 
         DrawList overlay = new DrawList();
-        DebugOverlayRenderer.render(new DefaultRenderContext(overlay), uiContext);
+        DebugOverlayRenderer.render(new DefaultRenderContext(overlay), uiContext, 1000.0f, 600.0f);
 
-        expect(overlay.size() >= 4, "debug overlay should emit background + text commands");
-        expect(containsText(overlay, "fps="), "debug overlay should include FPS counter");
-        expect(containsText(overlay, "cpu="), "debug overlay should include CPU frame timing");
-        expect(containsText(overlay, "gpu="), "debug overlay should include GPU frame timing");
-        expect(containsText(overlay, "draw=7 batches=3"), "debug overlay should include draw/batch counters");
-        expect(containsText(overlay, "cache hit=1 miss=0"), "debug overlay should include cache counters");
+        expect(overlay.size() >= 8, "debug overlay should emit background + metric text commands");
+        expect(containsText(overlay, "Total 8.00 ms (Avg: 8.00 ms, Min: 8.00 ms, Max: 8.00 ms)"),
+                "debug overlay should include total frame statistics");
+        expect(containsText(overlay, "CPU Total 6.00 ms"), "debug overlay should include CPU frame timing");
+        expect(containsText(overlay, "GPU Total 2.00 ms"), "debug overlay should include GPU frame timing");
+        expect(containsText(overlay, "FPS "), "debug overlay should include FPS counter");
+        expect(containsText(overlay, "draw 7 | batches 3"), "debug overlay should include draw/batch counters");
+        expect(containsText(overlay, "Cache hit 1 | miss 0"), "debug overlay should include cache counters");
         expect(containsText(overlay, "render"), "debug overlay should include profiler scope names");
+
+        DrawCommand background = overlay.commands().get(0);
+        expect(background.transform().scale().x() == 0.5f, "debug overlay should apply configured scale");
+        expect(background.transform().position().x() > 700.0f
+                        && background.transform().position().y() > 400.0f,
+                "debug overlay should anchor to the bottom-right viewport corner");
+        expect(metricColorDiffers(overlay, "Total ", "CPU Total ")
+                        && metricColorDiffers(overlay, "CPU Total ", "GPU Total "),
+                "total, CPU and GPU lines should use distinct colors");
+
+        recordFrameTimings(uiContext, 43L, 10.0f, 7.0f, 3.0f);
+        overlay.clear();
+        DebugOverlayRenderer.render(new DefaultRenderContext(overlay), uiContext, 1000.0f, 600.0f);
+        recordFrameTimings(uiContext, 44L, 20.0f, 14.0f, 5.0f);
+        overlay.clear();
+        DebugOverlayRenderer.render(new DefaultRenderContext(overlay), uiContext, 1000.0f, 600.0f);
+        expect(containsText(overlay, "Total 20.00 ms (Avg: 15.00 ms, Min: 10.00 ms, Max: 20.00 ms)"),
+                "debug overlay should retain only the configured frame sample window");
     }
 
     private static void assertStats(String label, CachedSubtreeStats stats, long renderCalls, long hits, long misses,
@@ -183,6 +211,33 @@ public final class CachedSubtreeInvalidationSelfTest {
             }
         }
         return false;
+    }
+
+    private static boolean metricColorDiffers(DrawList drawList, String first, String second) {
+        DrawCommand firstCommand = textCommand(drawList, first);
+        DrawCommand secondCommand = textCommand(drawList, second);
+        if (firstCommand == null || secondCommand == null) return false;
+        return firstCommand.paint().color().r() != secondCommand.paint().color().r()
+                || firstCommand.paint().color().g() != secondCommand.paint().color().g()
+                || firstCommand.paint().color().b() != secondCommand.paint().color().b();
+    }
+
+    private static DrawCommand textCommand(DrawList drawList, String prefix) {
+        for (DrawCommand command : drawList.commands()) {
+            if (command.type() == DrawCommandType.TEXT && command.text() != null
+                    && command.text().startsWith(prefix)) {
+                return command;
+            }
+        }
+        return null;
+    }
+
+    private static void recordFrameTimings(DefaultUIContext uiContext, long frameIndex,
+                                           float totalMillis, float cpuMillis, float gpuMillis) {
+        uiContext.debugCounters().beginFrame(frameIndex);
+        uiContext.debugCounters().recordFrameTotalMillis(totalMillis);
+        uiContext.debugCounters().recordFrameCpuMillis(cpuMillis);
+        uiContext.debugCounters().recordFrameGpuMillis(gpuMillis);
     }
 
     private static void renderCachedFrame(DefaultUIContext uiContext, CachedSubtreeWidget cached,

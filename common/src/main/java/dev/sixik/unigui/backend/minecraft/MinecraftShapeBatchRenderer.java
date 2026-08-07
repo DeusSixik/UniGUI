@@ -28,7 +28,7 @@ final class MinecraftShapeBatchRenderer {
     private static final Logger LOGGER = LoggerFactory.getLogger(MinecraftShapeBatchRenderer.class);
     private static final float TAU = (float) (Math.PI * 2.0);
 
-    boolean render(GuiGraphics graphics, List<DrawCommand> commands) {
+    boolean render(GuiGraphics graphics, List<DrawCommand> commands, boolean renderingToPremultipliedTarget) {
         if (graphics == null || commands == null || commands.isEmpty()) return false;
         for (DrawCommand command : commands) {
             if (command == null || !supports(command.type())) return false;
@@ -39,7 +39,7 @@ final class MinecraftShapeBatchRenderer {
         try {
             RenderSystem.setShader(GameRenderer::getPositionColorShader);
             RenderSystem.enableBlend();
-            RenderSystem.defaultBlendFunc();
+            MinecraftUiBlend.applyStraightAlpha(renderingToPremultipliedTarget);
             RenderSystem.disableDepthTest();
             RenderSystem.depthMask(false);
             RenderSystem.disableCull();

@@ -31,15 +31,16 @@ final class MinecraftMixedTextRenderer {
         this.sdfRenderer = sdfRenderer;
     }
 
-    boolean render(GuiGraphics graphics, List<DrawCommand> commands, PoseStack pose) {
+    boolean render(GuiGraphics graphics, List<DrawCommand> commands, PoseStack pose,
+                   boolean renderingToPremultipliedTarget) {
         if (graphics == null || commands == null || commands.isEmpty() || pose == null) return false;
         if (!containsMinecraftFace(commands)) return false;
 
         List<DrawCommand> pendingSdf = new ArrayList<>();
         for (DrawCommand command : commands) {
             if (command == null || command.text() == null || command.text().isEmpty()) continue;
-            renderCommand(graphics, command, richText(command), pendingSdf);
-            flushSdf(graphics, pendingSdf);
+            renderCommand(graphics, command, richText(command), pendingSdf, renderingToPremultipliedTarget);
+            flushSdf(graphics, pendingSdf, renderingToPremultipliedTarget);
         }
         return true;
     }
@@ -61,7 +62,7 @@ final class MinecraftMixedTextRenderer {
     }
 
     private void renderCommand(GuiGraphics graphics, DrawCommand command, RichText text,
-                               List<DrawCommand> pendingSdf) {
+                               List<DrawCommand> pendingSdf, boolean renderingToPremultipliedTarget) {
         RectView bounds = command.bounds();
         List<LineInfo> lines = lineInfo(text);
         float penX = bounds.x();
@@ -79,7 +80,7 @@ final class MinecraftMixedTextRenderer {
                 index += Character.charCount(codePoint);
                 if (codePoint == '\n') {
                     penX = renderSegment(graphics, command, run, face, metrics,
-                            segment, penX, baseline, pendingSdf);
+                            segment, penX, baseline, pendingSdf, renderingToPremultipliedTarget);
                     segment.setLength(0);
                     penX = bounds.x();
                     lineTop += lines.get(lineIndex).height;
@@ -90,20 +91,21 @@ final class MinecraftMixedTextRenderer {
                 }
             }
             renderSegment(graphics, command, run, face, metrics,
-                    segment, penX, baseline, pendingSdf);
+                    segment, penX, baseline, pendingSdf, renderingToPremultipliedTarget);
             penX += measure(face, segment, run.pixelSize());
         }
     }
 
     private float renderSegment(GuiGraphics graphics, DrawCommand command, TextRun run,
                                 FontFace face, FontMetrics metrics, StringBuilder segment,
-                                float x, float baseline, List<DrawCommand> pendingSdf) {
+                                float x, float baseline, List<DrawCommand> pendingSdf,
+                                boolean renderingToPremultipliedTarget) {
         if (segment.isEmpty()) return x;
         String value = segment.toString();
         float width = measure(face, segment, run.pixelSize());
         float top = baseline - metrics.ascent();
         if (face instanceof MinecraftFontFace minecraftFace) {
-            flushSdf(graphics, pendingSdf);
+            flushSdf(graphics, pendingSdf, renderingToPremultipliedTarget);
             drawVanilla(graphics, command, value, minecraftFace, run.pixelSize(), run.color(), x, top);
         } else {
             Transform segmentTransform = command.transform().copy();
@@ -120,8 +122,13 @@ final class MinecraftMixedTextRenderer {
     }
 
     private void flushSdf(GuiGraphics graphics, List<DrawCommand> pendingSdf) {
+        flushSdf(graphics, pendingSdf, false);
+    }
+
+    private void flushSdf(GuiGraphics graphics, List<DrawCommand> pendingSdf,
+                          boolean renderingToPremultipliedTarget) {
         if (pendingSdf.isEmpty()) return;
-        if (!sdfRenderer.render(graphics, pendingSdf, graphics.pose())) {
+        if (!sdfRenderer.render(graphics, pendingSdf, graphics.pose(), renderingToPremultipliedTarget)) {
             MinecraftFontFace fallback = MinecraftFonts.defaultFace();
             for (DrawCommand command : pendingSdf) {
                 TextRun run = command.richText().runs().get(0);

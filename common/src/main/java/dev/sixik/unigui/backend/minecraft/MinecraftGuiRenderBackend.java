@@ -61,6 +61,8 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
     private GuiGraphics graphics;
     private int appliedScissorDepth;
     private MinecraftRenderTarget activeRenderTarget;
+    private float activeRenderTargetScaleX = 1.0f;
+    private float activeRenderTargetScaleY = 1.0f;
     private boolean renderTargetScissorEnabled;
     private int gpuTimerQueryId;
     private boolean gpuTimerQueryInFlight;
@@ -203,15 +205,33 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
         graphics.flush();
         target.bindWrite();
         activeRenderTarget = target;
+        activeRenderTargetScaleX = renderTargetScaleX(target);
+        activeRenderTargetScaleY = renderTargetScaleY(target);
         try {
             renderBatches(drawList);
             graphics.flush();
         } finally {
             clearScissorStack();
             activeRenderTarget = null;
+            activeRenderTargetScaleX = 1.0f;
+            activeRenderTargetScaleY = 1.0f;
             target.unbindWrite();
             minecraft.getMainRenderTarget().bindWrite(true);
         }
+    }
+
+    private float renderTargetScaleX(MinecraftRenderTarget target) {
+        if (minecraft.getWindow() == null || minecraft.getWindow().getGuiScaledWidth() <= 0) return 1.0f;
+        return target.width() == minecraft.getWindow().getWidth()
+                ? target.width() / (float) minecraft.getWindow().getGuiScaledWidth()
+                : 1.0f;
+    }
+
+    private float renderTargetScaleY(MinecraftRenderTarget target) {
+        if (minecraft.getWindow() == null || minecraft.getWindow().getGuiScaledHeight() <= 0) return 1.0f;
+        return target.height() == minecraft.getWindow().getHeight()
+                ? target.height() / (float) minecraft.getWindow().getGuiScaledHeight()
+                : 1.0f;
     }
 
     private void renderBatches(DrawList drawList) {
@@ -306,20 +326,21 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
     }
 
     private void renderBatch(DrawBatch batch) {
+        boolean renderingToPremultipliedTarget = activeRenderTarget != null;
         if (MinecraftShapeBatchRenderer.supports(batch.type())
-                && shapeBatchRenderer.render(graphics, batch.commands())) {
+                && shapeBatchRenderer.render(graphics, batch.commands(), renderingToPremultipliedTarget)) {
             return;
         }
         if (batch.type() == DrawCommandType.TEXT
-                && mixedTextRenderer.render(graphics, batch.commands(), graphics.pose())) {
+                && mixedTextRenderer.render(graphics, batch.commands(), graphics.pose(), renderingToPremultipliedTarget)) {
             return;
         }
         if (batch.type() == DrawCommandType.TEXT
-                && sdfTextRenderer.render(graphics, batch.commands(), graphics.pose())) {
+                && sdfTextRenderer.render(graphics, batch.commands(), graphics.pose(), renderingToPremultipliedTarget)) {
             return;
         }
         if (batch.type() == DrawCommandType.TEXTURE
-                && textureBatchRenderer.render(graphics, batch.commands())) {
+                && textureBatchRenderer.render(graphics, batch.commands(), renderingToPremultipliedTarget)) {
             return;
         }
         for (DrawCommand command : batch.commands()) {
@@ -463,10 +484,10 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
     private void applyRenderTargetScissor(ScissorStack.Rect rect) {
         int targetWidth = activeRenderTarget.width();
         int targetHeight = activeRenderTarget.height();
-        int x1 = Math.max(0, Math.min(targetWidth, rect.x1()));
-        int y1 = Math.max(0, Math.min(targetHeight, rect.y1()));
-        int x2 = Math.max(x1, Math.min(targetWidth, rect.x2()));
-        int y2 = Math.max(y1, Math.min(targetHeight, rect.y2()));
+        int x1 = Math.max(0, Math.min(targetWidth, Math.round(rect.x1() * activeRenderTargetScaleX)));
+        int y1 = Math.max(0, Math.min(targetHeight, Math.round(rect.y1() * activeRenderTargetScaleY)));
+        int x2 = Math.max(x1, Math.min(targetWidth, Math.round(rect.x2() * activeRenderTargetScaleX)));
+        int y2 = Math.max(y1, Math.min(targetHeight, Math.round(rect.y2() * activeRenderTargetScaleY)));
 
         graphics.flush();
         RenderSystem.enableScissor(x1, targetHeight - y2, x2 - x1, y2 - y1);
@@ -718,11 +739,11 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
 
         Object nativeHandle = texture.nativeHandle();
         if (nativeHandle instanceof MinecraftRenderTarget.ColorTextureHandle colorTexture) {
-            renderTextureId(colorTexture.textureId(), colorTexture.flipY(), command);
+            renderTextureId(colorTexture.textureId(), colorTexture.flipY(), true, command);
             return;
         }
         if (nativeHandle instanceof Integer textureId) {
-            renderTextureId(textureId, false, command);
+            renderTextureId(textureId, false, false, command);
             return;
         }
 
@@ -752,7 +773,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
         }
     }
 
-    private void renderTextureId(int textureId, boolean flipY, DrawCommand command) {
+    private void renderTextureId(int textureId, boolean flipY, boolean premultipliedSource, DrawCommand command) {
         RectView bounds = command.bounds();
         RectView uv = command.uv();
         ColorView tint = command.paint().color();
@@ -770,6 +791,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
         RenderSystem.setShaderTexture(0, textureId);
         RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
         RenderSystem.enableBlend();
+        MinecraftUiBlend.applyTextureAlpha(premultipliedSource, activeRenderTarget != null);
         Matrix4f matrix = graphics.pose().last().pose();
         Tesselator tesselator = Tesselator.getInstance();
         BufferBuilder buffer = tesselator.getBuilder();

@@ -5,6 +5,7 @@ import com.mojang.brigadier.CommandDispatcher;
 import dev.sixik.unigui.api.animation.AnimationEasing;
 import dev.sixik.unigui.api.animation.TransitionSpec;
 import dev.sixik.unigui.api.debug.DebugFlags;
+import dev.sixik.unigui.api.debug.DebugOverlayAnchor;
 import dev.sixik.unigui.api.layout.Align;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.Justify;
@@ -33,10 +34,13 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 
+import java.util.List;
+import java.util.Locale;
 import java.util.function.Supplier;
 
 public final class TestCommands {
@@ -47,8 +51,9 @@ public final class TestCommands {
     private static final int SAMPLE_OVERLAYS = 4;
     private static final int SAMPLE_ANIMATIONS = 5;
     private static final int SAMPLE_MINECRAFT = 6;
-    private static final int SAMPLE_LAYOUT_V2 = 7;
-    private static final int SAMPLE_FONTS = 8;
+    private static final int SAMPLE_ENTITY_STRESS = 7;
+    private static final int SAMPLE_LAYOUT_V2 = 8;
+    private static final int SAMPLE_FONTS = 9;
 
     private static Runnable changeMode;
     private static Supplier<String> renderMode = () -> "none";
@@ -114,6 +119,7 @@ public final class TestCommands {
                 overlaysSample(),
                 animationsSample(),
                 minecraftSample(),
+                minecraftEntityStressSample(),
                 layoutV2Sample(),
                 fontsSample()
         };
@@ -129,6 +135,7 @@ public final class TestCommands {
                 navButton("Overlays"),
                 navButton("Animations"),
                 navButton("Minecraft"),
+                navButton("Entity stress"),
                 navButton("Layout v2"),
                 navButton("Fonts")
         };
@@ -195,6 +202,42 @@ public final class TestCommands {
             context.debugFlags(event.newValue() ? DebugFlags.ALL : DebugFlags.NONE);
         });
         nav.addChild(debugTools);
+
+        DebugOverlayAnchor[] overlayAnchors = DebugOverlayAnchor.values();
+        int[] overlayAnchorIndex = {0};
+        Button overlayAnchor = new Button("Anchor: top left");
+        overlayAnchor.preferredSize(LayoutConstraints.AUTO, 20.0f).grow(0.0f);
+        overlayAnchor.onClick(event -> {
+            overlayAnchorIndex[0] = (overlayAnchorIndex[0] + 1) % overlayAnchors.length;
+            DebugOverlayAnchor anchor = overlayAnchors[overlayAnchorIndex[0]];
+            context.debugOverlaySettings().anchor(anchor);
+            overlayAnchor.text("Anchor: " + anchor.name().toLowerCase(Locale.ROOT).replace('_', ' '));
+        });
+        nav.addChild(overlayAnchor);
+
+        float[] overlayScales = {0.75f, 0.5f, 1.0f};
+        int[] overlayScaleIndex = {0};
+        Button overlayScale = new Button("Overlay scale: 75%");
+        overlayScale.preferredSize(LayoutConstraints.AUTO, 20.0f).grow(0.0f);
+        overlayScale.onClick(event -> {
+            overlayScaleIndex[0] = (overlayScaleIndex[0] + 1) % overlayScales.length;
+            float scale = overlayScales[overlayScaleIndex[0]];
+            context.debugOverlaySettings().scale(scale);
+            overlayScale.text("Overlay scale: " + Math.round(scale * 100.0f) + "%");
+        });
+        nav.addChild(overlayScale);
+
+        int[] sampleWindows = {30, 60, 100, 300};
+        int[] sampleWindowIndex = {2};
+        Button sampleWindow = new Button("Frame range: 100");
+        sampleWindow.preferredSize(LayoutConstraints.AUTO, 20.0f).grow(0.0f);
+        sampleWindow.onClick(event -> {
+            sampleWindowIndex[0] = (sampleWindowIndex[0] + 1) % sampleWindows.length;
+            int frames = sampleWindows[sampleWindowIndex[0]];
+            context.debugOverlaySettings().sampleWindow(frames);
+            sampleWindow.text("Frame range: " + frames);
+        });
+        nav.addChild(sampleWindow);
 
         Button changeRenderMode = new Button("Render Mod: NONE");
         changeRenderMode.onClick((event -> {
@@ -545,6 +588,50 @@ public final class TestCommands {
         controls.addChild(textured);
         sample.addChild(controls);
 
+        return sample;
+    }
+
+    private static VBox minecraftEntityStressSample() {
+        VBox sample = samplePanel(
+                "Minecraft entity stress",
+                "192 compact entity previews rendered together to expose batching, depth and render-target artifacts.");
+
+        List<EntityType<? extends LivingEntity>> entityTypes = List.of(
+                EntityType.ZOMBIE,
+                EntityType.SKELETON,
+                EntityType.CREEPER,
+                EntityType.SPIDER,
+                EntityType.CAVE_SPIDER,
+                EntityType.SLIME,
+                EntityType.PIG,
+                EntityType.COW,
+                EntityType.SHEEP,
+                EntityType.CHICKEN,
+                EntityType.VILLAGER,
+                EntityType.WITCH,
+                EntityType.PILLAGER,
+                EntityType.DROWNED,
+                EntityType.HUSK,
+                EntityType.STRAY);
+
+        WrapPanel entities = new WrapPanel();
+        entities.spacing(1.0f);
+        entities.lineSpacing(1.0f);
+        entities.grow(0.0f);
+
+        for (int index = 0; index < 192; index++) {
+            EntityType<? extends LivingEntity> entityType = entityTypes.get(index % entityTypes.size());
+            MinecraftEntityPreviewWidget entity = new MinecraftEntityPreviewWidget("", entityType);
+            entity.labelVisible(false);
+            entity.backgroundVisible(false);
+            entity.borderVisible(false);
+            entity.previewSize(16.0f);
+            entity.look(7.0f, 4.0f);
+            entity.preferredSize(26.0f, 26.0f).grow(0.0f);
+            entities.addChild(entity);
+        }
+
+        sample.addChild(entities);
         return sample;
     }
 

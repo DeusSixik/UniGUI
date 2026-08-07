@@ -5,6 +5,7 @@ import dev.sixik.unigui.api.core.UIScaleProvider;
 import dev.sixik.unigui.api.core.UiDispatcher;
 import dev.sixik.unigui.api.debug.UiDebugCounters;
 import dev.sixik.unigui.api.debug.UiProfiler;
+import dev.sixik.unigui.api.debug.DebugOverlaySettings;
 import dev.sixik.unigui.api.event.EventEmitter;
 import dev.sixik.unigui.api.event.RoutedEventDispatcher;
 import dev.sixik.unigui.api.input.ClipboardService;
@@ -39,6 +40,7 @@ public final class DefaultUIContext implements UIContext {
     private long styleVersion;
     private final UiProfiler profiler;
     private final UiDebugCounters debugCounters;
+    private final DebugOverlaySettings debugOverlaySettings = new DebugOverlaySettings();
     private final Map<Integer, Widget> pointerCaptures = new HashMap<>();
     private int debugFlags;
 
@@ -184,6 +186,11 @@ public final class DefaultUIContext implements UIContext {
     @Override
     public UiDebugCounters debugCounters() {
         return debugCounters;
+    }
+
+    @Override
+    public DebugOverlaySettings debugOverlaySettings() {
+        return debugOverlaySettings;
     }
 
     @Override

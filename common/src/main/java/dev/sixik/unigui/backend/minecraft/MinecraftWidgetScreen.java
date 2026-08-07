@@ -21,6 +21,7 @@ import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawList;
 import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.render.RenderTargetOptions;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.UiRenderPolicy;
 import dev.sixik.unigui.api.text.FontFace;
@@ -48,6 +49,7 @@ public class MinecraftWidgetScreen extends Screen {
     private FontFace defaultFont = MinecraftFonts.defaultFace();
     private long frameIndex;
     private float lastFrameCpuMillis;
+    private float lastFrameTotalMillis;
     private long lastFrameStartNanos;
     private UiRenderPolicy renderPolicy = UiRenderPolicy.continuous();
     private WidgetTextureRenderer cachedRenderer;
@@ -125,6 +127,7 @@ public class MinecraftWidgetScreen extends Screen {
 
         uiContext.profiler().beginFrame(frameIndex);
         uiContext.debugCounters().beginFrame(frameIndex);
+        uiContext.debugCounters().recordFrameTotalMillis(lastFrameTotalMillis);
         uiContext.debugCounters().recordFrameCpuMillis(lastFrameCpuMillis);
 
         try (ProfileScope ignored = uiContext.profiler().scope("dispatcher")) {
@@ -165,13 +168,14 @@ public class MinecraftWidgetScreen extends Screen {
         }
 
         recordDebugDrawStats();
-        DebugOverlayRenderer.render(renderContext, uiContext);
+        DebugOverlayRenderer.render(renderContext, uiContext, width, height);
         lastFrameCpuMillis = (System.nanoTime() - uiCpuStartNanos) / 1_000_000.0f;
 
         try (ProfileScope ignored = uiContext.profiler().scope("renderBackend")) {
             backend.render(drawList, null);
             backend.endFrame();
         }
+        lastFrameTotalMillis = (System.nanoTime() - uiCpuStartNanos) / 1_000_000.0f;
         frameIndex++;
     }
 
@@ -375,16 +379,31 @@ public class MinecraftWidgetScreen extends Screen {
     }
 
     private void renderCachedUi() {
-        if (cachedRenderer == null || cachedWidth != width || cachedHeight != height) {
+        int targetWidth = cachedTargetWidth();
+        int targetHeight = cachedTargetHeight();
+        if (cachedRenderer == null || cachedWidth != targetWidth || cachedHeight != targetHeight) {
             if (cachedRenderer != null) cachedRenderer.close();
             cachedRenderer = new WidgetTextureRenderer(backend);
-            cachedWidth = Math.max(1, width);
-            cachedHeight = Math.max(1, height);
+            cachedWidth = targetWidth;
+            cachedHeight = targetHeight;
             cachedTexture = null;
         }
-        cachedTexture = cachedRenderer.renderWidgetToTexture(root, cachedWidth, cachedHeight, 0.0f, 0.0f);
+        cachedTexture = cachedRenderer.renderWidgetToTexture(root, cachedWidth, cachedHeight,
+                0.0f, 0.0f, RenderTargetOptions.COLOR_DEPTH);
         lastCachedRenderNanos = System.nanoTime();
         clearSubtreeInvalidation(root);
+    }
+
+    private int cachedTargetWidth() {
+        return backend != null && backend.minecraft().getWindow() != null
+                ? Math.max(1, backend.minecraft().getWindow().getWidth())
+                : Math.max(1, width);
+    }
+
+    private int cachedTargetHeight() {
+        return backend != null && backend.minecraft().getWindow() != null
+                ? Math.max(1, backend.minecraft().getWindow().getHeight())
+                : Math.max(1, height);
     }
 
     private static boolean hasRunningAnimations(Widget widget) {

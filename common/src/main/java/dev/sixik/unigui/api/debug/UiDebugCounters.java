@@ -16,6 +16,9 @@ public interface UiDebugCounters {
     default void recordFrameCpuMillis(float millis) {
     }
 
+    default void recordFrameTotalMillis(float millis) {
+    }
+
     default void recordFrameGpuMillis(float millis) {
     }
 

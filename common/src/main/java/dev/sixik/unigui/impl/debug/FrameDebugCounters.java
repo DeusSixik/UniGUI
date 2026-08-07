@@ -7,6 +7,7 @@ public final class FrameDebugCounters implements UiDebugCounters {
     private long frameIndex;
     private long lastFrameStartNanos;
     private float framesPerSecond;
+    private float frameTotalMillis;
     private float frameCpuMillis;
     private float frameGpuMillis = -1.0f;
     private int drawCommandCount;
@@ -52,6 +53,11 @@ public final class FrameDebugCounters implements UiDebugCounters {
     }
 
     @Override
+    public void recordFrameTotalMillis(float millis) {
+        frameTotalMillis = Float.isFinite(millis) ? Math.max(0.0f, millis) : 0.0f;
+    }
+
+    @Override
     public void recordFrameGpuMillis(float millis) {
         frameGpuMillis = Float.isFinite(millis) ? millis : -1.0f;
     }
@@ -74,7 +80,7 @@ public final class FrameDebugCounters implements UiDebugCounters {
 
     @Override
     public UiDebugSnapshot snapshot() {
-        return new UiDebugSnapshot(frameIndex, framesPerSecond, frameCpuMillis, frameGpuMillis,
+        return new UiDebugSnapshot(frameIndex, framesPerSecond, frameTotalMillis, frameCpuMillis, frameGpuMillis,
                 drawCommandCount, batchCount,
                 textureCacheHits, textureCacheMisses, textureRenders, lastTextureCacheMissReason);
     }
