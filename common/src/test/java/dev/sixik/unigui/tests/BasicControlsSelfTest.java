@@ -1189,17 +1189,17 @@ public final class BasicControlsSelfTest {
         expect(automatic.children().size() == 3,
                 "AUTO overflow should expose content and both scrollbars when both axes overflow");
         expect(near(autoContent.layoutBounds().width(), 200.0f)
-                        && near(automatic.horizontalScrollBar().layoutBounds().width(), 94.0f)
-                        && near(automatic.verticalScrollBar().layoutBounds().height(), 94.0f),
+                        && near(automatic.horizontalScrollBar().layoutBounds().width(), 86.0f)
+                        && near(automatic.verticalScrollBar().layoutBounds().height(), 86.0f),
                 "Visible scrollbars should reduce the opposite viewport axis");
-        expect(near(automatic.maxScrollX(), 106.0f) && near(automatic.maxScrollY(), 206.0f),
+        expect(near(automatic.maxScrollX(), 114.0f) && near(automatic.maxScrollY(), 214.0f),
                 "Scroll ranges should use the viewport remaining after both scrollbars");
 
         uiContext.routedEvents().dispatch(new PointerPressedEvent(automatic.horizontalScrollBar(),
                 47.0f, 97.0f, 47.0f, 3.0f, 0, PointerButton.PRIMARY));
         expect(automatic.horizontalScrollBar().dragging()
                         && uiContext.capturedPointer(0) == automatic.horizontalScrollBar()
-                        && near(automatic.scrollX(), 53.0f),
+                        && near(automatic.scrollX(), 57.0f),
                 "Dragging the horizontal scrollbar should capture the pointer and update scrollX");
         uiContext.routedEvents().dispatch(new PointerReleasedEvent(automatic.horizontalScrollBar(),
                 160.0f, 130.0f, 160.0f, 130.0f, 0, PointerButton.PRIMARY));
@@ -1511,8 +1511,17 @@ public final class BasicControlsSelfTest {
         viewportWidthScrollView.measure(new LayoutContext(240.0f, 80.0f));
         viewportWidthScrollView.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 80.0f));
         expect(viewportWidthScrollView.maxScrollX() == 0.0f, "ScrollView should not create implicit horizontal overflow without explicit content width");
-        expect(viewportWidthContent.layoutBounds().width() == 94.0f,
+        expect(viewportWidthContent.layoutBounds().width() == 86.0f,
                 "ScrollView should arrange implicit-width content to viewport width after the vertical scrollbar");
+
+        Box hiddenAxisContent = new Box();
+        ScrollView hiddenAxisScrollView = new ScrollView(hiddenAxisContent)
+                .contentSize(240.0f, 120.0f);
+        hiddenAxisScrollView.measure(new LayoutContext(100.0f, 80.0f));
+        hiddenAxisScrollView.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 80.0f));
+        expect(hiddenAxisScrollView.verticalScrollBar().layoutBounds().width() == 6.0f
+                        && hiddenAxisContent.layoutBounds().width() == 86.0f,
+                "ScrollView should reserve the scrollbar element when horizontal overflow is hidden");
     }
 
     private void testNestedScissorStack() {

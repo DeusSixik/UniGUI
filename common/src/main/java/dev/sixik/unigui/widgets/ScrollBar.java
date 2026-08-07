@@ -21,6 +21,9 @@ import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.widget.Visibility;
 
 public class ScrollBar extends Box {
+    public static final float DEFAULT_SIZE = 6.0f;
+    public static final float DEFAULT_GAP = 8.0f;
+
     private final MutableColor trackColor = new MutableColor(0.0f, 0.0f, 0.0f, 0.28f);
     private final MutableColor thumbColor = new MutableColor(0.25f, 0.78f, 1.0f, 0.75f);
     private Orientation orientation = Orientation.VERTICAL;

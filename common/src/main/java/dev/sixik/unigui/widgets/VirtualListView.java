@@ -40,7 +40,8 @@ import java.util.function.IntFunction;
  * Fixed-row-height virtualized list for large scrollable datasets.
  */
 public class VirtualListView extends WidgetBase {
-    private static final float SCROLLBAR_WIDTH = 6.0f;
+    private static final float SCROLLBAR_WIDTH = ScrollBar.DEFAULT_SIZE;
+    private static final float SCROLLBAR_GAP = ScrollBar.DEFAULT_GAP;
     private static final MutableColor SELECTED_ROW_COLOR = new MutableColor(0.18f, 0.45f, 0.75f, 0.35f);
     private static final MutableColor ACTIVE_ROW_COLOR = new MutableColor(1.0f, 1.0f, 1.0f, 0.70f);
 
@@ -413,7 +414,8 @@ public class VirtualListView extends WidgetBase {
     }
 
     private float viewportWidth() {
-        return Math.max(0.0f, layoutBounds().width() - (hasVerticalScrollBar() ? SCROLLBAR_WIDTH : 0.0f));
+        return Math.max(0.0f, layoutBounds().width()
+                - (hasVerticalScrollBar() ? SCROLLBAR_WIDTH + SCROLLBAR_GAP : 0.0f));
     }
 
     private void pruneRealized() {

@@ -53,7 +53,8 @@ import java.util.function.BiFunction;
  * Fixed-row-height virtualized table/data-grid prototype.
  */
 public class VirtualTableView extends WidgetBase {
-    private static final float SCROLLBAR_WIDTH = 6.0f;
+    private static final float SCROLLBAR_WIDTH = ScrollBar.DEFAULT_SIZE;
+    private static final float SCROLLBAR_GAP = ScrollBar.DEFAULT_GAP;
     private static final float HEADER_RESIZE_HIT_SLOP = 4.0f;
     private static final float DEFAULT_MIN_COLUMN_WIDTH = 24.0f;
     private static final MutableColor HEADER_BACKGROUND = new MutableColor(0.10f, 0.10f, 0.10f, 1.0f);
@@ -870,7 +871,8 @@ public class VirtualTableView extends WidgetBase {
     }
 
     private float viewportWidth() {
-        return Math.max(0.0f, layoutBounds().width() - (hasVerticalScrollBar() ? SCROLLBAR_WIDTH : 0.0f));
+        return Math.max(0.0f, layoutBounds().width()
+                - (hasVerticalScrollBar() ? SCROLLBAR_WIDTH + SCROLLBAR_GAP : 0.0f));
     }
 
     private float rowViewportY() {

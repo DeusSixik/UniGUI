@@ -22,7 +22,7 @@ import java.util.Collections;
 import java.util.List;
 
 public class ScrollView extends WidgetBase {
-    private static final float SCROLLBAR_SIZE = 6.0f;
+    private static final float SCROLLBAR_SIZE = ScrollBar.DEFAULT_SIZE;
 
     private final MutableColor scrollbarTrackColor = new MutableColor(0.0f, 0.0f, 0.0f, 0.28f);
     private final MutableColor scrollbarThumbColor = new MutableColor(0.25f, 0.78f, 1.0f, 0.75f);
@@ -36,6 +36,7 @@ public class ScrollView extends WidgetBase {
     private float scrollX;
     private float scrollY;
     private float scrollStep = 16.0f;
+    private float scrollbarGap = ScrollBar.DEFAULT_GAP;
     private boolean horizontalScrollBarVisible;
     private boolean verticalScrollBarVisible;
 
@@ -115,6 +116,18 @@ public class ScrollView extends WidgetBase {
 
     public ScrollView scrollStep(float scrollStep) {
         this.scrollStep = Math.max(1.0f, scrollStep);
+        return this;
+    }
+
+    public float scrollbarGap() {
+        return scrollbarGap;
+    }
+
+    public ScrollView scrollbarGap(float scrollbarGap) {
+        float normalized = Float.isFinite(scrollbarGap) ? Math.max(0.0f, scrollbarGap) : ScrollBar.DEFAULT_GAP;
+        if (this.scrollbarGap == normalized) return this;
+        this.scrollbarGap = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
 
@@ -316,13 +329,13 @@ public class ScrollView extends WidgetBase {
         if (showsHorizontalScrollBar()) {
             horizontalScrollBar.arrange(new MutableRect(
                     layoutBounds().x(),
-                    layoutBounds().y() + viewportHeight(),
+                    layoutBounds().y() + viewportHeight() + scrollbarGap,
                     viewportWidth(),
                     SCROLLBAR_SIZE));
         }
         if (showsVerticalScrollBar()) {
             verticalScrollBar.arrange(new MutableRect(
-                    layoutBounds().x() + viewportWidth(),
+                    layoutBounds().x() + viewportWidth() + scrollbarGap,
                     layoutBounds().y(),
                     SCROLLBAR_SIZE,
                     viewportHeight()));
@@ -350,8 +363,8 @@ public class ScrollView extends WidgetBase {
         float height = Math.max(0.0f, layoutBounds().height());
 
         for (int pass = 0; pass < 4; pass++) {
-            float candidateWidth = Math.max(0.0f, width - (vertical ? SCROLLBAR_SIZE : 0.0f));
-            float candidateHeight = Math.max(0.0f, height - (horizontal ? SCROLLBAR_SIZE : 0.0f));
+            float candidateWidth = Math.max(0.0f, width - (vertical ? scrollbarReservation() : 0.0f));
+            float candidateHeight = Math.max(0.0f, height - (horizontal ? scrollbarReservation() : 0.0f));
             boolean nextHorizontal = layoutStyle().overflowX() == Overflow.SCROLL
                     || (layoutStyle().overflowX() == Overflow.AUTO
                     && rawContentWidth() > candidateWidth);
@@ -369,25 +382,32 @@ public class ScrollView extends WidgetBase {
 
     private float viewportWidth() {
         return Math.max(0.0f, layoutBounds().width()
-                - (showsVerticalScrollBar() ? SCROLLBAR_SIZE : 0.0f));
+                - (showsVerticalScrollBar() ? scrollbarReservation() : 0.0f));
     }
 
     private float viewportHeight() {
         return Math.max(0.0f, layoutBounds().height()
-                - (showsHorizontalScrollBar() ? SCROLLBAR_SIZE : 0.0f));
+                - (showsHorizontalScrollBar() ? scrollbarReservation() : 0.0f));
+    }
+
+    private float scrollbarReservation() {
+        return SCROLLBAR_SIZE + scrollbarGap;
     }
 
     private float effectiveContentWidth() {
+        if (!horizontalScrollingEnabled()) {
+            return viewportWidth();
+        }
         if (contentWidth > 0.0f) {
             return contentWidth;
         }
-        if (horizontalScrollingEnabled()) {
-            return Math.max(measuredContentWidth, viewportWidth());
-        }
-        return viewportWidth();
+        return Math.max(measuredContentWidth, viewportWidth());
     }
 
     private float effectiveContentHeight() {
+        if (!verticalScrollingEnabled()) {
+            return viewportHeight();
+        }
         if (contentHeight > 0.0f) {
             return contentHeight;
         }
