@@ -15,6 +15,7 @@ import dev.sixik.unigui.api.render.SimpleTextureHandle;
 import dev.sixik.unigui.api.selection.SelectionMode;
 import dev.sixik.unigui.api.sort.SortDirection;
 import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.text.Fonts;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.backend.minecraft.MinecraftClipboardService;
@@ -44,6 +45,7 @@ public final class TestCommands {
     private static final int SAMPLE_ANIMATIONS = 5;
     private static final int SAMPLE_MINECRAFT = 6;
     private static final int SAMPLE_LAYOUT_V2 = 7;
+    private static final int SAMPLE_FONTS = 8;
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("unigui").executes(ctx -> {
@@ -85,7 +87,8 @@ public final class TestCommands {
                 overlaysSample(),
                 animationsSample(),
                 minecraftSample(),
-                layoutV2Sample()
+                layoutV2Sample(),
+                fontsSample()
         };
         for (WidgetBase sample : samples) {
             sampleHost.addChild(sample);
@@ -99,7 +102,8 @@ public final class TestCommands {
                 navButton("Overlays"),
                 navButton("Animations"),
                 navButton("Minecraft"),
-                navButton("Layout v2")
+                navButton("Layout v2"),
+                navButton("Fonts")
         };
 
         Box navBox = navigation(context, navButtons, samples);
@@ -543,6 +547,46 @@ public final class TestCommands {
         textModes.addChild(textModeCard("SHRINK", TextOverflowMode.SHRINK_TO_FIT));
         textModes.addChild(textModeCard("MARQUEE", TextOverflowMode.MARQUEE_ON_HOVER));
         sample.addChild(textModes);
+
+        return sample;
+    }
+
+    private static VBox fontsSample() {
+        VBox sample = samplePanel("Fonts", "SDF, vanilla Minecraft and mixed RichText runs in one retained text widget.");
+
+        Label sdfTitle = new Label("External SDF font");
+        sdfTitle.preferredSize(LayoutConstraints.AUTO, 16.0f).grow(0.0f);
+        sample.addChild(sdfTitle);
+
+        TextBlock sdfText = new TextBlock();
+        sdfText.richText(RichText.of("The quick brown fox 0123456789", Fonts.defaultFace(), 16.0f));
+        sdfText.preferredSize(LayoutConstraints.AUTO, 24.0f).grow(0.0f);
+        sample.addChild(sdfText);
+
+        Label vanillaTitle = new Label("Vanilla Minecraft faces");
+        vanillaTitle.preferredSize(LayoutConstraints.AUTO, 16.0f).grow(0.0f);
+        sample.addChild(vanillaTitle);
+
+        TextBlock vanillaText = new TextBlock();
+        vanillaText.richText(RichText.builder()
+                .font(MinecraftFonts.defaultFace()).size(14.0f).append("minecraft:default  ")
+                .font(MinecraftFonts.uniformFace()).size(14.0f).append("minecraft:uniform")
+                .build());
+        vanillaText.preferredSize(LayoutConstraints.AUTO, 24.0f).grow(0.0f);
+        sample.addChild(vanillaText);
+
+        Label mixedTitle = new Label("Mixed runs");
+        mixedTitle.preferredSize(LayoutConstraints.AUTO, 16.0f).grow(0.0f);
+        sample.addChild(mixedTitle);
+
+        TextBlock mixedText = new TextBlock();
+        mixedText.richText(RichText.builder()
+                .font(Fonts.defaultFace()).size(16.0f).append("SDF ")
+                .font(MinecraftFonts.defaultFace()).size(12.0f).append("Vanilla ")
+                .font(MinecraftFonts.uniformFace()).size(14.0f).append("Uniform")
+                .build());
+        mixedText.preferredSize(LayoutConstraints.AUTO, 26.0f).grow(0.0f);
+        sample.addChild(mixedText);
 
         return sample;
     }
