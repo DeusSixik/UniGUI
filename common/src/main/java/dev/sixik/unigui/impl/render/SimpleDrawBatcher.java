@@ -36,13 +36,14 @@ public final class SimpleDrawBatcher implements DrawBatcher {
     }
 
     private static boolean isBatchable(DrawCommand command) {
-        return command.type() == DrawCommandType.RECT
+        return isColorPrimitive(command.type())
                 || command.type() == DrawCommandType.TEXT
                 || command.type() == DrawCommandType.TEXTURE;
     }
 
     private static boolean canMerge(DrawBatch batch, DrawCommand command) {
         if (batch.isBarrier()) return false;
+        if (isColorPrimitive(batch.type()) && isColorPrimitive(command.type())) return true;
         if (batch.type() != command.type()) return false;
         if (command.type() != DrawCommandType.TEXTURE) return true;
         return sameTexture(batch.texture(), command.texture());
@@ -52,5 +53,13 @@ public final class SimpleDrawBatcher implements DrawBatcher {
         if (left == right) return true;
         if (left == null || right == null) return false;
         return Objects.equals(left.id(), right.id());
+    }
+
+    private static boolean isColorPrimitive(DrawCommandType type) {
+        return type == DrawCommandType.RECT
+                || type == DrawCommandType.ROUNDED_RECT
+                || type == DrawCommandType.LINE
+                || type == DrawCommandType.CIRCLE
+                || type == DrawCommandType.PATH;
     }
 }

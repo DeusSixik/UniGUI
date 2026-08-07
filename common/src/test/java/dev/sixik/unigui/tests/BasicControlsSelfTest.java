@@ -43,6 +43,7 @@ import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.render.DrawCommandType;
 import dev.sixik.unigui.api.render.DrawList;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderBackend;
 import dev.sixik.unigui.api.render.RenderTarget;
 import dev.sixik.unigui.api.selection.SelectionMode;
@@ -269,6 +270,16 @@ public final class BasicControlsSelfTest {
         var batches = SimpleDrawBatcher.INSTANCE.batch(batchList);
         expect(batches.size() == 1 && !batches.get(0).isBarrier() && batches.get(0).size() == 2,
                 "Consecutive text commands should form one GPU batch");
+
+        DrawList shapeList = new DrawList();
+        DefaultRenderContext shapeContext = new DefaultRenderContext(shapeList);
+        shapeContext.rect(0.0f, 0.0f, 20.0f, 10.0f, Paint.fill(new MutableColor()));
+        shapeContext.roundedRect(2.0f, 2.0f, 18.0f, 10.0f, 3.0f, Paint.fill(new MutableColor()));
+        shapeContext.line(0.0f, 12.0f, 20.0f, 12.0f, Paint.stroke(new MutableColor(), 1.0f));
+        var shapeBatches = SimpleDrawBatcher.INSTANCE.batch(shapeList);
+        expect(shapeBatches.size() == 1 && !shapeBatches.get(0).isBarrier()
+                        && shapeBatches.get(0).size() == 3,
+                "Mixed color primitives should share one GPU batch");
 
         AwtFontFace awt = new AwtFontFace("self-test", new java.awt.Font("SansSerif", java.awt.Font.PLAIN, 16));
         SdfGlyph first = awt.sdfGlyph('A', 32, 6);

@@ -54,6 +54,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
     private final ScissorStack scissorStack = new ScissorStack();
     private final MinecraftSdfTextRenderer sdfTextRenderer =
             new MinecraftSdfTextRenderer(DefaultFontRegistry.global());
+    private final MinecraftShapeBatchRenderer shapeBatchRenderer = new MinecraftShapeBatchRenderer();
     private GuiGraphics graphics;
     private int appliedScissorDepth;
     private int gpuTimerQueryId;
@@ -282,6 +283,10 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
     }
 
     private void renderBatch(DrawBatch batch) {
+        if (MinecraftShapeBatchRenderer.supports(batch.type())
+                && shapeBatchRenderer.render(graphics, batch.commands())) {
+            return;
+        }
         if (batch.type() == DrawCommandType.TEXT
                 && sdfTextRenderer.render(graphics, batch.commands(), graphics.pose())) {
             return;
