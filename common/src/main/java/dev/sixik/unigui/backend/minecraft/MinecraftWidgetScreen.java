@@ -19,6 +19,7 @@ import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.render.DrawList;
+import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.impl.debug.DebugOverlayRenderer;
@@ -38,6 +39,7 @@ public class MinecraftWidgetScreen extends Screen {
     private final DrawList drawList = new DrawList();
     private final DefaultRenderContext renderContext = new DefaultRenderContext(drawList);
     private MinecraftGuiRenderBackend backend;
+    private FontFace defaultFont = MinecraftFonts.defaultFace();
     private long frameIndex;
     private float lastFrameCpuMillis;
     private long lastFrameStartNanos;
@@ -69,6 +71,16 @@ public class MinecraftWidgetScreen extends Screen {
         return drawList;
     }
 
+    public FontFace defaultFont() {
+        return defaultFont;
+    }
+
+    public MinecraftWidgetScreen defaultFont(FontFace defaultFont) {
+        this.defaultFont = defaultFont == null ? MinecraftFonts.defaultFace() : defaultFont;
+        if (backend != null) backend.defaultFont(this.defaultFont);
+        return this;
+    }
+
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         long uiCpuStartNanos = System.nanoTime();
@@ -96,6 +108,7 @@ public class MinecraftWidgetScreen extends Screen {
 
         if (backend == null) {
             backend = new MinecraftGuiRenderBackend(graphics);
+            backend.defaultFont(defaultFont);
         } else {
             backend.graphics(graphics);
         }

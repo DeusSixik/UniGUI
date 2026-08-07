@@ -8,6 +8,7 @@ import dev.sixik.unigui.api.text.RichText;
 public final class DrawCommand {
     private DrawCommandType type;
     private final MutableRect bounds = new MutableRect();
+    private final MutableRect uv = new MutableRect(0.0f, 0.0f, 1.0f, 1.0f);
     private final Transform transform = new Transform();
     private Paint paint = new Paint();
     private VectorPath path;
@@ -67,6 +68,15 @@ public final class DrawCommand {
 
     public DrawCommand bounds(RectView bounds) {
         this.bounds.set(bounds);
+        return this;
+    }
+
+    public MutableRect uv() {
+        return uv;
+    }
+
+    public DrawCommand uv(RectView uv) {
+        this.uv.set(uv);
         return this;
     }
 
@@ -147,6 +157,7 @@ public final class DrawCommand {
     public DrawCommand copy() {
         DrawCommand copy = new DrawCommand(type);
         copy.bounds.set(bounds);
+        copy.uv.set(uv);
         copy.transform.copyFrom(transform);
         copy.paint = paint.copy();
         copy.path = path == null ? null : path.copy();

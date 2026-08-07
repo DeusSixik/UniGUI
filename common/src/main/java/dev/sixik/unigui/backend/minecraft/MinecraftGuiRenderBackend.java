@@ -27,6 +27,7 @@ import dev.sixik.unigui.impl.render.ScissorStack;
 import dev.sixik.unigui.impl.render.SimpleDrawBatcher;
 import dev.sixik.unigui.impl.text.DefaultFontRegistry;
 import dev.sixik.unigui.impl.text.TextEngine;
+import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextRun;
 import net.minecraft.client.Minecraft;
@@ -54,7 +55,9 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
     private final ScissorStack scissorStack = new ScissorStack();
     private final MinecraftSdfTextRenderer sdfTextRenderer =
             new MinecraftSdfTextRenderer(DefaultFontRegistry.global());
+    private final MinecraftMixedTextRenderer mixedTextRenderer;
     private final MinecraftShapeBatchRenderer shapeBatchRenderer = new MinecraftShapeBatchRenderer();
+    private final MinecraftTextureBatchRenderer textureBatchRenderer = new MinecraftTextureBatchRenderer();
     private GuiGraphics graphics;
     private int appliedScissorDepth;
     private int gpuTimerQueryId;
@@ -71,6 +74,8 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
         this.graphics = Objects.requireNonNull(graphics, "graphics");
         this.minecraft = Objects.requireNonNull(minecraft, "minecraft");
         this.batcher = batcher == null ? SimpleDrawBatcher.INSTANCE : batcher;
+        this.sdfTextRenderer.defaultFace(MinecraftFonts.defaultFace());
+        this.mixedTextRenderer = new MinecraftMixedTextRenderer(this.minecraft, sdfTextRenderer);
     }
 
     public MinecraftGuiRenderBackend graphics(GuiGraphics graphics) {
@@ -95,6 +100,20 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
 
     public GuiGraphics graphics() {
         return graphics;
+    }
+
+    /** Font used by plain String text commands that do not provide a RichText face. */
+    public FontFace defaultFont() {
+        return sdfTextRenderer.defaultFace();
+    }
+
+    public MinecraftGuiRenderBackend defaultFont(FontFace font) {
+        sdfTextRenderer.defaultFace(font);
+        return this;
+    }
+
+    public MinecraftGuiRenderBackend useVanillaDefaultFont() {
+        return defaultFont(MinecraftFonts.defaultFace());
     }
 
     public void renderItemPreview(ItemStack stack, float x, float y, float size, float opacity, boolean decorations) {
@@ -144,7 +163,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
     public float measureTextWidth(String text) {
         if (text == null || text.isEmpty()) return 0.0f;
         return TextEngine.measureLineWidth(
-                RichText.of(text, DefaultFontRegistry.global().defaultFace(), TextRun.DEFAULT_PIXEL_SIZE));
+                RichText.of(text, defaultFont(), TextRun.DEFAULT_PIXEL_SIZE));
     }
 
     @Override
@@ -288,7 +307,15 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
             return;
         }
         if (batch.type() == DrawCommandType.TEXT
+                && mixedTextRenderer.render(graphics, batch.commands(), graphics.pose())) {
+            return;
+        }
+        if (batch.type() == DrawCommandType.TEXT
                 && sdfTextRenderer.render(graphics, batch.commands(), graphics.pose())) {
+            return;
+        }
+        if (batch.type() == DrawCommandType.TEXTURE
+                && textureBatchRenderer.render(graphics, batch.commands())) {
             return;
         }
         for (DrawCommand command : batch.commands()) {
@@ -668,6 +695,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
         RectView bounds = command.bounds();
         int textureWidth = Math.max(1, texture.width());
         int textureHeight = Math.max(1, texture.height());
+        RectView uv = command.uv();
         ColorView tint = command.paint().color();
         graphics.setColor(tint.r(), tint.g(), tint.b(), tint.a());
         try {
@@ -676,10 +704,10 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
                     round(bounds.y()),
                     round(bounds.width()),
                     round(bounds.height()),
-                    0.0f,
-                    0.0f,
-                    textureWidth,
-                    textureHeight,
+                    uv.x() * textureWidth,
+                    uv.y() * textureHeight,
+                    Math.max(1, round(uv.width() * textureWidth)),
+                    Math.max(1, round(uv.height() * textureHeight)),
                     textureWidth,
                     textureHeight);
         } finally {
@@ -689,10 +717,13 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
 
     private void renderTextureId(int textureId, boolean flipY, DrawCommand command) {
         RectView bounds = command.bounds();
+        RectView uv = command.uv();
         ColorView tint = command.paint().color();
 
-        float minV = flipY ? 1.0f : 0.0f;
-        float maxV = flipY ? 0.0f : 1.0f;
+        float minU = uv.x();
+        float maxU = uv.x() + uv.width();
+        float minV = flipY ? uv.y() + uv.height() : uv.y();
+        float maxV = flipY ? uv.y() : uv.y() + uv.height();
         int x1 = round(bounds.x());
         int y1 = round(bounds.y());
         int x2 = round(bounds.x() + bounds.width());
@@ -706,10 +737,10 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
         Tesselator tesselator = Tesselator.getInstance();
         BufferBuilder buffer = tesselator.getBuilder();
         buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
-        addTextureVertex(buffer, matrix, x1, y1, 0.0f, minV, tint);
-        addTextureVertex(buffer, matrix, x1, y2, 0.0f, maxV, tint);
-        addTextureVertex(buffer, matrix, x2, y2, 1.0f, maxV, tint);
-        addTextureVertex(buffer, matrix, x2, y1, 1.0f, minV, tint);
+        addTextureVertex(buffer, matrix, x1, y1, minU, minV, tint);
+        addTextureVertex(buffer, matrix, x1, y2, minU, maxV, tint);
+        addTextureVertex(buffer, matrix, x2, y2, maxU, maxV, tint);
+        addTextureVertex(buffer, matrix, x2, y1, maxU, minV, tint);
         BufferUploader.drawWithShader(buffer.end());
         RenderSystem.disableBlend();
     }

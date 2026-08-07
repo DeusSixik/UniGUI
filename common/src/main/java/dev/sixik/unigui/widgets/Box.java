@@ -4,8 +4,12 @@ import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.math.MutableRect;
+import dev.sixik.unigui.api.render.ImageFit;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.render.TextureHandle;
+import dev.sixik.unigui.api.render.TexturePlacement;
 import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.style.StyleKey;
 import dev.sixik.unigui.api.style.StyleKeys;
@@ -20,6 +24,10 @@ import java.util.List;
 
 public class Box extends PanelWidget {
     private final MutableColor background = new MutableColor(0.0f, 0.0f, 0.0f, 0.0f);
+    private TextureHandle backgroundTexture;
+    private final MutableColor backgroundTextureTint = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
+    private final MutableRect backgroundTextureSource = new MutableRect(0.0f, 0.0f, 1.0f, 1.0f);
+    private ImageFit backgroundTextureFit = ImageFit.STRETCH;
     private final MutableColor borderColor = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private boolean backgroundVisible;
     private boolean borderVisible;
@@ -31,6 +39,8 @@ public class Box extends PanelWidget {
 
     public Box() {
         background.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
+        backgroundTextureTint.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
+        backgroundTextureSource.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         borderColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
     }
 
@@ -47,6 +57,42 @@ public class Box extends PanelWidget {
 
     public boolean backgroundVisible() {
         return backgroundVisible;
+    }
+
+    public TextureHandle backgroundTexture() {
+        return backgroundTexture;
+    }
+
+    public Box backgroundTexture(TextureHandle backgroundTexture) {
+        if (this.backgroundTexture == backgroundTexture) return this;
+        this.backgroundTexture = backgroundTexture;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public MutableColor backgroundTextureTint() {
+        return backgroundTextureTint;
+    }
+
+    public MutableRect backgroundTextureSource() {
+        return backgroundTextureSource;
+    }
+
+    public Box backgroundTextureSource(float u, float v, float width, float height) {
+        backgroundTextureSource.set(u, v, width, height);
+        return this;
+    }
+
+    public ImageFit backgroundTextureFit() {
+        return backgroundTextureFit;
+    }
+
+    public Box backgroundTextureFit(ImageFit fit) {
+        ImageFit effectiveFit = fit == null ? ImageFit.STRETCH : fit;
+        if (backgroundTextureFit == effectiveFit) return this;
+        backgroundTextureFit = effectiveFit;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
     }
 
     public MutableColor borderColor() {
@@ -121,6 +167,12 @@ public class Box extends PanelWidget {
             context.roundedRect(x, y, width, height, radius, Paint.fill(background), transform());
         }
 
+        if (backgroundTexture != null) {
+            TexturePlacement placement = TexturePlacement.fit(backgroundTexture, backgroundTextureSource,
+                    layoutBounds(), backgroundTextureFit);
+            context.texture(backgroundTexture, placement, radius, Paint.fill(backgroundTextureTint), transform());
+        }
+
         if (borderVisible) {
             context.roundedRect(x, y, width, height, radius, Paint.stroke(borderColor, borderWidth), transform());
         }
@@ -143,12 +195,26 @@ public class Box extends PanelWidget {
         lastAppliedScopeStyleVersion = scopeStyleVersion;
 
         ColorView themedBackground = styleValue(StyleKeys.BACKGROUND_COLOR, background);
+        TextureHandle themedBackgroundTexture = styleValue(StyleKeys.BACKGROUND_TEXTURE, backgroundTexture);
+        ColorView themedBackgroundTextureTint = styleValue(StyleKeys.BACKGROUND_TEXTURE_TINT, backgroundTextureTint);
+        ImageFit themedBackgroundTextureFit = styleValue(StyleKeys.BACKGROUND_TEXTURE_FIT, backgroundTextureFit);
         ColorView themedBorder = styleValue(StyleKeys.BORDER_COLOR, borderColor);
         Float themedBorderWidth = styleValue(StyleKeys.BORDER_WIDTH, borderWidth);
         Float themedRadius = styleValue(StyleKeys.RADIUS, radius);
 
         if (themedBackground != null) {
             background.set(themedBackground);
+        }
+        if (backgroundTexture != themedBackgroundTexture) {
+            backgroundTexture = themedBackgroundTexture;
+            invalidate(InvalidationFlags.VISUAL);
+        }
+        if (themedBackgroundTextureTint != null) {
+            backgroundTextureTint.set(themedBackgroundTextureTint);
+        }
+        if (themedBackgroundTextureFit != null && backgroundTextureFit != themedBackgroundTextureFit) {
+            backgroundTextureFit = themedBackgroundTextureFit;
+            invalidate(InvalidationFlags.VISUAL);
         }
         if (themedBorder != null) {
             borderColor.set(themedBorder);

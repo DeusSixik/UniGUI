@@ -10,14 +10,18 @@ import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.Justify;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.layout.Overflow;
+import dev.sixik.unigui.api.render.ImageFit;
+import dev.sixik.unigui.api.render.SimpleTextureHandle;
 import dev.sixik.unigui.api.selection.SelectionMode;
 import dev.sixik.unigui.api.sort.SortDirection;
+import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.backend.minecraft.MinecraftClipboardService;
 import dev.sixik.unigui.backend.minecraft.MinecraftBlockPreviewWidget;
 import dev.sixik.unigui.backend.minecraft.MinecraftEntityPreviewWidget;
 import dev.sixik.unigui.backend.minecraft.MinecraftItemPreviewWidget;
+import dev.sixik.unigui.backend.minecraft.MinecraftFonts;
 import dev.sixik.unigui.backend.minecraft.MinecraftWidgetScreen;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.impl.widget.WidgetBase;
@@ -415,6 +419,12 @@ public final class TestCommands {
         status.preferredSize(LayoutConstraints.AUTO, 20.0f).grow(0.0f);
         sample.addChild(status);
 
+        Label vanillaFont = new Label();
+        vanillaFont.richText(RichText.of(
+                "Vanilla Minecraft font", MinecraftFonts.defaultFace(), 10.0f));
+        vanillaFont.preferredSize(LayoutConstraints.AUTO, 16.0f).grow(0.0f);
+        sample.addChild(vanillaFont);
+
         WrapPanel previews = new WrapPanel();
         previews.spacing(8.0f);
         previews.lineSpacing(8.0f);
@@ -454,6 +464,13 @@ public final class TestCommands {
         Button swapEntity = new Button("Swap entity");
         swapEntity.preferredSize(88.0f, 22.0f).grow(0.0f);
 
+        Button textured = new Button("Textured");
+        textured.backgroundTexture(new SimpleTextureHandle(
+                "minecraft:textures/block/warped_planks.png", 16, 16));
+        textured.backgroundTextureFit(ImageFit.COVER);
+        textured.backgroundTextureTint().set(0.72f, 0.72f, 0.72f, 1.0f);
+        textured.preferredSize(82.0f, 22.0f).grow(0.0f);
+
         swapItem.onClick(event -> {
             if (item.stack().is(Items.DIAMOND)) {
                 item.stack(new ItemStack(Items.EMERALD, 11)).label("Emerald");
@@ -487,6 +504,7 @@ public final class TestCommands {
         controls.addChild(swapItem);
         controls.addChild(swapBlock);
         controls.addChild(swapEntity);
+        controls.addChild(textured);
         sample.addChild(controls);
 
         return sample;

@@ -41,11 +41,15 @@ import dev.sixik.unigui.api.input.TextEditorModel;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
+import dev.sixik.unigui.api.render.DrawCommand;
 import dev.sixik.unigui.api.render.DrawCommandType;
 import dev.sixik.unigui.api.render.DrawList;
+import dev.sixik.unigui.api.render.ImageFit;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderBackend;
 import dev.sixik.unigui.api.render.RenderTarget;
+import dev.sixik.unigui.api.render.SimpleTextureHandle;
+import dev.sixik.unigui.api.render.TexturePlacement;
 import dev.sixik.unigui.api.selection.SelectionMode;
 import dev.sixik.unigui.api.sort.SortDirection;
 import dev.sixik.unigui.api.style.MutableStyle;
@@ -62,6 +66,8 @@ import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.virtualization.FixedRowVirtualizer;
 import dev.sixik.unigui.api.virtualization.VirtualRange;
 import dev.sixik.unigui.backend.minecraft.MinecraftGuiRenderBackend;
+import dev.sixik.unigui.backend.minecraft.MinecraftFontFace;
+import dev.sixik.unigui.backend.minecraft.MinecraftFonts;
 import dev.sixik.unigui.backend.minecraft.MinecraftPreviewWidget;
 import dev.sixik.unigui.impl.input.TransformHitTester;
 import dev.sixik.unigui.impl.render.DefaultRenderContext;
@@ -112,6 +118,7 @@ public final class BasicControlsSelfTest {
         testTextInputShellAndTextFieldChrome();
         testTextOverflowModes();
         testRichTextAndSdfContracts();
+        testTexturePlacementAndBackgrounds();
         testTextFieldFocusAndEditing();
         testTextFieldSelectionAndClipboard();
         testTextInputClippingMetricsAndSelection();
@@ -256,6 +263,18 @@ public final class BasicControlsSelfTest {
                         new TextRun("C", wide, 16.0f)))),
                 "RichText builder should switch fonts without manual run positioning");
 
+        MinecraftFontFace vanilla = MinecraftFonts.defaultFace();
+        expect(vanilla.id().equals("minecraft-font:minecraft:default"),
+                "MinecraftFonts should expose the vanilla default FontFace");
+        expect(near(vanilla.metrics(9.0f).lineHeight(), 9.0f),
+                "Vanilla FontFace should scale Minecraft's native nine-pixel line height");
+        RichText mixed = RichText.builder()
+                .font(narrow).size(10.0f).append("SDF ")
+                .font(vanilla).size(9.0f).append("Vanilla")
+                .build();
+        expect(mixed.runs().get(1).font() == vanilla,
+                "RichText should preserve Minecraft and SDF faces in one value");
+
         TextBlock block = new TextBlock();
         block.richText(text);
         block.arrange(new MutableRect(0.0f, 0.0f, 40.0f, 20.0f));
@@ -294,6 +313,70 @@ public final class BasicControlsSelfTest {
         }
         expect(minimum < 128 && maximum > 128,
                 "SDF glyph should contain both outside and inside distance values");
+    }
+
+    private void testTexturePlacementAndBackgrounds() {
+        SimpleTextureHandle texture = new SimpleTextureHandle("test:textures/ui/background.png", 200, 100);
+        MutableRect destination = new MutableRect(10.0f, 20.0f, 100.0f, 100.0f);
+
+        TexturePlacement contain = TexturePlacement.fit(texture, destination, ImageFit.CONTAIN);
+        expect(near(contain.x(), 10.0f) && near(contain.y(), 45.0f)
+                        && near(contain.width(), 100.0f) && near(contain.height(), 50.0f),
+                "CONTAIN should letterbox the destination without cropping UVs");
+
+        TexturePlacement cover = TexturePlacement.fit(texture, destination, ImageFit.COVER);
+        expect(near(cover.x(), 10.0f) && near(cover.y(), 20.0f)
+                        && near(cover.width(), 100.0f) && near(cover.height(), 100.0f),
+                "COVER should preserve the destination bounds");
+        expect(near(cover.u(), 0.25f) && near(cover.v(), 0.0f)
+                        && near(cover.uWidth(), 0.5f) && near(cover.vHeight(), 1.0f),
+                "COVER should crop the wider texture symmetrically");
+
+        Box box = new Box();
+        box.themeEnabled(false);
+        box.backgroundVisible(true);
+        box.background().set(0.1f, 0.2f, 0.3f, 1.0f);
+        box.backgroundTexture(texture);
+        box.backgroundTextureFit(ImageFit.COVER);
+        box.backgroundTextureTint().set(0.8f, 0.7f, 0.6f, 0.5f);
+        box.borderVisible(true);
+        box.radius(6.0f);
+        box.arrange(destination);
+
+        DrawList drawList = new DrawList();
+        box.render(new DefaultRenderContext(drawList));
+        expect(drawList.size() == 3, "Textured Box should emit color, texture and border commands");
+        expect(drawList.commands().get(0).type() == DrawCommandType.ROUNDED_RECT
+                        && drawList.commands().get(1).type() == DrawCommandType.TEXTURE
+                        && drawList.commands().get(2).type() == DrawCommandType.ROUNDED_RECT,
+                "Textured Box should render solid background, texture, then border");
+
+        DrawCommand textureCommand = drawList.commands().get(1);
+        expect(textureCommand.texture() == texture && near(textureCommand.radius(), 6.0f),
+                "Background texture command should preserve its texture and corner radius");
+        expect(near(textureCommand.uv().x(), 0.25f) && near(textureCommand.uv().width(), 0.5f),
+                "Background texture command should snapshot COVER UV cropping");
+        expect(near(textureCommand.paint().color().r(), 0.8f)
+                        && near(textureCommand.paint().color().a(), 0.5f),
+                "Background texture command should snapshot tint and opacity");
+
+        DrawCommand copied = textureCommand.copy();
+        textureCommand.uv().set(0.0f, 0.0f, 1.0f, 1.0f);
+        expect(near(copied.uv().x(), 0.25f) && near(copied.uv().width(), 0.5f),
+                "DrawCommand.copy should snapshot texture UVs");
+
+        DrawList batchList = new DrawList();
+        batchList.add(copied);
+        batchList.add(copied.copy().texture(new SimpleTextureHandle(texture.id(), 200, 100)));
+        var batches = SimpleDrawBatcher.INSTANCE.batch(batchList);
+        expect(batches.size() == 1 && batches.get(0).size() == 2,
+                "Texture commands with the same resource id should share one batch");
+
+        MutableStyle textureStyle = new MutableStyle()
+                .put(StyleKeys.BACKGROUND_TEXTURE, texture)
+                .put(StyleKeys.BACKGROUND_TEXTURE_FIT, ImageFit.COVER);
+        expect(textureStyle.get(StyleKeys.BACKGROUND_TEXTURE, WidgetState.HOVERED, null) == texture,
+                "Background textures should participate in state-aware styles");
     }
 
     private void testTextFieldFocusAndEditing() {

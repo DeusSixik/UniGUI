@@ -8,6 +8,7 @@ import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.Transform;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.impl.text.TextEngine;
@@ -61,6 +62,11 @@ public class TextWidget extends WidgetBase {
         this.text = normalized.plainText();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
+    }
+
+    /** Selects a face for the current plain text while preserving the normal TextWidget API. */
+    public TextWidget font(FontFace font, float pixelSize) {
+        return richText(RichText.of(text, font, pixelSize));
     }
 
     public MutableColor color() {

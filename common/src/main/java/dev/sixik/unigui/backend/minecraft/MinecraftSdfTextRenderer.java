@@ -75,6 +75,7 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
 
     private final DefaultFontRegistry fonts;
     private final Map<FontFace, FontAtlas> atlases = new IdentityHashMap<>();
+    private FontFace defaultFace;
     private final FloatBuffer matrixBuffer = BufferUtils.createFloatBuffer(16);
     private FloatBuffer vertexUpload = BufferUtils.createFloatBuffer(FLOATS_PER_VERTEX * 6 * 64);
     private int program;
@@ -88,6 +89,16 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
 
     public MinecraftSdfTextRenderer(DefaultFontRegistry fonts) {
         this.fonts = fonts == null ? DefaultFontRegistry.global() : fonts;
+        this.defaultFace = this.fonts.defaultFace();
+    }
+
+    public FontFace defaultFace() {
+        return defaultFace;
+    }
+
+    public MinecraftSdfTextRenderer defaultFace(FontFace defaultFace) {
+        this.defaultFace = defaultFace == null ? fonts.defaultFace() : defaultFace;
+        return this;
     }
 
     public boolean render(GuiGraphics graphics, List<DrawCommand> commands, PoseStack pose) {
@@ -272,12 +283,12 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
     private RichText richText(DrawCommand command) {
         RichText richText = command.richText();
         return richText == null
-                ? RichText.of(command.text(), fonts.defaultFace(), TextRun.DEFAULT_PIXEL_SIZE)
+                ? RichText.of(command.text(), defaultFace, TextRun.DEFAULT_PIXEL_SIZE)
                 : richText;
     }
 
     private FontFace resolvedFace(TextRun run) {
-        return run.font() == null ? fonts.defaultFace() : run.font();
+        return run.font() == null ? defaultFace : run.font();
     }
 
     private static Batch nextBatch(List<Batch> batches, AtlasPage page) {

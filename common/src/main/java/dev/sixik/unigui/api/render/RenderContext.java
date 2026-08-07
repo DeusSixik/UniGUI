@@ -76,6 +76,24 @@ public interface RenderContext {
         drawList().add(DrawCommand.texture(texture, new MutableRect(x, y, width, height), effectivePaint(paint)).transform(transform));
     }
 
+    default void texture(TextureHandle texture, TexturePlacement placement, float radius, Paint paint) {
+        drawList().add(DrawCommand.texture(texture,
+                        new MutableRect(placement.x(), placement.y(), placement.width(), placement.height()),
+                        effectivePaint(paint))
+                .uv(new MutableRect(placement.u(), placement.v(), placement.uWidth(), placement.vHeight()))
+                .radius(radius));
+    }
+
+    default void texture(TextureHandle texture, TexturePlacement placement, float radius,
+                         Paint paint, Transform transform) {
+        drawList().add(DrawCommand.texture(texture,
+                        new MutableRect(placement.x(), placement.y(), placement.width(), placement.height()),
+                        effectivePaint(paint))
+                .uv(new MutableRect(placement.u(), placement.v(), placement.uWidth(), placement.vHeight()))
+                .radius(radius)
+                .transform(transform));
+    }
+
     default void text(String text, float x, float y, float width, float height, Paint paint) {
         drawList().add(DrawCommand.text(text, new MutableRect(x, y, width, height), effectivePaint(paint)));
     }
