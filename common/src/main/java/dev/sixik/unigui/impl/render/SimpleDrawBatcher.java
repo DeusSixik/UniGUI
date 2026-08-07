@@ -36,7 +36,9 @@ public final class SimpleDrawBatcher implements DrawBatcher {
     }
 
     private static boolean isBatchable(DrawCommand command) {
-        return command.type() == DrawCommandType.RECT || command.type() == DrawCommandType.TEXTURE;
+        return command.type() == DrawCommandType.RECT
+                || command.type() == DrawCommandType.TEXT
+                || command.type() == DrawCommandType.TEXTURE;
     }
 
     private static boolean canMerge(DrawBatch batch, DrawCommand command) {

@@ -53,6 +53,10 @@ import dev.sixik.unigui.api.style.StyleKey;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.text.TextOverflowMode;
+import dev.sixik.unigui.api.text.FontFace;
+import dev.sixik.unigui.api.text.FontMetrics;
+import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.text.TextRun;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.virtualization.FixedRowVirtualizer;
 import dev.sixik.unigui.api.virtualization.VirtualRange;
@@ -61,6 +65,9 @@ import dev.sixik.unigui.backend.minecraft.MinecraftPreviewWidget;
 import dev.sixik.unigui.impl.input.TransformHitTester;
 import dev.sixik.unigui.impl.render.DefaultRenderContext;
 import dev.sixik.unigui.impl.render.ScissorStack;
+import dev.sixik.unigui.impl.render.SimpleDrawBatcher;
+import dev.sixik.unigui.impl.text.AwtFontFace;
+import dev.sixik.unigui.impl.text.SdfGlyph;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.widgets.Button;
@@ -103,6 +110,7 @@ public final class BasicControlsSelfTest {
         testTextEditorModelCore();
         testTextInputShellAndTextFieldChrome();
         testTextOverflowModes();
+        testRichTextAndSdfContracts();
         testTextFieldFocusAndEditing();
         testTextFieldSelectionAndClipboard();
         testTextInputClippingMetricsAndSelection();
@@ -218,6 +226,63 @@ public final class BasicControlsSelfTest {
         marquee.render(new DefaultRenderContext(marqueeDrawList));
         expect(marqueeDrawList.commands().stream().filter(command -> command.type() == DrawCommandType.TEXT).count() == 2,
                 "TextWidget MARQUEE_ON_HOVER should draw a wrapped marquee copy while hovered");
+    }
+
+    private void testRichTextAndSdfContracts() {
+        FontFace narrow = new FixedFontFace("narrow", 2.0f, 10.0f);
+        FontFace wide = new FixedFontFace("wide", 5.0f, 16.0f);
+        MutableColor mutableRunColor = new MutableColor(0.2f, 0.4f, 0.6f, 0.8f);
+        RichText text = new RichText(java.util.List.of(
+                new TextRun("ab", narrow, 10.0f, mutableRunColor),
+                new TextRun("C", wide, 16.0f)));
+
+        mutableRunColor.set(1.0f, 1.0f, 1.0f, 1.0f);
+        ColorView snapshot = text.runs().get(0).color();
+        expect(near(snapshot.r(), 0.2f) && near(snapshot.a(), 0.8f),
+                "TextRun should snapshot mutable run colors");
+        expect(near(TextEngine.measureLineWidth(text), 9.0f),
+                "RichText width should combine advances from different font faces");
+        expect(near(TextEngine.measureTextHeight(text), 16.0f),
+                "RichText height should use the tallest run on the line");
+        expect(text.equals(new RichText(text.runs())),
+                "RichText should have value equality for stable widget updates");
+        RichText built = RichText.builder()
+                .font(narrow).size(10.0f).append("ab")
+                .font(wide).size(16.0f).append("C")
+                .build();
+        expect(built.equals(new RichText(java.util.List.of(
+                        new TextRun("ab", narrow, 10.0f),
+                        new TextRun("C", wide, 16.0f)))),
+                "RichText builder should switch fonts without manual run positioning");
+
+        TextBlock block = new TextBlock();
+        block.richText(text);
+        block.arrange(new MutableRect(0.0f, 0.0f, 40.0f, 20.0f));
+        DrawList drawList = new DrawList();
+        block.render(new DefaultRenderContext(drawList));
+        expect(drawList.size() == 1 && drawList.commands().get(0).richText().equals(text),
+                "TextWidget should preserve RichText in the render command");
+
+        DrawList batchList = new DrawList();
+        batchList.add(drawList.commands().get(0));
+        batchList.add(drawList.commands().get(0));
+        var batches = SimpleDrawBatcher.INSTANCE.batch(batchList);
+        expect(batches.size() == 1 && !batches.get(0).isBarrier() && batches.get(0).size() == 2,
+                "Consecutive text commands should form one GPU batch");
+
+        AwtFontFace awt = new AwtFontFace("self-test", new java.awt.Font("SansSerif", java.awt.Font.PLAIN, 16));
+        SdfGlyph first = awt.sdfGlyph('A', 32, 6);
+        SdfGlyph cached = awt.sdfGlyph('A', 32, 6);
+        expect(first == cached, "SDF glyph generation should be cached by face, size and spread");
+        int minimum = 255;
+        int maximum = 0;
+        for (byte pixel : first.pixels()) {
+            int value = pixel & 0xFF;
+            minimum = Math.min(minimum, value);
+            maximum = Math.max(maximum, value);
+        }
+        expect(minimum < 128 && maximum > 128,
+                "SDF glyph should contain both outside and inside distance values");
     }
 
     private void testTextFieldFocusAndEditing() {
@@ -2293,6 +2358,18 @@ public final class BasicControlsSelfTest {
 
         @Override
         public void endFrame() {
+        }
+    }
+
+    private record FixedFontFace(String id, float advance, float lineHeight) implements FontFace {
+        @Override
+        public FontMetrics metrics(float pixelSize) {
+            return new FontMetrics(lineHeight * 0.75f, lineHeight * 0.25f, 0.0f, lineHeight);
+        }
+
+        @Override
+        public float advance(int codePoint, float pixelSize) {
+            return advance;
         }
     }
 

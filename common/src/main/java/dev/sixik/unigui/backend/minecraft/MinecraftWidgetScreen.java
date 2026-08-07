@@ -291,6 +291,10 @@ public class MinecraftWidgetScreen extends Screen {
         uiContext.hoverManager().clearHover();
         uiContext.focusManager().clearFocus();
         uiContext.clearPointerCapture(0);
+        if (backend != null) {
+            backend.close();
+            backend = null;
+        }
         root.dispose();
     }
 

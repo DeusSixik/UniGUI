@@ -3,6 +3,7 @@ package dev.sixik.unigui.api.render;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.math.Transform;
+import dev.sixik.unigui.api.text.RichText;
 
 public final class DrawCommand {
     private DrawCommandType type;
@@ -12,6 +13,7 @@ public final class DrawCommand {
     private VectorPath path;
     private TextureHandle texture;
     private String text;
+    private RichText richText;
     private CustomDraw customDraw;
     private float radius;
 
@@ -110,6 +112,17 @@ public final class DrawCommand {
 
     public DrawCommand text(String text) {
         this.text = text;
+        this.richText = null;
+        return this;
+    }
+
+    public RichText richText() {
+        return richText;
+    }
+
+    public DrawCommand richText(RichText richText) {
+        this.richText = richText;
+        this.text = richText == null ? null : richText.plainText();
         return this;
     }
 
@@ -139,6 +152,7 @@ public final class DrawCommand {
         copy.path = path == null ? null : path.copy();
         copy.texture = texture;
         copy.text = text;
+        copy.richText = richText;
         copy.customDraw = customDraw;
         copy.radius = radius;
         return copy;

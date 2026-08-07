@@ -8,6 +8,7 @@ import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.Transform;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.impl.widget.WidgetBase;
@@ -19,6 +20,7 @@ public class TextWidget extends WidgetBase {
     protected static final float LINE_HEIGHT = TextEngine.LINE_HEIGHT;
 
     private String text = "";
+    private RichText richText;
     private final MutableColor color = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private boolean wrap;
     private TextOverflowMode overflowMode = TextOverflowMode.VISIBLE;
@@ -41,8 +43,22 @@ public class TextWidget extends WidgetBase {
 
     public TextWidget text(String text) {
         String normalized = normalize(text);
-        if (Objects.equals(this.text, normalized)) return this;
+        if (Objects.equals(this.text, normalized) && richText == null) return this;
         this.text = normalized;
+        this.richText = null;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public RichText richText() {
+        return richText;
+    }
+
+    public TextWidget richText(RichText richText) {
+        RichText normalized = richText == null ? RichText.plain("") : richText;
+        if (Objects.equals(this.richText, normalized)) return this;
+        this.richText = normalized;
+        this.text = normalized.plainText();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
@@ -147,7 +163,7 @@ public class TextWidget extends WidgetBase {
             return;
         }
 
-        float textWidth = TextEngine.measureLineWidth(text);
+        float textWidth = intrinsicTextWidth();
         if (textWidth <= Math.max(0.0f, layoutBounds().width())) {
             if (marqueeOffset != 0.0f) {
                 marqueeOffset = 0.0f;
@@ -170,16 +186,15 @@ public class TextWidget extends WidgetBase {
     }
 
     private void renderVisible(RenderContext context) {
-        TextEngine.draw(context,
-                text,
-                layoutBounds().x(),
-                layoutBounds().y(),
-                layoutBounds().width(),
-                layoutBounds().height(),
-                Paint.fill(color),
-                transform(),
-                Alignment.START,
-                textVerticalAlignment());
+        if (richText == null) {
+            TextEngine.draw(context, text, layoutBounds().x(), layoutBounds().y(),
+                    layoutBounds().width(), layoutBounds().height(), Paint.fill(color),
+                    transform(), Alignment.START, textVerticalAlignment());
+        } else {
+            TextEngine.draw(context, richText, layoutBounds().x(), layoutBounds().y(),
+                    layoutBounds().width(), layoutBounds().height(), Paint.fill(color),
+                    transform(), Alignment.START, textVerticalAlignment());
+        }
     }
 
     private void renderClipped(RenderContext context) {
@@ -191,41 +206,56 @@ public class TextWidget extends WidgetBase {
     private void renderShrinkToFit(RenderContext context) {
         float availableWidth = Math.max(0.0f, layoutBounds().width());
         float availableHeight = Math.max(0.0f, layoutBounds().height());
-        float textWidth = TextEngine.measureLineWidth(context, text);
+        float textWidth = richText == null
+                ? TextEngine.measureLineWidth(context, text)
+                : TextEngine.measureLineWidth(context, richText);
         float scale = textWidth <= 0.0f || availableWidth <= 0.0f ? 1.0f : Math.min(1.0f, availableWidth / textWidth);
-        float textHeight = Math.min(availableHeight, LINE_HEIGHT * scale);
+        float sourceHeight = richText == null ? LINE_HEIGHT : TextEngine.measureTextHeight(richText);
+        float textHeight = Math.min(availableHeight, sourceHeight * scale);
         float drawY = TextEngine.alignedStart(layoutBounds().y(), availableHeight, textHeight, textVerticalAlignment());
         Transform scaled = scaledTransform(scale);
         context.pushClip(layoutBounds().x(), layoutBounds().y(), availableWidth, availableHeight);
-        context.text(text,
-                layoutBounds().x(),
-                drawY,
-                textWidth,
-                LINE_HEIGHT,
-                Paint.fill(color),
-                scaled);
+        if (richText == null) {
+            context.text(text, layoutBounds().x(), drawY, textWidth, LINE_HEIGHT, Paint.fill(color), scaled);
+        } else {
+            context.text(richText, layoutBounds().x(), drawY, textWidth,
+                    TextEngine.measureTextHeight(richText), Paint.fill(color), scaled);
+        }
         context.popClip();
     }
 
     private void renderMarquee(RenderContext context) {
         float availableWidth = Math.max(0.0f, layoutBounds().width());
         float availableHeight = Math.max(0.0f, layoutBounds().height());
-        float textWidth = TextEngine.measureLineWidth(context, text);
+        float textWidth = richText == null
+                ? TextEngine.measureLineWidth(context, text)
+                : TextEngine.measureLineWidth(context, richText);
         if (textWidth <= availableWidth) {
             renderVisible(context);
             return;
         }
 
-        float textHeight = Math.min(availableHeight, LINE_HEIGHT);
+        float textHeight = Math.min(availableHeight,
+                richText == null ? LINE_HEIGHT : TextEngine.measureTextHeight(richText));
         float drawY = TextEngine.alignedStart(layoutBounds().y(), availableHeight, textHeight, textVerticalAlignment());
         float period = Math.max(1.0f, textWidth + marqueeGap);
         float offset = hovered() ? marqueeOffset % period : 0.0f;
         float firstX = layoutBounds().x() - offset;
 
         context.pushClip(layoutBounds().x(), layoutBounds().y(), availableWidth, availableHeight);
-        context.text(text, firstX, drawY, textWidth, textHeight, Paint.fill(color), transform());
+        if (richText == null) {
+            context.text(text, firstX, drawY, textWidth, textHeight, Paint.fill(color), transform());
+        } else {
+            context.text(richText, firstX, drawY, textWidth, textHeight, Paint.fill(color), transform());
+        }
         if (hovered()) {
-            context.text(text, firstX + textWidth + marqueeGap, drawY, textWidth, textHeight, Paint.fill(color), transform());
+            if (richText == null) {
+                context.text(text, firstX + textWidth + marqueeGap, drawY, textWidth, textHeight,
+                        Paint.fill(color), transform());
+            } else {
+                context.text(richText, firstX + textWidth + marqueeGap, drawY, textWidth, textHeight,
+                        Paint.fill(color), transform());
+            }
         }
         context.popClip();
     }
@@ -242,7 +272,7 @@ public class TextWidget extends WidgetBase {
 
     private float measuredTextWidth(LayoutContext context) {
         if (text.isEmpty()) return 0.0f;
-        float intrinsicWidth = maxLineCodePoints() * APPROX_CHAR_WIDTH;
+        float intrinsicWidth = intrinsicTextWidth();
         if (!wrap) return intrinsicWidth;
         float availableWidth = context == null ? Float.POSITIVE_INFINITY : context.availableWidth();
         return Float.isFinite(availableWidth) && availableWidth > 0.0f
@@ -252,7 +282,7 @@ public class TextWidget extends WidgetBase {
 
     private float measuredTextHeight(LayoutContext context) {
         if (text.isEmpty()) return 0.0f;
-        if (!wrap) return textLines().length * LINE_HEIGHT;
+        if (!wrap) return richText == null ? textLines().length * LINE_HEIGHT : TextEngine.measureTextHeight(richText);
 
         float availableWidth = context == null ? Float.POSITIVE_INFINITY : context.availableWidth();
         if (!Float.isFinite(availableWidth) || availableWidth <= 0.0f) {
@@ -278,5 +308,11 @@ public class TextWidget extends WidgetBase {
 
     private String[] textLines() {
         return text.split("\\R", -1);
+    }
+
+    private float intrinsicTextWidth() {
+        return richText == null
+                ? maxLineCodePoints() * APPROX_CHAR_WIDTH
+                : TextEngine.measureLineWidth(richText);
     }
 }

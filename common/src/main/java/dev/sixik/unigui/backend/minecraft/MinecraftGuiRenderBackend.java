@@ -25,6 +25,10 @@ import dev.sixik.unigui.impl.render.DrawBatch;
 import dev.sixik.unigui.impl.render.DrawBatcher;
 import dev.sixik.unigui.impl.render.ScissorStack;
 import dev.sixik.unigui.impl.render.SimpleDrawBatcher;
+import dev.sixik.unigui.impl.text.DefaultFontRegistry;
+import dev.sixik.unigui.impl.text.TextEngine;
+import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.text.TextRun;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
@@ -44,10 +48,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
-public final class MinecraftGuiRenderBackend implements RenderBackend {
+public final class MinecraftGuiRenderBackend implements RenderBackend, AutoCloseable {
     private final Minecraft minecraft;
     private final DrawBatcher batcher;
     private final ScissorStack scissorStack = new ScissorStack();
+    private final MinecraftSdfTextRenderer sdfTextRenderer =
+            new MinecraftSdfTextRenderer(DefaultFontRegistry.global());
     private GuiGraphics graphics;
     private int appliedScissorDepth;
     private int gpuTimerQueryId;
@@ -135,7 +141,9 @@ public final class MinecraftGuiRenderBackend implements RenderBackend {
 
     @Override
     public float measureTextWidth(String text) {
-        return text == null || text.isEmpty() ? 0.0f : minecraft.font.width(text);
+        if (text == null || text.isEmpty()) return 0.0f;
+        return TextEngine.measureLineWidth(
+                RichText.of(text, DefaultFontRegistry.global().defaultFace(), TextRun.DEFAULT_PIXEL_SIZE));
     }
 
     @Override
@@ -274,9 +282,24 @@ public final class MinecraftGuiRenderBackend implements RenderBackend {
     }
 
     private void renderBatch(DrawBatch batch) {
+        if (batch.type() == DrawCommandType.TEXT
+                && sdfTextRenderer.render(graphics, batch.commands(), graphics.pose())) {
+            return;
+        }
         for (DrawCommand command : batch.commands()) {
             renderCommand(command);
         }
+    }
+
+    @Override
+    public void close() {
+        clearScissorStack();
+        sdfTextRenderer.close();
+        if (gpuTimerQueryId != 0) {
+            GL15.glDeleteQueries(gpuTimerQueryId);
+            gpuTimerQueryId = 0;
+        }
+        gpuTimerQueryInFlight = false;
     }
 
     private void renderCommand(DrawCommand command) {

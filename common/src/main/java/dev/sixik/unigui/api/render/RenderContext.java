@@ -2,6 +2,7 @@ package dev.sixik.unigui.api.render;
 
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.Transform;
+import dev.sixik.unigui.api.text.RichText;
 
 public interface RenderContext {
     DrawList drawList();
@@ -81,6 +82,22 @@ public interface RenderContext {
 
     default void text(String text, float x, float y, float width, float height, Paint paint, Transform transform) {
         drawList().add(DrawCommand.text(text, new MutableRect(x, y, width, height), effectivePaint(paint)).transform(transform));
+    }
+
+    default void text(RichText text, float x, float y, float width, float height, Paint paint) {
+        drawList().add(new DrawCommand(DrawCommandType.TEXT)
+                .richText(text)
+                .bounds(new MutableRect(x, y, width, height))
+                .paint(effectivePaint(paint)));
+    }
+
+    default void text(RichText text, float x, float y, float width, float height,
+                      Paint paint, Transform transform) {
+        drawList().add(new DrawCommand(DrawCommandType.TEXT)
+                .richText(text)
+                .bounds(new MutableRect(x, y, width, height))
+                .paint(effectivePaint(paint))
+                .transform(transform));
     }
 
     default void custom(CustomDraw customDraw) {
