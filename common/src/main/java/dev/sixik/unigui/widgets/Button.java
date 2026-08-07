@@ -15,6 +15,7 @@ import dev.sixik.unigui.api.event.PointerExitedEvent;
 import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.event.PointerReleasedEvent;
 import dev.sixik.unigui.api.input.PointerButton;
+import dev.sixik.unigui.api.input.MouseCursor;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableColor;
@@ -45,6 +46,7 @@ public class Button extends Box {
     private float disabledOpacity = 0.55f;
 
     public Button() {
+        mouseCursor(MouseCursor.POINTER);
         backgroundVisible(true);
         borderVisible(true);
         focusable(true);

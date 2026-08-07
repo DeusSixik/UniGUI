@@ -13,6 +13,7 @@ import dev.sixik.unigui.api.event.EventSubscription;
 import dev.sixik.unigui.api.event.EventType;
 import dev.sixik.unigui.api.event.PointerEnteredEvent;
 import dev.sixik.unigui.api.event.PointerExitedEvent;
+import dev.sixik.unigui.api.input.MouseCursor;
 import dev.sixik.unigui.api.layout.Align;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.EdgeInsets;
@@ -56,6 +57,7 @@ public abstract class WidgetBase implements Widget {
     private Visibility visibility = Visibility.VISIBLE;
     private boolean enabled = true;
     private boolean hovered;
+    private MouseCursor mouseCursor = MouseCursor.DEFAULT;
     private boolean focusable;
     private boolean focusScope;
     private int focusOrder;
@@ -398,6 +400,20 @@ public abstract class WidgetBase implements Widget {
     @Override
     public boolean hovered() {
         return hovered;
+    }
+
+    public MouseCursor mouseCursor() {
+        return mouseCursor;
+    }
+
+    public WidgetBase mouseCursor(MouseCursor mouseCursor) {
+        this.mouseCursor = mouseCursor == null ? MouseCursor.DEFAULT : mouseCursor;
+        return this;
+    }
+
+    @Override
+    public MouseCursor mouseCursorAt(float localX, float localY) {
+        return enabled && visibility == Visibility.VISIBLE ? mouseCursor : MouseCursor.DEFAULT;
     }
 
     @Override

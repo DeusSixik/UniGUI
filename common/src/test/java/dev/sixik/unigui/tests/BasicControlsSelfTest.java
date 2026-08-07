@@ -36,6 +36,7 @@ import dev.sixik.unigui.api.layout.SizeValue;
 import dev.sixik.unigui.api.input.FocusDirection;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.input.KeyModifiers;
+import dev.sixik.unigui.api.input.MouseCursor;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.input.TextEditorModel;
 import dev.sixik.unigui.api.math.ColorView;
@@ -2261,9 +2262,15 @@ public final class BasicControlsSelfTest {
         table.clearSort();
         table.resizeColumn(0, 60.0f);
         columnEvents.resized = 0;
+        expect(table.mouseCursorAt(60.0f, 5.0f) == MouseCursor.RESIZE_HORIZONTAL,
+                "VirtualTableView divider should expose a horizontal resize cursor");
+        expect(table.mouseCursorAt(45.0f, 5.0f) == MouseCursor.DEFAULT,
+                "VirtualTableView header body should retain the default cursor");
         uiContext.routedEvents().dispatch(new PointerPressedEvent(table, 60.0f, 5.0f, 60.0f, 5.0f, 0, PointerButton.PRIMARY));
         expect(table.resizingColumn() && table.resizingColumnIndex() == 0 && uiContext.capturedPointer(0) == table,
                 "VirtualTableView divider press should start column resize and capture pointer");
+        expect(table.mouseCursorAt(25.0f, 25.0f) == MouseCursor.RESIZE_HORIZONTAL,
+                "VirtualTableView should retain the resize cursor while dragging outside the header divider");
         uiContext.routedEvents().dispatch(new PointerMovedEvent(table, 85.0f, 5.0f, 85.0f, 5.0f, 0));
         expect(table.columnWidth(0) == 85.0f && columnEvents.resized == 1,
                 "VirtualTableView divider drag should resize the captured column");
@@ -2272,6 +2279,18 @@ public final class BasicControlsSelfTest {
         uiContext.routedEvents().dispatch(new PointerReleasedEvent(table, 85.0f, 5.0f, 85.0f, 5.0f, 0, PointerButton.PRIMARY));
         expect(!table.resizingColumn() && uiContext.capturedPointer(0) == null,
                 "VirtualTableView divider release should end resize and release pointer capture");
+        table.columnResizeEnabled(false);
+        expect(table.mouseCursorAt(85.0f, 5.0f) == MouseCursor.DEFAULT,
+                "VirtualTableView should not expose a resize cursor when column resizing is disabled");
+
+        expect(new Button("Action").mouseCursorAt(1.0f, 1.0f) == MouseCursor.POINTER,
+                "Button should expose the pointer cursor by default");
+        expect(new TextField().mouseCursorAt(1.0f, 1.0f) == MouseCursor.TEXT,
+                "Text inputs should expose the text cursor by default");
+        Box customCursor = new Box();
+        customCursor.mouseCursor(MouseCursor.RESIZE_VERTICAL);
+        expect(customCursor.mouseCursorAt(1.0f, 1.0f) == MouseCursor.RESIZE_VERTICAL,
+                "WidgetBase should allow callers to configure a custom mouse cursor");
     }
 
     private void testToggleCheckboxProgressAndNumberField() {

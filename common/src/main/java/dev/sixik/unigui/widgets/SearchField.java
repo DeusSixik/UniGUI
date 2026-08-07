@@ -1,6 +1,5 @@
 package dev.sixik.unigui.widgets;
 
-import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.event.Event;
 import dev.sixik.unigui.api.event.EventListener;
 import dev.sixik.unigui.api.event.EventPhase;

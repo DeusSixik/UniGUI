@@ -26,6 +26,7 @@ import dev.sixik.unigui.api.event.TextInputEvent;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.input.KeyModifiers;
 import dev.sixik.unigui.api.input.PointerButton;
+import dev.sixik.unigui.api.input.MouseCursor;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
@@ -212,6 +213,15 @@ public class VirtualTableView extends WidgetBase {
 
     public int resizingColumnIndex() {
         return resizingColumn;
+    }
+
+    @Override
+    public MouseCursor mouseCursorAt(float localX, float localY) {
+        if (columnResizeEnabled && enabled() && visibility() == Visibility.VISIBLE
+                && (resizingColumn >= 0 || isHeaderLocalY(localY) && resizeColumnAt(localX) >= 0)) {
+            return MouseCursor.RESIZE_HORIZONTAL;
+        }
+        return super.mouseCursorAt(localX, localY);
     }
 
     public EventSubscription onColumnResized(EventListener<? super TableColumnResizedEvent> listener) {

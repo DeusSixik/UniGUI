@@ -4,6 +4,7 @@ import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.UIContext;
 import dev.sixik.unigui.api.event.Event;
 import dev.sixik.unigui.api.event.EventEmitter;
+import dev.sixik.unigui.api.input.MouseCursor;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
@@ -49,6 +50,11 @@ public interface Widget extends EventEmitter {
 
     default boolean hovered() {
         return false;
+    }
+
+    /** Returns the cursor to display at the supplied widget-local coordinates. */
+    default MouseCursor mouseCursorAt(float localX, float localY) {
+        return MouseCursor.DEFAULT;
     }
 
     default boolean focusable() {

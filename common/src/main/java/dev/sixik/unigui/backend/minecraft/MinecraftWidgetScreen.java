@@ -15,6 +15,7 @@ import dev.sixik.unigui.api.input.HitTestResult;
 import dev.sixik.unigui.api.input.FocusDirection;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.input.KeyModifiers;
+import dev.sixik.unigui.api.input.MouseCursor;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableRect;
@@ -35,7 +36,10 @@ import dev.sixik.unigui.impl.widget.WidgetBase;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import org.lwjgl.glfw.GLFW;
 
+import java.util.EnumMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -57,6 +61,8 @@ public class MinecraftWidgetScreen extends Screen {
     private int cachedWidth;
     private int cachedHeight;
     private long lastCachedRenderNanos;
+    private final Map<MouseCursor, Long> nativeCursors = new EnumMap<>(MouseCursor.class);
+    private MouseCursor activeMouseCursor = MouseCursor.DEFAULT;
 
     public MinecraftWidgetScreen(Widget root) {
         this(Component.empty(), root, new DefaultUIContext(new MinecraftClipboardService()));
@@ -183,6 +189,7 @@ public class MinecraftWidgetScreen extends Screen {
     public void mouseMoved(double mouseX, double mouseY) {
         Widget captured = uiContext.capturedPointer(0);
         if (captured != null) {
+            updateMouseCursor(captured, mouseX, mouseY);
             uiContext.routedEvents().dispatch(new PointerMovedEvent(
                     captured,
                     (float) mouseX,
@@ -195,11 +202,13 @@ public class MinecraftWidgetScreen extends Screen {
 
         Optional<HitTestResult> hit = hit(mouseX, mouseY);
         if (hit.isEmpty()) {
+            updateMouseCursor(MouseCursor.DEFAULT);
             uiContext.hoverManager().clearHover();
             return;
         }
 
         HitTestResult result = hit.get();
+        updateMouseCursor(result.widget().mouseCursorAt(result.localX(), result.localY()));
         uiContext.hoverManager().updateHover(result.widget(),
                 (float) mouseX,
                 (float) mouseY,
@@ -257,6 +266,7 @@ public class MinecraftWidgetScreen extends Screen {
             if (button == 0) {
                 uiContext.clearPointerCapture(0);
             }
+            updateMouseCursorAt(mouseX, mouseY);
             return consumed;
         }
 
@@ -282,6 +292,7 @@ public class MinecraftWidgetScreen extends Screen {
             return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
         }
 
+        updateMouseCursor(captured, mouseX, mouseY);
         PointerMovedEvent event = new PointerMovedEvent(
                 captured,
                 (float) mouseX,
@@ -347,6 +358,7 @@ public class MinecraftWidgetScreen extends Screen {
 
     @Override
     public void removed() {
+        releaseMouseCursors();
         uiContext.hoverManager().clearHover();
         uiContext.focusManager().clearFocus();
         uiContext.clearPointerCapture(0);
@@ -440,6 +452,64 @@ public class MinecraftWidgetScreen extends Screen {
 
     private static float localY(Widget widget, double rootY) {
         return (float) rootY - widget.layoutBounds().y();
+    }
+
+    private void updateMouseCursor(Widget widget, double rootX, double rootY) {
+        updateMouseCursor(widget == null
+                ? MouseCursor.DEFAULT
+                : widget.mouseCursorAt(localX(widget, rootX), localY(widget, rootY)));
+    }
+
+    private void updateMouseCursorAt(double rootX, double rootY) {
+        Optional<HitTestResult> hit = hit(rootX, rootY);
+        if (hit.isEmpty()) {
+            updateMouseCursor(MouseCursor.DEFAULT);
+            return;
+        }
+        HitTestResult result = hit.get();
+        updateMouseCursor(result.widget().mouseCursorAt(result.localX(), result.localY()));
+    }
+
+    private void updateMouseCursor(MouseCursor cursor) {
+        MouseCursor normalized = cursor == null ? MouseCursor.DEFAULT : cursor;
+        if (activeMouseCursor == normalized) return;
+
+        long window = minecraft == null || minecraft.getWindow() == null
+                ? 0L
+                : minecraft.getWindow().getWindow();
+        if (window == 0L) return;
+
+        long nativeCursor = normalized == MouseCursor.DEFAULT
+                ? 0L
+                : nativeCursors.computeIfAbsent(normalized, this::createNativeCursor);
+        GLFW.glfwSetCursor(window, nativeCursor);
+        activeMouseCursor = normalized;
+    }
+
+    private long createNativeCursor(MouseCursor cursor) {
+        int shape = switch (cursor) {
+            case POINTER -> GLFW.GLFW_HAND_CURSOR;
+            case TEXT -> GLFW.GLFW_IBEAM_CURSOR;
+            case CROSSHAIR -> GLFW.GLFW_CROSSHAIR_CURSOR;
+            case RESIZE_HORIZONTAL -> GLFW.GLFW_HRESIZE_CURSOR;
+            case RESIZE_VERTICAL -> GLFW.GLFW_VRESIZE_CURSOR;
+            case DEFAULT -> GLFW.GLFW_ARROW_CURSOR;
+        };
+        return GLFW.glfwCreateStandardCursor(shape);
+    }
+
+    private void releaseMouseCursors() {
+        long window = minecraft == null || minecraft.getWindow() == null
+                ? 0L
+                : minecraft.getWindow().getWindow();
+        if (window != 0L) {
+            GLFW.glfwSetCursor(window, 0L);
+        }
+        for (long cursor : nativeCursors.values()) {
+            if (cursor != 0L) GLFW.glfwDestroyCursor(cursor);
+        }
+        nativeCursors.clear();
+        activeMouseCursor = MouseCursor.DEFAULT;
     }
 
     private void recordDebugDrawStats() {

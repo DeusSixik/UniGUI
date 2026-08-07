@@ -11,6 +11,7 @@ import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.Justify;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.layout.Overflow;
+import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.ImageFit;
 import dev.sixik.unigui.api.render.SimpleTextureHandle;
 import dev.sixik.unigui.api.render.UiRenderPolicy;
@@ -673,7 +674,7 @@ public final class TestCommands {
     }
 
     private static VBox fontsSample() {
-        VBox sample = samplePanel("Fonts", "SDF, vanilla Minecraft and mixed RichText runs in one retained text widget.");
+        VBox sample = samplePanel("Fonts", "SDF, vanilla Minecraft and colored RichText runs with mixed faces and sizes.");
 
         Label sdfTitle = new Label("External SDF font");
         sdfTitle.preferredSize(LayoutConstraints.AUTO, 16.0f).grow(0.0f);
@@ -696,17 +697,22 @@ public final class TestCommands {
         vanillaText.preferredSize(LayoutConstraints.AUTO, 24.0f).grow(0.0f);
         sample.addChild(vanillaText);
 
-        Label mixedTitle = new Label("Mixed runs");
+        Label mixedTitle = new Label("Mixed colors, faces and sizes");
         mixedTitle.preferredSize(LayoutConstraints.AUTO, 16.0f).grow(0.0f);
         sample.addChild(mixedTitle);
 
         TextBlock mixedText = new TextBlock();
         mixedText.richText(RichText.builder()
-                .font(Fonts.defaultFace()).size(16.0f).append("SDF ")
-                .font(MinecraftFonts.defaultFace()).size(12.0f).append("Vanilla ")
-                .font(MinecraftFonts.uniformFace()).size(14.0f).append("Uniform")
+                .font(Fonts.defaultFace()).size(18.0f)
+                .color(MutableColor.rgba(0.25f, 0.85f, 1.0f, 1.0f)).append("SDF 18px  ")
+                .font(MinecraftFonts.defaultFace()).size(12.0f)
+                .color(MutableColor.rgba(1.0f, 0.75f, 0.2f, 1.0f)).append("Default 12px  ")
+                .font(MinecraftFonts.uniformFace()).size(14.0f)
+                .color(MutableColor.rgba(0.35f, 1.0f, 0.45f, 1.0f)).append("Uniform 14px  ")
+                .font(MinecraftFonts.altFace()).size(16.0f)
+                .color(MutableColor.rgba(1.0f, 0.4f, 0.8f, 1.0f)).append("Alt 16px")
                 .build());
-        mixedText.preferredSize(LayoutConstraints.AUTO, 26.0f).grow(0.0f);
+        mixedText.preferredSize(LayoutConstraints.AUTO, 30.0f).grow(0.0f);
         sample.addChild(mixedText);
 
         return sample;

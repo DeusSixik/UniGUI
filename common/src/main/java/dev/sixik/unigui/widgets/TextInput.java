@@ -17,6 +17,7 @@ import dev.sixik.unigui.api.event.TextChangedEvent;
 import dev.sixik.unigui.api.event.TextInputEvent;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.input.KeyModifiers;
+import dev.sixik.unigui.api.input.MouseCursor;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.input.TextEditorModel;
 import dev.sixik.unigui.api.layout.LayoutContext;
@@ -49,6 +50,7 @@ public class TextInput extends Box {
     private boolean visualOnlyTextChanges;
 
     public TextInput() {
+        mouseCursor(MouseCursor.TEXT);
         focusable(true);
         editor.onChanged((oldText, newText) -> {
             invalidate(visualOnlyTextChanges ? InvalidationFlags.VISUAL : InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
