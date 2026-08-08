@@ -4,16 +4,20 @@ import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.render.ImageFit;
-import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.TexturePlacement;
+import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.impl.widget.WidgetBase;
+import dev.sixik.unigui.widgets.render.TextureWidgetRenderer;
+import dev.sixik.unigui.widgets.render.TextureWidgetState;
 
 public class TextureWidget extends WidgetBase {
     private TextureHandle texture;
     private final MutableColor tint = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private final MutableRect source = new MutableRect(0.0f, 0.0f, 1.0f, 1.0f);
+    private TextureWidgetRenderer renderer;
     private ImageFit fit = ImageFit.STRETCH;
     private float radius;
 
@@ -44,6 +48,21 @@ public class TextureWidget extends WidgetBase {
 
     public MutableRect source() {
         return source;
+    }
+
+    public TextureWidgetRenderer renderer() {
+        return renderer;
+    }
+
+    public TextureWidget renderer(TextureWidgetRenderer renderer) {
+        if (this.renderer == renderer) return this;
+        this.renderer = renderer;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public TextureWidget useDefaultRenderer() {
+        return renderer(null);
     }
 
     public TextureWidget source(float u, float v, float width, float height) {
@@ -80,10 +99,28 @@ public class TextureWidget extends WidgetBase {
         if (texture == null) return;
         pushOpacity(context);
         try {
-            TexturePlacement placement = TexturePlacement.fit(texture, source, layoutBounds(), fit);
-            context.texture(texture, placement, radius, Paint.fill(tint), transform());
+            effectiveRenderer().render(new DrawScope(context, transform()), snapshot());
         } finally {
             popOpacity(context);
         }
+    }
+
+    protected TextureWidgetRenderer effectiveRenderer() {
+        return renderer == null ? WidgetsRender.textureWidget() : renderer;
+    }
+
+    protected TextureWidgetState snapshot() {
+        TexturePlacement placement = TexturePlacement.fit(texture, source, layoutBounds(), fit);
+        return new TextureWidgetState(
+                layoutBounds().x(),
+                layoutBounds().y(),
+                layoutBounds().width(),
+                layoutBounds().height(),
+                texture,
+                source.copy(),
+                fit,
+                radius,
+                tint.copy(),
+                placement);
     }
 }

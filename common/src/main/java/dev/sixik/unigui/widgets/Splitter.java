@@ -11,12 +11,16 @@ import dev.sixik.unigui.api.event.PointerReleasedEvent;
 import dev.sixik.unigui.api.input.MouseCursor;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.math.MutableColor;
-import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.widgets.render.SplitterRenderer;
+import dev.sixik.unigui.widgets.render.SplitterState;
 
 public final class Splitter extends Box {
     private final SplitPanel owner;
     private final MutableColor handleColor = new MutableColor(0.25f, 0.78f, 1.0f, 0.55f);
+    private SplitterRenderer renderer;
     private boolean dragging;
 
     Splitter(SplitPanel owner) {
@@ -34,6 +38,21 @@ public final class Splitter extends Box {
 
     public MutableColor handleColor() {
         return handleColor;
+    }
+
+    public SplitterRenderer renderer() {
+        return renderer;
+    }
+
+    public Splitter renderer(SplitterRenderer renderer) {
+        if (this.renderer == renderer) return this;
+        this.renderer = renderer;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public Splitter useDefaultRenderer() {
+        return renderer(null);
     }
 
     @Override
@@ -80,20 +99,21 @@ public final class Splitter extends Box {
     @Override
     protected void renderContent(RenderContext context) {
         super.renderContent(context);
-        float x = layoutBounds().x();
-        float y = layoutBounds().y();
-        float width = layoutBounds().width();
-        float height = layoutBounds().height();
-        if (owner.orientation() == Orientation.HORIZONTAL) {
-            float handleWidth = Math.max(1.0f, Math.min(2.0f, width));
-            context.roundedRect(x + (width - handleWidth) * 0.5f, y + 3.0f,
-                    handleWidth, Math.max(1.0f, height - 6.0f), handleWidth * 0.5f,
-                    Paint.fill(handleColor), transform());
-        } else {
-            float handleHeight = Math.max(1.0f, Math.min(2.0f, height));
-            context.roundedRect(x + 3.0f, y + (height - handleHeight) * 0.5f,
-                    Math.max(1.0f, width - 6.0f), handleHeight, handleHeight * 0.5f,
-                    Paint.fill(handleColor), transform());
-        }
+        effectiveRenderer().render(new DrawScope(context, transform()), snapshot());
+    }
+
+    protected SplitterRenderer effectiveRenderer() {
+        return renderer == null ? WidgetsRender.splitter() : renderer;
+    }
+
+    protected SplitterState snapshot() {
+        return new SplitterState(
+                layoutBounds().x(),
+                layoutBounds().y(),
+                layoutBounds().width(),
+                layoutBounds().height(),
+                owner.orientation(),
+                dragging,
+                handleColor.copy());
     }
 }

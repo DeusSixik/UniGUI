@@ -10,9 +10,9 @@ import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.event.SearchSubmittedEvent;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.input.PointerButton;
-import dev.sixik.unigui.api.render.Paint;
-import dev.sixik.unigui.api.render.RenderContext;
-import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.widgets.render.TextInputRenderer;
+import dev.sixik.unigui.widgets.render.TextInputRenderType;
 
 public class SearchField extends TextInput {
     private static final float CLEAR_ZONE_WIDTH = 14.0f;
@@ -64,12 +64,37 @@ public class SearchField extends TextInput {
     }
 
     @Override
-    protected void renderContent(RenderContext context) {
-        super.renderContent(context);
-        if (!text().isEmpty()) {
-            float x = layoutBounds().x() + layoutBounds().width() - CLEAR_ZONE_WIDTH + 3.0f;
-            float y = layoutBounds().y() + 4.0f;
-            context.text(RichText.plain("x"), x, y, CLEAR_ZONE_WIDTH - 4.0f, Math.max(1.0f, layoutBounds().height() - 8.0f), Paint.fill(placeholderColor()), transform());
-        }
+    protected TextInputRenderer effectiveRenderer() {
+        return renderer() == null ? WidgetsRender.searchField() : renderer();
+    }
+
+    @Override
+    protected TextInputRenderType renderType() {
+        return TextInputRenderType.SEARCH_FIELD;
+    }
+
+    @Override
+    protected boolean clearButtonVisible() {
+        return !text().isEmpty();
+    }
+
+    @Override
+    protected float clearButtonX() {
+        return layoutBounds().x() + layoutBounds().width() - CLEAR_ZONE_WIDTH + 3.0f;
+    }
+
+    @Override
+    protected float clearButtonY() {
+        return layoutBounds().y() + 4.0f;
+    }
+
+    @Override
+    protected float clearButtonWidth() {
+        return CLEAR_ZONE_WIDTH - 4.0f;
+    }
+
+    @Override
+    protected float clearButtonHeight() {
+        return Math.max(1.0f, layoutBounds().height() - 8.0f);
     }
 }

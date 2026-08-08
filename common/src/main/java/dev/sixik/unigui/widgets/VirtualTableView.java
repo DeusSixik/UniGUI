@@ -32,7 +32,8 @@ import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
-import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.math.Transform;
+import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.selection.IndexSelectionModel;
 import dev.sixik.unigui.api.selection.SelectionMode;
@@ -41,10 +42,18 @@ import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.virtualization.FixedRowVirtualizer;
 import dev.sixik.unigui.api.virtualization.VirtualRange;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.impl.widget.WidgetBase;
+import dev.sixik.unigui.widgets.render.VirtualTableViewCellState;
+import dev.sixik.unigui.widgets.render.VirtualTableViewColumnState;
+import dev.sixik.unigui.widgets.render.VirtualTableViewRenderer;
+import dev.sixik.unigui.widgets.render.VirtualTableViewRenderPhase;
+import dev.sixik.unigui.widgets.render.VirtualTableViewRowState;
+import dev.sixik.unigui.widgets.render.VirtualTableViewState;
+import dev.sixik.unigui.widgets.render.VirtualTableViewTextSegment;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -77,6 +86,7 @@ public class VirtualTableView extends WidgetBase {
     private BiFunction<Integer, Integer, String> cellTextProvider = (row, column) -> "";
     private BiFunction<Integer, Integer, RichText> cellRichTextProvider;
     private BiFunction<Integer, Integer, ? extends Comparable<?>> sortKeyProvider = (row, column) -> cellText(row, column);
+    private VirtualTableViewRenderer renderer;
     private final Map<Integer, Comparator<Integer>> columnComparators = new HashMap<>();
     private int sortColumnIndex = -1;
     private SortDirection sortDirection = SortDirection.NONE;
@@ -589,6 +599,21 @@ public class VirtualTableView extends WidgetBase {
         return verticalScrollBar;
     }
 
+    public VirtualTableViewRenderer renderer() {
+        return renderer;
+    }
+
+    public VirtualTableView renderer(VirtualTableViewRenderer renderer) {
+        if (this.renderer == renderer) return this;
+        this.renderer = renderer;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public VirtualTableView useDefaultRenderer() {
+        return renderer(null);
+    }
+
     public VirtualTableView scrollTo(float y) {
         updateVirtualizerViewport();
         float before = virtualizer.scrollOffset();
@@ -656,13 +681,14 @@ public class VirtualTableView extends WidgetBase {
         if (visibility() != Visibility.VISIBLE) return;
         pushOpacity(context);
         try {
+            DrawScope draw = new DrawScope(context, transform());
             renderHeader(context);
-            context.pushClip(layoutBounds().x(), rowViewportY(), viewportWidth(), rowViewportHeight());
+            draw.pushClip(layoutBounds().x(), rowViewportY(), viewportWidth(), rowViewportHeight());
             renderRows(context);
             if (editing()) {
                 cellEditor.render(context);
             }
-            context.popClip();
+            draw.popClip();
             if (hasVerticalScrollBar()) {
                 verticalScrollBar.render(context);
             }
@@ -739,27 +765,76 @@ public class VirtualTableView extends WidgetBase {
     }
 
     private void renderHeader(RenderContext context) {
-        float x = layoutBounds().x();
-        float y = layoutBounds().y();
-        float height = Math.min(headerHeight, Math.max(0.0f, layoutBounds().height()));
-        context.rect(x, y, viewportWidth(), height, Paint.fill(HEADER_BACKGROUND), transform());
-        float columnX = x;
-        for (int columnIndex = 0; columnIndex < columns.size(); columnIndex++) {
-            VirtualTableColumn column = columns.get(columnIndex);
-            float width = Math.min(column.width(), Math.max(0.0f, viewportWidth() - (columnX - x)));
-            if (width <= 0.0f) break;
-            drawCellText(context, headerRichText(columnIndex), column, columnX, y, width, height, 3.0f, false);
-            context.line(columnX + width, y, columnX + width, y + height,
-                    Paint.stroke(columnIndex == resizingColumn ? ACTIVE_CELL_COLOR : GRID_COLOR, columnIndex == resizingColumn ? 2.0f : 1.0f),
-                    transform());
-            columnX += column.width();
-        }
-        context.line(x, y + height, x + viewportWidth(), y + height, Paint.stroke(GRID_COLOR, 1.0f), transform());
+        effectiveRenderer().render(new DrawScope(context, transform()), snapshot(context, VirtualTableViewRenderPhase.HEADER));
     }
 
     private void renderRows(RenderContext context) {
+        effectiveRenderer().render(new DrawScope(context, transform()), snapshot(context, VirtualTableViewRenderPhase.ROWS));
+    }
+
+    protected VirtualTableViewRenderer effectiveRenderer() {
+        return renderer == null ? WidgetsRender.virtualTableView() : renderer;
+    }
+
+    protected VirtualTableViewState snapshot(RenderContext context, VirtualTableViewRenderPhase phase) {
+        return new VirtualTableViewState(
+                layoutBounds().x(),
+                layoutBounds().y(),
+                layoutBounds().width(),
+                layoutBounds().height(),
+                viewportWidth(),
+                Math.min(headerHeight, Math.max(0.0f, layoutBounds().height())),
+                rowViewportY(),
+                rowViewportHeight(),
+                isFocused(),
+                editing(),
+                phase,
+                HEADER_BACKGROUND.copy(),
+                ACTIVE_CELL_COLOR.copy(),
+                GRID_COLOR.copy(),
+                TEXT_COLOR.copy(),
+                phase == VirtualTableViewRenderPhase.HEADER ? headerColumnStates(context) : List.of(),
+                phase == VirtualTableViewRenderPhase.ROWS ? rowStates(context) : List.of());
+    }
+
+    private List<VirtualTableViewColumnState> headerColumnStates(RenderContext context) {
         float tableX = layoutBounds().x();
+        float y = layoutBounds().y();
+        float height = Math.min(headerHeight, Math.max(0.0f, layoutBounds().height()));
+        float columnX = tableX;
+        List<VirtualTableViewColumnState> states = new ArrayList<>(columns.size());
+        for (int columnIndex = 0; columnIndex < columns.size(); columnIndex++) {
+            VirtualTableColumn column = columns.get(columnIndex);
+            float width = Math.min(column.width(), Math.max(0.0f, viewportWidth() - (columnX - tableX)));
+            if (width <= 0.0f) break;
+            RichText header = headerRichText(columnIndex);
+            states.add(new VirtualTableViewColumnState(
+                    columnIndex,
+                    columnX,
+                    y,
+                    width,
+                    height,
+                    header,
+                    Alignment.START,
+                    column.verticalAlignment(),
+                    column.overflowMode(),
+                    columnIndex == resizingColumn,
+                    column.overflowMode() != TextOverflowMode.VISIBLE,
+                    columnX,
+                    y,
+                    width,
+                    height,
+                    textSegments(context, header, column, columnX, y, width, height, 3.0f, false)));
+            columnX += column.width();
+        }
+        return states;
+    }
+
+    private List<VirtualTableViewRowState> rowStates(RenderContext context) {
         ensureSortIndex();
+        float tableX = layoutBounds().x();
+        float tableWidth = viewportWidth();
+        List<VirtualTableViewRowState> states = new ArrayList<>();
         for (int visualRow = firstVisibleRow(); visualRow < lastVisibleRowExclusive(); visualRow++) {
             int row = sourceRowAt(visualRow);
             float y = rowViewportY() + virtualizer.itemOffset(visualRow);
@@ -767,28 +842,59 @@ public class VirtualTableView extends WidgetBase {
             MutableColor rowColor = selection.isSelected(row)
                     ? SELECTED_ROW_BACKGROUND
                     : ((visualRow & 1) == 0 ? ROW_BACKGROUND : ALTERNATE_ROW_BACKGROUND);
-            context.rect(tableX, y, viewportWidth(), rowHeight, Paint.fill(rowColor), transform());
-            float columnX = tableX;
-            for (int columnIndex = 0; columnIndex < columns.size(); columnIndex++) {
-                VirtualTableColumn column = columns.get(columnIndex);
-                float width = Math.min(column.width(), Math.max(0.0f, viewportWidth() - (columnX - tableX)));
-                if (width <= 0.0f) break;
-                if (!(editing() && row == editingRow && columnIndex == editingColumn)) {
-                    RichText richText = cellRichText(row, columnIndex);
-                    if (richText == null) {
-                        drawCellText(context, cellText(row, columnIndex), column, columnX, y, width, rowHeight, 3.0f, true);
-                    } else {
-                        drawCellText(context, richText, column, columnX, y, width, rowHeight, 3.0f, true);
-                    }
-                }
-                context.line(columnX + width, y, columnX + width, y + rowHeight, Paint.stroke(GRID_COLOR, 1.0f), transform());
-                if (isFocused() && row == activeRow && columnIndex == activeColumn) {
-                    context.rect(columnX, y, width, rowHeight, Paint.stroke(ACTIVE_CELL_COLOR, 1.0f), transform());
-                }
-                columnX += column.width();
-            }
-            context.line(tableX, y + rowHeight, tableX + viewportWidth(), y + rowHeight, Paint.stroke(GRID_COLOR, 1.0f), transform());
+            states.add(new VirtualTableViewRowState(
+                    visualRow,
+                    row,
+                    tableX,
+                    y,
+                    tableWidth,
+                    rowHeight,
+                    selection.isSelected(row),
+                    (visualRow & 1) != 0,
+                    rowColor.copy(),
+                    cellStates(context, visualRow, row, y, rowHeight)));
         }
+        return states;
+    }
+
+    private List<VirtualTableViewCellState> cellStates(RenderContext context, int visualRow, int row, float y, float rowHeight) {
+        float tableX = layoutBounds().x();
+        float columnX = tableX;
+        List<VirtualTableViewCellState> states = new ArrayList<>(columns.size());
+        for (int columnIndex = 0; columnIndex < columns.size(); columnIndex++) {
+            VirtualTableColumn column = columns.get(columnIndex);
+            float width = Math.min(column.width(), Math.max(0.0f, viewportWidth() - (columnX - tableX)));
+            if (width <= 0.0f) break;
+            boolean editingCell = editing() && row == editingRow && columnIndex == editingColumn;
+            RichText text = editingCell ? RichText.plain("") : cellDisplayText(row, columnIndex);
+            states.add(new VirtualTableViewCellState(
+                    visualRow,
+                    row,
+                    columnIndex,
+                    columnX,
+                    y,
+                    width,
+                    rowHeight,
+                    text,
+                    column.horizontalAlignment(),
+                    column.verticalAlignment(),
+                    column.overflowMode(),
+                    row == activeRow && columnIndex == activeColumn,
+                    editingCell,
+                    column.overflowMode() != TextOverflowMode.VISIBLE,
+                    columnX,
+                    y,
+                    width,
+                    rowHeight,
+                    editingCell ? List.of() : textSegments(context, text, column, columnX, y, width, rowHeight, 3.0f, true)));
+            columnX += column.width();
+        }
+        return states;
+    }
+
+    private RichText cellDisplayText(int row, int columnIndex) {
+        RichText richText = cellRichText(row, columnIndex);
+        return richText == null ? RichText.plain(cellText(row, columnIndex)) : richText;
     }
 
     private boolean handleEditingEvent(Event event) {
@@ -1022,101 +1128,81 @@ public class VirtualTableView extends WidgetBase {
         return columnIndex;
     }
 
-    private void drawCellText(RenderContext context,
-                              String text,
-                              VirtualTableColumn column,
-                              float x,
-                              float y,
-                              float width,
-                              float height,
-                              float padding,
-                              boolean allowColumnAlignment) {
-        if (text == null || text.isEmpty()) return;
-        drawCellText(context, RichText.plain(text), column, x, y, width, height, padding, allowColumnAlignment);
-    }
-
-    private void drawCellText(RenderContext context,
-                              RichText text,
-                              VirtualTableColumn column,
-                              float x,
-                              float y,
-                              float width,
-                              float height,
-                              float padding,
-                              boolean allowColumnAlignment) {
-        if (text == null || text.isEmpty()) return;
-        drawCellText(context, (Object) text, column, x, y, width, height, padding, allowColumnAlignment);
-    }
-
-    private void drawCellText(RenderContext context,
-                              Object text,
-                              VirtualTableColumn column,
-                              float x,
-                              float y,
-                              float width,
-                              float height,
-                              float padding,
-                              boolean allowColumnAlignment) {
-        if (context == null || text == null || width <= 0.0f || height <= 0.0f) return;
+    private List<VirtualTableViewTextSegment> textSegments(RenderContext context,
+                                                           RichText text,
+                                                           VirtualTableColumn column,
+                                                           float x,
+                                                           float y,
+                                                           float width,
+                                                           float height,
+                                                           float padding,
+                                                           boolean allowColumnAlignment) {
+        if (context == null || text == null || text.isEmpty() || width <= 0.0f || height <= 0.0f) return List.of();
         VirtualTableColumn safeColumn = column == null ? new VirtualTableColumn("", width) : column;
         float innerX = x + padding;
         float innerWidth = Math.max(0.0f, width - padding * 2.0f);
-        if (innerWidth <= 0.0f) return;
+        if (innerWidth <= 0.0f) return List.of();
 
-        TextOverflowMode overflow = safeColumn.overflowMode();
-        boolean clipped = overflow != TextOverflowMode.VISIBLE;
-        if (clipped) {
-            context.pushClip(x, y, width, height);
-        }
-        try {
-            Alignment horizontal = allowColumnAlignment ? safeColumn.horizontalAlignment() : Alignment.START;
-            Alignment vertical = safeColumn.verticalAlignment();
-            RichText richText = text instanceof RichText value ? value : RichText.plain(text.toString());
-            drawRichText(context, richText, innerX, y, innerWidth, height, horizontal, vertical, overflow);
-        } finally {
-            if (clipped) {
-                context.popClip();
-            }
-        }
+        Alignment horizontal = allowColumnAlignment ? safeColumn.horizontalAlignment() : Alignment.START;
+        Alignment vertical = safeColumn.verticalAlignment();
+        return richTextSegments(context, text, innerX, y, innerWidth, height, horizontal, vertical, safeColumn.overflowMode());
     }
 
-    private void drawRichText(RenderContext context,
-                              RichText text,
-                              float x,
-                              float y,
-                              float width,
-                              float height,
-                              Alignment horizontal,
-                              Alignment vertical,
-                              TextOverflowMode overflow) {
-        if (text == null || text.isEmpty()) return;
-        if (overflow == TextOverflowMode.SHRINK_TO_FIT) {
-            drawShrinkToFit(context, text, x, y, width, height, horizontal, vertical);
-            return;
-        }
-        TextEngine.draw(context, text, x, y, width, height,
-                Paint.fill(TEXT_COLOR), transform(), horizontal, vertical);
+    private List<VirtualTableViewTextSegment> richTextSegments(RenderContext context,
+                                                               RichText text,
+                                                               float x,
+                                                               float y,
+                                                               float width,
+                                                               float height,
+                                                               Alignment horizontal,
+                                                               Alignment vertical,
+                                                               TextOverflowMode overflow) {
+        if (text == null || text.isEmpty()) return List.of();
+        VirtualTableViewTextSegment segment = overflow == TextOverflowMode.SHRINK_TO_FIT
+                ? shrinkToFitSegment(context, text, x, y, width, height, horizontal, vertical)
+                : alignedTextSegment(context, text, x, y, width, height, horizontal, vertical, null);
+        return segment == null ? List.of() : List.of(segment);
     }
 
-    private void drawShrinkToFit(RenderContext context,
-                                 RichText richText,
-                                 float x,
-                                 float y,
-                                 float width,
-                                 float height,
-                                 Alignment horizontal,
-                                 Alignment vertical) {
+    private VirtualTableViewTextSegment alignedTextSegment(RenderContext context,
+                                                           RichText text,
+                                                           float x,
+                                                           float y,
+                                                           float width,
+                                                           float height,
+                                                           Alignment horizontal,
+                                                           Alignment vertical,
+                                                           Transform transform) {
+        if (text == null || text.isEmpty()) return null;
+        float availableWidth = Math.max(0.0f, width);
+        float availableHeight = Math.max(0.0f, height);
+        float textWidth = Math.min(availableWidth, TextEngine.measureLineWidth(context, text));
+        float textHeight = Math.min(availableHeight, TextEngine.measureTextHeight(text));
+        float drawX = TextEngine.alignedStart(x, availableWidth, textWidth, horizontal);
+        float drawY = TextEngine.alignedStart(y, availableHeight, textHeight, vertical);
+        return new VirtualTableViewTextSegment(text, drawX, drawY,
+                Math.max(0.0f, width - (drawX - x)), textHeight, transform);
+    }
+
+    private VirtualTableViewTextSegment shrinkToFitSegment(RenderContext context,
+                                                           RichText richText,
+                                                           float x,
+                                                           float y,
+                                                           float width,
+                                                           float height,
+                                                           Alignment horizontal,
+                                                           Alignment vertical) {
         float textWidth = TextEngine.measureLineWidth(context, richText);
-        if (textWidth <= 0.0f) return;
+        if (textWidth <= 0.0f) return null;
         float sourceHeight = TextEngine.measureTextHeight(richText);
         float scale = width <= 0.0f ? 1.0f : Math.min(1.0f, width / textWidth);
         float scaledWidth = textWidth * scale;
         float scaledHeight = sourceHeight * scale;
         float drawX = TextEngine.alignedStart(x, width, scaledWidth, horizontal);
         float drawY = TextEngine.alignedStart(y, height, scaledHeight, vertical);
-        var scaled = transform().copy();
+        Transform scaled = transform().copy();
         scaled.scale().set(transform().scale().x() * scale, transform().scale().y() * scale);
-        context.text(richText, drawX, drawY, textWidth, sourceHeight, Paint.fill(TEXT_COLOR), scaled);
+        return new VirtualTableViewTextSegment(richText, drawX, drawY, textWidth, sourceHeight, scaled);
     }
 
     private float localX(PointerEvent pointer) {

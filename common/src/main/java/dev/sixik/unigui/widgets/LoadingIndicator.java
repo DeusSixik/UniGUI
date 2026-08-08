@@ -5,18 +5,21 @@ import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.math.MutableColor;
-import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.widgets.render.LoadingIndicatorRenderer;
+import dev.sixik.unigui.widgets.render.LoadingIndicatorState;
 
 public class LoadingIndicator extends Box {
     private static final float DEFAULT_SIZE = 24.0f;
-    private static final float TAU = (float) (Math.PI * 2.0);
 
     private final MutableColor accentColor = new MutableColor(0.25f, 0.78f, 1.0f, 1.0f);
     private final MutableColor trackColor = new MutableColor(0.16f, 0.17f, 0.19f, 0.75f);
     private Mode mode = Mode.SPINNER;
+    private LoadingIndicatorRenderer renderer;
     private boolean running = true;
     private float phase;
     private float speed = 1.0f;
@@ -40,6 +43,21 @@ public class LoadingIndicator extends Box {
         this.mode = normalized;
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
+    }
+
+    public LoadingIndicatorRenderer renderer() {
+        return renderer;
+    }
+
+    public LoadingIndicator renderer(LoadingIndicatorRenderer renderer) {
+        if (this.renderer == renderer) return this;
+        this.renderer = renderer;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public LoadingIndicator useDefaultRenderer() {
+        return renderer(null);
     }
 
     public boolean running() {
@@ -153,86 +171,37 @@ public class LoadingIndicator extends Box {
     @Override
     protected void renderContent(RenderContext context) {
         applyTheme();
-        switch (mode) {
-            case SPINNER -> renderSpinner(context);
-            case DOTS -> renderDots(context);
-            case BAR -> renderBar(context);
-        }
+        effectiveRenderer().render(new DrawScope(context, transform()), snapshot());
         super.renderContent(context);
     }
 
-    private void renderSpinner(RenderContext context) {
-        float size = Math.max(1.0f, Math.min(layoutBounds().width(), layoutBounds().height()));
-        float x = layoutBounds().x() + (layoutBounds().width() - size) * 0.5f;
-        float y = layoutBounds().y() + (layoutBounds().height() - size) * 0.5f;
-        float dotSize = Math.max(2.0f, Math.min(size * 0.20f, thickness * 1.6f));
-        float radius = Math.max(0.0f, size * 0.5f - dotSize * 0.5f);
-        float centerX = x + size * 0.5f;
-        float centerY = y + size * 0.5f;
-        for (int i = 0; i < segments; i++) {
-            float angle = ((i / (float) segments) + phase) * TAU - (float) Math.PI * 0.5f;
-            float fade = (i + 1.0f) / segments;
-            MutableColor color = colorWithAlpha(accentColor, 0.18f + fade * 0.82f);
-            context.circle(
-                    centerX + (float) Math.cos(angle) * radius - dotSize * 0.5f,
-                    centerY + (float) Math.sin(angle) * radius - dotSize * 0.5f,
-                    dotSize,
-                    dotSize,
-                    Paint.fill(color),
-                    transform());
-        }
+    private LoadingIndicatorRenderer effectiveRenderer() {
+        if (renderer != null) return renderer;
+        return switch (mode) {
+            case SPINNER -> WidgetsRender.loadingSpinner();
+            case DOTS -> WidgetsRender.loadingDots();
+            case BAR -> WidgetsRender.loadingBar();
+        };
     }
 
-    private void renderDots(RenderContext context) {
-        float width = Math.max(1.0f, layoutBounds().width());
-        float height = Math.max(1.0f, layoutBounds().height());
-        float dotSize = Math.max(2.0f, Math.min(height, width / 5.0f));
-        float gap = dotSize * 0.65f;
-        float totalWidth = dotSize * 3.0f + gap * 2.0f;
-        float startX = layoutBounds().x() + (width - totalWidth) * 0.5f;
-        float centerY = layoutBounds().y() + height * 0.5f;
-        for (int i = 0; i < 3; i++) {
-            float wave = (float) Math.sin((phase + i / 3.0f) * TAU);
-            float scale = 0.72f + (wave + 1.0f) * 0.14f;
-            float alpha = 0.35f + (wave + 1.0f) * 0.325f;
-            float actualSize = dotSize * scale;
-            context.circle(
-                    startX + i * (dotSize + gap) + (dotSize - actualSize) * 0.5f,
-                    centerY - actualSize * 0.5f,
-                    actualSize,
-                    actualSize,
-                    Paint.fill(colorWithAlpha(accentColor, alpha)),
-                    transform());
-        }
-    }
-
-    private void renderBar(RenderContext context) {
-        float x = layoutBounds().x();
-        float y = layoutBounds().y();
-        float width = Math.max(1.0f, layoutBounds().width());
-        float height = Math.max(1.0f, layoutBounds().height());
-        float radius = height * 0.5f;
-        float thumbWidth = Math.max(height, width * 0.35f);
-        float travel = Math.max(0.0f, width - thumbWidth);
-        float pingPong = phase < 0.5f ? phase * 2.0f : (1.0f - phase) * 2.0f;
-        context.roundedRect(x, y, width, height, radius, Paint.fill(trackColor), transform());
-        context.roundedRect(x + travel * pingPong, y, thumbWidth, height, radius,
-                Paint.fill(accentColor), transform());
-    }
-
-    private MutableColor colorWithAlpha(MutableColor source, float alphaMultiplier) {
-        return new MutableColor(source.r(), source.g(), source.b(), source.a() * clamp01(alphaMultiplier));
+    private LoadingIndicatorState snapshot() {
+        return new LoadingIndicatorState(
+                layoutBounds().x(),
+                layoutBounds().y(),
+                layoutBounds().width(),
+                layoutBounds().height(),
+                phase,
+                speed,
+                segments,
+                thickness,
+                accentColor.copy(),
+                trackColor.copy());
     }
 
     private static float wrap01(float value) {
         if (!Float.isFinite(value)) return 0.0f;
         float wrapped = value % 1.0f;
         return wrapped < 0.0f ? wrapped + 1.0f : wrapped;
-    }
-
-    private static float clamp01(float value) {
-        if (!Float.isFinite(value)) return 1.0f;
-        return Math.max(0.0f, Math.min(1.0f, value));
     }
 
     public enum Mode {

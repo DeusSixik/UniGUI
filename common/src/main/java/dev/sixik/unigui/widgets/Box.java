@@ -7,6 +7,7 @@ import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.render.ImageFit;
 import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.TexturePlacement;
@@ -17,6 +18,9 @@ import dev.sixik.unigui.api.style.Theme;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.widgets.render.BoxRenderer;
+import dev.sixik.unigui.widgets.render.BoxState;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -29,6 +33,7 @@ public class Box extends PanelWidget {
     private final MutableRect backgroundTextureSource = new MutableRect(0.0f, 0.0f, 1.0f, 1.0f);
     private ImageFit backgroundTextureFit = ImageFit.STRETCH;
     private final MutableColor borderColor = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
+    private BoxRenderer boxRenderer;
     private boolean backgroundVisible;
     private boolean borderVisible;
     private float borderWidth = 1.0f;
@@ -57,6 +62,21 @@ public class Box extends PanelWidget {
 
     public boolean backgroundVisible() {
         return backgroundVisible;
+    }
+
+    public BoxRenderer boxRenderer() {
+        return boxRenderer;
+    }
+
+    public Box boxRenderer(BoxRenderer boxRenderer) {
+        if (this.boxRenderer == boxRenderer) return this;
+        this.boxRenderer = boxRenderer;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public Box useDefaultBoxRenderer() {
+        return boxRenderer(null);
     }
 
     public TextureHandle backgroundTexture() {
@@ -158,24 +178,32 @@ public class Box extends PanelWidget {
     protected void renderBox(RenderContext context) {
         applyTheme();
 
-        float x = layoutBounds().x();
-        float y = layoutBounds().y();
-        float width = layoutBounds().width();
-        float height = layoutBounds().height();
+        effectiveBoxRenderer().render(new DrawScope(context, transform()), boxState());
+    }
 
-        if (backgroundVisible) {
-            context.roundedRect(x, y, width, height, radius, Paint.fill(background), transform());
-        }
+    protected BoxRenderer effectiveBoxRenderer() {
+        return boxRenderer == null ? WidgetsRender.box() : boxRenderer;
+    }
 
-        if (backgroundTexture != null) {
-            TexturePlacement placement = TexturePlacement.fit(backgroundTexture, backgroundTextureSource,
-                    layoutBounds(), backgroundTextureFit);
-            context.texture(backgroundTexture, placement, radius, Paint.fill(backgroundTextureTint), transform());
-        }
-
-        if (borderVisible) {
-            context.roundedRect(x, y, width, height, radius, Paint.stroke(borderColor, borderWidth), transform());
-        }
+    protected BoxState boxState() {
+        TexturePlacement placement = backgroundTexture == null
+                ? null
+                : TexturePlacement.fit(backgroundTexture, backgroundTextureSource, layoutBounds(), backgroundTextureFit);
+        return new BoxState(
+                layoutBounds().x(),
+                layoutBounds().y(),
+                layoutBounds().width(),
+                layoutBounds().height(),
+                backgroundVisible,
+                background.copy(),
+                backgroundTexture,
+                backgroundTextureTint.copy(),
+                placement,
+                backgroundTextureFit,
+                radius,
+                borderVisible,
+                borderColor.copy(),
+                borderWidth);
     }
 
     protected void renderContent(RenderContext context) {

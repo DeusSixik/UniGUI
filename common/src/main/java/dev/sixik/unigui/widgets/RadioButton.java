@@ -8,22 +8,26 @@ import dev.sixik.unigui.api.event.EventPhase;
 import dev.sixik.unigui.api.event.EventSubscription;
 import dev.sixik.unigui.api.event.KeyPressedEvent;
 import dev.sixik.unigui.api.input.KeyCodes;
-import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableColor;
-import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.impl.text.TextEngine;
+import dev.sixik.unigui.widgets.render.ButtonRenderType;
+import dev.sixik.unigui.widgets.render.ButtonRenderer;
+import dev.sixik.unigui.widgets.render.ButtonState;
 
 import java.util.Objects;
 
 public class RadioButton extends Button {
     private static final float OUTER_SIZE = 12.0f;
     private static final float INNER_SIZE = 6.0f;
+    private static final float TEXT_GAP = 4.0f;
 
     private final MutableColor checkedColor = new MutableColor(0.30f, 0.62f, 0.95f, 1.0f);
     private String value;
@@ -149,29 +153,38 @@ public class RadioButton extends Button {
     @Override
     protected void renderContent(RenderContext context) {
         applyTheme();
-
-        float x = layoutBounds().x();
-        float y = layoutBounds().y() + Math.max(0.0f, layoutBounds().height() - OUTER_SIZE) * 0.5f;
-        context.circle(x, y, OUTER_SIZE, OUTER_SIZE, Paint.stroke(checked ? checkedColor : borderColor(), 1.0f), transform());
-        if (checked) {
-            float innerOffset = (OUTER_SIZE - INNER_SIZE) * 0.5f;
-            context.circle(x + innerOffset, y + innerOffset, INNER_SIZE, INNER_SIZE, Paint.fill(checkedColor), transform());
-        }
-
-        if (!text().isEmpty()) {
-            TextEngine.draw(context,
-                    richText(),
-                    x + OUTER_SIZE + 4.0f,
-                    layoutBounds().y(),
-                    Math.max(0.0f, layoutBounds().width() - OUTER_SIZE - 4.0f),
-                    layoutBounds().height(),
-                    Paint.fill(textColor()),
-                    transform(),
-                    Alignment.START,
-                    Alignment.CENTER);
-        }
-
+        effectiveRenderer().render(new DrawScope(context, transform()), snapshot(context));
         renderChildren(context);
+    }
+
+    @Override
+    protected ButtonRenderer effectiveRenderer() {
+        return renderer() == null ? WidgetsRender.radioButton() : renderer();
+    }
+
+    @Override
+    protected ButtonState snapshot(RenderContext context) {
+        return new ButtonState(
+                ButtonRenderType.RADIO_BUTTON,
+                layoutBounds().x(),
+                layoutBounds().y(),
+                layoutBounds().width(),
+                layoutBounds().height(),
+                text(),
+                richText(),
+                TEXT_PADDING_X,
+                TextEngine.measureLineWidth(context, richText()),
+                TextEngine.measureTextHeight(richText()),
+                textColor().copy(),
+                pressed(),
+                hovered(),
+                enabled(),
+                checked,
+                OUTER_SIZE,
+                INNER_SIZE,
+                TEXT_GAP,
+                checkedColor.copy(),
+                (checked ? checkedColor : borderColor()).copy());
     }
 
     void setGroupInternal(RadioGroup group) {

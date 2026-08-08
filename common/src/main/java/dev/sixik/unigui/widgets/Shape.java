@@ -2,13 +2,17 @@ package dev.sixik.unigui.widgets;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.math.MutableColor;
-import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.impl.widget.WidgetBase;
+import dev.sixik.unigui.widgets.render.ShapeRenderer;
+import dev.sixik.unigui.widgets.render.ShapeState;
 
 public class Shape extends WidgetBase {
     private Type type = Type.RECT;
     private final MutableColor color = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
+    private ShapeRenderer renderer;
     private boolean stroke;
     private float strokeWidth = 1.0f;
     private float radius;
@@ -31,6 +35,21 @@ public class Shape extends WidgetBase {
 
     public MutableColor color() {
         return color;
+    }
+
+    public ShapeRenderer renderer() {
+        return renderer;
+    }
+
+    public Shape renderer(ShapeRenderer renderer) {
+        if (this.renderer == renderer) return this;
+        this.renderer = renderer;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public Shape useDefaultRenderer() {
+        return renderer(null);
     }
 
     public boolean stroke() {
@@ -70,21 +89,27 @@ public class Shape extends WidgetBase {
     public void render(RenderContext context) {
         pushOpacity(context);
         try {
-            Paint paint = stroke ? Paint.stroke(color, strokeWidth) : Paint.fill(color);
-            float x = layoutBounds().x();
-            float y = layoutBounds().y();
-            float width = layoutBounds().width();
-            float height = layoutBounds().height();
-
-            switch (type) {
-                case RECT -> context.rect(x, y, width, height, paint, transform());
-                case ROUNDED_RECT -> context.roundedRect(x, y, width, height, radius, paint, transform());
-                case CIRCLE -> context.circle(x, y, width, height, paint, transform());
-                case LINE -> context.line(x, y, x + width, y + height, paint, transform());
-            }
+            effectiveRenderer().render(new DrawScope(context, transform()), snapshot());
         } finally {
             popOpacity(context);
         }
+    }
+
+    protected ShapeRenderer effectiveRenderer() {
+        return renderer == null ? WidgetsRender.shape() : renderer;
+    }
+
+    protected ShapeState snapshot() {
+        return new ShapeState(
+                layoutBounds().x(),
+                layoutBounds().y(),
+                layoutBounds().width(),
+                layoutBounds().height(),
+                type,
+                color.copy(),
+                stroke,
+                strokeWidth,
+                radius);
     }
 
     public enum Type {

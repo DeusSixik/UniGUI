@@ -9,7 +9,6 @@ import dev.sixik.unigui.api.event.PointerMovedEvent;
 import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.event.PointerReleasedEvent;
 import dev.sixik.unigui.api.input.PointerButton;
-import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
@@ -18,13 +17,16 @@ import dev.sixik.unigui.api.layout.PositionType;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
-import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
+import dev.sixik.unigui.widgets.render.WindowRenderer;
+import dev.sixik.unigui.widgets.render.WindowState;
 
 import java.util.Objects;
 
@@ -42,6 +44,7 @@ public final class WindowWidget extends Box implements OverlayHostAware {
     private final MutableColor headerColor = new MutableColor(0.075f, 0.090f, 0.125f, 0.98f);
     private final MutableColor headerSeparatorColor = new MutableColor(0.22f, 0.24f, 0.30f, 0.95f);
     private final MutableColor titleColor = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
+    private WindowRenderer renderer;
     private String title = "";
     private RichText richTitle = RichText.plain("");
     private Widget content;
@@ -283,6 +286,21 @@ public final class WindowWidget extends Box implements OverlayHostAware {
         return titleColor;
     }
 
+    public WindowRenderer renderer() {
+        return renderer;
+    }
+
+    public WindowWidget renderer(WindowRenderer renderer) {
+        if (this.renderer == renderer) return this;
+        this.renderer = renderer;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public WindowWidget useDefaultRenderer() {
+        return renderer(null);
+    }
+
     @Override
     public void measure(LayoutContext context) {
         if (visibility() == Visibility.COLLAPSED || !open) {
@@ -400,35 +418,31 @@ public final class WindowWidget extends Box implements OverlayHostAware {
 
     @Override
     protected void renderContent(RenderContext context) {
-        float x = layoutBounds().x();
-        float y = layoutBounds().y();
-        float width = layoutBounds().width();
-        float height = layoutBounds().height();
-        if (width <= 0.0f || height <= 0.0f) return;
-
-        context.rect(x, y, width, Math.min(headerHeight, height), Paint.fill(headerColor), transform());
-        context.line(x, y + headerHeight, x + width, y + headerHeight, Paint.stroke(headerSeparatorColor, 1.0f), transform());
-
-        float closeReserved = closeButtonVisible ? closeButton.layoutBounds().width() + 6.0f : 0.0f;
-        float titleX = x + padding.left();
-        float titleWidth = Math.max(0.0f, width - padding.horizontal() - closeReserved);
-        context.pushClip(titleX, y, titleWidth, Math.min(headerHeight, height));
-        try {
-            TextEngine.draw(context,
-                    richTitle,
-                    titleX,
-                    y,
-                    titleWidth,
-                    Math.min(headerHeight, height),
-                    Paint.fill(titleColor),
-                    transform(),
-                    Alignment.START,
-                    Alignment.CENTER);
-        } finally {
-            context.popClip();
-        }
-
+        effectiveRenderer().render(new DrawScope(context, transform()), snapshot(context));
         super.renderContent(context);
+    }
+
+    private WindowRenderer effectiveRenderer() {
+        return renderer == null ? WidgetsRender.window() : renderer;
+    }
+
+    private WindowState snapshot(RenderContext context) {
+        return new WindowState(
+                layoutBounds().x(),
+                layoutBounds().y(),
+                layoutBounds().width(),
+                layoutBounds().height(),
+                headerHeight,
+                padding.left(),
+                padding.right(),
+                closeButtonVisible,
+                closeButton.layoutBounds().width(),
+                richTitle,
+                TextEngine.measureLineWidth(context, richTitle),
+                TextEngine.measureTextHeight(richTitle),
+                headerColor.copy(),
+                headerSeparatorColor.copy(),
+                titleColor.copy());
     }
 
     private void startDragging(PointerPressedEvent pointer) {

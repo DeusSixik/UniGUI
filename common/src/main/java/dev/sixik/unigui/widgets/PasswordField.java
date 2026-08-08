@@ -1,6 +1,9 @@
 package dev.sixik.unigui.widgets;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.widgets.render.TextInputRenderer;
+import dev.sixik.unigui.widgets.render.TextInputRenderType;
 
 public class PasswordField extends TextInput {
     private char mask = '\u2022';
@@ -31,5 +34,15 @@ public class PasswordField extends TextInput {
             return super.displayText();
         }
         return String.valueOf(mask).repeat(text().codePointCount(0, text().length()));
+    }
+
+    @Override
+    protected TextInputRenderer effectiveRenderer() {
+        return renderer() == null ? WidgetsRender.passwordField() : renderer();
+    }
+
+    @Override
+    protected TextInputRenderType renderType() {
+        return TextInputRenderType.PASSWORD_FIELD;
     }
 }

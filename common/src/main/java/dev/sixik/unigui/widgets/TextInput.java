@@ -22,7 +22,7 @@ import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.input.TextEditorModel;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableColor;
-import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.RichText;
@@ -30,7 +30,11 @@ import dev.sixik.unigui.api.text.TextRun;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.impl.text.TextEngine;
+import dev.sixik.unigui.widgets.render.TextInputRenderer;
+import dev.sixik.unigui.widgets.render.TextInputRenderType;
+import dev.sixik.unigui.widgets.render.TextInputState;
 
 import java.util.Objects;
 
@@ -42,6 +46,7 @@ public class TextInput extends Box {
     private final MutableColor textColor = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private final MutableColor placeholderColor = new MutableColor(0.65f, 0.65f, 0.65f, 0.9f);
     private final MutableColor caretColor = new MutableColor(0.25f, 0.78f, 1.0f, 1.0f);
+    private TextInputRenderer renderer;
     private String placeholder = "";
     private FontFace font;
     private float pixelSize = TextRun.DEFAULT_PIXEL_SIZE;
@@ -186,6 +191,21 @@ public class TextInput extends Box {
         return caretColor;
     }
 
+    public TextInputRenderer renderer() {
+        return renderer;
+    }
+
+    public TextInput renderer(TextInputRenderer renderer) {
+        if (this.renderer == renderer) return this;
+        this.renderer = renderer;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public TextInput useDefaultRenderer() {
+        return renderer(null);
+    }
+
     public boolean visualOnlyTextChanges() {
         return visualOnlyTextChanges;
     }
@@ -311,43 +331,80 @@ public class TextInput extends Box {
         float viewportWidth = textViewportWidth();
         float viewportHeight = Math.max(1.0f, layoutBounds().height() - 6.0f);
         float textY = layoutBounds().y() + 4.0f;
+        effectiveRenderer().render(new DrawScope(context, transform()), textInputState(
+                visibleText,
+                viewportX,
+                viewportY,
+                viewportWidth,
+                viewportHeight,
+                textY));
+    }
 
-        context.pushClip(viewportX, viewportY, viewportWidth, viewportHeight);
+    protected TextInputState textInputState(String visibleText,
+                                            float viewportX,
+                                            float viewportY,
+                                            float viewportWidth,
+                                            float viewportHeight,
+                                            float textY) {
+        return new TextInputState(
+                renderType(),
+                layoutBounds().x(),
+                layoutBounds().y(),
+                layoutBounds().width(),
+                layoutBounds().height(),
+                viewportX,
+                viewportY,
+                viewportWidth,
+                viewportHeight,
+                textY,
+                Math.max(0.0f, layoutBounds().height() - 8.0f),
+                horizontalScrollPixels,
+                measuredTextWidth(),
+                visibleText,
+                richText(visibleText),
+                focused,
+                isShowingPlaceholder(),
+                hasSelection(),
+                selectionStart(),
+                selectionEnd(),
+                cursorIndex(),
+                textColor.copy(),
+                placeholderColor.copy(),
+                caretColor.copy(),
+                measuredPrefixWidths,
+                clearButtonVisible(),
+                clearButtonX(),
+                clearButtonY(),
+                clearButtonWidth(),
+                clearButtonHeight());
+    }
 
-        if (focused && hasSelection() && !isShowingPlaceholder()) {
-            int start = selectionStart();
-            int end = selectionEnd();
-            float selectionX = viewportX + prefixWidth(start) - horizontalScrollPixels;
-            float selectionWidth = Math.max(1.0f, prefixWidth(end) - prefixWidth(start));
-            context.rect(selectionX,
-                    viewportY,
-                    selectionWidth,
-                    viewportHeight,
-                    Paint.fill(caretColor),
-                    transform());
-        }
+    protected TextInputRenderer effectiveRenderer() {
+        return renderer == null ? WidgetsRender.textInput() : renderer;
+    }
 
-        if (!visibleText.isEmpty()) {
-            context.text(richText(visibleText),
-                    viewportX - horizontalScrollPixels,
-                    textY,
-                    Math.max(viewportWidth, measuredTextWidth()),
-                    Math.max(0.0f, layoutBounds().height() - 8.0f),
-                    Paint.fill(text().isEmpty() ? placeholderColor : textColor),
-                    transform());
-        }
+    protected TextInputRenderType renderType() {
+        return TextInputRenderType.TEXT_INPUT;
+    }
 
-        if (focused) {
-            float caretX = viewportX + prefixWidth(cursorIndex()) - horizontalScrollPixels;
-            context.rect(caretX,
-                    viewportY,
-                    1.0f,
-                    viewportHeight,
-                    Paint.fill(caretColor),
-                    transform());
-        }
+    protected boolean clearButtonVisible() {
+        return false;
+    }
 
-        context.popClip();
+    protected float clearButtonX() {
+        return 0.0f;
+    }
+
+    protected float clearButtonY() {
+        return 0.0f;
+    }
+
+    protected float clearButtonWidth() {
+        return 0.0f;
+    }
+
+    protected float clearButtonHeight() {
+        return 0.0f;
     }
 
     protected String displayText() {

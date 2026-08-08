@@ -16,16 +16,19 @@ import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.event.PointerReleasedEvent;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.input.MouseCursor;
-import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableColor;
-import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.impl.text.TextEngine;
+import dev.sixik.unigui.widgets.render.ButtonRenderer;
+import dev.sixik.unigui.widgets.render.ButtonRenderType;
+import dev.sixik.unigui.widgets.render.ButtonState;
 
 import java.util.Objects;
 
@@ -37,6 +40,7 @@ public class Button extends Box {
     private String text = "";
     private RichText richText = RichText.plain("");
     private final MutableColor textColor = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
+    private ButtonRenderer renderer;
     private boolean pressed;
     private boolean interactionTransitions;
     private TransitionSpec interactionTransition = TransitionSpec.of(0.10f, AnimationEasing.EASE_OUT);
@@ -94,6 +98,21 @@ public class Button extends Box {
 
     public MutableColor textColor() {
         return textColor;
+    }
+
+    public ButtonRenderer renderer() {
+        return renderer;
+    }
+
+    public Button renderer(ButtonRenderer renderer) {
+        if (this.renderer == renderer) return this;
+        this.renderer = renderer;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public Button useDefaultRenderer() {
+        return renderer(null);
     }
 
     public boolean pressed() {
@@ -195,19 +214,36 @@ public class Button extends Box {
     @Override
     protected void renderContent(RenderContext context) {
         applyTheme();
-        if (!text.isEmpty()) {
-            TextEngine.draw(context,
-                    richText,
-                    layoutBounds().x() + TEXT_PADDING_X,
-                    layoutBounds().y(),
-                    Math.max(0.0f, layoutBounds().width() - TEXT_PADDING_X * 2.0f),
-                    layoutBounds().height(),
-                    Paint.fill(textColor),
-                    transform(),
-                    Alignment.CENTER,
-                    Alignment.CENTER);
-        }
+        effectiveRenderer().render(new DrawScope(context, transform()), snapshot(context));
         super.renderContent(context);
+    }
+
+    protected ButtonRenderer effectiveRenderer() {
+        return renderer == null ? WidgetsRender.button() : renderer;
+    }
+
+    protected ButtonState snapshot(RenderContext context) {
+        return new ButtonState(
+                ButtonRenderType.BUTTON,
+                layoutBounds().x(),
+                layoutBounds().y(),
+                layoutBounds().width(),
+                layoutBounds().height(),
+                text,
+                richText,
+                TEXT_PADDING_X,
+                TextEngine.measureLineWidth(context, richText),
+                TextEngine.measureTextHeight(richText),
+                textColor.copy(),
+                pressed,
+                hovered(),
+                enabled(),
+                false,
+                0.0f,
+                0.0f,
+                0.0f,
+                background().copy(),
+                borderColor().copy());
     }
 
     private static String normalize(String text) {

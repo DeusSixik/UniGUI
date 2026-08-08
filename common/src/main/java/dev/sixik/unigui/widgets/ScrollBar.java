@@ -15,10 +15,13 @@ import dev.sixik.unigui.api.event.ScrollBarValueChangedEvent;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.math.MutableColor;
-import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.widgets.render.ScrollBarRenderer;
+import dev.sixik.unigui.widgets.render.ScrollBarState;
 
 public class ScrollBar extends Box {
     public static final float DEFAULT_SIZE = 6.0f;
@@ -27,6 +30,7 @@ public class ScrollBar extends Box {
     private final MutableColor trackColor = new MutableColor(0.0f, 0.0f, 0.0f, 0.28f);
     private final MutableColor thumbColor = new MutableColor(0.25f, 0.78f, 1.0f, 0.75f);
     private Orientation orientation = Orientation.VERTICAL;
+    private ScrollBarRenderer renderer;
     private float min;
     private float max;
     private float value;
@@ -123,6 +127,21 @@ public class ScrollBar extends Box {
         return thumbColor;
     }
 
+    public ScrollBarRenderer renderer() {
+        return renderer;
+    }
+
+    public ScrollBar renderer(ScrollBarRenderer renderer) {
+        if (this.renderer == renderer) return this;
+        this.renderer = renderer;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public ScrollBar useDefaultRenderer() {
+        return renderer(null);
+    }
+
     public EventSubscription onValueChanged(EventListener<? super ScrollBarValueChangedEvent> listener) {
         return on(ScrollBarValueChangedEvent.TYPE, listener);
     }
@@ -174,23 +193,30 @@ public class ScrollBar extends Box {
 
     @Override
     protected void renderContent(RenderContext context) {
-        float x = layoutBounds().x();
-        float y = layoutBounds().y();
-        float width = layoutBounds().width();
-        float height = layoutBounds().height();
-
-        context.roundedRect(x, y, width, height, Math.min(width, height) * 0.5f, Paint.fill(trackColor), transform());
-        if (orientation == Orientation.VERTICAL) {
-            float thumbHeight = thumbLength(height);
-            float thumbY = y + (height - thumbHeight) * normalizedValue();
-            context.roundedRect(x, thumbY, width, thumbHeight, width * 0.5f, Paint.fill(thumbColor), transform());
-        } else {
-            float thumbWidth = thumbLength(width);
-            float thumbX = x + (width - thumbWidth) * normalizedValue();
-            context.roundedRect(thumbX, y, thumbWidth, height, height * 0.5f, Paint.fill(thumbColor), transform());
-        }
-
+        effectiveRenderer().render(new DrawScope(context, transform()), snapshot());
         super.renderContent(context);
+    }
+
+    private ScrollBarRenderer effectiveRenderer() {
+        return renderer == null ? WidgetsRender.scrollBar() : renderer;
+    }
+
+    private ScrollBarState snapshot() {
+        return new ScrollBarState(
+                layoutBounds().x(),
+                layoutBounds().y(),
+                layoutBounds().width(),
+                layoutBounds().height(),
+                orientation,
+                min,
+                max,
+                value,
+                pageSize,
+                step,
+                normalizedValue(),
+                dragging,
+                trackColor.copy(),
+                thumbColor.copy());
     }
 
     private boolean isFocused() {

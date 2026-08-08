@@ -1,14 +1,19 @@
 package dev.sixik.unigui.widgets;
 
+import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.layout.LayoutContext;
-import dev.sixik.unigui.api.layout.Alignment;
-import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.impl.text.TextEngine;
+import dev.sixik.unigui.widgets.render.ButtonRenderType;
+import dev.sixik.unigui.widgets.render.ButtonRenderer;
+import dev.sixik.unigui.widgets.render.ButtonState;
 
 public class Checkbox extends ToggleButton {
     private static final float BOX_SIZE = 12.0f;
+    private static final float CHECK_SIZE = 6.0f;
+    private static final float TEXT_GAP = 4.0f;
 
     public Checkbox() {
         this("");
@@ -38,23 +43,37 @@ public class Checkbox extends ToggleButton {
 
     @Override
     protected void renderContent(RenderContext context) {
-        float x = layoutBounds().x();
-        float y = layoutBounds().y() + Math.max(0.0f, layoutBounds().height() - BOX_SIZE) * 0.5f;
-        context.roundedRect(x, y, BOX_SIZE, BOX_SIZE, 2.0f, Paint.stroke(borderColor(), 1.0f), transform());
-        if (checked()) {
-            context.rect(x + 3.0f, y + 3.0f, BOX_SIZE - 6.0f, BOX_SIZE - 6.0f, Paint.fill(checkedBackground()), transform());
-        }
-        if (!text().isEmpty()) {
-            TextEngine.draw(context,
-                    richText(),
-                    x + BOX_SIZE + 4.0f,
-                    layoutBounds().y(),
-                    Math.max(0.0f, layoutBounds().width() - BOX_SIZE - 4.0f),
-                    layoutBounds().height(),
-                    Paint.fill(textColor()),
-                    transform(),
-                    Alignment.START,
-                    Alignment.CENTER);
-        }
+        effectiveRenderer().render(new DrawScope(context, transform()), snapshot(context));
+        renderChildren(context);
+    }
+
+    @Override
+    protected ButtonRenderer effectiveRenderer() {
+        return renderer() == null ? WidgetsRender.checkbox() : renderer();
+    }
+
+    @Override
+    protected ButtonState snapshot(RenderContext context) {
+        return new ButtonState(
+                ButtonRenderType.CHECKBOX,
+                layoutBounds().x(),
+                layoutBounds().y(),
+                layoutBounds().width(),
+                layoutBounds().height(),
+                text(),
+                richText(),
+                TEXT_PADDING_X,
+                TextEngine.measureLineWidth(context, richText()),
+                TextEngine.measureTextHeight(richText()),
+                textColor().copy(),
+                pressed(),
+                hovered(),
+                enabled(),
+                checked(),
+                BOX_SIZE,
+                CHECK_SIZE,
+                TEXT_GAP,
+                checkedBackground().copy(),
+                borderColor().copy());
     }
 }

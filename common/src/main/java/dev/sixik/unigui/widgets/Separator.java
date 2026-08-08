@@ -2,12 +2,16 @@ package dev.sixik.unigui.widgets;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.math.MutableColor;
-import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.impl.widget.WidgetBase;
+import dev.sixik.unigui.widgets.render.SeparatorRenderer;
+import dev.sixik.unigui.widgets.render.SeparatorState;
 
 public final class Separator extends WidgetBase {
     private final MutableColor color = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
+    private SeparatorRenderer renderer;
     private Orientation orientation = Orientation.HORIZONTAL;
     private float thickness = 1.0f;
 
@@ -17,6 +21,21 @@ public final class Separator extends WidgetBase {
 
     public MutableColor color() {
         return color;
+    }
+
+    public SeparatorRenderer renderer() {
+        return renderer;
+    }
+
+    public Separator renderer(SeparatorRenderer renderer) {
+        if (this.renderer == renderer) return this;
+        this.renderer = renderer;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public Separator useDefaultRenderer() {
+        return renderer(null);
     }
 
     public Orientation orientation() {
@@ -46,13 +65,24 @@ public final class Separator extends WidgetBase {
     public void render(RenderContext context) {
         pushOpacity(context);
         try {
-            float x = layoutBounds().x();
-            float y = layoutBounds().y();
-            float width = orientation == Orientation.HORIZONTAL ? layoutBounds().width() : thickness;
-            float height = orientation == Orientation.HORIZONTAL ? thickness : layoutBounds().height();
-            context.rect(x, y, width, height, Paint.fill(color), transform());
+            effectiveRenderer().render(new DrawScope(context, transform()), snapshot());
         } finally {
             popOpacity(context);
         }
+    }
+
+    private SeparatorRenderer effectiveRenderer() {
+        return renderer == null ? WidgetsRender.separator() : renderer;
+    }
+
+    private SeparatorState snapshot() {
+        return new SeparatorState(
+                layoutBounds().x(),
+                layoutBounds().y(),
+                layoutBounds().width(),
+                layoutBounds().height(),
+                orientation,
+                thickness,
+                color.copy());
     }
 }

@@ -8,9 +8,15 @@ import dev.sixik.unigui.api.event.EventSubscription;
 import dev.sixik.unigui.api.event.KeyPressedEvent;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.impl.text.TextEngine;
+import dev.sixik.unigui.widgets.render.ButtonRenderType;
+import dev.sixik.unigui.widgets.render.ButtonRenderer;
+import dev.sixik.unigui.widgets.render.ButtonState;
 
 public class ToggleButton extends Button {
     private final MutableColor checkedBackground = new MutableColor(0.18f, 0.45f, 0.75f, 1.0f);
@@ -72,6 +78,36 @@ public class ToggleButton extends Button {
         if (!enabled()) return super.styleState();
         if (pressed()) return WidgetState.PRESSED;
         return checked ? WidgetState.CHECKED : super.styleState();
+    }
+
+    @Override
+    protected ButtonRenderer effectiveRenderer() {
+        return renderer() == null ? WidgetsRender.toggleButton() : renderer();
+    }
+
+    @Override
+    protected ButtonState snapshot(RenderContext context) {
+        return new ButtonState(
+                ButtonRenderType.TOGGLE_BUTTON,
+                layoutBounds().x(),
+                layoutBounds().y(),
+                layoutBounds().width(),
+                layoutBounds().height(),
+                text(),
+                richText(),
+                TEXT_PADDING_X,
+                TextEngine.measureLineWidth(context, richText()),
+                TextEngine.measureTextHeight(richText()),
+                textColor().copy(),
+                pressed(),
+                hovered(),
+                enabled(),
+                checked,
+                0.0f,
+                0.0f,
+                0.0f,
+                checkedBackground.copy(),
+                uncheckedBackground.copy());
     }
 
     @Override

@@ -1,20 +1,21 @@
 package dev.sixik.unigui.widgets;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
-import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.Overflow;
 import dev.sixik.unigui.api.layout.PositionType;
 import dev.sixik.unigui.api.math.MutableColor;
-import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
-import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
+import dev.sixik.unigui.widgets.render.TooltipRenderer;
+import dev.sixik.unigui.widgets.render.TooltipState;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,6 +30,7 @@ public final class Tooltip extends Box implements OverlayHostAware {
     private Widget anchor;
     private String text = "";
     private RichText richText = RichText.plain("");
+    private TooltipRenderer renderer;
     private float offsetX = 8.0f;
     private float offsetY = 10.0f;
     private float maxWidth = DEFAULT_MAX_WIDTH;
@@ -123,6 +125,21 @@ public final class Tooltip extends Box implements OverlayHostAware {
         return textColor;
     }
 
+    public TooltipRenderer renderer() {
+        return renderer;
+    }
+
+    public Tooltip renderer(TooltipRenderer renderer) {
+        if (this.renderer == renderer) return this;
+        this.renderer = renderer;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public Tooltip useDefaultRenderer() {
+        return renderer(null);
+    }
+
     public boolean showing() {
         return visibility() == Visibility.VISIBLE && anchor != null && anchor.hovered() && !text.isEmpty();
     }
@@ -184,28 +201,27 @@ public final class Tooltip extends Box implements OverlayHostAware {
         float textY = layoutBounds().y() + VERTICAL_PADDING;
         float textWidth = Math.max(0.0f, layoutBounds().width() - HORIZONTAL_PADDING * 2.0f);
         float textHeight = Math.max(0.0f, layoutBounds().height() - VERTICAL_PADDING * 2.0f);
-        context.pushClip(textX, textY, textWidth, textHeight);
-        try {
-            List<RichText> lines = wrappedLines(textWidth);
-            float lineY = textY;
-            for (RichText line : lines) {
-                float lineHeight = lineHeight(line);
-                if (lineY >= textY + textHeight) break;
-                TextEngine.draw(context,
-                        line,
-                        textX,
-                        lineY,
-                        textWidth,
-                        lineHeight,
-                        Paint.fill(textColor),
-                        transform(),
-                        Alignment.START,
-                        Alignment.CENTER);
-                lineY += lineHeight;
-            }
-        } finally {
-            context.popClip();
+        List<RichText> lines = wrappedLines(textWidth);
+        float[] lineHeights = new float[lines.size()];
+        for (int i = 0; i < lines.size(); i++) {
+            lineHeights[i] = lineHeight(lines.get(i));
         }
+        effectiveRenderer().render(new DrawScope(context, transform()), new TooltipState(
+                layoutBounds().x(),
+                layoutBounds().y(),
+                layoutBounds().width(),
+                layoutBounds().height(),
+                textX,
+                textY,
+                textWidth,
+                textHeight,
+                lines,
+                lineHeights,
+                textColor.copy()));
+    }
+
+    private TooltipRenderer effectiveRenderer() {
+        return renderer == null ? WidgetsRender.tooltip() : renderer;
     }
 
     private List<RichText> wrappedLines(float textWidthLimit) {
@@ -289,4 +305,3 @@ public final class Tooltip extends Box implements OverlayHostAware {
                 : Math.max(TextEngine.LINE_HEIGHT, TextEngine.measureTextHeight(line));
     }
 }
-

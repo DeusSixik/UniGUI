@@ -1,5 +1,9 @@
 package dev.sixik.unigui.widgets;
 
+import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.widgets.render.TextInputRenderer;
+import dev.sixik.unigui.widgets.render.TextInputRenderType;
+
 public class TextField extends TextInput {
     public TextField() {
         enableDefaultTextInputChrome();
@@ -51,5 +55,15 @@ public class TextField extends TextInput {
     public TextField maxLength(int maxLength) {
         super.maxLength(maxLength);
         return this;
+    }
+
+    @Override
+    protected TextInputRenderer effectiveRenderer() {
+        return renderer() == null ? WidgetsRender.textField() : renderer();
+    }
+
+    @Override
+    protected TextInputRenderType renderType() {
+        return TextInputRenderType.TEXT_FIELD;
     }
 }

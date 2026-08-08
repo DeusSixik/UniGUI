@@ -2,12 +2,16 @@ package dev.sixik.unigui.widgets;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.math.MutableColor;
-import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.impl.widget.WidgetBase;
+import dev.sixik.unigui.widgets.render.BorderRenderer;
+import dev.sixik.unigui.widgets.render.BorderState;
 
 public final class Border extends WidgetBase {
     private final MutableColor color = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
+    private BorderRenderer renderer;
     private float thickness = 1.0f;
     private float radius;
 
@@ -17,6 +21,21 @@ public final class Border extends WidgetBase {
 
     public MutableColor color() {
         return color;
+    }
+
+    public BorderRenderer renderer() {
+        return renderer;
+    }
+
+    public Border renderer(BorderRenderer renderer) {
+        if (this.renderer == renderer) return this;
+        this.renderer = renderer;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public Border useDefaultRenderer() {
+        return renderer(null);
     }
 
     public float thickness() {
@@ -45,16 +64,24 @@ public final class Border extends WidgetBase {
     public void render(RenderContext context) {
         pushOpacity(context);
         try {
-            context.roundedRect(
-                    layoutBounds().x(),
-                    layoutBounds().y(),
-                    layoutBounds().width(),
-                    layoutBounds().height(),
-                    radius,
-                    Paint.stroke(color, thickness),
-                    transform());
+            effectiveRenderer().render(new DrawScope(context, transform()), snapshot());
         } finally {
             popOpacity(context);
         }
+    }
+
+    private BorderRenderer effectiveRenderer() {
+        return renderer == null ? WidgetsRender.border() : renderer;
+    }
+
+    private BorderState snapshot() {
+        return new BorderState(
+                layoutBounds().x(),
+                layoutBounds().y(),
+                layoutBounds().width(),
+                layoutBounds().height(),
+                color.copy(),
+                thickness,
+                radius);
     }
 }

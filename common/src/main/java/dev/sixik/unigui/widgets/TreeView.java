@@ -8,13 +8,15 @@ import dev.sixik.unigui.api.event.EventSubscription;
 import dev.sixik.unigui.api.event.KeyPressedEvent;
 import dev.sixik.unigui.api.event.SelectionChangedEvent;
 import dev.sixik.unigui.api.input.KeyCodes;
-import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.layout.LayoutContext;
-import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.impl.text.TextEngine;
+import dev.sixik.unigui.widgets.render.TreeViewRenderer;
+import dev.sixik.unigui.widgets.render.TreeViewRowState;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -28,6 +30,7 @@ public class TreeView extends LinearBox {
     private final VBox rowsHost = new VBox();
     private final List<TreeViewNode> roots = new ArrayList<>();
     private final List<TreeViewNode> visibleNodes = new ArrayList<>();
+    private TreeViewRenderer renderer;
     private TreeViewNode selectedNode;
 
     public TreeView() {
@@ -129,6 +132,21 @@ public class TreeView extends LinearBox {
 
     public VBox rowsHost() {
         return rowsHost;
+    }
+
+    public TreeViewRenderer renderer() {
+        return renderer;
+    }
+
+    public TreeView renderer(TreeViewRenderer renderer) {
+        if (this.renderer == renderer) return this;
+        this.renderer = renderer;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public TreeView useDefaultRenderer() {
+        return renderer(null);
     }
 
     public EventSubscription onSelectionChanged(EventListener<? super SelectionChangedEvent> listener) {
@@ -342,6 +360,10 @@ public class TreeView extends LinearBox {
         return false;
     }
 
+    protected TreeViewRenderer effectiveRenderer() {
+        return renderer == null ? WidgetsRender.treeView() : renderer;
+    }
+
     private static final class TreeRowButton extends Button {
         private final TreeView tree;
         private final TreeViewNode node;
@@ -387,20 +409,40 @@ public class TreeView extends LinearBox {
 
         @Override
         protected void renderContent(RenderContext context) {
+            tree.effectiveRenderer().render(new DrawScope(context, transform()), rowSnapshot(context));
+        }
+
+        private TreeViewRowState rowSnapshot(RenderContext context) {
             RichText text = rowText();
-            if (!text.isEmpty()) {
-                float indent = depth * INDENT_WIDTH;
-                TextEngine.draw(context,
-                        text,
-                        layoutBounds().x() + TEXT_PADDING_X + indent,
-                        layoutBounds().y(),
-                        Math.max(0.0f, layoutBounds().width() - TEXT_PADDING_X * 2.0f - indent),
-                        layoutBounds().height(),
-                        Paint.fill(textColor()),
-                        transform(),
-                        Alignment.START,
-                        Alignment.CENTER);
-            }
+            float indent = depth * INDENT_WIDTH;
+            float textX = layoutBounds().x() + TEXT_PADDING_X + indent;
+            float availableWidth = Math.max(0.0f, layoutBounds().width() - TEXT_PADDING_X * 2.0f - indent);
+            float availableHeight = Math.max(0.0f, layoutBounds().height());
+            float textWidth = Math.min(availableWidth, TextEngine.measureLineWidth(context, text));
+            float textHeight = Math.min(availableHeight, TextEngine.measureTextHeight(text));
+            float textY = TextEngine.alignedStart(layoutBounds().y(), availableHeight, textHeight,
+                    dev.sixik.unigui.api.layout.Alignment.CENTER);
+            return new TreeViewRowState(
+                    layoutBounds().x(),
+                    layoutBounds().y(),
+                    layoutBounds().width(),
+                    layoutBounds().height(),
+                    depth,
+                    INDENT_WIDTH,
+                    TEXT_PADDING_X,
+                    text,
+                    textX,
+                    textY,
+                    availableWidth,
+                    textHeight,
+                    textColor().copy(),
+                    tree.selectedNode() == node,
+                    node.selectable(),
+                    node.hasChildren(),
+                    node.expanded(),
+                    hovered(),
+                    pressed(),
+                    enabled());
         }
 
         private RichText rowText() {

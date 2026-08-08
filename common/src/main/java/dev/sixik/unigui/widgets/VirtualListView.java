@@ -18,15 +18,20 @@ import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
-import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.selection.IndexSelectionModel;
 import dev.sixik.unigui.api.selection.SelectionMode;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.virtualization.FixedRowVirtualizer;
 import dev.sixik.unigui.api.virtualization.VirtualRange;
 import dev.sixik.unigui.impl.widget.WidgetBase;
+import dev.sixik.unigui.widgets.render.VirtualListViewRenderer;
+import dev.sixik.unigui.widgets.render.VirtualListViewRenderPhase;
+import dev.sixik.unigui.widgets.render.VirtualListViewRowState;
+import dev.sixik.unigui.widgets.render.VirtualListViewState;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -50,6 +55,7 @@ public class VirtualListView extends WidgetBase {
     private final IndexSelectionModel selection = new IndexSelectionModel();
     private final Map<Integer, Widget> realized = new LinkedHashMap<>();
     private IntFunction<? extends Widget> itemFactory = index -> new Label(String.valueOf(index));
+    private VirtualListViewRenderer renderer;
     private float scrollStep = 16.0f;
     private int activeIndex = -1;
 
@@ -209,6 +215,21 @@ public class VirtualListView extends WidgetBase {
         return verticalScrollBar;
     }
 
+    public VirtualListViewRenderer renderer() {
+        return renderer;
+    }
+
+    public VirtualListView renderer(VirtualListViewRenderer renderer) {
+        if (this.renderer == renderer) return this;
+        this.renderer = renderer;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public VirtualListView useDefaultRenderer() {
+        return renderer(null);
+    }
+
     public VirtualListView scrollTo(float y) {
         updateVirtualizerViewport();
         float before = virtualizer.scrollOffset();
@@ -289,28 +310,56 @@ public class VirtualListView extends WidgetBase {
         if (visibility() != Visibility.VISIBLE) return;
         pushOpacity(context);
         try {
-            context.pushClip(layoutBounds().x(), layoutBounds().y(), viewportWidth(), layoutBounds().height());
+            VirtualListViewRenderer activeRenderer = effectiveRenderer();
+            DrawScope draw = new DrawScope(context, transform());
+            draw.pushClip(layoutBounds().x(), layoutBounds().y(), viewportWidth(), layoutBounds().height());
+            activeRenderer.render(draw, snapshot(VirtualListViewRenderPhase.BACKGROUND));
             for (Map.Entry<Integer, Widget> entry : List.copyOf(realized.entrySet())) {
                 Widget item = entry.getValue();
                 if (item.visibility() == Visibility.VISIBLE) {
-                    if (selection.isSelected(entry.getKey())) {
-                        context.rect(item.layoutBounds().x(), item.layoutBounds().y(), item.layoutBounds().width(), item.layoutBounds().height(),
-                                Paint.fill(SELECTED_ROW_COLOR), transform());
-                    }
                     item.render(context);
-                    if (isFocused() && entry.getKey() == activeIndex) {
-                        context.rect(item.layoutBounds().x(), item.layoutBounds().y(), item.layoutBounds().width(), item.layoutBounds().height(),
-                                Paint.stroke(ACTIVE_ROW_COLOR, 1.0f), transform());
-                    }
                 }
             }
-            context.popClip();
+            activeRenderer.render(draw, snapshot(VirtualListViewRenderPhase.FOREGROUND));
+            draw.popClip();
             if (hasVerticalScrollBar()) {
                 verticalScrollBar.render(context);
             }
         } finally {
             popOpacity(context);
         }
+    }
+
+    protected VirtualListViewRenderer effectiveRenderer() {
+        return renderer == null ? WidgetsRender.virtualListView() : renderer;
+    }
+
+    protected VirtualListViewState snapshot(VirtualListViewRenderPhase phase) {
+        List<VirtualListViewRowState> rows = new ArrayList<>(realized.size());
+        for (Map.Entry<Integer, Widget> entry : realized.entrySet()) {
+            Widget item = entry.getValue();
+            if (item.visibility() != Visibility.VISIBLE) continue;
+            rows.add(new VirtualListViewRowState(
+                    entry.getKey(),
+                    item.layoutBounds().x(),
+                    item.layoutBounds().y(),
+                    item.layoutBounds().width(),
+                    item.layoutBounds().height(),
+                    selection.isSelected(entry.getKey()),
+                    entry.getKey() == activeIndex));
+        }
+        return new VirtualListViewState(
+                layoutBounds().x(),
+                layoutBounds().y(),
+                layoutBounds().width(),
+                layoutBounds().height(),
+                viewportWidth(),
+                layoutBounds().height(),
+                isFocused(),
+                phase,
+                SELECTED_ROW_COLOR.copy(),
+                ACTIVE_ROW_COLOR.copy(),
+                rows);
     }
 
     @Override
