@@ -26,6 +26,87 @@ Layout V3 должен стать единым layout-ядром в стиле T
 - Не привязывать публичный UniGUI API напрямую к конкретной библиотеке Taffy/Yoga.
 - Не добавлять специфичные виджеты до стабилизации базовых layout-контрактов.
 
+Важно: "не делать полноценный CSS engine" не означает, что в UniGUI не должно быть CSS-похожей настройки стилей. Это означает, что Layout V3 не должен пытаться стать browser-compatible CSS implementation со всеми правилами web-платформы.
+
+## CSS-like styling layer
+
+Для пользовательской настройки внешнего вида стоит добавить отдельный CSS-inspired layer поверх Layout V3. Его задача — дать удобный stylesheet/theme формат для виджетов, но без полной совместимости с браузерным CSS.
+
+Рекомендуемая архитектура:
+
+    Widget
+        -> type / id / style classes / pseudo states
+        -> StyleSheetResolver
+        -> ComputedStyle
+        -> LayoutStyle + RenderStyle + TextStyle + InputStyle
+        -> Layout V3 + renderer
+
+Минимальный DSL может выглядеть так:
+
+    Button {
+        padding: 6px 10px;
+        background: #222831;
+        color: #eeeeee;
+        cursor: pointer;
+    }
+
+    Button:hover {
+        background: #313946;
+    }
+
+    .primary {
+        background: #2f80ed;
+    }
+
+    #saveButton {
+        min-width: 120px;
+    }
+
+Поддержать стоит ограниченный и понятный subset:
+
+- type selectors: Button, Panel, TextBlock, ScrollView;
+- class selectors: .primary, .danger, .compact;
+- id selectors: #saveButton;
+- pseudo states: :hover, :pressed, :focused, :disabled, :checked;
+- variables/tokens: --accent, --text-muted, --panel-bg;
+- простую specificity-модель: id > class/state > type > default theme;
+- inheritance только для безопасных свойств: text color, font, font size, cursor;
+- style invalidation при изменении class/id/state/theme.
+
+Не стоит обещать на первом этапе:
+
+- complex selectors: div > .a + .b, :nth-child, :not(...);
+- media queries;
+- pseudo-elements;
+- CSS animations/transitions;
+- full cascade/inheritance как в браузере;
+- calc(), em/rem/vh/vw и другие web-specific units;
+- z-index/stacking-context semantics как в HTML/CSS.
+
+Практически это можно назвать не CSS, а UniStyle, UniCSS или UniGUI StyleSheet. Тогда пользователи получают знакомый формат настройки, но ожидания остаются контролируемыми.
+
+Предлагаемые классы:
+
+- StyleSheet — parsed stylesheet/theme document.
+- StyleRule — selector + declarations.
+- StyleSelector — type/id/class/state matcher.
+- StyleDeclaration — одно свойство и значение.
+- ComputedStyle — итоговый resolved style для widget.
+- StyleSheetResolver — применяет rules к widget tree.
+- StyleInvalidationTracker — определяет, какие widgets пересчитать при изменении state/class/theme.
+- RenderStyle — background, border, radius, opacity, shadow-like эффекты.
+- TextStyle — font, font size, color, alignment, wrapping.
+- InputStyle — cursor и interaction hints.
+
+Связь с Layout V3:
+
+- layout-свойства из stylesheet должны маппиться в LayoutStyle;
+- render/text/input-свойства не должны попадать в LayoutEngine;
+- computed style должен кэшироваться отдельно от layout output;
+- изменение layout-свойств инвалидирует layout;
+- изменение только render-свойств инвалидирует visual;
+- изменение pseudo-state типа :hover не должно пересчитывать layout, если правило меняет только цвет.
+
 ## Главная идея
 
 Layout V3 должен быть не набором новых контейнеров, а отдельным engine-слоем:
@@ -270,6 +351,7 @@ Snapshot формат лучше делать текстовым и стабил
 ## Открытые решения
 
 - Делать ли первый backend полностью internal Java или сразу подключать external Yoga/Taffy binding.
+- Называть styling layer UniStyle/UniCSS/StyleSheet и какой минимальный subset selectors/properties считать стабильным API.
 - Нужен ли отдельный display property (FLEX, NONE) или достаточно Visibility.COLLAPSED.
 - Какую overlay clipping policy сделать default: root-only clipping или allow outside screen.
 - Нужен ли полноценный grid model для GridBox или можно временно оставить custom layout.

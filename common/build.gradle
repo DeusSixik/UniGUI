@@ -12,3 +12,15 @@ dependencies {
     compileOnly("com.github.somehussar:yoga:1.0.1-java8")
     compileOnly("dev.vfyjxf:taffy:1.1.4")
 }
+
+tasks.register("layoutV3SelfTest", JavaExec) {
+    group = "verification"
+    description = "Runs Layout V3 self-test assertions."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.LayoutV3SelfTest"
+}
+
+tasks.named("test") {
+    dependsOn tasks.named("layoutV3SelfTest")
+}

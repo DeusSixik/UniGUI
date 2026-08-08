@@ -512,7 +512,7 @@ public final class TestCommands {
 
         WrapPanel previews = wrap();
         previews.addChild(itemPreview("Diamond", Items.DIAMOND));
-        previews.addChild(itemPreview("Pickaxe", Items.DIAMOND_PICKAXE));
+        previews.addChild(itemPreview("Pickaxe", Items.ENCHANTED_GOLDEN_APPLE));
         previews.addChild(blockPreview("Crafting", Blocks.CRAFTING_TABLE));
         previews.addChild(blockPreview("Furnace", Blocks.FURNACE));
         previews.addChild(entityPreview("Player-ish", EntityType.ZOMBIE));

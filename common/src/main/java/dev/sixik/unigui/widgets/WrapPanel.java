@@ -5,9 +5,11 @@ import dev.sixik.unigui.api.layout.FlexDirection;
 import dev.sixik.unigui.api.layout.FlexWrap;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
+import dev.sixik.unigui.api.layout.v3.LayoutV3Settings;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.impl.layout.FlexLayoutEngine;
+import dev.sixik.unigui.impl.layout.v3.LayoutV3FlexAdapter;
 
 public final class WrapPanel extends PanelWidget {
     private Orientation orientation = Orientation.HORIZONTAL;
@@ -67,7 +69,11 @@ public final class WrapPanel extends PanelWidget {
         FlexDirection direction = orientation == Orientation.HORIZONTAL
                 ? FlexDirection.ROW
                 : FlexDirection.COLUMN;
-        LayoutSize measured = FlexLayoutEngine.measure(
+        LayoutSize measured = LayoutV3Settings.wrapPanelEnabled()
+                ? LayoutV3FlexAdapter.measure(
+                children(), context, direction, FlexWrap.WRAP,
+                layoutStyle().rowGap(), layoutStyle().columnGap(), layoutStyle())
+                : FlexLayoutEngine.measure(
                 children(), context, direction, FlexWrap.WRAP,
                 layoutStyle().rowGap(), layoutStyle().columnGap(), layoutStyle());
         setDesiredSize(resolveDesiredSize(context, measured.width(), measured.height()));
@@ -81,9 +87,15 @@ public final class WrapPanel extends PanelWidget {
         FlexDirection direction = orientation == Orientation.HORIZONTAL
                 ? FlexDirection.ROW
                 : FlexDirection.COLUMN;
-        FlexLayoutEngine.arrange(
-                children(), bounds, direction, FlexWrap.WRAP,
-                layoutStyle().rowGap(), layoutStyle().columnGap(), layoutStyle());
+        if (LayoutV3Settings.wrapPanelEnabled()) {
+            LayoutV3FlexAdapter.arrange(
+                    children(), bounds, direction, FlexWrap.WRAP,
+                    layoutStyle().rowGap(), layoutStyle().columnGap(), layoutStyle());
+        } else {
+            FlexLayoutEngine.arrange(
+                    children(), bounds, direction, FlexWrap.WRAP,
+                    layoutStyle().rowGap(), layoutStyle().columnGap(), layoutStyle());
+        }
     }
 
     private void syncLayoutStyle() {
