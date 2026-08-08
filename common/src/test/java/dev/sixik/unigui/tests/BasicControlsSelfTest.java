@@ -319,6 +319,22 @@ public final class BasicControlsSelfTest {
                 "MinecraftFonts should expose the vanilla default FontFace");
         expect(near(vanilla.metrics(9.0f).lineHeight(), 9.0f),
                 "Vanilla FontFace should scale Minecraft's native nine-pixel line height");
+
+        AwtFontFace awtDialog = new AwtFontFace("dialog-test", new java.awt.Font("Dialog", java.awt.Font.PLAIN, 16));
+        expect(near(awtDialog.advance('A', 24.0f), awtDialog.advance('A', 12.0f) * 2.0f),
+                "AwtFontFace should scale cached unit advances linearly");
+        SdfGlyph glyph = awtDialog.sdfGlyph('A', 48, 8);
+        int minPixel = 255;
+        int maxPixel = 0;
+        for (byte pixel : glyph.pixels()) {
+            int value = pixel & 0xFF;
+            minPixel = Math.min(minPixel, value);
+            maxPixel = Math.max(maxPixel, value);
+        }
+        expect(glyph.width() > 1 && glyph.height() > 1 && glyph.advance() > 0.0f
+                        && minPixel < 96 && maxPixel > 160,
+                "AwtFontFace SDF glyph should contain a signed distance range");
+
         RichText mixed = RichText.builder()
                 .font(narrow).size(10.0f).append("SDF ")
                 .font(vanilla).size(9.0f).append("Vanilla")

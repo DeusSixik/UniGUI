@@ -39,6 +39,7 @@ import java.util.Map;
 public final class MinecraftSdfTextRenderer implements AutoCloseable {
     private static final int BASE_PIXEL_SIZE = 48;
     private static final int SPREAD = 8;
+    private static final int ATLAS_PADDING = 2;
     private static final int ATLAS_SIZE = 1024;
     private static final int FLOATS_PER_VERTEX = 9;
     private static final boolean DEBUG_GL = Boolean.getBoolean("unigui.sdf.debugGl");
@@ -82,6 +83,7 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
     private FontFace defaultFace;
     private final FloatBuffer matrixBuffer = BufferUtils.createFloatBuffer(16);
     private FloatBuffer vertexUpload = BufferUtils.createFloatBuffer(FLOATS_PER_VERTEX * 6 * 64);
+    private ByteBuffer glyphUpload = BufferUtils.createByteBuffer(64 * 64);
     private int program;
     private int vertexArray;
     private int vertexBuffer;
@@ -262,15 +264,15 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
                     penX += Math.max(0.0f, face.advance(codePoint, run.pixelSize()));
                     continue;
                 }
-                float left = penX + placement.glyph.bearingX() * scale;
-                float top = baseline + placement.glyph.bearingY() * scale;
-                float width = placement.glyph.width() * scale;
-                float height = placement.glyph.height() * scale;
+                float left = penX + placement.bearingX * scale;
+                float top = baseline + placement.bearingY * scale;
+                float width = placement.width * scale;
+                float height = placement.height * scale;
                 Batch batch = nextBatch(batches, placement.page);
                 addQuad(batch.vertices, left, top, width, height,
                         placement.u0, placement.v0, placement.u1, placement.v1,
                         command.paint(), runColor, transformState);
-                penX += placement.glyph.advance() * scale;
+                penX += placement.advance * scale;
             }
         }
     }
@@ -363,6 +365,16 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
         vertexUpload.put(values.values, 0, values.size);
         vertexUpload.flip();
         return vertexUpload;
+    }
+
+    private ByteBuffer uploadGlyphBuffer(byte[] pixels) {
+        if (glyphUpload.capacity() < pixels.length) {
+            glyphUpload = BufferUtils.createByteBuffer(Math.max(pixels.length, glyphUpload.capacity() * 2));
+        }
+        glyphUpload.clear();
+        glyphUpload.put(pixels);
+        glyphUpload.flip();
+        return glyphUpload;
     }
 
     private static int linkProgram(String vertexSource, String fragmentSource) {
@@ -461,11 +473,11 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
         }
     }
 
-    private static final class AtlasPage implements AutoCloseable {
+    private final class AtlasPage implements AutoCloseable {
         private final int size;
         private final int textureId;
-        private int cursorX = SPREAD;
-        private int cursorY = SPREAD;
+        private int cursorX = ATLAS_PADDING;
+        private int cursorY = ATLAS_PADDING;
         private int rowHeight;
 
         private AtlasPage(int size) {
@@ -490,23 +502,22 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
         }
 
         private boolean canFit(int width, int height) {
-            if (width + SPREAD > size || height + SPREAD > size) return false;
-            if (cursorX + width > size) return cursorY + rowHeight + SPREAD + height <= size;
+            if (width + ATLAS_PADDING > size || height + ATLAS_PADDING > size) return false;
+            if (cursorX + width > size) return cursorY + rowHeight + ATLAS_PADDING + height <= size;
             return cursorY + height <= size;
         }
 
         private GlyphPlacement add(SdfGlyph glyph) {
             if (cursorX + glyph.width() > size) {
-                cursorX = SPREAD;
-                cursorY += rowHeight + SPREAD;
+                cursorX = ATLAS_PADDING;
+                cursorY += rowHeight + ATLAS_PADDING;
                 rowHeight = 0;
             }
             int x = cursorX;
             int y = cursorY;
-            cursorX += glyph.width() + SPREAD;
+            cursorX += glyph.width() + ATLAS_PADDING;
             rowHeight = Math.max(rowHeight, glyph.height());
-            ByteBuffer pixels = BufferUtils.createByteBuffer(glyph.pixels().length);
-            pixels.put(glyph.pixels()).flip();
+            ByteBuffer pixels = uploadGlyphBuffer(glyph.pixels());
             PixelUnpackState unpackState = PixelUnpackState.capture();
             try {
                 unpackState.applyTight();
@@ -516,7 +527,8 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
             } finally {
                 unpackState.restore();
             }
-            return new GlyphPlacement(this, glyph,
+            return new GlyphPlacement(this, glyph.width(), glyph.height(), glyph.advance(),
+                    glyph.bearingX(), glyph.bearingY(),
                     x / (float) size, y / (float) size,
                     (x + glyph.width()) / (float) size,
                     (y + glyph.height()) / (float) size);
@@ -528,7 +540,8 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
         }
     }
 
-    private record GlyphPlacement(AtlasPage page, SdfGlyph glyph,
+    private record GlyphPlacement(AtlasPage page, int width, int height, float advance,
+                                  float bearingX, float bearingY,
                                   float u0, float v0, float u1, float v1) {
     }
 
