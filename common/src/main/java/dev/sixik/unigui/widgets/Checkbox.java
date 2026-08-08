@@ -4,6 +4,7 @@ import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.impl.text.TextEngine;
 
 public class Checkbox extends ToggleButton {
@@ -19,13 +20,19 @@ public class Checkbox extends ToggleButton {
         borderVisible(false);
     }
 
+    public Checkbox(RichText text) {
+        super(text);
+        backgroundVisible(false);
+        borderVisible(false);
+    }
+
     @Override
     public void measure(LayoutContext context) {
         if (visibility() == dev.sixik.unigui.api.widget.Visibility.COLLAPSED) {
             setDesiredSize(0.0f, 0.0f);
             return;
         }
-        float textWidth = text().isEmpty() ? 0.0f : 4.0f + text().codePointCount(0, text().length()) * APPROX_CHAR_WIDTH;
+        float textWidth = text().isEmpty() ? 0.0f : 4.0f + TextEngine.measureLineWidth(richText());
         setDesiredSize(resolveDesiredSize(context, BOX_SIZE + textWidth, DEFAULT_HEIGHT));
     }
 
@@ -39,7 +46,7 @@ public class Checkbox extends ToggleButton {
         }
         if (!text().isEmpty()) {
             TextEngine.draw(context,
-                    text(),
+                    richText(),
                     x + BOX_SIZE + 4.0f,
                     layoutBounds().y(),
                     Math.max(0.0f, layoutBounds().width() - BOX_SIZE - 4.0f),

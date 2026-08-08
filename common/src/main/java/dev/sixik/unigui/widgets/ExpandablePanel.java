@@ -5,6 +5,7 @@ import dev.sixik.unigui.api.event.EventListener;
 import dev.sixik.unigui.api.event.EventSubscription;
 import dev.sixik.unigui.api.event.ExpandedChangedEvent;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
+import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 
@@ -16,6 +17,7 @@ public class ExpandablePanel extends LinearBox {
     private final ToggleButton headerButton = new ToggleButton();
     private final VBox contentHost = new VBox();
     private String title = "";
+    private RichText richTitle = RichText.plain("");
     private boolean expanded = true;
 
     public ExpandablePanel() {
@@ -26,6 +28,7 @@ public class ExpandablePanel extends LinearBox {
         super(Orientation.VERTICAL);
         spacing(2.0f);
         this.title = normalize(title);
+        this.richTitle = RichText.plain(this.title);
 
         headerButton.preferredSize(LayoutConstraints.AUTO, HEADER_HEIGHT).grow(0.0f);
         headerButton.silentChecked(expanded);
@@ -40,6 +43,11 @@ public class ExpandablePanel extends LinearBox {
         updateHeaderText();
     }
 
+    public ExpandablePanel(RichText title) {
+        this(title == null ? "" : title.plainText());
+        richTitle(title);
+    }
+
     public String title() {
         return title;
     }
@@ -48,6 +56,21 @@ public class ExpandablePanel extends LinearBox {
         String normalized = normalize(title);
         if (Objects.equals(this.title, normalized)) return this;
         this.title = normalized;
+        this.richTitle = RichText.plain(normalized);
+        updateHeaderText();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public RichText richTitle() {
+        return richTitle;
+    }
+
+    public ExpandablePanel richTitle(RichText title) {
+        RichText normalized = title == null ? RichText.plain("") : title;
+        if (Objects.equals(this.richTitle, normalized)) return this;
+        this.richTitle = normalized;
+        this.title = normalized.plainText();
         updateHeaderText();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
@@ -139,7 +162,7 @@ public class ExpandablePanel extends LinearBox {
     }
 
     private void updateHeaderText() {
-        headerButton.text((expanded ? "\u25BE " : "\u25B8 ") + title);
+        headerButton.richText(RichText.plain(expanded ? "\u25BE " : "\u25B8 ").append(richTitle));
     }
 
     private static String normalize(String title) {

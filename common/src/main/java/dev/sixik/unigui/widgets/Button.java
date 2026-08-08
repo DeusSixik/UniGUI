@@ -21,6 +21,7 @@ import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.widget.Visibility;
@@ -34,6 +35,7 @@ public class Button extends Box {
     protected static final float APPROX_CHAR_WIDTH = TextEngine.APPROX_CHAR_WIDTH;
 
     private String text = "";
+    private RichText richText = RichText.plain("");
     private final MutableColor textColor = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private boolean pressed;
     private boolean interactionTransitions;
@@ -55,7 +57,12 @@ public class Button extends Box {
 
     public Button(String text) {
         this();
-        this.text = normalize(text);
+        text(text);
+    }
+
+    public Button(RichText text) {
+        this();
+        richText(text);
     }
 
     public String text() {
@@ -64,8 +71,23 @@ public class Button extends Box {
 
     public Button text(String text) {
         String normalized = normalize(text);
-        if (Objects.equals(this.text, normalized)) return this;
+        RichText normalizedRichText = RichText.plain(normalized);
+        if (Objects.equals(this.richText, normalizedRichText)) return this;
         this.text = normalized;
+        this.richText = normalizedRichText;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public RichText richText() {
+        return richText;
+    }
+
+    public Button richText(RichText richText) {
+        RichText normalized = richText == null ? RichText.plain("") : richText;
+        if (Objects.equals(this.richText, normalized)) return this;
+        this.richText = normalized;
+        this.text = normalized.plainText();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
@@ -130,7 +152,7 @@ public class Button extends Box {
             setDesiredSize(0.0f, 0.0f);
             return;
         }
-        float textWidth = text.codePointCount(0, text.length()) * APPROX_CHAR_WIDTH;
+        float textWidth = TextEngine.measureLineWidth(richText);
         setDesiredSize(resolveDesiredSize(context, textWidth + TEXT_PADDING_X * 2.0f, DEFAULT_HEIGHT));
     }
 
@@ -175,7 +197,7 @@ public class Button extends Box {
         applyTheme();
         if (!text.isEmpty()) {
             TextEngine.draw(context,
-                    text,
+                    richText,
                     layoutBounds().x() + TEXT_PADDING_X,
                     layoutBounds().y(),
                     Math.max(0.0f, layoutBounds().width() - TEXT_PADDING_X * 2.0f),

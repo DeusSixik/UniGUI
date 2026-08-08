@@ -8,6 +8,7 @@ import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderBackend;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.Box;
@@ -22,11 +23,13 @@ public abstract class MinecraftPreviewWidget extends Box {
     private final MutableColor labelColor = new MutableColor(0.86f, 0.90f, 0.98f, 1.0f);
     private final MutableColor fallbackColor = new MutableColor(1.0f, 0.70f, 0.25f, 1.0f);
     private String label = "";
+    private RichText richLabel = RichText.plain("");
     private float previewSize = DEFAULT_SIZE;
     private boolean labelVisible = true;
 
     protected MinecraftPreviewWidget(String label) {
         this.label = label == null ? "" : label;
+        this.richLabel = RichText.plain(this.label);
         backgroundVisible(true);
         borderVisible(true);
         radius(4.0f);
@@ -44,6 +47,20 @@ public abstract class MinecraftPreviewWidget extends Box {
         String normalized = label == null ? "" : label;
         if (Objects.equals(this.label, normalized)) return this;
         this.label = normalized;
+        this.richLabel = RichText.plain(normalized);
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public RichText richLabel() {
+        return richLabel;
+    }
+
+    public MinecraftPreviewWidget richLabel(RichText label) {
+        RichText normalized = label == null ? RichText.plain("") : label;
+        if (Objects.equals(this.richLabel, normalized)) return this;
+        this.richLabel = normalized;
+        this.label = normalized.plainText();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
@@ -85,7 +102,7 @@ public abstract class MinecraftPreviewWidget extends Box {
             setDesiredSize(LayoutSize.ZERO);
             return;
         }
-        float labelWidth = labelVisible && !label.isEmpty() ? TextEngine.measureLineWidth(label) : 0.0f;
+        float labelWidth = labelVisible && !label.isEmpty() ? TextEngine.measureLineWidth(richLabel) : 0.0f;
         float width = Math.max(previewSize, labelWidth) + PADDING * 2.0f;
         float height = previewSize + PADDING * 2.0f + (labelVisible ? LABEL_HEIGHT : 0.0f);
         setDesiredSize(resolveDesiredSize(context, width, height));
@@ -107,7 +124,7 @@ public abstract class MinecraftPreviewWidget extends Box {
         RenderBackend backend = context.backend();
         if (!(backend instanceof MinecraftGuiRenderBackend)) {
             TextEngine.draw(context,
-                    fallbackText(),
+                    RichText.plain(fallbackText()),
                     previewX,
                     previewY + Math.max(0.0f, squareSize - TextEngine.LINE_HEIGHT) * 0.5f,
                     squareSize,
@@ -120,7 +137,7 @@ public abstract class MinecraftPreviewWidget extends Box {
 
         if (labelVisible && !label.isEmpty()) {
             TextEngine.draw(context,
-                    label,
+                    richLabel,
                     layoutBounds().x() + PADDING,
                     layoutBounds().y() + layoutBounds().height() - PADDING - LABEL_HEIGHT,
                     Math.max(0.0f, layoutBounds().width() - PADDING * 2.0f),

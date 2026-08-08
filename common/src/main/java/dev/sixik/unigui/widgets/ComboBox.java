@@ -11,6 +11,7 @@ import dev.sixik.unigui.api.core.UIContext;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
+import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 
@@ -28,10 +29,12 @@ public class ComboBox extends LinearBox {
     private final VBox optionsList = new VBox();
     private final Popup dropDownPopup = new Popup();
     private final List<String> items = new ArrayList<>();
+    private final List<RichText> richItems = new ArrayList<>();
     private final List<ToggleButton> optionButtons = new ArrayList<>();
     private int selectedIndex = -1;
     private boolean opened;
     private String placeholder = "Select...";
+    private RichText richPlaceholder = RichText.plain(placeholder);
     private DropDownMode dropDownMode = DropDownMode.OVERLAY;
     private OverlayLayer explicitOverlayLayer;
     private OverlayLayer attachedOverlayLayer;
@@ -81,9 +84,27 @@ public class ComboBox extends LinearBox {
 
     public ComboBox items(List<String> items) {
         this.items.clear();
+        this.richItems.clear();
         if (items != null) {
             for (String item : items) {
-                this.items.add(normalize(item));
+                addItemInternal(RichText.plain(item));
+            }
+        }
+        if (selectedIndex >= this.items.size()) {
+            selectedIndex = this.items.isEmpty() ? -1 : this.items.size() - 1;
+        }
+        rebuildOptions();
+        syncSelectionState();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public ComboBox richItems(List<RichText> items) {
+        this.items.clear();
+        this.richItems.clear();
+        if (items != null) {
+            for (RichText item : items) {
+                addItemInternal(item);
             }
         }
         if (selectedIndex >= this.items.size()) {
@@ -96,7 +117,19 @@ public class ComboBox extends LinearBox {
     }
 
     public ComboBox addItem(String item) {
-        items.add(normalize(item));
+        addItemInternal(RichText.plain(item));
+        rebuildOptions();
+        if (selectedIndex < 0) {
+            setSelectedIndex(0, false);
+        } else {
+            syncSelectionState();
+        }
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public ComboBox addItem(RichText item) {
+        addItemInternal(item);
         rebuildOptions();
         if (selectedIndex < 0) {
             setSelectedIndex(0, false);
@@ -111,6 +144,7 @@ public class ComboBox extends LinearBox {
         if (index < 0 || index >= items.size()) return this;
         int oldSelection = selectedIndex;
         items.remove(index);
+        richItems.remove(index);
         rebuildOptions();
         if (items.isEmpty()) {
             setSelectedIndex(-1, oldSelection != -1);
@@ -136,6 +170,10 @@ public class ComboBox extends LinearBox {
 
     public String selectedItem() {
         return selectedIndex >= 0 && selectedIndex < items.size() ? items.get(selectedIndex) : "";
+    }
+
+    public RichText selectedRichItem() {
+        return selectedIndex >= 0 && selectedIndex < richItems.size() ? richItems.get(selectedIndex) : RichText.plain("");
     }
 
     public ComboBox selectedIndex(int index) {
@@ -227,6 +265,21 @@ public class ComboBox extends LinearBox {
         String normalized = normalize(placeholder);
         if (Objects.equals(this.placeholder, normalized)) return this;
         this.placeholder = normalized;
+        this.richPlaceholder = RichText.plain(normalized);
+        updateHeaderText();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public RichText richPlaceholder() {
+        return richPlaceholder;
+    }
+
+    public ComboBox richPlaceholder(RichText placeholder) {
+        RichText normalized = placeholder == null ? RichText.plain("") : placeholder;
+        if (Objects.equals(this.richPlaceholder, normalized)) return this;
+        this.richPlaceholder = normalized;
+        this.placeholder = normalized.plainText();
         updateHeaderText();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
@@ -313,7 +366,7 @@ public class ComboBox extends LinearBox {
         optionButtons.clear();
         for (int index = 0; index < items.size(); index++) {
             final int itemIndex = index;
-            ToggleButton option = new ToggleButton(items.get(index));
+            ToggleButton option = new ToggleButton(richItems.get(index));
             option.preferredSize(LayoutConstraints.AUTO, OPTION_HEIGHT).grow(0.0f);
             option.onClick(event -> {
                 selectedIndex(itemIndex);
@@ -331,8 +384,14 @@ public class ComboBox extends LinearBox {
     }
 
     private void updateHeaderText() {
-        String value = selectedItem().isEmpty() ? placeholder : selectedItem();
-        headerButton.text(value + (opened ? " \u25B4" : " \u25BE"));
+        RichText value = selectedItem().isEmpty() ? richPlaceholder : selectedRichItem();
+        headerButton.richText(value.append(RichText.plain(opened ? " \u25B4" : " \u25BE")));
+    }
+
+    private void addItemInternal(RichText item) {
+        RichText normalized = item == null ? RichText.plain("") : item;
+        richItems.add(normalized);
+        items.add(normalized.plainText());
     }
 
     private void syncDropDownAttachment() {

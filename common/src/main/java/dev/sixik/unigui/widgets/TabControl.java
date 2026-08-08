@@ -5,6 +5,7 @@ import dev.sixik.unigui.api.event.EventListener;
 import dev.sixik.unigui.api.event.EventSubscription;
 import dev.sixik.unigui.api.event.SelectionChangedEvent;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
+import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 
@@ -70,13 +71,22 @@ public class TabControl extends LinearBox {
         return insertTab(tabs.size(), title, content);
     }
 
+    public TabControl addTab(RichText title, Widget content) {
+        return insertTab(tabs.size(), title, content);
+    }
+
     public TabControl insertTab(int index, String title, Widget content) {
+        return insertTab(index, RichText.plain(title), content);
+    }
+
+    public TabControl insertTab(int index, RichText title, Widget content) {
         Widget normalizedContent = content == null ? new PanelWidget() : content;
         int insertIndex = Math.max(0, Math.min(index, tabs.size()));
-        ToggleButton button = new ToggleButton(normalize(title));
+        RichText normalizedTitle = title == null ? RichText.plain("") : title;
+        ToggleButton button = new ToggleButton(normalizedTitle);
         button.preferredSize(LayoutConstraints.AUTO, TAB_HEIGHT).grow(0.0f);
 
-        Tab tab = new Tab(normalize(title), normalizedContent, button);
+        Tab tab = new Tab(normalizedTitle, normalizedContent, button);
         tabs.add(insertIndex, tab);
         rebuildChildren();
 
@@ -199,12 +209,14 @@ public class TabControl extends LinearBox {
 
     public static final class Tab {
         private String title;
+        private RichText richTitle;
         private final Widget content;
         private final StackPanel slot = new StackPanel();
         private final ToggleButton button;
 
-        private Tab(String title, Widget content, ToggleButton button) {
-            this.title = title;
+        private Tab(RichText title, Widget content, ToggleButton button) {
+            this.richTitle = title == null ? RichText.plain("") : title;
+            this.title = this.richTitle.plainText();
             this.content = Objects.requireNonNull(content, "content");
             this.button = Objects.requireNonNull(button, "button");
             this.slot.addChild(content);
@@ -212,6 +224,10 @@ public class TabControl extends LinearBox {
 
         public String title() {
             return title;
+        }
+
+        public RichText richTitle() {
+            return richTitle;
         }
 
         public Widget content() {
@@ -228,7 +244,15 @@ public class TabControl extends LinearBox {
 
         public Tab title(String title) {
             this.title = normalize(title);
-            button.text(this.title);
+            this.richTitle = RichText.plain(this.title);
+            button.richText(this.richTitle);
+            return this;
+        }
+
+        public Tab richTitle(RichText title) {
+            this.richTitle = title == null ? RichText.plain("") : title;
+            this.title = this.richTitle.plainText();
+            button.richText(this.richTitle);
             return this;
         }
     }

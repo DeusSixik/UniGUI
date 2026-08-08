@@ -24,6 +24,9 @@ import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.text.FontFace;
+import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.text.TextRun;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.widget.Visibility;
@@ -40,6 +43,8 @@ public class TextInput extends Box {
     private final MutableColor placeholderColor = new MutableColor(0.65f, 0.65f, 0.65f, 0.9f);
     private final MutableColor caretColor = new MutableColor(0.25f, 0.78f, 1.0f, 1.0f);
     private String placeholder = "";
+    private FontFace font;
+    private float pixelSize = TextRun.DEFAULT_PIXEL_SIZE;
     private boolean focused;
     private boolean selectingWithPointer;
     private int pointerSelectionAnchor;
@@ -96,6 +101,16 @@ public class TextInput extends Box {
         if (Objects.equals(this.placeholder, normalized)) return this;
         this.placeholder = normalized;
         invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public TextInput font(FontFace font, float pixelSize) {
+        float normalizedSize = Float.isFinite(pixelSize) ? Math.max(1.0f, pixelSize) : TextRun.DEFAULT_PIXEL_SIZE;
+        if (this.font == font && this.pixelSize == normalizedSize) return this;
+        this.font = font;
+        this.pixelSize = normalizedSize;
+        measuredDisplayText = "";
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
 
@@ -192,7 +207,7 @@ public class TextInput extends Box {
             return;
         }
         String measuredText = displayText();
-        float width = measuredText.codePointCount(0, measuredText.length()) * APPROX_CHAR_WIDTH
+        float width = TextEngine.measureLineWidth(richText(measuredText))
                 + leftTextPadding()
                 + rightTextPadding();
         setDesiredSize(resolveDesiredSize(context, width, 18.0f));
@@ -313,7 +328,7 @@ public class TextInput extends Box {
         }
 
         if (!visibleText.isEmpty()) {
-            context.text(visibleText,
+            context.text(richText(visibleText),
                     viewportX - horizontalScrollPixels,
                     textY,
                     Math.max(viewportWidth, measuredTextWidth()),
@@ -371,7 +386,7 @@ public class TextInput extends Box {
         measuredMetricsSource = metricsSource;
         measuredPrefixWidths = new float[measured.length() + 1];
         for (int i = 1; i <= measured.length(); i++) {
-            measuredPrefixWidths[i] = TextEngine.measureLineWidth(context, measured.substring(0, i));
+            measuredPrefixWidths[i] = TextEngine.measureLineWidth(context, richText(measured.substring(0, i)));
         }
     }
 
@@ -556,6 +571,10 @@ public class TextInput extends Box {
 
     protected String sanitizeTextInput(String text) {
         return TextEditorModel.sanitizePrintable(text);
+    }
+
+    private RichText richText(String text) {
+        return RichText.of(text, font, pixelSize);
     }
 
     private void setFocused(boolean focused) {

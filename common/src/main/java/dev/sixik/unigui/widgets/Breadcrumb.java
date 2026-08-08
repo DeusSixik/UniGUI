@@ -7,6 +7,7 @@ import dev.sixik.unigui.api.event.SelectionChangedEvent;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.text.RichText;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -65,6 +66,23 @@ public class Breadcrumb extends PanelWidget {
         return this;
     }
 
+    public Breadcrumb richItems(List<RichText> items) {
+        this.items.clear();
+        if (items != null) {
+            for (RichText item : items) {
+                this.items.add(new BreadcrumbItem(item));
+            }
+        }
+        if (selectedIndex >= this.items.size()) {
+            selectedIndex = this.items.isEmpty() ? -1 : this.items.size() - 1;
+        }
+        if (selectedIndex < 0 && !this.items.isEmpty()) {
+            selectedIndex = this.items.size() - 1;
+        }
+        rebuild();
+        return this;
+    }
+
     public Breadcrumb breadcrumbItems(List<BreadcrumbItem> items) {
         this.items.clear();
         if (items != null) {
@@ -81,6 +99,10 @@ public class Breadcrumb extends PanelWidget {
     }
 
     public Breadcrumb addItem(String text) {
+        return addItem(new BreadcrumbItem(text));
+    }
+
+    public Breadcrumb addItem(RichText text) {
         return addItem(new BreadcrumbItem(text));
     }
 
@@ -169,7 +191,7 @@ public class Breadcrumb extends PanelWidget {
         for (int index = 0; index < items.size(); index++) {
             final int itemIndex = index;
             BreadcrumbItem item = items.get(index);
-            Button button = new Button(item.text());
+            Button button = new Button(item.richText());
             button.themeEnabled(false);
             button.enabled(item.enabled());
             button.preferredSize(LayoutConstraints.AUTO, ITEM_HEIGHT).grow(0.0f);

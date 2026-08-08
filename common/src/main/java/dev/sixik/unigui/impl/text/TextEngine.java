@@ -88,13 +88,8 @@ public final class TextEngine {
                             float x, float y, float width, float height,
                             Paint paint, Transform transform,
                             Alignment horizontalAlignment, Alignment verticalAlignment) {
-        if (context == null || text == null || text.isEmpty()) return;
-
-        float textWidth = Math.min(Math.max(0.0f, width), measureLineWidth(context, text));
-        float textHeight = Math.min(Math.max(0.0f, height), LINE_HEIGHT);
-        float drawX = alignedStart(x, Math.max(0.0f, width), textWidth, horizontalAlignment);
-        float drawY = alignedStart(y, Math.max(0.0f, height), textHeight, verticalAlignment);
-        context.text(text, drawX, drawY, Math.max(0.0f, width - (drawX - x)), textHeight, paint, transform);
+        if (text == null || text.isEmpty()) return;
+        draw(context, RichText.plain(text), x, y, width, height, paint, transform, horizontalAlignment, verticalAlignment);
     }
 
     public static void draw(RenderContext context, RichText text,

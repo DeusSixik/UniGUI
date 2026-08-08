@@ -602,13 +602,62 @@ public final class TestCommands {
                     case 2 -> String.valueOf((row * 17) % 100);
                     default -> "";
                 })
+                .cellRichTextProvider((row, column) -> {
+                    String state = row % 3 == 0 ? "Queued" : row % 3 == 1 ? "Running" : "Done";
+                    int score = (row * 17) % 100;
+                    return switch (column) {
+                        case 0 -> tableNameText(row);
+                        case 1 -> tableStateText(state);
+                        case 2 -> tableScoreText(score);
+                        default -> RichText.plain("");
+                    };
+                })
                 .sortKeyProvider((row, column) -> column == 2 ? (row * 17) % 100 : row);
-        table.addColumn("Name", 120.0f)
-                .addColumn("State", 90.0f)
-                .addColumn("Score", 64.0f);
+        table.columns(List.of(
+                new VirtualTableColumn(tableHeaderText("Name"), 120.0f),
+                new VirtualTableColumn(tableHeaderText("State"), 90.0f)
+                        .align(Alignment.CENTER, Alignment.CENTER),
+                new VirtualTableColumn(tableHeaderText("Score"), 64.0f)
+                        .align(Alignment.END, Alignment.CENTER)
+                        .overflowMode(TextOverflowMode.SHRINK_TO_FIT)));
         table.preferredSize(LayoutConstraints.AUTO, 150.0f).grow(0.0f);
         page.addChild(section("VirtualTableView", table));
         return page;
+    }
+
+    private static RichText tableHeaderText(String label) {
+        return RichText.builder()
+                .font(Fonts.defaultFace()).size(12.0f)
+                .color(MutableColor.rgba(0.35f, 0.80f, 1.0f, 1.0f)).append("◆ ")
+                .color(MutableColor.rgba(0.92f, 0.96f, 1.0f, 1.0f)).append(label)
+                .build();
+    }
+
+    private static RichText tableNameText(int row) {
+        return RichText.builder()
+                .font(Fonts.defaultFace()).size(11.0f)
+                .color(MutableColor.rgba(0.88f, 0.94f, 1.0f, 1.0f)).append("Item ")
+                .font(MinecraftFonts.uniformFace()).size(10.0f)
+                .color(MutableColor.rgba(0.50f, 0.86f, 1.0f, 1.0f)).append(String.valueOf(row))
+                .build();
+    }
+
+    private static RichText tableStateText(String state) {
+        MutableColor color = switch (state) {
+            case "Running" -> MutableColor.rgba(0.35f, 1.0f, 0.45f, 1.0f);
+            case "Done" -> MutableColor.rgba(0.75f, 0.95f, 1.0f, 1.0f);
+            default -> MutableColor.rgba(1.0f, 0.78f, 0.28f, 1.0f);
+        };
+        return RichText.of(state, MinecraftFonts.defaultFace(), 11.0f, color);
+    }
+
+    private static RichText tableScoreText(int score) {
+        MutableColor color = score >= 70
+                ? MutableColor.rgba(0.35f, 1.0f, 0.45f, 1.0f)
+                : score >= 35
+                ? MutableColor.rgba(1.0f, 0.82f, 0.30f, 1.0f)
+                : MutableColor.rgba(1.0f, 0.45f, 0.45f, 1.0f);
+        return RichText.of(String.valueOf(score), Fonts.defaultFace(), 12.0f, color);
     }
 
     private static OverlayLayer overlaysPage() {

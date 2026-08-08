@@ -171,6 +171,12 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
     }
 
     @Override
+    public float measureTextWidth(RichText text) {
+        if (text == null || text.isEmpty()) return 0.0f;
+        return TextEngine.measureLineWidth(resolveDefaultFont(text));
+    }
+
+    @Override
     public RenderTarget createRenderTarget(int width, int height, RenderTargetOptions options) {
         return new MinecraftRenderTarget(width, height, options);
     }
@@ -809,6 +815,17 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
         if (text == null || text.isEmpty()) return;
         RectView bounds = command.bounds();
         graphics.drawString(minecraft.font, text, round(bounds.x()), round(bounds.y()), argb(command.paint().color()), false);
+    }
+
+    private RichText resolveDefaultFont(RichText text) {
+        RichText.Builder builder = RichText.builder();
+        for (TextRun run : text.runs()) {
+            builder.font(run.font() == null ? defaultFont() : run.font())
+                    .size(run.pixelSize())
+                    .color(run.color())
+                    .append(run.text());
+        }
+        return builder.build();
     }
 
     private void drawLine(float x1, float y1, float x2, float y2, Paint paint) {

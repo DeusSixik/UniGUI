@@ -13,6 +13,7 @@ import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.impl.text.TextEngine;
 
 import java.util.ArrayList;
@@ -56,6 +57,12 @@ public class TreeView extends LinearBox {
     }
 
     public TreeViewNode addRoot(String text) {
+        TreeViewNode node = new TreeViewNode(text);
+        addRoot(node);
+        return node;
+    }
+
+    public TreeViewNode addRoot(RichText text) {
         TreeViewNode node = new TreeViewNode(text);
         addRoot(node);
         return node;
@@ -366,13 +373,13 @@ public class TreeView extends LinearBox {
             borderVisible(selected);
             borderColor().set(0.38f, 0.70f, 1.0f, selected ? 0.70f : 0.0f);
             textColor().set(selected ? 0.82f : 0.88f, selected ? 0.92f : 0.90f, selected ? 1.0f : 0.94f, node.selectable() ? 1.0f : 0.55f);
-            text(rowText());
+            richText(rowText());
         }
 
         @Override
         public void measure(LayoutContext context) {
-            String text = rowText();
-            float textWidth = text.codePointCount(0, text.length()) * APPROX_CHAR_WIDTH;
+            RichText text = rowText();
+            float textWidth = TextEngine.measureLineWidth(text);
             setDesiredSize(resolveDesiredSize(context,
                     TEXT_PADDING_X * 2.0f + depth * INDENT_WIDTH + textWidth,
                     ROW_HEIGHT));
@@ -380,7 +387,7 @@ public class TreeView extends LinearBox {
 
         @Override
         protected void renderContent(RenderContext context) {
-            String text = rowText();
+            RichText text = rowText();
             if (!text.isEmpty()) {
                 float indent = depth * INDENT_WIDTH;
                 TextEngine.draw(context,
@@ -396,9 +403,9 @@ public class TreeView extends LinearBox {
             }
         }
 
-        private String rowText() {
+        private RichText rowText() {
             String marker = node.hasChildren() ? (node.expanded() ? "▾ " : "▸ ") : "  ";
-            return marker + node.text();
+            return RichText.plain(marker).append(node.richText());
         }
     }
 

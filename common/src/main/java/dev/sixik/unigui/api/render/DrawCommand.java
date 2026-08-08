@@ -122,7 +122,7 @@ public final class DrawCommand {
 
     public DrawCommand text(String text) {
         this.text = text;
-        this.richText = null;
+        this.richText = text == null ? null : RichText.plain(text);
         return this;
     }
 

@@ -1,6 +1,7 @@
 package dev.sixik.unigui.widgets;
 
 import dev.sixik.unigui.api.render.TextureHandle;
+import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Widget;
 
 /** Concise factory entry points for the built-in retained widgets. */
@@ -16,7 +17,15 @@ public final class Widgets {
         return new Button(text);
     }
 
+    public static Button button(RichText text) {
+        return new Button(text);
+    }
+
     public static ToggleButton toggleButton(String text) {
+        return new ToggleButton(text);
+    }
+
+    public static ToggleButton toggleButton(RichText text) {
         return new ToggleButton(text);
     }
 
@@ -24,11 +33,23 @@ public final class Widgets {
         return new Checkbox(text);
     }
 
+    public static Checkbox checkbox(RichText text) {
+        return new Checkbox(text);
+    }
+
     public static RadioButton radioButton(String text) {
         return new RadioButton(text);
     }
 
+    public static RadioButton radioButton(RichText text) {
+        return new RadioButton(text);
+    }
+
     public static RadioButton radioButton(String text, String value) {
+        return new RadioButton(text, value);
+    }
+
+    public static RadioButton radioButton(RichText text, String value) {
         return new RadioButton(text, value);
     }
 
@@ -52,7 +73,15 @@ public final class Widgets {
         return new TreeViewNode(text);
     }
 
+    public static TreeViewNode treeNode(RichText text) {
+        return new TreeViewNode(text);
+    }
+
     public static Text text(String text) {
+        return new Text(text);
+    }
+
+    public static Text text(RichText text) {
         return new Text(text);
     }
 
@@ -60,7 +89,15 @@ public final class Widgets {
         return new Label(text);
     }
 
+    public static Label label(RichText text) {
+        return new Label(text);
+    }
+
     public static TextBlock textBlock(String text) {
+        return new TextBlock(text);
+    }
+
+    public static TextBlock textBlock(RichText text) {
         return new TextBlock(text);
     }
 

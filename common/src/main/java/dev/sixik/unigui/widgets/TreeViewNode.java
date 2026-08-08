@@ -1,5 +1,7 @@
 package dev.sixik.unigui.widgets;
 
+import dev.sixik.unigui.api.text.RichText;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -8,6 +10,7 @@ import java.util.Objects;
 public final class TreeViewNode {
     private final List<TreeViewNode> children = new ArrayList<>();
     private String text;
+    private RichText richText;
     private String value;
     private TreeViewNode parent;
     private TreeView owner;
@@ -21,6 +24,13 @@ public final class TreeViewNode {
 
     public TreeViewNode(String text) {
         this.text = normalize(text);
+        this.richText = RichText.plain(this.text);
+        this.value = this.text;
+    }
+
+    public TreeViewNode(RichText text) {
+        this.richText = text == null ? RichText.plain("") : text;
+        this.text = this.richText.plainText();
         this.value = this.text;
     }
 
@@ -32,6 +42,20 @@ public final class TreeViewNode {
         String normalized = normalize(text);
         if (Objects.equals(this.text, normalized)) return this;
         this.text = normalized;
+        this.richText = RichText.plain(normalized);
+        notifyTreeChanged();
+        return this;
+    }
+
+    public RichText richText() {
+        return richText;
+    }
+
+    public TreeViewNode richText(RichText text) {
+        RichText normalized = text == null ? RichText.plain("") : text;
+        if (Objects.equals(this.richText, normalized)) return this;
+        this.richText = normalized;
+        this.text = normalized.plainText();
         notifyTreeChanged();
         return this;
     }
@@ -116,6 +140,12 @@ public final class TreeViewNode {
     }
 
     public TreeViewNode addChild(String text) {
+        TreeViewNode child = new TreeViewNode(text);
+        addChild(child);
+        return child;
+    }
+
+    public TreeViewNode addChild(RichText text) {
         TreeViewNode child = new TreeViewNode(text);
         addChild(child);
         return child;

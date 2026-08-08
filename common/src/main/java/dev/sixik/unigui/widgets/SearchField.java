@@ -12,6 +12,7 @@ import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.text.RichText;
 
 public class SearchField extends TextInput {
     private static final float CLEAR_ZONE_WIDTH = 14.0f;
@@ -68,7 +69,7 @@ public class SearchField extends TextInput {
         if (!text().isEmpty()) {
             float x = layoutBounds().x() + layoutBounds().width() - CLEAR_ZONE_WIDTH + 3.0f;
             float y = layoutBounds().y() + 4.0f;
-            context.text("x", x, y, CLEAR_ZONE_WIDTH - 4.0f, Math.max(1.0f, layoutBounds().height() - 8.0f), Paint.fill(placeholderColor()), transform());
+            context.text(RichText.plain("x"), x, y, CLEAR_ZONE_WIDTH - 4.0f, Math.max(1.0f, layoutBounds().height() - 8.0f), Paint.fill(placeholderColor()), transform());
         }
     }
 }

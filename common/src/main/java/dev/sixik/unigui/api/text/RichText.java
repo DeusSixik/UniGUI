@@ -63,6 +63,32 @@ public final class RichText {
         return new RichText(combined);
     }
 
+    public RichText slice(int startInclusive, int endExclusive) {
+        int start = Math.max(0, Math.min(startInclusive, plainText.length()));
+        int end = Math.max(start, Math.min(endExclusive, plainText.length()));
+        if (start == 0 && end == plainText.length()) return this;
+        if (start == end) return RichText.plain("");
+
+        List<TextRun> sliced = new ArrayList<>();
+        int runStart = 0;
+        for (TextRun run : runs) {
+            String value = run.text();
+            int runEnd = runStart + value.length();
+            int overlapStart = Math.max(start, runStart);
+            int overlapEnd = Math.min(end, runEnd);
+            if (overlapStart < overlapEnd) {
+                sliced.add(new TextRun(
+                        value.substring(overlapStart - runStart, overlapEnd - runStart),
+                        run.font(),
+                        run.pixelSize(),
+                        run.color()));
+            }
+            runStart = runEnd;
+            if (runStart >= end) break;
+        }
+        return new RichText(sliced);
+    }
+
     @Override
     public boolean equals(Object other) {
         if (this == other) return true;

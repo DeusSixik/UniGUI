@@ -10,6 +10,7 @@ import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
+import dev.sixik.unigui.api.text.RichText;
 
 public class ToggleButton extends Button {
     private final MutableColor checkedBackground = new MutableColor(0.18f, 0.45f, 0.75f, 1.0f);
@@ -26,6 +27,11 @@ public class ToggleButton extends Button {
         checkedBackground.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         uncheckedBackground.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         onClick(this::toggleOnClick);
+    }
+
+    public ToggleButton(RichText text) {
+        this("");
+        richText(text);
     }
 
     public boolean checked() {

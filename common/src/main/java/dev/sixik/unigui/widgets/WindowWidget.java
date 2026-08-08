@@ -20,6 +20,7 @@ import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.impl.text.TextEngine;
@@ -42,6 +43,7 @@ public final class WindowWidget extends Box implements OverlayHostAware {
     private final MutableColor headerSeparatorColor = new MutableColor(0.22f, 0.24f, 0.30f, 0.95f);
     private final MutableColor titleColor = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private String title = "";
+    private RichText richTitle = RichText.plain("");
     private Widget content;
     private boolean open;
     private boolean draggable = true;
@@ -88,6 +90,12 @@ public final class WindowWidget extends Box implements OverlayHostAware {
         content(content);
     }
 
+    public WindowWidget(RichText title, Widget content) {
+        this();
+        richTitle(title);
+        content(content);
+    }
+
     public String title() {
         return title;
     }
@@ -96,6 +104,20 @@ public final class WindowWidget extends Box implements OverlayHostAware {
         String normalized = title == null ? "" : title;
         if (Objects.equals(this.title, normalized)) return this;
         this.title = normalized;
+        this.richTitle = RichText.plain(normalized);
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public RichText richTitle() {
+        return richTitle;
+    }
+
+    public WindowWidget richTitle(RichText title) {
+        RichText normalized = title == null ? RichText.plain("") : title;
+        if (Objects.equals(this.richTitle, normalized)) return this;
+        this.richTitle = normalized;
+        this.title = normalized.plainText();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
@@ -393,7 +415,7 @@ public final class WindowWidget extends Box implements OverlayHostAware {
         context.pushClip(titleX, y, titleWidth, Math.min(headerHeight, height));
         try {
             TextEngine.draw(context,
-                    title,
+                    richTitle,
                     titleX,
                     y,
                     titleWidth,
