@@ -12,6 +12,7 @@ public final class DrawCommand {
     private final Transform transform = new Transform();
     private Paint paint = new Paint();
     private VectorPath path;
+    private DrawMesh mesh;
     private TextureHandle texture;
     private String text;
     private RichText richText;
@@ -44,6 +45,14 @@ public final class DrawCommand {
 
     public static DrawCommand custom(CustomDraw customDraw) {
         return new DrawCommand(DrawCommandType.CUSTOM).customDraw(customDraw);
+    }
+
+    public static DrawCommand mesh(DrawMesh mesh, TextureHandle texture) {
+        return new DrawCommand(DrawCommandType.MESH).mesh(mesh).texture(texture);
+    }
+
+    public static DrawCommand drawCmd() {
+        return new DrawCommand(DrawCommandType.DRAW_CMD);
     }
 
     public static DrawCommand pushClip(RectView bounds) {
@@ -111,6 +120,15 @@ public final class DrawCommand {
         return texture;
     }
 
+    public DrawMesh mesh() {
+        return mesh;
+    }
+
+    public DrawCommand mesh(DrawMesh mesh) {
+        this.mesh = mesh == null ? null : mesh.copy();
+        return this;
+    }
+
     public DrawCommand texture(TextureHandle texture) {
         this.texture = texture;
         return this;
@@ -161,6 +179,7 @@ public final class DrawCommand {
         copy.transform.copyFrom(transform);
         copy.paint = paint.copy();
         copy.path = path == null ? null : path.copy();
+        copy.mesh = mesh == null ? null : mesh.copy();
         copy.texture = texture;
         copy.text = text;
         copy.richText = richText;

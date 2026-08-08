@@ -15,6 +15,8 @@ import dev.sixik.unigui.api.math.Transform;
 import dev.sixik.unigui.api.render.DrawCommand;
 import dev.sixik.unigui.api.render.DrawCommandType;
 import dev.sixik.unigui.api.render.DrawList;
+import dev.sixik.unigui.api.render.DrawMesh;
+import dev.sixik.unigui.api.render.DrawVertex;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderBackend;
 import dev.sixik.unigui.api.render.RenderTarget;
@@ -42,6 +44,8 @@ import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.ARBTimerQuery;
+import org.lwjgl.opengl.GL13;
+import org.lwjgl.opengl.GL14;
 import org.lwjgl.opengl.GL15;
 import org.lwjgl.opengl.GL33;
 
@@ -385,13 +389,14 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
                 case TEXT -> renderText(command);
                 case PUSH_CLIP -> pushClip(command);
                 case POP_CLIP -> popClip();
+                case DRAW_CMD -> {
+                }
                 case CUSTOM -> {
                     if (command.customDraw() != null) {
                         command.customDraw().draw(this);
                     }
                 }
-                case MESH -> {
-                }
+                case MESH -> renderMesh(command);
             }
         } finally {
             pose.popPose();
@@ -815,6 +820,69 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
         RenderSystem.disableBlend();
     }
 
+    private void renderMesh(DrawCommand command) {
+        DrawMesh mesh = command.mesh();
+        if (mesh == null || mesh.isEmpty()) return;
+        if (command.texture() == null) {
+            renderColoredMesh(mesh);
+            return;
+        }
+        TextureBinding binding = TextureBinding.resolve(command.texture());
+        if (binding != null) {
+            renderTexturedMesh(mesh, binding);
+        }
+    }
+
+    private void renderColoredMesh(DrawMesh mesh) {
+        graphics.flush();
+        RenderState state = RenderState.capture();
+        try {
+            RenderSystem.setShader(GameRenderer::getPositionColorShader);
+            RenderSystem.enableBlend();
+            MinecraftUiBlend.applyStraightAlpha(activeRenderTarget != null);
+            RenderSystem.disableDepthTest();
+            RenderSystem.depthMask(false);
+            RenderSystem.disableCull();
+
+            Matrix4f matrix = graphics.pose().last().pose();
+            Tesselator tesselator = Tesselator.getInstance();
+            BufferBuilder buffer = tesselator.getBuilder();
+            buffer.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
+            for (DrawVertex vertex : mesh.vertices()) {
+                addColorVertex(buffer, matrix, vertex.x(), vertex.y(), argb(vertex.color()));
+            }
+            BufferUploader.drawWithShader(buffer.end());
+        } finally {
+            state.restore();
+        }
+    }
+
+    private void renderTexturedMesh(DrawMesh mesh, TextureBinding binding) {
+        graphics.flush();
+        RenderState state = RenderState.capture();
+        try {
+            RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
+            binding.bind();
+            RenderSystem.enableBlend();
+            MinecraftUiBlend.applyTextureAlpha(binding.premultipliedAlpha(), activeRenderTarget != null);
+            RenderSystem.disableDepthTest();
+            RenderSystem.depthMask(false);
+            RenderSystem.disableCull();
+
+            Matrix4f matrix = graphics.pose().last().pose();
+            Tesselator tesselator = Tesselator.getInstance();
+            BufferBuilder buffer = tesselator.getBuilder();
+            buffer.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_TEX_COLOR);
+            for (DrawVertex vertex : mesh.vertices()) {
+                float v = binding.flipY() ? 1.0f - vertex.v() : vertex.v();
+                addTextureVertex(buffer, matrix, vertex.x(), vertex.y(), vertex.u(), v, vertex.color());
+            }
+            BufferUploader.drawWithShader(buffer.end());
+        } finally {
+            state.restore();
+        }
+    }
+
     private void renderText(DrawCommand command) {
         String text = command.text();
         if (text == null || text.isEmpty()) return;
@@ -993,6 +1061,69 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
         float inverse2 = inverse * inverse;
         float t2 = t * t;
         return inverse2 * inverse * x0 + 3.0f * inverse2 * t * x1 + 3.0f * inverse * t2 * x2 + t2 * t * x3;
+    }
+
+    private record TextureBinding(Integer textureId, ResourceLocation location, boolean flipY, boolean premultipliedAlpha) {
+        private static TextureBinding resolve(TextureHandle texture) {
+            if (texture == null) return null;
+            Object nativeHandle = texture.nativeHandle();
+            if (nativeHandle instanceof MinecraftRenderTarget.ColorTextureHandle colorTexture) {
+                return new TextureBinding(colorTexture.textureId(), null, colorTexture.flipY(), true);
+            }
+            if (nativeHandle instanceof Integer textureId) {
+                return new TextureBinding(textureId, null, false, false);
+            }
+            ResourceLocation location = nativeHandle instanceof ResourceLocation resourceLocation
+                    ? resourceLocation
+                    : ResourceLocation.tryParse(texture.id());
+            return location == null ? null : new TextureBinding(null, location, false, false);
+        }
+
+        private void bind() {
+            if (textureId != null) {
+                RenderSystem.setShaderTexture(0, textureId);
+            } else {
+                RenderSystem.setShaderTexture(0, location);
+            }
+        }
+    }
+
+    private record RenderState(int activeTexture, int texture, boolean blend,
+                               int blendSourceRgb, int blendDestinationRgb,
+                               int blendSourceAlpha, int blendDestinationAlpha,
+                               boolean depthTest, boolean depthMask, boolean cull) {
+        private static RenderState capture() {
+            int activeTexture = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
+            RenderSystem.activeTexture(GL13.GL_TEXTURE0);
+            int texture = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+            RenderSystem.activeTexture(activeTexture);
+            return new RenderState(
+                    activeTexture,
+                    texture,
+                    GL11.glIsEnabled(GL11.GL_BLEND),
+                    GL11.glGetInteger(GL14.GL_BLEND_SRC_RGB),
+                    GL11.glGetInteger(GL14.GL_BLEND_DST_RGB),
+                    GL11.glGetInteger(GL14.GL_BLEND_SRC_ALPHA),
+                    GL11.glGetInteger(GL14.GL_BLEND_DST_ALPHA),
+                    GL11.glIsEnabled(GL11.GL_DEPTH_TEST),
+                    GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK),
+                    GL11.glIsEnabled(GL11.GL_CULL_FACE));
+        }
+
+        private void restore() {
+            RenderSystem.activeTexture(GL13.GL_TEXTURE0);
+            RenderSystem.bindTexture(texture);
+            RenderSystem.blendFuncSeparate(blendSourceRgb, blendDestinationRgb,
+                    blendSourceAlpha, blendDestinationAlpha);
+            if (blend) RenderSystem.enableBlend();
+            else RenderSystem.disableBlend();
+            RenderSystem.depthMask(depthMask);
+            if (depthTest) RenderSystem.enableDepthTest();
+            else RenderSystem.disableDepthTest();
+            if (cull) RenderSystem.enableCull();
+            else RenderSystem.disableCull();
+            RenderSystem.activeTexture(activeTexture);
+        }
     }
 
     private static final class FloatPathBuilder {

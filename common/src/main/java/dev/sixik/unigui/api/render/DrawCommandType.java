@@ -11,5 +11,6 @@ public enum DrawCommandType {
     PUSH_CLIP,
     POP_CLIP,
     MESH,
+    DRAW_CMD,
     CUSTOM
 }
