@@ -20,6 +20,7 @@ public final class Popup extends Box implements OverlayHostAware {
     private float offsetX;
     private float offsetY = 4.0f;
     private EdgeInsets padding = EdgeInsets.all(6.0f);
+    private Runnable onOpenChanged;
 
     public Popup() {
         backgroundVisible(true);
@@ -90,6 +91,14 @@ public final class Popup extends Box implements OverlayHostAware {
         this.open = open;
         visible(open);
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        if (onOpenChanged != null) {
+            onOpenChanged.run();
+        }
+        return this;
+    }
+
+    public Popup onOpenChanged(Runnable onOpenChanged) {
+        this.onOpenChanged = onOpenChanged;
         return this;
     }
 

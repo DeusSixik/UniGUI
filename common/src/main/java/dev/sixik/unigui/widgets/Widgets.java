@@ -24,6 +24,34 @@ public final class Widgets {
         return new Checkbox(text);
     }
 
+    public static RadioButton radioButton(String text) {
+        return new RadioButton(text);
+    }
+
+    public static RadioButton radioButton(String text, String value) {
+        return new RadioButton(text, value);
+    }
+
+    public static RadioGroup radioGroup() {
+        return new RadioGroup();
+    }
+
+    public static ComboBox comboBox() {
+        return new ComboBox();
+    }
+
+    public static DropDownBox dropDownBox() {
+        return new DropDownBox();
+    }
+
+    public static TreeView treeView() {
+        return new TreeView();
+    }
+
+    public static TreeViewNode treeNode(String text) {
+        return new TreeViewNode(text);
+    }
+
     public static Text text(String text) {
         return new Text(text);
     }
@@ -144,6 +172,30 @@ public final class Widgets {
         return new ProgressBar();
     }
 
+    public static LoadingIndicator loadingIndicator() {
+        return new LoadingIndicator();
+    }
+
+    public static Spinner spinner() {
+        return new Spinner();
+    }
+
+    public static SplitPanel splitPanel() {
+        return new SplitPanel();
+    }
+
+    public static SplitPanel splitPanel(Widget first, Widget second) {
+        return new SplitPanel(first, second);
+    }
+
+    public static Breadcrumb breadcrumb() {
+        return new Breadcrumb();
+    }
+
+    public static BreadcrumbItem breadcrumbItem(String text) {
+        return new BreadcrumbItem(text);
+    }
+
     public static NumberField numberField() {
         return new NumberField();
     }
@@ -158,6 +210,18 @@ public final class Widgets {
 
     public static ScrollView scrollView() {
         return new ScrollView();
+    }
+
+    public static ExpandablePanel expandablePanel(String title) {
+        return new ExpandablePanel(title);
+    }
+
+    public static Accordion accordion() {
+        return new Accordion();
+    }
+
+    public static TabControl tabControl() {
+        return new TabControl();
     }
 
     public static VirtualListView virtualList() {

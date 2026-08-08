@@ -1,0 +1,437 @@
+package dev.sixik.unigui.widgets;
+
+import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.api.event.Event;
+import dev.sixik.unigui.api.event.EventListener;
+import dev.sixik.unigui.api.event.EventPhase;
+import dev.sixik.unigui.api.event.EventSubscription;
+import dev.sixik.unigui.api.event.KeyPressedEvent;
+import dev.sixik.unigui.api.event.SelectionChangedEvent;
+import dev.sixik.unigui.api.core.UIContext;
+import dev.sixik.unigui.api.input.KeyCodes;
+import dev.sixik.unigui.api.layout.EdgeInsets;
+import dev.sixik.unigui.api.layout.LayoutConstraints;
+import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.api.widget.Widget;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+
+public class ComboBox extends LinearBox {
+    private static final float HEADER_HEIGHT = 22.0f;
+    private static final float OPTION_HEIGHT = 20.0f;
+
+    private final Button headerButton = new Button();
+    private final Box optionsHost = new Box();
+    private final VBox optionsList = new VBox();
+    private final Popup dropDownPopup = new Popup();
+    private final List<String> items = new ArrayList<>();
+    private final List<ToggleButton> optionButtons = new ArrayList<>();
+    private int selectedIndex = -1;
+    private boolean opened;
+    private String placeholder = "Select...";
+    private DropDownMode dropDownMode = DropDownMode.OVERLAY;
+    private OverlayLayer explicitOverlayLayer;
+    private OverlayLayer attachedOverlayLayer;
+    private boolean syncingPopup;
+
+    public ComboBox() {
+        super(Orientation.VERTICAL);
+        spacing(2.0f);
+        focusable(true);
+
+        headerButton.preferredSize(LayoutConstraints.AUTO, HEADER_HEIGHT).grow(0.0f);
+        headerButton.onClick(event -> toggle());
+
+        optionsHost.backgroundVisible(true);
+        optionsHost.borderVisible(true);
+        optionsHost.radius(3.0f);
+        optionsHost.background().set(0.025f, 0.030f, 0.040f, 0.97f);
+        optionsHost.borderColor().set(0.25f, 0.78f, 1.0f, 0.75f);
+        optionsHost.visibility(Visibility.COLLAPSED);
+        optionsHost.grow(0.0f);
+        optionsHost.addChild(optionsList);
+
+        optionsList.spacing(1.0f);
+        optionsList.margin(2.0f);
+        optionsList.grow(0.0f);
+
+        dropDownPopup.anchor(headerButton);
+        dropDownPopup.padding(EdgeInsets.all(0.0f));
+        dropDownPopup.backgroundVisible(false);
+        dropDownPopup.borderVisible(false);
+        dropDownPopup.closeOnOutsideClick(true);
+        dropDownPopup.onOpenChanged(() -> {
+            if (!syncingPopup && dropDownMode == DropDownMode.OVERLAY && opened != dropDownPopup.opened()) {
+                opened = dropDownPopup.opened();
+                updateHeaderText();
+                invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+            }
+        });
+
+        super.addChild(headerButton);
+        updateHeaderText();
+    }
+
+    public List<String> items() {
+        return Collections.unmodifiableList(items);
+    }
+
+    public ComboBox items(List<String> items) {
+        this.items.clear();
+        if (items != null) {
+            for (String item : items) {
+                this.items.add(normalize(item));
+            }
+        }
+        if (selectedIndex >= this.items.size()) {
+            selectedIndex = this.items.isEmpty() ? -1 : this.items.size() - 1;
+        }
+        rebuildOptions();
+        syncSelectionState();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public ComboBox addItem(String item) {
+        items.add(normalize(item));
+        rebuildOptions();
+        if (selectedIndex < 0) {
+            setSelectedIndex(0, false);
+        } else {
+            syncSelectionState();
+        }
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public ComboBox removeItem(int index) {
+        if (index < 0 || index >= items.size()) return this;
+        int oldSelection = selectedIndex;
+        items.remove(index);
+        rebuildOptions();
+        if (items.isEmpty()) {
+            setSelectedIndex(-1, oldSelection != -1);
+        } else if (oldSelection == index) {
+            setSelectedIndex(Math.min(index, items.size() - 1), true);
+        } else if (index < oldSelection) {
+            selectedIndex = oldSelection - 1;
+            syncSelectionState();
+        } else {
+            syncSelectionState();
+        }
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public int itemCount() {
+        return items.size();
+    }
+
+    public int selectedIndex() {
+        return selectedIndex;
+    }
+
+    public String selectedItem() {
+        return selectedIndex >= 0 && selectedIndex < items.size() ? items.get(selectedIndex) : "";
+    }
+
+    public ComboBox selectedIndex(int index) {
+        setSelectedIndex(index, true);
+        return this;
+    }
+
+    public ComboBox silentSelectedIndex(int index) {
+        setSelectedIndex(index, false);
+        return this;
+    }
+
+    public boolean opened() {
+        return opened;
+    }
+
+    public ComboBox open() {
+        return opened(true);
+    }
+
+    public ComboBox close() {
+        return opened(false);
+    }
+
+    public ComboBox toggle() {
+        return opened(!opened);
+    }
+
+    public ComboBox opened(boolean opened) {
+        if (this.opened == opened) return this;
+        this.opened = opened;
+        syncDropDownAttachment();
+        syncDropDownVisibility();
+        updateHeaderText();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public DropDownMode dropDownMode() {
+        return dropDownMode;
+    }
+
+    public ComboBox dropDownMode(DropDownMode dropDownMode) {
+        DropDownMode normalized = dropDownMode == null ? DropDownMode.INLINE : dropDownMode;
+        if (this.dropDownMode == normalized) return this;
+        this.dropDownMode = normalized;
+        syncDropDownAttachment();
+        syncDropDownVisibility();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public OverlayLayer overlayLayer() {
+        return explicitOverlayLayer != null ? explicitOverlayLayer : findTopmostOverlayLayer();
+    }
+
+    public ComboBox overlayLayer(OverlayLayer overlayLayer) {
+        if (this.explicitOverlayLayer == overlayLayer) return this;
+        detachFromOverlay();
+        this.explicitOverlayLayer = overlayLayer;
+        syncDropDownAttachment();
+        syncDropDownVisibility();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public ComboBox useOverlay() {
+        return dropDownMode(DropDownMode.OVERLAY);
+    }
+
+    public ComboBox useOverlay(OverlayLayer overlayLayer) {
+        overlayLayer(overlayLayer);
+        return dropDownMode(DropDownMode.OVERLAY);
+    }
+
+    public Popup dropDownPopup() {
+        return dropDownPopup;
+    }
+
+    public OverlayLayer attachedOverlayLayer() {
+        return attachedOverlayLayer;
+    }
+
+    public String placeholder() {
+        return placeholder;
+    }
+
+    public ComboBox placeholder(String placeholder) {
+        String normalized = normalize(placeholder);
+        if (Objects.equals(this.placeholder, normalized)) return this;
+        this.placeholder = normalized;
+        updateHeaderText();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public Button headerButton() {
+        return headerButton;
+    }
+
+    public Box optionsHost() {
+        return optionsHost;
+    }
+
+    public ToggleButton optionButton(int index) {
+        return optionButtons.get(index);
+    }
+
+    public EventSubscription onSelectionChanged(EventListener<? super SelectionChangedEvent> listener) {
+        return on(SelectionChangedEvent.TYPE, listener);
+    }
+
+    @Override
+    public void setParentInternal(Widget parent) {
+        super.setParentInternal(parent);
+        syncDropDownAttachment();
+        syncDropDownVisibility();
+    }
+
+    @Override
+    public void setUiContextInternal(UIContext uiContext) {
+        super.setUiContextInternal(uiContext);
+        syncDropDownAttachment();
+        syncDropDownVisibility();
+    }
+
+    @Override
+    public void handle(Event event) {
+        super.handle(event);
+        if (event.isCancelled()) return;
+        if (event instanceof KeyPressedEvent key
+                && key.phase() == EventPhase.TARGET
+                && uiContext() != null
+                && uiContext().focusManager().isFocused(this)) {
+            if (key.keyCode() == KeyCodes.SPACE || key.keyCode() == KeyCodes.ENTER || key.keyCode() == KeyCodes.KEYPAD_ENTER) {
+                toggle();
+                event.cancel();
+            } else if (key.keyCode() == KeyCodes.ESCAPE && opened) {
+                close();
+                event.cancel();
+            } else if (key.keyCode() == KeyCodes.UP) {
+                selectRelative(-1);
+                event.cancel();
+            } else if (key.keyCode() == KeyCodes.DOWN) {
+                selectRelative(1);
+                event.cancel();
+            }
+        }
+    }
+
+    private void selectRelative(int delta) {
+        if (items.isEmpty()) return;
+        int base = selectedIndex < 0 ? 0 : selectedIndex;
+        setSelectedIndex(Math.max(0, Math.min(items.size() - 1, base + delta)), true);
+    }
+
+    private void setSelectedIndex(int index, boolean emitChange) {
+        int normalized = items.isEmpty() ? -1 : Math.max(0, Math.min(index, items.size() - 1));
+        if (selectedIndex == normalized) {
+            syncSelectionState();
+            return;
+        }
+        int oldSelection = selectedIndex;
+        selectedIndex = normalized;
+        syncSelectionState();
+        updateHeaderText();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        if (emitChange) {
+            emit(new SelectionChangedEvent(this, selectionList(oldSelection), selectionList(selectedIndex)));
+        }
+    }
+
+    private void rebuildOptions() {
+        optionsList.clearChildren();
+        optionButtons.clear();
+        for (int index = 0; index < items.size(); index++) {
+            final int itemIndex = index;
+            ToggleButton option = new ToggleButton(items.get(index));
+            option.preferredSize(LayoutConstraints.AUTO, OPTION_HEIGHT).grow(0.0f);
+            option.onClick(event -> {
+                selectedIndex(itemIndex);
+                close();
+            });
+            optionButtons.add(option);
+            optionsList.addChild(option);
+        }
+    }
+
+    private void syncSelectionState() {
+        for (int i = 0; i < optionButtons.size(); i++) {
+            optionButtons.get(i).silentChecked(i == selectedIndex);
+        }
+    }
+
+    private void updateHeaderText() {
+        String value = selectedItem().isEmpty() ? placeholder : selectedItem();
+        headerButton.text(value + (opened ? " \u25B4" : " \u25BE"));
+    }
+
+    private void syncDropDownAttachment() {
+        if (dropDownMode == DropDownMode.INLINE) {
+            detachFromOverlay();
+            clearPopupContent();
+            if (optionsHost.parent() != this) {
+                super.addChild(optionsHost);
+            }
+            return;
+        }
+
+        detachOptionsFromInlineLayout();
+
+        OverlayLayer targetOverlay = overlayLayer();
+        if (targetOverlay != null) {
+            if (dropDownPopup.content() != optionsHost) {
+                dropDownPopup.content(optionsHost);
+            }
+            if (attachedOverlayLayer != targetOverlay) {
+                detachFromOverlay();
+                attachedOverlayLayer = targetOverlay;
+                attachedOverlayLayer.addOverlay(dropDownPopup);
+            }
+        } else {
+            detachFromOverlay();
+            clearPopupContent();
+        }
+    }
+
+    private void syncDropDownVisibility() {
+        if (dropDownMode == DropDownMode.OVERLAY) {
+            optionsHost.visibility(attachedOverlayLayer != null ? Visibility.VISIBLE : Visibility.COLLAPSED);
+            syncingPopup = true;
+            try {
+                dropDownPopup.open(opened && attachedOverlayLayer != null);
+            } finally {
+                syncingPopup = false;
+            }
+        } else {
+            syncingPopup = true;
+            try {
+                dropDownPopup.close();
+            } finally {
+                syncingPopup = false;
+            }
+            optionsHost.visibility(opened ? Visibility.VISIBLE : Visibility.COLLAPSED);
+        }
+    }
+
+    private void detachOptionsFromInlineLayout() {
+        if (optionsHost.parent() == this) {
+            super.removeChild(optionsHost);
+            applyQueuedMutations();
+        }
+    }
+
+    private void clearPopupContent() {
+        syncingPopup = true;
+        try {
+            dropDownPopup.close();
+            if (dropDownPopup.content() != null) {
+                dropDownPopup.content(null);
+                dropDownPopup.applyQueuedMutations();
+            }
+        } finally {
+            syncingPopup = false;
+        }
+    }
+
+    private void detachFromOverlay() {
+        if (attachedOverlayLayer != null) {
+            attachedOverlayLayer.removeOverlay(dropDownPopup);
+            attachedOverlayLayer = null;
+        }
+    }
+
+    private OverlayLayer findTopmostOverlayLayer() {
+        OverlayLayer result = null;
+        Widget current = this;
+        while (current != null) {
+            if (current instanceof OverlayLayer layer) {
+                result = layer;
+            }
+            current = current.parent();
+        }
+        return result;
+    }
+
+    private static List<Integer> selectionList(int index) {
+        return index < 0 ? List.of() : List.of(index);
+    }
+
+    private static String normalize(String value) {
+        return value == null ? "" : value;
+    }
+
+    public enum DropDownMode {
+        INLINE,
+        OVERLAY
+    }
+}

@@ -6,6 +6,7 @@ import dev.sixik.unigui.api.animation.TransitionSpec;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.FramePhase;
+import dev.sixik.unigui.api.event.ExpandedChangedEvent;
 import dev.sixik.unigui.api.event.KeyPressedEvent;
 import dev.sixik.unigui.api.event.PointerEnteredEvent;
 import dev.sixik.unigui.api.event.PointerExitedEvent;
@@ -78,14 +79,21 @@ import dev.sixik.unigui.impl.text.AwtFontFace;
 import dev.sixik.unigui.impl.text.SdfGlyph;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
+import dev.sixik.unigui.widgets.Accordion;
 import dev.sixik.unigui.widgets.Button;
+import dev.sixik.unigui.widgets.Breadcrumb;
+import dev.sixik.unigui.widgets.BreadcrumbItem;
 import dev.sixik.unigui.widgets.Box;
 import dev.sixik.unigui.widgets.Checkbox;
+import dev.sixik.unigui.widgets.ComboBox;
 import dev.sixik.unigui.widgets.DockPanel;
 import dev.sixik.unigui.widgets.DockSide;
+import dev.sixik.unigui.widgets.DropDownBox;
+import dev.sixik.unigui.widgets.ExpandablePanel;
 import dev.sixik.unigui.widgets.GridBox;
 import dev.sixik.unigui.widgets.HBox;
 import dev.sixik.unigui.widgets.Label;
+import dev.sixik.unigui.widgets.LoadingIndicator;
 import dev.sixik.unigui.widgets.NumberField;
 import dev.sixik.unigui.widgets.Orientation;
 import dev.sixik.unigui.widgets.OverlayLayer;
@@ -93,15 +101,22 @@ import dev.sixik.unigui.widgets.PanelWidget;
 import dev.sixik.unigui.widgets.PasswordField;
 import dev.sixik.unigui.widgets.Popup;
 import dev.sixik.unigui.widgets.ProgressBar;
+import dev.sixik.unigui.widgets.RadioButton;
+import dev.sixik.unigui.widgets.RadioGroup;
 import dev.sixik.unigui.widgets.SearchField;
 import dev.sixik.unigui.widgets.ScrollView;
 import dev.sixik.unigui.widgets.Slider;
+import dev.sixik.unigui.widgets.Spinner;
+import dev.sixik.unigui.widgets.SplitPanel;
 import dev.sixik.unigui.widgets.StackPanel;
+import dev.sixik.unigui.widgets.TabControl;
 import dev.sixik.unigui.widgets.TextBlock;
 import dev.sixik.unigui.widgets.TextField;
 import dev.sixik.unigui.widgets.TextInput;
 import dev.sixik.unigui.widgets.Tooltip;
 import dev.sixik.unigui.widgets.ToggleButton;
+import dev.sixik.unigui.widgets.TreeView;
+import dev.sixik.unigui.widgets.TreeViewNode;
 import dev.sixik.unigui.widgets.VBox;
 import dev.sixik.unigui.widgets.VirtualListView;
 import dev.sixik.unigui.widgets.VirtualTableView;
@@ -153,6 +168,13 @@ public final class BasicControlsSelfTest {
         testVirtualTableKeyboardNavigation();
         testVirtualTableCellEditingContracts();
         testVirtualTableViewVirtualRowsAndRendering();
+        testTabControlContracts();
+        testComboBoxAndDropDownBoxContracts();
+        testExpandablePanelAndAccordionContracts();
+        testTreeViewContracts();
+        testLoadingIndicatorContracts();
+        testSplitPanelContracts();
+        testBreadcrumbContracts();
         testToggleCheckboxProgressAndNumberField();
         System.out.println("BasicControlsSelfTest passed");
     }
@@ -2293,6 +2315,459 @@ public final class BasicControlsSelfTest {
                 "WidgetBase should allow callers to configure a custom mouse cursor");
     }
 
+    private void testComboBoxAndDropDownBoxContracts() {
+        ComboBox combo = new ComboBox()
+                .items(java.util.List.of("Small", "Medium", "Large"))
+                .silentSelectedIndex(1)
+                .dropDownMode(ComboBox.DropDownMode.INLINE);
+        combo.measure(new LayoutContext(180.0f, 120.0f));
+        combo.arrange(new MutableRect(0.0f, 0.0f, 180.0f, combo.desiredSize().height()));
+
+        DrawList closedDrawList = new DrawList();
+        combo.render(new DefaultRenderContext(closedDrawList));
+        expect(combo.selectedIndex() == 1 && combo.selectedItem().equals("Medium"),
+                "ComboBox should expose selected index and selected item");
+        expect(hasText(closedDrawList, "Medium ▾") && !hasText(closedDrawList, "Small"),
+                "Closed ComboBox should render the selected header but not options");
+
+        combo.open();
+        combo.measure(new LayoutContext(180.0f, 120.0f));
+        combo.arrange(new MutableRect(0.0f, 0.0f, 180.0f, combo.desiredSize().height()));
+        DrawList openDrawList = new DrawList();
+        combo.render(new DefaultRenderContext(openDrawList));
+        expect(combo.opened() && hasText(openDrawList, "Small") && hasText(openDrawList, "Large"),
+                "Open ComboBox should render all options");
+        expect(combo.optionButton(1).checked(),
+                "ComboBox should mark the selected option as checked");
+
+        Counter changes = new Counter();
+        combo.onSelectionChanged(event -> {
+            changes.count++;
+            changes.lastSelection = event.newSelection();
+        });
+        combo.optionButton(2).click();
+        expect(!combo.opened() && combo.selectedIndex() == 2 && combo.selectedItem().equals("Large"),
+                "ComboBox option click should select the item and close the drop-down");
+        expect(changes.count == 1 && changes.lastSelection.equals(java.util.List.of(2)),
+                "ComboBox should emit SelectionChangedEvent when selection changes");
+
+        combo.headerButton().click();
+        expect(combo.opened(), "ComboBox header click should reopen the drop-down");
+        combo.selectedIndex(99);
+        expect(combo.selectedIndex() == 2 && changes.count == 1,
+                "Selecting the already selected clamped item should not duplicate events");
+        combo.removeItem(2);
+        expect(combo.selectedIndex() == 1 && combo.selectedItem().equals("Medium"),
+                "ComboBox should keep a valid selection after removing the selected item");
+
+        ComboBox overlayCombo = new ComboBox()
+                .items(java.util.List.of("Alpha", "Beta", "Gamma"))
+                .silentSelectedIndex(0);
+        VBox overlayContent = new VBox();
+        OverlayLayer overlayLayer = new OverlayLayer(overlayContent);
+        overlayCombo.useOverlay(overlayLayer);
+        overlayContent.addChild(overlayCombo);
+        overlayCombo.measure(new LayoutContext(160.0f, 120.0f));
+        float closedOverlayHeight = overlayCombo.desiredSize().height();
+        overlayCombo.open();
+        overlayCombo.measure(new LayoutContext(160.0f, 120.0f));
+        expect(near(overlayCombo.desiredSize().height(), closedOverlayHeight),
+                "Overlay ComboBox should not change its layout height when opened");
+        overlayLayer.measure(new LayoutContext(160.0f, 120.0f));
+        overlayLayer.arrange(new MutableRect(0.0f, 0.0f, 160.0f, 120.0f));
+        DrawList overlayDrawList = new DrawList();
+        overlayLayer.render(new DefaultRenderContext(overlayDrawList));
+        expect(overlayCombo.dropDownMode() == ComboBox.DropDownMode.OVERLAY
+                        && overlayCombo.dropDownPopup().opened()
+                        && hasText(overlayDrawList, "Beta"),
+                "Overlay ComboBox should render options through Popup/OverlayLayer");
+        overlayCombo.dropDownPopup().close();
+        expect(!overlayCombo.opened(),
+                "ComboBox should sync opened state when its overlay Popup is closed externally");
+
+        ComboBox defaultOverlayCombo = new ComboBox()
+                .items(java.util.List.of("Default", "Overlay", "Mode"))
+                .silentSelectedIndex(0);
+        VBox defaultOverlayContent = new VBox();
+        defaultOverlayContent.addChild(defaultOverlayCombo);
+        OverlayLayer defaultOverlayLayer = new OverlayLayer(defaultOverlayContent);
+        defaultOverlayLayer.measure(new LayoutContext(160.0f, 120.0f));
+        defaultOverlayLayer.arrange(new MutableRect(0.0f, 0.0f, 160.0f, 120.0f));
+        float defaultClosedHeight = defaultOverlayCombo.desiredSize().height();
+        expect(defaultOverlayCombo.dropDownMode() == ComboBox.DropDownMode.OVERLAY
+                        && !defaultOverlayCombo.opened()
+                        && !defaultOverlayCombo.dropDownPopup().opened()
+                        && defaultOverlayCombo.optionsHost().parent() != defaultOverlayCombo,
+                "ComboBox should start closed in overlay mode without inline options");
+        defaultOverlayCombo.open();
+        defaultOverlayLayer.measure(new LayoutContext(160.0f, 120.0f));
+        defaultOverlayLayer.arrange(new MutableRect(0.0f, 0.0f, 160.0f, 120.0f));
+        expect(near(defaultOverlayCombo.desiredSize().height(), defaultClosedHeight)
+                        && defaultOverlayCombo.dropDownPopup().opened()
+                        && defaultOverlayCombo.optionsHost().parent() != defaultOverlayCombo,
+                "Default overlay ComboBox should open above layout without changing measured height");
+
+        ComboBox autoOverlayCombo = new ComboBox()
+                .items(java.util.List.of("Root", "Nested"))
+                .silentSelectedIndex(0);
+        VBox nestedContent = new VBox();
+        nestedContent.addChild(autoOverlayCombo);
+        OverlayLayer nestedOverlay = new OverlayLayer(nestedContent);
+        OverlayLayer rootOverlay = new OverlayLayer(nestedOverlay);
+        rootOverlay.measure(new LayoutContext(160.0f, 120.0f));
+        rootOverlay.arrange(new MutableRect(0.0f, 0.0f, 160.0f, 120.0f));
+        autoOverlayCombo.open();
+        expect(autoOverlayCombo.attachedOverlayLayer() == rootOverlay,
+                "Overlay ComboBox should attach its Popup to the topmost OverlayLayer automatically");
+
+        expect(Widgets.comboBox() instanceof ComboBox
+                        && Widgets.dropDownBox() instanceof DropDownBox,
+                "Widgets factory should expose ComboBox and DropDownBox");
+    }
+
+    private void testTabControlContracts() {
+        TabControl tabs = new TabControl()
+                .addTab("One", new Label("First page"))
+                .addTab("Two", new Label("Second page"));
+        tabs.measure(new LayoutContext(200.0f, 120.0f));
+        tabs.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 80.0f));
+
+        DrawList initialDrawList = new DrawList();
+        tabs.render(new DefaultRenderContext(initialDrawList));
+        expect(tabs.selectedIndex() == 0 && tabs.selectedContent() instanceof Label,
+                "TabControl should select the first tab by default");
+        expect(hasText(initialDrawList, "One") && hasText(initialDrawList, "Two")
+                        && hasText(initialDrawList, "First page") && !hasText(initialDrawList, "Second page"),
+                "TabControl should render all headers and only selected tab content");
+
+        Counter changes = new Counter();
+        tabs.onSelectionChanged(event -> {
+            changes.count++;
+            changes.lastSelection = event.newSelection();
+        });
+        tabs.tabButton(1).click();
+        DrawList selectedDrawList = new DrawList();
+        tabs.render(new DefaultRenderContext(selectedDrawList));
+        expect(tabs.selectedIndex() == 1 && hasText(selectedDrawList, "Second page") && !hasText(selectedDrawList, "First page"),
+                "TabControl tab button click should switch visible content");
+        expect(changes.count == 1 && changes.lastSelection.equals(java.util.List.of(1)),
+                "TabControl should emit SelectionChangedEvent when selected tab changes");
+
+        tabs.tabButton(1).click();
+        expect(tabs.selectedIndex() == 1 && tabs.tabButton(1).checked() && changes.count == 1,
+                "Clicking the selected tab should keep it selected without duplicate events");
+
+        tabs.removeTab(1);
+        DrawList removedDrawList = new DrawList();
+        tabs.render(new DefaultRenderContext(removedDrawList));
+        expect(tabs.tabCount() == 1 && tabs.selectedIndex() == 0 && hasText(removedDrawList, "First page"),
+                "TabControl should keep a valid selection after removing the selected tab");
+        expect(Widgets.tabControl() instanceof TabControl,
+                "Widgets factory should expose TabControl");
+    }
+
+    private void testExpandablePanelAndAccordionContracts() {
+        ExpandablePanel panel = new ExpandablePanel("Advanced");
+        panel.addContent(new Label("Inner"));
+        panel.measure(new LayoutContext(200.0f, 200.0f));
+        float expandedHeight = panel.desiredSize().height();
+        panel.arrange(new MutableRect(0.0f, 0.0f, 200.0f, expandedHeight));
+
+        DrawList expandedDrawList = new DrawList();
+        panel.render(new DefaultRenderContext(expandedDrawList));
+        expect(panel.expanded() && hasText(expandedDrawList, "\u25BE Advanced") && hasText(expandedDrawList, "Inner"),
+                "ExpandablePanel should render its expanded header and content");
+
+        Counter changes = new Counter();
+        panel.onExpandedChanged((ExpandedChangedEvent event) -> {
+            changes.count++;
+            changes.lastChecked = event.newValue();
+        });
+        panel.expanded(false);
+        panel.measure(new LayoutContext(200.0f, 200.0f));
+        expect(panel.desiredSize().height() < expandedHeight,
+                "Collapsed ExpandablePanel should remove content from layout");
+        DrawList collapsedDrawList = new DrawList();
+        panel.arrange(new MutableRect(0.0f, 0.0f, 200.0f, panel.desiredSize().height()));
+        panel.render(new DefaultRenderContext(collapsedDrawList));
+        expect(hasText(collapsedDrawList, "\u25B8 Advanced") && !hasText(collapsedDrawList, "Inner"),
+                "Collapsed ExpandablePanel should render only its header");
+        expect(changes.count == 1 && !changes.lastChecked,
+                "ExpandablePanel should emit expanded changed events");
+
+        panel.silentExpanded(true);
+        expect(panel.expanded() && changes.count == 1,
+                "silentExpanded should update state without emitting an event");
+
+        ExpandablePanel first = new ExpandablePanel("First");
+        ExpandablePanel second = new ExpandablePanel("Second");
+        Accordion accordion = new Accordion()
+                .addPanel(first)
+                .addPanel(second);
+        expect(!first.expanded() && second.expanded(),
+                "Accordion singleOpen mode should keep only the latest expanded panel open");
+        first.expanded(true);
+        expect(first.expanded() && !second.expanded(),
+                "Accordion should collapse other panels when one panel opens");
+        accordion.singleOpen(false);
+        second.expanded(true);
+        expect(first.expanded() && second.expanded(),
+                "Accordion multi-open mode should allow multiple expanded panels");
+        expect(Widgets.expandablePanel("Factory") instanceof ExpandablePanel
+                        && Widgets.accordion() instanceof Accordion,
+                "Widgets factory should expose ExpandablePanel and Accordion");
+    }
+
+    private void testTreeViewContracts() {
+        TreeView tree = new TreeView();
+        TreeViewNode root = tree.addRoot("Root");
+        TreeViewNode child = root.addChild("Child");
+        TreeViewNode leaf = child.addChild("Leaf");
+        TreeViewNode other = tree.addRoot("Other");
+        other.addChild("Hidden");
+        other.silentExpanded(false);
+        tree.silentSelect(child);
+
+        tree.measure(new LayoutContext(220.0f, 200.0f));
+        tree.arrange(new MutableRect(0.0f, 0.0f, 220.0f, tree.desiredSize().height()));
+        DrawList expandedDrawList = new DrawList();
+        tree.render(new DefaultRenderContext(expandedDrawList));
+        expect(tree.rootCount() == 2
+                        && tree.selectedNode() == child
+                        && tree.selectedPath().equals(java.util.List.of(0, 0))
+                        && tree.visibleNodes().size() == 4,
+                "TreeView should expose roots, visible nodes and selected path");
+        expect(hasText(expandedDrawList, "▾ Root")
+                        && hasText(expandedDrawList, "▾ Child")
+                        && hasText(expandedDrawList, "  Leaf")
+                        && hasText(expandedDrawList, "▸ Other")
+                        && !hasText(expandedDrawList, "  Hidden"),
+                "TreeView should render expanded branches and hide collapsed descendants");
+
+        child.expanded(false);
+        tree.measure(new LayoutContext(220.0f, 200.0f));
+        tree.arrange(new MutableRect(0.0f, 0.0f, 220.0f, tree.desiredSize().height()));
+        DrawList collapsedDrawList = new DrawList();
+        tree.render(new DefaultRenderContext(collapsedDrawList));
+        expect(tree.selectedNode() == child
+                        && tree.visibleNodes().size() == 3
+                        && hasText(collapsedDrawList, "▸ Child")
+                        && !hasText(collapsedDrawList, "  Leaf"),
+                "Collapsing a TreeView node should remove descendants from layout and render");
+
+        Counter changes = new Counter();
+        tree.onSelectionChanged(event -> {
+            changes.count++;
+            changes.lastSelection = event.newSelection();
+        });
+        child.expanded(true);
+        leaf.rowButton().click();
+        expect(tree.selectedNode() == leaf
+                        && tree.selectedPath().equals(java.util.List.of(0, 0, 0))
+                        && changes.count == 1
+                        && changes.lastSelection.equals(java.util.List.of(0, 0, 0)),
+                "TreeView row click should select a node and emit its path");
+
+        root.expanded(false);
+        expect(tree.selectedNode() == root
+                        && changes.count == 2
+                        && changes.lastSelection.equals(java.util.List.of(0)),
+                "Collapsing a branch should move hidden descendant selection to the collapsed node");
+
+        DefaultUIContext uiContext = new DefaultUIContext();
+        tree.setUiContextInternal(uiContext);
+        uiContext.focusManager().requestFocus(tree);
+        root.expanded(true);
+        child.expanded(true);
+        tree.silentSelect(root);
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(tree, KeyCodes.DOWN, 0, 0));
+        expect(tree.selectedNode() == child,
+                "TreeView Down key should move selection to the next visible node");
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(tree, KeyCodes.RIGHT, 0, 0));
+        expect(tree.selectedNode() == leaf,
+                "TreeView Right key should enter an expanded branch");
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(tree, KeyCodes.LEFT, 0, 0));
+        expect(tree.selectedNode() == child,
+                "TreeView Left key should move leaf selection to its parent");
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(tree, KeyCodes.SPACE, 0, 0));
+        expect(!child.expanded() && tree.selectedNode() == child,
+                "TreeView Space key should toggle the selected branch");
+
+        expect(Widgets.treeView() instanceof TreeView
+                        && Widgets.treeNode("Factory") instanceof TreeViewNode,
+                "Widgets factory should expose TreeView and TreeViewNode");
+    }
+
+    private void testLoadingIndicatorContracts() {
+        LoadingIndicator spinner = new LoadingIndicator()
+                .indicatorSize(24.0f)
+                .segments(6)
+                .phase(0.0f)
+                .speed(2.0f);
+        spinner.measure(new LayoutContext(100.0f, 100.0f));
+        spinner.arrange(new MutableRect(0.0f, 0.0f, spinner.desiredSize().width(), spinner.desiredSize().height()));
+        DrawList spinnerDrawList = new DrawList();
+        spinner.render(new DefaultRenderContext(spinnerDrawList));
+        expect(near(spinner.desiredSize().width(), 24.0f)
+                        && near(spinner.desiredSize().height(), 24.0f)
+                        && countCommands(spinnerDrawList, DrawCommandType.CIRCLE) == 6,
+                "LoadingIndicator spinner mode should measure square and render configured segments");
+
+        float firstDotX = spinnerDrawList.commands().get(0).bounds().x();
+        spinner.tick(new FrameContext(1, 0.25f, 0.0f, FramePhase.ANIMATION));
+        DrawList advancedSpinnerDrawList = new DrawList();
+        spinner.render(new DefaultRenderContext(advancedSpinnerDrawList));
+        expect(spinner.phase() == 0.5f
+                        && !near(advancedSpinnerDrawList.commands().get(0).bounds().x(), firstDotX),
+                "Running LoadingIndicator should advance phase and move spinner geometry");
+
+        spinner.stop();
+        float stoppedPhase = spinner.phase();
+        spinner.tick(new FrameContext(2, 0.25f, 0.0f, FramePhase.ANIMATION));
+        expect(spinner.phase() == stoppedPhase,
+                "Stopped LoadingIndicator should keep its animation phase stable");
+
+        LoadingIndicator dots = new LoadingIndicator()
+                .mode(LoadingIndicator.Mode.DOTS)
+                .phase(0.25f);
+        dots.preferredSize(72.0f, 24.0f);
+        dots.measure(new LayoutContext(100.0f, 100.0f));
+        dots.arrange(new MutableRect(0.0f, 0.0f, 72.0f, 24.0f));
+        DrawList dotsDrawList = new DrawList();
+        dots.render(new DefaultRenderContext(dotsDrawList));
+        expect(countCommands(dotsDrawList, DrawCommandType.CIRCLE) == 3,
+                "LoadingIndicator dots mode should render three animated dots");
+
+        LoadingIndicator bar = new LoadingIndicator()
+                .mode(LoadingIndicator.Mode.BAR)
+                .phase(0.25f);
+        bar.measure(new LayoutContext(120.0f, 20.0f));
+        bar.arrange(new MutableRect(0.0f, 0.0f, 120.0f, 8.0f));
+        DrawList barDrawList = new DrawList();
+        bar.render(new DefaultRenderContext(barDrawList));
+        expect(countCommands(barDrawList, DrawCommandType.ROUNDED_RECT) == 2,
+                "LoadingIndicator bar mode should render a track and moving thumb");
+
+        expect(Widgets.loadingIndicator() instanceof LoadingIndicator
+                        && Widgets.spinner() instanceof Spinner,
+                "Widgets factory should expose LoadingIndicator and Spinner");
+    }
+
+    private void testSplitPanelContracts() {
+        Box first = solidTestBox();
+        Box second = solidTestBox();
+        SplitPanel split = new SplitPanel(first, second)
+                .splitRatio(0.25f)
+                .splitterThickness(10.0f)
+                .minFirstSize(0.0f)
+                .minSecondSize(0.0f);
+        split.measure(new LayoutContext(200.0f, 80.0f));
+        split.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 80.0f));
+        expect(near(first.layoutBounds().width(), 47.5f)
+                        && near(split.splitter().layoutBounds().x(), 47.5f)
+                        && near(split.splitter().layoutBounds().width(), 10.0f)
+                        && near(second.layoutBounds().x(), 57.5f)
+                        && near(second.layoutBounds().width(), 142.5f),
+                "Horizontal SplitPanel should arrange first pane, splitter and second pane from split ratio");
+        expect(split.splitter().mouseCursorAt(1.0f, 1.0f) == MouseCursor.RESIZE_HORIZONTAL,
+                "Horizontal Splitter should expose horizontal resize cursor");
+
+        DefaultUIContext uiContext = new DefaultUIContext();
+        split.setUiContextInternal(uiContext);
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(split.splitter(),
+                52.5f, 20.0f, 5.0f, 20.0f, 0, PointerButton.PRIMARY));
+        expect(split.dragging() && uiContext.capturedPointer(0) == split.splitter(),
+                "Splitter press should start SplitPanel drag and capture pointer");
+        uiContext.routedEvents().dispatch(new PointerMovedEvent(split.splitter(),
+                71.5f, 20.0f, 24.0f, 20.0f, 0));
+        expect(near(split.splitRatio(), 0.35f),
+                "Dragging Splitter should update SplitPanel ratio based on pointer delta");
+        split.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 80.0f));
+        expect(near(first.layoutBounds().width(), 66.5f),
+                "SplitPanel should apply dragged ratio on next arrange");
+        uiContext.routedEvents().dispatch(new PointerReleasedEvent(split.splitter(),
+                71.5f, 20.0f, 24.0f, 20.0f, 0, PointerButton.PRIMARY));
+        expect(!split.dragging() && uiContext.capturedPointer(0) == null,
+                "Splitter release should end drag and release pointer capture");
+
+        SplitPanel vertical = new SplitPanel(solidTestBox(), solidTestBox())
+                .orientation(Orientation.VERTICAL)
+                .splitRatio(0.50f)
+                .splitterThickness(6.0f)
+                .minFirstSize(0.0f)
+                .minSecondSize(0.0f);
+        vertical.measure(new LayoutContext(120.0f, 106.0f));
+        vertical.arrange(new MutableRect(0.0f, 0.0f, 120.0f, 106.0f));
+        expect(near(vertical.first().layoutBounds().height(), 50.0f)
+                        && near(vertical.splitter().layoutBounds().y(), 50.0f)
+                        && near(vertical.second().layoutBounds().y(), 56.0f)
+                        && vertical.splitter().mouseCursorAt(1.0f, 1.0f) == MouseCursor.RESIZE_VERTICAL,
+                "Vertical SplitPanel should arrange panes top/bottom and expose vertical resize cursor");
+
+        DrawList drawList = new DrawList();
+        split.render(new DefaultRenderContext(drawList));
+        expect(countCommands(drawList, DrawCommandType.ROUNDED_RECT) >= 2,
+                "SplitPanel should render splitter chrome and handle");
+        expect(Widgets.splitPanel() instanceof SplitPanel
+                        && Widgets.splitPanel(new Label("A"), new Label("B")) instanceof SplitPanel,
+                "Widgets factory should expose SplitPanel");
+    }
+
+    private void testBreadcrumbContracts() {
+        Breadcrumb breadcrumb = new Breadcrumb()
+                .items(java.util.List.of("Home", "Projects", "UniGUI"))
+                .silentSelectedIndex(2);
+        breadcrumb.measure(new LayoutContext(260.0f, 40.0f));
+        breadcrumb.arrange(new MutableRect(0.0f, 0.0f, breadcrumb.desiredSize().width(), breadcrumb.desiredSize().height()));
+
+        DrawList drawList = new DrawList();
+        breadcrumb.render(new DefaultRenderContext(drawList));
+        expect(breadcrumb.itemCount() == 3
+                        && breadcrumb.selectedIndex() == 2
+                        && breadcrumb.selectedItem().text().equals("UniGUI")
+                        && breadcrumb.selectedPath().size() == 3,
+                "Breadcrumb should expose items, selected item and selected path");
+        expect(hasText(drawList, "Home")
+                        && hasText(drawList, "Projects")
+                        && hasText(drawList, "UniGUI")
+                        && hasText(drawList, "›"),
+                "Breadcrumb should render segment buttons and separators");
+
+        Counter changes = new Counter();
+        breadcrumb.onSelectionChanged(event -> {
+            changes.count++;
+            changes.lastSelection = event.newSelection();
+        });
+        breadcrumb.itemButton(1).click();
+        expect(breadcrumb.selectedIndex() == 1
+                        && breadcrumb.selectedItem().text().equals("Projects")
+                        && changes.count == 1
+                        && changes.lastSelection.equals(java.util.List.of(1)),
+                "Breadcrumb segment click should select that segment and emit SelectionChangedEvent");
+
+        BreadcrumbItem disabled = new BreadcrumbItem("Disabled").enabled(false);
+        breadcrumb.addItem(disabled);
+        int beforeDisabledClick = breadcrumb.selectedIndex();
+        breadcrumb.itemButton(3).click();
+        expect(breadcrumb.selectedIndex() == beforeDisabledClick && changes.count == 1,
+                "Breadcrumb disabled segments should not change selection");
+
+        breadcrumb.separator("/");
+        DrawList slashDrawList = new DrawList();
+        breadcrumb.render(new DefaultRenderContext(slashDrawList));
+        expect(hasText(slashDrawList, "/"),
+                "Breadcrumb should allow custom separator text");
+
+        breadcrumb.removeItem(3);
+        breadcrumb.removeItem(2);
+        expect(breadcrumb.selectedIndex() == 1 && breadcrumb.selectedItem().text().equals("Projects"),
+                "Breadcrumb should keep selection valid when trailing items are removed");
+
+        expect(Widgets.breadcrumb() instanceof Breadcrumb
+                        && Widgets.breadcrumbItem("Factory") instanceof BreadcrumbItem,
+                "Widgets factory should expose Breadcrumb and BreadcrumbItem");
+    }
+
     private void testToggleCheckboxProgressAndNumberField() {
         DefaultUIContext uiContext = new DefaultUIContext();
 
@@ -2328,6 +2803,43 @@ public final class BasicControlsSelfTest {
         uiContext.routedEvents().dispatch(new PointerPressedEvent(checkbox, 6.0f, 8.0f, 6.0f, 8.0f, 0, PointerButton.PRIMARY));
         uiContext.routedEvents().dispatch(new PointerReleasedEvent(checkbox, 6.0f, 8.0f, 6.0f, 8.0f, 0, PointerButton.PRIMARY));
         expect(checkbox.checked(), "Checkbox should reuse ToggleButton checked behavior");
+
+        RadioButton compact = new RadioButton("Compact", "compact");
+        RadioButton detailed = new RadioButton("Detailed", "detailed");
+        RadioGroup radioGroup = new RadioGroup()
+                .add(compact)
+                .add(detailed)
+                .silentSelectedValue("compact");
+        compact.setUiContextInternal(uiContext);
+        detailed.setUiContextInternal(uiContext);
+        compact.arrange(new MutableRect(0.0f, 0.0f, 90.0f, 20.0f));
+        detailed.arrange(new MutableRect(0.0f, 24.0f, 90.0f, 20.0f));
+        expect(compact.checked() && !detailed.checked() && radioGroup.selectedButton() == compact,
+                "RadioGroup should keep exactly one selected button");
+        DrawList radioDrawList = new DrawList();
+        compact.render(new DefaultRenderContext(radioDrawList));
+        expect(hasText(radioDrawList, "Compact") && countCommands(radioDrawList, DrawCommandType.CIRCLE) == 2,
+                "Selected RadioButton should render its label, ring and inner dot");
+
+        Counter radioChanges = new Counter();
+        detailed.onCheckedChanged(event -> {
+            radioChanges.count++;
+            radioChanges.lastChecked = event.newValue();
+        });
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(detailed, 6.0f, 32.0f, 6.0f, 8.0f, 0, PointerButton.PRIMARY));
+        uiContext.routedEvents().dispatch(new PointerReleasedEvent(detailed, 6.0f, 32.0f, 6.0f, 8.0f, 0, PointerButton.PRIMARY));
+        expect(!compact.checked() && detailed.checked() && radioGroup.selectedValue().equals("detailed"),
+                "RadioButton click should select its group value and clear the previous option");
+        expect(radioChanges.count == 1 && radioChanges.lastChecked,
+                "RadioButton should emit checked changed only when its state changes");
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(detailed, 6.0f, 32.0f, 6.0f, 8.0f, 0, PointerButton.PRIMARY));
+        uiContext.routedEvents().dispatch(new PointerReleasedEvent(detailed, 6.0f, 32.0f, 6.0f, 8.0f, 0, PointerButton.PRIMARY));
+        expect(detailed.checked() && radioChanges.count == 1,
+                "Clicking an already selected RadioButton should keep it selected without a duplicate change event");
+        uiContext.focusManager().requestFocus(compact);
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(compact, KeyCodes.SPACE, 0, 0));
+        expect(compact.checked() && !detailed.checked() && radioGroup.selectedValue().equals("compact"),
+                "Focused RadioButton should support keyboard selection");
 
         ProgressBar progressBar = new ProgressBar().range(0.0f, 200.0f).value(250.0f);
         progressBar.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 12.0f));

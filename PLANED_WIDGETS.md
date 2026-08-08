@@ -9,16 +9,16 @@
 Для каждого виджета/категории нужно добавить свой раздел в `dev.sixik.unigui.tests.TestCommands`
 
 ## Widgets
-- [ ] ComboBox / DropDownBox
-- [ ] RadioButton
-- [ ] RadioGroup
-- [ ] Spinner / LoadingIndicator
-- [ ] Splitter / SplitPanel
-- [ ] TabControl
-- [ ] TreeView
-- [ ] Breadcrumb
-- [ ] Accordion
-- [ ] ExpandablePanel
+- [x] ComboBox / DropDownBox
+- [x] RadioButton
+- [x] RadioGroup
+- [x] Spinner / LoadingIndicator
+- [x] Splitter / SplitPanel
+- [x] TabControl
+- [x] TreeView
+- [x] Breadcrumb
+- [x] Accordion
+- [x] ExpandablePanel
 - [ ] ContextMenu
 - [ ] Toast / NotificationView
 - [ ] RichTextView
@@ -30,4 +30,9 @@
 - [ ] GraphView
 - [ ] Carousel / PageView
  
+## By Aros
+- [ ] Tree List
+- [ ] Tree List with Custom Type (Picker)
+- [ ] View
+
 ## May be ?

@@ -2612,3 +2612,6 @@ retained widgets
 ```
 
 Если эту архитектуру держать с самого начала, то DockPanel, DragAndDrop, ModalWindow, GraphView, shader effects и cached Minecraft previews можно будет добавлять без переписывания всего framework-а.
+
+## By Aros
+- Kotlin support
