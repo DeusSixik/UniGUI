@@ -9,7 +9,7 @@ import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
+import dev.sixik.unigui.impl.layout.v3.LayoutV3StackAdapter;
 
 public final class StackPanel extends PanelWidget {
     @Override
@@ -19,21 +19,8 @@ public final class StackPanel extends PanelWidget {
             return;
         }
         applyQueuedMutations();
-        LayoutContext childContext = AbsoluteLayoutEngine.contentContext(this, context);
-        float desiredWidth = 0.0f;
-        float desiredHeight = 0.0f;
-        for (Widget child : children()) {
-            if (child.visibility() != Visibility.COLLAPSED) {
-                child.measure(childContext);
-                if (AbsoluteLayoutEngine.isAbsolute(child)) continue;
-                desiredWidth = Math.max(desiredWidth, outerDesiredWidth(child));
-                desiredHeight = Math.max(desiredHeight, outerDesiredHeight(child));
-            }
-        }
-        EdgeInsets padding = layoutStyle().padding();
-        setDesiredSize(resolveDesiredSize(context,
-                desiredWidth + padding.horizontal(),
-                desiredHeight + padding.vertical()));
+        LayoutSize measured = LayoutV3StackAdapter.measure(children(), context, layoutStyle());
+        setDesiredSize(resolveDesiredSize(context, measured.width(), measured.height()));
     }
 
     @Override
@@ -41,18 +28,7 @@ public final class StackPanel extends PanelWidget {
         mutableLayoutBounds().set(bounds);
         if (visibility() == Visibility.COLLAPSED) return;
         applyQueuedMutations();
-        MutableRect contentBounds = AbsoluteLayoutEngine.contentBounds(this, bounds);
-        for (Widget child : children()) {
-            if (child.visibility() != Visibility.COLLAPSED) {
-                if (AbsoluteLayoutEngine.isAbsolute(child)) {
-                    AbsoluteLayoutEngine.arrange(child, contentBounds);
-                } else {
-                    arrangeChild(child,
-                            contentBounds.x(), contentBounds.y(),
-                            contentBounds.width(), contentBounds.height());
-                }
-            }
-        }
+        LayoutV3StackAdapter.arrange(children(), bounds, layoutStyle());
     }
 
     static void arrangeChild(Widget child, float slotX, float slotY, float slotWidth, float slotHeight) {

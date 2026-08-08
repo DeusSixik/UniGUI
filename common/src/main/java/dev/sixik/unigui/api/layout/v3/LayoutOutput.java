@@ -52,6 +52,10 @@ public final class LayoutOutput {
             return this;
         }
 
+        public LayoutResult peek(LayoutNodeId id) {
+            return results.get(id);
+        }
+
         public LayoutOutput build() {
             return new LayoutOutput(rootId, results);
         }

@@ -18,6 +18,7 @@ import dev.sixik.unigui.impl.widget.WidgetBase;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -164,6 +165,12 @@ public class PanelWidget extends WidgetBase {
 
     private List<Widget> snapshotChildren() {
         return List.copyOf(children);
+    }
+
+    protected final void reorderChildren(Comparator<? super Widget> comparator) {
+        if (comparator != null && children.size() > 1) {
+            children.sort(comparator);
+        }
     }
 
     private void applyAdd(Widget child) {

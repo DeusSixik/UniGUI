@@ -3,15 +3,12 @@ package dev.sixik.unigui.widgets;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
-import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
+import dev.sixik.unigui.impl.layout.v3.LayoutV3DockAdapter;
 
-import java.util.ArrayList;
 import java.util.IdentityHashMap;
-import java.util.List;
 import java.util.Map;
 
 public final class DockPanel extends PanelWidget {
@@ -73,43 +70,9 @@ public final class DockPanel extends PanelWidget {
         }
         applyQueuedMutations();
 
-        List<Widget> snapshot = visibleLayoutChildren();
-        LayoutContext childContext = AbsoluteLayoutEngine.contentContext(this, context);
-        AbsoluteLayoutEngine.measureChildren(children(), childContext);
-        float dockedWidth = 0.0f;
-        float dockedHeight = 0.0f;
-        float desiredWidth = 0.0f;
-        float desiredHeight = 0.0f;
-
-        for (int index = 0; index < snapshot.size(); index++) {
-            Widget child = snapshot.get(index);
-            child.measure(childContext);
-            float childWidth = StackPanel.outerDesiredWidth(child);
-            float childHeight = StackPanel.outerDesiredHeight(child);
-            boolean fill = lastChildFill && index == snapshot.size() - 1;
-            if (fill) {
-                desiredWidth = Math.max(desiredWidth, dockedWidth + childWidth);
-                desiredHeight = Math.max(desiredHeight, dockedHeight + childHeight);
-                continue;
-            }
-
-            switch (dockSide(child)) {
-                case LEFT, RIGHT -> {
-                    dockedWidth += childWidth;
-                    desiredWidth = Math.max(desiredWidth, dockedWidth);
-                    desiredHeight = Math.max(desiredHeight, dockedHeight + childHeight);
-                }
-                case TOP, BOTTOM -> {
-                    dockedHeight += childHeight;
-                    desiredWidth = Math.max(desiredWidth, dockedWidth + childWidth);
-                    desiredHeight = Math.max(desiredHeight, dockedHeight);
-                }
-            }
-        }
-        var padding = layoutStyle().padding();
-        setDesiredSize(resolveDesiredSize(context,
-                desiredWidth + padding.horizontal(),
-                desiredHeight + padding.vertical()));
+        LayoutSize measured = LayoutV3DockAdapter.measure(
+                children(), this::dockSide, lastChildFill, context, layoutStyle());
+        setDesiredSize(resolveDesiredSize(context, measured.width(), measured.height()));
     }
 
     @Override
@@ -117,62 +80,6 @@ public final class DockPanel extends PanelWidget {
         mutableLayoutBounds().set(bounds);
         if (visibility() == Visibility.COLLAPSED) return;
         applyQueuedMutations();
-        MutableRect contentBounds = AbsoluteLayoutEngine.contentBounds(this, bounds);
-
-        List<Widget> snapshot = visibleLayoutChildren();
-        if (snapshot.isEmpty()) {
-            AbsoluteLayoutEngine.arrangeChildren(children(), contentBounds);
-            return;
-        }
-
-        float left = contentBounds.x();
-        float top = contentBounds.y();
-        float right = contentBounds.x() + contentBounds.width();
-        float bottom = contentBounds.y() + contentBounds.height();
-
-        for (int index = 0; index < snapshot.size(); index++) {
-            Widget child = snapshot.get(index);
-            boolean fill = lastChildFill && index == snapshot.size() - 1;
-            if (fill) {
-                StackPanel.arrangeChild(child, left, top, Math.max(0.0f, right - left), Math.max(0.0f, bottom - top));
-                continue;
-            }
-
-            DockSide side = dockSide(child);
-            switch (side) {
-                case LEFT -> {
-                    float width = Math.min(Math.max(0.0f, right - left), StackPanel.preferredWidth(child, Math.max(0.0f, right - left)));
-                    StackPanel.arrangeChild(child, left, top, width, Math.max(0.0f, bottom - top));
-                    left += width;
-                }
-                case RIGHT -> {
-                    float width = Math.min(Math.max(0.0f, right - left), StackPanel.preferredWidth(child, Math.max(0.0f, right - left)));
-                    StackPanel.arrangeChild(child, right - width, top, width, Math.max(0.0f, bottom - top));
-                    right -= width;
-                }
-                case TOP -> {
-                    float height = Math.min(Math.max(0.0f, bottom - top), StackPanel.preferredHeight(child, Math.max(0.0f, bottom - top)));
-                    StackPanel.arrangeChild(child, left, top, Math.max(0.0f, right - left), height);
-                    top += height;
-                }
-                case BOTTOM -> {
-                    float height = Math.min(Math.max(0.0f, bottom - top), StackPanel.preferredHeight(child, Math.max(0.0f, bottom - top)));
-                    StackPanel.arrangeChild(child, left, bottom - height, Math.max(0.0f, right - left), height);
-                    bottom -= height;
-                }
-            }
-        }
-        AbsoluteLayoutEngine.arrangeChildren(children(), contentBounds);
-    }
-
-    private List<Widget> visibleLayoutChildren() {
-        List<Widget> output = new ArrayList<>();
-        for (Widget child : children()) {
-            if (child.visibility() != Visibility.COLLAPSED) {
-                if (AbsoluteLayoutEngine.isAbsolute(child)) continue;
-                output.add(child);
-            }
-        }
-        return output;
+        LayoutV3DockAdapter.arrange(children(), this::dockSide, lastChildFill, bounds, layoutStyle());
     }
 }

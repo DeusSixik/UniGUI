@@ -6,8 +6,13 @@ import dev.sixik.unigui.api.animation.AnimationEasing;
 import dev.sixik.unigui.api.animation.TransitionSpec;
 import dev.sixik.unigui.api.debug.DebugFlags;
 import dev.sixik.unigui.api.debug.DebugOverlayAnchor;
+import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.api.layout.Align;
 import dev.sixik.unigui.api.layout.Alignment;
+import dev.sixik.unigui.api.layout.Justify;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
+import dev.sixik.unigui.api.layout.PositionType;
+import dev.sixik.unigui.api.layout.SizeValue;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.UiRenderPolicy;
 import dev.sixik.unigui.api.selection.SelectionMode;
@@ -363,6 +368,8 @@ public final class TestCommands {
         breadcrumb.preferredSize(LayoutConstraints.AUTO, LayoutConstraints.AUTO).grow(0.0f);
         page.addChild(section("Breadcrumb", breadcrumb));
 
+        page.addChild(layoutV3SmokeSection());
+
         SplitPanel split = new SplitPanel(
                 samplePane("Left Pane", "Drag the divider. Minimum sizes prevent collapse."),
                 samplePane("Right Pane", "SplitPanel supports horizontal and vertical orientation."));
@@ -398,6 +405,176 @@ public final class TestCommands {
         tree.preferredSize(LayoutConstraints.AUTO, LayoutConstraints.AUTO).grow(0.0f);
         page.addChild(section("TreeView", tree));
         return page;
+    }
+
+    private static Box layoutV3SmokeSection() {
+        VBox smoke = new VBox();
+        smoke.spacing(8.0f);
+        smoke.grow(0.0f);
+
+        Label hint = new Label("Layout V3 is the default layout path for these widgets.");
+        hint.preferredSize(LayoutConstraints.AUTO, 22.0f).align(Alignment.START, Alignment.CENTER).grow(1.0f);
+        HBox controls = new HBox();
+        controls.spacing(8.0f);
+        controls.addChild(hint);
+        smoke.addChild(controls);
+
+        HBox row = new HBox();
+        row.spacing(8.0f);
+        row.layout(style -> style.padding(4.0f).alignItems(Align.CENTER).justifyContent(Justify.SPACE_BETWEEN));
+        row.preferredSize(LayoutConstraints.AUTO, 44.0f).grow(0.0f);
+        row.addChild(smokeTile("Fixed", 54.0f, 24.0f, 0.16f, 0.34f, 0.54f));
+        row.addChild(smokeTile("Grow", 44.0f, 20.0f, 0.18f, 0.48f, 0.32f)
+                .layout(style -> style.flexGrow(1.0f).flexShrink(1.0f).flexBasis(SizeValue.px(44.0f))));
+        row.addChild(smokeTile("End", 46.0f, 28.0f, 0.50f, 0.32f, 0.18f));
+        smoke.addChild(section("V3 LinearBox row/column", row));
+
+        WrapPanel cards = wrap();
+        cards.preferredSize(LayoutConstraints.AUTO, 92.0f).grow(0.0f);
+        cards.addChild(smokeTile("50%", 72.0f, 28.0f, 0.24f, 0.36f, 0.62f)
+                .layout(style -> style.widthPercent(34.0f).minWidth(64.0f).maxWidth(112.0f)));
+        cards.addChild(smokeTile("Clamp", 82.0f, 28.0f, 0.28f, 0.52f, 0.38f));
+        cards.addChild(smokeTile("Wrap", 96.0f, 28.0f, 0.55f, 0.40f, 0.22f));
+        cards.addChild(smokeTile("Next line", 110.0f, 28.0f, 0.44f, 0.26f, 0.56f));
+        smoke.addChild(section("V3 WrapPanel cards", cards));
+
+        StackPanel stack = new StackPanel();
+        stack.preferredSize(LayoutConstraints.AUTO, 64.0f).grow(0.0f);
+        Box base = smokeTile("Stack stretch", 80.0f, 24.0f, 0.12f, 0.22f, 0.34f);
+        base.align(Alignment.STRETCH, Alignment.STRETCH);
+        Box overlay = smokeTile("Absolute", 82.0f, 24.0f, 0.62f, 0.30f, 0.18f);
+        overlay.layout(style -> style
+                .position(PositionType.ABSOLUTE)
+                .right(8.0f)
+                .top(8.0f)
+                .width(82.0f)
+                .height(24.0f));
+        stack.addChild(base);
+        stack.addChild(overlay);
+        smoke.addChild(section("V3 StackPanel overlay", stack));
+
+        SplitPanel split = new SplitPanel(
+                samplePane("First pane", "Pane slots are V3 flex items."),
+                samplePane("Second pane", "Splitter is an absolute handle over the gap."));
+        split.splitRatio(0.42f)
+                .splitterThickness(6.0f)
+                .minFirstSize(90.0f)
+                .minSecondSize(110.0f);
+        split.preferredSize(LayoutConstraints.AUTO, 76.0f).grow(0.0f);
+        smoke.addChild(section("V3 SplitPanel panes", split));
+
+        VBox nestedPanels = new VBox();
+        nestedPanels.spacing(5.0f);
+        nestedPanels.preferredSize(LayoutConstraints.AUTO, 86.0f).grow(0.0f);
+        HBox nestedRow = new HBox();
+        nestedRow.spacing(6.0f);
+        nestedRow.layout(style -> style.padding(4.0f).alignItems(Align.CENTER));
+        nestedRow.preferredSize(LayoutConstraints.AUTO, 38.0f).grow(0.0f);
+        nestedRow.addChild(smokeTile("35% min/max", 74.0f, 22.0f, 0.22f, 0.38f, 0.58f)
+                .layout(style -> style.widthPercent(35.0f).minWidth(66.0f).maxWidth(118.0f).height(22.0f)));
+        nestedRow.addChild(smokeTile("grow", 42.0f, 20.0f, 0.18f, 0.50f, 0.36f)
+                .layout(style -> style.flexGrow(1.0f).flexShrink(1.0f).flexBasis(SizeValue.px(42.0f))));
+        VBox nestedColumn = new VBox();
+        nestedColumn.spacing(3.0f);
+        nestedColumn.layout(style -> style.padding(3.0f));
+        nestedColumn.preferredSize(LayoutConstraints.AUTO, 38.0f).grow(0.0f);
+        nestedColumn.addChild(smokeTile("nested 100%", 72.0f, 14.0f, 0.48f, 0.30f, 0.58f)
+                .layout(style -> style.widthPercent(100.0f).minWidth(90.0f).height(14.0f)));
+        nestedPanels.addChild(nestedRow);
+        nestedPanels.addChild(nestedColumn);
+        smoke.addChild(section("V3 nested panels percent/min/max", nestedPanels));
+
+        StackPanel edgeCanvas = new StackPanel();
+        edgeCanvas.preferredSize(LayoutConstraints.AUTO, 72.0f).grow(0.0f);
+        Box edgeBack = panelBox(0.030f, 0.042f, 0.062f, 0.92f);
+        edgeBack.align(Alignment.STRETCH, Alignment.STRETCH);
+        Button edgePopupAnchor = new Button("Edge popup");
+        edgePopupAnchor.preferredSize(96.0f, 22.0f)
+                .align(Alignment.END, Alignment.END)
+                .margin(0.0f, 0.0f, 6.0f, 6.0f)
+                .grow(0.0f);
+        edgeCanvas.addChild(edgeBack);
+        edgeCanvas.addChild(edgePopupAnchor);
+        OverlayLayer edgeLayer = new OverlayLayer(edgeCanvas);
+        Popup edgePopup = new Popup(
+                edgePopupAnchor,
+                samplePane("Flipped popup", "Opened near the host edge; should stay visible."))
+                .offset(0.0f, 4.0f);
+        edgePopupAnchor.onClick(event -> edgePopup.toggle());
+        edgeLayer.addOverlay(edgePopup);
+        smoke.addChild(section("Overlay smoke: popup near edge", edgeLayer));
+
+        StackPanel multiOverlayCanvas = new StackPanel();
+        multiOverlayCanvas.preferredSize(LayoutConstraints.AUTO, 88.0f).grow(0.0f);
+        Box multiOverlayBack = panelBox(0.026f, 0.034f, 0.052f, 0.92f);
+        multiOverlayBack.align(Alignment.STRETCH, Alignment.STRETCH);
+        Button menuAnchor = new Button("Menu");
+        menuAnchor.preferredSize(62.0f, 22.0f)
+                .align(Alignment.START, Alignment.START)
+                .margin(8.0f, 8.0f, 0.0f, 0.0f)
+                .grow(0.0f);
+        Button tooltipAnchor = new Button("Tip");
+        tooltipAnchor.preferredSize(54.0f, 22.0f)
+                .align(Alignment.CENTER, Alignment.CENTER)
+                .grow(0.0f);
+        Button inspectorAnchor = new Button("Inspect");
+        inspectorAnchor.preferredSize(72.0f, 22.0f)
+                .align(Alignment.END, Alignment.END)
+                .margin(0.0f, 0.0f, 8.0f, 8.0f)
+                .grow(0.0f);
+        Button openAllOverlays = new Button("Open all");
+        openAllOverlays.preferredSize(78.0f, 22.0f)
+                .align(Alignment.END, Alignment.START)
+                .margin(0.0f, 8.0f, 8.0f, 0.0f)
+                .grow(0.0f);
+        multiOverlayCanvas.addChild(multiOverlayBack);
+        multiOverlayCanvas.addChild(menuAnchor);
+        multiOverlayCanvas.addChild(tooltipAnchor);
+        multiOverlayCanvas.addChild(inspectorAnchor);
+        multiOverlayCanvas.addChild(openAllOverlays);
+
+        OverlayLayer multiOverlayLayer = new OverlayLayer(multiOverlayCanvas);
+        Popup menuPopup = new Popup(
+                menuAnchor,
+                samplePane("Menu popup", "First overlay keeps normal content below."))
+                .offset(0.0f, 4.0f);
+        Popup tooltipPopup = new Popup(
+                tooltipAnchor,
+                samplePane("Tooltip popup", "Second overlay stacks above the same host."))
+                .offset(-34.0f, 4.0f);
+        Popup inspectorPopup = new Popup(
+                inspectorAnchor,
+                samplePane("Inspector popup", "Third overlay checks draw and hit-test order."))
+                .offset(-72.0f, 4.0f);
+        menuAnchor.onClick(event -> menuPopup.toggle());
+        tooltipAnchor.onClick(event -> tooltipPopup.toggle());
+        inspectorAnchor.onClick(event -> inspectorPopup.toggle());
+        openAllOverlays.onClick(event -> {
+            menuPopup.open();
+            tooltipPopup.open();
+            inspectorPopup.open();
+        });
+        multiOverlayLayer.addOverlay(menuPopup);
+        multiOverlayLayer.addOverlay(tooltipPopup);
+        multiOverlayLayer.addOverlay(inspectorPopup);
+        smoke.addChild(section("Overlay smoke: multiple floating widgets", multiOverlayLayer));
+
+        VBox dropContent = new VBox();
+        dropContent.spacing(6.0f);
+        ComboBox clippedDropDown = new ComboBox()
+                .items(List.of("Overlay portal", "Inside ScrollView", "Not clipped", "No relayout"))
+                .silentSelectedIndex(0)
+                .useOverlay();
+        clippedDropDown.preferredSize(150.0f, LayoutConstraints.AUTO).grow(0.0f);
+        dropContent.addChild(clippedDropDown);
+        dropContent.addChild(paragraph("The dropdown opens through the root OverlayLayer, not inside the small ScrollView clip."));
+        dropContent.addChild(smokeTile("Scroll filler", 120.0f, 24.0f, 0.18f, 0.32f, 0.50f));
+        ScrollView clippedScroll = new ScrollView(dropContent);
+        clippedScroll.scrollStep(10.0f);
+        clippedScroll.preferredSize(LayoutConstraints.AUTO, 58.0f).grow(0.0f);
+        smoke.addChild(section("Overlay smoke: dropdown in clipped scroll", clippedScroll));
+
+        return section("Layout V3 Smoke", smoke);
     }
 
     private static VBox dataPage() {
@@ -625,6 +802,18 @@ public final class TestCommands {
         wrap.lineSpacing(8.0f);
         wrap.grow(0.0f);
         return wrap;
+    }
+
+    private static Box smokeTile(String title, float width, float height, float r, float g, float b) {
+        Box tile = panelBox(r, g, b, 0.90f);
+        tile.preferredSize(width, height).grow(0.0f);
+        Label label = new Label(title);
+        label.margin(6.0f, 4.0f)
+                .preferredSize(LayoutConstraints.AUTO, LayoutConstraints.AUTO)
+                .align(Alignment.CENTER, Alignment.CENTER)
+                .grow(0.0f);
+        tile.addChild(label);
+        return tile;
     }
 
     private static Box infoCard(String title, String body) {

@@ -11,7 +11,7 @@
 - батчинг виджетов для снижения draw calls;
 - возможность рендерить любой виджет или subtree виджетов в текстуру;
 - абстракции поверх Minecraft rendering, OpenGL и будущих backend-ов;
-- поддержка Yoga как layout engine;
+- поддержка Layout V3 как backend-neutral layout engine с Yoga/Taffy-like semantics;
 - готовность к DockPanel, DragAndDrop, ModalWindow, GraphView и Animation API;
 - поддержка transform-ов: width, height, scale, rotation, pivot;
 - отдельный механизм для Minecraft item/block/entity rendering.
@@ -33,7 +33,7 @@
 ```text
 Widget Tree
    ↓
-Layout Engine / Yoga
+Layout V3 Engine / adapters
    ↓
 Visual Tree + Transforms
    ↓
@@ -83,11 +83,14 @@ dev.sixik.unigui.math
   Transform
   Matrix3x2
 
-dev.sixik.unigui.layout
+dev.sixik.unigui.api.layout / api.layout.v3 / impl.layout.v3
   LayoutNode
   LayoutStyle
   LayoutResult
-  YogaLayoutEngine
+  LayoutEngine
+  TaffyLayoutEngine
+  LayoutStyleMapper
+  OverlayLayoutResolver
   custom layout interfaces
 
 dev.sixik.unigui.render
@@ -588,36 +591,48 @@ apply mutation
 
 ---
 
-## Layout через Yoga
+## Layout V3
 
-Yoga писать вручную не нужно. Это отдельный layout engine, который уже решает flexbox-подобную раскладку.
+Layout V3 — это Java-owned layout abstraction с Yoga/Taffy-like semantics, но без прямой публичной привязки UniGUI widgets к конкретному Yoga/Taffy binding.
 
-Но UI framework не должен напрямую зависеть от Yoga API в каждом виджете.
+Текущий pipeline:
 
-Нужен wrapper:
+```text
+Widget tree
+   ↓
+LayoutTreeBuilder
+   ↓
+LayoutNode tree + LayoutStyleSnapshot
+   ↓
+LayoutEngine.compute(LayoutInput)
+   ↓
+LayoutOutput / LayoutResult
+   ↓
+LayoutApplier или container-specific V3 adapter
+   ↓
+Widget.layoutBounds()
+```
+
+Базовый backend contract:
 
 ```java
-public final class LayoutNode {
-    private final YogaNode yoga;
-
-    public void setWidth(SizeValue width);
-
-    public void setHeight(SizeValue height);
-
-    public void setFlexDirection(FlexDirection direction);
-
-    public LayoutResult calculate(float availableWidth, float availableHeight);
+public interface LayoutEngine {
+    LayoutOutput compute(LayoutNode root, LayoutInput input);
 }
 ```
 
-Причины:
+Текущий internal backend — `TaffyLayoutEngine`. Он покрывает flex row/column, wrap, gap, margin, padding, min/max, percent, grow/shrink, absolute children, content/overflow size и per-pass measure cache. External Yoga/Taffy остаются возможной будущей заменой backend-а, но не должны протекать в публичный widget API.
 
-- можно заменить Yoga или обновить binding без переписывания виджетов;
-- можно добавить custom layout для DockPanel, GraphView, overlay layers;
-- можно скрыть несовместимости между версиями Java/Minecraft;
-- можно централизовать invalidation layout-а.
+Миграция контейнеров теперь default-on для уже перенесённых slices; flags остаются для rollback и точечного отключения:
 
-Важно: сейчас Yoga подключён как `compileOnly`. Если он реально нужен во время запуска игры, его нужно либо шейдить в jar, либо подключать как runtime dependency. Иначе возможен `ClassNotFoundException`.
+- global rollback: `runtime compatibility/reference code are removed`;
+- slice rollback: `-Dremoved runtime slice flag=false`, `wrappanel=false`, `stackpanel=false`, `overlay=false`, `scrollview=false`, `splitpanel=false`, `dockpanel=false`, `gridbox=false`.
+
+V3 layout path используется по умолчанию. V2 layout path остаётся fallback-ом для rollback/debug. V3 adapters сейчас есть для `LinearBox`/`HBox`/`VBox`, `WrapPanel`, `StackPanel`, `ScrollView`, `SplitPanel`, `DockPanel` и `GridBox`.
+
+Overlay часть вынесена в `OverlayLayoutResolver`: popup/dropdown/tooltip-like floating widgets позиционируются через root overlay host, не участвуют в normal layout, получают явную draw/hit-test priority policy и могут не обрезаться промежуточным `ScrollView`/`Panel` scissor.
+
+Важно: Yoga и Taffy dependencies пока подключены как `compileOnly`. Runtime layout не должен требовать их, пока backend остаётся internal Java. Если появится внешний backend, его нужно будет явно шейдить или подключать как runtime dependency.
 
 ---
 
@@ -658,7 +673,7 @@ public final class Transform {
 }
 ```
 
-Layout остаётся прямоугольным, а visual transform применяется поверх результата Yoga.
+Layout остаётся прямоугольным, а visual transform применяется поверх результата Layout V3.
 
 Это важно для:
 
@@ -1582,7 +1597,7 @@ GridBox
 StackPanel
 DockPanel
 AbsolutePanel
-OverlayPanel
+OverlayLayer
 CanvasPanel
 ~~~
 
@@ -1596,19 +1611,20 @@ HBox:
   LinearBox with horizontal direction
 
 GridBox:
-  grid layout container
+  equal-cell grid container now backed by a compatibility V3 adapter;
+  full CSS-grid-like model stays a future decision
 
 StackPanel:
-  simple stack layout, may alias VBox/HBox depending on direction
+  overlay stack: normal children fill the padded slot, absolute children use insets
 
 DockPanel:
-  custom layout strategy
+  sequential dock semantics through a custom V3 adapter
 
 AbsolutePanel:
   children positioned by explicit x/y
 
-OverlayPanel:
-  children rendered in layers
+OverlayLayer:
+  normal content + floating overlays rendered and hit-tested above content
 
 CanvasPanel:
   low-level drawable area + optional child hosting
@@ -2486,6 +2502,7 @@ try (ProfileScope ignored = profiler.scope("layout")) {
 - primitive widgets: `Text`, `Label`, `TextBlock`, `TextureWidget`, `ImageView`, `Shape`, `Border`, `Separator`, `CanvasWidget`, `Path`;
 - basic widgets/layout shells: `Box`, `Button`, `ToggleButton`, `Checkbox`, `TextInput`, `TextField`, `NumberField`, `PasswordField`, `SearchField`, `Slider`, `ProgressBar`, `ScrollBar`, `ScrollView`, `VirtualListView` с fixed-row virtualization для больших списков, `VirtualTableView`/`VirtualTableColumn` для fixed-row virtualized data-grid prototype, axis-aligned clip/scissor и встроенной scrollbar binding, `CachedSubtreeWidget` с cache hit/miss counters, общими frame counters и `DebugFlags.CACHED_SUBTREE` overlay, `VBox`, `HBox`, `GridBox`, `StackPanel`, `DockPanel`, `WrapPanel`, `Widgets` factory;
 - layout/measurement: `LayoutContext`, `LayoutSize`, `Widget.desiredSize()`, `LayoutConstraints`, `EdgeInsets`, `Alignment`, `Widget.layoutConstraints()`, mutable `WidgetBase` helpers for preferred/min/max size, margins, alignment and grow weight, text/TextInput/Button intrinsic desired-size measurement, plus `LinearBox`/`GridBox` slot sizing and richer `StackPanel`/`DockPanel`/`WrapPanel` containers that aggregate desired sizes and respect collapsed children;
+- Layout V3 migration layer: `api.layout.v3` backend-neutral model, `TaffyLayoutEngine`, `LayoutV3FlexAdapter`, `LayoutV3StackAdapter`, `LayoutV3ScrollAdapter`, `LayoutV3SplitAdapter`, `LayoutV3DockAdapter`, `LayoutV3GridAdapter`, `LayoutCache`, `LayoutDebugDumper`, `OverlayLayoutResolver`, default-on `direct V3 default path` compatibility/reference code, and `LayoutV3SelfTest` coverage wired into `:common:test`;
 - virtualization core: `VirtualRange` and `FixedRowVirtualizer` hold shared fixed-row content extent, max scroll, overscan window and viewport-relative item offset logic used by both `VirtualListView` and `VirtualTableView`;
 - selection contracts: `SelectionMode`, `IndexSelectionModel` and `SelectionChangedEvent` provide shared single/multiple index selection for virtualized list/table rows, including selected row highlight, change events and pruning when item/row count shrinks;
 - table sorting contracts: `SortDirection` and `TableSortChangedEvent` expose `VirtualTableView` column sort state, sort-key provider, per-column row comparator hooks, header click cycle and header sort markers;
@@ -2496,8 +2513,8 @@ try (ProfileScope ignored = profiler.scope("layout")) {
 - keyboard focus traversal: `Widget.focusable()`, `focusOrder()`, `focusScope()`, `FocusDirection`, `DefaultFocusManager.focusNext/focusPrevious/focusDirectional`, Minecraft `Tab` / `Shift+Tab` dispatch path, and arrow/D-pad-style directional fallback when focused widgets do not consume navigation keys;
 - hover/style state tracking: `HoverManager`, `DefaultHoverManager`, `PointerEnteredEvent`, `PointerExitedEvent`, `Widget.hovered()`, `WidgetState.HOVERED` default theme tokens, and render/style invalidation on hover transitions;
 - base widget state flags: `Widget.visibility()` with `Visibility.VISIBLE/HIDDEN/COLLAPSED`, backwards-compatible `visible(false) -> HIDDEN`, `Widget.enabled()`, mutable `WidgetBase.visibility/visible/enabled`, disabled style state, HIDDEN layout participation, COLLAPSED layout skip, render/input/hit-test/focus/hover traversal opt-out for non-visible/disabled widgets;
-- overlay basics: `OverlayLayer` hosts render-on-top widgets above normal content without stealing layout from the content subtree, and `Tooltip` provides hover-driven non-interactive retained tooltip rendering anchored to another widget;
-- popup basics: `Popup` builds on `OverlayLayer` with open/close/toggle state, anchor-based positioning, interactive popup content and non-modal outside-click close handled at overlay capture phase;
+- overlay basics: `OverlayLayer` hosts render-on-top widgets above normal content without stealing layout from the content subtree, uses deterministic content/overlay ordering, and supports V3 portal-style dropdown/popup escape from parent clips;
+- popup basics: `Popup` builds on `OverlayLayer` with open/close/toggle state, anchor-based positioning, interactive popup content, V3 resolver placement by default and non-modal outside-click close handled at overlay capture phase;
 - window/dialog basics: `WindowWidget` builds on `OverlayLayer` with open/close/toggle state, title bar rendering, close button, draggable pointer-captured movement, bounds clamping and optional outside-click close;
 - animation property system: `AnimatedProperty`, `AnimationEasing`, `TransitionSpec` and `FloatTransition` provide tick-driven opacity/position/scale transitions on `WidgetBase`, render-time opacity stacking through `RenderContext`, real frame delta from `MinecraftWidgetScreen`, and opt-in `Button` hover/pressed interaction transitions;
 - Minecraft preview widgets: `MinecraftPreviewWidget`, `MinecraftItemPreviewWidget`, `MinecraftBlockPreviewWidget` and `MinecraftEntityPreviewWidget` provide backend-specific custom draw previews for item stacks, block-as-item previews and living entities, with text fallback for non-Minecraft render backends;
@@ -2507,9 +2524,9 @@ try (ProfileScope ignored = profiler.scope("layout")) {
 
 Следующий практический блок:
 
-1. перейти к Animation property system как следующему MVP пункту после Window/Popup/Tooltip basics;
-2. заложить animatable property/transition contracts для opacity, position, scale и hover/pressed style transitions;
-3. после этого перейти к Minecraft item/block/entity commands.
+1. проверить in-game visual smoke с `Layout V3 enabled` toggle в `/unigui`;
+2. обновить user-facing examples/docs под Layout V3 flags и overlay portal semantics;
+3. решить, когда подключать `LayoutCache` к live widgets после появления style/content/children/visibility versions.
 
 ---
 

@@ -12,7 +12,19 @@ public record LayoutResult(
         float width,
         float height,
         float contentWidth,
-        float contentHeight) implements RectView {
+        float contentHeight,
+        float overflowWidth,
+        float overflowHeight) implements RectView {
+    public LayoutResult(LayoutNodeId id,
+                        float x,
+                        float y,
+                        float width,
+                        float height,
+                        float contentWidth,
+                        float contentHeight) {
+        this(id, x, y, width, height, contentWidth, contentHeight, contentWidth, contentHeight);
+    }
+
     public LayoutResult {
         id = Objects.requireNonNull(id, "id");
         x = sanitizePosition(x);
@@ -21,6 +33,8 @@ public record LayoutResult(
         height = sanitizeSize(height);
         contentWidth = sanitizeSize(contentWidth);
         contentHeight = sanitizeSize(contentHeight);
+        overflowWidth = sanitizeSize(overflowWidth);
+        overflowHeight = sanitizeSize(overflowHeight);
     }
 
     public static LayoutResult of(LayoutNodeId id, float x, float y, float width, float height) {

@@ -61,6 +61,12 @@ public final class OverlayLayer extends PanelWidget {
     }
 
     @Override
+    public void applyQueuedMutations() {
+        super.applyQueuedMutations();
+        enforceOverlayOrder();
+    }
+
+    @Override
     public void handle(Event event) {
         if (event instanceof PointerPressedEvent pointer
                 && pointer.phase() == EventPhase.CAPTURE
@@ -145,5 +151,13 @@ public final class OverlayLayer extends PanelWidget {
     private static boolean isPopupInteractionTarget(Widget target, Popup popup) {
         return isDescendantOrSelf(target, popup)
                 || isDescendantOrSelf(target, popup.anchor());
+    }
+
+    private void enforceOverlayOrder() {
+        reorderChildren((left, right) -> Integer.compare(overlayRank(left), overlayRank(right)));
+    }
+
+    private int overlayRank(Widget widget) {
+        return widget == content ? 0 : 1;
     }
 }

@@ -30,6 +30,7 @@ public final class LayoutTreeBuilder {
         int index = 0;
         for (Widget child : widget.children()) {
             if (child.visibility() == Visibility.COLLAPSED) {
+                index++;
                 continue;
             }
             builder.child(build(child, path + "/" + index));

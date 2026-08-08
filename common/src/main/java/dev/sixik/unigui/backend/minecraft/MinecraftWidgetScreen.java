@@ -2,6 +2,7 @@ package dev.sixik.unigui.backend.minecraft;
 
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.FramePhase;
+import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
 import dev.sixik.unigui.api.debug.DebugFlags;
 import dev.sixik.unigui.api.debug.ProfileScope;
@@ -63,6 +64,10 @@ public class MinecraftWidgetScreen extends Screen {
     private long lastCachedRenderNanos;
     private final Map<MouseCursor, Long> nativeCursors = new EnumMap<>(MouseCursor.class);
     private MouseCursor activeMouseCursor = MouseCursor.DEFAULT;
+    private boolean layoutInitialized;
+    private boolean layoutChangedThisFrame;
+    private int lastLayoutWidth = -1;
+    private int lastLayoutHeight = -1;
 
     public MinecraftWidgetScreen(Widget root) {
         this(Component.empty(), root, new DefaultUIContext(new MinecraftClipboardService()));
@@ -142,9 +147,17 @@ public class MinecraftWidgetScreen extends Screen {
         try (ProfileScope ignored = uiContext.profiler().scope("animation")) {
             root.tick(animationFrame);
         }
+        layoutChangedThisFrame = false;
         try (ProfileScope ignored = uiContext.profiler().scope("layout")) {
-            root.measure(new LayoutContext(width, height));
-            root.arrange(new MutableRect(0.0f, 0.0f, width, height));
+            if (shouldRunLayout()) {
+                root.measure(new LayoutContext(width, height));
+                root.arrange(new MutableRect(0.0f, 0.0f, width, height));
+                layoutInitialized = true;
+                layoutChangedThisFrame = true;
+                lastLayoutWidth = width;
+                lastLayoutHeight = height;
+                clearSubtreeInvalidation(root, InvalidationFlags.LAYOUT);
+            }
         }
 
         if (backend == null) {
@@ -373,7 +386,8 @@ public class MinecraftWidgetScreen extends Screen {
     private boolean shouldRenderCachedUi(long nowNanos) {
         if (renderPolicy.mode() == UiRenderPolicy.Mode.CONTINUOUS || cachedTexture == null) return true;
         if (renderPolicy.mode() == UiRenderPolicy.Mode.ON_DIRTY) {
-            return hasRunningAnimations(root)
+            return layoutChangedThisFrame
+                    || hasRunningAnimations(root)
                     || root.subtreeInvalidationFlags() != dev.sixik.unigui.api.core.InvalidationFlags.NONE;
         }
         return lastCachedRenderNanos == 0L || nowNanos - lastCachedRenderNanos >= renderIntervalNanos();
@@ -426,9 +440,20 @@ public class MinecraftWidgetScreen extends Screen {
         return false;
     }
 
+    private boolean shouldRunLayout() {
+        return !layoutInitialized
+                || width != lastLayoutWidth
+                || height != lastLayoutHeight
+                || InvalidationFlags.has(root.subtreeInvalidationFlags(), InvalidationFlags.LAYOUT);
+    }
+
     private static void clearSubtreeInvalidation(Widget widget) {
-        widget.clearInvalidation(dev.sixik.unigui.api.core.InvalidationFlags.ALL);
-        for (Widget child : widget.children()) clearSubtreeInvalidation(child);
+        clearSubtreeInvalidation(widget, InvalidationFlags.ALL);
+    }
+
+    private static void clearSubtreeInvalidation(Widget widget, int flags) {
+        widget.clearInvalidation(flags);
+        for (Widget child : widget.children()) clearSubtreeInvalidation(child, flags);
     }
 
     private void releaseRenderCache() {

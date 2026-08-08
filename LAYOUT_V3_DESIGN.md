@@ -236,7 +236,7 @@ Container widgets не должны вручную раскладывать chil
 - Добавить api.layout.v3 classes.
 - Добавить impl.layout.v3 backend skeleton.
 - Сделать LayoutStyleMapper из текущего LayoutStyle.
-- Добавить feature flag: unigui.layout.v3.enabled=false.
+- Добавить feature flag: default V3 path с rollback-значением false.
 - Добавить debug dump старого и нового layout результата для сравнения.
 
 ### Phase 2 — vertical slice: LinearBox/HBox/VBox
@@ -244,7 +244,7 @@ Container widgets не должны вручную раскладывать chil
 - Перевести LinearBox на V3 через flexDirection + gap.
 - HBox и VBox оставить thin wrappers.
 - Сравнить snapshot-тесты V2/V3.
-- После совпадения включить V3 для этих контейнеров через opt-in flag.
+- После совпадения включить V3 для этих контейнеров как default path напрямую.
 
 ### Phase 3 — WrapPanel и StackPanel
 
@@ -340,6 +340,17 @@ Snapshot формат лучше делать текстовым и стабил
 - Есть snapshot-тесты на ключевые edge cases.
 - Есть визуальные examples для быстрой ручной проверки.
 
+## Текущий implementation status
+
+На текущем этапе Layout V3 реализован как default-on migration layer с V2 compatibility/reference code.
+
+- api.layout.v3 содержит backend-neutral model: LayoutEngine, LayoutNode, LayoutInput, LayoutOutput, LayoutResult, LayoutMeasureFunc, LayoutStyleSnapshot, LayoutStyleMapper, direct V3 default path.
+- impl.layout.v3 содержит internal Java backend и helpers: TaffyLayoutEngine, LayoutTreeBuilder, LayoutApplier, LayoutDebugDumper, LayoutCache, OverlayLayoutResolver.
+- Миграционные adapters есть для LinearBox/HBox/VBox, WrapPanel, StackPanel, ScrollView, SplitPanel, DockPanel, GridBox, Popup/OverlayLayer.
+- V2 path сохраняется как compatibility fallback; старые FlexLayoutEngine и AbsoluteLayoutEngine не удаляются до отдельного cleanup после rollout.
+- LayoutV3SelfTest покрывает V3 synthetic tree, V2 baseline snapshots, V2/V3 parity, overlay portal semantics, scroll overflow/extents и container-specific adapters.
+- /unigui содержит Layout V3 Smoke gallery с static V3 smoke controls: flex row/column, wrap cards, stack overlay, split panes, nested percent/min/max, popup near edge, multiple floating overlays и dropdown inside clipped scroll.
+
 ## Риски
 
 - Taffy/Yoga semantics могут отличаться от текущего handmade поведения; часть старых examples визуально изменится.
@@ -350,21 +361,20 @@ Snapshot формат лучше делать текстовым и стабил
 
 ## Открытые решения
 
-- Делать ли первый backend полностью internal Java или сразу подключать external Yoga/Taffy binding.
-- Называть styling layer UniStyle/UniCSS/StyleSheet и какой минимальный subset selectors/properties считать стабильным API.
-- Нужен ли отдельный display property (FLEX, NONE) или достаточно Visibility.COLLAPSED.
-- Какую overlay clipping policy сделать default: root-only clipping или allow outside screen.
-- Нужен ли полноценный grid model для GridBox или можно временно оставить custom layout.
-- Должны ли scrollbars занимать layout space или быть overlay decoration по умолчанию.
+- Первый backend остаётся internal Java до стабилизации публичного V3 contract. External Yoga/Taffy можно добавить позже как backend adapter.
+- Рабочее название styling layer: UniStyle / UniGUI StyleSheet. На первом этапе это не browser-compatible CSS.
+- Для Layout V3 v1 достаточно Visibility.COLLAPSED как display-none semantic; отдельный display property можно добавить вместе со stylesheet layer.
+- Default overlay clipping policy: CLIP_TO_ROOT; ALLOW_OUTSIDE_PARENT / ALLOW_OUTSIDE_SCREEN остаются explicit opt-in.
+- GridBox пока остаётся custom equal-cell V3 adapter; полноценный CSS-grid-like model — отдельное future решение.
+- Scrollbars по умолчанию занимают layout space; overlay-decoration scrollbar policy можно добавить позже.
 
-## Рекомендованный первый PR
+## Рекомендованный rollout
 
-Первый PR должен быть маленьким и проверяемым:
+Первый PR/commit после rollout должен оставаться проверяемым и иметь быстрый rollback:
 
-1. Добавить V3 package skeleton: LayoutEngine, LayoutNode, LayoutInput, LayoutOutput, LayoutMeasureFunc.
-2. Добавить LayoutStyleMapper без изменения поведения существующих widgets.
-3. Добавить snapshot test harness для synthetic widget tree.
-4. Реализовать V3 flex column/row только для простых fixed-size children.
-5. Добавить debug dump V2 vs V3 для сравнения.
+1. Держать default V3 path по умолчанию.
+2. Отключать V3 только через compatibility/reference code или static smoke gallery.
+3. Перед сужением V2 fallback прогонять :common:test, direct JVM self-test и ручной /unigui smoke на целевых loaders.
+4. Не подключать LayoutCache к live widgets, пока нет надёжных style/content/children/visibility versions.
 
-После этого уже можно мигрировать LinearBox как первый настоящий контейнер.
+После этого можно отдельно решать, когда сужать или удалять V2 fallback engines.

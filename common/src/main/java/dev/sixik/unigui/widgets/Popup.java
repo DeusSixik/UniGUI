@@ -6,11 +6,12 @@ import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.layout.Overflow;
 import dev.sixik.unigui.api.layout.PositionType;
+import dev.sixik.unigui.api.layout.v3.LayoutNodeId;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
+import dev.sixik.unigui.impl.layout.v3.OverlayLayoutResolver;
 
 public final class Popup extends Box implements OverlayHostAware {
     private Widget anchor;
@@ -162,8 +163,7 @@ public final class Popup extends Box implements OverlayHostAware {
         applyQueuedMutations();
         float width = desiredSize().width();
         float height = desiredSize().height();
-        MutableRect placed = AbsoluteLayoutEngine.placeBelow(
-                bounds, anchor.layoutBounds(), width, height, offsetX, offsetY, true, true);
+        MutableRect placed = resolveV3Placement(bounds, width, height);
         float x = placed.x();
         float y = placed.y();
         width = placed.width();
@@ -177,5 +177,26 @@ public final class Popup extends Box implements OverlayHostAware {
                     Math.max(0.0f, width - padding.horizontal()),
                     Math.max(0.0f, height - padding.vertical())));
         }
+    }
+
+    private MutableRect resolveV3Placement(RectView hostBounds, float width, float height) {
+        OverlayLayoutResolver resolver = new OverlayLayoutResolver();
+        OverlayLayoutResolver.Host host = new OverlayLayoutResolver.Host(
+                runtimeLayoutId("host", parent()),
+                hostBounds);
+        OverlayLayoutResolver.Request request = OverlayLayoutResolver.Request.below(
+                        runtimeLayoutId("popup", this),
+                        runtimeLayoutId("anchor", anchor),
+                        anchor.layoutBounds(),
+                        width,
+                        height)
+                .offset(offsetX, offsetY);
+        OverlayLayoutResolver.ResolvedOverlay resolved = resolver.resolve(host, request, 0);
+        return new MutableRect(resolved.x(), resolved.y(), resolved.width(), resolved.height());
+    }
+
+    private static LayoutNodeId runtimeLayoutId(String prefix, Object instance) {
+        String suffix = instance == null ? "none" : Integer.toHexString(System.identityHashCode(instance));
+        return LayoutNodeId.of(prefix + "@" + suffix);
     }
 }

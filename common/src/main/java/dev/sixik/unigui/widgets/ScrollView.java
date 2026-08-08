@@ -15,6 +15,7 @@ import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.impl.layout.v3.LayoutV3ScrollAdapter;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 
 import java.util.ArrayList;
@@ -208,20 +209,15 @@ public class ScrollView extends WidgetBase {
             return;
         }
         if (content != null) {
-            float availableWidth = context == null
-                    ? Float.POSITIVE_INFINITY
-                    : horizontalScrollingEnabled() ? Float.POSITIVE_INFINITY : context.availableWidth();
-            float availableHeight = context == null
-                    ? Float.POSITIVE_INFINITY
-                    : verticalScrollingEnabled() ? Float.POSITIVE_INFINITY : context.availableHeight();
-            LayoutContext contentContext = context == null
-                    ? null
-                    : new LayoutContext(availableWidth, availableHeight);
-            content.measure(contentContext);
-            measuredContentWidth = content.desiredSize().width();
-            measuredContentHeight = content.desiredSize().height();
-            float desiredWidth = contentWidth > 0.0f ? contentWidth : content.desiredSize().width();
-            float desiredHeight = contentHeight > 0.0f ? contentHeight : content.desiredSize().height();
+            LayoutV3ScrollAdapter.Extent extent = LayoutV3ScrollAdapter.measureContent(
+                    content,
+                    context,
+                    horizontalScrollingEnabled(),
+                    verticalScrollingEnabled());
+            measuredContentWidth = extent.contentWidth();
+            measuredContentHeight = extent.contentHeight();
+            float desiredWidth = contentWidth > 0.0f ? contentWidth : measuredContentWidth;
+            float desiredHeight = contentHeight > 0.0f ? contentHeight : measuredContentHeight;
             setDesiredSize(resolveDesiredSize(context, desiredWidth, desiredHeight));
         } else {
             measuredContentWidth = 0.0f;

@@ -34,7 +34,7 @@ public final class TaffyLayoutEngine implements LayoutEngine {
     public LayoutSize measure(LayoutNode root, LayoutInput input) {
         Objects.requireNonNull(root, "root");
         LayoutInput safeInput = input == null ? LayoutInput.of(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY) : input;
-        return measureNode(root, safeInput.availableWidth(), safeInput.availableHeight(), new MeasureCache());
+        return measure(root, safeInput.availableWidth(), safeInput.availableHeight(), new MeasureCache());
     }
 
     @Override
@@ -43,7 +43,7 @@ public final class TaffyLayoutEngine implements LayoutEngine {
         LayoutInput safeInput = input == null ? LayoutInput.of(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY) : input;
         MeasureCache measureCache = new MeasureCache();
         LayoutOutput.Builder output = LayoutOutput.builder(root.id());
-        LayoutSize measuredRoot = measureNode(root, safeInput.availableWidth(), safeInput.availableHeight(), measureCache);
+        LayoutSize measuredRoot = measure(root, safeInput.availableWidth(), safeInput.availableHeight(), measureCache);
         float width = resolveRootSize(root.style().width(), safeInput.availableWidth(), measuredRoot.width());
         float height = resolveRootSize(root.style().height(), safeInput.availableHeight(), measuredRoot.height());
         width = clamp(width,
@@ -59,7 +59,7 @@ public final class TaffyLayoutEngine implements LayoutEngine {
     private static LayoutSize measureNode(LayoutNode node, float availableWidth, float availableHeight, MeasureCache measureCache) {
         LayoutStyleSnapshot style = node.style();
         if (node.children().isEmpty()) {
-            LayoutSize measured = measure(node, availableWidth, availableHeight, measureCache);
+            LayoutSize measured = measureLeaf(node, availableWidth, availableHeight, measureCache);
             return LayoutSize.of(
                     clamp(resolveSize(style.width(), availableWidth, measured.width()),
                             resolveSize(style.minWidth(), availableWidth, 0.0f),
@@ -145,6 +145,31 @@ public final class TaffyLayoutEngine implements LayoutEngine {
         for (LayoutNode child : absoluteChildren) {
             arrangeAbsoluteChild(child, contentX, contentY, contentWidth, contentHeight, output, measureCache);
         }
+
+        LayoutSize overflow = resolveOverflowSize(node, contentX, contentY, contentWidth, contentHeight, output);
+        output.add(new LayoutResult(
+                node.id(), x, y, width, height,
+                contentWidth, contentHeight,
+                overflow.width(), overflow.height()));
+    }
+
+    private static LayoutSize resolveOverflowSize(LayoutNode node,
+                                                  float contentX,
+                                                  float contentY,
+                                                  float contentWidth,
+                                                  float contentHeight,
+                                                  LayoutOutput.Builder output) {
+        float overflowWidth = contentWidth;
+        float overflowHeight = contentHeight;
+        for (LayoutNode child : node.children()) {
+            LayoutResult childResult = output.peek(child.id());
+            if (childResult == null) {
+                continue;
+            }
+            overflowWidth = Math.max(overflowWidth, childResult.x() + childResult.width() - contentX);
+            overflowHeight = Math.max(overflowHeight, childResult.y() + childResult.height() - contentY);
+        }
+        return LayoutSize.of(overflowWidth, overflowHeight);
     }
 
     private static void arrangeFlexChildren(LayoutStyleSnapshot parentStyle,
@@ -270,6 +295,7 @@ public final class TaffyLayoutEngine implements LayoutEngine {
                                              LayoutOutput.Builder output,
                                              MeasureCache measureCache) {
         LayoutStyleSnapshot style = child.style();
+        EdgeInsets margin = style.margin();
         LayoutSize measured = measure(child, contentWidth, contentHeight, measureCache);
         float left = resolveInset(style.left(), contentWidth);
         float top = resolveInset(style.top(), contentHeight);
@@ -279,20 +305,20 @@ public final class TaffyLayoutEngine implements LayoutEngine {
         float width = resolveSize(style.width(), contentWidth, measured.width());
         float height = resolveSize(style.height(), contentHeight, measured.height());
         if (style.width().isAuto() && Float.isFinite(left) && Float.isFinite(right)) {
-            width = Math.max(0.0f, contentWidth - left - right);
+            width = Math.max(0.0f, contentWidth - left - right - margin.horizontal());
         }
         if (style.height().isAuto() && Float.isFinite(top) && Float.isFinite(bottom)) {
-            height = Math.max(0.0f, contentHeight - top - bottom);
+            height = Math.max(0.0f, contentHeight - top - bottom - margin.vertical());
         }
         width = clamp(width, resolveSize(style.minWidth(), contentWidth, 0.0f), resolveMaximum(style.maxWidth(), contentWidth));
         height = clamp(height, resolveSize(style.minHeight(), contentHeight, 0.0f), resolveMaximum(style.maxHeight(), contentHeight));
 
         float x = Float.isFinite(left)
-                ? contentX + left
-                : Float.isFinite(right) ? contentX + contentWidth - right - width : contentX;
+                ? contentX + left + margin.left()
+                : Float.isFinite(right) ? contentX + contentWidth - right - margin.right() - width : contentX + margin.left();
         float y = Float.isFinite(top)
-                ? contentY + top
-                : Float.isFinite(bottom) ? contentY + contentHeight - bottom - height : contentY;
+                ? contentY + top + margin.top()
+                : Float.isFinite(bottom) ? contentY + contentHeight - bottom - margin.bottom() - height : contentY + margin.top();
         arrangeNode(child, x, y, width, height, output, measureCache);
     }
 
@@ -376,6 +402,10 @@ public final class TaffyLayoutEngine implements LayoutEngine {
 
     private static LayoutSize measure(LayoutNode node, float availableWidth, float availableHeight, MeasureCache measureCache) {
         return measureCache.measure(node, availableWidth, availableHeight);
+    }
+
+    private static LayoutSize measureLeaf(LayoutNode node, float availableWidth, float availableHeight, MeasureCache measureCache) {
+        return measureCache.measureLeaf(node, availableWidth, availableHeight);
     }
 
     private static float resolveRootSize(SizeValue value, float available, float measured) {
@@ -511,13 +541,32 @@ public final class TaffyLayoutEngine implements LayoutEngine {
 
     private static final class MeasureCache {
         private final java.util.Map<MeasureKey, LayoutSize> values = new java.util.HashMap<>();
+        private final java.util.Map<MeasureKey, LayoutSize> leafValues = new java.util.HashMap<>();
 
         private LayoutSize measure(LayoutNode node, float availableWidth, float availableHeight) {
+            if (node.children().isEmpty()) {
+                return measureNode(node, availableWidth, availableHeight, this);
+            }
             MeasureKey key = new MeasureKey(node, Float.floatToIntBits(availableWidth), Float.floatToIntBits(availableHeight));
-            return values.computeIfAbsent(key, ignored -> {
-                LayoutSize measured = node.measureFunc().measure(new LayoutContext(availableWidth, availableHeight));
-                return measured == null ? LayoutSize.ZERO : measured;
-            });
+            LayoutSize cached = values.get(key);
+            if (cached != null) {
+                return cached;
+            }
+            LayoutSize measured = measureNode(node, availableWidth, availableHeight, this);
+            values.put(key, measured);
+            return measured;
+        }
+
+        private LayoutSize measureLeaf(LayoutNode node, float availableWidth, float availableHeight) {
+            MeasureKey key = new MeasureKey(node, Float.floatToIntBits(availableWidth), Float.floatToIntBits(availableHeight));
+            LayoutSize cached = leafValues.get(key);
+            if (cached != null) {
+                return cached;
+            }
+            LayoutSize measured = node.measureFunc().measure(new LayoutContext(availableWidth, availableHeight));
+            measured = measured == null ? LayoutSize.ZERO : measured;
+            leafValues.put(key, measured);
+            return measured;
         }
     }
 

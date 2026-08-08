@@ -8,6 +8,7 @@ import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.impl.layout.v3.LayoutV3SplitAdapter;
 
 public class SplitPanel extends PanelWidget {
     private final Splitter splitter = new Splitter(this);
@@ -175,7 +176,9 @@ public class SplitPanel extends PanelWidget {
         float width = finiteOr(context == null ? Float.NaN : context.availableWidth(), fallbackWidth);
         float height = finiteOr(context == null ? Float.NaN : context.availableHeight(), fallbackHeight);
         LayoutSize desired = resolveDesiredSize(context, width, height);
-        measureChildrenFor(desired.width(), desired.height());
+        LayoutV3SplitAdapter.measure(first, second, splitter,
+                desired.width(), desired.height(),
+                orientation, splitRatio, splitterThickness, minFirstSize, minSecondSize);
         setDesiredSize(desired);
     }
 
@@ -184,14 +187,8 @@ public class SplitPanel extends PanelWidget {
         mutableLayoutBounds().set(bounds);
         if (visibility() == Visibility.COLLAPSED) return;
         applyQueuedMutations();
-        LayoutRects rects = layoutRects(bounds.x(), bounds.y(), bounds.width(), bounds.height());
-        if (first != null && first.visibility() != Visibility.COLLAPSED) {
-            first.arrange(rects.first);
-        }
-        splitter.arrange(rects.splitter);
-        if (second != null && second.visibility() != Visibility.COLLAPSED) {
-            second.arrange(rects.second);
-        }
+        LayoutV3SplitAdapter.arrange(first, second, splitter, bounds,
+                orientation, splitRatio, splitterThickness, minFirstSize, minSecondSize);
     }
 
     @Override
@@ -224,17 +221,6 @@ public class SplitPanel extends PanelWidget {
     public void dispose() {
         splitter.cancelDrag();
         super.dispose();
-    }
-
-    private void measureChildrenFor(float width, float height) {
-        LayoutRects rects = layoutRects(0.0f, 0.0f, width, height);
-        if (first != null && first.visibility() != Visibility.COLLAPSED) {
-            first.measure(new LayoutContext(rects.first.width(), rects.first.height()));
-        }
-        splitter.measure(new LayoutContext(rects.splitter.width(), rects.splitter.height()));
-        if (second != null && second.visibility() != Visibility.COLLAPSED) {
-            second.measure(new LayoutContext(rects.second.width(), rects.second.height()));
-        }
     }
 
     private void ensureSplitterOnTop() {

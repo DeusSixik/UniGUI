@@ -10,10 +10,7 @@ import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
-
-import java.util.ArrayList;
-import java.util.List;
+import dev.sixik.unigui.impl.layout.v3.LayoutV3GridAdapter;
 
 public final class GridBox extends PanelWidget {
     private int columns = 1;
@@ -66,32 +63,9 @@ public final class GridBox extends PanelWidget {
         }
         applyQueuedMutations();
 
-        List<Widget> snapshot = visibleLayoutChildren();
-        LayoutContext childContext = AbsoluteLayoutEngine.contentContext(this, context);
-        AbsoluteLayoutEngine.measureChildren(children(), childContext);
-        if (snapshot.isEmpty()) {
-            var padding = layoutStyle().padding();
-            setDesiredSize(resolveDesiredSize(context, padding.horizontal(), padding.vertical()));
-            return;
-        }
-
-        float maxCellWidth = 0.0f;
-        float maxCellHeight = 0.0f;
-        for (Widget child : snapshot) {
-            child.measure(childContext);
-            LayoutSize childSize = child.desiredSize().withMargin(child.layoutConstraints().margin());
-            maxCellWidth = Math.max(maxCellWidth, childSize.width());
-            maxCellHeight = Math.max(maxCellHeight, childSize.height());
-        }
-
-        int visibleColumns = Math.min(columns, snapshot.size());
-        int rows = (int) Math.ceil(snapshot.size() / (double) columns);
-        float desiredWidth = maxCellWidth * visibleColumns + horizontalSpacing * Math.max(0, visibleColumns - 1);
-        float desiredHeight = maxCellHeight * rows + verticalSpacing * Math.max(0, rows - 1);
-        var padding = layoutStyle().padding();
-        setDesiredSize(resolveDesiredSize(context,
-                desiredWidth + padding.horizontal(),
-                desiredHeight + padding.vertical()));
+        LayoutSize measured = LayoutV3GridAdapter.measure(
+                children(), columns, horizontalSpacing, verticalSpacing, context, layoutStyle());
+        setDesiredSize(resolveDesiredSize(context, measured.width(), measured.height()));
     }
 
     @Override
@@ -99,39 +73,7 @@ public final class GridBox extends PanelWidget {
         mutableLayoutBounds().set(bounds);
         if (visibility() == Visibility.COLLAPSED) return;
         applyQueuedMutations();
-        MutableRect contentBounds = AbsoluteLayoutEngine.contentBounds(this, bounds);
-
-        List<Widget> snapshot = visibleLayoutChildren();
-        if (snapshot.isEmpty()) {
-            AbsoluteLayoutEngine.arrangeChildren(children(), contentBounds);
-            return;
-        }
-
-        int rows = (int) Math.ceil(snapshot.size() / (double) columns);
-        float totalHorizontalSpacing = horizontalSpacing * Math.max(0, columns - 1);
-        float totalVerticalSpacing = verticalSpacing * Math.max(0, rows - 1);
-        float cellWidth = Math.max(0.0f, contentBounds.width() - totalHorizontalSpacing) / columns;
-        float cellHeight = Math.max(0.0f, contentBounds.height() - totalVerticalSpacing) / rows;
-
-        for (int index = 0; index < snapshot.size(); index++) {
-            int row = index / columns;
-            int column = index % columns;
-            float x = contentBounds.x() + column * (cellWidth + horizontalSpacing);
-            float y = contentBounds.y() + row * (cellHeight + verticalSpacing);
-            arrangeChild(snapshot.get(index), x, y, cellWidth, cellHeight);
-        }
-        AbsoluteLayoutEngine.arrangeChildren(children(), contentBounds);
-    }
-
-    private List<Widget> visibleLayoutChildren() {
-        List<Widget> output = new ArrayList<>();
-        for (Widget child : children()) {
-            if (child.visibility() != Visibility.COLLAPSED) {
-                if (AbsoluteLayoutEngine.isAbsolute(child)) continue;
-                output.add(child);
-            }
-        }
-        return output;
+        LayoutV3GridAdapter.arrange(children(), columns, horizontalSpacing, verticalSpacing, bounds, layoutStyle());
     }
 
     private static void arrangeChild(Widget child, float cellX, float cellY, float cellWidth, float cellHeight) {
