@@ -14,6 +14,7 @@ import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 
+import java.util.List;
 import java.util.Objects;
 
 public class TextWidget extends WidgetBase {
@@ -23,11 +24,15 @@ public class TextWidget extends WidgetBase {
     private String text = "";
     private RichText richText;
     private final MutableColor color = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
-    private boolean wrap;
+    private boolean wrap = true;
     private TextOverflowMode overflowMode = TextOverflowMode.VISIBLE;
     private float marqueeSpeed = 24.0f;
     private float marqueeGap = 24.0f;
     private float marqueeOffset;
+    private RichText wrappedCacheText;
+    private Object wrappedCacheBackend;
+    private float wrappedCacheWidth = Float.NaN;
+    private List<RichText> wrappedCacheLines = List.of();
 
     public TextWidget() {
         color.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
@@ -48,6 +53,7 @@ public class TextWidget extends WidgetBase {
         if (Objects.equals(this.richText, normalizedRichText)) return this;
         this.text = normalized;
         this.richText = normalizedRichText;
+        clearWrapCache();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
@@ -61,6 +67,7 @@ public class TextWidget extends WidgetBase {
         if (Objects.equals(this.richText, normalized)) return this;
         this.richText = normalized;
         this.text = normalized.plainText();
+        clearWrapCache();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
@@ -81,8 +88,17 @@ public class TextWidget extends WidgetBase {
     public TextWidget wrap(boolean wrap) {
         if (this.wrap == wrap) return this;
         this.wrap = wrap;
+        clearWrapCache();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
+    }
+
+    public TextWidget wrapText() {
+        return wrap(true);
+    }
+
+    public TextWidget noWrap() {
+        return wrap(false);
     }
 
     public TextOverflowMode overflowMode() {
@@ -193,6 +209,10 @@ public class TextWidget extends WidgetBase {
     }
 
     private void renderVisible(RenderContext context) {
+        if (wrap) {
+            renderWrapped(context);
+            return;
+        }
         TextEngine.draw(context, effectiveRichText(), layoutBounds().x(), layoutBounds().y(),
                 layoutBounds().width(), layoutBounds().height(), Paint.fill(color),
                 transform(), Alignment.START, textVerticalAlignment());
@@ -202,6 +222,25 @@ public class TextWidget extends WidgetBase {
         context.pushClip(layoutBounds().x(), layoutBounds().y(), layoutBounds().width(), layoutBounds().height());
         renderVisible(context);
         context.popClip();
+    }
+
+    private void renderWrapped(RenderContext context) {
+        float availableWidth = scaledAvailableWidth();
+        float availableHeight = scaledAvailableHeight();
+        if (availableWidth <= 0.0f || availableHeight <= 0.0f) return;
+
+        List<RichText> lines = cachedWrappedLines(context, availableWidth);
+        if (lines.isEmpty()) return;
+
+        float totalHeight = TextEngine.linesHeight(lines);
+        float drawY = TextEngine.alignedStart(layoutBounds().y(), availableHeight, totalHeight, textVerticalAlignment());
+        for (RichText line : lines) {
+            float lineHeight = TextEngine.lineHeight(line);
+            if (drawY >= layoutBounds().y() + availableHeight) break;
+            TextEngine.draw(context, line, layoutBounds().x(), drawY, availableWidth, lineHeight,
+                    Paint.fill(color), transform(), Alignment.START, Alignment.CENTER);
+            drawY += lineHeight;
+        }
     }
 
     private void renderShrinkToFit(RenderContext context) {
@@ -270,28 +309,10 @@ public class TextWidget extends WidgetBase {
 
         float availableWidth = context == null ? Float.POSITIVE_INFINITY : context.availableWidth();
         if (!Float.isFinite(availableWidth) || availableWidth <= 0.0f) {
-            return textLines().length * LINE_HEIGHT;
+            return TextEngine.measureTextHeight(effectiveRichText());
         }
 
-        int charsPerLine = Math.max(1, (int) Math.floor(availableWidth / APPROX_CHAR_WIDTH));
-        int visualLines = 0;
-        for (String line : textLines()) {
-            int codePoints = line.codePointCount(0, line.length());
-            visualLines += Math.max(1, (int) Math.ceil(codePoints / (double) charsPerLine));
-        }
-        return visualLines * LINE_HEIGHT;
-    }
-
-    private int maxLineCodePoints() {
-        int max = 0;
-        for (String line : textLines()) {
-            max = Math.max(max, line.codePointCount(0, line.length()));
-        }
-        return max;
-    }
-
-    private String[] textLines() {
-        return text.split("\\R", -1);
+        return TextEngine.linesHeight(TextEngine.wrapLines(effectiveRichText(), availableWidth));
     }
 
     private float intrinsicTextWidth() {
@@ -300,5 +321,40 @@ public class TextWidget extends WidgetBase {
 
     private RichText effectiveRichText() {
         return richText == null ? RichText.plain(text) : richText;
+    }
+
+    private List<RichText> cachedWrappedLines(RenderContext context, float availableWidth) {
+        RichText currentText = effectiveRichText();
+        Object backend = context == null ? null : context.backend();
+        if (Objects.equals(wrappedCacheText, currentText)
+                && wrappedCacheBackend == backend
+                && Float.compare(wrappedCacheWidth, availableWidth) == 0) {
+            return wrappedCacheLines;
+        }
+
+        wrappedCacheText = currentText;
+        wrappedCacheBackend = backend;
+        wrappedCacheWidth = availableWidth;
+        wrappedCacheLines = TextEngine.wrapLines(context, currentText, availableWidth);
+        return wrappedCacheLines;
+    }
+
+    private void clearWrapCache() {
+        wrappedCacheText = null;
+        wrappedCacheBackend = null;
+        wrappedCacheWidth = Float.NaN;
+        wrappedCacheLines = List.of();
+    }
+
+    private float scaledAvailableWidth() {
+        return Math.max(0.0f, layoutBounds().width()) / effectiveScale(transform().scale().x());
+    }
+
+    private float scaledAvailableHeight() {
+        return Math.max(0.0f, layoutBounds().height()) / effectiveScale(transform().scale().y());
+    }
+
+    private static float effectiveScale(float scale) {
+        return Float.isFinite(scale) && Math.abs(scale) > 0.0001f ? Math.abs(scale) : 1.0f;
     }
 }

@@ -41,6 +41,7 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
     private static final int SPREAD = 8;
     private static final int ATLAS_SIZE = 1024;
     private static final int FLOATS_PER_VERTEX = 9;
+    private static final boolean DEBUG_GL = Boolean.getBoolean("unigui.sdf.debugGl");
     private static final Logger LOGGER = LoggerFactory.getLogger(MinecraftSdfTextRenderer.class);
 
     private static final String VERTEX_SHADER = """
@@ -62,13 +63,16 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
     private static final String FRAGMENT_SHADER = """
             #version 150
             uniform sampler2D GlyphAtlas;
+            uniform float SdfSpread;
             in vec2 vertexUV;
             in vec4 vertexColor;
             out vec4 fragColor;
             void main() {
                 float distance = texture(GlyphAtlas, vertexUV).r;
-                float smoothing = max(fwidth(distance), 0.001);
-                float alpha = smoothstep(0.5 - smoothing, 0.5 + smoothing, distance);
+                vec2 unitRange = vec2(SdfSpread) / vec2(textureSize(GlyphAtlas, 0));
+                vec2 screenTexSize = vec2(1.0) / fwidth(vertexUV);
+                float screenPxRange = max(0.5 * dot(unitRange, screenTexSize), 1.0);
+                float alpha = clamp(screenPxRange * (distance - 0.5) + 0.5, 0.0, 1.0);
                 fragColor = vec4(vertexColor.rgb, vertexColor.a * alpha);
             }
             """;
@@ -83,6 +87,7 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
     private int vertexBuffer;
     private int modelViewLocation;
     private int projectionLocation;
+    private int sdfSpreadLocation;
     private boolean initialized;
     private boolean unavailable;
     private boolean firstSubmitLogged;
@@ -115,8 +120,10 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
         graphics.flush();
         GlState state = GlState.capture();
         try {
-            while (GL11.glGetError() != GL11.GL_NO_ERROR) {
-                // Isolate renderer errors from stale errors left by foreign render code.
+            if (DEBUG_GL) {
+                while (GL11.glGetError() != GL11.GL_NO_ERROR) {
+                    // Isolate renderer errors from stale errors left by foreign render code.
+                }
             }
             if (!initialize()) return false;
             List<Batch> batches = layout(commands, pose.last().pose());
@@ -125,6 +132,7 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
             GL20.glUseProgram(program);
             uploadMatrix(modelViewLocation, RenderSystem.getModelViewMatrix());
             uploadMatrix(projectionLocation, RenderSystem.getProjectionMatrix());
+            GL20.glUniform1f(sdfSpreadLocation, SPREAD);
             GL30.glBindVertexArray(vertexArray);
             GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, vertexBuffer);
             RenderSystem.activeTexture(GL13.GL_TEXTURE0);
@@ -141,10 +149,12 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
                 GL15.glBufferData(GL15.GL_ARRAY_BUFFER, vertices, GL15.GL_STREAM_DRAW);
                 GL11.glDrawArrays(GL11.GL_TRIANGLES, 0, batch.vertices.size / FLOATS_PER_VERTEX);
             }
-            int error = GL11.glGetError();
-            if (error != GL11.GL_NO_ERROR) {
-                throw new IllegalStateException("OpenGL error after SDF text submit: 0x"
-                        + Integer.toHexString(error));
+            if (DEBUG_GL) {
+                int error = GL11.glGetError();
+                if (error != GL11.GL_NO_ERROR) {
+                    throw new IllegalStateException("OpenGL error after SDF text submit: 0x"
+                            + Integer.toHexString(error));
+                }
             }
             if (!firstSubmitLogged) {
                 int vertices = 0;
@@ -201,9 +211,11 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
 
         modelViewLocation = GL20.glGetUniformLocation(program, "ModelViewMat");
         projectionLocation = GL20.glGetUniformLocation(program, "ProjMat");
+        sdfSpreadLocation = GL20.glGetUniformLocation(program, "SdfSpread");
         int atlasLocation = GL20.glGetUniformLocation(program, "GlyphAtlas");
         GL20.glUseProgram(program);
         GL20.glUniform1i(atlasLocation, 0);
+        GL20.glUniform1f(sdfSpreadLocation, SPREAD);
         initialized = true;
         return true;
     }
@@ -221,6 +233,7 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
                                org.joml.Matrix4f basePose) {
         RectView bounds = command.bounds();
         List<LineInfo> lines = lineInfo(text);
+        TransformState transformState = TransformState.from(bounds, command.transform(), basePose);
         float penX = bounds.x();
         float lineTop = bounds.y();
         int lineIndex = 0;
@@ -256,7 +269,7 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
                 Batch batch = nextBatch(batches, placement.page);
                 addQuad(batch.vertices, left, top, width, height,
                         placement.u0, placement.v0, placement.u1, placement.v1,
-                        command.paint(), runColor, bounds, command.transform(), basePose);
+                        command.paint(), runColor, transformState);
                 penX += placement.glyph.advance() * scale;
             }
         }
@@ -307,37 +320,30 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
 
     private static void addQuad(FloatArray vertices, float x, float y, float width, float height,
                                 float u0, float v0, float u1, float v1, Paint paint,
-                                ColorView runColor, RectView bounds, Transform transform,
-                                org.joml.Matrix4f basePose) {
+                                ColorView runColor, TransformState transformState) {
         ColorView base = paint.color();
         float r = clamp01(base.r()) * (runColor == null ? 1.0f : clamp01(runColor.r()));
         float g = clamp01(base.g()) * (runColor == null ? 1.0f : clamp01(runColor.g()));
         float b = clamp01(base.b()) * (runColor == null ? 1.0f : clamp01(runColor.b()));
         float a = clamp01(base.a()) * (runColor == null ? 1.0f : clamp01(runColor.a()));
 
-        addVertex(vertices, x, y, u0, v0, r, g, b, a, bounds, transform, basePose);
-        addVertex(vertices, x, y + height, u0, v1, r, g, b, a, bounds, transform, basePose);
-        addVertex(vertices, x + width, y + height, u1, v1, r, g, b, a, bounds, transform, basePose);
-        addVertex(vertices, x, y, u0, v0, r, g, b, a, bounds, transform, basePose);
-        addVertex(vertices, x + width, y + height, u1, v1, r, g, b, a, bounds, transform, basePose);
-        addVertex(vertices, x + width, y, u1, v0, r, g, b, a, bounds, transform, basePose);
+        addVertex(vertices, x, y, u0, v0, r, g, b, a, transformState);
+        addVertex(vertices, x, y + height, u0, v1, r, g, b, a, transformState);
+        addVertex(vertices, x + width, y + height, u1, v1, r, g, b, a, transformState);
+        addVertex(vertices, x, y, u0, v0, r, g, b, a, transformState);
+        addVertex(vertices, x + width, y + height, u1, v1, r, g, b, a, transformState);
+        addVertex(vertices, x + width, y, u1, v0, r, g, b, a, transformState);
     }
 
     private static void addVertex(FloatArray vertices, float x, float y, float u, float v,
-                                  float r, float g, float b, float a,
-                                  RectView bounds, Transform transform, org.joml.Matrix4f basePose) {
-        float pivotX = bounds.x() + transform.pivot().x();
-        float pivotY = bounds.y() + transform.pivot().y();
-        float localX = (x - pivotX) * transform.scale().x();
-        float localY = (y - pivotY) * transform.scale().y();
-        float angle = (float) Math.toRadians(transform.rotationDegrees());
-        float cosine = (float) Math.cos(angle);
-        float sine = (float) Math.sin(angle);
-        float transformedX = pivotX + localX * cosine - localY * sine + transform.position().x();
-        float transformedY = pivotY + localX * sine + localY * cosine + transform.position().y();
-        float poseX = basePose.m00() * transformedX + basePose.m10() * transformedY + basePose.m30();
-        float poseY = basePose.m01() * transformedX + basePose.m11() * transformedY + basePose.m31();
-        float poseZ = basePose.m02() * transformedX + basePose.m12() * transformedY + basePose.m32();
+                                  float r, float g, float b, float a, TransformState state) {
+        float localX = (x - state.pivotX) * state.scaleX;
+        float localY = (y - state.pivotY) * state.scaleY;
+        float transformedX = state.pivotX + localX * state.cosine - localY * state.sine + state.translateX;
+        float transformedY = state.pivotY + localX * state.sine + localY * state.cosine + state.translateY;
+        float poseX = state.m00 * transformedX + state.m10 * transformedY + state.m30;
+        float poseY = state.m01 * transformedX + state.m11 * transformedY + state.m31;
+        float poseZ = state.m02 * transformedX + state.m12 * transformedY + state.m32;
         vertices.add(poseX, poseY, poseZ, u, v, r, g, b, a);
     }
 
@@ -529,6 +535,28 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
     private record LineInfo(float ascent, float height) {
     }
 
+    private record TransformState(float pivotX, float pivotY,
+                                  float scaleX, float scaleY,
+                                  float cosine, float sine,
+                                  float translateX, float translateY,
+                                  float m00, float m01, float m02,
+                                  float m10, float m11, float m12,
+                                  float m30, float m31, float m32) {
+        private static TransformState from(RectView bounds, Transform transform, org.joml.Matrix4f pose) {
+            float pivotX = bounds.x() + transform.pivot().x();
+            float pivotY = bounds.y() + transform.pivot().y();
+            float angle = (float) Math.toRadians(transform.rotationDegrees());
+            return new TransformState(
+                    pivotX, pivotY,
+                    transform.scale().x(), transform.scale().y(),
+                    (float) Math.cos(angle), (float) Math.sin(angle),
+                    transform.position().x(), transform.position().y(),
+                    pose.m00(), pose.m01(), pose.m02(),
+                    pose.m10(), pose.m11(), pose.m12(),
+                    pose.m30(), pose.m31(), pose.m32());
+        }
+    }
+
     private static final class Batch {
         private final AtlasPage page;
         private final FloatArray vertices = new FloatArray();
@@ -542,10 +570,18 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
         private float[] values = new float[FLOATS_PER_VERTEX * 6 * 64];
         private int size;
 
-        private void add(float... added) {
-            ensure(size + added.length);
-            System.arraycopy(added, 0, values, size, added.length);
-            size += added.length;
+        private void add(float v0, float v1, float v2, float v3, float v4,
+                         float v5, float v6, float v7, float v8) {
+            ensure(size + FLOATS_PER_VERTEX);
+            values[size++] = v0;
+            values[size++] = v1;
+            values[size++] = v2;
+            values[size++] = v3;
+            values[size++] = v4;
+            values[size++] = v5;
+            values[size++] = v6;
+            values[size++] = v7;
+            values[size++] = v8;
         }
 
         private void ensure(int required) {

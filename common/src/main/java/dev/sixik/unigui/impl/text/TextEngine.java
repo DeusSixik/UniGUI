@@ -11,6 +11,9 @@ import dev.sixik.unigui.api.text.FontMetrics;
 import dev.sixik.unigui.api.text.TextRun;
 import dev.sixik.unigui.api.text.Fonts;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Small shared text layout helper for retained widgets.
  *
@@ -84,6 +87,45 @@ public final class TextEngine {
         return total + positiveLineHeight(lineHeight);
     }
 
+    public static List<RichText> wrapLines(RichText text, float maxWidth) {
+        return wrapLines(null, text, maxWidth);
+    }
+
+    public static List<RichText> wrapLines(RenderContext context, RichText text, float maxWidth) {
+        List<RichText> lines = new ArrayList<>();
+        if (text == null || text.isEmpty()) return lines;
+        if (!Float.isFinite(maxWidth) || maxWidth <= 0.0f) {
+            appendParagraphLines(lines, text);
+            return lines;
+        }
+
+        String plain = text.plainText();
+        FontFace defaultFace = context == null || context.backend() == null
+                ? Fonts.defaultFace()
+                : context.backend().defaultTextFace();
+        int paragraphStart = 0;
+        while (paragraphStart <= plain.length()) {
+            int paragraphEnd = nextLineBreak(plain, paragraphStart);
+            appendWrappedParagraph(lines, text, plain, paragraphStart, paragraphEnd, maxWidth, defaultFace);
+            if (paragraphEnd >= plain.length()) break;
+            paragraphStart = skipLineBreak(plain, paragraphEnd);
+        }
+        return lines;
+    }
+
+    public static float lineHeight(RichText line) {
+        return line == null || line.isEmpty()
+                ? LINE_HEIGHT
+                : Math.max(LINE_HEIGHT, measureTextHeight(line));
+    }
+
+    public static float linesHeight(List<RichText> lines) {
+        if (lines == null || lines.isEmpty()) return 0.0f;
+        float height = 0.0f;
+        for (RichText line : lines) height += lineHeight(line);
+        return height;
+    }
+
     public static void draw(RenderContext context, String text,
                             float x, float y, float width, float height,
                             Paint paint, Transform transform,
@@ -113,11 +155,158 @@ public final class TextEngine {
         };
     }
 
+    private static void appendParagraphLines(List<RichText> lines, RichText text) {
+        String plain = text.plainText();
+        int paragraphStart = 0;
+        while (paragraphStart <= plain.length()) {
+            int paragraphEnd = nextLineBreak(plain, paragraphStart);
+            lines.add(text.slice(paragraphStart, paragraphEnd));
+            if (paragraphEnd >= plain.length()) break;
+            paragraphStart = skipLineBreak(plain, paragraphEnd);
+        }
+    }
+
+    private static void appendWrappedParagraph(List<RichText> lines,
+                                               RichText richText,
+                                               String plain,
+                                               int start,
+                                               int end,
+                                               float maxWidth,
+                                               FontFace defaultFace) {
+        if (start >= end) {
+            lines.add(RichText.plain(""));
+            return;
+        }
+
+        int lineStart = skipLeadingWhitespace(plain, start, end);
+        while (lineStart < end) {
+            int index = lineStart;
+            int lastFittingEnd = lineStart;
+            int lastBreakStart = -1;
+            float lineWidth = 0.0f;
+            boolean emitted = false;
+            WidthCursor widthCursor = new WidthCursor(richText, lineStart, defaultFace);
+
+            while (index < end) {
+                int codePoint = plain.codePointAt(index);
+                int next = plain.offsetByCodePoints(index, 1);
+                lineWidth += widthCursor.advance(index, codePoint);
+                if (Character.isWhitespace(codePoint)) {
+                    lastBreakStart = index;
+                }
+
+                if (lineWidth > maxWidth) {
+                    if (lastBreakStart > lineStart) {
+                        int breakEnd = stripTrailingWhitespace(plain, lineStart, lastBreakStart);
+                        if (breakEnd > lineStart) {
+                            lines.add(richText.slice(lineStart, breakEnd));
+                        }
+                        lineStart = skipLeadingWhitespace(plain, lastBreakStart, end);
+                    } else if (lastFittingEnd > lineStart) {
+                        lines.add(richText.slice(lineStart, lastFittingEnd));
+                        lineStart = skipLeadingWhitespace(plain, lastFittingEnd, end);
+                    } else {
+                        lines.add(richText.slice(lineStart, next));
+                        lineStart = skipLeadingWhitespace(plain, next, end);
+                    }
+                    emitted = true;
+                    break;
+                }
+
+                if (!Character.isWhitespace(codePoint)) {
+                    lastFittingEnd = next;
+                }
+                index = next;
+            }
+
+            if (!emitted) {
+                int lineEnd = stripTrailingWhitespace(plain, lineStart, end);
+                if (lineEnd > lineStart) lines.add(richText.slice(lineStart, lineEnd));
+                break;
+            }
+        }
+    }
+
+    private static int nextLineBreak(String text, int start) {
+        for (int index = start; index < text.length(); index++) {
+            char value = text.charAt(index);
+            if (value == '\n' || value == '\r') return index;
+        }
+        return text.length();
+    }
+
+    private static int skipLineBreak(String text, int index) {
+        if (index < text.length() && text.charAt(index) == '\r') {
+            index++;
+            if (index < text.length() && text.charAt(index) == '\n') index++;
+            return index;
+        }
+        return index < text.length() && text.charAt(index) == '\n' ? index + 1 : index;
+    }
+
+    private static int skipLeadingWhitespace(String text, int start, int end) {
+        int index = start;
+        while (index < end && Character.isWhitespace(text.codePointAt(index))) {
+            index = text.offsetByCodePoints(index, 1);
+        }
+        return index;
+    }
+
+    private static int stripTrailingWhitespace(String text, int start, int end) {
+        int index = end;
+        while (index > start) {
+            int previous = text.offsetByCodePoints(index, -1);
+            if (!Character.isWhitespace(text.codePointAt(previous))) break;
+            index = previous;
+        }
+        return index;
+    }
+
     private static FontFace resolvedFace(TextRun run) {
         return run.font() == null ? Fonts.defaultFace() : run.font();
     }
 
     private static float positiveLineHeight(float value) {
         return value > 0.0f ? value : LINE_HEIGHT;
+    }
+
+    private static final class WidthCursor {
+        private final RichText text;
+        private int runIndex;
+        private int runStart;
+        private int runEnd;
+        private TextRun run;
+
+        private final FontFace defaultFace;
+
+        private WidthCursor(RichText text, int startIndex, FontFace defaultFace) {
+            this.text = text;
+            this.defaultFace = defaultFace == null ? Fonts.defaultFace() : defaultFace;
+            this.runIndex = -1;
+            advanceRun();
+            seek(startIndex);
+        }
+
+        private float advance(int charIndex, int codePoint) {
+            seek(charIndex);
+            if (run == null || codePoint == 10 || codePoint == 13) return 0.0f;
+            FontFace face = run.font() == null ? defaultFace : run.font();
+            return Math.max(0.0f, face.advance(codePoint, run.pixelSize()));
+        }
+
+        private void seek(int charIndex) {
+            while (run != null && charIndex >= runEnd) advanceRun();
+        }
+
+        private void advanceRun() {
+            runIndex++;
+            if (runIndex >= text.runs().size()) {
+                run = null;
+                return;
+            }
+            runStart = run == null ? 0 : runEnd;
+            run = text.runs().get(runIndex);
+            runEnd = runStart + run.text().length();
+        }
     }
 }

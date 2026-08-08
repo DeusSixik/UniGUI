@@ -239,6 +239,34 @@ public final class BasicControlsSelfTest {
         expect(hasCommand(clippedDrawList, DrawCommandType.POP_CLIP),
                 "TextWidget CLIP overflow should pop its clip");
 
+        TextBlock wrapped = new TextBlock("alpha beta gamma");
+        wrapped.overflowMode(TextOverflowMode.CLIP);
+        wrapped.arrange(new MutableRect(0.0f, 0.0f, 42.0f, 36.0f));
+        DrawList wrappedDrawList = new DrawList();
+        wrapped.render(new DefaultRenderContext(wrappedDrawList));
+        expect(countTextCommands(wrappedDrawList) >= 3,
+                "TextWidget wrap(true) should render multiple wrapped lines");
+
+        TextBlock edgeWrapped = new TextBlock("Pane slots are V3 flex items.");
+        edgeWrapped.overflowMode(TextOverflowMode.CLIP);
+        edgeWrapped.arrange(new MutableRect(0.0f, 0.0f, 162.0f, 36.0f));
+        DrawList edgeWrappedDrawList = new DrawList();
+        edgeWrapped.render(new DefaultRenderContext(edgeWrappedDrawList)
+                .backend(new FixedTextMetricsBackend(new FixedFontFace("wide-default", 6.0f, 10.0f))));
+        expect(countTextCommands(edgeWrappedDrawList) >= 2,
+                "TextWidget wrap(true) should wrap the final word when only part of it overflows");
+        expect(hasText(edgeWrappedDrawList, "Pane slots are V3 flex"),
+                "TextWidget wrap(true) should use backend default font metrics for line breaks");
+
+        TextBlock scaledWrapped = new TextBlock("abcd efgh");
+        scaledWrapped.overflowMode(TextOverflowMode.CLIP);
+        scaledWrapped.transform().scale().set(2.0f, 2.0f);
+        scaledWrapped.arrange(new MutableRect(0.0f, 0.0f, 48.0f, 40.0f));
+        DrawList scaledWrappedDrawList = new DrawList();
+        scaledWrapped.render(new DefaultRenderContext(scaledWrappedDrawList));
+        expect(countTextCommands(scaledWrappedDrawList) >= 2,
+                "TextWidget wrap(true) should account for transform scale when wrapping");
+
         TextBlock shrink = new TextBlock("abcdefghijklmnop");
         shrink.overflowMode(TextOverflowMode.SHRINK_TO_FIT);
         shrink.arrange(new MutableRect(0.0f, 0.0f, 24.0f, 12.0f));
@@ -2972,14 +3000,30 @@ public final class BasicControlsSelfTest {
 
     private static final class FixedTextMetricsBackend implements RenderBackend {
         private final float charWidth;
+        private final FontFace defaultFace;
 
         private FixedTextMetricsBackend(float charWidth) {
             this.charWidth = charWidth;
+            this.defaultFace = null;
+        }
+
+        private FixedTextMetricsBackend(FontFace defaultFace) {
+            this.charWidth = 0.0f;
+            this.defaultFace = defaultFace;
         }
 
         @Override
         public float measureTextWidth(String text) {
-            return text == null ? 0.0f : text.length() * charWidth;
+            return text == null ? 0.0f : text.length() * effectiveCharWidth();
+        }
+
+        @Override
+        public FontFace defaultTextFace() {
+            return defaultFace == null ? RenderBackend.super.defaultTextFace() : defaultFace;
+        }
+
+        private float effectiveCharWidth() {
+            return defaultFace == null ? charWidth : defaultFace.advance('A', TextRun.DEFAULT_PIXEL_SIZE);
         }
 
         @Override

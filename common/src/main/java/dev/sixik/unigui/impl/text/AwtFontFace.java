@@ -2,15 +2,15 @@ package dev.sixik.unigui.impl.text;
 
 import dev.sixik.unigui.api.text.FontMetrics;
 
-import java.awt.Color;
 import java.awt.Font;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
+import java.awt.Shape;
 import java.awt.font.FontRenderContext;
 import java.awt.font.GlyphVector;
 import java.awt.font.LineMetrics;
+import java.awt.geom.PathIterator;
 import java.awt.geom.Rectangle2D;
-import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -26,6 +26,8 @@ public final class AwtFontFace implements SdfGlyphProvider {
     private final String id;
     private final Font source;
     private final Map<GlyphKey, SdfGlyph> glyphCache = new ConcurrentHashMap<>();
+    private final Map<SizeKey, FontMetrics> metricsCache = new ConcurrentHashMap<>();
+    private final Map<AdvanceKey, Float> advanceCache = new ConcurrentHashMap<>();
 
     public AwtFontFace(String id, Font source) {
         this.id = id == null || id.isBlank() ? "font" : id;
@@ -43,16 +45,24 @@ public final class AwtFontFace implements SdfGlyphProvider {
 
     @Override
     public FontMetrics metrics(float pixelSize) {
-        Font font = font(pixelSize);
-        LineMetrics line = font.getLineMetrics("Ag", FONT_CONTEXT);
-        return new FontMetrics(line.getAscent(), line.getDescent(),
-                Math.max(0.0f, line.getLeading()), Math.max(0.0f, line.getHeight()));
+        float normalized = normalizedPixelSize(pixelSize);
+        return metricsCache.computeIfAbsent(new SizeKey(Float.floatToIntBits(normalized)), ignored -> {
+            Font font = font(normalized);
+            LineMetrics line = font.getLineMetrics("Ag", FONT_CONTEXT);
+            return new FontMetrics(line.getAscent(), line.getDescent(),
+                    Math.max(0.0f, line.getLeading()), Math.max(0.0f, line.getHeight()));
+        });
     }
 
     @Override
     public float advance(int codePoint, float pixelSize) {
-        GlyphVector glyphs = glyphVector(codePoint, pixelSize);
-        return Math.max(0.0f, (float) glyphs.getGlyphMetrics(0).getAdvanceX());
+        float normalized = normalizedPixelSize(pixelSize);
+        return advanceCache.computeIfAbsent(
+                new AdvanceKey(codePoint, Float.floatToIntBits(normalized)),
+                ignored -> {
+                    GlyphVector glyphs = glyphVector(codePoint, normalized);
+                    return Math.max(0.0f, (float) glyphs.getGlyphMetrics(0).getAdvanceX());
+                });
     }
 
     @Override
@@ -73,41 +83,25 @@ public final class AwtFontFace implements SdfGlyphProvider {
         float bearingY = (float) visual.getY() - spread;
         float advance = Math.max(0.0f, (float) glyphs.getGlyphMetrics(0).getAdvanceX());
 
-        BufferedImage mask = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
-        Graphics2D graphics = mask.createGraphics();
-        try {
-            graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
-                    RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-            graphics.setColor(Color.WHITE);
-            graphics.drawGlyphVector(glyphs, -((float) visual.getX()) + spread,
-                    -((float) visual.getY()) + spread);
-        } finally {
-            graphics.dispose();
-        }
-
         return new SdfGlyph(codePoint, width, height, advance, bearingX, bearingY, spread,
-                toSignedDistance(mask, spread));
+                toSignedDistance(glyphs.getGlyphOutline(0), visual, width, height, spread));
     }
 
-    private byte[] toSignedDistance(BufferedImage mask, int spread) {
-        int width = mask.getWidth();
-        int height = mask.getHeight();
+    private byte[] toSignedDistance(Shape outline, Rectangle2D visual, int width, int height, int spread) {
         byte[] pixels = new byte[width * height];
-        boolean[] inside = new boolean[width * height];
+        List<Segment> segments = flatten(outline);
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
-                inside[y * width + x] = mask.getRaster().getSample(x, y, 0) >= 128;
-            }
-        }
-
-        float[] distanceToInside = distanceTransform(inside, width, height, true);
-        float[] distanceToOutside = distanceTransform(inside, width, height, false);
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
+                double glyphX = visual.getX() - spread + x + 0.5;
+                double glyphY = visual.getY() - spread + y + 0.5;
                 int index = y * width + x;
-                float signed = inside[index]
-                        ? (float) Math.sqrt(distanceToOutside[index])
-                        : -(float) Math.sqrt(distanceToInside[index]);
+                float signed;
+                if (segments.isEmpty()) {
+                    signed = -spread;
+                } else {
+                    float distance = distanceToOutline(glyphX, glyphY, segments);
+                    signed = outline.contains(glyphX, glyphY) ? distance : -distance;
+                }
                 signed = Math.max(-spread, Math.min(spread, signed));
                 float normalized = 0.5f + signed / (2.0f * spread);
                 pixels[index] = (byte) Math.round(
@@ -117,68 +111,63 @@ public final class AwtFontFace implements SdfGlyphProvider {
         return pixels;
     }
 
-    private static float[] distanceTransform(boolean[] mask, int width, int height, boolean featureValue) {
-        float[] firstPass = new float[width * height];
-        float[] result = new float[width * height];
-        float[] source = new float[Math.max(width, height)];
-        float[] target = new float[source.length];
-
-        for (int x = 0; x < width; x++) {
-            for (int y = 0; y < height; y++) {
-                source[y] = mask[y * width + x] == featureValue ? 0.0f : Float.POSITIVE_INFINITY;
+    private static List<Segment> flatten(Shape outline) {
+        List<Segment> segments = new ArrayList<>();
+        PathIterator iterator = outline.getPathIterator(null, 0.125);
+        double[] coords = new double[6];
+        double startX = 0.0;
+        double startY = 0.0;
+        double lastX = 0.0;
+        double lastY = 0.0;
+        while (!iterator.isDone()) {
+            int type = iterator.currentSegment(coords);
+            switch (type) {
+                case PathIterator.SEG_MOVETO -> {
+                    startX = lastX = coords[0];
+                    startY = lastY = coords[1];
+                }
+                case PathIterator.SEG_LINETO -> {
+                    addSegment(segments, lastX, lastY, coords[0], coords[1]);
+                    lastX = coords[0];
+                    lastY = coords[1];
+                }
+                case PathIterator.SEG_CLOSE -> {
+                    addSegment(segments, lastX, lastY, startX, startY);
+                    lastX = startX;
+                    lastY = startY;
+                }
+                default -> {
+                    // Curves are flattened by PathIterator, so this should not be reached.
+                }
             }
-            distanceTransform1d(source, target, height);
-            for (int y = 0; y < height; y++) firstPass[y * width + x] = target[y];
+            iterator.next();
         }
-
-        for (int y = 0; y < height; y++) {
-            System.arraycopy(firstPass, y * width, source, 0, width);
-            distanceTransform1d(source, target, width);
-            System.arraycopy(target, 0, result, y * width, width);
-        }
-        return result;
+        return segments;
     }
 
-    private static void distanceTransform1d(float[] source, float[] target, int length) {
-        int first = -1;
-        for (int i = 0; i < length; i++) {
-            if (Float.isFinite(source[i])) {
-                first = i;
-                break;
-            }
+    private static void addSegment(List<Segment> segments, double x1, double y1, double x2, double y2) {
+        double dx = x2 - x1;
+        double dy = y2 - y1;
+        if (dx * dx + dy * dy > 0.000001) {
+            segments.add(new Segment((float) x1, (float) y1, (float) x2, (float) y2));
         }
-        if (first < 0) {
-            java.util.Arrays.fill(target, 0, length, Float.POSITIVE_INFINITY);
-            return;
-        }
+    }
 
-        int[] sites = new int[length];
-        float[] boundaries = new float[length + 1];
-        int last = 0;
-        sites[0] = first;
-        boundaries[0] = Float.NEGATIVE_INFINITY;
-        boundaries[1] = Float.POSITIVE_INFINITY;
-        for (int q = first + 1; q < length; q++) {
-            if (!Float.isFinite(source[q])) continue;
-            float boundary;
-            do {
-                int site = sites[last];
-                boundary = ((source[q] + q * q) - (source[site] + site * site))
-                        / (2.0f * (q - site));
-                if (boundary <= boundaries[last]) last--;
-            } while (last >= 0 && boundary <= boundaries[last]);
-            last++;
-            sites[last] = q;
-            boundaries[last] = boundary;
-            boundaries[last + 1] = Float.POSITIVE_INFINITY;
+    private static float distanceToOutline(double x, double y, List<Segment> segments) {
+        double best = Double.POSITIVE_INFINITY;
+        for (Segment segment : segments) {
+            double dx = segment.x2 - segment.x1;
+            double dy = segment.y2 - segment.y1;
+            double lengthSq = dx * dx + dy * dy;
+            double t = lengthSq <= 0.0 ? 0.0 : ((x - segment.x1) * dx + (y - segment.y1) * dy) / lengthSq;
+            t = Math.max(0.0, Math.min(1.0, t));
+            double nearestX = segment.x1 + t * dx;
+            double nearestY = segment.y1 + t * dy;
+            double distanceX = x - nearestX;
+            double distanceY = y - nearestY;
+            best = Math.min(best, distanceX * distanceX + distanceY * distanceY);
         }
-
-        int siteIndex = 0;
-        for (int q = 0; q < length; q++) {
-            while (boundaries[siteIndex + 1] < q) siteIndex++;
-            float delta = q - sites[siteIndex];
-            target[q] = delta * delta + source[sites[siteIndex]];
-        }
+        return (float) Math.sqrt(best);
     }
 
     private GlyphVector glyphVector(int codePoint, float pixelSize) {
@@ -187,10 +176,22 @@ public final class AwtFontFace implements SdfGlyphProvider {
     }
 
     private Font font(float pixelSize) {
-        float normalized = Float.isFinite(pixelSize) ? Math.max(1.0f, pixelSize) : 16.0f;
-        return source.deriveFont(normalized);
+        return source.deriveFont(normalizedPixelSize(pixelSize));
+    }
+
+    private static float normalizedPixelSize(float pixelSize) {
+        return Float.isFinite(pixelSize) ? Math.max(1.0f, pixelSize) : 16.0f;
     }
 
     private record GlyphKey(int codePoint, int pixelSize, int spread) {
+    }
+
+    private record SizeKey(int pixelSizeBits) {
+    }
+
+    private record AdvanceKey(int codePoint, int pixelSizeBits) {
+    }
+
+    private record Segment(float x1, float y1, float x2, float y2) {
     }
 }

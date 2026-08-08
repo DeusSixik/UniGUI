@@ -111,6 +111,11 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
         return sdfTextRenderer.defaultFace();
     }
 
+    @Override
+    public FontFace defaultTextFace() {
+        return defaultFont();
+    }
+
     public MinecraftGuiRenderBackend defaultFont(FontFace font) {
         sdfTextRenderer.defaultFace(font);
         return this;

@@ -2,6 +2,8 @@ package dev.sixik.unigui.api.render;
 
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.impl.text.TextEngine;
+import dev.sixik.unigui.api.text.FontFace;
+import dev.sixik.unigui.api.text.Fonts;
 import dev.sixik.unigui.api.text.RichText;
 
 public interface RenderBackend {
@@ -15,6 +17,10 @@ public interface RenderBackend {
 
     default float measureTextWidth(RichText text) {
         return TextEngine.measureLineWidth(text);
+    }
+
+    default FontFace defaultTextFace() {
+        return Fonts.defaultFace();
     }
 
     void beginFrame(FrameContext frame);
