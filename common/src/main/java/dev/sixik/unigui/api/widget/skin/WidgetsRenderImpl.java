@@ -1,9 +1,14 @@
 package dev.sixik.unigui.api.widget.skin;
 
 import dev.sixik.unigui.widgets.render.LoadingIndicatorRenderer;
+import dev.sixik.unigui.widgets.render.ChartRenderer;
+import dev.sixik.unigui.widgets.render.ColorPickerRenderer;
+import dev.sixik.unigui.widgets.render.DatePickerRenderer;
+import dev.sixik.unigui.widgets.render.GraphViewRenderer;
 import dev.sixik.unigui.widgets.render.ProgressBarRenderer;
 import dev.sixik.unigui.widgets.render.ScrollBarRenderer;
 import dev.sixik.unigui.widgets.render.SliderRenderer;
+import dev.sixik.unigui.widgets.render.SparklineRenderer;
 import dev.sixik.unigui.widgets.render.ButtonRenderer;
 import dev.sixik.unigui.widgets.render.TextInputRenderer;
 import dev.sixik.unigui.widgets.render.ShapeRenderer;
@@ -43,6 +48,26 @@ public interface WidgetsRenderImpl {
     }
 
     default SliderRenderer slider() {
+        return null;
+    }
+
+    default SparklineRenderer sparkline() {
+        return null;
+    }
+
+    default ChartRenderer chart() {
+        return null;
+    }
+
+    default GraphViewRenderer graphView() {
+        return null;
+    }
+
+    default ColorPickerRenderer colorPicker() {
+        return null;
+    }
+
+    default DatePickerRenderer datePicker() {
         return null;
     }
 

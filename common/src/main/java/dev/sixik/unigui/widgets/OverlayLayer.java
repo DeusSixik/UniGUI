@@ -135,6 +135,11 @@ public final class OverlayLayer extends PanelWidget {
                     && window.closeOnOutsideClick()
                     && !isDescendantOrSelf(target, window)) {
                 window.close();
+            } else if (child instanceof ContextMenu contextMenu
+                    && contextMenu.opened()
+                    && contextMenu.closeOnOutsideClick()
+                    && !isDescendantOrSelf(target, contextMenu)) {
+                contextMenu.close();
             }
         }
     }

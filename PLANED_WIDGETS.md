@@ -19,20 +19,20 @@
 - [x] Breadcrumb
 - [x] Accordion
 - [x] ExpandablePanel
-- [ ] ContextMenu
-- [ ] Toast / NotificationView
-- [ ] RichTextView
-- [ ] ColorPicker
-- [ ] TimeSpanField
-- [ ] DatePicker
-- [ ] Chart
-- [ ] Sparkline
-- [ ] GraphView
-- [ ] Carousel / PageView
+- [x] ContextMenu
+- [x] Toast / NotificationView
+- [x] RichTextView
+- [x] ColorPicker
+- [x] TimeSpanField
+- [x] DatePicker
+- [x] Chart
+- [x] Sparkline
+- [x] GraphView
+- [x] Carousel / PageView
  
 ## By Aros
-- [ ] Tree List
-- [ ] Tree List with Custom Type (Picker)
-- [ ] View
+- [x] Tree List — TreeView / TreeList helper
+- [x] Tree List with Custom Type (Picker)
+- [x] View
 
 ## May be ?

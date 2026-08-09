@@ -1,10 +1,15 @@
 package dev.sixik.unigui.api.widget.skin;
 
 import dev.sixik.unigui.widgets.render.LoadingIndicatorRenderer;
+import dev.sixik.unigui.widgets.render.ChartRenderer;
+import dev.sixik.unigui.widgets.render.ColorPickerRenderer;
+import dev.sixik.unigui.widgets.render.DatePickerRenderer;
+import dev.sixik.unigui.widgets.render.GraphViewRenderer;
 import dev.sixik.unigui.widgets.render.ButtonRenderer;
 import dev.sixik.unigui.widgets.render.ProgressBarRenderer;
 import dev.sixik.unigui.widgets.render.ScrollBarRenderer;
 import dev.sixik.unigui.widgets.render.SliderRenderer;
+import dev.sixik.unigui.widgets.render.SparklineRenderer;
 import dev.sixik.unigui.widgets.render.TextInputRenderer;
 import dev.sixik.unigui.widgets.render.ShapeRenderer;
 import dev.sixik.unigui.widgets.render.SeparatorRenderer;
@@ -63,6 +68,31 @@ public final class WidgetsRender {
     public static SliderRenderer slider() {
         SliderRenderer renderer = impl.slider();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.slider() : renderer;
+    }
+
+    public static SparklineRenderer sparkline() {
+        SparklineRenderer renderer = impl.sparkline();
+        return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.sparkline() : renderer;
+    }
+
+    public static ChartRenderer chart() {
+        ChartRenderer renderer = impl.chart();
+        return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.chart() : renderer;
+    }
+
+    public static GraphViewRenderer graphView() {
+        GraphViewRenderer renderer = impl.graphView();
+        return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.graphView() : renderer;
+    }
+
+    public static ColorPickerRenderer colorPicker() {
+        ColorPickerRenderer renderer = impl.colorPicker();
+        return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.colorPicker() : renderer;
+    }
+
+    public static DatePickerRenderer datePicker() {
+        DatePickerRenderer renderer = impl.datePicker();
+        return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.datePicker() : renderer;
     }
 
     public static ScrollBarRenderer scrollBar() {

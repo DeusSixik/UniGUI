@@ -21,6 +21,7 @@ import dev.sixik.unigui.api.text.Fonts;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.widget.skin.WidgetsRenderImpl;
 import dev.sixik.unigui.backend.minecraft.MinecraftBlockPreviewWidget;
 import dev.sixik.unigui.backend.minecraft.MinecraftClipboardService;
 import dev.sixik.unigui.backend.minecraft.MinecraftEntityPreviewWidget;
@@ -43,6 +44,8 @@ import net.minecraft.world.level.block.Blocks;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Supplier;
+import java.time.Duration;
+import java.time.LocalDate;
 
 public final class TestCommands {
     private static Runnable changeMode = () -> {};
@@ -267,9 +270,9 @@ public final class TestCommands {
         page.addChild(intro);
 
         WrapPanel cards = wrap();
-        cards.addChild(infoCard("Widgets", "Buttons, inputs, selection, loaders, breadcrumbs"));
+        cards.addChild(infoCard("Widgets", "Buttons, inputs, selection, pickers, loaders"));
         cards.addChild(infoCard("Layout", "Dock, stack, wrap, split panels, tabs and trees"));
-        cards.addChild(infoCard("Data", "Virtualized list/table with sorting and editing"));
+        cards.addChild(infoCard("Data", "Virtualized list/table, charts, sparklines and graphs"));
         cards.addChild(infoCard("Minecraft", "Item, block and entity previews"));
         page.addChild(cards);
         return page;
@@ -356,6 +359,27 @@ public final class TestCommands {
         feedback.addChild(dots);
         feedback.addChild(bar);
         page.addChild(section("Feedback", feedback));
+
+        WrapPanel pickerRow = wrap();
+        DatePicker date = new DatePicker().value(LocalDate.of(2026, 8, 9));
+        date.preferredSize(168.0f, 24.0f).grow(0.0f);
+        TimeSpanField span = new TimeSpanField().value(Duration.ofSeconds(5 * 60L + 30L));
+        span.preferredSize(168.0f, 22.0f).grow(0.0f);
+        ColorPicker colorPicker = new ColorPicker();
+        colorPicker.preferredSize(116.0f, 22.0f).grow(0.0f);
+        Label pickerStatus = new Label("Pickers: waiting for change");
+        pickerStatus.preferredSize(260.0f, 16.0f).grow(0.0f);
+        date.onDateChanged(event -> pickerStatus.text("Date: " + event.newValue()));
+        colorPicker.onColorChanged(event -> pickerStatus.text(String.format(Locale.ROOT, "Color: #%08X", event.newArgb())));
+        VBox dateTime = new VBox();
+        dateTime.spacing(4.0f);
+        dateTime.grow(0.0f);
+        dateTime.addChild(span);
+        dateTime.addChild(date);
+        dateTime.addChild(pickerStatus);
+        pickerRow.addChild(dateTime);
+        pickerRow.addChild(colorPicker);
+        page.addChild(section("Pickers", pickerRow));
         return page;
     }
 
@@ -404,6 +428,31 @@ public final class TestCommands {
         tree.silentSelect(widgets.child(2));
         tree.preferredSize(LayoutConstraints.AUTO, LayoutConstraints.AUTO).grow(0.0f);
         page.addChild(section("TreeView", tree));
+
+        TreeList treeList = new TreeList()
+                .addPath("Assets", "Textures", "Buttons")
+                .addPath("Assets", "Shaders", "SDF")
+                .addPath("Screens", "Inventory", "Crafting");
+        treeList.preferredSize(LayoutConstraints.AUTO, LayoutConstraints.AUTO).grow(0.0f);
+        page.addChild(section("TreeList", treeList));
+
+        TreeListPicker<String> picker = new TreeListPicker<String>()
+                .values(List.of("Blocks/Crafting Table", "Items/Diamond", "Entities/Zombie"))
+                .labelProvider(value -> "Pick: " + value);
+        picker.preferredSize(190.0f, LayoutConstraints.AUTO).grow(0.0f);
+        page.addChild(section("TreeListPicker", picker));
+
+        Carousel carousel = new Carousel()
+                .addPage(samplePane("Page 1", "Carousel keeps one retained page visible."))
+                .addPage(samplePane("Page 2", "Use arrows to switch pages."))
+                .addPage(samplePane("Page 3", "PageView is an alias-style wrapper."));
+        carousel.preferredSize(LayoutConstraints.AUTO, 116.0f).grow(0.0f);
+        page.addChild(section("Carousel / PageView", carousel));
+
+        View view = new View("View")
+                .addContent(paragraph("A lightweight titled content surface for feature modules."));
+        view.preferredSize(LayoutConstraints.AUTO, 70.0f).grow(0.0f);
+        page.addChild(section("View", view));
         return page;
     }
 
@@ -622,6 +671,36 @@ public final class TestCommands {
                         .overflowMode(TextOverflowMode.SHRINK_TO_FIT)));
         table.preferredSize(LayoutConstraints.AUTO, 150.0f).grow(0.0f);
         page.addChild(section("VirtualTableView", table));
+
+        WrapPanel visuals = wrap();
+        List<Integer> series = List.of(8, 14, 10, 22, 18, 30, 24, 36, 28);
+        Chart chart = new Chart().values(series).type(Chart.Type.BAR);
+        chart.preferredSize(220.0f, 120.0f).grow(0.0f);
+        Sparkline sparkline = new Sparkline().values(series);
+        sparkline.preferredSize(160.0f, 40.0f).grow(0.0f);
+        GraphView graph = new GraphView()
+                .addNode("A", 0.15f, 0.30f)
+                .addNode("B", 0.48f, 0.16f)
+                .addNode("C", 0.78f, 0.34f)
+                .addNode("D", 0.42f, 0.78f)
+                .addEdge("A", "B")
+                .addEdge("B", "C")
+                .addEdge("B", "D")
+                .addEdge("A", "D");
+        graph.preferredSize(220.0f, 120.0f).grow(0.0f);
+        Label visualStatus = new Label("Visual events: click a bar, spark point, or graph node");
+        visualStatus.preferredSize(360.0f, 16.0f).grow(0.0f);
+        chart.onBarClick(event -> visualStatus.text(String.format(Locale.ROOT,
+                "Chart bar #%d = %.2f", event.index(), event.value())));
+        sparkline.onPointClick(event -> visualStatus.text(String.format(Locale.ROOT,
+                "Spark point #%d = %.2f", event.index(), event.value())));
+        graph.onNodeClick(event -> visualStatus.text(String.format(Locale.ROOT,
+                "Graph node %s @ %.2f, %.2f", event.id(), event.normalizedX(), event.normalizedY())));
+        visuals.addChild(chart);
+        visuals.addChild(sparkline);
+        visuals.addChild(graph);
+        visuals.addChild(visualStatus);
+        page.addChild(section("Charts / Sparkline / GraphView", visuals));
         return page;
     }
 
@@ -670,11 +749,17 @@ public final class TestCommands {
         popupAnchor.preferredSize(76.0f, 22.0f).grow(0.0f);
         Button windowButton = new Button("Window");
         windowButton.preferredSize(76.0f, 22.0f).grow(0.0f);
+        Button menuButton = new Button("Context");
+        menuButton.preferredSize(82.0f, 22.0f).grow(0.0f);
+        Button toastButton = new Button("Toast");
+        toastButton.preferredSize(72.0f, 22.0f).grow(0.0f);
         ToggleButton freeDrag = new ToggleButton("Free drag");
         freeDrag.preferredSize(86.0f, 22.0f).grow(0.0f);
         row.addChild(tooltipAnchor);
         row.addChild(popupAnchor);
         row.addChild(windowButton);
+        row.addChild(menuButton);
+        row.addChild(toastButton);
         row.addChild(freeDrag);
         page.addChild(section("Overlay controls", row));
 
@@ -683,6 +768,12 @@ public final class TestCommands {
 
         OverlayLayer layer = new OverlayLayer(page);
         Popup popup = new Popup(popupAnchor, samplePane("Popup content", "Anchored popup with retained content."));
+        ContextMenu menu = new ContextMenu()
+                .item("Inspect", () -> {})
+                .item("Duplicate", () -> {})
+                .separator()
+                .item("Delete", () -> {});
+        Toast toast = new Toast("NotificationView / Toast").duration(2.5f);
         WindowWidget window = new WindowWidget("Example Window", samplePane("Dialog body", "Drag the title bar, or close with x."))
                 .position(260.0f, 74.0f)
                 .closeOnOutsideClick(false);
@@ -690,11 +781,15 @@ public final class TestCommands {
 
         popupAnchor.onClick(event -> popup.toggle());
         windowButton.onClick(event -> window.toggle());
+        menuButton.onClick(event -> menu.toggle(menuButton.layoutBounds().x(), menuButton.layoutBounds().y() + menuButton.layoutBounds().height() + 4.0f));
+        toastButton.onClick(event -> toast.toast("Saved recipe-machine layout snapshot."));
         freeDrag.onCheckedChanged(event -> window.constrainToHost(!event.newValue()));
         layer.addOverlay(new Tooltip(tooltipAnchor, "Tooltips are overlay-hosted and layout-independent."));
         layer.addOverlay(new Tooltip(popupAnchor, "Click to toggle an anchored Popup."));
         layer.addOverlay(new Tooltip(windowButton, "Click to open a draggable WindowWidget."));
         layer.addOverlay(popup);
+        layer.addOverlay(menu);
+        layer.addOverlay(toast);
         layer.addOverlay(window);
         return layer;
     }
@@ -730,6 +825,15 @@ public final class TestCommands {
                 .build());
         mixed.preferredSize(LayoutConstraints.AUTO, 30.0f).grow(0.0f);
         page.addChild(section("RichText", mixed));
+
+        RichTextView richTextView = new RichTextView(RichText.builder()
+                .font(Fonts.defaultFace()).size(13.0f)
+                .color(MutableColor.rgba(0.72f, 0.86f, 1.0f, 1.0f)).append("RichTextView wraps ")
+                .color(MutableColor.rgba(0.30f, 1.0f, 0.55f, 1.0f)).append("colored retained text ")
+                .color(MutableColor.rgba(1.0f, 0.78f, 0.30f, 1.0f)).append("as a reusable widget.")
+                .build());
+        richTextView.preferredSize(LayoutConstraints.AUTO, 42.0f).grow(0.0f);
+        page.addChild(section("RichTextView", richTextView));
         return page;
     }
 

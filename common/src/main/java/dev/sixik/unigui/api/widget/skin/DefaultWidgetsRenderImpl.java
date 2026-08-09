@@ -2,6 +2,14 @@ package dev.sixik.unigui.api.widget.skin;
 
 import dev.sixik.unigui.widgets.render.LoadingIndicatorRenderer;
 import dev.sixik.unigui.widgets.render.LoadingIndicatorRenderers;
+import dev.sixik.unigui.widgets.render.ChartRenderer;
+import dev.sixik.unigui.widgets.render.ChartRenderers;
+import dev.sixik.unigui.widgets.render.ColorPickerRenderer;
+import dev.sixik.unigui.widgets.render.ColorPickerRenderers;
+import dev.sixik.unigui.widgets.render.DatePickerRenderer;
+import dev.sixik.unigui.widgets.render.DatePickerRenderers;
+import dev.sixik.unigui.widgets.render.GraphViewRenderer;
+import dev.sixik.unigui.widgets.render.GraphViewRenderers;
 import dev.sixik.unigui.widgets.render.ButtonRenderer;
 import dev.sixik.unigui.widgets.render.ButtonRenderers;
 import dev.sixik.unigui.widgets.render.ProgressBarRenderer;
@@ -10,6 +18,8 @@ import dev.sixik.unigui.widgets.render.ScrollBarRenderer;
 import dev.sixik.unigui.widgets.render.ScrollBarRenderers;
 import dev.sixik.unigui.widgets.render.SliderRenderer;
 import dev.sixik.unigui.widgets.render.SliderRenderers;
+import dev.sixik.unigui.widgets.render.SparklineRenderer;
+import dev.sixik.unigui.widgets.render.SparklineRenderers;
 import dev.sixik.unigui.widgets.render.TextInputRenderer;
 import dev.sixik.unigui.widgets.render.TextInputRenderers;
 import dev.sixik.unigui.widgets.render.ShapeRenderer;
@@ -75,6 +85,31 @@ public final class DefaultWidgetsRenderImpl implements WidgetsRenderImpl {
     @Override
     public SliderRenderer slider() {
         return SliderRenderers.DEFAULT;
+    }
+
+    @Override
+    public SparklineRenderer sparkline() {
+        return SparklineRenderers.DEFAULT;
+    }
+
+    @Override
+    public ChartRenderer chart() {
+        return ChartRenderers.DEFAULT;
+    }
+
+    @Override
+    public GraphViewRenderer graphView() {
+        return GraphViewRenderers.DEFAULT;
+    }
+
+    @Override
+    public ColorPickerRenderer colorPicker() {
+        return ColorPickerRenderers.DEFAULT;
+    }
+
+    @Override
+    public DatePickerRenderer datePicker() {
+        return DatePickerRenderers.DEFAULT;
     }
 
     @Override

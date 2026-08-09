@@ -69,6 +69,14 @@ public final class Widgets {
         return new TreeView();
     }
 
+    public static TreeList treeList() {
+        return new TreeList();
+    }
+
+    public static <T> TreeListPicker<T> treeListPicker() {
+        return new TreeListPicker<>();
+    }
+
     public static TreeViewNode treeNode(String text) {
         return new TreeViewNode(text);
     }
@@ -99,6 +107,10 @@ public final class Widgets {
 
     public static TextBlock textBlock(RichText text) {
         return new TextBlock(text);
+    }
+
+    public static RichTextView richTextView(RichText text) {
+        return new RichTextView(text);
     }
 
     public static TextureWidget texture(TextureHandle texture) {
@@ -147,6 +159,18 @@ public final class Widgets {
 
     public static Popup popup(Widget anchor, Widget content) {
         return new Popup(anchor, content);
+    }
+
+    public static ContextMenu contextMenu() {
+        return new ContextMenu();
+    }
+
+    public static Toast toast(String text) {
+        return new Toast(text);
+    }
+
+    public static NotificationView notification(String text) {
+        return new NotificationView(text);
     }
 
     public static WindowWidget window(String title, Widget content) {
@@ -235,6 +259,42 @@ public final class Widgets {
 
     public static NumberField numberField() {
         return new NumberField();
+    }
+
+    public static TimeSpanField timeSpanField() {
+        return new TimeSpanField();
+    }
+
+    public static DatePicker datePicker() {
+        return new DatePicker();
+    }
+
+    public static ColorPicker colorPicker() {
+        return new ColorPicker();
+    }
+
+    public static Chart chart() {
+        return new Chart();
+    }
+
+    public static Sparkline sparkline() {
+        return new Sparkline();
+    }
+
+    public static GraphView graphView() {
+        return new GraphView();
+    }
+
+    public static Carousel carousel() {
+        return new Carousel();
+    }
+
+    public static PageView pageView() {
+        return new PageView();
+    }
+
+    public static View view(String title) {
+        return new View(title);
     }
 
     public static ScrollBar scrollBar() {
