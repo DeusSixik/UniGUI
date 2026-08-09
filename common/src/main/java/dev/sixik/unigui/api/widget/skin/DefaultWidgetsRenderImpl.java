@@ -8,8 +8,18 @@ import dev.sixik.unigui.widgets.render.ColorPickerRenderer;
 import dev.sixik.unigui.widgets.render.ColorPickerRenderers;
 import dev.sixik.unigui.widgets.render.DatePickerRenderer;
 import dev.sixik.unigui.widgets.render.DatePickerRenderers;
+import dev.sixik.unigui.widgets.render.DockDropPreviewRenderer;
+import dev.sixik.unigui.widgets.render.DockDropPreviewRenderers;
+import dev.sixik.unigui.widgets.render.DockPaneRenderer;
+import dev.sixik.unigui.widgets.render.DockPaneRenderers;
+import dev.sixik.unigui.widgets.render.DockSplitHandleRenderer;
+import dev.sixik.unigui.widgets.render.DockSplitHandleRenderers;
+import dev.sixik.unigui.widgets.render.DockingRootRenderer;
+import dev.sixik.unigui.widgets.render.DockingRootRenderers;
 import dev.sixik.unigui.widgets.render.GraphViewRenderer;
 import dev.sixik.unigui.widgets.render.GraphViewRenderers;
+import dev.sixik.unigui.widgets.render.ModalScrimRenderer;
+import dev.sixik.unigui.widgets.render.ModalScrimRenderers;
 import dev.sixik.unigui.widgets.render.ButtonRenderer;
 import dev.sixik.unigui.widgets.render.ButtonRenderers;
 import dev.sixik.unigui.widgets.render.ProgressBarRenderer;
@@ -210,6 +220,31 @@ public final class DefaultWidgetsRenderImpl implements WidgetsRenderImpl {
     @Override
     public WindowRenderer window() {
         return WindowRenderers.DEFAULT;
+    }
+
+    @Override
+    public ModalScrimRenderer modalScrim() {
+        return ModalScrimRenderers.DEFAULT;
+    }
+
+    @Override
+    public DockingRootRenderer dockingRoot() {
+        return DockingRootRenderers.DEFAULT;
+    }
+
+    @Override
+    public DockPaneRenderer dockPane() {
+        return DockPaneRenderers.DEFAULT;
+    }
+
+    @Override
+    public DockSplitHandleRenderer dockSplitHandle() {
+        return DockSplitHandleRenderers.DEFAULT;
+    }
+
+    @Override
+    public DockDropPreviewRenderer dockDropPreview() {
+        return DockDropPreviewRenderers.DEFAULT;
     }
 
     @Override

@@ -55,28 +55,49 @@ public final class TestCommands {
     }
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-        dispatcher.register(Commands.literal("unigui").executes(ctx -> {
-            RenderSystem.recordRenderCall(() -> {
-                DefaultUIContext context = new DefaultUIContext(new MinecraftClipboardService());
-                Widget root = examples(context);
-                MinecraftWidgetScreen screen = new MinecraftWidgetScreen(Component.empty(), root, context);
-                screen.renderPolicy(UiRenderPolicy.vsync());
+        dispatcher.register(Commands.literal("unigui")
+                .executes(ctx -> {
+                    RenderSystem.recordRenderCall(TestCommands::openExamplesScreen);
+                    return 0;
+                })
+                .then(Commands.literal("docking").executes(ctx -> {
+                    RenderSystem.recordRenderCall(TestCommands::openDockingEditorScreen);
+                    return 0;
+                })));
+    }
 
-                renderMode = () -> screen.renderPolicy().mode().name();
-                changeMode = () -> {
-                    UiRenderPolicy.Mode mode = screen.renderPolicy().mode();
-                    switch (mode) {
-                        case CONTINUOUS -> screen.renderPolicy(UiRenderPolicy.vsync());
-                        case VSYNC -> screen.renderPolicy(UiRenderPolicy.onDirty());
-                        case ON_DIRTY -> screen.renderPolicy(UiRenderPolicy.fixedFps(60));
-                        case FIXED_FPS -> screen.renderPolicy(UiRenderPolicy.continuous());
-                    }
-                };
+    private static void openExamplesScreen() {
+        DefaultUIContext context = new DefaultUIContext(new MinecraftClipboardService());
+        Widget root = examples(context);
+        MinecraftWidgetScreen screen = openScreen(Component.empty(), root, context);
+        installRenderModeToggle(screen);
+    }
 
-                Minecraft.getInstance().setScreen(screen);
-            });
-            return 0;
-        }));
+    private static void openDockingEditorScreen() {
+        DefaultUIContext context = new DefaultUIContext(new MinecraftClipboardService());
+        Widget root = dockingEditorExample(context);
+        MinecraftWidgetScreen screen = openScreen(Component.literal("UniGUI Docking Editor"), root, context);
+        installRenderModeToggle(screen);
+    }
+
+    private static MinecraftWidgetScreen openScreen(Component title, Widget root, DefaultUIContext context) {
+        MinecraftWidgetScreen screen = new MinecraftWidgetScreen(title, root, context);
+        screen.renderPolicy(UiRenderPolicy.vsync());
+        Minecraft.getInstance().setScreen(screen);
+        return screen;
+    }
+
+    private static void installRenderModeToggle(MinecraftWidgetScreen screen) {
+        renderMode = () -> screen.renderPolicy().mode().name();
+        changeMode = () -> {
+            UiRenderPolicy.Mode mode = screen.renderPolicy().mode();
+            switch (mode) {
+                case CONTINUOUS -> screen.renderPolicy(UiRenderPolicy.vsync());
+                case VSYNC -> screen.renderPolicy(UiRenderPolicy.onDirty());
+                case ON_DIRTY -> screen.renderPolicy(UiRenderPolicy.fixedFps(60));
+                case FIXED_FPS -> screen.renderPolicy(UiRenderPolicy.continuous());
+            }
+        };
     }
 
     private static Widget examples(DefaultUIContext context) {
@@ -97,6 +118,7 @@ public final class TestCommands {
                 overviewPage(),
                 widgetsPage(),
                 layoutPage(),
+                dockingWindowsPage(),
                 dataPage(),
                 overlaysPage(),
                 textPage(),
@@ -107,6 +129,7 @@ public final class TestCommands {
                 "Overview",
                 "Widgets",
                 "Layout",
+                "Docking & Windows",
                 "Data",
                 "Overlays",
                 "Text",
@@ -128,6 +151,283 @@ public final class TestCommands {
 
         selectPage(0, null, pages, path, names);
         return new OverlayLayer(viewport);
+    }
+
+    private static OverlayLayer dockingEditorExample(DefaultUIContext context) {
+        StackPanel viewport = new StackPanel();
+        viewport.addChild(backgroundFrame());
+
+        DockPanel app = new DockPanel();
+        app.margin(10.0f);
+        viewport.addChild(app);
+
+        OverlayLayer layer = new OverlayLayer(viewport);
+
+        Label status = new Label("Docking editor: drag tabs to split, use the overflow menu, or open floating panels.");
+        status.preferredSize(LayoutConstraints.AUTO, 18.0f).grow(1.0f);
+
+        DockingRoot docking = new DockingRoot();
+        docking.addDocument("scene", "Scene", editorScenePane())
+                .addDocument("graph", "Recipe Graph", editorGraphPane())
+                .addDocument("preview", "Item Preview", editorPreviewPane())
+                .addDocument("layout", "Layout XML", editorTextPane("Layout XML",
+                        "<dock-root>\n  <slot id=\"scene\" />\n  <tool id=\"inspector\" side=\"right\" />\n</dock-root>"))
+                .addDocument("style", "Theme", editorTextPane("Theme",
+                        "primary: #5AA7FF\naccent: #F7B955\npanel-radius: 4px\nshadow: soft"))
+                .addDocument("events", "Events", editorTextPane("Events",
+                        "onClick -> open recipe\nonDrop -> reparent widget\nonSave -> snapshot layout"))
+                .addDocument("bindings", "Bindings", editorTextPane("Bindings",
+                        "recipe.output = preview.item\ninspector.target = selection.current"))
+                .addDocument("animation", "Animation", editorTextPane("Animation",
+                        "hover.fade = 90ms\nwindow.open = easeOutBack\ntab.switch = instant"))
+                .addDocument("profiler", "Profiler", editorTextPane("Profiler",
+                        "layout: 0.31 ms\nrender: 0.82 ms\nwidgets: 94\noverlays: 1"))
+                .addToolPane("assets", "Assets", editorAssetsPane(), DockArea.LEFT)
+                .addToolPane("inspector", "Inspector", editorInspectorPane(), DockArea.RIGHT)
+                .addToolPane("console", "Console", editorConsolePane(), DockArea.BOTTOM)
+                .selectPane("scene");
+        DockPane style = docking.manager().findPane("style");
+        if (style != null) style.dirty(true);
+        DockPane inspector = docking.manager().findPane("inspector");
+        if (inspector != null) inspector.pinned(true);
+        docking.grow(1.0f);
+
+        docking.onDragStarted(event -> status.text("Docking editor: dragging " + event.paneId()));
+        docking.onDropPreviewChanged(event -> {
+            if (event.newIntent().valid()) {
+                status.text("Docking editor: " + event.newIntent().area() + " -> " + event.newIntent().targetPaneId());
+            } else {
+                status.text("Docking editor: drop preview cleared");
+            }
+        });
+        docking.onLayoutChanged(event -> status.text("Docking editor: layout " + event.operation()));
+
+        app.addChild(dockingEditorToolbar(layer, docking, status), DockSide.TOP);
+        app.addChild(dockingEditorStatusBar(status), DockSide.BOTTOM);
+        app.addChild(docking);
+        return layer;
+    }
+
+    private static Box dockingEditorToolbar(OverlayLayer layer, DockingRoot docking, Label status) {
+        Box bar = panelBox(0.045f, 0.052f, 0.070f, 0.96f);
+        bar.preferredSize(LayoutConstraints.AUTO, 34.0f).grow(0.0f);
+
+        HBox row = new HBox();
+        row.spacing(8.0f);
+        row.margin(8.0f, 6.0f).grow(0.0f);
+
+        Label title = new Label("UniGUI Docking Editor");
+        title.preferredSize(168.0f, 20.0f).align(Alignment.START, Alignment.CENTER).grow(0.0f);
+
+        Label hint = new Label("Small editor-style screen for docking, overflow tabs, floating windows and modal stack");
+        hint.preferredSize(LayoutConstraints.AUTO, 20.0f).align(Alignment.START, Alignment.CENTER).grow(1.0f);
+
+        Button addTab = new Button("New Tab");
+        addTab.preferredSize(76.0f, 22.0f).grow(0.0f);
+        Button floatPreview = new Button("Float Preview");
+        floatPreview.preferredSize(104.0f, 22.0f).grow(0.0f);
+        Button modal = new Button("Modal");
+        modal.preferredSize(64.0f, 22.0f).grow(0.0f);
+        Button render = new Button("Render: " + renderMode.get());
+        render.preferredSize(106.0f, 22.0f).grow(0.0f);
+
+        final int[] scratchCounter = {1};
+        addTab.onClick(event -> {
+            String id = "editor-scratch-" + scratchCounter[0];
+            docking.addDocument(id, "Scratch " + scratchCounter[0], editorTextPane("Scratch " + scratchCounter[0],
+                    "Temporary editor document.\nDrag this tab to test split targets."));
+            docking.selectPane(id);
+            status.text("Docking editor: added " + id);
+            scratchCounter[0]++;
+        });
+
+        floatPreview.onClick(event -> {
+            WindowWidget window = new WindowWidget("Floating Item Preview",
+                    samplePane("Item Preview", "Floating tool window opened by /unigui docking."))
+                    .position(318.0f, 86.0f)
+                    .closeOnOutsideClick(false);
+            window.preferredSize(238.0f, 122.0f).grow(0.0f);
+            layer.addOverlay(window);
+            window.open();
+            status.text("Docking editor: floating preview opened");
+        });
+
+        modal.onClick(event -> {
+            WindowWidget dialog = new WindowWidget("Save Layout",
+                    samplePane("Snapshot", "This modal exists to test the overlay stack and input blocking."))
+                    .position(296.0f, 124.0f)
+                    .modal(true)
+                    .closeOnOutsideClick(false);
+            dialog.preferredSize(250.0f, 124.0f).grow(0.0f);
+            layer.addOverlay(dialog);
+            dialog.openModal();
+            status.text("Docking editor: modal opened");
+        });
+
+        render.onClick(event -> {
+            changeMode.run();
+            render.text("Render: " + renderMode.get());
+            status.text("Docking editor: render mode " + renderMode.get());
+        });
+
+        row.addChild(title);
+        row.addChild(hint);
+        row.addChild(addTab);
+        row.addChild(floatPreview);
+        row.addChild(modal);
+        row.addChild(render);
+        bar.addChild(row);
+        return bar;
+    }
+
+    private static Box dockingEditorStatusBar(Label status) {
+        Box bar = panelBox(0.040f, 0.045f, 0.060f, 0.94f);
+        bar.preferredSize(LayoutConstraints.AUTO, 26.0f).grow(0.0f);
+
+        HBox row = new HBox();
+        row.spacing(8.0f);
+        row.margin(8.0f, 4.0f).grow(0.0f);
+
+        Label command = new Label("/unigui docking");
+        command.preferredSize(104.0f, 18.0f).align(Alignment.START, Alignment.CENTER).grow(0.0f);
+        status.align(Alignment.START, Alignment.CENTER);
+
+        row.addChild(command);
+        row.addChild(status);
+        bar.addChild(row);
+        return bar;
+    }
+
+    private static Widget editorScenePane() {
+        VBox pane = new VBox();
+        pane.spacing(8.0f);
+        pane.margin(8.0f).grow(0.0f);
+
+        Label title = new Label("Canvas");
+        title.preferredSize(LayoutConstraints.AUTO, 18.0f).grow(0.0f);
+        pane.addChild(title);
+
+        StackPanel canvas = new StackPanel();
+        canvas.preferredSize(LayoutConstraints.AUTO, 126.0f).grow(0.0f);
+        Box base = panelBox(0.028f, 0.034f, 0.050f, 0.94f);
+        base.align(Alignment.STRETCH, Alignment.STRETCH);
+        canvas.addChild(base);
+        canvas.addChild(editorCanvasNode("DockingRoot", 34.0f, 20.0f, 144.0f, 32.0f, 0.18f, 0.38f, 0.62f));
+        canvas.addChild(editorCanvasNode("Inspector", 214.0f, 20.0f, 104.0f, 32.0f, 0.24f, 0.46f, 0.34f));
+        canvas.addChild(editorCanvasNode("Console", 90.0f, 76.0f, 174.0f, 32.0f, 0.54f, 0.34f, 0.20f));
+        pane.addChild(canvas);
+        pane.addChild(paragraph("Drag tabs to split the editor workspace. The center document group intentionally has many tabs for overflow testing."));
+        return pane;
+    }
+
+    private static Box editorCanvasNode(String label, float left, float top, float width, float height,
+                                        float r, float g, float b) {
+        Box node = panelBox(r, g, b, 0.92f);
+        node.layout(style -> style
+                .position(PositionType.ABSOLUTE)
+                .left(left)
+                .top(top)
+                .width(width)
+                .height(height));
+        Label text = new Label(label);
+        text.align(Alignment.CENTER, Alignment.CENTER).preferredSize(LayoutConstraints.AUTO, LayoutConstraints.AUTO).grow(1.0f);
+        node.addChild(text);
+        return node;
+    }
+
+    private static Widget editorGraphPane() {
+        VBox pane = new VBox();
+        pane.spacing(6.0f);
+        pane.margin(8.0f).grow(0.0f);
+        pane.addChild(paragraph("Recipe graph mockup: input slots feed a machine node and output preview."));
+
+        HBox nodes = new HBox();
+        nodes.spacing(8.0f);
+        nodes.preferredSize(LayoutConstraints.AUTO, 58.0f).grow(0.0f);
+        nodes.addChild(infoCard("Input", "Iron + Gear"));
+        nodes.addChild(infoCard("Machine", "Assembler"));
+        nodes.addChild(infoCard("Output", "Recipe Machine"));
+        pane.addChild(nodes);
+        return pane;
+    }
+
+    private static Widget editorPreviewPane() {
+        WrapPanel previews = wrap();
+        previews.margin(8.0f).grow(0.0f);
+        previews.addChild(itemPreview("Recipe", Items.CRAFTING_TABLE));
+        previews.addChild(itemPreview("Result", Items.REDSTONE));
+        previews.addChild(blockPreview("Block", Blocks.IRON_BLOCK));
+        previews.addChild(blockPreview("Machine", Blocks.SMITHING_TABLE));
+        return previews;
+    }
+
+    private static Widget editorAssetsPane() {
+        VBox pane = new VBox();
+        pane.spacing(5.0f);
+        pane.margin(7.0f).grow(0.0f);
+        pane.addChild(paragraph("Assets"));
+        pane.addChild(editorAssetRow("Containers / DockPanel"));
+        pane.addChild(editorAssetRow("Controls / Button"));
+        pane.addChild(editorAssetRow("Data / TreeView"));
+        pane.addChild(editorAssetRow("Minecraft / ItemPreview"));
+        pane.addChild(editorAssetRow("Overlays / WindowWidget"));
+        return pane;
+    }
+
+    private static Widget editorAssetRow(String text) {
+        Box row = panelBox(0.060f, 0.070f, 0.092f, 0.88f);
+        row.preferredSize(LayoutConstraints.AUTO, 24.0f).grow(0.0f);
+        Label label = new Label(text);
+        label.margin(6.0f, 3.0f).align(Alignment.START, Alignment.CENTER).grow(1.0f);
+        row.addChild(label);
+        return row;
+    }
+
+    private static Widget editorInspectorPane() {
+        VBox pane = new VBox();
+        pane.spacing(5.0f);
+        pane.margin(7.0f).grow(0.0f);
+        pane.addChild(paragraph("Selection: DockingRoot"));
+        pane.addChild(editorPropertyRow("x", "10"));
+        pane.addChild(editorPropertyRow("y", "10"));
+        pane.addChild(editorPropertyRow("grow", "1.0"));
+        pane.addChild(editorPropertyRow("tabs", "overflow menu"));
+        pane.addChild(editorPropertyRow("drop zones", "enabled"));
+        return pane;
+    }
+
+    private static Widget editorPropertyRow(String key, String value) {
+        HBox row = new HBox();
+        row.spacing(6.0f);
+        row.preferredSize(LayoutConstraints.AUTO, 22.0f).grow(0.0f);
+        Label k = new Label(key);
+        k.preferredSize(72.0f, 18.0f).align(Alignment.START, Alignment.CENTER).grow(0.0f);
+        Label v = new Label(value);
+        v.preferredSize(LayoutConstraints.AUTO, 18.0f).align(Alignment.START, Alignment.CENTER).grow(1.0f);
+        row.addChild(k);
+        row.addChild(v);
+        return row;
+    }
+
+    private static Widget editorConsolePane() {
+        return editorTextPane("Console",
+                "[info] Docking editor opened\n" +
+                        "[hint] Wheel over tabs to scroll\n" +
+                        "[hint] Click ... to select hidden tabs\n" +
+                        "[hint] Drag current tab to right/left/bottom split");
+    }
+
+    private static Widget editorTextPane(String title, String text) {
+        VBox pane = new VBox();
+        pane.spacing(4.0f);
+        pane.margin(7.0f).grow(0.0f);
+        Label label = new Label(title);
+        label.preferredSize(LayoutConstraints.AUTO, 16.0f).grow(0.0f);
+        TextBlock body = paragraph(text);
+        body.preferredSize(LayoutConstraints.AUTO, 84.0f).grow(0.0f);
+        pane.addChild(label);
+        pane.addChild(body);
+        return pane;
     }
 
     private static Box backgroundFrame() {
@@ -408,6 +708,56 @@ public final class TestCommands {
         tabs.preferredSize(LayoutConstraints.AUTO, 94.0f).grow(0.0f);
         page.addChild(section("Tabs", tabs));
 
+        DockingRoot docking = new DockingRoot();
+        docking.addDocument("scene", "Scene", samplePane("Scene", "Center document tab retained inside DockingRoot."))
+                .addDocument("recipe", "Recipe", samplePane("Recipe", "Second document shares the center tab group."))
+                .addToolPane("assets", "Assets", samplePane("Assets", "Left tool window."), DockArea.LEFT)
+                .addToolPane("inspector", "Inspector", samplePane("Inspector", "Right tool window."), DockArea.RIGHT)
+                .addToolPane("log", "Log", samplePane("Log", "Bottom tool output."), DockArea.BOTTOM)
+                .selectPane("scene");
+        DockPane recipePane = docking.manager().findPane("recipe");
+        if (recipePane != null) {
+            recipePane.dirty(true);
+        }
+        DockPane assetsPane = docking.manager().findPane("assets");
+        if (assetsPane != null) {
+            assetsPane.pinned(false);
+        }
+        docking.preferredSize(LayoutConstraints.AUTO, 132.0f).grow(0.0f);
+        VBox dockingDemo = new VBox();
+        dockingDemo.spacing(6.0f);
+        dockingDemo.grow(0.0f);
+        dockingDemo.addChild(docking);
+        HBox dockingActions = new HBox();
+        dockingActions.spacing(6.0f);
+        dockingActions.grow(0.0f);
+        Label dockingStatus = new Label("Snapshot: not captured");
+        dockingStatus.preferredSize(260.0f, 18.0f).grow(0.0f);
+        Button saveDockLayout = new Button("Snapshot");
+        saveDockLayout.preferredSize(82.0f, 22.0f).grow(0.0f);
+        Button restoreDockLayout = new Button("Restore");
+        restoreDockLayout.preferredSize(76.0f, 22.0f).grow(0.0f);
+        final String[] encodedDockSnapshot = {""};
+        saveDockLayout.onClick(event -> {
+            encodedDockSnapshot[0] = DockLayoutSnapshotCodec.encode(docking.manager().snapshot());
+            dockingStatus.text("Snapshot: " + Math.min(encodedDockSnapshot[0].length(), 999) + " chars");
+        });
+        restoreDockLayout.onClick(event -> {
+            if (encodedDockSnapshot[0].isEmpty()) return;
+            java.util.Map<String, DockPane> registry = new java.util.HashMap<>();
+            for (String paneId : List.of("scene", "recipe", "assets", "inspector", "log")) {
+                DockPane pane = docking.manager().findPane(paneId);
+                if (pane != null) registry.put(paneId, pane);
+            }
+            docking.restoreLayout(DockLayoutSnapshotCodec.decode(encodedDockSnapshot[0]), registry);
+            dockingStatus.text("Snapshot: restored");
+        });
+        dockingActions.addChild(saveDockLayout);
+        dockingActions.addChild(restoreDockLayout);
+        dockingActions.addChild(dockingStatus);
+        dockingDemo.addChild(dockingActions);
+        page.addChild(section("DockingRoot documents/tools", dockingDemo));
+
         Accordion accordion = new Accordion();
         accordion.addPanel(expandable("Graphics", "Render policy, caches, preview widgets and scale."))
                 .addPanel(expandable("Input", "Focus, capture, cursors, text edit and shortcuts."))
@@ -454,6 +804,110 @@ public final class TestCommands {
         view.preferredSize(LayoutConstraints.AUTO, 70.0f).grow(0.0f);
         page.addChild(section("View", view));
         return page;
+    }
+
+    private static OverlayLayer dockingWindowsPage() {
+        VBox page = page("Docking & Windows", "Dockable documents, tool panes, floating windows, modal stack and layout snapshots.");
+
+        DockingRoot docking = new DockingRoot();
+        docking.addDocument("scene", "Scene", samplePane("Scene", "Center document. Drag tabs to split, tab, or float."))
+                .addDocument("recipe", "Recipe*", samplePane("Recipe", "Dirty document tab with active document semantics."))
+                .addToolPane("assets", "Assets", samplePane("Assets", "Left tool pane. Future auto-hide metadata is exposed in state."), DockArea.LEFT)
+                .addToolPane("inspector", "Inspector", samplePane("Inspector", "Right tool pane."), DockArea.RIGHT)
+                .addToolPane("log", "Log", samplePane("Log", "Bottom tool pane for output."), DockArea.BOTTOM)
+                .selectPane("scene");
+        DockPane recipe = docking.manager().findPane("recipe");
+        if (recipe != null) recipe.dirty(true);
+        DockPane assets = docking.manager().findPane("assets");
+        if (assets != null) assets.pinned(false).autoHide(true);
+        docking.preferredSize(LayoutConstraints.AUTO, 176.0f).grow(0.0f);
+
+        Label status = new Label("Docking: drag tabs, use Ctrl+Tab / Ctrl+W, or snapshot layout.");
+        status.preferredSize(LayoutConstraints.AUTO, 18.0f).grow(0.0f);
+        docking.onDragStarted(event -> status.text("Docking: dragging " + event.paneId()));
+        docking.onDropPreviewChanged(event -> {
+            if (event.newIntent().valid()) {
+                status.text("Docking preview: " + event.newIntent().area() + " -> " + event.newIntent().targetPaneId());
+            } else {
+                status.text("Docking preview: cleared");
+            }
+        });
+        docking.onLayoutChanged(event -> status.text("Docking layout: " + event.operation()));
+        docking.onLayoutRestored(event -> status.text("Docking restored: "
+                + event.restoredPaneCount() + " panes, missing " + event.missingPaneCount()));
+
+        HBox actions = new HBox();
+        actions.spacing(6.0f);
+        actions.grow(0.0f);
+        Button addDoc = new Button("Add doc");
+        addDoc.preferredSize(72.0f, 22.0f).grow(0.0f);
+        Button floatTool = new Button("Float inspector");
+        floatTool.preferredSize(108.0f, 22.0f).grow(0.0f);
+        Button modalButton = new Button("Modal");
+        modalButton.preferredSize(68.0f, 22.0f).grow(0.0f);
+        Button snapshot = new Button("Snapshot");
+        snapshot.preferredSize(82.0f, 22.0f).grow(0.0f);
+        Button restore = new Button("Restore");
+        restore.preferredSize(74.0f, 22.0f).grow(0.0f);
+        actions.addChild(addDoc);
+        actions.addChild(floatTool);
+        actions.addChild(modalButton);
+        actions.addChild(snapshot);
+        actions.addChild(restore);
+
+        page.addChild(section("Dock workspace", docking));
+        page.addChild(section("Dock actions", actions));
+        page.addChild(status);
+
+        OverlayLayer layer = new OverlayLayer(page);
+        WindowWidget floatingInspector = new WindowWidget("Floating Inspector",
+                samplePane("Inspector", "This window is produced by the docking demo floating action."))
+                .position(330.0f, 92.0f)
+                .closeOnOutsideClick(false);
+        floatingInspector.preferredSize(230.0f, 118.0f).grow(0.0f);
+        WindowWidget modal = new WindowWidget("Docking Modal",
+                samplePane("Modal", "Modal scrim blocks input below the top dialog."))
+                .position(300.0f, 122.0f)
+                .modal(true)
+                .closeOnOutsideClick(false);
+        modal.preferredSize(230.0f, 118.0f).grow(0.0f);
+
+        final int[] docCounter = {1};
+        final String[] encodedSnapshot = {""};
+        addDoc.onClick(event -> {
+            String id = "scratch-" + docCounter[0]++;
+            docking.addDocument(id, "Scratch " + docCounter[0], samplePane("Scratch", "New document " + id));
+            docking.selectPane(id);
+            status.text("Docking layout: added " + id);
+        });
+        floatTool.onClick(event -> {
+            WindowWidget floated = docking.manager().floatPane("inspector");
+            if (floated != null) {
+                floated.position(330.0f, 92.0f).open();
+                layer.addOverlay(floated);
+                status.text("Docking layout: inspector floated");
+            } else {
+                floatingInspector.open();
+                status.text("Docking layout: example floating window opened");
+            }
+        });
+        modalButton.onClick(event -> modal.openModal());
+        snapshot.onClick(event -> {
+            encodedSnapshot[0] = DockLayoutSnapshotCodec.encode(docking.manager().snapshot());
+            status.text("Docking snapshot: " + Math.min(encodedSnapshot[0].length(), 999) + " chars");
+        });
+        restore.onClick(event -> {
+            if (encodedSnapshot[0].isEmpty()) return;
+            java.util.Map<String, DockPane> registry = new java.util.HashMap<>();
+            for (DockPane pane : docking.manager().panes()) {
+                registry.put(pane.id(), pane);
+            }
+            docking.restoreLayout(DockLayoutSnapshotCodec.decode(encodedSnapshot[0]), registry);
+        });
+
+        layer.addOverlay(floatingInspector);
+        layer.addOverlay(modal);
+        return layer;
     }
 
     private static Box layoutV3SmokeSection() {
@@ -749,6 +1203,8 @@ public final class TestCommands {
         popupAnchor.preferredSize(76.0f, 22.0f).grow(0.0f);
         Button windowButton = new Button("Window");
         windowButton.preferredSize(76.0f, 22.0f).grow(0.0f);
+        Button modalButton = new Button("Modal");
+        modalButton.preferredSize(76.0f, 22.0f).grow(0.0f);
         Button menuButton = new Button("Context");
         menuButton.preferredSize(82.0f, 22.0f).grow(0.0f);
         Button toastButton = new Button("Toast");
@@ -758,10 +1214,15 @@ public final class TestCommands {
         row.addChild(tooltipAnchor);
         row.addChild(popupAnchor);
         row.addChild(windowButton);
+        row.addChild(modalButton);
         row.addChild(menuButton);
         row.addChild(toastButton);
         row.addChild(freeDrag);
         page.addChild(section("Overlay controls", row));
+
+        Label windowStatus = new Label("WindowManager: idle");
+        windowStatus.preferredSize(360.0f, 16.0f).grow(0.0f);
+        page.addChild(windowStatus);
 
         TextBlock body = paragraph("Tooltip does not capture input. Popup is anchored and closes on outside click. WindowWidget has a draggable title bar.");
         page.addChild(body);
@@ -778,12 +1239,31 @@ public final class TestCommands {
                 .position(260.0f, 74.0f)
                 .closeOnOutsideClick(false);
         window.preferredSize(220.0f, 124.0f).grow(0.0f);
+        WindowWidget modal = new WindowWidget("Modal Window", samplePane("Modal body", "Input below this dialog is blocked until it closes."))
+                .position(230.0f, 104.0f)
+                .modal(true)
+                .closeOnOutsideClick(false);
+        modal.preferredSize(240.0f, 132.0f).grow(0.0f);
 
         popupAnchor.onClick(event -> popup.toggle());
         windowButton.onClick(event -> window.toggle());
+        modalButton.onClick(event -> modal.openModal());
         menuButton.onClick(event -> menu.toggle(menuButton.layoutBounds().x(), menuButton.layoutBounds().y() + menuButton.layoutBounds().height() + 4.0f));
         toastButton.onClick(event -> toast.toast("Saved recipe-machine layout snapshot."));
         freeDrag.onCheckedChanged(event -> window.constrainToHost(!event.newValue()));
+        window.onOpened(event -> windowStatus.text("WindowManager: opened"));
+        window.onClosed(event -> windowStatus.text("WindowManager: closed"));
+        window.onActivated(event -> windowStatus.text("WindowManager: active"));
+        window.onDeactivated(event -> windowStatus.text("WindowManager: inactive"));
+        window.onMoved(event -> windowStatus.text(String.format(Locale.ROOT,
+                "WindowManager: moved %.0f, %.0f", event.newX(), event.newY())));
+        window.onResizeStarted(event -> windowStatus.text("WindowManager: resize " + event.handle()));
+        window.onResized(event -> windowStatus.text(String.format(Locale.ROOT,
+                "WindowManager: resized %.0fx%.0f", event.newWidth(), event.newHeight())));
+        window.onResizeEnded(event -> windowStatus.text(String.format(Locale.ROOT,
+                "WindowManager: resize done %.0fx%.0f", event.width(), event.height())));
+        modal.onModalOpened(event -> windowStatus.text("WindowManager: modal opened depth " + event.stackDepth()));
+        modal.onModalClosed(event -> windowStatus.text("WindowManager: modal closed depth " + event.stackDepth()));
         layer.addOverlay(new Tooltip(tooltipAnchor, "Tooltips are overlay-hosted and layout-independent."));
         layer.addOverlay(new Tooltip(popupAnchor, "Click to toggle an anchored Popup."));
         layer.addOverlay(new Tooltip(windowButton, "Click to open a draggable WindowWidget."));
@@ -791,6 +1271,7 @@ public final class TestCommands {
         layer.addOverlay(menu);
         layer.addOverlay(toast);
         layer.addOverlay(window);
+        layer.addOverlay(modal);
         return layer;
     }
 

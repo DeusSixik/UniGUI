@@ -11,6 +11,20 @@ public final class WindowRenderers {
         draw.line(state.x(), state.y() + state.headerHeight(),
                 state.x() + state.width(), state.y() + state.headerHeight(),
                 Paint.stroke(state.headerSeparatorColor(), 1.0f));
+        if (state.active() || state.dragging()) {
+            draw.line(state.x(), state.y(),
+                    state.x() + state.width(), state.y(),
+                    Paint.stroke(state.titleColor(), state.dragging() ? 2.0f : 1.25f));
+        }
+        if (state.resizing()) {
+            float marker = 7.0f;
+            draw.line(state.x() + state.width() - marker, state.y() + state.height(),
+                    state.x() + state.width(), state.y() + state.height() - marker,
+                    Paint.stroke(state.titleColor(), 1.5f));
+            draw.line(state.x() + state.width() - marker * 1.8f, state.y() + state.height(),
+                    state.x() + state.width(), state.y() + state.height() - marker * 1.8f,
+                    Paint.stroke(state.titleColor(), 1.0f));
+        }
 
         float closeReserved = state.closeButtonVisible() ? state.closeButtonWidth() + 6.0f : 0.0f;
         float titleX = state.x() + state.paddingLeft();

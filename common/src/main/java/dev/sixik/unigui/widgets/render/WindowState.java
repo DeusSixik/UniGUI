@@ -18,6 +18,16 @@ public record WindowState(
         float titleTextHeight,
         ColorView headerColor,
         ColorView headerSeparatorColor,
-        ColorView titleColor
+        ColorView titleColor,
+        boolean active,
+        boolean focused,
+        boolean dragging,
+        boolean resizing,
+        String resizeHandle,
+        boolean modal,
+        boolean resizable
 ) {
+    public WindowState {
+        resizeHandle = resizeHandle == null ? "" : resizeHandle;
+    }
 }

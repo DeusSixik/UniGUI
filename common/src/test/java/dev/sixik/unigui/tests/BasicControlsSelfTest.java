@@ -7,6 +7,7 @@ import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.FramePhase;
 import dev.sixik.unigui.api.event.ExpandedChangedEvent;
+import dev.sixik.unigui.api.event.DockDropPreviewChangedEvent;
 import dev.sixik.unigui.api.event.KeyPressedEvent;
 import dev.sixik.unigui.api.event.PointerEnteredEvent;
 import dev.sixik.unigui.api.event.PointerExitedEvent;
@@ -87,7 +88,14 @@ import dev.sixik.unigui.widgets.Box;
 import dev.sixik.unigui.widgets.Checkbox;
 import dev.sixik.unigui.widgets.ComboBox;
 import dev.sixik.unigui.widgets.DockPanel;
+import dev.sixik.unigui.widgets.DockArea;
+import dev.sixik.unigui.widgets.DockDropIntent;
+import dev.sixik.unigui.widgets.DockLayoutSnapshotCodec;
+import dev.sixik.unigui.widgets.DockLayoutSnapshot;
+import dev.sixik.unigui.widgets.DockPane;
+import dev.sixik.unigui.widgets.DockPaneKind;
 import dev.sixik.unigui.widgets.DockSide;
+import dev.sixik.unigui.widgets.DockingRoot;
 import dev.sixik.unigui.widgets.DropDownBox;
 import dev.sixik.unigui.widgets.ExpandablePanel;
 import dev.sixik.unigui.widgets.GridBox;
@@ -159,6 +167,7 @@ public final class BasicControlsSelfTest {
         testWidgetAnimationTransitions();
         testMinecraftPreviewWidgetFallbacks();
         testOverlayLayerAndTooltipBasics();
+        testDockingRootContracts();
         testFixedRowVirtualizationCore();
         testVirtualizedSelectionContracts();
         testVirtualListKeyboardNavigation();
@@ -1781,6 +1790,29 @@ public final class BasicControlsSelfTest {
                 .closeOnOutsideClick(true)
                 .open();
         window.preferredSize(150.0f, 70.0f).grow(0.0f);
+        Counter windowLifecycle = new Counter();
+        Counter windowMove = new Counter();
+        Counter windowResize = new Counter();
+        window.onOpened(event -> windowLifecycle.started++);
+        window.onClosed(event -> windowLifecycle.cancelled++);
+        window.onActivated(event -> windowLifecycle.count++);
+        window.onDeactivated(event -> windowLifecycle.committed++);
+        window.onMoveStarted(event -> windowMove.started++);
+        window.onMoved(event -> windowMove.moved++);
+        window.onMoveEnded(event -> windowMove.committed++);
+        window.onResizeStarted(event -> {
+            windowResize.started++;
+            windowResize.lastText = event.handle();
+        });
+        window.onResized(event -> {
+            windowResize.resized++;
+            windowResize.lastNewWidth = event.newWidth();
+            windowResize.lastNewHeight = event.newHeight();
+        });
+        window.onResizeEnded(event -> {
+            windowResize.committed++;
+            windowResize.lastText = event.handle();
+        });
         layer.addOverlay(window);
         layer.measure(new LayoutContext(200.0f, 100.0f));
         layer.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 100.0f));
@@ -1790,6 +1822,26 @@ public final class BasicControlsSelfTest {
                 "Open WindowWidget should render title and content above base content");
         expect(hitTester.hitTest(layer, dialogAction.layoutBounds().x() + 2.0f, dialogAction.layoutBounds().y() + 2.0f).orElseThrow().widget() == dialogAction,
                 "WindowWidget content should participate in hit-test");
+        expect(layer.windows().registered(window) && layer.windows().activeWindow() == window && window.active(),
+                "OverlayLayer WindowManager should register and activate open WindowWidget overlays");
+
+        WindowWidget secondWindow = new WindowWidget("Second", new Label("Second body"))
+                .position(24.0f, 12.0f)
+                .open();
+        secondWindow.preferredSize(120.0f, 60.0f).grow(0.0f);
+        layer.addOverlay(secondWindow);
+        layer.measure(new LayoutContext(200.0f, 100.0f));
+        layer.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 100.0f));
+        expect(layer.windows().activeWindow() == secondWindow && secondWindow.active() && !window.active(),
+                "WindowManager should activate the most recently opened overlay window");
+        expect(hitTester.hitTest(layer, 30.0f, 18.0f).orElseThrow().widget() == secondWindow,
+                "WindowManager z-order should put the active window above older overlapping windows");
+        layer.windows().activate(window);
+        expect(layer.windows().activeWindow() == window && window.active() && !secondWindow.active(),
+                "WindowManager.activate should switch active window state");
+        expect(hitTester.hitTest(layer, 30.0f, 18.0f).orElseThrow().widget() == window,
+                "WindowManager.activate should bring the activated window to the front");
+        layer.removeOverlay(secondWindow);
 
         window.position(500.0f, 500.0f);
         layer.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 100.0f));
@@ -1811,13 +1863,84 @@ public final class BasicControlsSelfTest {
         uiContext.routedEvents().dispatch(new PointerReleasedEvent(window, window.layoutBounds().x() + 16.0f, window.layoutBounds().y() + 6.0f, 16.0f, 6.0f, 0, PointerButton.PRIMARY));
         expect(!window.dragging() && uiContext.capturedPointer(0) == null,
                 "WindowWidget release should stop drag and release pointer capture");
+        expect(windowMove.started == 1 && windowMove.moved >= 1 && windowMove.committed == 1,
+                "WindowWidget drag should publish typed move lifecycle events");
+
+        float resizeStartX = window.layoutBounds().x();
+        float resizeStartY = window.layoutBounds().y();
+        float resizeStartWidth = window.layoutBounds().width();
+        float resizeStartHeight = window.layoutBounds().height();
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(window,
+                resizeStartX + resizeStartWidth - 1.0f,
+                resizeStartY + resizeStartHeight - 1.0f,
+                resizeStartWidth - 1.0f,
+                resizeStartHeight - 1.0f,
+                1,
+                PointerButton.PRIMARY));
+        expect(window.resizing() && uiContext.capturedPointer(1) == window,
+                "WindowWidget bottom-right edge press should start resize and capture pointer");
+        uiContext.routedEvents().dispatch(new PointerMovedEvent(window,
+                resizeStartX + resizeStartWidth + 34.0f,
+                resizeStartY + resizeStartHeight + 18.0f,
+                resizeStartWidth + 34.0f,
+                resizeStartHeight + 18.0f,
+                1));
+        layer.measure(new LayoutContext(200.0f, 100.0f));
+        layer.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 100.0f));
+        expect(window.layoutBounds().width() > resizeStartWidth && window.layoutBounds().height() > resizeStartHeight,
+                "WindowWidget bottom-right resize should grow the arranged window");
+        uiContext.routedEvents().dispatch(new PointerReleasedEvent(window,
+                window.layoutBounds().x() + window.layoutBounds().width() - 1.0f,
+                window.layoutBounds().y() + window.layoutBounds().height() - 1.0f,
+                window.layoutBounds().width() - 1.0f,
+                window.layoutBounds().height() - 1.0f,
+                1,
+                PointerButton.PRIMARY));
+        expect(!window.resizing() && uiContext.capturedPointer(1) == null,
+                "WindowWidget resize release should stop resize and release pointer capture");
+        expect(windowResize.started == 1 && windowResize.resized >= 1 && windowResize.committed == 1
+                        && windowResize.lastText.equals("bottom_right"),
+                "WindowWidget resize should publish typed resize lifecycle events with handle name");
+
+        window.minWindowSize(120.0f, 64.0f);
+        float grownWidth = window.layoutBounds().width();
+        float grownHeight = window.layoutBounds().height();
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(window,
+                window.layoutBounds().x() + window.layoutBounds().width() - 1.0f,
+                window.layoutBounds().y() + window.layoutBounds().height() - 1.0f,
+                window.layoutBounds().width() - 1.0f,
+                window.layoutBounds().height() - 1.0f,
+                2,
+                PointerButton.PRIMARY));
+        uiContext.routedEvents().dispatch(new PointerMovedEvent(window,
+                window.layoutBounds().x() - 200.0f,
+                window.layoutBounds().y() - 200.0f,
+                -200.0f,
+                -200.0f,
+                2));
+        layer.measure(new LayoutContext(200.0f, 100.0f));
+        layer.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 100.0f));
+        expect(window.layoutBounds().width() >= 120.0f && window.layoutBounds().height() >= 64.0f
+                        && window.layoutBounds().width() <= grownWidth && window.layoutBounds().height() <= grownHeight,
+                "WindowWidget resize should clamp to configured minimum size");
+        uiContext.routedEvents().dispatch(new PointerReleasedEvent(window,
+                window.layoutBounds().x() + window.layoutBounds().width() - 1.0f,
+                window.layoutBounds().y() + window.layoutBounds().height() - 1.0f,
+                window.layoutBounds().width() - 1.0f,
+                window.layoutBounds().height() - 1.0f,
+                2,
+                PointerButton.PRIMARY));
 
         uiContext.routedEvents().dispatch(new PointerPressedEvent(button, 4.0f, 4.0f, 4.0f, 4.0f, 0, PointerButton.PRIMARY));
         expect(!window.opened(), "OverlayLayer should close WindowWidget on outside primary click when enabled");
+        expect(windowLifecycle.cancelled == 1 && !window.active(),
+                "WindowWidget close should publish close event and clear active state");
 
         window.open();
         layer.measure(new LayoutContext(200.0f, 100.0f));
         layer.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 100.0f));
+        expect(windowLifecycle.started == 1 && windowLifecycle.count >= 2 && layer.windows().activeWindow() == window,
+                "WindowWidget reopen should publish open event and reactivate through WindowManager");
         Button closeButton = window.closeButton();
         uiContext.routedEvents().dispatch(new PointerPressedEvent(closeButton, closeButton.layoutBounds().x() + 2.0f, closeButton.layoutBounds().y() + 2.0f, 2.0f, 2.0f, 0, PointerButton.PRIMARY));
         uiContext.routedEvents().dispatch(new PointerReleasedEvent(closeButton, closeButton.layoutBounds().x() + 2.0f, closeButton.layoutBounds().y() + 2.0f, 2.0f, 2.0f, 0, PointerButton.PRIMARY));
@@ -1837,6 +1960,356 @@ public final class BasicControlsSelfTest {
         layer.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 100.0f));
         expect(near(freeWindow.layoutBounds().x(), 140.0f) && near(freeWindow.layoutBounds().y(), 60.0f),
                 "Re-enabled WindowWidget host constraints should clamp the absolute rect again");
+
+        Button blockedByModal = new Button("Blocked");
+        blockedByModal.preferredSize(70.0f, 18.0f).grow(0.0f);
+        Counter blockedClicks = new Counter();
+        blockedByModal.onClick(event -> blockedClicks.count++);
+        WindowWidget modal = new WindowWidget("Modal", new Button("Modal OK"))
+                .position(30.0f, 20.0f)
+                .modal(true);
+        modal.preferredSize(120.0f, 60.0f).grow(0.0f);
+        Counter modalLifecycle = new Counter();
+        modal.onModalOpened(event -> {
+            modalLifecycle.started++;
+            modalLifecycle.lastRow = event.stackDepth();
+        });
+        modal.onModalClosed(event -> {
+            modalLifecycle.committed++;
+            modalLifecycle.lastColumn = event.stackDepth();
+        });
+        StackPanel modalContent = new StackPanel();
+        modalContent.addChild(blockedByModal);
+        OverlayLayer modalLayer = new OverlayLayer(modalContent);
+        modalLayer.setUiContextInternal(uiContext);
+        modalLayer.addOverlay(modal);
+        modal.open();
+        modalLayer.measure(new LayoutContext(180.0f, 100.0f));
+        modalLayer.arrange(new MutableRect(0.0f, 0.0f, 180.0f, 100.0f));
+        DrawList modalDrawList = new DrawList();
+        modalLayer.render(new DefaultRenderContext(modalDrawList));
+        expect(modal.active() && modalLayer.windows().topModalWindow() == modal && modalLifecycle.started == 1,
+                "WindowManager should track active top modal window and publish modal opened event");
+        expect(hasCommand(modalDrawList, DrawCommandType.RECT) && hasText(modalDrawList, "Modal"),
+                "OverlayLayer should render modal scrim before the top modal window");
+
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(blockedByModal,
+                blockedByModal.layoutBounds().x() + 2.0f,
+                blockedByModal.layoutBounds().y() + 2.0f,
+                2.0f,
+                2.0f,
+                3,
+                PointerButton.PRIMARY));
+        uiContext.routedEvents().dispatch(new PointerReleasedEvent(blockedByModal,
+                blockedByModal.layoutBounds().x() + 2.0f,
+                blockedByModal.layoutBounds().y() + 2.0f,
+                2.0f,
+                2.0f,
+                3,
+                PointerButton.PRIMARY));
+        expect(blockedClicks.count == 0,
+                "OverlayLayer should block pointer input to content below the top modal window");
+        modal.close();
+        expect(modalLifecycle.committed == 1 && modalLifecycle.lastColumn == 0 && modalLayer.windows().topModalWindow() == null,
+                "WindowManager should publish modal closed event and clear top modal when closed");
+    }
+
+    private void testDockingRootContracts() {
+        DefaultUIContext dockContext = new DefaultUIContext();
+        DockingRoot root = new DockingRoot();
+        root.setUiContextInternal(dockContext);
+        Counter changes = new Counter();
+        Counter drag = new Counter();
+        Counter preview = new Counter();
+        root.onLayoutChanged(event -> {
+            changes.count++;
+            changes.lastText = event.operation();
+        });
+        root.onDragStarted(event -> {
+            drag.started++;
+            drag.lastText = event.paneId();
+        });
+        root.onDragMoved(event -> {
+            drag.moved++;
+            drag.lastNewColumn = event.intent().area().ordinal();
+        });
+        root.onDragEnded(event -> {
+            drag.committed++;
+            drag.lastChecked = event.dropped();
+            drag.lastText = event.intent().area().name();
+        });
+        root.onDropPreviewChanged(event -> {
+            preview.count++;
+            preview.lastText = event.newIntent().area().name();
+        });
+
+        DockPane project = new DockPane("project", "Project", testDockContent("Project body"));
+        DockPane inspector = new DockPane("inspector", "Inspector", testDockContent("Inspector body"));
+        DockPane console = new DockPane("console", "Console", testDockContent("Console body"));
+
+        root.addPane(project);
+        expect(root.manager().paneCount() == 1 && root.manager().selectedPane() == project,
+                "DockingRoot should add and select the first pane");
+
+        root.manager().splitPane(project.id(), DockArea.RIGHT, inspector);
+        expect(root.rootNode().isSplit() && root.rootNode().orientation() == dev.sixik.unigui.widgets.DockSplitOrientation.HORIZONTAL,
+                "DockingManager split RIGHT should create a horizontal split node");
+        expect(root.manager().paneCount() == 2 && root.manager().containsPane(inspector.id()),
+                "DockingManager split should retain target pane and add the new pane");
+
+        root.manager().tabPane(project.id(), console);
+        expect(root.manager().paneCount() == 3 && root.manager().selectedPane() == console,
+                "DockingManager tabPane should add the pane to the target tab group and select it");
+        DockLayoutSnapshot snapshot = root.manager().snapshot();
+        expect(snapshot.root().kind() == dev.sixik.unigui.widgets.DockNode.Kind.SPLIT
+                        && snapshot.root().first().paneIds().equals(java.util.List.of(project.id(), console.id()))
+                        && snapshot.root().first().selectedPaneId().equals(console.id())
+                        && snapshot.root().second().paneIds().equals(java.util.List.of(inspector.id())),
+                "DockLayoutSnapshot should capture split/tree pane ids and selected tab without object identity");
+
+        root.measure(new LayoutContext(360.0f, 180.0f));
+        root.arrange(new MutableRect(0.0f, 0.0f, 360.0f, 180.0f));
+        expect(console.content().layoutBounds().width() > 0.0f && console.content().layoutBounds().height() > 0.0f,
+                "DockingRoot should arrange the selected tab content into its leaf content area");
+        expect(project.content().layoutBounds().width() == 0.0f,
+                "DockingRoot should collapse non-selected tab content bounds");
+
+        DrawList drawList = new DrawList();
+        root.render(new DefaultRenderContext(drawList));
+        expect(hasText(drawList, "Console") && hasText(drawList, "Inspector"),
+                "DockingRoot renderer should draw visible tab headers for split leaves");
+
+        root.handle(new PointerPressedEvent(root, 6.0f, 6.0f, 6.0f, 6.0f, 0, PointerButton.PRIMARY));
+        expect(root.manager().selectedPane() == project,
+                "DockingRoot tab click should select the clicked pane");
+        root.handle(new PointerReleasedEvent(root, 6.0f, 6.0f, 6.0f, 6.0f, 0, PointerButton.PRIMARY));
+        expect(!root.dragController().active() && dockContext.capturedPointer(0) == null,
+                "DockingRoot tab click should release pending dock drag without crossing threshold");
+
+        dockContext.routedEvents().dispatch(new PointerPressedEvent(root, 96.0f, 6.0f, 96.0f, 6.0f, 0, PointerButton.PRIMARY));
+        expect(root.dragController().active() && !root.dockDragging() && dockContext.capturedPointer(0) == root,
+                "DockingRoot tab press should capture pointer and wait for drag threshold");
+        dockContext.routedEvents().dispatch(new PointerMovedEvent(root, 98.0f, 7.0f, 98.0f, 7.0f, 0));
+        expect(drag.started == 0 && !root.dockDropPreview().valid(),
+                "DockingRoot should not start dock drag before the movement threshold");
+        dockContext.routedEvents().dispatch(new PointerMovedEvent(root, 260.0f, 80.0f, 260.0f, 80.0f, 0));
+        DockDropIntent activePreview = root.dockDropPreview();
+        expect(root.dockDragging()
+                        && drag.started == 1
+                        && drag.moved >= 1
+                        && activePreview.valid()
+                        && activePreview.targetPaneId().equals(inspector.id())
+                        && activePreview.area() == DockArea.CENTER,
+                "DockingRoot dock drag should publish preview intent over a target tab group center");
+        DrawList previewDrawList = new DrawList();
+        root.render(new DefaultRenderContext(previewDrawList));
+        expect(hasCommand(previewDrawList, DrawCommandType.ROUNDED_RECT),
+                "DockingRoot should render dock drop preview chrome while dragging");
+        dockContext.routedEvents().dispatch(new PointerReleasedEvent(root, 260.0f, 80.0f, 260.0f, 80.0f, 0, PointerButton.PRIMARY));
+        expect(!root.dragController().active()
+                        && dockContext.capturedPointer(0) == null
+                        && drag.committed == 1
+                        && drag.lastChecked
+                        && preview.count >= 2,
+                "DockingRoot dock release should apply drop, clear preview and release pointer capture");
+        DockLayoutSnapshot movedSnapshot = root.manager().snapshot();
+        expect(movedSnapshot.root().second().paneIds().equals(java.util.List.of(inspector.id(), console.id()))
+                        && movedSnapshot.root().second().selectedPaneId().equals(console.id()),
+                "DockingManager should move dragged pane into the target tab group on CENTER drop");
+
+        WindowWidget floating = root.manager().floatPane(console.id());
+        expect(floating != null && floating.content() == console.content() && floating.title().equals("Console"),
+                "DockingManager.floatPane should remove a pane and wrap its content in a WindowWidget");
+        expect(root.manager().paneCount() == 2 && !root.manager().containsPane(console.id()),
+                "DockingManager.floatPane should remove the floated pane from the dock model");
+
+        root.manager().closePane(inspector.id());
+        expect(root.manager().paneCount() == 1 && root.rootNode().isLeaf() && root.manager().containsPane(project.id()),
+                "DockingManager should compact empty split branches after closing a pane");
+        expect(changes.count >= 5 && changes.lastText.equals("close"),
+                "DockingRoot should emit dock layout change events for model mutations");
+
+        DefaultUIContext floatContext = new DefaultUIContext();
+        DockingRoot floatingRoot = new DockingRoot();
+        floatingRoot.setUiContextInternal(floatContext);
+        DockPane floatingPane = new DockPane("floating", "Floating", testDockContent("Floating body"));
+        Counter floatingDrag = new Counter();
+        floatingRoot.onDragEnded(event -> {
+            floatingDrag.committed++;
+            floatingDrag.lastChecked = event.dropped();
+            floatingDrag.lastText = event.intent().area().name();
+        });
+        floatingRoot.addPane(floatingPane);
+        floatingRoot.measure(new LayoutContext(220.0f, 120.0f));
+        floatingRoot.arrange(new MutableRect(0.0f, 0.0f, 220.0f, 120.0f));
+        floatContext.routedEvents().dispatch(new PointerPressedEvent(floatingRoot, 8.0f, 6.0f, 8.0f, 6.0f, 0, PointerButton.PRIMARY));
+        floatContext.routedEvents().dispatch(new PointerMovedEvent(floatingRoot, 260.0f, 48.0f, 260.0f, 48.0f, 0));
+        expect(floatingRoot.dockDropPreview().floating(),
+                "DockingRoot should create FLOAT drop intent when dragging outside root bounds");
+        floatContext.routedEvents().dispatch(new PointerReleasedEvent(floatingRoot, 260.0f, 48.0f, 260.0f, 48.0f, 0, PointerButton.PRIMARY));
+        expect(floatingDrag.committed == 1
+                        && floatingDrag.lastChecked
+                        && floatingDrag.lastText.equals("FLOAT")
+                        && floatingRoot.lastFloatingWindow() != null
+                        && floatingRoot.lastFloatingWindow().content() == floatingPane.content()
+                        && floatingRoot.manager().paneCount() == 0,
+                "DockingRoot FLOAT drop should detach the pane and expose a WindowWidget bridge");
+
+        DefaultUIContext workspaceContext = new DefaultUIContext();
+        DockingRoot workspace = new DockingRoot();
+        workspace.setUiContextInternal(workspaceContext);
+        workspace.addDocument("scene", "Scene", testDockContent("Scene body"))
+                .addDocument("recipe", "Recipe", testDockContent("Recipe body"))
+                .addToolPane("assets", "Assets", testDockContent("Assets body"), DockArea.LEFT)
+                .addToolPane("inspector", "Inspector", testDockContent("Inspector body"), DockArea.RIGHT)
+                .addToolPane("log", "Log", testDockContent("Log body"), DockArea.BOTTOM)
+                .selectPane("scene");
+        DockPane scene = workspace.manager().findPane("scene");
+        DockPane recipe = workspace.manager().findPane("recipe");
+        DockPane assets = workspace.manager().findPane("assets");
+        DockPane inspectorTool = workspace.manager().findPane("inspector");
+        DockPane log = workspace.manager().findPane("log");
+        recipe.dirty(true);
+        assets.pinned(false).autoHide(true);
+        expect(scene.kind() == DockPaneKind.DOCUMENT
+                        && recipe.document()
+                        && assets.tool()
+                        && inspectorTool.tool()
+                        && log.tool(),
+                "DockingRoot document/tool helpers should mark document and tool pane kinds");
+        expect(workspace.manager().paneCount() == 5
+                        && workspace.manager().containsPane("scene")
+                        && workspace.manager().containsPane("assets"),
+                "DockingRoot document/tool helpers should build center documents plus side tool panes");
+
+        workspace.measure(new LayoutContext(420.0f, 220.0f));
+        workspace.arrange(new MutableRect(0.0f, 0.0f, 420.0f, 220.0f));
+        DrawList workspaceDrawList = new DrawList();
+        workspace.render(new DefaultRenderContext(workspaceDrawList));
+        expect(hasText(workspaceDrawList, "Scene")
+                        && hasText(workspaceDrawList, "Recipe")
+                        && hasText(workspaceDrawList, "Assets")
+                        && hasText(workspaceDrawList, "Inspector")
+                        && hasText(workspaceDrawList, "Log"),
+                "DockingRoot document/tool workspace should render center and side tab headers");
+
+        workspaceContext.routedEvents().dispatch(new KeyPressedEvent(
+                workspace, KeyCodes.TAB, 0, KeyModifiers.CONTROL));
+        expect(workspace.manager().selectedPane() == recipe,
+                "DockingRoot Ctrl+Tab shortcut should select next document tab in the active group");
+        workspaceContext.routedEvents().dispatch(new KeyPressedEvent(
+                workspace, KeyCodes.TAB, 0, KeyModifiers.CONTROL | KeyModifiers.SHIFT));
+        expect(workspace.manager().selectedPane() == scene,
+                "DockingRoot Ctrl+Shift+Tab shortcut should select previous document tab in the active group");
+        workspaceContext.routedEvents().dispatch(new KeyPressedEvent(
+                workspace, KeyCodes.W, 0, KeyModifiers.CONTROL));
+        expect(!workspace.manager().containsPane(scene.id())
+                        && workspace.manager().containsPane(recipe.id())
+                        && workspace.manager().paneCount() == 4,
+                "DockingRoot Ctrl+W shortcut should close the active tab without breaking the dock tree");
+
+        DockingRoot overflowRoot = new DockingRoot();
+        final dev.sixik.unigui.widgets.render.DockPaneState[] capturedPaneState = new dev.sixik.unigui.widgets.render.DockPaneState[1];
+        overflowRoot.paneRenderer((draw, state) -> capturedPaneState[0] = state);
+        for (int i = 0; i < 6; i++) {
+            overflowRoot.addDocument("doc" + i, "Doc " + i, testDockContent("Doc body " + i));
+        }
+        overflowRoot.measure(new LayoutContext(120.0f, 80.0f));
+        overflowRoot.arrange(new MutableRect(0.0f, 0.0f, 120.0f, 80.0f));
+        overflowRoot.render(new DefaultRenderContext(new DrawList()));
+        expect(capturedPaneState[0] != null
+                        && capturedPaneState[0].overflow()
+                        && capturedPaneState[0].firstVisibleTab() == 0
+                        && capturedPaneState[0].lastVisibleTab() < capturedPaneState[0].tabs().size() - 1,
+                "DockingRoot tab overflow strategy should expose a clipped visible range in renderer state");
+
+        DockLayoutSnapshot workspaceSnapshot = workspace.manager().snapshot();
+        String encodedSnapshot = DockLayoutSnapshotCodec.encode(workspaceSnapshot);
+        DockLayoutSnapshot decodedSnapshot = DockLayoutSnapshotCodec.decode(encodedSnapshot);
+        expect(decodedSnapshot.equals(workspaceSnapshot),
+                "DockLayoutSnapshotCodec should round-trip snapshot tree shape, selected tabs and active pane id");
+
+        DockingRoot restoredWorkspace = new DockingRoot();
+        Counter restoreCounter = new Counter();
+        restoredWorkspace.onLayoutRestored(event -> {
+            restoreCounter.count++;
+            restoreCounter.resized = event.restoredPaneCount();
+            restoreCounter.moved = event.missingPaneCount();
+        });
+        DockPane restoredScene = DockPane.document("scene", "Scene", testDockContent("Restored scene"));
+        DockPane restoredRecipe = DockPane.document("recipe", "Recipe", testDockContent("Restored recipe"));
+        DockPane restoredAssets = DockPane.tool("assets", "Assets", testDockContent("Restored assets"));
+        DockPane restoredInspector = DockPane.tool("inspector", "Inspector", testDockContent("Restored inspector"));
+        DockPane restoredLog = DockPane.tool("log", "Log", testDockContent("Restored log"));
+        restoredWorkspace.restoreLayout(decodedSnapshot, java.util.Map.of(
+                restoredScene.id(), restoredScene,
+                restoredRecipe.id(), restoredRecipe,
+                restoredAssets.id(), restoredAssets,
+                restoredInspector.id(), restoredInspector,
+                restoredLog.id(), restoredLog));
+        expect(restoredWorkspace.manager().paneCount() == 4
+                        && restoredWorkspace.manager().containsPane("recipe")
+                        && restoredWorkspace.manager().containsPane("assets")
+                        && restoredWorkspace.manager().selectedPane().id().equals(decodedSnapshot.activePaneId())
+                        && restoreCounter.count == 1
+                        && restoreCounter.resized == 4
+                        && restoreCounter.moved == 0,
+                "DockingRoot restore should rebuild known panes, preserve active pane id and publish restore event");
+        expect(restoredWorkspace.manager().snapshot().equals(decodedSnapshot),
+                "DockingRoot restore should preserve snapshot tree shape when all referenced panes are registered");
+
+        DockingRoot missingWorkspace = new DockingRoot();
+        Counter missingRestoreCounter = new Counter();
+        missingWorkspace.onLayoutRestored(event -> {
+            missingRestoreCounter.count++;
+            missingRestoreCounter.resized = event.restoredPaneCount();
+            missingRestoreCounter.moved = event.missingPaneCount();
+        });
+        missingWorkspace.restoreLayout(decodedSnapshot, java.util.Map.of(
+                restoredRecipe.id(), DockPane.document("recipe", "Recipe", testDockContent("Only recipe")),
+                restoredAssets.id(), DockPane.tool("assets", "Assets", testDockContent("Only assets"))));
+        expect(missingWorkspace.manager().paneCount() == 2
+                        && missingWorkspace.manager().containsPane("recipe")
+                        && missingWorkspace.manager().containsPane("assets")
+                        && !missingWorkspace.manager().containsPane("inspector")
+                        && missingRestoreCounter.count == 1
+                        && missingRestoreCounter.resized == 2
+                        && missingRestoreCounter.moved >= 1,
+                "DockingRoot restore should ignore missing pane ids without crashing and report them");
+
+        DefaultUIContext uxContext = new DefaultUIContext();
+        DockingRoot uxRoot = new DockingRoot();
+        uxRoot.setUiContextInternal(uxContext);
+        final dev.sixik.unigui.widgets.render.DockPaneState[] uxPaneState = new dev.sixik.unigui.widgets.render.DockPaneState[1];
+        final dev.sixik.unigui.widgets.render.DockingRootState[] uxRootState = new dev.sixik.unigui.widgets.render.DockingRootState[1];
+        uxRoot.paneRenderer((draw, state) -> uxPaneState[0] = state);
+        uxRoot.rootRenderer((draw, state) -> uxRootState[0] = state);
+        uxRoot.addDocument("ux-a", "UX A", testDockContent("UX A body"))
+                .addDocument("ux-b", "UX B", testDockContent("UX B body"))
+                .selectPane("ux-a");
+        uxRoot.measure(new LayoutContext(240.0f, 100.0f));
+        uxRoot.arrange(new MutableRect(0.0f, 0.0f, 240.0f, 100.0f));
+        uxContext.routedEvents().dispatch(new PointerMovedEvent(uxRoot, 8.0f, 6.0f, 8.0f, 6.0f, 0));
+        uxRoot.render(new DefaultRenderContext(new DrawList()));
+        expect(uxPaneState[0].tabs().get(0).hovered() && uxPaneState[0].tabs().get(0).active(),
+                "DockingRoot renderer state should expose hovered and active tab flags");
+        uxContext.routedEvents().dispatch(new PointerPressedEvent(uxRoot, 8.0f, 6.0f, 8.0f, 6.0f, 0, PointerButton.PRIMARY));
+        uxRoot.render(new DefaultRenderContext(new DrawList()));
+        expect(uxPaneState[0].tabs().get(0).pressed(),
+                "DockingRoot renderer state should expose pressed tab flag");
+        uxContext.routedEvents().dispatch(new PointerMovedEvent(uxRoot, 160.0f, 40.0f, 160.0f, 40.0f, 0));
+        uxRoot.render(new DefaultRenderContext(new DrawList()));
+        expect(uxPaneState[0].tabs().get(0).dragging()
+                        && uxRootState[0].dockDragging()
+                        && uxRootState[0].dropPreviewVisible(),
+                "DockingRoot renderer state should expose dragging tab and root preview flags");
+        uxContext.routedEvents().dispatch(new PointerReleasedEvent(uxRoot, 160.0f, 40.0f, 160.0f, 40.0f, 0, PointerButton.PRIMARY));
+    }
+
+    private static Label testDockContent(String text) {
+        Label label = new Label(text);
+        label.preferredSize(90.0f, 18.0f).grow(1.0f);
+        return label;
     }
 
     private void testFixedRowVirtualizationCore() {
@@ -3088,6 +3561,7 @@ public final class BasicControlsSelfTest {
         private int lastNewColumn = -1;
         private float lastOldWidth;
         private float lastNewWidth;
+        private float lastNewHeight;
     }
 
     private static final class TestMinecraftPreviewWidget extends MinecraftPreviewWidget {

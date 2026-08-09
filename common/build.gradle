@@ -21,6 +21,33 @@ tasks.register("layoutV3SelfTest", JavaExec) {
     mainClass = "dev.sixik.unigui.tests.LayoutV3SelfTest"
 }
 
+tasks.register("windowManagerSelfTest", JavaExec) {
+    group = "verification"
+    description = "Runs window manager self-test assertions."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.WindowManagerSelfTest"
+}
+
+tasks.register("dockingModelSelfTest", JavaExec) {
+    group = "verification"
+    description = "Runs docking model self-test assertions."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.DockingModelSelfTest"
+}
+
+tasks.register("dockingInteractionSelfTest", JavaExec) {
+    group = "verification"
+    description = "Runs docking interaction self-test assertions."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.DockingInteractionSelfTest"
+}
+
 tasks.named("test") {
     dependsOn tasks.named("layoutV3SelfTest")
+    dependsOn tasks.named("windowManagerSelfTest")
+    dependsOn tasks.named("dockingModelSelfTest")
+    dependsOn tasks.named("dockingInteractionSelfTest")
 }

@@ -5,20 +5,36 @@ import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.layout.PositionType;
 import dev.sixik.unigui.api.event.Event;
 import dev.sixik.unigui.api.event.EventPhase;
+import dev.sixik.unigui.api.event.PointerEvent;
 import dev.sixik.unigui.api.event.PointerPressedEvent;
+import dev.sixik.unigui.api.event.WidgetEvent;
 import dev.sixik.unigui.api.input.PointerButton;
+import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
+import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
 import dev.sixik.unigui.impl.widget.WidgetBase;
+import dev.sixik.unigui.widgets.render.ModalScrimRenderer;
+import dev.sixik.unigui.widgets.render.ModalScrimState;
+
+import java.util.IdentityHashMap;
+import java.util.Map;
 
 /**
  * Root-level overlay host that renders overlay children above a normal content widget.
  */
 public final class OverlayLayer extends PanelWidget {
+    private final WindowManager windowManager = new WindowManager(this);
+    private final Map<Widget, Integer> overlayZ = new IdentityHashMap<>();
+    private final MutableColor modalScrimColor = new MutableColor(0.0f, 0.0f, 0.0f, 0.48f);
     private Widget content;
+    private ModalScrimRenderer modalScrimRenderer;
+    private int nextOverlayZ = 1;
 
     public OverlayLayer() {
     }
@@ -29,6 +45,33 @@ public final class OverlayLayer extends PanelWidget {
 
     public Widget content() {
         return content;
+    }
+
+    public WindowManager windows() {
+        return windowManager;
+    }
+
+    public WindowManager windowManager() {
+        return windowManager;
+    }
+
+    public MutableColor modalScrimColor() {
+        return modalScrimColor;
+    }
+
+    public ModalScrimRenderer modalScrimRenderer() {
+        return modalScrimRenderer;
+    }
+
+    public OverlayLayer modalScrimRenderer(ModalScrimRenderer modalScrimRenderer) {
+        if (this.modalScrimRenderer == modalScrimRenderer) return this;
+        this.modalScrimRenderer = modalScrimRenderer;
+        invalidate(dev.sixik.unigui.api.core.InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public OverlayLayer useDefaultModalScrimRenderer() {
+        return modalScrimRenderer(null);
     }
 
     public OverlayLayer content(Widget content) {
@@ -48,6 +91,10 @@ public final class OverlayLayer extends PanelWidget {
             if (overlay instanceof WidgetBase base) {
                 base.layout(style -> style.position(PositionType.ABSOLUTE));
             }
+            overlayZ.putIfAbsent(overlay, nextOverlayZ++);
+            if (overlay instanceof WindowWidget window) {
+                windowManager.register(window);
+            }
             addChild(overlay);
         }
         return this;
@@ -55,6 +102,10 @@ public final class OverlayLayer extends PanelWidget {
 
     public OverlayLayer removeOverlay(Widget overlay) {
         if (overlay != null && overlay != content) {
+            if (overlay instanceof WindowWidget window) {
+                windowManager.unregister(window);
+            }
+            overlayZ.remove(overlay);
             removeChild(overlay);
         }
         return this;
@@ -68,12 +119,39 @@ public final class OverlayLayer extends PanelWidget {
 
     @Override
     public void handle(Event event) {
+        WindowWidget topModal = windowManager.topModalWindow();
+        if (topModal != null
+                && event instanceof WidgetEvent widgetEvent
+                && widgetEvent.phase() == EventPhase.CAPTURE
+                && !isDescendantOrSelf(widgetEvent.target(), topModal)) {
+            event.cancel();
+            return;
+        }
         if (event instanceof PointerPressedEvent pointer
                 && pointer.phase() == EventPhase.CAPTURE
                 && pointer.button() == PointerButton.PRIMARY) {
+            WindowWidget window = windowAncestor(pointer.target());
+            if (window != null && window.opened()) {
+                windowManager.activate(window);
+            }
             closeOverlaysOutside(pointer.target());
         }
         super.handle(event);
+    }
+
+    @Override
+    protected void renderChildren(RenderContext context) {
+        applyQueuedMutations();
+        WindowWidget topModal = windowManager.topModalWindow();
+        boolean scrimRendered = false;
+        for (Widget child : children()) {
+            if (child.visibility() != Visibility.VISIBLE) continue;
+            if (topModal != null && child == topModal && !scrimRendered) {
+                renderModalScrim(context);
+                scrimRendered = true;
+            }
+            child.render(context);
+        }
     }
 
     @Override
@@ -158,11 +236,54 @@ public final class OverlayLayer extends PanelWidget {
                 || isDescendantOrSelf(target, popup.anchor());
     }
 
+    private static WindowWidget windowAncestor(Widget widget) {
+        Widget current = widget;
+        while (current != null) {
+            if (current instanceof WindowWidget window) return window;
+            current = current.parent();
+        }
+        return null;
+    }
+
     private void enforceOverlayOrder() {
-        reorderChildren((left, right) -> Integer.compare(overlayRank(left), overlayRank(right)));
+        reorderChildren((left, right) -> {
+            int rankCompare = Integer.compare(overlayRank(left), overlayRank(right));
+            if (rankCompare != 0) return rankCompare;
+            return Integer.compare(overlayZ(left), overlayZ(right));
+        });
     }
 
     private int overlayRank(Widget widget) {
         return widget == content ? 0 : 1;
+    }
+
+    private void renderModalScrim(RenderContext context) {
+        effectiveModalScrimRenderer().render(new DrawScope(context, transform()), modalScrimState());
+    }
+
+    private ModalScrimRenderer effectiveModalScrimRenderer() {
+        return modalScrimRenderer == null ? WidgetsRender.modalScrim() : modalScrimRenderer;
+    }
+
+    private ModalScrimState modalScrimState() {
+        return new ModalScrimState(
+                layoutBounds().x(),
+                layoutBounds().y(),
+                layoutBounds().width(),
+                layoutBounds().height(),
+                windowManager.topModalWindow() != null,
+                windowManager.modalStackDepth(),
+                modalScrimColor.copy());
+    }
+
+    void bringOverlayToFront(Widget overlay) {
+        if (overlay == null || overlay == content) return;
+        overlayZ.put(overlay, nextOverlayZ++);
+        enforceOverlayOrder();
+        windowManager.invalidateOrder();
+    }
+
+    int overlayZ(Widget overlay) {
+        return overlayZ.getOrDefault(overlay, 0);
     }
 }

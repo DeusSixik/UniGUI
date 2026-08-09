@@ -4,7 +4,12 @@ import dev.sixik.unigui.widgets.render.LoadingIndicatorRenderer;
 import dev.sixik.unigui.widgets.render.ChartRenderer;
 import dev.sixik.unigui.widgets.render.ColorPickerRenderer;
 import dev.sixik.unigui.widgets.render.DatePickerRenderer;
+import dev.sixik.unigui.widgets.render.DockDropPreviewRenderer;
+import dev.sixik.unigui.widgets.render.DockPaneRenderer;
+import dev.sixik.unigui.widgets.render.DockSplitHandleRenderer;
+import dev.sixik.unigui.widgets.render.DockingRootRenderer;
 import dev.sixik.unigui.widgets.render.GraphViewRenderer;
+import dev.sixik.unigui.widgets.render.ModalScrimRenderer;
 import dev.sixik.unigui.widgets.render.ProgressBarRenderer;
 import dev.sixik.unigui.widgets.render.ScrollBarRenderer;
 import dev.sixik.unigui.widgets.render.SliderRenderer;
@@ -148,6 +153,26 @@ public interface WidgetsRenderImpl {
     }
 
     default WindowRenderer window() {
+        return null;
+    }
+
+    default ModalScrimRenderer modalScrim() {
+        return null;
+    }
+
+    default DockingRootRenderer dockingRoot() {
+        return null;
+    }
+
+    default DockPaneRenderer dockPane() {
+        return null;
+    }
+
+    default DockSplitHandleRenderer dockSplitHandle() {
+        return null;
+    }
+
+    default DockDropPreviewRenderer dockDropPreview() {
         return null;
     }
 

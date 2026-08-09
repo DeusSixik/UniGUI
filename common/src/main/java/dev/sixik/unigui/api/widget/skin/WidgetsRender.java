@@ -4,7 +4,12 @@ import dev.sixik.unigui.widgets.render.LoadingIndicatorRenderer;
 import dev.sixik.unigui.widgets.render.ChartRenderer;
 import dev.sixik.unigui.widgets.render.ColorPickerRenderer;
 import dev.sixik.unigui.widgets.render.DatePickerRenderer;
+import dev.sixik.unigui.widgets.render.DockDropPreviewRenderer;
+import dev.sixik.unigui.widgets.render.DockPaneRenderer;
+import dev.sixik.unigui.widgets.render.DockSplitHandleRenderer;
+import dev.sixik.unigui.widgets.render.DockingRootRenderer;
 import dev.sixik.unigui.widgets.render.GraphViewRenderer;
+import dev.sixik.unigui.widgets.render.ModalScrimRenderer;
 import dev.sixik.unigui.widgets.render.ButtonRenderer;
 import dev.sixik.unigui.widgets.render.ProgressBarRenderer;
 import dev.sixik.unigui.widgets.render.ScrollBarRenderer;
@@ -193,6 +198,31 @@ public final class WidgetsRender {
     public static WindowRenderer window() {
         WindowRenderer renderer = impl.window();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.window() : renderer;
+    }
+
+    public static ModalScrimRenderer modalScrim() {
+        ModalScrimRenderer renderer = impl.modalScrim();
+        return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.modalScrim() : renderer;
+    }
+
+    public static DockingRootRenderer dockingRoot() {
+        DockingRootRenderer renderer = impl.dockingRoot();
+        return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.dockingRoot() : renderer;
+    }
+
+    public static DockPaneRenderer dockPane() {
+        DockPaneRenderer renderer = impl.dockPane();
+        return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.dockPane() : renderer;
+    }
+
+    public static DockSplitHandleRenderer dockSplitHandle() {
+        DockSplitHandleRenderer renderer = impl.dockSplitHandle();
+        return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.dockSplitHandle() : renderer;
+    }
+
+    public static DockDropPreviewRenderer dockDropPreview() {
+        DockDropPreviewRenderer renderer = impl.dockDropPreview();
+        return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.dockDropPreview() : renderer;
     }
 
     public static SplitterRenderer splitter() {

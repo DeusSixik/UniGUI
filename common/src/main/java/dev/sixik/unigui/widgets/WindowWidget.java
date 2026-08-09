@@ -4,10 +4,25 @@ import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
 import dev.sixik.unigui.api.event.Event;
 import dev.sixik.unigui.api.event.EventPhase;
+import dev.sixik.unigui.api.event.EventListener;
+import dev.sixik.unigui.api.event.EventSubscription;
+import dev.sixik.unigui.api.event.ModalClosedEvent;
+import dev.sixik.unigui.api.event.ModalOpenedEvent;
 import dev.sixik.unigui.api.event.PointerEvent;
 import dev.sixik.unigui.api.event.PointerMovedEvent;
 import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.event.PointerReleasedEvent;
+import dev.sixik.unigui.api.event.WindowActivatedEvent;
+import dev.sixik.unigui.api.event.WindowClosedEvent;
+import dev.sixik.unigui.api.event.WindowDeactivatedEvent;
+import dev.sixik.unigui.api.event.WindowMoveEndedEvent;
+import dev.sixik.unigui.api.event.WindowMovedEvent;
+import dev.sixik.unigui.api.event.WindowMoveStartedEvent;
+import dev.sixik.unigui.api.event.WindowOpenedEvent;
+import dev.sixik.unigui.api.event.WindowResizeEndedEvent;
+import dev.sixik.unigui.api.event.WindowResizedEvent;
+import dev.sixik.unigui.api.event.WindowResizeStartedEvent;
+import dev.sixik.unigui.api.input.MouseCursor;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.LayoutContext;
@@ -39,6 +54,7 @@ public final class WindowWidget extends Box implements OverlayHostAware {
     private static final float DEFAULT_HEADER_HEIGHT = 22.0f;
     private static final float DEFAULT_MIN_WIDTH = 120.0f;
     private static final float DEFAULT_MIN_HEIGHT = 64.0f;
+    private static final float RESIZE_HANDLE_SIZE = 6.0f;
 
     private final Button closeButton = new Button("x");
     private final MutableColor headerColor = new MutableColor(0.075f, 0.090f, 0.125f, 0.98f);
@@ -48,9 +64,15 @@ public final class WindowWidget extends Box implements OverlayHostAware {
     private String title = "";
     private RichText richTitle = RichText.plain("");
     private Widget content;
+    private WindowManager windowManager;
     private boolean open;
+    private boolean active;
+    private boolean modal;
     private boolean draggable = true;
     private boolean dragging;
+    private boolean resizable = true;
+    private boolean resizing;
+    private ResizeHandle resizeHandle = ResizeHandle.NONE;
     private boolean closeButtonVisible = true;
     private boolean closeOnOutsideClick;
     private boolean constrainToHost = true;
@@ -63,11 +85,19 @@ public final class WindowWidget extends Box implements OverlayHostAware {
     private float dragOffsetX;
     private float dragOffsetY;
     private int dragPointerId = -1;
+    private int resizePointerId = -1;
+    private float resizeStartRootX;
+    private float resizeStartRootY;
+    private float resizeStartX;
+    private float resizeStartY;
+    private float resizeStartWidth;
+    private float resizeStartHeight;
     private final MutableRect hostBounds = new MutableRect();
 
     public WindowWidget() {
         backgroundVisible(true);
         borderVisible(true);
+        focusable(true);
         radius(4.0f);
         background().set(0.030f, 0.035f, 0.050f, 0.98f);
         borderColor().set(0.25f, 0.78f, 1.0f, 0.85f);
@@ -146,6 +176,30 @@ public final class WindowWidget extends Box implements OverlayHostAware {
         return open;
     }
 
+    public boolean active() {
+        return active;
+    }
+
+    public boolean modal() {
+        return modal;
+    }
+
+    public WindowWidget modal(boolean modal) {
+        if (this.modal == modal) return this;
+        boolean oldModal = this.modal;
+        this.modal = modal;
+        if (windowManager != null) {
+            windowManager.onModalChanged(this, oldModal, modal);
+        }
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public WindowWidget openModal() {
+        modal(true);
+        return open();
+    }
+
     public WindowWidget open() {
         return open(true);
     }
@@ -161,9 +215,22 @@ public final class WindowWidget extends Box implements OverlayHostAware {
     public WindowWidget open(boolean open) {
         if (this.open == open) return this;
         this.open = open;
-        visible(open);
         if (!open) {
             stopDragging();
+            stopResizing();
+            if (windowManager != null) {
+                windowManager.onWindowClosed(this);
+            } else {
+                setActiveInternal(false);
+            }
+            dispatchWindowClosed();
+            visible(false);
+        } else {
+            visible(true);
+            dispatchWindowOpened();
+            if (windowManager != null) {
+                windowManager.onWindowOpened(this);
+            }
         }
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
@@ -184,6 +251,28 @@ public final class WindowWidget extends Box implements OverlayHostAware {
 
     public boolean dragging() {
         return dragging;
+    }
+
+    public boolean resizable() {
+        return resizable;
+    }
+
+    public WindowWidget resizable(boolean resizable) {
+        if (this.resizable == resizable) return this;
+        this.resizable = resizable;
+        if (!resizable) {
+            stopResizing();
+        }
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public boolean resizing() {
+        return resizing;
+    }
+
+    public String resizeHandle() {
+        return resizeHandle.publicName();
     }
 
     public boolean closeButtonVisible() {
@@ -301,6 +390,54 @@ public final class WindowWidget extends Box implements OverlayHostAware {
         return renderer(null);
     }
 
+    public EventSubscription onOpened(EventListener<? super WindowOpenedEvent> listener) {
+        return on(WindowOpenedEvent.TYPE, listener);
+    }
+
+    public EventSubscription onClosed(EventListener<? super WindowClosedEvent> listener) {
+        return on(WindowClosedEvent.TYPE, listener);
+    }
+
+    public EventSubscription onActivated(EventListener<? super WindowActivatedEvent> listener) {
+        return on(WindowActivatedEvent.TYPE, listener);
+    }
+
+    public EventSubscription onDeactivated(EventListener<? super WindowDeactivatedEvent> listener) {
+        return on(WindowDeactivatedEvent.TYPE, listener);
+    }
+
+    public EventSubscription onMoveStarted(EventListener<? super WindowMoveStartedEvent> listener) {
+        return on(WindowMoveStartedEvent.TYPE, listener);
+    }
+
+    public EventSubscription onMoved(EventListener<? super WindowMovedEvent> listener) {
+        return on(WindowMovedEvent.TYPE, listener);
+    }
+
+    public EventSubscription onMoveEnded(EventListener<? super WindowMoveEndedEvent> listener) {
+        return on(WindowMoveEndedEvent.TYPE, listener);
+    }
+
+    public EventSubscription onResizeStarted(EventListener<? super WindowResizeStartedEvent> listener) {
+        return on(WindowResizeStartedEvent.TYPE, listener);
+    }
+
+    public EventSubscription onResized(EventListener<? super WindowResizedEvent> listener) {
+        return on(WindowResizedEvent.TYPE, listener);
+    }
+
+    public EventSubscription onResizeEnded(EventListener<? super WindowResizeEndedEvent> listener) {
+        return on(WindowResizeEndedEvent.TYPE, listener);
+    }
+
+    public EventSubscription onModalOpened(EventListener<? super ModalOpenedEvent> listener) {
+        return on(ModalOpenedEvent.TYPE, listener);
+    }
+
+    public EventSubscription onModalClosed(EventListener<? super ModalClosedEvent> listener) {
+        return on(ModalClosedEvent.TYPE, listener);
+    }
+
     @Override
     public void measure(LayoutContext context) {
         if (visibility() == Visibility.COLLAPSED || !open) {
@@ -395,10 +532,34 @@ public final class WindowWidget extends Box implements OverlayHostAware {
         if (event instanceof PointerEvent pointerEvent && pointerEvent.phase() == EventPhase.CAPTURE) return;
 
         if (event instanceof PointerPressedEvent pointer
+                && pointer.button() == PointerButton.PRIMARY
+                && resizable
+                && resizeHandle(pointer.rootX(), pointer.rootY()) != ResizeHandle.NONE) {
+            if (windowManager != null) {
+                windowManager.activate(this);
+            }
+            startResizing(pointer, resizeHandle(pointer.rootX(), pointer.rootY()));
+            event.cancel();
+        } else if (event instanceof PointerMovedEvent pointer
+                && resizing
+                && pointer.pointerId() == resizePointerId) {
+            updateResize(pointer.rootX(), pointer.rootY());
+            event.cancel();
+        } else if (event instanceof PointerReleasedEvent pointer
+                && pointer.button() == PointerButton.PRIMARY
+                && resizing
+                && pointer.pointerId() == resizePointerId) {
+            updateResize(pointer.rootX(), pointer.rootY());
+            stopResizing();
+            event.cancel();
+        } else if (event instanceof PointerPressedEvent pointer
                 && pointer.phase() == EventPhase.TARGET
                 && pointer.button() == PointerButton.PRIMARY
                 && draggable
                 && isInHeader(pointer.rootX(), pointer.rootY())) {
+            if (windowManager != null) {
+                windowManager.activate(this);
+            }
             startDragging(pointer);
             event.cancel();
         } else if (event instanceof PointerMovedEvent pointer
@@ -414,6 +575,21 @@ public final class WindowWidget extends Box implements OverlayHostAware {
             stopDragging();
             event.cancel();
         }
+    }
+
+    @Override
+    public MouseCursor mouseCursorAt(float localX, float localY) {
+        if (!enabled() || !resizable || !open) {
+            return super.mouseCursorAt(localX, localY);
+        }
+        ResizeHandle handle = resizeHandle(layoutBounds().x() + localX, layoutBounds().y() + localY);
+        return switch (handle) {
+            case LEFT, RIGHT -> MouseCursor.RESIZE_HORIZONTAL;
+            case TOP, BOTTOM -> MouseCursor.RESIZE_VERTICAL;
+            case TOP_LEFT, BOTTOM_RIGHT -> MouseCursor.RESIZE_HORIZONTAL;
+            case TOP_RIGHT, BOTTOM_LEFT -> MouseCursor.RESIZE_VERTICAL;
+            case NONE -> super.mouseCursorAt(localX, localY);
+        };
     }
 
     @Override
@@ -442,7 +618,19 @@ public final class WindowWidget extends Box implements OverlayHostAware {
                 TextEngine.measureTextHeight(richTitle),
                 headerColor.copy(),
                 headerSeparatorColor.copy(),
-                titleColor.copy());
+                titleColor.copy(),
+                active,
+                focused(),
+                dragging,
+                resizing,
+                resizeHandle.publicName(),
+                modal,
+                resizable);
+    }
+
+    private boolean focused() {
+        UIContext context = uiContext();
+        return context != null && context.focusManager().isFocused(this);
     }
 
     private void startDragging(PointerPressedEvent pointer) {
@@ -455,6 +643,7 @@ public final class WindowWidget extends Box implements OverlayHostAware {
             context.capturePointer(pointer.pointerId(), this);
         }
         invalidate(InvalidationFlags.VISUAL);
+        dispatchWindowMoveStarted();
     }
 
     private void updateDrag(float rootX, float rootY) {
@@ -468,7 +657,10 @@ public final class WindowWidget extends Box implements OverlayHostAware {
             nextX = clamp(nextX, 0.0f, Math.max(0.0f, hostBounds.width() - width));
             nextY = clamp(nextY, 0.0f, Math.max(0.0f, hostBounds.height() - height));
         }
+        float oldX = x;
+        float oldY = y;
         position(nextX, nextY);
+        dispatchWindowMoved(oldX, oldY, x, y);
     }
 
     private void stopDragging() {
@@ -480,6 +672,208 @@ public final class WindowWidget extends Box implements OverlayHostAware {
         dragging = false;
         dragPointerId = -1;
         invalidate(InvalidationFlags.VISUAL);
+        dispatchWindowMoveEnded();
+    }
+
+    private void startResizing(PointerPressedEvent pointer, ResizeHandle handle) {
+        resizing = true;
+        resizeHandle = handle == null ? ResizeHandle.NONE : handle;
+        resizePointerId = pointer.pointerId();
+        resizeStartRootX = pointer.rootX();
+        resizeStartRootY = pointer.rootY();
+        resizeStartX = x;
+        resizeStartY = y;
+        resizeStartWidth = Math.max(minWindowWidth, layoutBounds().width());
+        resizeStartHeight = Math.max(minWindowHeight, layoutBounds().height());
+        UIContext context = uiContext();
+        if (context != null) {
+            context.capturePointer(pointer.pointerId(), this);
+        }
+        invalidate(InvalidationFlags.VISUAL);
+        dispatchWindowResizeStarted();
+    }
+
+    private void updateResize(float rootX, float rootY) {
+        if (!resizing || resizeHandle == ResizeHandle.NONE) return;
+        float dx = rootX - resizeStartRootX;
+        float dy = rootY - resizeStartRootY;
+        float nextX = resizeStartX;
+        float nextY = resizeStartY;
+        float nextWidth = resizeStartWidth;
+        float nextHeight = resizeStartHeight;
+
+        if (resizeHandle.affectsLeft()) {
+            nextX = resizeStartX + dx;
+            nextWidth = resizeStartWidth - dx;
+            if (nextWidth < minWindowWidth) {
+                nextX -= minWindowWidth - nextWidth;
+                nextWidth = minWindowWidth;
+            }
+        } else if (resizeHandle.affectsRight()) {
+            nextWidth = resizeStartWidth + dx;
+        }
+
+        if (resizeHandle.affectsTop()) {
+            nextY = resizeStartY + dy;
+            nextHeight = resizeStartHeight - dy;
+            if (nextHeight < minWindowHeight) {
+                nextY -= minWindowHeight - nextHeight;
+                nextHeight = minWindowHeight;
+            }
+        } else if (resizeHandle.affectsBottom()) {
+            nextHeight = resizeStartHeight + dy;
+        }
+
+        nextWidth = Math.max(minWindowWidth, nextWidth);
+        nextHeight = Math.max(minWindowHeight, nextHeight);
+
+        if (constrainToHost && (hostBounds.width() > 0.0f || hostBounds.height() > 0.0f)) {
+            if (resizeHandle.affectsLeft()) {
+                float minX = 0.0f;
+                if (nextX < minX) {
+                    nextWidth += nextX - minX;
+                    nextX = minX;
+                }
+            }
+            if (resizeHandle.affectsTop()) {
+                float minY = 0.0f;
+                if (nextY < minY) {
+                    nextHeight += nextY - minY;
+                    nextY = minY;
+                }
+            }
+            float maxWidth = Math.max(minWindowWidth, hostBounds.width() - nextX);
+            float maxHeight = Math.max(minWindowHeight, hostBounds.height() - nextY);
+            nextWidth = Math.min(nextWidth, maxWidth);
+            nextHeight = Math.min(nextHeight, maxHeight);
+        }
+
+        float oldX = x;
+        float oldY = y;
+        float oldWidth = layoutBounds().width();
+        float oldHeight = layoutBounds().height();
+        setWindowRect(nextX, nextY, nextWidth, nextHeight);
+        dispatchWindowResized(oldX, oldY, oldWidth, oldHeight, x, y, nextWidth, nextHeight);
+    }
+
+    private void stopResizing() {
+        if (!resizing) return;
+        UIContext context = uiContext();
+        if (context != null && resizePointerId >= 0) {
+            context.releasePointer(resizePointerId, this);
+        }
+        resizing = false;
+        ResizeHandle completedHandle = resizeHandle;
+        resizeHandle = ResizeHandle.NONE;
+        resizePointerId = -1;
+        invalidate(InvalidationFlags.VISUAL);
+        dispatchWindowResizeEnded(completedHandle);
+    }
+
+    private void setWindowRect(float x, float y, float width, float height) {
+        position(x, y);
+        preferredSize(Math.max(minWindowWidth, width), Math.max(minWindowHeight, height));
+    }
+
+    void setWindowManagerInternal(WindowManager windowManager) {
+        if (this.windowManager == windowManager) return;
+        this.windowManager = windowManager;
+    }
+
+    void setActiveInternal(boolean active) {
+        if (this.active == active) return;
+        this.active = active;
+        invalidate(InvalidationFlags.VISUAL);
+    }
+
+    WindowActivatedEvent dispatchWindowActivated(WindowWidget previousWindow) {
+        WindowActivatedEvent event = new WindowActivatedEvent(this, previousWindow);
+        dispatchWindowEvent(event);
+        return event;
+    }
+
+    WindowDeactivatedEvent dispatchWindowDeactivated(WindowWidget nextWindow) {
+        WindowDeactivatedEvent event = new WindowDeactivatedEvent(this, nextWindow);
+        dispatchWindowEvent(event);
+        return event;
+    }
+
+    ModalOpenedEvent dispatchModalOpened(int stackDepth) {
+        ModalOpenedEvent event = new ModalOpenedEvent(this, stackDepth);
+        dispatchWindowEvent(event);
+        return event;
+    }
+
+    ModalClosedEvent dispatchModalClosed(int stackDepth) {
+        ModalClosedEvent event = new ModalClosedEvent(this, stackDepth);
+        dispatchWindowEvent(event);
+        return event;
+    }
+
+    private WindowOpenedEvent dispatchWindowOpened() {
+        WindowOpenedEvent event = new WindowOpenedEvent(this);
+        dispatchWindowEvent(event);
+        return event;
+    }
+
+    private WindowClosedEvent dispatchWindowClosed() {
+        WindowClosedEvent event = new WindowClosedEvent(this);
+        dispatchWindowEvent(event);
+        return event;
+    }
+
+    private WindowMoveStartedEvent dispatchWindowMoveStarted() {
+        WindowMoveStartedEvent event = new WindowMoveStartedEvent(this, x, y);
+        dispatchWindowEvent(event);
+        return event;
+    }
+
+    private WindowMovedEvent dispatchWindowMoved(float oldX, float oldY, float newX, float newY) {
+        if (oldX == newX && oldY == newY) return null;
+        WindowMovedEvent event = new WindowMovedEvent(this, oldX, oldY, newX, newY);
+        dispatchWindowEvent(event);
+        return event;
+    }
+
+    private WindowMoveEndedEvent dispatchWindowMoveEnded() {
+        WindowMoveEndedEvent event = new WindowMoveEndedEvent(this, x, y);
+        dispatchWindowEvent(event);
+        return event;
+    }
+
+    private WindowResizeStartedEvent dispatchWindowResizeStarted() {
+        WindowResizeStartedEvent event = new WindowResizeStartedEvent(this,
+                x, y, layoutBounds().width(), layoutBounds().height(), resizeHandle.publicName());
+        dispatchWindowEvent(event);
+        return event;
+    }
+
+    private WindowResizedEvent dispatchWindowResized(float oldX, float oldY, float oldWidth, float oldHeight,
+                                                     float newX, float newY, float newWidth, float newHeight) {
+        if (oldX == newX && oldY == newY && oldWidth == newWidth && oldHeight == newHeight) return null;
+        WindowResizedEvent event = new WindowResizedEvent(this,
+                oldX, oldY, oldWidth, oldHeight,
+                newX, newY, newWidth, newHeight,
+                resizeHandle.publicName());
+        dispatchWindowEvent(event);
+        return event;
+    }
+
+    private WindowResizeEndedEvent dispatchWindowResizeEnded(ResizeHandle completedHandle) {
+        WindowResizeEndedEvent event = new WindowResizeEndedEvent(this,
+                x, y, layoutBounds().width(), layoutBounds().height(),
+                completedHandle == null ? "" : completedHandle.publicName());
+        dispatchWindowEvent(event);
+        return event;
+    }
+
+    private void dispatchWindowEvent(dev.sixik.unigui.api.event.WidgetEvent event) {
+        UIContext context = uiContext();
+        if (context == null) {
+            emit(event);
+        } else {
+            context.routedEvents().dispatch(event);
+        }
     }
 
     private boolean isInHeader(float rootX, float rootY) {
@@ -490,7 +884,58 @@ public final class WindowWidget extends Box implements OverlayHostAware {
                 && rootY <= bounds.y() + Math.min(headerHeight, bounds.height());
     }
 
+    private ResizeHandle resizeHandle(float rootX, float rootY) {
+        if (!resizable || !open) return ResizeHandle.NONE;
+        RectView bounds = layoutBounds();
+        if (bounds.width() <= 0.0f || bounds.height() <= 0.0f) return ResizeHandle.NONE;
+        boolean left = rootX >= bounds.x() && rootX <= bounds.x() + RESIZE_HANDLE_SIZE;
+        boolean right = rootX >= bounds.x() + bounds.width() - RESIZE_HANDLE_SIZE && rootX <= bounds.x() + bounds.width();
+        boolean top = rootY >= bounds.y() && rootY <= bounds.y() + RESIZE_HANDLE_SIZE;
+        boolean bottom = rootY >= bounds.y() + bounds.height() - RESIZE_HANDLE_SIZE && rootY <= bounds.y() + bounds.height();
+        if (left && top) return ResizeHandle.TOP_LEFT;
+        if (right && top) return ResizeHandle.TOP_RIGHT;
+        if (left && bottom) return ResizeHandle.BOTTOM_LEFT;
+        if (right && bottom) return ResizeHandle.BOTTOM_RIGHT;
+        if (left) return ResizeHandle.LEFT;
+        if (right) return ResizeHandle.RIGHT;
+        if (top) return ResizeHandle.TOP;
+        if (bottom) return ResizeHandle.BOTTOM;
+        return ResizeHandle.NONE;
+    }
+
     private static float clamp(float value, float min, float max) {
         return Math.max(min, Math.min(max, value));
+    }
+
+    private enum ResizeHandle {
+        NONE,
+        LEFT,
+        RIGHT,
+        TOP,
+        BOTTOM,
+        TOP_LEFT,
+        TOP_RIGHT,
+        BOTTOM_LEFT,
+        BOTTOM_RIGHT;
+
+        private boolean affectsLeft() {
+            return this == LEFT || this == TOP_LEFT || this == BOTTOM_LEFT;
+        }
+
+        private boolean affectsRight() {
+            return this == RIGHT || this == TOP_RIGHT || this == BOTTOM_RIGHT;
+        }
+
+        private boolean affectsTop() {
+            return this == TOP || this == TOP_LEFT || this == TOP_RIGHT;
+        }
+
+        private boolean affectsBottom() {
+            return this == BOTTOM || this == BOTTOM_LEFT || this == BOTTOM_RIGHT;
+        }
+
+        private String publicName() {
+            return name().toLowerCase(java.util.Locale.ROOT);
+        }
     }
 }
