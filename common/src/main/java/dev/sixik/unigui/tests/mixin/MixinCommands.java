@@ -2,6 +2,7 @@ package dev.sixik.unigui.tests.mixin;
 
 import com.mojang.brigadier.CommandDispatcher;
 import dev.sixik.unigui.tests.TestCommands;
+import dev.sixik.unigui.tests.UniGuiDemo;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -22,5 +23,6 @@ public class MixinCommands {
     @Inject(method = "<init>", at = @At("RETURN"))
     public void register(Commands.CommandSelection commandSelection, CommandBuildContext commandBuildContext, CallbackInfo ci) {
         TestCommands.register(this.dispatcher);
+//        UniGuiDemo.register(this.dispatcher);
     }
 }
