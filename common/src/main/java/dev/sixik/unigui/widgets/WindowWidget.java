@@ -68,6 +68,8 @@ public final class WindowWidget extends Box implements OverlayHostAware {
     private boolean open;
     private boolean active;
     private boolean modal;
+    private boolean fixedModal;
+    private boolean dockRedockLocked;
     private boolean draggable = true;
     private boolean dragging;
     private boolean resizable = true;
@@ -188,9 +190,39 @@ public final class WindowWidget extends Box implements OverlayHostAware {
         if (this.modal == modal) return this;
         boolean oldModal = this.modal;
         this.modal = modal;
+        if (fixedModal && modal) {
+            stopDragging();
+            stopResizing();
+        }
         if (windowManager != null) {
             windowManager.onModalChanged(this, oldModal, modal);
         }
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public boolean fixedModal() {
+        return fixedModal;
+    }
+
+    public WindowWidget fixedModal(boolean fixedModal) {
+        if (this.fixedModal == fixedModal) return this;
+        this.fixedModal = fixedModal;
+        if (fixedModal && modal) {
+            stopDragging();
+            stopResizing();
+        }
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public boolean dockRedockLocked() {
+        return dockRedockLocked;
+    }
+
+    public WindowWidget dockRedockLocked(boolean dockRedockLocked) {
+        if (this.dockRedockLocked == dockRedockLocked) return this;
+        this.dockRedockLocked = dockRedockLocked;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
@@ -243,7 +275,7 @@ public final class WindowWidget extends Box implements OverlayHostAware {
     public WindowWidget draggable(boolean draggable) {
         if (this.draggable == draggable) return this;
         this.draggable = draggable;
-        if (!draggable) {
+        if (!effectiveDraggable()) {
             stopDragging();
         }
         return this;
@@ -260,7 +292,7 @@ public final class WindowWidget extends Box implements OverlayHostAware {
     public WindowWidget resizable(boolean resizable) {
         if (this.resizable == resizable) return this;
         this.resizable = resizable;
-        if (!resizable) {
+        if (!effectiveResizable()) {
             stopResizing();
         }
         invalidate(InvalidationFlags.VISUAL);
@@ -533,7 +565,7 @@ public final class WindowWidget extends Box implements OverlayHostAware {
 
         if (event instanceof PointerPressedEvent pointer
                 && pointer.button() == PointerButton.PRIMARY
-                && resizable
+                && effectiveResizable()
                 && resizeHandle(pointer.rootX(), pointer.rootY()) != ResizeHandle.NONE) {
             if (windowManager != null) {
                 windowManager.activate(this);
@@ -553,10 +585,9 @@ public final class WindowWidget extends Box implements OverlayHostAware {
             stopResizing();
             event.cancel();
         } else if (event instanceof PointerPressedEvent pointer
-                && pointer.phase() == EventPhase.TARGET
                 && pointer.button() == PointerButton.PRIMARY
-                && draggable
-                && isInHeader(pointer.rootX(), pointer.rootY())) {
+                && effectiveDraggable()
+                && canStartDraggingFrom(pointer)) {
             if (windowManager != null) {
                 windowManager.activate(this);
             }
@@ -579,7 +610,7 @@ public final class WindowWidget extends Box implements OverlayHostAware {
 
     @Override
     public MouseCursor mouseCursorAt(float localX, float localY) {
-        if (!enabled() || !resizable || !open) {
+        if (!enabled() || !effectiveResizable() || !open) {
             return super.mouseCursorAt(localX, localY);
         }
         ResizeHandle handle = resizeHandle(layoutBounds().x() + localX, layoutBounds().y() + localY);
@@ -625,7 +656,7 @@ public final class WindowWidget extends Box implements OverlayHostAware {
                 resizing,
                 resizeHandle.publicName(),
                 modal,
-                resizable);
+                effectiveResizable());
     }
 
     private boolean focused() {
@@ -884,8 +915,59 @@ public final class WindowWidget extends Box implements OverlayHostAware {
                 && rootY <= bounds.y() + Math.min(headerHeight, bounds.height());
     }
 
+    private boolean canStartDraggingFrom(PointerPressedEvent pointer) {
+        if (pointer.phase() != EventPhase.TARGET && pointer.phase() != EventPhase.BUBBLE) return false;
+        if (!contains(layoutBounds(), pointer.rootX(), pointer.rootY())) return false;
+        if (isInHeader(pointer.rootX(), pointer.rootY())) return true;
+        return !routeContainsInputWidget(pointer.target(), pointer.rootX(), pointer.rootY());
+    }
+
+    private boolean effectiveDraggable() {
+        return draggable && !(modal && fixedModal);
+    }
+
+    private boolean effectiveResizable() {
+        return resizable && !(modal && fixedModal);
+    }
+
+    private boolean routeContainsInputWidget(Widget target, float rootX, float rootY) {
+        Widget current = target;
+        while (current != null && current != this) {
+            if (isInputWidget(current, rootX, rootY)) return true;
+            current = current.parent();
+        }
+        return false;
+    }
+
+    private boolean isInputWidget(Widget widget, float rootX, float rootY) {
+        if (widget == null || widget == content) return false;
+        if (widget instanceof TextWidget && !(widget instanceof TextInput)) return false;
+        if (widget.focusable()) return true;
+        MouseCursor cursor = widget.mouseCursorAt(rootX - widget.layoutBounds().x(), rootY - widget.layoutBounds().y());
+        if (cursor != MouseCursor.DEFAULT) return true;
+        return widget instanceof ScrollView
+                || widget instanceof ScrollBar
+                || widget instanceof Slider
+                || widget instanceof ComboBox
+                || widget instanceof DatePicker
+                || widget instanceof ColorPicker
+                || widget instanceof TreeView
+                || widget instanceof VirtualTableView
+                || widget instanceof ContextMenu
+                || widget instanceof Popup
+                || widget instanceof WindowWidget;
+    }
+
+    private static boolean contains(RectView bounds, float rootX, float rootY) {
+        return bounds != null
+                && rootX >= bounds.x()
+                && rootX <= bounds.x() + bounds.width()
+                && rootY >= bounds.y()
+                && rootY <= bounds.y() + bounds.height();
+    }
+
     private ResizeHandle resizeHandle(float rootX, float rootY) {
-        if (!resizable || !open) return ResizeHandle.NONE;
+        if (!effectiveResizable() || !open) return ResizeHandle.NONE;
         RectView bounds = layoutBounds();
         if (bounds.width() <= 0.0f || bounds.height() <= 0.0f) return ResizeHandle.NONE;
         boolean left = rootX >= bounds.x() && rootX <= bounds.x() + RESIZE_HANDLE_SIZE;

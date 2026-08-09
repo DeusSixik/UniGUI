@@ -256,6 +256,16 @@ public final class DockingManager {
     }
 
     public WindowWidget floatPane(String paneId) {
+        DockPane removed = detachPaneForFloating(paneId);
+        if (removed == null) return null;
+
+        WindowWidget window = new WindowWidget(removed.richTitle(), removed.content());
+        window.closeButtonVisible(removed.closable());
+        window.resizable(true);
+        return window;
+    }
+
+    public DockPane detachPaneForFloating(String paneId) {
         DockPane removed = detachPane(paneId, true);
         if (removed == null) return null;
         if (paneId.equals(activePaneId)) {
@@ -263,11 +273,8 @@ public final class DockingManager {
             activePaneId = selected == null ? "" : selected.id();
         }
 
-        WindowWidget window = new WindowWidget(removed.richTitle(), removed.content());
-        window.closeButtonVisible(removed.closable());
-        window.resizable(true);
         changed("float", paneId, "");
-        return window;
+        return removed;
     }
 
     private DockPane detachPane(String paneId, boolean unregisterContent) {

@@ -21,6 +21,7 @@ import dev.sixik.unigui.api.event.PointerReleasedEvent;
 import dev.sixik.unigui.api.event.ScrollEvent;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.input.KeyModifiers;
+import dev.sixik.unigui.api.input.MouseCursor;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
@@ -86,8 +87,21 @@ public final class DockingRoot extends Box {
     private int hoveredOverflowMenuIndex = -1;
     private final Map<String, Integer> tabScrollOffsets = new HashMap<>();
     private final Map<String, Integer> overflowMenuScrollOffsets = new HashMap<>();
+    private DockDropIntent floatingDropPreviewIntent = DockDropIntent.none();
     private float tabHeight = 22.0f;
     private float splitHandleThickness = 5.0f;
+    private boolean allowFloatingOutsideHost;
+    private boolean floatingWindowsRedockLocked;
+
+    // Split-drag state
+    private String hoveredSplitNodeId = "";
+    private String pressedSplitNodeId = "";
+    private int splitDragPointerId = -1;
+    private float splitDragStartX;
+    private float splitDragStartY;
+    private float splitDragStartRatio;
+    private DockSplitOrientation splitDragOrientation;
+    private float splitDragAvailable;  // total track length (px) at drag start
 
     public DockingRoot() {
         backgroundVisible(true);
@@ -117,6 +131,26 @@ public final class DockingRoot extends Box {
 
     public DockDropIntent dockDropPreview() {
         return dragController.previewIntent();
+    }
+
+    public boolean allowFloatingOutsideHost() {
+        return allowFloatingOutsideHost;
+    }
+
+    public DockingRoot allowFloatingOutsideHost(boolean allowFloatingOutsideHost) {
+        if (this.allowFloatingOutsideHost == allowFloatingOutsideHost) return this;
+        this.allowFloatingOutsideHost = allowFloatingOutsideHost;
+        return this;
+    }
+
+    public boolean floatingWindowsRedockLocked() {
+        return floatingWindowsRedockLocked;
+    }
+
+    public DockingRoot floatingWindowsRedockLocked(boolean floatingWindowsRedockLocked) {
+        if (this.floatingWindowsRedockLocked == floatingWindowsRedockLocked) return this;
+        this.floatingWindowsRedockLocked = floatingWindowsRedockLocked;
+        return this;
     }
 
     public boolean dockDragging() {
@@ -344,6 +378,25 @@ public final class DockingRoot extends Box {
     }
 
     @Override
+    public MouseCursor mouseCursorAt(float localX, float localY) {
+        if (!enabled() || visibility() != Visibility.VISIBLE) return MouseCursor.DEFAULT;
+        // Show resize cursor when hovering or dragging a split handle
+        if (!pressedSplitNodeId.isEmpty()) {
+            return splitDragOrientation == DockSplitOrientation.HORIZONTAL
+                    ? MouseCursor.RESIZE_HORIZONTAL : MouseCursor.RESIZE_VERTICAL;
+        }
+        if (!hoveredSplitNodeId.isEmpty()) {
+            SplitNodeHit hit = splitHandleAt(rootNode(), layoutBounds(),
+                    layoutBounds().x() + localX, layoutBounds().y() + localY);
+            if (hit != null) {
+                return hit.orientation() == DockSplitOrientation.HORIZONTAL
+                        ? MouseCursor.RESIZE_HORIZONTAL : MouseCursor.RESIZE_VERTICAL;
+            }
+        }
+        return super.mouseCursorAt(localX, localY);
+    }
+
+    @Override
     public void handle(Event event) {
         if (visibility() != Visibility.VISIBLE || !enabled()) return;
         if (handleOverflowMenuEventBeforeChildren(event)) return;
@@ -357,6 +410,35 @@ public final class DockingRoot extends Box {
             return;
         }
 
+        // ── Split drag: move ──────────────────────────────────────────────────
+        if (event instanceof PointerMovedEvent pointer && !pressedSplitNodeId.isEmpty()
+                && pointer.pointerId() == splitDragPointerId) {
+            DockNode node = findSplitNodeById(rootNode(), pressedSplitNodeId);
+            if (node != null) {
+                float newRatio = computeNewSplitRatio(
+                        pointer.rootX(), pointer.rootY());
+                node.splitRatio(newRatio);
+                invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+            }
+            event.cancel();
+            return;
+        }
+
+        // ── Split drag: end ───────────────────────────────────────────────────
+        if (event instanceof PointerReleasedEvent pointer
+                && pointer.button() == PointerButton.PRIMARY
+                && !pressedSplitNodeId.isEmpty()
+                && pointer.pointerId() == splitDragPointerId) {
+            UIContext ctx = uiContext();
+            if (ctx != null) ctx.releasePointer(pointer.pointerId(), this);
+            pressedSplitNodeId = "";
+            splitDragPointerId = -1;
+            invalidate(InvalidationFlags.VISUAL);
+            event.cancel();
+            return;
+        }
+
+        // ── Tab drag: move ────────────────────────────────────────────────────
         if (event instanceof PointerMovedEvent pointer && dragController.active()) {
             if (dragController.move(pointer.pointerId(), pointer.rootX(), pointer.rootY())) {
                 event.cancel();
@@ -371,15 +453,24 @@ public final class DockingRoot extends Box {
             return;
         }
 
+        // ── Hover: split handle & pane tab ────────────────────────────────────
         if (event instanceof PointerMovedEvent pointer && pointer.phase() == EventPhase.TARGET) {
-            DockPane pane = tabAt(rootNode(), layoutBounds(), pointer.rootX(), pointer.rootY());
-            setHoveredPane(pane == null ? "" : pane.id());
+            SplitNodeHit splitHit = splitHandleAt(rootNode(), layoutBounds(), pointer.rootX(), pointer.rootY());
+            setHoveredSplitNode(splitHit == null ? "" : splitHit.node().id());
+            if (splitHit == null) {
+                DockPane pane = tabAt(rootNode(), layoutBounds(), pointer.rootX(), pointer.rootY());
+                setHoveredPane(pane == null ? "" : pane.id());
+            } else {
+                setHoveredPane("");
+            }
         }
 
         if (event instanceof PointerExitedEvent exited && exited.phase() == EventPhase.TARGET) {
             setHoveredPane("");
+            setHoveredSplitNode("");
         }
 
+        // ── Tab drag: end ─────────────────────────────────────────────────────
         if (event instanceof PointerReleasedEvent pointer
                 && pointer.button() == PointerButton.PRIMARY
                 && dragController.active()) {
@@ -399,9 +490,36 @@ public final class DockingRoot extends Box {
             setPressedPane("");
         }
 
+        // ── Press: split handle or tab ────────────────────────────────────────
         if (event instanceof PointerPressedEvent pointer
                 && pointer.phase() == EventPhase.TARGET
                 && pointer.button() == PointerButton.PRIMARY) {
+
+            // Split handle has priority over overflow button and tabs
+            SplitNodeHit splitHit = splitHandleAt(rootNode(), layoutBounds(), pointer.rootX(), pointer.rootY());
+            if (splitHit != null) {
+                pressedSplitNodeId = splitHit.node().id();
+                splitDragPointerId = pointer.pointerId();
+                splitDragStartX = pointer.rootX();
+                splitDragStartY = pointer.rootY();
+                splitDragStartRatio = splitHit.node().splitRatio();
+                splitDragOrientation = splitHit.orientation();
+                // Compute total track length for ratio math
+                RectView nb = splitHit.nodeBounds();
+                float thickness = Math.min(splitHandleThickness,
+                        Math.max(0.0f, splitDragOrientation == DockSplitOrientation.HORIZONTAL
+                                ? nb.width() : nb.height()));
+                splitDragAvailable = Math.max(1.0f,
+                        (splitDragOrientation == DockSplitOrientation.HORIZONTAL
+                                ? nb.width() : nb.height()) - thickness);
+                UIContext ctx = uiContext();
+                if (ctx != null) ctx.capturePointer(pointer.pointerId(), this);
+                openOverflowNodeId = "";
+                invalidate(InvalidationFlags.VISUAL);
+                event.cancel();
+                return;
+            }
+
             LeafHit overflowButton = overflowButtonAt(rootNode(), layoutBounds(), pointer.rootX(), pointer.rootY());
             if (overflowButton != null) {
                 openOverflowNodeId = overflowButton.node().id().equals(openOverflowNodeId) ? "" : overflowButton.node().id();
@@ -500,6 +618,13 @@ public final class DockingRoot extends Box {
         invalidate(InvalidationFlags.VISUAL);
     }
 
+    private void setHoveredSplitNode(String nodeId) {
+        String normalized = nodeId == null ? "" : nodeId;
+        if (hoveredSplitNodeId.equals(normalized)) return;
+        hoveredSplitNodeId = normalized;
+        invalidate(InvalidationFlags.VISUAL);
+    }
+
     private void setHoveredOverflowMenuIndex(int index) {
         int normalized = Math.max(-1, index);
         if (hoveredOverflowMenuIndex == normalized) return;
@@ -573,6 +698,10 @@ public final class DockingRoot extends Box {
     DockDropIntent resolveDockDropIntent(String sourcePaneId, float rootX, float rootY) {
         RectView rootBounds = layoutBounds();
         if (!contains(rootBounds, rootX, rootY)) {
+            RectView hostBounds = floatingHostBounds();
+            if (!allowFloatingOutsideHost && !contains(hostBounds, rootX, rootY)) {
+                return DockDropIntent.none();
+            }
             return DockDropIntent.floating(sourcePaneId, rootX, rootY);
         }
         LeafHit hit = leafAt(rootNode(), rootBounds, rootX, rootY);
@@ -592,15 +721,159 @@ public final class DockingRoot extends Box {
     boolean applyDockDropIntent(String paneId, DockDropIntent intent) {
         if (intent == null || !intent.valid()) return false;
         if (intent.floating()) {
-            lastFloatingWindow = manager.floatPane(paneId);
+            DockPane pane = manager.detachPaneForFloating(paneId);
+            lastFloatingWindow = pane == null ? null : createFloatingPaneWindow(pane, intent);
             if (lastFloatingWindow != null) {
-                lastFloatingWindow.position(intent.x(), intent.y()).open();
                 return true;
             }
             return false;
         }
         lastFloatingWindow = null;
         return manager.dockPane(paneId, intent.targetPaneId(), intent.area());
+    }
+
+    private WindowWidget createFloatingPaneWindow(DockPane pane, DockDropIntent intent) {
+        WindowWidget window = new WindowWidget(pane.richTitle(), pane.content());
+        float width = Math.max(180.0f, intent.width());
+        float height = Math.max(112.0f, intent.height());
+        window.preferredSize(width, height);
+        window.minWindowSize(120.0f, 64.0f);
+        window.closeButtonVisible(false);
+        window.closeOnOutsideClick(false);
+        window.constrainToHost(true);
+        window.resizable(true);
+        window.dockRedockLocked(floatingWindowsRedockLocked);
+
+        OverlayLayer overlay = nearestOverlayLayer(this);
+        RectView hostBounds = overlay == null ? floatingHostBounds() : overlay.layoutBounds();
+        float hostWidth = Math.max(0.0f, hostBounds.width());
+        float hostHeight = Math.max(0.0f, hostBounds.height());
+        float relativeX = intent.x() - hostBounds.x();
+        float relativeY = intent.y() - hostBounds.y();
+        if (!allowFloatingOutsideHost) {
+            relativeX = clamp(relativeX, 0.0f, Math.max(0.0f, hostWidth - width));
+            relativeY = clamp(relativeY, 0.0f, Math.max(0.0f, hostHeight - height));
+        }
+        window.position(relativeX, relativeY);
+
+        if (overlay != null) {
+            configureFloatingPaneRedock(window, pane, overlay);
+            overlay.addOverlay(window);
+        }
+        window.open();
+        return window;
+    }
+
+    private void configureFloatingPaneRedock(WindowWidget window, DockPane pane, OverlayLayer overlay) {
+        final DockingRoot[] previewTarget = {null};
+        window.onMoved(event -> {
+            if (event.phase() != EventPhase.TARGET) return;
+            if (window.dockRedockLocked()) {
+                if (previewTarget[0] != null) {
+                    previewTarget[0].floatingDropPreview(DockDropIntent.none());
+                    previewTarget[0] = null;
+                }
+                return;
+            }
+            float dropX = floatingWindowDropX(window, overlay, event.newX());
+            float dropY = floatingWindowDropY(window, overlay, event.newY());
+            DockingRoot target = dockingRootAt(overlay, window, dropX, dropY);
+            if (previewTarget[0] != null && previewTarget[0] != target) {
+                previewTarget[0].floatingDropPreview(DockDropIntent.none());
+            }
+            previewTarget[0] = target;
+            if (target == null) return;
+            target.floatingDropPreview(target.resolveDockDropIntent(pane.id(), dropX, dropY));
+        });
+        window.onMoveEnded(event -> {
+            if (event.phase() != EventPhase.TARGET) return;
+            if (window.dockRedockLocked()) {
+                if (previewTarget[0] != null) {
+                    previewTarget[0].floatingDropPreview(DockDropIntent.none());
+                    previewTarget[0] = null;
+                }
+                return;
+            }
+            float dropX = floatingWindowDropX(window, overlay, event.x());
+            float dropY = floatingWindowDropY(window, overlay, event.y());
+            DockingRoot target = dockingRootAt(overlay, window, dropX, dropY);
+            if (previewTarget[0] != null) {
+                previewTarget[0].floatingDropPreview(DockDropIntent.none());
+                previewTarget[0] = null;
+            }
+            if (target == null) return;
+            redockFloatingPane(window, pane, overlay, target, dropX, dropY);
+            event.cancel();
+        });
+    }
+
+    private static float floatingWindowDropX(WindowWidget window, OverlayLayer overlay, float windowX) {
+        return overlay.layoutBounds().x() + windowX
+                + Math.min(Math.max(16.0f, window.layoutBounds().width() * 0.5f), 96.0f);
+    }
+
+    private static float floatingWindowDropY(WindowWidget window, OverlayLayer overlay, float windowY) {
+        return overlay.layoutBounds().y() + windowY + Math.max(6.0f, window.headerHeight() * 0.5f);
+    }
+
+    private void redockFloatingPane(WindowWidget window, DockPane pane, OverlayLayer overlay,
+                                    DockingRoot target, float rootX, float rootY) {
+        window.content(null);
+        window.close();
+        overlay.removeOverlay(window);
+        target.floatingDropPreview(DockDropIntent.none());
+
+        LeafHit hit = target.leafAt(target.rootNode(), target.layoutBounds(), rootX, rootY);
+        if (hit == null || hit.node().panes().isEmpty()) {
+            target.manager().addPane(pane);
+        } else {
+            DockPane targetPane = hit.node().selectedPane();
+            if (targetPane == null) targetPane = hit.node().panes().get(0);
+            DockArea area = target.dropArea(hit.bounds(), rootX, rootY);
+            if (area == DockArea.CENTER || area == DockArea.TAB) {
+                target.manager().tabPane(targetPane.id(), pane);
+            } else {
+                target.manager().splitPane(targetPane.id(), area, pane);
+            }
+        }
+        if (lastFloatingWindow == window) {
+            lastFloatingWindow = null;
+        }
+    }
+
+    private RectView floatingHostBounds() {
+        OverlayLayer overlay = nearestOverlayLayer(this);
+        if (overlay != null && (overlay.layoutBounds().width() > 0.0f || overlay.layoutBounds().height() > 0.0f)) {
+            return overlay.layoutBounds();
+        }
+        Widget current = this;
+        Widget top = this;
+        while (current != null) {
+            top = current;
+            current = current.parent();
+        }
+        RectView bounds = top.layoutBounds();
+        return bounds == null ? layoutBounds() : bounds;
+    }
+
+    private static OverlayLayer nearestOverlayLayer(Widget widget) {
+        Widget current = widget;
+        while (current != null) {
+            if (current instanceof OverlayLayer overlay) return overlay;
+            current = current.parent();
+        }
+        return null;
+    }
+
+    private static DockingRoot dockingRootAt(Widget root, Widget ignored, float rootX, float rootY) {
+        if (root == null || root == ignored || root.visibility() != Visibility.VISIBLE) return null;
+        if (!contains(root.layoutBounds(), rootX, rootY)) return null;
+        List<Widget> children = List.copyOf(root.children());
+        for (int i = children.size() - 1; i >= 0; i--) {
+            DockingRoot childHit = dockingRootAt(children.get(i), ignored, rootX, rootY);
+            if (childHit != null) return childHit;
+        }
+        return root instanceof DockingRoot dockingRoot ? dockingRoot : null;
     }
 
     private void dispatchDockEvent(dev.sixik.unigui.api.event.WidgetEvent event) {
@@ -658,6 +931,10 @@ public final class DockingRoot extends Box {
                 && rootX <= bounds.x() + bounds.width()
                 && rootY >= bounds.y()
                 && rootY <= bounds.y() + bounds.height();
+    }
+
+    private static float clamp(float value, float min, float max) {
+        return Math.max(min, Math.min(max, value));
     }
 
     private void syncPaneChildren() {
@@ -754,7 +1031,9 @@ public final class DockingRoot extends Box {
         for (DockSplitHandleState handle : splitStates(rootNode(), layoutBounds())) {
             effectiveSplitHandleRenderer().render(draw, handle);
         }
-        DockDropIntent preview = dragController.previewIntent();
+        DockDropIntent preview = dragController.previewIntent().valid()
+                ? dragController.previewIntent()
+                : floatingDropPreviewIntent;
         if (preview.valid()) {
             effectiveDropPreviewRenderer().render(draw, new DockDropPreviewState(
                     true,
@@ -766,6 +1045,13 @@ public final class DockingRoot extends Box {
                     preview.width(),
                     preview.height()));
         }
+    }
+
+    private void floatingDropPreview(DockDropIntent intent) {
+        DockDropIntent normalized = intent == null ? DockDropIntent.none() : intent;
+        if (floatingDropPreviewIntent.equals(normalized)) return;
+        floatingDropPreviewIntent = normalized;
+        invalidate(InvalidationFlags.VISUAL);
     }
 
     private void renderOverflowMenu(RenderContext context) {
@@ -872,8 +1158,11 @@ public final class DockingRoot extends Box {
     private void collectSplitStates(DockNode node, RectView bounds, List<DockSplitHandleState> result) {
         if (node == null || node.isLeaf()) return;
         SplitRects split = splitRects(bounds, node.orientation(), node.splitRatio());
+        boolean hovered = node.id().equals(hoveredSplitNodeId);
+        boolean pressed = node.id().equals(pressedSplitNodeId);
         result.add(new DockSplitHandleState(
-                split.handle().x(), split.handle().y(), split.handle().width(), split.handle().height(), node.orientation()));
+                split.handle().x(), split.handle().y(), split.handle().width(), split.handle().height(),
+                node.orientation(), hovered, pressed));
         collectSplitStates(node.first(), split.first(), result);
         collectSplitStates(node.second(), split.second(), result);
     }
@@ -1192,5 +1481,52 @@ public final class DockingRoot extends Box {
     }
 
     private record OverflowMenuItem(DockNode node, DockPane pane, int index) {
+    }
+
+    private record SplitNodeHit(DockNode node, MutableRect nodeBounds, MutableRect handleBounds,
+                                DockSplitOrientation orientation) {
+    }
+
+    // ── Split-drag helpers ────────────────────────────────────────────────────
+
+    /**
+     * Returns the split node whose handle intersects the given root-space point,
+     * or {@code null} if no handle is hit.
+     */
+    private SplitNodeHit splitHandleAt(DockNode node, RectView bounds, float rootX, float rootY) {
+        if (node == null || node.isLeaf() || bounds == null) return null;
+        if (!contains(bounds, rootX, rootY)) return null;
+        SplitRects split = splitRects(bounds, node.orientation(), node.splitRatio());
+        if (contains(split.handle(), rootX, rootY)) {
+            return new SplitNodeHit(node,
+                    new MutableRect(bounds.x(), bounds.y(), bounds.width(), bounds.height()),
+                    new MutableRect(split.handle().x(), split.handle().y(),
+                            split.handle().width(), split.handle().height()),
+                    node.orientation());
+        }
+        SplitNodeHit first = splitHandleAt(node.first(), split.first(), rootX, rootY);
+        return first != null ? first : splitHandleAt(node.second(), split.second(), rootX, rootY);
+    }
+
+    /**
+     * Finds the split node with the given id anywhere in the tree.
+     */
+    private DockNode findSplitNodeById(DockNode node, String id) {
+        if (node == null || id == null || id.isEmpty()) return null;
+        if (node.id().equals(id) && node.isSplit()) return node;
+        if (node.isLeaf()) return null;
+        DockNode found = findSplitNodeById(node.first(), id);
+        return found != null ? found : findSplitNodeById(node.second(), id);
+    }
+
+    /**
+     * Computes the new split ratio during a drag, clamped to [0.05, 0.95].
+     */
+    private float computeNewSplitRatio(float currentRootX, float currentRootY) {
+        float delta = splitDragOrientation == DockSplitOrientation.HORIZONTAL
+                ? currentRootX - splitDragStartX
+                : currentRootY - splitDragStartY;
+        float newRatio = splitDragStartRatio + delta / splitDragAvailable;
+        return Math.max(0.05f, Math.min(0.95f, newRatio));
     }
 }

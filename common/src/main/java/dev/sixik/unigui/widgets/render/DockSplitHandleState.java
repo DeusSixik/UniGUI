@@ -7,7 +7,9 @@ public record DockSplitHandleState(
         float y,
         float width,
         float height,
-        DockSplitOrientation orientation
+        DockSplitOrientation orientation,
+        boolean hovered,
+        boolean pressed
 ) {
     public DockSplitHandleState {
         orientation = orientation == null ? DockSplitOrientation.HORIZONTAL : orientation;

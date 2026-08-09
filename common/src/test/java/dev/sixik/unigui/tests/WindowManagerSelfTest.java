@@ -13,6 +13,7 @@ import dev.sixik.unigui.widgets.Button;
 import dev.sixik.unigui.widgets.Label;
 import dev.sixik.unigui.widgets.OverlayLayer;
 import dev.sixik.unigui.widgets.PanelWidget;
+import dev.sixik.unigui.widgets.TextInput;
 import dev.sixik.unigui.widgets.WindowWidget;
 import dev.sixik.unigui.api.event.PointerMovedEvent;
 import dev.sixik.unigui.api.event.PointerPressedEvent;
@@ -25,7 +26,9 @@ public final class WindowManagerSelfTest {
 
     private void run() {
         testActivationZOrderMoveClampAndResizeClamp();
+        testWindowBodyDragStartsOnTextButNotInputWidgets();
         testAlreadyOpenModalRegistrationPublishesModalOpenedAndBlocksBackgroundInput();
+        testFixedModalBlocksDraggingAndResizing();
         testCloseWhileResizingReleasesCaptureAndEndsResizeLifecycle();
         testWindowEventsCopyCancellationAcrossRoutedSnapshots();
         System.out.println("WindowManagerSelfTest passed");
@@ -152,6 +155,138 @@ public final class WindowManagerSelfTest {
                 background, 4.0f, 4.0f, 4.0f, 4.0f, 0, PointerButton.PRIMARY));
         expect(backgroundClicks.count == 0,
                 "Top modal should block pointer input to background content even when registered after open");
+    }
+
+    private void testWindowBodyDragStartsOnTextButNotInputWidgets() {
+        DefaultUIContext context = new DefaultUIContext();
+        OverlayLayer layer = new OverlayLayer(new PanelWidget());
+        layer.setUiContextInternal(context);
+
+        Label bodyText = new Label("Plain text body");
+        WindowWidget textWindow = new WindowWidget("Text drag", bodyText)
+                .position(10.0f, 8.0f)
+                .open();
+        textWindow.preferredSize(150.0f, 82.0f).grow(0.0f);
+        Counter textMove = new Counter();
+        textWindow.onMoveStarted(event -> textMove.started++);
+        textWindow.onMoveEnded(event -> textMove.ended++);
+        layer.addOverlay(textWindow);
+        layout(layer, 260.0f, 160.0f);
+
+        float textPressX = bodyText.layoutBounds().x() + 12.0f;
+        float textPressY = bodyText.layoutBounds().y() + 8.0f;
+        context.routedEvents().dispatch(new PointerPressedEvent(
+                bodyText, textPressX, textPressY, 12.0f, 8.0f, 21, PointerButton.PRIMARY));
+        expect(textWindow.dragging()
+                        && context.capturedPointer(21) == textWindow
+                        && textMove.started == 1,
+                "Pressing plain text in a window body should start window dragging");
+        context.routedEvents().dispatch(new PointerReleasedEvent(
+                textWindow, textPressX + 20.0f, textPressY + 4.0f, 20.0f, 4.0f, 21, PointerButton.PRIMARY));
+        expect(!textWindow.dragging()
+                        && context.capturedPointer(21) == null
+                        && textMove.ended == 1,
+                "Releasing a body-text drag should stop window dragging and release capture");
+
+        Button button = new Button("Input button");
+        WindowWidget buttonWindow = new WindowWidget("Button block", button)
+                .position(18.0f, 14.0f)
+                .open();
+        buttonWindow.preferredSize(150.0f, 82.0f).grow(0.0f);
+        layer.addOverlay(buttonWindow);
+        layout(layer, 260.0f, 160.0f);
+
+        float buttonPressX = button.layoutBounds().x() + 12.0f;
+        float buttonPressY = button.layoutBounds().y() + 8.0f;
+        context.routedEvents().dispatch(new PointerPressedEvent(
+                button, buttonPressX, buttonPressY, 12.0f, 8.0f, 22, PointerButton.PRIMARY));
+        expect(!buttonWindow.dragging()
+                        && context.capturedPointer(22) == null,
+                "Pressing an input button in a window body should not start window dragging");
+
+        TextInput input = new TextInput().text("Editable");
+        WindowWidget inputWindow = new WindowWidget("TextInput block", input)
+                .position(26.0f, 20.0f)
+                .open();
+        inputWindow.preferredSize(160.0f, 86.0f).grow(0.0f);
+        layer.addOverlay(inputWindow);
+        layout(layer, 280.0f, 170.0f);
+
+        float inputPressX = input.layoutBounds().x() + 12.0f;
+        float inputPressY = input.layoutBounds().y() + 8.0f;
+        context.routedEvents().dispatch(new PointerPressedEvent(
+                input, inputPressX, inputPressY, 12.0f, 8.0f, 23, PointerButton.PRIMARY));
+        expect(!inputWindow.dragging()
+                        && context.capturedPointer(23) != inputWindow,
+                "Pressing a TextInput in a window body should not start window dragging");
+    }
+
+    private void testFixedModalBlocksDraggingAndResizing() {
+        DefaultUIContext context = new DefaultUIContext();
+        OverlayLayer layer = new OverlayLayer(new PanelWidget());
+        layer.setUiContextInternal(context);
+
+        WindowWidget movableModal = new WindowWidget("Movable modal", new Label("Body"))
+                .position(12.0f, 10.0f)
+                .modal(true)
+                .open();
+        movableModal.preferredSize(120.0f, 72.0f).grow(0.0f);
+        layer.addOverlay(movableModal);
+        layout(layer, 240.0f, 150.0f);
+
+        context.routedEvents().dispatch(new PointerPressedEvent(
+                movableModal,
+                movableModal.layoutBounds().x() + 16.0f,
+                movableModal.layoutBounds().y() + 8.0f,
+                16.0f,
+                8.0f,
+                31,
+                PointerButton.PRIMARY));
+        expect(movableModal.dragging()
+                        && context.capturedPointer(31) == movableModal,
+                "Plain modal windows should remain draggable unless fixedModal is enabled");
+        context.routedEvents().dispatch(new PointerReleasedEvent(
+                movableModal,
+                movableModal.layoutBounds().x() + 16.0f,
+                movableModal.layoutBounds().y() + 8.0f,
+                16.0f,
+                8.0f,
+                31,
+                PointerButton.PRIMARY));
+
+        WindowWidget fixedModal = new WindowWidget("Fixed modal", new Label("Body"))
+                .position(24.0f, 18.0f)
+                .modal(true)
+                .fixedModal(true)
+                .open();
+        fixedModal.preferredSize(120.0f, 72.0f).grow(0.0f);
+        layer.addOverlay(fixedModal);
+        layout(layer, 240.0f, 150.0f);
+
+        context.routedEvents().dispatch(new PointerPressedEvent(
+                fixedModal,
+                fixedModal.layoutBounds().x() + 16.0f,
+                fixedModal.layoutBounds().y() + 8.0f,
+                16.0f,
+                8.0f,
+                32,
+                PointerButton.PRIMARY));
+        expect(!fixedModal.dragging()
+                        && context.capturedPointer(32) == null,
+                "fixedModal(true) should prevent header dragging");
+
+        context.routedEvents().dispatch(new PointerPressedEvent(
+                fixedModal,
+                fixedModal.layoutBounds().x() + fixedModal.layoutBounds().width() - 1.0f,
+                fixedModal.layoutBounds().y() + fixedModal.layoutBounds().height() - 1.0f,
+                fixedModal.layoutBounds().width() - 1.0f,
+                fixedModal.layoutBounds().height() - 1.0f,
+                33,
+                PointerButton.PRIMARY));
+        expect(!fixedModal.resizing()
+                        && fixedModal.resizeHandle().equals("none")
+                        && context.capturedPointer(33) == null,
+                "fixedModal(true) should prevent resize handles from starting a resize");
     }
 
     private void testCloseWhileResizingReleasesCaptureAndEndsResizeLifecycle() {

@@ -31,6 +31,7 @@ import dev.sixik.unigui.backend.minecraft.MinecraftWidgetScreen;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.*;
+import dev.sixik.unigui.widgets.render.DockSplitHandleRenderers;
 import net.minecraft.client.Minecraft;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -191,6 +192,8 @@ public final class TestCommands {
         DockPane inspector = docking.manager().findPane("inspector");
         if (inspector != null) inspector.pinned(true);
         docking.grow(1.0f);
+        // ImGui-style split: panels share a border line, no separate gap block
+        docking.splitHandleRenderer(DockSplitHandleRenderers.IMGUI_STYLE);
 
         docking.onDragStarted(event -> status.text("Docking editor: dragging " + event.paneId()));
         docking.onDropPreviewChanged(event -> {
@@ -226,6 +229,8 @@ public final class TestCommands {
         addTab.preferredSize(76.0f, 22.0f).grow(0.0f);
         Button floatPreview = new Button("Float Preview");
         floatPreview.preferredSize(104.0f, 22.0f).grow(0.0f);
+        ToggleButton lockRedock = new ToggleButton("Lock Redock");
+        lockRedock.preferredSize(96.0f, 22.0f).grow(0.0f);
         Button modal = new Button("Modal");
         modal.preferredSize(64.0f, 22.0f).grow(0.0f);
         Button render = new Button("Render: " + renderMode.get());
@@ -252,11 +257,19 @@ public final class TestCommands {
             status.text("Docking editor: floating preview opened");
         });
 
+        lockRedock.onCheckedChanged(event -> {
+            docking.floatingWindowsRedockLocked(event.newValue());
+            status.text(event.newValue()
+                    ? "Docking editor: floating dock windows will not redock"
+                    : "Docking editor: floating dock windows can redock");
+        });
+
         modal.onClick(event -> {
             WindowWidget dialog = new WindowWidget("Save Layout",
-                    samplePane("Snapshot", "This modal exists to test the overlay stack and input blocking."))
+                    samplePane("Snapshot", "Fixed modal: overlay stack blocks input, drag and resize are disabled."))
                     .position(296.0f, 124.0f)
                     .modal(true)
+                    .fixedModal(true)
                     .closeOnOutsideClick(false);
             dialog.preferredSize(250.0f, 124.0f).grow(0.0f);
             layer.addOverlay(dialog);
@@ -274,6 +287,7 @@ public final class TestCommands {
         row.addChild(hint);
         row.addChild(addTab);
         row.addChild(floatPreview);
+        row.addChild(lockRedock);
         row.addChild(modal);
         row.addChild(render);
         bar.addChild(row);
@@ -724,6 +738,8 @@ public final class TestCommands {
             assetsPane.pinned(false);
         }
         docking.preferredSize(LayoutConstraints.AUTO, 132.0f).grow(0.0f);
+        // ImGui-style split: panels share a border line, no separate gap block
+        docking.splitHandleRenderer(DockSplitHandleRenderers.IMGUI_STYLE);
         VBox dockingDemo = new VBox();
         dockingDemo.spacing(6.0f);
         dockingDemo.grow(0.0f);

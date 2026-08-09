@@ -4,6 +4,8 @@ import dev.sixik.unigui.api.event.PointerMovedEvent;
 import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.event.PointerReleasedEvent;
 import dev.sixik.unigui.api.event.ScrollEvent;
+import dev.sixik.unigui.api.event.WindowMovedEvent;
+import dev.sixik.unigui.api.event.WindowMoveEndedEvent;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableRect;
@@ -13,7 +15,12 @@ import dev.sixik.unigui.widgets.DockDropIntent;
 import dev.sixik.unigui.widgets.DockPane;
 import dev.sixik.unigui.widgets.DockingRoot;
 import dev.sixik.unigui.widgets.Label;
+import dev.sixik.unigui.widgets.OverlayLayer;
+import dev.sixik.unigui.widgets.StackPanel;
+import dev.sixik.unigui.widgets.WindowWidget;
+import dev.sixik.unigui.widgets.render.DockDropPreviewState;
 import dev.sixik.unigui.widgets.render.DockPaneState;
+import dev.sixik.unigui.api.render.DrawCommand;
 import dev.sixik.unigui.api.render.DrawCommandType;
 import dev.sixik.unigui.api.render.DrawList;
 
@@ -25,7 +32,10 @@ public final class DockingInteractionSelfTest {
     private void run() {
         testDragThresholdPreviewAndEdgeDropMapping();
         testFloatingDropDetachesPaneAndClearsPreview();
+        testFloatingDropOutsideHostIsIgnoredByDefault();
+        testFloatingDropInsideOverlayCreatesNonCloseableRedockableWindow();
         testOverflowTabsScrollAndMenuSelection();
+        testDockPaneContentIsClippedToLeafContentBounds();
         testTinySplitLayoutDoesNotProduceNegativeBounds();
         System.out.println("DockingInteractionSelfTest passed");
     }
@@ -98,6 +108,7 @@ public final class DockingInteractionSelfTest {
         DefaultUIContext context = new DefaultUIContext();
         DockingRoot root = new DockingRoot();
         root.setUiContextInternal(context);
+        root.allowFloatingOutsideHost(true);
         root.addDocument("floating", "Floating", content("Floating body"));
         layout(root, 220.0f, 120.0f);
 
@@ -116,6 +127,98 @@ public final class DockingInteractionSelfTest {
                         && !root.dockDropPreview().valid()
                         && context.capturedPointer(0) == null,
                 "FLOAT drop should detach the pane, open a floating bridge window and clear preview/capture state");
+    }
+
+    private void testFloatingDropOutsideHostIsIgnoredByDefault() {
+        DefaultUIContext context = new DefaultUIContext();
+        DockingRoot root = new DockingRoot();
+        root.setUiContextInternal(context);
+        root.addDocument("safe", "Safe", content("Safe body"));
+        layout(root, 220.0f, 120.0f);
+
+        context.routedEvents().dispatch(new PointerPressedEvent(
+                root, 8.0f, 6.0f, 8.0f, 6.0f, 0, PointerButton.PRIMARY));
+        context.routedEvents().dispatch(new PointerMovedEvent(root, 260.0f, 48.0f, 260.0f, 48.0f, 0));
+        expect(!root.dockDropPreview().valid(),
+                "Dragging outside the floating host should not expose a FLOAT drop preview by default");
+        context.routedEvents().dispatch(new PointerReleasedEvent(
+                root, 260.0f, 48.0f, 260.0f, 48.0f, 0, PointerButton.PRIMARY));
+
+        expect(root.manager().paneCount() == 1
+                        && root.manager().containsPane("safe")
+                        && root.lastFloatingWindow() == null,
+                "Dropping outside the floating host should keep the pane docked");
+    }
+
+    private void testFloatingDropInsideOverlayCreatesNonCloseableRedockableWindow() {
+        DefaultUIContext context = new DefaultUIContext();
+        DockingRoot root = new DockingRoot();
+        final DockDropPreviewState[] floatingPreview = new DockDropPreviewState[1];
+        root.dropPreviewRenderer((draw, state) -> floatingPreview[0] = state);
+        root.floatingWindowsRedockLocked(true);
+        root.preferredSize(180.0f, 110.0f).grow(0.0f);
+        root.addDocument("floatable", "Floatable", content("Floatable body"))
+                .addDocument("anchor", "Anchor", content("Anchor body"))
+                .selectPane("floatable");
+        StackPanel host = new StackPanel();
+        host.addChild(root);
+        OverlayLayer layer = new OverlayLayer(host);
+        layer.setUiContextInternal(context);
+        layout(layer, 360.0f, 220.0f);
+
+        context.routedEvents().dispatch(new PointerPressedEvent(
+                root, 8.0f, 6.0f, 8.0f, 6.0f, 1, PointerButton.PRIMARY));
+        context.routedEvents().dispatch(new PointerMovedEvent(root, 240.0f, 54.0f, 240.0f, 54.0f, 1));
+        expect(root.dockDropPreview().floating(),
+                "Dragging outside the dock root but inside the overlay host should produce a FLOAT preview");
+        context.routedEvents().dispatch(new PointerReleasedEvent(
+                root, 240.0f, 54.0f, 240.0f, 54.0f, 1, PointerButton.PRIMARY));
+        layer.applyQueuedMutations();
+
+        WindowWidget floating = root.lastFloatingWindow();
+        expect(root.manager().paneCount() == 1
+                        && root.manager().containsPane("anchor")
+                        && floating != null
+                        && floating.parent() == layer
+                        && floating.opened()
+                        && !floating.closeButtonVisible()
+                        && floating.constrainToHost()
+                        && floating.dockRedockLocked(),
+                "FLOAT drop inside an overlay should create a non-closeable constrained floating dock window and inherit redock lock");
+
+        layout(layer, 360.0f, 220.0f);
+        floating.position(10.0f, 10.0f);
+        floatingPreview[0] = null;
+        context.routedEvents().dispatch(new WindowMovedEvent(floating, 200.0f, 54.0f, 10.0f, 10.0f));
+        root.render(new dev.sixik.unigui.impl.render.DefaultRenderContext(new DrawList()));
+        expect(floatingPreview[0] == null,
+                "dockRedockLocked(true) should suppress floating dock drop previews");
+
+        context.routedEvents().dispatch(new WindowMoveEndedEvent(floating, 10.0f, 10.0f));
+        layer.applyQueuedMutations();
+        expect(root.manager().containsPane("anchor")
+                        && !root.manager().containsPane("floatable")
+                        && floating.opened(),
+                "dockRedockLocked(true) should keep a floating dock window detached on release over a DockingRoot");
+
+        floating.dockRedockLocked(false);
+        floatingPreview[0] = null;
+        context.routedEvents().dispatch(new WindowMovedEvent(floating, 200.0f, 54.0f, 10.0f, 10.0f));
+        root.render(new dev.sixik.unigui.impl.render.DefaultRenderContext(new DrawList()));
+        expect(floatingPreview[0] != null
+                        && floatingPreview[0].visible()
+                        && floatingPreview[0].sourcePaneId().equals("floatable"),
+                "Moving a floating dock window over a DockingRoot should show a live dock drop preview");
+
+        context.routedEvents().dispatch(new WindowMoveEndedEvent(floating, 10.0f, 10.0f));
+        layer.applyQueuedMutations();
+        floatingPreview[0] = null;
+        root.render(new dev.sixik.unigui.impl.render.DefaultRenderContext(new DrawList()));
+
+        expect(root.manager().containsPane("floatable")
+                        && !floating.opened()
+                        && floatingPreview[0] == null,
+                "Moving the floating dock window back over a DockingRoot should redock the original pane and clear preview");
     }
 
     private void testOverflowTabsScrollAndMenuSelection() {
@@ -221,6 +324,25 @@ public final class DockingInteractionSelfTest {
                 "DockingRoot split layout should keep content bounds non-negative in tiny hosts");
     }
 
+    private void testDockPaneContentIsClippedToLeafContentBounds() {
+        DockingRoot root = new DockingRoot();
+        root.addDocument("canvas", "Canvas", content("Content marker"))
+                .addToolPane("inspector", "Inspector", content("Inspector body"), DockArea.RIGHT)
+                .selectPane("canvas");
+        layout(root, 320.0f, 160.0f);
+
+        DrawList drawList = new DrawList();
+        root.render(new dev.sixik.unigui.impl.render.DefaultRenderContext(drawList));
+
+        DockPane canvas = root.manager().findPane("canvas");
+        expect(canvas != null && canvas.content() != null,
+                "DockingRoot test setup should keep the canvas pane registered");
+        expect(countCommands(drawList, DrawCommandType.PUSH_CLIP) == countCommands(drawList, DrawCommandType.POP_CLIP),
+                "DockingRoot should balance clip push/pop commands while rendering");
+        expect(textDrawnInsideClip(drawList, "Content marker", canvas.content().layoutBounds()),
+                "DockingRoot should clip selected pane content to its leaf content bounds");
+    }
+
     private static Label content(String text) {
         Label label = new Label(text);
         label.preferredSize(90.0f, 18.0f).grow(1.0f);
@@ -232,6 +354,11 @@ public final class DockingInteractionSelfTest {
         root.arrange(new MutableRect(0.0f, 0.0f, width, height));
     }
 
+    private static void layout(OverlayLayer layer, float width, float height) {
+        layer.measure(new LayoutContext(width, height));
+        layer.arrange(new MutableRect(0.0f, 0.0f, width, height));
+    }
+
     private static void expect(boolean condition, String message) {
         if (!condition) {
             throw new AssertionError(message);
@@ -240,6 +367,33 @@ public final class DockingInteractionSelfTest {
 
     private static long countCommands(DrawList drawList, DrawCommandType type) {
         return drawList.commands().stream().filter(command -> command.type() == type).count();
+    }
+
+    private static boolean textDrawnInsideClip(DrawList drawList, String text, dev.sixik.unigui.api.math.RectView clip) {
+        java.util.ArrayList<Boolean> stack = new java.util.ArrayList<>();
+        for (DrawCommand command : drawList.commands()) {
+            if (command.type() == DrawCommandType.PUSH_CLIP) {
+                stack.add(boundsEqual(command.bounds(), clip));
+            } else if (command.type() == DrawCommandType.POP_CLIP) {
+                if (!stack.isEmpty()) {
+                    stack.remove(stack.size() - 1);
+                }
+            } else if (command.type() == DrawCommandType.TEXT && text.equals(command.text())) {
+                return stack.contains(Boolean.TRUE);
+            }
+        }
+        return false;
+    }
+
+    private static boolean boundsEqual(dev.sixik.unigui.api.math.RectView a, dev.sixik.unigui.api.math.RectView b) {
+        return almostEqual(a.x(), b.x())
+                && almostEqual(a.y(), b.y())
+                && almostEqual(a.width(), b.width())
+                && almostEqual(a.height(), b.height());
+    }
+
+    private static boolean almostEqual(float a, float b) {
+        return Math.abs(a - b) <= 0.01f;
     }
 
     private static final class Counter {
