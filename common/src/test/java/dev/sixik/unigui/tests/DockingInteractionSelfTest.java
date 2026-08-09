@@ -156,7 +156,7 @@ public final class DockingInteractionSelfTest {
         final DockDropPreviewState[] floatingPreview = new DockDropPreviewState[1];
         root.dropPreviewRenderer((draw, state) -> floatingPreview[0] = state);
         root.floatingWindowsRedockLocked(true);
-        root.preferredSize(180.0f, 110.0f).grow(0.0f);
+        root.layout(style -> style.size(180.0f, 110.0f).flexGrow(0).flexShrink(0.0f));
         root.addDocument("floatable", "Floatable", content("Floatable body"))
                 .addDocument("anchor", "Anchor", content("Anchor body"))
                 .selectPane("floatable");
@@ -201,7 +201,9 @@ public final class DockingInteractionSelfTest {
                         && floating.opened(),
                 "dockRedockLocked(true) should keep a floating dock window detached on release over a DockingRoot");
 
-        floating.dockRedockLocked(false);
+        root.floatingWindowsRedockLocked(false);
+        expect(!floating.dockRedockLocked(),
+                "floatingWindowsRedockLocked(false) should update already-created floating dock windows");
         floatingPreview[0] = null;
         context.routedEvents().dispatch(new WindowMovedEvent(floating, 200.0f, 54.0f, 10.0f, 10.0f));
         root.render(new dev.sixik.unigui.impl.render.DefaultRenderContext(new DrawList()));
@@ -345,7 +347,7 @@ public final class DockingInteractionSelfTest {
 
     private static Label content(String text) {
         Label label = new Label(text);
-        label.preferredSize(90.0f, 18.0f).grow(1.0f);
+        label.layout(style -> style.size(90.0f, 18.0f).flexGrow(1).flexShrink(1.0f));
         return label;
     }
 

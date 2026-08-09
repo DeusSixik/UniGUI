@@ -94,6 +94,7 @@ public class VirtualTableView extends WidgetBase {
     private boolean sortDirty = true;
     private float headerHeight = 18.0f;
     private float scrollStep = 16.0f;
+    private boolean consumeWheelAtScrollBounds = true;
     private int activeRow = -1;
     private int activeColumn = -1;
     private boolean editable;
@@ -340,6 +341,15 @@ public class VirtualTableView extends WidgetBase {
     public VirtualTableView scrollStep(float scrollStep) {
         this.scrollStep = Float.isFinite(scrollStep) ? Math.max(1.0f, scrollStep) : 16.0f;
         syncScrollBar();
+        return this;
+    }
+
+    public boolean consumeWheelAtScrollBounds() {
+        return consumeWheelAtScrollBounds;
+    }
+
+    public VirtualTableView consumeWheelAtScrollBounds(boolean consumeWheelAtScrollBounds) {
+        this.consumeWheelAtScrollBounds = consumeWheelAtScrollBounds;
         return this;
     }
 
@@ -713,6 +723,8 @@ public class VirtualTableView extends WidgetBase {
             float before = virtualizer.scrollOffset();
             scrollBy(-scroll.deltaY() * scrollStep);
             if (before != virtualizer.scrollOffset()) {
+                event.cancel();
+            } else if (consumeWheelAtScrollBounds && scroll.deltaY() != 0.0f && maxScrollY() > 0.0f) {
                 event.cancel();
             }
         } else if (event instanceof KeyPressedEvent key && key.phase() != EventPhase.CAPTURE) {

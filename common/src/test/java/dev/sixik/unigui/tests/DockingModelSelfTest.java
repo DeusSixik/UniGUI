@@ -80,7 +80,7 @@ public final class DockingModelSelfTest {
 
     private void testSnapshotCodecRoundTripsSpecialIdsAndToleratesCorruptInput() {
         DockingRoot root = new DockingRoot();
-        DockPane special = pane("pane|,]ю", "Special");
+        DockPane special = pane("pane|,]\u00FE", "Special");
         DockPane side = pane("side", "Side");
         root.addPane(special);
         root.splitPane(special.id(), DockArea.BOTTOM, side);
@@ -148,7 +148,7 @@ public final class DockingModelSelfTest {
 
     private static DockPane pane(String id, String title) {
         Label label = new Label(title + " body");
-        label.preferredSize(90.0f, 18.0f).grow(1.0f);
+        label.layout(style -> style.size(90.0f, 18.0f).flexGrow(1).flexShrink(1.0f));
         return new DockPane(id, title, label);
     }
 

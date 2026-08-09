@@ -163,6 +163,7 @@ public final class BasicControlsSelfTest {
         testRicherLayoutContainers();
         testSliderPointerAndKeyboardInput();
         testScrollViewBubbledWheelInput();
+        testScrollViewNestedWheelLockAndOptOut();
         testNestedScissorStack();
         testWidgetAnimationTransitions();
         testMinecraftPreviewWidgetFallbacks();
@@ -172,11 +173,13 @@ public final class BasicControlsSelfTest {
         testVirtualizedSelectionContracts();
         testVirtualListKeyboardNavigation();
         testVirtualListViewRealizationAndScrolling();
+        testVirtualListNestedWheelLockAndOptOut();
         testVirtualTableSortingContracts();
         testVirtualTableColumnResizeAndMoveContracts();
         testVirtualTableKeyboardNavigation();
         testVirtualTableCellEditingContracts();
         testVirtualTableViewVirtualRowsAndRendering();
+        testVirtualTableNestedWheelLockAndOptOut();
         testTabControlContracts();
         testComboBoxAndDropDownBoxContracts();
         testExpandablePanelAndAccordionContracts();
@@ -932,7 +935,7 @@ public final class BasicControlsSelfTest {
         field.measure(generous);
         expect(near(field.desiredSize().width(), 32.0f) && near(field.desiredSize().height(), 18.0f),
                 "TextInput/TextField should include text padding in desired size");
-        field.preferredSize(100.0f, LayoutConstraints.AUTO);
+        field.layout(style -> style.size(100.0f, LayoutConstraints.AUTO));
         field.measure(generous);
         expect(near(field.desiredSize().width(), 100.0f) && near(field.desiredSize().height(), 18.0f),
                 "Explicit preferred width should override measured text width");
@@ -973,9 +976,9 @@ public final class BasicControlsSelfTest {
         Button fixed = new Button("Fixed");
         Button growA = new Button("Grow A");
         Button growB = new Button("Grow B");
-        fixed.preferredSize(40.0f, LayoutConstraints.AUTO).grow(0.0f).margin(5.0f, 0.0f);
-        growA.grow(1.0f);
-        growB.grow(2.0f);
+        fixed.layout(style -> style.size(40.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f).margin(5.0f, 0.0f));
+        growA.layout(style -> style.flexGrow(1).flexShrink(1.0f));
+        growB.layout(style -> style.flexGrow(2).flexShrink(1.0f));
         hbox.addChild(fixed);
         hbox.addChild(growA);
         hbox.addChild(growB);
@@ -994,8 +997,8 @@ public final class BasicControlsSelfTest {
         Button top = new Button("Top");
         Button centered = new Button("Centered");
         Button collapsed = new Button("Collapsed");
-        top.preferredSize(LayoutConstraints.AUTO, 20.0f).grow(0.0f);
-        centered.preferredSize(60.0f, 10.0f).grow(0.0f).margin(4.0f).align(Alignment.CENTER, Alignment.CENTER);
+        top.layout(style -> style.size(LayoutConstraints.AUTO, 20.0f).flexGrow(0).flexShrink(0.0f));
+        centered.layout(style -> style.size(60.0f, 10.0f).flexGrow(0).flexShrink(0.0f).margin(4.0f).align(Alignment.CENTER, Alignment.CENTER));
         collapsed.visibility(Visibility.COLLAPSED);
         collapsed.arrange(new MutableRect(7.0f, 8.0f, 9.0f, 10.0f));
         vbox.addChild(top);
@@ -1014,13 +1017,12 @@ public final class BasicControlsSelfTest {
         GridBox grid = new GridBox().columns(2).spacing(10.0f);
         Button stretched = new Button("Stretch");
         Button endAligned = new Button("End");
-        endAligned.layoutConstraints(new LayoutConstraints(
-                30.0f, 20.0f,
-                0.0f, 0.0f,
-                Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY,
-                EdgeInsets.all(5.0f),
-                Alignment.END, Alignment.CENTER,
-                0.0f));
+        endAligned.layout(style -> style
+                .size(30.0f, 20.0f)
+                .margin(5.0f)
+                .align(Alignment.END, Alignment.CENTER)
+                .flexGrow(0.0f)
+                .flexShrink(0.0f));
         grid.addChild(stretched);
         grid.addChild(endAligned);
         grid.applyQueuedMutations();
@@ -1036,24 +1038,20 @@ public final class BasicControlsSelfTest {
     private void testLayoutV2CompatibilityContracts() {
         Box legacyConfigured = new Box();
         legacyConfigured
-                .preferredSize(120.0f, LayoutConstraints.AUTO)
-                .minSize(10.0f, 12.0f)
-                .maxSize(180.0f, 90.0f)
-                .margin(4.0f, 6.0f)
-                .grow(2.0f);
+                .layout(style -> style.size(120.0f, LayoutConstraints.AUTO).minSize(10.0f, 12.0f).maxSize(180.0f, 90.0f).margin(4.0f, 6.0f).flexGrow(2).flexShrink(1.0f));
 
         LayoutStyle legacyStyle = legacyConfigured.layoutStyle();
         expect(legacyStyle.width().equals(SizeValue.px(120.0f)) && legacyStyle.height().isAuto(),
-                "Legacy preferredSize should populate LayoutStyle pixel/auto values");
+                "layout(style -> size(...)) should populate LayoutStyle pixel/auto values");
         expect(legacyStyle.minWidth().equals(SizeValue.px(10.0f))
                         && legacyStyle.minHeight().equals(SizeValue.px(12.0f))
                         && legacyStyle.maxWidth().equals(SizeValue.px(180.0f))
                         && legacyStyle.maxHeight().equals(SizeValue.px(90.0f)),
-                "Legacy min/max constraints should populate LayoutStyle");
+                "layout(style -> min/max size(...)) should populate LayoutStyle");
         expect(legacyStyle.margin().equals(EdgeInsets.symmetric(4.0f, 6.0f)),
-                "Legacy margin should populate LayoutStyle box model values");
+                "layout(style -> margin(...)) should populate LayoutStyle box model values");
         expect(near(legacyStyle.flexGrow(), 2.0f) && near(legacyStyle.flexShrink(), 1.0f),
-                "Legacy grow should map to LayoutStyle grow and shrink compatibility values");
+                "layout(style -> flexGrow/flexShrink(...)) should update LayoutStyle flex values");
 
         legacyConfigured.layout(style -> style
                 .width(90.0f)
@@ -1109,6 +1107,10 @@ public final class BasicControlsSelfTest {
                         && composite.left().equals(SizeValue.px(9.0f))
                         && composite.bottom().equals(SizeValue.px(12.0f)),
                 "LayoutStyle box, flex and inset helpers should update their grouped fields");
+        composite.align(Alignment.CENTER, Alignment.END).alignSelf(Align.AUTO);
+        expect(composite.horizontalAlignment() == Alignment.STRETCH
+                        && composite.verticalAlignment() == Alignment.STRETCH,
+                "alignSelf(AUTO) should reset explicit compatibility alignment after mixed align(...)");
 
         Box mixedApi = new Box();
         mixedApi.layout(style -> style
@@ -1116,31 +1118,28 @@ public final class BasicControlsSelfTest {
                 .height(24.0f)
                 .padding(7.0f)
                 .overflow(Overflow.HIDDEN));
-        mixedApi.grow(2.0f)
-                .margin(3.0f)
-                .align(Alignment.CENTER, Alignment.END)
-                .minSize(30.0f, 12.0f);
+        mixedApi.layout(style -> style.flexGrow(2).flexShrink(1.0f).margin(3.0f).align(Alignment.CENTER, Alignment.END).minSize(30.0f, 12.0f));
 
         expect(mixedApi.layoutStyle().width().equals(SizeValue.percent(50.0f))
                         && mixedApi.layoutStyle().height().equals(SizeValue.px(24.0f))
                         && mixedApi.layoutStyle().padding().equals(EdgeInsets.all(7.0f))
                         && mixedApi.layoutStyle().overflowX() == Overflow.HIDDEN
                         && mixedApi.layoutStyle().overflowY() == Overflow.HIDDEN,
-                "Legacy convenience methods should preserve unrelated Layout v2 properties");
+                "Additional layout(style -> ...) updates should preserve unrelated Layout v2 properties");
         expect(near(mixedApi.layoutStyle().flexGrow(), 2.0f)
                         && near(mixedApi.layoutStyle().flexShrink(), 1.0f)
                         && mixedApi.layoutStyle().margin().equals(EdgeInsets.all(3.0f))
                         && mixedApi.layoutStyle().alignSelf() == Align.AUTO
                         && mixedApi.layoutConstraints().horizontalAlignment() == Alignment.CENTER
                         && mixedApi.layoutConstraints().verticalAlignment() == Alignment.END,
-                "Legacy grow/margin/alignment helpers should retain their compatibility projection");
+                "layout(style -> flex/margin/alignment(...)) should retain the compatibility projection");
 
-        mixedApi.preferredSize(90.0f, LayoutConstraints.AUTO);
+        mixedApi.layout(style -> style.size(90.0f, LayoutConstraints.AUTO));
         expect(mixedApi.layoutStyle().width().equals(SizeValue.px(90.0f))
                         && mixedApi.layoutStyle().height().isAuto()
                         && mixedApi.layoutStyle().padding().equals(EdgeInsets.all(7.0f))
                         && mixedApi.layoutStyle().overflowX() == Overflow.HIDDEN,
-                "preferredSize should intentionally replace size fields without resetting v2-only metadata");
+                "layout(style -> size(...)) should intentionally replace size fields without resetting v2-only metadata");
     }
 
     private void testFlexLayoutV2Resolver() {
@@ -1312,9 +1311,7 @@ public final class BasicControlsSelfTest {
         host.layout(style -> style.padding(10.0f));
 
         Box relative = new Box();
-        relative.preferredSize(40.0f, 20.0f)
-                .align(Alignment.START, Alignment.START)
-                .grow(0.0f);
+        relative.layout(style -> style.size(40.0f, 20.0f).align(Alignment.START, Alignment.START).flexGrow(0).flexShrink(0.0f));
 
         Box positioned = new Box();
         positioned.layout(style -> style
@@ -1380,7 +1377,7 @@ public final class BasicControlsSelfTest {
         StackPanel stack = new StackPanel();
         Button full = new Button("Full");
         Button overlay = new Button("Overlay");
-        overlay.preferredSize(40.0f, 20.0f).margin(5.0f).align(Alignment.END, Alignment.CENTER);
+        overlay.layout(style -> style.size(40.0f, 20.0f).margin(5.0f).align(Alignment.END, Alignment.CENTER));
         stack.addChild(full);
         stack.addChild(overlay);
         stack.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 60.0f));
@@ -1397,9 +1394,9 @@ public final class BasicControlsSelfTest {
         Button left = new Button("Left");
         Button right = new Button("Right");
         Button fill = new Button("Fill");
-        top.preferredSize(LayoutConstraints.AUTO, 20.0f);
-        left.preferredSize(30.0f, LayoutConstraints.AUTO);
-        right.preferredSize(40.0f, LayoutConstraints.AUTO);
+        top.layout(style -> style.size(LayoutConstraints.AUTO, 20.0f));
+        left.layout(style -> style.size(30.0f, LayoutConstraints.AUTO));
+        right.layout(style -> style.size(40.0f, LayoutConstraints.AUTO));
         dock.addChild(top, DockSide.TOP);
         dock.addChild(left, DockSide.LEFT);
         dock.addChild(right, DockSide.RIGHT);
@@ -1424,11 +1421,11 @@ public final class BasicControlsSelfTest {
         Button second = new Button("B");
         Button skipped = new Button("Skipped");
         Button third = new Button("C");
-        first.preferredSize(40.0f, 10.0f);
-        second.preferredSize(40.0f, 20.0f);
-        skipped.preferredSize(100.0f, 100.0f).visibility(Visibility.COLLAPSED);
+        first.layout(style -> style.size(40.0f, 10.0f));
+        second.layout(style -> style.size(40.0f, 20.0f));
+        skipped.layout(style -> style.size(100.0f, 100.0f)).visibility(Visibility.COLLAPSED);
         skipped.arrange(new MutableRect(7.0f, 8.0f, 9.0f, 10.0f));
-        third.preferredSize(40.0f, 10.0f);
+        third.layout(style -> style.size(40.0f, 10.0f));
         wrap.addChild(first);
         wrap.addChild(second);
         wrap.addChild(skipped);
@@ -1449,7 +1446,7 @@ public final class BasicControlsSelfTest {
 
         WrapPanel narrowWrap = new WrapPanel();
         Button oversized = new Button("Oversized");
-        oversized.preferredSize(140.0f, 14.0f).grow(0.0f);
+        oversized.layout(style -> style.size(140.0f, 14.0f).flexGrow(0).flexShrink(0.0f));
         narrowWrap.addChild(oversized);
         narrowWrap.measure(new LayoutContext(80.0f, 40.0f));
         narrowWrap.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 40.0f));
@@ -1463,17 +1460,17 @@ public final class BasicControlsSelfTest {
         Button slider = new Button("Slider");
         Button progress = new Button("Progress");
         Button number = new Button("42");
-        search.preferredSize(120.0f, 20.0f).grow(0.0f);
-        slider.preferredSize(130.0f, 20.0f).grow(0.0f);
-        progress.preferredSize(100.0f, 12.0f).grow(0.0f);
-        number.preferredSize(70.0f, 20.0f).grow(0.0f);
-        toolbar.grow(0.0f);
+        search.layout(style -> style.size(120.0f, 20.0f).flexGrow(0).flexShrink(0.0f));
+        slider.layout(style -> style.size(130.0f, 20.0f).flexGrow(0).flexShrink(0.0f));
+        progress.layout(style -> style.size(100.0f, 12.0f).flexGrow(0).flexShrink(0.0f));
+        number.layout(style -> style.size(70.0f, 20.0f).flexGrow(0).flexShrink(0.0f));
+        toolbar.layout(style -> style.flexGrow(0).flexShrink(0.0f));
         toolbar.addChild(search);
         toolbar.addChild(slider);
         toolbar.addChild(progress);
         toolbar.addChild(number);
         Box main = new Box();
-        main.grow(1.0f);
+        main.layout(style -> style.flexGrow(1).flexShrink(1.0f));
         wrappedToolbarLayout.addChild(toolbar);
         wrappedToolbarLayout.addChild(main);
         wrappedToolbarLayout.measure(new LayoutContext(260.0f, 140.0f));
@@ -1488,9 +1485,9 @@ public final class BasicControlsSelfTest {
         Button verticalFirst = new Button("VA");
         Button verticalSecond = new Button("VB");
         Button verticalThird = new Button("VC");
-        verticalFirst.preferredSize(10.0f, 40.0f);
-        verticalSecond.preferredSize(20.0f, 40.0f);
-        verticalThird.preferredSize(10.0f, 40.0f);
+        verticalFirst.layout(style -> style.size(10.0f, 40.0f));
+        verticalSecond.layout(style -> style.size(20.0f, 40.0f));
+        verticalThird.layout(style -> style.size(10.0f, 40.0f));
         verticalWrap.addChild(verticalFirst);
         verticalWrap.addChild(verticalSecond);
         verticalWrap.addChild(verticalThird);
@@ -1573,7 +1570,7 @@ public final class BasicControlsSelfTest {
         expect(hasCommand(drawList, DrawCommandType.POP_CLIP), "ScrollView should pop the clip after rendering content");
 
         Box measuredContent = new Box();
-        measuredContent.preferredSize(100.0f, 260.0f).grow(0.0f);
+        measuredContent.layout(style -> style.size(100.0f, 260.0f).flexGrow(0).flexShrink(0.0f));
         ScrollView autoContentScrollView = new ScrollView(measuredContent).scrollStep(10.0f);
         autoContentScrollView.setUiContextInternal(uiContext);
         autoContentScrollView.measure(new LayoutContext(100.0f, 80.0f));
@@ -1582,7 +1579,7 @@ public final class BasicControlsSelfTest {
         expect(autoContentScrollView.scrollY() == 180.0f, "ScrollView should use measured content height when contentSize is not explicit");
 
         Box viewportWidthContent = new Box();
-        viewportWidthContent.preferredSize(240.0f, 120.0f).grow(0.0f);
+        viewportWidthContent.layout(style -> style.size(240.0f, 120.0f).flexGrow(0).flexShrink(0.0f));
         ScrollView viewportWidthScrollView = new ScrollView(viewportWidthContent);
         viewportWidthScrollView.measure(new LayoutContext(240.0f, 80.0f));
         viewportWidthScrollView.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 80.0f));
@@ -1598,6 +1595,29 @@ public final class BasicControlsSelfTest {
         expect(hiddenAxisScrollView.verticalScrollBar().layoutBounds().width() == 6.0f
                         && hiddenAxisContent.layoutBounds().width() == 86.0f,
                 "ScrollView should reserve the scrollbar element when horizontal overflow is hidden");
+    }
+
+    private void testScrollViewNestedWheelLockAndOptOut() {
+        DefaultUIContext uiContext = new DefaultUIContext();
+        Box innerContent = new Box();
+        ScrollView inner = new ScrollView(innerContent).contentSize(100.0f, 300.0f).scrollStep(20.0f);
+        ScrollView outer = new ScrollView(inner).contentSize(100.0f, 300.0f).scrollStep(20.0f);
+        outer.setUiContextInternal(uiContext);
+        outer.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 100.0f));
+        inner.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 50.0f));
+        inner.scrollTo(0.0f, inner.maxScrollY());
+        outer.scrollTo(0.0f, 0.0f);
+
+        boolean consumedAtInnerEdge = uiContext.routedEvents().dispatch(
+                new ScrollEvent(innerContent, 5.0f, 5.0f, 5.0f, 5.0f, 0.0f, -1.0f));
+        expect(consumedAtInnerEdge && outer.scrollY() == 0.0f,
+                "Nested ScrollView should keep wheel ownership while hovered even at its scroll bounds");
+
+        inner.consumeWheelAtScrollBounds(false);
+        boolean bubbledAtInnerEdge = uiContext.routedEvents().dispatch(
+                new ScrollEvent(innerContent, 5.0f, 5.0f, 5.0f, 5.0f, 0.0f, -1.0f));
+        expect(bubbledAtInnerEdge && outer.scrollY() == 20.0f,
+                "consumeWheelAtScrollBounds(false) should allow parent ScrollView fallback at inner bounds");
     }
 
     private void testNestedScissorStack() {
@@ -1646,7 +1666,7 @@ public final class BasicControlsSelfTest {
         child.themeEnabled(false);
         child.background().set(0.3f, 0.4f, 0.5f, 0.8f);
         child.opacity(0.50f);
-        child.preferredSize(40.0f, 20.0f).grow(0.0f);
+        child.layout(style -> style.size(40.0f, 20.0f).flexGrow(0).flexShrink(0.0f));
         root.addChild(child);
         root.measure(new LayoutContext(80.0f, 40.0f));
         root.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 40.0f));
@@ -1673,7 +1693,7 @@ public final class BasicControlsSelfTest {
 
     private void testMinecraftPreviewWidgetFallbacks() {
         TestMinecraftPreviewWidget preview = new TestMinecraftPreviewWidget("Preview", "fallback");
-        preview.previewSize(32.0f).preferredSize(70.0f, 58.0f).grow(0.0f);
+        preview.previewSize(32.0f).layout(style -> style.size(70.0f, 58.0f).flexGrow(0).flexShrink(0.0f));
         preview.measure(new LayoutContext(100.0f, 80.0f));
         preview.arrange(new MutableRect(0.0f, 0.0f, 70.0f, 58.0f));
         DrawList drawList = new DrawList();
@@ -1694,12 +1714,12 @@ public final class BasicControlsSelfTest {
 
         StackPanel content = new StackPanel();
         Button button = new Button("Hover me");
-        button.preferredSize(80.0f, 20.0f).align(Alignment.START, Alignment.START).grow(0.0f);
+        button.layout(style -> style.size(80.0f, 20.0f).align(Alignment.START, Alignment.START).flexGrow(0).flexShrink(0.0f));
         content.addChild(button);
 
         Tooltip tooltip = new Tooltip(button, "Tooltip text");
         Button popupButton = new Button("Popup action");
-        popupButton.preferredSize(90.0f, 20.0f).grow(0.0f);
+        popupButton.layout(style -> style.size(90.0f, 20.0f).flexGrow(0).flexShrink(0.0f));
         Popup popup = new Popup(button, popupButton);
         OverlayLayer layer = new OverlayLayer(content)
                 .addOverlay(tooltip)
@@ -1725,7 +1745,7 @@ public final class BasicControlsSelfTest {
 
         StackPanel narrowContent = new StackPanel();
         Button narrowButton = new Button("Hover");
-        narrowButton.preferredSize(70.0f, 20.0f).align(Alignment.START, Alignment.START).grow(0.0f);
+        narrowButton.layout(style -> style.size(70.0f, 20.0f).align(Alignment.START, Alignment.START).flexGrow(0).flexShrink(0.0f));
         narrowButton.handle(new PointerEnteredEvent(narrowButton, 4.0f, 4.0f, 4.0f, 4.0f, 0));
         narrowContent.addChild(narrowButton);
         Tooltip narrowTooltip = new Tooltip(narrowButton, "Tooltip overlays render above content and do not capture pointer input.");
@@ -1759,13 +1779,11 @@ public final class BasicControlsSelfTest {
 
         StackPanel edgeContent = new StackPanel();
         Button edgeAnchor = new Button("Edge");
-        edgeAnchor.preferredSize(20.0f, 10.0f)
-                .align(Alignment.END, Alignment.END)
-                .grow(0.0f);
+        edgeAnchor.layout(style -> style.size(20.0f, 10.0f).align(Alignment.END, Alignment.END).flexGrow(0).flexShrink(0.0f));
         edgeContent.addChild(edgeAnchor);
         Tooltip edgeTooltip = new Tooltip(edgeAnchor, "Edge tooltip");
         Button edgePopupContent = new Button("Edge popup action");
-        edgePopupContent.preferredSize(80.0f, 24.0f).grow(0.0f);
+        edgePopupContent.layout(style -> style.size(80.0f, 24.0f).flexGrow(0).flexShrink(0.0f));
         Popup edgePopup = new Popup(edgeAnchor, edgePopupContent).open();
         OverlayLayer edgeLayer = new OverlayLayer(edgeContent)
                 .addOverlay(edgeTooltip)
@@ -1784,12 +1802,12 @@ public final class BasicControlsSelfTest {
                 "Popup should flip and clamp inside a small overlay host");
 
         Button dialogAction = new Button("Dialog OK");
-        dialogAction.preferredSize(82.0f, 20.0f).grow(0.0f);
+        dialogAction.layout(style -> style.size(82.0f, 20.0f).flexGrow(0).flexShrink(0.0f));
         WindowWidget window = new WindowWidget("Dialog title", dialogAction)
                 .position(20.0f, 8.0f)
                 .closeOnOutsideClick(true)
                 .open();
-        window.preferredSize(150.0f, 70.0f).grow(0.0f);
+        window.layout(style -> style.size(150.0f, 70.0f).flexGrow(0).flexShrink(0.0f));
         Counter windowLifecycle = new Counter();
         Counter windowMove = new Counter();
         Counter windowResize = new Counter();
@@ -1828,7 +1846,7 @@ public final class BasicControlsSelfTest {
         WindowWidget secondWindow = new WindowWidget("Second", new Label("Second body"))
                 .position(24.0f, 12.0f)
                 .open();
-        secondWindow.preferredSize(120.0f, 60.0f).grow(0.0f);
+        secondWindow.layout(style -> style.size(120.0f, 60.0f).flexGrow(0).flexShrink(0.0f));
         layer.addOverlay(secondWindow);
         layer.measure(new LayoutContext(200.0f, 100.0f));
         layer.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 100.0f));
@@ -1950,7 +1968,7 @@ public final class BasicControlsSelfTest {
                 .position(180.0f, 80.0f)
                 .constrainToHost(false)
                 .open();
-        freeWindow.preferredSize(60.0f, 40.0f).grow(0.0f);
+        freeWindow.layout(style -> style.size(60.0f, 40.0f).flexGrow(0).flexShrink(0.0f));
         layer.addOverlay(freeWindow);
         layer.measure(new LayoutContext(200.0f, 100.0f));
         layer.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 100.0f));
@@ -1962,13 +1980,13 @@ public final class BasicControlsSelfTest {
                 "Re-enabled WindowWidget host constraints should clamp the absolute rect again");
 
         Button blockedByModal = new Button("Blocked");
-        blockedByModal.preferredSize(70.0f, 18.0f).grow(0.0f);
+        blockedByModal.layout(style -> style.size(70.0f, 18.0f).flexGrow(0).flexShrink(0.0f));
         Counter blockedClicks = new Counter();
         blockedByModal.onClick(event -> blockedClicks.count++);
         WindowWidget modal = new WindowWidget("Modal", new Button("Modal OK"))
                 .position(30.0f, 20.0f)
                 .modal(true);
-        modal.preferredSize(120.0f, 60.0f).grow(0.0f);
+        modal.layout(style -> style.size(120.0f, 60.0f).flexGrow(0).flexShrink(0.0f));
         Counter modalLifecycle = new Counter();
         modal.onModalOpened(event -> {
             modalLifecycle.started++;
@@ -2308,7 +2326,7 @@ public final class BasicControlsSelfTest {
 
     private static Label testDockContent(String text) {
         Label label = new Label(text);
-        label.preferredSize(90.0f, 18.0f).grow(1.0f);
+        label.layout(style -> style.size(90.0f, 18.0f).flexGrow(1).flexShrink(1.0f));
         return label;
     }
 
@@ -2452,6 +2470,32 @@ public final class BasicControlsSelfTest {
         expect(hasCommand(drawList, DrawCommandType.POP_CLIP), "VirtualListView should pop row clip");
     }
 
+    private void testVirtualListNestedWheelLockAndOptOut() {
+        DefaultUIContext uiContext = new DefaultUIContext();
+        VirtualListView list = new VirtualListView()
+                .itemCount(100)
+                .itemHeight(10.0f)
+                .scrollStep(20.0f)
+                .itemFactory(index -> new Label("Row " + index));
+        ScrollView outer = new ScrollView(list).contentSize(100.0f, 300.0f).scrollStep(20.0f);
+        outer.setUiContextInternal(uiContext);
+        outer.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 100.0f));
+        list.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 50.0f));
+        list.scrollTo(list.maxScrollY());
+        outer.scrollTo(0.0f, 0.0f);
+
+        boolean consumedAtListEdge = uiContext.routedEvents().dispatch(
+                new ScrollEvent(list, 5.0f, 5.0f, 5.0f, 5.0f, 0.0f, -1.0f));
+        expect(consumedAtListEdge && outer.scrollY() == 0.0f,
+                "Nested VirtualListView should retain wheel ownership at scroll bounds by default");
+
+        list.consumeWheelAtScrollBounds(false);
+        boolean bubbledAtListEdge = uiContext.routedEvents().dispatch(
+                new ScrollEvent(list, 5.0f, 5.0f, 5.0f, 5.0f, 0.0f, -1.0f));
+        expect(bubbledAtListEdge && outer.scrollY() == 20.0f,
+                "VirtualListView consumeWheelAtScrollBounds(false) should allow parent fallback at bounds");
+    }
+
     private void testVirtualListKeyboardNavigation() {
         DefaultUIContext uiContext = new DefaultUIContext();
         VirtualListView list = new VirtualListView()
@@ -2550,6 +2594,34 @@ public final class BasicControlsSelfTest {
         expect(consumed && table.scrollY() == 115.0f, "VirtualTableView should consume wheel scroll when offset changes");
         table.scrollTo(20_000.0f);
         expect(table.scrollY() == 9_950.0f, "VirtualTableView should clamp to max row scroll");
+    }
+
+    private void testVirtualTableNestedWheelLockAndOptOut() {
+        DefaultUIContext uiContext = new DefaultUIContext();
+        VirtualTableView table = new VirtualTableView()
+                .addColumn("Name", 80.0f)
+                .rowCount(100)
+                .rowHeight(10.0f)
+                .headerHeight(10.0f)
+                .scrollStep(20.0f)
+                .cellTextProvider((row, column) -> "R" + row);
+        ScrollView outer = new ScrollView(table).contentSize(100.0f, 300.0f).scrollStep(20.0f);
+        outer.setUiContextInternal(uiContext);
+        outer.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 100.0f));
+        table.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 60.0f));
+        table.scrollTo(table.maxScrollY());
+        outer.scrollTo(0.0f, 0.0f);
+
+        boolean consumedAtTableEdge = uiContext.routedEvents().dispatch(
+                new ScrollEvent(table, 5.0f, 20.0f, 5.0f, 20.0f, 0.0f, -1.0f));
+        expect(consumedAtTableEdge && outer.scrollY() == 0.0f,
+                "Nested VirtualTableView should retain wheel ownership at scroll bounds by default");
+
+        table.consumeWheelAtScrollBounds(false);
+        boolean bubbledAtTableEdge = uiContext.routedEvents().dispatch(
+                new ScrollEvent(table, 5.0f, 20.0f, 5.0f, 20.0f, 0.0f, -1.0f));
+        expect(bubbledAtTableEdge && outer.scrollY() == 20.0f,
+                "VirtualTableView consumeWheelAtScrollBounds(false) should allow parent fallback at bounds");
     }
 
     private void testVirtualTableKeyboardNavigation() {
@@ -2725,14 +2797,14 @@ public final class BasicControlsSelfTest {
         table.render(new DefaultRenderContext(nameAscendingDrawList));
         expect(table.sortColumnIndex() == 0 && table.sortDirection() == SortDirection.ASCENDING,
                 "VirtualTableView should expose ascending sort state");
-        expect(hasText(nameAscendingDrawList, "Name ↑"), "VirtualTableView should render ascending sort marker in header");
+        expect(hasText(nameAscendingDrawList, "Name ^"), "VirtualTableView should render ascending sort marker in header");
         expect(textCommandIndex(nameAscendingDrawList, "Alice", 0) < textCommandIndex(nameAscendingDrawList, "Bob", 0),
                 "VirtualTableView should render rows in ascending sort-key order");
 
         table.sortBy(1, SortDirection.DESCENDING);
         DrawList scoreDescendingDrawList = new DrawList();
         table.render(new DefaultRenderContext(scoreDescendingDrawList));
-        expect(hasText(scoreDescendingDrawList, "Score ↓"), "VirtualTableView should render descending sort marker in header");
+        expect(hasText(scoreDescendingDrawList, "Score v"), "VirtualTableView should render descending sort marker in header");
         expect(textCommandIndex(scoreDescendingDrawList, "30", 0) < textCommandIndex(scoreDescendingDrawList, "20", 0),
                 "VirtualTableView should render rows in descending numeric sort-key order");
         expect(sortChanges.count == 2 && sortChanges.lastSortColumn == 1 && sortChanges.lastSortDirection == SortDirection.DESCENDING,
@@ -2844,7 +2916,7 @@ public final class BasicControlsSelfTest {
         combo.render(new DefaultRenderContext(closedDrawList));
         expect(combo.selectedIndex() == 1 && combo.selectedItem().equals("Medium"),
                 "ComboBox should expose selected index and selected item");
-        expect(hasText(closedDrawList, "Medium ▾") && !hasText(closedDrawList, "Small"),
+        expect(hasText(closedDrawList, "Medium ?") && !hasText(closedDrawList, "Small"),
                 "Closed ComboBox should render the selected header but not options");
 
         combo.open();
@@ -3054,10 +3126,10 @@ public final class BasicControlsSelfTest {
                         && tree.selectedPath().equals(java.util.List.of(0, 0))
                         && tree.visibleNodes().size() == 4,
                 "TreeView should expose roots, visible nodes and selected path");
-        expect(hasText(expandedDrawList, "▾ Root")
-                        && hasText(expandedDrawList, "▾ Child")
+        expect(hasText(expandedDrawList, "? Root")
+                        && hasText(expandedDrawList, "? Child")
                         && hasText(expandedDrawList, "  Leaf")
-                        && hasText(expandedDrawList, "▸ Other")
+                        && hasText(expandedDrawList, "? Other")
                         && !hasText(expandedDrawList, "  Hidden"),
                 "TreeView should render expanded branches and hide collapsed descendants");
 
@@ -3068,7 +3140,7 @@ public final class BasicControlsSelfTest {
         tree.render(new DefaultRenderContext(collapsedDrawList));
         expect(tree.selectedNode() == child
                         && tree.visibleNodes().size() == 3
-                        && hasText(collapsedDrawList, "▸ Child")
+                        && hasText(collapsedDrawList, "? Child")
                         && !hasText(collapsedDrawList, "  Leaf"),
                 "Collapsing a TreeView node should remove descendants from layout and render");
 
@@ -3147,7 +3219,7 @@ public final class BasicControlsSelfTest {
         LoadingIndicator dots = new LoadingIndicator()
                 .mode(LoadingIndicator.Mode.DOTS)
                 .phase(0.25f);
-        dots.preferredSize(72.0f, 24.0f);
+        dots.layout(style -> style.size(72.0f, 24.0f));
         dots.measure(new LayoutContext(100.0f, 100.0f));
         dots.arrange(new MutableRect(0.0f, 0.0f, 72.0f, 24.0f));
         DrawList dotsDrawList = new DrawList();
@@ -3247,7 +3319,7 @@ public final class BasicControlsSelfTest {
         expect(hasText(drawList, "Home")
                         && hasText(drawList, "Projects")
                         && hasText(drawList, "UniGUI")
-                        && hasText(drawList, "›"),
+                        && hasText(drawList, "\u203A"),
                 "Breadcrumb should render segment buttons and separators");
 
         Counter changes = new Counter();

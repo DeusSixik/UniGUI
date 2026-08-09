@@ -28,7 +28,7 @@ public class NotificationView extends Box implements OverlayHostAware {
         borderColor().set(0.30f, 0.78f, 1.0f, 0.75f);
         layout(style -> style.position(PositionType.ABSOLUTE).overflow(Overflow.HIDDEN));
         visible(false);
-        message.margin(8.0f, 6.0f).align(Alignment.STRETCH, Alignment.STRETCH);
+        message.layout(style -> style.margin(8.0f, 6.0f).align(Alignment.STRETCH, Alignment.STRETCH));
         addChild(message);
     }
 

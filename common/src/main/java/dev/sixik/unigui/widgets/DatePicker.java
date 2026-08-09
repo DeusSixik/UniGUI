@@ -107,10 +107,10 @@ public final class DatePicker extends LinearBox {
         super(Orientation.HORIZONTAL);
         spacing(3.0f);
 
-        previous.preferredSize(22.0f, 22.0f).grow(0.0f);
-        field.preferredSize(92.0f, 22.0f).grow(0.0f);
-        next.preferredSize(22.0f, 22.0f).grow(0.0f);
-        calendarButton.preferredSize(22.0f, 22.0f).grow(0.0f);
+        previous.layout(style -> style.size(22.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
+        field.layout(style -> style.size(92.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
+        next.layout(style -> style.size(22.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
+        calendarButton.layout(style -> style.size(22.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
 
         addChild(previous);
         addChild(field);
@@ -297,11 +297,11 @@ public final class DatePicker extends LinearBox {
 
     private void buildCalendarPanel() {
         calendarPanel.spacing(4.0f);
-        calendarPanel.preferredSize(CALENDAR_WIDTH, CALENDAR_PANEL_HEIGHT).grow(0.0f);
+        calendarPanel.layout(style -> style.size(CALENDAR_WIDTH, CALENDAR_PANEL_HEIGHT).flexGrow(0).flexShrink(0.0f));
 
-        previousMonth.preferredSize(24.0f, 20.0f).grow(0.0f);
-        nextMonth.preferredSize(24.0f, 20.0f).grow(0.0f);
-        monthLabel.preferredSize(LayoutConstraints.AUTO, 20.0f).grow(1.0f);
+        previousMonth.layout(style -> style.size(24.0f, 20.0f).flexGrow(0).flexShrink(0.0f));
+        nextMonth.layout(style -> style.size(24.0f, 20.0f).flexGrow(0).flexShrink(0.0f));
+        monthLabel.layout(style -> style.size(LayoutConstraints.AUTO, 20.0f).flexGrow(1).flexShrink(1.0f));
         previousMonth.onClick(event -> {
             displayedMonth = displayedMonth.minusMonths(1L);
             rebuildCalendar();
@@ -312,23 +312,23 @@ public final class DatePicker extends LinearBox {
         });
 
         calendarHeader.spacing(4.0f);
-        calendarHeader.grow(0.0f);
+        calendarHeader.layout(style -> style.flexGrow(0).flexShrink(0.0f));
         calendarHeader.addChild(previousMonth);
         calendarHeader.addChild(monthLabel);
         calendarHeader.addChild(nextMonth);
 
         HBox week = new HBox();
         week.spacing(2.0f);
-        week.grow(0.0f);
+        week.layout(style -> style.flexGrow(0).flexShrink(0.0f));
         for (String day : List.of("Mo", "Tu", "We", "Th", "Fr", "Sa", "Su")) {
             CenteredText label = new CenteredText(day, Part.WEEKDAY_LABEL);
-            label.preferredSize(DAY_CELL_WIDTH, 14.0f).grow(0.0f);
+            label.layout(style -> style.size(DAY_CELL_WIDTH, 14.0f).flexGrow(0).flexShrink(0.0f));
             week.addChild(label);
         }
 
         daysPanel.spacing(2.0f);
         daysPanel.lineSpacing(2.0f);
-        daysPanel.preferredSize(DAYS_PANEL_WIDTH, DAYS_PANEL_HEIGHT).grow(0.0f);
+        daysPanel.layout(style -> style.size(DAYS_PANEL_WIDTH, DAYS_PANEL_HEIGHT).flexGrow(0).flexShrink(0.0f));
 
         calendarPanel.addChild(calendarHeader);
         calendarPanel.addChild(week);
@@ -343,7 +343,7 @@ public final class DatePicker extends LinearBox {
         int leading = first.getDayOfWeek().getValue() - DayOfWeek.MONDAY.getValue();
         for (int i = 0; i < leading; i++) {
             Label empty = new Label("");
-            empty.preferredSize(DAY_CELL_WIDTH, DAY_CELL_HEIGHT).grow(0.0f);
+            empty.layout(style -> style.size(DAY_CELL_WIDTH, DAY_CELL_HEIGHT).flexGrow(0).flexShrink(0.0f));
             daysPanel.addChild(empty);
         }
 
@@ -351,7 +351,7 @@ public final class DatePicker extends LinearBox {
             LocalDate date = displayedMonth.atDay(day);
             ToggleButton button = new ToggleButton(Integer.toString(day));
             button.renderer(COMPACT_CENTER_BUTTON_RENDERER);
-            button.preferredSize(DAY_CELL_WIDTH, DAY_CELL_HEIGHT).grow(0.0f);
+            button.layout(style -> style.size(DAY_CELL_WIDTH, DAY_CELL_HEIGHT).flexGrow(0).flexShrink(0.0f));
             button.silentChecked(date.equals(value));
             button.onClick(event -> {
                 setValue(date, true, true);

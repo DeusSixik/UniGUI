@@ -50,9 +50,7 @@ public final class UniGuiDemo {
 
     private static Box backgroundFrame() {
         Box frame = panelBox(0.020f, 0.024f, 0.032f, 0.98f);
-        frame.align(Alignment.STRETCH, Alignment.STRETCH)
-                .margin(6.0f)
-                .grow(1.0f);
+        frame.layout(style -> style.align(Alignment.STRETCH, Alignment.STRETCH).margin(6.0f).flexGrow(1).flexShrink(1.0f));
         return frame;
     }
 

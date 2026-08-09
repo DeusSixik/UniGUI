@@ -81,6 +81,7 @@ public final class DockingRoot extends Box {
     private DockSplitHandleRenderer splitHandleRenderer;
     private DockDropPreviewRenderer dropPreviewRenderer;
     private WindowWidget lastFloatingWindow;
+    private final List<WindowWidget> floatingDockWindows = new ArrayList<>();
     private String hoveredPaneId = "";
     private String pressedPaneId = "";
     private String openOverflowNodeId = "";
@@ -148,8 +149,8 @@ public final class DockingRoot extends Box {
     }
 
     public DockingRoot floatingWindowsRedockLocked(boolean floatingWindowsRedockLocked) {
-        if (this.floatingWindowsRedockLocked == floatingWindowsRedockLocked) return this;
         this.floatingWindowsRedockLocked = floatingWindowsRedockLocked;
+        syncFloatingDockWindowRedockLocks();
         return this;
     }
 
@@ -410,7 +411,7 @@ public final class DockingRoot extends Box {
             return;
         }
 
-        // ── Split drag: move ──────────────────────────────────────────────────
+        // -- Split drag: move --------------------------------------------------
         if (event instanceof PointerMovedEvent pointer && !pressedSplitNodeId.isEmpty()
                 && pointer.pointerId() == splitDragPointerId) {
             DockNode node = findSplitNodeById(rootNode(), pressedSplitNodeId);
@@ -424,7 +425,7 @@ public final class DockingRoot extends Box {
             return;
         }
 
-        // ── Split drag: end ───────────────────────────────────────────────────
+        // -- Split drag: end ---------------------------------------------------
         if (event instanceof PointerReleasedEvent pointer
                 && pointer.button() == PointerButton.PRIMARY
                 && !pressedSplitNodeId.isEmpty()
@@ -438,7 +439,7 @@ public final class DockingRoot extends Box {
             return;
         }
 
-        // ── Tab drag: move ────────────────────────────────────────────────────
+        // -- Tab drag: move ----------------------------------------------------
         if (event instanceof PointerMovedEvent pointer && dragController.active()) {
             if (dragController.move(pointer.pointerId(), pointer.rootX(), pointer.rootY())) {
                 event.cancel();
@@ -453,7 +454,7 @@ public final class DockingRoot extends Box {
             return;
         }
 
-        // ── Hover: split handle & pane tab ────────────────────────────────────
+        // -- Hover: split handle & pane tab ------------------------------------
         if (event instanceof PointerMovedEvent pointer && pointer.phase() == EventPhase.TARGET) {
             SplitNodeHit splitHit = splitHandleAt(rootNode(), layoutBounds(), pointer.rootX(), pointer.rootY());
             setHoveredSplitNode(splitHit == null ? "" : splitHit.node().id());
@@ -470,7 +471,7 @@ public final class DockingRoot extends Box {
             setHoveredSplitNode("");
         }
 
-        // ── Tab drag: end ─────────────────────────────────────────────────────
+        // -- Tab drag: end -----------------------------------------------------
         if (event instanceof PointerReleasedEvent pointer
                 && pointer.button() == PointerButton.PRIMARY
                 && dragController.active()) {
@@ -490,7 +491,7 @@ public final class DockingRoot extends Box {
             setPressedPane("");
         }
 
-        // ── Press: split handle or tab ────────────────────────────────────────
+        // -- Press: split handle or tab ----------------------------------------
         if (event instanceof PointerPressedEvent pointer
                 && pointer.phase() == EventPhase.TARGET
                 && pointer.button() == PointerButton.PRIMARY) {
@@ -736,7 +737,7 @@ public final class DockingRoot extends Box {
         WindowWidget window = new WindowWidget(pane.richTitle(), pane.content());
         float width = Math.max(180.0f, intent.width());
         float height = Math.max(112.0f, intent.height());
-        window.preferredSize(width, height);
+        window.layout(style -> style.size(width, height));
         window.minWindowSize(120.0f, 64.0f);
         window.closeButtonVisible(false);
         window.closeOnOutsideClick(false);
@@ -761,7 +762,24 @@ public final class DockingRoot extends Box {
             overlay.addOverlay(window);
         }
         window.open();
+        registerFloatingDockWindow(window);
         return window;
+    }
+
+    private void registerFloatingDockWindow(WindowWidget window) {
+        if (window == null) return;
+        floatingDockWindows.removeIf(existing -> existing == null || !existing.opened());
+        if (!floatingDockWindows.contains(window)) {
+            floatingDockWindows.add(window);
+        }
+        window.dockRedockLocked(floatingWindowsRedockLocked);
+    }
+
+    private void syncFloatingDockWindowRedockLocks() {
+        floatingDockWindows.removeIf(window -> window == null || !window.opened());
+        for (WindowWidget window : floatingDockWindows) {
+            window.dockRedockLocked(floatingWindowsRedockLocked);
+        }
     }
 
     private void configureFloatingPaneRedock(WindowWidget window, DockPane pane, OverlayLayer overlay) {
@@ -839,6 +857,7 @@ public final class DockingRoot extends Box {
         if (lastFloatingWindow == window) {
             lastFloatingWindow = null;
         }
+        floatingDockWindows.remove(window);
     }
 
     private RectView floatingHostBounds() {
@@ -1487,7 +1506,7 @@ public final class DockingRoot extends Box {
                                 DockSplitOrientation orientation) {
     }
 
-    // ── Split-drag helpers ────────────────────────────────────────────────────
+    // -- Split-drag helpers ----------------------------------------------------
 
     /**
      * Returns the split node whose handle intersects the given root-space point,

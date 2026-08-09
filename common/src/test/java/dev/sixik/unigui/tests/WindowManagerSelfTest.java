@@ -43,11 +43,11 @@ public final class WindowManagerSelfTest {
         WindowWidget first = new WindowWidget("First", new Label("First body"))
                 .position(12.0f, 8.0f)
                 .open();
-        first.preferredSize(120.0f, 70.0f).grow(0.0f);
+        first.layout(style -> style.size(120.0f, 70.0f).flexGrow(0).flexShrink(0.0f));
         WindowWidget second = new WindowWidget("Second", new Label("Second body"))
                 .position(20.0f, 14.0f)
                 .open();
-        second.preferredSize(100.0f, 60.0f).grow(0.0f);
+        second.layout(style -> style.size(100.0f, 60.0f).flexGrow(0).flexShrink(0.0f));
         layer.addOverlay(first);
         layer.addOverlay(second);
         layout(layer, 180.0f, 100.0f);
@@ -90,7 +90,7 @@ public final class WindowManagerSelfTest {
                         && first.layoutBounds().y() + first.layoutBounds().height() <= 100.01f,
                 "Window drag should publish move lifecycle events and clamp inside host bounds");
 
-        first.position(10.0f, 8.0f).preferredSize(90.0f, 52.0f);
+        first.position(10.0f, 8.0f).layout(style -> style.size(90.0f, 52.0f));
         layout(layer, 180.0f, 100.0f);
         Counter resizeEvents = new Counter();
         first.onResizeStarted(event -> resizeEvents.started++);
@@ -121,7 +121,7 @@ public final class WindowManagerSelfTest {
     private void testAlreadyOpenModalRegistrationPublishesModalOpenedAndBlocksBackgroundInput() {
         DefaultUIContext context = new DefaultUIContext();
         Button background = new Button("Background");
-        background.preferredSize(100.0f, 20.0f).grow(0.0f);
+        background.layout(style -> style.size(100.0f, 20.0f).flexGrow(0).flexShrink(0.0f));
         Counter backgroundClicks = new Counter();
         background.onClick(event -> backgroundClicks.count++);
 
@@ -132,7 +132,7 @@ public final class WindowManagerSelfTest {
                 .position(20.0f, 12.0f)
                 .modal(true)
                 .open();
-        modal.preferredSize(110.0f, 64.0f).grow(0.0f);
+        modal.layout(style -> style.size(110.0f, 64.0f).flexGrow(0).flexShrink(0.0f));
 
         Counter modalEvents = new Counter();
         modal.onModalOpened(event -> {
@@ -166,7 +166,7 @@ public final class WindowManagerSelfTest {
         WindowWidget textWindow = new WindowWidget("Text drag", bodyText)
                 .position(10.0f, 8.0f)
                 .open();
-        textWindow.preferredSize(150.0f, 82.0f).grow(0.0f);
+        textWindow.layout(style -> style.size(150.0f, 82.0f).flexGrow(0).flexShrink(0.0f));
         Counter textMove = new Counter();
         textWindow.onMoveStarted(event -> textMove.started++);
         textWindow.onMoveEnded(event -> textMove.ended++);
@@ -192,7 +192,7 @@ public final class WindowManagerSelfTest {
         WindowWidget buttonWindow = new WindowWidget("Button block", button)
                 .position(18.0f, 14.0f)
                 .open();
-        buttonWindow.preferredSize(150.0f, 82.0f).grow(0.0f);
+        buttonWindow.layout(style -> style.size(150.0f, 82.0f).flexGrow(0).flexShrink(0.0f));
         layer.addOverlay(buttonWindow);
         layout(layer, 260.0f, 160.0f);
 
@@ -208,7 +208,7 @@ public final class WindowManagerSelfTest {
         WindowWidget inputWindow = new WindowWidget("TextInput block", input)
                 .position(26.0f, 20.0f)
                 .open();
-        inputWindow.preferredSize(160.0f, 86.0f).grow(0.0f);
+        inputWindow.layout(style -> style.size(160.0f, 86.0f).flexGrow(0).flexShrink(0.0f));
         layer.addOverlay(inputWindow);
         layout(layer, 280.0f, 170.0f);
 
@@ -230,7 +230,7 @@ public final class WindowManagerSelfTest {
                 .position(12.0f, 10.0f)
                 .modal(true)
                 .open();
-        movableModal.preferredSize(120.0f, 72.0f).grow(0.0f);
+        movableModal.layout(style -> style.size(120.0f, 72.0f).flexGrow(0).flexShrink(0.0f));
         layer.addOverlay(movableModal);
         layout(layer, 240.0f, 150.0f);
 
@@ -259,7 +259,7 @@ public final class WindowManagerSelfTest {
                 .modal(true)
                 .fixedModal(true)
                 .open();
-        fixedModal.preferredSize(120.0f, 72.0f).grow(0.0f);
+        fixedModal.layout(style -> style.size(120.0f, 72.0f).flexGrow(0).flexShrink(0.0f));
         layer.addOverlay(fixedModal);
         layout(layer, 240.0f, 150.0f);
 
@@ -298,7 +298,7 @@ public final class WindowManagerSelfTest {
                 .position(12.0f, 10.0f)
                 .minWindowSize(80.0f, 48.0f)
                 .open();
-        window.preferredSize(120.0f, 72.0f).grow(0.0f);
+        window.layout(style -> style.size(120.0f, 72.0f).flexGrow(0).flexShrink(0.0f));
         Counter resizeEvents = new Counter();
         window.onResizeStarted(event -> resizeEvents.started++);
         window.onResizeEnded(event -> {

@@ -129,7 +129,7 @@ public class LoadingIndicator extends Box {
 
     public LoadingIndicator indicatorSize(float size) {
         float normalized = Float.isFinite(size) ? Math.max(1.0f, size) : DEFAULT_SIZE;
-        preferredSize(normalized, normalized);
+        layout(style -> style.size(normalized, normalized));
         return this;
     }
 

@@ -557,9 +557,7 @@ public final class LayoutV3SelfTest {
         stack.layout(style -> style.padding(5.0f));
         Box stretch = new Box();
         Box aligned = new Box();
-        aligned.preferredSize(20.0f, 10.0f)
-                .margin(2.0f, 3.0f, 4.0f, 5.0f)
-                .align(Alignment.END, Alignment.CENTER);
+        aligned.layout(style -> style.size(20.0f, 10.0f).margin(2.0f, 3.0f, 4.0f, 5.0f).align(Alignment.END, Alignment.CENTER));
         stack.addChild(stretch);
         stack.addChild(aligned);
         stack.applyQueuedMutations();
@@ -586,7 +584,7 @@ public final class LayoutV3SelfTest {
         StackPanel stack = new StackPanel();
         stack.layout(style -> style.padding(4.0f));
         Box normal = new Box();
-        normal.preferredSize(20.0f, 10.0f);
+        normal.layout(style -> style.size(20.0f, 10.0f));
         Box absolute = new Box();
         absolute.layout(style -> style
                 .position(PositionType.ABSOLUTE)
@@ -762,7 +760,7 @@ public final class LayoutV3SelfTest {
 
     private void testOverlayLayerV2BaselineIgnoresOverlayDesiredSize() {
         Box content = new Box();
-        content.preferredSize(80.0f, 30.0f);
+        content.layout(style -> style.size(80.0f, 30.0f));
         Box overlay = new Box();
         overlay.layout(style -> style
                 .position(PositionType.ABSOLUTE)
@@ -809,7 +807,7 @@ public final class LayoutV3SelfTest {
                 .width(80.0f)
                 .height(60.0f));
         Box content = new Box();
-        content.preferredSize(120.0f, 80.0f);
+        content.layout(style -> style.size(120.0f, 80.0f));
 
         layer.addOverlay(firstOverlay);
         layer.addOverlay(secondOverlay);
@@ -833,11 +831,11 @@ public final class LayoutV3SelfTest {
     private void testOverlayLayerCloseOnOutsideClickContract() {
         dev.sixik.unigui.impl.core.DefaultUIContext context = new dev.sixik.unigui.impl.core.DefaultUIContext();
         Button anchor = new Button("Anchor");
-        anchor.preferredSize(60.0f, 20.0f).grow(0.0f);
+        anchor.layout(style -> style.size(60.0f, 20.0f).flexGrow(0).flexShrink(0.0f));
         Button popupContent = new Button("Popup action");
-        popupContent.preferredSize(80.0f, 20.0f).grow(0.0f);
+        popupContent.layout(style -> style.size(80.0f, 20.0f).flexGrow(0).flexShrink(0.0f));
         Box outside = new Box();
-        outside.preferredSize(120.0f, 32.0f).grow(0.0f);
+        outside.layout(style -> style.size(120.0f, 32.0f).flexGrow(0).flexShrink(0.0f));
         VBox content = new VBox();
         content.addChild(anchor);
         content.addChild(outside);
@@ -872,9 +870,9 @@ public final class LayoutV3SelfTest {
 
     private void testPopupV2BaselineAnchorsAndFlipsInsideHost() {
         Button anchor = new Button("Anchor");
-        anchor.preferredSize(40.0f, 20.0f);
+        anchor.layout(style -> style.size(40.0f, 20.0f));
         Box content = new Box();
-        content.preferredSize(70.0f, 24.0f);
+        content.layout(style -> style.size(70.0f, 24.0f));
         Popup popup = new Popup(anchor, content)
                 .padding(EdgeInsets.all(0.0f))
                 .offset(0.0f, 4.0f)
@@ -915,9 +913,9 @@ public final class LayoutV3SelfTest {
                 .items(java.util.List.of("One", "Two", "Three"))
                 .silentSelectedIndex(0)
                 .useOverlay(layer);
-        combo.preferredSize(100.0f, LayoutConstraints.AUTO).grow(0.0f);
+        combo.layout(style -> style.size(100.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
         Box after = new Box();
-        after.preferredSize(80.0f, 12.0f).grow(0.0f);
+        after.layout(style -> style.size(80.0f, 12.0f).flexGrow(0).flexShrink(0.0f));
         page.addChild(combo);
         page.addChild(after);
         layer.content(page);
@@ -950,9 +948,9 @@ public final class LayoutV3SelfTest {
         dropDown.items(java.util.List.of("A", "B", "C"))
                 .silentSelectedIndex(0)
                 .useOverlay(layer);
-        dropDown.preferredSize(90.0f, LayoutConstraints.AUTO).grow(0.0f);
+        dropDown.layout(style -> style.size(90.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
         Box after = new Box();
-        after.preferredSize(80.0f, 12.0f).grow(0.0f);
+        after.layout(style -> style.size(80.0f, 12.0f).flexGrow(0).flexShrink(0.0f));
         page.addChild(dropDown);
         page.addChild(after);
         layer.content(page);
@@ -987,16 +985,16 @@ public final class LayoutV3SelfTest {
                 .items(java.util.List.of("Root portal", "Scroll clipped", "Still visible", "Resolver"))
                 .silentSelectedIndex(0)
                 .useOverlay();
-        combo.preferredSize(110.0f, LayoutConstraints.AUTO).grow(0.0f);
+        combo.layout(style -> style.size(110.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
         Box filler = new Box();
-        filler.preferredSize(80.0f, 48.0f).grow(0.0f);
+        filler.layout(style -> style.size(80.0f, 48.0f).flexGrow(0).flexShrink(0.0f));
         scrollContent.addChild(combo);
         scrollContent.addChild(filler);
 
         ScrollView scroll = new ScrollView(scrollContent);
-        scroll.preferredSize(126.0f, 38.0f).grow(0.0f);
+        scroll.layout(style -> style.size(126.0f, 38.0f).flexGrow(0).flexShrink(0.0f));
         Box after = new Box();
-        after.preferredSize(80.0f, 12.0f).grow(0.0f);
+        after.layout(style -> style.size(80.0f, 12.0f).flexGrow(0).flexShrink(0.0f));
         page.addChild(scroll);
         page.addChild(after);
         root.content(page);
@@ -1036,14 +1034,14 @@ public final class LayoutV3SelfTest {
                 .items(java.util.List.of("Root portal", "Escapes clip", "Render path"))
                 .silentSelectedIndex(0)
                 .useOverlay();
-        combo.preferredSize(110.0f, LayoutConstraints.AUTO).grow(0.0f);
+        combo.layout(style -> style.size(110.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
         Box filler = new Box();
-        filler.preferredSize(80.0f, 48.0f).grow(0.0f);
+        filler.layout(style -> style.size(80.0f, 48.0f).flexGrow(0).flexShrink(0.0f));
         scrollContent.addChild(combo);
         scrollContent.addChild(filler);
 
         ScrollView scroll = new ScrollView(scrollContent);
-        scroll.preferredSize(126.0f, 38.0f).grow(0.0f);
+        scroll.layout(style -> style.size(126.0f, 38.0f).flexGrow(0).flexShrink(0.0f));
         page.addChild(scroll);
         root.content(page);
         root.applyQueuedMutations();
@@ -1101,23 +1099,23 @@ public final class LayoutV3SelfTest {
         VBox scrollContent = new VBox();
         VBox nested = new VBox();
         Box topSpacer = new Box();
-        topSpacer.preferredSize(80.0f, 14.0f).grow(0.0f);
+        topSpacer.layout(style -> style.size(80.0f, 14.0f).flexGrow(0).flexShrink(0.0f));
         ComboBox combo = new ComboBox()
                 .items(java.util.List.of("Nested portal", "Scroll V3", "Overlay V3", "Still above clip"))
                 .silentSelectedIndex(0)
                 .useOverlay();
-        combo.preferredSize(112.0f, LayoutConstraints.AUTO).grow(0.0f);
+        combo.layout(style -> style.size(112.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
         Box bottomFiller = new Box();
-        bottomFiller.preferredSize(84.0f, 58.0f).grow(0.0f);
+        bottomFiller.layout(style -> style.size(84.0f, 58.0f).flexGrow(0).flexShrink(0.0f));
         nested.addChild(topSpacer);
         nested.addChild(combo);
         nested.addChild(bottomFiller);
         scrollContent.addChild(nested);
 
         ScrollView scroll = new ScrollView(scrollContent);
-        scroll.preferredSize(126.0f, 44.0f).grow(0.0f);
+        scroll.layout(style -> style.size(126.0f, 44.0f).flexGrow(0).flexShrink(0.0f));
         Box after = new Box();
-        after.preferredSize(80.0f, 12.0f).grow(0.0f);
+        after.layout(style -> style.size(80.0f, 12.0f).flexGrow(0).flexShrink(0.0f));
         page.addChild(scroll);
         page.addChild(after);
         root.content(page);
@@ -1167,9 +1165,9 @@ public final class LayoutV3SelfTest {
         dropDown.items(java.util.List.of("Alpha", "Beta", "Gamma"))
                 .silentSelectedIndex(0)
                 .useOverlay(layer);
-        dropDown.preferredSize(90.0f, LayoutConstraints.AUTO).grow(0.0f);
+        dropDown.layout(style -> style.size(90.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
         Box after = new Box();
-        after.preferredSize(80.0f, 12.0f).grow(0.0f);
+        after.layout(style -> style.size(80.0f, 12.0f).flexGrow(0).flexShrink(0.0f));
         page.addChild(dropDown);
         page.addChild(after);
         layer.content(page);
@@ -1510,8 +1508,7 @@ public final class LayoutV3SelfTest {
         HBox row = new HBox();
         row.layout(style -> style.alignItems(Align.START));
         Box child = new Box();
-        child.preferredSize(20.0f, 10.0f)
-                .align(Alignment.END, Alignment.CENTER);
+        child.layout(style -> style.size(20.0f, 10.0f).align(Alignment.END, Alignment.CENTER));
         row.addChild(child);
         row.applyQueuedMutations();
         return row;
@@ -1521,8 +1518,7 @@ public final class LayoutV3SelfTest {
         VBox column = new VBox();
         column.layout(style -> style.alignItems(Align.START));
         Box child = new Box();
-        child.preferredSize(20.0f, 10.0f)
-                .align(Alignment.CENTER, Alignment.END);
+        child.layout(style -> style.size(20.0f, 10.0f).align(Alignment.CENTER, Alignment.END));
         column.addChild(child);
         column.applyQueuedMutations();
         return column;
@@ -1546,9 +1542,7 @@ public final class LayoutV3SelfTest {
         stack.layout(style -> style.padding(5.0f));
         Box stretch = new Box();
         Box aligned = new Box();
-        aligned.preferredSize(20.0f, 10.0f)
-                .margin(2.0f, 3.0f, 4.0f, 5.0f)
-                .align(Alignment.END, Alignment.CENTER);
+        aligned.layout(style -> style.size(20.0f, 10.0f).margin(2.0f, 3.0f, 4.0f, 5.0f).align(Alignment.END, Alignment.CENTER));
         stack.addChild(stretch);
         stack.addChild(aligned);
         stack.applyQueuedMutations();
@@ -1559,7 +1553,7 @@ public final class LayoutV3SelfTest {
         StackPanel stack = new StackPanel();
         stack.layout(style -> style.padding(4.0f));
         Box normal = new Box();
-        normal.preferredSize(20.0f, 10.0f);
+        normal.layout(style -> style.size(20.0f, 10.0f));
         Box absolute = new Box();
         absolute.layout(style -> style
                 .position(PositionType.ABSOLUTE)
@@ -1599,16 +1593,16 @@ public final class LayoutV3SelfTest {
         dock.lastChildFill(lastChildFill);
 
         Box top = new Box();
-        top.preferredSize(LayoutConstraints.AUTO, 20.0f).grow(0.0f);
+        top.layout(style -> style.size(LayoutConstraints.AUTO, 20.0f).flexGrow(0).flexShrink(0.0f));
         Box left = new Box();
-        left.preferredSize(30.0f, LayoutConstraints.AUTO).grow(0.0f);
+        left.layout(style -> style.size(30.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
         Box right = new Box();
-        right.preferredSize(40.0f, LayoutConstraints.AUTO).grow(0.0f);
+        right.layout(style -> style.size(40.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
         Box bottom = new Box();
-        bottom.preferredSize(LayoutConstraints.AUTO, 16.0f).grow(0.0f);
+        bottom.layout(style -> style.size(LayoutConstraints.AUTO, 16.0f).flexGrow(0).flexShrink(0.0f));
         Box center = new Box();
         if (fixedCenter) {
-            center.preferredSize(35.0f, 40.0f).grow(0.0f);
+            center.layout(style -> style.size(35.0f, 40.0f).flexGrow(0).flexShrink(0.0f));
         }
         Box absolute = new Box();
         absolute.layout(style -> style
@@ -1645,19 +1639,15 @@ public final class LayoutV3SelfTest {
         grid.layout(style -> style.padding(3.0f));
 
         Box first = new Box();
-        first.preferredSize(20.0f, 10.0f).grow(0.0f);
+        first.layout(style -> style.size(20.0f, 10.0f).flexGrow(0).flexShrink(0.0f));
         Box second = new Box();
         Box third = new Box();
-        third.preferredSize(18.0f, 12.0f)
-                .align(Alignment.END, Alignment.CENTER)
-                .grow(0.0f);
+        third.layout(style -> style.size(18.0f, 12.0f).align(Alignment.END, Alignment.CENTER).flexGrow(0).flexShrink(0.0f));
         Box collapsed = new Box();
-        collapsed.preferredSize(90.0f, 90.0f).grow(0.0f);
+        collapsed.layout(style -> style.size(90.0f, 90.0f).flexGrow(0).flexShrink(0.0f));
         collapsed.visibility(Visibility.COLLAPSED);
         Box fourth = new Box();
-        fourth.preferredSize(LayoutConstraints.AUTO, 9.0f)
-                .margin(1.0f, 2.0f, 3.0f, 4.0f)
-                .grow(0.0f);
+        fourth.layout(style -> style.size(LayoutConstraints.AUTO, 9.0f).margin(1.0f, 2.0f, 3.0f, 4.0f).flexGrow(0).flexShrink(0.0f));
         Box absolute = new Box();
         absolute.layout(style -> style
                 .position(PositionType.ABSOLUTE)
@@ -1769,7 +1759,7 @@ public final class LayoutV3SelfTest {
 
     private static OverlayLayer buildOverlaySnapshotLayer() {
         Box content = new Box();
-        content.preferredSize(80.0f, 40.0f).grow(0.0f);
+        content.layout(style -> style.size(80.0f, 40.0f).flexGrow(0).flexShrink(0.0f));
         Box overlay = new Box();
         overlay.layout(style -> style
                 .position(PositionType.ABSOLUTE)
@@ -1785,9 +1775,9 @@ public final class LayoutV3SelfTest {
 
     private static PopupFixture buildEdgePopupFixture() {
         Button anchor = new Button("Anchor");
-        anchor.preferredSize(40.0f, 20.0f);
+        anchor.layout(style -> style.size(40.0f, 20.0f));
         Box content = new Box();
-        content.preferredSize(70.0f, 24.0f);
+        content.layout(style -> style.size(70.0f, 24.0f));
         Popup popup = new Popup(anchor, content)
                 .padding(EdgeInsets.all(0.0f))
                 .offset(0.0f, 4.0f)
@@ -1810,16 +1800,16 @@ public final class LayoutV3SelfTest {
         content.spacing(4.0f);
         Box top = new Box();
         top.backgroundVisible(true);
-        top.preferredSize(80.0f, 30.0f).grow(0.0f);
+        top.layout(style -> style.size(80.0f, 30.0f).flexGrow(0).flexShrink(0.0f));
         Box bottom = new Box();
         bottom.backgroundVisible(true);
-        bottom.preferredSize(80.0f, 48.0f).grow(0.0f);
+        bottom.layout(style -> style.size(80.0f, 48.0f).flexGrow(0).flexShrink(0.0f));
         content.addChild(top);
         content.addChild(bottom);
         content.applyQueuedMutations();
 
         ScrollView scroll = new ScrollView(content);
-        scroll.preferredSize(100.0f, 40.0f).grow(0.0f);
+        scroll.layout(style -> style.size(100.0f, 40.0f).flexGrow(0).flexShrink(0.0f));
         return new ScrollViewFixture(scroll, content);
     }
 
@@ -1828,17 +1818,17 @@ public final class LayoutV3SelfTest {
         content.spacing(4.0f);
         Box left = new Box();
         left.backgroundVisible(true);
-        left.preferredSize(74.0f, 24.0f).grow(0.0f);
+        left.layout(style -> style.size(74.0f, 24.0f).flexGrow(0).flexShrink(0.0f));
         Box right = new Box();
         right.backgroundVisible(true);
-        right.preferredSize(86.0f, 24.0f).grow(0.0f);
+        right.layout(style -> style.size(86.0f, 24.0f).flexGrow(0).flexShrink(0.0f));
         content.addChild(left);
         content.addChild(right);
         content.applyQueuedMutations();
 
         ScrollView scroll = new ScrollView(content);
         scroll.layout(style -> style.overflowX(Overflow.AUTO).overflowY(Overflow.HIDDEN));
-        scroll.preferredSize(90.0f, 44.0f).grow(0.0f);
+        scroll.layout(style -> style.size(90.0f, 44.0f).flexGrow(0).flexShrink(0.0f));
         return new ScrollViewFixture(scroll, content);
     }
 
@@ -1847,17 +1837,17 @@ public final class LayoutV3SelfTest {
         content.spacing(4.0f);
         Box top = new Box();
         top.backgroundVisible(true);
-        top.preferredSize(150.0f, 34.0f).grow(0.0f);
+        top.layout(style -> style.size(150.0f, 34.0f).flexGrow(0).flexShrink(0.0f));
         Box bottom = new Box();
         bottom.backgroundVisible(true);
-        bottom.preferredSize(130.0f, 46.0f).grow(0.0f);
+        bottom.layout(style -> style.size(130.0f, 46.0f).flexGrow(0).flexShrink(0.0f));
         content.addChild(top);
         content.addChild(bottom);
         content.applyQueuedMutations();
 
         ScrollView scroll = new ScrollView(content);
         scroll.layout(style -> style.overflowX(Overflow.AUTO).overflowY(Overflow.AUTO));
-        scroll.preferredSize(100.0f, 42.0f).grow(0.0f);
+        scroll.layout(style -> style.size(100.0f, 42.0f).flexGrow(0).flexShrink(0.0f));
         return new ScrollViewFixture(scroll, content);
     }
 
@@ -1961,7 +1951,7 @@ public final class LayoutV3SelfTest {
         ScrollView scroll = new ScrollView(new Box());
         scroll.contentSize(140.0f, 90.0f);
         scroll.layout(style -> style.overflowX(overflowX).overflowY(overflowY));
-        scroll.preferredSize(80.0f, 50.0f).grow(0.0f);
+        scroll.layout(style -> style.size(80.0f, 50.0f).flexGrow(0).flexShrink(0.0f));
         return scroll;
     }
 

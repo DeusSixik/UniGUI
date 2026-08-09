@@ -74,7 +74,7 @@ public final class ColorPicker extends LinearBox {
         preview.backgroundVisible(true);
         preview.borderVisible(true);
         preview.radius(3.0f);
-        preview.preferredSize(LayoutConstraints.AUTO, 22.0f).grow(1.0f);
+        preview.layout(style -> style.size(LayoutConstraints.AUTO, 22.0f).flexGrow(1).flexShrink(1.0f));
         preview.onClick(event -> togglePopup());
         addChild(preview);
 
@@ -245,32 +245,32 @@ public final class ColorPicker extends LinearBox {
 
     private void buildPickerPanel() {
         pickerPanel.spacing(6.0f);
-        pickerPanel.preferredSize(PICKER_WIDTH, LayoutConstraints.AUTO).grow(0.0f);
+        pickerPanel.layout(style -> style.size(PICKER_WIDTH, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
 
-        hsvModeButton.preferredSize(58.0f, 20.0f).grow(0.0f);
-        argbModeButton.preferredSize(66.0f, 20.0f).grow(0.0f);
+        hsvModeButton.layout(style -> style.size(58.0f, 20.0f).flexGrow(0).flexShrink(0.0f));
+        argbModeButton.layout(style -> style.size(66.0f, 20.0f).flexGrow(0).flexShrink(0.0f));
         hsvModeButton.themeEnabled(false).radius(3.0f);
         argbModeButton.themeEnabled(false).radius(3.0f);
         hsvModeButton.onClick(event -> type(Type.HSV));
         argbModeButton.onClick(event -> type(Type.ARGB));
 
         modeRow.spacing(4.0f);
-        modeRow.grow(0.0f);
+        modeRow.layout(style -> style.flexGrow(0).flexShrink(0.0f));
         Label modeLabel = new Label("Type");
-        modeLabel.preferredSize(44.0f, 20.0f).grow(0.0f);
+        modeLabel.layout(style -> style.size(44.0f, 20.0f).flexGrow(0).flexShrink(0.0f));
         modeRow.addChild(modeLabel);
         modeRow.addChild(hsvModeButton);
         modeRow.addChild(argbModeButton);
 
         hsvPanel.spacing(5.0f);
-        hsvPanel.grow(0.0f);
-        colorPlane.preferredSize(PICKER_WIDTH, COLOR_PLANE_HEIGHT).grow(0.0f);
-        hueSlider.preferredSize(HSV_SLIDER_WIDTH, ROW_HEIGHT).grow(0.0f);
+        hsvPanel.layout(style -> style.flexGrow(0).flexShrink(0.0f));
+        colorPlane.layout(style -> style.size(PICKER_WIDTH, COLOR_PLANE_HEIGHT).flexGrow(0).flexShrink(0.0f));
+        hueSlider.layout(style -> style.size(HSV_SLIDER_WIDTH, ROW_HEIGHT).flexGrow(0).flexShrink(0.0f));
         hsvPanel.addChild(colorPlane);
         hsvPanel.addChild(sliderRow("Hue", hueSlider));
 
         argbPanel.spacing(5.0f);
-        argbPanel.grow(0.0f);
+        argbPanel.layout(style -> style.flexGrow(0).flexShrink(0.0f));
         argbPanel.addChild(channelRow("A", alpha, alphaSlider));
         argbPanel.addChild(channelRow("R", red, redSlider));
         argbPanel.addChild(channelRow("G", green, greenSlider));
@@ -406,22 +406,22 @@ public final class ColorPicker extends LinearBox {
 
     private ChannelField channelField() {
         ChannelField field = new ChannelField();
-        field.preferredSize(CHANNEL_FIELD_WIDTH, ROW_HEIGHT).grow(0.0f);
+        field.layout(style -> style.size(CHANNEL_FIELD_WIDTH, ROW_HEIGHT).flexGrow(0).flexShrink(0.0f));
         return field;
     }
 
     private static Slider channelSlider() {
         Slider slider = new Slider().range(0.0f, 255.0f).step(1.0f).value(255.0f);
-        slider.preferredSize(CHANNEL_SLIDER_WIDTH, ROW_HEIGHT).grow(0.0f);
+        slider.layout(style -> style.size(CHANNEL_SLIDER_WIDTH, ROW_HEIGHT).flexGrow(0).flexShrink(0.0f));
         return slider;
     }
 
     private static HBox sliderRow(String label, Slider slider) {
         HBox row = new HBox();
         row.spacing(6.0f);
-        row.grow(0.0f);
+        row.layout(style -> style.flexGrow(0).flexShrink(0.0f));
         Label text = new Label(label);
-        text.preferredSize(HSV_LABEL_WIDTH, ROW_HEIGHT).grow(0.0f);
+        text.layout(style -> style.size(HSV_LABEL_WIDTH, ROW_HEIGHT).flexGrow(0).flexShrink(0.0f));
         row.addChild(text);
         row.addChild(slider);
         return row;
@@ -430,9 +430,9 @@ public final class ColorPicker extends LinearBox {
     private static HBox channelRow(String label, ChannelField field, Slider slider) {
         HBox row = new HBox();
         row.spacing(5.0f);
-        row.grow(0.0f);
+        row.layout(style -> style.flexGrow(0).flexShrink(0.0f));
         Label text = new Label(label);
-        text.preferredSize(CHANNEL_LABEL_WIDTH, ROW_HEIGHT).grow(0.0f);
+        text.layout(style -> style.size(CHANNEL_LABEL_WIDTH, ROW_HEIGHT).flexGrow(0).flexShrink(0.0f));
         row.addChild(text);
         row.addChild(field);
         row.addChild(slider);

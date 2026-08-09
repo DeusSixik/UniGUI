@@ -38,7 +38,7 @@ public final class ContextMenu extends Box implements OverlayHostAware {
 
     public ContextMenu item(RichText text, Runnable action) {
         Button button = new Button(text == null ? RichText.plain("") : text);
-        button.preferredSize(132.0f, 20.0f).grow(0.0f);
+        button.layout(style -> style.size(132.0f, 20.0f).flexGrow(0).flexShrink(0.0f));
         button.onClick(event -> {
             if (action != null) action.run();
             close();
@@ -50,7 +50,7 @@ public final class ContextMenu extends Box implements OverlayHostAware {
 
     public ContextMenu separator() {
         Separator separator = new Separator();
-        separator.preferredSize(132.0f, 1.0f).margin(2.0f, 3.0f).grow(0.0f);
+        separator.layout(style -> style.size(132.0f, 1.0f).margin(2.0f, 3.0f).flexGrow(0).flexShrink(0.0f));
         itemsHost.addChild(separator);
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;

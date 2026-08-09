@@ -45,7 +45,7 @@ public class ComboBox extends LinearBox {
         spacing(2.0f);
         focusable(true);
 
-        headerButton.preferredSize(LayoutConstraints.AUTO, HEADER_HEIGHT).grow(0.0f);
+        headerButton.layout(style -> style.size(LayoutConstraints.AUTO, HEADER_HEIGHT).flexGrow(0).flexShrink(0.0f));
         headerButton.onClick(event -> toggle());
 
         optionsHost.backgroundVisible(true);
@@ -54,12 +54,12 @@ public class ComboBox extends LinearBox {
         optionsHost.background().set(0.025f, 0.030f, 0.040f, 0.97f);
         optionsHost.borderColor().set(0.25f, 0.78f, 1.0f, 0.75f);
         optionsHost.visibility(Visibility.COLLAPSED);
-        optionsHost.grow(0.0f);
+        optionsHost.layout(style -> style.flexGrow(0).flexShrink(0.0f));
         optionsHost.addChild(optionsList);
 
         optionsList.spacing(1.0f);
-        optionsList.margin(2.0f);
-        optionsList.grow(0.0f);
+        optionsList.layout(style -> style.margin(2.0f));
+        optionsList.layout(style -> style.flexGrow(0).flexShrink(0.0f));
 
         dropDownPopup.anchor(headerButton);
         dropDownPopup.padding(EdgeInsets.all(0.0f));
@@ -367,7 +367,7 @@ public class ComboBox extends LinearBox {
         for (int index = 0; index < items.size(); index++) {
             final int itemIndex = index;
             ToggleButton option = new ToggleButton(richItems.get(index));
-            option.preferredSize(LayoutConstraints.AUTO, OPTION_HEIGHT).grow(0.0f);
+            option.layout(style -> style.size(LayoutConstraints.AUTO, OPTION_HEIGHT).flexGrow(0).flexShrink(0.0f));
             option.onClick(event -> {
                 selectedIndex(itemIndex);
                 close();

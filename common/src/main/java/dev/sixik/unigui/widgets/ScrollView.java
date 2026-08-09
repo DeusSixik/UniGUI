@@ -38,6 +38,7 @@ public class ScrollView extends WidgetBase {
     private float scrollY;
     private float scrollStep = 16.0f;
     private float scrollbarGap = ScrollBar.DEFAULT_GAP;
+    private boolean consumeWheelAtScrollBounds = true;
     private boolean horizontalScrollBarVisible;
     private boolean verticalScrollBarVisible;
 
@@ -117,6 +118,15 @@ public class ScrollView extends WidgetBase {
 
     public ScrollView scrollStep(float scrollStep) {
         this.scrollStep = Math.max(1.0f, scrollStep);
+        return this;
+    }
+
+    public boolean consumeWheelAtScrollBounds() {
+        return consumeWheelAtScrollBounds;
+    }
+
+    public ScrollView consumeWheelAtScrollBounds(boolean consumeWheelAtScrollBounds) {
+        this.consumeWheelAtScrollBounds = consumeWheelAtScrollBounds;
         return this;
     }
 
@@ -295,6 +305,8 @@ public class ScrollView extends WidgetBase {
             if (beforeX != scrollX || beforeY != scrollY) {
                 syncScrollBars();
                 event.cancel();
+            } else if (consumeWheelAtScrollBounds && canScrollWheel(scroll)) {
+                event.cancel();
             }
         }
     }
@@ -426,6 +438,14 @@ public class ScrollView extends WidgetBase {
     private boolean verticalScrollingEnabled() {
         Overflow overflow = layoutStyle().overflowY();
         return overflow == Overflow.AUTO || overflow == Overflow.SCROLL;
+    }
+
+    private boolean canScrollWheel(ScrollEvent scroll) {
+        if (scroll.deltaX() != 0.0f && maxScrollX() > 0.0f) return true;
+        if (scroll.deltaY() != 0.0f && maxScrollY() > 0.0f) return true;
+        return KeyModifiers.has(scroll.modifiers(), KeyModifiers.SHIFT)
+                && scroll.deltaY() != 0.0f
+                && maxScrollX() > 0.0f;
     }
 
     private boolean showsHorizontalScrollBar() {

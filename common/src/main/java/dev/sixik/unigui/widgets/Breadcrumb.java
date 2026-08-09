@@ -20,7 +20,7 @@ public class Breadcrumb extends PanelWidget {
     private final WrapPanel host = new WrapPanel();
     private final List<BreadcrumbItem> items = new ArrayList<>();
     private final List<Button> itemButtons = new ArrayList<>();
-    private String separator = "›";
+    private String separator = "\u203A";
     private int selectedIndex = -1;
 
     public Breadcrumb() {
@@ -194,7 +194,7 @@ public class Breadcrumb extends PanelWidget {
             Button button = new Button(item.richText());
             button.themeEnabled(false);
             button.enabled(item.enabled());
-            button.preferredSize(LayoutConstraints.AUTO, ITEM_HEIGHT).grow(0.0f);
+            button.layout(style -> style.size(LayoutConstraints.AUTO, ITEM_HEIGHT).flexGrow(0).flexShrink(0.0f));
             button.backgroundVisible(true);
             button.borderVisible(false);
             button.radius(3.0f);
@@ -205,9 +205,7 @@ public class Breadcrumb extends PanelWidget {
             if (index < items.size() - 1 && !separator.isEmpty()) {
                 Label label = new Label(separator);
                 label.color().set(0.58f, 0.62f, 0.68f, 0.85f);
-                label.preferredSize(SEPARATOR_WIDTH, ITEM_HEIGHT)
-                        .align(Alignment.CENTER, Alignment.CENTER)
-                        .grow(0.0f);
+                label.layout(style -> style.size(SEPARATOR_WIDTH, ITEM_HEIGHT).align(Alignment.CENTER, Alignment.CENTER).flexGrow(0).flexShrink(0.0f));
                 host.addChild(label);
             }
         }

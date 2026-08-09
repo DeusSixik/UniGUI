@@ -30,13 +30,13 @@ public class ExpandablePanel extends LinearBox {
         this.title = normalize(title);
         this.richTitle = RichText.plain(this.title);
 
-        headerButton.preferredSize(LayoutConstraints.AUTO, HEADER_HEIGHT).grow(0.0f);
+        headerButton.layout(style -> style.size(LayoutConstraints.AUTO, HEADER_HEIGHT).flexGrow(0).flexShrink(0.0f));
         headerButton.silentChecked(expanded);
         headerButton.onCheckedChanged(event -> expanded(event.newValue()));
 
         contentHost.spacing(4.0f);
-        contentHost.margin(6.0f, 4.0f);
-        contentHost.grow(0.0f);
+        contentHost.layout(style -> style.margin(6.0f, 4.0f));
+        contentHost.layout(style -> style.flexGrow(0).flexShrink(0.0f));
 
         super.addChild(headerButton);
         super.addChild(contentHost);

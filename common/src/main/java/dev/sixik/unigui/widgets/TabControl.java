@@ -27,8 +27,8 @@ public class TabControl extends LinearBox {
         spacing(4.0f);
 
         tabHeader.spacing(4.0f);
-        tabHeader.preferredSize(LayoutConstraints.AUTO, TAB_HEIGHT).grow(0.0f);
-        contentHost.preferredSize(LayoutConstraints.AUTO, LayoutConstraints.AUTO).grow(1.0f);
+        tabHeader.layout(style -> style.size(LayoutConstraints.AUTO, TAB_HEIGHT).flexGrow(0).flexShrink(0.0f));
+        contentHost.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO).flexGrow(1).flexShrink(1.0f));
 
         super.addChild(tabHeader);
         super.addChild(contentHost);
@@ -84,7 +84,7 @@ public class TabControl extends LinearBox {
         int insertIndex = Math.max(0, Math.min(index, tabs.size()));
         RichText normalizedTitle = title == null ? RichText.plain("") : title;
         ToggleButton button = new ToggleButton(normalizedTitle);
-        button.preferredSize(LayoutConstraints.AUTO, TAB_HEIGHT).grow(0.0f);
+        button.layout(style -> style.size(LayoutConstraints.AUTO, TAB_HEIGHT).flexGrow(0).flexShrink(0.0f));
 
         Tab tab = new Tab(normalizedTitle, normalizedContent, button);
         tabs.add(insertIndex, tab);

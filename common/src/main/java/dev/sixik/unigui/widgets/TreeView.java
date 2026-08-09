@@ -39,7 +39,7 @@ public class TreeView extends LinearBox {
         focusable(true);
 
         rowsHost.spacing(1.0f);
-        rowsHost.grow(0.0f);
+        rowsHost.layout(style -> style.flexGrow(0).flexShrink(0.0f));
         super.addChild(rowsHost);
     }
 
@@ -379,7 +379,7 @@ public class TreeView extends LinearBox {
             backgroundVisible(true);
             borderVisible(false);
             radius(2.0f);
-            preferredSize(LayoutConstraints.AUTO, ROW_HEIGHT).grow(0.0f);
+            layout(style -> style.size(LayoutConstraints.AUTO, ROW_HEIGHT).flexGrow(0).flexShrink(0.0f));
             onClick(event -> {
                 tree.select(node);
                 if (node.hasChildren()) {
@@ -446,7 +446,7 @@ public class TreeView extends LinearBox {
         }
 
         private RichText rowText() {
-            String marker = node.hasChildren() ? (node.expanded() ? "▾ " : "▸ ") : "  ";
+            String marker = node.hasChildren() ? (node.expanded() ? "? " : "? ") : "  ";
             return RichText.plain(marker).append(node.richText());
         }
     }

@@ -44,6 +44,8 @@ public final class LayoutStyle {
     private SizeValue flexBasis = SizeValue.auto();
     private Align alignItems = Align.STRETCH;
     private Align alignSelf = Align.AUTO;
+    private Alignment horizontalAlignment = Alignment.STRETCH;
+    private Alignment verticalAlignment = Alignment.STRETCH;
     private Justify justifyContent = Justify.START;
     private SizeValue left = SizeValue.auto();
     private SizeValue top = SizeValue.auto();
@@ -104,6 +106,8 @@ public final class LayoutStyle {
             style.flexBasis(source.flexBasis);
             style.alignItems(source.alignItems);
             style.alignSelf(source.alignSelf);
+            style.horizontalAlignment = source.horizontalAlignment;
+            style.verticalAlignment = source.verticalAlignment;
             style.justifyContent(source.justifyContent);
             style.left(source.left);
             style.top(source.top);
@@ -124,7 +128,9 @@ public final class LayoutStyle {
             style.margin(source.margin());
             style.flexGrow(source.grow());
             style.flexShrink(source.grow() > 0.0f ? 1.0f : 0.0f);
-            style.alignSelf(commonAlignment(source.horizontalAlignment(), source.verticalAlignment()));
+            style.horizontalAlignment = source.horizontalAlignment();
+            style.verticalAlignment = source.verticalAlignment();
+            style.alignSelf = commonAlignment(source.horizontalAlignment(), source.verticalAlignment());
         });
     }
 
@@ -136,12 +142,8 @@ public final class LayoutStyle {
         float resolvedMinHeight = legacyMinimum(minHeight, source.minHeight());
         float resolvedMaxWidth = legacyMaximum(maxWidth, source.maxWidth());
         float resolvedMaxHeight = legacyMaximum(maxHeight, source.maxHeight());
-        Alignment horizontal = source.horizontalAlignment();
-        Alignment vertical = source.verticalAlignment();
-        if (alignSelf != Align.AUTO) {
-            horizontal = toLegacyAlignment(alignSelf);
-            vertical = horizontal;
-        }
+        Alignment horizontal = horizontalAlignment;
+        Alignment vertical = verticalAlignment;
         return new LayoutConstraints(
                 preferredWidth, preferredHeight,
                 resolvedMinWidth, resolvedMinHeight,
@@ -172,7 +174,7 @@ public final class LayoutStyle {
     }
 
     public LayoutStyle width(float pixels) {
-        return width(SizeValue.px(pixels));
+        return width(fromLayoutFloat(pixels));
     }
 
     public LayoutStyle widthPercent(float percent) {
@@ -187,7 +189,10 @@ public final class LayoutStyle {
     }
 
     public LayoutStyle size(float width, float height) {
-        return size(SizeValue.px(width), SizeValue.px(height));
+        return update(style -> {
+            style.width(width);
+            style.height(height);
+        });
     }
 
     public LayoutStyle sizePercent(float widthPercent, float heightPercent) {
@@ -203,7 +208,7 @@ public final class LayoutStyle {
     }
 
     public LayoutStyle height(float pixels) {
-        return height(SizeValue.px(pixels));
+        return height(fromLayoutFloat(pixels));
     }
 
     public LayoutStyle heightPercent(float percent) {
@@ -262,7 +267,7 @@ public final class LayoutStyle {
     }
 
     public LayoutStyle maxWidth(float pixels) {
-        return maxWidth(SizeValue.px(pixels));
+        return maxWidth(fromMaximumLayoutFloat(pixels));
     }
 
     public LayoutStyle maxWidthPercent(float percent) {
@@ -278,7 +283,7 @@ public final class LayoutStyle {
     }
 
     public LayoutStyle maxHeight(float pixels) {
-        return maxHeight(SizeValue.px(pixels));
+        return maxHeight(fromMaximumLayoutFloat(pixels));
     }
 
     public LayoutStyle maxHeightPercent(float percent) {
@@ -293,7 +298,10 @@ public final class LayoutStyle {
     }
 
     public LayoutStyle maxSize(float width, float height) {
-        return maxSize(SizeValue.px(width), SizeValue.px(height));
+        return update(style -> {
+            style.maxWidth(width);
+            style.maxHeight(height);
+        });
     }
 
     public LayoutStyle maxSizePercent(float widthPercent, float heightPercent) {
@@ -467,7 +475,7 @@ public final class LayoutStyle {
     }
 
     public LayoutStyle flexBasis(float pixels) {
-        return flexBasis(SizeValue.px(pixels));
+        return flexBasis(fromLayoutFloat(pixels));
     }
 
     public LayoutStyle flex(float grow, float shrink, SizeValue basis) {
@@ -500,8 +508,40 @@ public final class LayoutStyle {
 
     public LayoutStyle alignSelf(Align alignSelf) {
         Align normalized = alignSelf == null ? Align.AUTO : alignSelf;
-        if (this.alignSelf == normalized) return this;
+        Alignment nextHorizontal;
+        Alignment nextVertical;
+        if (normalized == Align.AUTO) {
+            nextHorizontal = Alignment.STRETCH;
+            nextVertical = Alignment.STRETCH;
+        } else {
+            nextHorizontal = toLegacyAlignment(normalized);
+            nextVertical = nextHorizontal;
+        }
+        if (this.alignSelf == normalized
+                && horizontalAlignment == nextHorizontal
+                && verticalAlignment == nextVertical) return this;
         this.alignSelf = normalized;
+        horizontalAlignment = nextHorizontal;
+        verticalAlignment = nextVertical;
+        changed();
+        return this;
+    }
+
+    public Alignment horizontalAlignment() {
+        return horizontalAlignment;
+    }
+
+    public Alignment verticalAlignment() {
+        return verticalAlignment;
+    }
+
+    public LayoutStyle align(Alignment horizontal, Alignment vertical) {
+        Alignment normalizedHorizontal = horizontal == null ? Alignment.STRETCH : horizontal;
+        Alignment normalizedVertical = vertical == null ? Alignment.STRETCH : vertical;
+        if (horizontalAlignment == normalizedHorizontal && verticalAlignment == normalizedVertical) return this;
+        horizontalAlignment = normalizedHorizontal;
+        verticalAlignment = normalizedVertical;
+        alignSelf = commonAlignment(normalizedHorizontal, normalizedVertical);
         changed();
         return this;
     }
@@ -616,6 +656,14 @@ public final class LayoutStyle {
     }
 
     private static SizeValue fromLegacyMaximum(float value) {
+        return Float.isFinite(value) ? SizeValue.px(value) : SizeValue.auto();
+    }
+
+    private static SizeValue fromLayoutFloat(float value) {
+        return LayoutConstraints.isAuto(value) ? SizeValue.auto() : SizeValue.px(value);
+    }
+
+    private static SizeValue fromMaximumLayoutFloat(float value) {
         return Float.isFinite(value) ? SizeValue.px(value) : SizeValue.auto();
     }
 

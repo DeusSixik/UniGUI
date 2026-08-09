@@ -14,14 +14,10 @@ import dev.sixik.unigui.api.event.EventType;
 import dev.sixik.unigui.api.event.PointerEnteredEvent;
 import dev.sixik.unigui.api.event.PointerExitedEvent;
 import dev.sixik.unigui.api.input.MouseCursor;
-import dev.sixik.unigui.api.layout.Align;
-import dev.sixik.unigui.api.layout.Alignment;
-import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.layout.LayoutStyle;
-import dev.sixik.unigui.api.layout.SizeValue;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.math.Transform;
@@ -221,21 +217,12 @@ public abstract class WidgetBase implements Widget {
         return layoutConstraints;
     }
 
-    public WidgetBase layoutConstraints(LayoutConstraints layoutConstraints) {
-        LayoutConstraints next = layoutConstraints == null ? LayoutConstraints.DEFAULT : layoutConstraints;
-        if (this.layoutConstraints == next) return this;
-        this.layoutConstraints = next;
-        syncLayoutStyleFromConstraints();
-        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
-        return this;
-    }
-
     public LayoutStyle layoutStyle() {
         return layoutStyle;
     }
 
     /**
-     * Applies advanced Layout v2 properties without replacing unrelated style values.
+     * Applies layout properties without replacing unrelated style values.
      *
      * <pre>{@code
      * button.layout(style -> style
@@ -244,85 +231,9 @@ public abstract class WidgetBase implements Widget {
      *         .flexGrow(1.0f)
      *         .overflowX(Overflow.HIDDEN));
      * }</pre>
-     *
-     * Legacy helpers such as {@link #preferredSize(float, float)} and {@link #grow(float)}
-     * remain supported and update only their corresponding Layout v2 fields.
      */
     public WidgetBase layout(Consumer<LayoutStyle> update) {
         layoutStyle.update(update);
-        return this;
-    }
-
-    /**
-     * Compatibility convenience for pixel/auto width and height.
-     * Use {@link #layout(Consumer)} for percentages and advanced sizing.
-     */
-    public WidgetBase preferredSize(float width, float height) {
-        LayoutConstraints next = layoutConstraints.preferredSize(width, height);
-        return updateCompatibility(next, style -> style
-                .width(fromLegacyPreferred(next.preferredWidth()))
-                .height(fromLegacyPreferred(next.preferredHeight())));
-    }
-
-    /** Compatibility convenience for pixel minimum dimensions. */
-    public WidgetBase minSize(float width, float height) {
-        LayoutConstraints next = layoutConstraints.minSize(width, height);
-        return updateCompatibility(next, style -> style
-                .minWidth(next.minWidth())
-                .minHeight(next.minHeight()));
-    }
-
-    /** Compatibility convenience for pixel/auto maximum dimensions. */
-    public WidgetBase maxSize(float width, float height) {
-        LayoutConstraints next = layoutConstraints.maxSize(width, height);
-        return updateCompatibility(next, style -> style
-                .maxWidth(fromLegacyMaximum(next.maxWidth()))
-                .maxHeight(fromLegacyMaximum(next.maxHeight())));
-    }
-
-    public WidgetBase margin(float margin) {
-        return margin(EdgeInsets.all(margin));
-    }
-
-    public WidgetBase margin(float horizontal, float vertical) {
-        return margin(EdgeInsets.symmetric(horizontal, vertical));
-    }
-
-    public WidgetBase margin(float left, float top, float right, float bottom) {
-        return margin(new EdgeInsets(left, top, right, bottom));
-    }
-
-    public WidgetBase margin(EdgeInsets margin) {
-        LayoutConstraints next = layoutConstraints.margin(margin);
-        return updateCompatibility(next, style -> style.margin(next.margin()));
-    }
-
-    public WidgetBase align(Alignment horizontal, Alignment vertical) {
-        LayoutConstraints next = layoutConstraints.align(horizontal, vertical);
-        return updateCompatibility(next, style -> style.alignSelf(commonAlignment(
-                next.horizontalAlignment(), next.verticalAlignment())));
-    }
-
-    /**
-     * Compatibility convenience for flex grow. A positive value also restores the
-     * migration-compatible {@code flexShrink(1)} behavior.
-     */
-    public WidgetBase grow(float grow) {
-        LayoutConstraints next = layoutConstraints.grow(grow);
-        return updateCompatibility(next, style -> style
-                .flexGrow(next.grow())
-                .flexShrink(next.grow() > 0.0f ? 1.0f : 0.0f));
-    }
-
-    private WidgetBase updateCompatibility(LayoutConstraints next, Consumer<LayoutStyle> styleUpdate) {
-        layoutConstraints = next == null ? LayoutConstraints.DEFAULT : next;
-        syncingLayoutStyle = true;
-        try {
-            layoutStyle.update(styleUpdate);
-        } finally {
-            syncingLayoutStyle = false;
-        }
-        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
 
@@ -339,24 +250,6 @@ public abstract class WidgetBase implements Widget {
         if (syncingLayoutStyle) return;
         layoutConstraints = layoutStyle.toLegacyConstraints(layoutConstraints);
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
-    }
-
-    private static SizeValue fromLegacyPreferred(float value) {
-        return LayoutConstraints.isAuto(value) ? SizeValue.auto() : SizeValue.px(value);
-    }
-
-    private static SizeValue fromLegacyMaximum(float value) {
-        return Float.isFinite(value) ? SizeValue.px(value) : SizeValue.auto();
-    }
-
-    private static Align commonAlignment(Alignment horizontal, Alignment vertical) {
-        if (horizontal != vertical) return Align.AUTO;
-        return switch (horizontal == null ? Alignment.STRETCH : horizontal) {
-            case START -> Align.START;
-            case CENTER -> Align.CENTER;
-            case END -> Align.END;
-            case STRETCH -> Align.AUTO;
-        };
     }
 
     @Override

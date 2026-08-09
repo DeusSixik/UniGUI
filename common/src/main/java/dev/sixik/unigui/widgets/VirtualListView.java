@@ -57,6 +57,7 @@ public class VirtualListView extends WidgetBase {
     private IntFunction<? extends Widget> itemFactory = index -> new Label(String.valueOf(index));
     private VirtualListViewRenderer renderer;
     private float scrollStep = 16.0f;
+    private boolean consumeWheelAtScrollBounds = true;
     private int activeIndex = -1;
 
     public VirtualListView() {
@@ -120,6 +121,15 @@ public class VirtualListView extends WidgetBase {
     public VirtualListView scrollStep(float scrollStep) {
         this.scrollStep = Float.isFinite(scrollStep) ? Math.max(1.0f, scrollStep) : 16.0f;
         syncScrollBar();
+        return this;
+    }
+
+    public boolean consumeWheelAtScrollBounds() {
+        return consumeWheelAtScrollBounds;
+    }
+
+    public VirtualListView consumeWheelAtScrollBounds(boolean consumeWheelAtScrollBounds) {
+        this.consumeWheelAtScrollBounds = consumeWheelAtScrollBounds;
         return this;
     }
 
@@ -370,6 +380,8 @@ public class VirtualListView extends WidgetBase {
             float before = virtualizer.scrollOffset();
             scrollBy(-scroll.deltaY() * scrollStep);
             if (before != virtualizer.scrollOffset()) {
+                event.cancel();
+            } else if (consumeWheelAtScrollBounds && scroll.deltaY() != 0.0f && maxScrollY() > 0.0f) {
                 event.cancel();
             }
         } else if (event instanceof KeyPressedEvent key && key.phase() != EventPhase.CAPTURE) {
