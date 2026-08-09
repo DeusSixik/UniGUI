@@ -9,6 +9,7 @@ import dev.sixik.unigui.widgets.render.DockPaneRenderer;
 import dev.sixik.unigui.widgets.render.DockSplitHandleRenderer;
 import dev.sixik.unigui.widgets.render.DockingRootRenderer;
 import dev.sixik.unigui.widgets.render.GraphViewRenderer;
+import dev.sixik.unigui.widgets.render.NodeGraphRenderer;
 import dev.sixik.unigui.widgets.render.ModalScrimRenderer;
 import dev.sixik.unigui.widgets.render.ProgressBarRenderer;
 import dev.sixik.unigui.widgets.render.ScrollBarRenderer;
@@ -65,6 +66,10 @@ public interface WidgetsRenderImpl {
     }
 
     default GraphViewRenderer graphView() {
+        return null;
+    }
+
+    default NodeGraphRenderer nodeGraph() {
         return null;
     }
 

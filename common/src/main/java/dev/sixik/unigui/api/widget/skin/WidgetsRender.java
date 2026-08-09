@@ -9,6 +9,7 @@ import dev.sixik.unigui.widgets.render.DockPaneRenderer;
 import dev.sixik.unigui.widgets.render.DockSplitHandleRenderer;
 import dev.sixik.unigui.widgets.render.DockingRootRenderer;
 import dev.sixik.unigui.widgets.render.GraphViewRenderer;
+import dev.sixik.unigui.widgets.render.NodeGraphRenderer;
 import dev.sixik.unigui.widgets.render.ModalScrimRenderer;
 import dev.sixik.unigui.widgets.render.ButtonRenderer;
 import dev.sixik.unigui.widgets.render.ProgressBarRenderer;
@@ -88,6 +89,11 @@ public final class WidgetsRender {
     public static GraphViewRenderer graphView() {
         GraphViewRenderer renderer = impl.graphView();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.graphView() : renderer;
+    }
+
+    public static NodeGraphRenderer nodeGraph() {
+        NodeGraphRenderer renderer = impl.nodeGraph();
+        return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.nodeGraph() : renderer;
     }
 
     public static ColorPickerRenderer colorPicker() {

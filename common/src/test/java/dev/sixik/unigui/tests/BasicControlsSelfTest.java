@@ -102,6 +102,14 @@ import dev.sixik.unigui.widgets.GridBox;
 import dev.sixik.unigui.widgets.HBox;
 import dev.sixik.unigui.widgets.Label;
 import dev.sixik.unigui.widgets.LoadingIndicator;
+import dev.sixik.unigui.widgets.NodeGraph;
+import dev.sixik.unigui.widgets.NodeGraphConnection;
+import dev.sixik.unigui.widgets.NodeGraphConnectionValidation;
+import dev.sixik.unigui.widgets.NodeGraphItem;
+import dev.sixik.unigui.widgets.NodeGraphSnapshot;
+import dev.sixik.unigui.widgets.NodeGraphPortKind;
+import dev.sixik.unigui.widgets.NodeGraphPortRef;
+import dev.sixik.unigui.widgets.NodeGraphPortSide;
 import dev.sixik.unigui.widgets.NumberField;
 import dev.sixik.unigui.widgets.Orientation;
 import dev.sixik.unigui.widgets.OverlayLayer;
@@ -169,6 +177,10 @@ public final class BasicControlsSelfTest {
         testMinecraftPreviewWidgetFallbacks();
         testOverlayLayerAndTooltipBasics();
         testDockingRootContracts();
+        testNodeGraphPhaseOneContracts();
+        testNodeGraphPhaseTwoConnectionContracts();
+        testNodeGraphPhaseThreeEditingContracts();
+        testNodeGraphPhaseFourSnapshotContracts();
         testFixedRowVirtualizationCore();
         testVirtualizedSelectionContracts();
         testVirtualListKeyboardNavigation();
@@ -2328,6 +2340,479 @@ public final class BasicControlsSelfTest {
         Label label = new Label(text);
         label.layout(style -> style.size(90.0f, 18.0f).flexGrow(1).flexShrink(1.0f));
         return label;
+    }
+
+    private void testNodeGraphPhaseOneContracts() {
+        DefaultUIContext uiContext = new DefaultUIContext();
+        NodeGraph graph = Widgets.nodeGraph()
+                .viewport(10.0f, 20.0f)
+                .gridSize(16.0f);
+        graph.setUiContextInternal(uiContext);
+
+        Button button = new Button("Run");
+        NodeGraphItem buttonItem = graph.addItem("button", button, 30.0f, 40.0f);
+        buttonItem.size(80.0f, 20.0f);
+
+        Label label = new Label("Drag me");
+        NodeGraphItem labelItem = graph.addItem("label", label, 120.0f, 30.0f);
+        labelItem.size(90.0f, 20.0f);
+
+        graph.measure(new LayoutContext(400.0f, 300.0f));
+        graph.arrange(new MutableRect(0.0f, 0.0f, 300.0f, 180.0f));
+        expect(Widgets.nodeGraph() instanceof NodeGraph && graph.children().contains(button) && graph.children().contains(label),
+                "Widgets factory should expose NodeGraph and NodeGraph should expose item contents as children");
+        expect(near(button.layoutBounds().x(), 40.0f)
+                        && near(button.layoutBounds().y(), 60.0f)
+                        && near(button.layoutBounds().width(), 80.0f)
+                        && near(label.layoutBounds().x(), 130.0f),
+                "NodeGraph should arrange arbitrary child widgets in panned world-space");
+
+        TransformHitTester nodeHitTester = new TransformHitTester();
+        graph.viewport(10.0f, 20.0f, 2.0f);
+        graph.arrange(new MutableRect(0.0f, 0.0f, 300.0f, 180.0f));
+        expect(nodeHitTester.hitTest(graph, 185.0f, 95.0f)
+                        .map(hit -> hit.widget() == button
+                                && near(hit.localX(), 67.5f)
+                                && near(hit.localY(), 7.5f))
+                        .orElse(false),
+                "NodeGraph hit-test should expand child hitboxes with zoom-in and return unscaled child locals");
+        graph.viewport(10.0f, 20.0f, 0.5f);
+        graph.arrange(new MutableRect(0.0f, 0.0f, 300.0f, 180.0f));
+        expect(nodeHitTester.hitTest(graph, 85.0f, 75.0f)
+                        .map(hit -> hit.widget() != button)
+                        .orElse(true),
+                "NodeGraph hit-test should shrink child hitboxes with zoom-out");
+        Popup popup = new Popup(button, new Label("Options"));
+        popup.open();
+        popup.measure(new LayoutContext(300.0f, 180.0f));
+        popup.arrangeInHost(new MutableRect(0.0f, 0.0f, 300.0f, 180.0f));
+        expect(near(popup.layoutBounds().x(), button.layoutBounds().x())
+                        && near(popup.layoutBounds().y(), button.layoutBounds().y()
+                                + button.layoutBounds().height() * 0.5f + 4.0f),
+                "Popup should anchor to the visual scaled child bounds without scaling the popup itself");
+        graph.viewport(10.0f, 20.0f, 2.0f);
+        graph.arrange(new MutableRect(0.0f, 0.0f, 300.0f, 180.0f));
+        popup.measure(new LayoutContext(300.0f, 180.0f));
+        popup.arrangeInHost(new MutableRect(0.0f, 0.0f, 300.0f, 180.0f));
+        expect(near(popup.layoutBounds().x(), 70.0f)
+                        && near(popup.layoutBounds().y(), 144.0f)
+                        && near(popup.layoutBounds().width(), popup.desiredSize().width()),
+                "Popup should follow zoomed NodeGraph anchors in screen-space while keeping its own size");
+        graph.viewport(10.0f, 20.0f, 1.0f);
+        graph.arrange(new MutableRect(0.0f, 0.0f, 300.0f, 180.0f));
+
+        Counter buttonClicks = new Counter();
+        button.onClick(event -> buttonClicks.count++);
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(button,
+                48.0f, 68.0f, 8.0f, 8.0f, 0, PointerButton.PRIMARY));
+        uiContext.routedEvents().dispatch(new PointerReleasedEvent(button,
+                48.0f, 68.0f, 8.0f, 8.0f, 0, PointerButton.PRIMARY));
+        expect(buttonClicks.count == 1 && graph.selectedItemIds().isEmpty(),
+                "NodeGraph should not steal clicks from interactive child widgets");
+
+        Counter selectionChanges = new Counter();
+        Counter moves = new Counter();
+        java.util.concurrent.atomic.AtomicReference<java.util.List<String>> lastGraphSelection =
+                new java.util.concurrent.atomic.AtomicReference<>(java.util.List.of());
+        graph.onSelectionChanged(event -> {
+            selectionChanges.count++;
+            lastGraphSelection.set(event.newSelection());
+        });
+        graph.onItemMoved(event -> {
+            moves.count++;
+            moves.lastText = event.itemId();
+            moves.lastValue = event.newX();
+            moves.lastNewHeight = event.newY();
+        });
+
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(label,
+                136.0f, 38.0f, 6.0f, 8.0f, 1, PointerButton.PRIMARY));
+        expect(graph.selectedItemIds().equals(java.util.List.of("label"))
+                        && selectionChanges.count == 1
+                        && lastGraphSelection.get().equals(java.util.List.of("label"))
+                        && uiContext.capturedPointer(1) == graph,
+                "NodeGraph should select and capture draggable non-input item bodies");
+
+        uiContext.routedEvents().dispatch(new PointerMovedEvent(graph,
+                156.0f, 48.0f, 156.0f, 48.0f, 1));
+        expect(near(labelItem.x(), 140.0f)
+                        && near(labelItem.y(), 40.0f)
+                        && near(label.layoutBounds().x(), 150.0f)
+                        && moves.count == 1
+                        && moves.lastText.equals("label")
+                        && near(moves.lastValue, 140.0f)
+                        && near(moves.lastNewHeight, 40.0f),
+                "NodeGraph should drag selected items in world-space and emit move events");
+        uiContext.routedEvents().dispatch(new PointerReleasedEvent(graph,
+                156.0f, 48.0f, 156.0f, 48.0f, 1, PointerButton.PRIMARY));
+        expect(uiContext.capturedPointer(1) == null && graph.draggingItemId().isEmpty(),
+                "NodeGraph should release pointer capture after item drag");
+
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(graph,
+                12.0f, 12.0f, 12.0f, 12.0f, 2, PointerButton.MIDDLE));
+        uiContext.routedEvents().dispatch(new PointerMovedEvent(graph,
+                22.0f, 32.0f, 22.0f, 32.0f, 2));
+        expect(near(graph.viewport().x(), 20.0f)
+                        && near(graph.viewport().y(), 40.0f)
+                        && near(label.layoutBounds().x(), 160.0f),
+                "NodeGraph should pan the viewport with middle-mouse drag and keep children arranged");
+        uiContext.routedEvents().dispatch(new PointerReleasedEvent(graph,
+                22.0f, 32.0f, 22.0f, 32.0f, 2, PointerButton.MIDDLE));
+
+        final dev.sixik.unigui.widgets.render.NodeGraphState[] backgroundState = new dev.sixik.unigui.widgets.render.NodeGraphState[1];
+        final dev.sixik.unigui.widgets.render.NodeGraphState[] foregroundState = new dev.sixik.unigui.widgets.render.NodeGraphState[1];
+        graph.renderer((draw, state) -> {
+            if (state.phase() == dev.sixik.unigui.widgets.render.NodeGraphRenderPhase.BACKGROUND) {
+                backgroundState[0] = state;
+            } else {
+                foregroundState[0] = state;
+            }
+        });
+        graph.render(new DefaultRenderContext(new DrawList()));
+        expect(backgroundState[0] != null
+                        && foregroundState[0] != null
+                        && foregroundState[0].items().size() == 2
+                        && foregroundState[0].items().stream().anyMatch(item -> item.id().equals("label") && item.selected()),
+                "NodeGraph renderer should receive immutable background and foreground snapshots");
+    }
+
+    private void testNodeGraphPhaseTwoConnectionContracts() {
+        DefaultUIContext uiContext = new DefaultUIContext();
+        NodeGraph graph = Widgets.nodeGraph();
+        graph.setUiContextInternal(uiContext);
+
+        NodeGraphItem source = graph.addItem("source", new Label("Source"), 20.0f, 20.0f).size(80.0f, 40.0f);
+        source.addPort("out", NodeGraphPortKind.OUTPUT, NodeGraphPortSide.RIGHT, 0.5f).type("item");
+        NodeGraphItem sink = graph.addItem("sink", new Label("Sink"), 180.0f, 20.0f).size(80.0f, 40.0f);
+        sink.addPort("in", NodeGraphPortKind.INPUT, NodeGraphPortSide.LEFT, 0.5f).type("item");
+        NodeGraphItem blocked = graph.addItem("blocked", new Label("Blocked"), 180.0f, 90.0f).size(80.0f, 40.0f);
+        blocked.addPort("in", NodeGraphPortKind.INPUT, NodeGraphPortSide.LEFT, 0.5f).type("fluid");
+
+        graph.measure(new LayoutContext(320.0f, 180.0f));
+        graph.arrange(new MutableRect(0.0f, 0.0f, 320.0f, 180.0f));
+
+        Counter connectionCounters = new Counter();
+        java.util.concurrent.atomic.AtomicReference<NodeGraphPortRef> lastFrom =
+                new java.util.concurrent.atomic.AtomicReference<>(new NodeGraphPortRef("", ""));
+        java.util.concurrent.atomic.AtomicReference<NodeGraphPortRef> lastTo =
+                new java.util.concurrent.atomic.AtomicReference<>(new NodeGraphPortRef("", ""));
+        java.util.concurrent.atomic.AtomicReference<String> lastReason =
+                new java.util.concurrent.atomic.AtomicReference<>("");
+        graph.onConnectionDragStarted(event -> {
+            connectionCounters.started++;
+            lastFrom.set(event.from());
+        });
+        graph.onConnectionCreated(event -> {
+            connectionCounters.committed++;
+            connectionCounters.lastText = event.connectionId();
+            lastTo.set(event.to());
+        });
+        graph.onConnectionDragEnded(event -> {
+            connectionCounters.cancelled++;
+            connectionCounters.lastChecked = event.valid();
+            lastReason.set(event.reason());
+        });
+
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(graph,
+                100.0f, 40.0f, 100.0f, 40.0f, 10, PointerButton.PRIMARY));
+        expect(graph.connectionDragging() && uiContext.capturedPointer(10) == graph
+                        && connectionCounters.started == 1
+                        && lastFrom.get().equals(new NodeGraphPortRef("source", "out")),
+                "NodeGraph should start connection drag from output ports and capture pointer");
+        uiContext.routedEvents().dispatch(new PointerMovedEvent(graph,
+                180.0f, 40.0f, 180.0f, 40.0f, 10));
+        expect(graph.hoveredPort().equals(new NodeGraphPortRef("sink", "in")),
+                "NodeGraph connection drag should expose hovered target port");
+        uiContext.routedEvents().dispatch(new PointerReleasedEvent(graph,
+                180.0f, 40.0f, 180.0f, 40.0f, 10, PointerButton.PRIMARY));
+        expect(!graph.connectionDragging()
+                        && uiContext.capturedPointer(10) == null
+                        && graph.connections().size() == 1
+                        && connectionCounters.committed == 1
+                        && connectionCounters.cancelled == 1
+                        && connectionCounters.lastChecked
+                        && lastTo.get().equals(new NodeGraphPortRef("sink", "in")),
+                "NodeGraph should create a valid connection on release over a compatible input port");
+
+        final dev.sixik.unigui.widgets.render.NodeGraphState[] foregroundState = new dev.sixik.unigui.widgets.render.NodeGraphState[1];
+        graph.renderer((draw, state) -> {
+            if (state.phase() == dev.sixik.unigui.widgets.render.NodeGraphRenderPhase.FOREGROUND) {
+                foregroundState[0] = state;
+            }
+        });
+        graph.render(new DefaultRenderContext(new DrawList()));
+        expect(foregroundState[0] != null
+                        && foregroundState[0].ports().size() == 3
+                        && foregroundState[0].connections().size() == 1
+                        && !foregroundState[0].connectionPreview().visible(),
+                "NodeGraph renderer state should expose ports, connections and hidden preview when idle");
+        float idlePortRadius = foregroundState[0].ports().get(0).radius();
+        graph.viewport(0.0f, 0.0f, 2.0f);
+        graph.arrange(new MutableRect(0.0f, 0.0f, 320.0f, 180.0f));
+        graph.render(new DefaultRenderContext(new DrawList()));
+        float zoomedInPortRadius = foregroundState[0].ports().get(0).radius();
+        graph.viewport(0.0f, 0.0f, 0.5f);
+        graph.arrange(new MutableRect(0.0f, 0.0f, 320.0f, 180.0f));
+        graph.render(new DefaultRenderContext(new DrawList()));
+        float zoomedOutPortRadius = foregroundState[0].ports().get(0).radius();
+        expect(near(zoomedInPortRadius, idlePortRadius * 2.0f)
+                        && near(zoomedOutPortRadius, idlePortRadius * 0.5f),
+                "NodeGraph ports should scale with zoom so their size stays stable relative to the node");
+        graph.viewport(0.0f, 0.0f, 1.0f);
+        graph.arrange(new MutableRect(0.0f, 0.0f, 320.0f, 180.0f));
+        graph.useDefaultRenderer();
+
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(graph,
+                100.0f, 40.0f, 100.0f, 40.0f, 11, PointerButton.PRIMARY));
+        uiContext.routedEvents().dispatch(new PointerMovedEvent(graph,
+                180.0f, 40.0f, 180.0f, 40.0f, 11));
+        uiContext.routedEvents().dispatch(new PointerReleasedEvent(graph,
+                180.0f, 40.0f, 180.0f, 40.0f, 11, PointerButton.PRIMARY));
+        expect(graph.connections().size() == 1
+                        && connectionCounters.committed == 1
+                        && !connectionCounters.lastChecked
+                        && lastReason.get().equals("Connection already exists"),
+                "NodeGraph should reject duplicate connections through validation");
+
+        graph.connectionPolicy((candidateGraph, from, to) -> to.itemId().equals("blocked")
+                ? NodeGraphConnectionValidation.invalid("Blocked by test policy")
+                : NodeGraphConnectionValidation.accepted());
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(graph,
+                100.0f, 40.0f, 100.0f, 40.0f, 12, PointerButton.PRIMARY));
+        uiContext.routedEvents().dispatch(new PointerMovedEvent(graph,
+                180.0f, 110.0f, 180.0f, 110.0f, 12));
+        uiContext.routedEvents().dispatch(new PointerReleasedEvent(graph,
+                180.0f, 110.0f, 180.0f, 110.0f, 12, PointerButton.PRIMARY));
+        expect(graph.connections().size() == 1
+                        && connectionCounters.committed == 1
+                        && !connectionCounters.lastChecked
+                        && lastReason.get().equals("Blocked by test policy"),
+                "NodeGraph should allow custom connection policy to reject UI-created connections");
+        graph.connectionPolicy(null);
+
+        Counter connectionSelection = new Counter();
+        graph.onConnectionSelectionChanged(event -> {
+            connectionSelection.count++;
+            connectionSelection.lastOldText = event.newSelection().isEmpty() ? "" : event.newSelection().get(0);
+        });
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(graph,
+                140.0f, 40.0f, 140.0f, 40.0f, 13, PointerButton.PRIMARY));
+        expect(graph.selectedConnectionIds().equals(java.util.List.of(connectionCounters.lastText))
+                        && connectionSelection.count == 1
+                        && connectionSelection.lastOldText.equals(connectionCounters.lastText),
+                "NodeGraph should select a connection by clicking near its line");
+
+        Counter removed = new Counter();
+        graph.onConnectionRemoved(event -> {
+            removed.count++;
+            removed.lastText = event.connectionId();
+        });
+        graph.removeSelectedConnections();
+        expect(graph.connections().isEmpty()
+                        && removed.count == 1
+                        && removed.lastText.equals(connectionCounters.lastText),
+                "NodeGraph should remove selected connections and emit typed removal events");
+    }
+
+    private void testNodeGraphPhaseThreeEditingContracts() {
+        DefaultUIContext uiContext = new DefaultUIContext();
+        NodeGraph graph = Widgets.nodeGraph()
+                .selectionMode(dev.sixik.unigui.widgets.NodeGraphSelectionMode.MULTIPLE)
+                .viewport(0.0f, 0.0f)
+                .zoomRange(0.5f, 3.0f);
+        graph.setUiContextInternal(uiContext);
+
+        NodeGraphItem a = graph.addItem("a", new Label("A"), 20.0f, 20.0f).size(50.0f, 30.0f);
+        NodeGraphItem b = graph.addItem("b", new Label("B"), 110.0f, 20.0f).size(50.0f, 30.0f);
+        NodeGraphItem c = graph.addItem("c", new Label("C"), 220.0f, 120.0f).size(50.0f, 30.0f);
+        c.selectable(false);
+
+        graph.measure(new LayoutContext(320.0f, 180.0f));
+        graph.arrange(new MutableRect(0.0f, 0.0f, 320.0f, 180.0f));
+
+        uiContext.routedEvents().dispatch(new ScrollEvent(graph,
+                100.0f, 60.0f, 100.0f, 60.0f, 0.0f, 1.0f, KeyModifiers.CONTROL));
+        expect(graph.viewport().zoom() > 1.0f
+                        && near(a.content().layoutBounds().x(), 12.0f)
+                        && near(a.content().layoutBounds().y(), 16.0f)
+                        && a.content().layoutBounds().width() > 50.0f
+                        && a.content().layoutBounds().height() > 30.0f,
+                "NodeGraph Ctrl+wheel should scale node content with world-space by default");
+        graph.scaleContentWithZoom(false).viewport(0.0f, 0.0f, 1.0f);
+        uiContext.routedEvents().dispatch(new ScrollEvent(graph,
+                100.0f, 60.0f, 100.0f, 60.0f, 0.0f, 1.0f, KeyModifiers.CONTROL));
+        expect(graph.viewport().zoom() > 1.0f
+                        && near(a.content().layoutBounds().width(), 50.0f)
+                        && near(a.content().layoutBounds().height(), 30.0f),
+                "NodeGraph scaleContentWithZoom(false) should keep node content as screen-space overlay mode");
+        graph.scaleContentWithZoom(true);
+
+        graph.viewport(0.0f, 0.0f, 1.0f);
+        graph.wheelPanStep(20.0f);
+        boolean wheelPanConsumed = uiContext.routedEvents().dispatch(new ScrollEvent(graph,
+                100.0f, 60.0f, 100.0f, 60.0f, 0.0f, -1.0f));
+        expect(wheelPanConsumed
+                        && near(graph.viewport().x(), 0.0f)
+                        && near(graph.viewport().y(), -20.0f),
+                "NodeGraph plain wheel should pan the canvas vertically");
+        boolean shiftWheelPanConsumed = uiContext.routedEvents().dispatch(new ScrollEvent(graph,
+                100.0f, 60.0f, 100.0f, 60.0f, 0.0f, -1.0f, KeyModifiers.SHIFT));
+        expect(shiftWheelPanConsumed
+                        && near(graph.viewport().x(), -20.0f)
+                        && near(graph.viewport().y(), -20.0f),
+                "NodeGraph Shift+wheel should pan the canvas horizontally");
+
+        graph.viewport(0.0f, 0.0f, 1.0f).wheelPanningEnabled(false).consumeWheelWhileHovered(false);
+        boolean disabledWheelPanConsumed = uiContext.routedEvents().dispatch(new ScrollEvent(graph,
+                100.0f, 60.0f, 100.0f, 60.0f, 0.0f, -1.0f));
+        expect(!disabledWheelPanConsumed
+                        && near(graph.viewport().x(), 0.0f)
+                        && near(graph.viewport().y(), 0.0f),
+                "NodeGraph wheel panning should be independently disableable");
+        graph.consumeWheelWhileHovered(true);
+        float zoomBeforeDisabled = graph.viewport().zoom();
+        boolean disabledZoomConsumed = uiContext.routedEvents().dispatch(new ScrollEvent(graph,
+                100.0f, 60.0f, 100.0f, 60.0f, 0.0f, 1.0f, KeyModifiers.CONTROL));
+        expect(disabledZoomConsumed && graph.viewport().zoom() > zoomBeforeDisabled,
+                "NodeGraph Ctrl+wheel should still scale when wheel panning is disabled");
+        graph.zoomEnabled(false);
+        float zoomBeforeBlocked = graph.viewport().zoom();
+        boolean blockedZoomConsumed = uiContext.routedEvents().dispatch(new ScrollEvent(graph,
+                100.0f, 60.0f, 100.0f, 60.0f, 0.0f, 1.0f, KeyModifiers.CONTROL));
+        expect(blockedZoomConsumed && near(graph.viewport().zoom(), zoomBeforeBlocked),
+                "NodeGraph zoomEnabled(false) should block Ctrl+wheel scale while preserving wheel capture");
+        graph.zoomEnabled(true).wheelPanningEnabled(true);
+
+        graph.viewport(0.0f, 0.0f, 1.0f);
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(graph,
+                5.0f, 5.0f, 5.0f, 5.0f, 20, PointerButton.PRIMARY));
+        expect(graph.lassoSelecting() && uiContext.capturedPointer(20) == graph,
+                "NodeGraph should start lasso selection from empty canvas");
+        uiContext.routedEvents().dispatch(new PointerMovedEvent(graph,
+                180.0f, 80.0f, 180.0f, 80.0f, 20));
+        expect(graph.selectedItemIds().equals(java.util.List.of("a", "b")),
+                "NodeGraph lasso should select intersecting selectable items");
+
+        final dev.sixik.unigui.widgets.render.NodeGraphState[] lassoState = new dev.sixik.unigui.widgets.render.NodeGraphState[1];
+        graph.renderer((draw, state) -> {
+            if (state.phase() == dev.sixik.unigui.widgets.render.NodeGraphRenderPhase.FOREGROUND) {
+                lassoState[0] = state;
+            }
+        });
+        graph.render(new DefaultRenderContext(new DrawList()));
+        expect(lassoState[0] != null && lassoState[0].selectionBox().visible(),
+                "NodeGraph renderer state should expose active lasso selection box");
+        graph.useDefaultRenderer();
+
+        uiContext.routedEvents().dispatch(new PointerReleasedEvent(graph,
+                180.0f, 80.0f, 180.0f, 80.0f, 20, PointerButton.PRIMARY));
+        expect(!graph.lassoSelecting() && uiContext.capturedPointer(20) == null,
+                "NodeGraph should release pointer capture after lasso selection");
+
+        Counter resized = new Counter();
+        graph.onItemResized(event -> {
+            resized.count++;
+            resized.lastText = event.itemId();
+            resized.lastValue = event.newWidth();
+            resized.lastNewHeight = event.newHeight();
+        });
+        graph.clearSelection().selectItem("a");
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(graph,
+                70.0f, 50.0f, 70.0f, 50.0f, 21, PointerButton.PRIMARY));
+        uiContext.routedEvents().dispatch(new PointerMovedEvent(graph,
+                90.0f, 65.0f, 90.0f, 65.0f, 21));
+        uiContext.routedEvents().dispatch(new PointerReleasedEvent(graph,
+                90.0f, 65.0f, 90.0f, 65.0f, 21, PointerButton.PRIMARY));
+        expect(near(a.arrangedWidth(), 70.0f)
+                        && near(a.arrangedHeight(), 45.0f)
+                        && resized.count == 1
+                        && resized.lastText.equals("a")
+                        && near(resized.lastValue, 70.0f)
+                        && near(resized.lastNewHeight, 45.0f),
+                "NodeGraph resize handle should resize selected items and emit resize events");
+
+        graph.selectionMode(dev.sixik.unigui.widgets.NodeGraphSelectionMode.MULTIPLE);
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(graph, KeyCodes.A, 0, KeyModifiers.CONTROL));
+        expect(graph.selectedItemIds().equals(java.util.List.of("a", "b")),
+                "NodeGraph Ctrl+A should select all selectable visible items");
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(graph, KeyCodes.RIGHT, 0, KeyModifiers.SHIFT));
+        expect(near(a.x(), 30.0f) && near(b.x(), 120.0f),
+                "NodeGraph keyboard arrows should move selected items in world-space");
+
+        Counter removed = new Counter();
+        graph.onItemRemoved(event -> {
+            removed.count++;
+            removed.lastText = event.itemId();
+        });
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(graph, KeyCodes.DELETE, 0, 0));
+        expect(graph.item("a") == null
+                        && graph.item("b") == null
+                        && graph.item("c") != null
+                        && removed.count == 2,
+                "NodeGraph Delete should remove selected items without removing unselectable items");
+    }
+
+    private void testNodeGraphPhaseFourSnapshotContracts() {
+        NodeGraph graph = Widgets.nodeGraph()
+                .selectionMode(dev.sixik.unigui.widgets.NodeGraphSelectionMode.MULTIPLE)
+                .viewport(24.0f, -18.0f, 1.4f);
+        NodeGraphItem input = graph.addItem("input", new Label("Input"), 32.0f, 48.0f)
+                .size(118.0f, 64.0f)
+                .resizable(false);
+        input.addPort("out", NodeGraphPortKind.OUTPUT, NodeGraphPortSide.RIGHT, 0.50f).type("item");
+        NodeGraphItem machine = graph.addItem("machine", new Label("Machine"), 230.0f, 68.0f)
+                .size(136.0f, 82.0f);
+        machine.addPort("in", NodeGraphPortKind.INPUT, NodeGraphPortSide.LEFT, 0.35f).type("item");
+        machine.addPort("out", NodeGraphPortKind.OUTPUT, NodeGraphPortSide.RIGHT, 0.65f).type("fluid").enabled(false);
+        NodeGraphItem hidden = graph.addItem("hidden", new Label("Hidden"), 420.0f, 120.0f)
+                .size(80.0f, 40.0f)
+                .visible(false)
+                .movable(false);
+        hidden.addPort("in", NodeGraphPortKind.INPUT, NodeGraphPortSide.LEFT, 0.5f).visible(false);
+        NodeGraphConnection connection = graph.addConnection("item-link",
+                new NodeGraphPortRef("input", "out"), new NodeGraphPortRef("machine", "in"))
+                .type("item");
+        graph.selectItem(input).selectItem(machine, true);
+        graph.selectConnection(connection);
+
+        NodeGraphSnapshot snapshot = graph.snapshot();
+        expect(near(snapshot.viewportX(), 24.0f)
+                        && near(snapshot.viewportY(), -18.0f)
+                        && near(snapshot.zoom(), 1.4f)
+                        && snapshot.items().size() == 3
+                        && snapshot.connections().size() == 1
+                        && snapshot.selectedItemIds().equals(java.util.List.of("input", "machine"))
+                        && snapshot.selectedConnectionIds().equals(java.util.List.of("item-link")),
+                "NodeGraphSnapshot should capture viewport, items, connections and selections");
+
+        NodeGraph restored = Widgets.nodeGraph();
+        restored.restoreSnapshot(snapshot, (itemId, contentType) -> itemId.equals("hidden") ? null : new Label("Restored " + itemId));
+        restored.measure(new LayoutContext(480.0f, 260.0f));
+        restored.arrange(new MutableRect(0.0f, 0.0f, 480.0f, 260.0f));
+
+        NodeGraphItem restoredInput = restored.item("input");
+        NodeGraphItem restoredMachine = restored.item("machine");
+        expect(restored.items().size() == 2
+                        && restoredInput != null
+                        && restoredMachine != null
+                        && restored.item("hidden") == null
+                        && near(restored.viewport().x(), 24.0f)
+                        && near(restored.viewport().y(), -18.0f)
+                        && near(restored.viewport().zoom(), 1.4f),
+                "NodeGraph restore should rebuild resolved items, ignore unresolved widgets and restore viewport");
+        expect(near(restoredInput.x(), 32.0f)
+                        && near(restoredInput.width(), 118.0f)
+                        && !restoredInput.resizable()
+                        && restoredInput.port("out") != null
+                        && restoredInput.port("out").type().equals("item")
+                        && restoredMachine.port("out") != null
+                        && !restoredMachine.port("out").enabled()
+                        && restored.connections().size() == 1
+                        && restored.connection("item-link").type().equals("item"),
+                "NodeGraph restore should preserve item flags, port metadata and valid connections");
+        expect(restored.selectedItemIds().equals(java.util.List.of("input", "machine"))
+                        && restored.selectedConnectionIds().equals(java.util.List.of("item-link")),
+                "NodeGraph restore should preserve selection for resolved items and connections");
     }
 
     private void testFixedRowVirtualizationCore() {

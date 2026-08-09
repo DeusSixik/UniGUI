@@ -285,6 +285,10 @@ public final class Widgets {
         return new GraphView();
     }
 
+    public static NodeGraph nodeGraph() {
+        return new NodeGraph();
+    }
+
     public static Carousel carousel() {
         return new Carousel();
     }

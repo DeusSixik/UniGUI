@@ -202,13 +202,14 @@ public class MinecraftWidgetScreen extends Screen {
     public void mouseMoved(double mouseX, double mouseY) {
         Widget captured = uiContext.capturedPointer(0);
         if (captured != null) {
-            updateMouseCursor(captured, mouseX, mouseY);
+            HitTestResult local = localPoint(captured, mouseX, mouseY);
+            updateMouseCursor(captured, local.localX(), local.localY());
             uiContext.routedEvents().dispatch(new PointerMovedEvent(
                     captured,
                     (float) mouseX,
                     (float) mouseY,
-                    localX(captured, mouseX),
-                    localY(captured, mouseY),
+                    local.localX(),
+                    local.localY(),
                     0));
             return;
         }
@@ -267,12 +268,13 @@ public class MinecraftWidgetScreen extends Screen {
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
         Widget captured = uiContext.capturedPointer(0);
         if (captured != null) {
+            HitTestResult local = localPoint(captured, mouseX, mouseY);
             PointerReleasedEvent event = new PointerReleasedEvent(
                     captured,
                     (float) mouseX,
                     (float) mouseY,
-                    localX(captured, mouseX),
-                    localY(captured, mouseY),
+                    local.localX(),
+                    local.localY(),
                     0,
                     pointerButton(button));
             boolean consumed = uiContext.routedEvents().dispatch(event);
@@ -305,13 +307,14 @@ public class MinecraftWidgetScreen extends Screen {
             return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
         }
 
-        updateMouseCursor(captured, mouseX, mouseY);
+        HitTestResult local = localPoint(captured, mouseX, mouseY);
+        updateMouseCursor(captured, local.localX(), local.localY());
         PointerMovedEvent event = new PointerMovedEvent(
                 captured,
                 (float) mouseX,
                 (float) mouseY,
-                localX(captured, mouseX),
-                localY(captured, mouseY),
+                local.localX(),
+                local.localY(),
                 0);
         return uiContext.routedEvents().dispatch(event);
     }
@@ -328,10 +331,18 @@ public class MinecraftWidgetScreen extends Screen {
                             hit.localY(),
                             0.0f,
                             (float) delta,
-                            Screen.hasShiftDown() ? KeyModifiers.SHIFT : 0);
+                            currentKeyModifiers());
                     return uiContext.routedEvents().dispatch(event);
                 })
                 .orElse(false);
+    }
+
+    private static int currentKeyModifiers() {
+        int modifiers = 0;
+        if (Screen.hasShiftDown()) modifiers |= KeyModifiers.SHIFT;
+        if (Screen.hasControlDown()) modifiers |= KeyModifiers.CONTROL;
+        if (Screen.hasAltDown()) modifiers |= KeyModifiers.ALT;
+        return modifiers;
     }
 
     @Override
@@ -471,6 +482,14 @@ public class MinecraftWidgetScreen extends Screen {
         return uiContext.hitTester().hitTest(root, (float) mouseX, (float) mouseY);
     }
 
+    private HitTestResult localPoint(Widget widget, double rootX, double rootY) {
+        float x = (float) rootX;
+        float y = (float) rootY;
+        return uiContext.hitTester().localPoint(root, widget, x, y)
+                .orElseGet(() -> new HitTestResult(widget, x, y,
+                        localX(widget, rootX), localY(widget, rootY)));
+    }
+
     private static float localX(Widget widget, double rootX) {
         return (float) rootX - widget.layoutBounds().x();
     }
@@ -480,9 +499,14 @@ public class MinecraftWidgetScreen extends Screen {
     }
 
     private void updateMouseCursor(Widget widget, double rootX, double rootY) {
+        HitTestResult local = widget == null ? null : localPoint(widget, rootX, rootY);
         updateMouseCursor(widget == null
                 ? MouseCursor.DEFAULT
-                : widget.mouseCursorAt(localX(widget, rootX), localY(widget, rootY)));
+                : widget.mouseCursorAt(local.localX(), local.localY()));
+    }
+
+    private void updateMouseCursor(Widget widget, float localX, float localY) {
+        updateMouseCursor(widget == null ? MouseCursor.DEFAULT : widget.mouseCursorAt(localX, localY));
     }
 
     private void updateMouseCursorAt(double rootX, double rootY) {

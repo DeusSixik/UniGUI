@@ -1,5 +1,6 @@
 package dev.sixik.unigui.impl.input;
 
+import dev.sixik.unigui.api.input.HitTestCoordinateMapper;
 import dev.sixik.unigui.api.input.HitTestResult;
 import dev.sixik.unigui.api.input.HitTester;
 import dev.sixik.unigui.api.math.RectView;
@@ -17,6 +18,30 @@ public final class TransformHitTester implements HitTester {
         return hitTestRecursive(root, rootX, rootY, rootX, rootY);
     }
 
+    @Override
+    public Optional<HitTestResult> localPoint(Widget root, Widget target, float rootX, float rootY) {
+        if (root == null || target == null) return Optional.empty();
+        List<Widget> route = route(root, target);
+        if (route.isEmpty()) return Optional.empty();
+
+        float x = rootX;
+        float y = rootY;
+        for (int index = 0; index < route.size(); index++) {
+            Widget widget = route.get(index);
+            Point untransformed = inverseTransform(widget, x, y);
+            RectView bounds = widget.layoutBounds();
+            if (widget == target) {
+                return Optional.of(new HitTestResult(widget, rootX, rootY,
+                        untransformed.x - bounds.x(), untransformed.y - bounds.y()));
+            }
+            Widget child = route.get(index + 1);
+            Point childPoint = mapPointForChild(widget, child, untransformed.x, untransformed.y);
+            x = childPoint.x;
+            y = childPoint.y;
+        }
+        return Optional.empty();
+    }
+
     private Optional<HitTestResult> hitTestRecursive(Widget widget, float rootX, float rootY, float x, float y) {
         if (widget.visibility() != Visibility.VISIBLE || !widget.enabled()) {
             return Optional.empty();
@@ -30,13 +55,39 @@ public final class TransformHitTester implements HitTester {
 
         List<Widget> children = List.copyOf(widget.children());
         for (int index = children.size() - 1; index >= 0; index--) {
-            Optional<HitTestResult> childHit = hitTestRecursive(children.get(index), rootX, rootY, untransformed.x, untransformed.y);
+            Widget child = children.get(index);
+            Point childPoint = mapPointForChild(widget, child, untransformed.x, untransformed.y);
+            Optional<HitTestResult> childHit = hitTestRecursive(child, rootX, rootY, childPoint.x, childPoint.y);
             if (childHit.isPresent()) {
                 return childHit;
             }
         }
 
         return Optional.of(new HitTestResult(widget, rootX, rootY, untransformed.x - bounds.x(), untransformed.y - bounds.y()));
+    }
+
+    private static Point mapPointForChild(Widget widget, Widget child, float x, float y) {
+        if (widget instanceof HitTestCoordinateMapper mapper) {
+            HitTestCoordinateMapper.HitTestPoint mapped = mapper.mapHitTestPointForChild(child, x, y);
+            if (mapped != null && Float.isFinite(mapped.x()) && Float.isFinite(mapped.y())) {
+                return new Point(mapped.x(), mapped.y());
+            }
+        }
+        return new Point(x, y);
+    }
+
+    private static List<Widget> route(Widget root, Widget target) {
+        if (root == target) return List.of(root);
+        for (Widget child : List.copyOf(root.children())) {
+            List<Widget> childRoute = route(child, target);
+            if (!childRoute.isEmpty()) {
+                java.util.ArrayList<Widget> fullRoute = new java.util.ArrayList<>(childRoute.size() + 1);
+                fullRoute.add(root);
+                fullRoute.addAll(childRoute);
+                return fullRoute;
+            }
+        }
+        return List.of();
     }
 
     private static Point inverseTransform(Widget widget, float x, float y) {

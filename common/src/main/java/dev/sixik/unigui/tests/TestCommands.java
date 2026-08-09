@@ -64,6 +64,10 @@ public final class TestCommands {
                 .then(Commands.literal("docking").executes(ctx -> {
                     RenderSystem.recordRenderCall(TestCommands::openDockingEditorScreen);
                     return 0;
+                }))
+                .then(Commands.literal("nodegraph").executes(ctx -> {
+                    RenderSystem.recordRenderCall(TestCommands::openNodeGraphExampleScreen);
+                    return 0;
                 })));
     }
 
@@ -78,6 +82,13 @@ public final class TestCommands {
         DefaultUIContext context = new DefaultUIContext(new MinecraftClipboardService());
         Widget root = dockingEditorExample(context);
         MinecraftWidgetScreen screen = openScreen(Component.literal("UniGUI Docking Editor"), root, context);
+        installRenderModeToggle(screen);
+    }
+
+    private static void openNodeGraphExampleScreen() {
+        DefaultUIContext context = new DefaultUIContext(new MinecraftClipboardService());
+        Widget root = nodeGraphExample(context);
+        MinecraftWidgetScreen screen = openScreen(Component.literal("UniGUI Node Graph"), root, context);
         installRenderModeToggle(screen);
     }
 
@@ -209,6 +220,229 @@ public final class TestCommands {
         app.addChild(dockingEditorStatusBar(status), DockSide.BOTTOM);
         app.addChild(docking);
         return layer;
+    }
+
+    private static OverlayLayer nodeGraphExample(DefaultUIContext context) {
+        StackPanel viewport = new StackPanel();
+        viewport.addChild(backgroundFrame());
+
+        DockPanel app = new DockPanel();
+        app.layout(style -> style.margin(10.0f));
+        viewport.addChild(app);
+
+        OverlayLayer layer = new OverlayLayer(viewport);
+
+        Label status = new Label("NodeGraph: wheel pans, Ctrl+wheel zooms, drag ports to connect.");
+        status.layout(style -> style.size(LayoutConstraints.AUTO, 18.0f).flexGrow(1).flexShrink(1.0f));
+
+        NodeGraph graph = Widgets.nodeGraph()
+                .selectionMode(NodeGraphSelectionMode.MULTIPLE)
+                .viewport(38.0f, 22.0f, 1.0f)
+                .zoomRange(0.45f, 2.6f);
+        graph.layout(style -> style.flexGrow(1).flexShrink(1.0f));
+
+        NodeGraphItem input = graph.addItem("recipe-input", nodeGraphRecipeInputNode(status), 32.0f, 44.0f).size(190.0f, 122.0f);
+        input.addPort("item-out", NodeGraphPortKind.OUTPUT, NodeGraphPortSide.RIGHT, 0.42f).type("item");
+        input.addPort("fluid-out", NodeGraphPortKind.OUTPUT, NodeGraphPortSide.RIGHT, 0.76f).type("fluid");
+
+        NodeGraphItem machine = graph.addItem("machine", nodeGraphMachineNode(status), 314.0f, 74.0f).size(210.0f, 136.0f);
+        machine.addPort("item-in", NodeGraphPortKind.INPUT, NodeGraphPortSide.LEFT, 0.32f).type("item");
+        machine.addPort("fluid-in", NodeGraphPortKind.INPUT, NodeGraphPortSide.LEFT, 0.66f).type("fluid");
+        machine.addPort("result-out", NodeGraphPortKind.OUTPUT, NodeGraphPortSide.RIGHT, 0.50f).type("item");
+
+        NodeGraphItem output = graph.addItem("output", nodeGraphOutputNode(), 616.0f, 54.0f).size(170.0f, 120.0f);
+        output.addPort("result-in", NodeGraphPortKind.INPUT, NodeGraphPortSide.LEFT, 0.50f).type("item");
+
+        NodeGraphItem note = graph.addItem("note", nodeGraphNoteNode(), 248.0f, 242.0f).size(250.0f, 86.0f);
+        note.addPort("meta", NodeGraphPortKind.BIDIRECTIONAL, NodeGraphPortSide.TOP, 0.50f).type("metadata");
+
+        graph.addConnection("item-route", new NodeGraphPortRef("recipe-input", "item-out"), new NodeGraphPortRef("machine", "item-in")).type("item");
+        graph.addConnection("fluid-route", new NodeGraphPortRef("recipe-input", "fluid-out"), new NodeGraphPortRef("machine", "fluid-in")).type("fluid");
+        graph.addConnection("result-route", new NodeGraphPortRef("machine", "result-out"), new NodeGraphPortRef("output", "result-in")).type("item");
+        graph.selectItem(machine);
+
+        graph.onItemMoveEnded(event -> status.text("NodeGraph: moved " + event.itemId()
+                + " -> " + Math.round(event.endX()) + ", " + Math.round(event.endY())));
+        graph.onSelectionChanged(event -> status.text(event.newSelection().isEmpty()
+                ? "NodeGraph: selection cleared"
+                : "NodeGraph: selected " + String.join(", ", event.newSelection())));
+        graph.onConnectionCreated(event -> status.text("NodeGraph: connected " + event.from().itemId() + " -> " + event.to().itemId()));
+        graph.onConnectionRemoved(event -> status.text("NodeGraph: removed " + event.connectionId()));
+        graph.onViewportChanged(event -> status.text("NodeGraph: viewport zoom " + String.format(Locale.ROOT, "%.2fx", event.newZoom())));
+
+        app.addChild(nodeGraphToolbar(layer, graph, status), DockSide.TOP);
+        app.addChild(nodeGraphInspector(graph), DockSide.RIGHT);
+        app.addChild(nodeGraphStatusBar(status), DockSide.BOTTOM);
+        app.addChild(graph);
+        return layer;
+    }
+
+    private static Box nodeGraphToolbar(OverlayLayer layer, NodeGraph graph, Label status) {
+        Box bar = panelBox(0.045f, 0.052f, 0.070f, 0.96f);
+        bar.layout(style -> style.size(LayoutConstraints.AUTO, 34.0f).flexGrow(0).flexShrink(0.0f));
+
+        HBox row = new HBox();
+        row.spacing(8.0f);
+        row.layout(style -> style.margin(8.0f, 6.0f).flexGrow(0).flexShrink(0.0f));
+
+        Label title = new Label("UniGUI Node Graph");
+        title.layout(style -> style.size(154.0f, 20.0f).align(Alignment.START, Alignment.CENTER).flexGrow(0).flexShrink(0.0f));
+
+        Label hint = new Label("Arbitrary retained widgets inside movable graph items");
+        hint.layout(style -> style.size(LayoutConstraints.AUTO, 20.0f).align(Alignment.START, Alignment.CENTER).flexGrow(1).flexShrink(1.0f));
+
+        Button reset = new Button("Reset View");
+        reset.layout(style -> style.size(84.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
+        Button snapshot = new Button("Snapshot");
+        snapshot.layout(style -> style.size(84.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
+        Button render = new Button("Render: " + renderMode.get());
+        render.layout(style -> style.size(106.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
+
+        reset.onClick(event -> {
+            graph.viewport(38.0f, 22.0f, 1.0f);
+            status.text("NodeGraph: viewport reset");
+        });
+        snapshot.onClick(event -> {
+            NodeGraphSnapshot state = graph.snapshot();
+            status.text("NodeGraph: snapshot " + state.items().size() + " nodes / " + state.connections().size() + " links");
+            WindowWidget dialog = new WindowWidget("NodeGraph Snapshot",
+                    samplePane("Snapshot",
+                            "Captured " + state.items().size() + " nodes, " + state.connections().size()
+                                    + " links and zoom " + String.format(Locale.ROOT, "%.2fx", state.zoom()) + "."))
+                    .position(316.0f, 98.0f)
+                    .modal(false)
+                    .closeOnOutsideClick(true);
+            dialog.layout(style -> style.size(254.0f, 124.0f).flexGrow(0).flexShrink(0.0f));
+            layer.addOverlay(dialog);
+            dialog.open();
+        });
+        render.onClick(event -> {
+            changeMode.run();
+            render.text("Render: " + renderMode.get());
+            status.text("NodeGraph: render mode " + renderMode.get());
+        });
+
+        row.addChild(title);
+        row.addChild(hint);
+        row.addChild(reset);
+        row.addChild(snapshot);
+        row.addChild(render);
+        bar.addChild(row);
+        return bar;
+    }
+
+    private static Box nodeGraphInspector(NodeGraph graph) {
+        Box panel = panelBox(0.040f, 0.045f, 0.060f, 0.94f);
+        panel.layout(style -> style.size(214.0f, LayoutConstraints.AUTO).margin(8.0f, 0.0f, 0.0f, 8.0f).flexGrow(0).flexShrink(0.0f));
+
+        VBox content = new VBox();
+        content.spacing(7.0f);
+        content.layout(style -> style.margin(8.0f).flexGrow(0).flexShrink(0.0f));
+        Label title = new Label("Node Graph Controls");
+        title.layout(style -> style.size(LayoutConstraints.AUTO, 18.0f).flexGrow(0).flexShrink(0.0f));
+        content.addChild(title);
+        content.addChild(paragraph("• Wheel pans the canvas.\n• Shift + wheel pans horizontally.\n• Ctrl + wheel zooms at cursor.\n• Drag nodes by non-input body.\n• Drag ports to create links.\n• Drag empty canvas to lasso select.\n• Delete removes selected links/nodes."));
+
+        ToggleButton lockMove = new ToggleButton("Lock selected node");
+        lockMove.layout(style -> style.size(LayoutConstraints.AUTO, 22.0f).flexGrow(0).flexShrink(0.0f));
+        lockMove.onCheckedChanged(event -> {
+            for (String id : graph.selectedItemIds()) {
+                NodeGraphItem item = graph.item(id);
+                if (item != null) item.movable(!event.newValue());
+            }
+        });
+        content.addChild(lockMove);
+
+        ToggleButton consumeWheel = new ToggleButton("Capture wheel");
+        consumeWheel.silentChecked(true);
+        consumeWheel.layout(style -> style.size(LayoutConstraints.AUTO, 22.0f).flexGrow(0).flexShrink(0.0f));
+        consumeWheel.onCheckedChanged(event -> graph.consumeWheelWhileHovered(event.newValue()));
+        content.addChild(consumeWheel);
+
+        ToggleButton wheelPan = new ToggleButton("Wheel pan");
+        wheelPan.silentChecked(true);
+        wheelPan.layout(style -> style.size(LayoutConstraints.AUTO, 22.0f).flexGrow(0).flexShrink(0.0f));
+        wheelPan.onCheckedChanged(event -> graph.wheelPanningEnabled(event.newValue()));
+        content.addChild(wheelPan);
+
+        panel.addChild(content);
+        return panel;
+    }
+
+    private static Box nodeGraphStatusBar(Label status) {
+        Box bar = panelBox(0.040f, 0.045f, 0.060f, 0.94f);
+        bar.layout(style -> style.size(LayoutConstraints.AUTO, 26.0f).flexGrow(0).flexShrink(0.0f));
+
+        HBox row = new HBox();
+        row.spacing(8.0f);
+        row.layout(style -> style.margin(8.0f, 4.0f).flexGrow(0).flexShrink(0.0f));
+
+        Label command = new Label("/unigui nodegraph");
+        command.layout(style -> style.size(122.0f, 18.0f).align(Alignment.START, Alignment.CENTER).flexGrow(0).flexShrink(0.0f));
+        status.layout(style -> style.align(Alignment.START, Alignment.CENTER));
+
+        row.addChild(command);
+        row.addChild(status);
+        bar.addChild(row);
+        return bar;
+    }
+
+    private static Widget nodeGraphRecipeInputNode(Label status) {
+        VBox node = nodeGraphNodeBox("Recipe Input");
+        TextField recipe = new TextField("iron_ingot");
+        recipe.layout(style -> style.size(LayoutConstraints.AUTO, 22.0f).flexGrow(0).flexShrink(0.0f));
+        recipe.onTextChanged(event -> status.text("NodeGraph: recipe input " + recipe.text()));
+        ComboBox mode = new ComboBox()
+                .items(List.of("Smelting", "Crushing", "Compressing"))
+                .silentSelectedIndex(0);
+        mode.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
+        mode.onSelectionChanged(event -> status.text("NodeGraph: mode " + mode.selectedItem()));
+        node.addChild(recipe);
+        node.addChild(mode);
+        return node;
+    }
+
+    private static Widget nodeGraphMachineNode(Label status) {
+        VBox node = nodeGraphNodeBox("Recipe Machine");
+        ProgressBar progress = new ProgressBar().range(0.0f, 100.0f).value(68.0f);
+        progress.layout(style -> style.size(LayoutConstraints.AUTO, 12.0f).flexGrow(0).flexShrink(0.0f));
+        ToggleButton powered = new ToggleButton("Powered");
+        powered.silentChecked(true);
+        powered.layout(style -> style.size(LayoutConstraints.AUTO, 22.0f).flexGrow(0).flexShrink(0.0f));
+        powered.onCheckedChanged(event -> status.text("NodeGraph: machine powered " + event.newValue()));
+        Button run = new Button("Run once");
+        run.layout(style -> style.size(LayoutConstraints.AUTO, 22.0f).flexGrow(0).flexShrink(0.0f));
+        run.onClick(event -> status.text("NodeGraph: queued machine run"));
+        node.addChild(progress);
+        node.addChild(powered);
+        node.addChild(run);
+        return node;
+    }
+
+    private static Widget nodeGraphOutputNode() {
+        VBox node = nodeGraphNodeBox("Output Preview");
+        MinecraftItemPreviewWidget preview = itemPreview("Result", Items.IRON_INGOT);
+        preview.layout(style -> style.size(LayoutConstraints.AUTO, 64.0f).flexGrow(0).flexShrink(0.0f));
+        node.addChild(preview);
+        return node;
+    }
+
+    private static Widget nodeGraphNoteNode() {
+        VBox node = nodeGraphNodeBox("Any Widget Node");
+        TextBlock text = paragraph("This graph item is just a retained widget container, so editor panels, previews and custom controls can live inside nodes.");
+        text.layout(style -> style.size(LayoutConstraints.AUTO, 44.0f).flexGrow(0).flexShrink(0.0f));
+        node.addChild(text);
+        return node;
+    }
+
+    private static VBox nodeGraphNodeBox(String titleText) {
+        VBox node = new VBox();
+        node.spacing(6.0f);
+        node.layout(style -> style.margin(8.0f).flexGrow(0).flexShrink(0.0f));
+        Label title = new Label(titleText);
+        title.layout(style -> style.size(LayoutConstraints.AUTO, 16.0f).flexGrow(0).flexShrink(0.0f));
+        node.addChild(title);
+        return node;
     }
 
     private static Box dockingEditorToolbar(OverlayLayer layer, DockingRoot docking, Label status) {

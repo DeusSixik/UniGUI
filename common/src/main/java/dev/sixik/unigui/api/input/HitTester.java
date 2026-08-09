@@ -9,4 +9,8 @@ public interface HitTester {
     HitTester NONE = (root, rootX, rootY) -> Optional.empty();
 
     Optional<HitTestResult> hitTest(Widget root, float rootX, float rootY);
+
+    default Optional<HitTestResult> localPoint(Widget root, Widget target, float rootX, float rootY) {
+        return Optional.empty();
+    }
 }

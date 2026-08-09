@@ -18,6 +18,8 @@ import dev.sixik.unigui.widgets.render.DockingRootRenderer;
 import dev.sixik.unigui.widgets.render.DockingRootRenderers;
 import dev.sixik.unigui.widgets.render.GraphViewRenderer;
 import dev.sixik.unigui.widgets.render.GraphViewRenderers;
+import dev.sixik.unigui.widgets.render.NodeGraphRenderer;
+import dev.sixik.unigui.widgets.render.NodeGraphRenderers;
 import dev.sixik.unigui.widgets.render.ModalScrimRenderer;
 import dev.sixik.unigui.widgets.render.ModalScrimRenderers;
 import dev.sixik.unigui.widgets.render.ButtonRenderer;
@@ -110,6 +112,11 @@ public final class DefaultWidgetsRenderImpl implements WidgetsRenderImpl {
     @Override
     public GraphViewRenderer graphView() {
         return GraphViewRenderers.DEFAULT;
+    }
+
+    @Override
+    public NodeGraphRenderer nodeGraph() {
+        return NodeGraphRenderers.DEFAULT;
     }
 
     @Override

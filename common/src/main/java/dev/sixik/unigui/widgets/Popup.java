@@ -9,6 +9,7 @@ import dev.sixik.unigui.api.layout.PositionType;
 import dev.sixik.unigui.api.layout.v3.LayoutNodeId;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
+import dev.sixik.unigui.api.widget.RenderedBoundsMapper;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.impl.layout.v3.OverlayLayoutResolver;
@@ -187,12 +188,33 @@ public final class Popup extends Box implements OverlayHostAware {
         OverlayLayoutResolver.Request request = OverlayLayoutResolver.Request.below(
                         runtimeLayoutId("popup", this),
                         runtimeLayoutId("anchor", anchor),
-                        anchor.layoutBounds(),
+                        renderedAnchorBounds(),
                         width,
                         height)
                 .offset(offsetX, offsetY);
         OverlayLayoutResolver.ResolvedOverlay resolved = resolver.resolve(host, request, 0);
         return new MutableRect(resolved.x(), resolved.y(), resolved.width(), resolved.height());
+    }
+
+    private RectView renderedAnchorBounds() {
+        MutableRect bounds = new MutableRect(
+                anchor.layoutBounds().x(),
+                anchor.layoutBounds().y(),
+                anchor.layoutBounds().width(),
+                anchor.layoutBounds().height());
+        Widget child = anchor;
+        Widget current = anchor.parent();
+        while (current != null) {
+            if (current instanceof RenderedBoundsMapper mapper) {
+                RectView mapped = mapper.renderedBoundsForChild(child, bounds);
+                if (mapped != null) {
+                    bounds.set(mapped);
+                }
+            }
+            child = current;
+            current = current.parent();
+        }
+        return bounds;
     }
 
     private static LayoutNodeId runtimeLayoutId(String prefix, Object instance) {
