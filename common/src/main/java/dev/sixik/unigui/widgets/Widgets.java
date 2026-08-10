@@ -241,6 +241,10 @@ public final class Widgets {
         return new Spinner();
     }
 
+    public static Spinner spinner(Spinner.Style style) {
+        return new Spinner(style);
+    }
+
     public static SplitPanel splitPanel() {
         return new SplitPanel();
     }

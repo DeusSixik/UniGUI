@@ -95,7 +95,7 @@ public class ToggleButton extends Button {
                 layoutBounds().height(),
                 text(),
                 richText(),
-                TEXT_PADDING_X,
+                textPaddingX(),
                 TextEngine.measureLineWidth(context, richText()),
                 TextEngine.measureTextHeight(richText()),
                 textColor().copy(),

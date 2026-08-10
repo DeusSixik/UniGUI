@@ -123,6 +123,7 @@ public final class UniGuiDemo {
         tabs.addTab("Text", scroll(textPage()));
         tabs.addTab("Containers", scroll(containersPage()));
         tabs.addTab("Data", scroll(dataPage()));
+        tabs.addTab("Custom Renders", scroll(customRendersPage()));
         tabs.addTab("Node Graph", nodeGraphPage());
         tabs.addTab("Overlays", overlaysPage());
         tabs.addTab("Minecraft", scroll(minecraftPage()));
@@ -475,6 +476,31 @@ public final class UniGuiDemo {
         return page;
     }
 
+    private static VBox customRendersPage() {
+        VBox page = page("Custom Renders", "ImGui-inspired custom spinner styles drawn through UniGUI DrawScope primitives.");
+        page.addChild(paragraph("These examples use path strokes, variable line thickness, filled circles, alpha fades and discrete motion without texture assets."));
+
+        WrapPanel circular = wrap();
+        circular.addChild(spinnerTile("Arc Sweep", Spinner.Style.ARC_SWEEP, 1.05f, 48.0f, 48.0f));
+        circular.addChild(spinnerTile("Ring Arc", Spinner.Style.RING_ARC, 0.82f, 48.0f, 48.0f));
+        circular.addChild(spinnerTile("Dotted Trail", Spinner.Style.DOTTED_TRAIL, 0.95f, 48.0f, 48.0f));
+        circular.addChild(spinnerTile("Dotted Pulse", Spinner.Style.DOTTED_PULSE, 0.72f, 48.0f, 48.0f));
+        circular.addChild(spinnerTile("Discrete Fade", Spinner.Style.DISCRETE_FADE, 0.65f, 48.0f, 48.0f));
+        circular.addChild(spinnerTile("Gradient Arc", Spinner.Style.GRADIENT_ARC, 0.90f, 48.0f, 48.0f));
+        circular.addChild(spinnerTile("Multi Arc", Spinner.Style.MULTI_ARC, 0.76f, 48.0f, 48.0f));
+        circular.addChild(spinnerTile("Growing Arcs", Spinner.Style.GROWING_ARCS, 0.78f, 48.0f, 48.0f));
+        circular.addChild(spinnerTile("Section Fade", Spinner.Style.SECTION_FADE, 0.42f, 48.0f, 48.0f));
+        page.addChild(section("Circular spinners", circular));
+
+        WrapPanel dots = wrap();
+        dots.addChild(spinnerTile("Dots Y", Spinner.Style.DOTS_Y, 1.10f, 86.0f, 32.0f));
+        dots.addChild(spinnerTile("Dots Fade", Spinner.Style.DOTS_FADE, 1.00f, 86.0f, 32.0f));
+        dots.addChild(spinnerTile("Dots Radius", Spinner.Style.DOTS_RADIUS, 0.92f, 86.0f, 32.0f));
+        dots.addChild(spinnerTile("Dots Moving", Spinner.Style.DOTS_MOVING, 0.72f, 86.0f, 32.0f));
+        page.addChild(section("Linear dot spinners", dots));
+        return page;
+    }
+
     private static Widget nodeGraphPage() {
         VBox page = page("Node Graph", "Drag nodes, pan with wheel, Ctrl+wheel zooms, drag ports to connect.");
 
@@ -728,6 +754,49 @@ public final class UniGuiDemo {
         content.addChild(text);
         card.addChild(content);
         return card;
+    }
+
+    private static Box spinnerTile(String title, Spinner.Style style, float speed, float width, float height) {
+        Box tile = panelBox(0.045f, 0.052f, 0.068f, 0.90f);
+        tile.layout(layout -> layout.size(132.0f, 86.0f).flexGrow(0).flexShrink(0.0f));
+
+        VBox content = new VBox();
+        content.spacing(5.0f);
+        content.layout(layout -> layout
+                .margin(6.0f)
+                .size(LayoutConstraints.AUTO, LayoutConstraints.AUTO)
+                .align(Alignment.STRETCH, Alignment.CENTER)
+                .flexGrow(0)
+                .flexShrink(0.0f));
+
+        Spinner spinner = new Spinner(style)
+                .speed(speed)
+                .thickness(style.name().startsWith("DOTS") ? 3.8f : 3.0f)
+                .dots(style == Spinner.Style.DOTS_MOVING ? 5 : 9)
+                .activeDots(4)
+                .arcs(style == Spinner.Style.SECTION_FADE ? 5 : 3)
+                .segments(32);
+        spinner.accentColor().set(0.25f, 0.78f, 1.0f, 1.0f);
+        spinner.secondaryColor().set(1.0f, 1.0f, 1.0f, 0.95f);
+        spinner.trackColor().set(0.14f, 0.17f, 0.22f, 0.42f);
+        spinner.layout(layout -> layout
+                .size(width, height)
+                .align(Alignment.CENTER, Alignment.CENTER)
+                .flexGrow(0)
+                .flexShrink(0.0f));
+
+        Label label = new Label(title);
+        label.noWrap().clipOverflow();
+        label.layout(layout -> layout
+                .size(120.0f, 16.0f)
+                .align(Alignment.CENTER, Alignment.CENTER)
+                .flexGrow(0)
+                .flexShrink(0.0f));
+
+        content.addChild(spinner);
+        content.addChild(label);
+        tile.addChild(content);
+        return tile;
     }
 
     private static Box smokeTile(String title, float width, float height, float r, float g, float b) {

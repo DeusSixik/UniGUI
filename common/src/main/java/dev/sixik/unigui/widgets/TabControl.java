@@ -9,6 +9,7 @@ import dev.sixik.unigui.api.layout.Overflow;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.impl.text.TextEngine;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -18,6 +19,8 @@ import java.util.Objects;
 public class TabControl extends LinearBox {
     private static final float TAB_HEIGHT = 22.0f;
     private static final float TAB_HEADER_HEIGHT = 36.0f;
+    private static final float TAB_TEXT_PADDING_X = 10.0f;
+    private static final float TAB_TEXT_WIDTH_SAFETY = 10.0f;
 
     private final HBox tabHeader = new HBox();
     private final ScrollView tabHeaderScroll = new ScrollView(tabHeader);
@@ -97,7 +100,12 @@ public class TabControl extends LinearBox {
         int insertIndex = Math.max(0, Math.min(index, tabs.size()));
         RichText normalizedTitle = title == null ? RichText.plain("") : title;
         ToggleButton button = new ToggleButton(normalizedTitle);
-        button.layout(style -> style.size(LayoutConstraints.AUTO, TAB_HEIGHT).flexGrow(0).flexShrink(0.0f));
+        button.textPaddingX(TAB_TEXT_PADDING_X);
+        button.layout(style -> style
+                .size(LayoutConstraints.AUTO, TAB_HEIGHT)
+                .minWidth(TextEngine.measureLineWidth(normalizedTitle) + TAB_TEXT_PADDING_X * 2.0f + TAB_TEXT_WIDTH_SAFETY)
+                .flexGrow(0)
+                .flexShrink(0.0f));
 
         Tab tab = new Tab(normalizedTitle, normalizedContent, button);
         tabs.add(insertIndex, tab);

@@ -232,6 +232,11 @@ public class TextWidget extends WidgetBase {
         return Alignment.CENTER;
     }
 
+    protected Alignment textHorizontalAlignment() {
+        Alignment alignment = layoutStyle().horizontalAlignment();
+        return alignment == Alignment.STRETCH ? Alignment.START : alignment;
+    }
+
     protected TextWidgetRenderer effectiveRenderer() {
         return renderer == null ? WidgetsRender.textWidget() : renderer;
     }
@@ -261,7 +266,7 @@ public class TextWidget extends WidgetBase {
         }
         TextWidgetSegment segment = alignedSegment(context, effectiveRichText(),
                 layoutBounds().x(), layoutBounds().y(), layoutBounds().width(), layoutBounds().height(),
-                Alignment.START, textVerticalAlignment(), null);
+                textHorizontalAlignment(), textVerticalAlignment(), null);
         return segment == null ? List.of() : List.of(segment);
     }
 
@@ -281,7 +286,7 @@ public class TextWidget extends WidgetBase {
             if (drawY >= layoutBounds().y() + availableHeight) break;
             TextWidgetSegment segment = alignedSegment(context, line,
                     layoutBounds().x(), drawY, availableWidth, lineHeight,
-                    Alignment.START, Alignment.CENTER, null);
+                    textHorizontalAlignment(), Alignment.CENTER, null);
             if (segment != null) segments.add(segment);
             drawY += lineHeight;
         }
@@ -296,9 +301,11 @@ public class TextWidget extends WidgetBase {
         float scale = textWidth <= 0.0f || availableWidth <= 0.0f ? 1.0f : Math.min(1.0f, availableWidth / textWidth);
         float sourceHeight = TextEngine.measureTextHeight(drawText);
         float textHeight = Math.min(availableHeight, sourceHeight * scale);
+        float scaledTextWidth = textWidth * scale;
+        float drawX = TextEngine.alignedStart(layoutBounds().x(), availableWidth, scaledTextWidth, textHorizontalAlignment());
         float drawY = TextEngine.alignedStart(layoutBounds().y(), availableHeight, textHeight, textVerticalAlignment());
         Transform scaled = scaledTransform(scale);
-        TextWidgetSegment segment = new TextWidgetSegment(drawText, layoutBounds().x(), drawY,
+        TextWidgetSegment segment = new TextWidgetSegment(drawText, drawX, drawY,
                 textWidth, sourceHeight, scaled);
         return textState(List.of(segment), true,
                 layoutBounds().x(), layoutBounds().y(), availableWidth, availableHeight);

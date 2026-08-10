@@ -17,19 +17,28 @@ public class LoadingIndicator extends Box {
     private static final float DEFAULT_SIZE = 24.0f;
 
     private final MutableColor accentColor = new MutableColor(0.25f, 0.78f, 1.0f, 1.0f);
+    private final MutableColor secondaryColor = new MutableColor(1.0f, 1.0f, 1.0f, 0.95f);
     private final MutableColor trackColor = new MutableColor(0.16f, 0.17f, 0.19f, 0.75f);
     private Mode mode = Mode.SPINNER;
+    private Spinner.Style spinnerStyle = Spinner.Style.DEFAULT;
     private LoadingIndicatorRenderer renderer;
     private boolean running = true;
     private float phase;
+    private float elapsedSeconds;
     private float speed = 1.0f;
     private int segments = 8;
+    private int dots = 8;
+    private int activeDots = 4;
+    private int arcs = 3;
     private float thickness = 3.0f;
+    private float radius;
+    private float angle = (float) (Math.PI * 1.45);
 
     public LoadingIndicator() {
         backgroundVisible(false);
         borderVisible(false);
         accentColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
+        secondaryColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         trackColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
     }
 
@@ -87,6 +96,7 @@ public class LoadingIndicator extends Box {
         float normalized = wrap01(phase);
         if (this.phase == normalized) return this;
         this.phase = normalized;
+        elapsedSeconds = speed > 0.0f ? normalized / speed : normalized;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
@@ -108,9 +118,58 @@ public class LoadingIndicator extends Box {
     }
 
     public LoadingIndicator segments(int segments) {
-        int normalized = Math.max(3, Math.min(16, segments));
+        int normalized = Math.max(3, Math.min(96, segments));
         if (this.segments == normalized) return this;
         this.segments = normalized;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public Spinner.Style spinnerStyle() {
+        return spinnerStyle;
+    }
+
+    public LoadingIndicator spinnerStyle(Spinner.Style spinnerStyle) {
+        Spinner.Style normalized = spinnerStyle == null ? Spinner.Style.DEFAULT : spinnerStyle;
+        if (this.spinnerStyle == normalized) return this;
+        this.spinnerStyle = normalized;
+        mode(Mode.SPINNER);
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public int dots() {
+        return dots;
+    }
+
+    public LoadingIndicator dots(int dots) {
+        int normalized = Math.max(2, Math.min(32, dots));
+        if (this.dots == normalized) return this;
+        this.dots = normalized;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public int activeDots() {
+        return activeDots;
+    }
+
+    public LoadingIndicator activeDots(int activeDots) {
+        int normalized = Math.max(1, Math.min(32, activeDots));
+        if (this.activeDots == normalized) return this;
+        this.activeDots = normalized;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public int arcs() {
+        return arcs;
+    }
+
+    public LoadingIndicator arcs(int arcs) {
+        int normalized = Math.max(1, Math.min(12, arcs));
+        if (this.arcs == normalized) return this;
+        this.arcs = normalized;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
@@ -127,6 +186,30 @@ public class LoadingIndicator extends Box {
         return this;
     }
 
+    public float radius() {
+        return radius;
+    }
+
+    public LoadingIndicator radius(float radius) {
+        float normalized = Float.isFinite(radius) ? Math.max(0.0f, radius) : 0.0f;
+        if (this.radius == normalized) return this;
+        this.radius = normalized;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public float angle() {
+        return angle;
+    }
+
+    public LoadingIndicator angle(float radians) {
+        float normalized = Float.isFinite(radians) ? Math.max(0.0f, radians) : (float) (Math.PI * 1.45);
+        if (this.angle == normalized) return this;
+        this.angle = normalized;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
     public LoadingIndicator indicatorSize(float size) {
         float normalized = Float.isFinite(size) ? Math.max(1.0f, size) : DEFAULT_SIZE;
         layout(style -> style.size(normalized, normalized));
@@ -135,6 +218,10 @@ public class LoadingIndicator extends Box {
 
     public MutableColor accentColor() {
         return accentColor;
+    }
+
+    public MutableColor secondaryColor() {
+        return secondaryColor;
     }
 
     public MutableColor trackColor() {
@@ -157,7 +244,8 @@ public class LoadingIndicator extends Box {
         super.tick(frame);
         if (!running || visibility() != Visibility.VISIBLE || speed <= 0.0f) return;
         float deltaSeconds = frame == null || frame.deltaSeconds() <= 0.0f ? 1.0f / 60.0f : frame.deltaSeconds();
-        phase = wrap01(phase + deltaSeconds * speed);
+        elapsedSeconds += deltaSeconds;
+        phase = wrap01(elapsedSeconds * speed);
         invalidate(InvalidationFlags.VISUAL);
     }
 
@@ -191,11 +279,25 @@ public class LoadingIndicator extends Box {
                 layoutBounds().width(),
                 layoutBounds().height(),
                 phase,
+                elapsedSeconds,
                 speed,
                 segments,
+                dots,
+                activeDots,
+                arcs,
                 thickness,
+                effectiveRadius(),
+                angle,
                 accentColor.copy(),
-                trackColor.copy());
+                secondaryColor.copy(),
+                trackColor.copy(),
+                spinnerStyle);
+    }
+
+    private float effectiveRadius() {
+        if (radius > 0.0f) return radius;
+        float size = Math.max(1.0f, Math.min(layoutBounds().width(), layoutBounds().height()));
+        return Math.max(1.0f, size * 0.5f - Math.max(1.0f, thickness));
     }
 
     private static float wrap01(float value) {
