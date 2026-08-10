@@ -629,7 +629,7 @@ public final class UniGuiDemo {
         pickerStatus.layout(style -> style.size(LayoutConstraints.AUTO, 18.0f).flexGrow(0).flexShrink(0.0f));
 
         MinecraftItemPickerWidget itemPicker = new MinecraftItemPickerWidget();
-        itemPicker.layout(style -> style.size(264.0f, 38.0f).flexGrow(0).flexShrink(0.0f));
+        itemPicker.layout(style -> style.size(304.0f, 38.0f).flexGrow(0).flexShrink(0.0f));
         itemPicker.selectItem(Items.DIAMOND);
 
         MinecraftTexturePickerWidget texturePicker = new MinecraftTexturePickerWidget();

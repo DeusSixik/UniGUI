@@ -1986,6 +1986,30 @@ public final class BasicControlsSelfTest {
         expect(countTextCommands(narrowTooltipDrawList) >= 2,
                 "Tooltip should render wrapped long text as multiple clipped lines");
 
+        StackPanel wideContent = new StackPanel();
+        Button wideButton = new Button("Wide");
+        wideButton.layout(style -> style.size(70.0f, 20.0f).align(Alignment.START, Alignment.START).flexGrow(0).flexShrink(0.0f));
+        wideButton.handle(new PointerEnteredEvent(wideButton, 4.0f, 4.0f, 4.0f, 4.0f, 0));
+        wideContent.addChild(wideButton);
+        FontFace wideTooltipFont = new FixedFontFace("tooltip-wide", 8.0f, 10.0f);
+        Tooltip wideTooltip = new Tooltip(wideButton, RichText.of("abcdefghij", wideTooltipFont, 10.0f));
+        wideTooltip.maxWidth(52.0f);
+        OverlayLayer wideLayer = new OverlayLayer(wideContent).addOverlay(wideTooltip);
+        wideLayer.setUiContextInternal(uiContext);
+        wideLayer.measure(new LayoutContext(80.0f, 80.0f));
+        wideLayer.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 80.0f));
+        DrawList wideTooltipDrawList = new DrawList();
+        wideLayer.render(new DefaultRenderContext(wideTooltipDrawList));
+        float wideTooltipTextWidth = wideTooltip.layoutBounds().width() - 12.0f;
+        long wideTooltipLines = wideTooltipDrawList.commands().stream()
+                .filter(command -> command.type() == DrawCommandType.TEXT)
+                .filter(command -> command.text() != null && command.text().matches("[a-j]+"))
+                .peek(command -> expect(TextEngine.measureLineWidth(command.richText()) <= wideTooltipTextWidth + 0.01f,
+                        "Tooltip wrapped line should fit the measured text width when glyph advances are wider than average"))
+                .count();
+        expect(wideTooltipLines >= 2,
+                "Tooltip should wrap using font advances instead of approximate character counts");
+
         popup.open();
         layer.measure(new LayoutContext(200.0f, 100.0f));
         layer.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 100.0f));

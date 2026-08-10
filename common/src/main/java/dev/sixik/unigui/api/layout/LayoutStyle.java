@@ -175,7 +175,6 @@ public final class LayoutStyle {
             updateDepth--;
             if (updateDepth == 0 && pendingChange) {
                 pendingChange = false;
-                /** Возвращает текущее значение или выполняет операцию {@code notifyChanged}. */
                 notifyChanged();
             }
         }
@@ -282,7 +281,6 @@ public final class LayoutStyle {
         PositionType normalized = position == null ? PositionType.RELATIVE : position;
         if (this.position == normalized) return this;
         this.position = normalized;
-        /** Возвращает текущее значение или выполняет операцию {@code changed}. */
         changed();
         return this;
     }
@@ -540,7 +538,6 @@ public final class LayoutStyle {
         EdgeInsets normalized = margin == null ? EdgeInsets.ZERO : margin;
         if (this.margin.equals(normalized)) return this;
         this.margin = normalized;
-        /** Возвращает текущее значение или выполняет операцию {@code changed}. */
         changed();
         return this;
     }
@@ -580,7 +577,6 @@ public final class LayoutStyle {
         EdgeInsets normalized = padding == null ? EdgeInsets.ZERO : padding;
         if (this.padding.equals(normalized)) return this;
         this.padding = normalized;
-        /** Возвращает текущее значение или выполняет операцию {@code changed}. */
         changed();
         return this;
     }
@@ -620,7 +616,6 @@ public final class LayoutStyle {
         Overflow normalized = overflowX == null ? Overflow.VISIBLE : overflowX;
         if (this.overflowX == normalized) return this;
         this.overflowX = normalized;
-        /** Возвращает текущее значение или выполняет операцию {@code changed}. */
         changed();
         return this;
     }
@@ -639,7 +634,6 @@ public final class LayoutStyle {
         Overflow normalized = overflowY == null ? Overflow.VISIBLE : overflowY;
         if (this.overflowY == normalized) return this;
         this.overflowY = normalized;
-        /** Возвращает текущее значение или выполняет операцию {@code changed}. */
         changed();
         return this;
     }
@@ -668,7 +662,6 @@ public final class LayoutStyle {
         FlexDirection normalized = flexDirection == null ? FlexDirection.COLUMN : flexDirection;
         if (this.flexDirection == normalized) return this;
         this.flexDirection = normalized;
-        /** Возвращает текущее значение или выполняет операцию {@code changed}. */
         changed();
         return this;
     }
@@ -687,7 +680,6 @@ public final class LayoutStyle {
         FlexWrap normalized = flexWrap == null ? FlexWrap.NOWRAP : flexWrap;
         if (this.flexWrap == normalized) return this;
         this.flexWrap = normalized;
-        /** Возвращает текущее значение или выполняет операцию {@code changed}. */
         changed();
         return this;
     }
@@ -706,7 +698,6 @@ public final class LayoutStyle {
         float normalized = sanitize(rowGap);
         if (this.rowGap == normalized) return this;
         this.rowGap = normalized;
-        /** Возвращает текущее значение или выполняет операцию {@code changed}. */
         changed();
         return this;
     }
@@ -725,7 +716,6 @@ public final class LayoutStyle {
         float normalized = sanitize(columnGap);
         if (this.columnGap == normalized) return this;
         this.columnGap = normalized;
-        /** Возвращает текущее значение или выполняет операцию {@code changed}. */
         changed();
         return this;
     }
@@ -754,7 +744,6 @@ public final class LayoutStyle {
         float normalized = sanitize(flexGrow);
         if (this.flexGrow == normalized) return this;
         this.flexGrow = normalized;
-        /** Возвращает текущее значение или выполняет операцию {@code changed}. */
         changed();
         return this;
     }
@@ -773,7 +762,6 @@ public final class LayoutStyle {
         float normalized = sanitize(flexShrink);
         if (this.flexShrink == normalized) return this;
         this.flexShrink = normalized;
-        /** Возвращает текущее значение или выполняет операцию {@code changed}. */
         changed();
         return this;
     }
@@ -831,7 +819,6 @@ public final class LayoutStyle {
         Align normalized = alignItems == null ? Align.STRETCH : alignItems;
         if (this.alignItems == normalized) return this;
         this.alignItems = normalized;
-        /** Возвращает текущее значение или выполняет операцию {@code changed}. */
         changed();
         return this;
     }
@@ -863,7 +850,6 @@ public final class LayoutStyle {
         this.alignSelf = normalized;
         horizontalAlignment = nextHorizontal;
         verticalAlignment = nextVertical;
-        /** Возвращает текущее значение или выполняет операцию {@code changed}. */
         changed();
         return this;
     }
@@ -892,7 +878,6 @@ public final class LayoutStyle {
         horizontalAlignment = normalizedHorizontal;
         verticalAlignment = normalizedVertical;
         alignSelf = commonAlignment(normalizedHorizontal, normalizedVertical);
-        /** Возвращает текущее значение или выполняет операцию {@code changed}. */
         changed();
         return this;
     }
@@ -911,7 +896,6 @@ public final class LayoutStyle {
         Justify normalized = justifyContent == null ? Justify.START : justifyContent;
         if (this.justifyContent == normalized) return this;
         this.justifyContent = normalized;
-        /** Возвращает текущее значение или выполняет операцию {@code changed}. */
         changed();
         return this;
     }
@@ -1042,7 +1026,6 @@ public final class LayoutStyle {
         SizeValue normalized = next == null ? SizeValue.auto() : next;
         if (Objects.equals(current, normalized)) return this;
         setter.accept(normalized);
-        /** Возвращает текущее значение или выполняет операцию {@code changed}. */
         changed();
         return this;
     }
@@ -1055,7 +1038,6 @@ public final class LayoutStyle {
             pendingChange = true;
             return;
         }
-        /** Возвращает текущее значение или выполняет операцию {@code notifyChanged}. */
         notifyChanged();
     }
 

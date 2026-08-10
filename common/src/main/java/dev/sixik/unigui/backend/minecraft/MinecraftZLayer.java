@@ -81,19 +81,16 @@ final class MinecraftZLayer extends PanelWidget implements OverlayHostAware {
         }
         if (nestedDrawList.size() == 0) return;
 
-        context.custom(new MinecraftScaledCustomDraw() {
-            @Override
-            public void draw(RenderBackend backend, float scale) {
-                if (!(backend instanceof MinecraftGuiRenderBackend minecraftBackend)) return;
-                float normalizedScale = Float.isFinite(scale) && scale > 0.0f ? scale : 1.0f;
-                minecraftBackend.graphics().pose().pushPose();
-                try {
-                    minecraftBackend.graphics().pose().scale(normalizedScale, normalizedScale, 1.0f);
-                    minecraftBackend.graphics().pose().translate(0.0f, 0.0f, z);
-                    minecraftBackend.renderNested(nestedDrawList, normalizedScale);
-                } finally {
-                    minecraftBackend.graphics().pose().popPose();
-                }
+        context.custom((MinecraftScaledCustomDraw) (backend, scale) -> {
+            if (!(backend instanceof MinecraftGuiRenderBackend minecraftBackend)) return;
+            float normalizedScale = Float.isFinite(scale) && scale > 0.0f ? scale : 1.0f;
+            minecraftBackend.graphics().pose().pushPose();
+            try {
+                minecraftBackend.graphics().pose().scale(normalizedScale, normalizedScale, 1.0f);
+                minecraftBackend.graphics().pose().translate(0.0f, 0.0f, z);
+                minecraftBackend.renderNested(nestedDrawList, normalizedScale);
+            } finally {
+                minecraftBackend.graphics().pose().popPose();
             }
         });
     }

@@ -11,6 +11,8 @@ import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.ImageFit;
+import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.text.TextRun;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.widgets.Button;
 import dev.sixik.unigui.widgets.HBox;
@@ -378,7 +380,7 @@ public class MinecraftTexturePickerWidget extends LinearBox {
         Button tile = new Button("");
         tile.textPaddingX(0.0f);
         tile.layout(style -> style.size(TILE_SIZE, TILE_SIZE).flexGrow(0).flexShrink(0.0f));
-        tile.on(PointerEnteredEvent.TYPE, event -> idTooltip.anchor(tile).text(entry.id().toString()).maxWidth(360.0f));
+        tile.on(PointerEnteredEvent.TYPE, event -> idTooltip.anchor(tile).richText(minecraftTooltipText(entry.id().toString())));
         tile.onClick(event -> selectEntry(entry, true, true));
 
         TextureWidget icon = new TextureWidget(entry.texture());
@@ -496,6 +498,10 @@ public class MinecraftTexturePickerWidget extends LinearBox {
 
     private static String normalizeQuery(String query) {
         return query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private static RichText minecraftTooltipText(String text) {
+        return RichText.of(text, MinecraftFonts.defaultFace(), TextRun.DEFAULT_PIXEL_SIZE);
     }
 
     private static boolean containsEntry(List<TextureEntry> entries, TextureEntry candidate) {

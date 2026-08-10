@@ -17,7 +17,6 @@ import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
 import dev.sixik.unigui.widgets.render.TooltipRenderer;
 import dev.sixik.unigui.widgets.render.TooltipState;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -158,12 +157,12 @@ public final class Tooltip extends Box implements OverlayHostAware {
         float availableWidth = context == null ? maxWidth : Math.max(0.0f, context.availableWidth());
         float widthLimit = availableWidth > 0.0f ? Math.min(maxWidth, availableWidth) : maxWidth;
         float textWidthLimit = Math.max(TextEngine.APPROX_CHAR_WIDTH, widthLimit - HORIZONTAL_PADDING * 2.0f);
-        List<RichText> lines = wrappedLines(textWidthLimit);
+        List<RichText> lines = wrappedLines(null, textWidthLimit);
         float widestLine = 0.0f;
         float textHeight = 0.0f;
         for (RichText line : lines) {
             widestLine = Math.max(widestLine, TextEngine.measureLineWidth(line));
-            textHeight += lineHeight(line);
+            textHeight += TextEngine.lineHeight(line);
         }
 
         float width = Math.min(widthLimit, widestLine + HORIZONTAL_PADDING * 2.0f);
@@ -201,10 +200,10 @@ public final class Tooltip extends Box implements OverlayHostAware {
         float textY = layoutBounds().y() + VERTICAL_PADDING;
         float textWidth = Math.max(0.0f, layoutBounds().width() - HORIZONTAL_PADDING * 2.0f);
         float textHeight = Math.max(0.0f, layoutBounds().height() - VERTICAL_PADDING * 2.0f);
-        List<RichText> lines = wrappedLines(textWidth);
+        List<RichText> lines = wrappedLines(context, textWidth);
         float[] lineHeights = new float[lines.size()];
         for (int i = 0; i < lines.size(); i++) {
-            lineHeights[i] = lineHeight(lines.get(i));
+            lineHeights[i] = TextEngine.lineHeight(lines.get(i));
         }
         effectiveRenderer().render(new DrawScope(context, transform()), new TooltipState(
                 layoutBounds().x(),
@@ -224,84 +223,14 @@ public final class Tooltip extends Box implements OverlayHostAware {
         return renderer == null ? WidgetsRender.tooltip() : renderer;
     }
 
-    private List<RichText> wrappedLines(float textWidthLimit) {
-        int maxCodePoints = Math.max(1, (int) Math.floor(Math.max(TextEngine.APPROX_CHAR_WIDTH, textWidthLimit) / TextEngine.APPROX_CHAR_WIDTH));
-        List<RichText> lines = new ArrayList<>();
-        int paragraphStart = 0;
-        while (paragraphStart <= text.length()) {
-            int paragraphEnd = nextLineBreak(text, paragraphStart);
-            appendWrappedParagraph(lines, paragraphStart, paragraphEnd, maxCodePoints);
-            if (paragraphEnd >= text.length()) break;
-            paragraphStart = skipLineBreak(text, paragraphEnd);
-        }
+    private List<RichText> wrappedLines(RenderContext context, float textWidthLimit) {
+        List<RichText> lines = TextEngine.wrapLines(
+                context,
+                richText,
+                Math.max(TextEngine.APPROX_CHAR_WIDTH, textWidthLimit));
         if (lines.isEmpty()) {
             lines.add(RichText.plain(""));
         }
         return lines;
-    }
-
-    private void appendWrappedParagraph(List<RichText> lines, int start, int end, int maxCodePoints) {
-        if (start >= end) {
-            lines.add(RichText.plain(""));
-            return;
-        }
-
-        int remainingStart = skipLeadingWhitespace(text, start, end);
-        while (text.codePointCount(remainingStart, end) > maxCodePoints) {
-            int hardBreak = text.offsetByCodePoints(remainingStart, maxCodePoints);
-            int breakIndex = lastWhitespaceBefore(text, remainingStart, hardBreak);
-            if (breakIndex <= remainingStart) {
-                breakIndex = hardBreak;
-            }
-            lines.add(richText.slice(remainingStart, stripTrailingWhitespace(text, remainingStart, breakIndex)));
-            remainingStart = skipLeadingWhitespace(text, breakIndex, end);
-        }
-        if (remainingStart < end) {
-            lines.add(richText.slice(remainingStart, end));
-        }
-    }
-
-    private static int nextLineBreak(String text, int start) {
-        for (int index = start; index < text.length(); index++) {
-            char value = text.charAt(index);
-            if (value == '\n' || value == '\r') return index;
-        }
-        return text.length();
-    }
-
-    private static int skipLineBreak(String text, int index) {
-        if (index < text.length() && text.charAt(index) == '\r') {
-            index++;
-            if (index < text.length() && text.charAt(index) == '\n') index++;
-            return index;
-        }
-        return index < text.length() && text.charAt(index) == '\n' ? index + 1 : index;
-    }
-
-    private static int skipLeadingWhitespace(String text, int start, int end) {
-        int index = start;
-        while (index < end && Character.isWhitespace(text.charAt(index))) index++;
-        return index;
-    }
-
-    private static int stripTrailingWhitespace(String text, int start, int end) {
-        int index = end;
-        while (index > start && Character.isWhitespace(text.charAt(index - 1))) index--;
-        return index;
-    }
-
-    private static int lastWhitespaceBefore(String text, int startInclusive, int endExclusive) {
-        for (int index = Math.min(endExclusive, text.length()) - 1; index > startInclusive; index--) {
-            if (Character.isWhitespace(text.charAt(index))) {
-                return index;
-            }
-        }
-        return -1;
-    }
-
-    private static float lineHeight(RichText line) {
-        return line == null || line.isEmpty()
-                ? TextEngine.LINE_HEIGHT
-                : Math.max(TextEngine.LINE_HEIGHT, TextEngine.measureTextHeight(line));
     }
 }

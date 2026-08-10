@@ -7,10 +7,6 @@ dependencies {
     // which get remapped to the correct annotations on each platform.
     // Do NOT use other classes from Fabric Loader.
     modImplementation "net.fabricmc:fabric-loader:$rootProject.fabric_loader_version"
-
-
-    compileOnly("com.github.somehussar:yoga:1.0.1-java8")
-    compileOnly("dev.vfyjxf:taffy:1.1.4")
 }
 
 tasks.register("layoutV3SelfTest", JavaExec) {
