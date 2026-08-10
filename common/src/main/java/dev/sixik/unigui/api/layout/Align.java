@@ -1,11 +1,27 @@
 package dev.sixik.unigui.api.layout;
 
-/** Layout v2 flex alignment used by alignItems and alignSelf. */
+/**
+ * Выравнивание гибкой компоновки v2, используемое свойствами {@code alignItems} и {@code alignSelf}.
+ */
 public enum Align {
-    /** Inherit the parent alignment where supported. */
+    /**
+     * Наследует выравнивание родителя там, где это поддерживается.
+     */
     AUTO,
+    /**
+     * Выравнивает или размещает значение в начале доступной области.
+     */
     START,
+    /**
+     * Выравнивает или размещает значение по центру доступной области.
+     */
     CENTER,
+    /**
+     * Выравнивает или размещает значение в конце доступной области.
+     */
     END,
+    /**
+     * Значение {@code STRETCH} задаёт один из режимов перечисления {@code Align}.
+     */
     STRETCH
 }

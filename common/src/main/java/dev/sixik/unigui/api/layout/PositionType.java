@@ -1,9 +1,15 @@
 package dev.sixik.unigui.api.layout;
 
-/** Selects in-flow or out-of-flow positioning. */
+/**
+ * Выбирает позиционирование внутри потока компоновки или вне него.
+ */
 public enum PositionType {
-    /** Participates in the parent's normal layout flow. */
+    /**
+     * Участвует в обычном потоке компоновки родителя.
+     */
     RELATIVE,
-    /** Is positioned from the parent content box using inset/size values. */
+    /**
+     * Позиционируется относительно области содержимого родителя с учётом отступов и размеров.
+     */
     ABSOLUTE
 }

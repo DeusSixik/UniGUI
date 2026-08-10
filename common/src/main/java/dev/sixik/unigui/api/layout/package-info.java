@@ -1,11 +1,11 @@
 /**
- * Public Layout v2 contracts.
+ * Публичные контракты компоновки v2.
  *
- * <p>New code should configure a widget through
- * {@code widget.layout(style -> ...)}. The legacy {@code preferredSize},
- * {@code minSize}, {@code maxSize}, {@code margin}, {@code align} and
- * {@code grow} methods remain supported as focused convenience methods and
- * do not replace unrelated Layout v2 properties.</p>
+ * <p>Новый код должен настраивать виджет через
+ * {@code widget.layout(style -> ...)}. Устаревшие методы {@code preferredSize},
+ * {@code minSize}, {@code maxSize}, {@code margin}, {@code align} и
+ * {@code grow} остаются поддерживаемыми узконаправленными вспомогательными методами и
+ * не заменяют остальные свойства компоновки v2.</p>
  *
  * <pre>{@code
  * VBox content = new VBox();

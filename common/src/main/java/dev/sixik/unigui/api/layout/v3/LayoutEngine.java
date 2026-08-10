@@ -1,12 +1,15 @@
 package dev.sixik.unigui.api.layout.v3;
 
 /**
- * Stable Layout V3 backend contract.
+ * Стабильный контракт внутренней реализации компоновки V3.
  *
- * <p>The public UniGUI API should depend on this abstraction, not on a concrete
- * Yoga/Taffy binding. That keeps the layout backend replaceable while widgets
- * continue to speak in UniGUI's own layout model.</p>
+ * <p>Публичный интерфейс UniGUI должен зависеть от этой абстракции, а не от конкретной
+ * привязки Yoga/Taffy. Это оставляет внутреннюю реализацию компоновки заменяемой, пока виджеты
+ * продолжают работать с собственной моделью компоновки UniGUI.</p>
  */
 public interface LayoutEngine {
+    /**
+     * Вычисляет значение, необходимое для дальнейшей работы объекта.
+     */
     LayoutOutput compute(LayoutNode root, LayoutInput input);
 }

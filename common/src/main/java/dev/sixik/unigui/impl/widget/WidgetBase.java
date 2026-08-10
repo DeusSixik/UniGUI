@@ -37,49 +37,130 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 public abstract class WidgetBase implements Widget {
+    /**
+     * Хранит подписки и отправку событий, связанных с жизненным циклом и вводом виджета.
+     */
     private final FastEventEmitter events = new FastEventEmitter();
+    /**
+     * Хранит числовой параметр {@code EnumMap<AnimatedProperty}, влияющий на layout, ввод или отрисовку.
+     */
     private final EnumMap<AnimatedProperty, FloatTransition> transitions = new EnumMap<>(AnimatedProperty.class);
+    /**
+     * Хранит рассчитанные границы виджета после прохода компоновки.
+     */
     private final MutableRect layoutBounds = new MutableRect();
+    /**
+     * Хранит желаемый размер, который виджет сообщает layout-системе.
+     */
     private LayoutSize desiredSize = LayoutSize.ZERO;
+    /**
+     * Хранит текущую трансформацию виджета для отрисовки и координат.
+     */
     private final Transform transform = new Transform();
+    /**
+     * Хранит прозрачность виджета, применяемую при отрисовке.
+     */
     private float opacity = 1.0f;
+    /**
+     * Хранит UI-контекст, через который виджет обращается к общей инфраструктуре.
+     */
     private UIContext uiContext;
+    /**
+     * Хранит ссылку на родительский виджет в дереве интерфейса.
+     */
     private Widget parent;
+    /**
+     * Хранит флаги областей виджета, требующих пересчёта или перерисовки.
+     */
     private int invalidationFlags = InvalidationFlags.ALL;
+    /**
+     * Хранит агрегированные флаги инвалидации всего поддерева виджета.
+     */
     private int subtreeInvalidationFlags = InvalidationFlags.ALL;
+    /**
+     * Хранит ограничения layout, которые влияют на доступный размер виджета.
+     */
     private LayoutConstraints layoutConstraints = LayoutConstraints.DEFAULT;
+    /**
+     * Хранит изменяемые layout-настройки виджета и сообщает об их изменениях.
+     */
     private final LayoutStyle layoutStyle = new LayoutStyle(this::onLayoutStyleChanged);
+    /**
+     * Флаг защищает синхронизацию layout-настроек от рекурсивных обновлений.
+     */
     private boolean syncingLayoutStyle;
+    /**
+     * Хранит режим видимости, определяющий участие виджета в layout, вводе и render-проходе.
+     */
     private Visibility visibility = Visibility.VISIBLE;
+    /**
+     * Флаг показывает, доступен ли виджет для взаимодействия пользователя.
+     */
     private boolean enabled = true;
+    /**
+     * Флаг показывает, находится ли указатель мыши над виджетом.
+     */
     private boolean hovered;
+    /**
+     * Хранит курсор мыши, который нужно показывать над этим виджетом.
+     */
     private MouseCursor mouseCursor = MouseCursor.DEFAULT;
+    /**
+     * Флаг показывает, может ли виджет получать keyboard-focus.
+     */
     private boolean focusable;
+    /**
+     * Флаг показывает, образует ли виджет отдельную область фокусировки.
+     */
     private boolean focusScope;
+    /**
+     * Хранит порядок обхода фокуса относительно соседних виджетов.
+     */
     private int focusOrder;
+    /**
+     * Флаг показывает, ограничивает ли виджет область применения локальных стилей.
+     */
     private boolean styleScope;
+    /**
+     * Хранит локальные стили, переопределяющие оформление для конкретных типов виджетов.
+     */
     private final Map<String, Style> localStyles = new HashMap<>();
 
+    /**
+     * Создаёт экземпляр {@code WidgetBase} и подготавливает начальное состояние виджета.
+     */
     protected WidgetBase() {
         layoutBounds.onChanged(() -> invalidate(InvalidationFlags.LAYOUT));
         transform.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         syncLayoutStyleFromConstraints();
     }
 
+    /**
+     * Возвращает UI-контекст, к которому привязан виджет.
+     */
     @Override
     public UIContext uiContext() {
         return uiContext;
     }
 
+    /**
+     * Внутренне назначает UI-контекст и синхронизирует его с дочерними виджетами.
+     */
     public void setUiContextInternal(UIContext uiContext) {
         this.uiContext = uiContext;
     }
 
+    /**
+     * Возвращает родительский виджет в UI-дереве.
+     */
     @Override
     public Widget parent() {
         return parent;
     }
 
+    /**
+     * Внутренне обновляет родителя виджета и связанные состояния дерева.
+     */
     public void setParentInternal(Widget parent) {
         if (this.parent == parent) return;
         Widget oldParent = this.parent;
@@ -89,84 +170,138 @@ public abstract class WidgetBase implements Widget {
         recomputeSubtreeInvalidation(parent);
     }
 
+    /**
+     * Возвращает дочерние виджеты, участвующие в layout, input и render-проходах.
+     */
     @Override
     public List<Widget> children() {
         return Collections.emptyList();
     }
 
+    /**
+     * Возвращает текущие границы виджета после layout-прохода.
+     */
     @Override
     public RectView layoutBounds() {
         return layoutBounds;
     }
 
+    /**
+     * Возвращает размер, который виджет запросил на этапе измерения.
+     */
     @Override
     public LayoutSize desiredSize() {
         return desiredSize;
     }
 
+    /**
+     * Записывает желаемый размер, вычисленный во время измерения виджета.
+     */
     protected final void setDesiredSize(float width, float height) {
         setDesiredSize(LayoutSize.of(width, height));
     }
 
+    /**
+     * Записывает желаемый размер, вычисленный во время измерения виджета.
+     */
     protected final void setDesiredSize(LayoutSize desiredSize) {
         this.desiredSize = desiredSize == null ? LayoutSize.ZERO : desiredSize;
     }
 
+    /**
+     * Приводит желаемый размер контента к ограничениям текущего layout-контекста.
+     */
     protected final LayoutSize resolveDesiredSize(LayoutContext context, float contentWidth, float contentHeight) {
         return LayoutSize.of(contentWidth, contentHeight).resolve(layoutConstraints, context);
     }
 
+    /**
+     * Возвращает изменяемые границы для внутренних layout-операций.
+     */
     protected MutableRect mutableLayoutBounds() {
         return layoutBounds;
     }
 
+    /**
+     * Возвращает трансформацию, применяемую к виджету при отрисовке.
+     */
     @Override
     public Transform transform() {
         return transform;
     }
 
+    /**
+     * Возвращает текущую прозрачность виджета.
+     */
     public float opacity() {
         return opacity;
     }
 
+    /**
+     * Возвращает текущую прозрачность виджета.
+     */
     public WidgetBase opacity(float opacity) {
         transitions.remove(AnimatedProperty.OPACITY);
         setAnimatedValue(AnimatedProperty.OPACITY, clamp01(opacity));
         return this;
     }
 
+    /**
+     * Обновляет или выполняет операцию {@code animateOpacity}, меняющую состояние виджета.
+     */
     public WidgetBase animateOpacity(float targetOpacity, float durationSeconds) {
         return animateOpacity(targetOpacity, TransitionSpec.of(durationSeconds));
     }
 
+    /**
+     * Обновляет или выполняет операцию {@code animateOpacity}, меняющую состояние виджета.
+     */
     public WidgetBase animateOpacity(float targetOpacity, TransitionSpec spec) {
         return animate(AnimatedProperty.OPACITY, clamp01(targetOpacity), spec);
     }
 
+    /**
+     * Обновляет или выполняет операцию {@code animatePosition}, меняющую состояние виджета.
+     */
     public WidgetBase animatePosition(float x, float y, float durationSeconds) {
         return animatePosition(x, y, TransitionSpec.of(durationSeconds));
     }
 
+    /**
+     * Обновляет или выполняет операцию {@code animatePosition}, меняющую состояние виджета.
+     */
     public WidgetBase animatePosition(float x, float y, TransitionSpec spec) {
         animate(AnimatedProperty.POSITION_X, sanitizeFinite(x), spec);
         animate(AnimatedProperty.POSITION_Y, sanitizeFinite(y), spec);
         return this;
     }
 
+    /**
+     * Обновляет или выполняет операцию {@code animateScale}, меняющую состояние виджета.
+     */
     public WidgetBase animateScale(float x, float y, float durationSeconds) {
         return animateScale(x, y, TransitionSpec.of(durationSeconds));
     }
 
+    /**
+     * Обновляет или выполняет операцию {@code animateScale}, меняющую состояние виджета.
+     */
     public WidgetBase animateScale(float x, float y, TransitionSpec spec) {
         animate(AnimatedProperty.SCALE_X, sanitizeFinite(x, 1.0f), spec);
         animate(AnimatedProperty.SCALE_Y, sanitizeFinite(y, 1.0f), spec);
         return this;
     }
 
+    /**
+     * Обновляет или выполняет операцию {@code animate}, меняющую состояние виджета.
+     */
     public WidgetBase animate(AnimatedProperty property, float targetValue, float durationSeconds) {
         return animate(property, targetValue, TransitionSpec.of(durationSeconds));
     }
 
+    /**
+     * Обновляет или выполняет операцию {@code animate}, меняющую состояние виджета.
+     */
     public WidgetBase animate(AnimatedProperty property, float targetValue, TransitionSpec spec) {
         if (property == null) return this;
         TransitionSpec normalized = spec == null ? TransitionSpec.DEFAULT : spec;
@@ -182,6 +317,9 @@ public abstract class WidgetBase implements Widget {
         return this;
     }
 
+    /**
+     * Обновляет или выполняет операцию {@code stopAnimation}, меняющую состояние виджета.
+     */
     public WidgetBase stopAnimation(AnimatedProperty property) {
         if (property != null) {
             transitions.remove(property);
@@ -189,34 +327,55 @@ public abstract class WidgetBase implements Widget {
         return this;
     }
 
+    /**
+     * Возвращает текущее значение или выполняет операцию {@code stopAnimations} для виджета.
+     */
     public WidgetBase stopAnimations() {
         transitions.clear();
         return this;
     }
 
+    /**
+     * Обновляет или выполняет операцию {@code animationRunning}, меняющую состояние виджета.
+     */
     public boolean animationRunning(AnimatedProperty property) {
         return property != null && transitions.containsKey(property);
     }
 
+    /**
+     * Возвращает текущее значение или выполняет операцию {@code animationsRunning} для виджета.
+     */
     public boolean animationsRunning() {
         return !transitions.isEmpty();
     }
 
+    /**
+     * Возвращает флаги инвалидации самого виджета.
+     */
     @Override
     public int invalidationFlags() {
         return invalidationFlags;
     }
 
+    /**
+     * Возвращает агрегированные флаги инвалидации виджета и всех его потомков.
+     */
     @Override
     public int subtreeInvalidationFlags() {
         return subtreeInvalidationFlags;
     }
 
+    /**
+     * Возвращает ограничения layout, применяемые к виджету.
+     */
     @Override
     public LayoutConstraints layoutConstraints() {
         return layoutConstraints;
     }
 
+    /**
+     * Возвращает изменяемый стиль layout для fluent-настройки размеров и ограничений.
+     */
     public LayoutStyle layoutStyle() {
         return layoutStyle;
     }
@@ -237,6 +396,9 @@ public abstract class WidgetBase implements Widget {
         return this;
     }
 
+    /**
+     * Синхронизирует внутреннее состояние виджета через {@code syncLayoutStyleFromConstraints}.
+     */
     private void syncLayoutStyleFromConstraints() {
         syncingLayoutStyle = true;
         try {
@@ -246,17 +408,26 @@ public abstract class WidgetBase implements Widget {
         }
     }
 
+    /**
+     * Внутренний callback вызывается при изменении layout-стиля и обновляет ограничения виджета.
+     */
     private void onLayoutStyleChanged() {
         if (syncingLayoutStyle) return;
         layoutConstraints = layoutStyle.toLegacyConstraints(layoutConstraints);
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
     }
 
+    /**
+     * Возвращает или обновляет режим видимости виджета.
+     */
     @Override
     public Visibility visibility() {
         return visibility;
     }
 
+    /**
+     * Возвращает или обновляет режим видимости виджета.
+     */
     public WidgetBase visibility(Visibility visibility) {
         Visibility next = visibility == null ? Visibility.VISIBLE : visibility;
         if (this.visibility == next) return this;
@@ -269,20 +440,32 @@ public abstract class WidgetBase implements Widget {
         return this;
     }
 
+    /**
+     * Возвращает или задаёт простую видимость виджета через режим {@code Visibility}.
+     */
     @Override
     public boolean visible() {
         return visibility == Visibility.VISIBLE;
     }
 
+    /**
+     * Возвращает или задаёт простую видимость виджета через режим {@code Visibility}.
+     */
     public WidgetBase visible(boolean visible) {
         return visibility(visible ? Visibility.VISIBLE : Visibility.HIDDEN);
     }
 
+    /**
+     * Возвращает или задаёт доступность виджета для пользовательского ввода.
+     */
     @Override
     public boolean enabled() {
         return enabled;
     }
 
+    /**
+     * Возвращает или задаёт доступность виджета для пользовательского ввода.
+     */
     public WidgetBase enabled(boolean enabled) {
         if (this.enabled == enabled) return this;
         this.enabled = enabled;
@@ -290,30 +473,48 @@ public abstract class WidgetBase implements Widget {
         return this;
     }
 
+    /**
+     * Возвращает состояние наведения указателя на виджет.
+     */
     @Override
     public boolean hovered() {
         return hovered;
     }
 
+    /**
+     * Возвращает или задаёт курсор мыши для виджета.
+     */
     public MouseCursor mouseCursor() {
         return mouseCursor;
     }
 
+    /**
+     * Возвращает или задаёт курсор мыши для виджета.
+     */
     public WidgetBase mouseCursor(MouseCursor mouseCursor) {
         this.mouseCursor = mouseCursor == null ? MouseCursor.DEFAULT : mouseCursor;
         return this;
     }
 
+    /**
+     * Возвращает курсор мыши для указанной локальной точки виджета.
+     */
     @Override
     public MouseCursor mouseCursorAt(float localX, float localY) {
         return enabled && visibility == Visibility.VISIBLE ? mouseCursor : MouseCursor.DEFAULT;
     }
 
+    /**
+     * Возвращает или задаёт возможность виджета получать фокус.
+     */
     @Override
     public boolean focusable() {
         return focusable;
     }
 
+    /**
+     * Возвращает или задаёт возможность виджета получать фокус.
+     */
     public WidgetBase focusable(boolean focusable) {
         if (this.focusable == focusable) return this;
         this.focusable = focusable;
@@ -321,11 +522,17 @@ public abstract class WidgetBase implements Widget {
         return this;
     }
 
+    /**
+     * Возвращает или задаёт режим отдельной области фокусировки для виджета.
+     */
     @Override
     public boolean focusScope() {
         return focusScope;
     }
 
+    /**
+     * Возвращает или задаёт режим отдельной области фокусировки для виджета.
+     */
     public WidgetBase focusScope(boolean focusScope) {
         if (this.focusScope == focusScope) return this;
         this.focusScope = focusScope;
@@ -333,11 +540,17 @@ public abstract class WidgetBase implements Widget {
         return this;
     }
 
+    /**
+     * Возвращает или задаёт порядок обхода фокуса для виджета.
+     */
     @Override
     public int focusOrder() {
         return focusOrder;
     }
 
+    /**
+     * Возвращает или задаёт порядок обхода фокуса для виджета.
+     */
     public WidgetBase focusOrder(int focusOrder) {
         if (this.focusOrder == focusOrder) return this;
         this.focusOrder = focusOrder;
@@ -345,11 +558,17 @@ public abstract class WidgetBase implements Widget {
         return this;
     }
 
+    /**
+     * Возвращает или задаёт область локального применения стилей.
+     */
     @Override
     public boolean styleScope() {
         return styleScope;
     }
 
+    /**
+     * Возвращает или задаёт область локального применения стилей.
+     */
     public WidgetBase styleScope(boolean styleScope) {
         if (this.styleScope == styleScope) return this;
         this.styleScope = styleScope;
@@ -357,6 +576,9 @@ public abstract class WidgetBase implements Widget {
         return this;
     }
 
+    /**
+     * Возвращает или задаёт локальный стиль для указанного типа виджета.
+     */
     public WidgetBase localStyle(String widgetType, Style style) {
         if (widgetType == null || widgetType.isEmpty()) return this;
         if (style == null || style == Style.EMPTY) {
@@ -368,6 +590,9 @@ public abstract class WidgetBase implements Widget {
         return this;
     }
 
+    /**
+     * Возвращает или задаёт локальный стиль для указанного типа виджета.
+     */
     @Override
     public Style localStyle(String widgetType) {
         if (widgetType == null || widgetType.isEmpty()) return Style.EMPTY;
@@ -377,6 +602,9 @@ public abstract class WidgetBase implements Widget {
         return style == null ? Style.EMPTY : style;
     }
 
+    /**
+     * Помечает часть состояния виджета как требующую пересчёта или перерисовки.
+     */
     @Override
     public void invalidate(int flags) {
         if (flags == InvalidationFlags.NONE) return;
@@ -384,6 +612,9 @@ public abstract class WidgetBase implements Widget {
         markSubtreeInvalidation(flags);
     }
 
+    /**
+     * Снимает указанные флаги инвалидации после успешного обновления.
+     */
     @Override
     public void clearInvalidation(int flags) {
         if (flags == InvalidationFlags.NONE) return;
@@ -391,6 +622,9 @@ public abstract class WidgetBase implements Widget {
         recomputeSubtreeInvalidation();
     }
 
+    /**
+     * Пересчитывает агрегированную инвалидацию поддерева виджета.
+     */
     protected void recomputeSubtreeInvalidation() {
         int flags = invalidationFlags;
         for (Widget child : children()) {
@@ -405,6 +639,9 @@ public abstract class WidgetBase implements Widget {
         recomputeSubtreeInvalidation(parent);
     }
 
+    /**
+     * Поднимает флаги инвалидации вверх по родительскому дереву.
+     */
     private void markSubtreeInvalidation(int flags) {
         int previous = subtreeInvalidationFlags;
         subtreeInvalidationFlags |= flags;
@@ -417,6 +654,9 @@ public abstract class WidgetBase implements Widget {
         }
     }
 
+    /**
+     * Пересчитывает агрегированную инвалидацию поддерева виджета.
+     */
     private static void recomputeSubtreeInvalidation(Widget widget) {
         if (widget instanceof WidgetBase base) {
             base.recomputeSubtreeInvalidation();
@@ -425,6 +665,9 @@ public abstract class WidgetBase implements Widget {
         }
     }
 
+    /**
+     * Измеряет желаемый размер виджета с учётом переданного layout-контекста.
+     */
     @Override
     public void measure(LayoutContext context) {
         if (visibility == Visibility.COLLAPSED) {
@@ -434,20 +677,32 @@ public abstract class WidgetBase implements Widget {
         setDesiredSize(resolveDesiredSize(context, 0.0f, 0.0f));
     }
 
+    /**
+     * Размещает виджет в рассчитанных границах и обновляет его layout-состояние.
+     */
     @Override
     public void arrange(RectView bounds) {
         layoutBounds.set(bounds);
     }
 
+    /**
+     * Отрисовывает виджет в текущем render-контексте.
+     */
     @Override
     public void render(RenderContext context) {
     }
 
+    /**
+     * Обновляет состояние виджета на каждом кадре.
+     */
     @Override
     public void tick(FrameContext frame) {
         tickAnimations(frame);
     }
 
+    /**
+     * Обрабатывает входящее UI-событие и обновляет состояние виджета при необходимости.
+     */
     @Override
     public void handle(Event event) {
         if (event instanceof PointerEnteredEvent entered && entered.phase() == EventPhase.TARGET) {
@@ -458,22 +713,34 @@ public abstract class WidgetBase implements Widget {
         emit(event);
     }
 
+    /**
+     * Внутренне обновляет состояние hover и вызывает визуальную инвалидацию.
+     */
     private void setHovered(boolean hovered) {
         if (this.hovered == hovered) return;
         this.hovered = hovered;
         invalidate(InvalidationFlags.VISUAL);
     }
 
+    /**
+     * Регистрирует обработчик события и возвращает подписку для последующего снятия.
+     */
     @Override
     public <T extends Event> EventSubscription on(EventType<T> type, EventListener<? super T> listener) {
         return events.on(type, listener);
     }
 
+    /**
+     * Отправляет событие подписчикам этого виджета.
+     */
     @Override
     public void emit(Event event) {
         events.emit(event);
     }
 
+    /**
+     * Продвигает активные анимации и применяет их значения к виджету.
+     */
     protected final void tickAnimations(FrameContext frame) {
         if (transitions.isEmpty()) return;
 
@@ -491,18 +758,27 @@ public abstract class WidgetBase implements Widget {
         invalidate(InvalidationFlags.VISUAL);
     }
 
+    /**
+     * Добавляет прозрачность виджета в render-контекст перед отрисовкой.
+     */
     protected final void pushOpacity(RenderContext context) {
         if (context != null) {
             context.pushOpacity(opacity);
         }
     }
 
+    /**
+     * Восстанавливает предыдущую прозрачность render-контекста после отрисовки.
+     */
     protected final void popOpacity(RenderContext context) {
         if (context != null) {
             context.popOpacity();
         }
     }
 
+    /**
+     * Возвращает текущее значение свойства, учитывая активную анимацию.
+     */
     private float currentAnimatedValue(AnimatedProperty property) {
         return switch (property) {
             case OPACITY -> opacity;
@@ -513,6 +789,9 @@ public abstract class WidgetBase implements Widget {
         };
     }
 
+    /**
+     * Применяет вычисленное значение анимируемого свойства к виджету.
+     */
     private void setAnimatedValue(AnimatedProperty property, float value) {
         float normalized = normalizedValue(property, value);
         switch (property) {
@@ -529,6 +808,9 @@ public abstract class WidgetBase implements Widget {
         }
     }
 
+    /**
+     * Нормализует значение анимируемого свойства перед сохранением.
+     */
     private static float normalizedValue(AnimatedProperty property, float value) {
         return switch (property) {
             case OPACITY -> clamp01(value);
@@ -537,15 +819,24 @@ public abstract class WidgetBase implements Widget {
         };
     }
 
+    /**
+     * Ограничивает число диапазоном от 0 до 1.
+     */
     private static float clamp01(float value) {
         if (!Float.isFinite(value)) return 1.0f;
         return Math.max(0.0f, Math.min(1.0f, value));
     }
 
+    /**
+     * Заменяет невалидное или бесконечное число безопасным fallback-значением.
+     */
     private static float sanitizeFinite(float value) {
         return sanitizeFinite(value, 0.0f);
     }
 
+    /**
+     * Заменяет невалидное или бесконечное число безопасным fallback-значением.
+     */
     private static float sanitizeFinite(float value, float fallback) {
         return Float.isFinite(value) ? value : fallback;
     }

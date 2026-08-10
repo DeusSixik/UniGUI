@@ -16,67 +16,123 @@ import dev.sixik.unigui.api.style.Style;
 import java.util.List;
 
 public interface Widget extends EventEmitter {
+    /**
+     * Возвращает контекст интерфейса, к которому привязан виджет.
+     */
     UIContext uiContext();
 
+    /**
+     * Возвращает родительский виджет в дереве интерфейса.
+     */
     Widget parent();
 
+    /**
+     * Возвращает дочерние виджеты, участвующие в компоновке, вводе и отрисовке.
+     */
     List<Widget> children();
 
+    /**
+     * Возвращает текущие границы виджета после компоновки.
+     */
     RectView layoutBounds();
 
+    /**
+     * Возвращает размер, который виджет запрашивает у системы компоновки.
+     */
     default LayoutSize desiredSize() {
         return LayoutSize.ZERO;
     }
 
+    /**
+     * Возвращает трансформацию, применяемую к виджету при отрисовке.
+     */
     Transform transform();
 
+    /**
+     * Возвращает флаги инвалидации самого виджета.
+     */
     int invalidationFlags();
 
+    /**
+     * Возвращает ограничения компоновки, применяемые к виджету.
+     */
     default LayoutConstraints layoutConstraints() {
         return LayoutConstraints.DEFAULT;
     }
 
+    /**
+     * Возвращает режим видимости виджета.
+     */
     default Visibility visibility() {
         return Visibility.VISIBLE;
     }
 
+    /**
+     * Проверяет, должен ли виджет отображаться и участвовать во вводе.
+     */
     default boolean visible() {
         return visibility() == Visibility.VISIBLE;
     }
 
+    /**
+     * Проверяет, доступен ли виджет для взаимодействия пользователя.
+     */
     default boolean enabled() {
         return true;
     }
 
+    /**
+     * Проверяет, находится ли указатель над виджетом.
+     */
     default boolean hovered() {
         return false;
     }
 
-    /** Returns the cursor to display at the supplied widget-local coordinates. */
+    /**
+     * Возвращает курсор, который нужно показать в указанной локальной точке виджета.
+     */
     default MouseCursor mouseCursorAt(float localX, float localY) {
         return MouseCursor.DEFAULT;
     }
 
+    /**
+     * Проверяет, может ли виджет получать клавиатурный фокус.
+     */
     default boolean focusable() {
         return false;
     }
 
+    /**
+     * Проверяет, образует ли виджет отдельную область фокусировки.
+     */
     default boolean focusScope() {
         return false;
     }
 
+    /**
+     * Возвращает порядок обхода фокуса для этого виджета.
+     */
     default int focusOrder() {
         return 0;
     }
 
+    /**
+     * Проверяет, ограничивает ли виджет область применения локальных стилей.
+     */
     default boolean styleScope() {
         return false;
     }
 
+    /**
+     * Возвращает локальный стиль для указанного типа виджета.
+     */
     default Style localStyle(String widgetType) {
         return Style.EMPTY;
     }
 
+    /**
+     * Возвращает агрегированные флаги инвалидации виджета и его потомков.
+     */
     default int subtreeInvalidationFlags() {
         int flags = invalidationFlags();
         for (Widget child : children()) {
@@ -85,21 +141,45 @@ public interface Widget extends EventEmitter {
         return flags;
     }
 
+    /**
+     * Помечает часть состояния виджета как требующую пересчёта или перерисовки.
+     */
     void invalidate(int flags);
 
+    /**
+     * Снимает указанные флаги инвалидации после успешного обновления.
+     */
     void clearInvalidation(int flags);
 
+    /**
+     * Измеряет желаемый размер виджета с учётом переданного контекста компоновки.
+     */
     void measure(LayoutContext context);
 
+    /**
+     * Размещает виджет в рассчитанных границах и обновляет состояние компоновки.
+     */
     void arrange(RectView bounds);
 
+    /**
+     * Отрисовывает виджет в текущем контексте отрисовки.
+     */
     void render(RenderContext context);
 
+    /**
+     * Обрабатывает входящее событие интерфейса и обновляет состояние виджета при необходимости.
+     */
     void handle(Event event);
 
+    /**
+     * Обновляет состояние виджета на каждом кадре.
+     */
     default void tick(FrameContext frame) {
     }
 
+    /**
+     * Освобождает ресурсы виджета перед удалением из дерева интерфейса.
+     */
     default void dispose() {
     }
 }

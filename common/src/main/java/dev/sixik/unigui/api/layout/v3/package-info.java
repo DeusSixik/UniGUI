@@ -1,8 +1,8 @@
 /**
- * Layout V3 public model.
+ * Публичная модель компоновки V3.
  *
- * <p>This package is intentionally backend-neutral. Concrete implementations
- * can be internal Java, Yoga-backed, Taffy-backed, or replaced later without
- * exposing that choice to widgets.</p>
+ * <p>Этот пакет намеренно не зависит от конкретной внутренней реализации. Реализации
+ * могут быть внутренними Java-реализациями, реализациями на Yoga или Taffy либо заменяться позже без
+ * раскрытия этого выбора виджетам.</p>
  */
 package dev.sixik.unigui.api.layout.v3;

@@ -1,13 +1,23 @@
 package dev.sixik.unigui.api.layout;
 
-/** Controls child clipping and scrolling behavior for each axis. */
+/**
+ * Управляет обрезкой дочернего содержимого и прокруткой по каждой оси.
+ */
 public enum Overflow {
-    /** Content may render outside the widget bounds. */
+    /**
+     * Содержимое может отрисовываться за пределами границ виджета.
+     */
     VISIBLE,
-    /** Content is clipped without scrolling. */
+    /**
+     * Содержимое обрезается без прокрутки.
+     */
     HIDDEN,
-    /** A ScrollView always exposes scrolling on this axis. */
+    /**
+     * {@code ScrollView} всегда включает прокрутку по этой оси.
+     */
     SCROLL,
-    /** A ScrollView exposes scrolling only when content exceeds its viewport. */
+    /**
+     * {@code ScrollView} включает прокрутку только когда содержимое превышает область просмотра.
+     */
     AUTO
 }
