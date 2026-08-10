@@ -71,6 +71,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     private static final float CONNECTION_HIT_RADIUS = 6.0f;
     private static final float RESIZE_HANDLE_SIZE = 10.0f;
     private static final float MIN_RESIZE_SIZE = 12.0f;
+    private static final float DEFAULT_ITEM_CONTENT_PADDING = 2.0f;
 
     private final List<NodeGraphItem> items = new ArrayList<>();
     private final List<NodeGraphConnection> connections = new ArrayList<>();
@@ -108,6 +109,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     private boolean consumeWheelWhileHovered = true;
     private boolean wheelPanningEnabled = true;
     private float wheelPanStep = 32.0f;
+    private float itemContentPadding = DEFAULT_ITEM_CONTENT_PADDING;
     private float minZoom = 0.25f;
     private float maxZoom = 4.0f;
     private boolean bringToFrontOnSelect = true;
@@ -186,6 +188,18 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         hoveredConnectionId = "";
         dragState = null;
         connectionDragState = null;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public float itemContentPadding() {
+        return itemContentPadding;
+    }
+
+    public NodeGraph itemContentPadding(float padding) {
+        float normalized = Float.isFinite(padding) ? Math.max(0.0f, padding) : DEFAULT_ITEM_CONTENT_PADDING;
+        if (itemContentPadding == normalized) return this;
+        itemContentPadding = normalized;
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
@@ -889,8 +903,9 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         for (NodeGraphItem item : List.copyOf(items)) {
             if (!item.visible() || item.content().visibility() == Visibility.COLLAPSED) continue;
             item.content().measure(childContext);
-            float width = item.autoWidth() ? item.content().desiredSize().width() : item.width();
-            float height = item.autoHeight() ? item.content().desiredSize().height() : item.height();
+            float padding = itemContentPadding * 2.0f;
+            float width = item.autoWidth() ? item.content().desiredSize().width() + padding : item.width();
+            float height = item.autoHeight() ? item.content().desiredSize().height() + padding : item.height();
             item.arrangedSize(Math.max(MIN_ITEM_SIZE, width), Math.max(MIN_ITEM_SIZE, height));
         }
         setDesiredSize(resolveDesiredSize(context, DEFAULT_WIDTH, DEFAULT_HEIGHT));
@@ -1079,28 +1094,31 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
             if (!item.visible() || content.visibility() == Visibility.COLLAPSED) continue;
             float width = item.arrangedWidth() > 0.0f
                     ? item.arrangedWidth()
-                    : Math.max(MIN_ITEM_SIZE, item.autoWidth() ? content.desiredSize().width() : item.width());
+                    : Math.max(MIN_ITEM_SIZE, item.autoWidth() ? content.desiredSize().width() + itemContentPadding * 2.0f : item.width());
             float height = item.arrangedHeight() > 0.0f
                     ? item.arrangedHeight()
-                    : Math.max(MIN_ITEM_SIZE, item.autoHeight() ? content.desiredSize().height() : item.height());
+                    : Math.max(MIN_ITEM_SIZE, item.autoHeight() ? content.desiredSize().height() + itemContentPadding * 2.0f : item.height());
             item.arrangedSize(width, height);
+            float contentPadding = Math.min(itemContentPadding, Math.max(0.0f, Math.min(width, height) * 0.5f));
+            float contentWidth = Math.max(0.0f, width - contentPadding * 2.0f);
+            float contentHeight = Math.max(0.0f, height - contentPadding * 2.0f);
 
             if (scaleContentWithZoom) {
                 // Arrange in world-space size so the widget's internal layout
                 // uses native (unscaled) units. The zoom is composed into the
                 // draw commands after content.render().
                 content.arrange(new MutableRect(
-                        worldToRootX(item.x()),
-                        worldToRootY(item.y()),
-                        width,
-                        height));
+                        worldToRootX(item.x()) + contentPadding,
+                        worldToRootY(item.y()) + contentPadding,
+                        contentWidth,
+                        contentHeight));
             } else {
                 // Fixed screen size — content ignores zoom completely.
                 content.arrange(new MutableRect(
-                        worldToRootX(item.x()),
-                        worldToRootY(item.y()),
-                        itemScreenWidth(item),
-                        itemScreenHeight(item)));
+                        worldToRootX(item.x()) + contentPadding,
+                        worldToRootY(item.y()) + contentPadding,
+                        Math.max(0.0f, itemScreenWidth(item) - contentPadding * 2.0f),
+                        Math.max(0.0f, itemScreenHeight(item) - contentPadding * 2.0f)));
             }
         }
     }

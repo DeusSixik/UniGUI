@@ -33,7 +33,8 @@ import dev.sixik.unigui.widgets.render.ButtonState;
 import java.util.Objects;
 
 public class Button extends Box {
-    protected static final float TEXT_PADDING_X = 8.0f;
+    protected static final float DEFAULT_TEXT_PADDING_X = 8.0f;
+    protected static final float TEXT_PADDING_X = DEFAULT_TEXT_PADDING_X;
     protected static final float DEFAULT_HEIGHT = 18.0f;
     protected static final float APPROX_CHAR_WIDTH = TextEngine.APPROX_CHAR_WIDTH;
 
@@ -41,6 +42,7 @@ public class Button extends Box {
     private RichText richText = RichText.plain("");
     private final MutableColor textColor = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private ButtonRenderer renderer;
+    private float textPaddingX = DEFAULT_TEXT_PADDING_X;
     private boolean pressed;
     private boolean interactionTransitions;
     private TransitionSpec interactionTransition = TransitionSpec.of(0.10f, AnimationEasing.EASE_OUT);
@@ -98,6 +100,18 @@ public class Button extends Box {
 
     public MutableColor textColor() {
         return textColor;
+    }
+
+    public float textPaddingX() {
+        return textPaddingX;
+    }
+
+    public Button textPaddingX(float textPaddingX) {
+        float normalized = Float.isFinite(textPaddingX) ? Math.max(0.0f, textPaddingX) : DEFAULT_TEXT_PADDING_X;
+        if (this.textPaddingX == normalized) return this;
+        this.textPaddingX = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
     }
 
     public ButtonRenderer renderer() {
@@ -174,7 +188,7 @@ public class Button extends Box {
         float textWidth = Math.max(
                 TextEngine.measureLineWidth(richText),
                 TextEngine.measureLineWidth(text));
-        setDesiredSize(resolveDesiredSize(context, textWidth + TEXT_PADDING_X * 2.0f, DEFAULT_HEIGHT));
+        setDesiredSize(resolveDesiredSize(context, textWidth + textPaddingX * 2.0f, DEFAULT_HEIGHT));
     }
 
     public ButtonClickEvent click() {
@@ -233,7 +247,7 @@ public class Button extends Box {
                 layoutBounds().height(),
                 text,
                 richText,
-                TEXT_PADDING_X,
+                textPaddingX,
                 TextEngine.measureLineWidth(context, richText),
                 TextEngine.measureTextHeight(richText),
                 textColor.copy(),

@@ -5,8 +5,15 @@ import dev.sixik.unigui.api.render.Paint;
 public final class TreeViewRenderers {
     public static final TreeViewRenderer DEFAULT = (draw, state) -> {
         if (state.text() == null || state.text().isEmpty()) return;
-        draw.text(state.text(), state.textX(), state.textY(), state.textWidth(), state.textHeight(),
-                Paint.fill(state.textColor()));
+        float clipX = state.x() + state.textPaddingX() + state.depth() * state.indentWidth();
+        float clipWidth = Math.max(0.0f, state.width() - state.textPaddingX() * 2.0f - state.depth() * state.indentWidth());
+        draw.pushClip(clipX, state.y(), clipWidth, state.height());
+        try {
+            draw.text(state.text(), state.textX(), state.textY(), Math.max(0.0f, state.textWidth()), state.textHeight(),
+                    Paint.fill(state.textColor()));
+        } finally {
+            draw.popClip();
+        }
     };
 
     private TreeViewRenderers() {

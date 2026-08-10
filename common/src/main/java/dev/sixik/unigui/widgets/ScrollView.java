@@ -38,6 +38,7 @@ public class ScrollView extends WidgetBase {
     private float scrollY;
     private float scrollStep = 16.0f;
     private float scrollbarGap = ScrollBar.DEFAULT_GAP;
+    private boolean scrollingEnabled = true;
     private boolean consumeWheelAtScrollBounds = true;
     private boolean horizontalScrollBarVisible;
     private boolean verticalScrollBarVisible;
@@ -121,6 +122,32 @@ public class ScrollView extends WidgetBase {
         return this;
     }
 
+    public boolean scrollingEnabled() {
+        return scrollingEnabled;
+    }
+
+    public ScrollView scrollingEnabled(boolean scrollingEnabled) {
+        if (this.scrollingEnabled == scrollingEnabled) return this;
+        this.scrollingEnabled = scrollingEnabled;
+        if (!scrollingEnabled) {
+            horizontalScrollBarVisible = false;
+            verticalScrollBarVisible = false;
+            scrollX = 0.0f;
+            scrollY = 0.0f;
+            syncScrollBars();
+        }
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public ScrollView disableScrolling() {
+        return scrollingEnabled(false);
+    }
+
+    public ScrollView enableScrolling() {
+        return scrollingEnabled(true);
+    }
+
     public boolean consumeWheelAtScrollBounds() {
         return consumeWheelAtScrollBounds;
     }
@@ -158,12 +185,12 @@ public class ScrollView extends WidgetBase {
     }
 
     public float maxScrollX() {
-        if (!horizontalScrollingEnabled()) return 0.0f;
+        if (!scrollingEnabled || !horizontalScrollingEnabled()) return 0.0f;
         return Math.max(0.0f, effectiveContentWidth() - viewportWidth());
     }
 
     public float maxScrollY() {
-        if (!verticalScrollingEnabled()) return 0.0f;
+        if (!scrollingEnabled || !verticalScrollingEnabled()) return 0.0f;
         return Math.max(0.0f, effectiveContentHeight() - viewportHeight());
     }
 
@@ -291,7 +318,7 @@ public class ScrollView extends WidgetBase {
     public void handle(Event event) {
         super.handle(event);
         if (event.isCancelled()) return;
-        if (event instanceof ScrollEvent scroll && scroll.phase() != EventPhase.CAPTURE) {
+        if (scrollingEnabled && event instanceof ScrollEvent scroll && scroll.phase() != EventPhase.CAPTURE) {
             float beforeX = scrollX;
             float beforeY = scrollY;
             boolean shiftHorizontal = KeyModifiers.has(scroll.modifiers(), KeyModifiers.SHIFT)
@@ -365,6 +392,11 @@ public class ScrollView extends WidgetBase {
     }
 
     private void updateScrollBarVisibility() {
+        if (!scrollingEnabled) {
+            horizontalScrollBarVisible = false;
+            verticalScrollBarVisible = false;
+            return;
+        }
         boolean horizontal = layoutStyle().overflowX() == Overflow.SCROLL;
         boolean vertical = layoutStyle().overflowY() == Overflow.SCROLL;
         float width = Math.max(0.0f, layoutBounds().width());
@@ -431,11 +463,13 @@ public class ScrollView extends WidgetBase {
     }
 
     private boolean horizontalScrollingEnabled() {
+        if (!scrollingEnabled) return false;
         Overflow overflow = layoutStyle().overflowX();
         return overflow == Overflow.AUTO || overflow == Overflow.SCROLL;
     }
 
     private boolean verticalScrollingEnabled() {
+        if (!scrollingEnabled) return false;
         Overflow overflow = layoutStyle().overflowY();
         return overflow == Overflow.AUTO || overflow == Overflow.SCROLL;
     }

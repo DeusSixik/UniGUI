@@ -11,6 +11,7 @@ import dev.sixik.unigui.api.core.UIContext;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
+import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
@@ -38,6 +39,8 @@ public class ComboBox extends LinearBox {
     private DropDownMode dropDownMode = DropDownMode.OVERLAY;
     private OverlayLayer explicitOverlayLayer;
     private OverlayLayer attachedOverlayLayer;
+    private float dropDownWidth;
+    private boolean dropDownMatchesWidgetWidth;
     private boolean syncingPopup;
 
     public ComboBox() {
@@ -54,7 +57,7 @@ public class ComboBox extends LinearBox {
         optionsHost.background().set(0.025f, 0.030f, 0.040f, 0.97f);
         optionsHost.borderColor().set(0.25f, 0.78f, 1.0f, 0.75f);
         optionsHost.visibility(Visibility.COLLAPSED);
-        optionsHost.layout(style -> style.flexGrow(0).flexShrink(0.0f));
+        optionsHost.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
         optionsHost.addChild(optionsList);
 
         optionsList.spacing(1.0f);
@@ -253,6 +256,50 @@ public class ComboBox extends LinearBox {
         return dropDownPopup;
     }
 
+    public float dropDownWidth() {
+        return dropDownWidth;
+    }
+
+    public ComboBox dropDownWidth(float width) {
+        float normalized = Float.isFinite(width) ? Math.max(0.0f, width) : 0.0f;
+        if (dropDownWidth == normalized && !dropDownMatchesWidgetWidth) return this;
+        dropDownWidth = normalized;
+        dropDownMatchesWidgetWidth = false;
+        syncDropDownSize();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public boolean dropDownMatchesWidgetWidth() {
+        return dropDownMatchesWidgetWidth;
+    }
+
+    public ComboBox dropDownMatchesWidgetWidth(boolean match) {
+        if (dropDownMatchesWidgetWidth == match && (match || dropDownWidth <= 0.0f)) return this;
+        dropDownMatchesWidgetWidth = match;
+        if (match) {
+            dropDownWidth = 0.0f;
+        }
+        syncDropDownSize();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public ComboBox dropDownSameWidth() {
+        return dropDownMatchesWidgetWidth(true);
+    }
+
+    public ComboBox autoDropDownWidth() {
+        boolean changed = dropDownWidth > 0.0f || dropDownMatchesWidgetWidth;
+        dropDownWidth = 0.0f;
+        dropDownMatchesWidgetWidth = false;
+        if (changed) {
+            syncDropDownSize();
+            invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        }
+        return this;
+    }
+
     public OverlayLayer attachedOverlayLayer() {
         return attachedOverlayLayer;
     }
@@ -339,6 +386,12 @@ public class ComboBox extends LinearBox {
         }
     }
 
+    @Override
+    public void arrange(RectView bounds) {
+        super.arrange(bounds);
+        syncDropDownSize();
+    }
+
     private void selectRelative(int delta) {
         if (items.isEmpty()) return;
         int base = selectedIndex < 0 ? 0 : selectedIndex;
@@ -395,6 +448,7 @@ public class ComboBox extends LinearBox {
     }
 
     private void syncDropDownAttachment() {
+        syncDropDownSize();
         if (dropDownMode == DropDownMode.INLINE) {
             detachFromOverlay();
             clearPopupContent();
@@ -423,6 +477,7 @@ public class ComboBox extends LinearBox {
     }
 
     private void syncDropDownVisibility() {
+        syncDropDownSize();
         if (dropDownMode == DropDownMode.OVERLAY) {
             optionsHost.visibility(attachedOverlayLayer != null ? Visibility.VISIBLE : Visibility.COLLAPSED);
             syncingPopup = true;
@@ -467,6 +522,35 @@ public class ComboBox extends LinearBox {
             attachedOverlayLayer.removeOverlay(dropDownPopup);
             attachedOverlayLayer = null;
         }
+    }
+
+    private void syncDropDownSize() {
+        float resolvedWidth = resolvedDropDownWidth();
+        if (resolvedWidth > 0.0f) {
+            optionsHost.layout(style -> style.size(resolvedWidth, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
+        } else {
+            optionsHost.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
+        }
+    }
+
+    private float resolvedDropDownWidth() {
+        if (dropDownWidth > 0.0f) {
+            return dropDownWidth;
+        }
+        if (dropDownMatchesWidgetWidth) {
+            float width = layoutBounds().width();
+            if (width <= 0.0f && desiredSize().width() > 0.0f) {
+                width = desiredSize().width();
+            }
+            if (width <= 0.0f && headerButton.layoutBounds().width() > 0.0f) {
+                width = headerButton.layoutBounds().width();
+            }
+            if (width <= 0.0f && headerButton.desiredSize().width() > 0.0f) {
+                width = headerButton.desiredSize().width();
+            }
+            return Math.max(0.0f, width);
+        }
+        return 0.0f;
     }
 
     private OverlayLayer findTopmostOverlayLayer() {

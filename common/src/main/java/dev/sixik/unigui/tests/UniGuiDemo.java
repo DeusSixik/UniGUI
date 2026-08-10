@@ -222,11 +222,13 @@ public final class UniGuiDemo {
         ComboBox combo = new ComboBox()
                 .items(List.of("Dark", "Light", "High Contrast", "Minecraft"))
                 .silentSelectedIndex(0);
+        combo.dropDownSameWidth();
         combo.layout(style -> style.size(142.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
         combo.onSelectionChanged(event -> status.text("Combo: " + combo.selectedItem()));
         DropDownBox drop = new DropDownBox();
         drop.items(List.of("DropDownBox", "Alias of ComboBox", "Overlay-backed"));
         drop.silentSelectedIndex(0);
+        drop.dropDownSameWidth();
         drop.layout(style -> style.size(130.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
         RadioButton compact = new RadioButton("Compact", "compact");
         RadioButton normal = new RadioButton("Normal", "normal");
@@ -360,17 +362,22 @@ public final class UniGuiDemo {
         widgets.addChild("Button");
         widgets.addChild("ComboBox");
         widgets.addChild("TreeView");
+        widgets.addChild("Very long TreeView row name that clips and scrolls on hover");
         root.addChild("Minecraft Backend").addChild("Preview Widgets");
         tree.silentSelect(widgets.child(2));
-        tree.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
+        tree.rowTextHoverScrollSpeed(18.0f);
+        tree.layout(style -> style.size(190.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
         TreeList treeList = new TreeList()
                 .addPath("Assets", "Textures", "Buttons")
                 .addPath("Assets", "Shaders", "SDF")
-                .addPath("Screens", "Inventory", "Crafting");
-        treeList.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
+                .addPath("Screens", "Inventory", "Crafting")
+                .addPath("Screens", "Recipe Machine", "Very long nested recipe category label");
+        treeList.rowTextHoverScrollSpeed(36.0f);
+        treeList.layout(style -> style.size(190.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
         TreeListPicker<String> picker = new TreeListPicker<String>()
-                .values(List.of("Blocks/Crafting Table", "Items/Diamond", "Entities/Zombie"))
+                .values(List.of("Blocks/Crafting Table", "Items/Diamond", "Entities/Zombie", "Very/Long/Category/That/Matches/Widget/Width"))
                 .labelProvider(value -> "Pick: " + value);
+        picker.dropDownSameWidth();
         picker.layout(style -> style.size(210.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
         WrapPanel trees = wrap();
         trees.addChild(tree);
@@ -534,7 +541,7 @@ public final class UniGuiDemo {
                 .separator()
                 .item("Delete", () -> status.text("Context: Delete"));
         Toast toast = new Toast("Toast / NotificationView").duration(2.5f);
-        NotificationView notification = new NotificationView("NotificationView: persistent info card").duration(0.0f).show();
+        NotificationView notification = new NotificationView("NotificationView: persistent info card").duration(0.0f);
         notification.layout(style -> style.size(260.0f, 46.0f).flexGrow(0).flexShrink(0.0f));
 
         WindowWidget window = new WindowWidget("Example Window", samplePane("Dialog body", "Drag title, resize corners, close with x."))
@@ -706,8 +713,20 @@ public final class UniGuiDemo {
 
     private static Box infoCard(String title, String body) {
         Box card = panelBox(0.055f, 0.064f, 0.085f, 0.92f);
-        card.layout(style -> style.size(174.0f, 86.0f).flexGrow(0).flexShrink(0.0f));
-        card.addChild(samplePane(title, body));
+        card.layout(style -> style.size(174.0f, LayoutConstraints.AUTO).minHeight(86.0f).flexGrow(0).flexShrink(0.0f));
+
+        VBox content = new VBox();
+        content.spacing(4.0f);
+        content.layout(style -> style.margin(6.0f).flexGrow(0).flexShrink(0.0f));
+
+        Label label = new Label(title);
+        label.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
+        TextBlock text = paragraph(body);
+        text.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
+
+        content.addChild(label);
+        content.addChild(text);
+        card.addChild(content);
         return card;
     }
 

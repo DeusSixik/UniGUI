@@ -103,6 +103,7 @@ public final class WindowWidget extends Box implements OverlayHostAware {
         radius(4.0f);
         background().set(0.030f, 0.035f, 0.050f, 0.98f);
         borderColor().set(0.25f, 0.78f, 1.0f, 0.85f);
+        closeButton.textPaddingX(0.0f);
         closeButton.layout(style -> style.size(18.0f, 18.0f).flexGrow(0).flexShrink(0.0f));
         closeButton.onClick(event -> close());
         addChild(closeButton);

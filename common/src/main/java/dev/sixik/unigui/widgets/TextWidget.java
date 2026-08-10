@@ -152,11 +152,19 @@ public class TextWidget extends WidgetBase {
     }
 
     public TextWidget marqueeSpeed(float marqueeSpeed) {
-        float normalized = Math.max(0.0f, marqueeSpeed);
+        float normalized = Float.isFinite(marqueeSpeed) ? Math.max(0.0f, marqueeSpeed) : 24.0f;
         if (this.marqueeSpeed == normalized) return this;
         this.marqueeSpeed = normalized;
         invalidate(InvalidationFlags.VISUAL);
         return this;
+    }
+
+    public float hoverScrollSpeed() {
+        return marqueeSpeed();
+    }
+
+    public TextWidget hoverScrollSpeed(float pixelsPerSecond) {
+        return marqueeSpeed(pixelsPerSecond);
     }
 
     public float marqueeGap() {

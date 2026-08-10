@@ -1,5 +1,6 @@
 package dev.sixik.unigui.widgets;
 
+import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.event.Event;
 import dev.sixik.unigui.api.event.EventListener;
@@ -26,12 +27,14 @@ import java.util.List;
 public class TreeView extends LinearBox {
     private static final float ROW_HEIGHT = 20.0f;
     private static final float INDENT_WIDTH = 12.0f;
+    private static final float ROW_TEXT_HOVER_SCROLL_SPEED = 24.0f;
 
     private final VBox rowsHost = new VBox();
     private final List<TreeViewNode> roots = new ArrayList<>();
     private final List<TreeViewNode> visibleNodes = new ArrayList<>();
     private TreeViewRenderer renderer;
     private TreeViewNode selectedNode;
+    private float rowTextHoverScrollSpeed = ROW_TEXT_HOVER_SCROLL_SPEED;
     private int batchDepth;
     private boolean rebuildPending;
 
@@ -168,6 +171,28 @@ public class TreeView extends LinearBox {
 
     public TreeView useDefaultRenderer() {
         return renderer(null);
+    }
+
+    public float rowTextHoverScrollSpeed() {
+        return rowTextHoverScrollSpeed;
+    }
+
+    public TreeView rowTextHoverScrollSpeed(float pixelsPerSecond) {
+        float normalized = Float.isFinite(pixelsPerSecond)
+                ? Math.max(0.0f, pixelsPerSecond)
+                : ROW_TEXT_HOVER_SCROLL_SPEED;
+        if (rowTextHoverScrollSpeed == normalized) return this;
+        rowTextHoverScrollSpeed = normalized;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public float hoverScrollSpeed() {
+        return rowTextHoverScrollSpeed();
+    }
+
+    public TreeView hoverScrollSpeed(float pixelsPerSecond) {
+        return rowTextHoverScrollSpeed(pixelsPerSecond);
     }
 
     public EventSubscription onSelectionChanged(EventListener<? super SelectionChangedEvent> listener) {
@@ -469,6 +494,7 @@ public class TreeView extends LinearBox {
         private final TreeView tree;
         private final TreeViewNode node;
         private final int depth;
+        private float hoverScrollOffset;
 
         private TreeRowButton(TreeView tree, TreeViewNode node, int depth) {
             super();
@@ -509,6 +535,20 @@ public class TreeView extends LinearBox {
         }
 
         @Override
+        public void tick(FrameContext frame) {
+            super.tick(frame);
+            float overflow = textOverflowAmount();
+            if (hovered() && overflow > 0.0f) {
+                float delta = frame == null || frame.deltaSeconds() <= 0.0f ? 1.0f / 60.0f : frame.deltaSeconds();
+                hoverScrollOffset += tree.rowTextHoverScrollSpeed * delta;
+                invalidate(InvalidationFlags.VISUAL);
+            } else if (hoverScrollOffset != 0.0f) {
+                hoverScrollOffset = 0.0f;
+                invalidate(InvalidationFlags.VISUAL);
+            }
+        }
+
+        @Override
         protected void renderContent(RenderContext context) {
             tree.effectiveRenderer().render(new DrawScope(context, transform()), rowSnapshot(context));
         }
@@ -516,11 +556,12 @@ public class TreeView extends LinearBox {
         private TreeViewRowState rowSnapshot(RenderContext context) {
             RichText text = rowText();
             float indent = depth * INDENT_WIDTH;
-            float textX = layoutBounds().x() + TEXT_PADDING_X + indent;
+            float baseTextX = layoutBounds().x() + TEXT_PADDING_X + indent;
             float availableWidth = Math.max(0.0f, layoutBounds().width() - TEXT_PADDING_X * 2.0f - indent);
             float availableHeight = Math.max(0.0f, layoutBounds().height());
-            float textWidth = Math.min(availableWidth, TextEngine.measureLineWidth(context, text));
+            float textWidth = TextEngine.measureLineWidth(context, text);
             float textHeight = Math.min(availableHeight, TextEngine.measureTextHeight(text));
+            float textX = baseTextX - hoverTextScrollOffset(textWidth, availableWidth);
             float textY = TextEngine.alignedStart(layoutBounds().y(), availableHeight, textHeight,
                     dev.sixik.unigui.api.layout.Alignment.CENTER);
             return new TreeViewRowState(
@@ -534,7 +575,7 @@ public class TreeView extends LinearBox {
                     text,
                     textX,
                     textY,
-                    availableWidth,
+                    textWidth,
                     textHeight,
                     textColor().copy(),
                     tree.selectedNode() == node,
@@ -549,6 +590,23 @@ public class TreeView extends LinearBox {
         private RichText rowText() {
             String marker = node.hasChildren() ? (node.expanded() ? "\u25BE " : "\u25B8 ") : "  ";
             return RichText.plain(marker).append(node.richText());
+        }
+
+        private float textOverflowAmount() {
+            return Math.max(0.0f, TextEngine.measureLineWidth(rowText()) - availableTextWidth());
+        }
+
+        private float availableTextWidth() {
+            return Math.max(0.0f, layoutBounds().width() - TEXT_PADDING_X * 2.0f - depth * INDENT_WIDTH);
+        }
+
+        private float hoverTextScrollOffset(float textWidth, float availableWidth) {
+            if (!hovered()) return 0.0f;
+            float overflow = Math.max(0.0f, textWidth - availableWidth);
+            if (overflow <= 0.0f) return 0.0f;
+            float period = Math.max(1.0f, overflow * 2.0f);
+            float phase = hoverScrollOffset % period;
+            return phase <= overflow ? phase : period - phase;
         }
     }
 
