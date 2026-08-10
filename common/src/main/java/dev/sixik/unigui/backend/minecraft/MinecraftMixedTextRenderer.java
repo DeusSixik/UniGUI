@@ -1,5 +1,6 @@
 package dev.sixik.unigui.backend.minecraft;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableRect;
@@ -15,6 +16,7 @@ import dev.sixik.unigui.impl.text.SdfGlyphProvider;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
+import org.lwjgl.opengl.GL11;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,7 +40,7 @@ final class MinecraftMixedTextRenderer {
 
         List<DrawCommand> pendingSdf = new ArrayList<>();
         for (DrawCommand command : commands) {
-            if (command == null || command.text() == null || command.text().isEmpty()) continue;
+            if (!hasText(command)) continue;
             renderCommand(graphics, command, richText(command), pendingSdf, renderingToPremultipliedTarget);
             flushSdf(graphics, pendingSdf, renderingToPremultipliedTarget);
         }
@@ -48,7 +50,7 @@ final class MinecraftMixedTextRenderer {
     private boolean containsMinecraftFace(List<DrawCommand> commands) {
         boolean foundMinecraft = false;
         for (DrawCommand command : commands) {
-            if (command == null || command.text() == null || command.text().isEmpty()) continue;
+            if (!hasText(command)) continue;
             for (TextRun run : richText(command).runs()) {
                 FontFace face = resolvedFace(run);
                 if (face instanceof MinecraftFontFace) {
@@ -143,8 +145,13 @@ final class MinecraftMixedTextRenderer {
                              MinecraftFontFace face, float pixelSize, ColorView runColor,
                              float x, float y) {
         PoseStack pose = graphics.pose();
+        graphics.flush();
+        boolean depthTest = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
+        boolean depthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK);
         pose.pushPose();
         try {
+            RenderSystem.disableDepthTest();
+            RenderSystem.depthMask(false);
             applyTransform(command.bounds(), command.transform(), pose);
             float scale = Math.max(1.0f, pixelSize) / VANILLA_BASE_SIZE;
             pose.translate(x, y, 0.0f);
@@ -153,8 +160,15 @@ final class MinecraftMixedTextRenderer {
                     .withStyle(style -> style.withFont(face.location()));
             graphics.drawString(minecraft.font, component, 0, 0,
                     argb(command.paint().color(), runColor), false);
+            graphics.flush();
         } finally {
             pose.popPose();
+            if (depthTest) {
+                RenderSystem.enableDepthTest();
+            } else {
+                RenderSystem.disableDepthTest();
+            }
+            RenderSystem.depthMask(depthMask);
         }
     }
 
@@ -162,6 +176,12 @@ final class MinecraftMixedTextRenderer {
         return command.richText() == null
                 ? RichText.of(command.text(), sdfRenderer.defaultFace(), TextRun.DEFAULT_PIXEL_SIZE)
                 : command.richText();
+    }
+
+    private static boolean hasText(DrawCommand command) {
+        if (command == null) return false;
+        if (command.richText() != null) return !command.richText().isEmpty();
+        return command.text() != null && !command.text().isEmpty();
     }
 
     private FontFace resolvedFace(TextRun run) {

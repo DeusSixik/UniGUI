@@ -10,6 +10,7 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.math.Axis;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.math.ColorView;
+import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.math.Transform;
 import dev.sixik.unigui.api.render.DrawCommand;
@@ -67,6 +68,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
     private MinecraftRenderTarget activeRenderTarget;
     private float activeRenderTargetScaleX = 1.0f;
     private float activeRenderTargetScaleY = 1.0f;
+    private float nestedClipCoordinateScale = 1.0f;
     private boolean renderTargetScissorEnabled;
     private int gpuTimerQueryId;
     private boolean gpuTimerQueryInFlight;
@@ -142,6 +144,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
             if (decorations) {
                 graphics.renderItemDecorations(minecraft.font, stack, 0, 0);
             }
+            clearPreviewDepthBuffer();
         } finally {
             RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
             pose.popPose();
@@ -166,10 +169,19 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
                     x + mouseX,
                     y + mouseY,
                     entity);
+            clearPreviewDepthBuffer();
             return true;
         } finally {
             RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
         }
+    }
+
+    private void clearPreviewDepthBuffer() {
+        graphics.flush();
+        boolean depthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK);
+        RenderSystem.depthMask(true);
+        RenderSystem.clear(GL11.GL_DEPTH_BUFFER_BIT, Minecraft.ON_OSX);
+        RenderSystem.depthMask(depthMask);
     }
 
     @Override
@@ -255,6 +267,21 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
             if (batch.isBarrier()) {
                 graphics.flush();
             }
+        }
+    }
+
+    void renderNested(DrawList drawList) {
+        renderNested(drawList, 1.0f);
+    }
+
+    void renderNested(DrawList drawList, float coordinateScale) {
+        float previousScale = nestedClipCoordinateScale;
+        nestedClipCoordinateScale *= sanitizeScale(coordinateScale);
+        try {
+            renderBatches(drawList);
+            graphics.flush();
+        } finally {
+            nestedClipCoordinateScale = previousScale;
         }
     }
 
@@ -430,9 +457,23 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
     }
 
     private void pushClip(DrawCommand command) {
-        RectView bounds = command.bounds();
+        RectView bounds = scaledClipBounds(command.bounds());
         ScissorStack.Rect next = scissorStack.push(bounds);
         applyScissor(next);
+    }
+
+    private RectView scaledClipBounds(RectView bounds) {
+        float scale = nestedClipCoordinateScale;
+        if (scale == 1.0f) return bounds;
+        return new MutableRect(
+                bounds.x() * scale,
+                bounds.y() * scale,
+                bounds.width() * scale,
+                bounds.height() * scale);
+    }
+
+    private static float sanitizeScale(float scale) {
+        return Float.isFinite(scale) && scale > 0.0f ? scale : 1.0f;
     }
 
     private void popClip() {
@@ -884,10 +925,21 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
     }
 
     private void renderText(DrawCommand command) {
-        String text = command.text();
+        String text = command.text() != null
+                ? command.text()
+                : command.richText() == null ? null : command.richText().plainText();
         if (text == null || text.isEmpty()) return;
         RectView bounds = command.bounds();
-        graphics.drawString(minecraft.font, text, round(bounds.x()), round(bounds.y()), argb(command.paint().color()), false);
+        graphics.flush();
+        RenderState state = RenderState.capture();
+        try {
+            RenderSystem.disableDepthTest();
+            RenderSystem.depthMask(false);
+            graphics.drawString(minecraft.font, text, round(bounds.x()), round(bounds.y()), argb(command.paint().color()), false);
+            graphics.flush();
+        } finally {
+            state.restore();
+        }
     }
 
     private RichText resolveDefaultFont(RichText text) {

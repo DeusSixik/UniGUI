@@ -721,20 +721,24 @@ public class MinecraftWidgetScreen extends Screen {
             copy.richText(scaledRichText(command.richText(), scale));
         }
         if (command.customDraw() != null) {
-            copy.customDraw(backend -> {
-                if (!(backend instanceof MinecraftGuiRenderBackend minecraftBackend)) {
-                    command.customDraw().draw(backend);
-                    return;
-                }
-                var pose = minecraftBackend.graphics().pose();
-                pose.pushPose();
-                try {
-                    pose.scale(scale, scale, 1.0f);
-                    command.customDraw().draw(backend);
-                } finally {
-                    pose.popPose();
-                }
-            });
+            if (command.customDraw() instanceof MinecraftScaledCustomDraw scaledCustomDraw) {
+                copy.customDraw(backend -> scaledCustomDraw.draw(backend, scale));
+            } else {
+                copy.customDraw(backend -> {
+                    if (!(backend instanceof MinecraftGuiRenderBackend minecraftBackend)) {
+                        command.customDraw().draw(backend);
+                        return;
+                    }
+                    var pose = minecraftBackend.graphics().pose();
+                    pose.pushPose();
+                    try {
+                        pose.scale(scale, scale, 1.0f);
+                        command.customDraw().draw(backend);
+                    } finally {
+                        pose.popPose();
+                    }
+                });
+            }
         }
         return copy;
     }

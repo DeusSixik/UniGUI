@@ -73,7 +73,11 @@ import dev.sixik.unigui.api.virtualization.VirtualRange;
 import dev.sixik.unigui.backend.minecraft.MinecraftGuiRenderBackend;
 import dev.sixik.unigui.backend.minecraft.MinecraftFontFace;
 import dev.sixik.unigui.backend.minecraft.MinecraftFonts;
+import dev.sixik.unigui.backend.minecraft.MinecraftItemPickerWidget;
 import dev.sixik.unigui.backend.minecraft.MinecraftPreviewWidget;
+import dev.sixik.unigui.backend.minecraft.MinecraftTextureHandle;
+import dev.sixik.unigui.backend.minecraft.MinecraftTexturePickerWidget;
+import dev.sixik.unigui.backend.minecraft.MinecraftWidgets;
 import dev.sixik.unigui.impl.input.TransformHitTester;
 import dev.sixik.unigui.impl.render.DefaultRenderContext;
 import dev.sixik.unigui.impl.render.ScissorStack;
@@ -142,6 +146,8 @@ import dev.sixik.unigui.widgets.VirtualTableView;
 import dev.sixik.unigui.widgets.Widgets;
 import dev.sixik.unigui.widgets.WindowWidget;
 import dev.sixik.unigui.widgets.WrapPanel;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.Item;
 
 public final class BasicControlsSelfTest {
     public static void main(String[] args) {
@@ -179,6 +185,7 @@ public final class BasicControlsSelfTest {
         testNestedScissorStack();
         testWidgetAnimationTransitions();
         testMinecraftPreviewWidgetFallbacks();
+        testMinecraftPickerWidgetsContracts();
         testOverlayLayerAndTooltipBasics();
         testDockingRootContracts();
         testNodeGraphPhaseOneContracts();
@@ -1741,6 +1748,187 @@ public final class BasicControlsSelfTest {
         preview.measure(new LayoutContext(100.0f, 80.0f));
         expect(preview.label().equals("Updated") && !preview.labelVisible() && preview.previewSize() == 40.0f,
                 "Minecraft preview shell should expose label and sizing contracts without bootstrapping Minecraft registries");
+    }
+
+    private void testMinecraftPickerWidgetsContracts() {
+        ResourceLocation copperId = new ResourceLocation("example", "copper_gear");
+        ResourceLocation wrenchId = new ResourceLocation("example", "wrench");
+        ResourceLocation diamondId = new ResourceLocation("minecraft", "diamond");
+        Item copper = new Item(new Item.Properties());
+        Item wrench = new Item(new Item.Properties());
+        Item diamond = new Item(new Item.Properties());
+
+        MinecraftItemPickerWidget itemPicker = new MinecraftItemPickerWidget(false)
+                .items(java.util.List.of(
+                        new MinecraftItemPickerWidget.ItemEntry(wrenchId, wrench),
+                        new MinecraftItemPickerWidget.ItemEntry(diamondId, diamond),
+                        new MinecraftItemPickerWidget.ItemEntry(copperId, copper)));
+        expect(itemPicker.itemCount() == 3
+                        && itemPicker.items().get(0).id().equals(wrenchId)
+                        && itemPicker.items().get(1).id().equals(diamondId)
+                        && itemPicker.items().get(2).id().equals(copperId),
+                "MinecraftItemPickerWidget should accept injected registry entries and preserve registry order");
+
+        itemPicker.query("dia");
+        expect(itemPicker.filteredItemCount() == 1
+                        && itemPicker.filteredItems().get(0).id().equals(diamondId),
+                "MinecraftItemPickerWidget should filter by namespaced id/path");
+
+        OverlayLayer itemPickerLayer = new OverlayLayer(itemPicker);
+        itemPickerLayer.setUiContextInternal(new DefaultUIContext());
+        itemPickerLayer.measure(new LayoutContext(520.0f, 460.0f));
+        itemPickerLayer.arrange(new MutableRect(0.0f, 0.0f, 520.0f, 460.0f));
+        itemPicker.open();
+        itemPickerLayer.measure(new LayoutContext(520.0f, 460.0f));
+        itemPickerLayer.arrange(new MutableRect(0.0f, 0.0f, 520.0f, 460.0f));
+        expect(itemPicker.opened()
+                        && itemPicker.attachedOverlayLayer() == itemPickerLayer
+                        && itemPickerLayer.windows().topModalWindow() == itemPicker.dialog(),
+                "MinecraftItemPickerWidget should open its searchable icon grid as a modal WindowWidget");
+        expect(itemPicker.resultGrid().itemCount() == 1
+                        && itemPicker.resultGrid().realizedCount() == 1
+                        && itemPicker.resultGrid().children().get(0) instanceof HBox,
+                "MinecraftItemPickerWidget modal grid should virtualize filtered item icons into visible rows");
+
+        HBox itemRow = (HBox) itemPicker.resultGrid().children().get(0);
+        Button itemTile = (Button) itemRow.children().get(0);
+        itemTile.handle(new PointerEnteredEvent(itemTile, 2.0f, 2.0f, 2.0f, 2.0f, 0));
+        expect(itemPicker.idTooltip().anchor() == itemTile
+                        && itemPicker.idTooltip().text().equals(diamondId.toString()),
+                "MinecraftItemPickerWidget item icon tooltip should expose the full registry id");
+
+        Counter itemChanges = new Counter();
+        itemPicker.onSelectionChanged(event -> {
+            itemChanges.count++;
+            itemChanges.lastSelection = event.newSelection();
+        });
+        itemTile.click();
+        expect(itemPicker.selectedId().equals(diamondId)
+                        && itemPicker.selectedItem() == diamond
+                        && itemPicker.selectedStack().getItem() == diamond
+                        && itemPicker.selectedIndex() == 1
+                        && itemPicker.selectedFilteredIndex() == 0
+                        && itemPicker.selectedPreview().stack().getItem() == diamond
+                        && itemPicker.openButton().text().equals(diamondId.toString())
+                        && !itemPicker.opened()
+                        && itemChanges.count == 1
+                        && itemChanges.lastSelection.equals(java.util.List.of(1)),
+                "MinecraftItemPickerWidget should map filtered grid selection back to the full item list");
+
+        itemPicker.query("wrench");
+        expect(itemPicker.selectedId().equals(diamondId)
+                        && itemPicker.selectedFilteredIndex() == -1
+                        && itemPicker.resultGrid().itemCount() == 1,
+                "MinecraftItemPickerWidget should preserve selected item when filters hide it");
+
+        ResourceLocation stoneTexture = new ResourceLocation("minecraft", "textures/block/stone.png");
+        ResourceLocation zombieTexture = new ResourceLocation("minecraft", "textures/entity/zombie/zombie.png");
+        MinecraftTexturePickerWidget texturePicker = new MinecraftTexturePickerWidget(false)
+                .textureIds(java.util.List.of(zombieTexture, stoneTexture));
+        expect(texturePicker.textureCount() == 2
+                        && texturePicker.textures().get(0).id().equals(zombieTexture)
+                        && texturePicker.textures().get(1).id().equals(stoneTexture),
+                "MinecraftTexturePickerWidget should accept injected texture ids and preserve resource order");
+
+        texturePicker.query("block/stone");
+        expect(texturePicker.filteredTextureCount() == 1
+                        && texturePicker.filteredTextures().get(0).id().equals(stoneTexture),
+                "MinecraftTexturePickerWidget should filter full and shortened texture paths");
+
+        OverlayLayer texturePickerLayer = new OverlayLayer(texturePicker);
+        texturePickerLayer.setUiContextInternal(new DefaultUIContext());
+        texturePickerLayer.measure(new LayoutContext(520.0f, 460.0f));
+        texturePickerLayer.arrange(new MutableRect(0.0f, 0.0f, 520.0f, 460.0f));
+        texturePicker.open();
+        texturePickerLayer.measure(new LayoutContext(520.0f, 460.0f));
+        texturePickerLayer.arrange(new MutableRect(0.0f, 0.0f, 520.0f, 460.0f));
+        expect(texturePicker.opened()
+                        && texturePicker.attachedOverlayLayer() == texturePickerLayer
+                        && texturePickerLayer.windows().topModalWindow() == texturePicker.dialog(),
+                "MinecraftTexturePickerWidget should open its searchable icon grid as a modal WindowWidget");
+        expect(texturePicker.resultGrid().itemCount() == 1
+                        && texturePicker.resultGrid().realizedCount() == 1
+                        && texturePicker.resultGrid().children().get(0) instanceof HBox,
+                "MinecraftTexturePickerWidget modal grid should virtualize filtered texture icons into visible rows");
+
+        HBox textureRow = (HBox) texturePicker.resultGrid().children().get(0);
+        Button textureTile = (Button) textureRow.children().get(0);
+        textureTile.handle(new PointerEnteredEvent(textureTile, 2.0f, 2.0f, 2.0f, 2.0f, 0));
+        expect(texturePicker.idTooltip().anchor() == textureTile
+                        && texturePicker.idTooltip().text().equals(stoneTexture.toString()),
+                "MinecraftTexturePickerWidget texture icon tooltip should expose the full texture id");
+
+        Counter textureChanges = new Counter();
+        texturePicker.onSelectionChanged(event -> {
+            textureChanges.count++;
+            textureChanges.lastSelection = event.newSelection();
+        });
+        textureTile.click();
+        expect(texturePicker.selectedId().equals(stoneTexture)
+                        && texturePicker.selectedTexture().location().equals(stoneTexture)
+                        && texturePicker.selectedPreview().texture() == texturePicker.selectedTexture()
+                        && texturePicker.openButton().text().equals(stoneTexture.toString())
+                        && texturePicker.selectedIndex() == 1
+                        && texturePicker.selectedFilteredIndex() == 0
+                        && !texturePicker.opened()
+                        && textureChanges.count == 1
+                        && textureChanges.lastSelection.equals(java.util.List.of(1)),
+                "MinecraftTexturePickerWidget should expose selected texture id and handle");
+
+        texturePicker.query("zombie");
+        expect(texturePicker.selectedId().equals(stoneTexture)
+                        && texturePicker.selectedFilteredIndex() == -1
+                        && texturePicker.resultGrid().itemCount() == 1,
+                "MinecraftTexturePickerWidget should preserve selected texture when filters hide it");
+
+        expect(MinecraftWidgets.texture(stoneTexture, 16, 16).texture() instanceof MinecraftTextureHandle,
+                "MinecraftWidgets factory should expose Minecraft texture handles");
+
+        verifyMinecraftPickerGridReflowsOnResize();
+    }
+
+    private void verifyMinecraftPickerGridReflowsOnResize() {
+        java.util.List<MinecraftItemPickerWidget.ItemEntry> manyItems = new java.util.ArrayList<>();
+        for (int i = 0; i < 24; i++) {
+            manyItems.add(new MinecraftItemPickerWidget.ItemEntry(
+                    new ResourceLocation("example", "registry_item_" + i),
+                    new Item(new Item.Properties())));
+        }
+        MinecraftItemPickerWidget itemPicker = new MinecraftItemPickerWidget(false).items(manyItems);
+        OverlayLayer itemLayer = new OverlayLayer(itemPicker);
+        itemLayer.setUiContextInternal(new DefaultUIContext());
+        itemPicker.open();
+        itemLayer.measure(new LayoutContext(520.0f, 460.0f));
+        itemLayer.arrange(new MutableRect(0.0f, 0.0f, 520.0f, 460.0f));
+        int wideItemColumns = itemPicker.gridColumns();
+        int wideItemRows = itemPicker.resultGrid().itemCount();
+
+        itemPicker.dialog().layout(style -> style.size(180.0f, 420.0f).flexGrow(0).flexShrink(0.0f));
+        itemLayer.measure(new LayoutContext(520.0f, 460.0f));
+        itemLayer.arrange(new MutableRect(0.0f, 0.0f, 520.0f, 460.0f));
+        expect(itemPicker.gridColumns() < wideItemColumns
+                        && itemPicker.resultGrid().itemCount() > wideItemRows,
+                "MinecraftItemPickerWidget grid should recompute columns and row count after dialog resize");
+
+        java.util.List<ResourceLocation> manyTextures = new java.util.ArrayList<>();
+        for (int i = 0; i < 24; i++) {
+            manyTextures.add(new ResourceLocation("example", "textures/block/registry_texture_" + i + ".png"));
+        }
+        MinecraftTexturePickerWidget texturePicker = new MinecraftTexturePickerWidget(false).textureIds(manyTextures);
+        OverlayLayer textureLayer = new OverlayLayer(texturePicker);
+        textureLayer.setUiContextInternal(new DefaultUIContext());
+        texturePicker.open();
+        textureLayer.measure(new LayoutContext(520.0f, 460.0f));
+        textureLayer.arrange(new MutableRect(0.0f, 0.0f, 520.0f, 460.0f));
+        int wideTextureColumns = texturePicker.gridColumns();
+        int wideTextureRows = texturePicker.resultGrid().itemCount();
+
+        texturePicker.dialog().layout(style -> style.size(180.0f, 420.0f).flexGrow(0).flexShrink(0.0f));
+        textureLayer.measure(new LayoutContext(520.0f, 460.0f));
+        textureLayer.arrange(new MutableRect(0.0f, 0.0f, 520.0f, 460.0f));
+        expect(texturePicker.gridColumns() < wideTextureColumns
+                        && texturePicker.resultGrid().itemCount() > wideTextureRows,
+                "MinecraftTexturePickerWidget grid should recompute columns and row count after dialog resize");
     }
 
     private void testOverlayLayerAndTooltipBasics() {

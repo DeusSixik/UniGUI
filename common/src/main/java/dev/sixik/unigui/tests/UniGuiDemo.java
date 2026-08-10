@@ -18,7 +18,9 @@ import dev.sixik.unigui.backend.minecraft.MinecraftBlockPreviewWidget;
 import dev.sixik.unigui.backend.minecraft.MinecraftClipboardService;
 import dev.sixik.unigui.backend.minecraft.MinecraftEntityPreviewWidget;
 import dev.sixik.unigui.backend.minecraft.MinecraftFonts;
+import dev.sixik.unigui.backend.minecraft.MinecraftItemPickerWidget;
 import dev.sixik.unigui.backend.minecraft.MinecraftItemPreviewWidget;
+import dev.sixik.unigui.backend.minecraft.MinecraftTexturePickerWidget;
 import dev.sixik.unigui.backend.minecraft.MinecraftWidgetScreen;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.widgets.*;
@@ -27,6 +29,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
@@ -134,7 +137,7 @@ public final class UniGuiDemo {
 
         Box status = panelBox(0.040f, 0.045f, 0.060f, 0.94f);
         status.layout(style -> style.size(LayoutConstraints.AUTO, 24.0f).flexGrow(0).flexShrink(0.0f));
-        Label statusText = new Label("/unigui demo  |  independent UI scale  |  tabs cover controls, layout, data, overlays, Minecraft previews");
+        Label statusText = new Label("/unigui demo  |  independent UI scale  |  tabs cover controls, layout, data, overlays, Minecraft previews and pickers");
         statusText.layout(style -> style.margin(8.0f, 4.0f).size(LayoutConstraints.AUTO, 16.0f).flexGrow(0).flexShrink(0.0f));
         status.addChild(statusText);
         app.addChild(status, DockSide.BOTTOM);
@@ -605,7 +608,7 @@ public final class UniGuiDemo {
     }
 
     private static VBox minecraftPage() {
-        VBox page = page("Minecraft", "Backend-specific item, block and entity previews.");
+        VBox page = page("Minecraft", "Backend-specific item, block and entity previews plus item/texture registry pickers.");
 
         WrapPanel previews = wrap();
         previews.addChild(itemPreview("Diamond", Items.DIAMOND));
@@ -618,6 +621,35 @@ public final class UniGuiDemo {
         previews.addChild(entityPreview("Creeper", EntityType.CREEPER));
         previews.addChild(entityPreview("Villager", EntityType.VILLAGER));
         page.addChild(section("Preview widgets", previews));
+
+        VBox registryPickers = new VBox();
+        registryPickers.spacing(6.0f);
+        registryPickers.layout(style -> style.flexGrow(0).flexShrink(0.0f));
+        Label pickerStatus = new Label("Click a picker to open a searchable modal icon grid.");
+        pickerStatus.layout(style -> style.size(LayoutConstraints.AUTO, 18.0f).flexGrow(0).flexShrink(0.0f));
+
+        MinecraftItemPickerWidget itemPicker = new MinecraftItemPickerWidget();
+        itemPicker.layout(style -> style.size(264.0f, 38.0f).flexGrow(0).flexShrink(0.0f));
+        itemPicker.selectItem(Items.DIAMOND);
+
+        MinecraftTexturePickerWidget texturePicker = new MinecraftTexturePickerWidget();
+        texturePicker.layout(style -> style.size(304.0f, 38.0f).flexGrow(0).flexShrink(0.0f));
+        texturePicker.selectId(new ResourceLocation("minecraft", "textures/block/stone.png"));
+
+        Runnable updatePickerStatus = () -> pickerStatus.text("Item: "
+                + (itemPicker.selectedId() == null ? "<none>" : itemPicker.selectedId())
+                + "  |  Texture: "
+                + (texturePicker.selectedId() == null ? "<none>" : texturePicker.selectedId()));
+        itemPicker.onSelectionChanged(event -> updatePickerStatus.run());
+        texturePicker.onSelectionChanged(event -> updatePickerStatus.run());
+        updatePickerStatus.run();
+
+        WrapPanel pickerRow = wrap();
+        pickerRow.addChild(itemPicker);
+        pickerRow.addChild(texturePicker);
+        registryPickers.addChild(pickerStatus);
+        registryPickers.addChild(pickerRow);
+        page.addChild(section("Registry pickers", registryPickers));
 
         WrapPanel mutable = wrap();
         Button swap = new Button("Swap item");
