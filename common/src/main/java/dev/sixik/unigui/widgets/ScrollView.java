@@ -353,11 +353,11 @@ public class ScrollView extends WidgetBase {
 
     private void arrangeContent() {
         if (content == null) return;
-        content.arrange(new MutableRect(
+        StackPanel.arrangeChild(content,
                 layoutBounds().x() - scrollX,
                 layoutBounds().y() - scrollY,
                 effectiveContentWidth(),
-                effectiveContentHeight()));
+                effectiveContentHeight());
     }
 
     private void arrangeScrollBars() {

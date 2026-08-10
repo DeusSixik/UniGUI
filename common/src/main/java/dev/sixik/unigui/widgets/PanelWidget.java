@@ -112,7 +112,9 @@ public class PanelWidget extends WidgetBase {
                 if (AbsoluteLayoutEngine.isAbsolute(child)) {
                     AbsoluteLayoutEngine.arrange(child, contentBounds);
                 } else {
-                    child.arrange(contentBounds);
+                    StackPanel.arrangeChild(child,
+                            contentBounds.x(), contentBounds.y(),
+                            contentBounds.width(), contentBounds.height());
                 }
             }
         }

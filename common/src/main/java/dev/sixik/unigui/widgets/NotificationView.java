@@ -7,7 +7,6 @@ import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.layout.Overflow;
 import dev.sixik.unigui.api.layout.PositionType;
-import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
 
@@ -114,6 +113,6 @@ public class NotificationView extends Box implements OverlayHostAware {
         float x = hostBounds.x() + Math.max(0.0f, hostBounds.width() - w - margin);
         float y = hostBounds.y() + margin;
         mutableLayoutBounds().set(x, y, w, h);
-        message.arrange(new MutableRect(x + 8.0f, y + 6.0f, Math.max(0.0f, w - 16.0f), Math.max(0.0f, h - 12.0f)));
+        StackPanel.arrangeChild(message, x, y, w, h);
     }
 }

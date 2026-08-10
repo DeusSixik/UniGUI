@@ -284,7 +284,7 @@ public class VirtualListView extends WidgetBase {
         float desiredWidth = 0.0f;
         for (Widget item : realized.values()) {
             item.measure(context);
-            desiredWidth = Math.max(desiredWidth, item.desiredSize().width());
+            desiredWidth = Math.max(desiredWidth, StackPanel.preferredWidth(item, 0.0f));
         }
         float desiredHeight = Math.min(contentHeight(), Math.max(0.0f, virtualizer.itemExtent() * 8.0f));
         setDesiredSize(resolveDesiredSize(context, desiredWidth, desiredHeight));
@@ -448,7 +448,7 @@ public class VirtualListView extends WidgetBase {
             int index = entry.getKey();
             Widget item = entry.getValue();
             float y = layoutBounds().y() + virtualizer.itemOffset(index);
-            item.arrange(new MutableRect(x, y, width, virtualizer.itemExtent()));
+            StackPanel.arrangeChild(item, x, y, width, virtualizer.itemExtent());
         }
     }
 

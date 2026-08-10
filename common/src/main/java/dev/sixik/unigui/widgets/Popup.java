@@ -142,8 +142,8 @@ public final class Popup extends Box implements OverlayHostAware {
         if (content != null && content.visibility() != Visibility.COLLAPSED) {
             content.measure(context);
             setDesiredSize(resolveDesiredSize(context,
-                    content.desiredSize().width() + padding.horizontal(),
-                    content.desiredSize().height() + padding.vertical()));
+                    StackPanel.preferredWidth(content, 0.0f) + padding.horizontal(),
+                    StackPanel.preferredHeight(content, 0.0f) + padding.vertical()));
         } else {
             setDesiredSize(resolveDesiredSize(context, padding.horizontal(), padding.vertical()));
         }
@@ -172,11 +172,11 @@ public final class Popup extends Box implements OverlayHostAware {
         mutableLayoutBounds().set(placed);
 
         if (content != null && content.visibility() != Visibility.COLLAPSED) {
-            content.arrange(new MutableRect(
+            StackPanel.arrangeChild(content,
                     x + padding.left(),
                     y + padding.top(),
                     Math.max(0.0f, width - padding.horizontal()),
-                    Math.max(0.0f, height - padding.vertical())));
+                    Math.max(0.0f, height - padding.vertical()));
         }
     }
 

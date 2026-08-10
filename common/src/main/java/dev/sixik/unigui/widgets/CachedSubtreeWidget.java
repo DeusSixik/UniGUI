@@ -13,6 +13,7 @@ import dev.sixik.unigui.api.render.RenderBackend;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.render.RenderTargetOptions;
 import dev.sixik.unigui.api.render.TextureHandle;
+import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.impl.render.WidgetTextureRenderer;
@@ -150,15 +151,19 @@ public final class CachedSubtreeWidget extends WidgetBase {
         }
         if (content != null) {
             content.measure(context);
-            setDesiredSize(resolveDesiredSize(context, content.desiredSize().width(), content.desiredSize().height()));
+            setDesiredSize(resolveDesiredSize(context,
+                    StackPanel.preferredWidth(content, 0.0f),
+                    StackPanel.preferredHeight(content, 0.0f)));
         }
     }
 
     @Override
     public void arrange(RectView bounds) {
         super.arrange(bounds);
-        if (content != null) {
-            content.arrange(bounds);
+        if (content != null && content.visibility() != Visibility.COLLAPSED) {
+            StackPanel.arrangeChild(content,
+                    bounds.x(), bounds.y(),
+                    bounds.width(), bounds.height());
         }
     }
 

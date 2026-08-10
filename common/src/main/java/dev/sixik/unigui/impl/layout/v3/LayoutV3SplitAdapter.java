@@ -1,7 +1,10 @@
 package dev.sixik.unigui.impl.layout.v3;
 
 import dev.sixik.unigui.api.layout.Align;
+import dev.sixik.unigui.api.layout.Alignment;
+import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.FlexDirection;
+import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.layout.LayoutStyle;
@@ -11,6 +14,8 @@ import dev.sixik.unigui.api.layout.v3.LayoutInput;
 import dev.sixik.unigui.api.layout.v3.LayoutNode;
 import dev.sixik.unigui.api.layout.v3.LayoutNodeId;
 import dev.sixik.unigui.api.layout.v3.LayoutOutput;
+import dev.sixik.unigui.api.layout.v3.LayoutResult;
+import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
@@ -61,7 +66,7 @@ public final class LayoutV3SplitAdapter {
         LayoutOutput output = TaffyLayoutEngine.INSTANCE.compute(
                 build.root(),
                 LayoutInput.of(bounds.width(), bounds.height()));
-        LayoutApplier.apply(output, build.widgets(), bounds);
+        applySlotResults(output, build.widgets(), bounds);
     }
 
     private static LayoutBuild build(Widget first,
@@ -182,6 +187,66 @@ public final class LayoutV3SplitAdapter {
 
     private static boolean visible(Widget widget) {
         return widget != null && widget.visibility() != Visibility.COLLAPSED;
+    }
+
+    private static void applySlotResults(LayoutOutput output,
+                                         Map<LayoutNodeId, Widget> widgets,
+                                         RectView offsetBounds) {
+        if (output == null || widgets == null || widgets.isEmpty() || offsetBounds == null) {
+            return;
+        }
+        for (Map.Entry<LayoutNodeId, Widget> entry : widgets.entrySet()) {
+            Widget widget = entry.getValue();
+            LayoutResult result = output.result(entry.getKey());
+            if (widget == null || result == null) {
+                continue;
+            }
+            float slotX = offsetBounds.x() + result.x();
+            float slotY = offsetBounds.y() + result.y();
+            if (SPLITTER_ID.equals(entry.getKey())) {
+                widget.arrange(new MutableRect(slotX, slotY, result.width(), result.height()));
+            } else {
+                arrangeInSlot(widget, slotX, slotY, result.width(), result.height());
+            }
+        }
+    }
+
+    private static void arrangeInSlot(Widget child, float slotX, float slotY, float slotWidth, float slotHeight) {
+        LayoutConstraints constraints = child.layoutConstraints();
+        EdgeInsets margin = constraints.margin();
+        float innerX = slotX + margin.left();
+        float innerY = slotY + margin.top();
+        float innerWidth = Math.max(0.0f, slotWidth - margin.horizontal());
+        float innerHeight = Math.max(0.0f, slotHeight - margin.vertical());
+        float childWidth = resolveSize(innerWidth, constraints.preferredWidth(), child.desiredSize().width(),
+                constraints.minWidth(), constraints.maxWidth(), constraints.horizontalAlignment());
+        float childHeight = resolveSize(innerHeight, constraints.preferredHeight(), child.desiredSize().height(),
+                constraints.minHeight(), constraints.maxHeight(), constraints.verticalAlignment());
+        child.arrange(new MutableRect(
+                align(innerX, innerWidth, childWidth, constraints.horizontalAlignment()),
+                align(innerY, innerHeight, childHeight, constraints.verticalAlignment()),
+                childWidth,
+                childHeight));
+    }
+
+    private static float resolveSize(float available, float preferred, float measured, float min, float max, Alignment alignment) {
+        if (alignment == Alignment.STRETCH && LayoutConstraints.isAuto(preferred)) {
+            return clamp(available, min, max);
+        }
+        float desired = LayoutConstraints.isAuto(preferred) ? measuredOrFallback(measured, available) : preferred;
+        return Math.min(available, clamp(desired, min, max));
+    }
+
+    private static float measuredOrFallback(float measured, float fallback) {
+        return measured > 0.0f ? measured : fallback;
+    }
+
+    private static float align(float start, float available, float size, Alignment alignment) {
+        return switch (alignment == null ? Alignment.STRETCH : alignment) {
+            case START, STRETCH -> start;
+            case CENTER -> start + (available - size) * 0.5f;
+            case END -> start + available - size;
+        };
     }
 
     private static float clamp01(float value) {

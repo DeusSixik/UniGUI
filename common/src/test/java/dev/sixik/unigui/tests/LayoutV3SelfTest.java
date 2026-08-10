@@ -30,11 +30,14 @@ import dev.sixik.unigui.impl.layout.v3.OverlayLayoutResolver;
 import dev.sixik.unigui.impl.layout.v3.TaffyLayoutEngine;
 import dev.sixik.unigui.widgets.Box;
 import dev.sixik.unigui.widgets.Button;
+import dev.sixik.unigui.widgets.CachedSubtreeWidget;
 import dev.sixik.unigui.widgets.DockPanel;
 import dev.sixik.unigui.widgets.DockSide;
 import dev.sixik.unigui.widgets.DropDownBox;
 import dev.sixik.unigui.widgets.GridBox;
 import dev.sixik.unigui.widgets.HBox;
+import dev.sixik.unigui.widgets.NodeGraph;
+import dev.sixik.unigui.widgets.NodeGraphItem;
 import dev.sixik.unigui.widgets.Orientation;
 import dev.sixik.unigui.widgets.ComboBox;
 import dev.sixik.unigui.widgets.OverlayLayer;
@@ -43,6 +46,7 @@ import dev.sixik.unigui.widgets.ScrollView;
 import dev.sixik.unigui.widgets.SplitPanel;
 import dev.sixik.unigui.widgets.StackPanel;
 import dev.sixik.unigui.widgets.VBox;
+import dev.sixik.unigui.widgets.VirtualListView;
 import dev.sixik.unigui.widgets.WrapPanel;
 
 import java.util.concurrent.atomic.AtomicInteger;
@@ -82,6 +86,7 @@ public final class LayoutV3SelfTest {
         testStackPanelV2BaselineAbsoluteChildDoesNotAffectDesiredSize();
         testStackPanelOptInMatchesV2StretchAndAlignment();
         testStackPanelOptInMatchesV2AbsoluteChild();
+        testSlotBackedWidgetsRespectExplicitChildAlignment();
         testSplitPanelV2BaselineHorizontalAndVertical();
         testSplitPanelV2BaselineRatioUpdatePreservesTotalSize();
         testSplitPanelOptInMatchesV2HorizontalAndVertical();
@@ -622,6 +627,80 @@ public final class LayoutV3SelfTest {
         StackPanel v3 = buildStackAbsoluteChild();
         assertStackPanelMatches(v2, v3, new MutableRect(0.0f, 0.0f, 100.0f, 50.0f),
                 "absolute child stack");
+    }
+
+    private void testSlotBackedWidgetsRespectExplicitChildAlignment() {
+        Box panel = new Box();
+        Button panelChild = alignedButton(20.0f, 10.0f, Alignment.END, Alignment.CENTER);
+        panelChild.layout(style -> style.margin(2.0f, 3.0f, 4.0f, 5.0f));
+        panel.addChild(panelChild);
+        panel.measure(new LayoutContext(100.0f, 50.0f));
+        panel.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 50.0f));
+        assertBounds(panelChild, 76.0f, 19.0f, 20.0f, 10.0f,
+                "PanelWidget/Box should align relative children inside its content slot");
+
+        Button cachedContent = alignedButton(20.0f, 10.0f, Alignment.CENTER, Alignment.END);
+        CachedSubtreeWidget cached = new CachedSubtreeWidget(cachedContent);
+        cached.measure(new LayoutContext(100.0f, 50.0f));
+        cached.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 50.0f));
+        assertBounds(cachedContent, 40.0f, 40.0f, 20.0f, 10.0f,
+                "CachedSubtreeWidget should align wrapped content inside cache bounds");
+
+        Button anchor = new Button("anchor");
+        anchor.layout(style -> style.size(20.0f, 10.0f));
+        anchor.measure(new LayoutContext(200.0f, 120.0f));
+        anchor.arrange(new MutableRect(0.0f, 0.0f, 20.0f, 10.0f));
+        Button popupContent = alignedButton(20.0f, 10.0f, Alignment.END, Alignment.CENTER);
+        Popup popup = new Popup(anchor, popupContent)
+                .padding(EdgeInsets.ZERO)
+                .open();
+        popup.layout(style -> style.size(80.0f, 50.0f));
+        popup.measure(new LayoutContext(200.0f, 120.0f));
+        popup.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 120.0f));
+        assertBounds(popupContent,
+                popup.layoutBounds().x() + 60.0f,
+                popup.layoutBounds().y() + 20.0f,
+                20.0f,
+                10.0f,
+                "Popup should align content inside the placed popup body");
+
+        ScrollView scroll = new ScrollView();
+        Button scrollContent = alignedButton(20.0f, 10.0f, Alignment.END, Alignment.CENTER);
+        scroll.content(scrollContent);
+        scroll.measure(new LayoutContext(100.0f, 50.0f));
+        scroll.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 50.0f));
+        assertBounds(scrollContent, 80.0f, 20.0f, 20.0f, 10.0f,
+                "ScrollView should align content when the viewport is larger than content");
+
+        Button firstPane = alignedButton(20.0f, 10.0f, Alignment.END, Alignment.CENTER);
+        Button secondPane = new Button("second");
+        SplitPanel split = new SplitPanel(firstPane, secondPane)
+                .orientation(Orientation.HORIZONTAL)
+                .splitterThickness(5.0f)
+                .minFirstSize(0.0f)
+                .minSecondSize(0.0f);
+        split.measure(new LayoutContext(100.0f, 40.0f));
+        split.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 40.0f));
+        assertBounds(firstPane, 27.5f, 15.0f, 20.0f, 10.0f,
+                "SplitPanel should align pane content inside its fixed split slot");
+
+        Button nodeContent = alignedButton(20.0f, 10.0f, Alignment.CENTER, Alignment.END);
+        NodeGraph graph = new NodeGraph().itemContentPadding(0.0f);
+        graph.addItem(new NodeGraphItem("node", nodeContent, 0.0f, 0.0f).size(80.0f, 50.0f));
+        graph.measure(new LayoutContext(200.0f, 100.0f));
+        graph.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 100.0f));
+        assertBounds(nodeContent, 30.0f, 40.0f, 20.0f, 10.0f,
+                "NodeGraph should align item content inside node content bounds");
+
+        VirtualListView list = new VirtualListView()
+                .itemCount(1)
+                .itemHeight(30.0f)
+                .itemFactory(index -> alignedButton(20.0f, 10.0f, Alignment.END, Alignment.CENTER));
+        list.measure(new LayoutContext(100.0f, 30.0f));
+        list.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 30.0f));
+        Widget row = list.children().get(0);
+        assertBounds(row, 80.0f, 10.0f, 20.0f, 10.0f,
+                "VirtualListView should align realized row widgets inside their row slot");
     }
 
     private void testSplitPanelV2BaselineHorizontalAndVertical() {
@@ -1999,6 +2078,19 @@ public final class LayoutV3SelfTest {
     private record ScrollViewFixture(ScrollView scroll, dev.sixik.unigui.api.widget.Widget content) {
     }
 
+    private static Button alignedButton(float width,
+                                        float height,
+                                        Alignment horizontal,
+                                        Alignment vertical) {
+        Button button = new Button("aligned");
+        button.layout(style -> style
+                .size(width, height)
+                .align(horizontal, vertical)
+                .flexGrow(0.0f)
+                .flexShrink(0.0f));
+        return button;
+    }
+
     private static void assertSameBounds(dev.sixik.unigui.api.widget.Widget expected,
                                          dev.sixik.unigui.api.widget.Widget actual,
                                          String label) {
@@ -2008,6 +2100,25 @@ public final class LayoutV3SelfTest {
                         && near(expected.layoutBounds().height(), actual.layoutBounds().height()),
                 "Layout V3 opt-in should match V2 bounds for " + label);
     }
+
+    private static void assertBounds(Widget widget,
+                                     float x,
+                                     float y,
+                                     float width,
+                                     float height,
+                                     String label) {
+        expect(near(widget.layoutBounds().x(), x)
+                        && near(widget.layoutBounds().y(), y)
+                        && near(widget.layoutBounds().width(), width)
+                        && near(widget.layoutBounds().height(), height),
+                label + " expected "
+                        + x + "," + y + " "
+                        + width + "x" + height
+                        + " but was "
+                        + widget.layoutBounds().x() + "," + widget.layoutBounds().y() + " "
+                        + widget.layoutBounds().width() + "x" + widget.layoutBounds().height());
+    }
+
 
     private static boolean sameBounds(RectView expected, RectView actual) {
         return near(expected.x(), actual.x())

@@ -969,7 +969,9 @@ public class VirtualTableView extends WidgetBase {
             cellEditor.arrange(new MutableRect(0.0f, 0.0f, 0.0f, 0.0f));
             return;
         }
-        cellEditor.arrange(cellBounds);
+        StackPanel.arrangeChild(cellEditor,
+                cellBounds.x(), cellBounds.y(),
+                cellBounds.width(), cellBounds.height());
     }
 
     private MutableRect cellBounds(int sourceRow, int columnIndex) {

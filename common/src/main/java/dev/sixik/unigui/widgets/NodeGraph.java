@@ -904,8 +904,8 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
             if (!item.visible() || item.content().visibility() == Visibility.COLLAPSED) continue;
             item.content().measure(childContext);
             float padding = itemContentPadding * 2.0f;
-            float width = item.autoWidth() ? item.content().desiredSize().width() + padding : item.width();
-            float height = item.autoHeight() ? item.content().desiredSize().height() + padding : item.height();
+            float width = item.autoWidth() ? StackPanel.preferredWidth(item.content(), 0.0f) + padding : item.width();
+            float height = item.autoHeight() ? StackPanel.preferredHeight(item.content(), 0.0f) + padding : item.height();
             item.arrangedSize(Math.max(MIN_ITEM_SIZE, width), Math.max(MIN_ITEM_SIZE, height));
         }
         setDesiredSize(resolveDesiredSize(context, DEFAULT_WIDTH, DEFAULT_HEIGHT));
@@ -1094,10 +1094,10 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
             if (!item.visible() || content.visibility() == Visibility.COLLAPSED) continue;
             float width = item.arrangedWidth() > 0.0f
                     ? item.arrangedWidth()
-                    : Math.max(MIN_ITEM_SIZE, item.autoWidth() ? content.desiredSize().width() + itemContentPadding * 2.0f : item.width());
+                    : Math.max(MIN_ITEM_SIZE, item.autoWidth() ? StackPanel.preferredWidth(content, 0.0f) + itemContentPadding * 2.0f : item.width());
             float height = item.arrangedHeight() > 0.0f
                     ? item.arrangedHeight()
-                    : Math.max(MIN_ITEM_SIZE, item.autoHeight() ? content.desiredSize().height() + itemContentPadding * 2.0f : item.height());
+                    : Math.max(MIN_ITEM_SIZE, item.autoHeight() ? StackPanel.preferredHeight(content, 0.0f) + itemContentPadding * 2.0f : item.height());
             item.arrangedSize(width, height);
             float contentPadding = Math.min(itemContentPadding, Math.max(0.0f, Math.min(width, height) * 0.5f));
             float contentWidth = Math.max(0.0f, width - contentPadding * 2.0f);
@@ -1107,18 +1107,18 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
                 // Arrange in world-space size so the widget's internal layout
                 // uses native (unscaled) units. The zoom is composed into the
                 // draw commands after content.render().
-                content.arrange(new MutableRect(
+                StackPanel.arrangeChild(content,
                         worldToRootX(item.x()) + contentPadding,
                         worldToRootY(item.y()) + contentPadding,
                         contentWidth,
-                        contentHeight));
+                        contentHeight);
             } else {
                 // Fixed screen size — content ignores zoom completely.
-                content.arrange(new MutableRect(
+                StackPanel.arrangeChild(content,
                         worldToRootX(item.x()) + contentPadding,
                         worldToRootY(item.y()) + contentPadding,
                         Math.max(0.0f, itemScreenWidth(item) - contentPadding * 2.0f),
-                        Math.max(0.0f, itemScreenHeight(item) - contentPadding * 2.0f)));
+                        Math.max(0.0f, itemScreenHeight(item) - contentPadding * 2.0f));
             }
         }
     }
