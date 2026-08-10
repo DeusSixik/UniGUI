@@ -171,7 +171,9 @@ public class Button extends Box {
             setDesiredSize(0.0f, 0.0f);
             return;
         }
-        float textWidth = TextEngine.measureLineWidth(richText);
+        float textWidth = Math.max(
+                TextEngine.measureLineWidth(richText),
+                TextEngine.measureLineWidth(text));
         setDesiredSize(resolveDesiredSize(context, textWidth + TEXT_PADDING_X * 2.0f, DEFAULT_HEIGHT));
     }
 

@@ -29,7 +29,7 @@ import java.util.Map;
 
 public final class DefaultUIContext implements UIContext {
     private final UiDispatcher dispatcher;
-    private final UIScaleProvider scaleProvider;
+    private UIScaleProvider scaleProvider;
     private final EventEmitter events;
     private final RoutedEventDispatcher routedEvents;
     private final HitTester hitTester;
@@ -96,6 +96,11 @@ public final class DefaultUIContext implements UIContext {
     @Override
     public UIScaleProvider scaleProvider() {
         return scaleProvider;
+    }
+
+    public DefaultUIContext scaleProvider(UIScaleProvider scaleProvider) {
+        this.scaleProvider = scaleProvider == null ? UIScaleProvider.IDENTITY : scaleProvider;
+        return this;
     }
 
     @Override

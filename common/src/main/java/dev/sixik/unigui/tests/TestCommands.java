@@ -57,10 +57,10 @@ public final class TestCommands {
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("unigui")
-                .executes(ctx -> {
-                    RenderSystem.recordRenderCall(TestCommands::openExamplesScreen);
-                    return 0;
-                })
+//                .executes(ctx -> {
+//                    RenderSystem.recordRenderCall(TestCommands::openExamplesScreen);
+//                    return 0;
+//                })
                 .then(Commands.literal("docking").executes(ctx -> {
                     RenderSystem.recordRenderCall(TestCommands::openDockingEditorScreen);
                     return 0;

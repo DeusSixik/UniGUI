@@ -23,6 +23,6 @@ public class MixinCommands {
     @Inject(method = "<init>", at = @At("RETURN"))
     public void register(Commands.CommandSelection commandSelection, CommandBuildContext commandBuildContext, CallbackInfo ci) {
         TestCommands.register(this.dispatcher);
-//        UniGuiDemo.register(this.dispatcher);
+        UniGuiDemo.register(this.dispatcher);
     }
 }

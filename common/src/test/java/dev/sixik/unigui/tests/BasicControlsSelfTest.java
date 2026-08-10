@@ -6,6 +6,8 @@ import dev.sixik.unigui.api.animation.TransitionSpec;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.FramePhase;
+import dev.sixik.unigui.api.core.MutableUIScaleProvider;
+import dev.sixik.unigui.api.core.UIScaleProvider;
 import dev.sixik.unigui.api.event.ExpandedChangedEvent;
 import dev.sixik.unigui.api.event.DockDropPreviewChangedEvent;
 import dev.sixik.unigui.api.event.KeyPressedEvent;
@@ -148,6 +150,7 @@ public final class BasicControlsSelfTest {
 
     private void run() {
         testTextEditorModelCore();
+        testUIScaleProviderContracts();
         testTextInputShellAndTextFieldChrome();
         testTextOverflowModes();
         testRichTextAndSdfContracts();
@@ -231,6 +234,25 @@ public final class BasicControlsSelfTest {
         expect(editor.text().equals("aX"), "TextEditorModel should trim text when maxLength shrinks");
         expect(changes.count == 4 && changes.lastText.equals("aX"), "TextEditorModel should emit text change callbacks");
         expect(TextEditorModel.sanitizePrintable("a\nb\tc").equals("abc"), "TextEditorModel should sanitize non-printable input");
+    }
+
+    private void testUIScaleProviderContracts() {
+        UIScaleProvider fixed = UIScaleProvider.fixed(2.0f);
+        expect(near(fixed.scale(), 2.0f)
+                        && near(fixed.toBackendPixels(12.0f), 24.0f)
+                        && near(fixed.toLogicalPixels(24.0f), 12.0f),
+                "UIScaleProvider.fixed should convert logical and backend pixels using its scale");
+
+        MutableUIScaleProvider mutable = new MutableUIScaleProvider(0.5f);
+        expect(near(mutable.scale(), 0.5f)
+                        && near(mutable.toBackendPixels(20.0f), 10.0f)
+                        && near(mutable.toLogicalPixels(10.0f), 20.0f),
+                "MutableUIScaleProvider should expose editable UI scale");
+
+        mutable.scale(0.0f);
+        expect(near(mutable.scale(), 1.0f)
+                        && near(UIScaleProvider.fixed(Float.NaN).scale(), 1.0f),
+                "UI scale providers should sanitize invalid scales to identity");
     }
 
     private void testTextInputShellAndTextFieldChrome() {
@@ -3890,7 +3912,7 @@ public final class BasicControlsSelfTest {
         DrawList checkboxDrawList = new DrawList();
         checkbox.render(new DefaultRenderContext(checkboxDrawList));
         int checkboxTextIndex = textCommandIndex(checkboxDrawList, "Enabled", 0);
-        expect(checkboxTextIndex < Integer.MAX_VALUE && near(checkboxDrawList.commands().get(checkboxTextIndex).bounds().y(), 5.0f),
+        expect(checkboxTextIndex < Integer.MAX_VALUE && near(checkboxDrawList.commands().get(checkboxTextIndex).bounds().y(), 6.0f),
                 "Checkbox label should be vertically centered against the check mark");
 
         uiContext.routedEvents().dispatch(new PointerPressedEvent(checkbox, 6.0f, 8.0f, 6.0f, 8.0f, 0, PointerButton.PRIMARY));
@@ -3911,7 +3933,10 @@ public final class BasicControlsSelfTest {
                 "RadioGroup should keep exactly one selected button");
         DrawList radioDrawList = new DrawList();
         compact.render(new DefaultRenderContext(radioDrawList));
-        expect(hasText(radioDrawList, "Compact") && countCommands(radioDrawList, DrawCommandType.CIRCLE) == 2,
+        int radioTextIndex = textCommandIndex(radioDrawList, "Compact", 0);
+        expect(radioTextIndex < Integer.MAX_VALUE
+                        && near(radioDrawList.commands().get(radioTextIndex).bounds().y(), 6.0f)
+                        && countCommands(radioDrawList, DrawCommandType.CIRCLE) == 2,
                 "Selected RadioButton should render its label, ring and inner dot");
 
         Counter radioChanges = new Counter();

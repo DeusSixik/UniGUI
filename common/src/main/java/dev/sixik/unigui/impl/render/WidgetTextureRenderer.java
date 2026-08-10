@@ -42,6 +42,10 @@ public final class WidgetTextureRenderer implements AutoCloseable {
         return renderWidgetToTarget(widget, width, height, originX, originY, options).colorTexture();
     }
 
+    public TextureHandle renderDrawListToTexture(DrawList drawList, int width, int height, RenderTargetOptions options) {
+        return renderDrawListToTarget(drawList, width, height, options).colorTexture();
+    }
+
     public RenderTarget renderWidgetToTarget(Widget widget, int width, int height) {
         return renderWidgetToTarget(widget, width, height, RenderTargetOptions.COLOR);
     }
@@ -59,6 +63,14 @@ public final class WidgetTextureRenderer implements AutoCloseable {
     public RenderTarget renderWidgetToTarget(Widget widget, int width, int height, float originX, float originY, RenderTargetOptions options) {
         RenderTarget target = targetCache.acquire(width, height, options);
         renderWidgetSnapshot(widget, target, originX, originY);
+        return target;
+    }
+
+    public RenderTarget renderDrawListToTarget(DrawList drawList, int width, int height, RenderTargetOptions options) {
+        Objects.requireNonNull(drawList, "drawList");
+
+        RenderTarget target = targetCache.acquire(width, height, options);
+        backend.render(drawList, target);
         return target;
     }
 

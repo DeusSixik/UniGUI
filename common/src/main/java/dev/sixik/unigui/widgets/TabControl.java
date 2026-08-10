@@ -5,6 +5,7 @@ import dev.sixik.unigui.api.event.EventListener;
 import dev.sixik.unigui.api.event.EventSubscription;
 import dev.sixik.unigui.api.event.SelectionChangedEvent;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
+import dev.sixik.unigui.api.layout.Overflow;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
@@ -16,8 +17,10 @@ import java.util.Objects;
 
 public class TabControl extends LinearBox {
     private static final float TAB_HEIGHT = 22.0f;
+    private static final float TAB_HEADER_HEIGHT = 36.0f;
 
     private final HBox tabHeader = new HBox();
+    private final ScrollView tabHeaderScroll = new ScrollView(tabHeader);
     private final StackPanel contentHost = new StackPanel();
     private final List<Tab> tabs = new ArrayList<>();
     private int selectedIndex = -1;
@@ -28,9 +31,15 @@ public class TabControl extends LinearBox {
 
         tabHeader.spacing(4.0f);
         tabHeader.layout(style -> style.size(LayoutConstraints.AUTO, TAB_HEIGHT).flexGrow(0).flexShrink(0.0f));
+        tabHeaderScroll.layout(style -> style
+                .size(LayoutConstraints.AUTO, TAB_HEADER_HEIGHT)
+                .overflowX(Overflow.AUTO)
+                .overflowY(Overflow.HIDDEN)
+                .flexGrow(0)
+                .flexShrink(0.0f));
         contentHost.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO).flexGrow(1).flexShrink(1.0f));
 
-        super.addChild(tabHeader);
+        super.addChild(tabHeaderScroll);
         super.addChild(contentHost);
     }
 
@@ -57,6 +66,10 @@ public class TabControl extends LinearBox {
 
     public HBox tabHeader() {
         return tabHeader;
+    }
+
+    public ScrollView tabHeaderScroll() {
+        return tabHeaderScroll;
     }
 
     public StackPanel contentHost() {

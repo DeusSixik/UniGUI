@@ -4,6 +4,7 @@ import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.FramePhase;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
+import dev.sixik.unigui.api.core.UIScaleProvider;
 import dev.sixik.unigui.api.debug.DebugFlags;
 import dev.sixik.unigui.api.debug.ProfileScope;
 import dev.sixik.unigui.api.event.KeyPressedEvent;
@@ -19,14 +20,20 @@ import dev.sixik.unigui.api.input.KeyModifiers;
 import dev.sixik.unigui.api.input.MouseCursor;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.layout.LayoutContext;
-import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.render.DrawList;
+import dev.sixik.unigui.api.render.DrawCommand;
+import dev.sixik.unigui.api.render.DrawMesh;
+import dev.sixik.unigui.api.render.DrawVertex;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderTargetOptions;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.UiRenderPolicy;
+import dev.sixik.unigui.api.render.VectorPath;
 import dev.sixik.unigui.api.text.FontFace;
+import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.text.TextRun;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.impl.debug.DebugOverlayRenderer;
@@ -39,7 +46,9 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -49,9 +58,15 @@ public class MinecraftWidgetScreen extends Screen {
     private final Widget root;
     private final UIContext uiContext;
     private final DrawList drawList = new DrawList();
+    private final DrawList scaledDrawList = new DrawList();
+    private final DrawList cacheDrawList = new DrawList();
+    private final DrawList scaledCacheDrawList = new DrawList();
     private final DefaultRenderContext renderContext = new DefaultRenderContext(drawList);
+    private final DefaultRenderContext cacheRenderContext = new DefaultRenderContext(cacheDrawList);
     private MinecraftGuiRenderBackend backend;
     private FontFace defaultFont = MinecraftFonts.defaultFace();
+    private Float screenScale;
+    private boolean scaleWithMinecraftGui = true;
     private long frameIndex;
     private float lastFrameCpuMillis;
     private float lastFrameTotalMillis;
@@ -66,8 +81,9 @@ public class MinecraftWidgetScreen extends Screen {
     private MouseCursor activeMouseCursor = MouseCursor.DEFAULT;
     private boolean layoutInitialized;
     private boolean layoutChangedThisFrame;
-    private int lastLayoutWidth = -1;
-    private int lastLayoutHeight = -1;
+    private float lastLayoutWidth = -1.0f;
+    private float lastLayoutHeight = -1.0f;
+    private float lastLayoutScale = -1.0f;
 
     public MinecraftWidgetScreen(Widget root) {
         this(Component.empty(), root, new DefaultUIContext(new MinecraftClipboardService()));
@@ -90,6 +106,51 @@ public class MinecraftWidgetScreen extends Screen {
 
     public UIContext uiContext() {
         return uiContext;
+    }
+
+    public float uiScale() {
+        return configuredUiScale();
+    }
+
+    public float effectiveMinecraftUiScale() {
+        return effectiveUiScale();
+    }
+
+    public MinecraftWidgetScreen uiScale(float scale) {
+        float normalized = UIScaleProvider.sanitize(scale);
+        if (screenScale != null && screenScale == normalized) return this;
+        screenScale = normalized;
+        layoutInitialized = false;
+        invalidateRenderCache();
+        root.invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public MinecraftWidgetScreen independentUiScale(float scale) {
+        uiScale(scale);
+        return scaleWithMinecraftGui(false);
+    }
+
+    public MinecraftWidgetScreen useContextScale() {
+        if (screenScale == null) return this;
+        screenScale = null;
+        layoutInitialized = false;
+        invalidateRenderCache();
+        root.invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public boolean scaleWithMinecraftGui() {
+        return scaleWithMinecraftGui;
+    }
+
+    public MinecraftWidgetScreen scaleWithMinecraftGui(boolean scaleWithMinecraftGui) {
+        if (this.scaleWithMinecraftGui == scaleWithMinecraftGui) return this;
+        this.scaleWithMinecraftGui = scaleWithMinecraftGui;
+        layoutInitialized = false;
+        invalidateRenderCache();
+        root.invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
     }
 
     public DrawList drawList() {
@@ -129,6 +190,9 @@ public class MinecraftWidgetScreen extends Screen {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         long uiCpuStartNanos = System.nanoTime();
+        float uiScale = effectiveUiScale();
+        float logicalWidth = toLogicalPixels(width, uiScale);
+        float logicalHeight = toLogicalPixels(height, uiScale);
         float deltaSeconds = lastFrameStartNanos == 0L
                 ? 1.0f / 60.0f
                 : Math.max(0.0f, (uiCpuStartNanos - lastFrameStartNanos) / 1_000_000_000.0f);
@@ -149,13 +213,14 @@ public class MinecraftWidgetScreen extends Screen {
         }
         layoutChangedThisFrame = false;
         try (ProfileScope ignored = uiContext.profiler().scope("layout")) {
-            if (shouldRunLayout()) {
-                root.measure(new LayoutContext(width, height));
-                root.arrange(new MutableRect(0.0f, 0.0f, width, height));
+            if (shouldRunLayout(logicalWidth, logicalHeight, uiScale)) {
+                root.measure(new LayoutContext(logicalWidth, logicalHeight));
+                root.arrange(new MutableRect(0.0f, 0.0f, logicalWidth, logicalHeight));
                 layoutInitialized = true;
                 layoutChangedThisFrame = true;
-                lastLayoutWidth = width;
-                lastLayoutHeight = height;
+                lastLayoutWidth = logicalWidth;
+                lastLayoutHeight = logicalHeight;
+                lastLayoutScale = uiScale;
                 clearSubtreeInvalidation(root, InvalidationFlags.LAYOUT);
             }
         }
@@ -180,18 +245,18 @@ public class MinecraftWidgetScreen extends Screen {
                     renderCachedUi();
                 }
                 if (cachedTexture != null) {
-                    renderContext.texture(cachedTexture, 0.0f, 0.0f, width, height,
+                    renderContext.texture(cachedTexture, 0.0f, 0.0f, logicalWidth, logicalHeight,
                             Paint.fill(CACHE_TINT));
                 }
             }
         }
 
         recordDebugDrawStats();
-        DebugOverlayRenderer.render(renderContext, uiContext, width, height);
+        DebugOverlayRenderer.render(renderContext, uiContext, logicalWidth, logicalHeight);
         lastFrameCpuMillis = (System.nanoTime() - uiCpuStartNanos) / 1_000_000.0f;
 
         try (ProfileScope ignored = uiContext.profiler().scope("renderBackend")) {
-            backend.render(drawList, null);
+            backend.render(scaledDrawList(drawList, uiScale, scaledDrawList), null);
             backend.endFrame();
         }
         lastFrameTotalMillis = (System.nanoTime() - uiCpuStartNanos) / 1_000_000.0f;
@@ -200,21 +265,23 @@ public class MinecraftWidgetScreen extends Screen {
 
     @Override
     public void mouseMoved(double mouseX, double mouseY) {
+        float logicalMouseX = toLogicalPixels(mouseX);
+        float logicalMouseY = toLogicalPixels(mouseY);
         Widget captured = uiContext.capturedPointer(0);
         if (captured != null) {
-            HitTestResult local = localPoint(captured, mouseX, mouseY);
+            HitTestResult local = localPoint(captured, logicalMouseX, logicalMouseY);
             updateMouseCursor(captured, local.localX(), local.localY());
             uiContext.routedEvents().dispatch(new PointerMovedEvent(
                     captured,
-                    (float) mouseX,
-                    (float) mouseY,
+                    logicalMouseX,
+                    logicalMouseY,
                     local.localX(),
                     local.localY(),
                     0));
             return;
         }
 
-        Optional<HitTestResult> hit = hit(mouseX, mouseY);
+        Optional<HitTestResult> hit = hit(logicalMouseX, logicalMouseY);
         if (hit.isEmpty()) {
             updateMouseCursor(MouseCursor.DEFAULT);
             uiContext.hoverManager().clearHover();
@@ -224,15 +291,15 @@ public class MinecraftWidgetScreen extends Screen {
         HitTestResult result = hit.get();
         updateMouseCursor(result.widget().mouseCursorAt(result.localX(), result.localY()));
         uiContext.hoverManager().updateHover(result.widget(),
-                (float) mouseX,
-                (float) mouseY,
+                logicalMouseX,
+                logicalMouseY,
                 result.localX(),
                 result.localY(),
                 0);
         uiContext.routedEvents().dispatch(new PointerMovedEvent(
                 result.widget(),
-                (float) mouseX,
-                (float) mouseY,
+                logicalMouseX,
+                logicalMouseY,
                 result.localX(),
                 result.localY(),
                 0));
@@ -240,7 +307,9 @@ public class MinecraftWidgetScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        return hit(mouseX, mouseY)
+        float logicalMouseX = toLogicalPixels(mouseX);
+        float logicalMouseY = toLogicalPixels(mouseY);
+        return hit(logicalMouseX, logicalMouseY)
                 .map(hit -> {
                     Widget focusTarget = nearestFocusable(hit.widget());
                     if (focusTarget == null) {
@@ -250,8 +319,8 @@ public class MinecraftWidgetScreen extends Screen {
                     }
                     PointerPressedEvent event = new PointerPressedEvent(
                             hit.widget(),
-                            (float) mouseX,
-                            (float) mouseY,
+                            logicalMouseX,
+                            logicalMouseY,
                             hit.localX(),
                             hit.localY(),
                             0,
@@ -266,13 +335,15 @@ public class MinecraftWidgetScreen extends Screen {
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        float logicalMouseX = toLogicalPixels(mouseX);
+        float logicalMouseY = toLogicalPixels(mouseY);
         Widget captured = uiContext.capturedPointer(0);
         if (captured != null) {
-            HitTestResult local = localPoint(captured, mouseX, mouseY);
+            HitTestResult local = localPoint(captured, logicalMouseX, logicalMouseY);
             PointerReleasedEvent event = new PointerReleasedEvent(
                     captured,
-                    (float) mouseX,
-                    (float) mouseY,
+                    logicalMouseX,
+                    logicalMouseY,
                     local.localX(),
                     local.localY(),
                     0,
@@ -281,16 +352,16 @@ public class MinecraftWidgetScreen extends Screen {
             if (button == 0) {
                 uiContext.clearPointerCapture(0);
             }
-            updateMouseCursorAt(mouseX, mouseY);
+            updateMouseCursorAt(logicalMouseX, logicalMouseY);
             return consumed;
         }
 
-        return hit(mouseX, mouseY)
+        return hit(logicalMouseX, logicalMouseY)
                 .map(hit -> {
                     PointerReleasedEvent event = new PointerReleasedEvent(
                             hit.widget(),
-                            (float) mouseX,
-                            (float) mouseY,
+                            logicalMouseX,
+                            logicalMouseY,
                             hit.localX(),
                             hit.localY(),
                             0,
@@ -302,17 +373,19 @@ public class MinecraftWidgetScreen extends Screen {
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+        float logicalMouseX = toLogicalPixels(mouseX);
+        float logicalMouseY = toLogicalPixels(mouseY);
         Widget captured = uiContext.capturedPointer(0);
         if (captured == null) {
             return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
         }
 
-        HitTestResult local = localPoint(captured, mouseX, mouseY);
+        HitTestResult local = localPoint(captured, logicalMouseX, logicalMouseY);
         updateMouseCursor(captured, local.localX(), local.localY());
         PointerMovedEvent event = new PointerMovedEvent(
                 captured,
-                (float) mouseX,
-                (float) mouseY,
+                logicalMouseX,
+                logicalMouseY,
                 local.localX(),
                 local.localY(),
                 0);
@@ -321,12 +394,14 @@ public class MinecraftWidgetScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
-        return hit(mouseX, mouseY)
+        float logicalMouseX = toLogicalPixels(mouseX);
+        float logicalMouseY = toLogicalPixels(mouseY);
+        return hit(logicalMouseX, logicalMouseY)
                 .map(hit -> {
                     ScrollEvent event = new ScrollEvent(
                             hit.widget(),
-                            (float) mouseX,
-                            (float) mouseY,
+                            logicalMouseX,
+                            logicalMouseY,
                             hit.localX(),
                             hit.localY(),
                             0.0f,
@@ -425,8 +500,14 @@ public class MinecraftWidgetScreen extends Screen {
             cachedHeight = targetHeight;
             cachedTexture = null;
         }
-        cachedTexture = cachedRenderer.renderWidgetToTexture(root, cachedWidth, cachedHeight,
-                0.0f, 0.0f, RenderTargetOptions.COLOR_DEPTH);
+        cacheDrawList.clear();
+        cacheRenderContext.backend(backend);
+        root.render(cacheRenderContext);
+        cachedTexture = cachedRenderer.renderDrawListToTexture(
+                scaledDrawList(cacheDrawList, effectiveUiScale(), scaledCacheDrawList),
+                cachedWidth,
+                cachedHeight,
+                RenderTargetOptions.COLOR_DEPTH);
         lastCachedRenderNanos = System.nanoTime();
         clearSubtreeInvalidation(root);
     }
@@ -451,10 +532,11 @@ public class MinecraftWidgetScreen extends Screen {
         return false;
     }
 
-    private boolean shouldRunLayout() {
+    private boolean shouldRunLayout(float logicalWidth, float logicalHeight, float uiScale) {
         return !layoutInitialized
-                || width != lastLayoutWidth
-                || height != lastLayoutHeight
+                || Float.compare(logicalWidth, lastLayoutWidth) != 0
+                || Float.compare(logicalHeight, lastLayoutHeight) != 0
+                || Float.compare(uiScale, lastLayoutScale) != 0
                 || InvalidationFlags.has(root.subtreeInvalidationFlags(), InvalidationFlags.LAYOUT);
     }
 
@@ -478,38 +560,31 @@ public class MinecraftWidgetScreen extends Screen {
         lastCachedRenderNanos = 0L;
     }
 
-    private Optional<HitTestResult> hit(double mouseX, double mouseY) {
-        return uiContext.hitTester().hitTest(root, (float) mouseX, (float) mouseY);
+    private Optional<HitTestResult> hit(float mouseX, float mouseY) {
+        return uiContext.hitTester().hitTest(root, mouseX, mouseY);
     }
 
-    private HitTestResult localPoint(Widget widget, double rootX, double rootY) {
-        float x = (float) rootX;
-        float y = (float) rootY;
+    private HitTestResult localPoint(Widget widget, float rootX, float rootY) {
+        float x = rootX;
+        float y = rootY;
         return uiContext.hitTester().localPoint(root, widget, x, y)
                 .orElseGet(() -> new HitTestResult(widget, x, y,
                         localX(widget, rootX), localY(widget, rootY)));
     }
 
-    private static float localX(Widget widget, double rootX) {
+    private static float localX(Widget widget, float rootX) {
         return (float) rootX - widget.layoutBounds().x();
     }
 
-    private static float localY(Widget widget, double rootY) {
+    private static float localY(Widget widget, float rootY) {
         return (float) rootY - widget.layoutBounds().y();
-    }
-
-    private void updateMouseCursor(Widget widget, double rootX, double rootY) {
-        HitTestResult local = widget == null ? null : localPoint(widget, rootX, rootY);
-        updateMouseCursor(widget == null
-                ? MouseCursor.DEFAULT
-                : widget.mouseCursorAt(local.localX(), local.localY()));
     }
 
     private void updateMouseCursor(Widget widget, float localX, float localY) {
         updateMouseCursor(widget == null ? MouseCursor.DEFAULT : widget.mouseCursorAt(localX, localY));
     }
 
-    private void updateMouseCursorAt(double rootX, double rootY) {
+    private void updateMouseCursorAt(float rootX, float rootY) {
         Optional<HitTestResult> hit = hit(rootX, rootY);
         if (hit.isEmpty()) {
             updateMouseCursor(MouseCursor.DEFAULT);
@@ -577,6 +652,134 @@ public class MinecraftWidgetScreen extends Screen {
         if (widget instanceof WidgetBase base) {
             base.setUiContextInternal(uiContext);
         }
+    }
+
+    private float effectiveUiScale() {
+        float configured = configuredUiScale();
+        return scaleWithMinecraftGui
+                ? configured
+                : configured / minecraftGuiScale();
+    }
+
+    private float configuredUiScale() {
+        if (screenScale != null) return UIScaleProvider.sanitize(screenScale);
+        UIScaleProvider provider = uiContext.scaleProvider();
+        return UIScaleProvider.sanitize(provider == null ? 1.0f : provider.scale());
+    }
+
+    private float minecraftGuiScale() {
+        if (minecraft == null || minecraft.getWindow() == null) return 1.0f;
+        int framebufferWidth = minecraft.getWindow().getWidth();
+        int guiWidth = minecraft.getWindow().getGuiScaledWidth();
+        if (framebufferWidth <= 0 || guiWidth <= 0) return 1.0f;
+        return UIScaleProvider.sanitize(framebufferWidth / (float) guiWidth);
+    }
+
+    private float toLogicalPixels(double backendPixels) {
+        return toLogicalPixels(backendPixels, effectiveUiScale());
+    }
+
+    private static float toLogicalPixels(double backendPixels, float uiScale) {
+        return (float) (backendPixels / UIScaleProvider.sanitize(uiScale));
+    }
+
+    private DrawList scaledDrawList(DrawList source, float uiScale, DrawList target) {
+        float scale = UIScaleProvider.sanitize(uiScale);
+        if (scale == 1.0f) {
+            return source;
+        }
+
+        target.clear();
+        for (DrawCommand command : source.commands()) {
+            target.add(scaledCommand(command, scale));
+        }
+        return target;
+    }
+
+    private DrawCommand scaledCommand(DrawCommand command, float scale) {
+        DrawCommand copy = command.copy();
+        copy.bounds().set(
+                command.bounds().x() * scale,
+                command.bounds().y() * scale,
+                command.bounds().width() * scale,
+                command.bounds().height() * scale);
+        copy.radius(command.radius() * scale);
+        copy.paint(copy.paint().strokeWidth(copy.paint().strokeWidth() * scale));
+        copy.transform().position().set(
+                command.transform().position().x() * scale,
+                command.transform().position().y() * scale);
+        copy.transform().pivot().set(
+                command.transform().pivot().x() * scale,
+                command.transform().pivot().y() * scale);
+        if (command.path() != null) {
+            copy.path(scaledPath(command.path(), scale));
+        }
+        if (command.mesh() != null) {
+            copy.mesh(scaledMesh(command.mesh(), scale));
+        }
+        if (command.richText() != null) {
+            copy.richText(scaledRichText(command.richText(), scale));
+        }
+        if (command.customDraw() != null) {
+            copy.customDraw(backend -> {
+                if (!(backend instanceof MinecraftGuiRenderBackend minecraftBackend)) {
+                    command.customDraw().draw(backend);
+                    return;
+                }
+                var pose = minecraftBackend.graphics().pose();
+                pose.pushPose();
+                try {
+                    pose.scale(scale, scale, 1.0f);
+                    command.customDraw().draw(backend);
+                } finally {
+                    pose.popPose();
+                }
+            });
+        }
+        return copy;
+    }
+
+    private static RichText scaledRichText(RichText text, float scale) {
+        RichText.Builder builder = RichText.builder();
+        for (TextRun run : text.runs()) {
+            builder.font(run.font())
+                    .size(run.pixelSize() * scale)
+                    .color(run.color())
+                    .append(run.text());
+        }
+        return builder.build();
+    }
+
+    private static VectorPath scaledPath(VectorPath path, float scale) {
+        VectorPath scaled = new VectorPath();
+        for (VectorPath.Element element : path.elements()) {
+            switch (element.verb()) {
+                case MOVE_TO -> scaled.moveTo(element.x1() * scale, element.y1() * scale);
+                case LINE_TO -> scaled.lineTo(element.x1() * scale, element.y1() * scale);
+                case QUADRATIC_TO -> scaled.quadraticTo(
+                        element.x1() * scale,
+                        element.y1() * scale,
+                        element.x2() * scale,
+                        element.y2() * scale);
+                case CUBIC_TO -> scaled.cubicTo(
+                        element.x1() * scale,
+                        element.y1() * scale,
+                        element.x2() * scale,
+                        element.y2() * scale,
+                        element.x3() * scale,
+                        element.y3() * scale);
+                case CLOSE -> scaled.close();
+            }
+        }
+        return scaled;
+    }
+
+    private static DrawMesh scaledMesh(DrawMesh mesh, float scale) {
+        List<DrawVertex> vertices = new ArrayList<>(mesh.vertices().size());
+        for (DrawVertex vertex : mesh.vertices()) {
+            vertices.add(new DrawVertex(vertex.x() * scale, vertex.y() * scale, vertex.u(), vertex.v(), vertex.color()));
+        }
+        return DrawMesh.triangles(vertices);
     }
 
     private static PointerButton pointerButton(int button) {

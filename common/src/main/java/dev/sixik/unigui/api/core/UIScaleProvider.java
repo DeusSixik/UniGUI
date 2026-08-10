@@ -10,11 +10,20 @@ public interface UIScaleProvider {
 
     float scale();
 
+    static UIScaleProvider fixed(float scale) {
+        float normalized = sanitize(scale);
+        return () -> normalized;
+    }
+
     default float toBackendPixels(float logicalPixels) {
-        return logicalPixels * scale();
+        return logicalPixels * sanitize(scale());
     }
 
     default float toLogicalPixels(float backendPixels) {
-        return backendPixels / scale();
+        return backendPixels / sanitize(scale());
+    }
+
+    static float sanitize(float scale) {
+        return Float.isFinite(scale) && scale > 0.0f ? scale : 1.0f;
     }
 }

@@ -1,8 +1,11 @@
 package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.impl.text.TextEngine;
 
 public final class ButtonRenderers {
+    private static final float LEADING_LABEL_VISUAL_CENTER_OFFSET = 2.0f;
+
     public static final ButtonRenderer DEFAULT = (draw, state) -> {
         if (!state.hasText()) return;
 
@@ -13,10 +16,15 @@ public final class ButtonRenderers {
         float drawX = contentX + Math.max(0.0f, contentWidth - drawWidth) * 0.5f;
         float drawY = state.y() + Math.max(0.0f, state.height() - drawHeight) * 0.5f;
 
-        draw.text(state.richText(), drawX, drawY,
-                Math.max(0.0f, contentWidth - (drawX - contentX)),
-                drawHeight,
-                Paint.fill(state.textColor()));
+        draw.pushClip(contentX, state.y(), contentWidth, state.height());
+        try {
+            draw.text(state.richText(), drawX, drawY,
+                    drawWidth,
+                    drawHeight,
+                    Paint.fill(state.textColor()));
+        } finally {
+            draw.popClip();
+        }
     };
 
     public static final ButtonRenderer CHECKBOX = (draw, state) -> {
@@ -52,14 +60,21 @@ public final class ButtonRenderers {
     private ButtonRenderers() {
     }
 
-    private static void drawLeadingLabel(dev.sixik.unigui.api.render.DrawScope draw, ButtonState state) {
+    public static void drawLeadingLabel(dev.sixik.unigui.api.render.DrawScope draw, ButtonState state) {
         if (!state.hasText()) return;
 
         float contentX = state.x() + state.indicatorSize() + state.indicatorGap();
         float contentWidth = Math.max(0.0f, state.width() - state.indicatorSize() - state.indicatorGap());
         float drawHeight = Math.min(Math.max(0.0f, state.height()), Math.max(0.0f, state.textHeight()));
-        float drawY = state.y() + Math.max(0.0f, state.height() - drawHeight) * 0.5f;
+        float indicatorY = state.y() + Math.max(0.0f, state.height() - state.indicatorSize()) * 0.5f;
+        float indicatorCenterY = indicatorY + state.indicatorSize() * 0.5f;
+        float drawY = indicatorCenterY - drawHeight * 0.5f + LEADING_LABEL_VISUAL_CENTER_OFFSET;
 
-        draw.text(state.richText(), contentX, drawY, contentWidth, drawHeight, Paint.fill(state.textColor()));
+        draw.pushClip(contentX, state.y(), contentWidth, state.height());
+        try {
+            draw.text(state.richText(), contentX, drawY, contentWidth, drawHeight, Paint.fill(state.textColor()));
+        } finally {
+            draw.popClip();
+        }
     }
 }
