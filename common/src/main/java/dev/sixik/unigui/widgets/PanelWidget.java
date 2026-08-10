@@ -33,6 +33,12 @@ public class PanelWidget extends WidgetBase {
         invalidate(InvalidationFlags.LAYOUT);
     }
 
+    public void insertChild(int index, Widget child) {
+        if (child == null) return;
+        mutations.add(new ChildMutation(ChildMutationType.INSERT, child, index));
+        invalidate(InvalidationFlags.LAYOUT);
+    }
+
     public void removeChild(Widget child) {
         if (child == null) return;
         mutations.add(new ChildMutation(ChildMutationType.REMOVE, child));
@@ -49,6 +55,7 @@ public class PanelWidget extends WidgetBase {
         while ((mutation = mutations.poll()) != null) {
             switch (mutation.type) {
                 case ADD -> applyAdd(mutation.child);
+                case INSERT -> applyInsert(mutation.index, mutation.child);
                 case REMOVE -> applyRemove(mutation.child);
                 case CLEAR -> applyClear();
             }
@@ -182,6 +189,15 @@ public class PanelWidget extends WidgetBase {
         }
     }
 
+    private void applyInsert(int index, Widget child) {
+        if (children.contains(child)) return;
+        children.add(Math.max(0, Math.min(index, children.size())), child);
+        if (child instanceof WidgetBase base) {
+            base.setParentInternal(this);
+            base.setUiContextInternal(uiContext());
+        }
+    }
+
     private void applyRemove(Widget child) {
         if (!children.remove(child)) return;
         if (child instanceof WidgetBase base) {
@@ -203,6 +219,7 @@ public class PanelWidget extends WidgetBase {
 
     private enum ChildMutationType {
         ADD,
+        INSERT,
         REMOVE,
         CLEAR
     }
@@ -210,10 +227,16 @@ public class PanelWidget extends WidgetBase {
     private static final class ChildMutation {
         private final ChildMutationType type;
         private final Widget child;
+        private final int index;
 
         private ChildMutation(ChildMutationType type, Widget child) {
+            this(type, child, -1);
+        }
+
+        private ChildMutation(ChildMutationType type, Widget child, int index) {
             this.type = type;
             this.child = child;
+            this.index = index;
         }
     }
 }

@@ -32,6 +32,8 @@ public class TreeView extends LinearBox {
     private final List<TreeViewNode> visibleNodes = new ArrayList<>();
     private TreeViewRenderer renderer;
     private TreeViewNode selectedNode;
+    private int batchDepth;
+    private boolean rebuildPending;
 
     public TreeView() {
         super(Orientation.VERTICAL);
@@ -80,7 +82,7 @@ public class TreeView extends LinearBox {
         }
         roots.add(node);
         node.attach(this, null);
-        rebuildRows();
+        requestRowsRebuild();
         return this;
     }
 
@@ -88,7 +90,7 @@ public class TreeView extends LinearBox {
         if (node == null || !roots.remove(node)) return this;
         onNodeRemoved(node);
         node.attach(null, null);
-        rebuildRows();
+        requestRowsRebuild();
         return this;
     }
 
@@ -99,8 +101,27 @@ public class TreeView extends LinearBox {
             root.attach(null, null);
         }
         roots.clear();
-        rebuildRows();
+        requestRowsRebuild();
         return this;
+    }
+
+    public TreeView beginBatch() {
+        batchDepth++;
+        return this;
+    }
+
+    public TreeView endBatch() {
+        if (batchDepth <= 0) return this;
+        batchDepth--;
+        if (batchDepth == 0 && rebuildPending) {
+            rebuildPending = false;
+            rebuildRows();
+        }
+        return this;
+    }
+
+    public boolean isBatching() {
+        return batchDepth > 0;
     }
 
     public TreeViewNode selectedNode() {
@@ -171,7 +192,16 @@ public class TreeView extends LinearBox {
         }
     }
 
+    void requestRowsRebuild() {
+        if (isBatching()) {
+            rebuildPending = true;
+            return;
+        }
+        rebuildRows();
+    }
+
     void rebuildRows() {
+        rebuildPending = false;
         for (TreeViewNode node : visibleNodes) {
             node.rowButtonInternal(null);
         }
@@ -190,11 +220,23 @@ public class TreeView extends LinearBox {
         }
     }
 
+    void onNodeVisualChanged(TreeViewNode node) {
+        if (node != null && node.rowButton() instanceof TreeRowButton row) {
+            row.syncVisualState();
+            row.invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        }
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+    }
+
     void onNodeExpansionChanged(TreeViewNode node) {
         if (!node.expanded() && selectedNode != node && isDescendantOrSelf(selectedNode, node)) {
             setSelectedNode(node.selectable() ? node : null, true);
         }
-        rebuildRows();
+        if (isBatching()) {
+            requestRowsRebuild();
+            return;
+        }
+        patchExpansionRows(node);
     }
 
     private boolean handleKey(int keyCode) {
@@ -249,6 +291,62 @@ public class TreeView extends LinearBox {
         if (node.expanded()) {
             for (TreeViewNode child : node.children()) {
                 appendVisible(child, depth + 1);
+            }
+        }
+    }
+
+    private void patchExpansionRows(TreeViewNode node) {
+        int nodeIndex = visibleNodes.indexOf(node);
+        if (nodeIndex < 0) {
+            requestRowsRebuild();
+            return;
+        }
+
+        if (node.rowButton() instanceof TreeRowButton row) {
+            row.syncVisualState();
+            row.invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        }
+
+        if (node.expanded()) {
+            List<VisibleEntry> entries = new ArrayList<>();
+            for (TreeViewNode child : node.children()) {
+                collectVisible(child, node.depth() + 1, entries);
+            }
+            int insertAt = nodeIndex + 1;
+            for (int i = 0; i < entries.size(); i++) {
+                VisibleEntry entry = entries.get(i);
+                TreeRowButton row = new TreeRowButton(this, entry.node(), entry.depth());
+                entry.node().rowButtonInternal(row);
+                visibleNodes.add(insertAt + i, entry.node());
+                rowsHost.insertChild(insertAt + i, row);
+            }
+        } else {
+            int removeFrom = nodeIndex + 1;
+            int removeTo = removeFrom;
+            while (removeTo < visibleNodes.size() && isDescendantOrSelf(visibleNodes.get(removeTo), node)) {
+                removeTo++;
+            }
+            for (int i = removeFrom; i < removeTo; i++) {
+                TreeViewNode removed = visibleNodes.get(i);
+                if (removed.rowButton() != null) {
+                    rowsHost.removeChild(removed.rowButton());
+                }
+                removed.rowButtonInternal(null);
+            }
+            if (removeTo > removeFrom) {
+                visibleNodes.subList(removeFrom, removeTo).clear();
+            }
+        }
+
+        syncRowStates();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+    }
+
+    private void collectVisible(TreeViewNode node, int depth, List<VisibleEntry> entries) {
+        entries.add(new VisibleEntry(node, depth));
+        if (node.expanded()) {
+            for (TreeViewNode child : node.children()) {
+                collectVisible(child, depth + 1, entries);
             }
         }
     }
@@ -360,6 +458,9 @@ public class TreeView extends LinearBox {
         return false;
     }
 
+    private record VisibleEntry(TreeViewNode node, int depth) {
+    }
+
     protected TreeViewRenderer effectiveRenderer() {
         return renderer == null ? WidgetsRender.treeView() : renderer;
     }
@@ -446,7 +547,7 @@ public class TreeView extends LinearBox {
         }
 
         private RichText rowText() {
-            String marker = node.hasChildren() ? (node.expanded() ? "? " : "? ") : "  ";
+            String marker = node.hasChildren() ? (node.expanded() ? "\u25BE " : "\u25B8 ") : "  ";
             return RichText.plain(marker).append(node.richText());
         }
     }

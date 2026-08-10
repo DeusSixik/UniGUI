@@ -43,7 +43,7 @@ public final class TreeViewNode {
         if (Objects.equals(this.text, normalized)) return this;
         this.text = normalized;
         this.richText = RichText.plain(normalized);
-        notifyTreeChanged();
+        notifyVisualChanged();
         return this;
     }
 
@@ -56,7 +56,7 @@ public final class TreeViewNode {
         if (Objects.equals(this.richText, normalized)) return this;
         this.richText = normalized;
         this.text = normalized.plainText();
-        notifyTreeChanged();
+        notifyVisualChanged();
         return this;
     }
 
@@ -103,7 +103,7 @@ public final class TreeViewNode {
     }
 
     public TreeViewNode silentExpanded(boolean expanded) {
-        setExpanded(expanded);
+        this.expanded = expanded;
         return this;
     }
 
@@ -121,7 +121,7 @@ public final class TreeViewNode {
         if (!selectable && owner != null && owner.selectedNode() == this) {
             owner.clearSelection();
         }
-        notifyTreeChanged();
+        notifyVisualChanged();
         return this;
     }
 
@@ -156,7 +156,7 @@ public final class TreeViewNode {
         child.detachFromCurrentContainer();
         children.add(child);
         child.attach(owner, this);
-        notifyTreeChanged();
+        notifyStructureChanged();
         return this;
     }
 
@@ -166,7 +166,7 @@ public final class TreeViewNode {
             owner.onNodeRemoved(child);
         }
         child.attach(null, null);
-        notifyTreeChanged();
+        notifyStructureChanged();
         return this;
     }
 
@@ -181,7 +181,7 @@ public final class TreeViewNode {
             child.attach(null, null);
         }
         children.clear();
-        notifyTreeChanged();
+        notifyStructureChanged();
         return this;
     }
 
@@ -231,9 +231,15 @@ public final class TreeViewNode {
         return false;
     }
 
-    private void notifyTreeChanged() {
+    private void notifyStructureChanged() {
         if (owner != null) {
-            owner.rebuildRows();
+            owner.requestRowsRebuild();
+        }
+    }
+
+    private void notifyVisualChanged() {
+        if (owner != null) {
+            owner.onNodeVisualChanged(this);
         }
     }
 

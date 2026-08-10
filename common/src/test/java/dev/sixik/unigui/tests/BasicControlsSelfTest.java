@@ -132,6 +132,7 @@ import dev.sixik.unigui.widgets.TextInput;
 import dev.sixik.unigui.widgets.Tooltip;
 import dev.sixik.unigui.widgets.ToggleButton;
 import dev.sixik.unigui.widgets.TreeView;
+import dev.sixik.unigui.widgets.TreeList;
 import dev.sixik.unigui.widgets.TreeViewNode;
 import dev.sixik.unigui.widgets.VBox;
 import dev.sixik.unigui.widgets.VirtualListView;
@@ -3611,10 +3612,10 @@ public final class BasicControlsSelfTest {
                         && tree.selectedPath().equals(java.util.List.of(0, 0))
                         && tree.visibleNodes().size() == 4,
                 "TreeView should expose roots, visible nodes and selected path");
-        expect(hasText(expandedDrawList, "? Root")
-                        && hasText(expandedDrawList, "? Child")
+        expect(hasText(expandedDrawList, "▾ Root")
+                        && hasText(expandedDrawList, "▾ Child")
                         && hasText(expandedDrawList, "  Leaf")
-                        && hasText(expandedDrawList, "? Other")
+                        && hasText(expandedDrawList, "▸ Other")
                         && !hasText(expandedDrawList, "  Hidden"),
                 "TreeView should render expanded branches and hide collapsed descendants");
 
@@ -3625,9 +3626,27 @@ public final class BasicControlsSelfTest {
         tree.render(new DefaultRenderContext(collapsedDrawList));
         expect(tree.selectedNode() == child
                         && tree.visibleNodes().size() == 3
-                        && hasText(collapsedDrawList, "? Child")
+                        && hasText(collapsedDrawList, "▸ Child")
                         && !hasText(collapsedDrawList, "  Leaf"),
                 "Collapsing a TreeView node should remove descendants from layout and render");
+
+        TreeViewNode quiet = tree.addRoot("Quiet");
+        quiet.addChild("QuietChild");
+        int visibleBeforeSilentExpand = tree.visibleNodes().size();
+        quiet.silentExpanded(false);
+        expect(tree.visibleNodes().size() == visibleBeforeSilentExpand,
+                "TreeViewNode.silentExpanded should not rebuild visible rows immediately");
+        tree.addRoot("ForceRebuild");
+        expect(!tree.visibleNodes().contains(quiet.child(0)),
+                "TreeView should apply silent expansion state on the next explicit rebuild");
+
+        TreeList treeList = new TreeList();
+        treeList.addPath("Assets", "Textures", "Buttons");
+        treeList.root(0).text("Renamed Assets");
+        treeList.addPath("Assets", "Textures", "Icons");
+        expect(treeList.rootCount() == 1
+                        && treeList.root(0).child(0).childCount() == 2,
+                "TreeList.addPath should match existing nodes by stable value after display text changes");
 
         Counter changes = new Counter();
         tree.onSelectionChanged(event -> {
