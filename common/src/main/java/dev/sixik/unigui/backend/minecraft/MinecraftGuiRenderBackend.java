@@ -10,6 +10,7 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.math.Axis;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.math.ColorView;
+import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.math.Transform;
@@ -63,6 +64,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
     private final MinecraftMixedTextRenderer mixedTextRenderer;
     private final MinecraftShapeBatchRenderer shapeBatchRenderer = new MinecraftShapeBatchRenderer();
     private final MinecraftTextureBatchRenderer textureBatchRenderer = new MinecraftTextureBatchRenderer();
+    private final FastItemRenderer fastItemRenderer;
     private GuiGraphics graphics;
     private int appliedScissorDepth;
     private MinecraftRenderTarget activeRenderTarget;
@@ -86,6 +88,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
         this.batcher = batcher == null ? SimpleDrawBatcher.INSTANCE : batcher;
         this.sdfTextRenderer.defaultFace(MinecraftFonts.defaultFace());
         this.mixedTextRenderer = new MinecraftMixedTextRenderer(this.minecraft, sdfTextRenderer);
+        this.fastItemRenderer = new FastItemRenderer(this.minecraft);
     }
 
     public MinecraftGuiRenderBackend graphics(GuiGraphics graphics) {
@@ -97,6 +100,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
     public void beginFrame(FrameContext frame) {
         clearScissorStack();
         pollGpuTimer();
+        fastItemRenderer.beginFrame();
     }
 
     public float lastFrameGpuMillis() {
@@ -133,6 +137,41 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
 
     public void renderItemPreview(ItemStack stack, float x, float y, float size, float opacity, boolean decorations) {
         if (stack == null || stack.isEmpty() || size <= 0.0f) return;
+        if (!decorations) {
+            TextureHandle cached = fastItemRenderer.cachedTexture(stack, size);
+            if (cached != null) {
+                renderItemPreviewTexture(cached, x, y, size, opacity);
+                return;
+            }
+
+            if (fastItemRenderer.prefersCachedPath(stack)) {
+                TextureHandle baked = fastItemRenderer.bakeIfBudget(stack, size, activeRenderTarget);
+                if (baked != null) {
+                    renderItemPreviewTexture(baked, x, y, size, opacity);
+                    return;
+                }
+            }
+        }
+        renderVanillaItemPreview(stack, x, y, size, opacity, decorations);
+    }
+
+    public TextureHandle cachedItemPreviewTexture(ItemStack stack, float size) {
+        return fastItemRenderer.cachedTexture(stack, size);
+    }
+
+    public void clearItemPreviewCache() {
+        fastItemRenderer.clear();
+    }
+
+    private void renderItemPreviewTexture(TextureHandle texture, float x, float y, float size, float opacity) {
+        DrawCommand command = DrawCommand.texture(
+                texture,
+                new MutableRect(x, y, size, size),
+                Paint.fill(new MutableColor(1.0f, 1.0f, 1.0f, clamp01(opacity))));
+        renderTexture(command);
+    }
+
+    private void renderVanillaItemPreview(ItemStack stack, float x, float y, float size, float opacity, boolean decorations) {
         float scale = Math.max(0.01f, size / 16.0f);
         PoseStack pose = graphics.pose();
         pose.pushPose();
@@ -393,6 +432,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
     @Override
     public void close() {
         clearScissorStack();
+        fastItemRenderer.close();
         sdfTextRenderer.close();
         if (gpuTimerQueryId != 0) {
             GL15.glDeleteQueries(gpuTimerQueryId);
@@ -845,20 +885,27 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
         int y2 = round(bounds.y() + bounds.height());
 
         graphics.flush();
-        RenderSystem.setShaderTexture(0, textureId);
-        RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
-        RenderSystem.enableBlend();
-        MinecraftUiBlend.applyTextureAlpha(premultipliedSource, activeRenderTarget != null);
-        Matrix4f matrix = graphics.pose().last().pose();
-        Tesselator tesselator = Tesselator.getInstance();
-        BufferBuilder buffer = tesselator.getBuilder();
-        buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
-        addTextureVertex(buffer, matrix, x1, y1, minU, minV, tint);
-        addTextureVertex(buffer, matrix, x1, y2, minU, maxV, tint);
-        addTextureVertex(buffer, matrix, x2, y2, maxU, maxV, tint);
-        addTextureVertex(buffer, matrix, x2, y1, maxU, minV, tint);
-        BufferUploader.drawWithShader(buffer.end());
-        RenderSystem.disableBlend();
+        RenderState state = RenderState.capture();
+        try {
+            RenderSystem.setShaderTexture(0, textureId);
+            RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
+            RenderSystem.enableBlend();
+            MinecraftUiBlend.applyTextureAlpha(premultipliedSource, activeRenderTarget != null);
+            RenderSystem.disableDepthTest();
+            RenderSystem.depthMask(false);
+            RenderSystem.disableCull();
+            Matrix4f matrix = graphics.pose().last().pose();
+            Tesselator tesselator = Tesselator.getInstance();
+            BufferBuilder buffer = tesselator.getBuilder();
+            buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
+            addTextureVertex(buffer, matrix, x1, y1, minU, minV, tint);
+            addTextureVertex(buffer, matrix, x1, y2, minU, maxV, tint);
+            addTextureVertex(buffer, matrix, x2, y2, maxU, maxV, tint);
+            addTextureVertex(buffer, matrix, x2, y1, maxU, minV, tint);
+            BufferUploader.drawWithShader(buffer.end());
+        } finally {
+            state.restore();
+        }
     }
 
     private void renderMesh(DrawCommand command) {

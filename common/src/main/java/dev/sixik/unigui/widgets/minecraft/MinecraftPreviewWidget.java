@@ -8,6 +8,7 @@ import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderBackend;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.backend.minecraft.MinecraftGuiRenderBackend;
@@ -116,11 +117,13 @@ public abstract class MinecraftPreviewWidget extends Box {
         float previewX = layoutBounds().x() + Math.max(PADDING, (layoutBounds().width() - squareSize) * 0.5f);
         float previewY = layoutBounds().y() + PADDING;
         float capturedOpacity = context.opacityMultiplier();
-        context.custom(backend -> {
-            if (backend instanceof MinecraftGuiRenderBackend minecraftBackend) {
-                renderMinecraftPreview(minecraftBackend, previewX, previewY, squareSize, capturedOpacity);
-            }
-        });
+        if (!renderPreviewTexture(context, previewX, previewY, squareSize, capturedOpacity)) {
+            context.custom(backend -> {
+                if (backend instanceof MinecraftGuiRenderBackend minecraftBackend) {
+                    renderMinecraftPreview(minecraftBackend, previewX, previewY, squareSize, capturedOpacity);
+                }
+            });
+        }
 
         RenderBackend backend = context.backend();
         if (!(backend instanceof MinecraftGuiRenderBackend)) {
@@ -153,6 +156,17 @@ public abstract class MinecraftPreviewWidget extends Box {
     }
 
     protected abstract void renderMinecraftPreview(MinecraftGuiRenderBackend backend, float x, float y, float size, float opacity);
+
+    protected boolean renderPreviewTexture(RenderContext context, float x, float y, float size, float opacity) {
+        TextureHandle texture = previewTexture(context, size);
+        if (texture == null) return false;
+        context.texture(texture, x, y, size, size, Paint.fill(MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f)));
+        return true;
+    }
+
+    protected TextureHandle previewTexture(RenderContext context, float size) {
+        return null;
+    }
 
     protected abstract String fallbackText();
 }

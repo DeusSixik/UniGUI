@@ -75,6 +75,11 @@ public final class MinecraftRenderTarget implements ManagedRenderTarget {
         }
     }
 
+    void bindWritePreserveContents() {
+        ensureAlive();
+        nativeTarget.bindWrite(true);
+    }
+
     void unbindWrite() {
         if (!disposed) {
             nativeTarget.unbindWrite();

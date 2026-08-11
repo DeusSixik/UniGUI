@@ -1,6 +1,8 @@
 package dev.sixik.unigui.widgets.minecraft;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.backend.minecraft.MinecraftGuiRenderBackend;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ItemLike;
@@ -42,6 +44,15 @@ public final class MinecraftItemPreviewWidget extends MinecraftPreviewWidget {
     @Override
     protected void renderMinecraftPreview(MinecraftGuiRenderBackend backend, float x, float y, float size, float opacity) {
         backend.renderItemPreview(stack, x, y, size, opacity, decorations);
+    }
+
+    @Override
+    protected TextureHandle previewTexture(RenderContext context, float size) {
+        if (decorations || stack == null || stack.isEmpty()) return null;
+        if (context.backend() instanceof MinecraftGuiRenderBackend backend) {
+            return backend.cachedItemPreviewTexture(stack, size);
+        }
+        return null;
     }
 
     @Override
