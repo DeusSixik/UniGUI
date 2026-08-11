@@ -54,9 +54,11 @@ public class VirtualListView extends WidgetBase {
     private final FixedRowVirtualizer virtualizer = new FixedRowVirtualizer();
     private final IndexSelectionModel selection = new IndexSelectionModel();
     private final Map<Integer, Widget> realized = new LinkedHashMap<>();
+    private final Map<Integer, Widget> recycled = new LinkedHashMap<>();
     private IntFunction<? extends Widget> itemFactory = index -> new Label(String.valueOf(index));
     private VirtualListViewRenderer renderer;
     private float scrollStep = 16.0f;
+    private int offscreenCacheSize;
     private boolean consumeWheelAtScrollBounds = true;
     private int activeIndex = -1;
 
@@ -76,6 +78,7 @@ public class VirtualListView extends WidgetBase {
         virtualizer.itemCount(itemCount);
         activeIndex = clampIndexOrNone(activeIndex);
         pruneRealized();
+        pruneRecycled();
         emitSelectionChangeIfChanged(oldSelection, selection.retainWithin(virtualizer.itemCount()));
         scrollTo(virtualizer.scrollOffset());
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
@@ -111,6 +114,18 @@ public class VirtualListView extends WidgetBase {
         this.itemFactory = itemFactory == null ? index -> new Label(String.valueOf(index)) : itemFactory;
         clearRealized();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public int offscreenCacheSize() {
+        return offscreenCacheSize;
+    }
+
+    public VirtualListView offscreenCacheSize(int offscreenCacheSize) {
+        int normalized = Math.max(0, offscreenCacheSize);
+        if (this.offscreenCacheSize == normalized) return this;
+        this.offscreenCacheSize = normalized;
+        trimRecycled();
         return this;
     }
 
@@ -422,14 +437,23 @@ public class VirtualListView extends WidgetBase {
             int index = entry.getKey();
             if (index < first || index >= last) {
                 detachItem(entry.getValue());
-                entry.getValue().dispose();
+                recycleItem(index, entry.getValue());
                 iterator.remove();
             }
         }
 
         for (int index = first; index < last; index++) {
-            realized.computeIfAbsent(index, this::createItem);
+            realized.computeIfAbsent(index, this::realizeItem);
         }
+    }
+
+    private Widget realizeItem(int index) {
+        Widget item = recycled.remove(index);
+        if (item != null) {
+            attachItem(item);
+            return item;
+        }
+        return createItem(index);
     }
 
     private Widget createItem(int index) {
@@ -439,6 +463,18 @@ public class VirtualListView extends WidgetBase {
         }
         attachItem(item);
         return item;
+    }
+
+    private void recycleItem(int index, Widget item) {
+        if (offscreenCacheSize <= 0 || index < 0 || index >= virtualizer.itemCount()) {
+            item.dispose();
+            return;
+        }
+        Widget previous = recycled.put(index, item);
+        if (previous != null && previous != item) {
+            previous.dispose();
+        }
+        trimRecycled();
     }
 
     private void arrangeItems() {
@@ -491,12 +527,45 @@ public class VirtualListView extends WidgetBase {
         }
     }
 
+    private void pruneRecycled() {
+        Iterator<Map.Entry<Integer, Widget>> iterator = recycled.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<Integer, Widget> entry = iterator.next();
+            if (entry.getKey() >= virtualizer.itemCount()) {
+                entry.getValue().dispose();
+                iterator.remove();
+            }
+        }
+        trimRecycled();
+    }
+
+    private void trimRecycled() {
+        if (offscreenCacheSize <= 0) {
+            clearRecycled();
+            return;
+        }
+        Iterator<Map.Entry<Integer, Widget>> iterator = recycled.entrySet().iterator();
+        while (recycled.size() > offscreenCacheSize && iterator.hasNext()) {
+            Map.Entry<Integer, Widget> entry = iterator.next();
+            entry.getValue().dispose();
+            iterator.remove();
+        }
+    }
+
     private void clearRealized() {
         for (Widget item : realized.values()) {
             detachItem(item);
             item.dispose();
         }
         realized.clear();
+        clearRecycled();
+    }
+
+    private void clearRecycled() {
+        for (Widget item : recycled.values()) {
+            item.dispose();
+        }
+        recycled.clear();
     }
 
     private void attachItem(Widget item) {

@@ -155,6 +155,28 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
         renderVanillaItemPreview(stack, x, y, size, opacity, decorations);
     }
 
+    public boolean renderItemPreviewLazy(ItemStack stack, float x, float y, float size, float opacity) {
+        if (stack == null || stack.isEmpty() || size <= 0.0f) return false;
+
+        TextureHandle cached = fastItemRenderer.cachedTexture(stack, size);
+        if (cached != null) {
+            renderItemPreviewTexture(cached, x, y, size, opacity);
+            return true;
+        }
+
+        if (fastItemRenderer.prefersCachedPath(stack)) {
+            TextureHandle baked = fastItemRenderer.bakeIfBudget(stack, size, activeRenderTarget);
+            if (baked != null) {
+                renderItemPreviewTexture(baked, x, y, size, opacity);
+                return true;
+            }
+            return false;
+        }
+
+        renderVanillaItemPreview(stack, x, y, size, opacity, false);
+        return true;
+    }
+
     public TextureHandle cachedItemPreviewTexture(ItemStack stack, float size) {
         return fastItemRenderer.cachedTexture(stack, size);
     }

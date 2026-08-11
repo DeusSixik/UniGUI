@@ -68,6 +68,7 @@ import dev.sixik.unigui.api.text.FontMetrics;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextRun;
 import dev.sixik.unigui.api.widget.CheckboxState;
+import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.virtualization.FixedRowVirtualizer;
 import dev.sixik.unigui.api.virtualization.VirtualRange;
@@ -1887,22 +1888,28 @@ public final class BasicControlsSelfTest {
                 "MinecraftItemPickerWidget should open its searchable icon grid as a modal WindowWidget");
         expect(itemPicker.resultGrid().itemCount() == 1
                         && itemPicker.resultGrid().realizedCount() == 1
-                        && itemPicker.resultGrid().children().get(0) instanceof HBox,
-                "MinecraftItemPickerWidget modal grid should virtualize filtered item icons into visible rows");
+                        && itemPicker.resultGrid().children().get(0).children().isEmpty(),
+                "MinecraftItemPickerWidget modal grid should virtualize filtered item icons into optimized visible rows");
 
-        HBox itemRow = (HBox) itemPicker.resultGrid().children().get(0);
-        Button itemTile = (Button) itemRow.children().get(0);
-        itemTile.handle(new PointerEnteredEvent(itemTile, 2.0f, 2.0f, 2.0f, 2.0f, 0));
-        expect(itemPicker.idTooltip().anchor() == itemTile
+        Widget itemRow = itemPicker.resultGrid().children().get(0);
+        float itemX = itemRow.layoutBounds().x() + 2.0f;
+        float itemY = itemRow.layoutBounds().y() + 2.0f;
+        itemRow.handle(new PointerEnteredEvent(itemRow, itemX, itemY, 2.0f, 2.0f, 0));
+        Widget itemTooltipAnchor = itemPicker.idTooltip().anchor();
+        expect(itemTooltipAnchor != null
+                        && itemTooltipAnchor != itemRow
+                        && itemTooltipAnchor.hovered()
+                        && near(itemTooltipAnchor.layoutBounds().x(), itemRow.layoutBounds().x())
+                        && near(itemTooltipAnchor.layoutBounds().y(), itemY)
                         && itemPicker.idTooltip().text().equals(diamondId.toString()),
-                "MinecraftItemPickerWidget item icon tooltip should expose the full registry id");
+                "MinecraftItemPickerWidget item icon tooltip should expose the full registry id from a tile anchor");
 
         Counter itemChanges = new Counter();
         itemPicker.onSelectionChanged(event -> {
             itemChanges.count++;
             itemChanges.lastSelection = event.newSelection();
         });
-        itemTile.click();
+        itemRow.handle(new PointerPressedEvent(itemRow, itemX, itemY, 2.0f, 2.0f, 0, PointerButton.PRIMARY));
         expect(itemPicker.selectedId().equals(diamondId)
                         && itemPicker.selectedItem() == diamond
                         && itemPicker.selectedStack().getItem() == diamond
@@ -1920,6 +1927,24 @@ public final class BasicControlsSelfTest {
                         && itemPicker.selectedFilteredIndex() == -1
                         && itemPicker.resultGrid().itemCount() == 1,
                 "MinecraftItemPickerWidget should preserve selected item when filters hide it");
+
+        itemPicker.query("");
+        itemPicker.open();
+        itemPickerLayer.measure(new LayoutContext(520.0f, 460.0f));
+        itemPickerLayer.arrange(new MutableRect(0.0f, 0.0f, 520.0f, 460.0f));
+        Widget multiItemRow = itemPicker.resultGrid().children().get(0);
+        float thirdItemLocalX = 78.0f;
+        float thirdItemRootX = multiItemRow.layoutBounds().x() + thirdItemLocalX;
+        float thirdItemRootY = multiItemRow.layoutBounds().y() + 2.0f;
+        multiItemRow.handle(new PointerMovedEvent(multiItemRow, thirdItemRootX, thirdItemRootY, thirdItemLocalX, 2.0f, 0));
+        Widget rightItemTooltipAnchor = itemPicker.idTooltip().anchor();
+        expect(rightItemTooltipAnchor != null
+                        && rightItemTooltipAnchor != multiItemRow
+                        && rightItemTooltipAnchor.hovered()
+                        && rightItemTooltipAnchor.layoutBounds().x() > multiItemRow.layoutBounds().x() + 60.0f
+                        && itemPicker.idTooltip().text().equals(copperId.toString()),
+                "SearchableGridPickerWidget should position tooltip anchor on the hovered tile, not the row");
+        itemPicker.close();
 
         ResourceLocation stoneTexture = new ResourceLocation("minecraft", "textures/block/stone.png");
         ResourceLocation zombieTexture = new ResourceLocation("minecraft", "textures/entity/zombie/zombie.png");
@@ -1948,22 +1973,28 @@ public final class BasicControlsSelfTest {
                 "MinecraftTexturePickerWidget should open its searchable icon grid as a modal WindowWidget");
         expect(texturePicker.resultGrid().itemCount() == 1
                         && texturePicker.resultGrid().realizedCount() == 1
-                        && texturePicker.resultGrid().children().get(0) instanceof HBox,
-                "MinecraftTexturePickerWidget modal grid should virtualize filtered texture icons into visible rows");
+                        && texturePicker.resultGrid().children().get(0).children().isEmpty(),
+                "MinecraftTexturePickerWidget modal grid should virtualize filtered texture icons into optimized visible rows");
 
-        HBox textureRow = (HBox) texturePicker.resultGrid().children().get(0);
-        Button textureTile = (Button) textureRow.children().get(0);
-        textureTile.handle(new PointerEnteredEvent(textureTile, 2.0f, 2.0f, 2.0f, 2.0f, 0));
-        expect(texturePicker.idTooltip().anchor() == textureTile
+        Widget textureRow = texturePicker.resultGrid().children().get(0);
+        float textureX = textureRow.layoutBounds().x() + 2.0f;
+        float textureY = textureRow.layoutBounds().y() + 2.0f;
+        textureRow.handle(new PointerEnteredEvent(textureRow, textureX, textureY, 2.0f, 2.0f, 0));
+        Widget textureTooltipAnchor = texturePicker.idTooltip().anchor();
+        expect(textureTooltipAnchor != null
+                        && textureTooltipAnchor != textureRow
+                        && textureTooltipAnchor.hovered()
+                        && near(textureTooltipAnchor.layoutBounds().x(), textureRow.layoutBounds().x())
+                        && near(textureTooltipAnchor.layoutBounds().y(), textureY)
                         && texturePicker.idTooltip().text().equals(stoneTexture.toString()),
-                "MinecraftTexturePickerWidget texture icon tooltip should expose the full texture id");
+                "MinecraftTexturePickerWidget texture icon tooltip should expose the full texture id from a tile anchor");
 
         Counter textureChanges = new Counter();
         texturePicker.onSelectionChanged(event -> {
             textureChanges.count++;
             textureChanges.lastSelection = event.newSelection();
         });
-        textureTile.click();
+        textureRow.handle(new PointerPressedEvent(textureRow, textureX, textureY, 2.0f, 2.0f, 0, PointerButton.PRIMARY));
         expect(texturePicker.selectedId().equals(stoneTexture)
                         && texturePicker.selectedTexture().location().equals(stoneTexture)
                         && texturePicker.selectedPreview().texture() == texturePicker.selectedTexture()
