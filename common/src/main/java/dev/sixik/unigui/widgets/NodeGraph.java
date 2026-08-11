@@ -109,7 +109,6 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     private boolean keyboardEditingEnabled = true;
     private boolean consumeWheelWhileHovered = true;
     private boolean wheelPanningEnabled = true;
-    private boolean contentLayoutScaledByZoom;
     private float wheelPanStep = 32.0f;
     private float itemContentPadding = DEFAULT_ITEM_CONTENT_PADDING;
     private float minZoom = 0.25f;
@@ -432,15 +431,14 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         if (item == null) return null;
         float itemX = worldToRootX(item.x());
         float itemY = worldToRootY(item.y());
-        float panAdjustment = viewportY / zoom;
         return new HitTestPoint(
-                itemX + (x - itemX) / zoom + panAdjustment,
-                itemY + (y - itemY) / zoom + panAdjustment);
+                itemX + (x - itemX) / zoom,
+                itemY + (y - itemY) / zoom);
     }
 
     @Override
     public RectView renderedBoundsForChild(Widget child, RectView bounds) {
-        if (!scaleContentWithZoom || contentLayoutScaledByZoom || zoom == 1.0f || child == null || bounds == null) return null;
+        if (!scaleContentWithZoom || zoom == 1.0f || child == null || bounds == null) return null;
         NodeGraphItem item = itemForContent(child);
         if (item == null) return null;
         float itemX = worldToRootX(item.x());
@@ -584,7 +582,6 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         viewportX = nextX;
         viewportY = nextY;
         this.zoom = nextZoom;
-        contentLayoutScaledByZoom = false;
         arrangeItems();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         dispatch(new NodeGraphViewportChangedEvent(this, oldX, oldY, oldZoom, viewportX, viewportY, this.zoom));
@@ -648,9 +645,6 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     public NodeGraph scaleContentWithZoom(boolean scaleContentWithZoom) {
         if (this.scaleContentWithZoom == scaleContentWithZoom) return this;
         this.scaleContentWithZoom = scaleContentWithZoom;
-        if (!scaleContentWithZoom) {
-            contentLayoutScaledByZoom = false;
-        }
         arrangeItems();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
@@ -956,7 +950,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
             for (NodeGraphItem item : List.copyOf(items)) {
                 Widget content = item.content();
                 if (!item.visible() || content.visibility() != Visibility.VISIBLE) continue;
-                if (scaleContentWithZoom && !contentLayoutScaledByZoom && zoom != 1.0f) {
+                if (scaleContentWithZoom && zoom != 1.0f) {
                     final float sx = worldToRootX(item.x());
                     final float sy = worldToRootY(item.y());
                     final float z = zoom;
@@ -1110,17 +1104,16 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
                     : Math.max(MIN_ITEM_SIZE, item.autoHeight() ? StackPanel.preferredHeight(content, 0.0f) + itemContentPadding * 2.0f : item.height());
             item.arrangedSize(width, height);
             float contentPadding = Math.min(itemContentPadding, Math.max(0.0f, Math.min(width, height) * 0.5f));
-            float contentScale = contentLayoutScaledByZoom ? nodeContentScale() : 1.0f;
-            float screenPadding = contentPadding * contentScale;
-            float contentWidth = Math.max(0.0f,
-                    (contentLayoutScaledByZoom ? itemScreenWidth(item) : width) - screenPadding * 2.0f);
-            float contentHeight = Math.max(0.0f,
-                    (contentLayoutScaledByZoom ? itemScreenHeight(item) : height) - screenPadding * 2.0f);
+            float contentWidth = Math.max(0.0f, width - contentPadding * 2.0f);
+            float contentHeight = Math.max(0.0f, height - contentPadding * 2.0f);
 
             if (scaleContentWithZoom) {
+                // Arrange in world-space size so child widgets keep stable
+                // layout units. The camera zoom is composed into their draw
+                // commands after content.render().
                 StackPanel.arrangeChild(content,
-                        worldToRootX(item.x()) + screenPadding,
-                        worldToRootY(item.y()) + screenPadding,
+                        worldToRootX(item.x()) + contentPadding,
+                        worldToRootY(item.y()) + contentPadding,
                         contentWidth,
                         contentHeight);
             } else {
@@ -1478,7 +1471,6 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         zoom = nextZoom;
         viewportX = rootX - layoutBounds().x() - worldX * zoom;
         viewportY = rootY - layoutBounds().y() - worldY * zoom;
-        contentLayoutScaledByZoom = scaleContentWithZoom;
         arrangeItems();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         dispatch(new NodeGraphViewportChangedEvent(this, oldX, oldY, oldZoom, viewportX, viewportY, zoom));

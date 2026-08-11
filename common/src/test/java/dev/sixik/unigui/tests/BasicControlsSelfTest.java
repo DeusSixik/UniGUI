@@ -2776,9 +2776,9 @@ public final class BasicControlsSelfTest {
         TransformHitTester nodeHitTester = new TransformHitTester();
         graph.viewport(10.0f, 20.0f, 2.0f);
         graph.arrange(new MutableRect(0.0f, 0.0f, 300.0f, 180.0f));
-        expect(nodeHitTester.hitTest(graph, 185.0f, 95.0f)
+        expect(nodeHitTester.hitTest(graph, 185.0f, 115.0f)
                         .map(hit -> hit.widget() == button
-                                && near(hit.localX(), 67.5f)
+                                && near(hit.localX(), 57.5f)
                                 && near(hit.localY(), 7.5f))
                         .orElse(false),
                 "NodeGraph hit-test should expand child hitboxes with zoom-in and return unscaled child locals");
@@ -3038,12 +3038,17 @@ public final class BasicControlsSelfTest {
 
         uiContext.routedEvents().dispatch(new ScrollEvent(graph,
                 100.0f, 60.0f, 100.0f, 60.0f, 0.0f, 1.0f, KeyModifiers.CONTROL));
+        dev.sixik.unigui.api.math.RectView renderedA =
+                graph.renderedBoundsForChild(a.content(), a.content().layoutBounds());
         expect(graph.viewport().zoom() > 1.0f
                         && near(a.content().layoutBounds().x(), 12.0f)
                         && near(a.content().layoutBounds().y(), 16.0f)
-                        && a.content().layoutBounds().width() > 50.0f
-                        && a.content().layoutBounds().height() > 30.0f,
-                "NodeGraph Ctrl+wheel should scale node content with world-space by default");
+                        && near(a.content().layoutBounds().width(), 50.0f)
+                        && near(a.content().layoutBounds().height(), 30.0f)
+                        && renderedA != null
+                        && renderedA.width() > a.content().layoutBounds().width()
+                        && renderedA.height() > a.content().layoutBounds().height(),
+                "NodeGraph Ctrl+wheel should keep child layout unscaled and apply camera zoom to rendered bounds");
         graph.scaleContentWithZoom(false).viewport(0.0f, 0.0f, 1.0f);
         uiContext.routedEvents().dispatch(new ScrollEvent(graph,
                 100.0f, 60.0f, 100.0f, 60.0f, 0.0f, 1.0f, KeyModifiers.CONTROL));
