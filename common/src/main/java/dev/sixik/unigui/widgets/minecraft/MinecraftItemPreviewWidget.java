@@ -4,6 +4,7 @@ import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.backend.minecraft.MinecraftGuiRenderBackend;
+import dev.sixik.unigui.widgets.OverlayLayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ItemLike;
 
@@ -32,6 +33,17 @@ public final class MinecraftItemPreviewWidget extends MinecraftPreviewWidget {
 
     public boolean decorations() {
         return decorations;
+    }
+
+    public MinecraftItemTooltip vanillaTooltip() {
+        return new MinecraftItemTooltip(this, this::stack);
+    }
+
+    public MinecraftItemPreviewWidget addVanillaTooltip(OverlayLayer overlayLayer) {
+        if (overlayLayer != null) {
+            overlayLayer.addOverlay(vanillaTooltip());
+        }
+        return this;
     }
 
     public MinecraftItemPreviewWidget decorations(boolean decorations) {

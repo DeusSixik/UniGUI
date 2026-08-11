@@ -20,6 +20,7 @@ import dev.sixik.unigui.widgets.minecraft.MinecraftEntityPreviewWidget;
 import dev.sixik.unigui.backend.minecraft.MinecraftFonts;
 import dev.sixik.unigui.widgets.minecraft.MinecraftItemPickerWidget;
 import dev.sixik.unigui.widgets.minecraft.MinecraftItemPreviewWidget;
+import dev.sixik.unigui.widgets.minecraft.MinecraftItemTooltip;
 import dev.sixik.unigui.widgets.minecraft.MinecraftTexturePickerWidget;
 import dev.sixik.unigui.backend.minecraft.MinecraftWidgetScreen;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
@@ -549,17 +550,43 @@ public final class UniGuiDemo {
 
         WrapPanel row = wrap();
         Button tooltipAnchor = new Button("Hover me");
+        Button vanillaTooltipAnchor = new Button("Item tip");
         Button popupAnchor = new Button("Popup");
         Button menuButton = new Button("Context");
         Button toastButton = new Button("Toast");
         Button windowButton = new Button("Window");
         Button modalButton = new Button("Modal");
         ToggleButton freeDrag = new ToggleButton("Free drag");
-        for (Button b : List.of(tooltipAnchor, popupAnchor, menuButton, toastButton, windowButton, modalButton, freeDrag)) {
+        for (Button b : List.of(tooltipAnchor, vanillaTooltipAnchor, popupAnchor, menuButton, toastButton, windowButton, modalButton, freeDrag)) {
             b.layout(style -> style.size(86.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
             row.addChild(b);
         }
         page.addChild(section("Overlay controls", row));
+
+        WrapPanel vanillaItemTooltips = wrap();
+        Button swordTooltip = new Button("Sword tooltip");
+        Button dynamicTooltip = new Button("Apple tooltip");
+        Button cycleTooltipStack = new Button("Cycle stack");
+        MinecraftItemPreviewWidget previewTooltip = itemPreview("Preview tooltip", Items.NETHERITE_PICKAXE);
+        for (Button b : List.of(swordTooltip, dynamicTooltip, cycleTooltipStack)) {
+            b.layout(style -> style.size(112.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
+            vanillaItemTooltips.addChild(b);
+        }
+        vanillaItemTooltips.addChild(previewTooltip);
+        page.addChild(section("Vanilla item tooltips", vanillaItemTooltips));
+
+        ItemStack[] dynamicTooltipStack = {new ItemStack(Items.APPLE)};
+        Runnable updateDynamicTooltipLabel = () -> dynamicTooltip.text(
+                dynamicTooltipStack[0].getHoverName().getString() + " tooltip");
+        cycleTooltipStack.onClick(event -> {
+            dynamicTooltipStack[0] = dynamicTooltipStack[0].is(Items.APPLE)
+                    ? new ItemStack(Items.EMERALD)
+                    : dynamicTooltipStack[0].is(Items.EMERALD)
+                    ? new ItemStack(Items.DIAMOND_PICKAXE)
+                    : new ItemStack(Items.APPLE);
+            updateDynamicTooltipLabel.run();
+        });
+        updateDynamicTooltipLabel.run();
 
         Label status = new Label("WindowManager: idle");
         status.layout(style -> style.size(LayoutConstraints.AUTO, 18.0f).flexGrow(0).flexShrink(0.0f));
@@ -601,6 +628,10 @@ public final class UniGuiDemo {
         modal.onModalClosed(event -> status.text("Modal closed depth " + event.stackDepth()));
 
         layer.addOverlay(new Tooltip(tooltipAnchor, "Tooltip through OverlayLayer"));
+        layer.addOverlay(new MinecraftItemTooltip(vanillaTooltipAnchor, new ItemStack(Items.DIAMOND_SWORD)));
+        layer.addOverlay(new MinecraftItemTooltip(swordTooltip, new ItemStack(Items.DIAMOND_SWORD)));
+        layer.addOverlay(new MinecraftItemTooltip(dynamicTooltip, () -> dynamicTooltipStack[0]));
+        previewTooltip.addVanillaTooltip(layer);
         layer.addOverlay(new Tooltip(popupAnchor, "Click to toggle Popup"));
         layer.addOverlay(popup);
         layer.addOverlay(menu);

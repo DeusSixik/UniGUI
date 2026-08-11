@@ -38,6 +38,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -184,6 +185,53 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
 
     public void clearItemPreviewCache() {
         fastItemRenderer.clear();
+    }
+
+    public void renderVanillaTooltip(Component line, float x, float y) {
+        if (line == null) return;
+        renderVanillaTooltip(List.of(line), x, y);
+    }
+
+    public void renderVanillaTooltip(List<Component> lines, float x, float y) {
+        if (lines == null || lines.isEmpty()) return;
+
+        graphics.flush();
+        RenderState state = RenderState.capture();
+        try {
+            RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+            RenderSystem.enableBlend();
+            MinecraftUiBlend.applyStraightAlpha(activeRenderTarget != null);
+            RenderSystem.disableDepthTest();
+            RenderSystem.depthMask(false);
+            graphics.renderComponentTooltip(minecraft.font, lines, round(x), round(y));
+            graphics.flush();
+        } finally {
+            RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+            state.restore();
+        }
+    }
+
+    public void renderVanillaItemTooltip(ItemStack stack, float x, float y) {
+        renderVanillaTooltip(stack, x, y);
+    }
+
+    public void renderVanillaTooltip(ItemStack stack, float x, float y) {
+        if (stack == null || stack.isEmpty()) return;
+
+        graphics.flush();
+        RenderState state = RenderState.capture();
+        try {
+            RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+            RenderSystem.enableBlend();
+            MinecraftUiBlend.applyStraightAlpha(activeRenderTarget != null);
+            RenderSystem.disableDepthTest();
+            RenderSystem.depthMask(false);
+            graphics.renderTooltip(minecraft.font, stack, round(x), round(y));
+            graphics.flush();
+        } finally {
+            RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+            state.restore();
+        }
     }
 
     private void renderItemPreviewTexture(TextureHandle texture, float x, float y, float size, float opacity) {

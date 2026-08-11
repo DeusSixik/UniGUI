@@ -85,7 +85,7 @@ import dev.sixik.unigui.widgets.minecraft.MinecraftItemPickerWidget;
 import dev.sixik.unigui.widgets.minecraft.MinecraftPreviewWidget;
 import dev.sixik.unigui.backend.minecraft.MinecraftTextureHandle;
 import dev.sixik.unigui.widgets.minecraft.MinecraftTexturePickerWidget;
-import dev.sixik.unigui.backend.minecraft.MinecraftWidgets;
+import dev.sixik.unigui.widgets.minecraft.MinecraftWidgets;
 import dev.sixik.unigui.impl.input.TransformHitTester;
 import dev.sixik.unigui.impl.render.DefaultRenderContext;
 import dev.sixik.unigui.impl.render.ScissorStack;

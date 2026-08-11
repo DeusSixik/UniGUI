@@ -1,9 +1,7 @@
-package dev.sixik.unigui.backend.minecraft;
+package dev.sixik.unigui.widgets.minecraft;
 
+import dev.sixik.unigui.backend.minecraft.MinecraftTextureHandle;
 import dev.sixik.unigui.widgets.TextureWidget;
-import dev.sixik.unigui.widgets.minecraft.MinecraftItemPickerWidget;
-import dev.sixik.unigui.widgets.minecraft.MinecraftItemPreviewWidget;
-import dev.sixik.unigui.widgets.minecraft.MinecraftTexturePickerWidget;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ItemLike;

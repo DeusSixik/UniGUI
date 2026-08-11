@@ -20,7 +20,7 @@ import dev.sixik.unigui.widgets.render.TooltipState;
 import java.util.List;
 import java.util.Objects;
 
-public final class Tooltip extends Box implements OverlayHostAware {
+public class Tooltip extends Box implements OverlayHostAware {
     private static final float HORIZONTAL_PADDING = 6.0f;
     private static final float VERTICAL_PADDING = 4.0f;
     private static final float DEFAULT_MAX_WIDTH = 220.0f;
