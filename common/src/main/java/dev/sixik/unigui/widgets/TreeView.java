@@ -11,6 +11,7 @@ import dev.sixik.unigui.api.event.SelectionChangedEvent;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.layout.LayoutContext;
+import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.text.RichText;
@@ -217,12 +218,29 @@ public class TreeView extends LinearBox {
         }
     }
 
+    @Override
+    public void measure(LayoutContext context) {
+        flushPendingRowsRebuild();
+        super.measure(context);
+    }
+
+    @Override
+    public void arrange(RectView bounds) {
+        flushPendingRowsRebuild();
+        super.arrange(bounds);
+    }
+
     void requestRowsRebuild() {
         if (isBatching()) {
             rebuildPending = true;
             return;
         }
         rebuildRows();
+    }
+
+    void requestRowsRebuildDeferred() {
+        rebuildPending = true;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
     }
 
     void rebuildRows() {
@@ -262,6 +280,12 @@ public class TreeView extends LinearBox {
             return;
         }
         patchExpansionRows(node);
+    }
+
+    private void flushPendingRowsRebuild() {
+        if (rebuildPending && !isBatching()) {
+            rebuildRows();
+        }
     }
 
     private boolean handleKey(int keyCode) {

@@ -89,10 +89,12 @@ public final class Widgets {
         return new Text(text);
     }
 
+    /** Generic display text; use label(...) for a focus-target caption. */
     public static Text text(RichText text) {
         return new Text(text);
     }
 
+    /** Caption text that can be associated with a focus target via Label.focusTarget(...). */
     public static Label label(String text) {
         return new Label(text);
     }

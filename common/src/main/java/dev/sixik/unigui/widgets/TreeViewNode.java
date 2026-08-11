@@ -103,7 +103,11 @@ public final class TreeViewNode {
     }
 
     public TreeViewNode silentExpanded(boolean expanded) {
+        if (this.expanded == expanded) return this;
         this.expanded = expanded;
+        if (owner != null) {
+            owner.requestRowsRebuildDeferred();
+        }
         return this;
     }
 

@@ -8,8 +8,8 @@ import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.FramePhase;
 import dev.sixik.unigui.api.core.MutableUIScaleProvider;
 import dev.sixik.unigui.api.core.UIScaleProvider;
+import dev.sixik.unigui.api.event.ContextMenuItemSelectedEvent;
 import dev.sixik.unigui.api.event.ExpandedChangedEvent;
-import dev.sixik.unigui.api.event.DockDropPreviewChangedEvent;
 import dev.sixik.unigui.api.event.KeyPressedEvent;
 import dev.sixik.unigui.api.event.PointerEnteredEvent;
 import dev.sixik.unigui.api.event.PointerExitedEvent;
@@ -17,6 +17,7 @@ import dev.sixik.unigui.api.event.PointerMovedEvent;
 import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.event.PointerReleasedEvent;
 import dev.sixik.unigui.api.event.ScrollEvent;
+import dev.sixik.unigui.api.event.SearchChangedEvent;
 import dev.sixik.unigui.api.event.SelectionChangedEvent;
 import dev.sixik.unigui.api.event.SliderValueChangedEvent;
 import dev.sixik.unigui.api.event.TableCellEditCancelledEvent;
@@ -25,7 +26,6 @@ import dev.sixik.unigui.api.event.TableCellEditStartedEvent;
 import dev.sixik.unigui.api.event.TableColumnMovedEvent;
 import dev.sixik.unigui.api.event.TableColumnResizedEvent;
 import dev.sixik.unigui.api.event.TableSortChangedEvent;
-import dev.sixik.unigui.api.event.TextChangedEvent;
 import dev.sixik.unigui.api.event.TextInputEvent;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.Align;
@@ -67,16 +67,17 @@ import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.FontMetrics;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextRun;
+import dev.sixik.unigui.api.widget.CheckboxState;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.virtualization.FixedRowVirtualizer;
 import dev.sixik.unigui.api.virtualization.VirtualRange;
 import dev.sixik.unigui.backend.minecraft.MinecraftGuiRenderBackend;
 import dev.sixik.unigui.backend.minecraft.MinecraftFontFace;
 import dev.sixik.unigui.backend.minecraft.MinecraftFonts;
-import dev.sixik.unigui.backend.minecraft.MinecraftItemPickerWidget;
-import dev.sixik.unigui.backend.minecraft.MinecraftPreviewWidget;
+import dev.sixik.unigui.widgets.minecraft.MinecraftItemPickerWidget;
+import dev.sixik.unigui.widgets.minecraft.MinecraftPreviewWidget;
 import dev.sixik.unigui.backend.minecraft.MinecraftTextureHandle;
-import dev.sixik.unigui.backend.minecraft.MinecraftTexturePickerWidget;
+import dev.sixik.unigui.widgets.minecraft.MinecraftTexturePickerWidget;
 import dev.sixik.unigui.backend.minecraft.MinecraftWidgets;
 import dev.sixik.unigui.impl.input.TransformHitTester;
 import dev.sixik.unigui.impl.render.DefaultRenderContext;
@@ -91,8 +92,10 @@ import dev.sixik.unigui.widgets.Button;
 import dev.sixik.unigui.widgets.Breadcrumb;
 import dev.sixik.unigui.widgets.BreadcrumbItem;
 import dev.sixik.unigui.widgets.Box;
+import dev.sixik.unigui.widgets.Carousel;
 import dev.sixik.unigui.widgets.Checkbox;
 import dev.sixik.unigui.widgets.ComboBox;
+import dev.sixik.unigui.widgets.ContextMenu;
 import dev.sixik.unigui.widgets.DockPanel;
 import dev.sixik.unigui.widgets.DockArea;
 import dev.sixik.unigui.widgets.DockDropIntent;
@@ -116,9 +119,11 @@ import dev.sixik.unigui.widgets.NodeGraphSnapshot;
 import dev.sixik.unigui.widgets.NodeGraphPortKind;
 import dev.sixik.unigui.widgets.NodeGraphPortRef;
 import dev.sixik.unigui.widgets.NodeGraphPortSide;
+import dev.sixik.unigui.widgets.NotificationView;
 import dev.sixik.unigui.widgets.NumberField;
 import dev.sixik.unigui.widgets.Orientation;
 import dev.sixik.unigui.widgets.OverlayLayer;
+import dev.sixik.unigui.widgets.PageView;
 import dev.sixik.unigui.widgets.PanelWidget;
 import dev.sixik.unigui.widgets.PasswordField;
 import dev.sixik.unigui.widgets.Popup;
@@ -132,10 +137,14 @@ import dev.sixik.unigui.widgets.Spinner;
 import dev.sixik.unigui.widgets.SplitPanel;
 import dev.sixik.unigui.widgets.StackPanel;
 import dev.sixik.unigui.widgets.TabControl;
+import dev.sixik.unigui.widgets.Text;
 import dev.sixik.unigui.widgets.TextBlock;
 import dev.sixik.unigui.widgets.TextField;
 import dev.sixik.unigui.widgets.TextInput;
+import dev.sixik.unigui.widgets.TextWidget;
 import dev.sixik.unigui.widgets.Tooltip;
+import dev.sixik.unigui.widgets.RichTextView;
+import dev.sixik.unigui.widgets.Toast;
 import dev.sixik.unigui.widgets.ToggleButton;
 import dev.sixik.unigui.widgets.TreeView;
 import dev.sixik.unigui.widgets.TreeList;
@@ -148,6 +157,7 @@ import dev.sixik.unigui.widgets.WindowWidget;
 import dev.sixik.unigui.widgets.WrapPanel;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Items;
 
 public final class BasicControlsSelfTest {
     public static void main(String[] args) {
@@ -164,6 +174,7 @@ public final class BasicControlsSelfTest {
         testTextFieldFocusAndEditing();
         testTextFieldSelectionAndClipboard();
         testTextInputClippingMetricsAndSelection();
+        testTextWidgetRoleContracts();
         testPasswordAndSearchFields();
         testDefaultThemeContracts();
         testStyleInheritanceAndScopes();
@@ -204,6 +215,7 @@ public final class BasicControlsSelfTest {
         testVirtualTableViewVirtualRowsAndRendering();
         testVirtualTableNestedWheelLockAndOptOut();
         testTabControlContracts();
+        testPageViewAndCarouselContracts();
         testComboBoxAndDropDownBoxContracts();
         testExpandablePanelAndAccordionContracts();
         testTreeViewContracts();
@@ -341,6 +353,59 @@ public final class BasicControlsSelfTest {
                 "TextWidget MARQUEE_ON_HOVER should draw a wrapped marquee copy while hovered");
     }
 
+    private void testTextWidgetRoleContracts() {
+        FontFace narrow = new FixedFontFace("text-role-narrow", 5.0f, 10.0f);
+        FontFace wide = new FixedFontFace("text-role-wide", 9.0f, 14.0f);
+        RichText rich = RichText.builder()
+                .font(narrow).size(10.0f).append("Rich ")
+                .font(wide).size(14.0f).append("Runs")
+                .build();
+
+        Text text = new Text("Generic display");
+        Label label = new Label("Name").focusTarget(new TextField("target"));
+        TextBlock plainBlock = new TextBlock(rich);
+        RichTextView richView = new RichTextView(rich);
+
+        expect(text instanceof TextWidget
+                        && label instanceof TextWidget
+                        && plainBlock instanceof TextWidget
+                        && richView instanceof TextWidget,
+                "Text family public widgets should share TextWidget as their base implementation");
+
+        plainBlock.arrange(new MutableRect(0.0f, 0.0f, 160.0f, 40.0f));
+        DrawList plainDrawList = new DrawList();
+        plainBlock.render(new DefaultRenderContext(plainDrawList));
+        int plainIndex = textCommandIndex(plainDrawList, "Rich Runs", 0);
+        expect(plainBlock.wrap()
+                        && plainIndex < Integer.MAX_VALUE
+                        && plainDrawList.commands().get(plainIndex).richText().equals(RichText.plain("Rich Runs")),
+                "TextBlock should be plain multiline text and flatten RichText styling");
+
+        richView.arrange(new MutableRect(0.0f, 0.0f, 160.0f, 40.0f));
+        DrawList richDrawList = new DrawList();
+        richView.render(new DefaultRenderContext(richDrawList));
+        int richIndex = textCommandIndex(richDrawList, "Rich Runs", 0);
+        expect(richView.wrap()
+                        && richIndex < Integer.MAX_VALUE
+                        && richDrawList.commands().get(richIndex).richText().equals(rich),
+                "RichTextView should preserve RichText runs for rich multiline content");
+
+        DefaultUIContext uiContext = new DefaultUIContext();
+        TextField target = new TextField("focus me");
+        Label focusLabel = new Label("Focus target").focusTarget(target);
+        focusLabel.setUiContextInternal(uiContext);
+        target.setUiContextInternal(uiContext);
+        focusLabel.handle(new PointerPressedEvent(focusLabel, 2.0f, 2.0f, 2.0f, 2.0f, 0, PointerButton.PRIMARY));
+        expect(uiContext.focusManager().focusedWidget() == target,
+                "Clicking Label with focusTarget should focus the associated control");
+
+        expect(Widgets.text("Display") instanceof Text
+                        && Widgets.label("Caption") instanceof Label
+                        && Widgets.textBlock("Paragraph") instanceof TextBlock
+                        && Widgets.richTextView(rich) instanceof RichTextView,
+                "Widgets factory should expose separated Text, Label, TextBlock and RichTextView roles");
+    }
+
     private void testRichTextAndSdfContracts() {
         FontFace narrow = new FixedFontFace("narrow", 2.0f, 10.0f);
         FontFace wide = new FixedFontFace("wide", 5.0f, 16.0f);
@@ -397,10 +462,14 @@ public final class BasicControlsSelfTest {
                 "RichText should preserve Minecraft and SDF faces in one value");
 
         TextBlock block = new TextBlock();
-        block.richText(text);
+        block.text("plain");
         block.arrange(new MutableRect(0.0f, 0.0f, 40.0f, 20.0f));
+
+        TextWidget richBase = new TextWidget();
+        richBase.richText(text);
+        richBase.arrange(new MutableRect(0.0f, 0.0f, 40.0f, 20.0f));
         DrawList drawList = new DrawList();
-        block.render(new DefaultRenderContext(drawList));
+        richBase.render(new DefaultRenderContext(drawList));
         expect(drawList.size() == 1 && drawList.commands().get(0).richText().equals(text),
                 "TextWidget should preserve RichText in the render command");
 
@@ -642,6 +711,17 @@ public final class BasicControlsSelfTest {
         expect(!hasText(passwordDrawList, "secret"), "PasswordField should not render plain password text");
 
         DefaultUIContext uiContext = new DefaultUIContext();
+        passwordField.setUiContextInternal(uiContext);
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(passwordField, 6.0f, 8.0f, 6.0f, 8.0f, 0, PointerButton.PRIMARY));
+        passwordField.selectAll();
+        uiContext.clipboard().setText("sentinel");
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(passwordField, KeyCodes.C, 0, KeyModifiers.CONTROL));
+        expect(uiContext.clipboard().getText().equals("sentinel") && passwordField.text().equals("secret"),
+                "PasswordField Ctrl+C should not copy the real password");
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(passwordField, KeyCodes.X, 0, KeyModifiers.CONTROL));
+        expect(uiContext.clipboard().getText().equals("sentinel") && passwordField.text().isEmpty(),
+                "PasswordField Ctrl+X should delete selected text without exposing it to clipboard");
+
         SearchField searchField = new SearchField("recipe");
         searchField.setUiContextInternal(uiContext);
         searchField.arrange(new MutableRect(0.0f, 0.0f, 120.0f, 18.0f));
@@ -655,6 +735,23 @@ public final class BasicControlsSelfTest {
         uiContext.routedEvents().dispatch(new PointerPressedEvent(searchField, 6.0f, 8.0f, 6.0f, 8.0f, 0, PointerButton.PRIMARY));
         uiContext.routedEvents().dispatch(new KeyPressedEvent(searchField, KeyCodes.ENTER, 0, 0));
         expect(submissions.count == 1 && submissions.lastText.equals("recipe"), "SearchField should submit query on Enter");
+
+        Counter searchChanges = new Counter();
+        searchField.searchChangeDebounceSeconds(0.20f);
+        searchField.onSearchChanged((SearchChangedEvent event) -> {
+            searchChanges.count++;
+            searchChanges.lastOldText = event.oldQuery();
+            searchChanges.lastText = event.newQuery();
+        });
+        searchField.text("rec");
+        searchField.tick(new FrameContext(1L, 0.10f, 0.0f, FramePhase.ANIMATION));
+        expect(searchChanges.count == 0, "SearchField should debounce search changed events before the delay elapses");
+        searchField.text("recipe book");
+        searchField.tick(new FrameContext(2L, 0.20f, 0.0f, FramePhase.ANIMATION));
+        expect(searchChanges.count == 1
+                        && searchChanges.lastOldText.equals("recipe")
+                        && searchChanges.lastText.equals("recipe book"),
+                "SearchField should emit one debounced SearchChangedEvent with the latest query");
 
         uiContext.routedEvents().dispatch(new PointerPressedEvent(searchField, 114.0f, 8.0f, 114.0f, 8.0f, 0, PointerButton.PRIMARY));
         expect(searchField.text().isEmpty(), "SearchField clear zone should clear query");
@@ -1751,12 +1848,15 @@ public final class BasicControlsSelfTest {
     }
 
     private void testMinecraftPickerWidgetsContracts() {
+        net.minecraft.SharedConstants.tryDetectVersion();
+        net.minecraft.server.Bootstrap.bootStrap();
+
         ResourceLocation copperId = new ResourceLocation("example", "copper_gear");
         ResourceLocation wrenchId = new ResourceLocation("example", "wrench");
         ResourceLocation diamondId = new ResourceLocation("minecraft", "diamond");
-        Item copper = new Item(new Item.Properties());
-        Item wrench = new Item(new Item.Properties());
-        Item diamond = new Item(new Item.Properties());
+        Item copper = Items.COPPER_INGOT;
+        Item wrench = Items.TRIPWIRE_HOOK;
+        Item diamond = Items.DIAMOND;
 
         MinecraftItemPickerWidget itemPicker = new MinecraftItemPickerWidget(false)
                 .items(java.util.List.of(
@@ -1892,7 +1992,7 @@ public final class BasicControlsSelfTest {
         for (int i = 0; i < 24; i++) {
             manyItems.add(new MinecraftItemPickerWidget.ItemEntry(
                     new ResourceLocation("example", "registry_item_" + i),
-                    new Item(new Item.Properties())));
+                    Items.STICK));
         }
         MinecraftItemPickerWidget itemPicker = new MinecraftItemPickerWidget(false).items(manyItems);
         OverlayLayer itemLayer = new OverlayLayer(itemPicker);
@@ -2024,6 +2124,73 @@ public final class BasicControlsSelfTest {
         uiContext.routedEvents().dispatch(new PointerPressedEvent(content, 120.0f, 70.0f, 120.0f, 70.0f, 0, PointerButton.PRIMARY));
         expect(!popup.opened(), "OverlayLayer should close Popup on outside primary click");
 
+        Toast standaloneToast = new Toast("Saved").duration(0.0f).show();
+        OverlayLayer toastLayer = new OverlayLayer(new StackPanel()).addOverlay(standaloneToast);
+        toastLayer.measure(new LayoutContext(200.0f, 100.0f));
+        toastLayer.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 100.0f));
+        DrawList toastDrawList = new DrawList();
+        toastLayer.render(new DefaultRenderContext(toastDrawList));
+        expect(standaloneToast.parent() == toastLayer
+                        && standaloneToast.layoutBounds().y() > 40.0f
+                        && hasText(toastDrawList, "Saved"),
+                "Toast should remain a standalone transient card positioned by the overlay host");
+
+        NotificationView notificationView = new NotificationView()
+                .duration(0.25f)
+                .maxVisible(2)
+                .toast("First")
+                .toast("Second")
+                .toast("Third");
+        OverlayLayer notificationLayer = new OverlayLayer(new StackPanel()).addOverlay(notificationView);
+        notificationLayer.measure(new LayoutContext(260.0f, 140.0f));
+        notificationLayer.arrange(new MutableRect(0.0f, 0.0f, 260.0f, 140.0f));
+        DrawList notificationDrawList = new DrawList();
+        notificationLayer.render(new DefaultRenderContext(notificationDrawList));
+        expect(notificationView.activeCount() == 3
+                        && notificationView.notifications().size() == 3
+                        && notificationView.notifications().get(0) instanceof Toast
+                        && notificationView.notifications().get(2).visibility() == Visibility.HIDDEN
+                        && hasText(notificationDrawList, "First")
+                        && hasText(notificationDrawList, "Second")
+                        && !hasText(notificationDrawList, "Third"),
+                "NotificationView should host a Toast queue and render only maxVisible cards");
+        notificationView.tick(new FrameContext(10L, 0.30f, 0.0f, FramePhase.ANIMATION));
+        notificationLayer.measure(new LayoutContext(260.0f, 140.0f));
+        notificationLayer.arrange(new MutableRect(0.0f, 0.0f, 260.0f, 140.0f));
+        DrawList notificationAfterTickDrawList = new DrawList();
+        notificationLayer.render(new DefaultRenderContext(notificationAfterTickDrawList));
+        expect(notificationView.activeCount() == 1
+                        && hasText(notificationAfterTickDrawList, "Third")
+                        && !hasText(notificationAfterTickDrawList, "First"),
+                "NotificationView should advance queued Toast cards after visible notifications expire");
+
+        ContextMenu menu = new ContextMenu()
+                .item("Inspect")
+                .item("Delete");
+        Counter menuSelection = new Counter();
+        menu.onItemSelected((ContextMenuItemSelectedEvent event) -> {
+            menuSelection.count++;
+            menuSelection.lastRow = event.index();
+            menuSelection.lastText = event.text();
+        });
+        menu.openAt(8.0f, 8.0f);
+        layer.addOverlay(menu);
+        layer.measure(new LayoutContext(200.0f, 100.0f));
+        layer.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 100.0f));
+        uiContext.focusManager().requestFocus(menu);
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(menu, KeyCodes.DOWN, 0, 0));
+        expect(menu.selectedItemIndex() == 1, "ContextMenu Down key should move keyboard selection");
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(menu, KeyCodes.ENTER, 0, 0));
+        expect(!menu.opened()
+                        && menuSelection.count == 1
+                        && menuSelection.lastRow == 1
+                        && menuSelection.lastText.equals("Delete"),
+                "ContextMenu Enter should select the focused item and close the menu");
+        menu.openAt(8.0f, 8.0f);
+        uiContext.focusManager().requestFocus(menu);
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(menu, KeyCodes.ESCAPE, 0, 0));
+        expect(!menu.opened(), "ContextMenu Escape should close the menu");
+
         StackPanel edgeContent = new StackPanel();
         Button edgeAnchor = new Button("Edge");
         edgeAnchor.layout(style -> style.size(20.0f, 10.0f).align(Alignment.END, Alignment.END).flexGrow(0).flexShrink(0.0f));
@@ -2131,6 +2298,9 @@ public final class BasicControlsSelfTest {
         expect(windowMove.started == 1 && windowMove.moved >= 1 && windowMove.committed == 1,
                 "WindowWidget drag should publish typed move lifecycle events");
 
+        window.position(20.0f, 8.0f);
+        layer.measure(new LayoutContext(200.0f, 100.0f));
+        layer.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 100.0f));
         float resizeStartX = window.layoutBounds().x();
         float resizeStartY = window.layoutBounds().y();
         float resizeStartWidth = window.layoutBounds().width();
@@ -2397,6 +2567,7 @@ public final class BasicControlsSelfTest {
         DefaultUIContext floatContext = new DefaultUIContext();
         DockingRoot floatingRoot = new DockingRoot();
         floatingRoot.setUiContextInternal(floatContext);
+        floatingRoot.allowFloatingOutsideHost(true);
         DockPane floatingPane = new DockPane("floating", "Floating", testDockContent("Floating body"));
         Counter floatingDrag = new Counter();
         floatingRoot.onDragEnded(event -> {
@@ -3729,6 +3900,57 @@ public final class BasicControlsSelfTest {
         expect(autoOverlayCombo.attachedOverlayLayer() == rootOverlay,
                 "Overlay ComboBox should attach its Popup to the topmost OverlayLayer automatically");
 
+        VBox customPanel = new VBox();
+        customPanel.addChild(new Label("Custom content"));
+        DropDownBox inlineDropDown = new DropDownBox()
+                .headerText("Tools")
+                .content(customPanel)
+                .dropDownMode(ComboBox.DropDownMode.INLINE);
+        inlineDropDown.measure(new LayoutContext(180.0f, 120.0f));
+        inlineDropDown.arrange(new MutableRect(0.0f, 0.0f, 180.0f, inlineDropDown.desiredSize().height()));
+        DrawList closedDropDownDrawList = new DrawList();
+        inlineDropDown.render(new DefaultRenderContext(closedDropDownDrawList));
+        expect(inlineDropDown.content() == customPanel
+                        && hasText(closedDropDownDrawList, "Tools ?")
+                        && !hasText(closedDropDownDrawList, "Custom content"),
+                "Closed DropDownBox should render only its header and keep arbitrary content hidden");
+
+        inlineDropDown.open();
+        inlineDropDown.measure(new LayoutContext(180.0f, 120.0f));
+        inlineDropDown.arrange(new MutableRect(0.0f, 0.0f, 180.0f, inlineDropDown.desiredSize().height()));
+        DrawList openDropDownDrawList = new DrawList();
+        inlineDropDown.render(new DefaultRenderContext(openDropDownDrawList));
+        expect(inlineDropDown.opened()
+                        && inlineDropDown.contentHost().parent() == inlineDropDown
+                        && hasText(openDropDownDrawList, "Custom content"),
+                "Open inline DropDownBox should render arbitrary content in its own content host");
+
+        DropDownBox overlayDropDown = new DropDownBox()
+                .headerText("Filters")
+                .content(new Label("Overlay content"))
+                .dropDownSameWidth();
+        VBox dropDownPage = new VBox();
+        dropDownPage.addChild(overlayDropDown);
+        OverlayLayer dropDownOverlay = new OverlayLayer(dropDownPage);
+        dropDownOverlay.measure(new LayoutContext(160.0f, 120.0f));
+        dropDownOverlay.arrange(new MutableRect(0.0f, 0.0f, 160.0f, 120.0f));
+        float dropDownClosedHeight = overlayDropDown.desiredSize().height();
+        overlayDropDown.open();
+        dropDownOverlay.measure(new LayoutContext(160.0f, 120.0f));
+        dropDownOverlay.arrange(new MutableRect(0.0f, 0.0f, 160.0f, 120.0f));
+        DrawList overlayDropDownDrawList = new DrawList();
+        dropDownOverlay.render(new DefaultRenderContext(overlayDropDownDrawList));
+        expect(overlayDropDown.dropDownMode() == ComboBox.DropDownMode.OVERLAY
+                        && overlayDropDown.attachedOverlayLayer() == dropDownOverlay
+                        && overlayDropDown.dropDownPopup().opened()
+                        && overlayDropDown.contentHost().parent() != overlayDropDown
+                        && near(overlayDropDown.desiredSize().height(), dropDownClosedHeight)
+                        && hasText(overlayDropDownDrawList, "Overlay content"),
+                "Overlay DropDownBox should host arbitrary content through Popup/OverlayLayer without expanding layout");
+        overlayDropDown.dropDownPopup().close();
+        expect(!overlayDropDown.opened(),
+                "DropDownBox should sync opened state when its overlay Popup is closed externally");
+
         expect(Widgets.comboBox() instanceof ComboBox
                         && Widgets.dropDownBox() instanceof DropDownBox,
                 "Widgets factory should expose ComboBox and DropDownBox");
@@ -3771,8 +3993,97 @@ public final class BasicControlsSelfTest {
         tabs.render(new DefaultRenderContext(removedDrawList));
         expect(tabs.tabCount() == 1 && tabs.selectedIndex() == 0 && hasText(removedDrawList, "First page"),
                 "TabControl should keep a valid selection after removing the selected tab");
+        tabs.addTab("Three", new Label("Third page"));
+        DefaultUIContext tabUiContext = new DefaultUIContext();
+        tabs.setUiContextInternal(tabUiContext);
+        tabUiContext.focusManager().requestFocus(tabs);
+        tabUiContext.routedEvents().dispatch(new KeyPressedEvent(tabs, KeyCodes.RIGHT, 0, 0));
+        DrawList rightKeyDrawList = new DrawList();
+        tabs.render(new DefaultRenderContext(rightKeyDrawList));
+        expect(tabs.selectedIndex() == 1 && hasText(rightKeyDrawList, "Third page"),
+                "Focused TabControl Right key should select the next tab");
+        tabUiContext.routedEvents().dispatch(new KeyPressedEvent(tabs, KeyCodes.LEFT, 0, 0));
+        expect(tabs.selectedIndex() == 0,
+                "Focused TabControl Left key should select the previous tab");
         expect(Widgets.tabControl() instanceof TabControl,
                 "Widgets factory should expose TabControl");
+    }
+
+    private void testPageViewAndCarouselContracts() {
+        Label first = new Label("First standalone page");
+        Label second = new Label("Second standalone page");
+        Label third = new Label("Third standalone page");
+        PageView pages = new PageView()
+                .addPage(first)
+                .addPage(second)
+                .addPage(third);
+        pages.measure(new LayoutContext(220.0f, 100.0f));
+        pages.arrange(new MutableRect(0.0f, 0.0f, 220.0f, 80.0f));
+        DrawList initialDrawList = new DrawList();
+        pages.render(new DefaultRenderContext(initialDrawList));
+        expect(pages.pageCount() == 3
+                        && pages.selectedIndex() == 0
+                        && pages.selectedPage() == first
+                        && first.parent() == pages
+                        && second.parent() == pages
+                        && third.parent() == pages
+                        && second.visibility() == Visibility.COLLAPSED
+                        && hasText(initialDrawList, "First standalone page")
+                        && !hasText(initialDrawList, "Second standalone page")
+                        && !hasText(initialDrawList, "<")
+                        && !hasText(initialDrawList, "1 / 3"),
+                "PageView should own retained pages without carousel controls or indicator chrome");
+
+        Counter pageChanges = new Counter();
+        pages.onSelectionChanged(event -> {
+            pageChanges.count++;
+            pageChanges.lastSelection = event.newSelection();
+        });
+        pages.selectedIndex(1);
+        DrawList selectedDrawList = new DrawList();
+        pages.render(new DefaultRenderContext(selectedDrawList));
+        expect(pages.selectedIndex() == 1
+                        && pageChanges.count == 1
+                        && pageChanges.lastSelection.equals(java.util.List.of(1))
+                        && hasText(selectedDrawList, "Second standalone page")
+                        && !hasText(selectedDrawList, "First standalone page"),
+                "PageView selectedIndex should switch the visible page and emit selection events");
+
+        pages.selectRelative(10);
+        expect(pages.selectedIndex() == 2, "PageView selectRelative should clamp instead of cycling");
+        pages.removePage(third);
+        expect(pages.pageCount() == 2
+                        && pages.selectedIndex() == 1
+                        && pages.selectedPage() == second,
+                "PageView should keep selection valid after removing the selected page");
+
+        Carousel carousel = new Carousel()
+                .addPage(new Label("Carousel page one"))
+                .addPage(new Label("Carousel page two"))
+                .addPage(new Label("Carousel page three"));
+        carousel.measure(new LayoutContext(220.0f, 120.0f));
+        carousel.arrange(new MutableRect(0.0f, 0.0f, 220.0f, 100.0f));
+        DrawList carouselDrawList = new DrawList();
+        carousel.render(new DefaultRenderContext(carouselDrawList));
+        expect(carousel.pageView() instanceof PageView
+                        && carousel.header().parent() == carousel
+                        && carousel.pageView().parent() == carousel
+                        && hasText(carouselDrawList, "<")
+                        && hasText(carouselDrawList, ">")
+                        && hasText(carouselDrawList, "1 / 3"),
+                "Carousel should compose PageView with previous/next controls and indicator chrome");
+        carousel.selectRelative(-1);
+        DrawList cycledDrawList = new DrawList();
+        carousel.render(new DefaultRenderContext(cycledDrawList));
+        expect(carousel.selectedIndex() == 2
+                        && carousel.pageView().selectedPage() == carousel.pages().get(2)
+                        && hasText(cycledDrawList, "3 / 3")
+                        && hasText(cycledDrawList, "Carousel page three"),
+                "Carousel selectRelative should stay cyclic on top of the PageView selection model");
+
+        expect(Widgets.pageView() instanceof PageView
+                        && Widgets.carousel() instanceof Carousel,
+                "Widgets factory should expose PageView and Carousel separately");
     }
 
     private void testExpandablePanelAndAccordionContracts() {
@@ -4131,6 +4442,34 @@ public final class BasicControlsSelfTest {
         uiContext.routedEvents().dispatch(new PointerReleasedEvent(checkbox, 6.0f, 8.0f, 6.0f, 8.0f, 0, PointerButton.PRIMARY));
         expect(checkbox.checked(), "Checkbox should reuse ToggleButton checked behavior");
 
+        Checkbox triStateCheckbox = new Checkbox("Partial").triState(true);
+        triStateCheckbox.setUiContextInternal(uiContext);
+        triStateCheckbox.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 20.0f));
+        Counter checkboxStateChanges = new Counter();
+        java.util.concurrent.atomic.AtomicReference<CheckboxState> lastCheckboxState =
+                new java.util.concurrent.atomic.AtomicReference<>(CheckboxState.UNCHECKED);
+        triStateCheckbox.onStateChanged(event -> {
+            checkboxStateChanges.count++;
+            lastCheckboxState.set(event.newState());
+        });
+        triStateCheckbox.click();
+        expect(triStateCheckbox.state() == CheckboxState.CHECKED && triStateCheckbox.checked(),
+                "Tri-state Checkbox first click should move unchecked -> checked");
+        triStateCheckbox.click();
+        expect(triStateCheckbox.state() == CheckboxState.INDETERMINATE
+                        && triStateCheckbox.indeterminate()
+                        && !triStateCheckbox.checked(),
+                "Tri-state Checkbox second click should move checked -> indeterminate");
+        DrawList indeterminateDrawList = new DrawList();
+        triStateCheckbox.render(new DefaultRenderContext(indeterminateDrawList));
+        expect(countCommands(indeterminateDrawList, DrawCommandType.RECT) >= 1,
+                "Indeterminate Checkbox should render a dash through checkbox renderer state");
+        triStateCheckbox.click();
+        expect(triStateCheckbox.state() == CheckboxState.UNCHECKED
+                        && checkboxStateChanges.count == 3
+                        && lastCheckboxState.get() == CheckboxState.UNCHECKED,
+                "Tri-state Checkbox third click should move indeterminate -> unchecked and emit state events");
+
         RadioButton compact = new RadioButton("Compact", "compact");
         RadioButton detailed = new RadioButton("Detailed", "detailed");
         RadioGroup radioGroup = new RadioGroup()
@@ -4179,6 +4518,16 @@ public final class BasicControlsSelfTest {
         DrawList progressDrawList = new DrawList();
         progressBar.render(new DefaultRenderContext(progressDrawList));
         expect(progressDrawList.size() >= 2, "ProgressBar should render track and fill commands");
+
+        ProgressBar indeterminateProgress = new ProgressBar().indeterminate(true);
+        indeterminateProgress.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 12.0f));
+        indeterminateProgress.tick(new FrameContext(1L, 0.5f, 0.0f, FramePhase.ANIMATION));
+        DrawList indeterminateProgressDrawList = new DrawList();
+        indeterminateProgress.render(new DefaultRenderContext(indeterminateProgressDrawList));
+        expect(indeterminateProgress.indeterminate()
+                        && indeterminateProgress.indeterminateOffset() > 0.0f
+                        && indeterminateProgressDrawList.size() >= 2,
+                "Indeterminate ProgressBar should animate and render a moving fill segment");
 
         ProgressBar lowProgressBar = new ProgressBar().range(0.0f, 100.0f);
         lowProgressBar.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 12.0f));

@@ -36,6 +36,7 @@ import dev.sixik.unigui.widgets.DockSide;
 import dev.sixik.unigui.widgets.DropDownBox;
 import dev.sixik.unigui.widgets.GridBox;
 import dev.sixik.unigui.widgets.HBox;
+import dev.sixik.unigui.widgets.Label;
 import dev.sixik.unigui.widgets.NodeGraph;
 import dev.sixik.unigui.widgets.NodeGraphItem;
 import dev.sixik.unigui.widgets.Orientation;
@@ -102,11 +103,11 @@ public final class LayoutV3SelfTest {
         testPopupV2BaselineAnchorsAndFlipsInsideHost();
         testPopupOverlayV3OptInMatchesV2Placement();
         testComboBoxOverlayV2BaselineDoesNotExpandNormalLayout();
-        testDropDownBoxOverlayV2BaselineMatchesComboBoxAlias();
+        testDropDownBoxOverlayV2BaselineUsesContentHost();
         testComboBoxOverlayV3InsideScrollParentUsesRootOverlayResolver();
         testComboBoxOverlayV3RenderPathEscapesScrollViewClip();
         testComboBoxOverlayV3NestedInScrollV3ContentUsesRootPortal();
-        testDropDownBoxOverlayV3OptInMatchesComboBoxAlias();
+        testDropDownBoxOverlayV3OptInUsesContentHost();
         testScrollViewV2BaselineOverflowScrollbarsAndClamp();
         testScrollViewV2BaselineRenderClip();
         testScrollViewV3OptInMatchesV2OverflowAndClamp();
@@ -1020,12 +1021,12 @@ public final class LayoutV3SelfTest {
                 "ComboBox overlay V2 baseline should open a positioned popup in the overlay layer");
     }
 
-    private void testDropDownBoxOverlayV2BaselineMatchesComboBoxAlias() {
+    private void testDropDownBoxOverlayV2BaselineUsesContentHost() {
         OverlayLayer layer = new OverlayLayer();
         VBox page = new VBox();
         DropDownBox dropDown = new DropDownBox();
-        dropDown.items(java.util.List.of("A", "B", "C"))
-                .silentSelectedIndex(0)
+        dropDown.headerText("Menu")
+                .content(new Label("Content"))
                 .useOverlay(layer);
         dropDown.layout(style -> style.size(90.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
         Box after = new Box();
@@ -1050,10 +1051,10 @@ public final class LayoutV3SelfTest {
         expect(dropDown.dropDownMode() == ComboBox.DropDownMode.OVERLAY
                         && near(dropDown.desiredSize().height(), closedHeight)
                         && near(after.layoutBounds().y(), afterClosedY),
-                "DropDownBox V2 baseline should keep ComboBox overlay alias layout-independent");
+                "DropDownBox V2 baseline should keep overlay content layout-independent");
         expect(dropDown.dropDownPopup().opened()
                         && dropDown.dropDownPopup().layoutBounds().height() > 0.0f,
-                "DropDownBox V2 baseline should open a positioned popup through OverlayLayer");
+                "DropDownBox V2 baseline should open arbitrary content through OverlayLayer");
     }
 
     private void testComboBoxOverlayV3InsideScrollParentUsesRootOverlayResolver() {
@@ -1237,12 +1238,12 @@ public final class LayoutV3SelfTest {
         }
     }
 
-    private void testDropDownBoxOverlayV3OptInMatchesComboBoxAlias() {
+    private void testDropDownBoxOverlayV3OptInUsesContentHost() {
         OverlayLayer layer = new OverlayLayer();
         VBox page = new VBox();
         DropDownBox dropDown = new DropDownBox();
-        dropDown.items(java.util.List.of("Alpha", "Beta", "Gamma"))
-                .silentSelectedIndex(0)
+        dropDown.headerText("Menu")
+                .content(new Label("Overlay content"))
                 .useOverlay(layer);
         dropDown.layout(style -> style.size(90.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
         Box after = new Box();
@@ -1269,7 +1270,7 @@ public final class LayoutV3SelfTest {
         expect(dropDown.attachedOverlayLayer() == layer
                         && dropDown.dropDownPopup().opened()
                         && near(after.layoutBounds().y(), afterClosedY),
-                "DropDownBox V3 overlay opt-in should preserve ComboBox alias overlay behavior");
+                "DropDownBox V3 overlay opt-in should preserve overlay content behavior");
     }
 
     private void testScrollViewV2BaselineOverflowScrollbarsAndClamp() {

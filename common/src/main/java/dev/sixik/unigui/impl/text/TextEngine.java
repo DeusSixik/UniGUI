@@ -51,7 +51,7 @@ public final class TextEngine {
         float maximum = 0.0f;
         float current = 0.0f;
         for (TextRun run : text.runs()) {
-            FontFace face = resolvedFace(run);
+            FontFace face = run.font();
             String value = run.text();
             for (int index = 0; index < value.length(); ) {
                 int codePoint = value.codePointAt(index);
@@ -60,7 +60,9 @@ public final class TextEngine {
                     maximum = Math.max(maximum, current);
                     current = 0.0f;
                 } else {
-                    current += Math.max(0.0f, face.advance(codePoint, run.pixelSize()));
+                    current += face == null
+                            ? fallbackAdvance(run.pixelSize())
+                            : Math.max(0.0f, face.advance(codePoint, run.pixelSize()));
                 }
             }
         }
@@ -72,15 +74,17 @@ public final class TextEngine {
         float total = 0.0f;
         float lineHeight = 0.0f;
         for (TextRun run : text.runs()) {
-            FontMetrics metrics = resolvedFace(run).metrics(run.pixelSize());
-            lineHeight = Math.max(lineHeight, metrics.lineHeight());
+            float runLineHeight = run.font() == null
+                    ? fallbackLineHeight(run.pixelSize())
+                    : run.font().metrics(run.pixelSize()).lineHeight();
+            lineHeight = Math.max(lineHeight, runLineHeight);
             String value = run.text();
             for (int index = 0; index < value.length(); ) {
                 int codePoint = value.codePointAt(index);
                 index += Character.charCount(codePoint);
                 if (codePoint == '\n') {
                     total += positiveLineHeight(lineHeight);
-                    lineHeight = metrics.lineHeight();
+                    lineHeight = runLineHeight;
                 }
             }
         }
@@ -101,7 +105,7 @@ public final class TextEngine {
 
         String plain = text.plainText();
         FontFace defaultFace = context == null || context.backend() == null
-                ? Fonts.defaultFace()
+                ? null
                 : context.backend().defaultTextFace();
         int paragraphStart = 0;
         while (paragraphStart <= plain.length()) {
@@ -262,8 +266,18 @@ public final class TextEngine {
         return index;
     }
 
-    private static FontFace resolvedFace(TextRun run) {
-        return run.font() == null ? Fonts.defaultFace() : run.font();
+    private static float fallbackAdvance(float pixelSize) {
+        return APPROX_CHAR_WIDTH * fallbackScale(pixelSize);
+    }
+
+    private static float fallbackLineHeight(float pixelSize) {
+        return LINE_HEIGHT * fallbackScale(pixelSize);
+    }
+
+    private static float fallbackScale(float pixelSize) {
+        return Float.isFinite(pixelSize) && pixelSize > 0.0f
+                ? pixelSize / TextRun.DEFAULT_PIXEL_SIZE
+                : 1.0f;
     }
 
     private static float positiveLineHeight(float value) {
@@ -291,7 +305,9 @@ public final class TextEngine {
             seek(charIndex);
             if (run == null || codePoint == 10 || codePoint == 13) return 0.0f;
             FontFace face = run.font() == null ? defaultFace : run.font();
-            return Math.max(0.0f, face.advance(codePoint, run.pixelSize()));
+            return face == null
+                    ? fallbackAdvance(run.pixelSize())
+                    : Math.max(0.0f, face.advance(codePoint, run.pixelSize()));
         }
 
         private void seek(int charIndex) {

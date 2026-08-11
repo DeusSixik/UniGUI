@@ -1,6 +1,7 @@
 package dev.sixik.unigui.widgets;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
@@ -16,6 +17,9 @@ public class ProgressBar extends Box {
     private float min;
     private float max = 1.0f;
     private float value;
+    private boolean indeterminate;
+    private float indeterminateOffset;
+    private float indeterminateSpeed = 0.85f;
 
     public ProgressBar() {
         backgroundVisible(false);
@@ -54,6 +58,33 @@ public class ProgressBar extends Box {
         return range == 0.0f ? 0.0f : clamp((value - min) / range, 0.0f, 1.0f);
     }
 
+    public boolean indeterminate() {
+        return indeterminate;
+    }
+
+    public ProgressBar indeterminate(boolean indeterminate) {
+        if (this.indeterminate == indeterminate) return this;
+        this.indeterminate = indeterminate;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public float indeterminateOffset() {
+        return indeterminateOffset;
+    }
+
+    public float indeterminateSpeed() {
+        return indeterminateSpeed;
+    }
+
+    public ProgressBar indeterminateSpeed(float indeterminateSpeed) {
+        float normalized = Float.isFinite(indeterminateSpeed) ? Math.max(0.0f, indeterminateSpeed) : 0.85f;
+        if (this.indeterminateSpeed == normalized) return this;
+        this.indeterminateSpeed = normalized;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
     public MutableColor trackColor() {
         return trackColor;
     }
@@ -90,6 +121,15 @@ public class ProgressBar extends Box {
         super.renderContent(context);
     }
 
+    @Override
+    public void tick(FrameContext frame) {
+        super.tick(frame);
+        if (!indeterminate || frame == null) return;
+        float delta = Float.isFinite(frame.deltaSeconds()) ? Math.max(0.0f, frame.deltaSeconds()) : 0.0f;
+        indeterminateOffset = wrap01(indeterminateOffset + delta * indeterminateSpeed);
+        invalidate(InvalidationFlags.VISUAL);
+    }
+
     private ProgressBarRenderer effectiveRenderer() {
         return renderer == null ? WidgetsRender.progressBar() : renderer;
     }
@@ -104,11 +144,18 @@ public class ProgressBar extends Box {
                 max,
                 value,
                 progress(),
+                indeterminate,
+                indeterminateOffset,
                 trackColor.copy(),
                 fillColor.copy());
     }
 
     private static float clamp(float value, float min, float max) {
         return Math.max(min, Math.min(max, value));
+    }
+
+    private static float wrap01(float value) {
+        if (!Float.isFinite(value)) return 0.0f;
+        return value - (float) Math.floor(value);
     }
 }

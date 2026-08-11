@@ -71,9 +71,10 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     private static final float CONNECTION_HIT_RADIUS = 6.0f;
     private static final float RESIZE_HANDLE_SIZE = 10.0f;
     private static final float MIN_RESIZE_SIZE = 12.0f;
-    private static final float DEFAULT_ITEM_CONTENT_PADDING = 2.0f;
+    private static final float DEFAULT_ITEM_CONTENT_PADDING = 0.0f;
 
     private final List<NodeGraphItem> items = new ArrayList<>();
+    private final List<NodeGraphItem> logicalItems = new ArrayList<>();
     private final List<NodeGraphConnection> connections = new ArrayList<>();
     private final MutableColor backgroundColor = new MutableColor(0.055f, 0.065f, 0.082f, 1.0f);
     private final MutableColor gridColor = new MutableColor(0.20f, 0.25f, 0.33f, 0.45f);
@@ -108,6 +109,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     private boolean keyboardEditingEnabled = true;
     private boolean consumeWheelWhileHovered = true;
     private boolean wheelPanningEnabled = true;
+    private boolean contentLayoutScaledByZoom;
     private float wheelPanStep = 32.0f;
     private float itemContentPadding = DEFAULT_ITEM_CONTENT_PADDING;
     private float minZoom = 0.25f;
@@ -153,6 +155,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
             throw new IllegalArgumentException("NodeGraphItem already belongs to another NodeGraph");
         }
         items.add(item);
+        logicalItems.add(item);
         attach(item);
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
@@ -160,6 +163,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
 
     public NodeGraph removeItem(NodeGraphItem item) {
         if (item == null || !items.remove(item)) return this;
+        logicalItems.remove(item);
         removeConnectionsForItem(item.id());
         String removedId = item.id();
         detach(item);
@@ -179,6 +183,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
             item.content().dispose();
         }
         items.clear();
+        logicalItems.clear();
         for (NodeGraphConnection connection : List.copyOf(connections)) {
             detach(connection);
         }
@@ -427,14 +432,15 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         if (item == null) return null;
         float itemX = worldToRootX(item.x());
         float itemY = worldToRootY(item.y());
+        float panAdjustment = viewportY / zoom;
         return new HitTestPoint(
-                itemX + (x - itemX) / zoom,
-                itemY + (y - itemY) / zoom);
+                itemX + (x - itemX) / zoom + panAdjustment,
+                itemY + (y - itemY) / zoom + panAdjustment);
     }
 
     @Override
     public RectView renderedBoundsForChild(Widget child, RectView bounds) {
-        if (!scaleContentWithZoom || zoom == 1.0f || child == null || bounds == null) return null;
+        if (!scaleContentWithZoom || contentLayoutScaledByZoom || zoom == 1.0f || child == null || bounds == null) return null;
         NodeGraphItem item = itemForContent(child);
         if (item == null) return null;
         float itemX = worldToRootX(item.x());
@@ -578,6 +584,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         viewportX = nextX;
         viewportY = nextY;
         this.zoom = nextZoom;
+        contentLayoutScaledByZoom = false;
         arrangeItems();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         dispatch(new NodeGraphViewportChangedEvent(this, oldX, oldY, oldZoom, viewportX, viewportY, this.zoom));
@@ -641,6 +648,9 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     public NodeGraph scaleContentWithZoom(boolean scaleContentWithZoom) {
         if (this.scaleContentWithZoom == scaleContentWithZoom) return this;
         this.scaleContentWithZoom = scaleContentWithZoom;
+        if (!scaleContentWithZoom) {
+            contentLayoutScaledByZoom = false;
+        }
         arrangeItems();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
@@ -758,7 +768,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
 
     public List<String> selectedItemIds() {
         List<String> selected = new ArrayList<>();
-        for (NodeGraphItem item : items) {
+        for (NodeGraphItem item : logicalItems) {
             if (item.selected()) {
                 selected.add(item.id());
             }
@@ -946,7 +956,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
             for (NodeGraphItem item : List.copyOf(items)) {
                 Widget content = item.content();
                 if (!item.visible() || content.visibility() != Visibility.VISIBLE) continue;
-                if (scaleContentWithZoom && zoom != 1.0f) {
+                if (scaleContentWithZoom && !contentLayoutScaledByZoom && zoom != 1.0f) {
                     final float sx = worldToRootX(item.x());
                     final float sy = worldToRootY(item.y());
                     final float z = zoom;
@@ -1100,16 +1110,17 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
                     : Math.max(MIN_ITEM_SIZE, item.autoHeight() ? StackPanel.preferredHeight(content, 0.0f) + itemContentPadding * 2.0f : item.height());
             item.arrangedSize(width, height);
             float contentPadding = Math.min(itemContentPadding, Math.max(0.0f, Math.min(width, height) * 0.5f));
-            float contentWidth = Math.max(0.0f, width - contentPadding * 2.0f);
-            float contentHeight = Math.max(0.0f, height - contentPadding * 2.0f);
+            float contentScale = contentLayoutScaledByZoom ? nodeContentScale() : 1.0f;
+            float screenPadding = contentPadding * contentScale;
+            float contentWidth = Math.max(0.0f,
+                    (contentLayoutScaledByZoom ? itemScreenWidth(item) : width) - screenPadding * 2.0f);
+            float contentHeight = Math.max(0.0f,
+                    (contentLayoutScaledByZoom ? itemScreenHeight(item) : height) - screenPadding * 2.0f);
 
             if (scaleContentWithZoom) {
-                // Arrange in world-space size so the widget's internal layout
-                // uses native (unscaled) units. The zoom is composed into the
-                // draw commands after content.render().
                 StackPanel.arrangeChild(content,
-                        worldToRootX(item.x()) + contentPadding,
-                        worldToRootY(item.y()) + contentPadding,
+                        worldToRootX(item.x()) + screenPadding,
+                        worldToRootY(item.y()) + screenPadding,
                         contentWidth,
                         contentHeight);
             } else {
@@ -1155,6 +1166,9 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         }
 
         NodeGraphItem item = hitItem(pointer.rootX(), pointer.rootY());
+        if (item == null) {
+            item = itemForContent(pointer.target());
+        }
         if (item == null) {
             clearSelection();
             clearConnectionSelection();
@@ -1464,6 +1478,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         zoom = nextZoom;
         viewportX = rootX - layoutBounds().x() - worldX * zoom;
         viewportY = rootY - layoutBounds().y() - worldY * zoom;
+        contentLayoutScaledByZoom = scaleContentWithZoom;
         arrangeItems();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         dispatch(new NodeGraphViewportChangedEvent(this, oldX, oldY, oldZoom, viewportX, viewportY, zoom));
@@ -1477,7 +1492,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
             emitSelectionChanged(oldSelection);
             return;
         }
-        for (NodeGraphItem item : items) {
+        for (NodeGraphItem item : logicalItems) {
             if (!item.selectable() || !item.visible()) continue;
             item.selectedInternal(true);
             if (selectionMode == NodeGraphSelectionMode.SINGLE) break;
@@ -1487,7 +1502,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     }
 
     private void removeSelectedItems() {
-        for (NodeGraphItem item : List.copyOf(items)) {
+        for (NodeGraphItem item : List.copyOf(logicalItems)) {
             if (item.selected()) {
                 removeItem(item);
             }
@@ -1630,7 +1645,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
 
     private void keepOnlyFirstSelection() {
         boolean kept = false;
-        for (NodeGraphItem item : items) {
+        for (NodeGraphItem item : logicalItems) {
             if (!item.selected()) continue;
             if (!kept && item.selectable()) {
                 kept = true;

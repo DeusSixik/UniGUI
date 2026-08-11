@@ -14,13 +14,13 @@ import dev.sixik.unigui.api.text.Fonts;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.backend.minecraft.MinecraftBlockPreviewWidget;
+import dev.sixik.unigui.widgets.minecraft.MinecraftBlockPreviewWidget;
 import dev.sixik.unigui.backend.minecraft.MinecraftClipboardService;
-import dev.sixik.unigui.backend.minecraft.MinecraftEntityPreviewWidget;
+import dev.sixik.unigui.widgets.minecraft.MinecraftEntityPreviewWidget;
 import dev.sixik.unigui.backend.minecraft.MinecraftFonts;
-import dev.sixik.unigui.backend.minecraft.MinecraftItemPickerWidget;
-import dev.sixik.unigui.backend.minecraft.MinecraftItemPreviewWidget;
-import dev.sixik.unigui.backend.minecraft.MinecraftTexturePickerWidget;
+import dev.sixik.unigui.widgets.minecraft.MinecraftItemPickerWidget;
+import dev.sixik.unigui.widgets.minecraft.MinecraftItemPreviewWidget;
+import dev.sixik.unigui.widgets.minecraft.MinecraftTexturePickerWidget;
 import dev.sixik.unigui.backend.minecraft.MinecraftWidgetScreen;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.widgets.*;
@@ -229,9 +229,13 @@ public final class UniGuiDemo {
         combo.dropDownSameWidth();
         combo.layout(style -> style.size(142.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
         combo.onSelectionChanged(event -> status.text("Combo: " + combo.selectedItem()));
-        DropDownBox drop = new DropDownBox();
-        drop.items(List.of("DropDownBox", "Alias of ComboBox", "Overlay-backed"));
-        drop.silentSelectedIndex(0);
+        VBox dropContent = new VBox();
+        dropContent.spacing(2.0f);
+        dropContent.addChild(new Label("Arbitrary popup content"));
+        dropContent.addChild(new Button("Action"));
+        DropDownBox drop = new DropDownBox()
+                .headerText("DropDownBox")
+                .content(dropContent);
         drop.dropDownSameWidth();
         drop.layout(style -> style.size(130.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
         RadioButton compact = new RadioButton("Compact", "compact");
@@ -392,7 +396,7 @@ public final class UniGuiDemo {
         Carousel carousel = new Carousel()
                 .addPage(samplePane("Page 1", "Carousel keeps one page visible."))
                 .addPage(samplePane("Page 2", "Use arrows to switch pages."))
-                .addPage(samplePane("Page 3", "PageView follows the same retained-content idea."));
+                .addPage(samplePane("Page 3", "PageView owns retained pages without carousel chrome."));
         carousel.layout(style -> style.size(LayoutConstraints.AUTO, 116.0f).flexGrow(0).flexShrink(0.0f));
         View view = new View("View").addContent(paragraph("Titled content surface for feature modules."));
         view.layout(style -> style.size(LayoutConstraints.AUTO, 72.0f).flexGrow(0).flexShrink(0.0f));

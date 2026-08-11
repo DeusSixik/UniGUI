@@ -1,4 +1,4 @@
-package dev.sixik.unigui.backend.minecraft;
+package dev.sixik.unigui.widgets.minecraft;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
@@ -8,11 +8,11 @@ import dev.sixik.unigui.api.event.PointerEnteredEvent;
 import dev.sixik.unigui.api.event.SelectionChangedEvent;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.EdgeInsets;
-import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextRun;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.backend.minecraft.MinecraftFonts;
 import dev.sixik.unigui.widgets.Button;
 import dev.sixik.unigui.widgets.HBox;
 import dev.sixik.unigui.widgets.Label;
@@ -303,6 +303,7 @@ public class MinecraftItemPickerWidget extends LinearBox {
     private void buildDialog() {
         dialogOverlay.content(dialogPanel);
         dialogOverlay.addOverlay(new MinecraftZLayer(idTooltip, TOOLTIP_Z));
+        dialogOverlay.layout(style -> style.widthPercent(100.0f).heightPercent(100.0f).flexGrow(1.0f).flexShrink(1.0f));
 
         dialog.padding(EdgeInsets.all(6.0f));
         dialog.position(24.0f, 24.0f);
@@ -311,7 +312,7 @@ public class MinecraftItemPickerWidget extends LinearBox {
         dialog.layout(style -> style.size(DIALOG_WIDTH, DIALOG_HEIGHT).flexGrow(0).flexShrink(0.0f));
 
         dialogPanel.spacing(6.0f);
-        dialogPanel.layout(style -> style.flexGrow(1.0f).flexShrink(1.0f));
+        dialogPanel.layout(style -> style.widthPercent(100.0f).heightPercent(100.0f).flexGrow(1.0f).flexShrink(1.0f));
 
         searchField.placeholder("Search item...");
         searchField.layout(style -> style.widthPercent(100.0f).height(22.0f).flexShrink(0.0f));
@@ -329,6 +330,9 @@ public class MinecraftItemPickerWidget extends LinearBox {
         dialogPanel.addChild(searchField);
         dialogPanel.addChild(resultGrid);
         dialogPanel.addChild(emptyLabel);
+        dialogPanel.applyQueuedMutations();
+        dialogOverlay.applyQueuedMutations();
+        dialog.applyQueuedMutations();
     }
 
     private void applyFilter() {

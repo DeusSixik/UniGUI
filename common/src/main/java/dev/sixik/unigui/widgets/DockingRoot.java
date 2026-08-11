@@ -56,6 +56,7 @@ import java.util.Set;
 public final class DockingRoot extends Box {
     private static final float DEFAULT_WIDTH = 320.0f;
     private static final float DEFAULT_HEIGHT = 200.0f;
+    private static final float DEFAULT_TOOL_PANE_FRACTION = 0.28f;
     private static final float MIN_TAB_WIDTH = 56.0f;
     private static final float MAX_TAB_WIDTH = 132.0f;
     private static final float OVERFLOW_BUTTON_WIDTH = 24.0f;
@@ -91,6 +92,7 @@ public final class DockingRoot extends Box {
     private DockDropIntent floatingDropPreviewIntent = DockDropIntent.none();
     private float tabHeight = 22.0f;
     private float splitHandleThickness = 5.0f;
+    private boolean hasArrangedBounds;
     private boolean allowFloatingOutsideHost;
     private boolean floatingWindowsRedockLocked;
 
@@ -208,9 +210,15 @@ public final class DockingRoot extends Box {
         } else if (dockArea == DockArea.CENTER || dockArea == DockArea.TAB) {
             manager.tabPane(target.id(), pane);
         } else {
-            manager.splitPane(target.id(), dockArea, pane);
+            manager.splitPane(target.id(), dockArea, pane, toolPaneSplitRatio(dockArea));
         }
         return this;
+    }
+
+    private static float toolPaneSplitRatio(DockArea area) {
+        return area != null && area.insertsBeforeTarget()
+                ? DEFAULT_TOOL_PANE_FRACTION
+                : 1.0f - DEFAULT_TOOL_PANE_FRACTION;
     }
 
     public boolean closeActivePane() {
@@ -343,6 +351,7 @@ public final class DockingRoot extends Box {
     @Override
     public void arrange(RectView bounds) {
         mutableLayoutBounds().set(bounds);
+        hasArrangedBounds = bounds != null && bounds.width() > 0.0f && bounds.height() > 0.0f;
         if (visibility() == Visibility.COLLAPSED) return;
         syncPaneChildren();
         applyQueuedMutations();
@@ -579,7 +588,9 @@ public final class DockingRoot extends Box {
                 && !openOverflowNodeId.isEmpty()) {
             OverflowMenuItem menuItem = overflowMenuItemAt(pointer.rootX(), pointer.rootY());
             if (menuItem != null) {
+                int tabScrollOffset = normalizedTabScrollOffset(menuItem.node(), layoutBounds());
                 manager.selectPane(menuItem.pane().id());
+                tabScrollOffsets.put(menuItem.node().id(), tabScrollOffset);
                 closeOverflowMenu();
                 event.cancel();
                 return true;
@@ -663,13 +674,19 @@ public final class DockingRoot extends Box {
     }
 
     void onDockLayoutChanged(String operation, String paneId, String targetPaneId) {
-        if (!"select".equals(operation) && !"select_next".equals(operation) && !"select_previous".equals(operation)) {
+        if (hasArrangedBounds || isSelectionOperation(operation)) {
             revealPane(paneId);
         }
         syncPaneChildren();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         DockLayoutChangedEvent event = new DockLayoutChangedEvent(this, operation, paneId, targetPaneId);
         dispatchDockEvent(event);
+    }
+
+    private static boolean isSelectionOperation(String operation) {
+        return "select".equals(operation)
+                || "select_next".equals(operation)
+                || "select_previous".equals(operation);
     }
 
     void onDockLayoutRestored(DockLayoutSnapshot snapshot, int restoredPaneCount, int missingPaneCount) {
@@ -700,10 +717,10 @@ public final class DockingRoot extends Box {
         RectView rootBounds = layoutBounds();
         if (!contains(rootBounds, rootX, rootY)) {
             RectView hostBounds = floatingHostBounds();
-            if (!allowFloatingOutsideHost && !contains(hostBounds, rootX, rootY)) {
-                return DockDropIntent.none();
+            if (allowFloatingOutsideHost || contains(hostBounds, rootX, rootY)) {
+                return DockDropIntent.floating(sourcePaneId, rootX, rootY);
             }
-            return DockDropIntent.floating(sourcePaneId, rootX, rootY);
+            return DockDropIntent.none();
         }
         LeafHit hit = leafAt(rootNode(), rootBounds, rootX, rootY);
         if (hit == null || hit.node().panes().isEmpty()) {

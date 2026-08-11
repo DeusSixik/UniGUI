@@ -4,7 +4,7 @@ import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.impl.text.TextEngine;
 
 public final class ButtonRenderers {
-    private static final float LEADING_LABEL_VISUAL_CENTER_OFFSET = 2.0f;
+    private static final float LEADING_LABEL_VISUAL_CENTER_OFFSET = 1.0f;
 
     public static final ButtonRenderer DEFAULT = (draw, state) -> {
         if (!state.hasText()) return;
@@ -32,7 +32,15 @@ public final class ButtonRenderers {
         draw.roundedRect(state.x(), indicatorY, state.indicatorSize(), state.indicatorSize(), 2.0f,
                 Paint.stroke(state.indicatorBorderColor(), 1.0f));
 
-        if (state.checked()) {
+        if (state.indeterminate()) {
+            float dashWidth = Math.max(1.0f, state.indicatorInnerSize());
+            float dashHeight = Math.max(1.0f, state.indicatorInnerSize() * 0.28f);
+            float offsetX = Math.max(0.0f, (state.indicatorSize() - dashWidth) * 0.5f);
+            float offsetY = Math.max(0.0f, (state.indicatorSize() - dashHeight) * 0.5f);
+            draw.rect(state.x() + offsetX, indicatorY + offsetY,
+                    dashWidth, dashHeight,
+                    Paint.fill(state.indicatorColor()));
+        } else if (state.checked()) {
             float offset = Math.max(0.0f, (state.indicatorSize() - state.indicatorInnerSize()) * 0.5f);
             draw.rect(state.x() + offset, indicatorY + offset,
                     state.indicatorInnerSize(), state.indicatorInnerSize(),

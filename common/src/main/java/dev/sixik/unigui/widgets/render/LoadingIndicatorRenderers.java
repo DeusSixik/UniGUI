@@ -23,7 +23,7 @@ public final class LoadingIndicatorRenderers {
         float centerY = state.centerY();
 
         for (int i = 0; i < state.segments(); i++) {
-            float angle = ((i / (float) state.segments()) + state.phase()) * TAU - (float) Math.PI * 0.5f;
+            float angle = ((i / (float) state.segments()) + state.phase() + 0.125f) * TAU - (float) Math.PI * 0.5f;
             float fade = (i + 1.0f) / state.segments();
             MutableColor color = colorWithAlpha(state.accentColor(), 0.18f + fade * 0.82f);
             draw.circle(

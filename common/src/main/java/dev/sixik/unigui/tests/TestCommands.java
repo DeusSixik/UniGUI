@@ -2,11 +2,8 @@ package dev.sixik.unigui.tests;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.brigadier.CommandDispatcher;
-import dev.sixik.unigui.api.animation.AnimationEasing;
-import dev.sixik.unigui.api.animation.TransitionSpec;
 import dev.sixik.unigui.api.debug.DebugFlags;
 import dev.sixik.unigui.api.debug.DebugOverlayAnchor;
-import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.layout.Align;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.Justify;
@@ -16,17 +13,15 @@ import dev.sixik.unigui.api.layout.SizeValue;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.UiRenderPolicy;
 import dev.sixik.unigui.api.selection.SelectionMode;
-import dev.sixik.unigui.api.sort.SortDirection;
 import dev.sixik.unigui.api.text.Fonts;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.widget.skin.WidgetsRenderImpl;
-import dev.sixik.unigui.backend.minecraft.MinecraftBlockPreviewWidget;
+import dev.sixik.unigui.widgets.minecraft.MinecraftBlockPreviewWidget;
 import dev.sixik.unigui.backend.minecraft.MinecraftClipboardService;
-import dev.sixik.unigui.backend.minecraft.MinecraftEntityPreviewWidget;
+import dev.sixik.unigui.widgets.minecraft.MinecraftEntityPreviewWidget;
 import dev.sixik.unigui.backend.minecraft.MinecraftFonts;
-import dev.sixik.unigui.backend.minecraft.MinecraftItemPreviewWidget;
+import dev.sixik.unigui.widgets.minecraft.MinecraftItemPreviewWidget;
 import dev.sixik.unigui.backend.minecraft.MinecraftWidgetScreen;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.impl.widget.WidgetBase;
@@ -1043,7 +1038,7 @@ public final class TestCommands {
         Carousel carousel = new Carousel()
                 .addPage(samplePane("Page 1", "Carousel keeps one retained page visible."))
                 .addPage(samplePane("Page 2", "Use arrows to switch pages."))
-                .addPage(samplePane("Page 3", "PageView is an alias-style wrapper."));
+                .addPage(samplePane("Page 3", "PageView is the chrome-free page container."));
         carousel.layout(style -> style.size(LayoutConstraints.AUTO, 116.0f).flexGrow(0).flexShrink(0.0f));
         page.addChild(section("Carousel / PageView", carousel));
 

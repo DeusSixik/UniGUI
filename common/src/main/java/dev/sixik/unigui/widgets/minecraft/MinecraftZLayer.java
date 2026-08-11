@@ -1,13 +1,13 @@
-package dev.sixik.unigui.backend.minecraft;
+package dev.sixik.unigui.widgets.minecraft;
 
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.DrawList;
-import dev.sixik.unigui.api.render.RenderBackend;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.backend.minecraft.MinecraftGuiRenderBackend;
 import dev.sixik.unigui.impl.render.DefaultRenderContext;
 import dev.sixik.unigui.widgets.OverlayHostAware;
 import dev.sixik.unigui.widgets.PanelWidget;

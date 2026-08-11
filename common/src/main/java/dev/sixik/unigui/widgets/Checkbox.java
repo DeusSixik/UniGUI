@@ -1,9 +1,20 @@
 package dev.sixik.unigui.widgets;
 
-import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.api.event.ButtonClickEvent;
+import dev.sixik.unigui.api.event.CheckboxStateChangedEvent;
+import dev.sixik.unigui.api.event.CheckedChangedEvent;
+import dev.sixik.unigui.api.event.Event;
+import dev.sixik.unigui.api.event.EventListener;
+import dev.sixik.unigui.api.event.EventPhase;
+import dev.sixik.unigui.api.event.EventSubscription;
+import dev.sixik.unigui.api.event.KeyPressedEvent;
+import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.layout.LayoutContext;
+import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.widget.CheckboxState;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.render.ButtonRenderType;
@@ -14,6 +25,9 @@ public class Checkbox extends ToggleButton {
     private static final float BOX_SIZE = 12.0f;
     private static final float CHECK_SIZE = 6.0f;
     private static final float TEXT_GAP = 4.0f;
+    private CheckboxState state = CheckboxState.UNCHECKED;
+    private boolean triState;
+    private boolean cyclingFromClick;
 
     public Checkbox() {
         this("");
@@ -31,6 +45,71 @@ public class Checkbox extends ToggleButton {
         borderVisible(false);
     }
 
+    public CheckboxState state() {
+        return state;
+    }
+
+    public Checkbox state(CheckboxState state) {
+        setState(state, true);
+        return this;
+    }
+
+    public Checkbox silentState(CheckboxState state) {
+        setState(state, false);
+        return this;
+    }
+
+    public boolean indeterminate() {
+        return state == CheckboxState.INDETERMINATE;
+    }
+
+    public Checkbox indeterminate(boolean indeterminate) {
+        return state(indeterminate ? CheckboxState.INDETERMINATE : CheckboxState.UNCHECKED);
+    }
+
+    public boolean triState() {
+        return triState;
+    }
+
+    public Checkbox triState(boolean triState) {
+        this.triState = triState;
+        return this;
+    }
+
+    @Override
+    public boolean checked() {
+        return state == CheckboxState.CHECKED;
+    }
+
+    @Override
+    public Checkbox checked(boolean checked) {
+        setState(checked ? CheckboxState.CHECKED : CheckboxState.UNCHECKED, true);
+        return this;
+    }
+
+    @Override
+    public Checkbox silentChecked(boolean checked) {
+        setState(checked ? CheckboxState.CHECKED : CheckboxState.UNCHECKED, false);
+        return this;
+    }
+
+    public EventSubscription onStateChanged(EventListener<? super CheckboxStateChangedEvent> listener) {
+        return on(CheckboxStateChangedEvent.TYPE, listener);
+    }
+
+    @Override
+    public ButtonClickEvent click() {
+        if (!triState) {
+            return super.click();
+        }
+        cyclingFromClick = true;
+        try {
+            return super.click();
+        } finally {
+            cyclingFromClick = false;
+        }
+    }
+
     @Override
     public void measure(LayoutContext context) {
         if (visibility() == dev.sixik.unigui.api.widget.Visibility.COLLAPSED) {
@@ -39,6 +118,21 @@ public class Checkbox extends ToggleButton {
         }
         float textWidth = text().isEmpty() ? 0.0f : 4.0f + TextEngine.measureLineWidth(richText());
         setDesiredSize(resolveDesiredSize(context, BOX_SIZE + textWidth, DEFAULT_HEIGHT));
+    }
+
+    @Override
+    public void handle(Event event) {
+        if (triState
+                && event instanceof KeyPressedEvent key
+                && key.phase() == EventPhase.TARGET
+                && uiContext() != null
+                && uiContext().focusManager().isFocused(this)
+                && (key.keyCode() == KeyCodes.SPACE || key.keyCode() == KeyCodes.ENTER || key.keyCode() == KeyCodes.KEYPAD_ENTER)) {
+            cycleState(true);
+            event.cancel();
+            return;
+        }
+        super.handle(event);
     }
 
     @Override
@@ -69,11 +163,47 @@ public class Checkbox extends ToggleButton {
                 pressed(),
                 hovered(),
                 enabled(),
-                checked(),
+                state == CheckboxState.CHECKED,
+                state == CheckboxState.INDETERMINATE,
                 BOX_SIZE,
                 CHECK_SIZE,
                 TEXT_GAP,
                 checkedBackground().copy(),
                 borderColor().copy());
+    }
+
+    private void setState(CheckboxState state, boolean emitChange) {
+        CheckboxState next = normalize(state);
+        if (cyclingFromClick && triState) {
+            next = nextState(this.state);
+        }
+        if (this.state == next) return;
+        CheckboxState oldState = this.state;
+        boolean oldChecked = checked();
+        this.state = next;
+        super.silentChecked(next == CheckboxState.CHECKED);
+        invalidate(InvalidationFlags.VISUAL);
+        if (emitChange) {
+            emit(new CheckboxStateChangedEvent(this, oldState, next));
+            if (oldChecked != checked()) {
+                emit(new CheckedChangedEvent(this, oldChecked, checked()));
+            }
+        }
+    }
+
+    private void cycleState(boolean emitChange) {
+        setState(nextState(state), emitChange);
+    }
+
+    private static CheckboxState nextState(CheckboxState state) {
+        return switch (normalize(state)) {
+            case UNCHECKED -> CheckboxState.CHECKED;
+            case CHECKED -> CheckboxState.INDETERMINATE;
+            case INDETERMINATE -> CheckboxState.UNCHECKED;
+        };
+    }
+
+    private static CheckboxState normalize(CheckboxState state) {
+        return state == null ? CheckboxState.UNCHECKED : state;
     }
 }

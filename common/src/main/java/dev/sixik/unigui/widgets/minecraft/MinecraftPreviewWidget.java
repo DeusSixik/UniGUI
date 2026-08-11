@@ -1,4 +1,4 @@
-package dev.sixik.unigui.backend.minecraft;
+package dev.sixik.unigui.widgets.minecraft;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.layout.Alignment;
@@ -10,6 +10,7 @@ import dev.sixik.unigui.api.render.RenderBackend;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.backend.minecraft.MinecraftGuiRenderBackend;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.Box;
 

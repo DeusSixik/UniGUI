@@ -16,7 +16,7 @@ public interface RenderBackend {
     }
 
     default float measureTextWidth(RichText text) {
-        return TextEngine.measureLineWidth(text);
+        return text == null ? 0.0f : measureTextWidth(text.plainText());
     }
 
     default FontFace defaultTextFace() {

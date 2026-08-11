@@ -3,6 +3,12 @@ package dev.sixik.unigui.widgets;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.text.RichText;
 
+/**
+ * Rich multiline text view that preserves RichText runs.
+ *
+ * <p>Use {@link TextBlock} for plain multiline paragraphs where rich styling
+ * should be flattened.</p>
+ */
 public final class RichTextView extends TextWidget {
     public RichTextView() {
         wrap(true);

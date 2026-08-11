@@ -19,6 +19,7 @@ public record ButtonState(
         boolean hovered,
         boolean enabled,
         boolean checked,
+        boolean indeterminate,
         float indicatorSize,
         float indicatorInnerSize,
         float indicatorGap,

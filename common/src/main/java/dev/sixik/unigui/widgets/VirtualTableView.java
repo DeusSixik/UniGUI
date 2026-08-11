@@ -1231,8 +1231,8 @@ public class VirtualTableView extends WidgetBase {
         String header = columns.get(columnIndex).header();
         if (columnIndex != sortColumnIndex) return header;
         return switch (sortDirection) {
-            case ASCENDING -> header + " ↑";
-            case DESCENDING -> header + " ↓";
+            case ASCENDING -> header + " ^";
+            case DESCENDING -> header + " v";
             case NONE -> header;
         };
     }
@@ -1241,8 +1241,8 @@ public class VirtualTableView extends WidgetBase {
         RichText header = columns.get(columnIndex).richHeader();
         if (columnIndex != sortColumnIndex) return header;
         return switch (sortDirection) {
-            case ASCENDING -> header.append(RichText.plain(" ↑"));
-            case DESCENDING -> header.append(RichText.plain(" ↓"));
+            case ASCENDING -> header.append(RichText.plain(" ^"));
+            case DESCENDING -> header.append(RichText.plain(" v"));
             case NONE -> header;
         };
     }

@@ -601,14 +601,14 @@ public class TextInput extends Box {
         }
     }
 
-    private void copySelection() {
+    protected void copySelection() {
         UIContext context = uiContext();
         if (context != null && hasSelection()) {
             context.clipboard().setText(selectedText());
         }
     }
 
-    private void cutSelection() {
+    protected void cutSelection() {
         copySelection();
         if (editor.deleteSelectionIfNeeded()) {
             invalidate(InvalidationFlags.VISUAL);

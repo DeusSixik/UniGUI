@@ -1,11 +1,17 @@
 package dev.sixik.unigui.widgets;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.api.event.Event;
+import dev.sixik.unigui.api.event.EventPhase;
 import dev.sixik.unigui.api.event.EventListener;
 import dev.sixik.unigui.api.event.EventSubscription;
+import dev.sixik.unigui.api.event.KeyPressedEvent;
+import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.event.SelectionChangedEvent;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
+import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.Overflow;
+import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
@@ -31,6 +37,7 @@ public class TabControl extends LinearBox {
     public TabControl() {
         super(Orientation.VERTICAL);
         spacing(4.0f);
+        focusable(true);
 
         tabHeader.spacing(4.0f);
         tabHeader.layout(style -> style.size(LayoutConstraints.AUTO, TAB_HEIGHT).flexGrow(0).flexShrink(0.0f));
@@ -109,7 +116,8 @@ public class TabControl extends LinearBox {
 
         Tab tab = new Tab(normalizedTitle, normalizedContent, button);
         tabs.add(insertIndex, tab);
-        rebuildChildren();
+        tabHeader.insertChild(insertIndex, button);
+        contentHost.insertChild(insertIndex, tab.slot());
 
         button.onClick(event -> selectTab(tabs.indexOf(tab)));
 
@@ -126,8 +134,9 @@ public class TabControl extends LinearBox {
     public TabControl removeTab(int index) {
         if (index < 0 || index >= tabs.size()) return this;
         int oldSelection = selectedIndex;
-        tabs.remove(index);
-        rebuildChildren();
+        Tab removed = tabs.remove(index);
+        tabHeader.removeChild(removed.button());
+        contentHost.removeChild(removed.slot());
 
         if (tabs.isEmpty()) {
             setSelectedIndex(-1, oldSelection != -1);
@@ -146,7 +155,8 @@ public class TabControl extends LinearBox {
     public TabControl clearTabs() {
         if (tabs.isEmpty()) return this;
         tabs.clear();
-        rebuildChildren();
+        tabHeader.clearChildren();
+        contentHost.clearChildren();
         setSelectedIndex(-1, selectedIndex != -1);
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
@@ -157,6 +167,14 @@ public class TabControl extends LinearBox {
         return this;
     }
 
+    public TabControl selectRelative(int delta) {
+        if (tabs.isEmpty()) return this;
+        int base = selectedIndex < 0 ? 0 : selectedIndex;
+        int next = Math.max(0, Math.min(tabs.size() - 1, base + delta));
+        setSelectedIndex(next, true);
+        return this;
+    }
+
     public TabControl silentSelectTab(int index) {
         setSelectedIndex(index, false);
         return this;
@@ -164,6 +182,24 @@ public class TabControl extends LinearBox {
 
     public EventSubscription onSelectionChanged(EventListener<? super SelectionChangedEvent> listener) {
         return on(SelectionChangedEvent.TYPE, listener);
+    }
+
+    @Override
+    public void handle(Event event) {
+        super.handle(event);
+        if (event.isCancelled()) return;
+        if (event instanceof KeyPressedEvent key
+                && key.phase() == EventPhase.TARGET
+                && uiContext() != null
+                && uiContext().focusManager().isFocused(this)) {
+            if (key.keyCode() == KeyCodes.LEFT) {
+                selectRelative(-1);
+                event.cancel();
+            } else if (key.keyCode() == KeyCodes.RIGHT) {
+                selectRelative(1);
+                event.cancel();
+            }
+        }
     }
 
     @Override
@@ -203,21 +239,25 @@ public class TabControl extends LinearBox {
     }
 
     private void syncSelectionState() {
+        Tab selectedTab = null;
         for (int i = 0; i < tabs.size(); i++) {
             Tab tab = tabs.get(i);
             boolean selected = i == selectedIndex;
             tab.button().silentChecked(selected);
             tab.slot().visibility(selected ? Visibility.VISIBLE : Visibility.COLLAPSED);
+            if (selected) {
+                selectedTab = tab;
+            }
         }
+        arrangeSelectedSlotIfReady(selectedTab);
     }
 
-    private void rebuildChildren() {
-        tabHeader.clearChildren();
-        contentHost.clearChildren();
-        for (Tab tab : tabs) {
-            tabHeader.addChild(tab.button());
-            contentHost.addChild(tab.slot());
-        }
+    private void arrangeSelectedSlotIfReady(Tab selectedTab) {
+        if (selectedTab == null) return;
+        RectView bounds = contentHost.layoutBounds();
+        if (bounds.width() <= 0.0f || bounds.height() <= 0.0f) return;
+        selectedTab.slot().measure(new LayoutContext(bounds.width(), bounds.height()));
+        selectedTab.slot().arrange(bounds);
     }
 
     private static List<Integer> selectionList(int index) {

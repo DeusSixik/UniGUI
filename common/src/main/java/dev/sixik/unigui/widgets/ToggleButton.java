@@ -103,6 +103,7 @@ public class ToggleButton extends Button {
                 hovered(),
                 enabled(),
                 checked,
+                false,
                 0.0f,
                 0.0f,
                 0.0f,

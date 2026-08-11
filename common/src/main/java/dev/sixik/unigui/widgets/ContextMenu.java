@@ -1,6 +1,13 @@
 package dev.sixik.unigui.widgets;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.api.event.ContextMenuItemSelectedEvent;
+import dev.sixik.unigui.api.event.Event;
+import dev.sixik.unigui.api.event.EventListener;
+import dev.sixik.unigui.api.event.EventPhase;
+import dev.sixik.unigui.api.event.EventSubscription;
+import dev.sixik.unigui.api.event.KeyPressedEvent;
+import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
@@ -12,13 +19,18 @@ import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public final class ContextMenu extends Box implements OverlayHostAware {
     private final VBox itemsHost = new VBox();
+    private final List<Button> itemButtons = new ArrayList<>();
     private boolean open;
     private boolean closeOnOutsideClick = true;
     private float x;
     private float y;
     private EdgeInsets padding = EdgeInsets.all(3.0f);
+    private int selectedItemIndex = -1;
 
     public ContextMenu() {
         backgroundVisible(true);
@@ -28,22 +40,41 @@ public final class ContextMenu extends Box implements OverlayHostAware {
         borderColor().set(0.25f, 0.78f, 1.0f, 0.85f);
         layout(style -> style.position(PositionType.ABSOLUTE).overflow(Overflow.HIDDEN));
         visible(false);
+        focusable(true);
         itemsHost.spacing(1.0f);
         addChild(itemsHost);
     }
 
+    public ContextMenu item(String text) {
+        return item(RichText.plain(text), null);
+    }
+
+    public ContextMenu item(RichText text) {
+        return item(text, null);
+    }
+
+    /** Prefer {@link #onItemSelected(EventListener)} for public UI actions. */
     public ContextMenu item(String text, Runnable action) {
         return item(RichText.plain(text), action);
     }
 
+    /** Prefer {@link #onItemSelected(EventListener)} for public UI actions. */
     public ContextMenu item(RichText text, Runnable action) {
-        Button button = new Button(text == null ? RichText.plain("") : text);
+        RichText normalizedText = text == null ? RichText.plain("") : text;
+        int itemIndex = itemButtons.size();
+        Button button = new Button(normalizedText);
         button.layout(style -> style.size(132.0f, 20.0f).flexGrow(0).flexShrink(0.0f));
         button.onClick(event -> {
+            selectItem(itemIndex);
+            emitItemSelected(itemIndex);
             if (action != null) action.run();
             close();
         });
+        itemButtons.add(button);
         itemsHost.addChild(button);
+        if (selectedItemIndex < 0) {
+            selectedItemIndex = 0;
+        }
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
@@ -54,6 +85,28 @@ public final class ContextMenu extends Box implements OverlayHostAware {
         itemsHost.addChild(separator);
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
+    }
+
+    public int selectedItemIndex() {
+        return selectedItemIndex;
+    }
+
+    public ContextMenu selectItem(int index) {
+        if (itemButtons.isEmpty()) {
+            selectedItemIndex = -1;
+            return this;
+        }
+        int normalized = Math.max(0, Math.min(index, itemButtons.size() - 1));
+        selectedItemIndex = normalized;
+        if (uiContext() != null) {
+            uiContext().focusManager().requestFocus(itemButtons.get(normalized));
+        }
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public EventSubscription onItemSelected(EventListener<? super ContextMenuItemSelectedEvent> listener) {
+        return on(ContextMenuItemSelectedEvent.TYPE, listener);
     }
 
     public boolean opened() {
@@ -82,6 +135,9 @@ public final class ContextMenu extends Box implements OverlayHostAware {
         if (this.open == open) return this;
         this.open = open;
         visible(open);
+        if (open && selectedItemIndex < 0 && !itemButtons.isEmpty()) {
+            selectedItemIndex = 0;
+        }
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
@@ -99,6 +155,35 @@ public final class ContextMenu extends Box implements OverlayHostAware {
         this.padding = padding == null ? EdgeInsets.all(0.0f) : padding;
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
+    }
+
+    @Override
+    public void handle(Event event) {
+        super.handle(event);
+        if (event.isCancelled()) return;
+        if (!open || !(event instanceof KeyPressedEvent key) || key.phase() != EventPhase.TARGET) return;
+        boolean focusedHere = uiContext() != null
+                && (uiContext().focusManager().isFocused(this)
+                || (selectedItemIndex >= 0
+                && selectedItemIndex < itemButtons.size()
+                && uiContext().focusManager().isFocused(itemButtons.get(selectedItemIndex))));
+        if (!focusedHere) return;
+
+        if (key.keyCode() == KeyCodes.ESCAPE) {
+            close();
+            event.cancel();
+        } else if (key.keyCode() == KeyCodes.DOWN) {
+            moveSelection(1);
+            event.cancel();
+        } else if (key.keyCode() == KeyCodes.UP) {
+            moveSelection(-1);
+            event.cancel();
+        } else if (key.keyCode() == KeyCodes.ENTER
+                || key.keyCode() == KeyCodes.KEYPAD_ENTER
+                || key.keyCode() == KeyCodes.SPACE) {
+            activateSelectedItem();
+            event.cancel();
+        }
     }
 
     @Override
@@ -135,5 +220,21 @@ public final class ContextMenu extends Box implements OverlayHostAware {
                 placedY + padding.top(),
                 Math.max(0.0f, width - padding.horizontal()),
                 Math.max(0.0f, height - padding.vertical())));
+    }
+
+    private void moveSelection(int delta) {
+        if (itemButtons.isEmpty()) return;
+        int base = selectedItemIndex < 0 ? 0 : selectedItemIndex;
+        selectItem((base + delta + itemButtons.size()) % itemButtons.size());
+    }
+
+    private void activateSelectedItem() {
+        if (selectedItemIndex < 0 || selectedItemIndex >= itemButtons.size()) return;
+        itemButtons.get(selectedItemIndex).click();
+    }
+
+    private void emitItemSelected(int index) {
+        if (index < 0 || index >= itemButtons.size()) return;
+        emit(new ContextMenuItemSelectedEvent(this, index, itemButtons.get(index).text()));
     }
 }

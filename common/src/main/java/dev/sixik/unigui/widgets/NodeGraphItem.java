@@ -20,7 +20,7 @@ public final class NodeGraphItem {
     private float arrangedHeight;
     private boolean selectable = true;
     private boolean movable = true;
-    private boolean resizable = false;
+    private boolean resizable = true;
     private boolean selected;
     private boolean visible = true;
     private NodeGraph owner;

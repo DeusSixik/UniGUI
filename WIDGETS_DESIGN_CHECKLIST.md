@@ -170,16 +170,17 @@
 - [ ] Проверить pointer capture/release на drag cancel.
 - [ ] Не использовать Splitter вне SplitPanel без явного standalone contract.
 
-## PageView — статус ALIAS/GAP
+## PageView — статус PARTIAL/OK
 
 Целевая роль: один видимый child из набора без анимации и без carousel controls по умолчанию.
 
-Текущее состояние: PageView наследуется от Carousel без отличий.
+Текущее состояние: самостоятельный retained page host с pages/selectedIndex; inactive pages остаются mounted и переключаются через Visibility.COLLAPSED.
 
-- [ ] Развести PageView и Carousel.
-- [ ] PageView должен владеть pages и selectedIndex без auto-scroll/indicator/prev-next chrome.
-- [ ] Добавить API для selection by index и optional swipe.
-- [ ] Решить: скрывать inactive pages или unmount/remount.
+- [x] Развести PageView и Carousel.
+- [x] PageView должен владеть pages и selectedIndex без auto-scroll/indicator/prev-next chrome.
+- [x] Добавить API для selection by index.
+- [ ] Добавить optional swipe.
+- [x] Решить: inactive pages остаются mounted и переключаются через Visibility.COLLAPSED.
 - [ ] Добавить migration note, если текущий PageView остаётся alias.
 
 ## Carousel — статус PARTIAL
@@ -193,7 +194,7 @@
 - [ ] Добавить animation transition между pages.
 - [ ] Добавить indicator dots mode.
 - [ ] Добавить optional auto-scroll timer.
-- [ ] Сделать Carousel композицией PageView, если PageView станет базой.
+- [x] Сделать Carousel композицией PageView, если PageView станет базой.
 
 ## Accordion — статус OK
 
@@ -236,9 +237,9 @@
 
 - [x] Наследовать toggle behavior.
 - [x] Иметь checkbox render type.
-- [ ] Добавить indeterminate state.
-- [ ] Добавить tri-state cycle mode: unchecked -> checked -> indeterminate или configurable order.
-- [ ] Добавить CheckedChangedEvent или отдельный CheckboxStateChangedEvent для tri-state.
+- [x] Добавить indeterminate state.
+- [x] Добавить tri-state cycle mode: unchecked -> checked -> indeterminate или configurable order.
+- [x] Добавить CheckedChangedEvent или отдельный CheckboxStateChangedEvent для tri-state.
 - [ ] Добавить demo для tree partial selection.
 
 ## RadioButton — статус OK
@@ -249,7 +250,7 @@
 - [x] Интегрироваться с RadioGroup.
 - [x] Не владеть эксклюзивностью самостоятельно при наличии group.
 - [x] Поддерживать keyboard activation.
-- [ ] Проверить невозможность снять единственный selected radio по случайному повторному клику, если group требует strict selection.
+- [x] Проверить невозможность снять единственный selected radio по случайному повторному клику, если group требует strict selection.
 
 ## RadioGroup — статус OK
 
@@ -327,10 +328,10 @@
 
 - [x] Маскировать displayText.
 - [x] Иметь PASSWORD_FIELD render type.
-- [ ] Запретить или настроить copy/cut selected real text.
+- [x] Запретить или настроить copy/cut selected real text.
 - [ ] Убедиться, что TextInputState/renderer/debug не получают реальное значение.
 - [ ] Добавить secure reveal toggle только если он нужен явно.
-- [ ] Добавить tests: clipboard не получает пароль.
+- [x] Добавить tests: clipboard не получает пароль.
 
 ## SearchField — статус PARTIAL
 
@@ -339,8 +340,8 @@
 - [x] Иметь placeholder 'Search...'.
 - [x] Иметь clear button/clear zone.
 - [x] Публиковать SearchSubmittedEvent на Enter.
-- [ ] Добавить debounce onSearchChanged или delayed TextChangedEvent facade.
-- [ ] Сделать debounce duration configurable.
+- [x] Добавить debounce onSearchChanged или delayed TextChangedEvent facade.
+- [x] Сделать debounce duration configurable.
 - [ ] Добавить search icon в renderer/state.
 - [ ] Добавить Escape clear или close integration, если используется в popup.
 
@@ -392,15 +393,15 @@
 - [ ] Проверить keyboard open/close/up/down semantics.
 - [ ] Добавить virtualized options для больших списков.
 
-## DropDownBox — статус ALIAS/GAP
+## DropDownBox — статус PARTIAL
 
 Целевая роль: dropdown с произвольным widget-content в popup, не только список строк.
 
-Текущее состояние: alias-наследник ComboBox.
+Текущее состояние: отдельный dropdown host для произвольного Widget-контента; ComboBox остаётся specialization для selectable list.
 
-- [ ] Реализовать content(Widget) API для popup.
-- [ ] Оставить ComboBox как specialization поверх DropDownBox или явно наоборот.
-- [ ] Убрать дублирование selection list logic между ComboBox/DropDownBox.
+- [x] Реализовать content(Widget) API для popup.
+- [x] Оставить ComboBox как specialization поверх DropDownBox или явно наоборот.
+- [x] Убрать дублирование selection list logic между ComboBox/DropDownBox.
 - [ ] Добавить renderer/state для header/opened state, если отличается от ComboBox.
 - [ ] Добавить demo: dropdown с произвольным TreeView/ColorPicker/custom panel.
 
@@ -408,14 +409,14 @@
 
 # Текст
 
-## Text — статус ALIAS/PARTIAL
+## Text — статус OK
 
 Целевая роль: короткий одноцелевой text widget или public alias для TextWidget.
 
 - [x] Наследоваться от TextWidget.
-- [ ] Явно решить отличие Text от Label.
-- [ ] Если Text остаётся alias, указать это в Javadoc и Widgets factory.
-- [ ] Если Text — generic display text, Label должен получить accessibility association.
+- [x] Явно решить отличие Text от Label: Text = generic display text, Label = caption/focus-target.
+- [x] Если Text остаётся alias, указать это в Javadoc и Widgets factory.
+- [x] Если Text — generic display text, Label должен получить accessibility association.
 
 ## TextWidget — статус OK
 
@@ -424,30 +425,30 @@
 - [x] Поддерживать String/RichText.
 - [x] Поддерживать wrap, alignment, text renderer/state.
 - [x] Измерять текст через TextEngine.
-- [ ] Явно отделить base class API от public Text/Label/TextBlock/RichTextView.
+- [x] Явно отделить base class API от public Text/Label/TextBlock/RichTextView.
 - [ ] Добавить selectable text, если требуется.
 
-## TextBlock — статус OK/PARTIAL
+## TextBlock — статус OK
 
 Целевая роль: многострочный текст с переносом.
 
 - [x] Наследоваться от TextWidget.
 - [x] Включать wrap.
 - [x] Вертикально выравнивать от START.
-- [ ] Явно отделить от RichTextView: plain multiline vs rich multiline.
+- [x] Явно отделить от RichTextView: plain multiline vs rich multiline.
 - [ ] Добавить paragraph spacing, если нужен documentation-like text.
 
-## Label — статус ALIAS/PARTIAL
+## Label — статус PARTIAL/OK
 
 Целевая роль: короткая подпись, связанная с другим контролом.
 
-Текущее состояние: почти alias TextWidget.
+Текущее состояние: TextWidget-caption с focusTarget/labeledControl API; primary click фокусирует связанный control.
 
 - [x] Наследоваться от TextWidget.
-- [ ] Добавить labeledControl/focusTarget API.
-- [ ] Click on label должен фокусировать связанный control.
+- [x] Добавить labeledControl/focusTarget API.
+- [x] Click on label должен фокусировать связанный control.
 - [ ] Добавить accessibility role/metadata, если система accessibility появится.
-- [ ] Явно отделить Label от Text.
+- [x] Явно отделить Label от Text.
 
 ## RichTextView — статус PARTIAL
 
@@ -459,7 +460,7 @@
 - [x] Включать wrap и START vertical alignment.
 - [ ] Добавить inline widget/mention/emoji/link model, если нужен Discord-like уровень.
 - [ ] Добавить markdown или parser adapter отдельно от render widget.
-- [ ] Развести с TextBlock: RichTextView = rich/interactive, TextBlock = plain multiline.
+- [x] Развести с TextBlock: RichTextView = rich/interactive, TextBlock = plain multiline.
 - [ ] Добавить link click/hover events.
 
 ---
@@ -538,10 +539,10 @@
 
 - [x] Поддерживать range/value/progress.
 - [x] Иметь renderer/state.
-- [ ] Добавить indeterminate mode.
-- [ ] Добавить phase/tick animation для indeterminate.
+- [x] Добавить indeterminate mode.
+- [x] Добавить phase/tick animation для indeterminate.
 - [ ] Добавить label/value formatting option, если нужен UI.
-- [ ] Обновить renderer state под determinate/indeterminate.
+- [x] Обновить renderer state под determinate/indeterminate.
 
 ## LoadingIndicator — статус OK
 
@@ -560,31 +561,32 @@
 - [x] Наследоваться от LoadingIndicator.
 - [x] Форсировать Mode.SPINNER.
 - [x] Давать fluent API для style/speed/segments/dots/arcs.
-- [ ] Не дублировать renderer/state отдельно от LoadingIndicator без причины.
+- [x] Не дублировать renderer/state отдельно от LoadingIndicator без причины.
 
-## Toast — статус ALIAS/GAP
+## Toast — статус PARTIAL/OK
 
 Целевая роль: карточка transient notification.
 
-Текущее состояние: наследник NotificationView.
+Текущее состояние: отдельная transient-карточка с message/duration/show/hide; standalone размещается через OverlayLayer, очередью управляет NotificationView.
 
-- [ ] Решить: Toast = карточка, NotificationView = host/queue.
-- [ ] Если Toast карточка — вынести message/severity/duration/action в Toast.
+- [x] Решить: Toast = карточка, NotificationView = host/queue.
+- [x] Если Toast карточка — вынести message/duration в Toast.
+- [ ] Добавить action API для Toast.
 - [ ] Добавить severity levels: info/success/warning/error.
 - [ ] Добавить enter/exit animation hooks.
-- [ ] Не делать Toast overlay host, если host role у NotificationView.
+- [x] Не делать Toast overlay host, если host role у NotificationView.
 
-## NotificationView — статус PARTIAL
+## NotificationView — статус PARTIAL/OK
 
-Целевая роль: host/queue для notifications или самостоятельная карточка — надо решить.
+Целевая роль: host/queue для notifications.
 
-Текущее состояние: карточка Box с text/duration/show/hide, implements OverlayHostAware.
+Текущее состояние: OverlayHostAware host, который хранит очередь Toast cards, maxVisible, placement и stack spacing.
 
-- [ ] Развести с Toast по ответственности.
-- [ ] Если host — добавить queue, maxVisible, placement, stacking.
+- [x] Развести с Toast по ответственности.
+- [x] Если host — добавить queue, maxVisible, placement, stacking.
 - [ ] Если карточка — переименовать/документировать и убрать дублирующий Toast.
 - [ ] Добавить severity, actions, dismiss reason event.
-- [ ] Добавить auto-hide tick based on duration.
+- [x] Добавить auto-hide tick based on duration.
 
 ## Tooltip — статус PARTIAL
 
@@ -603,15 +605,15 @@
 
 # Навигация и overlay
 
-## TabControl — статус PARTIAL
+## TabControl — статус PARTIAL/OK
 
 Целевая роль: вкладки + selected content + keyboard navigation.
 
 - [x] Хранить tabs и selectedIndex.
 - [x] Скрывать inactive tab slot через Visibility.COLLAPSED.
 - [x] Публиковать SelectionChangedEvent.
-- [ ] Добавить Left/Right keyboard navigation.
-- [ ] Решить и задокументировать hide vs unmount inactive content.
+- [x] Добавить Left/Right keyboard navigation.
+- [x] Решить hide vs unmount inactive content: inactive slots остаются mounted и переключаются через Visibility.COLLAPSED.
 - [ ] Добавить closeable/reorderable tabs, если нужно для docking/editor UI.
 
 ## Breadcrumb — статус OK/PARTIAL
@@ -621,9 +623,10 @@
 - [x] Хранить BreadcrumbItem list.
 - [x] Рендерить buttons и separators.
 - [x] Публиковать SelectionChangedEvent.
+- [x] Поддерживать custom separator text.
 - [ ] Добавить explicit navigation event with item value/path.
 - [ ] Добавить overflow/collapse для длинных paths.
-- [ ] Добавить disabled item behavior tests.
+- [x] Добавить disabled item behavior tests.
 
 ## BreadcrumbItem — статус HELPER/OK
 
@@ -640,10 +643,10 @@
 - [x] Открывать меню в root coordinates через openAt(x, y).
 - [x] Закрываться при item click.
 - [x] Закрываться outside-click через OverlayLayer.
-- [ ] Добавить Escape close.
+- [x] Добавить Escape close.
 - [ ] Добавить submenu support.
 - [ ] Заменить public Runnable action API на event-driven MenuItemSelectedEvent или command model.
-- [ ] Добавить keyboard navigation Up/Down/Enter.
+- [x] Добавить keyboard navigation Up/Down/Enter.
 
 ## Popup — статус OK
 
@@ -720,9 +723,9 @@
 - [x] Хранить tree nodes.
 - [x] Поддерживать expand/collapse.
 - [x] Публиковать selection events.
-- [ ] Проверить incremental expansion patch vs full rebuild.
-- [ ] Добавить batch mode для массовых изменений.
-- [ ] Добавить keyboard navigation Left/Right/Up/Down.
+- [x] Проверить incremental expansion patch vs full rebuild.
+- [x] Добавить batch mode для массовых изменений.
+- [x] Добавить keyboard navigation Left/Right/Up/Down.
 
 ## TreeViewNode — статус HELPER/OK
 
@@ -918,6 +921,8 @@
 - [x] Рендерить dock root/panes/tabs/split handles/drop preview.
 - [x] Поддерживать addDocument/addToolPane/splitPane/tabPane/selectPane.
 - [x] Поддерживать restoreLayout.
+- [x] Ограничивать FLOAT drop preview host bounds по умолчанию и поддерживать allowFloatingOutsideHost opt-in.
+- [x] Поддерживать tab overflow scroll/menu selection без сброса tab strip scroll offset.
 - [ ] Сократить ответственность, если DockingRoot становится слишком большим: tab overflow, split drag, render chrome можно вынести.
 - [ ] Добавить design note: DockingRoot = visual/root host, DockingManager = tree mutation logic.
 
@@ -1179,9 +1184,9 @@
 
 ## P0 — явно противоречит design contract
 
-- [ ] Развести DropDownBox и ComboBox.
-- [ ] Развести Toast и NotificationView.
-- [ ] Развести PageView и Carousel.
+- [x] Развести DropDownBox и ComboBox.
+- [x] Развести Toast и NotificationView.
+- [x] Развести PageView и Carousel.
 - [ ] Решить Box vs Border vs PanelWidget ответственность.
 - [ ] Решить NodeGraph как widget vs data model split.
 - [ ] Исправить TreeListPicker: tree-picker или переименование.
@@ -1190,14 +1195,15 @@
 
 - [ ] Checkbox indeterminate/tri-state.
 - [ ] ProgressBar indeterminate.
-- [ ] SearchField debounce.
-- [ ] TabControl Left/Right keyboard navigation.
-- [ ] ContextMenu Escape close, keyboard navigation и submenu.
-- [ ] PasswordField secure clipboard/cut/copy policy.
+- [x] SearchField debounce.
+- [x] TabControl Left/Right keyboard navigation.
+- [x] ContextMenu Escape close и keyboard navigation.
+- [ ] ContextMenu submenu.
+- [x] PasswordField secure clipboard/cut/copy policy.
 
 ## P2 — документация и согласование терминов
 
-- [ ] Text/TextWidget/TextBlock/Label/RichTextView — явно развести роли.
+- [x] Text/TextWidget/TextBlock/Label/RichTextView — явно развести роли.
 - [ ] TextField/TextInput — явно развести public control и base editor.
 - [ ] DockPanel vs DockingRoot — обновить contract names.
 - [ ] DockArea vs DockSide — закрепить разницу.

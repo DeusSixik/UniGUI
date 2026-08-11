@@ -180,6 +180,7 @@ public class RadioButton extends Button {
                 hovered(),
                 enabled(),
                 checked,
+                false,
                 OUTER_SIZE,
                 INNER_SIZE,
                 TEXT_GAP,

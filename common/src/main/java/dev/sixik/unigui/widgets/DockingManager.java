@@ -120,6 +120,10 @@ public final class DockingManager {
     }
 
     public DockingManager splitPane(String targetPaneId, DockArea area, DockPane pane) {
+        return splitPane(targetPaneId, area, pane, 0.5f);
+    }
+
+    public DockingManager splitPane(String targetPaneId, DockArea area, DockPane pane, float splitRatio) {
         DockPane normalized = Objects.requireNonNull(pane, "pane");
         DockArea dockArea = area == null ? DockArea.RIGHT : area;
         if (dockArea == DockArea.CENTER || dockArea == DockArea.TAB) {
@@ -139,9 +143,10 @@ public final class DockingManager {
         }
 
         DockNode newLeaf = DockNode.leaf(normalized);
+        float normalizedRatio = sanitizeSplitRatio(splitRatio);
         DockNode split = dockArea.insertsBeforeTarget()
-                ? DockNode.split(dockArea.splitOrientation(), newLeaf, target.node, 0.5f)
-                : DockNode.split(dockArea.splitOrientation(), target.node, newLeaf, 0.5f);
+                ? DockNode.split(dockArea.splitOrientation(), newLeaf, target.node, normalizedRatio)
+                : DockNode.split(dockArea.splitOrientation(), target.node, newLeaf, normalizedRatio);
         replace(target, split);
         activePaneId = normalized.id();
         changed("split." + dockArea.name().toLowerCase(), normalized.id(), targetPaneId);
@@ -168,6 +173,7 @@ public final class DockingManager {
         int next = (leaf.selectedIndex() + 1) % leaf.panes().size();
         DockPane pane = leaf.panes().get(next);
         if (leaf.selectPane(pane.id())) {
+            activePaneId = pane.id();
             changed("select_next", pane.id(), "");
             return true;
         }
@@ -180,6 +186,7 @@ public final class DockingManager {
         int previous = leaf.selectedIndex() <= 0 ? leaf.panes().size() - 1 : leaf.selectedIndex() - 1;
         DockPane pane = leaf.panes().get(previous);
         if (leaf.selectPane(pane.id())) {
+            activePaneId = pane.id();
             changed("select_previous", pane.id(), "");
             return true;
         }
@@ -391,6 +398,11 @@ public final class DockingManager {
 
     private void changed(String operation, String paneId, String targetPaneId) {
         owner.onDockLayoutChanged(operation, paneId, targetPaneId);
+    }
+
+    private static float sanitizeSplitRatio(float ratio) {
+        if (!Float.isFinite(ratio)) return 0.5f;
+        return Math.max(0.1f, Math.min(0.9f, ratio));
     }
 
     private record LeafRef(DockNode node, DockNode parent, boolean firstChild) {

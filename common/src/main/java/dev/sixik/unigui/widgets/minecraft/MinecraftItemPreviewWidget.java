@@ -1,6 +1,7 @@
-package dev.sixik.unigui.backend.minecraft;
+package dev.sixik.unigui.widgets.minecraft;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.backend.minecraft.MinecraftGuiRenderBackend;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ItemLike;
 

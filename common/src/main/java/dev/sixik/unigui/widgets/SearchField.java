@@ -1,5 +1,6 @@
 package dev.sixik.unigui.widgets;
 
+import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.event.Event;
 import dev.sixik.unigui.api.event.EventListener;
 import dev.sixik.unigui.api.event.EventPhase;
@@ -7,6 +8,7 @@ import dev.sixik.unigui.api.event.EventSubscription;
 import dev.sixik.unigui.api.event.KeyPressedEvent;
 import dev.sixik.unigui.api.event.PointerEvent;
 import dev.sixik.unigui.api.event.PointerPressedEvent;
+import dev.sixik.unigui.api.event.SearchChangedEvent;
 import dev.sixik.unigui.api.event.SearchSubmittedEvent;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.input.PointerButton;
@@ -16,10 +18,18 @@ import dev.sixik.unigui.widgets.render.TextInputRenderType;
 
 public class SearchField extends TextInput {
     private static final float CLEAR_ZONE_WIDTH = 14.0f;
+    private float searchChangeDebounceSeconds = 0.25f;
+    private float searchChangeRemainingSeconds;
+    private String lastEmittedSearchQuery = "";
+    private String pendingSearchQuery = "";
+    private boolean searchChangePending;
 
     public SearchField() {
         enableDefaultTextInputChrome();
         placeholder("Search...");
+        lastEmittedSearchQuery = text();
+        pendingSearchQuery = text();
+        onTextChanged(event -> scheduleSearchChanged(event.newText()));
     }
 
     public SearchField(String query) {
@@ -29,6 +39,28 @@ public class SearchField extends TextInput {
 
     public EventSubscription onSearchSubmitted(EventListener<? super SearchSubmittedEvent> listener) {
         return on(SearchSubmittedEvent.TYPE, listener);
+    }
+
+    public EventSubscription onSearchChanged(EventListener<? super SearchChangedEvent> listener) {
+        return on(SearchChangedEvent.TYPE, listener);
+    }
+
+    public float searchChangeDebounceSeconds() {
+        return searchChangeDebounceSeconds;
+    }
+
+    public SearchField searchChangeDebounceSeconds(float seconds) {
+        float normalized = Float.isFinite(seconds) ? Math.max(0.0f, seconds) : 0.25f;
+        this.searchChangeDebounceSeconds = normalized;
+        if (searchChangePending) {
+            searchChangeRemainingSeconds = Math.min(searchChangeRemainingSeconds, normalized);
+        }
+        return this;
+    }
+
+    public SearchField flushSearchChanged() {
+        flushPendingSearchChanged();
+        return this;
     }
 
     public SearchField clear() {
@@ -57,10 +89,22 @@ public class SearchField extends TextInput {
                 && key.phase() == EventPhase.TARGET
                 && focused()
                 && (key.keyCode() == KeyCodes.ENTER || key.keyCode() == KeyCodes.KEYPAD_ENTER)) {
+            flushPendingSearchChanged();
             emit(new SearchSubmittedEvent(this, text()));
         }
 
         super.handle(event);
+    }
+
+    @Override
+    public void tick(FrameContext frame) {
+        super.tick(frame);
+        if (!searchChangePending || frame == null) return;
+        float delta = Float.isFinite(frame.deltaSeconds()) ? Math.max(0.0f, frame.deltaSeconds()) : 0.0f;
+        searchChangeRemainingSeconds -= delta;
+        if (searchChangeRemainingSeconds <= 0.0f) {
+            flushPendingSearchChanged();
+        }
     }
 
     @Override
@@ -96,5 +140,33 @@ public class SearchField extends TextInput {
     @Override
     protected float clearButtonHeight() {
         return Math.max(1.0f, layoutBounds().height() - 8.0f);
+    }
+
+    private void scheduleSearchChanged(String query) {
+        String normalized = query == null ? "" : query;
+        pendingSearchQuery = normalized;
+        if (pendingSearchQuery.equals(lastEmittedSearchQuery)) {
+            searchChangePending = false;
+            searchChangeRemainingSeconds = 0.0f;
+            return;
+        }
+        searchChangePending = true;
+        searchChangeRemainingSeconds = searchChangeDebounceSeconds;
+        if (searchChangeDebounceSeconds <= 0.0f) {
+            flushPendingSearchChanged();
+        }
+    }
+
+    private void flushPendingSearchChanged() {
+        if (!searchChangePending || pendingSearchQuery.equals(lastEmittedSearchQuery)) {
+            searchChangePending = false;
+            searchChangeRemainingSeconds = 0.0f;
+            return;
+        }
+        String oldQuery = lastEmittedSearchQuery;
+        lastEmittedSearchQuery = pendingSearchQuery;
+        searchChangePending = false;
+        searchChangeRemainingSeconds = 0.0f;
+        emit(new SearchChangedEvent(this, oldQuery, lastEmittedSearchQuery));
     }
 }

@@ -37,6 +37,18 @@ public class PasswordField extends TextInput {
     }
 
     @Override
+    protected void copySelection() {
+        // Never expose the real password through the system clipboard.
+    }
+
+    @Override
+    protected void cutSelection() {
+        if (editorModel().deleteSelectionIfNeeded()) {
+            invalidate(InvalidationFlags.VISUAL);
+        }
+    }
+
+    @Override
     protected TextInputRenderer effectiveRenderer() {
         return renderer() == null ? WidgetsRender.passwordField() : renderer();
     }

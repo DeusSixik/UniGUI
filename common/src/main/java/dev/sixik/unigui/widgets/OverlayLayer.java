@@ -41,6 +41,7 @@ public final class OverlayLayer extends PanelWidget {
 
     public OverlayLayer(Widget content) {
         content(content);
+        applyQueuedMutations();
     }
 
     public Widget content() {

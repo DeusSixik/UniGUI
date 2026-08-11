@@ -1,9 +1,9 @@
-package dev.sixik.unigui.backend.minecraft;
+package dev.sixik.unigui.widgets.minecraft;
 
 import dev.sixik.unigui.api.render.CustomDraw;
 import dev.sixik.unigui.api.render.RenderBackend;
 
-interface MinecraftScaledCustomDraw extends CustomDraw {
+public interface MinecraftScaledCustomDraw extends CustomDraw {
     void draw(RenderBackend backend, float scale);
 
     @Override

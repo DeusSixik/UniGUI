@@ -971,9 +971,9 @@ public final class WindowWidget extends Box implements OverlayHostAware {
         if (!effectiveResizable() || !open) return ResizeHandle.NONE;
         RectView bounds = layoutBounds();
         if (bounds.width() <= 0.0f || bounds.height() <= 0.0f) return ResizeHandle.NONE;
-        boolean left = rootX >= bounds.x() && rootX <= bounds.x() + RESIZE_HANDLE_SIZE;
+        boolean left = rootX >= bounds.x() && rootX < bounds.x() + RESIZE_HANDLE_SIZE;
         boolean right = rootX >= bounds.x() + bounds.width() - RESIZE_HANDLE_SIZE && rootX <= bounds.x() + bounds.width();
-        boolean top = rootY >= bounds.y() && rootY <= bounds.y() + RESIZE_HANDLE_SIZE;
+        boolean top = rootY >= bounds.y() && rootY < bounds.y() + RESIZE_HANDLE_SIZE;
         boolean bottom = rootY >= bounds.y() + bounds.height() - RESIZE_HANDLE_SIZE && rootY <= bounds.y() + bounds.height();
         if (left && top) return ResizeHandle.TOP_LEFT;
         if (right && top) return ResizeHandle.TOP_RIGHT;

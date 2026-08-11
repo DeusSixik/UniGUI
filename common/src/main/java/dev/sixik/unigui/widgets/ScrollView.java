@@ -362,8 +362,9 @@ public class ScrollView extends WidgetBase {
 
     private void arrangeScrollBars() {
         if (showsHorizontalScrollBar()) {
+            float horizontalInset = showsVerticalScrollBar() ? scrollbarGap * 0.5f : 0.0f;
             horizontalScrollBar.arrange(new MutableRect(
-                    layoutBounds().x(),
+                    layoutBounds().x() + horizontalInset,
                     layoutBounds().y() + viewportHeight() + scrollbarGap,
                     viewportWidth(),
                     SCROLLBAR_SIZE));

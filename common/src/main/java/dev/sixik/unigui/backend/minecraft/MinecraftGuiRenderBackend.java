@@ -274,7 +274,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
         renderNested(drawList, 1.0f);
     }
 
-    void renderNested(DrawList drawList, float coordinateScale) {
+    public void renderNested(DrawList drawList, float coordinateScale) {
         float previousScale = nestedClipCoordinateScale;
         nestedClipCoordinateScale *= sanitizeScale(coordinateScale);
         try {

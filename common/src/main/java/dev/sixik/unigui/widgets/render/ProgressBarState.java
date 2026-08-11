@@ -11,6 +11,8 @@ public record ProgressBarState(
         float max,
         float value,
         float progress,
+        boolean indeterminate,
+        float indeterminateOffset,
         ColorView trackColor,
         ColorView fillColor
 ) {

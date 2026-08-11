@@ -438,7 +438,7 @@ public class ComboBox extends LinearBox {
 
     private void updateHeaderText() {
         RichText value = selectedItem().isEmpty() ? richPlaceholder : selectedRichItem();
-        headerButton.richText(value.append(RichText.plain(opened ? " \u25B4" : " \u25BE")));
+        headerButton.richText(value.append(RichText.plain(" ?")));
     }
 
     private void addItemInternal(RichText item) {

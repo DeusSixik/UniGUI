@@ -6,6 +6,7 @@ import dev.sixik.unigui.api.event.EventSubscription;
 import dev.sixik.unigui.api.event.SelectionChangedEvent;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
+import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.text.RichText;
 
@@ -210,7 +211,14 @@ public class Breadcrumb extends PanelWidget {
             }
         }
         syncVisualState();
+        arrangeHostIfReady();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+    }
+
+    private void arrangeHostIfReady() {
+        if (layoutBounds().width() <= 0.0f || layoutBounds().height() <= 0.0f) return;
+        host.measure(new LayoutContext(layoutBounds().width(), layoutBounds().height()));
+        host.arrange(layoutBounds());
     }
 
     private void setSelectedIndex(int index, boolean emitChange) {
