@@ -64,6 +64,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
     private final MinecraftMixedTextRenderer mixedTextRenderer;
     private final MinecraftShapeBatchRenderer shapeBatchRenderer = new MinecraftShapeBatchRenderer();
     private final MinecraftTextureBatchRenderer textureBatchRenderer = new MinecraftTextureBatchRenderer();
+    private final MinecraftShaderQuadRenderer shaderQuadRenderer = new MinecraftShaderQuadRenderer();
     private final FastItemRenderer fastItemRenderer;
     private GuiGraphics graphics;
     private int appliedScissorDepth;
@@ -455,6 +456,8 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
     public void close() {
         clearScissorStack();
         fastItemRenderer.close();
+        shapeBatchRenderer.close();
+        shaderQuadRenderer.close();
         sdfTextRenderer.close();
         if (gpuTimerQueryId != 0) {
             GL15.glDeleteQueries(gpuTimerQueryId);
@@ -475,6 +478,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
                 case CIRCLE -> renderCircle(command);
                 case PATH -> renderPath(command);
                 case TEXTURE -> renderTexture(command);
+                case SHADER -> renderShader(command);
                 case TEXT -> renderText(command);
                 case PUSH_CLIP -> pushClip(command);
                 case POP_CLIP -> popClip();
@@ -492,6 +496,32 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
         }
     }
 
+    private void renderShader(DrawCommand command) {
+        shaderQuadRenderer.render(
+                graphics,
+                minecraft,
+                command,
+                activeRenderTarget != null,
+                shaderScreenWidth(),
+                shaderScreenHeight(),
+                shaderGuiScale());
+    }
+
+    private int shaderScreenWidth() {
+        if (activeRenderTarget != null) return Math.max(1, activeRenderTarget.width());
+        return minecraft.getWindow() == null ? 1 : Math.max(1, minecraft.getWindow().getWidth());
+    }
+
+    private int shaderScreenHeight() {
+        if (activeRenderTarget != null) return Math.max(1, activeRenderTarget.height());
+        return minecraft.getWindow() == null ? 1 : Math.max(1, minecraft.getWindow().getHeight());
+    }
+
+    private float shaderGuiScale() {
+        if (activeRenderTarget != null) return sanitizeScale(activeRenderTargetScaleX);
+        if (minecraft.getWindow() == null || minecraft.getWindow().getGuiScaledWidth() <= 0) return 1.0f;
+        return sanitizeScale(minecraft.getWindow().getWidth() / (float) minecraft.getWindow().getGuiScaledWidth());
+    }
     private void applyTransform(RectView bounds, Transform transform, PoseStack pose) {
         if (transform == null) return;
 

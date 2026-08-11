@@ -3,6 +3,9 @@ package dev.sixik.unigui.api.render;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.math.Transform;
+import dev.sixik.unigui.api.render.shaders.ShaderDrawOptions;
+import dev.sixik.unigui.api.render.shaders.ShaderHandle;
+import dev.sixik.unigui.api.render.shaders.ShaderUniforms;
 import dev.sixik.unigui.api.text.RichText;
 
 public final class DrawCommand {
@@ -17,6 +20,9 @@ public final class DrawCommand {
     private String text;
     private RichText richText;
     private CustomDraw customDraw;
+    private ShaderHandle shader;
+    private ShaderUniforms shaderUniforms = ShaderUniforms.empty();
+    private ShaderDrawOptions shaderOptions = ShaderDrawOptions.defaults();
     private float radius;
 
     public static DrawCommand rect(RectView bounds, Paint paint) {
@@ -45,6 +51,10 @@ public final class DrawCommand {
 
     public static DrawCommand custom(CustomDraw customDraw) {
         return new DrawCommand(DrawCommandType.CUSTOM).customDraw(customDraw);
+    }
+
+    public static DrawCommand shader(ShaderHandle shader, RectView bounds, ShaderUniforms uniforms) {
+        return new DrawCommand(DrawCommandType.SHADER).shader(shader).bounds(bounds).shaderUniforms(uniforms);
     }
 
     public static DrawCommand mesh(DrawMesh mesh, TextureHandle texture) {
@@ -163,6 +173,33 @@ public final class DrawCommand {
         return this;
     }
 
+    public ShaderHandle shader() {
+        return shader;
+    }
+
+    public DrawCommand shader(ShaderHandle shader) {
+        this.shader = shader == null ? null : shader.copy();
+        return this;
+    }
+
+    public ShaderUniforms shaderUniforms() {
+        return shaderUniforms;
+    }
+
+    public DrawCommand shaderUniforms(ShaderUniforms shaderUniforms) {
+        this.shaderUniforms = shaderUniforms == null ? ShaderUniforms.empty() : shaderUniforms.copy();
+        return this;
+    }
+
+    public ShaderDrawOptions shaderOptions() {
+        return shaderOptions;
+    }
+
+    public DrawCommand shaderOptions(ShaderDrawOptions shaderOptions) {
+        this.shaderOptions = shaderOptions == null ? ShaderDrawOptions.defaults() : shaderOptions.copy();
+        return this;
+    }
+
     public float radius() {
         return radius;
     }
@@ -184,6 +221,9 @@ public final class DrawCommand {
         copy.text = text;
         copy.richText = richText;
         copy.customDraw = customDraw;
+        copy.shader = shader == null ? null : shader.copy();
+        copy.shaderUniforms = shaderUniforms == null ? ShaderUniforms.empty() : shaderUniforms.copy();
+        copy.shaderOptions = shaderOptions == null ? ShaderDrawOptions.defaults() : shaderOptions.copy();
         copy.radius = radius;
         return copy;
     }

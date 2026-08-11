@@ -24,14 +24,19 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 
 /** Batches untextured UI primitives into one position-color draw call. */
-final class MinecraftShapeBatchRenderer {
+final class MinecraftShapeBatchRenderer implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(MinecraftShapeBatchRenderer.class);
     private static final float TAU = (float) (Math.PI * 2.0);
+    private final MinecraftSdfShapeRenderer sdfRenderer = new MinecraftSdfShapeRenderer();
 
     boolean render(GuiGraphics graphics, List<DrawCommand> commands, boolean renderingToPremultipliedTarget) {
         if (graphics == null || commands == null || commands.isEmpty()) return false;
         for (DrawCommand command : commands) {
             if (command == null || !supports(command.type())) return false;
+        }
+        if (sdfRenderer.shouldRender(commands)
+                && sdfRenderer.render(graphics, commands, renderingToPremultipliedTarget)) {
+            return true;
         }
 
         graphics.flush();
@@ -64,6 +69,11 @@ final class MinecraftShapeBatchRenderer {
         } finally {
             state.restore();
         }
+    }
+
+    @Override
+    public void close() {
+        sdfRenderer.close();
     }
 
     static boolean supports(DrawCommandType type) {

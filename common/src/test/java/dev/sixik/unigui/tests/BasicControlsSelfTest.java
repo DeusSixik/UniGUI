@@ -52,7 +52,13 @@ import dev.sixik.unigui.api.render.DrawList;
 import dev.sixik.unigui.api.render.ImageFit;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderBackend;
+import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.render.RenderTarget;
+import dev.sixik.unigui.api.render.shaders.ShaderDrawOptions;
+import dev.sixik.unigui.api.render.shaders.ShaderHandle;
+import dev.sixik.unigui.api.render.shaders.ShaderProviders;
+import dev.sixik.unigui.api.render.shaders.ShaderSource;
+import dev.sixik.unigui.api.render.shaders.ShaderUniforms;
 import dev.sixik.unigui.api.render.SimpleTextureHandle;
 import dev.sixik.unigui.api.render.TexturePlacement;
 import dev.sixik.unigui.api.selection.SelectionMode;
@@ -172,6 +178,7 @@ public final class BasicControlsSelfTest {
         testTextOverflowModes();
         testRichTextAndSdfContracts();
         testTexturePlacementAndBackgrounds();
+        testShaderDrawCommandContracts();
         testTextFieldFocusAndEditing();
         testTextFieldSelectionAndClipboard();
         testTextInputClippingMetricsAndSelection();
@@ -568,6 +575,61 @@ public final class BasicControlsSelfTest {
                 .put(StyleKeys.BACKGROUND_TEXTURE_FIT, ImageFit.COVER);
         expect(textureStyle.get(StyleKeys.BACKGROUND_TEXTURE, WidgetState.HOVERED, null) == texture,
                 "Background textures should participate in state-aware styles");
+    }
+
+    private void testShaderDrawCommandContracts() {
+        ShaderHandle shader = ShaderHandle.resource("sdmshop2:pixel_bevel_box");
+        ShaderUniforms uniforms = ShaderUniforms.create()
+                .setColorArgb("FillColor", 0xFF203040)
+                .setColorArgb("HighlightColor", 0xFFFFFFFF)
+                .setColorArgb("ShadowColor", 0xFF000000)
+                .setFloat("BevelThickness", 2.0f);
+        ShaderDrawOptions options = ShaderDrawOptions.defaults().squareVertexOffset(0.0f);
+
+        DrawList drawList = new DrawList();
+        RenderContext context = new DefaultRenderContext(drawList);
+        context.shader(shader, 4.0f, 6.0f, 32.0f, 14.0f, uniforms, options);
+
+        expect(drawList.size() == 1, "RenderContext.shader should enqueue one draw command");
+        DrawCommand command = drawList.commands().get(0);
+        expect(command.type() == DrawCommandType.SHADER
+                        && command.shader().id().equals("sdmshop2:pixel_bevel_box")
+                        && command.bounds().x() == 4.0f
+                        && command.bounds().y() == 6.0f
+                        && command.bounds().width() == 32.0f
+                        && command.bounds().height() == 14.0f
+                        && command.shaderUniforms().values().containsKey("BevelThickness")
+                        && command.shaderOptions().squareVertexOffset() == 0.0f,
+                "Shader draw commands should preserve shader id, bounds, uniforms and options");
+
+        uniforms.setFloat("BevelThickness", 9.0f);
+        options.squareVertexOffset(-0.25f);
+        expect(command.shaderUniforms().values().get("BevelThickness").floats()[0] == 2.0f
+                        && command.shaderOptions().squareVertexOffset() == 0.0f,
+                "Shader draw commands should defensively copy uniforms and options");
+        expect(ShaderProviders.resolve(ShaderHandle.resource("shaders/unqualified_test_shader")).isPresent(),
+                "ClasspathShaderProvider should resolve unqualified shaders/myshader handles");
+        expect(ShaderProviders.resolve(ShaderHandle.resource("example:shaders/namespaced_test_shader")).isPresent(),
+                "ClasspathShaderProvider should resolve modid:shaders/myshader handles under assets/modid");
+
+        AutoCloseable registration = ShaderProviders.register(handle ->
+                handle.id().equals("memory:shaders/inline")
+                        ? java.util.Optional.of(ShaderSource.fragment(handle.id(), """
+                                #version 150
+                                out vec4 fragColor;
+                                void main(){ fragColor = vec4(1.0); }
+                                """))
+                        : java.util.Optional.empty());
+        try {
+            expect(ShaderProviders.resolve(ShaderHandle.resource("memory:shaders/inline")).isPresent(),
+                    "ShaderProviders should resolve manually registered providers before classpath fallback");
+        } finally {
+            try {
+                registration.close();
+            } catch (Exception exception) {
+                throw new AssertionError("Shader provider registration cleanup should not fail", exception);
+            }
+        }
     }
 
     private void testTextFieldFocusAndEditing() {

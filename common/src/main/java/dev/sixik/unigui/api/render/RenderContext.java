@@ -4,6 +4,9 @@ import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.math.Transform;
+import dev.sixik.unigui.api.render.shaders.ShaderDrawOptions;
+import dev.sixik.unigui.api.render.shaders.ShaderHandle;
+import dev.sixik.unigui.api.render.shaders.ShaderUniforms;
 import dev.sixik.unigui.api.text.RichText;
 
 import java.util.ArrayList;
@@ -102,6 +105,36 @@ public interface RenderContext {
                 .transform(transform));
     }
 
+    default void shader(ShaderHandle shader, float x, float y, float width, float height,
+                        ShaderUniforms uniforms) {
+        shader(shader, x, y, width, height, uniforms, ShaderDrawOptions.defaults(), null);
+    }
+
+    default void shader(ShaderHandle shader, float x, float y, float width, float height,
+                        ShaderUniforms uniforms, Transform transform) {
+        shader(shader, x, y, width, height, uniforms, ShaderDrawOptions.defaults(), transform);
+    }
+
+    default void shader(ShaderHandle shader, float x, float y, float width, float height,
+                        ShaderUniforms uniforms, ShaderDrawOptions options) {
+        shader(shader, x, y, width, height, uniforms, options, null);
+    }
+
+    default void shader(ShaderHandle shader, float x, float y, float width, float height,
+                        ShaderUniforms uniforms, ShaderDrawOptions options, Transform transform) {
+        if (shader == null || width == 0.0f || height == 0.0f) return;
+        DrawCommand command = DrawCommand.shader(shader, new MutableRect(x, y, width, height), uniforms)
+                .shaderOptions(options);
+        if (transform != null) {
+            command.transform(transform);
+        }
+        drawList().add(command);
+    }
+
+    default void shader(String shaderResource, float x, float y, float width, float height,
+                        ShaderUniforms uniforms) {
+        shader(ShaderHandle.resource(shaderResource), x, y, width, height, uniforms);
+    }
     default void text(String text, float x, float y, float width, float height, Paint paint) {
         drawList().add(DrawCommand.text(text, new MutableRect(x, y, width, height), effectivePaint(paint)));
     }
