@@ -1023,7 +1023,7 @@ public abstract class WidgetBase implements Widget {
             FloatTransition transition = entry.getValue();
             setAnimatedValue(entry.getKey(), transition.tick(deltaSeconds));
             if (transition.finished()) {
-                setAnimatedValue(entry.getKey(), transition.end());
+                setAnimatedValue(entry.getKey(), transition.finalValue());
                 iterator.remove();
             }
         }
@@ -1117,7 +1117,7 @@ public abstract class WidgetBase implements Widget {
             FloatTransition transition = entry.transition();
             entry.writer().set(transition.tick(deltaSeconds));
             if (transition.finished()) {
-                entry.writer().set(transition.end());
+                entry.writer().set(transition.finalValue());
                 iterator.remove();
             }
         }

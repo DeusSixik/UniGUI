@@ -521,7 +521,7 @@ public final class UniGuiDemo {
     }
 
     private static VBox animationsPage() {
-        VBox page = page("Animations", "Retained widget animations: motion, shake, transform origins, rotation, colors and texture crossfades.");
+        VBox page = page("Animations", "Retained widget animations: motion, shake, transform origins, rotation, colors, texture crossfades and loops.");
         page.addChild(paragraph("Click the controls below. The examples are intentionally small so the API usage is visible and easy to copy into real screens."));
 
         TransitionSpec quick = TransitionSpec.of(0.18f, AnimationEasing.EASE_OUT);
@@ -704,6 +704,48 @@ public final class UniGuiDemo {
         visualRow.addChild(colorStack);
         visualRow.addChild(textureStack);
         page.addChild(section("Visual properties", visualRow));
+
+        WrapPanel loopRow = new WrapPanel();
+        loopRow.spacing(8.0f);
+        loopRow.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
+
+        TransitionSpec pulseLoop = TransitionSpec.of(0.70f, AnimationEasing.EASE_IN_OUT).loop().yoyo();
+        TransitionSpec spinLoop = TransitionSpec.of(1.20f, AnimationEasing.LINEAR).loop();
+
+        Button loopCard = new Button("Looping pulse");
+        loopCard.themeEnabled(false);
+        loopCard.background().set(0.052f, 0.052f, 0.090f, 0.94f);
+        loopCard.borderColor().set(0.20f, 0.28f, 0.36f, 0.75f);
+        loopCard.textColor().set(0.88f, 0.90f, 1.0f, 1.0f);
+        loopCard.transformOrigin(TransformOrigin.CENTER);
+        loopCard.layout(style -> style.size(150.0f, 46.0f).flexGrow(0).flexShrink(0.0f));
+
+        Button startLoop = new Button("Start loop");
+        startLoop.layout(style -> style.size(92.0f, 24.0f).flexGrow(0).flexShrink(0.0f));
+        startLoop.onClick(event -> {
+            loopCard.stopAnimations();
+            loopCard.opacity(0.58f);
+            loopCard.animateOpacity(1.0f, pulseLoop);
+            loopCard.animateScale(1.08f, 1.08f, pulseLoop);
+            loopCard.animateBorderColor(new MutableColor(0.60f, 0.45f, 1.0f, 1.0f), pulseLoop);
+            loopCard.rotationDegrees(0.0f);
+            loopCard.animateRotation(360.0f, spinLoop);
+        });
+
+        Button stopLoop = new Button("Stop loop");
+        stopLoop.layout(style -> style.size(86.0f, 24.0f).flexGrow(0).flexShrink(0.0f));
+        stopLoop.onClick(event -> {
+            loopCard.stopAnimations();
+            loopCard.animateOpacity(1.0f, quick);
+            loopCard.animateScale(1.0f, 1.0f, quick);
+            loopCard.animateRotation(0.0f, quick);
+            loopCard.animateBorderColor(new MutableColor(0.20f, 0.28f, 0.36f, 0.75f), quick);
+        });
+
+        loopRow.addChild(loopCard);
+        loopRow.addChild(startLoop);
+        loopRow.addChild(stopLoop);
+        page.addChild(section("Loop / stop", loopRow));
 
         page.addChild(paragraph("Shader transitions should normally be represented as a blend uniform or a two-pass crossfade, similar to the texture example above."));
         return page;

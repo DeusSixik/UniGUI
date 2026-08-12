@@ -1992,6 +1992,32 @@ public final class BasicControlsSelfTest {
                         .allMatch(command -> near(command.paint().color().a(), 0.0f)),
                 "Label opacity(0) should emit fully transparent text paint");
 
+        Box looping = new Box();
+        looping.opacity(0.0f).animateOpacity(1.0f, TransitionSpec.of(1.0f, AnimationEasing.LINEAR).loop().yoyo());
+        looping.tick(new FrameContext(11, 0.5f, 0.0f, FramePhase.ANIMATION));
+        expect(near(looping.opacity(), 0.5f) && looping.animationRunning(AnimatedProperty.OPACITY),
+                "Infinite yoyo transition should interpolate forward and keep running");
+        looping.tick(new FrameContext(12, 0.5f, 0.0f, FramePhase.ANIMATION));
+        expect(near(looping.opacity(), 1.0f) && looping.animationRunning(AnimatedProperty.OPACITY),
+                "Infinite yoyo transition should reach the target without finishing");
+        looping.tick(new FrameContext(13, 0.5f, 0.0f, FramePhase.ANIMATION));
+        expect(near(looping.opacity(), 0.5f) && looping.animationRunning(AnimatedProperty.OPACITY),
+                "Infinite yoyo transition should interpolate backward on the next cycle");
+        looping.stopAnimation(AnimatedProperty.OPACITY);
+        float stoppedOpacity = looping.opacity();
+        looping.tick(new FrameContext(14, 0.5f, 0.0f, FramePhase.ANIMATION));
+        expect(near(looping.opacity(), stoppedOpacity) && !looping.animationRunning(AnimatedProperty.OPACITY),
+                "stopAnimation should stop an infinite transition at its current value");
+
+        Box finiteYoyo = new Box();
+        finiteYoyo.opacity(0.0f).animateOpacity(1.0f, TransitionSpec.of(1.0f, AnimationEasing.LINEAR).repeat(1).yoyo());
+        finiteYoyo.tick(new FrameContext(15, 0.5f, 0.0f, FramePhase.ANIMATION));
+        finiteYoyo.tick(new FrameContext(16, 0.5f, 0.0f, FramePhase.ANIMATION));
+        finiteYoyo.tick(new FrameContext(17, 0.5f, 0.0f, FramePhase.ANIMATION));
+        finiteYoyo.tick(new FrameContext(18, 0.5f, 0.0f, FramePhase.ANIMATION));
+        expect(near(finiteYoyo.opacity(), 0.0f) && !finiteYoyo.animationRunning(AnimatedProperty.OPACITY),
+                "Finite yoyo repeat should finish at the original start value");
+
         Button button = new Button("Animated");
         button.interactionTransitions(true)
                 .interactionTransition(TransitionSpec.of(0.10f, AnimationEasing.LINEAR))

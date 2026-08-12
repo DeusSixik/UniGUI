@@ -37,6 +37,6 @@ public final class ColorTransition {
 
     public void finish(MutableColor target) {
         if (target == null) return;
-        target.set(red.end(), green.end(), blue.end(), alpha.end());
+        target.set(red.finalValue(), green.finalValue(), blue.finalValue(), alpha.finalValue());
     }
 }
