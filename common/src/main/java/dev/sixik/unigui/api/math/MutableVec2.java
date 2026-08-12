@@ -26,6 +26,15 @@ public final class MutableVec2 implements Vec2View {
         return y;
     }
 
+    public MutableVec2 set(float value) {
+        if (this.x == value && this.y == value) return this;
+        this.x = value;
+        this.y = value;
+        changed();
+        return this;
+    }
+
+
     public MutableVec2 set(float x, float y) {
         if (this.x == x && this.y == y) return this;
         this.x = x;
@@ -37,6 +46,10 @@ public final class MutableVec2 implements Vec2View {
     public MutableVec2 set(Vec2View other) {
         Objects.requireNonNull(other, "other");
         return set(other.x(), other.y());
+    }
+
+    public MutableVec2 add(float value) {
+        return set(this.x + value, this.y + value);
     }
 
     public MutableVec2 add(float x, float y) {
