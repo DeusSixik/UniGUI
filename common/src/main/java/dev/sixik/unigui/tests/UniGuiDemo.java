@@ -13,6 +13,7 @@ import dev.sixik.unigui.api.selection.SelectionMode;
 import dev.sixik.unigui.api.text.Fonts;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextOverflowMode;
+import dev.sixik.unigui.api.widget.CheckboxState;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.widgets.minecraft.MinecraftBlockPreviewWidget;
 import dev.sixik.unigui.backend.minecraft.MinecraftClipboardService;
@@ -191,15 +192,21 @@ public final class UniGuiDemo {
         Button button = new Button("Button");
         ToggleButton toggle = new ToggleButton("Toggle");
         Checkbox checkbox = new Checkbox("Checkbox");
+        Checkbox partialTree = new Checkbox("Tree parent (partial)")
+                .triState(true)
+                .state(CheckboxState.INDETERMINATE);
         button.layout(style -> style.size(76.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
         toggle.layout(style -> style.size(76.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
         checkbox.layout(style -> style.size(96.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
+        partialTree.layout(style -> style.size(150.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
         button.onClick(event -> status.text("Button clicked"));
         toggle.onCheckedChanged(event -> status.text("Toggle: " + event.newValue()));
         checkbox.onCheckedChanged(event -> status.text("Checkbox: " + event.newValue()));
+        partialTree.onStateChanged(event -> status.text("Tree parent: " + event.newState()));
         buttons.addChild(button);
         buttons.addChild(toggle);
         buttons.addChild(checkbox);
+        buttons.addChild(partialTree);
         page.addChild(section("Buttons", buttons));
 
         WrapPanel inputs = wrap();
@@ -595,8 +602,12 @@ public final class UniGuiDemo {
 
         OverlayLayer layer = new OverlayLayer(page);
         Popup popup = new Popup(popupAnchor, samplePane("Popup content", "Anchored retained popup."));
+        ContextMenu createSubmenu = new ContextMenu()
+                .item("Recipe", () -> status.text("Context: Create Recipe"))
+                .item("Machine", () -> status.text("Context: Create Machine"));
         ContextMenu menu = new ContextMenu()
                 .item("Inspect", () -> status.text("Context: Inspect"))
+                .submenu("Create", createSubmenu)
                 .item("Duplicate", () -> status.text("Context: Duplicate"))
                 .separator()
                 .item("Delete", () -> status.text("Context: Delete"));

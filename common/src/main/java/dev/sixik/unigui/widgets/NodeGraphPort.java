@@ -2,6 +2,13 @@ package dev.sixik.unigui.widgets;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
 
+/**
+ * Pin/port descriptor for a {@link NodeGraphItem}.
+ *
+ * <p>Terminology: {@link #kind()} is connection direction, {@link #side()} is
+ * visual edge placement, and {@link #type()} is an optional compatibility or
+ * data label used by connection policies.</p>
+ */
 public final class NodeGraphPort {
     private final String id;
     private NodeGraphPortKind kind;

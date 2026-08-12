@@ -38,6 +38,18 @@ import dev.sixik.unigui.widgets.render.TextInputState;
 
 import java.util.Objects;
 
+/**
+ * Generic public single-line text editor widget.
+ *
+ * <p>TextInput owns the editable text model, cursor, selection, clipboard handling,
+ * focus/input behavior and renderer state. Use it directly for raw/unframed editor
+ * fields or as a base class for specialized inputs.</p>
+ *
+ * <p>The high-level text APIs, clipboard paste and text-input events sanitize
+ * control characters, so this widget remains single-line. {@link #editorModel()}
+ * exposes the low-level editor model for advanced integrations; callers that
+ * mutate it directly must preserve that single-line invariant themselves.</p>
+ */
 public class TextInput extends Box {
     protected static final float TEXT_PADDING = 4.0f;
     protected static final float APPROX_CHAR_WIDTH = TextEngine.APPROX_CHAR_WIDTH;
@@ -642,7 +654,7 @@ public class TextInput extends Box {
     }
 
     private static String normalize(String text) {
-        return text == null ? "" : text;
+        return TextEditorModel.sanitizePrintable(text);
     }
 
     private static float clamp(float value, float min, float max) {

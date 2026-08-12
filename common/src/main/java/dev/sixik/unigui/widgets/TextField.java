@@ -1,9 +1,17 @@
 package dev.sixik.unigui.widgets;
 
+import dev.sixik.unigui.api.input.TextEditorModel;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.widgets.render.TextInputRenderer;
 import dev.sixik.unigui.widgets.render.TextInputRenderType;
 
+/**
+ * Styled single-line text field specialization.
+ *
+ * <p>TextField keeps the TextInput editor behavior but enables the default field
+ * chrome and uses the TEXT_FIELD renderer type. Prefer TextField for normal
+ * user-facing form controls; use TextInput when a raw/editor-base control is needed.</p>
+ */
 public class TextField extends TextInput {
     public TextField() {
         enableDefaultTextInputChrome();
@@ -11,7 +19,7 @@ public class TextField extends TextInput {
 
     public TextField(String text) {
         this();
-        editorModel().silentText(text);
+        editorModel().silentText(TextEditorModel.sanitizePrintable(text));
         editorModel().cursorIndex(text().length());
     }
 

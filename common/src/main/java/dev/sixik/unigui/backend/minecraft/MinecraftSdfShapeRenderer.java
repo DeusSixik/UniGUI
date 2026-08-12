@@ -35,7 +35,6 @@ import java.util.List;
 final class MinecraftSdfShapeRenderer implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(MinecraftSdfShapeRenderer.class);
     private static final float AA_PAD = 1.0f;
-    private static final float SMALL_FILLED_CIRCLE_SNAP_SIZE = 8.0f;
 
     private static final int SHAPE_ROUNDED_RECT = 0;
     private static final int SHAPE_ELLIPSE = 1;
@@ -235,15 +234,6 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
         float height = y2 - y1;
         if (width <= 0.0f || height <= 0.0f) return;
 
-        if (shouldSnapSmallFilledCircle(command, width, height)) {
-            float centerX = pixelCenter((x1 + x2) * 0.5f);
-            float centerY = pixelCenter((y1 + y2) * 0.5f);
-            x1 = centerX - width * 0.5f;
-            y1 = centerY - height * 0.5f;
-            x2 = centerX + width * 0.5f;
-            y2 = centerY + height * 0.5f;
-        }
-
         uploadCommon(activeProgram, command.paint(), SHAPE_ELLIPSE, width, height, 0.0f,
                 positiveThickness(command.paint().strokeWidth()), command.paint().isStroke());
         uploadVec2(activeProgram, "LineStart", 0.0f, 0.0f);
@@ -376,28 +366,6 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
                     || isFractional(command.bounds().height());
             default -> false;
         };
-    }
-
-    private static boolean shouldSnapSmallFilledCircle(DrawCommand command, float width, float height) {
-        return !command.paint().isStroke()
-                && Math.max(width, height) <= SMALL_FILLED_CIRCLE_SNAP_SIZE
-                && Math.abs(width - height) <= 0.001f
-                && isIdentityTransform(command.transform());
-    }
-
-    private static boolean isIdentityTransform(Transform transform) {
-        if (transform == null) return true;
-        return Math.abs(transform.position().x()) <= 0.001f
-                && Math.abs(transform.position().y()) <= 0.001f
-                && Math.abs(transform.pivot().x()) <= 0.001f
-                && Math.abs(transform.pivot().y()) <= 0.001f
-                && Math.abs(transform.scale().x() - 1.0f) <= 0.001f
-                && Math.abs(transform.scale().y() - 1.0f) <= 0.001f
-                && Math.abs(transform.rotationDegrees()) <= 0.001f;
-    }
-
-    private static float pixelCenter(float value) {
-        return (float) Math.floor(value) + 0.5f;
     }
 
     private static boolean isFractional(float value) {

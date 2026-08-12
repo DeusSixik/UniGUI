@@ -7,6 +7,7 @@ import dev.sixik.unigui.api.event.EventListener;
 import dev.sixik.unigui.api.event.EventPhase;
 import dev.sixik.unigui.api.event.EventSubscription;
 import dev.sixik.unigui.api.event.KeyPressedEvent;
+import dev.sixik.unigui.api.event.PointerEnteredEvent;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.LayoutContext;
@@ -25,6 +26,9 @@ import java.util.List;
 public final class ContextMenu extends Box implements OverlayHostAware {
     private final VBox itemsHost = new VBox();
     private final List<Button> itemButtons = new ArrayList<>();
+    private final List<ContextMenu> itemSubmenus = new ArrayList<>();
+    private ContextMenu parentMenu;
+    private ContextMenu openSubmenu;
     private boolean open;
     private boolean closeOnOutsideClick = true;
     private float x;
@@ -38,7 +42,7 @@ public final class ContextMenu extends Box implements OverlayHostAware {
         radius(3.0f);
         background().set(0.025f, 0.030f, 0.040f, 0.98f);
         borderColor().set(0.25f, 0.78f, 1.0f, 0.85f);
-        layout(style -> style.position(PositionType.ABSOLUTE).overflow(Overflow.HIDDEN));
+        layout(style -> style.position(PositionType.ABSOLUTE).overflow(Overflow.VISIBLE));
         visible(false);
         focusable(true);
         itemsHost.spacing(1.0f);
@@ -68,9 +72,51 @@ public final class ContextMenu extends Box implements OverlayHostAware {
             selectItem(itemIndex);
             emitItemSelected(itemIndex);
             if (action != null) action.run();
-            close();
+            closeMenuChain();
+        });
+        button.on(PointerEnteredEvent.TYPE, event -> {
+            if (event.phase() == EventPhase.TARGET) {
+                selectItem(itemIndex);
+            }
         });
         itemButtons.add(button);
+        itemSubmenus.add(null);
+        itemsHost.addChild(button);
+        if (selectedItemIndex < 0) {
+            selectedItemIndex = 0;
+        }
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public ContextMenu submenu(String text, ContextMenu submenu) {
+        String label = text == null ? "" : text;
+        return submenu(RichText.plain(label + " ▶"), submenu);
+    }
+
+    public ContextMenu submenu(RichText text, ContextMenu submenu) {
+        if (submenu == null) {
+            return item(text);
+        }
+        RichText normalizedText = text == null ? RichText.plain("▶") : text;
+        int itemIndex = itemButtons.size();
+        Button button = new Button(normalizedText);
+        button.layout(style -> style.size(132.0f, 20.0f).flexGrow(0).flexShrink(0.0f));
+        button.onClick(event -> {
+            selectItem(itemIndex);
+            openSubmenu(itemIndex);
+        });
+        button.on(PointerEnteredEvent.TYPE, event -> {
+            if (event.phase() == EventPhase.TARGET) {
+                selectItem(itemIndex);
+                openSubmenu(itemIndex);
+            }
+        });
+        itemButtons.add(button);
+        itemSubmenus.add(submenu);
+        submenu.parentMenu = this;
+        submenu.closeOnOutsideClick(closeOnOutsideClick);
+        submenu.close();
         itemsHost.addChild(button);
         if (selectedItemIndex < 0) {
             selectedItemIndex = 0;
@@ -98,6 +144,9 @@ public final class ContextMenu extends Box implements OverlayHostAware {
         }
         int normalized = Math.max(0, Math.min(index, itemButtons.size() - 1));
         selectedItemIndex = normalized;
+        if (submenuAt(normalized) == null) {
+            closeSubmenu();
+        }
         if (uiContext() != null) {
             uiContext().focusManager().requestFocus(itemButtons.get(normalized));
         }
@@ -135,6 +184,9 @@ public final class ContextMenu extends Box implements OverlayHostAware {
         if (this.open == open) return this;
         this.open = open;
         visible(open);
+        if (!open) {
+            closeSubmenu();
+        }
         if (open && selectedItemIndex < 0 && !itemButtons.isEmpty()) {
             selectedItemIndex = 0;
         }
@@ -148,7 +200,32 @@ public final class ContextMenu extends Box implements OverlayHostAware {
 
     public ContextMenu closeOnOutsideClick(boolean closeOnOutsideClick) {
         this.closeOnOutsideClick = closeOnOutsideClick;
+        for (ContextMenu submenu : itemSubmenus) {
+            if (submenu != null) {
+                submenu.closeOnOutsideClick(closeOnOutsideClick);
+            }
+        }
         return this;
+    }
+
+    boolean isMenuInteractionTarget(Widget target) {
+        if (containsMenuTreeTarget(target)) return true;
+        ContextMenu parent = parentMenu;
+        while (parent != null) {
+            if (isDescendantOrSelf(target, parent)) return true;
+            parent = parent.parentMenu;
+        }
+        return false;
+    }
+
+    private boolean containsMenuTreeTarget(Widget target) {
+        if (isDescendantOrSelf(target, this)) return true;
+        for (ContextMenu submenu : itemSubmenus) {
+            if (submenu != null && submenu.containsMenuTreeTarget(target)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public ContextMenu padding(EdgeInsets padding) {
@@ -177,6 +254,15 @@ public final class ContextMenu extends Box implements OverlayHostAware {
             event.cancel();
         } else if (key.keyCode() == KeyCodes.UP) {
             moveSelection(-1);
+            event.cancel();
+        } else if (key.keyCode() == KeyCodes.RIGHT) {
+            if (openSelectedSubmenu()) {
+                event.cancel();
+            }
+        } else if (key.keyCode() == KeyCodes.LEFT && parentMenu != null) {
+            close();
+            parentMenu.openSubmenu = null;
+            parentMenu.focusSelectedItem();
             event.cancel();
         } else if (key.keyCode() == KeyCodes.ENTER
                 || key.keyCode() == KeyCodes.KEYPAD_ENTER
@@ -230,7 +316,82 @@ public final class ContextMenu extends Box implements OverlayHostAware {
 
     private void activateSelectedItem() {
         if (selectedItemIndex < 0 || selectedItemIndex >= itemButtons.size()) return;
+        if (openSelectedSubmenu()) return;
         itemButtons.get(selectedItemIndex).click();
+    }
+
+    private boolean openSelectedSubmenu() {
+        return openSubmenu(selectedItemIndex);
+    }
+
+    private boolean openSubmenu(int index) {
+        ContextMenu submenu = submenuAt(index);
+        if (submenu == null || index < 0 || index >= itemButtons.size()) return false;
+        if (openSubmenu != null && openSubmenu != submenu) {
+            openSubmenu.close();
+        }
+        openSubmenu = submenu;
+        submenu.parentMenu = this;
+        submenu.closeOnOutsideClick(closeOnOutsideClick);
+        ensureSubmenuOverlay(submenu);
+        Button anchor = itemButtons.get(index);
+        submenu.openAt(anchor.layoutBounds().x() + anchor.layoutBounds().width() + 4.0f,
+                anchor.layoutBounds().y());
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return true;
+    }
+
+    private void closeSubmenu() {
+        if (openSubmenu == null) return;
+        ContextMenu submenu = openSubmenu;
+        openSubmenu = null;
+        submenu.close();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+    }
+
+    private ContextMenu submenuAt(int index) {
+        return index >= 0 && index < itemSubmenus.size() ? itemSubmenus.get(index) : null;
+    }
+
+    private void closeMenuChain() {
+        ContextMenu root = this;
+        while (root.parentMenu != null) {
+            root = root.parentMenu;
+        }
+        root.close();
+    }
+
+    private void focusSelectedItem() {
+        if (uiContext() != null && selectedItemIndex >= 0 && selectedItemIndex < itemButtons.size()) {
+            uiContext().focusManager().requestFocus(itemButtons.get(selectedItemIndex));
+        }
+    }
+
+    private void ensureSubmenuOverlay(ContextMenu submenu) {
+        OverlayLayer layer = overlayLayer();
+        if (layer != null && submenu.parent() != layer) {
+            layer.addOverlay(submenu);
+        } else if (layer == null && submenu.parent() != this) {
+            addChild(submenu);
+        }
+    }
+
+    private OverlayLayer overlayLayer() {
+        Widget current = this;
+        while (current != null) {
+            if (current instanceof OverlayLayer layer) return layer;
+            current = current.parent();
+        }
+        return null;
+    }
+
+    private static boolean isDescendantOrSelf(Widget widget, Widget ancestor) {
+        Widget current = widget;
+        while (current != null) {
+            if (current == ancestor) return true;
+            current = current.parent();
+        }
+        return false;
     }
 
     private void emitItemSelected(int index) {

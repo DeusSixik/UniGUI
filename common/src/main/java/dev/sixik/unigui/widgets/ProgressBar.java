@@ -10,6 +10,14 @@ import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.widgets.render.ProgressBarRenderer;
 import dev.sixik.unigui.widgets.render.ProgressBarState;
 
+/**
+ * Progress widget for operations with a measurable range.
+ *
+ * <p>Use {@link #indeterminate(boolean)} when the operation is still progress-like,
+ * but the current value is temporarily unknown. For a generic "busy" activity
+ * indicator that is not tied to a range/value contract, use {@link LoadingIndicator}
+ * with {@link LoadingIndicator.Mode#BAR} instead.</p>
+ */
 public class ProgressBar extends Box {
     private final MutableColor trackColor = new MutableColor(0.16f, 0.16f, 0.16f, 1.0f);
     private final MutableColor fillColor = new MutableColor(0.25f, 0.78f, 1.0f, 1.0f);

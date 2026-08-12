@@ -6,15 +6,42 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * Compact string codec for {@link DockLayoutSnapshot}.
+ *
+ * <p>This class intentionally uses a documented custom format instead of the
+ * generic FieldCodec infrastructure because a docking layout is a recursive
+ * tree and the stored value is usually embedded as a short UI preference.</p>
+ *
+ * <p>Format version {@code DLS1}: {@code DLS1|activePaneId|node}. Strings are
+ * URL-safe Base64 without padding, with {@code -} representing an empty value.
+ * A leaf node is encoded as {@code L[selectedPaneId|paneId,paneId,...]}; a
+ * split node is encoded as {@code S[H|ratio|first|second]} or
+ * {@code S[V|ratio|first|second]}.</p>
+ *
+ * <p>Versioning policy: incompatible future formats must use a new
+ * {@code DLS&lt;n&gt;} prefix and add an explicit decode branch. Unsupported,
+ * malformed or missing data decodes to an empty snapshot instead of throwing.</p>
+ */
 public final class DockLayoutSnapshotCodec {
-    private static final String PREFIX = "DLS1|";
+    public static final int FORMAT_VERSION = 1;
+    private static final String PREFIX = "DLS" + FORMAT_VERSION + "|";
     private static final String EMPTY = "-";
 
+    /**
+     * Encodes a snapshot as the compact {@code DLS1} string format.
+     */
     public static String encode(DockLayoutSnapshot snapshot) {
         DockLayoutSnapshot normalized = snapshot == null ? new DockLayoutSnapshot(null, "") : snapshot;
         return PREFIX + encodeString(normalized.activePaneId()) + "|" + encodeNode(normalized.root());
     }
 
+    /**
+     * Decodes the compact {@code DLS1} string format.
+     *
+     * <p>Unknown versions and malformed payloads fail closed to an empty
+     * snapshot so user preferences cannot break docking initialization.</p>
+     */
     public static DockLayoutSnapshot decode(String encoded) {
         if (encoded == null || !encoded.startsWith(PREFIX)) {
             return new DockLayoutSnapshot(null, "");

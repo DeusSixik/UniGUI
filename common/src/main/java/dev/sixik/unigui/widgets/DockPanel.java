@@ -11,6 +11,14 @@ import dev.sixik.unigui.impl.layout.v3.LayoutV3DockAdapter;
 import java.util.IdentityHashMap;
 import java.util.Map;
 
+/**
+ * Simple dock-layout container for arranging children against LEFT/RIGHT/TOP/BOTTOM edges.
+ *
+ * <p>DockPanel is not the IDE-style docking system root. For panes, tabs,
+ * drag-drop areas and layout snapshots, use {@link DockingRoot} and
+ * {@link DockingManager}. DockPanel uses {@link DockSide}; docking uses
+ * {@link DockArea}.</p>
+ */
 public final class DockPanel extends PanelWidget {
     private final Map<Widget, DockSide> docks = new IdentityHashMap<>();
     private boolean lastChildFill = true;

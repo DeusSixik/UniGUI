@@ -9,6 +9,14 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+/**
+ * Non-visual controller for docking tree mutation, active-pane selection and
+ * layout snapshot restore.
+ *
+ * <p>DockingManager keeps the persistent {@link DockNode} tree and notifies its
+ * owning {@link DockingRoot} about structural changes. It does not render pane
+ * chrome, drop previews or transient drag state; those remain in DockingRoot.</p>
+ */
 public final class DockingManager {
     private DockNode root = DockNode.leaf();
     private final DockingRoot owner;

@@ -53,6 +53,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Visual root host for the IDE-style docking system.
+ *
+ * <p>DockingRoot owns widget-facing state such as pane chrome, tab strips,
+ * split handles, drop previews, floating-window redock integration and input
+ * handling. Persistent tree mutation and restore operations are delegated to
+ * {@link DockingManager}.</p>
+ *
+ * <p>Use {@link DockPanel} for simple edge-based child layout. DockingRoot is
+ * the docking system root; DockPanel is only a layout container.</p>
+ */
 public final class DockingRoot extends Box {
     private static final float DEFAULT_WIDTH = 320.0f;
     private static final float DEFAULT_HEIGHT = 200.0f;

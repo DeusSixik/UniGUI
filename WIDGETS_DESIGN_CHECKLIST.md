@@ -231,7 +231,7 @@
 - [x] Иметь renderer/state.
 - [ ] Проверить keyboard activation Enter/Space, если button должен быть keyboard-first.
 
-## Checkbox — статус PARTIAL
+## Checkbox — статус OK
 
 Целевая роль: bool toggle, optional tri-state.
 
@@ -240,7 +240,7 @@
 - [x] Добавить indeterminate state.
 - [x] Добавить tri-state cycle mode: unchecked -> checked -> indeterminate или configurable order.
 - [x] Добавить CheckedChangedEvent или отдельный CheckboxStateChangedEvent для tri-state.
-- [ ] Добавить demo для tree partial selection.
+- [x] Добавить demo для tree partial selection.
 
 ## RadioButton — статус OK
 
@@ -297,7 +297,7 @@
 - [ ] Добавить locale-independent decimal policy and negative sign placement.
 - [ ] Добавить renderer/state coverage для invalid input state.
 
-## TextField — статус ALIAS/PARTIAL
+## TextField — статус OK/PARTIAL
 
 Целевая роль: single-line text field или chrome-specialization над TextInput.
 
@@ -305,9 +305,9 @@
 
 - [x] Наследоваться от TextInput.
 - [x] Использовать textField renderer.
-- [ ] Явно задокументировать отличие TextField от TextInput.
-- [ ] Решить, должен ли TextInput быть abstract/base или публичный generic input.
-- [ ] Добавить single-line guarantee и запрет line breaks, если TextField — single-line.
+- [x] Явно задокументировать отличие TextField от TextInput.
+- [x] Решить: TextInput остаётся публичным generic/base input, TextField — styled public control.
+- [x] Добавить single-line guarantee и запрет line breaks, если TextField — single-line.
 
 ## TextInput — статус PARTIAL
 
@@ -317,7 +317,7 @@
 - [x] Поддерживать copy/cut/paste.
 - [x] Поддерживать renderer/state.
 - [x] Публиковать TextChangedEvent через onTextChanged.
-- [ ] Разделить base editor model и public widget API, если TextField должен быть основным public widget.
+- [x] Явно задокументировать split: TextInput владеет generic editor API, TextField добавляет chrome.
 - [ ] Добавить undo/redo policy или явно указать, что undo отсутствует.
 - [ ] Добавить IME/composition support, если требуется desktop text input.
 - [ ] Добавить protected hooks для secure subclasses вроде PasswordField.
@@ -551,7 +551,7 @@
 - [x] Поддерживать Mode.SPINNER, DOTS, BAR.
 - [x] Поддерживать running/phase/speed.
 - [x] Иметь renderer selection по mode.
-- [ ] Проверить semantic отличие LoadingIndicator BAR от ProgressBar indeterminate.
+- [x] Проверить semantic отличие LoadingIndicator BAR от ProgressBar indeterminate.
 - [ ] Добавить accessibility/status text, если нужно.
 
 ## Spinner — статус OK
@@ -636,7 +636,7 @@
 - [ ] Добавить optional icon, если breadcrumbs должны быть IDE-like.
 - [ ] Не добавлять widget/render logic внутрь item.
 
-## ContextMenu — статус PARTIAL
+## ContextMenu — статус OK/PARTIAL
 
 Целевая роль: меню в точке клика, outside/Escape close, nested submenu.
 
@@ -644,7 +644,7 @@
 - [x] Закрываться при item click.
 - [x] Закрываться outside-click через OverlayLayer.
 - [x] Добавить Escape close.
-- [ ] Добавить submenu support.
+- [x] Добавить submenu support.
 - [ ] Заменить public Runnable action API на event-driven MenuItemSelectedEvent или command model.
 - [x] Добавить keyboard navigation Up/Down/Enter.
 
@@ -847,16 +847,18 @@
 - [x] Учитывать modal stack.
 - [ ] Добавить explicit close-all/minimize-all policy, если нужно.
 
-## DockPanel — статус GAP относительно внешнего Docking contract
+## DockPanel — статус OK (dock-layout container)
 
-Целевая роль по внешнему контракту: root docking widget.
+Целевая роль: обычный dock-layout container по DockSide.
 
-Текущее состояние: обычный dock-layout container по DockSide.
+Root docking widget по внешнему контракту: DockingRoot.
 
-- [ ] Переименовать или задокументировать: DockPanel = dock layout, DockingRoot = docking system root.
-- [ ] Если DockPanel должен стать root docking — перенести/обернуть DockingRoot responsibility.
+Текущее состояние: DockPanel сохраняет простую edge-layout роль; DockingRoot/DockingManager владеют docking system.
+
+- [x] Переименовать или задокументировать: DockPanel = dock layout, DockingRoot = docking system root.
+- [x] Решение зафиксировано: DockPanel не становится root docking; DockingRoot сохраняет responsibility.
 - [x] Для текущей роли сохранить DockSide layout behavior.
-- [ ] Обновить contract, чтобы не путать DockPanel и DockingRoot.
+- [x] Обновить contract, чтобы не путать DockPanel и DockingRoot.
 
 ## DockArea — статус HELPER/PARTIAL
 
@@ -865,8 +867,8 @@
 - [x] Иметь LEFT/RIGHT/TOP/BOTTOM/CENTER.
 - [x] Иметь TAB/FLOAT extensions.
 - [x] Маппить splitOrientation.
-- [ ] Согласовать с DockSide: DockArea для docking drop, DockSide для layout DockPanel.
-- [ ] Документировать CENTER vs TAB.
+- [x] Согласовать с DockSide: DockArea для docking drop, DockSide для layout DockPanel.
+- [x] Документировать CENTER vs TAB.
 
 ## DockPane — статус OK/PARTIAL
 
@@ -901,7 +903,7 @@
 Целевая роль: enum сторон для DockPanel layout.
 
 - [x] Иметь LEFT/RIGHT/TOP/BOTTOM.
-- [ ] Не использовать для docking drop zones, где нужен DockArea.
+- [x] Не использовать для docking drop zones, где нужен DockArea.
 - [ ] Добавить CENTER только если DockPanel layout действительно его поддерживает.
 
 ## DockSplitOrientation — статус HELPER/OK
@@ -917,6 +919,7 @@
 Целевая роль: root container для docking системы.
 
 - [x] Владеть DockingManager.
+- [x] Design note: DockingRoot = visual/root host, DockingManager = tree mutation logic.
 - [x] Владеть DockDragController.
 - [x] Рендерить dock root/panes/tabs/split handles/drop preview.
 - [x] Поддерживать addDocument/addToolPane/splitPane/tabPane/selectPane.
@@ -964,15 +967,15 @@
 - [ ] Добавить version field, если snapshot будет стабильным file format.
 - [ ] Добавить validation helpers.
 
-## DockLayoutSnapshotCodec — статус GAP/PARTIAL
+## DockLayoutSnapshotCodec — статус OK (documented compact format)
 
-Целевая роль: codec должен переиспользовать FieldCodec infrastructure.
+Целевая роль: documented compact codec для DockLayoutSnapshot layout tree.
 
-Текущее состояние: custom string format DLS1 с Base64.
+Решение: DockLayoutSnapshotCodec сохраняет собственный custom string format DLS1 с Base64; FieldCodec не используется намеренно из-за рекурсивного tree format и compact preference storage.
 
 - [x] Иметь encode/decode.
-- [ ] Переписать на FieldCodec infrastructure или обновить контракт, что DockLayoutSnapshotCodec имеет собственный compact format.
-- [ ] Добавить versioning/migration policy.
+- [x] Переписать на FieldCodec infrastructure или обновить контракт, что DockLayoutSnapshotCodec имеет собственный compact format.
+- [x] Добавить versioning/migration policy.
 - [ ] Добавить tests на corrupted input, unicode pane ids, nested splits.
 
 ---
@@ -1015,30 +1018,32 @@
 
 Целевая роль: pin/port descriptor.
 
+Терминология: Kind = connection direction, Side = visual placement edge, type = optional compatibility/data label.
+
 - [x] Хранить id/kind/side/offset/type/visibility/enabled.
-- [ ] Согласовать терминологию Kind/Side: сейчас Kind = INPUT/OUTPUT/BIDIRECTIONAL, Side = LEFT/RIGHT/TOP/BOTTOM.
+- [x] Согласовать терминологию Kind/Side: Kind = INPUT/OUTPUT/BIDIRECTIONAL direction, Side = LEFT/RIGHT/TOP/BOTTOM placement.
 - [ ] Если нужен Blueprint EXEC/DATA, добавить отдельный dataKind/flowKind.
 - [ ] Добавить port label/tooltip metadata.
 
-## NodeGraphPortKind — статус HELPER/GAP относительно внешнего contract
+## NodeGraphPortKind — статус OK (connection direction)
 
-Целевая роль по контракту: EXEC/DATA.
+Целевая роль: connection direction для validation policy.
 
-Текущее состояние: INPUT/OUTPUT/BIDIRECTIONAL.
+Контракт обновлён: NodeGraphPortKind = INPUT/OUTPUT/BIDIRECTIONAL direction. EXEC/DATA не является PortKind; для Blueprint-style flow/data нужен отдельный dataKind/flowKind или текущий NodeGraphPort.type().
 
-- [ ] Решить: переименовать текущий Kind в Direction или PortDirection.
+- [x] Решить: не переименовывать текущий public Kind; semantic = connection direction.
 - [ ] Добавить PortDataKind EXEC/DATA, если нужно Blueprint поведение.
-- [ ] Обновить connection policy под новую модель.
+- [x] Connection policy остаётся на direction model: OUTPUT starts, INPUT receives, BIDIRECTIONAL both.
 
-## NodeGraphPortSide — статус HELPER/GAP относительно внешнего contract
+## NodeGraphPortSide — статус OK (placement side)
 
-Целевая роль по контракту: INPUT/OUTPUT.
+Целевая роль: visual placement edge на bounds ноды.
 
-Текущее состояние: LEFT/RIGHT/TOP/BOTTOM placement side.
+Контракт обновлён: NodeGraphPortSide = LEFT/RIGHT/TOP/BOTTOM placement. INPUT/OUTPUT direction живёт в NodeGraphPortKind, а не в Side.
 
-- [ ] Решить: оставить Side как placement side и обновить контракт.
-- [ ] Если нужен input/output side, использовать отдельный Direction enum.
-- [ ] Проверить renderer hit-test для всех four sides.
+- [x] Решить: оставить Side как placement side и обновить контракт.
+- [x] Решение: input/output side не вводится; direction semantic закреплён в NodeGraphPortKind.
+- [x] Проверить renderer hit-test для всех four sides.
 
 ## NodeGraphPortRef — статус HELPER/OK
 
@@ -1193,22 +1198,22 @@
 
 ## P1 — недостающие user-facing возможности
 
-- [ ] Checkbox indeterminate/tri-state.
-- [ ] ProgressBar indeterminate.
+- [x] Checkbox indeterminate/tri-state.
+- [x] ProgressBar indeterminate.
 - [x] SearchField debounce.
 - [x] TabControl Left/Right keyboard navigation.
 - [x] ContextMenu Escape close и keyboard navigation.
-- [ ] ContextMenu submenu.
+- [x] ContextMenu submenu.
 - [x] PasswordField secure clipboard/cut/copy policy.
 
 ## P2 — документация и согласование терминов
 
 - [x] Text/TextWidget/TextBlock/Label/RichTextView — явно развести роли.
-- [ ] TextField/TextInput — явно развести public control и base editor.
-- [ ] DockPanel vs DockingRoot — обновить contract names.
-- [ ] DockArea vs DockSide — закрепить разницу.
-- [ ] NodeGraphPortKind/NodeGraphPortSide — переименовать или обновить contract.
-- [ ] DockLayoutSnapshotCodec — FieldCodec или documented custom format.
+- [x] TextField/TextInput — явно развести public control и base editor.
+- [x] DockPanel vs DockingRoot — обновить contract names.
+- [x] DockArea vs DockSide — закрепить разницу.
+- [x] NodeGraphPortKind/NodeGraphPortSide — переименовать или обновить contract.
+- [x] DockLayoutSnapshotCodec — FieldCodec или documented custom format.
 
 ## P3 — улучшения качества
 

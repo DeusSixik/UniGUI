@@ -13,6 +13,13 @@ import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.widgets.render.LoadingIndicatorRenderer;
 import dev.sixik.unigui.widgets.render.LoadingIndicatorState;
 
+/**
+ * Generic animated activity indicator.
+ *
+ * <p>{@link Mode#BAR} communicates that work is in progress without exposing a
+ * progress range. Use {@link ProgressBar#indeterminate(boolean)} when the UI
+ * represents progress for a ranged operation, but the current value is unknown.</p>
+ */
 public class LoadingIndicator extends Box {
     private static final float DEFAULT_SIZE = 24.0f;
 
