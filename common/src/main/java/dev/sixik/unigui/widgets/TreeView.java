@@ -574,7 +574,7 @@ public class TreeView extends LinearBox {
 
         @Override
         protected void renderContent(RenderContext context) {
-            tree.effectiveRenderer().render(new DrawScope(context, transform()), rowSnapshot(context));
+            tree.effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), rowSnapshot(context));
         }
 
         private TreeViewRowState rowSnapshot(RenderContext context) {

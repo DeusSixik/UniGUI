@@ -193,7 +193,7 @@ public class TextWidget extends WidgetBase {
         if (text.isEmpty()) return;
         pushOpacity(context);
         try {
-            effectiveRenderer().render(new DrawScope(context, transform()), snapshot(context));
+            effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot(context));
         } finally {
             popOpacity(context);
         }

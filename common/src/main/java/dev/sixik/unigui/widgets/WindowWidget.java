@@ -626,7 +626,7 @@ public final class WindowWidget extends Box implements OverlayHostAware {
 
     @Override
     protected void renderContent(RenderContext context) {
-        effectiveRenderer().render(new DrawScope(context, transform()), snapshot(context));
+        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot(context));
         super.renderContent(context);
     }
 

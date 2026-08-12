@@ -259,7 +259,7 @@ public final class OverlayLayer extends PanelWidget {
     }
 
     private void renderModalScrim(RenderContext context) {
-        effectiveModalScrimRenderer().render(new DrawScope(context, transform()), modalScrimState());
+        effectiveModalScrimRenderer().render(new DrawScope(context, transform(), layoutBounds()), modalScrimState());
     }
 
     private ModalScrimRenderer effectiveModalScrimRenderer() {

@@ -1,8 +1,12 @@
 package dev.sixik.unigui.impl.widget;
 
 import dev.sixik.unigui.api.animation.AnimatedProperty;
+import dev.sixik.unigui.api.animation.ColorTransition;
+import dev.sixik.unigui.api.animation.FloatValueReader;
+import dev.sixik.unigui.api.animation.FloatValueWriter;
 import dev.sixik.unigui.api.animation.FloatTransition;
 import dev.sixik.unigui.api.animation.TransitionSpec;
+import dev.sixik.unigui.api.animation.TransformOrigin;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
@@ -18,6 +22,8 @@ import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.layout.LayoutStyle;
+import dev.sixik.unigui.api.math.ColorView;
+import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.math.Transform;
@@ -34,6 +40,7 @@ import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Iterator;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -47,6 +54,24 @@ public abstract class WidgetBase implements Widget {
      * Хранит числовой параметр {@code EnumMap<AnimatedProperty}, влияющий на layout, ввод или отрисовку.
      */
     private final EnumMap<AnimatedProperty, FloatTransition> transitions = new EnumMap<>(AnimatedProperty.class);
+    /**
+     * Widget-specific scalar transitions, keyed by the property owner/name supplied by a widget.
+     */
+    private final Map<Object, ParameterTransition> parameterTransitions = new HashMap<>();
+    /**
+     * Color transitions are identity-keyed because MutableColor values are intentionally mutable.
+     */
+    private final IdentityHashMap<MutableColor, ColorTransition> colorTransitions = new IdentityHashMap<>();
+    /**
+     * Timed additive transform effects such as shake. These are layered over the base transition values.
+     */
+    private final List<ShakeEffect> shakeEffects = new ArrayList<>();
+    /**
+     * Named transform origin. CUSTOM keeps the raw pivot untouched for manual/custom pivot animations.
+     */
+    private TransformOrigin transformOrigin = TransformOrigin.CUSTOM;
+    private float appliedEffectOffsetX;
+    private float appliedEffectOffsetY;
     /**
      * Хранит рассчитанные границы виджета после прохода компоновки.
      */
@@ -232,6 +257,57 @@ public abstract class WidgetBase implements Widget {
         return transform;
     }
 
+    public TransformOrigin transformOrigin() {
+        return transformOrigin;
+    }
+
+    public WidgetBase transformOrigin(TransformOrigin origin) {
+        TransformOrigin normalized = origin == null ? TransformOrigin.CUSTOM : origin;
+        if (transformOrigin == normalized) return this;
+        transformOrigin = normalized;
+        if (!normalized.custom()) {
+            transitions.remove(AnimatedProperty.PIVOT_X);
+            transitions.remove(AnimatedProperty.PIVOT_Y);
+        }
+        applyTransformOrigin();
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public WidgetBase transformPivot(float x, float y) {
+        transformOrigin = TransformOrigin.CUSTOM;
+        transitions.remove(AnimatedProperty.PIVOT_X);
+        transitions.remove(AnimatedProperty.PIVOT_Y);
+        setAnimatedValue(AnimatedProperty.PIVOT_X, sanitizeFinite(x));
+        setAnimatedValue(AnimatedProperty.PIVOT_Y, sanitizeFinite(y));
+        return this;
+    }
+
+    public WidgetBase animatePivot(float x, float y, float durationSeconds) {
+        return animatePivot(x, y, TransitionSpec.of(durationSeconds));
+    }
+
+    public WidgetBase animatePivot(float x, float y, TransitionSpec spec) {
+        transformOrigin = TransformOrigin.CUSTOM;
+        animate(AnimatedProperty.PIVOT_X, sanitizeFinite(x), spec);
+        animate(AnimatedProperty.PIVOT_Y, sanitizeFinite(y), spec);
+        return this;
+    }
+
+    public WidgetBase rotationDegrees(float degrees) {
+        transitions.remove(AnimatedProperty.ROTATION_DEGREES);
+        setAnimatedValue(AnimatedProperty.ROTATION_DEGREES, sanitizeFinite(degrees));
+        return this;
+    }
+
+    public WidgetBase animateRotation(float targetDegrees, float durationSeconds) {
+        return animateRotation(targetDegrees, TransitionSpec.of(durationSeconds));
+    }
+
+    public WidgetBase animateRotation(float targetDegrees, TransitionSpec spec) {
+        return animate(AnimatedProperty.ROTATION_DEGREES, sanitizeFinite(targetDegrees), spec);
+    }
+
     /**
      * Возвращает текущую прозрачность виджета.
      */
@@ -278,6 +354,18 @@ public abstract class WidgetBase implements Widget {
         return this;
     }
 
+    public WidgetBase animatePositionFrom(float startX, float startY, float endX, float endY, float durationSeconds) {
+        return animatePositionFrom(startX, startY, endX, endY, TransitionSpec.of(durationSeconds));
+    }
+
+    public WidgetBase animatePositionFrom(float startX, float startY, float endX, float endY, TransitionSpec spec) {
+        transitions.remove(AnimatedProperty.POSITION_X);
+        transitions.remove(AnimatedProperty.POSITION_Y);
+        setAnimatedValue(AnimatedProperty.POSITION_X, sanitizeFinite(startX));
+        setAnimatedValue(AnimatedProperty.POSITION_Y, sanitizeFinite(startY));
+        return animatePosition(endX, endY, spec);
+    }
+
     /**
      * Обновляет или выполняет операцию {@code animateScale}, меняющую состояние виджета.
      */
@@ -294,6 +382,135 @@ public abstract class WidgetBase implements Widget {
         return this;
     }
 
+    public WidgetBase shake(float amplitude, float durationSeconds) {
+        return shake(amplitude, 0.0f, durationSeconds, 4);
+    }
+
+    public WidgetBase shake(float amplitudeX, float amplitudeY, float durationSeconds, int cycles) {
+        float duration = sanitizeFinite(durationSeconds);
+        if (duration <= 0.0f) return this;
+        int normalizedCycles = Math.max(1, cycles);
+        shakeEffects.add(new ShakeEffect(
+                sanitizeFinite(amplitudeX),
+                sanitizeFinite(amplitudeY),
+                duration,
+                normalizedCycles));
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public WidgetBase stopShakeAnimations() {
+        restoreTransformEffectOffset();
+        shakeEffects.clear();
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public WidgetBase animateParameter(Object key,
+                                       FloatValueReader reader,
+                                       FloatValueWriter writer,
+                                       float targetValue,
+                                       float durationSeconds) {
+        return animateParameter(key, reader, writer, targetValue, TransitionSpec.of(durationSeconds));
+    }
+
+    public WidgetBase animateParameter(Object key,
+                                       FloatValueReader reader,
+                                       FloatValueWriter writer,
+                                       float targetValue,
+                                       TransitionSpec spec) {
+        if (writer == null) return this;
+        float startValue = reader == null ? 0.0f : reader.get();
+        return animateParameterFrom(key, startValue, writer, targetValue, spec);
+    }
+
+    public WidgetBase animateParameterFrom(Object key,
+                                           float startValue,
+                                           FloatValueWriter writer,
+                                           float targetValue,
+                                           float durationSeconds) {
+        return animateParameterFrom(key, startValue, writer, targetValue, TransitionSpec.of(durationSeconds));
+    }
+
+    public WidgetBase animateParameterFrom(Object key,
+                                           float startValue,
+                                           FloatValueWriter writer,
+                                           float targetValue,
+                                           TransitionSpec spec) {
+        if (writer == null) return this;
+        Object normalizedKey = animationKey(key, writer);
+        TransitionSpec normalizedSpec = spec == null ? TransitionSpec.DEFAULT : spec;
+        float start = sanitizeFinite(startValue);
+        float target = sanitizeFinite(targetValue);
+        if (normalizedSpec.durationSeconds() <= 0.0f || start == target) {
+            parameterTransitions.remove(normalizedKey);
+            writer.set(target);
+            invalidate(InvalidationFlags.VISUAL);
+            return this;
+        }
+
+        writer.set(start);
+        parameterTransitions.put(normalizedKey, new ParameterTransition(new FloatTransition(start, target, normalizedSpec), writer));
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public WidgetBase stopParameterAnimation(Object key) {
+        if (key != null) {
+            parameterTransitions.remove(key);
+        }
+        return this;
+    }
+
+    public WidgetBase stopParameterAnimations() {
+        parameterTransitions.clear();
+        return this;
+    }
+
+    public WidgetBase animateColor(MutableColor color, float r, float g, float b, float a, float durationSeconds) {
+        return animateColor(color, new MutableColor(r, g, b, a), TransitionSpec.of(durationSeconds));
+    }
+
+    public WidgetBase animateColor(MutableColor color, float r, float g, float b, float a, TransitionSpec spec) {
+        return animateColor(color, new MutableColor(r, g, b, a), spec);
+    }
+
+    public WidgetBase animateColor(MutableColor color, ColorView targetColor, float durationSeconds) {
+        return animateColor(color, targetColor, TransitionSpec.of(durationSeconds));
+    }
+
+    public WidgetBase animateColor(MutableColor color, ColorView targetColor, TransitionSpec spec) {
+        if (color == null || targetColor == null) return this;
+        TransitionSpec normalized = spec == null ? TransitionSpec.DEFAULT : spec;
+        MutableColor target = new MutableColor(
+                sanitizeFinite(targetColor.r()),
+                sanitizeFinite(targetColor.g()),
+                sanitizeFinite(targetColor.b()),
+                sanitizeFinite(targetColor.a(), 1.0f));
+        if (normalized.durationSeconds() <= 0.0f || sameColor(color, target)) {
+            colorTransitions.remove(color);
+            color.set(target);
+            invalidate(InvalidationFlags.VISUAL);
+            return this;
+        }
+
+        colorTransitions.put(color, new ColorTransition(color.copy(), target, normalized));
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public WidgetBase stopColorAnimation(MutableColor color) {
+        if (color != null) {
+            colorTransitions.remove(color);
+        }
+        return this;
+    }
+
+    public WidgetBase stopColorAnimations() {
+        colorTransitions.clear();
+        return this;
+    }
+
     /**
      * Обновляет или выполняет операцию {@code animate}, меняющую состояние виджета.
      */
@@ -306,6 +523,9 @@ public abstract class WidgetBase implements Widget {
      */
     public WidgetBase animate(AnimatedProperty property, float targetValue, TransitionSpec spec) {
         if (property == null) return this;
+        if (usesCustomPivot(property)) {
+            transformOrigin = TransformOrigin.CUSTOM;
+        }
         TransitionSpec normalized = spec == null ? TransitionSpec.DEFAULT : spec;
         float target = normalizedValue(property, targetValue);
         if (normalized.durationSeconds() <= 0.0f || currentAnimatedValue(property) == target) {
@@ -334,6 +554,9 @@ public abstract class WidgetBase implements Widget {
      */
     public WidgetBase stopAnimations() {
         transitions.clear();
+        stopParameterAnimations();
+        stopColorAnimations();
+        stopShakeAnimations();
         return this;
     }
 
@@ -348,7 +571,10 @@ public abstract class WidgetBase implements Widget {
      * Возвращает текущее значение или выполняет операцию {@code animationsRunning} для виджета.
      */
     public boolean animationsRunning() {
-        return !transitions.isEmpty();
+        return !transitions.isEmpty()
+                || !parameterTransitions.isEmpty()
+                || !colorTransitions.isEmpty()
+                || !shakeEffects.isEmpty();
     }
 
     /**
@@ -726,6 +952,7 @@ public abstract class WidgetBase implements Widget {
     @Override
     public void arrange(RectView bounds) {
         layoutBounds.set(bounds);
+        applyTransformOrigin();
     }
 
     /**
@@ -785,9 +1012,11 @@ public abstract class WidgetBase implements Widget {
      * Продвигает активные анимации и применяет их значения к виджету.
      */
     protected final void tickAnimations(FrameContext frame) {
-        if (transitions.isEmpty()) return;
+        if (transitions.isEmpty() && parameterTransitions.isEmpty() && colorTransitions.isEmpty() && shakeEffects.isEmpty()) return;
 
         float deltaSeconds = frame == null || frame.deltaSeconds() <= 0.0f ? 1.0f / 60.0f : frame.deltaSeconds();
+        restoreTransformEffectOffset();
+
         Iterator<Map.Entry<AnimatedProperty, FloatTransition>> iterator = transitions.entrySet().iterator();
         while (iterator.hasNext()) {
             Map.Entry<AnimatedProperty, FloatTransition> entry = iterator.next();
@@ -798,6 +1027,10 @@ public abstract class WidgetBase implements Widget {
                 iterator.remove();
             }
         }
+
+        tickParameterTransitions(deltaSeconds);
+        tickColorTransitions(deltaSeconds);
+        applyShakeEffects(deltaSeconds);
         invalidate(InvalidationFlags.VISUAL);
     }
 
@@ -829,6 +1062,9 @@ public abstract class WidgetBase implements Widget {
             case POSITION_Y -> transform.position().y();
             case SCALE_X -> transform.scale().x();
             case SCALE_Y -> transform.scale().y();
+            case ROTATION_DEGREES -> transform.rotationDegrees();
+            case PIVOT_X -> transform.pivot().x();
+            case PIVOT_Y -> transform.pivot().y();
         };
     }
 
@@ -848,6 +1084,9 @@ public abstract class WidgetBase implements Widget {
             case POSITION_Y -> transform.position().set(transform.position().x(), normalized);
             case SCALE_X -> transform.scale().set(normalized, transform.scale().y());
             case SCALE_Y -> transform.scale().set(transform.scale().x(), normalized);
+            case ROTATION_DEGREES -> transform.setRotationDegrees(normalized);
+            case PIVOT_X -> transform.pivot().set(normalized, transform.pivot().y());
+            case PIVOT_Y -> transform.pivot().set(transform.pivot().x(), normalized);
         }
     }
 
@@ -858,8 +1097,134 @@ public abstract class WidgetBase implements Widget {
         return switch (property) {
             case OPACITY -> clamp01(value);
             case SCALE_X, SCALE_Y -> sanitizeFinite(value, 1.0f);
-            case POSITION_X, POSITION_Y -> sanitizeFinite(value);
+            case POSITION_X, POSITION_Y, ROTATION_DEGREES, PIVOT_X, PIVOT_Y -> sanitizeFinite(value);
         };
+    }
+
+    private void applyTransformOrigin() {
+        if (transformOrigin == null || transformOrigin.custom()) return;
+        transform.pivot().set(
+                layoutBounds.width() * transformOrigin.relativeX(),
+                layoutBounds.height() * transformOrigin.relativeY());
+    }
+
+    private void tickParameterTransitions(float deltaSeconds) {
+        if (parameterTransitions.isEmpty()) return;
+
+        Iterator<Map.Entry<Object, ParameterTransition>> iterator = parameterTransitions.entrySet().iterator();
+        while (iterator.hasNext()) {
+            ParameterTransition entry = iterator.next().getValue();
+            FloatTransition transition = entry.transition();
+            entry.writer().set(transition.tick(deltaSeconds));
+            if (transition.finished()) {
+                entry.writer().set(transition.end());
+                iterator.remove();
+            }
+        }
+    }
+
+    private void tickColorTransitions(float deltaSeconds) {
+        if (colorTransitions.isEmpty()) return;
+
+        Iterator<Map.Entry<MutableColor, ColorTransition>> iterator = colorTransitions.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<MutableColor, ColorTransition> entry = iterator.next();
+            ColorTransition transition = entry.getValue();
+            transition.tick(deltaSeconds, entry.getKey());
+            if (transition.finished()) {
+                transition.finish(entry.getKey());
+                iterator.remove();
+            }
+        }
+    }
+
+    private void restoreTransformEffectOffset() {
+        if (appliedEffectOffsetX == 0.0f && appliedEffectOffsetY == 0.0f) return;
+        transform.position().set(
+                transform.position().x() - appliedEffectOffsetX,
+                transform.position().y() - appliedEffectOffsetY);
+        appliedEffectOffsetX = 0.0f;
+        appliedEffectOffsetY = 0.0f;
+    }
+
+    private void applyShakeEffects(float deltaSeconds) {
+        if (shakeEffects.isEmpty()) return;
+
+        float offsetX = 0.0f;
+        float offsetY = 0.0f;
+        Iterator<ShakeEffect> iterator = shakeEffects.iterator();
+        while (iterator.hasNext()) {
+            ShakeEffect effect = iterator.next();
+            effect.tick(deltaSeconds);
+            if (effect.finished()) {
+                iterator.remove();
+                continue;
+            }
+            offsetX += effect.offsetX();
+            offsetY += effect.offsetY();
+        }
+
+        if (offsetX != 0.0f || offsetY != 0.0f) {
+            transform.position().set(transform.position().x() + offsetX, transform.position().y() + offsetY);
+            appliedEffectOffsetX = offsetX;
+            appliedEffectOffsetY = offsetY;
+        }
+    }
+
+    private static boolean usesCustomPivot(AnimatedProperty property) {
+        return property == AnimatedProperty.PIVOT_X || property == AnimatedProperty.PIVOT_Y;
+    }
+
+    private static Object animationKey(Object key, FloatValueWriter writer) {
+        return key == null ? writer : key;
+    }
+
+    private static boolean sameColor(ColorView left, ColorView right) {
+        return left.r() == right.r()
+                && left.g() == right.g()
+                && left.b() == right.b()
+                && left.a() == right.a();
+    }
+
+    private record ParameterTransition(FloatTransition transition, FloatValueWriter writer) {
+    }
+
+    private static final class ShakeEffect {
+        private final float amplitudeX;
+        private final float amplitudeY;
+        private final float durationSeconds;
+        private final int cycles;
+        private float elapsedSeconds;
+
+        private ShakeEffect(float amplitudeX, float amplitudeY, float durationSeconds, int cycles) {
+            this.amplitudeX = amplitudeX;
+            this.amplitudeY = amplitudeY;
+            this.durationSeconds = Math.max(0.0f, durationSeconds);
+            this.cycles = Math.max(1, cycles);
+        }
+
+        private void tick(float deltaSeconds) {
+            elapsedSeconds = Math.min(durationSeconds, elapsedSeconds + Math.max(0.0f, deltaSeconds));
+        }
+
+        private boolean finished() {
+            return durationSeconds <= 0.0f || elapsedSeconds >= durationSeconds;
+        }
+
+        private float offsetX() {
+            return offset(amplitudeX);
+        }
+
+        private float offsetY() {
+            return offset(amplitudeY);
+        }
+
+        private float offset(float amplitude) {
+            if (amplitude == 0.0f || durationSeconds <= 0.0f) return 0.0f;
+            float progress = Math.max(0.0f, Math.min(1.0f, elapsedSeconds / durationSeconds));
+            float decay = 1.0f - progress;
+            return (float) Math.sin(progress * cycles * Math.PI * 2.0f) * amplitude * decay;
+        }
     }
 
     /**

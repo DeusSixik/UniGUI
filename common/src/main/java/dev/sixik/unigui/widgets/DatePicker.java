@@ -434,7 +434,7 @@ public final class DatePicker extends LinearBox {
         @Override
         public void render(RenderContext context) {
             if (text.isEmpty()) return;
-            effectiveRenderer().render(new DrawScope(context, transform()), snapshot());
+            effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot());
         }
 
         private DatePickerState snapshot() {

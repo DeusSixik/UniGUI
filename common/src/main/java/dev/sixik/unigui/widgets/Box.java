@@ -2,6 +2,7 @@ package dev.sixik.unigui.widgets;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
+import dev.sixik.unigui.api.animation.TransitionSpec;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
@@ -53,6 +54,16 @@ public class Box extends PanelWidget {
         return background;
     }
 
+    public Box animateBackgroundColor(ColorView color, float durationSeconds) {
+        animateColor(background, color, durationSeconds);
+        return this;
+    }
+
+    public Box animateBackgroundColor(ColorView color, TransitionSpec spec) {
+        animateColor(background, color, spec);
+        return this;
+    }
+
     public Box backgroundVisible(boolean backgroundVisible) {
         if (this.backgroundVisible == backgroundVisible) return this;
         this.backgroundVisible = backgroundVisible;
@@ -94,6 +105,16 @@ public class Box extends PanelWidget {
         return backgroundTextureTint;
     }
 
+    public Box animateBackgroundTextureTint(ColorView color, float durationSeconds) {
+        animateColor(backgroundTextureTint, color, durationSeconds);
+        return this;
+    }
+
+    public Box animateBackgroundTextureTint(ColorView color, TransitionSpec spec) {
+        animateColor(backgroundTextureTint, color, spec);
+        return this;
+    }
+
     public MutableRect backgroundTextureSource() {
         return backgroundTextureSource;
     }
@@ -119,6 +140,16 @@ public class Box extends PanelWidget {
         return borderColor;
     }
 
+    public Box animateBorderColor(ColorView color, float durationSeconds) {
+        animateColor(borderColor, color, durationSeconds);
+        return this;
+    }
+
+    public Box animateBorderColor(ColorView color, TransitionSpec spec) {
+        animateColor(borderColor, color, spec);
+        return this;
+    }
+
     public Box borderVisible(boolean borderVisible) {
         if (this.borderVisible == borderVisible) return this;
         this.borderVisible = borderVisible;
@@ -141,6 +172,15 @@ public class Box extends PanelWidget {
         return this;
     }
 
+    public Box animateBorderWidth(float borderWidth, float durationSeconds) {
+        return animateBorderWidth(borderWidth, TransitionSpec.of(durationSeconds));
+    }
+
+    public Box animateBorderWidth(float borderWidth, TransitionSpec spec) {
+        animateParameter("Box.borderWidth", this::borderWidth, this::borderWidth, borderWidth, spec);
+        return this;
+    }
+
     public float radius() {
         return radius;
     }
@@ -149,6 +189,15 @@ public class Box extends PanelWidget {
         if (this.radius == radius) return this;
         this.radius = radius;
         invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public Box animateRadius(float radius, float durationSeconds) {
+        return animateRadius(radius, TransitionSpec.of(durationSeconds));
+    }
+
+    public Box animateRadius(float radius, TransitionSpec spec) {
+        animateParameter("Box.radius", this::radius, this::radius, radius, spec);
         return this;
     }
 
@@ -178,7 +227,7 @@ public class Box extends PanelWidget {
     protected void renderBox(RenderContext context) {
         applyTheme();
 
-        effectiveBoxRenderer().render(new DrawScope(context, transform()), boxState());
+        effectiveBoxRenderer().render(new DrawScope(context, transform(), layoutBounds()), boxState());
     }
 
     protected BoxRenderer effectiveBoxRenderer() {

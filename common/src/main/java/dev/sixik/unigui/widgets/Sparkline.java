@@ -205,7 +205,7 @@ public class Sparkline extends WidgetBase {
     @Override
     public void render(RenderContext context) {
         if (visibility() != Visibility.VISIBLE || values.size() < 2) return;
-        effectiveRenderer().render(new DrawScope(context, transform()), snapshot());
+        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot());
     }
 
     protected SparklineState snapshot() {

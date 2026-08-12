@@ -336,7 +336,7 @@ public class VirtualListView extends WidgetBase {
         pushOpacity(context);
         try {
             VirtualListViewRenderer activeRenderer = effectiveRenderer();
-            DrawScope draw = new DrawScope(context, transform());
+            DrawScope draw = new DrawScope(context, transform(), layoutBounds());
             draw.pushClip(layoutBounds().x(), layoutBounds().y(), viewportWidth(), layoutBounds().height());
             activeRenderer.render(draw, snapshot(VirtualListViewRenderPhase.BACKGROUND));
             for (Map.Entry<Integer, Widget> entry : List.copyOf(realized.entrySet())) {

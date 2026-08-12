@@ -3,6 +3,9 @@ package dev.sixik.unigui.tests;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.brigadier.CommandDispatcher;
 import dev.sixik.unigui.api.core.MutableUIScaleProvider;
+import dev.sixik.unigui.api.animation.AnimationEasing;
+import dev.sixik.unigui.api.animation.TransitionSpec;
+import dev.sixik.unigui.api.animation.TransformOrigin;
 import dev.sixik.unigui.api.debug.DebugFlags;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
@@ -129,6 +132,7 @@ public final class UniGuiDemo {
         tabs.addTab("Containers", scroll(containersPage()));
         tabs.addTab("Data", scroll(dataPage()));
         tabs.addTab("Custom Renders", scroll(customRendersPage()));
+        tabs.addTab("Animations", scroll(animationsPage()));
         tabs.addTab("Node Graph", nodeGraphPage());
         tabs.addTab("Overlays", overlaysPage());
         tabs.addTab("Minecraft", scroll(minecraftPage()));
@@ -514,6 +518,215 @@ public final class UniGuiDemo {
         dots.addChild(spinnerTile("Dots Moving", Spinner.Style.DOTS_MOVING, 0.72f, 86.0f, 32.0f));
         page.addChild(section("Linear dot spinners", dots));
         return page;
+    }
+
+    private static VBox animationsPage() {
+        VBox page = page("Animations", "Retained widget animations: motion, shake, transform origins, rotation, colors and texture crossfades.");
+        page.addChild(paragraph("Click the controls below. The examples are intentionally small so the API usage is visible and easy to copy into real screens."));
+
+        TransitionSpec quick = TransitionSpec.of(0.18f, AnimationEasing.EASE_OUT);
+        TransitionSpec smooth = TransitionSpec.of(0.45f, AnimationEasing.EASE_IN_OUT);
+
+        WrapPanel transformRow = new WrapPanel();
+        transformRow.spacing(8.0f);
+        transformRow.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
+
+        Button errorButton = new Button("Pseudo error");
+        errorButton.themeEnabled(false);
+        errorButton.background().set(0.10f, 0.04f, 0.055f, 0.96f);
+        errorButton.borderColor().set(0.95f, 0.25f, 0.25f, 0.85f);
+        errorButton.textColor().set(1.0f, 0.80f, 0.80f, 1.0f);
+        errorButton.transformOrigin(TransformOrigin.CENTER);
+        errorButton.layout(style -> style.size(116.0f, 24.0f).flexGrow(0).flexShrink(0.0f));
+        errorButton.onClick(event -> {
+            errorButton.shake(7.0f, 0.0f, 0.34f, 5);
+            errorButton.animateBackgroundColor(new MutableColor(0.22f, 0.035f, 0.060f, 0.98f), quick);
+            errorButton.animateBorderColor(new MutableColor(1.0f, 0.38f, 0.32f, 1.0f), quick);
+            errorButton.animateRotation(-3.0f, quick);
+        });
+
+        Button moveButton = new Button("A -> B + rotate");
+        moveButton.themeEnabled(false);
+        moveButton.background().set(0.055f, 0.095f, 0.16f, 0.96f);
+        moveButton.borderColor().set(0.25f, 0.78f, 1.0f, 0.80f);
+        moveButton.textColor().set(0.80f, 0.94f, 1.0f, 1.0f);
+        moveButton.transformOrigin(TransformOrigin.CENTER);
+        moveButton.layout(style -> style.size(132.0f, 24.0f).flexGrow(0).flexShrink(0.0f));
+        final boolean[] moved = {false};
+        moveButton.onClick(event -> {
+            moved[0] = !moved[0];
+            float startX = moved[0] ? -22.0f : 22.0f;
+            float endX = moved[0] ? 22.0f : -22.0f;
+            float startY = moved[0] ? 0.0f : 8.0f;
+            float endY = moved[0] ? 8.0f : 0.0f;
+            moveButton.animatePositionFrom(startX, startY, endX, endY, smooth);
+            moveButton.animateRotation(moved[0] ? 8.0f : -8.0f, smooth);
+        });
+
+        Button pressButton = new Button("Hover / press");
+        pressButton.transformOrigin(TransformOrigin.CENTER);
+        pressButton.interactionTransitions(true)
+                .interactionTransition(TransitionSpec.of(0.10f, AnimationEasing.EASE_OUT))
+                .interactionScales(1.0f, 1.08f, 0.92f)
+                .interactionOpacities(1.0f, 0.78f, 0.45f);
+        pressButton.layout(style -> style.size(112.0f, 24.0f).flexGrow(0).flexShrink(0.0f));
+
+        transformRow.addChild(errorButton);
+        transformRow.addChild(moveButton);
+        transformRow.addChild(pressButton);
+        page.addChild(section("Transform / interaction", transformRow));
+
+
+        WrapPanel originRow = new WrapPanel();
+        originRow.spacing(8.0f);
+        originRow.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
+
+        Box originLeft = originDemoTile(TransformOrigin.LEFT_TOP,
+                new MutableColor(0.12f, 0.06f, 0.16f, 0.96f),
+                new MutableColor(0.72f, 0.38f, 1.0f, 0.85f));
+        Box originCenter = originDemoTile(TransformOrigin.CENTER,
+                new MutableColor(0.055f, 0.105f, 0.145f, 0.96f),
+                new MutableColor(0.24f, 0.84f, 1.0f, 0.85f));
+        Box originRight = originDemoTile(TransformOrigin.RIGHT_BOTTOM,
+                new MutableColor(0.10f, 0.12f, 0.045f, 0.96f),
+                new MutableColor(0.95f, 0.85f, 0.24f, 0.85f));
+        Button spinOrigins = new Button("Spin origins");
+        spinOrigins.layout(style -> style.size(112.0f, 24.0f).flexGrow(0).flexShrink(0.0f));
+        final boolean[] originSpin = {false};
+        spinOrigins.onClick(event -> {
+            originSpin[0] = !originSpin[0];
+            float targetRotation = originSpin[0] ? 26.0f : -26.0f;
+            float targetScale = originSpin[0] ? 1.10f : 0.96f;
+            for (Box tile : List.of(originLeft, originCenter, originRight)) {
+                tile.animateRotation(targetRotation, smooth);
+                tile.animateScale(targetScale, targetScale, smooth);
+            }
+        });
+
+        originRow.addChild(originDemoStack("Left top", originLeft));
+        originRow.addChild(originDemoStack("Center", originCenter));
+        originRow.addChild(originDemoStack("Right bottom", originRight));
+        originRow.addChild(spinOrigins);
+        page.addChild(section("Transform origins", originRow));
+
+        WrapPanel entranceRow = new WrapPanel();
+        entranceRow.spacing(8.0f);
+        entranceRow.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
+
+        Box toastCard = panelBox(0.055f, 0.070f, 0.090f, 0.94f);
+        toastCard.layout(style -> style.size(210.0f, 46.0f).flexGrow(0).flexShrink(0.0f));
+        toastCard.transformOrigin(TransformOrigin.LEFT_CENTER);
+        toastCard.opacity(0.0f);
+        toastCard.transform().position().set(-32.0f, -8.0f);
+        Label toastText = new Label("Slide-in notification");
+        toastText.opacity(0.0f);
+        toastText.layout(style -> style.margin(8.0f).size(LayoutConstraints.AUTO, 18.0f).flexGrow(0).flexShrink(0.0f));
+        toastCard.addChild(toastText);
+
+        Button replayToast = new Button("Replay slide-in");
+        replayToast.layout(style -> style.size(118.0f, 24.0f).flexGrow(0).flexShrink(0.0f));
+        replayToast.onClick(event -> {
+            toastCard.animatePositionFrom(-32.0f, -8.0f, 0.0f, 0.0f, smooth);
+            toastCard.animateOpacity(1.0f, smooth);
+            toastText.animateOpacity(1.0f, smooth);
+            toastCard.animateBackgroundColor(new MutableColor(0.060f, 0.130f, 0.105f, 0.96f), smooth);
+            toastCard.animateBorderColor(new MutableColor(0.30f, 1.0f, 0.62f, 0.88f), smooth);
+            toastCard.animateRadius(10.0f, smooth);
+        });
+
+        Button dismissToast = new Button("Dismiss");
+        dismissToast.layout(style -> style.size(82.0f, 24.0f).flexGrow(0).flexShrink(0.0f));
+        dismissToast.onClick(event -> {
+            toastCard.animatePositionFrom(0.0f, 0.0f, 28.0f, -8.0f, quick);
+            toastCard.animateOpacity(0.0f, quick);
+            toastText.animateOpacity(0.0f, quick);
+            toastCard.animateRadius(4.0f, quick);
+        });
+
+        entranceRow.addChild(toastCard);
+        entranceRow.addChild(replayToast);
+        entranceRow.addChild(dismissToast);
+        page.addChild(section("Entrance / exit", entranceRow));
+
+        WrapPanel visualRow = new WrapPanel();
+        visualRow.spacing(8.0f);
+        visualRow.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
+
+        Box colorCard = panelBox(0.045f, 0.052f, 0.068f, 0.92f);
+        colorCard.layout(style -> style.size(142.0f, 64.0f).flexGrow(0).flexShrink(0.0f));
+        Label colorLabel = new Label("Color + radius");
+        colorLabel.layout(style -> style.margin(8.0f).size(LayoutConstraints.AUTO, 18.0f).flexGrow(0).flexShrink(0.0f));
+        colorCard.addChild(colorLabel);
+
+        Button colorButton = new Button("Pulse card");
+        colorButton.layout(style -> style.size(100.0f, 24.0f).flexGrow(0).flexShrink(0.0f));
+        final boolean[] warm = {false};
+        colorButton.onClick(event -> {
+            warm[0] = !warm[0];
+            colorCard.animateBackgroundColor(warm[0]
+                    ? new MutableColor(0.18f, 0.075f, 0.05f, 0.96f)
+                    : new MutableColor(0.045f, 0.052f, 0.068f, 0.92f), smooth);
+            colorCard.animateBorderColor(warm[0]
+                    ? new MutableColor(1.0f, 0.58f, 0.25f, 0.95f)
+                    : new MutableColor(0.20f, 0.28f, 0.36f, 0.75f), smooth);
+            colorCard.animateRadius(warm[0] ? 12.0f : 4.0f, smooth);
+        });
+
+        TextureWidget texture = new TextureWidget(new SimpleTextureHandle("minecraft:textures/block/stone.png", 16, 16));
+        texture.layout(style -> style.size(48.0f, 48.0f).flexGrow(0).flexShrink(0.0f));
+        texture.radius(6.0f).transformOrigin(TransformOrigin.CENTER);
+        Button textureButton = new Button("Crossfade texture");
+        textureButton.layout(style -> style.size(130.0f, 24.0f).flexGrow(0).flexShrink(0.0f));
+        SimpleTextureHandle stone = new SimpleTextureHandle("minecraft:textures/block/stone.png", 16, 16);
+        SimpleTextureHandle diamond = new SimpleTextureHandle("minecraft:textures/item/diamond.png", 16, 16);
+        final boolean[] diamondVisible = {false};
+        textureButton.onClick(event -> {
+            diamondVisible[0] = !diamondVisible[0];
+            texture.animateTexture(diamondVisible[0] ? diamond : stone, smooth);
+            texture.animateTint(diamondVisible[0]
+                    ? new MutableColor(0.75f, 1.0f, 1.0f, 1.0f)
+                    : new MutableColor(1.0f, 1.0f, 1.0f, 1.0f), smooth);
+            texture.animateRotation(diamondVisible[0] ? 12.0f : -12.0f, smooth);
+        });
+
+        VBox colorStack = new VBox();
+        colorStack.spacing(6.0f);
+        colorStack.layout(style -> style.size(154.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
+        colorStack.addChild(colorCard);
+        colorStack.addChild(colorButton);
+
+        VBox textureStack = new VBox();
+        textureStack.spacing(6.0f);
+        textureStack.layout(style -> style.size(154.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
+        textureStack.addChild(texture);
+        textureStack.addChild(textureButton);
+
+        visualRow.addChild(colorStack);
+        visualRow.addChild(textureStack);
+        page.addChild(section("Visual properties", visualRow));
+
+        page.addChild(paragraph("Shader transitions should normally be represented as a blend uniform or a two-pass crossfade, similar to the texture example above."));
+        return page;
+    }
+
+
+    private static VBox originDemoStack(String text, Box tile) {
+        VBox stack = new VBox();
+        stack.spacing(3.0f);
+        stack.layout(style -> style.size(112.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
+        stack.addChild(tile);
+        Label label = new Label(text);
+        label.layout(style -> style.size(LayoutConstraints.AUTO, 14.0f).flexGrow(0).flexShrink(0.0f));
+        stack.addChild(label);
+        return stack;
+    }
+
+    private static Box originDemoTile(TransformOrigin origin, MutableColor background, MutableColor border) {
+        Box tile = panelBox(background.r(), background.g(), background.b(), background.a());
+        tile.borderColor().set(border);
+        tile.transformOrigin(origin);
+        tile.layout(style -> style.size(112.0f, 24.0f).flexGrow(0).flexShrink(0.0f));
+        return tile;
     }
 
     private static Widget nodeGraphPage() {

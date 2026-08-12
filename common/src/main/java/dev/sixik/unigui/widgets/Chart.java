@@ -187,7 +187,7 @@ public final class Chart extends Sparkline {
     public void render(RenderContext context) {
         if (visibility() != Visibility.VISIBLE) return;
         if (layoutBounds().width() <= 0.0f || layoutBounds().height() <= 0.0f) return;
-        effectiveRenderer().render(new DrawScope(context, transform()), snapshot());
+        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot());
     }
 
     @Override

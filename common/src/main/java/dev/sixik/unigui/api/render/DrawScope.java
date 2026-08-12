@@ -1,6 +1,7 @@
 package dev.sixik.unigui.api.render;
 
 import dev.sixik.unigui.api.math.ColorView;
+import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.math.Transform;
 import dev.sixik.unigui.api.text.RichText;
 
@@ -17,10 +18,20 @@ import java.util.Objects;
 public final class DrawScope {
     private final RenderContext context;
     private final Transform transform;
+    private final boolean transformBoundsAnchored;
+    private final float transformBoundsX;
+    private final float transformBoundsY;
 
     public DrawScope(RenderContext context, Transform transform) {
+        this(context, transform, null);
+    }
+
+    public DrawScope(RenderContext context, Transform transform, RectView transformBounds) {
         this.context = Objects.requireNonNull(context, "context");
         this.transform = transform;
+        this.transformBoundsAnchored = transformBounds != null;
+        this.transformBoundsX = transformBounds == null ? 0.0f : transformBounds.x();
+        this.transformBoundsY = transformBounds == null ? 0.0f : transformBounds.y();
     }
 
     public RenderContext context() {
@@ -32,14 +43,16 @@ public final class DrawScope {
     }
 
     public DrawScope withTransform(Transform transform) {
-        return new DrawScope(context, transform);
+        return transformBoundsAnchored
+                ? new DrawScope(context, transform, new AnchorBounds(transformBoundsX, transformBoundsY))
+                : new DrawScope(context, transform);
     }
 
     public void rect(float x, float y, float width, float height, Paint paint) {
         if (transform == null) {
             context.rect(x, y, width, height, paint);
         } else {
-            context.rect(x, y, width, height, paint, transform);
+            context.rect(x, y, width, height, paint, transformFor(x, y));
         }
     }
 
@@ -47,7 +60,7 @@ public final class DrawScope {
         if (transform == null) {
             context.roundedRect(x, y, width, height, radius, paint);
         } else {
-            context.roundedRect(x, y, width, height, radius, paint, transform);
+            context.roundedRect(x, y, width, height, radius, paint, transformFor(x, y));
         }
     }
 
@@ -55,7 +68,7 @@ public final class DrawScope {
         if (transform == null) {
             context.circle(x, y, width, height, paint);
         } else {
-            context.circle(x, y, width, height, paint, transform);
+            context.circle(x, y, width, height, paint, transformFor(x, y));
         }
     }
 
@@ -63,7 +76,7 @@ public final class DrawScope {
         if (transform == null) {
             context.line(x1, y1, x2, y2, paint);
         } else {
-            context.line(x1, y1, x2, y2, paint, transform);
+            context.line(x1, y1, x2, y2, paint, transformFor(x1, y1));
         }
     }
 
@@ -71,7 +84,7 @@ public final class DrawScope {
         if (transform == null) {
             context.path(path, x, y, width, height, paint);
         } else {
-            context.path(path, x, y, width, height, paint, transform);
+            context.path(path, x, y, width, height, paint, transformFor(x, y));
         }
     }
 
@@ -79,7 +92,7 @@ public final class DrawScope {
         if (transform == null) {
             context.texture(texture, x, y, width, height, paint);
         } else {
-            context.texture(texture, x, y, width, height, paint, transform);
+            context.texture(texture, x, y, width, height, paint, transformFor(x, y));
         }
     }
 
@@ -87,7 +100,7 @@ public final class DrawScope {
         if (transform == null) {
             context.texture(texture, placement, radius, paint);
         } else {
-            context.texture(texture, placement, radius, paint, transform);
+            context.texture(texture, placement, radius, paint, transformFor(placement.x(), placement.y()));
         }
     }
 
@@ -95,7 +108,7 @@ public final class DrawScope {
         if (transform == null) {
             context.text(text, x, y, width, height, paint);
         } else {
-            context.text(text, x, y, width, height, paint, transform);
+            context.text(text, x, y, width, height, paint, transformFor(x, y));
         }
     }
 
@@ -103,12 +116,12 @@ public final class DrawScope {
         if (transform == null) {
             context.text(text, x, y, width, height, paint);
         } else {
-            context.text(text, x, y, width, height, paint, transform);
+            context.text(text, x, y, width, height, paint, transformFor(x, y));
         }
     }
 
     public void addDrawCmd(DrawCommand command) {
-        context.addDrawCmd(command, transform);
+        context.addDrawCmd(command, transformFor(command == null ? 0.0f : command.bounds().x(), command == null ? 0.0f : command.bounds().y()));
     }
 
     public void addCallback(CustomDraw callback) {
@@ -116,70 +129,70 @@ public final class DrawScope {
     }
 
     public void addLine(float x1, float y1, float x2, float y2, ColorView color, float thickness) {
-        context.addLine(x1, y1, x2, y2, color, thickness, transform);
+        context.addLine(x1, y1, x2, y2, color, thickness, transformFor(x1, y1));
     }
 
     public void addRect(float x, float y, float width, float height, ColorView color, float thickness) {
-        context.addRect(x, y, width, height, color, thickness, transform);
+        context.addRect(x, y, width, height, color, thickness, transformFor(x, y));
     }
 
     public void addRect(float x, float y, float width, float height, float radius,
                         ColorView color, float thickness) {
-        context.addRect(x, y, width, height, radius, color, thickness, transform);
+        context.addRect(x, y, width, height, radius, color, thickness, transformFor(x, y));
     }
 
     public void addRectFilled(float x, float y, float width, float height, ColorView color) {
-        context.addRectFilled(x, y, width, height, color, transform);
+        context.addRectFilled(x, y, width, height, color, transformFor(x, y));
     }
 
     public void addRectFilled(float x, float y, float width, float height, float radius, ColorView color) {
-        context.addRectFilled(x, y, width, height, radius, color, transform);
+        context.addRectFilled(x, y, width, height, radius, color, transformFor(x, y));
     }
 
     public void addRectFilledMultiColor(float x, float y, float width, float height,
                                         ColorView topLeft, ColorView topRight,
                                         ColorView bottomRight, ColorView bottomLeft) {
-        context.addRectFilledMultiColor(x, y, width, height, topLeft, topRight, bottomRight, bottomLeft, transform);
+        context.addRectFilledMultiColor(x, y, width, height, topLeft, topRight, bottomRight, bottomLeft, transformFor(x, y));
     }
 
     public void addQuad(DrawPoint p1, DrawPoint p2, DrawPoint p3, DrawPoint p4,
                         ColorView color, float thickness) {
-        context.addQuad(p1, p2, p3, p4, color, thickness, transform);
+        context.addQuad(p1, p2, p3, p4, color, thickness, transformFor(p1.x(), p1.y()));
     }
 
     public void addQuadFilled(DrawPoint p1, DrawPoint p2, DrawPoint p3, DrawPoint p4, ColorView color) {
-        context.addQuadFilled(p1, p2, p3, p4, color, transform);
+        context.addQuadFilled(p1, p2, p3, p4, color, transformFor(p1.x(), p1.y()));
     }
 
     public void addTriangle(DrawPoint p1, DrawPoint p2, DrawPoint p3, ColorView color, float thickness) {
-        context.addTriangle(p1, p2, p3, color, thickness, transform);
+        context.addTriangle(p1, p2, p3, color, thickness, transformFor(p1.x(), p1.y()));
     }
 
     public void addTriangleFilled(DrawPoint p1, DrawPoint p2, DrawPoint p3, ColorView color) {
-        context.addTriangleFilled(p1, p2, p3, color, transform);
+        context.addTriangleFilled(p1, p2, p3, color, transformFor(p1.x(), p1.y()));
     }
 
     public void addCircle(float centerX, float centerY, float radius,
                           ColorView color, int segments, float thickness) {
-        context.addCircle(centerX, centerY, radius, color, segments, thickness, transform);
+        context.addCircle(centerX, centerY, radius, color, segments, thickness, transformFor(centerX - radius, centerY - radius));
     }
 
     public void addCircleFilled(float centerX, float centerY, float radius, ColorView color, int segments) {
-        context.addCircleFilled(centerX, centerY, radius, color, segments, transform);
+        context.addCircleFilled(centerX, centerY, radius, color, segments, transformFor(centerX - radius, centerY - radius));
     }
 
     public void addNgon(float centerX, float centerY, float radius,
                         ColorView color, int segments, float thickness) {
-        context.addNgon(centerX, centerY, radius, color, segments, thickness, transform);
+        context.addNgon(centerX, centerY, radius, color, segments, thickness, transformFor(centerX - radius, centerY - radius));
     }
 
     public void addNgonFilled(float centerX, float centerY, float radius, ColorView color, int segments) {
-        context.addNgonFilled(centerX, centerY, radius, color, segments, transform);
+        context.addNgonFilled(centerX, centerY, radius, color, segments, transformFor(centerX - radius, centerY - radius));
     }
 
     public void addEllipse(float centerX, float centerY, float radiusX, float radiusY,
                            ColorView color, int segments, float thickness) {
-        context.addEllipse(centerX, centerY, radiusX, radiusY, color, segments, thickness, transform);
+        context.addEllipse(centerX, centerY, radiusX, radiusY, color, segments, thickness, transformFor(centerX - radiusX, centerY - radiusY));
     }
 
     public void addEllipseFilled(float centerX, float centerY, float radiusX, float radiusY,
@@ -312,4 +325,26 @@ public final class DrawScope {
     public void popClip() {
         context.popClip();
     }
+
+    private Transform transformFor(float commandX, float commandY) {
+        if (transform == null || !transformBoundsAnchored) return transform;
+        Transform adjusted = transform.copy();
+        adjusted.pivot().set(
+                transform.pivot().x() + transformBoundsX - commandX,
+                transform.pivot().y() + transformBoundsY - commandY);
+        return adjusted;
+    }
+
+    private record AnchorBounds(float x, float y) implements RectView {
+        @Override
+        public float width() {
+            return 0.0f;
+        }
+
+        @Override
+        public float height() {
+            return 0.0f;
+        }
+    }
+
 }

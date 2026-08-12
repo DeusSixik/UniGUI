@@ -168,7 +168,7 @@ public class Slider extends Box {
 
     @Override
     protected void renderContent(RenderContext context) {
-        effectiveRenderer().render(new DrawScope(context, transform()), snapshot());
+        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot());
         super.renderContent(context);
     }
 

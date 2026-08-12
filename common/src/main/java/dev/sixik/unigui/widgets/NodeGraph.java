@@ -940,7 +940,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         pushOpacity(context);
         boolean pushedClip = false;
         try {
-            DrawScope draw = new DrawScope(context, transform());
+            DrawScope draw = new DrawScope(context, transform(), layoutBounds());
             if (clippingEnabled) {
                 draw.pushClip(layoutBounds().x(), layoutBounds().y(), layoutBounds().width(), layoutBounds().height());
                 pushedClip = true;

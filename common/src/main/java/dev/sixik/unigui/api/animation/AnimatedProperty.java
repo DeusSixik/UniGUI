@@ -8,5 +8,8 @@ public enum AnimatedProperty {
     POSITION_X,
     POSITION_Y,
     SCALE_X,
-    SCALE_Y
+    SCALE_Y,
+    ROTATION_DEGREES,
+    PIVOT_X,
+    PIVOT_Y
 }

@@ -343,7 +343,7 @@ public class TextInput extends Box {
         float viewportWidth = textViewportWidth();
         float viewportHeight = Math.max(1.0f, layoutBounds().height() - 6.0f);
         float textY = layoutBounds().y() + 4.0f;
-        effectiveRenderer().render(new DrawScope(context, transform()), textInputState(
+        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), textInputState(
                 visibleText,
                 viewportX,
                 viewportY,

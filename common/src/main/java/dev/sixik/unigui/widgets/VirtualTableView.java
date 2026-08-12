@@ -691,7 +691,7 @@ public class VirtualTableView extends WidgetBase {
         if (visibility() != Visibility.VISIBLE) return;
         pushOpacity(context);
         try {
-            DrawScope draw = new DrawScope(context, transform());
+            DrawScope draw = new DrawScope(context, transform(), layoutBounds());
             renderHeader(context);
             draw.pushClip(layoutBounds().x(), rowViewportY(), viewportWidth(), rowViewportHeight());
             renderRows(context);
@@ -777,11 +777,11 @@ public class VirtualTableView extends WidgetBase {
     }
 
     private void renderHeader(RenderContext context) {
-        effectiveRenderer().render(new DrawScope(context, transform()), snapshot(context, VirtualTableViewRenderPhase.HEADER));
+        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot(context, VirtualTableViewRenderPhase.HEADER));
     }
 
     private void renderRows(RenderContext context) {
-        effectiveRenderer().render(new DrawScope(context, transform()), snapshot(context, VirtualTableViewRenderPhase.ROWS));
+        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot(context, VirtualTableViewRenderPhase.ROWS));
     }
 
     protected VirtualTableViewRenderer effectiveRenderer() {

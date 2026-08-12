@@ -153,7 +153,7 @@ public class RadioButton extends Button {
     @Override
     protected void renderContent(RenderContext context) {
         applyTheme();
-        effectiveRenderer().render(new DrawScope(context, transform()), snapshot(context));
+        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot(context));
         renderChildren(context);
     }
 

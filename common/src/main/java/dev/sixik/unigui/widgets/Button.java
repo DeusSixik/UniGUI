@@ -17,6 +17,7 @@ import dev.sixik.unigui.api.event.PointerReleasedEvent;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.input.MouseCursor;
 import dev.sixik.unigui.api.layout.LayoutContext;
+import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
@@ -100,6 +101,16 @@ public class Button extends Box {
 
     public MutableColor textColor() {
         return textColor;
+    }
+
+    public Button animateTextColor(ColorView color, float durationSeconds) {
+        animateColor(textColor, color, durationSeconds);
+        return this;
+    }
+
+    public Button animateTextColor(ColorView color, TransitionSpec spec) {
+        animateColor(textColor, color, spec);
+        return this;
     }
 
     public float textPaddingX() {
@@ -230,7 +241,7 @@ public class Button extends Box {
     @Override
     protected void renderContent(RenderContext context) {
         applyTheme();
-        effectiveRenderer().render(new DrawScope(context, transform()), snapshot(context));
+        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot(context));
         super.renderContent(context);
     }
 

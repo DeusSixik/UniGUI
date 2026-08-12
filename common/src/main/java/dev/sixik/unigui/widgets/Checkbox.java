@@ -137,7 +137,7 @@ public class Checkbox extends ToggleButton {
 
     @Override
     protected void renderContent(RenderContext context) {
-        effectiveRenderer().render(new DrawScope(context, transform()), snapshot(context));
+        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot(context));
         renderChildren(context);
     }
 

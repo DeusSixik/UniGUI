@@ -225,7 +225,7 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
     private List<Batch> layout(List<DrawCommand> commands, org.joml.Matrix4f basePose) {
         List<Batch> batches = new ArrayList<>();
         for (DrawCommand command : commands) {
-            if (command == null || command.text() == null || command.text().isEmpty()) continue;
+            if (!hasText(command) || !visibleAlpha(command.paint().color(), null)) continue;
             layoutCommand(batches, command, richText(command), basePose);
         }
         return batches;
@@ -247,6 +247,7 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
             FontAtlas atlas = atlases.computeIfAbsent(face, ignored -> new FontAtlas(provider));
             float scale = run.pixelSize() / BASE_PIXEL_SIZE;
             ColorView runColor = run.color();
+            boolean runVisible = visibleAlpha(command.paint().color(), runColor);
             String value = run.text();
             for (int index = 0; index < value.length(); ) {
                 int codePoint = value.codePointAt(index);
@@ -268,10 +269,12 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
                 float top = baseline + placement.bearingY * scale;
                 float width = placement.width * scale;
                 float height = placement.height * scale;
-                Batch batch = nextBatch(batches, placement.page);
-                addQuad(batch.vertices, left, top, width, height,
-                        placement.u0, placement.v0, placement.u1, placement.v1,
-                        command.paint(), runColor, transformState);
+                if (runVisible) {
+                    Batch batch = nextBatch(batches, placement.page);
+                    addQuad(batch.vertices, left, top, width, height,
+                            placement.u0, placement.v0, placement.u1, placement.v1,
+                            command.paint(), runColor, transformState);
+                }
                 penX += placement.advance * scale;
             }
         }
@@ -305,6 +308,12 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
         return richText == null
                 ? RichText.of(command.text(), defaultFace, TextRun.DEFAULT_PIXEL_SIZE)
                 : richText;
+    }
+
+    private static boolean hasText(DrawCommand command) {
+        if (command == null) return false;
+        if (command.richText() != null) return !command.richText().isEmpty();
+        return command.text() != null && !command.text().isEmpty();
     }
 
     private FontFace resolvedFace(TextRun run) {
@@ -423,6 +432,12 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
     private static float clamp01(float value) {
         if (!Float.isFinite(value)) return 1.0f;
         return Math.max(0.0f, Math.min(1.0f, value));
+    }
+
+    private static boolean visibleAlpha(ColorView base, ColorView run) {
+        if (base == null) return true;
+        float alpha = clamp01(base.a()) * (run == null ? 1.0f : clamp01(run.a()));
+        return Math.max(0, Math.min(255, Math.round(alpha * 255.0f))) > 0;
     }
 
     @Override

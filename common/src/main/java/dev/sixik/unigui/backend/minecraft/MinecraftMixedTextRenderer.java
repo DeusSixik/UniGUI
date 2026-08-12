@@ -24,6 +24,11 @@ import java.util.List;
 /** Preserves rich-text ordering when Minecraft and SDF faces share one text command. */
 final class MinecraftMixedTextRenderer {
     private static final float VANILLA_BASE_SIZE = 9.0f;
+    /**
+     * Vanilla Font treats colors with the high alpha bits cleared as "alpha not specified"
+     * and promotes them to opaque, so skip those startup fade values instead of flashing.
+     */
+    private static final int MIN_VANILLA_ALPHA_CHANNEL = 4;
 
     private final Minecraft minecraft;
     private final MinecraftSdfTextRenderer sdfRenderer;
@@ -65,6 +70,7 @@ final class MinecraftMixedTextRenderer {
 
     private void renderCommand(GuiGraphics graphics, DrawCommand command, RichText text,
                                List<DrawCommand> pendingSdf, boolean renderingToPremultipliedTarget) {
+        if (!visibleAlpha(command.paint().color(), null)) return;
         RectView bounds = command.bounds();
         List<LineInfo> lines = lineInfo(text);
         float penX = bounds.x();
@@ -144,6 +150,7 @@ final class MinecraftMixedTextRenderer {
     private void drawVanilla(GuiGraphics graphics, DrawCommand command, String text,
                              MinecraftFontFace face, float pixelSize, ColorView runColor,
                              float x, float y) {
+        if (!visibleAlpha(command.paint().color(), runColor)) return;
         PoseStack pose = graphics.pose();
         graphics.flush();
         boolean depthTest = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
@@ -237,6 +244,12 @@ final class MinecraftMixedTextRenderer {
         float b = clamp01(base.b()) * (run == null ? 1.0f : clamp01(run.b()));
         float a = clamp01(base.a()) * (run == null ? 1.0f : clamp01(run.a()));
         return channel(a) << 24 | channel(r) << 16 | channel(g) << 8 | channel(b);
+    }
+
+    private static boolean visibleAlpha(ColorView base, ColorView run) {
+        if (base == null) return true;
+        float alpha = clamp01(base.a()) * (run == null ? 1.0f : clamp01(run.a()));
+        return channel(alpha) >= MIN_VANILLA_ALPHA_CHANNEL;
     }
 
     private static float positive(float value) {

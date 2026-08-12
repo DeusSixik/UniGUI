@@ -613,7 +613,7 @@ public final class ColorPicker extends LinearBox {
             float height = layoutBounds().height();
             if (width <= 0.0f || height <= 0.0f) return;
 
-            effectiveRenderer().render(new DrawScope(context, transform()), snapshot());
+            effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot());
         }
 
         private ColorPickerState snapshot() {

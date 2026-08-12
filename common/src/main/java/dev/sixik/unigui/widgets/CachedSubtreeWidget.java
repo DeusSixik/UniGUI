@@ -218,7 +218,7 @@ public final class CachedSubtreeWidget extends WidgetBase {
             recordCacheHit();
         }
 
-        effectiveRenderer().render(new DrawScope(context, transform()), cachedSubtreeState(missReason));
+        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), cachedSubtreeState(missReason));
     }
 
     @Override

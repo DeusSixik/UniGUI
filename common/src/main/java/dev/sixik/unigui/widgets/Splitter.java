@@ -99,7 +99,7 @@ public final class Splitter extends Box {
     @Override
     protected void renderContent(RenderContext context) {
         super.renderContent(context);
-        effectiveRenderer().render(new DrawScope(context, transform()), snapshot());
+        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot());
     }
 
     protected SplitterRenderer effectiveRenderer() {

@@ -3,6 +3,7 @@ package dev.sixik.unigui.tests;
 import dev.sixik.unigui.api.animation.AnimatedProperty;
 import dev.sixik.unigui.api.animation.AnimationEasing;
 import dev.sixik.unigui.api.animation.TransitionSpec;
+import dev.sixik.unigui.api.animation.TransformOrigin;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.FramePhase;
@@ -150,6 +151,7 @@ import dev.sixik.unigui.widgets.TextBlock;
 import dev.sixik.unigui.widgets.TextField;
 import dev.sixik.unigui.widgets.TextInput;
 import dev.sixik.unigui.widgets.TextWidget;
+import dev.sixik.unigui.widgets.TextureWidget;
 import dev.sixik.unigui.widgets.Tooltip;
 import dev.sixik.unigui.widgets.RichTextView;
 import dev.sixik.unigui.widgets.Toast;
@@ -1907,6 +1909,63 @@ public final class BasicControlsSelfTest {
         expect(near(box.opacity(), 1.0f) && !box.animationsRunning(),
                 "Widget transitions should finish and clear running state");
 
+
+        box.arrange(new MutableRect(10.0f, 20.0f, 100.0f, 40.0f));
+        box.transformOrigin(TransformOrigin.CENTER)
+                .rotationDegrees(0.0f)
+                .animateRotation(90.0f, linear)
+                .animatePositionFrom(-10.0f, 5.0f, 10.0f, 15.0f, linear);
+        expect(near(box.transform().pivot().x(), 50.0f) && near(box.transform().pivot().y(), 20.0f),
+                "Named transform origin should resolve pivot from layout bounds");
+        box.tick(new FrameContext(3, 0.5f, 0.0f, FramePhase.ANIMATION));
+        expect(near(box.transform().rotationDegrees(), 45.0f)
+                        && near(box.transform().position().x(), 0.0f)
+                        && near(box.transform().position().y(), 10.0f),
+                "Widget rotation and point-to-point position transitions should interpolate");
+        box.tick(new FrameContext(4, 0.5f, 0.0f, FramePhase.ANIMATION));
+        expect(near(box.transform().rotationDegrees(), 90.0f)
+                        && near(box.transform().position().x(), 10.0f)
+                        && near(box.transform().position().y(), 15.0f),
+                "Widget rotation and point-to-point transitions should finish at target values");
+
+        box.shake(6.0f, 0.0f, 1.0f, 1);
+        box.tick(new FrameContext(5, 0.25f, 0.0f, FramePhase.ANIMATION));
+        expect(Math.abs(box.transform().position().x() - 14.5f) < 0.001f,
+                "Shake effect should add a decaying temporary transform offset");
+        box.tick(new FrameContext(6, 0.75f, 0.0f, FramePhase.ANIMATION));
+        expect(near(box.transform().position().x(), 10.0f) && !box.animationsRunning(),
+                "Shake effect should restore base transform position when finished");
+
+        box.background().set(0.0f, 0.0f, 0.0f, 1.0f);
+        box.animateBackgroundColor(new MutableColor(1.0f, 0.5f, 0.25f, 0.5f), linear);
+        box.animateRadius(8.0f, linear);
+        box.tick(new FrameContext(7, 0.5f, 0.0f, FramePhase.ANIMATION));
+        expect(near(box.background().r(), 0.5f)
+                        && near(box.background().g(), 0.25f)
+                        && near(box.background().b(), 0.125f)
+                        && near(box.background().a(), 0.75f)
+                        && near(box.radius(), 4.0f),
+                "Widget color and generic parameter transitions should interpolate");
+        box.tick(new FrameContext(8, 0.5f, 0.0f, FramePhase.ANIMATION));
+        expect(near(box.background().r(), 1.0f) && near(box.radius(), 8.0f) && !box.animationsRunning(),
+                "Widget color and generic parameter transitions should complete");
+
+        SimpleTextureHandle firstTexture = new SimpleTextureHandle("test:first", 16, 16);
+        SimpleTextureHandle secondTexture = new SimpleTextureHandle("test:second", 16, 16);
+        TextureWidget textureWidget = new TextureWidget(firstTexture);
+        textureWidget.arrange(new MutableRect(0.0f, 0.0f, 16.0f, 16.0f));
+        textureWidget.animateTexture(secondTexture, linear);
+        textureWidget.tick(new FrameContext(9, 0.5f, 0.0f, FramePhase.ANIMATION));
+        DrawList textureFadeDrawList = new DrawList();
+        textureWidget.render(new DefaultRenderContext(textureFadeDrawList));
+        expect(textureFadeDrawList.commands().size() == 2,
+                "TextureWidget crossfade should render old and new textures during transition");
+        textureWidget.tick(new FrameContext(10, 0.5f, 0.0f, FramePhase.ANIMATION));
+        DrawList textureDoneDrawList = new DrawList();
+        textureWidget.render(new DefaultRenderContext(textureDoneDrawList));
+        expect(textureDoneDrawList.commands().size() == 1 && textureWidget.texture() == secondTexture,
+                "TextureWidget crossfade should render only the new texture after completion");
+
         StackPanel root = new StackPanel();
         root.opacity(0.50f);
         Box child = new Box();
@@ -1923,6 +1982,16 @@ public final class BasicControlsSelfTest {
         expect(hasFillColor(fadedDrawList, 0.3f, 0.4f, 0.5f, 0.20f),
                 "Nested widget opacity should multiply rendered paint alpha");
 
+        Label hiddenText = new Label("Invisible");
+        hiddenText.opacity(0.0f);
+        hiddenText.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 16.0f));
+        DrawList hiddenTextDrawList = new DrawList();
+        hiddenText.render(new DefaultRenderContext(hiddenTextDrawList));
+        expect(hiddenTextDrawList.commands().stream()
+                        .filter(command -> command.type() == DrawCommandType.TEXT)
+                        .allMatch(command -> near(command.paint().color().a(), 0.0f)),
+                "Label opacity(0) should emit fully transparent text paint");
+
         Button button = new Button("Animated");
         button.interactionTransitions(true)
                 .interactionTransition(TransitionSpec.of(0.10f, AnimationEasing.LINEAR))
@@ -1937,6 +2006,32 @@ public final class BasicControlsSelfTest {
         button.tick(new FrameContext(4, 0.10f, 0.0f, FramePhase.ANIMATION));
         expect(near(button.opacity(), 0.80f) && near(button.transform().scale().x(), 0.90f),
                 "Button pressed interaction transition should animate opacity and scale");
+
+
+        Button rotatedButton = new Button("Pivot text");
+        rotatedButton.themeEnabled(false);
+        rotatedButton.transformOrigin(TransformOrigin.CENTER).rotationDegrees(18.0f);
+        rotatedButton.arrange(new MutableRect(20.0f, 30.0f, 120.0f, 24.0f));
+        DrawList rotatedButtonDrawList = new DrawList();
+        rotatedButton.render(new DefaultRenderContext(rotatedButtonDrawList));
+        DrawCommand rotatedShape = null;
+        DrawCommand rotatedText = null;
+        for (DrawCommand command : rotatedButtonDrawList.commands()) {
+            if (near(command.transform().rotationDegrees(), 18.0f)) {
+                if (rotatedShape == null && command.type() != DrawCommandType.TEXT) {
+                    rotatedShape = command;
+                } else if (rotatedText == null && command.type() == DrawCommandType.TEXT) {
+                    rotatedText = command;
+                }
+            }
+        }
+        expect(rotatedShape != null && rotatedText != null,
+                "Rotated Button should transform both chrome and text draw commands");
+        expect(near(rotatedShape.bounds().x() + rotatedShape.transform().pivot().x(),
+                        rotatedText.bounds().x() + rotatedText.transform().pivot().x())
+                        && near(rotatedShape.bounds().y() + rotatedShape.transform().pivot().y(),
+                        rotatedText.bounds().y() + rotatedText.transform().pivot().y()),
+                "Rotated Button text should share the widget transform origin with its chrome");
     }
 
     private void testMinecraftPreviewWidgetFallbacks() {

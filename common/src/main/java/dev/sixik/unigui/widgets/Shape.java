@@ -89,7 +89,7 @@ public class Shape extends WidgetBase {
     public void render(RenderContext context) {
         pushOpacity(context);
         try {
-            effectiveRenderer().render(new DrawScope(context, transform()), snapshot());
+            effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot());
         } finally {
             popOpacity(context);
         }

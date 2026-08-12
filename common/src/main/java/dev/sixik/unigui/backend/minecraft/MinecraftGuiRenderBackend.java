@@ -57,6 +57,12 @@ import java.util.List;
 import java.util.Objects;
 
 public final class MinecraftGuiRenderBackend implements RenderBackend, AutoCloseable {
+    /**
+     * Vanilla Font treats colors with alpha 0..3 as "alpha not specified" and promotes them
+     * to opaque, which causes fade-in text to flash on the first visible frame.
+     */
+    private static final int MIN_VANILLA_TEXT_ALPHA_CHANNEL = 4;
+
     private final Minecraft minecraft;
     private final DrawBatcher batcher;
     private final ScissorStack scissorStack = new ScissorStack();
@@ -1076,6 +1082,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
                 ? command.text()
                 : command.richText() == null ? null : command.richText().plainText();
         if (text == null || text.isEmpty()) return;
+        if (alphaChannel(command.paint().color()) < MIN_VANILLA_TEXT_ALPHA_CHANNEL) return;
         RectView bounds = command.bounds();
         graphics.flush();
         RenderState state = RenderState.capture();
@@ -1220,6 +1227,10 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
         int g = channel(color.g());
         int b = channel(color.b());
         return (a << 24) | (r << 16) | (g << 8) | b;
+    }
+
+    private static int alphaChannel(ColorView color) {
+        return color == null ? 255 : channel(color.a());
     }
 
     private static int channel(float value) {

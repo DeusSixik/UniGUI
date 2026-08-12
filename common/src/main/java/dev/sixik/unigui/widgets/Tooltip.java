@@ -205,7 +205,7 @@ public class Tooltip extends Box implements OverlayHostAware {
         for (int i = 0; i < lines.size(); i++) {
             lineHeights[i] = TextEngine.lineHeight(lines.get(i));
         }
-        effectiveRenderer().render(new DrawScope(context, transform()), new TooltipState(
+        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), new TooltipState(
                 layoutBounds().x(),
                 layoutBounds().y(),
                 layoutBounds().width(),

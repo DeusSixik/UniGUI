@@ -383,7 +383,7 @@ public final class DockingRoot extends Box {
         applyQueuedMutations();
         pushOpacity(context);
         try {
-            effectiveRootRenderer().render(new DrawScope(context, transform()), rootState());
+            effectiveRootRenderer().render(new DrawScope(context, transform(), layoutBounds()), rootState());
             renderSelectedContents(context, rootNode(), layoutBounds());
             renderChrome(context);
             renderOverflowMenu(context);
@@ -1071,7 +1071,7 @@ public final class DockingRoot extends Box {
     }
 
     private void renderChrome(RenderContext context) {
-        DrawScope draw = new DrawScope(context, transform());
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
         for (DockPaneState pane : paneStates(rootNode(), layoutBounds())) {
             effectivePaneRenderer().render(draw, pane);
         }
@@ -1108,7 +1108,7 @@ public final class DockingRoot extends Box {
             openOverflowNodeId = "";
             return;
         }
-        DrawScope draw = new DrawScope(context, transform());
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
         MutableRect menu = overflowMenuBounds(hit);
         float x = menu.x();
         float y = menu.y();
