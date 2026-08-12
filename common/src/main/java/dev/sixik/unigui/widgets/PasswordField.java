@@ -50,7 +50,7 @@ public class PasswordField extends TextInput {
 
     @Override
     protected TextInputRenderer effectiveRenderer() {
-        return renderer() == null ? WidgetsRender.passwordField() : renderer();
+        return renderer() == null ? styleRenderer(TextInputRenderer.class, WidgetsRender.passwordField()) : renderer();
     }
 
     @Override

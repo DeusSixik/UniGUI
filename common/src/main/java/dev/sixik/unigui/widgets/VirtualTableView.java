@@ -785,7 +785,7 @@ public class VirtualTableView extends WidgetBase {
     }
 
     protected VirtualTableViewRenderer effectiveRenderer() {
-        return renderer == null ? WidgetsRender.virtualTableView() : renderer;
+        return renderer == null ? styleRenderer(VirtualTableViewRenderer.class, WidgetsRender.virtualTableView()) : renderer;
     }
 
     protected VirtualTableViewState snapshot(RenderContext context, VirtualTableViewRenderPhase phase) {

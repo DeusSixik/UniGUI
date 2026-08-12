@@ -511,7 +511,7 @@ public class TreeView extends LinearBox {
     }
 
     protected TreeViewRenderer effectiveRenderer() {
-        return renderer == null ? WidgetsRender.treeView() : renderer;
+        return renderer == null ? styleRenderer(TreeViewRenderer.class, WidgetsRender.treeView()) : renderer;
     }
 
     private static final class TreeRowButton extends Button {

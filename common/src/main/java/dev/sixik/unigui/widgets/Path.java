@@ -79,7 +79,7 @@ public final class Path extends WidgetBase {
     }
 
     private PathRenderer effectiveRenderer() {
-        return renderer == null ? WidgetsRender.path() : renderer;
+        return renderer == null ? styleRenderer(PathRenderer.class, WidgetsRender.path()) : renderer;
     }
 
     private PathState snapshot() {

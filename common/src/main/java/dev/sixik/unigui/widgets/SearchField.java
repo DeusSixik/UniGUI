@@ -109,7 +109,7 @@ public class SearchField extends TextInput {
 
     @Override
     protected TextInputRenderer effectiveRenderer() {
-        return renderer() == null ? WidgetsRender.searchField() : renderer();
+        return renderer() == null ? styleRenderer(TextInputRenderer.class, WidgetsRender.searchField()) : renderer();
     }
 
     @Override

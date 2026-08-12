@@ -292,7 +292,7 @@ public final class DatePicker extends LinearBox {
     }
 
     private DatePickerRenderer effectiveRenderer() {
-        return renderer == null ? WidgetsRender.datePicker() : renderer;
+        return renderer == null ? styleRenderer(DatePickerRenderer.class, WidgetsRender.datePicker()) : renderer;
     }
 
     private void buildCalendarPanel() {

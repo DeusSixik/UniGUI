@@ -66,6 +66,7 @@ import dev.sixik.unigui.api.sort.SortDirection;
 import dev.sixik.unigui.api.style.MutableStyle;
 import dev.sixik.unigui.api.style.MutableTheme;
 import dev.sixik.unigui.api.style.StyleKey;
+import dev.sixik.unigui.api.style.StyleIds;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.text.TextOverflowMode;
@@ -162,6 +163,8 @@ import dev.sixik.unigui.widgets.VirtualTableView;
 import dev.sixik.unigui.widgets.Widgets;
 import dev.sixik.unigui.widgets.WindowWidget;
 import dev.sixik.unigui.widgets.WrapPanel;
+import dev.sixik.unigui.widgets.render.ButtonRenderer;
+import dev.sixik.unigui.widgets.render.ButtonRenderers;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
@@ -822,14 +825,14 @@ public final class BasicControlsSelfTest {
 
     private void testDefaultThemeContracts() {
         DefaultUIContext uiContext = new DefaultUIContext();
-        ColorView buttonText = uiContext.theme().styleFor("Button").get(StyleKeys.TEXT_COLOR, WidgetState.NORMAL, null);
-        ColorView buttonPressed = uiContext.theme().styleFor("Button").get(StyleKeys.BACKGROUND_COLOR, WidgetState.PRESSED, null);
+        ColorView buttonText = uiContext.theme().styleFor(StyleIds.Widget.BUTTON).get(StyleKeys.TEXT_COLOR, WidgetState.NORMAL, null);
+        ColorView buttonPressed = uiContext.theme().styleFor(StyleIds.Widget.BUTTON).get(StyleKeys.BACKGROUND_COLOR, WidgetState.PRESSED, null);
         ColorView unknownAccent = uiContext.theme().styleFor("UnknownWidget").get(StyleKeys.ACCENT_COLOR, WidgetState.CHECKED, null);
         expect(buttonText != null && buttonText.a() == 1.0f, "DefaultTheme should expose Button text color");
         expect(buttonPressed != null && buttonPressed.a() == 1.0f, "DefaultTheme should expose Button pressed background color");
         expect(unknownAccent != null && unknownAccent.a() == 1.0f, "DefaultTheme fallback should expose accent token");
 
-        StyleKey<Float> radiusKeyCopy = StyleKey.of("radius", Float.class);
+        StyleKey<Float> radiusKeyCopy = StyleKey.of(StyleIds.Key.RADIUS, Float.class);
         expect(radiusKeyCopy.equals(StyleKeys.RADIUS), "StyleKey equality should use id and type");
         MutableStyle style = new MutableStyle().put(StyleKeys.RADIUS, 7.0f);
         expect(style.get(radiusKeyCopy, WidgetState.PRESSED, 0.0f) == 7.0f, "MutableStyle should fallback to NORMAL state");
@@ -858,7 +861,50 @@ public final class BasicControlsSelfTest {
         MutableStyle customButtonStyle = new MutableStyle()
                 .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.4f, 0.2f, 0.8f, 1.0f))
                 .put(StyleKeys.TEXT_COLOR, MutableColor.rgba(0.9f, 0.9f, 0.2f, 1.0f));
-        MutableTheme customTheme = new MutableTheme().fallback(style).put("Button", customButtonStyle);
+        final int[] themeRendererCalls = {0};
+        ButtonRenderer themeButtonRenderer = (draw, state) -> {
+            themeRendererCalls[0]++;
+            ButtonRenderers.DEFAULT.render(draw, state);
+        };
+        final int[] localRendererCalls = {0};
+        ButtonRenderer localButtonRenderer = (draw, state) -> {
+            localRendererCalls[0]++;
+            ButtonRenderers.DEFAULT.render(draw, state);
+        };
+        final int[] instanceRendererCalls = {0};
+        ButtonRenderer instanceButtonRenderer = (draw, state) -> {
+            instanceRendererCalls[0]++;
+            ButtonRenderers.DEFAULT.render(draw, state);
+        };
+
+        MutableStyle customRendererStyle = new MutableStyle()
+                .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.4f, 0.2f, 0.8f, 1.0f))
+                .put(StyleKeys.TEXT_COLOR, MutableColor.rgba(0.9f, 0.9f, 0.2f, 1.0f))
+                .renderer(themeButtonRenderer);
+
+        Button rendererThemeButton = new Button("Renderer theme");
+        rendererThemeButton.setUiContextInternal(uiContext);
+        rendererThemeButton.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 18.0f));
+        uiContext.theme(new MutableTheme().put(StyleIds.Widget.BUTTON, customRendererStyle), rendererThemeButton);
+        rendererThemeButton.render(new DefaultRenderContext(new DrawList()));
+        expect(themeRendererCalls[0] == 1, "theme renderer override should replace default Button renderer");
+
+        Button rendererLocalButton = new Button("Renderer local");
+        rendererLocalButton.setUiContextInternal(uiContext);
+        rendererLocalButton.localStyle(StyleIds.Widget.BUTTON, new MutableStyle().renderer(localButtonRenderer));
+        rendererLocalButton.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 18.0f));
+        rendererLocalButton.render(new DefaultRenderContext(new DrawList()));
+        expect(localRendererCalls[0] == 1, "local style renderer override should replace default Button renderer");
+
+        Button rendererInstanceButton = new Button("Renderer instance");
+        rendererInstanceButton.setUiContextInternal(uiContext);
+        rendererInstanceButton.localStyle(StyleIds.Widget.BUTTON, new MutableStyle().renderer(localButtonRenderer));
+        rendererInstanceButton.renderer(instanceButtonRenderer);
+        rendererInstanceButton.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 18.0f));
+        rendererInstanceButton.render(new DefaultRenderContext(new DrawList()));
+        expect(instanceRendererCalls[0] == 1 && localRendererCalls[0] == 1,
+                "per-instance renderer should keep priority over style renderer");
+        MutableTheme customTheme = new MutableTheme().fallback(style).put(StyleIds.Widget.BUTTON, customButtonStyle);
         long previousStyleVersion = uiContext.styleVersion();
         uiContext.theme(customTheme, themedButton);
         expect(uiContext.styleVersion() != previousStyleVersion, "DefaultUIContext should bump styleVersion when theme changes");
@@ -873,7 +919,7 @@ public final class BasicControlsSelfTest {
         root.applyQueuedMutations();
         root.clearInvalidation(InvalidationFlags.ALL);
         child.clearInvalidation(InvalidationFlags.ALL);
-        uiContext.theme(new MutableTheme().put("Button", customButtonStyle), root);
+        uiContext.theme(new MutableTheme().put(StyleIds.Widget.BUTTON, customButtonStyle), root);
         expect(hasFlag(root.invalidationFlags(), InvalidationFlags.VISUAL), "theme(root) should invalidate root visuals");
         expect(hasFlag(child.invalidationFlags(), InvalidationFlags.VISUAL), "theme(root) should invalidate child visuals");
     }
@@ -889,13 +935,13 @@ public final class BasicControlsSelfTest {
         boundary.styleScope(true);
 
         root.setUiContextInternal(uiContext);
-        root.localStyle("*", new MutableStyle()
+        root.localStyle(StyleIds.WILDCARD, new MutableStyle()
                 .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.7f, 0.1f, 0.1f, 1.0f)));
-        scoped.localStyle("Button", new MutableStyle()
+        scoped.localStyle(StyleIds.Widget.BUTTON, new MutableStyle()
                 .put(StyleKeys.TEXT_COLOR, MutableColor.rgba(0.2f, 0.8f, 0.2f, 1.0f)));
-        local.localStyle("Button", new MutableStyle()
+        local.localStyle(StyleIds.Widget.BUTTON, new MutableStyle()
                 .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.1f, 0.2f, 0.9f, 1.0f)));
-        boundary.localStyle("Button", new MutableStyle()
+        boundary.localStyle(StyleIds.Widget.BUTTON, new MutableStyle()
                 .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.2f, 0.2f, 0.2f, 1.0f)));
 
         root.addChild(scoped);

@@ -67,7 +67,7 @@ public class TextField extends TextInput {
 
     @Override
     protected TextInputRenderer effectiveRenderer() {
-        return renderer() == null ? WidgetsRender.textField() : renderer();
+        return renderer() == null ? styleRenderer(TextInputRenderer.class, WidgetsRender.textField()) : renderer();
     }
 
     @Override

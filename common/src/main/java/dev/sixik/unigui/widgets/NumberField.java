@@ -147,7 +147,7 @@ public class NumberField extends TextInput {
 
     @Override
     protected TextInputRenderer effectiveRenderer() {
-        return renderer() == null ? WidgetsRender.numberField() : renderer();
+        return renderer() == null ? styleRenderer(TextInputRenderer.class, WidgetsRender.numberField()) : renderer();
     }
 
     @Override

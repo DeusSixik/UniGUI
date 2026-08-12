@@ -82,7 +82,7 @@ public class ToggleButton extends Button {
 
     @Override
     protected ButtonRenderer effectiveRenderer() {
-        return renderer() == null ? WidgetsRender.toggleButton() : renderer();
+        return renderer() == null ? styleRenderer(ButtonRenderer.class, WidgetsRender.toggleButton()) : renderer();
     }
 
     @Override

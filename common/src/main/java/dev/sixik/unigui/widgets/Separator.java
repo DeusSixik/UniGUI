@@ -72,7 +72,7 @@ public final class Separator extends WidgetBase {
     }
 
     private SeparatorRenderer effectiveRenderer() {
-        return renderer == null ? WidgetsRender.separator() : renderer;
+        return renderer == null ? styleRenderer(SeparatorRenderer.class, WidgetsRender.separator()) : renderer;
     }
 
     private SeparatorState snapshot() {

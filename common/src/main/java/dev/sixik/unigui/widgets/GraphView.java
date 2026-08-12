@@ -210,7 +210,7 @@ public final class GraphView extends WidgetBase {
     }
 
     private GraphViewRenderer effectiveRenderer() {
-        return renderer == null ? WidgetsRender.graphView() : renderer;
+        return renderer == null ? styleRenderer(GraphViewRenderer.class, WidgetsRender.graphView()) : renderer;
     }
 
     private GraphViewState snapshot() {

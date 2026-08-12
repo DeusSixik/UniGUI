@@ -231,7 +231,7 @@ public class Sparkline extends WidgetBase {
     }
 
     protected SparklineRenderer effectiveRenderer() {
-        return renderer == null ? WidgetsRender.sparkline() : renderer;
+        return renderer == null ? styleRenderer(SparklineRenderer.class, WidgetsRender.sparkline()) : renderer;
     }
 
     protected List<SparkPoint> computePoints() {

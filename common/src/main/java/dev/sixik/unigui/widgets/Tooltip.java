@@ -220,7 +220,7 @@ public class Tooltip extends Box implements OverlayHostAware {
     }
 
     private TooltipRenderer effectiveRenderer() {
-        return renderer == null ? WidgetsRender.tooltip() : renderer;
+        return renderer == null ? styleRenderer(TooltipRenderer.class, WidgetsRender.tooltip()) : renderer;
     }
 
     private List<RichText> wrappedLines(RenderContext context, float textWidthLimit) {

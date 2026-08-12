@@ -238,7 +238,7 @@ public class TextWidget extends WidgetBase {
     }
 
     protected TextWidgetRenderer effectiveRenderer() {
-        return renderer == null ? WidgetsRender.textWidget() : renderer;
+        return renderer == null ? styleRenderer(TextWidgetRenderer.class, WidgetsRender.textWidget()) : renderer;
     }
 
     protected TextWidgetState snapshot(RenderContext context) {

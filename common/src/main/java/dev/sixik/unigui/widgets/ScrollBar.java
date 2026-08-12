@@ -198,7 +198,7 @@ public class ScrollBar extends Box {
     }
 
     private ScrollBarRenderer effectiveRenderer() {
-        return renderer == null ? WidgetsRender.scrollBar() : renderer;
+        return renderer == null ? styleRenderer(ScrollBarRenderer.class, WidgetsRender.scrollBar()) : renderer;
     }
 
     private ScrollBarState snapshot() {

@@ -3,6 +3,7 @@ package dev.sixik.unigui.impl.style;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.style.MutableStyle;
 import dev.sixik.unigui.api.style.Style;
+import dev.sixik.unigui.api.style.StyleIds;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.Theme;
 import dev.sixik.unigui.api.style.WidgetState;
@@ -26,18 +27,18 @@ public final class DefaultTheme implements Theme {
                 .put(StyleKeys.BORDER_WIDTH, 1.0f)
                 .put(StyleKeys.RADIUS, 2.0f);
 
-        register("Box", fallback);
-        register("Button", controlStyle());
-        register("ToggleButton", toggleStyle());
-        register("Checkbox", toggleStyle());
-        register("TextInput", textInputStyle());
-        register("TextField", textInputStyle());
-        register("NumberField", textInputStyle());
-        register("PasswordField", textInputStyle());
-        register("SearchField", textInputStyle());
-        register("Slider", rangeStyle());
-        register("ProgressBar", rangeStyle());
-        register("ScrollBar", scrollBarStyle());
+        register(StyleIds.Widget.BOX, fallback);
+        register(StyleIds.Widget.BUTTON, controlStyle());
+        register(StyleIds.Widget.TOGGLE_BUTTON, toggleStyle());
+        register(StyleIds.Widget.CHECKBOX, toggleStyle());
+        register(StyleIds.Widget.TEXT_INPUT, textInputStyle());
+        register(StyleIds.Widget.TEXT_FIELD, textInputStyle());
+        register(StyleIds.Widget.NUMBER_FIELD, textInputStyle());
+        register(StyleIds.Widget.PASSWORD_FIELD, textInputStyle());
+        register(StyleIds.Widget.SEARCH_FIELD, textInputStyle());
+        register(StyleIds.Widget.SLIDER, rangeStyle());
+        register(StyleIds.Widget.PROGRESS_BAR, rangeStyle());
+        register(StyleIds.Widget.SCROLL_BAR, scrollBarStyle());
     }
 
     @Override

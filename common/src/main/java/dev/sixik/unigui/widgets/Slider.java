@@ -173,7 +173,7 @@ public class Slider extends Box {
     }
 
     private SliderRenderer effectiveRenderer() {
-        return renderer == null ? WidgetsRender.slider() : renderer;
+        return renderer == null ? styleRenderer(SliderRenderer.class, WidgetsRender.slider()) : renderer;
     }
 
     private SliderState snapshot() {

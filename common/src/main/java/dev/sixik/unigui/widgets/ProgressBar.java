@@ -139,7 +139,7 @@ public class ProgressBar extends Box {
     }
 
     private ProgressBarRenderer effectiveRenderer() {
-        return renderer == null ? WidgetsRender.progressBar() : renderer;
+        return renderer == null ? styleRenderer(ProgressBarRenderer.class, WidgetsRender.progressBar()) : renderer;
     }
 
     private ProgressBarState snapshot() {

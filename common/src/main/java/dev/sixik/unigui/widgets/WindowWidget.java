@@ -631,7 +631,7 @@ public final class WindowWidget extends Box implements OverlayHostAware {
     }
 
     private WindowRenderer effectiveRenderer() {
-        return renderer == null ? WidgetsRender.window() : renderer;
+        return renderer == null ? styleRenderer(WindowRenderer.class, WidgetsRender.window()) : renderer;
     }
 
     private WindowState snapshot(RenderContext context) {

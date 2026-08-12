@@ -23,11 +23,13 @@ import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.math.Transform;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.Style;
+import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.Theme;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.impl.event.FastEventEmitter;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Iterator;
@@ -605,6 +607,47 @@ public abstract class WidgetBase implements Widget {
     /**
      * Помечает часть состояния виджета как требующую пересчёта или перерисовки.
      */
+    /**
+     * Returns the style type used by theme and local style lookup.
+     */
+    protected String styleType() {
+        return getClass().getSimpleName();
+    }
+
+    /**
+     * Resolves a style renderer override for this widget type.
+     *
+     * <p>Per-instance renderer setters should call this only when their local
+     * renderer field is {@code null}. The lookup order is theme style, inherited
+     * local styles, then {@code fallback}. Values with the wrong renderer type
+     * are ignored.</p>
+     */
+    protected <T> T styleRenderer(Class<T> rendererType, T fallback) {
+        if (rendererType == null) return fallback;
+        UIContext context = uiContext();
+        Theme theme = context == null ? Theme.EMPTY : context.theme();
+        String type = styleType();
+        Object value = theme.styleFor(type).get(StyleKeys.RENDERER, null, null);
+        for (Widget current : styleLookupChain()) {
+            Style localStyle = current.localStyle(type);
+            value = localStyle.get(StyleKeys.RENDERER, null, value);
+        }
+        return rendererType.isInstance(value) ? rendererType.cast(value) : fallback;
+    }
+
+    private List<Widget> styleLookupChain() {
+        List<Widget> chain = new ArrayList<>();
+        Widget current = this;
+        while (current != null) {
+            chain.add(current);
+            if (current != this && current.styleScope()) {
+                break;
+            }
+            current = current.parent();
+        }
+        Collections.reverse(chain);
+        return chain;
+    }
     @Override
     public void invalidate(int flags) {
         if (flags == InvalidationFlags.NONE) return;

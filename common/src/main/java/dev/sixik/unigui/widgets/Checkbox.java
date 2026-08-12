@@ -143,7 +143,7 @@ public class Checkbox extends ToggleButton {
 
     @Override
     protected ButtonRenderer effectiveRenderer() {
-        return renderer() == null ? WidgetsRender.checkbox() : renderer();
+        return renderer() == null ? styleRenderer(ButtonRenderer.class, WidgetsRender.checkbox()) : renderer();
     }
 
     @Override

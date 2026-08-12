@@ -354,7 +354,7 @@ public final class ColorPicker extends LinearBox {
     }
 
     private ColorPickerRenderer effectiveRenderer() {
-        return renderer == null ? WidgetsRender.colorPicker() : renderer;
+        return renderer == null ? styleRenderer(ColorPickerRenderer.class, WidgetsRender.colorPicker()) : renderer;
     }
 
     private void syncFieldsAndSliders() {

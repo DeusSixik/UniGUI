@@ -71,7 +71,7 @@ public final class Border extends WidgetBase {
     }
 
     private BorderRenderer effectiveRenderer() {
-        return renderer == null ? WidgetsRender.border() : renderer;
+        return renderer == null ? styleRenderer(BorderRenderer.class, WidgetsRender.border()) : renderer;
     }
 
     private BorderState snapshot() {

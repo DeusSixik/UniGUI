@@ -36,6 +36,19 @@
 
 ---
 
+## Theme/Style — статус OK/PARTIAL
+
+Целевая роль: theme/style должен управлять не только tokens/colors, но и default renderers для стандартных виджетов.
+
+- [x] Добавить StyleKeys.RENDERER как renderer override для widget type style.
+- [x] Добавить StyleIds как единый реестр style key ids и widget type ids.
+- [x] Подключить fallback order: per-instance renderer -> style/theme renderer -> WidgetsRender default.
+- [x] Добавить MutableStyle.renderer(...) convenience API.
+- [x] Покрыть renderer override self-test: theme, local style, per-instance priority.
+- [ ] Добавить отдельные typed renderer keys для sub-renderers, если понадобятся внутренние части вроде DockPane/SplitHandle.
+
+---
+
 # Layout-контейнеры
 
 ## Box — статус PARTIAL
@@ -1208,6 +1221,7 @@ Root docking widget по внешнему контракту: DockingRoot.
 
 ## P2 — документация и согласование терминов
 
+- [x] Theme/Style renderer override — default CustomRender через StyleKeys.RENDERER.
 - [x] Text/TextWidget/TextBlock/Label/RichTextView — явно развести роли.
 - [x] TextField/TextInput — явно развести public control и base editor.
 - [x] DockPanel vs DockingRoot — обновить contract names.

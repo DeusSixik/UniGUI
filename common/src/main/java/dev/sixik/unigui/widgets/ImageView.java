@@ -14,6 +14,6 @@ public final class ImageView extends TextureWidget {
 
     @Override
     protected TextureWidgetRenderer effectiveRenderer() {
-        return renderer() == null ? WidgetsRender.imageView() : renderer();
+        return renderer() == null ? styleRenderer(TextureWidgetRenderer.class, WidgetsRender.imageView()) : renderer();
     }
 }

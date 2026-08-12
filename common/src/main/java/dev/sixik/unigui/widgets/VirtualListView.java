@@ -356,7 +356,7 @@ public class VirtualListView extends WidgetBase {
     }
 
     protected VirtualListViewRenderer effectiveRenderer() {
-        return renderer == null ? WidgetsRender.virtualListView() : renderer;
+        return renderer == null ? styleRenderer(VirtualListViewRenderer.class, WidgetsRender.virtualListView()) : renderer;
     }
 
     protected VirtualListViewState snapshot(VirtualListViewRenderPhase phase) {

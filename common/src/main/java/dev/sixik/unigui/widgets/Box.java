@@ -182,7 +182,7 @@ public class Box extends PanelWidget {
     }
 
     protected BoxRenderer effectiveBoxRenderer() {
-        return boxRenderer == null ? WidgetsRender.box() : boxRenderer;
+        return boxRenderer == null ? styleRenderer(BoxRenderer.class, WidgetsRender.box()) : boxRenderer;
     }
 
     protected BoxState boxState() {
@@ -264,6 +264,11 @@ public class Box extends PanelWidget {
 
     protected String styleType() {
         return getClass().getSimpleName();
+    }
+
+    @Override
+    protected <T> T styleRenderer(Class<T> rendererType, T fallback) {
+        return themeEnabled ? super.styleRenderer(rendererType, fallback) : fallback;
     }
 
     protected <T> T styleValue(StyleKey<T> key, T fallback) {

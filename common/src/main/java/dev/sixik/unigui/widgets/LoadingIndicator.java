@@ -272,13 +272,13 @@ public class LoadingIndicator extends Box {
 
     private LoadingIndicatorRenderer effectiveRenderer() {
         if (renderer != null) return renderer;
-        return switch (mode) {
+        LoadingIndicatorRenderer fallback = switch (mode) {
             case SPINNER -> WidgetsRender.loadingSpinner();
             case DOTS -> WidgetsRender.loadingDots();
             case BAR -> WidgetsRender.loadingBar();
         };
+        return styleRenderer(LoadingIndicatorRenderer.class, fallback);
     }
-
     private LoadingIndicatorState snapshot() {
         return new LoadingIndicatorState(
                 layoutBounds().x(),

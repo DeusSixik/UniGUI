@@ -24,6 +24,16 @@ public final class MutableStyle implements Style {
         return this;
     }
 
+    /**
+     * Sets the default renderer override for widgets using this style.
+     *
+     * <p>The concrete widget casts this value to its renderer interface. Local
+     * per-instance renderer setters still have priority over this style value.</p>
+     */
+    public MutableStyle renderer(Object renderer) {
+        return put(StyleKeys.RENDERER, renderer);
+    }
+
     @Override
     public long version() {
         return version;

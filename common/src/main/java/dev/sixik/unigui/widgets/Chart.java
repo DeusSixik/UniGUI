@@ -192,7 +192,7 @@ public final class Chart extends Sparkline {
 
     @Override
     protected SparklineRenderer effectiveRenderer() {
-        return renderer() == null ? WidgetsRender.chart() : renderer();
+        return renderer() == null ? styleRenderer(SparklineRenderer.class, WidgetsRender.chart()) : renderer();
     }
 
     @Override

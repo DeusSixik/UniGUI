@@ -235,7 +235,7 @@ public class Button extends Box {
     }
 
     protected ButtonRenderer effectiveRenderer() {
-        return renderer == null ? WidgetsRender.button() : renderer;
+        return renderer == null ? styleRenderer(ButtonRenderer.class, WidgetsRender.button()) : renderer;
     }
 
     protected ButtonState snapshot(RenderContext context) {

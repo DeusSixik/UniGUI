@@ -292,7 +292,7 @@ public final class CachedSubtreeWidget extends WidgetBase {
     }
 
     private CachedSubtreeRenderer effectiveRenderer() {
-        return renderer == null ? WidgetsRender.cachedSubtree() : renderer;
+        return renderer == null ? styleRenderer(CachedSubtreeRenderer.class, WidgetsRender.cachedSubtree()) : renderer;
     }
 
     private CachedSubtreeState cachedSubtreeState(CachedSubtreeMissReason missReason) {

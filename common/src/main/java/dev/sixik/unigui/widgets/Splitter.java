@@ -103,7 +103,7 @@ public final class Splitter extends Box {
     }
 
     protected SplitterRenderer effectiveRenderer() {
-        return renderer == null ? WidgetsRender.splitter() : renderer;
+        return renderer == null ? styleRenderer(SplitterRenderer.class, WidgetsRender.splitter()) : renderer;
     }
 
     protected SplitterState snapshot() {

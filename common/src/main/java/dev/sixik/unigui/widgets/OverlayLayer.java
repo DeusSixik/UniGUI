@@ -263,7 +263,7 @@ public final class OverlayLayer extends PanelWidget {
     }
 
     private ModalScrimRenderer effectiveModalScrimRenderer() {
-        return modalScrimRenderer == null ? WidgetsRender.modalScrim() : modalScrimRenderer;
+        return modalScrimRenderer == null ? styleRenderer(ModalScrimRenderer.class, WidgetsRender.modalScrim()) : modalScrimRenderer;
     }
 
     private ModalScrimState modalScrimState() {

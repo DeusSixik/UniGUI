@@ -1666,7 +1666,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     }
 
     private NodeGraphRenderer effectiveRenderer() {
-        return renderer == null ? WidgetsRender.nodeGraph() : renderer;
+        return renderer == null ? styleRenderer(NodeGraphRenderer.class, WidgetsRender.nodeGraph()) : renderer;
     }
 
     private NodeGraphState snapshot(NodeGraphRenderPhase phase) {

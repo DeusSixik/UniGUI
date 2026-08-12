@@ -96,7 +96,7 @@ public class Shape extends WidgetBase {
     }
 
     protected ShapeRenderer effectiveRenderer() {
-        return renderer == null ? WidgetsRender.shape() : renderer;
+        return renderer == null ? styleRenderer(ShapeRenderer.class, WidgetsRender.shape()) : renderer;
     }
 
     protected ShapeState snapshot() {

@@ -392,7 +392,7 @@ public class TextInput extends Box {
     }
 
     protected TextInputRenderer effectiveRenderer() {
-        return renderer == null ? WidgetsRender.textInput() : renderer;
+        return renderer == null ? styleRenderer(TextInputRenderer.class, WidgetsRender.textInput()) : renderer;
     }
 
     protected TextInputRenderType renderType() {

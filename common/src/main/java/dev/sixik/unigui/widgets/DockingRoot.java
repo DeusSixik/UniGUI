@@ -1497,7 +1497,7 @@ public final class DockingRoot extends Box {
     }
 
     private DockingRootRenderer effectiveRootRenderer() {
-        return rootRenderer == null ? WidgetsRender.dockingRoot() : rootRenderer;
+        return rootRenderer == null ? styleRenderer(DockingRootRenderer.class, WidgetsRender.dockingRoot()) : rootRenderer;
     }
 
     private DockPaneRenderer effectivePaneRenderer() {

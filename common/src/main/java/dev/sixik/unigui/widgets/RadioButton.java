@@ -159,7 +159,7 @@ public class RadioButton extends Button {
 
     @Override
     protected ButtonRenderer effectiveRenderer() {
-        return renderer() == null ? WidgetsRender.radioButton() : renderer();
+        return renderer() == null ? styleRenderer(ButtonRenderer.class, WidgetsRender.radioButton()) : renderer();
     }
 
     @Override

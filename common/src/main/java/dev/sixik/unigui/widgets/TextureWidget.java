@@ -106,7 +106,7 @@ public class TextureWidget extends WidgetBase {
     }
 
     protected TextureWidgetRenderer effectiveRenderer() {
-        return renderer == null ? WidgetsRender.textureWidget() : renderer;
+        return renderer == null ? styleRenderer(TextureWidgetRenderer.class, WidgetsRender.textureWidget()) : renderer;
     }
 
     protected TextureWidgetState snapshot() {
