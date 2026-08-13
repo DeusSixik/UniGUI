@@ -158,6 +158,7 @@ public final class UniGuiDemo {
         return scroll;
     }
 
+
     private static VBox overviewPage() {
         VBox page = page("Overview", "A compact tour of the AAA UI Framework surface for Minecraft screens.");
         page.addChild(paragraph("This demo is intentionally dense: each card or section exercises retained widgets, events, layout, renderers, overlays, virtualization, and Minecraft-specific preview widgets."));

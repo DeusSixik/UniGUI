@@ -239,22 +239,65 @@ public class MinecraftWidgetScreen extends Screen {
         uiContext.debugCounters().recordFrameGpuMillis(backend.lastFrameGpuMillis());
         renderContext.backend(backend);
 
-        drawList.clear();
+        boolean profileDetails = DebugFlags.has(uiContext.debugFlags(), DebugFlags.PROFILER_OVERLAY);
+        if (profileDetails) {
+            try (ProfileScope ignored = uiContext.profiler().scope("drawList.clear")) {
+                drawList.clear();
+            }
+        } else {
+            drawList.clear();
+        }
+
         try (ProfileScope ignored = uiContext.profiler().scope("buildDrawList")) {
             if (renderPolicy.mode() == UiRenderPolicy.Mode.CONTINUOUS) {
-                root.render(renderContext);
-            } else {
-                if (shouldRenderCachedUi(uiCpuStartNanos)) {
-                    renderCachedUi();
+                if (profileDetails) {
+                    try (ProfileScope renderScope = uiContext.profiler().scope("buildDrawList.root.render")) {
+                        root.render(renderContext);
+                    }
+                } else {
+                    root.render(renderContext);
                 }
+            } else {
+                CacheRenderDecision decision;
+                if (profileDetails) {
+                    try (ProfileScope policyScope = uiContext.profiler().scope("buildDrawList.cache.policy")) {
+                        decision = cacheRenderDecision(uiCpuStartNanos, true);
+                    }
+                } else {
+                    decision = cacheRenderDecision(uiCpuStartNanos, false);
+                }
+
+                if (decision.action() == CacheRenderAction.REFRESH) {
+                    if (profileDetails) {
+                        try (ProfileScope refreshScope = uiContext.profiler().scope("buildDrawList.cache.refresh." + decision.reason())) {
+                            renderCachedUi(true);
+                        }
+                    } else {
+                        renderCachedUi(false);
+                    }
+                }
+
                 if (cachedTexture != null) {
-                    renderContext.texture(cachedTexture, 0.0f, 0.0f, logicalWidth, logicalHeight,
-                            Paint.fill(CACHE_TINT));
+                    if (profileDetails) {
+                        try (ProfileScope textureScope = uiContext.profiler().scope("buildDrawList.cache.textureCommand")) {
+                            renderContext.texture(cachedTexture, 0.0f, 0.0f, logicalWidth, logicalHeight,
+                                    Paint.fill(CACHE_TINT));
+                        }
+                    } else {
+                        renderContext.texture(cachedTexture, 0.0f, 0.0f, logicalWidth, logicalHeight,
+                                Paint.fill(CACHE_TINT));
+                    }
                 }
             }
         }
 
-        recordDebugDrawStats();
+        if (profileDetails) {
+            try (ProfileScope ignored = uiContext.profiler().scope("debugDrawStats")) {
+                recordDebugDrawStats();
+            }
+        } else {
+            recordDebugDrawStats();
+        }
         DebugOverlayRenderer.render(renderContext, uiContext, logicalWidth, logicalHeight);
         lastFrameCpuMillis = (System.nanoTime() - uiCpuStartNanos) / 1_000_000.0f;
 
@@ -472,16 +515,41 @@ public class MinecraftWidgetScreen extends Screen {
         root.dispose();
     }
 
-    private boolean shouldRenderCachedUi(long nowNanos) {
-        if (renderPolicy.mode() == UiRenderPolicy.Mode.CONTINUOUS || cachedTexture == null) return true;
-        if (renderPolicy.mode() == UiRenderPolicy.Mode.ON_DIRTY) {
-            return layoutChangedThisFrame
-                    || hasRunningAnimations(root)
-                    || root.subtreeInvalidationFlags() != dev.sixik.unigui.api.core.InvalidationFlags.NONE;
+    private CacheRenderDecision cacheRenderDecision(long nowNanos, boolean profileDetails) {
+        if (renderPolicy.mode() == UiRenderPolicy.Mode.CONTINUOUS) {
+            return CacheRenderDecision.skip();
         }
-        return lastCachedRenderNanos == 0L || nowNanos - lastCachedRenderNanos >= renderIntervalNanos();
-    }
+        if (cachedTexture == null) {
+            return CacheRenderDecision.refresh("cold");
+        }
+        if (cachedWidth != cachedTargetWidth() || cachedHeight != cachedTargetHeight()) {
+            return CacheRenderDecision.refresh("resize");
+        }
+        if (renderPolicy.mode() == UiRenderPolicy.Mode.ON_DIRTY) {
+            if (layoutChangedThisFrame) {
+                return CacheRenderDecision.refresh("layout");
+            }
+            if (root.subtreeInvalidationFlags() != dev.sixik.unigui.api.core.InvalidationFlags.NONE) {
+                return CacheRenderDecision.refresh("dirty");
+            }
 
+            boolean animationsRunning;
+            if (profileDetails) {
+                try (ProfileScope ignored = uiContext.profiler().scope("cache.policy.animations")) {
+                    animationsRunning = hasRunningAnimations(root);
+                }
+            } else {
+                animationsRunning = hasRunningAnimations(root);
+            }
+            if (animationsRunning) {
+                return CacheRenderDecision.refresh("animations");
+            }
+            return CacheRenderDecision.skip();
+        }
+        return lastCachedRenderNanos == 0L || nowNanos - lastCachedRenderNanos >= renderIntervalNanos()
+                ? CacheRenderDecision.refresh("interval")
+                : CacheRenderDecision.skip();
+    }
     private long renderIntervalNanos() {
         if (renderPolicy.mode() == UiRenderPolicy.Mode.VSYNC) {
             int refreshRate = backend == null || backend.minecraft().getWindow() == null
@@ -493,28 +561,78 @@ public class MinecraftWidgetScreen extends Screen {
         return renderPolicy.intervalNanos();
     }
 
-    private void renderCachedUi() {
+    private void renderCachedUi(boolean profileDetails) {
         int targetWidth = cachedTargetWidth();
         int targetHeight = cachedTargetHeight();
         if (cachedRenderer == null || cachedWidth != targetWidth || cachedHeight != targetHeight) {
-            if (cachedRenderer != null) cachedRenderer.close();
-            cachedRenderer = new WidgetTextureRenderer(backend);
-            cachedWidth = targetWidth;
-            cachedHeight = targetHeight;
-            cachedTexture = null;
+            if (profileDetails) {
+                try (ProfileScope ignored = uiContext.profiler().scope("cache.renderer.reset")) {
+                    resetCachedRenderer(targetWidth, targetHeight);
+                }
+            } else {
+                resetCachedRenderer(targetWidth, targetHeight);
+            }
         }
-        cacheDrawList.clear();
+
+        if (profileDetails) {
+            try (ProfileScope ignored = uiContext.profiler().scope("cache.drawList.clear")) {
+                cacheDrawList.clear();
+            }
+        } else {
+            cacheDrawList.clear();
+        }
+
         cacheRenderContext.backend(backend);
-        root.render(cacheRenderContext);
-        cachedTexture = cachedRenderer.renderDrawListToTexture(
-                scaledDrawList(cacheDrawList, effectiveUiScale(), scaledCacheDrawList),
-                cachedWidth,
-                cachedHeight,
-                RenderTargetOptions.COLOR_DEPTH);
+        if (profileDetails) {
+            try (ProfileScope ignored = uiContext.profiler().scope("cache.root.render")) {
+                root.render(cacheRenderContext);
+            }
+        } else {
+            root.render(cacheRenderContext);
+        }
+
+        DrawList textureDrawList;
+        if (profileDetails) {
+            try (ProfileScope ignored = uiContext.profiler().scope("cache.scaleDrawList")) {
+                textureDrawList = scaledDrawList(cacheDrawList, effectiveUiScale(), scaledCacheDrawList);
+            }
+        } else {
+            textureDrawList = scaledDrawList(cacheDrawList, effectiveUiScale(), scaledCacheDrawList);
+        }
+
+        if (profileDetails) {
+            try (ProfileScope ignored = uiContext.profiler().scope("cache.renderToTexture")) {
+                cachedTexture = cachedRenderer.renderDrawListToTexture(
+                        textureDrawList,
+                        cachedWidth,
+                        cachedHeight,
+                        RenderTargetOptions.COLOR_DEPTH);
+            }
+        } else {
+            cachedTexture = cachedRenderer.renderDrawListToTexture(
+                    textureDrawList,
+                    cachedWidth,
+                    cachedHeight,
+                    RenderTargetOptions.COLOR_DEPTH);
+        }
+
         lastCachedRenderNanos = System.nanoTime();
-        clearSubtreeInvalidation(root);
+        if (profileDetails) {
+            try (ProfileScope ignored = uiContext.profiler().scope("cache.clearInvalidation")) {
+                clearSubtreeInvalidation(root);
+            }
+        } else {
+            clearSubtreeInvalidation(root);
+        }
     }
 
+    private void resetCachedRenderer(int targetWidth, int targetHeight) {
+        if (cachedRenderer != null) cachedRenderer.close();
+        cachedRenderer = new WidgetTextureRenderer(backend);
+        cachedWidth = targetWidth;
+        cachedHeight = targetHeight;
+        cachedTexture = null;
+    }
     private int cachedTargetWidth() {
         return backend != null && backend.minecraft().getWindow() != null
                 ? Math.max(1, backend.minecraft().getWindow().getWidth())
@@ -527,6 +645,39 @@ public class MinecraftWidgetScreen extends Screen {
                 : Math.max(1, height);
     }
 
+    private enum CacheRenderAction {
+        SKIP,
+        REFRESH
+    }
+
+    private static final class CacheRenderDecision {
+        private static final CacheRenderDecision SKIP =
+                new CacheRenderDecision(CacheRenderAction.SKIP, "stable");
+
+        private final CacheRenderAction action;
+        private final String reason;
+
+        private CacheRenderDecision(CacheRenderAction action, String reason) {
+            this.action = action == null ? CacheRenderAction.SKIP : action;
+            this.reason = reason == null || reason.isBlank() ? "unknown" : reason;
+        }
+
+        private static CacheRenderDecision refresh(String reason) {
+            return new CacheRenderDecision(CacheRenderAction.REFRESH, reason);
+        }
+
+        private static CacheRenderDecision skip() {
+            return SKIP;
+        }
+
+        private CacheRenderAction action() {
+            return action;
+        }
+
+        private String reason() {
+            return reason;
+        }
+    }
     private static boolean hasRunningAnimations(Widget widget) {
         if (widget instanceof WidgetBase base && base.animationsRunning()) return true;
         for (Widget child : widget.children()) {

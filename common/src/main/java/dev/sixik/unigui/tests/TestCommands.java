@@ -45,7 +45,7 @@ import java.time.LocalDate;
 
 public final class TestCommands {
     private static Runnable changeMode = () -> {};
-    private static Supplier<String> renderMode = UiRenderPolicy.Mode.VSYNC::name;
+    private static Supplier<String> renderMode = UiRenderPolicy.Mode.ON_DIRTY::name;
 
     private TestCommands() {
     }
@@ -89,7 +89,7 @@ public final class TestCommands {
 
     private static MinecraftWidgetScreen openScreen(Component title, Widget root, DefaultUIContext context) {
         MinecraftWidgetScreen screen = new MinecraftWidgetScreen(title, root, context);
-        screen.renderPolicy(UiRenderPolicy.vsync());
+        screen.renderPolicy(UiRenderPolicy.onDirty());
         Minecraft.getInstance().setScreen(screen);
         return screen;
     }
@@ -99,10 +99,10 @@ public final class TestCommands {
         changeMode = () -> {
             UiRenderPolicy.Mode mode = screen.renderPolicy().mode();
             switch (mode) {
-                case CONTINUOUS -> screen.renderPolicy(UiRenderPolicy.vsync());
-                case VSYNC -> screen.renderPolicy(UiRenderPolicy.onDirty());
-                case ON_DIRTY -> screen.renderPolicy(UiRenderPolicy.fixedFps(60));
+                case ON_DIRTY -> screen.renderPolicy(UiRenderPolicy.vsync());
+                case VSYNC -> screen.renderPolicy(UiRenderPolicy.fixedFps(60));
                 case FIXED_FPS -> screen.renderPolicy(UiRenderPolicy.continuous());
+                case CONTINUOUS -> screen.renderPolicy(UiRenderPolicy.onDirty());
             }
         };
     }
