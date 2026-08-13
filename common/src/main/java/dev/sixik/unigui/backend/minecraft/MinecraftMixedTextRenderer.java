@@ -105,7 +105,7 @@ final class MinecraftMixedTextRenderer {
             }
             renderSegment(graphics, command, run, face, metrics,
                     segment, penX, baseline, pendingSdf, renderingToPremultipliedTarget);
-            penX += measure(face, segment, run.pixelSize());
+            penX += measure(face, segment, run.pixelSize(), run.tracking());
         }
     }
 
@@ -115,18 +115,24 @@ final class MinecraftMixedTextRenderer {
                                 boolean renderingToPremultipliedTarget) {
         if (segment.isEmpty()) return x;
         String value = segment.toString();
-        float width = measure(face, segment, run.pixelSize());
+        float width = measure(face, segment, run.pixelSize(), run.tracking());
         float top = baseline - metrics.ascent();
         if (face instanceof MinecraftFontFace minecraftFace) {
             flushSdf(graphics, pendingSdf, renderingToPremultipliedTarget);
-            drawVanilla(graphics, command, value, minecraftFace, run.pixelSize(), run.color(), x, top);
+            drawVanilla(graphics, command, value, minecraftFace, run.pixelSize(), run.tracking(), run.color(), x, top);
         } else {
             Transform segmentTransform = command.transform().copy();
             segmentTransform.pivot().set(
                     command.bounds().x() + command.transform().pivot().x() - x,
                     command.bounds().y() + command.transform().pivot().y() - top);
             pendingSdf.add(new DrawCommand(DrawCommandType.TEXT)
-                    .richText(RichText.of(value, face, run.pixelSize(), run.color()))
+                    .richText(RichText.builder()
+                            .font(face)
+                            .size(run.pixelSize())
+                            .color(run.color())
+                            .tracking(run.tracking())
+                            .append(value)
+                            .build())
                     .bounds(new MutableRect(x, top, width, metrics.lineHeight()))
                     .paint(command.paint())
                     .transformStack(command.transformStack())
@@ -148,7 +154,7 @@ final class MinecraftMixedTextRenderer {
             for (int i = 0, size = pendingSdf.size(); i < size; i++) {
                 DrawCommand command = (DrawCommand) rawPendingSdf[i];
                 TextRun run = command.richText().runs().get(0);
-                drawVanilla(graphics, command, run.text(), fallback, run.pixelSize(), run.color(),
+                drawVanilla(graphics, command, run.text(), fallback, run.pixelSize(), run.tracking(), run.color(),
                         command.bounds().x(), command.bounds().y());
             }
         }
@@ -156,7 +162,7 @@ final class MinecraftMixedTextRenderer {
     }
 
     private void drawVanilla(GuiGraphics graphics, DrawCommand command, String text,
-                             MinecraftFontFace face, float pixelSize, ColorView runColor,
+                             MinecraftFontFace face, float pixelSize, float tracking, ColorView runColor,
                              float x, float y) {
         if (!visibleAlpha(command.paint().color(), runColor)) return;
         PoseStack pose = graphics.pose();
@@ -171,10 +177,28 @@ final class MinecraftMixedTextRenderer {
             float scale = Math.max(1.0f, pixelSize) / VANILLA_BASE_SIZE;
             pose.translate(x, y, 0.0f);
             pose.scale(scale, scale, 1.0f);
-            Component component = Component.literal(text)
-                    .withStyle(style -> style.withFont(face.location()));
-            graphics.drawString(minecraft.font, component, 0, 0,
-                    argb(command.paint().color(), runColor), false);
+            int color = argb(command.paint().color(), runColor);
+            if (tracking <= 0.0f) {
+                Component component = Component.literal(text)
+                        .withStyle(style -> style.withFont(face.location()));
+                graphics.drawString(minecraft.font, component, 0, 0, color, false);
+            } else {
+                float localX = 0.0f;
+                int glyphIndex = 0;
+                float invScale = scale <= 0.0f ? 1.0f : 1.0f / scale;
+                float trackingLocal = Math.max(0.0f, tracking) * pixelSize * invScale;
+                for (int index = 0; index < text.length(); ) {
+                    int codePoint = text.codePointAt(index);
+                    index += Character.charCount(codePoint);
+                    if (glyphIndex > 0) localX += trackingLocal;
+                    String glyph = new String(Character.toChars(codePoint));
+                    Component component = Component.literal(glyph)
+                            .withStyle(style -> style.withFont(face.location()));
+                    graphics.drawString(minecraft.font, component, Math.round(localX), 0, color, false);
+                    localX += Math.max(0.0f, face.advance(codePoint, pixelSize)) * invScale;
+                    glyphIndex++;
+                }
+            }
             graphics.flush();
         } finally {
             pose.popPose();
@@ -226,12 +250,15 @@ final class MinecraftMixedTextRenderer {
         return lines;
     }
 
-    private static float measure(FontFace face, StringBuilder text, float pixelSize) {
+    private static float measure(FontFace face, StringBuilder text, float pixelSize, float tracking) {
         float width = 0.0f;
+        int glyphs = 0;
         for (int index = 0; index < text.length(); ) {
             int codePoint = text.codePointAt(index);
             index += Character.charCount(codePoint);
+            if (glyphs > 0) width += Math.max(0.0f, tracking) * pixelSize;
             width += Math.max(0.0f, face.advance(codePoint, pixelSize));
+            glyphs++;
         }
         return width;
     }

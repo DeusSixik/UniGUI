@@ -46,6 +46,7 @@ import dev.sixik.unigui.api.math.Transform;
 import dev.sixik.unigui.api.widget.RenderedBoundsMapper;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.viewport.Viewport2D;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.render.NodeGraphItemState;
@@ -105,9 +106,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     private NodeGraphRenderer renderer;
     private NodeGraphConnectionPolicy connectionPolicy = NodeGraphConnectionPolicy.DEFAULT;
     private NodeGraphSelectionMode selectionMode = NodeGraphSelectionMode.SINGLE;
-    private float viewportX;
-    private float viewportY;
-    private float zoom = 1.0f;
+    private final Viewport2D viewport = new Viewport2D();
     private float gridSize = 24.0f;
     private boolean clippingEnabled = true;
     private boolean itemDraggingEnabled = true;
@@ -121,8 +120,6 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     private boolean wheelPanningEnabled = true;
     private float wheelPanStep = 32.0f;
     private float itemContentPadding = DEFAULT_ITEM_CONTENT_PADDING;
-    private float minZoom = 0.25f;
-    private float maxZoom = 4.0f;
     private boolean bringToFrontOnSelect = true;
     private String hoveredItemId = "";
     private NodeGraphPortRef hoveredPort = new NodeGraphPortRef("", "");
@@ -378,9 +375,9 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         }
 
         return new NodeGraphSnapshot(
-                viewportX,
-                viewportY,
-                zoom,
+                viewportX(),
+                viewportY(),
+                zoom(),
                 itemSnapshots,
                 connectionSnapshots,
                 selectedItemIds(),
@@ -504,28 +501,28 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
 
     @Override
     public HitTestPoint mapHitTestPointForChild(Widget child, float x, float y) {
-        if (!scaleContentWithZoom || zoom == 1.0f || child == null) return null;
+        if (!scaleContentWithZoom || zoom() == 1.0f || child == null) return null;
         NodeGraphItem item = itemForContent(child);
         if (item == null) return null;
         float itemX = worldToRootX(item.x());
         float itemY = worldToRootY(item.y());
         return new HitTestPoint(
-                itemX + (x - itemX) / zoom,
-                itemY + (y - itemY) / zoom);
+                itemX + (x - itemX) / zoom(),
+                itemY + (y - itemY) / zoom());
     }
 
     @Override
     public RectView renderedBoundsForChild(Widget child, RectView bounds) {
-        if (!scaleContentWithZoom || zoom == 1.0f || child == null || bounds == null) return null;
+        if (!scaleContentWithZoom || zoom() == 1.0f || child == null || bounds == null) return null;
         NodeGraphItem item = itemForContent(child);
         if (item == null) return null;
         float itemX = worldToRootX(item.x());
         float itemY = worldToRootY(item.y());
         return new MutableRect(
-                itemX + (bounds.x() - itemX) * zoom,
-                itemY + (bounds.y() - itemY) * zoom,
-                bounds.width() * zoom,
-                bounds.height() * zoom);
+                itemX + (bounds.x() - itemX) * zoom(),
+                itemY + (bounds.y() - itemY) * zoom(),
+                bounds.width() * zoom(),
+                bounds.height() * zoom());
     }
 
     @Override
@@ -642,27 +639,21 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     }
 
     public NodeGraphViewport viewport() {
-        return new NodeGraphViewport(viewportX, viewportY, zoom);
+        return new NodeGraphViewport(viewportX(), viewportY(), zoom());
     }
 
     public NodeGraph viewport(float x, float y) {
-        return viewport(x, y, zoom);
+        return viewport(x, y, zoom());
     }
 
     public NodeGraph viewport(float x, float y, float zoom) {
-        float nextX = sanitize(x);
-        float nextY = sanitize(y);
-        float nextZoom = sanitizeZoom(zoom);
-        if (viewportX == nextX && viewportY == nextY && this.zoom == nextZoom) return this;
-        float oldX = viewportX;
-        float oldY = viewportY;
-        float oldZoom = this.zoom;
-        viewportX = nextX;
-        viewportY = nextY;
-        this.zoom = nextZoom;
+        float oldX = viewportX();
+        float oldY = viewportY();
+        float oldZoom = zoom();
+        if (!viewport.set(x, y, zoom)) return this;
         arrangeItems();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
-        dispatch(new NodeGraphViewportChangedEvent(this, oldX, oldY, oldZoom, viewportX, viewportY, this.zoom));
+        dispatch(new NodeGraphViewportChangedEvent(this, oldX, oldY, oldZoom, viewportX(), viewportY(), zoom()));
         return this;
     }
 
@@ -729,22 +720,24 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     }
 
     public NodeGraph zoomRange(float minZoom, float maxZoom) {
-        float nextMin = Float.isFinite(minZoom) && minZoom > 0.0f ? minZoom : 0.25f;
-        float nextMax = Float.isFinite(maxZoom) && maxZoom >= nextMin ? maxZoom : Math.max(nextMin, 4.0f);
-        this.minZoom = nextMin;
-        this.maxZoom = nextMax;
-        if (zoom < nextMin || zoom > nextMax) {
-            viewport(viewportX, viewportY, clamp(zoom, nextMin, nextMax));
+        float oldX = viewportX();
+        float oldY = viewportY();
+        float oldZoom = zoom();
+        viewport.zoomRange(minZoom, maxZoom);
+        if (oldX != viewportX() || oldY != viewportY() || oldZoom != zoom()) {
+            arrangeItems();
+            invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+            dispatch(new NodeGraphViewportChangedEvent(this, oldX, oldY, oldZoom, viewportX(), viewportY(), zoom()));
         }
         return this;
     }
 
     public float minZoom() {
-        return minZoom;
+        return viewport.minZoom();
     }
 
     public float maxZoom() {
-        return maxZoom;
+        return viewport.maxZoom();
     }
 
     public boolean lassoSelectionEnabled() {
@@ -1033,10 +1026,10 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
             for (NodeGraphItem item : itemSnapshot()) {
                 Widget content = item.content();
                 if (!item.visible() || content.visibility() != Visibility.VISIBLE) continue;
-                if (scaleContentWithZoom && zoom != 1.0f) {
+                if (scaleContentWithZoom && zoom() != 1.0f) {
                     final float sx = worldToRootX(item.x());
                     final float sy = worldToRootY(item.y());
-                    final float z = zoom;
+                    final float z = zoom();
                     DrawList drawList = context.drawList();
                     int sizeBefore = drawList.size();
                     renderChildWithInheritedTransform(context, content);
@@ -1321,7 +1314,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
 
     private void startItemDrag(NodeGraphItem item, PointerPressedEvent pointer) {
         dragState = new DragState(DragKind.ITEM, item, pointer.pointerId(), pointer.rootX(), pointer.rootY(),
-                item.x(), item.y(), item.arrangedWidth(), item.arrangedHeight(), viewportX, viewportY);
+                item.x(), item.y(), item.arrangedWidth(), item.arrangedHeight(), viewportX(), viewportY());
         UIContext context = uiContext();
         if (context != null) {
             context.capturePointer(pointer.pointerId(), this);
@@ -1332,7 +1325,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
 
     private void startPan(PointerPressedEvent pointer) {
         dragState = new DragState(DragKind.PAN, null, pointer.pointerId(), pointer.rootX(), pointer.rootY(),
-                0.0f, 0.0f, 0.0f, 0.0f, viewportX, viewportY);
+                0.0f, 0.0f, 0.0f, 0.0f, viewportX(), viewportY());
         UIContext context = uiContext();
         if (context != null) {
             context.capturePointer(pointer.pointerId(), this);
@@ -1342,7 +1335,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
 
     private void startResize(NodeGraphItem item, PointerPressedEvent pointer) {
         dragState = new DragState(DragKind.RESIZE, item, pointer.pointerId(), pointer.rootX(), pointer.rootY(),
-                item.x(), item.y(), item.arrangedWidth(), item.arrangedHeight(), viewportX, viewportY);
+                item.x(), item.y(), item.arrangedWidth(), item.arrangedHeight(), viewportX(), viewportY());
         UIContext context = uiContext();
         if (context != null) {
             context.capturePointer(pointer.pointerId(), this);
@@ -1412,8 +1405,8 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         NodeGraphItem item = dragState.item;
         float oldX = item.x();
         float oldY = item.y();
-        float nextX = dragState.startX + (pointer.rootX() - dragState.startRootX) / zoom;
-        float nextY = dragState.startY + (pointer.rootY() - dragState.startRootY) / zoom;
+        float nextX = dragState.startX + (pointer.rootX() - dragState.startRootX) / zoom();
+        float nextY = dragState.startY + (pointer.rootY() - dragState.startRootY) / zoom();
         item.position(nextX, nextY);
         arrangeItems();
         if (oldX != item.x() || oldY != item.y()) {
@@ -1422,23 +1415,21 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     }
 
     private void moveViewport(PointerMovedEvent pointer) {
-        float oldX = viewportX;
-        float oldY = viewportY;
+        float oldX = viewportX();
+        float oldY = viewportY();
         float nextX = dragState.startViewportX + pointer.rootX() - dragState.startRootX;
         float nextY = dragState.startViewportY + pointer.rootY() - dragState.startRootY;
-        if (oldX == nextX && oldY == nextY) return;
-        viewportX = sanitize(nextX);
-        viewportY = sanitize(nextY);
+        if (!viewport.setPosition(nextX, nextY)) return;
         arrangeItems();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
-        dispatch(new NodeGraphViewportChangedEvent(this, oldX, oldY, zoom, viewportX, viewportY, zoom));
+        dispatch(new NodeGraphViewportChangedEvent(this, oldX, oldY, zoom(), viewportX(), viewportY(), zoom()));
     }
 
     private void resizeDraggedItem(PointerMovedEvent pointer) {
         NodeGraphItem item = dragState.item;
         float oldWidth = item.arrangedWidth();
         float oldHeight = item.arrangedHeight();
-        float scale = scaleContentWithZoom ? zoom : 1.0f;
+        float scale = scaleContentWithZoom ? zoom() : 1.0f;
         float nextWidth = Math.max(MIN_RESIZE_SIZE, dragState.startWidth + (pointer.rootX() - dragState.startRootX) / scale);
         float nextHeight = Math.max(MIN_RESIZE_SIZE, dragState.startHeight + (pointer.rootY() - dragState.startRootY) / scale);
         item.size(nextWidth, nextHeight);
@@ -1506,14 +1497,12 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
                 deltaY = 0.0f;
             }
 
-            float oldX = viewportX;
-            float oldY = viewportY;
-            viewportX = sanitize(viewportX + deltaX * wheelPanStep);
-            viewportY = sanitize(viewportY + deltaY * wheelPanStep);
-            if (oldX != viewportX || oldY != viewportY) {
+            float oldX = viewportX();
+            float oldY = viewportY();
+            if (viewport.panBy(deltaX * wheelPanStep, deltaY * wheelPanStep)) {
                 arrangeItems();
                 invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
-                dispatch(new NodeGraphViewportChangedEvent(this, oldX, oldY, zoom, viewportX, viewportY, zoom));
+                dispatch(new NodeGraphViewportChangedEvent(this, oldX, oldY, zoom(), viewportX(), viewportY(), zoom()));
                 handled = true;
             }
         }
@@ -1524,25 +1513,17 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     }
 
     private void zoomAt(float rootX, float rootY, float factor) {
-        if (!Float.isFinite(factor) || factor <= 0.0f) return;
-
-        float oldX = viewportX;
-        float oldY = viewportY;
-        float oldZoom = zoom;
-        float nextZoom = clamp(zoom * factor, minZoom, maxZoom);
-        if (nextZoom == zoom) return;
+        float oldX = viewportX();
+        float oldY = viewportY();
+        float oldZoom = zoom();
 
         float localX = rootX - layoutBounds().x();
         float localY = rootY - layoutBounds().y();
-        float worldX = (localX - viewportX) / zoom;
-        float worldY = (localY - viewportY) / zoom;
+        if (!viewport.zoomAt(localX, localY, factor)) return;
 
-        zoom = nextZoom;
-        viewportX = sanitize(localX - worldX * zoom);
-        viewportY = sanitize(localY - worldY * zoom);
         arrangeItems();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
-        dispatch(new NodeGraphViewportChangedEvent(this, oldX, oldY, oldZoom, viewportX, viewportY, zoom));
+        dispatch(new NodeGraphViewportChangedEvent(this, oldX, oldY, oldZoom, viewportX(), viewportY(), zoom()));
     }
 
     private void handleKeyPressed(KeyPressedEvent key, Event sourceEvent) {
@@ -1831,9 +1812,9 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
                 layoutBounds().y(),
                 layoutBounds().width(),
                 layoutBounds().height(),
-                viewportX,
-                viewportY,
-                zoom,
+                viewportX(),
+                viewportY(),
+                zoom(),
                 gridSize,
                 phase,
                 itemStates,
@@ -1894,22 +1875,34 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return event;
     }
 
+    private float viewportX() {
+        return viewport.x();
+    }
+
+    private float viewportY() {
+        return viewport.y();
+    }
+
+    private float zoom() {
+        return viewport.zoom();
+    }
+
     private float worldToRootX(float worldX) {
-        return layoutBounds().x() + viewportX + worldX * zoom;
+        return layoutBounds().x() + viewport.worldToScreenX(worldX);
     }
 
     private float worldToRootY(float worldY) {
-        return layoutBounds().y() + viewportY + worldY * zoom;
+        return layoutBounds().y() + viewport.worldToScreenY(worldY);
     }
 
     private float itemScreenWidth(NodeGraphItem item) {
         if (item == null) return 0.0f;
-        return item.arrangedWidth() * (scaleContentWithZoom ? zoom : 1.0f);
+        return item.arrangedWidth() * (scaleContentWithZoom ? zoom() : 1.0f);
     }
 
     private float itemScreenHeight(NodeGraphItem item) {
         if (item == null) return 0.0f;
-        return item.arrangedHeight() * (scaleContentWithZoom ? zoom : 1.0f);
+        return item.arrangedHeight() * (scaleContentWithZoom ? zoom() : 1.0f);
     }
 
     private float screenPortRadius() {
@@ -1921,7 +1914,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     }
 
     private float nodeContentScale() {
-        return scaleContentWithZoom ? zoom : 1.0f;
+        return scaleContentWithZoom ? zoom() : 1.0f;
     }
 
     private boolean canStartConnection(NodeGraphPort port) {
@@ -1987,10 +1980,6 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
 
     private static float sanitize(float value) {
         return Float.isFinite(value) ? value : 0.0f;
-    }
-
-    private static float sanitizeZoom(float value) {
-        return Float.isFinite(value) && value > 0.0f ? value : 1.0f;
     }
 
     private static float clamp(float value, float min, float max) {

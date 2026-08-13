@@ -1,12 +1,13 @@
 package dev.sixik.unigui.impl.render;
 
+import dev.sixik.unigui.api.render.BlendMode;
 import dev.sixik.unigui.api.render.DrawCommand;
 import dev.sixik.unigui.api.render.DrawCommandType;
 import dev.sixik.unigui.api.render.DrawList;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.TextureHandle;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import java.util.List;
 import java.util.Objects;
 
 public final class SimpleDrawBatcher implements DrawBatcher {
@@ -28,7 +29,7 @@ public final class SimpleDrawBatcher implements DrawBatcher {
             }
 
             if (current == null || !canMerge(current, command)) {
-                current = DrawBatch.batch(command.type(), command.texture());
+                current = DrawBatch.batch(command.type(), command.texture(), command.paint());
                 batches.add(current);
             }
 
@@ -39,17 +40,23 @@ public final class SimpleDrawBatcher implements DrawBatcher {
     }
 
     private static boolean isBatchable(DrawCommand command) {
-        return isColorPrimitive(command.type())
+        return command != null && (isColorPrimitive(command.type())
                 || command.type() == DrawCommandType.TEXT
-                || command.type() == DrawCommandType.TEXTURE;
+                || command.type() == DrawCommandType.TEXTURE);
     }
 
     private static boolean canMerge(DrawBatch batch, DrawCommand command) {
         if (batch.isBarrier()) return false;
+        if (!sameBlend(batch.blendMode(), command.paint())) return false;
         if (isColorPrimitive(batch.type()) && isColorPrimitive(command.type())) return true;
         if (batch.type() != command.type()) return false;
         if (command.type() != DrawCommandType.TEXTURE) return true;
         return sameTexture(batch.texture(), command.texture());
+    }
+
+    private static boolean sameBlend(BlendMode blendMode, Paint paint) {
+        BlendMode commandBlend = paint == null ? BlendMode.NORMAL : paint.blendMode();
+        return blendMode == commandBlend;
     }
 
     private static boolean sameTexture(TextureHandle left, TextureHandle right) {

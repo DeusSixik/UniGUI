@@ -56,6 +56,35 @@ tasks.register("cachedSubtreeInvalidationSelfTest", JavaExec) {
     classpath = sourceSets.test.runtimeClasspath
     mainClass = "dev.sixik.unigui.tests.CachedSubtreeInvalidationSelfTest"
 }
+tasks.register("viewport2DSelfTest", JavaExec) {
+    group = "verification"
+    description = "Runs Viewport2D projection and camera self-test assertions."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.Viewport2DSelfTest"
+}
+tasks.register("worldCanvasSelfTest", JavaExec) {
+    group = "verification"
+    description = "Runs WorldCanvas projection and anchor-layer self-test assertions."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.WorldCanvasSelfTest"
+}
+tasks.register("mapCanvasSelfTest", JavaExec) {
+    group = "verification"
+    description = "Runs MapCanvas projection and marker self-test assertions."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.MapCanvasSelfTest"
+}
+
+tasks.register("renderPolishSelfTest", JavaExec) {
+    group = "verification"
+    description = "Runs render polish API self-test assertions."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.RenderPolishSelfTest"
+}
 
 tasks.named("test") {
     dependsOn tasks.named("layoutV3SelfTest")
@@ -64,4 +93,8 @@ tasks.named("test") {
     dependsOn tasks.named("dockingInteractionSelfTest")
     dependsOn tasks.named("basicControlsSelfTest")
     dependsOn tasks.named("cachedSubtreeInvalidationSelfTest")
+    dependsOn tasks.named("viewport2DSelfTest")
+    dependsOn tasks.named("worldCanvasSelfTest")
+    dependsOn tasks.named("mapCanvasSelfTest")
+    dependsOn tasks.named("renderPolishSelfTest")
 }

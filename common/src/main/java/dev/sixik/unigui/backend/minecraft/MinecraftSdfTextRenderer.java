@@ -324,6 +324,7 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
         float lineTop = bounds.y();
         int lineIndex = 0;
         float baseline = lineTop + lines.get(0).ascent;
+        int glyphsInLine = 0;
 
         for (TextRun run : text.runs()) {
             FontFace face = resolvedFace(run);
@@ -341,12 +342,15 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
                     lineTop += lines.get(lineIndex).height;
                     lineIndex = Math.min(lineIndex + 1, lines.size() - 1);
                     baseline = lineTop + lines.get(lineIndex).ascent;
+                    glyphsInLine = 0;
                     continue;
                 }
 
+                if (glyphsInLine > 0) penX += trackingAdvance(run);
                 GlyphPlacement placement = atlas.glyph(codePoint);
                 if (placement == null) {
                     penX += Math.max(0.0f, face.advance(codePoint, run.pixelSize()));
+                    glyphsInLine++;
                     continue;
                 }
                 float left = penX + placement.bearingX * scale;
@@ -360,6 +364,7 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
                             command.paint(), runColor, transformState);
                 }
                 penX += placement.advance * scale;
+                glyphsInLine++;
             }
         }
     }
@@ -509,6 +514,9 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
         return value > 0.0f ? value : TextRun.DEFAULT_PIXEL_SIZE;
     }
 
+    private static float trackingAdvance(TextRun run) {
+        return run == null ? 0.0f : Math.max(0.0f, run.tracking()) * run.pixelSize();
+    }
     private static float clamp01(float value) {
         if (!Float.isFinite(value)) return 1.0f;
         return Math.max(0.0f, Math.min(1.0f, value));

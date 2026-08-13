@@ -50,25 +50,28 @@ public final class TextEngine {
         if (text == null || text.isEmpty()) return 0.0f;
         float maximum = 0.0f;
         float current = 0.0f;
+        int glyphsInLine = 0;
         for (TextRun run : text.runs()) {
             FontFace face = run.font();
             String value = run.text();
             for (int index = 0; index < value.length(); ) {
                 int codePoint = value.codePointAt(index);
                 index += Character.charCount(codePoint);
-                if (codePoint == '\n') {
+                if (codePoint == 10) {
                     maximum = Math.max(maximum, current);
                     current = 0.0f;
+                    glyphsInLine = 0;
                 } else {
+                    if (glyphsInLine > 0) current += trackingAdvance(run);
                     current += face == null
                             ? fallbackAdvance(run.pixelSize())
                             : Math.max(0.0f, face.advance(codePoint, run.pixelSize()));
+                    glyphsInLine++;
                 }
             }
         }
         return Math.max(maximum, current);
     }
-
     public static float measureTextHeight(RichText text) {
         if (text == null || text.isEmpty()) return 0.0f;
         float total = 0.0f;
@@ -280,6 +283,10 @@ public final class TextEngine {
                 : 1.0f;
     }
 
+    private static float trackingAdvance(TextRun run) {
+        return run == null ? 0.0f : Math.max(0.0f, run.tracking()) * run.pixelSize();
+    }
+
     private static float positiveLineHeight(float value) {
         return value > 0.0f ? value : LINE_HEIGHT;
     }
@@ -290,6 +297,7 @@ public final class TextEngine {
         private int runStart;
         private int runEnd;
         private TextRun run;
+        private int lineGlyphCount;
 
         private final FontFace defaultFace;
 
@@ -303,11 +311,18 @@ public final class TextEngine {
 
         private float advance(int charIndex, int codePoint) {
             seek(charIndex);
-            if (run == null || codePoint == 10 || codePoint == 13) return 0.0f;
+            if (run == null) return 0.0f;
+            if (codePoint == 10 || codePoint == 13) {
+                lineGlyphCount = 0;
+                return 0.0f;
+            }
             FontFace face = run.font() == null ? defaultFace : run.font();
-            return face == null
+            float width = lineGlyphCount > 0 ? trackingAdvance(run) : 0.0f;
+            width += face == null
                     ? fallbackAdvance(run.pixelSize())
                     : Math.max(0.0f, face.advance(codePoint, run.pixelSize()));
+            lineGlyphCount++;
+            return width;
         }
 
         private void seek(int charIndex) {

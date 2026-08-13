@@ -81,7 +81,9 @@ public final class RichText {
                         value.substring(overlapStart - runStart, overlapEnd - runStart),
                         run.font(),
                         run.pixelSize(),
-                        run.color()));
+                        run.color(),
+                        run.tracking(),
+                        run.transform()));
             }
             runStart = runEnd;
             if (runStart >= end) break;
@@ -110,6 +112,8 @@ public final class RichText {
         private FontFace font;
         private float pixelSize = TextRun.DEFAULT_PIXEL_SIZE;
         private ColorView color;
+        private float tracking;
+        private TextTransform transform = TextTransform.NONE;
 
         public Builder font(FontFace font) {
             this.font = font;
@@ -126,8 +130,22 @@ public final class RichText {
             return this;
         }
 
+        public Builder tracking(float tracking) {
+            this.tracking = Float.isFinite(tracking) ? Math.max(0.0f, tracking) : 0.0f;
+            return this;
+        }
+
+        public Builder transform(TextTransform transform) {
+            this.transform = transform == null ? TextTransform.NONE : transform;
+            return this;
+        }
+
+        public Builder uppercase() {
+            return transform(TextTransform.UPPERCASE);
+        }
+
         public Builder append(String text) {
-            TextRun run = new TextRun(text, font, pixelSize, color);
+            TextRun run = new TextRun(text, font, pixelSize, color, tracking, transform);
             if (!run.isEmpty()) runs.add(run);
             return this;
         }

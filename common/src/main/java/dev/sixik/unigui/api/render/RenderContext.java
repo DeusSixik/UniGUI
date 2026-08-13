@@ -84,11 +84,21 @@ public interface RenderContext {
     }
 
     default void line(float x1, float y1, float x2, float y2, Paint paint) {
-        submit(DrawCommand.line(new MutableRect(x1, y1, x2 - x1, y2 - y1), effectivePaint(paint)));
+        Paint effective = effectivePaint(paint);
+        if (effective.dashed()) {
+            emitDashedLine(x1, y1, x2, y2, effective, null);
+            return;
+        }
+        submit(DrawCommand.line(new MutableRect(x1, y1, x2 - x1, y2 - y1), effective));
     }
 
     default void line(float x1, float y1, float x2, float y2, Paint paint, Transform transform) {
-        submit(DrawCommand.line(new MutableRect(x1, y1, x2 - x1, y2 - y1), effectivePaint(paint)).transform(transform));
+        Paint effective = effectivePaint(paint);
+        if (effective.dashed()) {
+            emitDashedLine(x1, y1, x2, y2, effective, transform);
+            return;
+        }
+        submit(DrawCommand.line(new MutableRect(x1, y1, x2 - x1, y2 - y1), effective).transform(transform));
     }
 
     default void path(VectorPath path, float x, float y, float width, float height, Paint paint) {
@@ -714,6 +724,47 @@ public interface RenderContext {
         return paint.color().copy();
     }
 
+    private void emitDashedLine(float x1, float y1, float x2, float y2, Paint paint, Transform transform) {
+        float dx = x2 - x1;
+        float dy = y2 - y1;
+        float length = (float) Math.sqrt(dx * dx + dy * dy);
+        if (length <= 0.0001f) return;
+
+        float dash = Math.max(0.0f, paint.dashLength());
+        float gap = Math.max(0.0f, paint.dashGap());
+        float pattern = dash + gap;
+        if (dash <= 0.0f || gap <= 0.0f || pattern <= 0.0f) {
+            Paint solid = paint.copy().clearDash();
+            DrawCommand command = DrawCommand.line(new MutableRect(x1, y1, dx, dy), solid);
+            if (transform != null) command.transform(transform);
+            submit(command);
+            return;
+        }
+
+        float invLength = 1.0f / length;
+        float cursor = -positiveModulo(paint.dashOffset(), pattern);
+        Paint solid = paint.copy().clearDash();
+        while (cursor < length) {
+            float start = Math.max(0.0f, cursor);
+            float end = Math.min(length, cursor + dash);
+            if (end > start) {
+                float sx = x1 + dx * start * invLength;
+                float sy = y1 + dy * start * invLength;
+                float ex = x1 + dx * end * invLength;
+                float ey = y1 + dy * end * invLength;
+                DrawCommand command = DrawCommand.line(new MutableRect(sx, sy, ex - sx, ey - sy), solid);
+                if (transform != null) command.transform(transform);
+                submit(command);
+            }
+            cursor += pattern;
+        }
+    }
+
+    private static float positiveModulo(float value, float modulo) {
+        if (modulo <= 0.0f) return 0.0f;
+        float result = value % modulo;
+        return result < 0.0f ? result + modulo : result;
+    }
     private void emitPath(VectorPath source, Paint paint, Transform transform) {
         if (source == null || source.isEmpty()) return;
         MutableRect bounds = pathBounds(source);

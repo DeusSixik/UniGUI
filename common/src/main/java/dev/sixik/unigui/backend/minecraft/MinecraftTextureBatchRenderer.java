@@ -55,7 +55,7 @@ final class MinecraftTextureBatchRenderer {
             RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
             binding.bind();
             RenderSystem.enableBlend();
-            MinecraftUiBlend.applyTextureAlpha(binding.premultipliedAlpha(), renderingToPremultipliedTarget);
+            MinecraftUiBlend.applyTextureAlpha(binding.premultipliedAlpha(), renderingToPremultipliedTarget, batch.blendMode());
             RenderSystem.disableDepthTest();
             RenderSystem.depthMask(false);
             RenderSystem.disableCull();

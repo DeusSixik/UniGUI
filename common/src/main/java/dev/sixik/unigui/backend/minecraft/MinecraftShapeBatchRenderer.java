@@ -9,6 +9,7 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.math.Transform;
+import dev.sixik.unigui.api.render.BlendMode;
 import dev.sixik.unigui.api.render.DrawCommand;
 import dev.sixik.unigui.api.render.DrawCommandType;
 import dev.sixik.unigui.api.render.Paint;
@@ -47,7 +48,7 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
         try {
             RenderSystem.setShader(GameRenderer::getPositionColorShader);
             RenderSystem.enableBlend();
-            MinecraftUiBlend.applyStraightAlpha(renderingToPremultipliedTarget);
+            MinecraftUiBlend.applyStraightAlpha(renderingToPremultipliedTarget, batch.blendMode());
             RenderSystem.disableDepthTest();
             RenderSystem.depthMask(false);
             RenderSystem.disableCull();

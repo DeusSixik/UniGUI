@@ -10,6 +10,8 @@ import dev.sixik.unigui.api.debug.DebugFlags;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.render.BlendMode;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.SimpleTextureHandle;
 import dev.sixik.unigui.api.render.UiRenderPolicy;
 import dev.sixik.unigui.api.selection.SelectionMode;
@@ -29,6 +31,7 @@ import dev.sixik.unigui.widgets.minecraft.MinecraftTexturePickerWidget;
 import dev.sixik.unigui.backend.minecraft.MinecraftWidgetScreen;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.widgets.*;
+import dev.sixik.unigui.widgets.map.*;
 import dev.sixik.unigui.widgets.render.DockSplitHandleRenderers;
 import net.minecraft.client.Minecraft;
 import net.minecraft.commands.CommandSourceStack;
@@ -134,6 +137,8 @@ public final class UniGuiDemo {
         tabs.addTab("Custom Renders", scroll(customRendersPage()));
         tabs.addTab("Animations", scroll(animationsPage()));
         tabs.addTab("Node Graph", nodeGraphPage());
+        tabs.addTab("World Canvas", worldCanvasPage());
+        tabs.addTab("Map Canvas", mapCanvasPage());
         tabs.addTab("Overlays", overlaysPage());
         tabs.addTab("Minecraft", scroll(minecraftPage()));
         tabs.addTab("Stress", scroll(stressPage()));
@@ -805,6 +810,159 @@ public final class UniGuiDemo {
         page.addChild(status);
         page.addChild(graph);
         return page;
+    }
+
+
+    private static Widget worldCanvasPage() {
+        VBox page = page("World Canvas", "Generic pan/zoom viewport with screen-space anchors. Drag empty canvas, Ctrl+wheel zooms.");
+
+        Label status = new Label("WorldCanvas: drag empty space, Ctrl+wheel zoom, click markers");
+        status.layout(style -> style.size(LayoutConstraints.AUTO, 18.0f).flexGrow(0).flexShrink(0.0f));
+
+        WorldCanvas canvas = new WorldCanvas()
+                .viewport(140.0f, 92.0f, 1.0f)
+                .zoomRange(0.45f, 3.5f)
+                .wheelPanStep(28.0f);
+        canvas.layout(style -> style.size(LayoutConstraints.AUTO, 360.0f).flexGrow(1).flexShrink(1.0f));
+
+        canvas.addWorldLayer((world, draw) -> {
+            float left = world.layoutBounds().x();
+            float top = world.layoutBounds().y();
+            float width = world.layoutBounds().width();
+            float height = world.layoutBounds().height();
+
+            draw.addRectFilled(left, top, width, height, new MutableColor(0.025f, 0.032f, 0.050f, 0.96f));
+
+            float worldLeft = -240.0f;
+            float worldTop = -140.0f;
+            float worldWidth = 760.0f;
+            float worldHeight = 420.0f;
+            float mapX = world.worldToRootX(worldLeft);
+            float mapY = world.worldToRootY(worldTop);
+            float mapW = world.viewport().zoom() * worldWidth;
+            float mapH = world.viewport().zoom() * worldHeight;
+
+            draw.addRectFilled(mapX, mapY, mapW, mapH, new MutableColor(0.055f, 0.075f, 0.115f, 0.90f));
+            draw.addRect(mapX, mapY, mapW, mapH, new MutableColor(0.27f, 0.42f, 0.70f, 0.85f), 1.0f);
+
+            for (int x = -200; x <= 480; x += 80) {
+                float gx = world.worldToRootX(x);
+                draw.addLine(gx, mapY, gx, mapY + mapH, new MutableColor(0.20f, 0.30f, 0.46f, 0.34f), 1.0f);
+            }
+            for (int y = -120; y <= 260; y += 80) {
+                float gy = world.worldToRootY(y);
+                draw.addLine(mapX, gy, mapX + mapW, gy, new MutableColor(0.20f, 0.30f, 0.46f, 0.34f), 1.0f);
+            }
+
+            float routeAx = world.worldToRootX(-80.0f);
+            float routeAy = world.worldToRootY(40.0f);
+            float routeBx = world.worldToRootX(180.0f);
+            float routeBy = world.worldToRootY(-30.0f);
+            float routeCx = world.worldToRootX(340.0f);
+            float routeCy = world.worldToRootY(130.0f);
+            draw.addLine(routeAx, routeAy, routeBx, routeBy, new MutableColor(0.65f, 0.82f, 1.0f, 0.78f), 2.0f);
+            draw.addLine(routeBx, routeBy, routeCx, routeCy, new MutableColor(0.65f, 0.82f, 1.0f, 0.78f), 2.0f);
+        });
+
+        addMapMarker(canvas, status, "Camp", -80.0f, 40.0f);
+        addMapMarker(canvas, status, "Vault", 180.0f, -30.0f);
+        addMapMarker(canvas, status, "Forge", 340.0f, 130.0f);
+        addMapMarker(canvas, status, "Orbit", 60.0f, 210.0f);
+
+        canvas.onViewportChanged(event -> status.text(String.format(Locale.ROOT,
+                "WorldCanvas: offset %.0f, %.0f | zoom %.2fx | anchors %d",
+                event.newX(), event.newY(), event.newZoom(), canvas.anchorLayer().size())));
+
+        page.addChild(status);
+        page.addChild(canvas);
+        return page;
+    }
+
+    private static void addMapMarker(WorldCanvas canvas, Label status, String title, float worldX, float worldY) {
+        Button marker = new Button(title);
+        marker.onClick(event -> status.text(String.format(Locale.ROOT,
+                "WorldCanvas: clicked %s at world %.0f, %.0f", title, worldX, worldY)));
+        canvas.anchorLayer().add(title.toLowerCase(Locale.ROOT), worldX, worldY, marker)
+                .screenSize(72.0f, 22.0f)
+                .pivot(0.5f, 0.5f);
+    }
+
+
+    private static Widget mapCanvasPage() {
+        VBox page = page("Map Canvas", "Map-specific wrapper over WorldCanvas: projected markers, calibrated coordinates and route layer.");
+
+        Label status = new Label("MapCanvas: Ctrl+wheel zoom, drag empty map, click markers");
+        status.layout(style -> style.size(LayoutConstraints.AUTO, 18.0f).flexGrow(0).flexShrink(0.0f));
+
+        MapProjection projection = MapProjection.affine()
+                .worldPoint(-2048.0f, -1024.0f).mapPoint(64.0f, 64.0f)
+                .worldPoint(2048.0f, 1024.0f).mapPoint(4032.0f, 1984.0f)
+                .build();
+
+        MapCanvas map = new MapCanvas()
+                .mapSize(4096.0f, 2048.0f)
+                .projection(projection)
+                .viewport(118.0f, 74.0f, 0.22f)
+                .zoomRange(0.16f, 1.65f)
+                .gridSize(256.0f)
+                .wheelPanStep(36.0f)
+                .clampToMapBounds(false);
+        map.layout(style -> style.size(LayoutConstraints.AUTO, 380.0f).flexGrow(1).flexShrink(1.0f));
+        map.backgroundColor().set(0.018f, 0.023f, 0.036f, 0.98f);
+        map.mapColor().set(0.040f, 0.055f, 0.088f, 0.96f);
+        map.borderColor().set(0.42f, 0.58f, 0.92f, 0.86f);
+        map.gridColor().set(0.25f, 0.36f, 0.55f, 0.22f);
+
+        map.addWorldLayer((world, draw) -> {
+            float campX = map.worldToRootX(map.externalToMapX(-1300.0f));
+            float campY = map.worldToRootY(map.externalToMapY(-320.0f));
+            float vaultX = map.worldToRootX(map.externalToMapX(280.0f));
+            float vaultY = map.worldToRootY(map.externalToMapY(-160.0f));
+            float forgeX = map.worldToRootX(map.externalToMapX(1200.0f));
+            float forgeY = map.worldToRootY(map.externalToMapY(520.0f));
+            float playerX = map.worldToRootX(map.externalToMapX(-180.0f));
+            float playerY = map.worldToRootY(map.externalToMapY(620.0f));
+
+            float dashPhase = (System.nanoTime() / 1_000_000_000.0f * 18.0f) % 23.0f;
+            Paint routeGlow = Paint.stroke(new MutableColor(0.32f, 0.58f, 1.0f, 0.18f), 6.0f)
+                    .blend(BlendMode.ADDITIVE);
+            Paint routeStroke = Paint.stroke(new MutableColor(0.55f, 0.78f, 1.0f, 0.76f), 2.0f)
+                    .dash(14.0f, 9.0f)
+                    .dashOffset(dashPhase)
+                    .blend(BlendMode.ADDITIVE);
+            Paint playerRoute = Paint.stroke(new MutableColor(1.0f, 0.82f, 0.38f, 0.62f), 1.5f)
+                    .dash(9.0f, 7.0f)
+                    .dashOffset(dashPhase * 0.65f)
+                    .blend(BlendMode.ADDITIVE);
+            draw.line(campX, campY, vaultX, vaultY, routeGlow);
+            draw.line(vaultX, vaultY, forgeX, forgeY, routeGlow);
+            draw.line(campX, campY, vaultX, vaultY, routeStroke);
+            draw.line(vaultX, vaultY, forgeX, forgeY, routeStroke);
+            draw.line(vaultX, vaultY, playerX, playerY, playerRoute);
+        });
+
+        addDestinationMarker(map, status, "Camp", -1300.0f, -320.0f, MarkerStyle.CAMP).selected(true);
+        addDestinationMarker(map, status, "Vault", 280.0f, -160.0f, MarkerStyle.VAULT);
+        addDestinationMarker(map, status, "Forge", 1200.0f, 520.0f, MarkerStyle.FORGE);
+        addDestinationMarker(map, status, "Quest", 780.0f, 860.0f, MarkerStyle.QUEST);
+        addDestinationMarker(map, status, "Player", -180.0f, 620.0f, MarkerStyle.PLAYER);
+
+        map.onViewportChanged(event -> status.text(String.format(Locale.ROOT,
+                "MapCanvas: offset %.0f, %.0f | zoom %.2fx | markers %d",
+                event.newX(), event.newY(), event.newZoom(), map.anchorLayer().size())));
+
+        page.addChild(status);
+        page.addChild(map);
+        return page;
+    }
+
+    private static MapMarker addDestinationMarker(MapCanvas map, Label status, String title,
+                                                  float worldX, float worldY, MarkerStyle style) {
+        MapMarker marker = map.addProjectedMarker(title.toLowerCase(Locale.ROOT), worldX, worldY, title.toUpperCase(Locale.ROOT), style);
+        marker.onClick(event -> status.text(String.format(Locale.ROOT,
+                "MapCanvas: %s world %.0f, %.0f -> map %.0f, %.0f",
+                title, worldX, worldY, map.externalToMapX(worldX), map.externalToMapY(worldY))));
+        return marker;
     }
 
     private static OverlayLayer overlaysPage() {
