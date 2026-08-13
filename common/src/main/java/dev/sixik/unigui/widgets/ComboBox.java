@@ -16,7 +16,7 @@ import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -29,9 +29,9 @@ public class ComboBox extends LinearBox {
     private final Box optionsHost = new Box();
     private final VBox optionsList = new VBox();
     private final Popup dropDownPopup = new Popup();
-    private final List<String> items = new ArrayList<>();
-    private final List<RichText> richItems = new ArrayList<>();
-    private final List<ToggleButton> optionButtons = new ArrayList<>();
+    private final List<String> items = new ObjectArrayList<>();
+    private final List<RichText> richItems = new ObjectArrayList<>();
+    private final List<ToggleButton> optionButtons = new ObjectArrayList<>();
     private int selectedIndex = -1;
     private boolean opened;
     private String placeholder = "Select...";

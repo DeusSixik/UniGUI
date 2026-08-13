@@ -5,7 +5,7 @@ import dev.sixik.unigui.api.debug.ProfileScopeSnapshot;
 import dev.sixik.unigui.api.debug.ProfilerSnapshot;
 import dev.sixik.unigui.api.debug.UiProfiler;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,7 +27,7 @@ public final class FrameProfiler implements UiProfiler {
 
     @Override
     public ProfilerSnapshot snapshot() {
-        List<ProfileScopeSnapshot> snapshots = new ArrayList<>(scopes.size());
+        List<ProfileScopeSnapshot> snapshots = new ObjectArrayList<>(scopes.size());
         for (MutableScopeStats stats : scopes.values()) {
             snapshots.add(new ProfileScopeSnapshot(stats.name, stats.calls, stats.totalNanos));
         }

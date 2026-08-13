@@ -1,6 +1,6 @@
 package dev.sixik.unigui.api.render.shaders;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -45,7 +45,7 @@ public final class ShaderResourcePaths {
             addUnqualifiedClasspath(candidates, path, ext);
         }
 
-        return new ArrayList<>(candidates);
+        return new ObjectArrayList<>(candidates);
     }
 
     public static List<NamespacedPath> namespacedFragmentCandidates(String id) {
@@ -70,7 +70,7 @@ public final class ShaderResourcePaths {
             candidates.add(new NamespacedPath(namespace, "shaders/" + withExtension(path, ext)));
             candidates.add(new NamespacedPath(namespace, withExtension(path, ext)));
         }
-        return new ArrayList<>(candidates);
+        return new ObjectArrayList<>(candidates);
     }
 
     private static void addNamespacedClasspath(Set<String> candidates, String namespace, String path, String ext) {

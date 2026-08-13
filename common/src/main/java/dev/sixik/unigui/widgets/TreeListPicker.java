@@ -1,11 +1,11 @@
 package dev.sixik.unigui.widgets;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.List;
 import java.util.function.Function;
 
 public final class TreeListPicker<T> extends ComboBox {
-    private final List<T> values = new ArrayList<>();
+    private final List<T> values = new ObjectArrayList<>();
     private Function<T, String> labelProvider = value -> value == null ? "" : value.toString();
 
     public TreeListPicker<T> values(List<T> values) {
@@ -27,7 +27,7 @@ public final class TreeListPicker<T> extends ComboBox {
     }
 
     private void refreshItems() {
-        List<String> labels = new ArrayList<>(values.size());
+        List<String> labels = new ObjectArrayList<>(values.size());
         for (T value : values) {
             labels.add(labelProvider.apply(value));
         }

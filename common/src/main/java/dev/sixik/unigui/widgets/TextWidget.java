@@ -18,7 +18,7 @@ import dev.sixik.unigui.widgets.render.TextWidgetRenderer;
 import dev.sixik.unigui.widgets.render.TextWidgetSegment;
 import dev.sixik.unigui.widgets.render.TextWidgetState;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -280,7 +280,7 @@ public class TextWidget extends WidgetBase {
 
         float totalHeight = TextEngine.linesHeight(lines);
         float drawY = TextEngine.alignedStart(layoutBounds().y(), availableHeight, totalHeight, textVerticalAlignment());
-        List<TextWidgetSegment> segments = new ArrayList<>(lines.size());
+        List<TextWidgetSegment> segments = new ObjectArrayList<>(lines.size());
         for (RichText line : lines) {
             float lineHeight = TextEngine.lineHeight(line);
             if (drawY >= layoutBounds().y() + availableHeight) break;

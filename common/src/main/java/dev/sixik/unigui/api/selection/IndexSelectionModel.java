@@ -1,15 +1,18 @@
 package dev.sixik.unigui.api.selection;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.ints.IntIterator;
+import it.unimi.dsi.fastutil.ints.IntLinkedOpenHashSet;
+
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 
 public final class IndexSelectionModel {
-    private final LinkedHashSet<Integer> selected = new LinkedHashSet<>();
+    private final IntLinkedOpenHashSet selected = new IntLinkedOpenHashSet();
     private SelectionMode mode = SelectionMode.SINGLE;
     private int anchorIndex = -1;
+    private List<Integer> selectedIndicesView = Collections.emptyList();
+    private boolean selectedIndicesDirty = true;
 
     public SelectionMode mode() {
         return mode;
@@ -25,6 +28,7 @@ public final class IndexSelectionModel {
             if (first >= 0) {
                 selected.add(first);
             }
+            markSelectedIndicesDirty();
         }
         return this;
     }
@@ -34,11 +38,24 @@ public final class IndexSelectionModel {
     }
 
     public int selectedIndex() {
-        return selected.isEmpty() ? -1 : selected.iterator().next();
+        return selected.isEmpty() ? -1 : selected.iterator().nextInt();
     }
 
     public List<Integer> selectedIndices() {
-        return Collections.unmodifiableList(new ArrayList<>(selected));
+        if (selectedIndicesDirty) {
+            if (selected.isEmpty()) {
+                selectedIndicesView = Collections.emptyList();
+            } else {
+                List<Integer> indices = new ObjectArrayList<>(selected.size());
+                IntIterator iterator = selected.iterator();
+                while (iterator.hasNext()) {
+                    indices.add(iterator.nextInt());
+                }
+                selectedIndicesView = Collections.unmodifiableList(indices);
+            }
+            selectedIndicesDirty = false;
+        }
+        return selectedIndicesView;
     }
 
     public boolean isSelected(int index) {
@@ -47,10 +64,13 @@ public final class IndexSelectionModel {
 
     public boolean select(int index) {
         if (index < 0) return clear();
-        LinkedHashSet<Integer> next = new LinkedHashSet<>();
-        next.add(index);
+        boolean changed = selected.size() != 1 || !selected.contains(index);
         anchorIndex = index;
-        return replace(next);
+        if (!changed) return false;
+        selected.clear();
+        selected.add(index);
+        markSelectedIndicesDirty();
+        return true;
     }
 
     public boolean toggle(int index) {
@@ -58,12 +78,12 @@ public final class IndexSelectionModel {
         if (mode == SelectionMode.SINGLE) {
             return select(index);
         }
-        LinkedHashSet<Integer> next = new LinkedHashSet<>(selected);
-        if (!next.remove(index)) {
-            next.add(index);
+        if (!selected.remove(index)) {
+            selected.add(index);
         }
         anchorIndex = index;
-        return replace(next);
+        markSelectedIndicesDirty();
+        return true;
     }
 
     public boolean selectRange(int index) {
@@ -71,7 +91,7 @@ public final class IndexSelectionModel {
         if (mode == SelectionMode.SINGLE || anchorIndex < 0) {
             return select(index);
         }
-        LinkedHashSet<Integer> next = new LinkedHashSet<>();
+        IntLinkedOpenHashSet next = new IntLinkedOpenHashSet();
         int start = Math.min(anchorIndex, index);
         int end = Math.max(anchorIndex, index);
         for (int current = start; current <= end; current++) {
@@ -82,32 +102,48 @@ public final class IndexSelectionModel {
 
     public boolean clear() {
         anchorIndex = -1;
-        return replace(Set.of());
+        if (selected.isEmpty()) return false;
+        selected.clear();
+        markSelectedIndicesDirty();
+        return true;
     }
 
     public boolean retainWithin(int count) {
         int maxExclusive = Math.max(0, count);
-        LinkedHashSet<Integer> next = new LinkedHashSet<>();
-        for (int index : selected) {
-            if (index >= 0 && index < maxExclusive) {
-                next.add(index);
+        boolean changed = false;
+        IntIterator iterator = selected.iterator();
+        while (iterator.hasNext()) {
+            int index = iterator.nextInt();
+            if (index < 0 || index >= maxExclusive) {
+                iterator.remove();
+                changed = true;
             }
         }
         if (anchorIndex >= maxExclusive) {
-            anchorIndex = next.isEmpty() ? -1 : next.iterator().next();
+            anchorIndex = selected.isEmpty() ? -1 : selected.iterator().nextInt();
         }
-        return replace(next);
+        if (changed) {
+            markSelectedIndicesDirty();
+        }
+        return changed;
     }
 
-    private boolean replace(Set<Integer> nextSelection) {
+    private boolean replace(IntLinkedOpenHashSet nextSelection) {
         if (selected.equals(nextSelection)) return false;
         selected.clear();
-        for (int index : nextSelection) {
+        IntIterator iterator = nextSelection.iterator();
+        while (iterator.hasNext()) {
+            int index = iterator.nextInt();
             if (index >= 0) {
                 selected.add(index);
                 if (mode == SelectionMode.SINGLE) break;
             }
         }
+        markSelectedIndicesDirty();
         return true;
+    }
+
+    private void markSelectedIndicesDirty() {
+        selectedIndicesDirty = true;
     }
 }

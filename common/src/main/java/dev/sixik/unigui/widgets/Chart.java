@@ -20,8 +20,9 @@ import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.widgets.render.SparklineRenderer;
 import dev.sixik.unigui.widgets.render.SparklineState;
+import it.unimi.dsi.fastutil.floats.FloatArrayList;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -35,7 +36,7 @@ public final class Chart extends Sparkline {
     private final MutableColor valueColor = new MutableColor(0.92f, 0.96f, 1.0f, 1.0f);
     private final MutableColor tooltipBackground = new MutableColor(0.025f, 0.030f, 0.040f, 0.96f);
     private final MutableColor tooltipBorder = new MutableColor(0.25f, 0.78f, 1.0f, 0.92f);
-    private final List<Float> values = new ArrayList<>();
+    private final FloatArrayList values = new FloatArrayList();
     private Type type = Type.LINE;
     private boolean barValuesVisible = true;
     private BarValuePlacement barValuePlacement = BarValuePlacement.HEAD;
@@ -235,9 +236,9 @@ public final class Chart extends Sparkline {
         PlotArea plot = plotArea();
         float gap = 3.0f;
         float barWidth = Math.max(1.0f, (plot.width() - gap * Math.max(0, values.size() - 1)) / values.size());
-        List<Bar> bars = new ArrayList<>(values.size());
+        List<Bar> bars = new ObjectArrayList<>(values.size());
         for (int i = 0; i < values.size(); i++) {
-            float value = values.get(i);
+            float value = values.getFloat(i);
             float valueY = plot.valueY(value);
             float top = Math.min(valueY, plot.baseline());
             float bottom = Math.max(valueY, plot.baseline());
@@ -262,7 +263,8 @@ public final class Chart extends Sparkline {
         float plotHeight = Math.max(0.0f, height - 22.0f);
         float min = 0.0f;
         float max = 0.0f;
-        for (float value : values) {
+        for (int i = 0; i < values.size(); i++) {
+            float value = values.getFloat(i);
             min = Math.min(min, value);
             max = Math.max(max, value);
         }

@@ -10,7 +10,7 @@ import dev.sixik.unigui.widgets.render.TooltipState;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -133,7 +133,7 @@ public final class MinecraftTooltipRenderers {
 
     private static List<Component> stateComponents(TooltipState state) {
         if (state == null || state.lines().isEmpty()) return List.of();
-        List<Component> components = new ArrayList<>(state.lines().size());
+        List<Component> components = new ObjectArrayList<>(state.lines().size());
         for (RichText line : state.lines()) {
             String text = line == null ? "" : line.plainText();
             if (!text.isEmpty()) {
@@ -145,7 +145,7 @@ public final class MinecraftTooltipRenderers {
 
     private static List<Component> sanitizeComponents(List<Component> lines) {
         if (lines == null || lines.isEmpty()) return List.of();
-        List<Component> result = new ArrayList<>(lines.size());
+        List<Component> result = new ObjectArrayList<>(lines.size());
         for (Component line : lines) {
             if (line != null) {
                 result.add(line);

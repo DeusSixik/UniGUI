@@ -8,7 +8,7 @@ import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Comparator;
 import java.util.List;
 
@@ -42,7 +42,7 @@ public final class DefaultFocusManager implements FocusManager {
         if (root == null || direction == 0) return false;
 
         Widget traversalRoot = traversalRoot(root);
-        List<IndexedWidget> indexed = new ArrayList<>();
+        List<IndexedWidget> indexed = new ObjectArrayList<>();
         collectFocusable(traversalRoot, indexed, new int[]{0});
         if (indexed.isEmpty()) {
             clearFocus();
@@ -69,7 +69,7 @@ public final class DefaultFocusManager implements FocusManager {
         if (root == null || direction == null) return false;
 
         Widget traversalRoot = traversalRoot(root);
-        List<IndexedWidget> indexed = new ArrayList<>();
+        List<IndexedWidget> indexed = new ObjectArrayList<>();
         collectFocusable(traversalRoot, indexed, new int[]{0});
         if (indexed.isEmpty()) {
             clearFocus();

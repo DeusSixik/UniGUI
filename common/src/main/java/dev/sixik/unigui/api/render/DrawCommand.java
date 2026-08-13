@@ -8,7 +8,7 @@ import dev.sixik.unigui.api.render.shaders.ShaderHandle;
 import dev.sixik.unigui.api.render.shaders.ShaderUniforms;
 import dev.sixik.unigui.api.text.RichText;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -17,7 +17,8 @@ public final class DrawCommand {
     private final MutableRect bounds = new MutableRect();
     private final MutableRect uv = new MutableRect(0.0f, 0.0f, 1.0f, 1.0f);
     private final Transform transform = new Transform();
-    private final List<TransformLayer> transformStack = new ArrayList<>();
+    private final ObjectArrayList<TransformLayer> transformStack = new ObjectArrayList<>();
+    private final List<TransformLayer> transformStackView = Collections.unmodifiableList(transformStack);
     private Paint paint = new Paint();
     private VectorPath path;
     private DrawMesh mesh;
@@ -114,37 +115,52 @@ public final class DrawCommand {
     }
 
     public List<TransformLayer> transformStack() {
-        return Collections.unmodifiableList(transformStack);
+        return transformStackView;
+    }
+
+    public Object[] transformStackElements() {
+        return transformStack.elements();
+    }
+
+    public int transformStackSize() {
+        return transformStack.size();
     }
 
     public DrawCommand transformStack(List<TransformLayer> transformStack) {
         this.transformStack.clear();
-        if (transformStack != null) {
-            for (TransformLayer layer : transformStack) {
-                if (layer != null) {
-                    this.transformStack.add(layer.copy());
-                }
-            }
-        }
+        copyTransformLayers(this.transformStack, transformStack);
         return this;
     }
 
     public DrawCommand prependTransformStack(List<TransformLayer> transformStack) {
         if (transformStack == null || transformStack.isEmpty()) return this;
-        List<TransformLayer> combined = new ArrayList<>(transformStack.size() + this.transformStack.size());
-        for (TransformLayer layer : transformStack) {
-            if (layer != null) {
-                combined.add(layer.copy());
-            }
-        }
-        for (TransformLayer layer : this.transformStack) {
-            combined.add(layer.copy());
-        }
+        ObjectArrayList<TransformLayer> combined = new ObjectArrayList<>(transformStack.size() + this.transformStack.size());
+        copyTransformLayers(combined, transformStack);
+        copyTransformLayers(combined, this.transformStack);
         this.transformStack.clear();
         this.transformStack.addAll(combined);
         return this;
     }
 
+    private static void copyTransformLayers(ObjectArrayList<TransformLayer> target, List<TransformLayer> source) {
+        if (target == null || source == null || source.isEmpty()) return;
+        if (source instanceof ObjectArrayList<?> objectSource) {
+            Object[] rawLayers = objectSource.elements();
+            for (int i = 0, size = objectSource.size(); i < size; i++) {
+                Object value = rawLayers[i];
+                if (value instanceof TransformLayer layer) {
+                    target.add(layer.copy());
+                }
+            }
+            return;
+        }
+        for (int i = 0, size = source.size(); i < size; i++) {
+            TransformLayer layer = source.get(i);
+            if (layer != null) {
+                target.add(layer.copy());
+            }
+        }
+    }
     public Paint paint() {
         return paint;
     }

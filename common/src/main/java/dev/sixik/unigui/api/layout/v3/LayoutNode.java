@@ -3,7 +3,7 @@ package dev.sixik.unigui.api.layout.v3;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.layout.LayoutStyle;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
@@ -122,7 +122,7 @@ public final class LayoutNode {
         /**
          * Хранит коллекцию {@code children}, с которой работает этот объект.
          */
-        private final List<LayoutNode> children = new ArrayList<>();
+        private final List<LayoutNode> children = new ObjectArrayList<>();
 
         /**
          * Выполняет операцию {@code Builder} с переданными параметрами.

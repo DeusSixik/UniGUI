@@ -16,7 +16,7 @@ import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
 import dev.sixik.unigui.widgets.DockSide;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -148,7 +148,7 @@ public final class LayoutV3DockAdapter {
     }
 
     private static List<Widget> visibleLayoutChildren(List<Widget> children) {
-        List<Widget> output = new ArrayList<>();
+        List<Widget> output = new ObjectArrayList<>();
         if (children == null) {
             return output;
         }

@@ -1,12 +1,12 @@
 package dev.sixik.unigui.widgets;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
 public final class RadioGroup {
-    private final List<RadioButton> buttons = new ArrayList<>();
+    private final List<RadioButton> buttons = new ObjectArrayList<>();
     private RadioButton selectedButton;
 
     public RadioGroup add(RadioButton button) {

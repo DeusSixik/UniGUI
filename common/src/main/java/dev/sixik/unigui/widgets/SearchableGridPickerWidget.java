@@ -26,7 +26,7 @@ import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -72,8 +72,8 @@ public abstract class SearchableGridPickerWidget<T> extends LinearBox {
     private final OverlayLayer dialogOverlay = new OverlayLayer();
     private final VBox dialogPanel = new VBox();
     private final WindowWidget dialog;
-    private final List<T> entries = new ArrayList<>();
-    private final List<T> filteredEntries = new ArrayList<>();
+    private final List<T> entries = new ObjectArrayList<>();
+    private final List<T> filteredEntries = new ObjectArrayList<>();
     private final Map<T, String> searchTextCache = new HashMap<>();
     private final String emptySelectionText;
     private final float tileSize;

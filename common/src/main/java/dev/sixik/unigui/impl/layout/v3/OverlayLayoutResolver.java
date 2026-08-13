@@ -6,7 +6,7 @@ import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -60,7 +60,7 @@ public final class OverlayLayoutResolver {
         if (host == null || requests == null || requests.isEmpty()) {
             return List.of();
         }
-        List<ResolvedOverlay> resolved = new ArrayList<>(requests.size());
+        List<ResolvedOverlay> resolved = new ObjectArrayList<>(requests.size());
         int portalIndex = 0;
         for (Request request : requests) {
             if (request == null) {

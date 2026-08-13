@@ -21,15 +21,16 @@ import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.render.SparklineRenderer;
 import dev.sixik.unigui.widgets.render.SparklineState;
+import it.unimi.dsi.fastutil.floats.FloatArrayList;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
 
 public class Sparkline extends WidgetBase {
     private static final float POINT_HIT_RADIUS = 7.0f;
 
-    private final List<Float> values = new ArrayList<>();
+    private final FloatArrayList values = new FloatArrayList();
     private final MutableColor lineColor = new MutableColor(0.25f, 0.85f, 1.0f, 1.0f);
     private final MutableColor fillColor = new MutableColor(0.25f, 0.85f, 1.0f, 0.18f);
     private final MutableColor pointColor = new MutableColor(0.90f, 0.96f, 1.0f, 0.96f);
@@ -244,18 +245,20 @@ public class Sparkline extends WidgetBase {
 
         float min = Float.POSITIVE_INFINITY;
         float max = Float.NEGATIVE_INFINITY;
-        for (float value : values) {
+        for (int i = 0; i < values.size(); i++) {
+            float value = values.getFloat(i);
             min = Math.min(min, value);
             max = Math.max(max, value);
         }
         if (!Float.isFinite(min) || !Float.isFinite(max)) return List.of();
         float range = Math.max(0.0001f, max - min);
 
-        List<SparkPoint> points = new ArrayList<>(values.size());
+        List<SparkPoint> points = new ObjectArrayList<>(values.size());
         for (int i = 0; i < values.size(); i++) {
+            float value = values.getFloat(i);
             float px = x + width * i / Math.max(1.0f, values.size() - 1.0f);
-            float py = y + height - ((values.get(i) - min) / range) * height;
-            points.add(new SparkPoint(i, values.get(i), px, py, isPointRenderable(i), i == hoveredPointIndex));
+            float py = y + height - ((value - min) / range) * height;
+            points.add(new SparkPoint(i, value, px, py, isPointRenderable(i), i == hoveredPointIndex));
         }
         return points;
     }
@@ -306,9 +309,9 @@ public class Sparkline extends WidgetBase {
 
     private boolean isExtrema(int index) {
         if (index <= 0 || index >= values.size() - 1) return false;
-        float previous = values.get(index - 1);
-        float current = values.get(index);
-        float next = values.get(index + 1);
+        float previous = values.getFloat(index - 1);
+        float current = values.getFloat(index);
+        float next = values.getFloat(index + 1);
         return (current >= previous && current >= next && (current > previous || current > next))
                 || (current <= previous && current <= next && (current < previous || current < next));
     }

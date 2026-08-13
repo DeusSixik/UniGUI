@@ -12,6 +12,7 @@ import dev.sixik.unigui.api.math.Transform;
 import dev.sixik.unigui.api.render.DrawCommand;
 import dev.sixik.unigui.api.render.DrawCommandType;
 import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.impl.render.DrawBatch;
 import net.minecraft.client.gui.GuiGraphics;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
@@ -23,7 +24,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.FloatBuffer;
-import java.util.List;
 
 /**
  * Shader path for common 2D UI primitives.
@@ -146,11 +146,13 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
     private int program;
     private boolean unavailable;
 
-    boolean shouldRender(List<DrawCommand> commands) {
-        if (commands == null || commands.isEmpty()) return false;
+    boolean shouldRender(DrawBatch batch) {
+        if (batch == null || batch.size() == 0) return false;
 
         boolean needsSdf = false;
-        for (DrawCommand command : commands) {
+        Object[] rawCommands = batch.commandElements();
+        for (int i = 0, size = batch.size(); i < size; i++) {
+            DrawCommand command = (DrawCommand) rawCommands[i];
             if (command == null || !supports(command.type())) {
                 return false;
             }
@@ -159,9 +161,9 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
         return needsSdf;
     }
 
-    boolean render(GuiGraphics graphics, List<DrawCommand> commands, boolean renderingToPremultipliedTarget) {
-        if (graphics == null || commands == null || commands.isEmpty() || unavailable) return false;
-        if (!shouldRender(commands)) return false;
+    boolean render(GuiGraphics graphics, DrawBatch batch, boolean renderingToPremultipliedTarget) {
+        if (graphics == null || batch == null || batch.size() == 0 || unavailable) return false;
+        if (!shouldRender(batch)) return false;
 
         int activeProgram = program();
         if (activeProgram == 0) return false;
@@ -179,7 +181,9 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
             RenderSystem.depthMask(false);
             RenderSystem.disableCull();
 
-            for (DrawCommand command : commands) {
+            Object[] rawCommands = batch.commandElements();
+            for (int i = 0, size = batch.size(); i < size; i++) {
+                DrawCommand command = (DrawCommand) rawCommands[i];
                 renderCommand(graphics, activeProgram, command);
             }
             return true;

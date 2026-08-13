@@ -49,7 +49,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -693,7 +693,9 @@ public class MinecraftWidgetScreen extends Screen {
         }
 
         target.clear();
-        for (DrawCommand command : source.commands()) {
+        Object[] rawCommands = source.commandElements();
+        for (int i = 0, size = source.size(); i < size; i++) {
+            DrawCommand command = (DrawCommand) rawCommands[i];
             target.add(scaledCommand(command, scale));
         }
         return target;
@@ -714,9 +716,11 @@ public class MinecraftWidgetScreen extends Screen {
         copy.transform().pivot().set(
                 command.transform().pivot().x() * scale,
                 command.transform().pivot().y() * scale);
-        if (!command.transformStack().isEmpty()) {
-            List<TransformLayer> scaledStack = new ArrayList<>(command.transformStack().size());
-            for (TransformLayer layer : command.transformStack()) {
+        if (command.transformStackSize() > 0) {
+            List<TransformLayer> scaledStack = new ObjectArrayList<>(command.transformStackSize());
+            Object[] rawLayers = command.transformStackElements();
+            for (int i = 0, size = command.transformStackSize(); i < size; i++) {
+                TransformLayer layer = (TransformLayer) rawLayers[i];
                 Transform scaledTransform = layer.transform().copy();
                 scaledTransform.position().set(
                         layer.transform().position().x() * scale,
@@ -779,7 +783,9 @@ public class MinecraftWidgetScreen extends Screen {
 
     private static VectorPath scaledPath(VectorPath path, float scale) {
         VectorPath scaled = new VectorPath();
-        for (VectorPath.Element element : path.elements()) {
+        Object[] rawPathElements = path.elementElements();
+        for (int i = 0, size = path.size(); i < size; i++) {
+            VectorPath.Element element = (VectorPath.Element) rawPathElements[i];
             switch (element.verb()) {
                 case MOVE_TO -> scaled.moveTo(element.x1() * scale, element.y1() * scale);
                 case LINE_TO -> scaled.lineTo(element.x1() * scale, element.y1() * scale);
@@ -802,8 +808,10 @@ public class MinecraftWidgetScreen extends Screen {
     }
 
     private static DrawMesh scaledMesh(DrawMesh mesh, float scale) {
-        List<DrawVertex> vertices = new ArrayList<>(mesh.vertices().size());
-        for (DrawVertex vertex : mesh.vertices()) {
+        List<DrawVertex> vertices = new ObjectArrayList<>(mesh.vertexCount());
+        Object[] rawVertices = mesh.vertexElements();
+        for (int i = 0, size = mesh.vertexCount(); i < size; i++) {
+            DrawVertex vertex = (DrawVertex) rawVertices[i];
             vertices.add(new DrawVertex(vertex.x() * scale, vertex.y() * scale, vertex.u(), vertex.v(), vertex.color()));
         }
         return DrawMesh.triangles(vertices);

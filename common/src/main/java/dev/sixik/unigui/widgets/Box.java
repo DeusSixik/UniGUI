@@ -23,7 +23,7 @@ import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.widgets.render.BoxRenderer;
 import dev.sixik.unigui.widgets.render.BoxState;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -347,7 +347,7 @@ public class Box extends PanelWidget {
     }
 
     private List<Widget> styleLookupChain() {
-        List<Widget> chain = new ArrayList<>();
+        List<Widget> chain = new ObjectArrayList<>();
         Widget current = this;
         while (current != null) {
             chain.add(current);

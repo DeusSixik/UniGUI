@@ -3,7 +3,7 @@ package dev.sixik.unigui.widgets;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.widget.Widget;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -11,7 +11,7 @@ import java.util.Objects;
 public final class NodeGraphItem {
     private final String id;
     private final Widget content;
-    private final List<NodeGraphPort> ports = new ArrayList<>();
+    private final ObjectArrayList<NodeGraphPort> ports = new ObjectArrayList<>();
     private float x;
     private float y;
     private float width;
@@ -78,7 +78,9 @@ public final class NodeGraphItem {
 
     public NodeGraphPort port(String id) {
         if (id == null) return null;
-        for (NodeGraphPort port : ports) {
+        Object[] rawPorts = ports.elements();
+        for (int portIndex = 0, portSize = ports.size(); portIndex < portSize; portIndex++) {
+            NodeGraphPort port = (NodeGraphPort) rawPorts[portIndex];
             if (port.id().equals(id)) return port;
         }
         return null;
@@ -86,6 +88,10 @@ public final class NodeGraphItem {
 
     public List<NodeGraphPort> ports() {
         return Collections.unmodifiableList(ports);
+    }
+
+    ObjectArrayList<NodeGraphPort> rawPorts() {
+        return ports;
     }
 
     public float x() {

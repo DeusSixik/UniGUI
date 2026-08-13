@@ -1,20 +1,19 @@
 package dev.sixik.unigui.api.render;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
 
 public final class DrawMesh {
-    private final List<DrawVertex> vertices;
+    private final ObjectArrayList<DrawVertex> vertices = new ObjectArrayList<>();
+    private final List<DrawVertex> verticesView = Collections.unmodifiableList(vertices);
 
     public DrawMesh(List<DrawVertex> vertices) {
-        List<DrawVertex> copy = new ArrayList<>();
         if (vertices != null) {
             for (DrawVertex vertex : vertices) {
-                if (vertex != null) copy.add(vertex.copy());
+                if (vertex != null) this.vertices.add(vertex.copy());
             }
         }
-        this.vertices = Collections.unmodifiableList(copy);
     }
 
     public static DrawMesh triangles(List<DrawVertex> vertices) {
@@ -22,7 +21,15 @@ public final class DrawMesh {
     }
 
     public List<DrawVertex> vertices() {
-        return vertices;
+        return verticesView;
+    }
+
+    public Object[] vertexElements() {
+        return vertices.elements();
+    }
+
+    public int vertexCount() {
+        return vertices.size();
     }
 
     public boolean isEmpty() {

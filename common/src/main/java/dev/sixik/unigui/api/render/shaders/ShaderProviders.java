@@ -1,6 +1,6 @@
 package dev.sixik.unigui.api.render.shaders;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -67,7 +67,7 @@ public final class ShaderProviders {
 
     public static List<ShaderProvider> allProvidersSnapshot() {
         ensureServicesLoaded();
-        List<ShaderProvider> providers = new ArrayList<>(REGISTERED.size() + SERVICES.size() + 1);
+        List<ShaderProvider> providers = new ObjectArrayList<>(REGISTERED.size() + SERVICES.size() + 1);
         providers.addAll(REGISTERED);
         providers.addAll(SERVICES);
         providers.add(CLASSPATH);

@@ -33,6 +33,7 @@ public final class CachedSubtreeWidget extends WidgetBase {
     private final MutableColor tint = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private CachedSubtreeRenderer renderer;
     private Widget content;
+    private List<Widget> childrenView = Collections.emptyList();
     private WidgetTextureRenderer textureRenderer;
     private RenderBackend rendererBackend;
     private RenderTargetOptions targetOptions = RenderTargetOptions.COLOR;
@@ -68,6 +69,7 @@ public final class CachedSubtreeWidget extends WidgetBase {
         detachContent();
         this.content = content;
         attachContent(content);
+        childrenView = content == null ? Collections.emptyList() : Collections.singletonList(content);
         markTextureDirty();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.TEXTURE);
         return this;
@@ -136,7 +138,7 @@ public final class CachedSubtreeWidget extends WidgetBase {
 
     @Override
     public List<Widget> children() {
-        return content == null ? Collections.emptyList() : List.of(content);
+        return childrenView;
     }
 
     @Override
@@ -229,6 +231,7 @@ public final class CachedSubtreeWidget extends WidgetBase {
         }
         detachContent();
         content = null;
+        childrenView = Collections.emptyList();
     }
 
     private CachedSubtreeMissReason missReason(int width, int height) {
@@ -281,6 +284,7 @@ public final class CachedSubtreeWidget extends WidgetBase {
             base.setParentInternal(null);
             base.setUiContextInternal(null);
         }
+        childrenView = Collections.emptyList();
     }
 
     private static void clearSubtreeInvalidation(Widget widget) {

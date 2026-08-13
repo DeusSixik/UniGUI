@@ -57,7 +57,7 @@ import dev.sixik.unigui.widgets.render.NodeGraphRenderer;
 import dev.sixik.unigui.widgets.render.NodeGraphSelectionBoxState;
 import dev.sixik.unigui.widgets.render.NodeGraphState;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -73,9 +73,19 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     private static final float MIN_RESIZE_SIZE = 12.0f;
     private static final float DEFAULT_ITEM_CONTENT_PADDING = 0.0f;
 
-    private final List<NodeGraphItem> items = new ArrayList<>();
-    private final List<NodeGraphItem> logicalItems = new ArrayList<>();
-    private final List<NodeGraphConnection> connections = new ArrayList<>();
+    private final ObjectArrayList<NodeGraphItem> items = new ObjectArrayList<>();
+    private final ObjectArrayList<NodeGraphItem> logicalItems = new ObjectArrayList<>();
+    private final ObjectArrayList<NodeGraphConnection> connections = new ObjectArrayList<>();
+    private final List<NodeGraphItem> itemsView = Collections.unmodifiableList(items);
+    private final List<NodeGraphConnection> connectionsView = Collections.unmodifiableList(connections);
+    private NodeGraphItem[] itemSnapshot = new NodeGraphItem[0];
+    private NodeGraphItem[] logicalItemSnapshot = new NodeGraphItem[0];
+    private NodeGraphConnection[] connectionSnapshot = new NodeGraphConnection[0];
+    private boolean itemSnapshotDirty = true;
+    private boolean logicalItemSnapshotDirty = true;
+    private boolean connectionSnapshotDirty = true;
+    private List<Widget> childrenView = Collections.emptyList();
+    private boolean childrenViewDirty = true;
     private final MutableColor backgroundColor = new MutableColor(0.055f, 0.065f, 0.082f, 1.0f);
     private final MutableColor gridColor = new MutableColor(0.20f, 0.25f, 0.33f, 0.45f);
     private final MutableColor majorGridColor = new MutableColor(0.27f, 0.35f, 0.47f, 0.55f);
@@ -155,6 +165,8 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         }
         items.add(item);
         logicalItems.add(item);
+        markItemsDirty();
+        markLogicalItemsDirty();
         attach(item);
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
@@ -163,6 +175,8 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     public NodeGraph removeItem(NodeGraphItem item) {
         if (item == null || !items.remove(item)) return this;
         logicalItems.remove(item);
+        markItemsDirty();
+        markLogicalItemsDirty();
         removeConnectionsForItem(item.id());
         String removedId = item.id();
         detach(item);
@@ -177,16 +191,19 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     }
 
     public NodeGraph clearItems() {
-        for (NodeGraphItem item : List.copyOf(items)) {
+        for (NodeGraphItem item : itemSnapshot()) {
             detach(item);
             item.content().dispose();
         }
         items.clear();
         logicalItems.clear();
-        for (NodeGraphConnection connection : List.copyOf(connections)) {
+        markItemsDirty();
+        markLogicalItemsDirty();
+        for (NodeGraphConnection connection : connectionSnapshot()) {
             detach(connection);
         }
         connections.clear();
+        markConnectionsDirty();
         hoveredItemId = "";
         hoveredPort = new NodeGraphPortRef("", "");
         hoveredConnectionId = "";
@@ -209,12 +226,14 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     }
 
     public List<NodeGraphItem> items() {
-        return Collections.unmodifiableList(items);
+        return itemsView;
     }
 
     public NodeGraphItem item(String id) {
         if (id == null) return null;
-        for (NodeGraphItem item : items) {
+        Object[] rawItems = items.elements();
+        for (int itemIndex = 0, itemSize = items.size(); itemIndex < itemSize; itemIndex++) {
+            NodeGraphItem item = (NodeGraphItem) rawItems[itemIndex];
             if (item.id().equals(id)) return item;
         }
         return null;
@@ -252,6 +271,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
             throw new IllegalArgumentException(validation.reason());
         }
         connections.add(connection);
+        markConnectionsDirty();
         attach(connection);
         invalidate(InvalidationFlags.VISUAL);
         dispatch(new NodeGraphConnectionCreatedEvent(this, connection.id(), connection.from(), connection.to(), connection.type()));
@@ -265,6 +285,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
 
     public NodeGraph removeConnection(NodeGraphConnection connection) {
         if (connection == null || !connections.remove(connection)) return this;
+        markConnectionsDirty();
         detach(connection);
         invalidate(InvalidationFlags.VISUAL);
         dispatch(new NodeGraphConnectionRemovedEvent(this, connection.id(), connection.from(), connection.to()));
@@ -272,7 +293,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     }
 
     public NodeGraph removeSelectedConnections() {
-        for (NodeGraphConnection connection : List.copyOf(connections)) {
+        for (NodeGraphConnection connection : connectionSnapshot()) {
             if (connection.selected()) {
                 removeConnection(connection);
             }
@@ -282,18 +303,22 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
 
     public NodeGraphConnection connection(String id) {
         if (id == null) return null;
-        for (NodeGraphConnection connection : connections) {
+        Object[] rawConnections = connections.elements();
+        for (int connectionIndex = 0, connectionSize = connections.size(); connectionIndex < connectionSize; connectionIndex++) {
+            NodeGraphConnection connection = (NodeGraphConnection) rawConnections[connectionIndex];
             if (connection.id().equals(id)) return connection;
         }
         return null;
     }
 
     public List<NodeGraphConnection> connections() {
-        return Collections.unmodifiableList(connections);
+        return connectionsView;
     }
 
     public boolean hasConnection(NodeGraphPortRef from, NodeGraphPortRef to) {
-        for (NodeGraphConnection connection : connections) {
+        Object[] rawConnections = connections.elements();
+        for (int connectionIndex = 0, connectionSize = connections.size(); connectionIndex < connectionSize; connectionIndex++) {
+            NodeGraphConnection connection = (NodeGraphConnection) rawConnections[connectionIndex];
             if (connection.from().equals(from) && connection.to().equals(to)) {
                 return true;
             }
@@ -308,10 +333,15 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     }
 
     public NodeGraphSnapshot snapshot() {
-        List<NodeGraphItemSnapshot> itemSnapshots = new ArrayList<>(items.size());
-        for (NodeGraphItem item : items) {
-            List<NodeGraphPortSnapshot> portSnapshots = new ArrayList<>(item.ports().size());
-            for (NodeGraphPort port : item.ports()) {
+        List<NodeGraphItemSnapshot> itemSnapshots = new ObjectArrayList<>(items.size());
+        Object[] rawItems = items.elements();
+        for (int itemIndex = 0, itemSize = items.size(); itemIndex < itemSize; itemIndex++) {
+            NodeGraphItem item = (NodeGraphItem) rawItems[itemIndex];
+            ObjectArrayList<NodeGraphPort> ports = item.rawPorts();
+            List<NodeGraphPortSnapshot> portSnapshots = new ObjectArrayList<>(ports.size());
+            Object[] rawPorts = ports.elements();
+            for (int portIndex = 0, portSize = ports.size(); portIndex < portSize; portIndex++) {
+                NodeGraphPort port = (NodeGraphPort) rawPorts[portIndex];
                 portSnapshots.add(new NodeGraphPortSnapshot(
                         port.id(),
                         port.kind(),
@@ -335,8 +365,10 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
                     portSnapshots));
         }
 
-        List<NodeGraphConnectionSnapshot> connectionSnapshots = new ArrayList<>(connections.size());
-        for (NodeGraphConnection connection : connections) {
+        List<NodeGraphConnectionSnapshot> connectionSnapshots = new ObjectArrayList<>(connections.size());
+        Object[] rawConnections = connections.elements();
+        for (int connectionIndex = 0, connectionSize = connections.size(); connectionIndex < connectionSize; connectionIndex++) {
+            NodeGraphConnection connection = (NodeGraphConnection) rawConnections[connectionIndex];
             connectionSnapshots.add(new NodeGraphConnectionSnapshot(
                     connection.id(),
                     connection.from(),
@@ -417,11 +449,57 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
 
     @Override
     public List<Widget> children() {
-        List<Widget> children = new ArrayList<>(items.size());
-        for (NodeGraphItem item : items) {
-            children.add(item.content());
+        if (childrenViewDirty) {
+            NodeGraphItem[] snapshot = itemSnapshot();
+            if (snapshot.length == 0) {
+                childrenView = Collections.emptyList();
+            } else {
+                List<Widget> children = new ObjectArrayList<>(snapshot.length);
+                for (NodeGraphItem item : snapshot) {
+                    children.add(item.content());
+                }
+                childrenView = Collections.unmodifiableList(children);
+            }
+            childrenViewDirty = false;
         }
-        return Collections.unmodifiableList(children);
+        return childrenView;
+    }
+
+    private NodeGraphItem[] itemSnapshot() {
+        if (itemSnapshotDirty) {
+            itemSnapshot = items.toArray(new NodeGraphItem[items.size()]);
+            itemSnapshotDirty = false;
+        }
+        return itemSnapshot;
+    }
+
+    private NodeGraphItem[] logicalItemSnapshot() {
+        if (logicalItemSnapshotDirty) {
+            logicalItemSnapshot = logicalItems.toArray(new NodeGraphItem[logicalItems.size()]);
+            logicalItemSnapshotDirty = false;
+        }
+        return logicalItemSnapshot;
+    }
+
+    private NodeGraphConnection[] connectionSnapshot() {
+        if (connectionSnapshotDirty) {
+            connectionSnapshot = connections.toArray(new NodeGraphConnection[connections.size()]);
+            connectionSnapshotDirty = false;
+        }
+        return connectionSnapshot;
+    }
+
+    private void markItemsDirty() {
+        itemSnapshotDirty = true;
+        childrenViewDirty = true;
+    }
+
+    private void markLogicalItemsDirty() {
+        logicalItemSnapshotDirty = true;
+    }
+
+    private void markConnectionsDirty() {
+        connectionSnapshotDirty = true;
     }
 
     @Override
@@ -453,7 +531,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     @Override
     public void setUiContextInternal(UIContext uiContext) {
         super.setUiContextInternal(uiContext);
-        for (NodeGraphItem item : items) {
+        for (NodeGraphItem item : itemSnapshot()) {
             if (item.content() instanceof WidgetBase base) {
                 base.setUiContextInternal(uiContext);
             }
@@ -761,8 +839,10 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     }
 
     public List<String> selectedItemIds() {
-        List<String> selected = new ArrayList<>();
-        for (NodeGraphItem item : logicalItems) {
+        List<String> selected = new ObjectArrayList<>();
+        Object[] rawLogicalItems = logicalItems.elements();
+        for (int logicalItemIndex = 0, logicalItemSize = logicalItems.size(); logicalItemIndex < logicalItemSize; logicalItemIndex++) {
+            NodeGraphItem item = (NodeGraphItem) rawLogicalItems[logicalItemIndex];
             if (item.selected()) {
                 selected.add(item.id());
             }
@@ -791,6 +871,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         if (bringToFrontOnSelect && items.size() > 1 && items.get(items.size() - 1) != item) {
             items.remove(item);
             items.add(item);
+            markItemsDirty();
         }
         emitSelectionChanged(oldSelection);
         invalidate(InvalidationFlags.VISUAL);
@@ -806,8 +887,10 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     }
 
     public List<String> selectedConnectionIds() {
-        List<String> selected = new ArrayList<>();
-        for (NodeGraphConnection connection : connections) {
+        List<String> selected = new ObjectArrayList<>();
+        Object[] rawConnections = connections.elements();
+        for (int connectionIndex = 0, connectionSize = connections.size(); connectionIndex < connectionSize; connectionIndex++) {
+            NodeGraphConnection connection = (NodeGraphConnection) rawConnections[connectionIndex];
             if (connection.selected()) {
                 selected.add(connection.id());
             }
@@ -904,7 +987,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         // are stable across zoom levels.
         LayoutContext childContext = new LayoutContext(
                 Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY);
-        for (NodeGraphItem item : List.copyOf(items)) {
+        for (NodeGraphItem item : itemSnapshot()) {
             if (!item.visible() || item.content().visibility() == Visibility.COLLAPSED) continue;
             item.content().measure(childContext);
             float padding = itemContentPadding * 2.0f;
@@ -926,7 +1009,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     public void tick(FrameContext frame) {
         if (visibility() != Visibility.VISIBLE) return;
         super.tick(frame);
-        for (NodeGraphItem item : List.copyOf(items)) {
+        for (NodeGraphItem item : itemSnapshot()) {
             if (item.visible() && item.content().visibility() == Visibility.VISIBLE) {
                 item.content().tick(frame);
             }
@@ -947,7 +1030,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
             }
             NodeGraphRenderer activeRenderer = effectiveRenderer();
             activeRenderer.render(draw, snapshot(NodeGraphRenderPhase.BACKGROUND));
-            for (NodeGraphItem item : List.copyOf(items)) {
+            for (NodeGraphItem item : itemSnapshot()) {
                 Widget content = item.content();
                 if (!item.visible() || content.visibility() != Visibility.VISIBLE) continue;
                 if (scaleContentWithZoom && zoom != 1.0f) {
@@ -1067,7 +1150,9 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     }
 
     private NodeGraphItem itemForContent(Widget content) {
-        for (NodeGraphItem item : items) {
+        Object[] rawItems = items.elements();
+        for (int itemIndex = 0, itemSize = items.size(); itemIndex < itemSize; itemIndex++) {
+            NodeGraphItem item = (NodeGraphItem) rawItems[itemIndex];
             if (item.content() == content) return item;
         }
         return null;
@@ -1075,7 +1160,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
 
     void removeConnectionsForPort(NodeGraphPortRef ref) {
         if (ref == null || ref.empty()) return;
-        for (NodeGraphConnection connection : List.copyOf(connections)) {
+        for (NodeGraphConnection connection : connectionSnapshot()) {
             if (connection.from().equals(ref) || connection.to().equals(ref)) {
                 removeConnection(connection);
             }
@@ -1084,7 +1169,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
 
     private void removeConnectionsForItem(String itemId) {
         if (itemId == null) return;
-        for (NodeGraphConnection connection : List.copyOf(connections)) {
+        for (NodeGraphConnection connection : connectionSnapshot()) {
             if (connection.fromItemId().equals(itemId) || connection.toItemId().equals(itemId)) {
                 removeConnection(connection);
             }
@@ -1093,7 +1178,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
 
     private void arrangeItems() {
         if (layoutBounds().width() <= 0.0f && layoutBounds().height() <= 0.0f) return;
-        for (NodeGraphItem item : List.copyOf(items)) {
+        for (NodeGraphItem item : itemSnapshot()) {
             Widget content = item.content();
             if (!item.visible() || content.visibility() == Visibility.COLLAPSED) continue;
             float width = item.arrangedWidth() > 0.0f
@@ -1387,7 +1472,9 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         Rect lasso = lassoRect();
         List<String> oldSelection = selectedItemIds();
         clearSelectionInternal(false);
-        for (NodeGraphItem item : items) {
+        Object[] rawItems = items.elements();
+        for (int itemIndex = 0, itemSize = items.size(); itemIndex < itemSize; itemIndex++) {
+            NodeGraphItem item = (NodeGraphItem) rawItems[itemIndex];
             if (!item.visible() || !item.selectable()) continue;
             float x = worldToRootX(item.x());
             float y = worldToRootY(item.y());
@@ -1402,43 +1489,65 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
 
     private void handleScroll(ScrollEvent scroll, Event sourceEvent) {
         if (scroll.phase() == EventPhase.CAPTURE) return;
-        boolean consumed = false;
-        if (zoomEnabled && KeyModifiers.has(scroll.modifiers(), KeyModifiers.CONTROL) && scroll.deltaY() != 0.0f) {
-            float factor = scroll.deltaY() > 0.0f ? 1.10f : 1.0f / 1.10f;
-            zoomAt(scroll.rootX(), scroll.rootY(), zoom * factor);
-            consumed = true;
-        } else if (panningEnabled && wheelPanningEnabled && (scroll.deltaX() != 0.0f || scroll.deltaY() != 0.0f)) {
-            float dx;
-            float dy;
-            if (KeyModifiers.has(scroll.modifiers(), KeyModifiers.SHIFT) && scroll.deltaY() != 0.0f) {
-                dx = scroll.deltaY() * wheelPanStep;
-                dy = 0.0f;
-            } else {
-                dx = scroll.deltaX() * wheelPanStep;
-                dy = scroll.deltaY() * wheelPanStep;
+
+        boolean handled = false;
+        boolean ctrlWheel = KeyModifiers.has(scroll.modifiers(), KeyModifiers.CONTROL);
+        if (ctrlWheel) {
+            if (zoomEnabled && scroll.deltaY() != 0.0f) {
+                float factor = (float) Math.pow(1.1f, scroll.deltaY());
+                zoomAt(scroll.rootX(), scroll.rootY(), factor);
             }
-            panViewportBy(dx, dy);
-            consumed = true;
+            handled = true;
+        } else if (wheelPanningEnabled && (scroll.deltaX() != 0.0f || scroll.deltaY() != 0.0f)) {
+            float deltaX = scroll.deltaX();
+            float deltaY = scroll.deltaY();
+            if (KeyModifiers.has(scroll.modifiers(), KeyModifiers.SHIFT) && deltaY != 0.0f) {
+                deltaX = deltaY;
+                deltaY = 0.0f;
+            }
+
+            float oldX = viewportX;
+            float oldY = viewportY;
+            viewportX = sanitize(viewportX + deltaX * wheelPanStep);
+            viewportY = sanitize(viewportY + deltaY * wheelPanStep);
+            if (oldX != viewportX || oldY != viewportY) {
+                arrangeItems();
+                invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+                dispatch(new NodeGraphViewportChangedEvent(this, oldX, oldY, zoom, viewportX, viewportY, zoom));
+                handled = true;
+            }
         }
-        if (consumed || consumeWheelWhileHovered) {
+
+        if (handled || consumeWheelWhileHovered) {
             sourceEvent.cancel();
         }
     }
 
-    private void panViewportBy(float dx, float dy) {
-        if (dx == 0.0f && dy == 0.0f) return;
+    private void zoomAt(float rootX, float rootY, float factor) {
+        if (!Float.isFinite(factor) || factor <= 0.0f) return;
+
         float oldX = viewportX;
         float oldY = viewportY;
-        viewportX = sanitize(viewportX + dx);
-        viewportY = sanitize(viewportY + dy);
-        if (oldX == viewportX && oldY == viewportY) return;
+        float oldZoom = zoom;
+        float nextZoom = clamp(zoom * factor, minZoom, maxZoom);
+        if (nextZoom == zoom) return;
+
+        float localX = rootX - layoutBounds().x();
+        float localY = rootY - layoutBounds().y();
+        float worldX = (localX - viewportX) / zoom;
+        float worldY = (localY - viewportY) / zoom;
+
+        zoom = nextZoom;
+        viewportX = sanitize(localX - worldX * zoom);
+        viewportY = sanitize(localY - worldY * zoom);
         arrangeItems();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
-        dispatch(new NodeGraphViewportChangedEvent(this, oldX, oldY, zoom, viewportX, viewportY, zoom));
+        dispatch(new NodeGraphViewportChangedEvent(this, oldX, oldY, oldZoom, viewportX, viewportY, zoom));
     }
 
     private void handleKeyPressed(KeyPressedEvent key, Event sourceEvent) {
         if (!keyboardEditingEnabled || key.phase() == EventPhase.CAPTURE) return;
+
         boolean handled = false;
         if (KeyModifiers.has(key.modifiers(), KeyModifiers.CONTROL) && key.keyCode() == KeyCodes.A) {
             selectAllItems();
@@ -1455,25 +1564,10 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
             moveSelectedItems(dx, dy, -1);
             handled = true;
         }
+
         if (handled) {
             sourceEvent.cancel();
         }
-    }
-
-    private void zoomAt(float rootX, float rootY, float targetZoom) {
-        float nextZoom = clamp(targetZoom, minZoom, maxZoom);
-        if (nextZoom == zoom) return;
-        float oldX = viewportX;
-        float oldY = viewportY;
-        float oldZoom = zoom;
-        float worldX = (rootX - layoutBounds().x() - viewportX) / zoom;
-        float worldY = (rootY - layoutBounds().y() - viewportY) / zoom;
-        zoom = nextZoom;
-        viewportX = rootX - layoutBounds().x() - worldX * zoom;
-        viewportY = rootY - layoutBounds().y() - worldY * zoom;
-        arrangeItems();
-        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
-        dispatch(new NodeGraphViewportChangedEvent(this, oldX, oldY, oldZoom, viewportX, viewportY, zoom));
     }
 
     private void selectAllItems() {
@@ -1484,7 +1578,10 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
             emitSelectionChanged(oldSelection);
             return;
         }
-        for (NodeGraphItem item : logicalItems) {
+
+        Object[] rawLogicalItems = logicalItems.elements();
+        for (int logicalItemIndex = 0, logicalItemSize = logicalItems.size(); logicalItemIndex < logicalItemSize; logicalItemIndex++) {
+            NodeGraphItem item = (NodeGraphItem) rawLogicalItems[logicalItemIndex];
             if (!item.selectable() || !item.visible()) continue;
             item.selectedInternal(true);
             if (selectionMode == NodeGraphSelectionMode.SINGLE) break;
@@ -1492,9 +1589,8 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         emitSelectionChanged(oldSelection);
         invalidate(InvalidationFlags.VISUAL);
     }
-
     private void removeSelectedItems() {
-        for (NodeGraphItem item : List.copyOf(logicalItems)) {
+        for (NodeGraphItem item : logicalItemSnapshot()) {
             if (item.selected()) {
                 removeItem(item);
             }
@@ -1503,7 +1599,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
 
     private void moveSelectedItems(float dx, float dy, int pointerId) {
         if (dx == 0.0f && dy == 0.0f) return;
-        for (NodeGraphItem item : List.copyOf(items)) {
+        for (NodeGraphItem item : itemSnapshot()) {
             if (!item.selected() || !item.movable()) continue;
             float oldX = item.x();
             float oldY = item.y();
@@ -1549,7 +1645,10 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         for (int itemIndex = items.size() - 1; itemIndex >= 0; itemIndex--) {
             NodeGraphItem item = items.get(itemIndex);
             if (!item.visible()) continue;
-            for (NodeGraphPort port : item.ports()) {
+            ObjectArrayList<NodeGraphPort> ports = item.rawPorts();
+            Object[] rawPorts = ports.elements();
+            for (int portIndex = 0, portSize = ports.size(); portIndex < portSize; portIndex++) {
+                NodeGraphPort port = (NodeGraphPort) rawPorts[portIndex];
                 if (!port.visible()) continue;
                 PortPoint point = portPoint(item, port);
                 float dx = rootX - point.x();
@@ -1670,8 +1769,8 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     }
 
     private NodeGraphState snapshot(NodeGraphRenderPhase phase) {
-        List<NodeGraphItemState> itemStates = new ArrayList<>(items.size());
-        List<NodeGraphPortState> portStates = new ArrayList<>();
+        List<NodeGraphItemState> itemStates = new ObjectArrayList<>(items.size());
+        List<NodeGraphPortState> portStates = new ObjectArrayList<>();
         for (NodeGraphItem item : items) {
             if (!item.visible()) continue;
             itemStates.add(new NodeGraphItemState(
@@ -1687,7 +1786,10 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
                     dragState != null && dragState.kind == DragKind.ITEM && dragState.item == item,
                     item.movable(),
                     item.resizable()));
-            for (NodeGraphPort port : item.ports()) {
+            ObjectArrayList<NodeGraphPort> ports = item.rawPorts();
+            Object[] rawPorts = ports.elements();
+            for (int portIndex = 0, portSize = ports.size(); portIndex < portSize; portIndex++) {
+                NodeGraphPort port = (NodeGraphPort) rawPorts[portIndex];
                 if (!port.visible()) continue;
                 PortPoint point = portPoint(item, port);
                 NodeGraphPortRef ref = new NodeGraphPortRef(item.id(), port.id());
@@ -1705,7 +1807,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
                         canStartConnection(port) || canEndConnection(port)));
             }
         }
-        List<NodeGraphConnectionState> connectionStates = new ArrayList<>(connections.size());
+        List<NodeGraphConnectionState> connectionStates = new ObjectArrayList<>(connections.size());
         for (NodeGraphConnection connection : connections) {
             ConnectionPoints points = connectionPoints(connection);
             if (points == null) continue;

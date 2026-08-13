@@ -16,7 +16,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -86,7 +86,7 @@ public class MinecraftItemPickerWidget extends SearchableGridPickerWidget<Minecr
     }
 
     public MinecraftItemPickerWidget reloadFromRegistry() {
-        List<ItemEntry> registryItems = new ArrayList<>();
+        List<ItemEntry> registryItems = new ObjectArrayList<>();
         try {
             for (Item item : BuiltInRegistries.ITEM) {
                 if (item == null || item == Items.AIR) continue;

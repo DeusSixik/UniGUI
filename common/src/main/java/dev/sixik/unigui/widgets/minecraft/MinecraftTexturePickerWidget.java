@@ -21,7 +21,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -86,7 +86,7 @@ public class MinecraftTexturePickerWidget extends SearchableGridPickerWidget<Min
     }
 
     public MinecraftTexturePickerWidget reloadFromMinecraftResources() {
-        List<TextureEntry> resourceTextures = new ArrayList<>();
+        List<TextureEntry> resourceTextures = new ObjectArrayList<>();
         try {
             Minecraft minecraft = Minecraft.getInstance();
             if (minecraft != null) {
@@ -110,7 +110,7 @@ public class MinecraftTexturePickerWidget extends SearchableGridPickerWidget<Min
     }
 
     public MinecraftTexturePickerWidget textureIds(Collection<ResourceLocation> ids) {
-        List<TextureEntry> entries = new ArrayList<>();
+        List<TextureEntry> entries = new ObjectArrayList<>();
         if (ids != null) {
             for (ResourceLocation id : ids) {
                 if (id != null) {

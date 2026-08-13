@@ -17,7 +17,7 @@ import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.List;
 
 public final class FlexLayoutEngine {
@@ -103,7 +103,7 @@ public final class FlexLayoutEngine {
                                             FlexDirection direction,
                                             float availableWidth,
                                             float availableHeight) {
-        List<Item> output = new ArrayList<>();
+        List<Item> output = new ObjectArrayList<>();
         if (children == null) return output;
         for (Widget child : children) {
             if (!participates(child)) continue;
@@ -123,7 +123,7 @@ public final class FlexLayoutEngine {
                                          float gap,
                                          boolean wrapping,
                                          boolean clampOversizedWrapItems) {
-        List<Line> lines = new ArrayList<>();
+        List<Line> lines = new ObjectArrayList<>();
         Line line = new Line();
         for (Item item : items) {
             if (wrapping && clampOversizedWrapItems && Float.isFinite(availableMain)) {
@@ -294,7 +294,7 @@ public final class FlexLayoutEngine {
     }
 
     private static final class Line {
-        private final List<Item> items = new ArrayList<>();
+        private final List<Item> items = new ObjectArrayList<>();
         private float crossSize;
 
         private void add(Item item) {

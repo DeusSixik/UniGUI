@@ -16,7 +16,7 @@ import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -24,8 +24,11 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class PanelWidget extends WidgetBase {
-    private final List<Widget> children = new ArrayList<>();
+    private final List<Widget> children = new ObjectArrayList<>();
+    private final List<Widget> childrenView = Collections.unmodifiableList(children);
     private final Queue<ChildMutation> mutations = new ConcurrentLinkedQueue<>();
+    private Widget[] childSnapshot = new Widget[0];
+    private boolean childSnapshotDirty = true;
 
     public void addChild(Widget child) {
         if (child == null) return;
@@ -74,7 +77,7 @@ public class PanelWidget extends WidgetBase {
 
     @Override
     public List<Widget> children() {
-        return Collections.unmodifiableList(children);
+        return childrenView;
     }
 
     @Override
@@ -87,7 +90,7 @@ public class PanelWidget extends WidgetBase {
         LayoutContext childContext = AbsoluteLayoutEngine.contentContext(this, context);
         float desiredWidth = 0.0f;
         float desiredHeight = 0.0f;
-        for (Widget child : snapshotChildren()) {
+        for (Widget child : childSnapshot()) {
             if (child.visibility() != Visibility.COLLAPSED) {
                 child.measure(childContext);
                 if (AbsoluteLayoutEngine.isAbsolute(child)) continue;
@@ -107,7 +110,7 @@ public class PanelWidget extends WidgetBase {
         super.arrange(bounds);
         if (visibility() == Visibility.COLLAPSED) return;
         MutableRect contentBounds = AbsoluteLayoutEngine.contentBounds(this, bounds);
-        for (Widget child : snapshotChildren()) {
+        for (Widget child : childSnapshot()) {
             if (child.visibility() != Visibility.COLLAPSED) {
                 if (AbsoluteLayoutEngine.isAbsolute(child)) {
                     AbsoluteLayoutEngine.arrange(child, contentBounds);
@@ -143,7 +146,7 @@ public class PanelWidget extends WidgetBase {
                     layoutBounds().height());
         }
         try {
-            for (Widget child : snapshotChildren()) {
+            for (Widget child : childSnapshot()) {
                 renderChildWithInheritedTransform(context, child);
             }
         } finally {
@@ -158,7 +161,7 @@ public class PanelWidget extends WidgetBase {
         if (visibility() != Visibility.VISIBLE) return;
         super.tick(frame);
         applyQueuedMutations();
-        for (Widget child : snapshotChildren()) {
+        for (Widget child : childSnapshot()) {
             if (child.visibility() == Visibility.VISIBLE) {
                 child.tick(frame);
             }
@@ -170,19 +173,25 @@ public class PanelWidget extends WidgetBase {
         applyClear();
     }
 
-    private List<Widget> snapshotChildren() {
-        return List.copyOf(children);
+    protected final Widget[] childSnapshot() {
+        if (childSnapshotDirty) {
+            childSnapshot = children.toArray(new Widget[children.size()]);
+            childSnapshotDirty = false;
+        }
+        return childSnapshot;
     }
 
     protected final void reorderChildren(Comparator<? super Widget> comparator) {
         if (comparator != null && children.size() > 1) {
             children.sort(comparator);
+            childSnapshotDirty = true;
         }
     }
 
     private void applyAdd(Widget child) {
         if (children.contains(child)) return;
         children.add(child);
+        childSnapshotDirty = true;
         if (child instanceof WidgetBase base) {
             base.setParentInternal(this);
             base.setUiContextInternal(uiContext());
@@ -192,6 +201,7 @@ public class PanelWidget extends WidgetBase {
     private void applyInsert(int index, Widget child) {
         if (children.contains(child)) return;
         children.add(Math.max(0, Math.min(index, children.size())), child);
+        childSnapshotDirty = true;
         if (child instanceof WidgetBase base) {
             base.setParentInternal(this);
             base.setUiContextInternal(uiContext());
@@ -200,6 +210,7 @@ public class PanelWidget extends WidgetBase {
 
     private void applyRemove(Widget child) {
         if (!children.remove(child)) return;
+        childSnapshotDirty = true;
         if (child instanceof WidgetBase base) {
             base.setParentInternal(null);
             base.setUiContextInternal(null);
@@ -215,6 +226,7 @@ public class PanelWidget extends WidgetBase {
             child.dispose();
         }
         children.clear();
+        childSnapshotDirty = true;
     }
 
     private enum ChildMutationType {

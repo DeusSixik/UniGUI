@@ -1,13 +1,14 @@
 package dev.sixik.unigui.api.render;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
 
 public final class DrawList {
-    private final List<DrawCommand> commands = new ArrayList<>();
+    private final ObjectArrayList<DrawCommand> commands = new ObjectArrayList<>();
+    private final List<DrawCommand> commandsView = Collections.unmodifiableList(commands);
     private final VectorPath path = new VectorPath();
-    private List<List<DrawCommand>> channels;
+    private ObjectArrayList<ObjectArrayList<DrawCommand>> channels;
     private int currentChannel;
 
     public void add(DrawCommand command) {
@@ -27,7 +28,11 @@ public final class DrawList {
     }
 
     public List<DrawCommand> commands() {
-        return Collections.unmodifiableList(commands);
+        return commandsView;
+    }
+
+    public Object[] commandElements() {
+        return commands.elements();
     }
 
     public int size() {
@@ -55,9 +60,9 @@ public final class DrawList {
         if (channels != null) {
             channelsMerge();
         }
-        channels = new ArrayList<>(normalized);
+        channels = new ObjectArrayList<>(normalized);
         for (int i = 0; i < normalized; i++) {
-            channels.add(new ArrayList<>());
+            channels.add(new ObjectArrayList<>());
         }
         channels.get(0).addAll(commands);
         commands.clear();
@@ -72,8 +77,8 @@ public final class DrawList {
     public void channelsMerge() {
         if (channels == null) return;
         commands.clear();
-        for (List<DrawCommand> channel : channels) {
-            commands.addAll(channel);
+        for (int i = 0, size = channels.size(); i < size; i++) {
+            commands.addAll(channels.get(i));
         }
         channels = null;
         currentChannel = 0;

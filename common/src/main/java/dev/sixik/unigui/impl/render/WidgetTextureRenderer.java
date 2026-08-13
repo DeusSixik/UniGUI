@@ -103,7 +103,9 @@ public final class WidgetTextureRenderer implements AutoCloseable {
 
     private DrawList offset(DrawList source, float originX, float originY) {
         offsetDrawList.clear();
-        for (DrawCommand command : source.commands()) {
+        Object[] rawCommands = source.commandElements();
+        for (int i = 0, size = source.size(); i < size; i++) {
+            DrawCommand command = (DrawCommand) rawCommands[i];
             DrawCommand copy = command.copy();
             RectView bounds = copy.bounds();
             copy.bounds().set(bounds.x() - originX, bounds.y() - originY, bounds.width(), bounds.height());

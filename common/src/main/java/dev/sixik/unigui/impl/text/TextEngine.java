@@ -11,7 +11,7 @@ import dev.sixik.unigui.api.text.FontMetrics;
 import dev.sixik.unigui.api.text.TextRun;
 import dev.sixik.unigui.api.text.Fonts;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.List;
 
 /**
@@ -96,7 +96,7 @@ public final class TextEngine {
     }
 
     public static List<RichText> wrapLines(RenderContext context, RichText text, float maxWidth) {
-        List<RichText> lines = new ArrayList<>();
+        List<RichText> lines = new ObjectArrayList<>();
         if (text == null || text.isEmpty()) return lines;
         if (!Float.isFinite(maxWidth) || maxWidth <= 0.0f) {
             appendParagraphLines(lines, text);

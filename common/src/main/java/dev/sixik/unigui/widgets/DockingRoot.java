@@ -45,7 +45,7 @@ import dev.sixik.unigui.widgets.render.DockTabState;
 import dev.sixik.unigui.widgets.render.DockingRootRenderer;
 import dev.sixik.unigui.widgets.render.DockingRootState;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -93,7 +93,7 @@ public final class DockingRoot extends Box {
     private DockSplitHandleRenderer splitHandleRenderer;
     private DockDropPreviewRenderer dropPreviewRenderer;
     private WindowWidget lastFloatingWindow;
-    private final List<WindowWidget> floatingDockWindows = new ArrayList<>();
+    private final List<WindowWidget> floatingDockWindows = new ObjectArrayList<>();
     private String hoveredPaneId = "";
     private String pressedPaneId = "";
     private String openOverflowNodeId = "";
@@ -915,7 +915,7 @@ public final class DockingRoot extends Box {
     private static DockingRoot dockingRootAt(Widget root, Widget ignored, float rootX, float rootY) {
         if (root == null || root == ignored || root.visibility() != Visibility.VISIBLE) return null;
         if (!contains(root.layoutBounds(), rootX, rootY)) return null;
-        List<Widget> children = List.copyOf(root.children());
+        List<Widget> children = root.children();
         for (int i = children.size() - 1; i >= 0; i--) {
             DockingRoot childHit = dockingRootAt(children.get(i), ignored, rootX, rootY);
             if (childHit != null) return childHit;
@@ -992,7 +992,7 @@ public final class DockingRoot extends Box {
                 super.addChild(pane.content());
             }
         }
-        List<Widget> stale = new ArrayList<>();
+        List<Widget> stale = new ObjectArrayList<>();
         for (Widget content : registeredContents) {
             if (!desired.contains(content)) {
                 stale.add(content);
@@ -1174,7 +1174,7 @@ public final class DockingRoot extends Box {
     }
 
     private List<DockPaneState> paneStates(DockNode node, RectView bounds) {
-        List<DockPaneState> result = new ArrayList<>();
+        List<DockPaneState> result = new ObjectArrayList<>();
         collectPaneStates(node, bounds, result);
         return result;
     }
@@ -1197,7 +1197,7 @@ public final class DockingRoot extends Box {
     }
 
     private List<DockSplitHandleState> splitStates(DockNode node, RectView bounds) {
-        List<DockSplitHandleState> result = new ArrayList<>();
+        List<DockSplitHandleState> result = new ObjectArrayList<>();
         collectSplitStates(node, bounds, result);
         return result;
     }
@@ -1215,7 +1215,7 @@ public final class DockingRoot extends Box {
     }
 
     private List<DockTabState> tabStates(DockNode node, RectView bounds) {
-        List<DockTabState> tabs = new ArrayList<>();
+        List<DockTabState> tabs = new ObjectArrayList<>();
         if (node == null || !node.isLeaf() || node.panes().isEmpty()) return tabs;
         float y = bounds.y();
         float height = Math.min(tabHeight, bounds.height());

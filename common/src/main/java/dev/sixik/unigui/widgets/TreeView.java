@@ -20,7 +20,7 @@ import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.render.TreeViewRenderer;
 import dev.sixik.unigui.widgets.render.TreeViewRowState;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -31,8 +31,8 @@ public class TreeView extends LinearBox {
     private static final float ROW_TEXT_HOVER_SCROLL_SPEED = 24.0f;
 
     private final VBox rowsHost = new VBox();
-    private final List<TreeViewNode> roots = new ArrayList<>();
-    private final List<TreeViewNode> visibleNodes = new ArrayList<>();
+    private final List<TreeViewNode> roots = new ObjectArrayList<>();
+    private final List<TreeViewNode> visibleNodes = new ObjectArrayList<>();
     private TreeViewRenderer renderer;
     private TreeViewNode selectedNode;
     private float rowTextHoverScrollSpeed = ROW_TEXT_HOVER_SCROLL_SPEED;
@@ -357,7 +357,7 @@ public class TreeView extends LinearBox {
         }
 
         if (node.expanded()) {
-            List<VisibleEntry> entries = new ArrayList<>();
+            List<VisibleEntry> entries = new ObjectArrayList<>();
             for (TreeViewNode child : node.children()) {
                 collectVisible(child, node.depth() + 1, entries);
             }

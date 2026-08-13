@@ -5,7 +5,7 @@ import dev.sixik.unigui.api.render.DrawCommandType;
 import dev.sixik.unigui.api.render.DrawList;
 import dev.sixik.unigui.api.render.TextureHandle;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -13,11 +13,14 @@ public final class SimpleDrawBatcher implements DrawBatcher {
     public static final SimpleDrawBatcher INSTANCE = new SimpleDrawBatcher();
 
     @Override
-    public List<DrawBatch> batch(DrawList drawList) {
-        List<DrawBatch> batches = new ArrayList<>();
+    public ObjectArrayList<DrawBatch> batch(DrawList drawList) {
+        ObjectArrayList<DrawBatch> batches = new ObjectArrayList<>();
         DrawBatch current = null;
+        if (drawList == null || drawList.size() == 0) return batches;
 
-        for (DrawCommand command : drawList.commands()) {
+        Object[] rawCommands = drawList.commandElements();
+        for (int i = 0, size = drawList.size(); i < size; i++) {
+            DrawCommand command = (DrawCommand) rawCommands[i];
             if (!isBatchable(command)) {
                 current = null;
                 batches.add(DrawBatch.barrier(command));

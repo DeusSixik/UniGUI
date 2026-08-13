@@ -17,7 +17,7 @@ import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.impl.text.TextEngine;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -31,7 +31,7 @@ public class TabControl extends LinearBox {
     private final HBox tabHeader = new HBox();
     private final ScrollView tabHeaderScroll = new ScrollView(tabHeader);
     private final StackPanel contentHost = new StackPanel();
-    private final List<Tab> tabs = new ArrayList<>();
+    private final List<Tab> tabs = new ObjectArrayList<>();
     private int selectedIndex = -1;
 
     public TabControl() {

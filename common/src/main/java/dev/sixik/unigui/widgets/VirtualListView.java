@@ -32,13 +32,13 @@ import dev.sixik.unigui.widgets.render.VirtualListViewRenderer;
 import dev.sixik.unigui.widgets.render.VirtualListViewRenderPhase;
 import dev.sixik.unigui.widgets.render.VirtualListViewRowState;
 import dev.sixik.unigui.widgets.render.VirtualListViewState;
+import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.objects.ObjectIterator;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.function.IntFunction;
 
 /**
@@ -53,8 +53,14 @@ public class VirtualListView extends WidgetBase {
     private final ScrollBar verticalScrollBar = new ScrollBar().orientation(Orientation.VERTICAL);
     private final FixedRowVirtualizer virtualizer = new FixedRowVirtualizer();
     private final IndexSelectionModel selection = new IndexSelectionModel();
-    private final Map<Integer, Widget> realized = new LinkedHashMap<>();
-    private final Map<Integer, Widget> recycled = new LinkedHashMap<>();
+    private final Int2ObjectLinkedOpenHashMap<Widget> realized = new Int2ObjectLinkedOpenHashMap<>();
+    private final Int2ObjectLinkedOpenHashMap<Widget> recycled = new Int2ObjectLinkedOpenHashMap<>();
+    private int[] realizedIndexSnapshot = new int[0];
+    private Widget[] realizedWidgetSnapshot = new Widget[0];
+    private boolean realizedSnapshotDirty = true;
+    private List<Widget> childrenView = Collections.emptyList();
+    private boolean childrenViewDirty = true;
+    private boolean childrenViewIncludesVerticalScrollBar;
     private IntFunction<? extends Widget> itemFactory = index -> new Label(String.valueOf(index));
     private VirtualListViewRenderer renderer;
     private float scrollStep = 16.0f;
@@ -281,13 +287,23 @@ public class VirtualListView extends WidgetBase {
 
     @Override
     public List<Widget> children() {
-        if (realized.isEmpty() && !hasVerticalScrollBar()) return Collections.emptyList();
-        List<Widget> children = new ArrayList<>(realized.size() + 1);
-        children.addAll(realized.values());
-        if (hasVerticalScrollBar()) {
-            children.add(verticalScrollBar);
+        boolean includeScrollBar = hasVerticalScrollBar();
+        if (childrenViewDirty || childrenViewIncludesVerticalScrollBar != includeScrollBar) {
+            Widget[] items = realizedWidgetSnapshot();
+            if (items.length == 0 && !includeScrollBar) {
+                childrenView = Collections.emptyList();
+            } else {
+                List<Widget> children = new ObjectArrayList<>(items.length + (includeScrollBar ? 1 : 0));
+                Collections.addAll(children, items);
+                if (includeScrollBar) {
+                    children.add(verticalScrollBar);
+                }
+                childrenView = Collections.unmodifiableList(children);
+            }
+            childrenViewIncludesVerticalScrollBar = includeScrollBar;
+            childrenViewDirty = false;
         }
-        return Collections.unmodifiableList(children);
+        return childrenView;
     }
 
     @Override
@@ -297,7 +313,7 @@ public class VirtualListView extends WidgetBase {
             return;
         }
         float desiredWidth = 0.0f;
-        for (Widget item : realized.values()) {
+        for (Widget item : realizedWidgetSnapshot()) {
             item.measure(context);
             desiredWidth = Math.max(desiredWidth, StackPanel.preferredWidth(item, 0.0f));
         }
@@ -320,7 +336,7 @@ public class VirtualListView extends WidgetBase {
     public void tick(FrameContext frame) {
         if (visibility() != Visibility.VISIBLE) return;
         super.tick(frame);
-        for (Widget item : List.copyOf(realized.values())) {
+        for (Widget item : realizedWidgetSnapshot()) {
             if (item.visibility() == Visibility.VISIBLE) {
                 item.tick(frame);
             }
@@ -339,8 +355,8 @@ public class VirtualListView extends WidgetBase {
             DrawScope draw = new DrawScope(context, transform(), layoutBounds());
             draw.pushClip(layoutBounds().x(), layoutBounds().y(), viewportWidth(), layoutBounds().height());
             activeRenderer.render(draw, snapshot(VirtualListViewRenderPhase.BACKGROUND));
-            for (Map.Entry<Integer, Widget> entry : List.copyOf(realized.entrySet())) {
-                renderChildWithInheritedTransform(context, entry.getValue());
+            for (Widget item : realizedWidgetSnapshot()) {
+                renderChildWithInheritedTransform(context, item);
             }
             activeRenderer.render(draw, snapshot(VirtualListViewRenderPhase.FOREGROUND));
             draw.popClip();
@@ -357,18 +373,20 @@ public class VirtualListView extends WidgetBase {
     }
 
     protected VirtualListViewState snapshot(VirtualListViewRenderPhase phase) {
-        List<VirtualListViewRowState> rows = new ArrayList<>(realized.size());
-        for (Map.Entry<Integer, Widget> entry : realized.entrySet()) {
-            Widget item = entry.getValue();
+        ensureRealizedSnapshot();
+        List<VirtualListViewRowState> rows = new ObjectArrayList<>(realizedWidgetSnapshot.length);
+        for (int i = 0; i < realizedWidgetSnapshot.length; i++) {
+            int index = realizedIndexSnapshot[i];
+            Widget item = realizedWidgetSnapshot[i];
             if (item.visibility() != Visibility.VISIBLE) continue;
             rows.add(new VirtualListViewRowState(
-                    entry.getKey(),
+                    index,
                     item.layoutBounds().x(),
                     item.layoutBounds().y(),
                     item.layoutBounds().width(),
                     item.layoutBounds().height(),
-                    selection.isSelected(entry.getKey()),
-                    entry.getKey() == activeIndex));
+                    selection.isSelected(index),
+                    index == activeIndex));
         }
         return new VirtualListViewState(
                 layoutBounds().x(),
@@ -427,20 +445,29 @@ public class VirtualListView extends WidgetBase {
         VirtualRange range = realizedRange();
         int first = range.firstIndex();
         int last = range.lastIndexExclusive();
+        boolean changed = false;
 
-        Iterator<Map.Entry<Integer, Widget>> iterator = realized.entrySet().iterator();
+        ObjectIterator<Int2ObjectMap.Entry<Widget>> iterator = realized.int2ObjectEntrySet().iterator();
         while (iterator.hasNext()) {
-            Map.Entry<Integer, Widget> entry = iterator.next();
-            int index = entry.getKey();
+            Int2ObjectMap.Entry<Widget> entry = iterator.next();
+            int index = entry.getIntKey();
             if (index < first || index >= last) {
                 detachItem(entry.getValue());
                 recycleItem(index, entry.getValue());
                 iterator.remove();
+                changed = true;
             }
         }
 
         for (int index = first; index < last; index++) {
-            realized.computeIfAbsent(index, this::realizeItem);
+            if (!realized.containsKey(index)) {
+                realized.put(index, realizeItem(index));
+                changed = true;
+            }
+        }
+
+        if (changed) {
+            markRealizedSnapshotDirty();
         }
     }
 
@@ -477,9 +504,10 @@ public class VirtualListView extends WidgetBase {
     private void arrangeItems() {
         float x = layoutBounds().x();
         float width = viewportWidth();
-        for (Map.Entry<Integer, Widget> entry : realized.entrySet()) {
-            int index = entry.getKey();
-            Widget item = entry.getValue();
+        ensureRealizedSnapshot();
+        for (int i = 0; i < realizedWidgetSnapshot.length; i++) {
+            int index = realizedIndexSnapshot[i];
+            Widget item = realizedWidgetSnapshot[i];
             float y = layoutBounds().y() + virtualizer.itemOffset(index);
             StackPanel.arrangeChild(item, x, y, width, virtualizer.itemExtent());
         }
@@ -513,22 +541,27 @@ public class VirtualListView extends WidgetBase {
     }
 
     private void pruneRealized() {
-        Iterator<Map.Entry<Integer, Widget>> iterator = realized.entrySet().iterator();
+        boolean changed = false;
+        ObjectIterator<Int2ObjectMap.Entry<Widget>> iterator = realized.int2ObjectEntrySet().iterator();
         while (iterator.hasNext()) {
-            Map.Entry<Integer, Widget> entry = iterator.next();
-            if (entry.getKey() >= virtualizer.itemCount()) {
+            Int2ObjectMap.Entry<Widget> entry = iterator.next();
+            if (entry.getIntKey() >= virtualizer.itemCount()) {
                 detachItem(entry.getValue());
                 entry.getValue().dispose();
                 iterator.remove();
+                changed = true;
             }
+        }
+        if (changed) {
+            markRealizedSnapshotDirty();
         }
     }
 
     private void pruneRecycled() {
-        Iterator<Map.Entry<Integer, Widget>> iterator = recycled.entrySet().iterator();
+        ObjectIterator<Int2ObjectMap.Entry<Widget>> iterator = recycled.int2ObjectEntrySet().iterator();
         while (iterator.hasNext()) {
-            Map.Entry<Integer, Widget> entry = iterator.next();
-            if (entry.getKey() >= virtualizer.itemCount()) {
+            Int2ObjectMap.Entry<Widget> entry = iterator.next();
+            if (entry.getIntKey() >= virtualizer.itemCount()) {
                 entry.getValue().dispose();
                 iterator.remove();
             }
@@ -541,9 +574,9 @@ public class VirtualListView extends WidgetBase {
             clearRecycled();
             return;
         }
-        Iterator<Map.Entry<Integer, Widget>> iterator = recycled.entrySet().iterator();
+        ObjectIterator<Int2ObjectMap.Entry<Widget>> iterator = recycled.int2ObjectEntrySet().iterator();
         while (recycled.size() > offscreenCacheSize && iterator.hasNext()) {
-            Map.Entry<Integer, Widget> entry = iterator.next();
+            Int2ObjectMap.Entry<Widget> entry = iterator.next();
             entry.getValue().dispose();
             iterator.remove();
         }
@@ -555,6 +588,7 @@ public class VirtualListView extends WidgetBase {
             item.dispose();
         }
         realized.clear();
+        markRealizedSnapshotDirty();
         clearRecycled();
     }
 
@@ -563,6 +597,36 @@ public class VirtualListView extends WidgetBase {
             item.dispose();
         }
         recycled.clear();
+    }
+
+    private Widget[] realizedWidgetSnapshot() {
+        ensureRealizedSnapshot();
+        return realizedWidgetSnapshot;
+    }
+
+    private void ensureRealizedSnapshot() {
+        if (!realizedSnapshotDirty) return;
+        int size = realized.size();
+        if (realizedIndexSnapshot.length != size) {
+            realizedIndexSnapshot = new int[size];
+        }
+        if (realizedWidgetSnapshot.length != size) {
+            realizedWidgetSnapshot = new Widget[size];
+        }
+        int i = 0;
+        ObjectIterator<Int2ObjectMap.Entry<Widget>> iterator = realized.int2ObjectEntrySet().iterator();
+        while (iterator.hasNext()) {
+            Int2ObjectMap.Entry<Widget> entry = iterator.next();
+            realizedIndexSnapshot[i] = entry.getIntKey();
+            realizedWidgetSnapshot[i] = entry.getValue();
+            i++;
+        }
+        realizedSnapshotDirty = false;
+    }
+
+    private void markRealizedSnapshotDirty() {
+        realizedSnapshotDirty = true;
+        childrenViewDirty = true;
     }
 
     private void attachItem(Widget item) {

@@ -1,7 +1,7 @@
 package dev.sixik.unigui.widgets;
 
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
@@ -104,7 +104,7 @@ public final class DockLayoutSnapshotCodec {
             if (match("L[")) {
                 String selected = decodeString(readUntil('|'));
                 expect('|');
-                List<String> panes = new ArrayList<>();
+                List<String> panes = new ObjectArrayList<>();
                 String paneList = readUntil(']');
                 if (!paneList.isEmpty()) {
                     for (String pane : paneList.split(",")) {

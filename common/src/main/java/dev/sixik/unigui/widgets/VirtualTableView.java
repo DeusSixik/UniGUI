@@ -54,13 +54,14 @@ import dev.sixik.unigui.widgets.render.VirtualTableViewRenderPhase;
 import dev.sixik.unigui.widgets.render.VirtualTableViewRowState;
 import dev.sixik.unigui.widgets.render.VirtualTableViewState;
 import dev.sixik.unigui.widgets.render.VirtualTableViewTextSegment;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectIterator;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.function.BiFunction;
 
 /**
@@ -80,14 +81,16 @@ public class VirtualTableView extends WidgetBase {
     private static final MutableColor TEXT_COLOR = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
 
     private final ScrollBar verticalScrollBar = new ScrollBar().orientation(Orientation.VERTICAL);
+    private final List<Widget> verticalScrollBarChildrenView = Collections.singletonList(verticalScrollBar);
     private final FixedRowVirtualizer virtualizer = new FixedRowVirtualizer();
     private final IndexSelectionModel selection = new IndexSelectionModel();
-    private final List<VirtualTableColumn> columns = new ArrayList<>();
+    private final ObjectArrayList<VirtualTableColumn> columns = new ObjectArrayList<>();
+    private final List<VirtualTableColumn> columnsView = Collections.unmodifiableList(columns);
     private BiFunction<Integer, Integer, String> cellTextProvider = (row, column) -> "";
     private BiFunction<Integer, Integer, RichText> cellRichTextProvider;
     private BiFunction<Integer, Integer, ? extends Comparable<?>> sortKeyProvider = (row, column) -> cellText(row, column);
     private VirtualTableViewRenderer renderer;
-    private final Map<Integer, Comparator<Integer>> columnComparators = new HashMap<>();
+    private final Int2ObjectOpenHashMap<Comparator<Integer>> columnComparators = new Int2ObjectOpenHashMap<>();
     private int sortColumnIndex = -1;
     private SortDirection sortDirection = SortDirection.NONE;
     private int[] sortedRows;
@@ -170,7 +173,7 @@ public class VirtualTableView extends WidgetBase {
     }
 
     public List<VirtualTableColumn> columns() {
-        return Collections.unmodifiableList(columns);
+        return columnsView;
     }
 
     public float columnWidth(int columnIndex) {
@@ -205,8 +208,9 @@ public class VirtualTableView extends WidgetBase {
         float normalized = Float.isFinite(minColumnWidth) ? Math.max(1.0f, minColumnWidth) : DEFAULT_MIN_COLUMN_WIDTH;
         if (this.minColumnWidth == normalized) return this;
         this.minColumnWidth = normalized;
-        for (int columnIndex = 0; columnIndex < columns.size(); columnIndex++) {
-            setColumnWidth(columnIndex, columns.get(columnIndex).width(), false);
+        Object[] rawColumns = columns.elements();
+        for (int columnIndex = 0, size = columns.size(); columnIndex < size; columnIndex++) {
+            setColumnWidth(columnIndex, ((VirtualTableColumn) rawColumns[columnIndex]).width(), false);
         }
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
@@ -359,8 +363,9 @@ public class VirtualTableView extends WidgetBase {
 
     public float contentWidth() {
         float width = 0.0f;
-        for (VirtualTableColumn column : columns) {
-            width += column.width();
+        Object[] rawColumns = columns.elements();
+        for (int i = 0, size = columns.size(); i < size; i++) {
+            width += ((VirtualTableColumn) rawColumns[i]).width();
         }
         return width;
     }
@@ -648,10 +653,7 @@ public class VirtualTableView extends WidgetBase {
 
     @Override
     public List<Widget> children() {
-        if (hasVerticalScrollBar()) {
-            return List.of(verticalScrollBar);
-        }
-        return Collections.emptyList();
+        return hasVerticalScrollBar() ? verticalScrollBarChildrenView : Collections.emptyList();
     }
 
     @Override
@@ -814,9 +816,10 @@ public class VirtualTableView extends WidgetBase {
         float y = layoutBounds().y();
         float height = Math.min(headerHeight, Math.max(0.0f, layoutBounds().height()));
         float columnX = tableX;
-        List<VirtualTableViewColumnState> states = new ArrayList<>(columns.size());
-        for (int columnIndex = 0; columnIndex < columns.size(); columnIndex++) {
-            VirtualTableColumn column = columns.get(columnIndex);
+        List<VirtualTableViewColumnState> states = new ObjectArrayList<>(columns.size());
+        Object[] rawColumns = columns.elements();
+        for (int columnIndex = 0, size = columns.size(); columnIndex < size; columnIndex++) {
+            VirtualTableColumn column = (VirtualTableColumn) rawColumns[columnIndex];
             float width = Math.min(column.width(), Math.max(0.0f, viewportWidth() - (columnX - tableX)));
             if (width <= 0.0f) break;
             RichText header = headerRichText(columnIndex);
@@ -846,7 +849,7 @@ public class VirtualTableView extends WidgetBase {
         ensureSortIndex();
         float tableX = layoutBounds().x();
         float tableWidth = viewportWidth();
-        List<VirtualTableViewRowState> states = new ArrayList<>();
+        List<VirtualTableViewRowState> states = new ObjectArrayList<>();
         for (int visualRow = firstVisibleRow(); visualRow < lastVisibleRowExclusive(); visualRow++) {
             int row = sourceRowAt(visualRow);
             float y = rowViewportY() + virtualizer.itemOffset(visualRow);
@@ -872,9 +875,10 @@ public class VirtualTableView extends WidgetBase {
     private List<VirtualTableViewCellState> cellStates(RenderContext context, int visualRow, int row, float y, float rowHeight) {
         float tableX = layoutBounds().x();
         float columnX = tableX;
-        List<VirtualTableViewCellState> states = new ArrayList<>(columns.size());
-        for (int columnIndex = 0; columnIndex < columns.size(); columnIndex++) {
-            VirtualTableColumn column = columns.get(columnIndex);
+        List<VirtualTableViewCellState> states = new ObjectArrayList<>(columns.size());
+        Object[] rawColumns = columns.elements();
+        for (int columnIndex = 0, size = columns.size(); columnIndex < size; columnIndex++) {
+            VirtualTableColumn column = (VirtualTableColumn) rawColumns[columnIndex];
             float width = Math.min(column.width(), Math.max(0.0f, viewportWidth() - (columnX - tableX)));
             if (width <= 0.0f) break;
             boolean editingCell = editing() && row == editingRow && columnIndex == editingColumn;
@@ -1052,8 +1056,9 @@ public class VirtualTableView extends WidgetBase {
 
     private int columnAt(float localX) {
         float x = 0.0f;
-        for (int columnIndex = 0; columnIndex < columns.size(); columnIndex++) {
-            float width = columns.get(columnIndex).width();
+        Object[] rawColumns = columns.elements();
+        for (int columnIndex = 0, size = columns.size(); columnIndex < size; columnIndex++) {
+            float width = ((VirtualTableColumn) rawColumns[columnIndex]).width();
             if (localX >= x && localX < x + width) {
                 return columnIndex;
             }
@@ -1065,8 +1070,9 @@ public class VirtualTableView extends WidgetBase {
     private int resizeColumnAt(float localX) {
         if (localX < 0.0f || localX >= viewportWidth()) return -1;
         float x = 0.0f;
-        for (int columnIndex = 0; columnIndex < columns.size(); columnIndex++) {
-            x += columns.get(columnIndex).width();
+        Object[] rawColumns = columns.elements();
+        for (int columnIndex = 0, size = columns.size(); columnIndex < size; columnIndex++) {
+            x += ((VirtualTableColumn) rawColumns[columnIndex]).width();
             if (Math.abs(localX - x) <= HEADER_RESIZE_HIT_SLOP) {
                 return columnIndex;
             }
@@ -1123,9 +1129,11 @@ public class VirtualTableView extends WidgetBase {
 
     private void remapColumnComparators(int oldIndex, int newIndex) {
         if (columnComparators.isEmpty()) return;
-        Map<Integer, Comparator<Integer>> remapped = new HashMap<>();
-        for (Map.Entry<Integer, Comparator<Integer>> entry : columnComparators.entrySet()) {
-            int key = remapColumnIndex(entry.getKey(), oldIndex, newIndex);
+        Int2ObjectOpenHashMap<Comparator<Integer>> remapped = new Int2ObjectOpenHashMap<>(columnComparators.size());
+        ObjectIterator<Int2ObjectMap.Entry<Comparator<Integer>>> iterator = columnComparators.int2ObjectEntrySet().iterator();
+        while (iterator.hasNext()) {
+            Int2ObjectMap.Entry<Comparator<Integer>> entry = iterator.next();
+            int key = remapColumnIndex(entry.getIntKey(), oldIndex, newIndex);
             if (key >= 0) {
                 remapped.put(key, entry.getValue());
             }
@@ -1271,7 +1279,7 @@ public class VirtualTableView extends WidgetBase {
             return;
         }
 
-        List<Integer> rows = new ArrayList<>(virtualizer.itemCount());
+        List<Integer> rows = new ObjectArrayList<>(virtualizer.itemCount());
         for (int row = 0; row < virtualizer.itemCount(); row++) {
             rows.add(row);
         }

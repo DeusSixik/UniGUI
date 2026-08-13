@@ -10,7 +10,7 @@ import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Iterator;
 import java.util.List;
 
@@ -26,7 +26,7 @@ public class NotificationView extends Box implements OverlayHostAware {
         BOTTOM_RIGHT
     }
 
-    private final List<Toast> notifications = new ArrayList<>();
+    private final List<Toast> notifications = new ObjectArrayList<>();
     private String pendingText = "";
     private float defaultDurationSeconds = 3.5f;
     private float spacing = 8.0f;
@@ -291,7 +291,7 @@ public class NotificationView extends Box implements OverlayHostAware {
     }
 
     private List<Toast> visibleCards() {
-        List<Toast> visible = new ArrayList<>();
+        List<Toast> visible = new ObjectArrayList<>();
         for (Toast toast : notifications) {
             if (toast.opened() && toast.visibility() == Visibility.VISIBLE) {
                 visible.add(toast);

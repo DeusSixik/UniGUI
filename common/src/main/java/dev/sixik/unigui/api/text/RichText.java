@@ -2,7 +2,7 @@ package dev.sixik.unigui.api.text;
 
 import dev.sixik.unigui.api.math.ColorView;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -15,7 +15,7 @@ public final class RichText {
     private final String plainText;
 
     public RichText(List<TextRun> runs) {
-        List<TextRun> normalized = new ArrayList<>();
+        List<TextRun> normalized = new ObjectArrayList<>();
         if (runs != null) {
             for (TextRun run : runs) {
                 if (run != null && !run.isEmpty()) normalized.add(run);
@@ -57,7 +57,7 @@ public final class RichText {
 
     public RichText append(RichText other) {
         if (other == null || other.isEmpty()) return this;
-        List<TextRun> combined = new ArrayList<>(runs.size() + other.runs.size());
+        List<TextRun> combined = new ObjectArrayList<>(runs.size() + other.runs.size());
         combined.addAll(runs);
         combined.addAll(other.runs);
         return new RichText(combined);
@@ -69,7 +69,7 @@ public final class RichText {
         if (start == 0 && end == plainText.length()) return this;
         if (start == end) return RichText.plain("");
 
-        List<TextRun> sliced = new ArrayList<>();
+        List<TextRun> sliced = new ObjectArrayList<>();
         int runStart = 0;
         for (TextRun run : runs) {
             String value = run.text();
@@ -106,7 +106,7 @@ public final class RichText {
     }
 
     public static final class Builder {
-        private final List<TextRun> runs = new ArrayList<>();
+        private final List<TextRun> runs = new ObjectArrayList<>();
         private FontFace font;
         private float pixelSize = TextRun.DEFAULT_PIXEL_SIZE;
         private ColorView color;

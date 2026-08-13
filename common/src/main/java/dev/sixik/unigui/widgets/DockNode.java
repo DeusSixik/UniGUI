@@ -1,6 +1,6 @@
 package dev.sixik.unigui.widgets;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -14,7 +14,7 @@ public final class DockNode {
 
     private final String id = UUID.randomUUID().toString();
     private Kind kind;
-    private final List<DockPane> panes = new ArrayList<>();
+    private final List<DockPane> panes = new ObjectArrayList<>();
     private int selectedIndex = -1;
     private DockSplitOrientation orientation = DockSplitOrientation.HORIZONTAL;
     private float splitRatio = 0.5f;

@@ -1,12 +1,13 @@
 package dev.sixik.unigui.api.render;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
 public final class VectorPath {
-    private final List<Element> elements = new ArrayList<>();
+    private final ObjectArrayList<Element> elements = new ObjectArrayList<>();
+    private final List<Element> elementsView = Collections.unmodifiableList(elements);
     private Runnable onChanged;
 
     public VectorPath moveTo(float x, float y) {
@@ -55,7 +56,11 @@ public final class VectorPath {
     }
 
     public List<Element> elements() {
-        return Collections.unmodifiableList(elements);
+        return elementsView;
+    }
+
+    public Object[] elementElements() {
+        return elements.elements();
     }
 
     public boolean isEmpty() {

@@ -18,7 +18,7 @@ import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.impl.layout.v3.LayoutV3ScrollAdapter;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -42,6 +42,10 @@ public class ScrollView extends WidgetBase {
     private boolean consumeWheelAtScrollBounds = true;
     private boolean horizontalScrollBarVisible;
     private boolean verticalScrollBarVisible;
+    private List<Widget> childrenView = Collections.emptyList();
+    private boolean childrenViewDirty = true;
+    private boolean childrenViewHasHorizontalScrollBar;
+    private boolean childrenViewHasVerticalScrollBar;
 
     public ScrollView() {
         layout(style -> style
@@ -82,6 +86,7 @@ public class ScrollView extends WidgetBase {
         detachContent();
         this.content = content;
         attachContent(content);
+        markChildrenViewDirty();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
@@ -132,6 +137,7 @@ public class ScrollView extends WidgetBase {
         if (!scrollingEnabled) {
             horizontalScrollBarVisible = false;
             verticalScrollBarVisible = false;
+            markChildrenViewDirty();
             scrollX = 0.0f;
             scrollY = 0.0f;
             syncScrollBars();
@@ -224,19 +230,29 @@ public class ScrollView extends WidgetBase {
     public List<Widget> children() {
         boolean horizontalVisible = showsHorizontalScrollBar();
         boolean verticalVisible = showsVerticalScrollBar();
-        if (content == null && !horizontalVisible && !verticalVisible) return Collections.emptyList();
-
-        List<Widget> children = new ArrayList<>(3);
-        if (content != null) {
-            children.add(content);
+        if (childrenViewDirty
+                || childrenViewHasHorizontalScrollBar != horizontalVisible
+                || childrenViewHasVerticalScrollBar != verticalVisible) {
+            if (content == null && !horizontalVisible && !verticalVisible) {
+                childrenView = Collections.emptyList();
+            } else {
+                List<Widget> children = new ObjectArrayList<>(3);
+                if (content != null) {
+                    children.add(content);
+                }
+                if (horizontalVisible) {
+                    children.add(horizontalScrollBar);
+                }
+                if (verticalVisible) {
+                    children.add(verticalScrollBar);
+                }
+                childrenView = Collections.unmodifiableList(children);
+            }
+            childrenViewHasHorizontalScrollBar = horizontalVisible;
+            childrenViewHasVerticalScrollBar = verticalVisible;
+            childrenViewDirty = false;
         }
-        if (horizontalVisible) {
-            children.add(horizontalScrollBar);
-        }
-        if (verticalVisible) {
-            children.add(verticalScrollBar);
-        }
-        return Collections.unmodifiableList(children);
+        return childrenView;
     }
 
     @Override
@@ -394,6 +410,9 @@ public class ScrollView extends WidgetBase {
 
     private void updateScrollBarVisibility() {
         if (!scrollingEnabled) {
+            if (horizontalScrollBarVisible || verticalScrollBarVisible) {
+                markChildrenViewDirty();
+            }
             horizontalScrollBarVisible = false;
             verticalScrollBarVisible = false;
             return;
@@ -417,6 +436,9 @@ public class ScrollView extends WidgetBase {
             vertical = nextVertical;
         }
 
+        if (horizontalScrollBarVisible != horizontal || verticalScrollBarVisible != vertical) {
+            markChildrenViewDirty();
+        }
         horizontalScrollBarVisible = horizontal;
         verticalScrollBarVisible = vertical;
     }
@@ -512,6 +534,11 @@ public class ScrollView extends WidgetBase {
             base.setParentInternal(null);
             base.setUiContextInternal(null);
         }
+        markChildrenViewDirty();
+    }
+
+    private void markChildrenViewDirty() {
+        childrenViewDirty = true;
     }
 
     private static float clamp(float value, float min, float max) {

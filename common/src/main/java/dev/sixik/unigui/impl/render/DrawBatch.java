@@ -4,7 +4,7 @@ import dev.sixik.unigui.api.render.DrawCommand;
 import dev.sixik.unigui.api.render.DrawCommandType;
 import dev.sixik.unigui.api.render.TextureHandle;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -12,7 +12,8 @@ public final class DrawBatch {
     private final DrawCommandType type;
     private final TextureHandle texture;
     private final boolean barrier;
-    private final List<DrawCommand> commands = new ArrayList<>();
+    private final ObjectArrayList<DrawCommand> commands = new ObjectArrayList<>();
+    private final List<DrawCommand> commandsView = Collections.unmodifiableList(commands);
 
     private DrawBatch(DrawCommandType type, TextureHandle texture, boolean barrier) {
         this.type = type;
@@ -47,7 +48,11 @@ public final class DrawBatch {
     }
 
     public List<DrawCommand> commands() {
-        return Collections.unmodifiableList(commands);
+        return commandsView;
+    }
+
+    public Object[] commandElements() {
+        return commands.elements();
     }
 
     public int size() {

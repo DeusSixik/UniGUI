@@ -2,7 +2,7 @@ package dev.sixik.unigui.widgets;
 
 import dev.sixik.unigui.api.widget.Widget;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -39,7 +39,7 @@ public final class DockingManager {
     }
 
     public List<DockPane> panes() {
-        List<DockPane> result = new ArrayList<>();
+        List<DockPane> result = new ObjectArrayList<>();
         collectPanes(root, result);
         return List.copyOf(result);
     }

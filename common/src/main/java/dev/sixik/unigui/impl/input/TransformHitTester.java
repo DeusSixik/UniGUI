@@ -53,7 +53,7 @@ public final class TransformHitTester implements HitTester {
             return Optional.empty();
         }
 
-        List<Widget> children = List.copyOf(widget.children());
+        List<Widget> children = widget.children();
         for (int index = children.size() - 1; index >= 0; index--) {
             Widget child = children.get(index);
             Point childPoint = mapPointForChild(widget, child, untransformed.x, untransformed.y);
@@ -78,10 +78,10 @@ public final class TransformHitTester implements HitTester {
 
     private static List<Widget> route(Widget root, Widget target) {
         if (root == target) return List.of(root);
-        for (Widget child : List.copyOf(root.children())) {
+        for (Widget child : root.children()) {
             List<Widget> childRoute = route(child, target);
             if (!childRoute.isEmpty()) {
-                java.util.ArrayList<Widget> fullRoute = new java.util.ArrayList<>(childRoute.size() + 1);
+                List<Widget> fullRoute = new it.unimi.dsi.fastutil.objects.ObjectArrayList<>(childRoute.size() + 1);
                 fullRoute.add(root);
                 fullRoute.addAll(childRoute);
                 return fullRoute;

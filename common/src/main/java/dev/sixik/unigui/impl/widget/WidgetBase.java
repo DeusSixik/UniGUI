@@ -35,7 +35,7 @@ import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.impl.event.FastEventEmitter;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Iterator;
@@ -65,7 +65,7 @@ public abstract class WidgetBase implements Widget {
     /**
      * Timed additive transform effects such as shake. These are layered over the base transition values.
      */
-    private final List<ShakeEffect> shakeEffects = new ArrayList<>();
+    private final ObjectArrayList<ShakeEffect> shakeEffects = new ObjectArrayList<>();
     /**
      * Named transform origin. CUSTOM keeps the raw pivot untouched for manual/custom pivot animations.
      */
@@ -862,7 +862,7 @@ public abstract class WidgetBase implements Widget {
     }
 
     private List<Widget> styleLookupChain() {
-        List<Widget> chain = new ArrayList<>();
+        List<Widget> chain = new ObjectArrayList<>();
         Widget current = this;
         while (current != null) {
             chain.add(current);
@@ -1165,16 +1165,18 @@ public abstract class WidgetBase implements Widget {
 
         float offsetX = 0.0f;
         float offsetY = 0.0f;
-        Iterator<ShakeEffect> iterator = shakeEffects.iterator();
-        while (iterator.hasNext()) {
-            ShakeEffect effect = iterator.next();
+        Object[] rawEffects = shakeEffects.elements();
+        for (int i = 0; i < shakeEffects.size(); ) {
+            ShakeEffect effect = (ShakeEffect) rawEffects[i];
             effect.tick(deltaSeconds);
             if (effect.finished()) {
-                iterator.remove();
+                shakeEffects.remove(i);
+                rawEffects = shakeEffects.elements();
                 continue;
             }
             offsetX += effect.offsetX();
             offsetY += effect.offsetY();
+            i++;
         }
 
         if (offsetX != 0.0f || offsetY != 0.0f) {

@@ -13,6 +13,7 @@ import dev.sixik.unigui.api.render.DrawCommand;
 import dev.sixik.unigui.api.render.DrawCommandType;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.VectorPath;
+import dev.sixik.unigui.impl.render.DrawBatch;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.GameRenderer;
 import org.joml.Matrix4f;
@@ -21,7 +22,6 @@ import org.lwjgl.opengl.GL14;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
 
 /** Batches untextured UI primitives into one position-color draw call. */
 final class MinecraftShapeBatchRenderer implements AutoCloseable {
@@ -29,13 +29,16 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
     private static final float TAU = (float) (Math.PI * 2.0);
     private final MinecraftSdfShapeRenderer sdfRenderer = new MinecraftSdfShapeRenderer();
 
-    boolean render(GuiGraphics graphics, List<DrawCommand> commands, boolean renderingToPremultipliedTarget) {
-        if (graphics == null || commands == null || commands.isEmpty()) return false;
-        for (DrawCommand command : commands) {
+    boolean render(GuiGraphics graphics, DrawBatch batch, boolean renderingToPremultipliedTarget) {
+        if (graphics == null || batch == null || batch.size() == 0) return false;
+        Object[] rawCommands = batch.commandElements();
+        int commandCount = batch.size();
+        for (int i = 0; i < commandCount; i++) {
+            DrawCommand command = (DrawCommand) rawCommands[i];
             if (command == null || !supports(command.type())) return false;
         }
-        if (sdfRenderer.shouldRender(commands)
-                && sdfRenderer.render(graphics, commands, renderingToPremultipliedTarget)) {
+        if (sdfRenderer.shouldRender(batch)
+                && sdfRenderer.render(graphics, batch, renderingToPremultipliedTarget)) {
             return true;
         }
 
@@ -53,7 +56,8 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
             buffer.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
             Matrix4f basePose = graphics.pose().last().pose();
             int vertices = 0;
-            for (DrawCommand command : commands) {
+            for (int i = 0; i < commandCount; i++) {
+                DrawCommand command = (DrawCommand) rawCommands[i];
                 Matrix4f matrix = MinecraftTransform.commandMatrix(basePose, command);
                 vertices += append(buffer, matrix, command);
             }
@@ -193,7 +197,9 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
         float startX = currentX;
         float startY = currentY;
 
-        for (VectorPath.Element element : path.elements()) {
+        Object[] rawPathElements = path.elementElements();
+        for (int i = 0, size = path.size(); i < size; i++) {
+            VectorPath.Element element = (VectorPath.Element) rawPathElements[i];
             switch (element.verb()) {
                 case MOVE_TO -> {
                     vertices += flushPath(buffer, matrix, points, command.paint(), false);
@@ -215,8 +221,8 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
                     float nextX = bounds.x() + element.x2();
                     float nextY = bounds.y() + element.y2();
                     int segments = pathSegments(currentX, currentY, nextX, nextY);
-                    for (int i = 1; i <= segments; i++) {
-                        float t = i / (float) segments;
+                    for (int segmentIndex = 1; segmentIndex <= segments; segmentIndex++) {
+                        float t = segmentIndex / (float) segments;
                         points.add(quadratic(currentX, controlX, nextX, t),
                                 quadratic(currentY, controlY, nextY, t));
                     }
@@ -231,8 +237,8 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
                     float nextX = bounds.x() + element.x3();
                     float nextY = bounds.y() + element.y3();
                     int segments = pathSegments(currentX, currentY, nextX, nextY);
-                    for (int i = 1; i <= segments; i++) {
-                        float t = i / (float) segments;
+                    for (int segmentIndex = 1; segmentIndex <= segments; segmentIndex++) {
+                        float t = segmentIndex / (float) segments;
                         points.add(cubic(currentX, controlX1, controlX2, nextX, t),
                                 cubic(currentY, controlY1, controlY2, nextY, t));
                     }

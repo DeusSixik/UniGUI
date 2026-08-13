@@ -26,7 +26,7 @@ import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.render.GraphViewRenderer;
 import dev.sixik.unigui.widgets.render.GraphViewState;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.List;
 import java.util.function.Function;
 
@@ -34,8 +34,8 @@ public final class GraphView extends WidgetBase {
     private static final float DEFAULT_NODE_RADIUS = 5.0f;
     private static final float NODE_HIT_RADIUS = 8.0f;
 
-    private final List<Node> nodes = new ArrayList<>();
-    private final List<Edge> edges = new ArrayList<>();
+    private final List<Node> nodes = new ObjectArrayList<>();
+    private final List<Edge> edges = new ObjectArrayList<>();
     private final MutableColor nodeColor = new MutableColor(0.25f, 0.78f, 1.0f, 0.92f);
     private final MutableColor hoveredNodeColor = new MutableColor(1.0f, 0.78f, 0.28f, 1.0f);
     private final MutableColor edgeColor = new MutableColor(0.55f, 0.68f, 0.82f, 0.70f);
@@ -295,7 +295,7 @@ public final class GraphView extends WidgetBase {
         float y = layoutBounds().y();
         float width = layoutBounds().width();
         float height = layoutBounds().height();
-        List<NodePoint> points = new ArrayList<>(nodes.size());
+        List<NodePoint> points = new ObjectArrayList<>(nodes.size());
         for (int i = 0; i < nodes.size(); i++) {
             Node node = nodes.get(i);
             points.add(new NodePoint(i, node.id(), node.x(), node.y(),

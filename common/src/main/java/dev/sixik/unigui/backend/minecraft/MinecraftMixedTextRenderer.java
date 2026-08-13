@@ -12,13 +12,14 @@ import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.FontMetrics;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextRun;
+import dev.sixik.unigui.impl.render.DrawBatch;
 import dev.sixik.unigui.impl.text.SdfGlyphProvider;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import org.lwjgl.opengl.GL11;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.List;
 
 /** Preserves rich-text ordering when Minecraft and SDF faces share one text command. */
@@ -38,13 +39,16 @@ final class MinecraftMixedTextRenderer {
         this.sdfRenderer = sdfRenderer;
     }
 
-    boolean render(GuiGraphics graphics, List<DrawCommand> commands, PoseStack pose,
+    boolean render(GuiGraphics graphics, DrawBatch batch, PoseStack pose,
                    boolean renderingToPremultipliedTarget) {
-        if (graphics == null || commands == null || commands.isEmpty() || pose == null) return false;
-        if (!containsMinecraftFace(commands)) return false;
+        if (graphics == null || batch == null || batch.size() == 0 || pose == null) return false;
+        Object[] rawCommands = batch.commandElements();
+        int commandCount = batch.size();
+        if (!containsMinecraftFace(rawCommands, commandCount)) return false;
 
-        List<DrawCommand> pendingSdf = new ArrayList<>();
-        for (DrawCommand command : commands) {
+        ObjectArrayList<DrawCommand> pendingSdf = new ObjectArrayList<>();
+        for (int i = 0; i < commandCount; i++) {
+            DrawCommand command = (DrawCommand) rawCommands[i];
             if (!hasText(command)) continue;
             renderCommand(graphics, command, richText(command), pendingSdf, renderingToPremultipliedTarget);
             flushSdf(graphics, pendingSdf, renderingToPremultipliedTarget);
@@ -52,9 +56,10 @@ final class MinecraftMixedTextRenderer {
         return true;
     }
 
-    private boolean containsMinecraftFace(List<DrawCommand> commands) {
+    private boolean containsMinecraftFace(Object[] rawCommands, int commandCount) {
         boolean foundMinecraft = false;
-        for (DrawCommand command : commands) {
+        for (int i = 0; i < commandCount; i++) {
+            DrawCommand command = (DrawCommand) rawCommands[i];
             if (!hasText(command)) continue;
             for (TextRun run : richText(command).runs()) {
                 FontFace face = resolvedFace(run);
@@ -69,7 +74,7 @@ final class MinecraftMixedTextRenderer {
     }
 
     private void renderCommand(GuiGraphics graphics, DrawCommand command, RichText text,
-                               List<DrawCommand> pendingSdf, boolean renderingToPremultipliedTarget) {
+                               ObjectArrayList<DrawCommand> pendingSdf, boolean renderingToPremultipliedTarget) {
         if (!visibleAlpha(command.paint().color(), null)) return;
         RectView bounds = command.bounds();
         List<LineInfo> lines = lineInfo(text);
@@ -106,7 +111,7 @@ final class MinecraftMixedTextRenderer {
 
     private float renderSegment(GuiGraphics graphics, DrawCommand command, TextRun run,
                                 FontFace face, FontMetrics metrics, StringBuilder segment,
-                                float x, float baseline, List<DrawCommand> pendingSdf,
+                                float x, float baseline, ObjectArrayList<DrawCommand> pendingSdf,
                                 boolean renderingToPremultipliedTarget) {
         if (segment.isEmpty()) return x;
         String value = segment.toString();
@@ -130,16 +135,18 @@ final class MinecraftMixedTextRenderer {
         return x + width;
     }
 
-    private void flushSdf(GuiGraphics graphics, List<DrawCommand> pendingSdf) {
+    private void flushSdf(GuiGraphics graphics, ObjectArrayList<DrawCommand> pendingSdf) {
         flushSdf(graphics, pendingSdf, false);
     }
 
-    private void flushSdf(GuiGraphics graphics, List<DrawCommand> pendingSdf,
+    private void flushSdf(GuiGraphics graphics, ObjectArrayList<DrawCommand> pendingSdf,
                           boolean renderingToPremultipliedTarget) {
         if (pendingSdf.isEmpty()) return;
         if (!sdfRenderer.render(graphics, pendingSdf, graphics.pose(), renderingToPremultipliedTarget)) {
             MinecraftFontFace fallback = MinecraftFonts.defaultFace();
-            for (DrawCommand command : pendingSdf) {
+            Object[] rawPendingSdf = pendingSdf.elements();
+            for (int i = 0, size = pendingSdf.size(); i < size; i++) {
+                DrawCommand command = (DrawCommand) rawPendingSdf[i];
                 TextRun run = command.richText().runs().get(0);
                 drawVanilla(graphics, command, run.text(), fallback, run.pixelSize(), run.color(),
                         command.bounds().x(), command.bounds().y());
@@ -197,7 +204,7 @@ final class MinecraftMixedTextRenderer {
     }
 
     private List<LineInfo> lineInfo(RichText text) {
-        List<LineInfo> lines = new ArrayList<>();
+        List<LineInfo> lines = new ObjectArrayList<>();
         float ascent = 0.0f;
         float height = 0.0f;
         for (TextRun run : text.runs()) {

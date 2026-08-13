@@ -6,7 +6,7 @@ import dev.sixik.unigui.api.event.RoutedEventDispatcher;
 import dev.sixik.unigui.api.event.WidgetEvent;
 import dev.sixik.unigui.api.widget.Widget;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -82,7 +82,7 @@ public final class DefaultRoutedEventDispatcher implements RoutedEventDispatcher
     }
 
     private static List<Widget> routeToRoot(Widget target) {
-        List<Widget> route = new ArrayList<>();
+        List<Widget> route = new ObjectArrayList<>();
         Widget current = target;
         while (current != null) {
             route.add(current);

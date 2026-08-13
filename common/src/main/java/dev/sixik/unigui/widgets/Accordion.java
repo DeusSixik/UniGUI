@@ -3,14 +3,14 @@ package dev.sixik.unigui.widgets;
 import dev.sixik.unigui.api.event.EventSubscription;
 import dev.sixik.unigui.api.widget.Widget;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 
 public class Accordion extends LinearBox {
-    private final List<ExpandablePanel> panels = new ArrayList<>();
+    private final List<ExpandablePanel> panels = new ObjectArrayList<>();
     private final Map<ExpandablePanel, EventSubscription> subscriptions = new IdentityHashMap<>();
     private boolean singleOpen = true;
     private boolean updating;

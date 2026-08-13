@@ -4,15 +4,18 @@ import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.List;
 
 public final class CanvasWidget extends WidgetBase {
-    private final List<CanvasDrawCallback> callbacks = new ArrayList<>();
+    private final List<CanvasDrawCallback> callbacks = new ObjectArrayList<>();
+    private CanvasDrawCallback[] callbackSnapshot = new CanvasDrawCallback[0];
+    private boolean callbackSnapshotDirty = true;
 
     public CanvasWidget onDraw(CanvasDrawCallback callback) {
         if (callback != null) {
             callbacks.add(callback);
+            callbackSnapshotDirty = true;
             invalidate(InvalidationFlags.VISUAL);
         }
         return this;
@@ -20,6 +23,7 @@ public final class CanvasWidget extends WidgetBase {
 
     public void clearDrawCallbacks() {
         callbacks.clear();
+        callbackSnapshotDirty = true;
         invalidate(InvalidationFlags.VISUAL);
     }
 
@@ -27,11 +31,19 @@ public final class CanvasWidget extends WidgetBase {
     public void render(RenderContext context) {
         pushOpacity(context);
         try {
-            for (CanvasDrawCallback callback : List.copyOf(callbacks)) {
+            for (CanvasDrawCallback callback : callbackSnapshot()) {
                 callback.draw(context);
             }
         } finally {
             popOpacity(context);
         }
+    }
+
+    private CanvasDrawCallback[] callbackSnapshot() {
+        if (callbackSnapshotDirty) {
+            callbackSnapshot = callbacks.toArray(new CanvasDrawCallback[callbacks.size()]);
+            callbackSnapshotDirty = false;
+        }
+        return callbackSnapshot;
     }
 }

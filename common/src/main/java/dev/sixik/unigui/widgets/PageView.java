@@ -12,7 +12,7 @@ import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.impl.layout.v3.LayoutV3StackAdapter;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -24,7 +24,7 @@ import java.util.List;
  * timer behavior.</p>
  */
 public class PageView extends PanelWidget {
-    private final List<Widget> pages = new ArrayList<>();
+    private final List<Widget> pages = new ObjectArrayList<>();
     private int selectedIndex;
     private boolean hasArrangedBounds;
 

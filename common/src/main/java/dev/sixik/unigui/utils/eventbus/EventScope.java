@@ -1,13 +1,13 @@
 package dev.sixik.unigui.utils.eventbus;
 
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.List;
 import java.util.Objects;
 
 public final class EventScope implements AutoCloseable {
 
-    private final List<EventSubscription> subscriptions = new ArrayList<>();
+    private final List<EventSubscription> subscriptions = new ObjectArrayList<>();
     private final boolean enabled;
     private boolean closed;
 

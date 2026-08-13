@@ -15,12 +15,13 @@ final class MinecraftTransform {
 
     static void apply(DrawCommand command, PoseStack pose) {
         if (command == null || pose == null) return;
-        for (TransformLayer layer : command.transformStack()) {
+        Object[] rawLayers = command.transformStackElements();
+        for (int i = 0, size = command.transformStackSize(); i < size; i++) {
+            TransformLayer layer = (TransformLayer) rawLayers[i];
             if (layer != null) {
                 apply(layer.bounds(), layer.transform(), pose);
             }
-        }
-        apply(command.bounds(), command.transform(), pose);
+        }        apply(command.bounds(), command.transform(), pose);
     }
 
     static void apply(RectView bounds, Transform transform, PoseStack pose) {
@@ -41,12 +42,13 @@ final class MinecraftTransform {
     static Matrix4f commandMatrix(Matrix4f basePose, DrawCommand command) {
         Matrix4f matrix = new Matrix4f(basePose);
         if (command == null) return matrix;
-        for (TransformLayer layer : command.transformStack()) {
+        Object[] rawLayers = command.transformStackElements();
+        for (int i = 0, size = command.transformStackSize(); i < size; i++) {
+            TransformLayer layer = (TransformLayer) rawLayers[i];
             if (layer != null) {
                 apply(matrix, layer.bounds(), layer.transform());
             }
-        }
-        apply(matrix, command.bounds(), command.transform());
+        }        apply(matrix, command.bounds(), command.transform());
         return matrix;
     }
 

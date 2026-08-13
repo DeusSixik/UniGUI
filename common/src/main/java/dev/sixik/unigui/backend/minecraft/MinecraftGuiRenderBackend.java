@@ -378,7 +378,21 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
     }
 
     private void renderBatches(DrawList drawList) {
-        for (DrawBatch batch : batcher.batch(drawList)) {
+        List<DrawBatch> batches = batcher.batch(drawList);
+        if (batches instanceof it.unimi.dsi.fastutil.objects.ObjectArrayList<?> objectBatches) {
+            Object[] rawBatches = objectBatches.elements();
+            for (int i = 0, size = objectBatches.size(); i < size; i++) {
+                DrawBatch batch = (DrawBatch) rawBatches[i];
+                renderBatch(batch);
+                if (batch.isBarrier()) {
+                    graphics.flush();
+                }
+            }
+            return;
+        }
+
+        for (int i = 0, size = batches.size(); i < size; i++) {
+            DrawBatch batch = batches.get(i);
             renderBatch(batch);
             if (batch.isBarrier()) {
                 graphics.flush();
@@ -486,23 +500,24 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
     private void renderBatch(DrawBatch batch) {
         boolean renderingToPremultipliedTarget = activeRenderTarget != null;
         if (MinecraftShapeBatchRenderer.supports(batch.type())
-                && shapeBatchRenderer.render(graphics, batch.commands(), renderingToPremultipliedTarget)) {
+                && shapeBatchRenderer.render(graphics, batch, renderingToPremultipliedTarget)) {
             return;
         }
         if (batch.type() == DrawCommandType.TEXT
-                && mixedTextRenderer.render(graphics, batch.commands(), graphics.pose(), renderingToPremultipliedTarget)) {
+                && mixedTextRenderer.render(graphics, batch, graphics.pose(), renderingToPremultipliedTarget)) {
             return;
         }
         if (batch.type() == DrawCommandType.TEXT
-                && sdfTextRenderer.render(graphics, batch.commands(), graphics.pose(), renderingToPremultipliedTarget)) {
+                && sdfTextRenderer.render(graphics, batch, graphics.pose(), renderingToPremultipliedTarget)) {
             return;
         }
         if (batch.type() == DrawCommandType.TEXTURE
-                && textureBatchRenderer.render(graphics, batch.commands(), renderingToPremultipliedTarget)) {
+                && textureBatchRenderer.render(graphics, batch, renderingToPremultipliedTarget)) {
             return;
         }
-        for (DrawCommand command : batch.commands()) {
-            renderCommand(command);
+        Object[] rawCommands = batch.commandElements();
+        for (int i = 0, size = batch.size(); i < size; i++) {
+            renderCommand((DrawCommand) rawCommands[i]);
         }
     }
 
@@ -779,7 +794,9 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
         float startX = currentX;
         float startY = currentY;
 
-        for (VectorPath.Element element : path.elements()) {
+        Object[] rawPathElements = path.elementElements();
+        for (int i = 0, size = path.size(); i < size; i++) {
+            VectorPath.Element element = (VectorPath.Element) rawPathElements[i];
             switch (element.verb()) {
                 case MOVE_TO -> {
                     currentX = bounds.x() + element.x1();
@@ -802,8 +819,8 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
                     int segments = curveSegments(currentX, currentY, nextX, nextY);
                     float lastX = currentX;
                     float lastY = currentY;
-                    for (int i = 1; i <= segments; i++) {
-                        float t = i / (float) segments;
+                    for (int segmentIndex = 1; segmentIndex <= segments; segmentIndex++) {
+                        float t = segmentIndex / (float) segments;
                         float x = quadraticX(currentX, controlX, nextX, t);
                         float y = quadraticX(currentY, controlY, nextY, t);
                         drawLine(lastX, lastY, x, y, command.paint());
@@ -823,8 +840,8 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
                     int segments = curveSegments(currentX, currentY, nextX, nextY);
                     float lastX = currentX;
                     float lastY = currentY;
-                    for (int i = 1; i <= segments; i++) {
-                        float t = i / (float) segments;
+                    for (int segmentIndex = 1; segmentIndex <= segments; segmentIndex++) {
+                        float t = segmentIndex / (float) segments;
                         float x = cubicX(currentX, controlX1, controlX2, nextX, t);
                         float y = cubicX(currentY, controlY1, controlY2, nextY, t);
                         drawLine(lastX, lastY, x, y, command.paint());
@@ -904,8 +921,8 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
                     float nextX = bounds.x() + element.x2();
                     float nextY = bounds.y() + element.y2();
                     int segments = curveSegments(currentX, currentY, nextX, nextY);
-                    for (int i = 1; i <= segments; i++) {
-                        float t = i / (float) segments;
+                    for (int segmentIndex = 1; segmentIndex <= segments; segmentIndex++) {
+                        float t = segmentIndex / (float) segments;
                         points.add(quadraticX(currentX, controlX, nextX, t), quadraticX(currentY, controlY, nextY, t));
                     }
                     currentX = nextX;
@@ -919,8 +936,8 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
                     float nextX = bounds.x() + element.x3();
                     float nextY = bounds.y() + element.y3();
                     int segments = curveSegments(currentX, currentY, nextX, nextY);
-                    for (int i = 1; i <= segments; i++) {
-                        float t = i / (float) segments;
+                    for (int segmentIndex = 1; segmentIndex <= segments; segmentIndex++) {
+                        float t = segmentIndex / (float) segments;
                         points.add(cubicX(currentX, controlX1, controlX2, nextX, t), cubicX(currentY, controlY1, controlY2, nextY, t));
                     }
                     currentX = nextX;
@@ -1042,7 +1059,9 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
             Tesselator tesselator = Tesselator.getInstance();
             BufferBuilder buffer = tesselator.getBuilder();
             buffer.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
-            for (DrawVertex vertex : mesh.vertices()) {
+            Object[] rawVertices = mesh.vertexElements();
+            for (int i = 0, size = mesh.vertexCount(); i < size; i++) {
+                DrawVertex vertex = (DrawVertex) rawVertices[i];
                 addColorVertex(buffer, matrix, vertex.x(), vertex.y(), argb(vertex.color()));
             }
             BufferUploader.drawWithShader(buffer.end());
@@ -1067,7 +1086,9 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
             Tesselator tesselator = Tesselator.getInstance();
             BufferBuilder buffer = tesselator.getBuilder();
             buffer.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_TEX_COLOR);
-            for (DrawVertex vertex : mesh.vertices()) {
+            Object[] rawVertices = mesh.vertexElements();
+            for (int i = 0, size = mesh.vertexCount(); i < size; i++) {
+                DrawVertex vertex = (DrawVertex) rawVertices[i];
                 float v = binding.flipY() ? 1.0f - vertex.v() : vertex.v();
                 addTextureVertex(buffer, matrix, vertex.x(), vertex.y(), vertex.u(), v, vertex.color());
             }

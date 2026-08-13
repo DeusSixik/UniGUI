@@ -11,6 +11,7 @@ import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.FontMetrics;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextRun;
+import dev.sixik.unigui.impl.render.DrawBatch;
 import dev.sixik.unigui.impl.text.DefaultFontRegistry;
 import dev.sixik.unigui.impl.text.SdfGlyph;
 import dev.sixik.unigui.impl.text.SdfGlyphProvider;
@@ -29,7 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -175,6 +176,80 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
         }
     }
 
+    public boolean render(GuiGraphics graphics, DrawBatch batch, PoseStack pose,
+                          boolean renderingToPremultipliedTarget) {
+        if (batch == null) return false;
+        return renderRaw(graphics, batch.commandElements(), batch.size(), pose, renderingToPremultipliedTarget);
+    }
+
+    private boolean renderRaw(GuiGraphics graphics, Object[] rawCommands, int commandCount, PoseStack pose,
+                              boolean renderingToPremultipliedTarget) {
+        if (graphics == null || rawCommands == null || commandCount == 0 || pose == null || unavailable) return false;
+        for (int i = 0; i < commandCount; i++) {
+            DrawCommand command = (DrawCommand) rawCommands[i];
+            if (!canRender(command)) return false;
+        }
+
+        graphics.flush();
+        GlState state = GlState.capture();
+        try {
+            if (DEBUG_GL) {
+                while (GL11.glGetError() != GL11.GL_NO_ERROR) {
+                    // Isolate renderer errors from stale errors left by foreign render code.
+                }
+            }
+            if (!initialize()) return false;
+            ObjectArrayList<Batch> batches = layout(rawCommands, commandCount, pose.last().pose());
+            if (batches.isEmpty()) return true;
+
+            GL20.glUseProgram(program);
+            uploadMatrix(modelViewLocation, RenderSystem.getModelViewMatrix());
+            uploadMatrix(projectionLocation, RenderSystem.getProjectionMatrix());
+            GL20.glUniform1f(sdfSpreadLocation, SPREAD);
+            GL30.glBindVertexArray(vertexArray);
+            GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, vertexBuffer);
+            RenderSystem.activeTexture(GL13.GL_TEXTURE0);
+            RenderSystem.enableBlend();
+            MinecraftUiBlend.applyStraightAlpha(renderingToPremultipliedTarget);
+            RenderSystem.disableDepthTest();
+            RenderSystem.depthMask(false);
+            RenderSystem.disableCull();
+
+            Object[] rawBatches = batches.elements();
+            for (int i = 0, size = batches.size(); i < size; i++) {
+                Batch batch = (Batch) rawBatches[i];
+                if (batch.vertices.size == 0) continue;
+                RenderSystem.bindTexture(batch.page.textureId);
+                FloatBuffer vertices = uploadBuffer(batch.vertices);
+                GL15.glBufferData(GL15.GL_ARRAY_BUFFER, vertices, GL15.GL_STREAM_DRAW);
+                GL11.glDrawArrays(GL11.GL_TRIANGLES, 0, batch.vertices.size / FLOATS_PER_VERTEX);
+            }
+            if (DEBUG_GL) {
+                int error = GL11.glGetError();
+                if (error != GL11.GL_NO_ERROR) {
+                    throw new IllegalStateException("OpenGL error after SDF text submit: 0x"
+                            + Integer.toHexString(error));
+                }
+            }
+            if (!firstSubmitLogged) {
+                int vertices = 0;
+                for (int i = 0, size = batches.size(); i < size; i++) {
+                    Batch batch = (Batch) rawBatches[i];
+                    vertices += batch.vertices.size / FLOATS_PER_VERTEX;
+                }
+                LOGGER.info("UniGUI SDF text active: commands={}, batches={}, vertices={}",
+                        commandCount, batches.size(), vertices);
+                firstSubmitLogged = true;
+            }
+            return true;
+        } catch (Throwable failure) {
+            unavailable = true;
+            LOGGER.error("Disabling UniGUI SDF text renderer; Minecraft font fallback will be used", failure);
+            return false;
+        } finally {
+            state.restore();
+        }
+    }
     public boolean unavailable() {
         return unavailable;
     }
@@ -222,8 +297,17 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
         return true;
     }
 
+    private ObjectArrayList<Batch> layout(Object[] rawCommands, int commandCount, org.joml.Matrix4f basePose) {
+        ObjectArrayList<Batch> batches = new ObjectArrayList<>();
+        for (int i = 0; i < commandCount; i++) {
+            DrawCommand command = (DrawCommand) rawCommands[i];
+            if (!hasText(command) || !visibleAlpha(command.paint().color(), null)) continue;
+            layoutCommand(batches, command, richText(command), basePose);
+        }
+        return batches;
+    }
     private List<Batch> layout(List<DrawCommand> commands, org.joml.Matrix4f basePose) {
-        List<Batch> batches = new ArrayList<>();
+        List<Batch> batches = new ObjectArrayList<>();
         for (DrawCommand command : commands) {
             if (!hasText(command) || !visibleAlpha(command.paint().color(), null)) continue;
             layoutCommand(batches, command, richText(command), basePose);
@@ -281,7 +365,7 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
     }
 
     private List<LineInfo> lineInfo(RichText text) {
-        List<LineInfo> lines = new ArrayList<>();
+        List<LineInfo> lines = new ObjectArrayList<>();
         float ascent = 0.0f;
         float height = 0.0f;
         for (TextRun run : text.runs()) {
@@ -452,7 +536,7 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
     private final class FontAtlas implements AutoCloseable {
         private final SdfGlyphProvider provider;
         private final Map<Integer, GlyphPlacement> glyphs = new HashMap<>();
-        private final List<AtlasPage> pages = new ArrayList<>();
+        private final ObjectArrayList<AtlasPage> pages = new ObjectArrayList<>();
 
         private FontAtlas(SdfGlyphProvider provider) {
             this.provider = provider;
@@ -478,7 +562,11 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
 
         @Override
         public void close() {
-            for (AtlasPage page : pages) page.close();
+            Object[] rawPages = pages.elements();
+            for (int i = 0, size = pages.size(); i < size; i++) {
+                AtlasPage page = (AtlasPage) rawPages[i];
+                page.close();
+            }
             pages.clear();
             glyphs.clear();
         }

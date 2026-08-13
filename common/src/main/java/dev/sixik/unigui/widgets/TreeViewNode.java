@@ -2,13 +2,13 @@ package dev.sixik.unigui.widgets;
 
 import dev.sixik.unigui.api.text.RichText;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
 public final class TreeViewNode {
-    private final List<TreeViewNode> children = new ArrayList<>();
+    private final List<TreeViewNode> children = new ObjectArrayList<>();
     private String text;
     private RichText richText;
     private String value;

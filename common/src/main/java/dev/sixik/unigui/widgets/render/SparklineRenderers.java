@@ -9,7 +9,7 @@ import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.Sparkline;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -19,7 +19,7 @@ public final class SparklineRenderers {
     public static final SparklineRenderer DEFAULT = (draw, state) -> {
         if (state.points().size() < 2) return;
 
-        List<DrawPoint> line = new ArrayList<>(state.points().size());
+        List<DrawPoint> line = new ObjectArrayList<>(state.points().size());
         for (Sparkline.SparkPoint point : state.points()) {
             line.add(new DrawPoint(point.x(), point.y()));
         }

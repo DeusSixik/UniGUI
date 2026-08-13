@@ -10,7 +10,7 @@ import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.text.RichText;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -19,8 +19,8 @@ public class Breadcrumb extends PanelWidget {
     private static final float SEPARATOR_WIDTH = 10.0f;
 
     private final WrapPanel host = new WrapPanel();
-    private final List<BreadcrumbItem> items = new ArrayList<>();
-    private final List<Button> itemButtons = new ArrayList<>();
+    private final List<BreadcrumbItem> items = new ObjectArrayList<>();
+    private final List<Button> itemButtons = new ObjectArrayList<>();
     private String separator = "\u203A";
     private int selectedIndex = -1;
 

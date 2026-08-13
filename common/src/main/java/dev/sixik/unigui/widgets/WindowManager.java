@@ -3,7 +3,7 @@ package dev.sixik.unigui.widgets;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -12,7 +12,8 @@ import java.util.List;
  */
 public final class WindowManager {
     private final OverlayLayer host;
-    private final List<WindowWidget> windows = new ArrayList<>();
+    private final ObjectArrayList<WindowWidget> windows = new ObjectArrayList<>();
+    private final List<WindowWidget> windowsView = Collections.unmodifiableList(windows);
     private WindowWidget activeWindow;
 
     WindowManager(OverlayLayer host) {
@@ -24,7 +25,7 @@ public final class WindowManager {
     }
 
     public List<WindowWidget> windows() {
-        return Collections.unmodifiableList(windows);
+        return windowsView;
     }
 
     public WindowWidget activeWindow() {
@@ -34,7 +35,9 @@ public final class WindowManager {
     public WindowWidget topModalWindow() {
         WindowWidget top = null;
         int topZ = Integer.MIN_VALUE;
-        for (WindowWidget window : windows) {
+        Object[] rawWindows = windows.elements();
+        for (int i = 0, size = windows.size(); i < size; i++) {
+            WindowWidget window = (WindowWidget) rawWindows[i];
             if (!window.opened() || !window.modal()) continue;
             int z = host.overlayZ(window);
             if (top == null || z >= topZ) {
@@ -47,7 +50,9 @@ public final class WindowManager {
 
     public int modalStackDepth() {
         int depth = 0;
-        for (WindowWidget window : windows) {
+        Object[] rawWindows = windows.elements();
+        for (int i = 0, size = windows.size(); i < size; i++) {
+            WindowWidget window = (WindowWidget) rawWindows[i];
             if (window.opened() && window.modal()) {
                 depth++;
             }
@@ -157,7 +162,9 @@ public final class WindowManager {
             activate(topModal);
             return;
         }
-        for (WindowWidget window : windows) {
+        Object[] rawWindows = windows.elements();
+        for (int i = 0, size = windows.size(); i < size; i++) {
+            WindowWidget window = (WindowWidget) rawWindows[i];
             if (!window.opened()) continue;
             int z = host.overlayZ(window);
             if (next == null || z >= nextZ) {

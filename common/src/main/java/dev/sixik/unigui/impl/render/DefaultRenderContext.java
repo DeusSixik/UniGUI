@@ -9,13 +9,16 @@ import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.render.TransformLayer;
 
 import java.util.ArrayDeque;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
 
 public final class DefaultRenderContext implements RenderContext {
     private final DrawList drawList;
     private final Deque<Float> opacityStack = new ArrayDeque<>();
-    private final Deque<TransformLayer> transformStack = new ArrayDeque<>();
+    private final List<TransformLayer> transformStack = new ObjectArrayList<>();
+    private final List<TransformLayer> transformStackView = Collections.unmodifiableList(transformStack);
     private RenderBackend backend;
     private float opacityMultiplier = 1.0f;
 
@@ -56,7 +59,7 @@ public final class DefaultRenderContext implements RenderContext {
 
     @Override
     public void pushTransform(RectView bounds, Transform transform) {
-        transformStack.addLast(new TransformLayer(
+        transformStack.add(new TransformLayer(
                 bounds == null ? new MutableRect() : bounds,
                 transform == null ? new Transform() : transform));
     }
@@ -64,13 +67,13 @@ public final class DefaultRenderContext implements RenderContext {
     @Override
     public void popTransform() {
         if (!transformStack.isEmpty()) {
-            transformStack.removeLast();
+            transformStack.remove(transformStack.size() - 1);
         }
     }
 
     @Override
     public List<TransformLayer> transformStack() {
-        return List.copyOf(transformStack);
+        return transformStackView;
     }
 
     private static float clamp01(float value) {

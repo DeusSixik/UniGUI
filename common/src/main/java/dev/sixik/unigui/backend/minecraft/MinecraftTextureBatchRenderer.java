@@ -12,6 +12,7 @@ import dev.sixik.unigui.api.math.Transform;
 import dev.sixik.unigui.api.render.DrawCommand;
 import dev.sixik.unigui.api.render.DrawCommandType;
 import dev.sixik.unigui.api.render.TextureHandle;
+import dev.sixik.unigui.impl.render.DrawBatch;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.resources.ResourceLocation;
@@ -22,7 +23,6 @@ import org.lwjgl.opengl.GL14;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
 import java.util.Objects;
 
 /** Batches UI images that share one texture into one position-texture-color draw call. */
@@ -30,11 +30,15 @@ final class MinecraftTextureBatchRenderer {
     private static final Logger LOGGER = LoggerFactory.getLogger(MinecraftTextureBatchRenderer.class);
     private static final float TAU = (float) (Math.PI * 2.0);
 
-    boolean render(GuiGraphics graphics, List<DrawCommand> commands, boolean renderingToPremultipliedTarget) {
-        if (graphics == null || commands == null || commands.isEmpty()) return false;
-        TextureHandle texture = commands.get(0).texture();
+    boolean render(GuiGraphics graphics, DrawBatch batch, boolean renderingToPremultipliedTarget) {
+        if (graphics == null || batch == null || batch.size() == 0) return false;
+        Object[] rawCommands = batch.commandElements();
+        int commandCount = batch.size();
+        DrawCommand firstCommand = (DrawCommand) rawCommands[0];
+        TextureHandle texture = firstCommand == null ? null : firstCommand.texture();
         if (texture == null) return false;
-        for (DrawCommand command : commands) {
+        for (int i = 0; i < commandCount; i++) {
+            DrawCommand command = (DrawCommand) rawCommands[i];
             if (command == null || command.type() != DrawCommandType.TEXTURE
                     || command.texture() == null
                     || !Objects.equals(texture.id(), command.texture().id())) {
@@ -59,7 +63,8 @@ final class MinecraftTextureBatchRenderer {
             BufferBuilder buffer = Tesselator.getInstance().getBuilder();
             buffer.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_TEX_COLOR);
             Matrix4f basePose = graphics.pose().last().pose();
-            for (DrawCommand command : commands) {
+            for (int i = 0; i < commandCount; i++) {
+                DrawCommand command = (DrawCommand) rawCommands[i];
                 Matrix4f matrix = MinecraftTransform.commandMatrix(basePose, command);
                 append(buffer, matrix, command, binding.flipY());
             }

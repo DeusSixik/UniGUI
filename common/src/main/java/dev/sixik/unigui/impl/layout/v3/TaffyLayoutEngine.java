@@ -16,7 +16,7 @@ import dev.sixik.unigui.api.layout.v3.LayoutOutput;
 import dev.sixik.unigui.api.layout.v3.LayoutResult;
 import dev.sixik.unigui.api.layout.v3.LayoutStyleSnapshot;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -76,7 +76,7 @@ public final class TaffyLayoutEngine implements LayoutEngine {
         float availableMain = direction == FlexDirection.ROW ? contentWidth : contentHeight;
         float mainGap = direction == FlexDirection.ROW ? style.columnGap() : style.rowGap();
         float crossGap = direction == FlexDirection.ROW ? style.rowGap() : style.columnGap();
-        List<Item> items = new ArrayList<>();
+        List<Item> items = new ObjectArrayList<>();
 
         for (LayoutNode child : node.children()) {
             if (child.style().position() == PositionType.ABSOLUTE) {
@@ -131,8 +131,8 @@ public final class TaffyLayoutEngine implements LayoutEngine {
             return;
         }
 
-        List<LayoutNode> normalChildren = new ArrayList<>();
-        List<LayoutNode> absoluteChildren = new ArrayList<>();
+        List<LayoutNode> normalChildren = new ObjectArrayList<>();
+        List<LayoutNode> absoluteChildren = new ObjectArrayList<>();
         for (LayoutNode child : node.children()) {
             if (child.style().position() == PositionType.ABSOLUTE) {
                 absoluteChildren.add(child);
@@ -191,7 +191,7 @@ public final class TaffyLayoutEngine implements LayoutEngine {
         float crossGap = direction == FlexDirection.ROW ? parentStyle.rowGap() : parentStyle.columnGap();
         boolean wrapping = parentStyle.flexWrap() == FlexWrap.WRAP;
 
-        List<Item> items = new ArrayList<>(children.size());
+        List<Item> items = new ObjectArrayList<>(children.size());
         for (LayoutNode child : children) {
             items.add(new Item(child, direction, contentWidth, contentHeight, measureCache));
         }
@@ -265,7 +265,7 @@ public final class TaffyLayoutEngine implements LayoutEngine {
                                          float gap,
                                          boolean wrapping,
                                          boolean clampOversizedWrapItems) {
-        List<Line> lines = new ArrayList<>();
+        List<Line> lines = new ObjectArrayList<>();
         Line line = new Line();
         for (Item item : items) {
             if (wrapping && clampOversizedWrapItems && Float.isFinite(availableMain)) {
@@ -450,7 +450,7 @@ public final class TaffyLayoutEngine implements LayoutEngine {
     }
 
     private static final class Line {
-        private final List<Item> items = new ArrayList<>();
+        private final List<Item> items = new ObjectArrayList<>();
         private float crossSize;
 
         private void add(Item item) {

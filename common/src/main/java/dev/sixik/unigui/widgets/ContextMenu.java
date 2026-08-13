@@ -20,13 +20,13 @@ import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.List;
 
 public final class ContextMenu extends Box implements OverlayHostAware {
     private final VBox itemsHost = new VBox();
-    private final List<Button> itemButtons = new ArrayList<>();
-    private final List<ContextMenu> itemSubmenus = new ArrayList<>();
+    private final List<Button> itemButtons = new ObjectArrayList<>();
+    private final List<ContextMenu> itemSubmenus = new ObjectArrayList<>();
     private ContextMenu parentMenu;
     private ContextMenu openSubmenu;
     private boolean open;

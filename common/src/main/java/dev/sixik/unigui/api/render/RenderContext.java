@@ -9,7 +9,7 @@ import dev.sixik.unigui.api.render.shaders.ShaderHandle;
 import dev.sixik.unigui.api.render.shaders.ShaderUniforms;
 import dev.sixik.unigui.api.text.RichText;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -364,7 +364,7 @@ public interface RenderContext {
     default void addEllipse(float centerX, float centerY, float radiusX, float radiusY,
                             ColorView color, int segments, float thickness, Transform transform) {
         int count = normalizedSegments(Math.max(Math.abs(radiusX), Math.abs(radiusY)), segments);
-        List<DrawPoint> points = new ArrayList<>(count);
+        List<DrawPoint> points = new ObjectArrayList<>(count);
         for (int i = 0; i < count; i++) {
             float angle = TAU * i / count;
             points.add(new DrawPoint(centerX + (float) Math.cos(angle) * radiusX,
@@ -381,7 +381,7 @@ public interface RenderContext {
     default void addEllipseFilled(float centerX, float centerY, float radiusX, float radiusY,
                                   ColorView color, int segments, Transform transform) {
         int count = normalizedSegments(Math.max(Math.abs(radiusX), Math.abs(radiusY)), segments);
-        List<DrawPoint> points = new ArrayList<>(count);
+        List<DrawPoint> points = new ObjectArrayList<>(count);
         for (int i = 0; i < count; i++) {
             float angle = TAU * i / count;
             points.add(new DrawPoint(centerX + (float) Math.cos(angle) * radiusX,
@@ -439,7 +439,7 @@ public interface RenderContext {
 
     default void addConvexPolyFilled(List<DrawPoint> points, ColorView color, Transform transform) {
         if (points == null || points.size() < 3) return;
-        List<DrawVertex> vertices = new ArrayList<>((points.size() - 2) * 3);
+        List<DrawVertex> vertices = new ObjectArrayList<>((points.size() - 2) * 3);
         DrawPoint first = points.get(0);
         for (int i = 1; i < points.size() - 1; i++) {
             DrawPoint current = points.get(i);
@@ -752,7 +752,7 @@ public interface RenderContext {
     }
 
     private static List<DrawPoint> regularPolygon(float centerX, float centerY, float radius, int segments) {
-        List<DrawPoint> points = new ArrayList<>(segments);
+        List<DrawPoint> points = new ObjectArrayList<>(segments);
         for (int i = 0; i < segments; i++) {
             float angle = TAU * i / segments;
             points.add(new DrawPoint(centerX + (float) Math.cos(angle) * radius,
@@ -802,7 +802,9 @@ public interface RenderContext {
         float minY = Float.POSITIVE_INFINITY;
         float maxX = Float.NEGATIVE_INFINITY;
         float maxY = Float.NEGATIVE_INFINITY;
-        for (VectorPath.Element element : path.elements()) {
+        Object[] rawPathElements = path.elementElements();
+        for (int i = 0, size = path.size(); i < size; i++) {
+            VectorPath.Element element = (VectorPath.Element) rawPathElements[i];
             switch (element.verb()) {
                 case MOVE_TO, LINE_TO -> {
                     minX = Math.min(minX, element.x1());
@@ -834,7 +836,9 @@ public interface RenderContext {
 
     private static VectorPath relativePath(VectorPath path, RectView bounds) {
         VectorPath relative = new VectorPath();
-        for (VectorPath.Element element : path.elements()) {
+        Object[] rawPathElements = path.elementElements();
+        for (int i = 0, size = path.size(); i < size; i++) {
+            VectorPath.Element element = (VectorPath.Element) rawPathElements[i];
             switch (element.verb()) {
                 case MOVE_TO -> relative.moveTo(element.x1() - bounds.x(), element.y1() - bounds.y());
                 case LINE_TO -> relative.lineTo(element.x1() - bounds.x(), element.y1() - bounds.y());
@@ -855,7 +859,9 @@ public interface RenderContext {
         if (path == null || path.isEmpty()) return null;
         DrawPoint current = null;
         DrawPoint start = null;
-        for (VectorPath.Element element : path.elements()) {
+        Object[] rawPathElements = path.elementElements();
+        for (int i = 0, size = path.size(); i < size; i++) {
+            VectorPath.Element element = (VectorPath.Element) rawPathElements[i];
             switch (element.verb()) {
                 case MOVE_TO -> {
                     current = new DrawPoint(element.x1(), element.y1());
@@ -872,7 +878,7 @@ public interface RenderContext {
 
     private static List<DrawVertex> triangulate(List<DrawPoint> points, ColorView color) {
         if (points == null || points.size() < 3) return List.of();
-        List<DrawPoint> polygon = new ArrayList<>();
+        List<DrawPoint> polygon = new ObjectArrayList<>();
         for (DrawPoint point : points) {
             if (point != null) polygon.add(point);
         }
@@ -881,7 +887,7 @@ public interface RenderContext {
             Collections.reverse(polygon);
         }
 
-        List<DrawVertex> vertices = new ArrayList<>((polygon.size() - 2) * 3);
+        List<DrawVertex> vertices = new ObjectArrayList<>((polygon.size() - 2) * 3);
         int guard = polygon.size() * polygon.size();
         while (polygon.size() > 3 && guard-- > 0) {
             boolean clipped = false;
