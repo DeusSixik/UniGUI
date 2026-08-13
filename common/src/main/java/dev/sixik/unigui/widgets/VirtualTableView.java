@@ -696,11 +696,11 @@ public class VirtualTableView extends WidgetBase {
             draw.pushClip(layoutBounds().x(), rowViewportY(), viewportWidth(), rowViewportHeight());
             renderRows(context);
             if (editing()) {
-                cellEditor.render(context);
+                renderChildWithInheritedTransform(context, cellEditor);
             }
             draw.popClip();
             if (hasVerticalScrollBar()) {
-                verticalScrollBar.render(context);
+                renderChildWithInheritedTransform(context, verticalScrollBar);
             }
         } finally {
             popOpacity(context);

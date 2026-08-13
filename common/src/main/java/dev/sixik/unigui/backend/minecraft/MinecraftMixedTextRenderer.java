@@ -124,6 +124,7 @@ final class MinecraftMixedTextRenderer {
                     .richText(RichText.of(value, face, run.pixelSize(), run.color()))
                     .bounds(new MutableRect(x, top, width, metrics.lineHeight()))
                     .paint(command.paint())
+                    .transformStack(command.transformStack())
                     .transform(segmentTransform));
         }
         return x + width;
@@ -159,7 +160,7 @@ final class MinecraftMixedTextRenderer {
         try {
             RenderSystem.disableDepthTest();
             RenderSystem.depthMask(false);
-            applyTransform(command.bounds(), command.transform(), pose);
+            MinecraftTransform.apply(command, pose);
             float scale = Math.max(1.0f, pixelSize) / VANILLA_BASE_SIZE;
             pose.translate(x, y, 0.0f);
             pose.scale(scale, scale, 1.0f);

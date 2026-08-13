@@ -54,7 +54,7 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
             Matrix4f basePose = graphics.pose().last().pose();
             int vertices = 0;
             for (DrawCommand command : commands) {
-                Matrix4f matrix = commandMatrix(basePose, command.bounds(), command.transform());
+                Matrix4f matrix = MinecraftTransform.commandMatrix(basePose, command);
                 vertices += append(buffer, matrix, command);
             }
             if (vertices == 0) {

@@ -144,9 +144,7 @@ public class PanelWidget extends WidgetBase {
         }
         try {
             for (Widget child : snapshotChildren()) {
-                if (child.visibility() == Visibility.VISIBLE) {
-                    child.render(context);
-                }
+                renderChildWithInheritedTransform(context, child);
             }
         } finally {
             if (clipsChildren) {

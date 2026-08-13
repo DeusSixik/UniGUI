@@ -22,6 +22,7 @@ import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
+import dev.sixik.unigui.api.math.Transform;
 import dev.sixik.unigui.api.render.DrawList;
 import dev.sixik.unigui.api.render.DrawCommand;
 import dev.sixik.unigui.api.render.DrawMesh;
@@ -29,6 +30,7 @@ import dev.sixik.unigui.api.render.DrawVertex;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderTargetOptions;
 import dev.sixik.unigui.api.render.TextureHandle;
+import dev.sixik.unigui.api.render.TransformLayer;
 import dev.sixik.unigui.api.render.UiRenderPolicy;
 import dev.sixik.unigui.api.render.VectorPath;
 import dev.sixik.unigui.api.text.FontFace;
@@ -712,6 +714,26 @@ public class MinecraftWidgetScreen extends Screen {
         copy.transform().pivot().set(
                 command.transform().pivot().x() * scale,
                 command.transform().pivot().y() * scale);
+        if (!command.transformStack().isEmpty()) {
+            List<TransformLayer> scaledStack = new ArrayList<>(command.transformStack().size());
+            for (TransformLayer layer : command.transformStack()) {
+                Transform scaledTransform = layer.transform().copy();
+                scaledTransform.position().set(
+                        layer.transform().position().x() * scale,
+                        layer.transform().position().y() * scale);
+                scaledTransform.pivot().set(
+                        layer.transform().pivot().x() * scale,
+                        layer.transform().pivot().y() * scale);
+                scaledStack.add(new TransformLayer(
+                        new MutableRect(
+                                layer.bounds().x() * scale,
+                                layer.bounds().y() * scale,
+                                layer.bounds().width() * scale,
+                                layer.bounds().height() * scale),
+                        scaledTransform));
+            }
+            copy.transformStack(scaledStack);
+        }
         if (command.path() != null) {
             copy.path(scaledPath(command.path(), scale));
         }

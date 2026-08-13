@@ -1047,7 +1047,7 @@ public final class DockingRoot extends Box {
                 MutableRect clip = contentBounds(bounds);
                 context.pushClip(clip.x(), clip.y(), clip.width(), clip.height());
                 try {
-                    selected.content().render(context);
+                    renderChildWithInheritedTransform(context, selected.content());
                 } finally {
                     context.popClip();
                 }

@@ -194,15 +194,9 @@ public class SplitPanel extends PanelWidget {
     @Override
     protected void renderChildren(RenderContext context) {
         applyQueuedMutations();
-        if (first != null && first.visibility() == Visibility.VISIBLE) {
-            first.render(context);
-        }
-        if (second != null && second.visibility() == Visibility.VISIBLE) {
-            second.render(context);
-        }
-        if (splitter.visibility() == Visibility.VISIBLE) {
-            splitter.render(context);
-        }
+        renderChildWithInheritedTransform(context, first);
+        renderChildWithInheritedTransform(context, second);
+        renderChildWithInheritedTransform(context, splitter);
     }
 
     void beginSplitterDrag(float rootX, float rootY) {

@@ -524,7 +524,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
         PoseStack pose = graphics.pose();
         pose.pushPose();
         try {
-            applyTransform(command.bounds(), command.transform(), pose);
+            MinecraftTransform.apply(command, pose);
             switch (command.type()) {
                 case RECT -> renderRect(command);
                 case ROUNDED_RECT -> renderRoundedRect(command);

@@ -151,7 +151,7 @@ public final class OverlayLayer extends PanelWidget {
                 renderModalScrim(context);
                 scrimRendered = true;
             }
-            child.render(context);
+            renderChildWithInheritedTransform(context, child);
         }
     }
 

@@ -219,7 +219,7 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
         uploadVec2(activeProgram, "LineEnd", 0.0f, 0.0f);
 
         float pad = AA_PAD;
-        Matrix4f matrix = commandMatrix(graphics.pose().last().pose(), command.bounds(), command.transform());
+        Matrix4f matrix = MinecraftTransform.commandMatrix(graphics.pose().last().pose(), command);
         drawQuad(matrix, x1 - pad, y1 - pad, x2 + pad, y2 + pad,
                 -pad, -pad, width + pad, height + pad);
     }
@@ -240,7 +240,7 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
         uploadVec2(activeProgram, "LineEnd", 0.0f, 0.0f);
 
         float pad = AA_PAD;
-        Matrix4f matrix = commandMatrix(graphics.pose().last().pose(), command.bounds(), command.transform());
+        Matrix4f matrix = MinecraftTransform.commandMatrix(graphics.pose().last().pose(), command);
         drawQuad(matrix, x1 - pad, y1 - pad, x2 + pad, y2 + pad,
                 -pad, -pad, width + pad, height + pad);
     }
@@ -261,7 +261,7 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
         uploadVec2(activeProgram, "LineStart", 0.0f, 0.0f);
         uploadVec2(activeProgram, "LineEnd", dx, dy);
 
-        Matrix4f matrix = commandMatrix(graphics.pose().last().pose(), command.bounds(), command.transform());
+        Matrix4f matrix = MinecraftTransform.commandMatrix(graphics.pose().last().pose(), command);
         drawQuad(matrix,
                 bounds.x() + minX - pad,
                 bounds.y() + minY - pad,

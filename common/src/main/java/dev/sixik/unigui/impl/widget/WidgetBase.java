@@ -1053,6 +1053,19 @@ public abstract class WidgetBase implements Widget {
     }
 
     /**
+     * Renders a child while inheriting this widget's render transform.
+     */
+    protected final void renderChildWithInheritedTransform(RenderContext context, Widget child) {
+        if (context == null || child == null || child.visibility() != Visibility.VISIBLE) return;
+        context.pushTransform(layoutBounds(), transform());
+        try {
+            child.render(context);
+        } finally {
+            context.popTransform();
+        }
+    }
+
+    /**
      * Возвращает текущее значение свойства, учитывая активную анимацию.
      */
     private float currentAnimatedValue(AnimatedProperty property) {

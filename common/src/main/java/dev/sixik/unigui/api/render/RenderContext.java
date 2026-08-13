@@ -32,23 +32,43 @@ public interface RenderContext {
         return 1.0f;
     }
 
+    default void pushTransform(RectView bounds, Transform transform) {
+    }
+
+    default void popTransform() {
+    }
+
+    default List<TransformLayer> transformStack() {
+        return List.of();
+    }
+
+    default void submit(DrawCommand command) {
+        if (command == null) return;
+        List<TransformLayer> stack = transformStack();
+        if (stack == null || stack.isEmpty()) {
+            drawList().add(command);
+            return;
+        }
+        drawList().add(command.copy().prependTransformStack(stack));
+    }
+
     default void rect(float x, float y, float width, float height, Paint paint) {
-        drawList().add(DrawCommand.rect(new MutableRect(x, y, width, height), effectivePaint(paint)));
+        submit(DrawCommand.rect(new MutableRect(x, y, width, height), effectivePaint(paint)));
     }
 
     default void rect(float x, float y, float width, float height, Paint paint, Transform transform) {
-        drawList().add(DrawCommand.rect(new MutableRect(x, y, width, height), effectivePaint(paint)).transform(transform));
+        submit(DrawCommand.rect(new MutableRect(x, y, width, height), effectivePaint(paint)).transform(transform));
     }
 
     default void roundedRect(float x, float y, float width, float height, float radius, Paint paint) {
-        drawList().add(new DrawCommand(DrawCommandType.ROUNDED_RECT)
+        submit(new DrawCommand(DrawCommandType.ROUNDED_RECT)
                 .bounds(new MutableRect(x, y, width, height))
                 .radius(radius)
                 .paint(effectivePaint(paint)));
     }
 
     default void roundedRect(float x, float y, float width, float height, float radius, Paint paint, Transform transform) {
-        drawList().add(new DrawCommand(DrawCommandType.ROUNDED_RECT)
+        submit(new DrawCommand(DrawCommandType.ROUNDED_RECT)
                 .bounds(new MutableRect(x, y, width, height))
                 .radius(radius)
                 .paint(effectivePaint(paint))
@@ -56,39 +76,39 @@ public interface RenderContext {
     }
 
     default void circle(float x, float y, float width, float height, Paint paint) {
-        drawList().add(DrawCommand.circle(new MutableRect(x, y, width, height), effectivePaint(paint)));
+        submit(DrawCommand.circle(new MutableRect(x, y, width, height), effectivePaint(paint)));
     }
 
     default void circle(float x, float y, float width, float height, Paint paint, Transform transform) {
-        drawList().add(DrawCommand.circle(new MutableRect(x, y, width, height), effectivePaint(paint)).transform(transform));
+        submit(DrawCommand.circle(new MutableRect(x, y, width, height), effectivePaint(paint)).transform(transform));
     }
 
     default void line(float x1, float y1, float x2, float y2, Paint paint) {
-        drawList().add(DrawCommand.line(new MutableRect(x1, y1, x2 - x1, y2 - y1), effectivePaint(paint)));
+        submit(DrawCommand.line(new MutableRect(x1, y1, x2 - x1, y2 - y1), effectivePaint(paint)));
     }
 
     default void line(float x1, float y1, float x2, float y2, Paint paint, Transform transform) {
-        drawList().add(DrawCommand.line(new MutableRect(x1, y1, x2 - x1, y2 - y1), effectivePaint(paint)).transform(transform));
+        submit(DrawCommand.line(new MutableRect(x1, y1, x2 - x1, y2 - y1), effectivePaint(paint)).transform(transform));
     }
 
     default void path(VectorPath path, float x, float y, float width, float height, Paint paint) {
-        drawList().add(DrawCommand.path(path, new MutableRect(x, y, width, height), effectivePaint(paint)));
+        submit(DrawCommand.path(path, new MutableRect(x, y, width, height), effectivePaint(paint)));
     }
 
     default void path(VectorPath path, float x, float y, float width, float height, Paint paint, Transform transform) {
-        drawList().add(DrawCommand.path(path, new MutableRect(x, y, width, height), effectivePaint(paint)).transform(transform));
+        submit(DrawCommand.path(path, new MutableRect(x, y, width, height), effectivePaint(paint)).transform(transform));
     }
 
     default void texture(TextureHandle texture, float x, float y, float width, float height, Paint paint) {
-        drawList().add(DrawCommand.texture(texture, new MutableRect(x, y, width, height), effectivePaint(paint)));
+        submit(DrawCommand.texture(texture, new MutableRect(x, y, width, height), effectivePaint(paint)));
     }
 
     default void texture(TextureHandle texture, float x, float y, float width, float height, Paint paint, Transform transform) {
-        drawList().add(DrawCommand.texture(texture, new MutableRect(x, y, width, height), effectivePaint(paint)).transform(transform));
+        submit(DrawCommand.texture(texture, new MutableRect(x, y, width, height), effectivePaint(paint)).transform(transform));
     }
 
     default void texture(TextureHandle texture, TexturePlacement placement, float radius, Paint paint) {
-        drawList().add(DrawCommand.texture(texture,
+        submit(DrawCommand.texture(texture,
                         new MutableRect(placement.x(), placement.y(), placement.width(), placement.height()),
                         effectivePaint(paint))
                 .uv(new MutableRect(placement.u(), placement.v(), placement.uWidth(), placement.vHeight()))
@@ -97,7 +117,7 @@ public interface RenderContext {
 
     default void texture(TextureHandle texture, TexturePlacement placement, float radius,
                          Paint paint, Transform transform) {
-        drawList().add(DrawCommand.texture(texture,
+        submit(DrawCommand.texture(texture,
                         new MutableRect(placement.x(), placement.y(), placement.width(), placement.height()),
                         effectivePaint(paint))
                 .uv(new MutableRect(placement.u(), placement.v(), placement.uWidth(), placement.vHeight()))
@@ -128,7 +148,7 @@ public interface RenderContext {
         if (transform != null) {
             command.transform(transform);
         }
-        drawList().add(command);
+        submit(command);
     }
 
     default void shader(String shaderResource, float x, float y, float width, float height,
@@ -136,15 +156,15 @@ public interface RenderContext {
         shader(ShaderHandle.resource(shaderResource), x, y, width, height, uniforms);
     }
     default void text(String text, float x, float y, float width, float height, Paint paint) {
-        drawList().add(DrawCommand.text(text, new MutableRect(x, y, width, height), effectivePaint(paint)));
+        submit(DrawCommand.text(text, new MutableRect(x, y, width, height), effectivePaint(paint)));
     }
 
     default void text(String text, float x, float y, float width, float height, Paint paint, Transform transform) {
-        drawList().add(DrawCommand.text(text, new MutableRect(x, y, width, height), effectivePaint(paint)).transform(transform));
+        submit(DrawCommand.text(text, new MutableRect(x, y, width, height), effectivePaint(paint)).transform(transform));
     }
 
     default void text(RichText text, float x, float y, float width, float height, Paint paint) {
-        drawList().add(new DrawCommand(DrawCommandType.TEXT)
+        submit(new DrawCommand(DrawCommandType.TEXT)
                 .richText(text)
                 .bounds(new MutableRect(x, y, width, height))
                 .paint(effectivePaint(paint)));
@@ -152,7 +172,7 @@ public interface RenderContext {
 
     default void text(RichText text, float x, float y, float width, float height,
                       Paint paint, Transform transform) {
-        drawList().add(new DrawCommand(DrawCommandType.TEXT)
+        submit(new DrawCommand(DrawCommandType.TEXT)
                 .richText(text)
                 .bounds(new MutableRect(x, y, width, height))
                 .paint(effectivePaint(paint))
@@ -160,7 +180,7 @@ public interface RenderContext {
     }
 
     default void custom(CustomDraw customDraw) {
-        drawList().add(DrawCommand.custom(customDraw));
+        submit(DrawCommand.custom(customDraw));
     }
 
     default void addDrawCmd(DrawCommand command) {
@@ -172,7 +192,7 @@ public interface RenderContext {
         if (transform != null) {
             effective.transform(transform);
         }
-        drawList().add(effective);
+        submit(effective);
     }
 
     default void addCallback(CustomDraw callback) {
@@ -515,7 +535,7 @@ public interface RenderContext {
         if (transform != null) {
             command.transform(transform);
         }
-        drawList().add(command);
+        submit(command);
     }
 
     default void channelsSplit(int count) {
@@ -673,11 +693,11 @@ public interface RenderContext {
     }
 
     default void pushClip(float x, float y, float width, float height) {
-        drawList().add(DrawCommand.pushClip(new MutableRect(x, y, width, height)));
+        submit(DrawCommand.pushClip(new MutableRect(x, y, width, height)));
     }
 
     default void popClip() {
-        drawList().add(DrawCommand.popClip());
+        submit(DrawCommand.popClip());
     }
 
     default Paint effectivePaint(Paint paint) {
@@ -702,7 +722,7 @@ public interface RenderContext {
         if (transform != null) {
             command.transform(transform);
         }
-        drawList().add(command);
+        submit(command);
     }
 
     private DrawVertex vertex(DrawPoint point, ColorView color) {

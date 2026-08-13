@@ -191,7 +191,7 @@ public final class CachedSubtreeWidget extends WidgetBase {
 
         RenderBackend backend = context.backend();
         if (backend == null) {
-            content.render(context);
+            renderChildWithInheritedTransform(context, content);
             return;
         }
 

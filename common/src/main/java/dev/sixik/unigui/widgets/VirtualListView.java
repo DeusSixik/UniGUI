@@ -340,15 +340,12 @@ public class VirtualListView extends WidgetBase {
             draw.pushClip(layoutBounds().x(), layoutBounds().y(), viewportWidth(), layoutBounds().height());
             activeRenderer.render(draw, snapshot(VirtualListViewRenderPhase.BACKGROUND));
             for (Map.Entry<Integer, Widget> entry : List.copyOf(realized.entrySet())) {
-                Widget item = entry.getValue();
-                if (item.visibility() == Visibility.VISIBLE) {
-                    item.render(context);
-                }
+                renderChildWithInheritedTransform(context, entry.getValue());
             }
             activeRenderer.render(draw, snapshot(VirtualListViewRenderPhase.FOREGROUND));
             draw.popClip();
             if (hasVerticalScrollBar()) {
-                verticalScrollBar.render(context);
+                renderChildWithInheritedTransform(context, verticalScrollBar);
             }
         } finally {
             popOpacity(context);

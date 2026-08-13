@@ -956,10 +956,10 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
                     final float z = zoom;
                     DrawList drawList = context.drawList();
                     int sizeBefore = drawList.size();
-                    content.render(context);
+                    renderChildWithInheritedTransform(context, content);
                     applyContentZoom(drawList.commands(), sizeBefore, sx, sy, z);
                 } else {
-                    content.render(context);
+                    renderChildWithInheritedTransform(context, content);
                 }
             }
             activeRenderer.render(draw, snapshot(NodeGraphRenderPhase.FOREGROUND));
@@ -1110,7 +1110,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
             if (scaleContentWithZoom) {
                 // Arrange in world-space size so child widgets keep stable
                 // layout units. The camera zoom is composed into their draw
-                // commands after content.render().
+                // commands after the content is rendered with inherited transforms.
                 StackPanel.arrangeChild(content,
                         worldToRootX(item.x()) + contentPadding,
                         worldToRootY(item.y()) + contentPadding,

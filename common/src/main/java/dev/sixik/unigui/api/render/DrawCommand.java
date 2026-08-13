@@ -8,11 +8,16 @@ import dev.sixik.unigui.api.render.shaders.ShaderHandle;
 import dev.sixik.unigui.api.render.shaders.ShaderUniforms;
 import dev.sixik.unigui.api.text.RichText;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 public final class DrawCommand {
     private DrawCommandType type;
     private final MutableRect bounds = new MutableRect();
     private final MutableRect uv = new MutableRect(0.0f, 0.0f, 1.0f, 1.0f);
     private final Transform transform = new Transform();
+    private final List<TransformLayer> transformStack = new ArrayList<>();
     private Paint paint = new Paint();
     private VectorPath path;
     private DrawMesh mesh;
@@ -105,6 +110,38 @@ public final class DrawCommand {
 
     public DrawCommand transform(Transform transform) {
         this.transform.copyFrom(transform);
+        return this;
+    }
+
+    public List<TransformLayer> transformStack() {
+        return Collections.unmodifiableList(transformStack);
+    }
+
+    public DrawCommand transformStack(List<TransformLayer> transformStack) {
+        this.transformStack.clear();
+        if (transformStack != null) {
+            for (TransformLayer layer : transformStack) {
+                if (layer != null) {
+                    this.transformStack.add(layer.copy());
+                }
+            }
+        }
+        return this;
+    }
+
+    public DrawCommand prependTransformStack(List<TransformLayer> transformStack) {
+        if (transformStack == null || transformStack.isEmpty()) return this;
+        List<TransformLayer> combined = new ArrayList<>(transformStack.size() + this.transformStack.size());
+        for (TransformLayer layer : transformStack) {
+            if (layer != null) {
+                combined.add(layer.copy());
+            }
+        }
+        for (TransformLayer layer : this.transformStack) {
+            combined.add(layer.copy());
+        }
+        this.transformStack.clear();
+        this.transformStack.addAll(combined);
         return this;
     }
 
@@ -214,6 +251,7 @@ public final class DrawCommand {
         copy.bounds.set(bounds);
         copy.uv.set(uv);
         copy.transform.copyFrom(transform);
+        copy.transformStack(transformStack);
         copy.paint = paint.copy();
         copy.path = path == null ? null : path.copy();
         copy.mesh = mesh == null ? null : mesh.copy();

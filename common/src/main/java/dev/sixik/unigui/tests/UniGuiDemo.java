@@ -712,13 +712,12 @@ public final class UniGuiDemo {
         TransitionSpec pulseLoop = TransitionSpec.of(0.70f, AnimationEasing.EASE_IN_OUT).loop().yoyo();
         TransitionSpec spinLoop = TransitionSpec.of(1.20f, AnimationEasing.LINEAR).loop();
 
-        Button loopCard = new Button("Looping pulse");
-        loopCard.themeEnabled(false);
-        loopCard.background().set(0.052f, 0.052f, 0.090f, 0.94f);
-        loopCard.borderColor().set(0.20f, 0.28f, 0.36f, 0.75f);
-        loopCard.textColor().set(0.88f, 0.90f, 1.0f, 1.0f);
+        Box loopCard = panelBox(0.052f, 0.052f, 0.090f, 0.94f);
         loopCard.transformOrigin(TransformOrigin.CENTER);
         loopCard.layout(style -> style.size(150.0f, 46.0f).flexGrow(0).flexShrink(0.0f));
+        Label loopLabel = new Label("Looping pulse");
+        loopLabel.layout(style -> style.margin(8.0f).size(LayoutConstraints.AUTO, 18.0f).flexGrow(0).flexShrink(0.0f));
+        loopCard.addChild(loopLabel);
 
         Button startLoop = new Button("Start loop");
         startLoop.layout(style -> style.size(92.0f, 24.0f).flexGrow(0).flexShrink(0.0f));

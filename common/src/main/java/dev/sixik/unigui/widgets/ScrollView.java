@@ -296,7 +296,7 @@ public class ScrollView extends WidgetBase {
                     context.pushClip(layoutBounds().x(), layoutBounds().y(), viewportWidth(), viewportHeight());
                 }
                 try {
-                    content.render(context);
+                    renderChildWithInheritedTransform(context, content);
                 } finally {
                     if (clipsContent) {
                         context.popClip();
@@ -304,10 +304,10 @@ public class ScrollView extends WidgetBase {
                 }
             }
             if (showsHorizontalScrollBar()) {
-                horizontalScrollBar.render(context);
+                renderChildWithInheritedTransform(context, horizontalScrollBar);
             }
             if (showsVerticalScrollBar()) {
-                verticalScrollBar.render(context);
+                renderChildWithInheritedTransform(context, verticalScrollBar);
             }
         } finally {
             popOpacity(context);

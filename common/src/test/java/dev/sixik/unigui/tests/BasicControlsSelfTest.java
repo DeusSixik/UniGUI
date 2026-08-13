@@ -2058,6 +2058,62 @@ public final class BasicControlsSelfTest {
                         && near(rotatedShape.bounds().y() + rotatedShape.transform().pivot().y(),
                         rotatedText.bounds().y() + rotatedText.transform().pivot().y()),
                 "Rotated Button text should share the widget transform origin with its chrome");
+
+        Box transformedParent = new Box();
+        transformedParent.themeEnabled(false);
+        transformedParent.backgroundVisible(true);
+        transformedParent.transformOrigin(TransformOrigin.CENTER).rotationDegrees(22.0f);
+        Label inheritedLabel = new Label("Inherited child transform");
+        inheritedLabel.layout(style -> style.margin(6.0f).size(LayoutConstraints.AUTO, 16.0f).flexGrow(0).flexShrink(0.0f));
+        transformedParent.addChild(inheritedLabel);
+        transformedParent.measure(new LayoutContext(160.0f, 60.0f));
+        transformedParent.arrange(new MutableRect(10.0f, 20.0f, 120.0f, 34.0f));
+        DrawList inheritedDrawList = new DrawList();
+        transformedParent.render(new DefaultRenderContext(inheritedDrawList));
+        DrawCommand inheritedText = null;
+        for (DrawCommand command : inheritedDrawList.commands()) {
+            if (command.type() == DrawCommandType.TEXT
+                    && command.richText() != null
+                    && command.richText().plainText().equals("Inherited child transform")) {
+                inheritedText = command;
+                break;
+            }
+        }
+        expect(inheritedText != null && inheritedText.transformStack().size() == 1,
+                "Child text command should capture the parent transform stack");
+        expect(near(inheritedText.transformStack().get(0).bounds().x(), transformedParent.layoutBounds().x())
+                        && near(inheritedText.transformStack().get(0).bounds().y(), transformedParent.layoutBounds().y())
+                        && near(inheritedText.transformStack().get(0).transform().rotationDegrees(), 22.0f),
+                "Child text command should inherit the parent bounds and rotation");
+
+        Box nestedParent = new Box();
+        nestedParent.themeEnabled(false);
+        nestedParent.transformOrigin(TransformOrigin.CENTER).rotationDegrees(12.0f);
+        Box nestedChild = new Box();
+        nestedChild.themeEnabled(false);
+        nestedChild.transformOrigin(TransformOrigin.CENTER).rotationDegrees(-6.0f);
+        Label nestedLabel = new Label("Nested transform stack");
+        nestedLabel.layout(style -> style.margin(4.0f).size(LayoutConstraints.AUTO, 14.0f).flexGrow(0).flexShrink(0.0f));
+        nestedChild.addChild(nestedLabel);
+        nestedParent.addChild(nestedChild);
+        nestedParent.measure(new LayoutContext(180.0f, 80.0f));
+        nestedParent.arrange(new MutableRect(0.0f, 0.0f, 140.0f, 42.0f));
+        DrawList nestedDrawList = new DrawList();
+        nestedParent.render(new DefaultRenderContext(nestedDrawList));
+        DrawCommand nestedText = null;
+        for (DrawCommand command : nestedDrawList.commands()) {
+            if (command.type() == DrawCommandType.TEXT
+                    && command.richText() != null
+                    && command.richText().plainText().equals("Nested transform stack")) {
+                nestedText = command;
+                break;
+            }
+        }
+        expect(nestedText != null && nestedText.transformStack().size() == 2,
+                "Nested child text should preserve all ancestor transforms in order");
+        expect(near(nestedText.transformStack().get(0).transform().rotationDegrees(), 12.0f)
+                        && near(nestedText.transformStack().get(1).transform().rotationDegrees(), -6.0f),
+                "Nested transform stack should be ordered from root parent to leaf parent");
     }
 
     private void testMinecraftPreviewWidgetFallbacks() {

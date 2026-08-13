@@ -235,7 +235,7 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
                                org.joml.Matrix4f basePose) {
         RectView bounds = command.bounds();
         List<LineInfo> lines = lineInfo(text);
-        TransformState transformState = TransformState.from(bounds, command.transform(), basePose);
+        TransformState transformState = TransformState.from(command, basePose);
         float penX = bounds.x();
         float lineTop = bounds.y();
         int lineIndex = 0;
@@ -348,13 +348,9 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
 
     private static void addVertex(FloatArray vertices, float x, float y, float u, float v,
                                   float r, float g, float b, float a, TransformState state) {
-        float localX = (x - state.pivotX) * state.scaleX;
-        float localY = (y - state.pivotY) * state.scaleY;
-        float transformedX = state.pivotX + localX * state.cosine - localY * state.sine + state.translateX;
-        float transformedY = state.pivotY + localX * state.sine + localY * state.cosine + state.translateY;
-        float poseX = state.m00 * transformedX + state.m10 * transformedY + state.m30;
-        float poseY = state.m01 * transformedX + state.m11 * transformedY + state.m31;
-        float poseZ = state.m02 * transformedX + state.m12 * transformedY + state.m32;
+        float poseX = state.m00 * x + state.m10 * y + state.m30;
+        float poseY = state.m01 * x + state.m11 * y + state.m31;
+        float poseZ = state.m02 * x + state.m12 * y + state.m32;
         vertices.add(poseX, poseY, poseZ, u, v, r, g, b, a);
     }
 
@@ -563,25 +559,15 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
     private record LineInfo(float ascent, float height) {
     }
 
-    private record TransformState(float pivotX, float pivotY,
-                                  float scaleX, float scaleY,
-                                  float cosine, float sine,
-                                  float translateX, float translateY,
-                                  float m00, float m01, float m02,
+    private record TransformState(float m00, float m01, float m02,
                                   float m10, float m11, float m12,
                                   float m30, float m31, float m32) {
-        private static TransformState from(RectView bounds, Transform transform, org.joml.Matrix4f pose) {
-            float pivotX = bounds.x() + transform.pivot().x();
-            float pivotY = bounds.y() + transform.pivot().y();
-            float angle = (float) Math.toRadians(transform.rotationDegrees());
+        private static TransformState from(DrawCommand command, org.joml.Matrix4f pose) {
+            org.joml.Matrix4f matrix = MinecraftTransform.commandMatrix(pose, command);
             return new TransformState(
-                    pivotX, pivotY,
-                    transform.scale().x(), transform.scale().y(),
-                    (float) Math.cos(angle), (float) Math.sin(angle),
-                    transform.position().x(), transform.position().y(),
-                    pose.m00(), pose.m01(), pose.m02(),
-                    pose.m10(), pose.m11(), pose.m12(),
-                    pose.m30(), pose.m31(), pose.m32());
+                    matrix.m00(), matrix.m01(), matrix.m02(),
+                    matrix.m10(), matrix.m11(), matrix.m12(),
+                    matrix.m30(), matrix.m31(), matrix.m32());
         }
     }
 

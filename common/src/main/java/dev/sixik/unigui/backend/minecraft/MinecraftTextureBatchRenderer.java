@@ -60,7 +60,7 @@ final class MinecraftTextureBatchRenderer {
             buffer.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_TEX_COLOR);
             Matrix4f basePose = graphics.pose().last().pose();
             for (DrawCommand command : commands) {
-                Matrix4f matrix = commandMatrix(basePose, command.bounds(), command.transform());
+                Matrix4f matrix = MinecraftTransform.commandMatrix(basePose, command);
                 append(buffer, matrix, command, binding.flipY());
             }
             BufferUploader.drawWithShader(buffer.end());
