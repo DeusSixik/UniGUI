@@ -5,12 +5,9 @@ import dev.sixik.unigui.api.event.EventPhase;
 import dev.sixik.unigui.api.event.PointerEnteredEvent;
 import dev.sixik.unigui.api.event.PointerExitedEvent;
 import dev.sixik.unigui.api.layout.Alignment;
-import dev.sixik.unigui.api.math.ColorView;
+import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.math.MutableColor;
-import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.UiRenderPolicy;
-import dev.sixik.unigui.api.text.Fonts;
-import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.backend.minecraft.MinecraftClipboardService;
 import dev.sixik.unigui.backend.minecraft.MinecraftWidgetScreen;
@@ -226,7 +223,11 @@ public class DominionScreen {
                                  MutableColor... onHoverColor) {
         Button button = new Button();
         button.text(text);
-        button.layout(layout -> layout.size(60, 12));
+        button.layout(layout -> layout
+                .size(LayoutConstraints.AUTO, 12)
+                .align(Alignment.START, Alignment.START)
+                .flexGrow(0.0f)
+                .flexShrink(0.0f));
         button.transform().position().set(10, 10);
         button.backgroundVisible(false);
         button.borderVisible(false);
@@ -253,8 +254,12 @@ public class DominionScreen {
     }
 
     private static HoldButton holdButton(String text, ButtonRenderer renderer) {
-        HoldButton button = new HoldButton("HOLD TO DISMANTLE");
-        button.layout(layout -> layout.size(80, 12));
+        HoldButton button = new HoldButton(text);
+        button.layout(layout -> layout
+                .size(LayoutConstraints.AUTO, 12)
+                .align(Alignment.START, Alignment.START)
+                .flexGrow(0.0f)
+                .flexShrink(0.0f));
         button.renderer(renderer);
         button.backgroundVisible(false);
         button.borderVisible(false);
