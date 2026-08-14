@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "unigui_testmod",
+  "version": "${version}",
+  "name": "UniGUI TestMod",
+  "description": "Fabric sandbox mod for testing UniGUI in a real Minecraft client.",
+  "authors": [
+    "Sixik"
+  ],
+  "license": "LGPL-3.0",
+  "environment": "client",
+  "entrypoints": {
+    "main": [
+      "dev.sixik.unigui.testmod.TestMod"
+    ],
+    "client": [
+      "dev.sixik.unigui.testmod.client.TestModClient"
+    ]
+  },
+  "mixins": [
+    "unigui_testmod.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~1.20.1",
+    "java": ">=17",
+    "unigui": "*"
+  }
+}

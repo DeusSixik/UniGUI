@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "package": "dev.sixik.unigui.testmod.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "client": [
+    "TitleScreenMixin",
+    "PauseScreenMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

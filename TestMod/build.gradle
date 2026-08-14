@@ -1,0 +1,37 @@
+architectury {
+    platformSetupLoomIde()
+    fabric()
+}
+
+configurations {
+    common {
+        canBeResolved = true
+        canBeConsumed = false
+    }
+    compileClasspath.extendsFrom common
+    runtimeClasspath.extendsFrom common
+    developmentFabric.extendsFrom common
+
+    uniguiMod {
+        canBeResolved = true
+        canBeConsumed = false
+    }
+    compileClasspath.extendsFrom uniguiMod
+    runtimeClasspath.extendsFrom uniguiMod
+    developmentFabric.extendsFrom uniguiMod
+}
+
+dependencies {
+    modImplementation "net.fabricmc:fabric-loader:$rootProject.fabric_loader_version"
+
+    common(project(path: ':common', configuration: 'namedElements')) { transitive false }
+    uniguiMod(project(path: ':fabric', configuration: 'namedElements')) { transitive false }
+}
+
+processResources {
+    inputs.property 'version', project.version
+
+    filesMatching('fabric.mod.json') {
+        expand version: project.version
+    }
+}

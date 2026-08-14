@@ -35,6 +35,7 @@ import java.nio.FloatBuffer;
 final class MinecraftSdfShapeRenderer implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(MinecraftSdfShapeRenderer.class);
     private static final float AA_PAD = 1.0f;
+    private static final float MIN_STROKE_WIDTH = 0.001f;
 
     private static final int SHAPE_ROUNDED_RECT = 0;
     private static final int SHAPE_ELLIPSE = 1;
@@ -97,7 +98,7 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
             }
 
             float aaWidth(float distanceToEdge) {
-                return clamp(fwidth(distanceToEdge) * 0.75, 0.20, 0.85);
+                return max(fwidth(distanceToEdge), 0.0001);
             }
 
             float edgeCoverage(float distanceToEdge) {
@@ -110,9 +111,9 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
             }
 
             float innerStrokeCoverage(float distanceToEdge, float width) {
-                float safeWidth = max(width, 0.0001);
-                float outer = edgeCoverage(distanceToEdge);
-                float inner = edgeCoverage(-distanceToEdge - safeWidth);
+                float aa = aaWidth(distanceToEdge);
+                float outer = clamp(0.5 - distanceToEdge / aa, 0.0, 1.0);
+                float inner = clamp(0.5 - (-distanceToEdge - width) / aa, 0.0, 1.0);
                 return outer * inner;
             }
 
@@ -125,14 +126,14 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
                             ? sdCircle(point, radius.x)
                             : sdEllipse(point, radius);
                 } else if (ShapeType == 2) {
-                    distanceToEdge = sdSegment(localPos, LineStart, LineEnd) - max(StrokeWidth, 1.0) * 0.5;
+                    distanceToEdge = sdSegment(localPos, LineStart, LineEnd) - max(StrokeWidth, 0.0001) * 0.5;
                 } else {
                     distanceToEdge = sdRoundedBox(localPos - Size * 0.5, Size * 0.5, Radius);
                 }
 
                 float coverage = (ShapeType == 2 || IsStroke == 0)
                         ? fillCoverage(distanceToEdge)
-                        : innerStrokeCoverage(distanceToEdge, max(StrokeWidth, 1.0));
+                        : innerStrokeCoverage(distanceToEdge, max(StrokeWidth, 0.0001));
 
                 float alpha = Color.a * coverage;
                 if (alpha <= 0.001) {
@@ -393,7 +394,7 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
     }
 
     private static float positiveThickness(float value) {
-        return Float.isFinite(value) ? Math.max(1.0f, value) : 1.0f;
+        return Float.isFinite(value) ? Math.max(MIN_STROKE_WIDTH, value) : 1.0f;
     }
 
     private static float clamp(float value, float min, float max) {

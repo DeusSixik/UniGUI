@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 final class MinecraftShapeBatchRenderer implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(MinecraftShapeBatchRenderer.class);
     private static final float TAU = (float) (Math.PI * 2.0);
+    private static final float MIN_STROKE_WIDTH = 0.001f;
     private final MinecraftSdfShapeRenderer sdfRenderer = new MinecraftSdfShapeRenderer();
 
     boolean render(GuiGraphics graphics, DrawBatch batch, boolean renderingToPremultipliedTarget) {
@@ -441,7 +442,7 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
     }
 
     private static float positiveThickness(float value) {
-        return Float.isFinite(value) ? Math.max(1.0f, value) : 1.0f;
+        return Float.isFinite(value) ? Math.max(MIN_STROKE_WIDTH, value) : 1.0f;
     }
 
     private static float pixelCenter(float value) {
