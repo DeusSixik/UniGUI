@@ -29,6 +29,18 @@ public final class Widgets {
         return new ToggleButton(text);
     }
 
+    public static ToggleSwitch toggleSwitch() {
+        return new ToggleSwitch();
+    }
+
+    public static ToggleSwitch toggleSwitch(String text) {
+        return new ToggleSwitch(text);
+    }
+
+    public static ToggleSwitch toggleSwitch(RichText text) {
+        return new ToggleSwitch(text);
+    }
+
     public static Checkbox checkbox(String text) {
         return new Checkbox(text);
     }

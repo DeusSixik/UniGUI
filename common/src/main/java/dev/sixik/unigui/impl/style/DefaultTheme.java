@@ -30,6 +30,7 @@ public final class DefaultTheme implements Theme {
         register(StyleIds.Widget.BOX, fallback);
         register(StyleIds.Widget.BUTTON, controlStyle());
         register(StyleIds.Widget.TOGGLE_BUTTON, toggleStyle());
+        register(StyleIds.Widget.TOGGLE_SWITCH, switchStyle());
         register(StyleIds.Widget.CHECKBOX, toggleStyle());
         register(StyleIds.Widget.TEXT_INPUT, textInputStyle());
         register(StyleIds.Widget.TEXT_FIELD, textInputStyle());
@@ -76,6 +77,18 @@ public final class DefaultTheme implements Theme {
                 .put(StyleKeys.TEXT_COLOR, WidgetState.DISABLED, color(0.55f, 0.55f, 0.55f, 0.85f))
                 .put(StyleKeys.ACCENT_COLOR, color(0.25f, 0.78f, 1.0f, 1.0f))
                 .put(StyleKeys.RADIUS, 2.0f);
+    }
+
+    private static Style switchStyle() {
+        return new MutableStyle()
+                .put(StyleKeys.BACKGROUND_COLOR, color(0.22f, 0.22f, 0.22f, 1.0f))
+                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.HOVERED, color(0.28f, 0.28f, 0.28f, 1.0f))
+                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.CHECKED, color(0.25f, 0.78f, 1.0f, 1.0f))
+                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.DISABLED, color(0.14f, 0.14f, 0.14f, 0.75f))
+                .put(StyleKeys.THUMB_COLOR, color(0.95f, 0.95f, 0.95f, 1.0f))
+                .put(StyleKeys.THUMB_COLOR, WidgetState.DISABLED, color(0.55f, 0.55f, 0.55f, 0.85f))
+                .put(StyleKeys.TEXT_COLOR, color(1.0f, 1.0f, 1.0f, 1.0f))
+                .put(StyleKeys.TEXT_COLOR, WidgetState.DISABLED, color(0.55f, 0.55f, 0.55f, 0.85f));
     }
 
     private static Style textInputStyle() {

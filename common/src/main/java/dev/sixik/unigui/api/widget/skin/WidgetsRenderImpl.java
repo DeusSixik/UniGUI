@@ -93,6 +93,10 @@ public interface WidgetsRenderImpl {
         return null;
     }
 
+    default ButtonRenderer toggleSwitch() {
+        return null;
+    }
+
     default ButtonRenderer checkbox() {
         return null;
     }

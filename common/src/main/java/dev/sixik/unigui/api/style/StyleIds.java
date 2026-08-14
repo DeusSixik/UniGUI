@@ -97,6 +97,7 @@ public final class StyleIds {
         public static final String TIME_SPAN_FIELD = "TimeSpanField";
         public static final String TOAST = "Toast";
         public static final String TOGGLE_BUTTON = "ToggleButton";
+        public static final String TOGGLE_SWITCH = "ToggleSwitch";
         public static final String TOOLTIP = "Tooltip";
         public static final String TREE_LIST = "TreeList";
         public static final String TREE_LIST_PICKER = "TreeListPicker";

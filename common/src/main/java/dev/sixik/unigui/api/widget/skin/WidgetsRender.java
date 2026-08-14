@@ -121,6 +121,11 @@ public final class WidgetsRender {
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.toggleButton() : renderer;
     }
 
+    public static ButtonRenderer toggleSwitch() {
+        ButtonRenderer renderer = impl.toggleSwitch();
+        return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.toggleSwitch() : renderer;
+    }
+
     public static ButtonRenderer checkbox() {
         ButtonRenderer renderer = impl.checkbox();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.checkbox() : renderer;

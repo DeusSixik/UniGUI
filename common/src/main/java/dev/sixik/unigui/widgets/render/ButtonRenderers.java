@@ -65,6 +65,26 @@ public final class ButtonRenderers {
         drawLeadingLabel(draw, state);
     };
 
+    public static final ButtonRenderer TOGGLE_SWITCH = (draw, state) -> {
+        float trackWidth = Math.max(0.0f, state.indicatorSize());
+        float trackHeight = Math.max(0.0f, state.textPaddingX());
+        float thumbSize = Math.max(0.0f, state.indicatorInnerSize());
+        if (trackWidth <= 0.0f || trackHeight <= 0.0f || thumbSize <= 0.0f) return;
+
+        float trackX = state.x();
+        float trackY = state.y() + Math.max(0.0f, state.height() - trackHeight) * 0.5f;
+        float radius = trackHeight * 0.5f;
+        draw.roundedRect(trackX, trackY, trackWidth, trackHeight, radius, Paint.fill(state.indicatorColor()));
+
+        float thumbPadding = Math.max(1.0f, (trackHeight - thumbSize) * 0.5f);
+        float thumbTravel = Math.max(0.0f, trackWidth - thumbSize - thumbPadding * 2.0f);
+        float thumbX = trackX + thumbPadding + (state.checked() ? thumbTravel : 0.0f);
+        float thumbY = trackY + Math.max(0.0f, trackHeight - thumbSize) * 0.5f;
+        draw.circle(thumbX, thumbY, thumbSize, thumbSize, Paint.fill(state.indicatorBorderColor()));
+
+        drawTrailingLabel(draw, state, trackX + trackWidth + state.indicatorGap());
+    };
+
     private ButtonRenderers() {
     }
 
@@ -77,6 +97,21 @@ public final class ButtonRenderers {
         float indicatorY = state.y() + Math.max(0.0f, state.height() - state.indicatorSize()) * 0.5f;
         float indicatorCenterY = indicatorY + state.indicatorSize() * 0.5f;
         float drawY = indicatorCenterY - drawHeight * 0.5f + LEADING_LABEL_VISUAL_CENTER_OFFSET;
+
+        draw.pushClip(contentX, state.y(), contentWidth, state.height());
+        try {
+            draw.text(state.richText(), contentX, drawY, contentWidth, drawHeight, Paint.fill(state.textColor()));
+        } finally {
+            draw.popClip();
+        }
+    }
+
+    private static void drawTrailingLabel(dev.sixik.unigui.api.render.DrawScope draw, ButtonState state, float contentX) {
+        if (!state.hasText()) return;
+
+        float contentWidth = Math.max(0.0f, state.width() - (contentX - state.x()));
+        float drawHeight = Math.min(Math.max(0.0f, state.height()), Math.max(0.0f, state.textHeight()));
+        float drawY = state.y() + Math.max(0.0f, state.height() - drawHeight) * 0.5f;
 
         draw.pushClip(contentX, state.y(), contentWidth, state.height());
         try {

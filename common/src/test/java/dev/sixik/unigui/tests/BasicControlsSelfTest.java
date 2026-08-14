@@ -156,6 +156,7 @@ import dev.sixik.unigui.widgets.Tooltip;
 import dev.sixik.unigui.widgets.RichTextView;
 import dev.sixik.unigui.widgets.Toast;
 import dev.sixik.unigui.widgets.ToggleButton;
+import dev.sixik.unigui.widgets.ToggleSwitch;
 import dev.sixik.unigui.widgets.TreeView;
 import dev.sixik.unigui.widgets.TreeList;
 import dev.sixik.unigui.widgets.TreeViewNode;
@@ -4749,6 +4750,20 @@ public final class BasicControlsSelfTest {
         uiContext.routedEvents().dispatch(new PointerReleasedEvent(toggle, 8.0f, 8.0f, 8.0f, 8.0f, 0, PointerButton.PRIMARY));
         expect(toggle.checked(), "ToggleButton should toggle on click");
         expect(checkedChanges.count == 1 && checkedChanges.lastChecked, "ToggleButton should emit checked changed event");
+
+        ToggleSwitch toggleSwitch = new ToggleSwitch("Online");
+        toggleSwitch.setUiContextInternal(uiContext);
+        toggleSwitch.arrange(new MutableRect(0.0f, 0.0f, 90.0f, 20.0f));
+        DrawList switchDrawList = new DrawList();
+        toggleSwitch.render(new DefaultRenderContext(switchDrawList));
+        expect(countCommands(switchDrawList, DrawCommandType.ROUNDED_RECT) == 1
+                        && countCommands(switchDrawList, DrawCommandType.CIRCLE) == 1
+                        && hasText(switchDrawList, "Online"),
+                "ToggleSwitch should render a rounded track, thumb and optional label");
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(toggleSwitch, 8.0f, 8.0f, 8.0f, 8.0f, 0, PointerButton.PRIMARY));
+        uiContext.routedEvents().dispatch(new PointerReleasedEvent(toggleSwitch, 8.0f, 8.0f, 8.0f, 8.0f, 0, PointerButton.PRIMARY));
+        expect(toggleSwitch.checked(), "ToggleSwitch should reuse ToggleButton checked behavior");
+        expect(Widgets.toggleSwitch("Factory") instanceof ToggleSwitch, "Widgets.toggleSwitch should create ToggleSwitch instances");
 
         Checkbox checkbox = new Checkbox("Enabled");
         checkbox.setUiContextInternal(uiContext);

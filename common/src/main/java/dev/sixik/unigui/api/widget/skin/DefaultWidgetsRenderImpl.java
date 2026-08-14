@@ -145,6 +145,11 @@ public final class DefaultWidgetsRenderImpl implements WidgetsRenderImpl {
     }
 
     @Override
+    public ButtonRenderer toggleSwitch() {
+        return ButtonRenderers.TOGGLE_SWITCH;
+    }
+
+    @Override
     public ButtonRenderer checkbox() {
         return ButtonRenderers.CHECKBOX;
     }

@@ -529,7 +529,7 @@ public final class UniGuiDemo {
         VBox page = page("Overview", "A compact tour of the AAA UI Framework surface for Minecraft screens.");
         page.addChild(paragraph("This demo is intentionally dense: each card or section exercises retained widgets, events, layout, renderers, overlays, virtualization, and Minecraft-specific preview widgets."));
         WrapPanel cards = wrap();
-        cards.addChild(infoCard("Core Controls", "Button, ToggleButton, Checkbox, RadioGroup, ComboBox, text inputs, sliders, progress and loaders."));
+        cards.addChild(infoCard("Core Controls", "Button, ToggleButton, ToggleSwitch, HoldButton, Checkbox, RadioGroup, ComboBox, text inputs, sliders, progress and loaders."));
         cards.addChild(infoCard("Containers", "StackPanel, DockPanel, WrapPanel, GridBox, SplitPanel, TabControl, Accordion, TreeView, TreeList and Carousel."));
         cards.addChild(infoCard("Data", "VirtualListView, VirtualTableView, Chart, Sparkline and GraphView for large or visual datasets."));
         cards.addChild(infoCard("Advanced", "DockingRoot, WindowWidget, Popup, Tooltip, ContextMenu, Toast, NodeGraph and Minecraft item/block/entity previews."));
@@ -562,20 +562,28 @@ public final class UniGuiDemo {
         WrapPanel buttons = wrap();
         Button button = new Button("Button");
         ToggleButton toggle = new ToggleButton("Toggle");
+        ToggleSwitch switchControl = new ToggleSwitch("Switch").checked(true);
+        HoldButton hold = new HoldButton("Hold").holdDurationSeconds(0.75f);
         Checkbox checkbox = new Checkbox("Checkbox");
         Checkbox partialTree = new Checkbox("Tree parent (partial)")
                 .triState(true)
                 .state(CheckboxState.INDETERMINATE);
         button.layout(style -> style.size(76.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
         toggle.layout(style -> style.size(76.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
+        switchControl.layout(style -> style.size(112.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
+        hold.layout(style -> style.size(92.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
         checkbox.layout(style -> style.size(96.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
         partialTree.layout(style -> style.size(150.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
         button.onClick(event -> status.text("Button clicked"));
         toggle.onCheckedChanged(event -> status.text("Toggle: " + event.newValue()));
+        switchControl.onCheckedChanged(event -> status.text("Switch: " + event.newValue()));
+        hold.onHoldCompleted(event -> status.text(String.format(Locale.ROOT, "Hold completed in %.2fs", event.holdDurationSeconds())));
         checkbox.onCheckedChanged(event -> status.text("Checkbox: " + event.newValue()));
         partialTree.onStateChanged(event -> status.text("Tree parent: " + event.newState()));
         buttons.addChild(button);
         buttons.addChild(toggle);
+        buttons.addChild(switchControl);
+        buttons.addChild(hold);
         buttons.addChild(checkbox);
         buttons.addChild(partialTree);
         page.addChild(section("Buttons", buttons));
