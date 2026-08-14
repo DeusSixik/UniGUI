@@ -10,10 +10,16 @@ import dev.sixik.unigui.api.debug.DebugFlags;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.render.BlendMode;
+import dev.sixik.unigui.api.render.DrawCommand;
+import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.SimpleTextureHandle;
 import dev.sixik.unigui.api.render.UiRenderPolicy;
+import dev.sixik.unigui.api.render.shaders.ShaderDrawOptions;
+import dev.sixik.unigui.api.render.shaders.ShaderHandle;
+import dev.sixik.unigui.api.render.shaders.ShaderUniforms;
 import dev.sixik.unigui.api.selection.SelectionMode;
 import dev.sixik.unigui.api.text.Fonts;
 import dev.sixik.unigui.api.text.RichText;
@@ -51,6 +57,361 @@ import java.util.Locale;
 
 public final class UniGuiDemo {
     private static final MutableUIScaleProvider SCALE = new MutableUIScaleProvider(2.0f);
+
+    private static final ShaderHandle MAP_AURORA_BACKGROUND_SHADER = ShaderHandle.source(
+            "unigui:demo_map_aurora_background",
+            """
+            #version 150
+
+            in vec3 Position;
+
+            out vec2 mapUv;
+            out vec2 localCoord;
+            out vec2 quadSize;
+
+            uniform vec2 ScreenSize;
+            uniform vec4 SquareVertex;
+
+            void main() {
+                vec2 rawUv = Position.xy * 0.5 + 0.5;
+                mapUv = vec2(rawUv.x, 1.0 - rawUv.y);
+
+                vec2 rectMin = min(SquareVertex.xy, SquareVertex.zw);
+                vec2 rectMax = max(SquareVertex.xy, SquareVertex.zw);
+                quadSize = max(rectMax - rectMin, vec2(1.0));
+                localCoord = mapUv * quadSize;
+
+                vec2 pixel = mix(rectMin, rectMax, mapUv);
+                vec2 ndc = vec2(
+                        pixel.x / max(ScreenSize.x, 1.0) * 2.0 - 1.0,
+                        1.0 - pixel.y / max(ScreenSize.y, 1.0) * 2.0);
+                gl_Position = vec4(ndc, 0.0, 1.0);
+            }
+            """,
+            """
+            #version 150
+
+            in vec2 mapUv;
+            in vec2 localCoord;
+            in vec2 quadSize;
+
+            out vec4 FragColor;
+
+            uniform float Time;
+            uniform vec4 AuroraColor;
+            uniform vec4 BackgroundColor1;
+            uniform vec4 BackgroundColor2;
+            uniform float AuroraIntensity;
+            uniform float StarBrightness;
+
+            const float PI = 3.14159265358979323846264;
+            const mat2 M2 = mat2(0.95534, 0.29552, -0.29552, 0.95534);
+
+            mat2 mm2(float a) {
+                float c = cos(a);
+                float s = sin(a);
+                return mat2(c, s, -s, c);
+            }
+
+            float tri(float x) {
+                return clamp(abs(fract(x) - 0.5), 0.01, 0.49);
+            }
+
+            vec2 tri2(vec2 p) {
+                return vec2(tri(p.x) + tri(p.y), tri(p.y + tri(p.x)));
+            }
+
+            float hash21(vec2 n) {
+                return fract(sin(dot(n, vec2(12.9898, 4.1414))) * 43758.5453);
+            }
+
+            vec3 hash33(vec3 p) {
+                p = fract(p * vec3(0.1031, 0.1030, 0.0973));
+                p += dot(p, p.yxz + 33.33);
+                return fract((p.xxy + p.yxx) * p.zyx);
+            }
+
+            float triNoise2d(vec2 p, float spd) {
+                float z = 1.8;
+                float z2 = 2.5;
+                float rz = 0.0;
+                p = p * mm2(p.x * 0.06);
+                vec2 bp = p;
+                for (int octave = 0; octave < 5; octave++) {
+                    vec2 dg = tri2(bp * 1.85) * 0.75;
+                    dg = dg * mm2(Time * spd);
+                    p -= dg / z2;
+
+                    bp *= 1.3;
+                    z2 *= 0.45;
+                    z *= 0.42;
+                    p *= 1.21 + (rz - 1.0) * 0.02;
+
+                    rz += tri(p.x + tri(p.y)) * z;
+                    p = p * (M2 * -1.0);
+                }
+                return clamp(1.0 / pow(rz * 29.0, 1.3), 0.0, 0.55);
+            }
+
+            vec4 aurora(vec3 ro, vec3 rd, vec2 fragCoord) {
+                vec4 col = vec4(0.0);
+                vec4 avgCol = vec4(0.0);
+
+                for (int sampleIndex = 0; sampleIndex < 50; sampleIndex++) {
+                    float i = float(sampleIndex);
+                    float of = 0.006 * hash21(fragCoord) * smoothstep(0.0, 15.0, i);
+                    float denom = rd.y * 2.0 + 0.4;
+                    denom = abs(denom) < 0.03 ? (denom < 0.0 ? -0.03 : 0.03) : denom;
+                    float pt = ((0.8 + pow(i, 1.4) * 0.002) - ro.y) / denom;
+                    pt -= of;
+
+                    vec3 bpos = ro + pt * rd;
+                    float rzt = triNoise2d(bpos.zx, 0.06);
+                    vec4 col2 = vec4(0.0, 0.0, 0.0, rzt);
+
+                    vec3 colorVariation = sin(1.0 - vec3(2.15, -0.5, 1.2) + i * 0.043) * 0.5 + 0.5;
+                    col2.rgb = AuroraColor.rgb * colorVariation * rzt;
+
+                    avgCol = mix(avgCol, col2, 0.5);
+                    col += avgCol * exp2(-i * 0.065 - 2.5) * smoothstep(0.0, 5.0, i);
+                }
+
+                col *= clamp(rd.y * 15.0 + 0.4, 0.0, 1.0);
+                return col * AuroraIntensity;
+            }
+
+            vec3 stars(vec3 p, vec2 res) {
+                vec3 c = vec3(0.0);
+                float resVal = max(min(res.x, res.y), 1.0);
+                for (int starLayer = 0; starLayer < 4; starLayer++) {
+                    float i = float(starLayer);
+                    vec3 q = fract(p * (0.15 * resVal)) - 0.5;
+                    vec3 id = floor(p * (0.15 * resVal));
+                    vec2 rn = hash33(id).xy;
+                    float c2 = 1.0 - smoothstep(0.0, 0.6, length(q));
+                    c2 *= step(rn.x, 0.0005 + i * i * 0.001);
+                    c += c2 * (mix(vec3(1.0, 0.49, 0.1), vec3(0.75, 0.9, 1.0), rn.y) * 0.1 + 0.9);
+                    p *= 1.3;
+                }
+                return c * c * StarBrightness;
+            }
+
+            vec3 bg(vec3 rd) {
+                float sd = dot(normalize(vec3(-0.5, -0.6, 0.9)), rd) * 0.5 + 0.5;
+                sd = pow(sd, 5.0);
+                return mix(BackgroundColor1.rgb, BackgroundColor2.rgb, sd) * 0.63;
+            }
+
+            void main() {
+                vec2 res = max(quadSize, vec2(1.0));
+                vec2 uv = clamp(mapUv, vec2(0.0), vec2(1.0));
+                vec2 fragCoord = uv * res;
+
+                vec3 ro = vec3(0.0, 0.0, -6.7);
+                float theta = uv.y * PI;
+                float phi = (uv.x - 0.5) * 2.0 * PI;
+                vec3 rd = vec3(sin(theta) * sin(phi), sin(theta) * cos(phi), cos(theta));
+
+                float timeRot = Time * 0.05;
+                rd.yz = rd.yz * mm2(0.4);
+                rd.xz = rd.xz * mm2(sin(timeRot) * 0.2);
+
+                vec3 col;
+                float fade = smoothstep(0.0, 0.01, abs(rd.y)) * 0.1 + 0.9;
+
+                if (rd.y > 0.0) {
+                    col = bg(rd) * fade;
+                    vec4 aur = smoothstep(vec4(0.0), vec4(1.5), aurora(ro, rd, fragCoord)) * fade;
+                    col += stars(rd, res);
+                    col = col * (1.0 - aur.a) + aur.rgb;
+                } else {
+                    vec3 rrd = rd;
+                    rrd.y = abs(rrd.y);
+                    col = bg(rrd) * fade * 0.6;
+
+                    vec4 aur = smoothstep(vec4(0.0), vec4(2.5), aurora(ro, rrd, fragCoord));
+                    col += stars(rrd, res) * 0.1;
+                    col = col * (1.0 - aur.a) + aur.rgb;
+
+                    float waterDenom = max(rrd.y, 0.04);
+                    vec3 pos = ro + ((0.5 - ro.y) / waterDenom) * rrd;
+                    float nz2 = triNoise2d(pos.xz * vec2(0.5, 0.7), 0.0);
+                    col += mix(vec3(0.2, 0.25, 0.5) * 0.08, vec3(0.3, 0.3, 0.5) * 0.7, nz2 * 0.4);
+                }
+
+                float vignette = smoothstep(0.0, 0.08, uv.x)
+                        * smoothstep(1.0, 0.92, uv.x)
+                        * smoothstep(0.0, 0.06, uv.y)
+                        * smoothstep(1.0, 0.90, uv.y);
+                col *= mix(0.72, 1.0, vignette);
+                FragColor = vec4(max(col, vec3(0.0)), 1.0);
+            }
+            """);
+    private static final ShaderDrawOptions MAP_AURORA_BACKGROUND_OPTIONS = ShaderDrawOptions.defaults()
+            .blend(true)
+            .squareVertexOffset(0.0f);
+
+    private static final ShaderHandle MAP_DESTINY_BACKGROUND_SHADER = ShaderHandle.source(
+            "unigui:demo_map_destiny_background",
+            """
+            #version 150
+
+            in vec3 Position;
+
+            out vec2 mapUv;
+            out vec2 localCoord;
+            out vec2 quadSize;
+
+            uniform vec2 ScreenSize;
+            uniform vec4 SquareVertex;
+
+            void main() {
+                vec2 rawUv = Position.xy * 0.5 + 0.5;
+                mapUv = vec2(rawUv.x, 1.0 - rawUv.y);
+
+                vec2 rectMin = min(SquareVertex.xy, SquareVertex.zw);
+                vec2 rectMax = max(SquareVertex.xy, SquareVertex.zw);
+                quadSize = max(rectMax - rectMin, vec2(1.0));
+                localCoord = mapUv * quadSize;
+
+                vec2 pixel = mix(rectMin, rectMax, mapUv);
+                vec2 ndc = vec2(
+                        pixel.x / max(ScreenSize.x, 1.0) * 2.0 - 1.0,
+                        1.0 - pixel.y / max(ScreenSize.y, 1.0) * 2.0);
+                gl_Position = vec4(ndc, 0.0, 1.0);
+            }
+            """,
+            """
+            #version 150
+
+            in vec2 mapUv;
+            in vec2 localCoord;
+            in vec2 quadSize;
+
+            out vec4 FragColor;
+
+            uniform float Time;
+            uniform vec2 ViewportOffset;
+            uniform vec2 MapSize;
+            uniform float Zoom;
+
+            float hash21(vec2 p) {
+                p = fract(p * vec2(123.34, 456.21));
+                p += dot(p, p + 45.32);
+                return fract(p.x * p.y);
+            }
+
+            vec2 hash22(vec2 p) {
+                float n = hash21(p);
+                return vec2(n, hash21(p + n + 19.19));
+            }
+
+            float noise(vec2 p) {
+                vec2 i = floor(p);
+                vec2 f = fract(p);
+                vec2 u = f * f * (3.0 - 2.0 * f);
+                float a = hash21(i);
+                float b = hash21(i + vec2(1.0, 0.0));
+                float c = hash21(i + vec2(0.0, 1.0));
+                float d = hash21(i + vec2(1.0, 1.0));
+                return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+            }
+
+            float fbm(vec2 p) {
+                float v = 0.0;
+                float amp = 0.52;
+                for (int octave = 0; octave < 5; octave++) {
+                    v += noise(p) * amp;
+                    p = mat2(1.62, 1.08, -1.08, 1.62) * p + 7.13;
+                    amp *= 0.53;
+                }
+                return v;
+            }
+
+            float ridge(vec2 p) {
+                float n = fbm(p);
+                return 1.0 - abs(n * 2.0 - 1.0);
+            }
+
+            float blob(vec2 uv, vec2 center, vec2 radius) {
+                vec2 p = (uv - center) / radius;
+                return exp(-dot(p, p));
+            }
+
+            float starDust(vec2 uv) {
+                vec2 cell = floor(uv * 180.0);
+                vec2 local = fract(uv * 180.0) - 0.5;
+                vec2 rnd = hash22(cell);
+                float dotShape = smoothstep(0.18, 0.0, length(local - (rnd - 0.5) * 0.36));
+                float mask = step(0.975, rnd.x);
+                return dotShape * mask;
+            }
+
+            float mapScratches(vec2 uv, vec2 drift) {
+                float n = fbm(uv * vec2(15.0, 9.0) + drift * 3.0);
+                float contour = abs(fract(n * 7.0 + uv.x * 1.7 + uv.y * 0.9) - 0.5);
+                float lines = smoothstep(0.035, 0.0, contour) * 0.28;
+
+                float scan = abs(fract((uv.x + uv.y * 0.23) * 48.0 + n * 0.8) - 0.5);
+                lines += smoothstep(0.020, 0.0, scan) * 0.08;
+                return lines;
+            }
+
+            void main() {
+                vec2 uv = clamp(mapUv, vec2(0.0), vec2(1.0));
+                vec2 safeMapSize = max(MapSize, vec2(1.0));
+                float safeZoom = max(Zoom, 0.001);
+
+                vec2 cameraUv = ViewportOffset / (safeMapSize * safeZoom);
+                vec2 drift = cameraUv * vec2(0.16, 0.16);
+
+                vec2 hazeUv = uv + drift;
+                vec2 slowUv = uv + drift * 0.55 + vec2(Time * 0.006, -Time * 0.004);
+                vec2 detailUv = uv + drift * 1.75 + vec2(Time * 0.011, Time * 0.007);
+
+                float largeA = fbm(hazeUv * vec2(2.2, 1.35) + vec2(0.0, Time * 0.015));
+                float largeB = fbm((hazeUv + vec2(8.4, 2.1)) * vec2(3.1, 1.9) - vec2(Time * 0.010, 0.0));
+                float veils = ridge(slowUv * vec2(4.0, 2.6)) * 0.55 + largeA * 0.45;
+
+                vec3 base = mix(vec3(0.030, 0.038, 0.045), vec3(0.070, 0.078, 0.085), uv.y);
+                base *= 0.78 + 0.22 * largeB;
+
+                vec3 greenHaze = vec3(0.18, 0.48, 0.34) * blob(hazeUv, vec2(0.13, 0.45), vec2(0.34, 0.42));
+                vec3 amberHaze = vec3(0.58, 0.30, 0.18) * blob(hazeUv, vec2(0.34, 0.18), vec2(0.36, 0.32));
+                vec3 redHaze = vec3(0.46, 0.18, 0.18) * blob(hazeUv, vec2(0.46, 0.79), vec2(0.42, 0.30));
+                vec3 blueHaze = vec3(0.18, 0.36, 0.65) * blob(hazeUv, vec2(0.84, 0.42), vec2(0.38, 0.46));
+                vec3 tealHaze = vec3(0.10, 0.50, 0.52) * blob(hazeUv, vec2(0.78, 0.88), vec2(0.48, 0.24));
+
+                vec3 haze = (greenHaze + amberHaze + redHaze + blueHaze + tealHaze) * (0.48 + veils * 0.62);
+                vec3 col = base + haze;
+
+                float paper = fbm(detailUv * vec2(18.0, 12.0));
+                float clouds = fbm(detailUv * vec2(7.0, 5.0) + paper);
+                col += vec3(0.080, 0.095, 0.105) * smoothstep(0.38, 0.92, clouds) * 0.42;
+
+                float linework = mapScratches(uv, drift);
+                col += vec3(0.44, 0.48, 0.46) * linework;
+
+                float dust = starDust(uv + drift * 2.4 + vec2(Time * 0.003, -Time * 0.002));
+                col += vec3(0.52, 0.74, 0.68) * dust * 0.65;
+
+                float grain = hash21(localCoord + vec2(Time * 37.0, Time * 11.0)) - 0.5;
+                col += grain * 0.035;
+
+                float edge = smoothstep(0.0, 0.08, uv.x)
+                        * smoothstep(1.0, 0.92, uv.x)
+                        * smoothstep(0.0, 0.08, uv.y)
+                        * smoothstep(1.0, 0.92, uv.y);
+                col *= mix(0.56, 1.0, edge);
+
+                float fadedCorners = blob(uv, vec2(0.0, 0.0), vec2(0.55, 0.45))
+                        + blob(uv, vec2(1.0, 1.0), vec2(0.55, 0.45));
+                col += vec3(0.11, 0.12, 0.10) * fadedCorners * 0.12;
+
+                FragColor = vec4(max(col, vec3(0.0)), 1.0);
+            }
+            """);
+
 
     private UniGuiDemo() {
     }
@@ -902,16 +1263,20 @@ public final class UniGuiDemo {
         MapCanvas map = new MapCanvas()
                 .mapSize(4096.0f, 2048.0f)
                 .projection(projection)
-                .viewport(118.0f, 74.0f, 0.22f)
+                .viewport(118.0f, 74.0f, 0.44f)
                 .zoomRange(0.16f, 1.65f)
                 .gridSize(256.0f)
+                .gridVisible(false)
+                .mapBorderVisible(false)
                 .wheelPanStep(36.0f)
-                .clampToMapBounds(false);
+                .clampToMapBounds(true);
         map.layout(style -> style.size(LayoutConstraints.AUTO, 380.0f).flexGrow(1).flexShrink(1.0f));
         map.backgroundColor().set(0.018f, 0.023f, 0.036f, 0.98f);
         map.mapColor().set(0.040f, 0.055f, 0.088f, 0.96f);
         map.borderColor().set(0.42f, 0.58f, 0.92f, 0.86f);
         map.gridColor().set(0.25f, 0.36f, 0.55f, 0.22f);
+
+        addDestinyMapBackground(map);
 
         map.addWorldLayer((world, draw) -> {
             float campX = map.worldToRootX(map.externalToMapX(-1300.0f));
@@ -941,11 +1306,11 @@ public final class UniGuiDemo {
             draw.line(vaultX, vaultY, playerX, playerY, playerRoute);
         });
 
-        addDestinationMarker(map, status, "Camp", -1300.0f, -320.0f, MarkerStyle.CAMP).selected(true);
-        addDestinationMarker(map, status, "Vault", 280.0f, -160.0f, MarkerStyle.VAULT);
-        addDestinationMarker(map, status, "Forge", 1200.0f, 520.0f, MarkerStyle.FORGE);
-        addDestinationMarker(map, status, "Quest", 780.0f, 860.0f, MarkerStyle.QUEST);
-        addDestinationMarker(map, status, "Player", -180.0f, 620.0f, MarkerStyle.PLAYER);
+        addDestinationMarker(map, status, "Camp", -1300.0f, -320.0f, true);
+        addDestinationMarker(map, status, "Vault", 280.0f, -160.0f, false);
+        addDestinationMarker(map, status, "Forge", 1200.0f, 520.0f, false);
+        addDestinationMarker(map, status, "Quest", 780.0f, 860.0f, false);
+        addDestinationMarker(map, status, "Player", -180.0f, 620.0f, false);
 
         map.onViewportChanged(event -> status.text(String.format(Locale.ROOT,
                 "MapCanvas: offset %.0f, %.0f | zoom %.2fx | markers %d",
@@ -956,13 +1321,118 @@ public final class UniGuiDemo {
         return page;
     }
 
-    private static MapMarker addDestinationMarker(MapCanvas map, Label status, String title,
-                                                  float worldX, float worldY, MarkerStyle style) {
-        MapMarker marker = map.addProjectedMarker(title.toLowerCase(Locale.ROOT), worldX, worldY, title.toUpperCase(Locale.ROOT), style);
+    private static void addDestinyMapBackground(MapCanvas map) {
+        map.addWorldLayer((world, draw) -> {
+            float mapX = map.worldToRootX(0.0f);
+            float mapY = map.worldToRootY(0.0f);
+            float mapW = map.viewport().zoom() * map.mapWidth();
+            float mapH = map.viewport().zoom() * map.mapHeight();
+            if (mapW <= 1.0f || mapH <= 1.0f) return;
+
+            ShaderUniforms uniforms = ShaderUniforms.create()
+                    .setVec2("ViewportOffset", map.viewport().x(), map.viewport().y())
+                    .setVec2("MapSize", map.mapWidth(), map.mapHeight())
+                    .setFloat("Zoom", map.viewport().zoom());
+
+            draw.addDrawCmd(DrawCommand.shader(
+                    MAP_DESTINY_BACKGROUND_SHADER,
+                    new MutableRect(mapX, mapY, mapW, mapH),
+                    uniforms).shaderOptions(MAP_AURORA_BACKGROUND_OPTIONS));
+
+            if (map.gridVisible() || map.mapBorderVisible()) {
+                renderAuroraMapGrid(map, draw, mapX, mapY, mapW, mapH);
+            }
+        });
+    }
+
+
+    private static void renderAuroraMapGrid(MapCanvas map, DrawScope draw,
+                                            float mapX, float mapY, float mapW, float mapH) {
+        if (map.gridVisible()) {
+            float safeGrid = Math.max(1.0f, map.gridSize());
+            for (float x = 0.0f; x <= map.mapWidth() + 0.0001f; x += safeGrid) {
+                float gx = map.worldToRootX(x);
+                draw.addLine(gx, mapY, gx, mapY + mapH, map.gridColor(), 1.0f);
+            }
+            for (float y = 0.0f; y <= map.mapHeight() + 0.0001f; y += safeGrid) {
+                float gy = map.worldToRootY(y);
+                draw.addLine(mapX, gy, mapX + mapW, gy, map.gridColor(), 1.0f);
+            }
+        }
+        if (map.mapBorderVisible()) {
+            draw.addRect(mapX, mapY, mapW, mapH, map.borderColor(), 1.0f);
+        }
+    }
+    private static Button addDestinationMarker(MapCanvas map, Label status, String title,
+                                               float worldX, float worldY, boolean selected) {
+        Button marker = destinationMarkerButton(title, selected);
+        map.addProjectedMarkerWidget(title.toLowerCase(Locale.ROOT), worldX, worldY, marker)
+                .screenSize(destinationMarkerWidth(title), 22.0f)
+                .pivot(0.5f, 0.5f);
         marker.onClick(event -> status.text(String.format(Locale.ROOT,
                 "MapCanvas: %s world %.0f, %.0f -> map %.0f, %.0f",
                 title, worldX, worldY, map.externalToMapX(worldX), map.externalToMapY(worldY))));
         return marker;
+    }
+
+    private static Button destinationMarkerButton(String title, boolean selected) {
+        Button marker = new Button(RichText.builder()
+                .uppercase()
+                .tracking(0.12f)
+                .append(title)
+                .build());
+        marker.textPaddingX(6.0f);
+        marker.interactionTransitions(true);
+        marker.backgroundVisible(true);
+        marker.borderVisible(true);
+        marker.borderWidth(selected ? 2.0f : 1.0f);
+        marker.radius(4.0f);
+
+        switch (title.toLowerCase(Locale.ROOT)) {
+            case "camp" -> applyMarkerColors(marker,
+                    0.060f, 0.130f, 0.110f, 0.94f,
+                    0.42f, 0.88f, 0.70f, 0.95f,
+                    0.88f, 1.00f, 0.95f, 1.00f);
+            case "vault" -> applyMarkerColors(marker,
+                    0.100f, 0.085f, 0.145f, 0.94f,
+                    0.74f, 0.62f, 1.00f, 0.95f,
+                    0.96f, 0.92f, 1.00f, 1.00f);
+            case "forge" -> applyMarkerColors(marker,
+                    0.145f, 0.078f, 0.045f, 0.94f,
+                    1.00f, 0.62f, 0.32f, 0.95f,
+                    1.00f, 0.93f, 0.84f, 1.00f);
+            case "quest" -> applyMarkerColors(marker,
+                    0.140f, 0.120f, 0.045f, 0.94f,
+                    1.00f, 0.86f, 0.35f, 0.95f,
+                    1.00f, 0.98f, 0.86f, 1.00f);
+            case "player" -> applyMarkerColors(marker,
+                    0.045f, 0.105f, 0.150f, 0.94f,
+                    0.35f, 0.88f, 1.00f, 0.95f,
+                    0.86f, 0.98f, 1.00f, 1.00f);
+            default -> applyMarkerColors(marker,
+                    0.075f, 0.095f, 0.130f, 0.92f,
+                    0.58f, 0.72f, 0.95f, 0.92f,
+                    0.92f, 0.96f, 1.00f, 1.00f);
+        }
+        return marker;
+    }
+
+    private static void applyMarkerColors(Button marker,
+                                          float br, float bg, float bb, float ba,
+                                          float rr, float rg, float rb, float ra,
+                                          float tr, float tg, float tb, float ta) {
+        marker.background().set(br, bg, bb, ba);
+        marker.borderColor().set(rr, rg, rb, ra);
+        marker.textColor().set(tr, tg, tb, ta);
+    }
+
+    private static float destinationMarkerWidth(String title) {
+        return switch (title.toLowerCase(Locale.ROOT)) {
+            case "vault" -> 74.0f;
+            case "forge" -> 76.0f;
+            case "quest" -> 78.0f;
+            default -> 72.0f;
+        };
     }
 
     private static OverlayLayer overlaysPage() {

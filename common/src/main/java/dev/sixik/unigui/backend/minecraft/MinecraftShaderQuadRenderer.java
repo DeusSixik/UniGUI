@@ -17,7 +17,6 @@ import dev.sixik.unigui.api.render.shaders.ShaderUniforms;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import org.joml.Matrix4f;
-import org.joml.Vector4f;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
 import org.lwjgl.opengl.GL14;
@@ -51,14 +50,16 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
             }
             """;
 
+    private static final long START_NANOS = System.nanoTime();
+
     private final Map<String, Program> programs = new HashMap<>();
 
     boolean render(GuiGraphics graphics,
                    Minecraft minecraft,
                    DrawCommand command,
                    boolean renderingToPremultipliedTarget,
-                   int screenWidth,
-                   int screenHeight,
+                   float screenWidth,
+                   float screenHeight,
                    float guiScale) {
         if (graphics == null || minecraft == null || command == null || command.shader() == null) return false;
         Program program = program(minecraft, command.shader());
@@ -68,7 +69,10 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
         RenderState state = RenderState.capture();
         try {
             GL20.glUseProgram(program.id);
-            uploadBuiltins(program.id, graphics, command, Math.max(1, screenWidth), Math.max(1, screenHeight), sanitizeScale(guiScale));
+            uploadBuiltins(program.id, graphics, command,
+                    Math.max(1.0f, screenWidth),
+                    Math.max(1.0f, screenHeight),
+                    sanitizeScale(guiScale));
             uploadUniforms(program.id, command.shaderUniforms());
 
             if (command.shaderOptions().blend()) {
@@ -117,20 +121,21 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
     }
 
     private void uploadBuiltins(int program, GuiGraphics graphics, DrawCommand command,
-                                int screenWidth, int screenHeight, float guiScale) {
+                                float screenWidth, float screenHeight, float guiScale) {
         ShaderDrawOptions options = command.shaderOptions();
         if (!options.builtinUniforms()) return;
 
         uploadVec2(program, "ScreenSize", screenWidth, screenHeight);
         uploadFloat(program, "GuiScale", guiScale);
+        uploadFloat(program, "Time", (System.nanoTime() - START_NANOS) / 1_000_000_000.0f);
 
         RectView bounds = command.bounds();
         float offset = options.squareVertexOffset();
-        Matrix4f matrix = graphics.pose().last().pose();
-        Vector4f point1 = new Vector4f(bounds.x() + offset, bounds.y() + offset, 0.0f, 1.0f).mul(matrix);
-        Vector4f point2 = new Vector4f(bounds.x() + bounds.width() + offset,
-                bounds.y() + bounds.height() + offset, 0.0f, 1.0f).mul(matrix);
-        uploadVec4(program, "SquareVertex", point1.x(), point1.y(), point2.x(), point2.y());
+        float x1 = bounds.x() + offset;
+        float y1 = bounds.y() + offset;
+        float x2 = bounds.x() + bounds.width() + offset;
+        float y2 = bounds.y() + bounds.height() + offset;
+        uploadVec4(program, "SquareVertex", x1, y1, x2, y2);
 
         try (MemoryStack stack = MemoryStack.stackPush()) {
             FloatBuffer identity = stack.mallocFloat(16);

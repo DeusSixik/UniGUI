@@ -576,14 +576,22 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
                 shaderGuiScale());
     }
 
-    private int shaderScreenWidth() {
-        if (activeRenderTarget != null) return Math.max(1, activeRenderTarget.width());
-        return minecraft.getWindow() == null ? 1 : Math.max(1, minecraft.getWindow().getWidth());
+    private float shaderScreenWidth() {
+        if (activeRenderTarget != null) {
+            return Math.max(1.0f, activeRenderTarget.width() / sanitizeScale(activeRenderTargetScaleX));
+        }
+        return minecraft.getWindow() == null
+                ? 1.0f
+                : Math.max(1.0f, minecraft.getWindow().getGuiScaledWidth());
     }
 
-    private int shaderScreenHeight() {
-        if (activeRenderTarget != null) return Math.max(1, activeRenderTarget.height());
-        return minecraft.getWindow() == null ? 1 : Math.max(1, minecraft.getWindow().getHeight());
+    private float shaderScreenHeight() {
+        if (activeRenderTarget != null) {
+            return Math.max(1.0f, activeRenderTarget.height() / sanitizeScale(activeRenderTargetScaleY));
+        }
+        return minecraft.getWindow() == null
+                ? 1.0f
+                : Math.max(1.0f, minecraft.getWindow().getGuiScaledHeight());
     }
 
     private float shaderGuiScale() {
