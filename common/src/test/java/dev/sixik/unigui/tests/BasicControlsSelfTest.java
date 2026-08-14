@@ -4763,6 +4763,24 @@ public final class BasicControlsSelfTest {
         uiContext.routedEvents().dispatch(new PointerPressedEvent(toggleSwitch, 8.0f, 8.0f, 8.0f, 8.0f, 0, PointerButton.PRIMARY));
         uiContext.routedEvents().dispatch(new PointerReleasedEvent(toggleSwitch, 8.0f, 8.0f, 8.0f, 8.0f, 0, PointerButton.PRIMARY));
         expect(toggleSwitch.checked(), "ToggleSwitch should reuse ToggleButton checked behavior");
+        toggleSwitch.tick(new FrameContext(1L, 0.08f, 0.0f, FramePhase.ANIMATION));
+        expect(toggleSwitch.switchProgress() > 0.0f && toggleSwitch.switchProgress() < 1.0f,
+                "ToggleSwitch should animate switch progress after toggling");
+        toggleSwitch.tick(new FrameContext(2L, 0.20f, 0.0f, FramePhase.ANIMATION));
+        expect(near(toggleSwitch.switchProgress(), 1.0f), "ToggleSwitch animation should settle at checked progress");
+
+        ToggleSwitch leftLabelSwitch = new ToggleSwitch("Left").labelLeft(true);
+        leftLabelSwitch.setUiContextInternal(uiContext);
+        leftLabelSwitch.arrange(new MutableRect(0.0f, 0.0f, 90.0f, 20.0f));
+        DrawList leftLabelDrawList = new DrawList();
+        leftLabelSwitch.render(new DefaultRenderContext(leftLabelDrawList));
+        int leftLabelTextIndex = textCommandIndex(leftLabelDrawList, "Left", 0);
+        int leftLabelTrackIndex = firstCommandIndex(leftLabelDrawList, DrawCommandType.ROUNDED_RECT, 0);
+        expect(leftLabelTextIndex >= 0
+                        && leftLabelTrackIndex >= 0
+                        && leftLabelDrawList.commands().get(leftLabelTextIndex).bounds().x()
+                        < leftLabelDrawList.commands().get(leftLabelTrackIndex).bounds().x(),
+                "ToggleSwitch labelLeft should render text before the switch track");
         expect(Widgets.toggleSwitch("Factory") instanceof ToggleSwitch, "Widgets.toggleSwitch should create ToggleSwitch instances");
 
         Checkbox checkbox = new Checkbox("Enabled");

@@ -5,14 +5,19 @@ import dev.sixik.unigui.api.event.EventPhase;
 import dev.sixik.unigui.api.event.PointerEnteredEvent;
 import dev.sixik.unigui.api.event.PointerExitedEvent;
 import dev.sixik.unigui.api.layout.Alignment;
+import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.UiRenderPolicy;
+import dev.sixik.unigui.api.text.Fonts;
+import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.backend.minecraft.MinecraftClipboardService;
 import dev.sixik.unigui.backend.minecraft.MinecraftWidgetScreen;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeButtonRenders;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeProgressBarRenders;
+import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeToggleSwitchRenders;
 import dev.sixik.unigui.widgets.*;
 import dev.sixik.unigui.widgets.render.ButtonRenderer;
 import dev.sixik.unigui.widgets.render.ProgressBarRenderer;
@@ -35,7 +40,8 @@ public class DominionScreen {
 
         float y = 0;
         float pos = addButtons(viewport, y);
-        pos = addProgressBars(viewport, pos + 4);
+        pos = addToggleSwitches(viewport, pos + 4);
+        pos = addProgressBars(viewport, pos + 12);
 
         return new OverlayLayer(viewport);
     }
@@ -67,6 +73,34 @@ public class DominionScreen {
         viewport.addChild(button);
 
         return button.transform().position().y();
+    }
+
+    private static float addToggleSwitches(StackPanel viewport, float y) {
+        ToggleSwitch crossplay = toggleSwitch("CROSSPLAY", true);
+        crossplay.transform().position().add(0, y);
+        viewport.addChild(crossplay);
+        return crossplay.transform().position().y();
+    }
+
+    private static ToggleSwitch toggleSwitch(String text, boolean checked) {
+        return toggleSwitch(text, checked, false);
+    }
+
+    private static ToggleSwitch toggleSwitch(String text, boolean checked, boolean labelLeft) {
+        ToggleSwitch toggle = new ToggleSwitch(text);
+        toggle.layout(layout -> layout.size(22.0f * 2, 3.2f * 2));
+        toggle.transform().position().set(10, 10);
+        toggle.backgroundVisible(false);
+        toggle.borderVisible(false);
+        toggle.themeEnabled(false);
+        toggle.trackSize(5.2f * 2, 2.6f * 2);
+        toggle.thumbSize(1.7f * 2);
+        toggle.labelGap(1.35f);
+        toggle.labelLeft(labelLeft);
+        toggle.richText(DestinyLikeToggleSwitchRenders.dominionSwitchText(text));
+        toggle.switchAnimation(0.0f).silentChecked(checked).switchAnimation(0.16f);
+        toggle.renderer(DestinyLikeToggleSwitchRenders.DOMINION_TOGGLE_SWITCH_RENDERER);
+        return toggle;
     }
 
     private static float addProgressBars(StackPanel viewport, float y) {

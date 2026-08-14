@@ -71,7 +71,11 @@ public final class ButtonRenderers {
         float thumbSize = Math.max(0.0f, state.indicatorInnerSize());
         if (trackWidth <= 0.0f || trackHeight <= 0.0f || thumbSize <= 0.0f) return;
 
-        float trackX = state.x();
+        float labelGap = state.hasText() ? Math.max(0.0f, state.indicatorGap()) : 0.0f;
+        float labelWidth = state.hasText()
+                ? Math.min(Math.max(0.0f, state.textWidth()), Math.max(0.0f, state.width() - trackWidth - labelGap))
+                : 0.0f;
+        float trackX = state.labelLeft() ? state.x() + labelWidth + labelGap : state.x();
         float trackY = state.y() + Math.max(0.0f, state.height() - trackHeight) * 0.5f;
         float radius = trackHeight * 0.5f;
         draw.roundedRect(trackX, trackY, trackWidth, trackHeight, radius, Paint.fill(state.indicatorColor()));
@@ -82,7 +86,11 @@ public final class ButtonRenderers {
         float thumbY = trackY + Math.max(0.0f, trackHeight - thumbSize) * 0.5f;
         draw.circle(thumbX, thumbY, thumbSize, thumbSize, Paint.fill(state.indicatorBorderColor()));
 
-        drawTrailingLabel(draw, state, trackX + trackWidth + state.indicatorGap());
+        if (state.labelLeft()) {
+            drawLabel(draw, state, state.x(), labelWidth);
+        } else {
+            drawTrailingLabel(draw, state, trackX + trackWidth + labelGap);
+        }
     };
 
     private ButtonRenderers() {
@@ -110,6 +118,12 @@ public final class ButtonRenderers {
         if (!state.hasText()) return;
 
         float contentWidth = Math.max(0.0f, state.width() - (contentX - state.x()));
+        drawLabel(draw, state, contentX, contentWidth);
+    }
+
+    private static void drawLabel(dev.sixik.unigui.api.render.DrawScope draw, ButtonState state, float contentX, float contentWidth) {
+        if (!state.hasText() || contentWidth <= 0.0f) return;
+
         float drawHeight = Math.min(Math.max(0.0f, state.height()), Math.max(0.0f, state.textHeight()));
         float drawY = state.y() + Math.max(0.0f, state.height() - drawHeight) * 0.5f;
 

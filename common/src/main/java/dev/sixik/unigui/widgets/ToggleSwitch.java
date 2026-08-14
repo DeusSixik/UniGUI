@@ -1,5 +1,6 @@
 package dev.sixik.unigui.widgets;
 
+import dev.sixik.unigui.api.animation.TransitionSpec;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.ColorView;
@@ -20,12 +21,18 @@ public class ToggleSwitch extends ToggleButton {
     public static final float DEFAULT_TRACK_HEIGHT = 18.0f;
     public static final float DEFAULT_THUMB_SIZE = 14.0f;
     public static final float DEFAULT_LABEL_GAP = 6.0f;
+    public static final float DEFAULT_SWITCH_ANIMATION_SECONDS = 0.16f;
+
+    private static final Object SWITCH_PROGRESS_ANIMATION_KEY = new Object();
 
     private final MutableColor thumbColor = new MutableColor(0.95f, 0.95f, 0.95f, 1.0f);
     private float trackWidth = DEFAULT_TRACK_WIDTH;
     private float trackHeight = DEFAULT_TRACK_HEIGHT;
     private float thumbSize = DEFAULT_THUMB_SIZE;
     private float labelGap = DEFAULT_LABEL_GAP;
+    private boolean labelLeft;
+    private float switchProgress;
+    private TransitionSpec switchAnimation = TransitionSpec.of(DEFAULT_SWITCH_ANIMATION_SECONDS);
 
     public ToggleSwitch() {
         this("");
@@ -47,13 +54,17 @@ public class ToggleSwitch extends ToggleButton {
 
     @Override
     public ToggleSwitch checked(boolean checked) {
+        boolean changed = checked() != checked;
         super.checked(checked);
+        if (changed) animateSwitchProgress(checked);
         return this;
     }
 
     @Override
     public ToggleSwitch silentChecked(boolean checked) {
+        boolean changed = checked() != checked;
         super.silentChecked(checked);
+        if (changed) animateSwitchProgress(checked);
         return this;
     }
 
@@ -119,6 +130,34 @@ public class ToggleSwitch extends ToggleButton {
         return this;
     }
 
+    public boolean labelLeft() {
+        return labelLeft;
+    }
+
+    public ToggleSwitch labelLeft(boolean labelLeft) {
+        if (this.labelLeft == labelLeft) return this;
+        this.labelLeft = labelLeft;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public float switchProgress() {
+        return switchProgress;
+    }
+
+    public TransitionSpec switchAnimation() {
+        return switchAnimation;
+    }
+
+    public ToggleSwitch switchAnimation(float durationSeconds) {
+        return switchAnimation(TransitionSpec.of(durationSeconds));
+    }
+
+    public ToggleSwitch switchAnimation(TransitionSpec switchAnimation) {
+        this.switchAnimation = switchAnimation == null ? TransitionSpec.DEFAULT : switchAnimation;
+        return this;
+    }
+
     @Override
     public void measure(LayoutContext context) {
         if (visibility() == Visibility.COLLAPSED) {
@@ -159,7 +198,9 @@ public class ToggleSwitch extends ToggleButton {
                 thumbSize,
                 hasLabel() ? labelGap : 0.0f,
                 switchTrackColor(),
-                thumbColor.copy());
+                thumbColor.copy(),
+                switchProgress,
+                labelLeft);
     }
 
     @Override
@@ -179,11 +220,32 @@ public class ToggleSwitch extends ToggleButton {
         return themed == null ? fallback : themed;
     }
 
+    private void animateSwitchProgress(boolean checked) {
+        animateParameter(
+                SWITCH_PROGRESS_ANIMATION_KEY,
+                this::switchProgress,
+                this::setSwitchProgress,
+                checked ? 1.0f : 0.0f,
+                switchAnimation);
+    }
+
+    private void setSwitchProgress(float progress) {
+        float normalized = clamp01(progress);
+        if (this.switchProgress == normalized) return;
+        this.switchProgress = normalized;
+        invalidate(InvalidationFlags.VISUAL);
+    }
+
     private boolean hasLabel() {
         return richText() != null && !richText().isEmpty();
     }
 
     private static float positiveOr(float value, float fallback) {
         return Float.isFinite(value) && value > 0.0f ? value : fallback;
+    }
+
+    private static float clamp01(float value) {
+        if (!Float.isFinite(value)) return 0.0f;
+        return Math.max(0.0f, Math.min(1.0f, value));
     }
 }
