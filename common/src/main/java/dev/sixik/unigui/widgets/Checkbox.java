@@ -1,5 +1,6 @@
 package dev.sixik.unigui.widgets;
 
+import dev.sixik.unigui.api.animation.TransitionSpec;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.event.ButtonClickEvent;
 import dev.sixik.unigui.api.event.CheckboxStateChangedEvent;
@@ -25,9 +26,19 @@ public class Checkbox extends ToggleButton {
     private static final float BOX_SIZE = 12.0f;
     private static final float CHECK_SIZE = 6.0f;
     private static final float TEXT_GAP = 4.0f;
+    public static final float DEFAULT_CHECK_ANIMATION_SECONDS = 0.12f;
+
+    private static final Object CHECK_PROGRESS_ANIMATION_KEY = new Object();
+
     private CheckboxState state = CheckboxState.UNCHECKED;
     private boolean triState;
     private boolean cyclingFromClick;
+    private float boxSize = BOX_SIZE;
+    private float checkSize = CHECK_SIZE;
+    private float textGap = TEXT_GAP;
+    private boolean labelLeft;
+    private float checkProgress;
+    private TransitionSpec checkAnimation = TransitionSpec.of(DEFAULT_CHECK_ANIMATION_SECONDS);
 
     public Checkbox() {
         this("");
@@ -76,6 +87,71 @@ public class Checkbox extends ToggleButton {
         return this;
     }
 
+    public float boxSize() {
+        return boxSize;
+    }
+
+    public Checkbox boxSize(float boxSize) {
+        float normalized = positiveOr(boxSize, BOX_SIZE);
+        if (this.boxSize == normalized) return this;
+        this.boxSize = normalized;
+        if (checkSize > normalized) checkSize = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public float checkSize() {
+        return checkSize;
+    }
+
+    public Checkbox checkSize(float checkSize) {
+        float normalized = Math.min(positiveOr(checkSize, CHECK_SIZE), boxSize);
+        if (this.checkSize == normalized) return this;
+        this.checkSize = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public float textGap() {
+        return textGap;
+    }
+
+    public Checkbox textGap(float textGap) {
+        float normalized = Float.isFinite(textGap) ? Math.max(0.0f, textGap) : TEXT_GAP;
+        if (this.textGap == normalized) return this;
+        this.textGap = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public boolean labelLeft() {
+        return labelLeft;
+    }
+
+    public Checkbox labelLeft(boolean labelLeft) {
+        if (this.labelLeft == labelLeft) return this;
+        this.labelLeft = labelLeft;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public float checkProgress() {
+        return checkProgress;
+    }
+
+    public TransitionSpec checkAnimation() {
+        return checkAnimation;
+    }
+
+    public Checkbox checkAnimation(float durationSeconds) {
+        return checkAnimation(TransitionSpec.of(durationSeconds));
+    }
+
+    public Checkbox checkAnimation(TransitionSpec checkAnimation) {
+        this.checkAnimation = checkAnimation == null ? TransitionSpec.DEFAULT : checkAnimation;
+        return this;
+    }
+
     @Override
     public boolean checked() {
         return state == CheckboxState.CHECKED;
@@ -116,8 +192,8 @@ public class Checkbox extends ToggleButton {
             setDesiredSize(0.0f, 0.0f);
             return;
         }
-        float textWidth = text().isEmpty() ? 0.0f : 4.0f + TextEngine.measureLineWidth(richText());
-        setDesiredSize(resolveDesiredSize(context, BOX_SIZE + textWidth, DEFAULT_HEIGHT));
+        float textWidth = text().isEmpty() ? 0.0f : textGap + TextEngine.measureLineWidth(richText());
+        setDesiredSize(resolveDesiredSize(context, boxSize + textWidth, DEFAULT_HEIGHT));
     }
 
     @Override
@@ -165,11 +241,13 @@ public class Checkbox extends ToggleButton {
                 enabled(),
                 state == CheckboxState.CHECKED,
                 state == CheckboxState.INDETERMINATE,
-                BOX_SIZE,
-                CHECK_SIZE,
-                TEXT_GAP,
+                boxSize,
+                checkSize,
+                textGap,
                 checkedBackground().copy(),
-                borderColor().copy());
+                borderColor().copy(),
+                checkProgress,
+                labelLeft);
     }
 
     private void setState(CheckboxState state, boolean emitChange) {
@@ -182,6 +260,7 @@ public class Checkbox extends ToggleButton {
         boolean oldChecked = checked();
         this.state = next;
         super.silentChecked(next == CheckboxState.CHECKED);
+        animateCheckProgress(next != CheckboxState.UNCHECKED);
         invalidate(InvalidationFlags.VISUAL);
         if (emitChange) {
             emit(new CheckboxStateChangedEvent(this, oldState, next));
@@ -195,6 +274,22 @@ public class Checkbox extends ToggleButton {
         setState(nextState(state), emitChange);
     }
 
+    private void animateCheckProgress(boolean visible) {
+        animateParameter(
+                CHECK_PROGRESS_ANIMATION_KEY,
+                this::checkProgress,
+                this::setCheckProgress,
+                visible ? 1.0f : 0.0f,
+                checkAnimation);
+    }
+
+    private void setCheckProgress(float progress) {
+        float normalized = clamp01(progress);
+        if (this.checkProgress == normalized) return;
+        this.checkProgress = normalized;
+        invalidate(InvalidationFlags.VISUAL);
+    }
+
     private static CheckboxState nextState(CheckboxState state) {
         return switch (normalize(state)) {
             case UNCHECKED -> CheckboxState.CHECKED;
@@ -205,5 +300,14 @@ public class Checkbox extends ToggleButton {
 
     private static CheckboxState normalize(CheckboxState state) {
         return state == null ? CheckboxState.UNCHECKED : state;
+    }
+
+    private static float positiveOr(float value, float fallback) {
+        return Float.isFinite(value) && value > 0.0f ? value : fallback;
+    }
+
+    private static float clamp01(float value) {
+        if (!Float.isFinite(value)) return 0.0f;
+        return Math.max(0.0f, Math.min(1.0f, value));
     }
 }

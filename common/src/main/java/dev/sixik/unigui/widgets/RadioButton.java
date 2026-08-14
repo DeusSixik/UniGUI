@@ -1,5 +1,6 @@
 package dev.sixik.unigui.widgets;
 
+import dev.sixik.unigui.api.animation.TransitionSpec;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.event.CheckedChangedEvent;
 import dev.sixik.unigui.api.event.Event;
@@ -28,11 +29,20 @@ public class RadioButton extends Button {
     private static final float OUTER_SIZE = 12.0f;
     private static final float INNER_SIZE = 6.0f;
     private static final float TEXT_GAP = 4.0f;
+    public static final float DEFAULT_SELECTION_ANIMATION_SECONDS = 0.12f;
+
+    private static final Object SELECTION_PROGRESS_ANIMATION_KEY = new Object();
 
     private final MutableColor checkedColor = new MutableColor(0.30f, 0.62f, 0.95f, 1.0f);
     private String value;
     private RadioGroup group;
     private boolean checked;
+    private float outerSize = OUTER_SIZE;
+    private float innerSize = INNER_SIZE;
+    private float textGap = TEXT_GAP;
+    private boolean labelLeft;
+    private float selectionProgress;
+    private TransitionSpec selectionAnimation = TransitionSpec.of(DEFAULT_SELECTION_ANIMATION_SECONDS);
 
     public RadioButton() {
         this("", "");
@@ -89,6 +99,71 @@ public class RadioButton extends Button {
         return this;
     }
 
+    public float outerSize() {
+        return outerSize;
+    }
+
+    public RadioButton outerSize(float outerSize) {
+        float normalized = positiveOr(outerSize, OUTER_SIZE);
+        if (this.outerSize == normalized) return this;
+        this.outerSize = normalized;
+        if (innerSize > normalized) innerSize = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public float innerSize() {
+        return innerSize;
+    }
+
+    public RadioButton innerSize(float innerSize) {
+        float normalized = Math.min(positiveOr(innerSize, INNER_SIZE), outerSize);
+        if (this.innerSize == normalized) return this;
+        this.innerSize = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public float textGap() {
+        return textGap;
+    }
+
+    public RadioButton textGap(float textGap) {
+        float normalized = Float.isFinite(textGap) ? Math.max(0.0f, textGap) : TEXT_GAP;
+        if (this.textGap == normalized) return this;
+        this.textGap = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public boolean labelLeft() {
+        return labelLeft;
+    }
+
+    public RadioButton labelLeft(boolean labelLeft) {
+        if (this.labelLeft == labelLeft) return this;
+        this.labelLeft = labelLeft;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public float selectionProgress() {
+        return selectionProgress;
+    }
+
+    public TransitionSpec selectionAnimation() {
+        return selectionAnimation;
+    }
+
+    public RadioButton selectionAnimation(float durationSeconds) {
+        return selectionAnimation(TransitionSpec.of(durationSeconds));
+    }
+
+    public RadioButton selectionAnimation(TransitionSpec selectionAnimation) {
+        this.selectionAnimation = selectionAnimation == null ? TransitionSpec.DEFAULT : selectionAnimation;
+        return this;
+    }
+
     public RadioGroup group() {
         return group;
     }
@@ -118,8 +193,8 @@ public class RadioButton extends Button {
             setDesiredSize(0.0f, 0.0f);
             return;
         }
-        float textWidth = text().isEmpty() ? 0.0f : 4.0f + TextEngine.measureLineWidth(richText());
-        setDesiredSize(resolveDesiredSize(context, OUTER_SIZE + textWidth, DEFAULT_HEIGHT));
+        float textWidth = text().isEmpty() ? 0.0f : textGap + TextEngine.measureLineWidth(richText());
+        setDesiredSize(resolveDesiredSize(context, outerSize + textWidth, DEFAULT_HEIGHT));
     }
 
     @Override
@@ -181,11 +256,13 @@ public class RadioButton extends Button {
                 enabled(),
                 checked,
                 false,
-                OUTER_SIZE,
-                INNER_SIZE,
-                TEXT_GAP,
+                outerSize,
+                innerSize,
+                textGap,
                 checkedColor.copy(),
-                (checked ? checkedColor : borderColor()).copy());
+                (checked ? checkedColor : borderColor()).copy(),
+                selectionProgress,
+                labelLeft);
     }
 
     void setGroupInternal(RadioGroup group) {
@@ -214,10 +291,27 @@ public class RadioButton extends Button {
         if (this.checked == checked) return;
         boolean oldValue = this.checked;
         this.checked = checked;
+        animateSelectionProgress(checked);
         invalidate(InvalidationFlags.VISUAL);
         if (emitChange) {
             emit(new CheckedChangedEvent(this, oldValue, checked));
         }
+    }
+
+    private void animateSelectionProgress(boolean checked) {
+        animateParameter(
+                SELECTION_PROGRESS_ANIMATION_KEY,
+                this::selectionProgress,
+                this::setSelectionProgress,
+                checked ? 1.0f : 0.0f,
+                selectionAnimation);
+    }
+
+    private void setSelectionProgress(float progress) {
+        float normalized = clamp01(progress);
+        if (this.selectionProgress == normalized) return;
+        this.selectionProgress = normalized;
+        invalidate(InvalidationFlags.VISUAL);
     }
 
     private boolean isFocused() {
@@ -226,5 +320,14 @@ public class RadioButton extends Button {
 
     private static String normalize(String value) {
         return value == null ? "" : value;
+    }
+
+    private static float positiveOr(float value, float fallback) {
+        return Float.isFinite(value) && value > 0.0f ? value : fallback;
+    }
+
+    private static float clamp01(float value) {
+        if (!Float.isFinite(value)) return 0.0f;
+        return Math.max(0.0f, Math.min(1.0f, value));
     }
 }

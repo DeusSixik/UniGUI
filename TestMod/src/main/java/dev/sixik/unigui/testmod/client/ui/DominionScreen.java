@@ -16,7 +16,9 @@ import dev.sixik.unigui.backend.minecraft.MinecraftClipboardService;
 import dev.sixik.unigui.backend.minecraft.MinecraftWidgetScreen;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeButtonRenders;
+import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeCheckboxRenders;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeProgressBarRenders;
+import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeRadioButtonRenders;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeToggleSwitchRenders;
 import dev.sixik.unigui.widgets.*;
 import dev.sixik.unigui.widgets.render.ButtonRenderer;
@@ -40,8 +42,10 @@ public class DominionScreen {
 
         float y = 0;
         float pos = addButtons(viewport, y);
-        pos = addToggleSwitches(viewport, pos + 4);
-        pos = addProgressBars(viewport, pos + 12);
+        pos = addToggleSwitches(viewport, pos + 2);
+        pos = addCheckboxes(viewport, pos);
+        pos = addRadioButtons(viewport, pos + 1);
+        pos = addProgressBars(viewport, pos + 2);
 
         return new OverlayLayer(viewport);
     }
@@ -101,6 +105,59 @@ public class DominionScreen {
         toggle.switchAnimation(0.0f).silentChecked(checked).switchAnimation(0.16f);
         toggle.renderer(DestinyLikeToggleSwitchRenders.DOMINION_TOGGLE_SWITCH_RENDERER);
         return toggle;
+    }
+
+    private static float addCheckboxes(StackPanel viewport, float y) {
+        Checkbox matchmaking = checkbox("MATCHMAKING", true);
+        matchmaking.transform().position().add(0, y);
+        viewport.addChild(matchmaking);
+        return matchmaking.transform().position().y();
+    }
+
+    private static Checkbox checkbox(String text, boolean checked) {
+        Checkbox checkbox = new Checkbox(text);
+        checkbox.layout(layout -> layout.size(44.0f, 6.4f));
+        checkbox.transform().position().set(10, 10);
+        checkbox.backgroundVisible(false);
+        checkbox.borderVisible(false);
+        checkbox.themeEnabled(false);
+        checkbox.boxSize(5.2f);
+        checkbox.checkSize(3.4f);
+        checkbox.textGap(1.35f);
+        checkbox.richText(DestinyLikeCheckboxRenders.dominionCheckboxText(text));
+        checkbox.checkAnimation(0.0f).silentChecked(checked).checkAnimation(0.12f);
+        checkbox.renderer(DestinyLikeCheckboxRenders.DOMINION_CHECKBOX_RENDERER);
+        return checkbox;
+    }
+
+    private static float addRadioButtons(StackPanel viewport, float y) {
+        RadioButton publicFireteam = radioButton("PUBLIC FIRETEAM", "public", true);
+        RadioButton friendsOnly = radioButton("FRIENDS ONLY", "friends", false);
+        new RadioGroup()
+                .add(publicFireteam)
+                .add(friendsOnly);
+
+        publicFireteam.transform().position().add(0, y);
+        friendsOnly.transform().position().add(0, y + 8);
+        viewport.addChild(publicFireteam);
+        viewport.addChild(friendsOnly);
+        return friendsOnly.transform().position().y();
+    }
+
+    private static RadioButton radioButton(String text, String value, boolean checked) {
+        RadioButton radio = new RadioButton(text, value);
+        radio.layout(layout -> layout.size(44.0f, 6.4f));
+        radio.transform().position().set(10, 10);
+        radio.backgroundVisible(false);
+        radio.borderVisible(false);
+        radio.themeEnabled(false);
+        radio.outerSize(5.2f);
+        radio.innerSize(3.4f);
+        radio.textGap(1.35f);
+        radio.richText(DestinyLikeRadioButtonRenders.dominionRadioText(text));
+        radio.selectionAnimation(0.0f).silentChecked(checked).selectionAnimation(0.12f);
+        radio.renderer(DestinyLikeRadioButtonRenders.DOMINION_RADIO_BUTTON_RENDERER);
+        return radio;
     }
 
     private static float addProgressBars(StackPanel viewport, float y) {

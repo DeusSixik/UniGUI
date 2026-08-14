@@ -28,8 +28,13 @@ public final class ButtonRenderers {
     };
 
     public static final ButtonRenderer CHECKBOX = (draw, state) -> {
+        float labelGap = state.hasText() ? Math.max(0.0f, state.indicatorGap()) : 0.0f;
+        float labelWidth = state.hasText()
+                ? Math.min(Math.max(0.0f, state.textWidth()), Math.max(0.0f, state.width() - state.indicatorSize() - labelGap))
+                : 0.0f;
+        float indicatorX = state.labelLeft() ? state.x() + labelWidth + labelGap : state.x();
         float indicatorY = state.y() + Math.max(0.0f, state.height() - state.indicatorSize()) * 0.5f;
-        draw.roundedRect(state.x(), indicatorY, state.indicatorSize(), state.indicatorSize(), 2.0f,
+        draw.roundedRect(indicatorX, indicatorY, state.indicatorSize(), state.indicatorSize(), 2.0f,
                 Paint.stroke(state.indicatorBorderColor(), 1.0f));
 
         if (state.indeterminate()) {
@@ -37,32 +42,47 @@ public final class ButtonRenderers {
             float dashHeight = Math.max(1.0f, state.indicatorInnerSize() * 0.28f);
             float offsetX = Math.max(0.0f, (state.indicatorSize() - dashWidth) * 0.5f);
             float offsetY = Math.max(0.0f, (state.indicatorSize() - dashHeight) * 0.5f);
-            draw.rect(state.x() + offsetX, indicatorY + offsetY,
+            draw.rect(indicatorX + offsetX, indicatorY + offsetY,
                     dashWidth, dashHeight,
                     Paint.fill(state.indicatorColor()));
         } else if (state.checked()) {
             float offset = Math.max(0.0f, (state.indicatorSize() - state.indicatorInnerSize()) * 0.5f);
-            draw.rect(state.x() + offset, indicatorY + offset,
+            draw.rect(indicatorX + offset, indicatorY + offset,
                     state.indicatorInnerSize(), state.indicatorInnerSize(),
                     Paint.fill(state.indicatorColor()));
         }
 
-        drawLeadingLabel(draw, state);
+        if (state.labelLeft()) {
+            drawLabel(draw, state, state.x(), labelWidth);
+        } else {
+            drawLeadingLabel(draw, state);
+        }
     };
 
     public static final ButtonRenderer RADIO_BUTTON = (draw, state) -> {
+        float labelGap = state.hasText() ? Math.max(0.0f, state.indicatorGap()) : 0.0f;
+        float labelWidth = state.hasText()
+                ? Math.min(Math.max(0.0f, state.textWidth()), Math.max(0.0f, state.width() - state.indicatorSize() - labelGap))
+                : 0.0f;
+        float indicatorX = state.labelLeft() ? state.x() + labelWidth + labelGap : state.x();
         float indicatorY = state.y() + Math.max(0.0f, state.height() - state.indicatorSize()) * 0.5f;
-        draw.circle(state.x(), indicatorY, state.indicatorSize(), state.indicatorSize(),
+        draw.circle(indicatorX, indicatorY, state.indicatorSize(), state.indicatorSize(),
                 Paint.stroke(state.indicatorBorderColor(), 1.0f));
 
-        if (state.checked()) {
-            float offset = Math.max(0.0f, (state.indicatorSize() - state.indicatorInnerSize()) * 0.5f);
-            draw.circle(state.x() + offset, indicatorY + offset,
-                    state.indicatorInnerSize(), state.indicatorInnerSize(),
+        float progress = state.indicatorProgress();
+        if (progress > 0.0f) {
+            float innerSize = state.indicatorInnerSize() * progress;
+            float offset = Math.max(0.0f, (state.indicatorSize() - innerSize) * 0.5f);
+            draw.circle(indicatorX + offset, indicatorY + offset,
+                    innerSize, innerSize,
                     Paint.fill(state.indicatorColor()));
         }
 
-        drawLeadingLabel(draw, state);
+        if (state.labelLeft()) {
+            drawLabel(draw, state, state.x(), labelWidth);
+        } else {
+            drawLeadingLabel(draw, state);
+        }
     };
 
     public static final ButtonRenderer TOGGLE_SWITCH = (draw, state) -> {

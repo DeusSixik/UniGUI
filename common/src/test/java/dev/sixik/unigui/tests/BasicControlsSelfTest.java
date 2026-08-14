@@ -4792,9 +4792,33 @@ public final class BasicControlsSelfTest {
         expect(checkboxTextIndex < Integer.MAX_VALUE && near(checkboxDrawList.commands().get(checkboxTextIndex).bounds().y(), 6.0f),
                 "Checkbox label should be vertically centered against the check mark");
 
+        Checkbox leftLabelCheckbox = new Checkbox("Left").labelLeft(true);
+        leftLabelCheckbox.setUiContextInternal(uiContext);
+        leftLabelCheckbox.arrange(new MutableRect(0.0f, 0.0f, 90.0f, 20.0f));
+        DrawList leftLabelCheckboxDrawList = new DrawList();
+        leftLabelCheckbox.render(new DefaultRenderContext(leftLabelCheckboxDrawList));
+        int leftLabelCheckboxTextIndex = textCommandIndex(leftLabelCheckboxDrawList, "Left", 0);
+        int leftLabelCheckboxBoxIndex = firstCommandIndex(leftLabelCheckboxDrawList, DrawCommandType.ROUNDED_RECT, 0);
+        expect(leftLabelCheckboxTextIndex < Integer.MAX_VALUE
+                        && leftLabelCheckboxBoxIndex < Integer.MAX_VALUE
+                        && leftLabelCheckboxDrawList.commands().get(leftLabelCheckboxTextIndex).bounds().x()
+                        < leftLabelCheckboxDrawList.commands().get(leftLabelCheckboxBoxIndex).bounds().x(),
+                "Checkbox labelLeft should render text before the checkbox box");
+
         uiContext.routedEvents().dispatch(new PointerPressedEvent(checkbox, 6.0f, 8.0f, 6.0f, 8.0f, 0, PointerButton.PRIMARY));
         uiContext.routedEvents().dispatch(new PointerReleasedEvent(checkbox, 6.0f, 8.0f, 6.0f, 8.0f, 0, PointerButton.PRIMARY));
         expect(checkbox.checked(), "Checkbox should reuse ToggleButton checked behavior");
+        checkbox.tick(new FrameContext(3L, 0.06f, 0.0f, FramePhase.ANIMATION));
+        expect(checkbox.checkProgress() > 0.0f && checkbox.checkProgress() < 1.0f,
+                "Checkbox should animate check progress after checking");
+        checkbox.tick(new FrameContext(4L, 0.20f, 0.0f, FramePhase.ANIMATION));
+        expect(near(checkbox.checkProgress(), 1.0f), "Checkbox check animation should settle at checked progress");
+        checkbox.silentChecked(false);
+        checkbox.tick(new FrameContext(5L, 0.06f, 0.0f, FramePhase.ANIMATION));
+        expect(checkbox.checkProgress() > 0.0f && checkbox.checkProgress() < 1.0f,
+                "Checkbox should animate check progress backward after unchecking");
+        checkbox.tick(new FrameContext(6L, 0.20f, 0.0f, FramePhase.ANIMATION));
+        expect(near(checkbox.checkProgress(), 0.0f), "Checkbox check animation should settle at unchecked progress");
 
         Checkbox triStateCheckbox = new Checkbox("Partial").triState(true);
         triStateCheckbox.setUiContextInternal(uiContext);
@@ -4836,6 +4860,7 @@ public final class BasicControlsSelfTest {
         detailed.arrange(new MutableRect(0.0f, 24.0f, 90.0f, 20.0f));
         expect(compact.checked() && !detailed.checked() && radioGroup.selectedButton() == compact,
                 "RadioGroup should keep exactly one selected button");
+        compact.tick(new FrameContext(7L, 0.20f, 0.0f, FramePhase.ANIMATION));
         DrawList radioDrawList = new DrawList();
         compact.render(new DefaultRenderContext(radioDrawList));
         int radioTextIndex = textCommandIndex(radioDrawList, "Compact", 0);
@@ -4843,6 +4868,19 @@ public final class BasicControlsSelfTest {
                         && near(radioDrawList.commands().get(radioTextIndex).bounds().y(), 6.0f)
                         && countCommands(radioDrawList, DrawCommandType.CIRCLE) == 2,
                 "Selected RadioButton should render its label, ring and inner dot");
+
+        RadioButton leftLabelRadio = new RadioButton("Left", "left").labelLeft(true);
+        leftLabelRadio.setUiContextInternal(uiContext);
+        leftLabelRadio.arrange(new MutableRect(0.0f, 0.0f, 90.0f, 20.0f));
+        DrawList leftLabelRadioDrawList = new DrawList();
+        leftLabelRadio.render(new DefaultRenderContext(leftLabelRadioDrawList));
+        int leftLabelRadioTextIndex = textCommandIndex(leftLabelRadioDrawList, "Left", 0);
+        int leftLabelRadioCircleIndex = firstCommandIndex(leftLabelRadioDrawList, DrawCommandType.CIRCLE, 0);
+        expect(leftLabelRadioTextIndex < Integer.MAX_VALUE
+                        && leftLabelRadioCircleIndex < Integer.MAX_VALUE
+                        && leftLabelRadioDrawList.commands().get(leftLabelRadioTextIndex).bounds().x()
+                        < leftLabelRadioDrawList.commands().get(leftLabelRadioCircleIndex).bounds().x(),
+                "RadioButton labelLeft should render text before the radio circle");
 
         Counter radioChanges = new Counter();
         detailed.onCheckedChanged(event -> {
@@ -4853,6 +4891,16 @@ public final class BasicControlsSelfTest {
         uiContext.routedEvents().dispatch(new PointerReleasedEvent(detailed, 6.0f, 32.0f, 6.0f, 8.0f, 0, PointerButton.PRIMARY));
         expect(!compact.checked() && detailed.checked() && radioGroup.selectedValue().equals("detailed"),
                 "RadioButton click should select its group value and clear the previous option");
+        compact.tick(new FrameContext(8L, 0.06f, 0.0f, FramePhase.ANIMATION));
+        detailed.tick(new FrameContext(8L, 0.06f, 0.0f, FramePhase.ANIMATION));
+        expect(compact.selectionProgress() > 0.0f && compact.selectionProgress() < 1.0f,
+                "RadioButton should animate selection progress backward when cleared by its group");
+        expect(detailed.selectionProgress() > 0.0f && detailed.selectionProgress() < 1.0f,
+                "RadioButton should animate selection progress after selecting");
+        compact.tick(new FrameContext(9L, 0.20f, 0.0f, FramePhase.ANIMATION));
+        detailed.tick(new FrameContext(9L, 0.20f, 0.0f, FramePhase.ANIMATION));
+        expect(near(compact.selectionProgress(), 0.0f) && near(detailed.selectionProgress(), 1.0f),
+                "RadioButton selection animation should settle after group selection changes");
         expect(radioChanges.count == 1 && radioChanges.lastChecked,
                 "RadioButton should emit checked changed only when its state changes");
         uiContext.routedEvents().dispatch(new PointerPressedEvent(detailed, 6.0f, 32.0f, 6.0f, 8.0f, 0, PointerButton.PRIMARY));
