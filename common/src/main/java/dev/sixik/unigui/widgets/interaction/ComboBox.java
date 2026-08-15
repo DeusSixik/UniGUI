@@ -11,6 +11,7 @@ import dev.sixik.unigui.api.core.UIContext;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
+import dev.sixik.unigui.api.layout.Overflow;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
@@ -22,6 +23,7 @@ import java.util.List;
 import java.util.Objects;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.LinearBox;
+import dev.sixik.unigui.widgets.containers.ScrollView;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.core.Orientation;
@@ -30,10 +32,12 @@ import dev.sixik.unigui.widgets.feedback.Popup;
 public class ComboBox extends LinearBox {
     private static final float HEADER_HEIGHT = 22.0f;
     private static final float OPTION_HEIGHT = 20.0f;
+    private static final float OPTIONS_INSET = 2.0f;
 
     private final Button headerButton = new Button();
     private final Box optionsHost = new Box();
     private final VBox optionsList = new VBox();
+    private final ScrollView optionsScroll = new ScrollView(optionsList);
     private final Popup dropDownPopup = new Popup();
     private final List<String> items = new ObjectArrayList<>();
     private final List<RichText> richItems = new ObjectArrayList<>();
@@ -47,6 +51,8 @@ public class ComboBox extends LinearBox {
     private OverlayLayer attachedOverlayLayer;
     private float dropDownWidth;
     private boolean dropDownMatchesWidgetWidth;
+    private float optionRowHeight = OPTION_HEIGHT;
+    private int maxVisibleOptions;
     private boolean syncingPopup;
 
     public ComboBox() {
@@ -64,11 +70,23 @@ public class ComboBox extends LinearBox {
         optionsHost.borderColor().set(0.25f, 0.78f, 1.0f, 0.75f);
         optionsHost.visibility(Visibility.COLLAPSED);
         optionsHost.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
-        optionsHost.addChild(optionsList);
 
         optionsList.spacing(1.0f);
-        optionsList.layout(style -> style.margin(2.0f));
+        optionsList.layout(style -> style.margin(0.0f));
         optionsList.layout(style -> style.flexGrow(0).flexShrink(0.0f));
+
+        optionsScroll.scrollStep(optionRowHeight);
+        optionsScroll.scrollbarGap(1.0f);
+        optionsScroll.scrollbarTrackColor().set(0.0f, 0.0f, 0.0f, 0.36f);
+        optionsScroll.scrollbarThumbColor().set(0.82f, 0.84f, 0.88f, 0.82f);
+        optionsScroll.layout(style -> style
+                .size(LayoutConstraints.AUTO, LayoutConstraints.AUTO)
+                .margin(OPTIONS_INSET)
+                .overflowX(Overflow.HIDDEN)
+                .overflowY(Overflow.AUTO)
+                .flexGrow(0)
+                .flexShrink(0.0f));
+        optionsHost.addChild(optionsScroll);
 
         dropDownPopup.anchor(headerButton);
         dropDownPopup.padding(EdgeInsets.all(0.0f));
@@ -306,6 +324,36 @@ public class ComboBox extends LinearBox {
         return this;
     }
 
+    public float optionRowHeight() {
+        return optionRowHeight;
+    }
+
+    public ComboBox optionRowHeight(float height) {
+        float normalized = Float.isFinite(height) && height > 0.0f ? height : OPTION_HEIGHT;
+        if (optionRowHeight == normalized) return this;
+        optionRowHeight = normalized;
+        optionsScroll.scrollStep(optionRowHeight);
+        for (ToggleButton option : optionButtons) {
+            option.layout(style -> style.size(LayoutConstraints.AUTO, optionRowHeight).flexGrow(0).flexShrink(0.0f));
+        }
+        syncDropDownSize();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public int maxVisibleOptions() {
+        return maxVisibleOptions;
+    }
+
+    public ComboBox maxVisibleOptions(int count) {
+        int normalized = Math.max(0, count);
+        if (maxVisibleOptions == normalized) return this;
+        maxVisibleOptions = normalized;
+        syncDropDownSize();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
     public OverlayLayer attachedOverlayLayer() {
         return attachedOverlayLayer;
     }
@@ -344,6 +392,10 @@ public class ComboBox extends LinearBox {
 
     public Box optionsHost() {
         return optionsHost;
+    }
+
+    public ScrollView optionsScroll() {
+        return optionsScroll;
     }
 
     public ToggleButton optionButton(int index) {
@@ -426,7 +478,7 @@ public class ComboBox extends LinearBox {
         for (int index = 0; index < items.size(); index++) {
             final int itemIndex = index;
             ToggleButton option = new ToggleButton(richItems.get(index));
-            option.layout(style -> style.size(LayoutConstraints.AUTO, OPTION_HEIGHT).flexGrow(0).flexShrink(0.0f));
+            option.layout(style -> style.size(LayoutConstraints.AUTO, optionRowHeight).flexGrow(0).flexShrink(0.0f));
             option.onClick(event -> {
                 selectedIndex(itemIndex);
                 close();
@@ -434,6 +486,8 @@ public class ComboBox extends LinearBox {
             optionButtons.add(option);
             optionsList.addChild(option);
         }
+        optionsScroll.scrollTo(0.0f, 0.0f);
+        syncDropDownSize();
     }
 
     private void syncSelectionState() {
@@ -532,11 +586,36 @@ public class ComboBox extends LinearBox {
 
     private void syncDropDownSize() {
         float resolvedWidth = resolvedDropDownWidth();
-        if (resolvedWidth > 0.0f) {
-            optionsHost.layout(style -> style.size(resolvedWidth, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
-        } else {
-            optionsHost.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
+        float resolvedContentHeight = resolvedDropDownContentHeight();
+        float width = resolvedWidth > 0.0f ? resolvedWidth : LayoutConstraints.AUTO;
+        float height = resolvedContentHeight > 0.0f ? resolvedContentHeight + OPTIONS_INSET * 2.0f : LayoutConstraints.AUTO;
+        float scrollWidth = resolvedWidth > OPTIONS_INSET * 2.0f ? resolvedWidth - OPTIONS_INSET * 2.0f : LayoutConstraints.AUTO;
+        float scrollHeight = resolvedContentHeight > 0.0f ? resolvedContentHeight : LayoutConstraints.AUTO;
+        Overflow verticalOverflow = maxVisibleOptions <= 0
+                ? Overflow.AUTO
+                : shouldScrollDropDown() ? Overflow.SCROLL : Overflow.HIDDEN;
+
+        optionsHost.layout(style -> style.size(width, height).flexGrow(0).flexShrink(0.0f));
+        optionsScroll.layout(style -> style
+                .size(scrollWidth, scrollHeight)
+                .margin(OPTIONS_INSET)
+                .overflowX(Overflow.HIDDEN)
+                .overflowY(verticalOverflow)
+                .flexGrow(0)
+                .flexShrink(0.0f));
+    }
+
+    private float resolvedDropDownContentHeight() {
+        if (maxVisibleOptions <= 0 || items.isEmpty()) {
+            return 0.0f;
         }
+        int visibleOptions = Math.min(items.size(), maxVisibleOptions);
+        return optionRowHeight * visibleOptions
+                + optionsList.spacing() * Math.max(0, visibleOptions - 1);
+    }
+
+    private boolean shouldScrollDropDown() {
+        return maxVisibleOptions > 0 && items.size() > maxVisibleOptions;
     }
 
     private float resolvedDropDownWidth() {

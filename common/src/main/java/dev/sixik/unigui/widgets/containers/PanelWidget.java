@@ -43,6 +43,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * @see Box
  */
 public class PanelWidget extends WidgetBase {
+    private static final ThreadLocal<RectView> RENDER_CULL_BOUNDS = new ThreadLocal<>();
+
     private final List<Widget> children = new ObjectArrayList<>();
     private final List<Widget> childrenView = Collections.unmodifiableList(children);
     /** Очередь отложенных изменений, чтобы не менять список детей во время обхода. */
@@ -214,7 +216,9 @@ public class PanelWidget extends WidgetBase {
                     layoutBounds().height());
         }
         try {
+            RectView cullBounds = RENDER_CULL_BOUNDS.get();
             for (Widget child : childSnapshot()) {
+                if (cullBounds != null && !intersects(child.layoutBounds(), cullBounds)) continue;
                 renderChildWithInheritedTransform(context, child);
             }
         } finally {
@@ -222,6 +226,45 @@ public class PanelWidget extends WidgetBase {
                 context.popClip();
             }
         }
+    }
+
+    static RectView pushRenderCullBounds(RectView bounds) {
+        RectView previous = RENDER_CULL_BOUNDS.get();
+        RectView next = previous == null ? copyRect(bounds) : intersection(previous, bounds);
+        RENDER_CULL_BOUNDS.set(next);
+        return previous;
+    }
+
+    static void restoreRenderCullBounds(RectView previous) {
+        if (previous == null) {
+            RENDER_CULL_BOUNDS.remove();
+        } else {
+            RENDER_CULL_BOUNDS.set(previous);
+        }
+    }
+
+    private static RectView copyRect(RectView bounds) {
+        if (bounds == null) return new MutableRect();
+        return new MutableRect(bounds.x(), bounds.y(), bounds.width(), bounds.height());
+    }
+
+    private static RectView intersection(RectView first, RectView second) {
+        if (first == null) return copyRect(second);
+        if (second == null) return copyRect(first);
+
+        float left = Math.max(first.x(), second.x());
+        float top = Math.max(first.y(), second.y());
+        float right = Math.min(first.x() + first.width(), second.x() + second.width());
+        float bottom = Math.min(first.y() + first.height(), second.y() + second.height());
+        return new MutableRect(left, top, Math.max(0.0f, right - left), Math.max(0.0f, bottom - top));
+    }
+
+    private static boolean intersects(RectView bounds, RectView cullBounds) {
+        if (bounds == null || cullBounds == null) return true;
+        return bounds.x() < cullBounds.x() + cullBounds.width()
+                && bounds.x() + bounds.width() > cullBounds.x()
+                && bounds.y() < cullBounds.y() + cullBounds.height()
+                && bounds.y() + bounds.height() > cullBounds.y();
     }
 
     @Override

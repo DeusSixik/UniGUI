@@ -515,12 +515,19 @@ public class ScrollView extends WidgetBase {
         try {
             if (content != null) {
                 boolean clipsContent = clipsContent();
+                MutableRect viewportBounds = new MutableRect(
+                        layoutBounds().x(),
+                        layoutBounds().y(),
+                        viewportWidth(),
+                        viewportHeight());
                 if (clipsContent) {
-                    context.pushClip(layoutBounds().x(), layoutBounds().y(), viewportWidth(), viewportHeight());
+                    context.pushClip(viewportBounds.x(), viewportBounds.y(), viewportBounds.width(), viewportBounds.height());
                 }
+                RectView previousCullBounds = PanelWidget.pushRenderCullBounds(viewportBounds);
                 try {
                     renderChildWithInheritedTransform(context, content);
                 } finally {
+                    PanelWidget.restoreRenderCullBounds(previousCullBounds);
                     if (clipsContent) {
                         context.popClip();
                     }

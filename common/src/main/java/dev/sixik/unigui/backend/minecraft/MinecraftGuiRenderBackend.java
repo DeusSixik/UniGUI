@@ -423,15 +423,22 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
         }
 
         try {
+            if (gpuTimerQueryId != 0 && !isGpuTimerQueryObject()) {
+                disableGpuTimer();
+                return false;
+            }
             if (gpuTimerQueryId == 0) {
                 gpuTimerQueryId = GL15.glGenQueries();
+                if (gpuTimerQueryId == 0) {
+                    disableGpuTimer();
+                    return false;
+                }
             }
             gpuTimerUsesArb = support == TimerQuerySupport.ARB;
             GL15.glBeginQuery(timeElapsedTarget(), gpuTimerQueryId);
             return true;
         } catch (Throwable ignored) {
-            gpuTimerUnavailable = true;
-            lastFrameGpuMillis = -1.0f;
+            disableGpuTimer();
             return false;
         }
     }
@@ -442,9 +449,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
             GL15.glEndQuery(timeElapsedTarget());
             gpuTimerQueryInFlight = true;
         } catch (Throwable ignored) {
-            gpuTimerUnavailable = true;
-            gpuTimerQueryInFlight = false;
-            lastFrameGpuMillis = -1.0f;
+            disableGpuTimer();
         }
     }
 
@@ -454,6 +459,10 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
         }
 
         try {
+            if (!isGpuTimerQueryObject()) {
+                disableGpuTimer();
+                return;
+            }
             int available = GL15.glGetQueryObjecti(gpuTimerQueryId, GL15.GL_QUERY_RESULT_AVAILABLE);
             if (available != GL11.GL_TRUE) {
                 return;
@@ -464,10 +473,23 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
             lastFrameGpuMillis = Math.max(0.0f, elapsedNanos / 1_000_000.0f);
             gpuTimerQueryInFlight = false;
         } catch (Throwable ignored) {
-            gpuTimerUnavailable = true;
-            gpuTimerQueryInFlight = false;
-            lastFrameGpuMillis = -1.0f;
+            disableGpuTimer();
         }
+    }
+
+    private boolean isGpuTimerQueryObject() {
+        try {
+            return gpuTimerQueryId != 0 && GL15.glIsQuery(gpuTimerQueryId);
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    private void disableGpuTimer() {
+        gpuTimerUnavailable = true;
+        gpuTimerQueryId = 0;
+        gpuTimerQueryInFlight = false;
+        lastFrameGpuMillis = -1.0f;
     }
 
     private int timeElapsedTarget() {
@@ -528,10 +550,10 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
         shapeBatchRenderer.close();
         shaderQuadRenderer.close();
         sdfTextRenderer.close();
-        if (gpuTimerQueryId != 0) {
+        if (gpuTimerQueryId != 0 && isGpuTimerQueryObject()) {
             GL15.glDeleteQueries(gpuTimerQueryId);
-            gpuTimerQueryId = 0;
         }
+        gpuTimerQueryId = 0;
         gpuTimerQueryInFlight = false;
     }
 
