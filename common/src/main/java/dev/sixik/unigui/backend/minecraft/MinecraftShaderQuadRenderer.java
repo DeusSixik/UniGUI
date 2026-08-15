@@ -1,10 +1,7 @@
 package dev.sixik.unigui.backend.minecraft;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.DrawCommand;
@@ -85,13 +82,12 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
             RenderSystem.depthMask(false);
             RenderSystem.disableCull();
 
-            BufferBuilder buffer = Tesselator.getInstance().getBuilder();
-            buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION);
-            buffer.vertex(-1.0, 1.0, 0.0).endVertex();
-            buffer.vertex(-1.0, -1.0, 0.0).endVertex();
-            buffer.vertex(1.0, -1.0, 0.0).endVertex();
-            buffer.vertex(1.0, 1.0, 0.0).endVertex();
-            BufferUploader.draw(buffer.end());
+            Object buffer = MinecraftBufferCompat.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION);
+            MinecraftBufferCompat.vertex(buffer, new Matrix4f(), -1.0f, 1.0f, 0.0f);
+            MinecraftBufferCompat.vertex(buffer, new Matrix4f(), -1.0f, -1.0f, 0.0f);
+            MinecraftBufferCompat.vertex(buffer, new Matrix4f(), 1.0f, -1.0f, 0.0f);
+            MinecraftBufferCompat.vertex(buffer, new Matrix4f(), 1.0f, 1.0f, 0.0f);
+            MinecraftBufferCompat.draw(buffer);
             return true;
         } catch (Throwable failure) {
             LOGGER.error("UniGUI shader draw failed for {}", command.shader().id(), failure);

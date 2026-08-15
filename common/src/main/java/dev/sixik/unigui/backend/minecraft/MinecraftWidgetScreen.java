@@ -439,8 +439,15 @@ public class MinecraftWidgetScreen extends Screen {
         return uiContext.routedEvents().dispatch(event);
     }
 
-    @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+        return handleMouseScrolled(mouseX, mouseY, delta);
+    }
+
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        return handleMouseScrolled(mouseX, mouseY, verticalAmount);
+    }
+
+    private boolean handleMouseScrolled(double mouseX, double mouseY, double delta) {
         float logicalMouseX = toLogicalPixels(mouseX);
         float logicalMouseY = toLogicalPixels(mouseY);
         return hit(logicalMouseX, logicalMouseY)

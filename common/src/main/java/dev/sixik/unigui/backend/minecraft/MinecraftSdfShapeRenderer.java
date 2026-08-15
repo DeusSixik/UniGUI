@@ -1,10 +1,7 @@
 package dev.sixik.unigui.backend.minecraft;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.RectView;
@@ -292,19 +289,16 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
     private void drawQuad(Matrix4f matrix,
                           float x1, float y1, float x2, float y2,
                           float u1, float v1, float u2, float v2) {
-        BufferBuilder buffer = Tesselator.getInstance().getBuilder();
-        buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
+        Object buffer = MinecraftBufferCompat.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
         vertex(buffer, matrix, x1, y1, u1, v1);
         vertex(buffer, matrix, x1, y2, u1, v2);
         vertex(buffer, matrix, x2, y2, u2, v2);
         vertex(buffer, matrix, x2, y1, u2, v1);
-        BufferUploader.draw(buffer.end());
+        MinecraftBufferCompat.draw(buffer);
     }
 
-    private static void vertex(BufferBuilder buffer, Matrix4f matrix, float x, float y, float u, float v) {
-        buffer.vertex(matrix, x, y, 0.0f)
-                .uv(u, v)
-                .endVertex();
+    private static void vertex(Object buffer, Matrix4f matrix, float x, float y, float u, float v) {
+        MinecraftBufferCompat.textureVertex(buffer, matrix, x, y, u, v);
     }
 
     private int program() {

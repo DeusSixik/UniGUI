@@ -1,10 +1,7 @@
 package dev.sixik.unigui.backend.minecraft;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.RectView;
@@ -54,8 +51,7 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
             RenderSystem.depthMask(false);
             RenderSystem.disableCull();
 
-            BufferBuilder buffer = Tesselator.getInstance().getBuilder();
-            buffer.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
+            Object buffer = MinecraftBufferCompat.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
             Matrix4f basePose = graphics.pose().last().pose();
             int vertices = 0;
             for (int i = 0; i < commandCount; i++) {
@@ -64,10 +60,10 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
                 vertices += append(buffer, matrix, command);
             }
             if (vertices == 0) {
-                BufferUploader.drawWithShader(buffer.end());
+                MinecraftBufferCompat.drawWithShader(buffer);
                 return true;
             }
-            BufferUploader.drawWithShader(buffer.end());
+            MinecraftBufferCompat.drawWithShader(buffer);
             return true;
         } catch (Throwable failure) {
             LOGGER.error("UniGUI shape batch failed; falling back to legacy primitive rendering", failure);
@@ -90,7 +86,7 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
                 || type == DrawCommandType.PATH;
     }
 
-    private static int append(BufferBuilder buffer, Matrix4f matrix, DrawCommand command) {
+    private static int append(Object buffer, Matrix4f matrix, DrawCommand command) {
         return switch (command.type()) {
             case RECT -> appendRect(buffer, matrix, command.bounds(), command.paint());
             case ROUNDED_RECT -> appendRoundedRect(buffer, matrix, command);
@@ -101,7 +97,7 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
         };
     }
 
-    private static int appendRect(BufferBuilder buffer, Matrix4f matrix, RectView bounds, Paint paint) {
+    private static int appendRect(Object buffer, Matrix4f matrix, RectView bounds, Paint paint) {
         float x1 = Math.min(bounds.x(), bounds.x() + bounds.width());
         float y1 = Math.min(bounds.y(), bounds.y() + bounds.height());
         float x2 = Math.max(bounds.x(), bounds.x() + bounds.width());
@@ -121,7 +117,7 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
         return vertices;
     }
 
-    private static int appendRoundedRect(BufferBuilder buffer, Matrix4f matrix, DrawCommand command) {
+    private static int appendRoundedRect(Object buffer, Matrix4f matrix, DrawCommand command) {
         RectView bounds = command.bounds();
         float x1 = Math.min(bounds.x(), bounds.x() + bounds.width());
         float y1 = Math.min(bounds.y(), bounds.y() + bounds.height());
@@ -157,7 +153,7 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
         return strokeRing(buffer, matrix, outer, inner, command.paint().color());
     }
 
-    private static int appendLineCommand(BufferBuilder buffer, Matrix4f matrix, DrawCommand command) {
+    private static int appendLineCommand(Object buffer, Matrix4f matrix, DrawCommand command) {
         RectView bounds = command.bounds();
         float x1 = bounds.x();
         float y1 = bounds.y();
@@ -174,7 +170,7 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
         return lineQuad(buffer, matrix, x1, y1, x2, y2, thickness, command.paint().color());
     }
 
-    private static int appendCircle(BufferBuilder buffer, Matrix4f matrix, RectView bounds, Paint paint) {
+    private static int appendCircle(Object buffer, Matrix4f matrix, RectView bounds, Paint paint) {
         float cx = bounds.x() + bounds.width() * 0.5f;
         float cy = bounds.y() + bounds.height() * 0.5f;
         float rx = Math.abs(bounds.width()) * 0.5f;
@@ -188,7 +184,7 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
                 : fillFan(buffer, matrix, outline, cx, cy, paint.color());
     }
 
-    private static int appendPath(BufferBuilder buffer, Matrix4f matrix, DrawCommand command) {
+    private static int appendPath(Object buffer, Matrix4f matrix, DrawCommand command) {
         VectorPath path = command.path();
         if (path == null || path.isEmpty()) return 0;
         RectView bounds = command.bounds();
@@ -261,7 +257,7 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
         return vertices + flushPath(buffer, matrix, points, command.paint(), false);
     }
 
-    private static int flushPath(BufferBuilder buffer, Matrix4f matrix, FloatPoints points,
+    private static int flushPath(Object buffer, Matrix4f matrix, FloatPoints points,
                                  Paint paint, boolean closed) {
         if (points.size() < 2) return 0;
         if (paint.isStroke()) return stroke(buffer, matrix, points, paint, closed);
@@ -276,12 +272,12 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
         return fillFan(buffer, matrix, points, centerX / count, centerY / count, paint.color(), count);
     }
 
-    private static int fillFan(BufferBuilder buffer, Matrix4f matrix, FloatPoints points,
+    private static int fillFan(Object buffer, Matrix4f matrix, FloatPoints points,
                                float centerX, float centerY, ColorView color) {
         return fillFan(buffer, matrix, points, centerX, centerY, color, points.size());
     }
 
-    private static int fillFan(BufferBuilder buffer, Matrix4f matrix, FloatPoints points,
+    private static int fillFan(Object buffer, Matrix4f matrix, FloatPoints points,
                                float centerX, float centerY, ColorView color, int count) {
         if (count < 3) return 0;
         for (int i = 0; i < count; i++) {
@@ -307,7 +303,7 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
         return outline;
     }
 
-    private static int strokeRing(BufferBuilder buffer, Matrix4f matrix,
+    private static int strokeRing(Object buffer, Matrix4f matrix,
                                   FloatPoints outer, FloatPoints inner, ColorView color) {
         int count = uniqueClosedCount(outer);
         if (count < 3 || count != uniqueClosedCount(inner)) return 0;
@@ -328,11 +324,11 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
         return count > 1 && samePoint(points, 0, count - 1) ? count - 1 : count;
     }
 
-    private static int strokeClosed(BufferBuilder buffer, Matrix4f matrix, FloatPoints points, Paint paint) {
+    private static int strokeClosed(Object buffer, Matrix4f matrix, FloatPoints points, Paint paint) {
         return stroke(buffer, matrix, points, paint, true);
     }
 
-    private static int stroke(BufferBuilder buffer, Matrix4f matrix, FloatPoints points,
+    private static int stroke(Object buffer, Matrix4f matrix, FloatPoints points,
                               Paint paint, boolean closed) {
         int count = points.size();
         if (count < 2) return 0;
@@ -347,7 +343,7 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
         return vertices;
     }
 
-    private static int quad(BufferBuilder buffer, Matrix4f matrix,
+    private static int quad(Object buffer, Matrix4f matrix,
                             float x1, float y1, float x2, float y2, ColorView color) {
         vertex(buffer, matrix, x1, y1, color);
         vertex(buffer, matrix, x1, y2, color);
@@ -358,7 +354,7 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
         return 6;
     }
 
-    private static int lineQuad(BufferBuilder buffer, Matrix4f matrix,
+    private static int lineQuad(Object buffer, Matrix4f matrix,
                                 float x1, float y1, float x2, float y2,
                                 float thickness, ColorView color) {
         float dx = x2 - x1;
@@ -380,10 +376,16 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
         return 6;
     }
 
-    private static void vertex(BufferBuilder buffer, Matrix4f matrix, float x, float y, ColorView color) {
-        buffer.vertex(matrix, x, y, 0.0f)
-                .color(channel(color.r()), channel(color.g()), channel(color.b()), channel(color.a()))
-                .endVertex();
+    private static void vertex(Object buffer, Matrix4f matrix, float x, float y, ColorView color) {
+        MinecraftBufferCompat.colorVertex(buffer, matrix, x, y, argb(color));
+    }
+
+    private static int argb(ColorView color) {
+        int a = channel(color.a());
+        int r = channel(color.r());
+        int g = channel(color.g());
+        int b = channel(color.b());
+        return (a << 24) | (r << 16) | (g << 8) | b;
     }
 
     private static Matrix4f commandMatrix(Matrix4f basePose, RectView bounds, Transform transform) {

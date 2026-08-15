@@ -25,18 +25,24 @@ configurations {
 }
 
 dependencies {
-    modImplementation "net.fabricmc:fabric-loader:$rootProject.fabric_loader_version"
+    modImplementation "net.fabricmc:fabric-loader:${versionProject.fabric_loader_version}"
 
 
-    common(project(path: ':common', configuration: 'namedElements')) { transitive false }
-    shadowBundle project(path: ':common', configuration: 'transformProductionFabric')
+    common(project(path: "${versionProject.path}:common", configuration: 'namedElements')) { transitive false }
+    shadowBundle project(path: "${versionProject.path}:common", configuration: 'transformProductionFabric')
 }
 
 processResources {
     inputs.property 'version', project.version
+    inputs.property 'fabric_loader', versionProject.fabric_loader_version
+    inputs.property 'minecraft', versionProject.fabric_minecraft_dependency
+    inputs.property 'java', versionProject.java_version
 
     filesMatching('fabric.mod.json') {
-        expand version: project.version
+        expand version: project.version,
+                fabric_loader: versionProject.fabric_loader_version,
+                minecraft: versionProject.fabric_minecraft_dependency,
+                java: versionProject.java_version
     }
 }
 

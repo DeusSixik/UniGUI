@@ -2304,9 +2304,9 @@ public final class BasicControlsSelfTest {
         net.minecraft.SharedConstants.tryDetectVersion();
         net.minecraft.server.Bootstrap.bootStrap();
 
-        ResourceLocation copperId = new ResourceLocation("example", "copper_gear");
-        ResourceLocation wrenchId = new ResourceLocation("example", "wrench");
-        ResourceLocation diamondId = new ResourceLocation("minecraft", "diamond");
+        ResourceLocation copperId = ResourceLocation.tryBuild("example", "copper_gear");
+        ResourceLocation wrenchId = ResourceLocation.tryBuild("example", "wrench");
+        ResourceLocation diamondId = ResourceLocation.tryBuild("minecraft", "diamond");
         Item copper = Items.COPPER_INGOT;
         Item wrench = Items.TRIPWIRE_HOOK;
         Item diamond = Items.DIAMOND;
@@ -2398,8 +2398,8 @@ public final class BasicControlsSelfTest {
                 "SearchableGridPickerWidget should position tooltip anchor on the hovered tile, not the row");
         itemPicker.close();
 
-        ResourceLocation stoneTexture = new ResourceLocation("minecraft", "textures/block/stone.png");
-        ResourceLocation zombieTexture = new ResourceLocation("minecraft", "textures/entity/zombie/zombie.png");
+        ResourceLocation stoneTexture = ResourceLocation.tryBuild("minecraft", "textures/block/stone.png");
+        ResourceLocation zombieTexture = ResourceLocation.tryBuild("minecraft", "textures/entity/zombie/zombie.png");
         MinecraftTexturePickerWidget texturePicker = new MinecraftTexturePickerWidget(false)
                 .textureIds(java.util.List.of(zombieTexture, stoneTexture));
         expect(texturePicker.textureCount() == 2
@@ -2474,7 +2474,7 @@ public final class BasicControlsSelfTest {
         java.util.List<MinecraftItemPickerWidget.ItemEntry> manyItems = new java.util.ArrayList<>();
         for (int i = 0; i < 24; i++) {
             manyItems.add(new MinecraftItemPickerWidget.ItemEntry(
-                    new ResourceLocation("example", "registry_item_" + i),
+                    ResourceLocation.tryBuild("example", "registry_item_" + i),
                     Items.STICK));
         }
         MinecraftItemPickerWidget itemPicker = new MinecraftItemPickerWidget(false).items(manyItems);
@@ -2495,7 +2495,7 @@ public final class BasicControlsSelfTest {
 
         java.util.List<ResourceLocation> manyTextures = new java.util.ArrayList<>();
         for (int i = 0; i < 24; i++) {
-            manyTextures.add(new ResourceLocation("example", "textures/block/registry_texture_" + i + ".png"));
+            manyTextures.add(ResourceLocation.tryBuild("example", "textures/block/registry_texture_" + i + ".png"));
         }
         MinecraftTexturePickerWidget texturePicker = new MinecraftTexturePickerWidget(false).textureIds(manyTextures);
         OverlayLayer textureLayer = new OverlayLayer(texturePicker);

@@ -3,6 +3,12 @@ architectury {
     fabric()
 }
 
+sourceSets {
+    main {
+        java.srcDir "src/main/java-${versionProject.minecraft_version}"
+    }
+}
+
 configurations {
     common {
         canBeResolved = true
@@ -22,16 +28,22 @@ configurations {
 }
 
 dependencies {
-    modImplementation "net.fabricmc:fabric-loader:$rootProject.fabric_loader_version"
+    modImplementation "net.fabricmc:fabric-loader:${versionProject.fabric_loader_version}"
 
-    common(project(path: ':common', configuration: 'namedElements')) { transitive false }
-    uniguiMod(project(path: ':fabric', configuration: 'namedElements')) { transitive false }
+    common(project(path: "${versionProject.path}:common", configuration: 'namedElements')) { transitive false }
+    uniguiMod(project(path: "${versionProject.path}:fabric", configuration: 'namedElements')) { transitive false }
 }
 
 processResources {
     inputs.property 'version', project.version
+    inputs.property 'fabric_loader', versionProject.fabric_loader_version
+    inputs.property 'minecraft', versionProject.fabric_minecraft_dependency
+    inputs.property 'java', versionProject.java_version
 
     filesMatching('fabric.mod.json') {
-        expand version: project.version
+        expand version: project.version,
+                fabric_loader: versionProject.fabric_loader_version,
+                minecraft: versionProject.fabric_minecraft_dependency,
+                java: versionProject.java_version
     }
 }

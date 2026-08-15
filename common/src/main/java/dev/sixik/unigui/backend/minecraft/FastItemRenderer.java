@@ -2,7 +2,6 @@ package dev.sixik.unigui.backend.minecraft;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.platform.Lighting;
-import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexSorting;
 import dev.sixik.unigui.api.render.RenderTargetOptions;
@@ -11,7 +10,6 @@ import dev.sixik.unigui.backend.minecraft.custom_renders.MinecraftRendererPlatfo
 import dev.sixik.unigui.tests.mixin.ItemRendererAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.ItemRenderer;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -42,8 +40,6 @@ final class FastItemRenderer implements AutoCloseable {
     private static final int MIN_FLAT_ICON_PIXELS = 32;
     private static final int MAX_FLAT_ICON_PIXELS = 64;
     private static final int GUI_3D_ICON_PIXELS = 128;
-    private static final long FNV_OFFSET = 0xcbf29ce484222325L;
-    private static final long FNV_PRIME = 0x100000001b3L;
 
     private final Minecraft minecraft;
     private final LinkedHashMap<ItemCacheKey, ResolvedItem> resolvedCache =
@@ -145,10 +141,10 @@ final class FastItemRenderer implements AutoCloseable {
         RenderSystem.disableScissor();
         target.bindWrite();
         RenderSystem.backupProjectionMatrix();
-        PoseStack modelView = RenderSystem.getModelViewStack();
-        modelView.pushPose();
+        Object modelView = RenderSystem.getModelViewStack();
+        MinecraftFastItemCompat.pushModelView(modelView);
         try {
-            modelView.setIdentity();
+            MinecraftFastItemCompat.resetModelView(modelView);
             RenderSystem.applyModelViewMatrix();
             float depth = Math.max(1000.0f, key.pixels() * 32.0f);
             RenderSystem.setProjectionMatrix(
@@ -156,7 +152,7 @@ final class FastItemRenderer implements AutoCloseable {
                     VertexSorting.ORTHOGRAPHIC_Z);
             renderStackToBoundTarget(stack, model, key.pixels());
         } finally {
-            modelView.popPose();
+            MinecraftFastItemCompat.popModelView(modelView);
             RenderSystem.applyModelViewMatrix();
             RenderSystem.restoreProjectionMatrix();
             target.unbindWrite();
@@ -174,7 +170,7 @@ final class FastItemRenderer implements AutoCloseable {
     private void renderStackToBoundTarget(ItemStack stack, BakedModel model, int pixels) {
         boolean flatLighting = !model.usesBlockLight();
         RenderPassState state = RenderPassState.capture();
-        GuiGraphics bakeGraphics = new GuiGraphics(minecraft, MultiBufferSource.immediate(new BufferBuilder(256)));
+        GuiGraphics bakeGraphics = new GuiGraphics(minecraft, MinecraftBufferCompat.immediate(256));
         PoseStack pose = bakeGraphics.pose();
         pose.pushPose();
         try {
@@ -257,50 +253,19 @@ final class FastItemRenderer implements AutoCloseable {
         private static ItemCacheKey from(ItemStack stack) {
             ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack.getItem());
             int damage = stack.isDamageableItem() ? stack.getDamageValue() : 0;
-            CompoundTag tag = stack.getTag();
+            CompoundTag tag = tagOrNull(stack);
             int customModelData = tag != null && tag.contains("CustomModelData", Tag.TAG_INT)
                     ? tag.getInt("CustomModelData")
                     : 0;
-            return new ItemCacheKey(id, damage, customModelData, relevantNbtHash(tag));
+            return new ItemCacheKey(id, damage, customModelData, relevantDataHash(stack, tag));
         }
 
-        private static long relevantNbtHash(CompoundTag tag) {
-            if (tag == null || tag.isEmpty()) return 0L;
-            long hash = FNV_OFFSET;
-            hash = mixTag(hash, tag, "CustomModelData");
-            hash = mixTag(hash, tag, "Potion");
-            hash = mixTag(hash, tag, "CustomPotionColor");
-            hash = mixTag(hash, tag, "CustomPotionEffects");
-            if (tag.contains("display", Tag.TAG_COMPOUND)) {
-                CompoundTag display = tag.getCompound("display");
-                hash = mixTag(hash, display, "color");
-            }
-            return hash == FNV_OFFSET ? 0L : hash;
+        private static CompoundTag tagOrNull(ItemStack stack) {
+            return MinecraftFastItemCompat.tagOrNull(stack);
         }
 
-        private static long mixTag(long hash, CompoundTag tag, String name) {
-            if (tag == null || !tag.contains(name)) return hash;
-            hash = mixString(hash, name);
-            return mixString(hash, String.valueOf(tag.get(name)));
-        }
-
-        private static long mixString(long hash, String value) {
-            if (value == null) return mixLong(hash, 0L);
-            long mixed = hash;
-            for (int i = 0; i < value.length(); i++) {
-                mixed ^= value.charAt(i);
-                mixed *= FNV_PRIME;
-            }
-            return mixed;
-        }
-
-        private static long mixLong(long hash, long value) {
-            long mixed = hash;
-            for (int i = 0; i < Long.BYTES; i++) {
-                mixed ^= (value >>> (i * 8)) & 0xFFL;
-                mixed *= FNV_PRIME;
-            }
-            return mixed;
+        private static long relevantDataHash(ItemStack stack, CompoundTag tag) {
+            return MinecraftFastItemCompat.relevantDataHash(stack, tag);
         }
     }
 }

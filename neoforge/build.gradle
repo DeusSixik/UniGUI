@@ -1,0 +1,59 @@
+plugins {
+    id 'com.github.johnrengelman.shadow'
+}
+
+architectury {
+    platformSetupLoomIde()
+    neoForge()
+}
+
+sourceSets {
+    main {
+        resources.srcDir "src/main/resources-${versionProject.minecraft_version}"
+    }
+}
+
+configurations {
+    common {
+        canBeResolved = true
+        canBeConsumed = false
+    }
+    compileClasspath.extendsFrom common
+    runtimeClasspath.extendsFrom common
+    developmentNeoForge.extendsFrom common
+
+    shadowBundle {
+        canBeResolved = true
+        canBeConsumed = false
+    }
+}
+
+dependencies {
+    neoForge versionProject.neoforge_dependency
+
+    common(project(path: "${versionProject.path}:common", configuration: 'namedElements')) { transitive false }
+    shadowBundle project(path: "${versionProject.path}:common", configuration: 'transformProductionNeoForge')
+}
+
+processResources {
+    inputs.property 'version', project.version
+    inputs.property 'neoforge_loader_version_range', versionProject.neoforge_loader_version_range
+    inputs.property 'neoforge_version_range', versionProject.neoforge_version_range
+    inputs.property 'minecraft_version_range', versionProject.neoforge_minecraft_version_range
+
+    filesMatching(['META-INF/mods.toml', 'META-INF/neoforge.mods.toml']) {
+        expand version: project.version,
+                neoforge_loader_version_range: versionProject.neoforge_loader_version_range,
+                neoforge_version_range: versionProject.neoforge_version_range,
+                minecraft_version_range: versionProject.neoforge_minecraft_version_range
+    }
+}
+
+shadowJar {
+    configurations = [project.configurations.shadowBundle]
+    archiveClassifier = 'dev-shadow'
+}
+
+remapJar {
+    input.set shadowJar.archiveFile
+}

@@ -1,6 +1,5 @@
 package dev.sixik.unigui.testmod.client.ui.minecraft;
 
-import com.google.common.collect.ImmutableList;
 import com.mojang.blaze3d.platform.Monitor;
 import com.mojang.blaze3d.platform.VideoMode;
 import com.mojang.blaze3d.platform.Window;
@@ -63,7 +62,7 @@ import net.minecraft.client.OptionInstance;
 import net.minecraft.client.Options;
 import net.minecraft.client.ParticleStatus;
 import net.minecraft.client.PrioritizeChunkUpdates;
-import net.minecraft.client.gui.screens.PopupScreen;
+import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.GpuWarnlistManager;
 import net.minecraft.ChatFormatting;
@@ -75,6 +74,7 @@ import org.lwjgl.glfw.GLFW;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -1131,41 +1131,38 @@ public final class MinecraftVideoSettingsMenu {
         applyGraphicsMode(options, value);
     }
 
-    private static PopupScreen fabulousWarningScreen(Options options, Screen returnScreen, Runnable cancelAction) {
+    private static Screen fabulousWarningScreen(Options options, Screen returnScreen, Runnable cancelAction) {
         Minecraft minecraft = Minecraft.getInstance();
         GpuWarnlistManager gpuWarnlistManager = minecraft.getGpuWarnlistManager();
-        List<Component> warning = new ArrayList<>();
-        warning.add(WARNING_MESSAGE);
-        warning.add(CommonComponents.NEW_LINE);
+        var warning = Component.empty().append(WARNING_MESSAGE).append(CommonComponents.NEW_LINE);
 
         String rendererWarnings = gpuWarnlistManager.getRendererWarnings();
         if (rendererWarnings != null) {
-            warning.add(CommonComponents.NEW_LINE);
-            warning.add(Component.translatable("options.graphics.warning.renderer", rendererWarnings).withStyle(ChatFormatting.GRAY));
+            warning.append(CommonComponents.NEW_LINE);
+            warning.append(Component.translatable("options.graphics.warning.renderer", rendererWarnings).withStyle(ChatFormatting.GRAY));
         }
         String vendorWarnings = gpuWarnlistManager.getVendorWarnings();
         if (vendorWarnings != null) {
-            warning.add(CommonComponents.NEW_LINE);
-            warning.add(Component.translatable("options.graphics.warning.vendor", vendorWarnings).withStyle(ChatFormatting.GRAY));
+            warning.append(CommonComponents.NEW_LINE);
+            warning.append(Component.translatable("options.graphics.warning.vendor", vendorWarnings).withStyle(ChatFormatting.GRAY));
         }
         String versionWarnings = gpuWarnlistManager.getVersionWarnings();
         if (versionWarnings != null) {
-            warning.add(CommonComponents.NEW_LINE);
-            warning.add(Component.translatable("options.graphics.warning.version", versionWarnings).withStyle(ChatFormatting.GRAY));
+            warning.append(CommonComponents.NEW_LINE);
+            warning.append(Component.translatable("options.graphics.warning.version", versionWarnings).withStyle(ChatFormatting.GRAY));
         }
 
-        return new PopupScreen(WARNING_TITLE, warning, ImmutableList.of(
-                new PopupScreen.ButtonOption(WARNING_ACCEPT, button -> {
-                    applyGraphicsMode(options, GraphicsStatus.FABULOUS);
-                    gpuWarnlistManager.dismissWarning();
-                    minecraft.setScreen(returnScreen);
-                }),
-                new PopupScreen.ButtonOption(WARNING_CANCEL, button -> {
-                    gpuWarnlistManager.dismissWarningAndSkipFabulous();
-                    cancelAction.run();
-                    minecraft.setScreen(returnScreen);
-                }))) {
-        };
+        return new ConfirmScreen(confirmed -> {
+            if (confirmed) {
+                applyGraphicsMode(options, GraphicsStatus.FABULOUS);
+                gpuWarnlistManager.dismissWarning();
+                minecraft.setScreen(returnScreen);
+            } else {
+                gpuWarnlistManager.dismissWarningAndSkipFabulous();
+                cancelAction.run();
+                minecraft.setScreen(returnScreen);
+            }
+        }, WARNING_TITLE, warning, WARNING_ACCEPT, WARNING_CANCEL);
     }
 
     private static void applyGraphicsMode(Options options, GraphicsStatus value) {
@@ -1234,13 +1231,20 @@ public final class MinecraftVideoSettingsMenu {
     }
 
     private static int maxChunkDistance() {
-        Minecraft minecraft = Minecraft.getInstance();
         boolean enoughMemory = Runtime.getRuntime().maxMemory() >= 1000000000L;
-        return minecraft.is64Bit() && enoughMemory ? 32 : 16;
+        return is64BitJvm() && enoughMemory ? 32 : 16;
     }
 
     private static int defaultChunkDistance() {
-        return Minecraft.getInstance().is64Bit() ? 12 : 8;
+        return is64BitJvm() ? 12 : 8;
+    }
+
+    private static boolean is64BitJvm() {
+        if ("64".equals(System.getProperty("sun.arch.data.model"))) {
+            return true;
+        }
+        String arch = System.getProperty("os.arch", "").toLowerCase(Locale.ROOT);
+        return arch.contains("64") || arch.equals("aarch64");
     }
 
     private static int maxGuiScale() {

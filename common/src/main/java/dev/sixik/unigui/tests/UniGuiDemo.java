@@ -1754,7 +1754,7 @@ public final class UniGuiDemo {
 
         MinecraftTexturePickerWidget texturePicker = new MinecraftTexturePickerWidget();
         texturePicker.layout(style -> style.size(304.0f, 38.0f).flexGrow(0).flexShrink(0.0f));
-        texturePicker.selectId(new ResourceLocation("minecraft", "textures/block/stone.png"));
+        texturePicker.selectId(ResourceLocation.tryBuild("minecraft", "textures/block/stone.png"));
 
         Runnable updatePickerStatus = () -> pickerStatus.text("Item: "
                 + (itemPicker.selectedId() == null ? "<none>" : itemPicker.selectedId())

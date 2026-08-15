@@ -2,10 +2,7 @@ package dev.sixik.unigui.backend.minecraft;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.math.Axis;
 import dev.sixik.unigui.api.core.FrameContext;
@@ -36,7 +33,6 @@ import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextRun;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -278,13 +274,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
             int centerX = Math.round(x + size * 0.5f);
             int bottomY = Math.round(y + size * 0.92f);
             int entityScale = Math.max(1, Math.round(size * 0.72f));
-            InventoryScreen.renderEntityInInventoryFollowsMouse(graphics,
-                    centerX,
-                    bottomY,
-                    entityScale,
-                    x + mouseX,
-                    y + mouseY,
-                    entity);
+            renderEntityInInventory(centerX, bottomY, entityScale, size, x + mouseX, y + mouseY, entity);
             clearPreviewDepthBuffer();
             return true;
         } finally {
@@ -298,6 +288,11 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
         RenderSystem.depthMask(true);
         RenderSystem.clear(GL11.GL_DEPTH_BUFFER_BIT, Minecraft.ON_OSX);
         RenderSystem.depthMask(depthMask);
+    }
+
+    private void renderEntityInInventory(int centerX, int bottomY, int entityScale, float size,
+                                         float mouseX, float mouseY, LivingEntity entity) {
+        MinecraftEntityPreviewCompat.render(graphics, centerX, bottomY, entityScale, size, mouseX, mouseY, entity);
     }
 
     @Override
@@ -1048,14 +1043,12 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
             RenderSystem.depthMask(false);
             RenderSystem.disableCull();
             Matrix4f matrix = graphics.pose().last().pose();
-            Tesselator tesselator = Tesselator.getInstance();
-            BufferBuilder buffer = tesselator.getBuilder();
-            buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
+            Object buffer = MinecraftBufferCompat.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
             addTextureVertex(buffer, matrix, x1, y1, minU, minV, tint);
             addTextureVertex(buffer, matrix, x1, y2, minU, maxV, tint);
             addTextureVertex(buffer, matrix, x2, y2, maxU, maxV, tint);
             addTextureVertex(buffer, matrix, x2, y1, maxU, minV, tint);
-            BufferUploader.drawWithShader(buffer.end());
+            MinecraftBufferCompat.drawWithShader(buffer);
         } finally {
             state.restore();
         }
@@ -1086,15 +1079,13 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
             RenderSystem.disableCull();
 
             Matrix4f matrix = graphics.pose().last().pose();
-            Tesselator tesselator = Tesselator.getInstance();
-            BufferBuilder buffer = tesselator.getBuilder();
-            buffer.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
+            Object buffer = MinecraftBufferCompat.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
             Object[] rawVertices = mesh.vertexElements();
             for (int i = 0, size = mesh.vertexCount(); i < size; i++) {
                 DrawVertex vertex = (DrawVertex) rawVertices[i];
                 addColorVertex(buffer, matrix, vertex.x(), vertex.y(), argb(vertex.color()));
             }
-            BufferUploader.drawWithShader(buffer.end());
+            MinecraftBufferCompat.drawWithShader(buffer);
         } finally {
             state.restore();
         }
@@ -1113,16 +1104,14 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
             RenderSystem.disableCull();
 
             Matrix4f matrix = graphics.pose().last().pose();
-            Tesselator tesselator = Tesselator.getInstance();
-            BufferBuilder buffer = tesselator.getBuilder();
-            buffer.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_TEX_COLOR);
+            Object buffer = MinecraftBufferCompat.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_TEX_COLOR);
             Object[] rawVertices = mesh.vertexElements();
             for (int i = 0, size = mesh.vertexCount(); i < size; i++) {
                 DrawVertex vertex = (DrawVertex) rawVertices[i];
                 float v = binding.flipY() ? 1.0f - vertex.v() : vertex.v();
                 addTextureVertex(buffer, matrix, vertex.x(), vertex.y(), vertex.u(), v, vertex.color());
             }
-            BufferUploader.drawWithShader(buffer.end());
+            MinecraftBufferCompat.drawWithShader(buffer);
         } finally {
             state.restore();
         }
@@ -1194,9 +1183,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
         RenderSystem.enableBlend();
         Matrix4f matrix = graphics.pose().last().pose();
-        Tesselator tesselator = Tesselator.getInstance();
-        BufferBuilder buffer = tesselator.getBuilder();
-        buffer.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
+        Object buffer = MinecraftBufferCompat.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
         float prevX = cx + (float) Math.cos(startAngle) * rx;
         float prevY = cy + (float) Math.sin(startAngle) * ry;
         for (int i = 1; i <= segments; i++) {
@@ -1209,7 +1196,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
             prevX = x;
             prevY = y;
         }
-        BufferUploader.drawWithShader(buffer.end());
+        MinecraftBufferCompat.drawWithShader(buffer);
         RenderSystem.disableBlend();
     }
 
@@ -1220,14 +1207,12 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
         RenderSystem.enableBlend();
         Matrix4f matrix = graphics.pose().last().pose();
-        Tesselator tesselator = Tesselator.getInstance();
-        BufferBuilder buffer = tesselator.getBuilder();
-        buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+        Object buffer = MinecraftBufferCompat.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
         addColorVertex(buffer, matrix, x1, y1, color);
         addColorVertex(buffer, matrix, x1, y2, color);
         addColorVertex(buffer, matrix, x2, y2, color);
         addColorVertex(buffer, matrix, x2, y1, color);
-        BufferUploader.drawWithShader(buffer.end());
+        MinecraftBufferCompat.drawWithShader(buffer);
         RenderSystem.disableBlend();
     }
 
@@ -1238,9 +1223,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
         RenderSystem.enableBlend();
         Matrix4f matrix = graphics.pose().last().pose();
-        Tesselator tesselator = Tesselator.getInstance();
-        BufferBuilder buffer = tesselator.getBuilder();
-        buffer.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
+        Object buffer = MinecraftBufferCompat.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
         float originX = points.x(0);
         float originY = points.y(0);
         for (int i = 1; i < points.size() - 1; i++) {
@@ -1248,21 +1231,16 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
             addColorVertex(buffer, matrix, points.x(i), points.y(i), color);
             addColorVertex(buffer, matrix, points.x(i + 1), points.y(i + 1), color);
         }
-        BufferUploader.drawWithShader(buffer.end());
+        MinecraftBufferCompat.drawWithShader(buffer);
         RenderSystem.disableBlend();
     }
 
-    private static void addTextureVertex(BufferBuilder buffer, Matrix4f matrix, float x, float y, float u, float v, ColorView tint) {
-        buffer.vertex(matrix, x, y, 0.0f)
-                .uv(u, v)
-                .color(channel(tint.r()), channel(tint.g()), channel(tint.b()), channel(tint.a()))
-                .endVertex();
+    private static void addTextureVertex(Object buffer, Matrix4f matrix, float x, float y, float u, float v, ColorView tint) {
+        MinecraftBufferCompat.textureColorVertex(buffer, matrix, x, y, u, v, argb(tint));
     }
 
-    private static void addColorVertex(BufferBuilder buffer, Matrix4f matrix, float x, float y, int color) {
-        buffer.vertex(matrix, x, y, 0.0f)
-                .color((color >>> 16) & 0xFF, (color >>> 8) & 0xFF, color & 0xFF, (color >>> 24) & 0xFF)
-                .endVertex();
+    private static void addColorVertex(Object buffer, Matrix4f matrix, float x, float y, int color) {
+        MinecraftBufferCompat.colorVertex(buffer, matrix, x, y, color);
     }
 
     private ResourceLocation resolveTexture(TextureHandle texture) {

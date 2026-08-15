@@ -25,15 +25,15 @@ public final class MinecraftFonts {
     }
 
     public static MinecraftFontFace defaultFace() {
-        return face(new ResourceLocation("minecraft", "default"));
+        return face(ResourceLocation.tryBuild("minecraft", "default"));
     }
 
     public static MinecraftFontFace uniformFace() {
-        return face(new ResourceLocation("minecraft", "uniform"));
+        return face(ResourceLocation.tryBuild("minecraft", "uniform"));
     }
 
     public static MinecraftFontFace altFace() {
-        return face(new ResourceLocation("minecraft", "alt"));
+        return face(ResourceLocation.tryBuild("minecraft", "alt"));
     }
 
     public static FontFace useVanillaAsDefault() {

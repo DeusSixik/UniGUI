@@ -1,10 +1,7 @@
 package dev.sixik.unigui.backend.minecraft;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.RectView;
@@ -60,15 +57,14 @@ final class MinecraftTextureBatchRenderer {
             RenderSystem.depthMask(false);
             RenderSystem.disableCull();
 
-            BufferBuilder buffer = Tesselator.getInstance().getBuilder();
-            buffer.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_TEX_COLOR);
+            Object buffer = MinecraftBufferCompat.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_TEX_COLOR);
             Matrix4f basePose = graphics.pose().last().pose();
             for (int i = 0; i < commandCount; i++) {
                 DrawCommand command = (DrawCommand) rawCommands[i];
                 Matrix4f matrix = MinecraftTransform.commandMatrix(basePose, command);
                 append(buffer, matrix, command, binding.flipY());
             }
-            BufferUploader.drawWithShader(buffer.end());
+            MinecraftBufferCompat.drawWithShader(buffer);
             return true;
         } catch (Throwable failure) {
             LOGGER.error("UniGUI texture batch failed; falling back to legacy texture rendering", failure);
@@ -78,7 +74,7 @@ final class MinecraftTextureBatchRenderer {
         }
     }
 
-    private static int append(BufferBuilder buffer, Matrix4f matrix,
+    private static int append(Object buffer, Matrix4f matrix,
                               DrawCommand command, boolean flipY) {
         RectView bounds = command.bounds();
         float width = bounds.width();
@@ -110,7 +106,7 @@ final class MinecraftTextureBatchRenderer {
         return count * 3;
     }
 
-    private static int quad(BufferBuilder buffer, Matrix4f matrix, DrawCommand command,
+    private static int quad(Object buffer, Matrix4f matrix, DrawCommand command,
                             boolean flipY, float x1, float y1, float x2, float y2) {
         ColorView tint = command.paint().color();
         vertex(buffer, matrix, command, flipY, x1, y1, tint);
@@ -122,7 +118,7 @@ final class MinecraftTextureBatchRenderer {
         return 6;
     }
 
-    private static void vertex(BufferBuilder buffer, Matrix4f matrix, DrawCommand command,
+    private static void vertex(Object buffer, Matrix4f matrix, DrawCommand command,
                                boolean flipY, float x, float y, ColorView tint) {
         RectView bounds = command.bounds();
         RectView uv = command.uv();
@@ -132,10 +128,15 @@ final class MinecraftTextureBatchRenderer {
         float v = flipY
                 ? uv.y() + uv.height() * (1.0f - vertical)
                 : uv.y() + uv.height() * vertical;
-        buffer.vertex(matrix, x, y, 0.0f)
-                .uv(u, v)
-                .color(channel(tint.r()), channel(tint.g()), channel(tint.b()), channel(tint.a()))
-                .endVertex();
+        MinecraftBufferCompat.textureColorVertex(buffer, matrix, x, y, u, v, argb(tint));
+    }
+
+    private static int argb(ColorView color) {
+        int a = channel(color.a());
+        int r = channel(color.r());
+        int g = channel(color.g());
+        int b = channel(color.b());
+        return (a << 24) | (r << 16) | (g << 8) | b;
     }
 
     private static FloatPoints roundedOutline(float x1, float y1, float x2, float y2,

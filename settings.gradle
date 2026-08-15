@@ -1,15 +1,41 @@
 pluginManagement {
     repositories {
+        maven { url "https://maven.kikugie.dev/releases" }
+        maven { url "https://maven.kikugie.dev/snapshots" }
         maven { url "https://maven.fabricmc.net/" }
         maven { url "https://maven.architectury.dev/" }
         maven { url "https://files.minecraftforge.net/maven/" }
+        maven { url "https://maven.neoforged.net/releases/" }
         gradlePluginPortal()
     }
 }
 
+plugins {
+    id 'dev.kikugie.stonecutter' version '0.7.11'
+}
+
 rootProject.name = 'unigui'
 
-include 'common'
-include 'fabric'
-include 'forge'
-include 'TestMod'
+stonecutter {
+    kotlinController = false
+    centralScript = 'build.gradle'
+
+    create(rootProject) {
+        versions '1.20.1', '1.21.1'
+        vcsVersion = '1.20.1'
+    }
+}
+
+def modulesByMinecraftVersion = [
+        '1.20.1': ['common', 'fabric', 'forge', 'TestMod'],
+        '1.21.1': ['common', 'fabric', 'forge', 'neoforge', 'TestMod']
+]
+
+modulesByMinecraftVersion.each { minecraftVersion, modules ->
+    modules.each { moduleName ->
+        def modulePath = ":${minecraftVersion}:${moduleName}"
+        include modulePath
+        project(modulePath).projectDir = file(moduleName)
+        project(modulePath).buildFileName = 'build.gradle'
+    }
+}

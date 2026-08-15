@@ -4,17 +4,30 @@ plugins {
     id 'com.github.johnrengelman.shadow' version '8.1.1' apply false
 }
 
+def versionProject = project
+def versionProperty = { String key ->
+    def value = versionProject.findProperty(key)
+    return value != null ? value : rootProject.findProperty(key)
+}
+
+
+
 architectury {
-    minecraft = project.minecraft_version
+    minecraft = versionProperty('minecraft_version')
 }
 
 allprojects {
-    group = rootProject.maven_group
-    version = rootProject.mod_version
+    group = versionProperty('maven_group')
+    version = versionProperty('mod_version')
+
+    layout.buildDirectory = rootProject.layout.buildDirectory.dir(
+            "stonecutter/${project.path.substring(1).replace(':', '/')}"
+    )
 
     repositories {
         mavenCentral()
         maven { url = uri("https://jitpack.io") }
+        maven { url = uri("https://maven.neoforged.net/releases/") }
     }
 }
 
@@ -23,9 +36,12 @@ subprojects {
     apply plugin: 'architectury-plugin'
     apply plugin: 'maven-publish'
 
+    ext.versionProject = versionProject
+    ext.versionProperty = versionProperty
+
     base {
         // Set up a suffixed format for the mod jar names, e.g. `example-fabric`.
-        archivesName = "$rootProject.archives_name-$project.name"
+        archivesName = "${versionProperty('archives_name')}-$project.name-${versionProperty('minecraft_version')}"
     }
 
     repositories {
@@ -37,7 +53,7 @@ subprojects {
     }
 
     dependencies {
-        minecraft "net.minecraft:minecraft:$rootProject.minecraft_version"
+        minecraft "net.minecraft:minecraft:${versionProperty('minecraft_version')}"
         mappings loom.officialMojangMappings()
     }
 
@@ -47,12 +63,34 @@ subprojects {
         // If you remove this line, sources will not be generated.
         withSourcesJar()
 
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        def javaVersion = JavaVersion.toVersion(versionProperty('java_version') ?: '17')
+
+        sourceCompatibility = javaVersion
+        targetCompatibility = javaVersion
+
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(javaVersion.majorVersion as int)
+        }
     }
 
     tasks.withType(JavaCompile).configureEach {
-        it.options.release = 17
+        options.release = (versionProperty('java_version') ?: '17') as int
+    }
+
+    tasks.withType(net.fabricmc.loom.task.launch.GenerateRemapClasspathTask).configureEach {
+        remapClasspathFile.set(layout.buildDirectory.file('loom-cache/remapClasspath.txt'))
+    }
+
+    tasks.withType(net.fabricmc.loom.task.launch.GenerateLog4jConfigTask).configureEach {
+        outputFile.set(layout.buildDirectory.file('loom-cache/log4j.xml'))
+    }
+
+    tasks.withType(net.fabricmc.loom.task.launch.GenerateDLIConfigTask).configureEach {
+        dependsOn tasks.named('generateRemapClasspath')
+        remapClasspathFile.set(layout.buildDirectory.file('loom-cache/remapClasspath.txt'))
+        if (hasProperty('devLauncherConfig')) {
+            devLauncherConfig.set(layout.buildDirectory.file('loom-cache/launch.cfg'))
+        }
     }
 
     // Configure Maven publishing.

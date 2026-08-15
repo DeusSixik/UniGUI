@@ -1,12 +1,18 @@
 architectury {
-    common rootProject.enabled_platforms.split(',')
+    common versionProject.enabled_platforms.split(',')
+}
+
+sourceSets {
+    main {
+        java.srcDir "src/main/java-${versionProject.minecraft_version}"
+    }
 }
 
 dependencies {
     // We depend on Fabric Loader here to use the Fabric @Environment annotations,
     // which get remapped to the correct annotations on each platform.
     // Do NOT use other classes from Fabric Loader.
-    modImplementation "net.fabricmc:fabric-loader:$rootProject.fabric_loader_version"
+    modImplementation "net.fabricmc:fabric-loader:${versionProject.fabric_loader_version}"
 }
 
 tasks.register("layoutV3SelfTest", JavaExec) {
