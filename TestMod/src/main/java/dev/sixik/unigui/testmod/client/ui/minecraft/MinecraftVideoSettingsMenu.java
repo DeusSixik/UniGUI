@@ -15,7 +15,11 @@ import dev.sixik.unigui.api.layout.Justify;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.layout.Overflow;
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.UiRenderPolicy;
+import dev.sixik.unigui.api.render.shaders.ShaderDrawOptions;
+import dev.sixik.unigui.api.render.shaders.ShaderHandle;
+import dev.sixik.unigui.api.render.shaders.ShaderUniforms;
 import dev.sixik.unigui.api.text.Fonts;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Widget;
@@ -25,12 +29,15 @@ import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeButtonRenders;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeCheckboxRenders;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeDropDownRenders;
+import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeScrollBarRenders;
+import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeSliderRenders;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeToggleSwitchRenders;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.HBox;
 import dev.sixik.unigui.widgets.containers.ScrollView;
 import dev.sixik.unigui.widgets.containers.StackPanel;
 import dev.sixik.unigui.widgets.containers.VBox;
+import dev.sixik.unigui.widgets.display.CanvasWidget;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.interaction.Button;
 import dev.sixik.unigui.widgets.interaction.Checkbox;
@@ -71,6 +78,141 @@ public final class MinecraftVideoSettingsMenu {
     private static final Component WARNING_ACCEPT = Component.translatable("options.graphics.warning.accept");
     private static final Component WARNING_CANCEL = Component.translatable("options.graphics.warning.cancel");
 
+    private static final ShaderDrawOptions FUTURE_STARFIELD_OPTIONS = ShaderDrawOptions.defaults()
+            .blend(true)
+            .squareVertexOffset(0.0f);
+    private static final ShaderHandle FUTURE_STARFIELD_BACKGROUND = ShaderHandle.source(
+            "unigui_testmod:video_settings_future_starfield",
+            """
+            #version 150
+
+            in vec3 Position;
+
+            out vec2 bgUv;
+            out vec2 localCoord;
+            out vec2 quadSize;
+
+            uniform vec2 ScreenSize;
+            uniform vec4 SquareVertex;
+
+            void main() {
+                vec2 rawUv = Position.xy * 0.5 + 0.5;
+                bgUv = vec2(rawUv.x, 1.0 - rawUv.y);
+
+                vec2 rectMin = min(SquareVertex.xy, SquareVertex.zw);
+                vec2 rectMax = max(SquareVertex.xy, SquareVertex.zw);
+                quadSize = max(rectMax - rectMin, vec2(1.0));
+                localCoord = bgUv * quadSize;
+
+                vec2 pixel = mix(rectMin, rectMax, bgUv);
+                vec2 ndc = vec2(
+                        pixel.x / max(ScreenSize.x, 1.0) * 2.0 - 1.0,
+                        1.0 - pixel.y / max(ScreenSize.y, 1.0) * 2.0);
+                gl_Position = vec4(ndc, 0.0, 1.0);
+            }
+            """,
+            """
+            #version 150
+
+            in vec2 bgUv;
+            in vec2 localCoord;
+            in vec2 quadSize;
+
+            out vec4 FragColor;
+
+            uniform float Time;
+
+            float hash21(vec2 p) {
+                p = fract(p * vec2(123.34, 456.21));
+                p += vec2(dot(p, p + vec2(45.32)));
+                return fract(p.x * p.y);
+            }
+
+            float noise(vec2 p) {
+                vec2 i = floor(p);
+                vec2 f = fract(p);
+                vec2 u = f * f * (3.0 - 2.0 * f);
+                float a = hash21(i);
+                float b = hash21(i + vec2(1.0, 0.0));
+                float c = hash21(i + vec2(0.0, 1.0));
+                float d = hash21(i + vec2(1.0, 1.0));
+                return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+            }
+
+            float fbm(vec2 p) {
+                float value = 0.0;
+                float amplitude = 0.5;
+                for (int i = 0; i < 5; i++) {
+                    value += noise(p) * amplitude;
+                    p = mat2(1.62, 1.21, -1.21, 1.62) * p + vec2(7.31);
+                    amplitude *= 0.52;
+                }
+                return value;
+            }
+
+            float starLayer(vec2 uv, float scale, float speed, float threshold) {
+                vec2 p = uv * scale + vec2(Time * speed, -Time * speed * 0.37);
+                vec2 id = floor(p);
+                vec2 cell = fract(p) - 0.5;
+                float seed = hash21(id);
+                vec2 offset = vec2(hash21(id + vec2(13.7)), hash21(id + vec2(71.3))) - 0.5;
+                float d = length(cell - offset * 0.58);
+                float core = 1.0 - smoothstep(0.0, 0.045, d);
+                float glow = (1.0 - smoothstep(0.0, 0.115, d)) * 0.22;
+                float twinkle = 0.68 + 0.32 * sin(Time * (1.4 + seed * 5.6) + seed * 6.28318);
+                return (core + glow) * step(threshold, seed) * twinkle;
+            }
+
+            float softLine(float value, float width) {
+                return 1.0 - smoothstep(0.0, width, abs(value));
+            }
+
+            void main() {
+                vec2 resolution = max(quadSize, vec2(1.0));
+                vec2 uv = clamp(bgUv, vec2(0.0), vec2(1.0));
+                vec2 p = uv * 2.0 - 1.0;
+                p.x *= resolution.x / resolution.y;
+
+                float slowTime = Time * 0.035;
+                vec2 wideP = vec2(p.x * 0.62, p.y);
+                float nebulaA = fbm(wideP * 1.18 + vec2(slowTime, -slowTime * 0.42));
+                float nebulaB = fbm(vec2(p.x * 0.74, p.y) * 2.35 - vec2(slowTime * 0.7, slowTime));
+                float wideMist = exp(-pow(abs(p.y + 0.05) * 1.25, 2.0))
+                        * (0.35 + 0.65 * fbm(vec2(p.x * 0.34, p.y * 1.55) + vec2(Time * 0.012, -Time * 0.006)));
+                float verticalGlow = smoothstep(-0.32, 0.85, uv.y);
+
+                vec3 color = mix(vec3(0.015, 0.020, 0.035), vec3(0.035, 0.055, 0.105), verticalGlow);
+                color += vec3(0.045, 0.150, 0.285) * pow(nebulaA, 1.85) * 1.12;
+                color += vec3(0.120, 0.220, 0.380) * pow(nebulaB, 2.55) * 0.60;
+                color += vec3(0.050, 0.125, 0.235) * wideMist * 0.22;
+
+                float stars = 0.0;
+                stars += starLayer(uv, 72.0, 0.018, 0.965) * 0.82;
+                stars += starLayer(uv + vec2(4.17), 138.0, -0.012, 0.982) * 1.05;
+                stars += starLayer(uv - vec2(2.43), 236.0, 0.008, 0.992) * 1.42;
+                color += vec3(0.86, 0.94, 1.00) * stars * 1.30;
+
+                vec2 gridUv = p + vec2(Time * 0.020, Time * -0.006);
+                float grid = softLine(fract(gridUv.x * 8.0) - 0.5, 0.006)
+                        + softLine(fract(gridUv.y * 5.0) - 0.5, 0.005);
+                grid *= smoothstep(0.55, 1.25, length(p)) * 0.030;
+                color += vec3(0.12, 0.34, 0.62) * grid;
+
+                float ring = softLine(length(p - vec2(0.34, -0.12)) - 0.48, 0.006) * 0.11;
+                float diagonal = softLine(dot(p, normalize(vec2(0.72, 0.30))) - 0.24, 0.008) * 0.050;
+                color += vec3(0.18, 0.42, 0.72) * (ring + diagonal);
+
+                float scan = 0.5 + 0.5 * sin((localCoord.y + Time * 36.0) * 0.055);
+                color += scan * vec3(0.006, 0.011, 0.018);
+
+                float vignette = 1.0 - smoothstep(0.20, 1.45, length(p));
+                color *= vignette;
+                color = pow(max(color, vec3(0.0)), vec3(0.82));
+
+                FragColor = vec4(color, 1.0);
+            }
+            """);
+
     private static final float MENU_WIDTH = 265.0f;
     private static final float MENU_HEIGHT = 213.0f;
     private static final float MENU_CONTENT_WIDTH = 232.0f;
@@ -91,9 +233,11 @@ public final class MinecraftVideoSettingsMenu {
     private static final float TOGGLE_SWITCH_THUMB = 5.0f;
 
     private static final MutableColor TEXT = MutableColor.rgba255(245, 247, 255, 255);
+    private static final MutableColor STARFIELD_FALLBACK_BACKGROUND = MutableColor.rgba255(8, 13, 27, 255);
     private static final MutableColor PANEL_BACKGROUND = MutableColor.rgba255(13, 16, 22, 230);
     private static final MutableColor PANEL_BORDER = MutableColor.rgba255(105, 109, 112, 245);
-    private static final MutableColor INNER_LINE = MutableColor.rgba255(105, 109, 112, 180);
+    private static final MutableColor SEPARATOR_EDGE = MutableColor.rgba255(105, 109, 112, 0);
+    private static final MutableColor SEPARATOR_CENTER = MutableColor.rgba255(235, 240, 255, 190);
     private static final MutableColor BUTTON_TEXT = MutableColor.rgba255(255, 255, 255, 255);
     private static final MutableColor BUTTON_TEXT_HOVER_DARK = MutableColor.rgba255(0, 0, 0, 255);
     private static final MutableColor BUTTON_BACKGROUND = MutableColor.rgba255(22, 25, 31, 255);
@@ -150,12 +294,25 @@ public final class MinecraftVideoSettingsMenu {
         return new OverlayLayer(root);
     }
 
-    private static Box backdrop() {
-        Box backdrop = new Box();
-        backdrop.themeEnabled(false);
-        backdrop.backgroundVisible(true);
-        backdrop.borderVisible(false);
-        backdrop.background().set(0.0f, 0.0f, 0.0f, 0.32f);
+    private static CanvasWidget backdrop() {
+        CanvasWidget backdrop = new CanvasWidget();
+        backdrop.onDraw(context -> {
+            float width = Math.max(1.0f, backdrop.layoutBounds().width());
+            float height = Math.max(1.0f, backdrop.layoutBounds().height());
+            context.rect(
+                    backdrop.layoutBounds().x(),
+                    backdrop.layoutBounds().y(),
+                    width,
+                    height,
+                    Paint.fill(STARFIELD_FALLBACK_BACKGROUND));
+            context.shader(FUTURE_STARFIELD_BACKGROUND,
+                    backdrop.layoutBounds().x(),
+                    backdrop.layoutBounds().y(),
+                    width,
+                    height,
+                    ShaderUniforms.empty(),
+                    FUTURE_STARFIELD_OPTIONS);
+        });
         backdrop.layout(style -> style.align(Alignment.STRETCH, Alignment.STRETCH));
         return backdrop;
     }
@@ -211,6 +368,8 @@ public final class MinecraftVideoSettingsMenu {
                 .scrollbarGap(3.0f);
         scroll.scrollbarTrackColor().set(0.0f, 0.0f, 0.0f, 0.52f);
         scroll.scrollbarThumbColor().set(0.82f, 0.84f, 0.88f, 0.92f);
+        scroll.verticalScrollBar().renderer(DestinyLikeScrollBarRenders.DEFAULT);
+        scroll.horizontalScrollBar().renderer(DestinyLikeScrollBarRenders.DEFAULT);
         scroll.layout(style -> style
                 .size(MENU_CONTENT_WIDTH, SETTINGS_HEIGHT)
                 .align(Alignment.CENTER, Alignment.CENTER)
@@ -295,7 +454,7 @@ public final class MinecraftVideoSettingsMenu {
                 .flexShrink(0.0f));
 
         Button back = button("BACK", DestinyLikeButtonRenders.DEFAULT,
-                PANEL_BORDER, BUTTON_BACKGROUND, BUTTON_TEXT, BUTTON_TEXT_HOVER_DARK, true);
+                BUTTON_TEXT, BUTTON_BACKGROUND, BUTTON_TEXT, BUTTON_TEXT_HOVER_DARK, true);
         back.onClick(event -> finishVideoSettings(last, options, oldMipmaps));
 
         HBox rightActions = new HBox();
@@ -519,14 +678,26 @@ public final class MinecraftVideoSettingsMenu {
         return label;
     }
 
-    private static Box separator() {
-        Box line = new Box();
-        line.themeEnabled(false);
-        line.backgroundVisible(true);
-        line.borderVisible(false);
-        line.background().set(INNER_LINE);
+    private static Widget separator() {
+        CanvasWidget line = new CanvasWidget();
+        line.onDraw(context -> {
+            float x = line.layoutBounds().x();
+            float y = line.layoutBounds().y();
+            float width = Math.max(0.0f, line.layoutBounds().width());
+            float height = Math.max(0.6f, line.layoutBounds().height());
+            float halfWidth = width * 0.5f;
+
+            context.addRectFilledMultiColor(
+                    x, y, halfWidth, height,
+                    SEPARATOR_EDGE, SEPARATOR_CENTER,
+                    SEPARATOR_CENTER, SEPARATOR_EDGE);
+            context.addRectFilledMultiColor(
+                    x + halfWidth, y, halfWidth, height,
+                    SEPARATOR_CENTER, SEPARATOR_EDGE,
+                    SEPARATOR_EDGE, SEPARATOR_CENTER);
+        });
         line.layout(style -> style
-                .size(MENU_CONTENT_WIDTH, 0.6f)
+                .size(MENU_CONTENT_WIDTH, 0.8f)
                 .align(Alignment.CENTER, Alignment.CENTER)
                 .flexGrow(0.0f)
                 .flexShrink(0.0f));
@@ -566,6 +737,8 @@ public final class MinecraftVideoSettingsMenu {
         dropBox.optionsScroll().scrollStep(DROPBOX_OPTION_HEIGHT);
         dropBox.optionsScroll().scrollbarTrackColor().set(0.0f, 0.0f, 0.0f, 0.42f);
         dropBox.optionsScroll().scrollbarThumbColor().set(0.82f, 0.84f, 0.88f, 0.86f);
+        dropBox.optionsScroll().verticalScrollBar().renderer(DestinyLikeScrollBarRenders.DEFAULT);
+        dropBox.optionsScroll().horizontalScrollBar().renderer(DestinyLikeScrollBarRenders.DEFAULT);
 
         for (int i = 0; i < dropBox.itemCount(); i++) {
             ToggleButton option = dropBox.optionButton(i);
@@ -655,6 +828,7 @@ public final class MinecraftVideoSettingsMenu {
                 .step(step)
                 .value(value)
                 .preferredSize(SLIDER_WIDTH, 12.0f);
+        slider.renderer(DestinyLikeSliderRenders.DEFAULT);
         slider.trackColor().set(0.12f, 0.13f, 0.16f, 0.92f);
         slider.fillColor().set(0.66f, 0.64f, 0.44f, 0.95f);
         slider.knobColor().set(0.96f, 0.96f, 0.92f, 1.0f);
