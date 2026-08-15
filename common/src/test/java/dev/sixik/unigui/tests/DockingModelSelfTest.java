@@ -1,14 +1,14 @@
 package dev.sixik.unigui.tests;
 
-import dev.sixik.unigui.widgets.DockArea;
-import dev.sixik.unigui.widgets.DockLayoutSnapshot;
-import dev.sixik.unigui.widgets.DockLayoutSnapshotCodec;
-import dev.sixik.unigui.widgets.DockNode;
-import dev.sixik.unigui.widgets.DockPane;
-import dev.sixik.unigui.widgets.DockSplitOrientation;
-import dev.sixik.unigui.widgets.DockingRoot;
-import dev.sixik.unigui.widgets.Label;
-import dev.sixik.unigui.widgets.WindowWidget;
+import dev.sixik.unigui.widgets.docking.DockArea;
+import dev.sixik.unigui.widgets.docking.DockLayoutSnapshot;
+import dev.sixik.unigui.widgets.docking.DockLayoutSnapshotCodec;
+import dev.sixik.unigui.widgets.docking.DockNode;
+import dev.sixik.unigui.widgets.docking.DockPane;
+import dev.sixik.unigui.widgets.docking.DockSplitOrientation;
+import dev.sixik.unigui.widgets.docking.DockingRoot;
+import dev.sixik.unigui.widgets.display.Label;
+import dev.sixik.unigui.widgets.feedback.WindowWidget;
 
 import java.util.List;
 import java.util.Map;

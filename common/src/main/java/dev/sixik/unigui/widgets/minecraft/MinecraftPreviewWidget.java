@@ -13,7 +13,7 @@ import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.backend.minecraft.MinecraftGuiRenderBackend;
 import dev.sixik.unigui.impl.text.TextEngine;
-import dev.sixik.unigui.widgets.Box;
+import dev.sixik.unigui.widgets.containers.Box;
 
 import java.util.Objects;
 

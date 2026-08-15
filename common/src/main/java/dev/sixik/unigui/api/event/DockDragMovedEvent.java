@@ -1,7 +1,7 @@
 package dev.sixik.unigui.api.event;
 
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.widgets.DockDropIntent;
+import dev.sixik.unigui.widgets.docking.DockDropIntent;
 
 import java.util.Objects;
 

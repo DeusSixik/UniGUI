@@ -1,7 +1,7 @@
 package dev.sixik.unigui.widgets.render;
 
-import dev.sixik.unigui.widgets.NodeGraphPortKind;
-import dev.sixik.unigui.widgets.NodeGraphPortSide;
+import dev.sixik.unigui.widgets.graph.NodeGraphPortKind;
+import dev.sixik.unigui.widgets.graph.NodeGraphPortSide;
 
 public record NodeGraphPortState(
         String itemId,

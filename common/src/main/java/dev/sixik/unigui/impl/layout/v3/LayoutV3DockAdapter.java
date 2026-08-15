@@ -14,13 +14,14 @@ import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
-import dev.sixik.unigui.widgets.DockSide;
+import dev.sixik.unigui.widgets.containers.DockSide;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import dev.sixik.unigui.widgets.containers.DockPanel;
 
 /** V3 migration adapter for DockPanel's sequential edge-docking algorithm. */
 public final class LayoutV3DockAdapter {

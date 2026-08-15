@@ -2,9 +2,9 @@ package dev.sixik.unigui.widgets.map;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.widgets.AnchorWidget;
-import dev.sixik.unigui.widgets.Box;
-import dev.sixik.unigui.widgets.Label;
+import dev.sixik.unigui.widgets.world.AnchorWidget;
+import dev.sixik.unigui.widgets.containers.Box;
+import dev.sixik.unigui.widgets.display.Label;
 
 /**
  * Нейтральная базовая оболочка маркера для {@link MapCanvas}.

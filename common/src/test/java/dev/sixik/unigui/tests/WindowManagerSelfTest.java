@@ -9,15 +9,18 @@ import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.impl.input.TransformHitTester;
-import dev.sixik.unigui.widgets.Button;
-import dev.sixik.unigui.widgets.Label;
-import dev.sixik.unigui.widgets.OverlayLayer;
-import dev.sixik.unigui.widgets.PanelWidget;
-import dev.sixik.unigui.widgets.TextInput;
-import dev.sixik.unigui.widgets.WindowWidget;
+import dev.sixik.unigui.widgets.interaction.Button;
+import dev.sixik.unigui.widgets.display.Label;
+import dev.sixik.unigui.widgets.feedback.OverlayLayer;
+import dev.sixik.unigui.widgets.containers.PanelWidget;
+import dev.sixik.unigui.widgets.interaction.TextInput;
+import dev.sixik.unigui.widgets.feedback.WindowWidget;
 import dev.sixik.unigui.api.event.PointerMovedEvent;
 import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.event.PointerReleasedEvent;
+import dev.sixik.unigui.widgets.display.Text;
+import dev.sixik.unigui.widgets.feedback.WindowManager;
+import dev.sixik.unigui.widgets.interaction.TextInput;
 
 public final class WindowManagerSelfTest {
     public static void main(String[] args) {

@@ -18,11 +18,11 @@ import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.impl.debug.DebugOverlayRenderer;
 import dev.sixik.unigui.impl.render.DefaultRenderContext;
 import dev.sixik.unigui.impl.render.SimpleRenderTarget;
-import dev.sixik.unigui.widgets.Box;
-import dev.sixik.unigui.widgets.CachedSubtreeMissReason;
-import dev.sixik.unigui.widgets.CachedSubtreeStats;
-import dev.sixik.unigui.widgets.CachedSubtreeWidget;
-import dev.sixik.unigui.widgets.VirtualTableView;
+import dev.sixik.unigui.widgets.containers.Box;
+import dev.sixik.unigui.widgets.caching.CachedSubtreeMissReason;
+import dev.sixik.unigui.widgets.caching.CachedSubtreeStats;
+import dev.sixik.unigui.widgets.caching.CachedSubtreeWidget;
+import dev.sixik.unigui.widgets.data.VirtualTableView;
 
 public final class CachedSubtreeInvalidationSelfTest {
     public static void main(String[] args) {

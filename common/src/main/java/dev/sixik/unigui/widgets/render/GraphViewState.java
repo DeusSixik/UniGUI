@@ -1,7 +1,7 @@
 package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.math.ColorView;
-import dev.sixik.unigui.widgets.GraphView;
+import dev.sixik.unigui.widgets.graph.GraphView;
 
 import java.util.List;
 import java.util.function.Function;

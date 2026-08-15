@@ -4,7 +4,7 @@ import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
-import dev.sixik.unigui.widgets.Spinner;
+import dev.sixik.unigui.widgets.feedback.Spinner;
 
 public final class LoadingIndicatorRenderers {
     private static final float TAU = (float) (Math.PI * 2.0);

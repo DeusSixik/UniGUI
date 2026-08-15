@@ -2,7 +2,7 @@ package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.render.TextureHandle;
-import dev.sixik.unigui.widgets.CachedSubtreeMissReason;
+import dev.sixik.unigui.widgets.caching.CachedSubtreeMissReason;
 
 public record CachedSubtreeState(
         float x,

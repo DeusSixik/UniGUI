@@ -2,6 +2,7 @@ package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.widgets.docking.DockPane;
 
 public final class DockingRootRenderers {
     private static final MutableColor EMPTY_TEXT = new MutableColor(0.62f, 0.68f, 0.78f, 0.8f);

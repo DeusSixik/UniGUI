@@ -2,7 +2,8 @@ package dev.sixik.unigui.widgets.map;
 
 import dev.sixik.unigui.api.viewport.ViewportPoint;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.widgets.AnchorWidget;
+import dev.sixik.unigui.widgets.world.AnchorWidget;
+import dev.sixik.unigui.widgets.interaction.Button;
 
 /**
  * Ручка управления маркером, добавленным в {@link MapCanvas}.

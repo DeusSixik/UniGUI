@@ -1,7 +1,7 @@
 package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.text.RichText;
-import dev.sixik.unigui.widgets.DockPaneKind;
+import dev.sixik.unigui.widgets.docking.DockPaneKind;
 
 public record DockTabState(
         String paneId,

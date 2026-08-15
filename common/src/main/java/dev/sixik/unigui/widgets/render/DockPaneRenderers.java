@@ -2,7 +2,7 @@ package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.Paint;
-import dev.sixik.unigui.widgets.DockPaneKind;
+import dev.sixik.unigui.widgets.docking.DockPaneKind;
 
 public final class DockPaneRenderers {
     private static final MutableColor PANE_BORDER = new MutableColor(0.24f, 0.28f, 0.36f, 0.95f);

@@ -19,11 +19,12 @@ import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.widgets.Orientation;
-import dev.sixik.unigui.widgets.Splitter;
+import dev.sixik.unigui.widgets.core.Orientation;
+import dev.sixik.unigui.widgets.containers.Splitter;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import dev.sixik.unigui.widgets.containers.SplitPanel;
 
 /** V3 migration adapter for SplitPanel pane slots and absolute splitter handle. */
 public final class LayoutV3SplitAdapter {

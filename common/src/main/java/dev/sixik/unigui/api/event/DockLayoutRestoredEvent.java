@@ -1,7 +1,7 @@
 package dev.sixik.unigui.api.event;
 
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.widgets.DockLayoutSnapshot;
+import dev.sixik.unigui.widgets.docking.DockLayoutSnapshot;
 
 import java.util.Objects;
 

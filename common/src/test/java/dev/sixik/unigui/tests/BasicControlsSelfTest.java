@@ -97,83 +97,93 @@ import dev.sixik.unigui.impl.text.AwtFontFace;
 import dev.sixik.unigui.impl.text.SdfGlyph;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
-import dev.sixik.unigui.widgets.Accordion;
-import dev.sixik.unigui.widgets.Button;
-import dev.sixik.unigui.widgets.Breadcrumb;
-import dev.sixik.unigui.widgets.BreadcrumbItem;
-import dev.sixik.unigui.widgets.Box;
-import dev.sixik.unigui.widgets.Carousel;
-import dev.sixik.unigui.widgets.Checkbox;
-import dev.sixik.unigui.widgets.ComboBox;
-import dev.sixik.unigui.widgets.ContextMenu;
-import dev.sixik.unigui.widgets.DockPanel;
-import dev.sixik.unigui.widgets.DockArea;
-import dev.sixik.unigui.widgets.DockDropIntent;
-import dev.sixik.unigui.widgets.DockLayoutSnapshotCodec;
-import dev.sixik.unigui.widgets.DockLayoutSnapshot;
-import dev.sixik.unigui.widgets.DockPane;
-import dev.sixik.unigui.widgets.DockPaneKind;
-import dev.sixik.unigui.widgets.DockSide;
-import dev.sixik.unigui.widgets.DockingRoot;
-import dev.sixik.unigui.widgets.DropDownBox;
-import dev.sixik.unigui.widgets.ExpandablePanel;
-import dev.sixik.unigui.widgets.GridBox;
-import dev.sixik.unigui.widgets.HBox;
-import dev.sixik.unigui.widgets.Label;
-import dev.sixik.unigui.widgets.LoadingIndicator;
-import dev.sixik.unigui.widgets.NodeGraph;
-import dev.sixik.unigui.widgets.NodeGraphConnection;
-import dev.sixik.unigui.widgets.NodeGraphConnectionValidation;
-import dev.sixik.unigui.widgets.NodeGraphItem;
-import dev.sixik.unigui.widgets.NodeGraphSnapshot;
-import dev.sixik.unigui.widgets.NodeGraphPortKind;
-import dev.sixik.unigui.widgets.NodeGraphPortRef;
-import dev.sixik.unigui.widgets.NodeGraphPortSide;
-import dev.sixik.unigui.widgets.NotificationView;
-import dev.sixik.unigui.widgets.NumberField;
-import dev.sixik.unigui.widgets.Orientation;
-import dev.sixik.unigui.widgets.OverlayLayer;
-import dev.sixik.unigui.widgets.PageView;
-import dev.sixik.unigui.widgets.PanelWidget;
-import dev.sixik.unigui.widgets.PanelRowWidget;
-import dev.sixik.unigui.widgets.PasswordField;
-import dev.sixik.unigui.widgets.Popup;
-import dev.sixik.unigui.widgets.ProgressBar;
-import dev.sixik.unigui.widgets.RadioButton;
-import dev.sixik.unigui.widgets.RadioGroup;
-import dev.sixik.unigui.widgets.SearchField;
-import dev.sixik.unigui.widgets.SettingRow;
-import dev.sixik.unigui.widgets.ScrollView;
-import dev.sixik.unigui.widgets.Slider;
-import dev.sixik.unigui.widgets.Spinner;
-import dev.sixik.unigui.widgets.SplitPanel;
-import dev.sixik.unigui.widgets.StackPanel;
-import dev.sixik.unigui.widgets.TabControl;
-import dev.sixik.unigui.widgets.Text;
-import dev.sixik.unigui.widgets.TextBlock;
-import dev.sixik.unigui.widgets.TextField;
-import dev.sixik.unigui.widgets.TextInput;
-import dev.sixik.unigui.widgets.TextWidget;
-import dev.sixik.unigui.widgets.TextureWidget;
-import dev.sixik.unigui.widgets.Tooltip;
-import dev.sixik.unigui.widgets.RichTextView;
-import dev.sixik.unigui.widgets.Toast;
-import dev.sixik.unigui.widgets.ToggleButton;
-import dev.sixik.unigui.widgets.ToggleSwitch;
-import dev.sixik.unigui.widgets.TreeView;
-import dev.sixik.unigui.widgets.TreeList;
-import dev.sixik.unigui.widgets.TreeViewNode;
-import dev.sixik.unigui.widgets.VBox;
-import dev.sixik.unigui.widgets.VirtualListView;
-import dev.sixik.unigui.widgets.VirtualTableView;
-import dev.sixik.unigui.widgets.Widgets;
-import dev.sixik.unigui.widgets.WindowWidget;
-import dev.sixik.unigui.widgets.WrapPanel;
+import dev.sixik.unigui.widgets.navigation.Accordion;
+import dev.sixik.unigui.widgets.interaction.Button;
+import dev.sixik.unigui.widgets.navigation.Breadcrumb;
+import dev.sixik.unigui.widgets.navigation.BreadcrumbItem;
+import dev.sixik.unigui.widgets.containers.Box;
+import dev.sixik.unigui.widgets.navigation.Carousel;
+import dev.sixik.unigui.widgets.interaction.Checkbox;
+import dev.sixik.unigui.widgets.interaction.ComboBox;
+import dev.sixik.unigui.widgets.feedback.ContextMenu;
+import dev.sixik.unigui.widgets.containers.DockPanel;
+import dev.sixik.unigui.widgets.docking.DockArea;
+import dev.sixik.unigui.widgets.docking.DockDropIntent;
+import dev.sixik.unigui.widgets.docking.DockLayoutSnapshotCodec;
+import dev.sixik.unigui.widgets.docking.DockLayoutSnapshot;
+import dev.sixik.unigui.widgets.docking.DockPane;
+import dev.sixik.unigui.widgets.docking.DockPaneKind;
+import dev.sixik.unigui.widgets.containers.DockSide;
+import dev.sixik.unigui.widgets.docking.DockingRoot;
+import dev.sixik.unigui.widgets.interaction.DropDownBox;
+import dev.sixik.unigui.widgets.navigation.ExpandablePanel;
+import dev.sixik.unigui.widgets.containers.GridBox;
+import dev.sixik.unigui.widgets.containers.HBox;
+import dev.sixik.unigui.widgets.display.Label;
+import dev.sixik.unigui.widgets.feedback.LoadingIndicator;
+import dev.sixik.unigui.widgets.graph.NodeGraph;
+import dev.sixik.unigui.widgets.graph.NodeGraphConnection;
+import dev.sixik.unigui.widgets.graph.NodeGraphConnectionValidation;
+import dev.sixik.unigui.widgets.graph.NodeGraphItem;
+import dev.sixik.unigui.widgets.graph.NodeGraphSnapshot;
+import dev.sixik.unigui.widgets.graph.NodeGraphPortKind;
+import dev.sixik.unigui.widgets.graph.NodeGraphPortRef;
+import dev.sixik.unigui.widgets.graph.NodeGraphPortSide;
+import dev.sixik.unigui.widgets.feedback.NotificationView;
+import dev.sixik.unigui.widgets.interaction.NumberField;
+import dev.sixik.unigui.widgets.core.Orientation;
+import dev.sixik.unigui.widgets.feedback.OverlayLayer;
+import dev.sixik.unigui.widgets.navigation.PageView;
+import dev.sixik.unigui.widgets.containers.PanelWidget;
+import dev.sixik.unigui.widgets.containers.PanelRowWidget;
+import dev.sixik.unigui.widgets.interaction.PasswordField;
+import dev.sixik.unigui.widgets.feedback.Popup;
+import dev.sixik.unigui.widgets.feedback.ProgressBar;
+import dev.sixik.unigui.widgets.interaction.RadioButton;
+import dev.sixik.unigui.widgets.interaction.RadioGroup;
+import dev.sixik.unigui.widgets.interaction.SearchField;
+import dev.sixik.unigui.widgets.containers.SettingRow;
+import dev.sixik.unigui.widgets.containers.ScrollView;
+import dev.sixik.unigui.widgets.interaction.Slider;
+import dev.sixik.unigui.widgets.feedback.Spinner;
+import dev.sixik.unigui.widgets.containers.SplitPanel;
+import dev.sixik.unigui.widgets.containers.StackPanel;
+import dev.sixik.unigui.widgets.navigation.TabControl;
+import dev.sixik.unigui.widgets.display.Text;
+import dev.sixik.unigui.widgets.display.TextBlock;
+import dev.sixik.unigui.widgets.interaction.TextField;
+import dev.sixik.unigui.widgets.interaction.TextInput;
+import dev.sixik.unigui.widgets.display.TextWidget;
+import dev.sixik.unigui.widgets.display.TextureWidget;
+import dev.sixik.unigui.widgets.feedback.Tooltip;
+import dev.sixik.unigui.widgets.display.RichTextView;
+import dev.sixik.unigui.widgets.feedback.Toast;
+import dev.sixik.unigui.widgets.interaction.ToggleButton;
+import dev.sixik.unigui.widgets.interaction.ToggleSwitch;
+import dev.sixik.unigui.widgets.navigation.TreeView;
+import dev.sixik.unigui.widgets.navigation.TreeList;
+import dev.sixik.unigui.widgets.navigation.TreeViewNode;
+import dev.sixik.unigui.widgets.containers.VBox;
+import dev.sixik.unigui.widgets.data.VirtualListView;
+import dev.sixik.unigui.widgets.data.VirtualTableView;
+import dev.sixik.unigui.widgets.core.Widgets;
+import dev.sixik.unigui.widgets.feedback.WindowWidget;
+import dev.sixik.unigui.widgets.containers.WrapPanel;
 import dev.sixik.unigui.widgets.render.ButtonRenderer;
 import dev.sixik.unigui.widgets.render.ButtonRenderers;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
+import dev.sixik.unigui.widgets.containers.Splitter;
+import dev.sixik.unigui.widgets.docking.DockingManager;
+import dev.sixik.unigui.widgets.docking.DockNode;
+import dev.sixik.unigui.widgets.docking.DockSplitOrientation;
+import dev.sixik.unigui.widgets.feedback.WindowManager;
+import dev.sixik.unigui.widgets.graph.NodeGraphSelectionMode;
+import dev.sixik.unigui.widgets.interaction.ScrollBar;
+import dev.sixik.unigui.widgets.interaction.SearchableGridPickerWidget;
+import dev.sixik.unigui.widgets.interaction.TextField;
+import dev.sixik.unigui.widgets.interaction.TextInput;
 
 public final class BasicControlsSelfTest {
     public static void main(String[] args) {
@@ -2863,7 +2873,7 @@ public final class BasicControlsSelfTest {
                 "DockingRoot should add and select the first pane");
 
         root.manager().splitPane(project.id(), DockArea.RIGHT, inspector);
-        expect(root.rootNode().isSplit() && root.rootNode().orientation() == dev.sixik.unigui.widgets.DockSplitOrientation.HORIZONTAL,
+        expect(root.rootNode().isSplit() && root.rootNode().orientation() == dev.sixik.unigui.widgets.docking.DockSplitOrientation.HORIZONTAL,
                 "DockingManager split RIGHT should create a horizontal split node");
         expect(root.manager().paneCount() == 2 && root.manager().containsPane(inspector.id()),
                 "DockingManager split should retain target pane and add the new pane");
@@ -2872,7 +2882,7 @@ public final class BasicControlsSelfTest {
         expect(root.manager().paneCount() == 3 && root.manager().selectedPane() == console,
                 "DockingManager tabPane should add the pane to the target tab group and select it");
         DockLayoutSnapshot snapshot = root.manager().snapshot();
-        expect(snapshot.root().kind() == dev.sixik.unigui.widgets.DockNode.Kind.SPLIT
+        expect(snapshot.root().kind() == dev.sixik.unigui.widgets.docking.DockNode.Kind.SPLIT
                         && snapshot.root().first().paneIds().equals(java.util.List.of(project.id(), console.id()))
                         && snapshot.root().first().selectedPaneId().equals(console.id())
                         && snapshot.root().second().paneIds().equals(java.util.List.of(inspector.id())),
@@ -3399,7 +3409,7 @@ public final class BasicControlsSelfTest {
     private void testNodeGraphPhaseThreeEditingContracts() {
         DefaultUIContext uiContext = new DefaultUIContext();
         NodeGraph graph = Widgets.nodeGraph()
-                .selectionMode(dev.sixik.unigui.widgets.NodeGraphSelectionMode.MULTIPLE)
+                .selectionMode(dev.sixik.unigui.widgets.graph.NodeGraphSelectionMode.MULTIPLE)
                 .viewport(0.0f, 0.0f)
                 .zoomRange(0.5f, 3.0f);
         graph.setUiContextInternal(uiContext);
@@ -3518,7 +3528,7 @@ public final class BasicControlsSelfTest {
                         && near(resized.lastNewHeight, 45.0f),
                 "NodeGraph resize handle should resize selected items and emit resize events");
 
-        graph.selectionMode(dev.sixik.unigui.widgets.NodeGraphSelectionMode.MULTIPLE);
+        graph.selectionMode(dev.sixik.unigui.widgets.graph.NodeGraphSelectionMode.MULTIPLE);
         uiContext.routedEvents().dispatch(new KeyPressedEvent(graph, KeyCodes.A, 0, KeyModifiers.CONTROL));
         expect(graph.selectedItemIds().equals(java.util.List.of("a", "b")),
                 "NodeGraph Ctrl+A should select all selectable visible items");
@@ -3541,7 +3551,7 @@ public final class BasicControlsSelfTest {
 
     private void testNodeGraphPhaseFourSnapshotContracts() {
         NodeGraph graph = Widgets.nodeGraph()
-                .selectionMode(dev.sixik.unigui.widgets.NodeGraphSelectionMode.MULTIPLE)
+                .selectionMode(dev.sixik.unigui.widgets.graph.NodeGraphSelectionMode.MULTIPLE)
                 .viewport(24.0f, -18.0f, 1.4f);
         NodeGraphItem input = graph.addItem("input", new Label("Input"), 32.0f, 48.0f)
                 .size(118.0f, 64.0f)

@@ -7,7 +7,7 @@ import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.impl.text.TextEngine;
-import dev.sixik.unigui.widgets.Sparkline;
+import dev.sixik.unigui.widgets.display.Sparkline;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.List;

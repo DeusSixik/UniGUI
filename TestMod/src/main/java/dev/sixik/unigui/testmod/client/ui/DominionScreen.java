@@ -17,11 +17,20 @@ import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeCheckboxRenders;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeProgressBarRenders;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeRadioButtonRenders;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeToggleSwitchRenders;
-import dev.sixik.unigui.widgets.*;
 import dev.sixik.unigui.widgets.render.ButtonRenderer;
 import dev.sixik.unigui.widgets.render.ProgressBarRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
+import dev.sixik.unigui.widgets.containers.Box;
+import dev.sixik.unigui.widgets.feedback.OverlayLayer;
+import dev.sixik.unigui.widgets.containers.StackPanel;
+import dev.sixik.unigui.widgets.feedback.ProgressBar;
+import dev.sixik.unigui.widgets.interaction.Button;
+import dev.sixik.unigui.widgets.interaction.Checkbox;
+import dev.sixik.unigui.widgets.interaction.HoldButton;
+import dev.sixik.unigui.widgets.interaction.RadioButton;
+import dev.sixik.unigui.widgets.interaction.RadioGroup;
+import dev.sixik.unigui.widgets.interaction.ToggleSwitch;
 
 public class DominionScreen {
 

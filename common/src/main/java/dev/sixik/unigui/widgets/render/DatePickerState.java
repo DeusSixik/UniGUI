@@ -1,7 +1,7 @@
 package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.math.ColorView;
-import dev.sixik.unigui.widgets.DatePicker;
+import dev.sixik.unigui.widgets.interaction.DatePicker;
 
 import java.time.LocalDate;
 import java.time.YearMonth;

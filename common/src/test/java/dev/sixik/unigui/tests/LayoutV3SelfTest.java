@@ -28,29 +28,32 @@ import dev.sixik.unigui.impl.layout.v3.LayoutTreeBuilder;
 import dev.sixik.unigui.impl.layout.v3.LayoutCache;
 import dev.sixik.unigui.impl.layout.v3.OverlayLayoutResolver;
 import dev.sixik.unigui.impl.layout.v3.TaffyLayoutEngine;
-import dev.sixik.unigui.widgets.Box;
-import dev.sixik.unigui.widgets.Button;
-import dev.sixik.unigui.widgets.CachedSubtreeWidget;
-import dev.sixik.unigui.widgets.DockPanel;
-import dev.sixik.unigui.widgets.DockSide;
-import dev.sixik.unigui.widgets.DropDownBox;
-import dev.sixik.unigui.widgets.GridBox;
-import dev.sixik.unigui.widgets.HBox;
-import dev.sixik.unigui.widgets.Label;
-import dev.sixik.unigui.widgets.NodeGraph;
-import dev.sixik.unigui.widgets.NodeGraphItem;
-import dev.sixik.unigui.widgets.Orientation;
-import dev.sixik.unigui.widgets.ComboBox;
-import dev.sixik.unigui.widgets.OverlayLayer;
-import dev.sixik.unigui.widgets.Popup;
-import dev.sixik.unigui.widgets.ScrollView;
-import dev.sixik.unigui.widgets.SplitPanel;
-import dev.sixik.unigui.widgets.StackPanel;
-import dev.sixik.unigui.widgets.VBox;
-import dev.sixik.unigui.widgets.VirtualListView;
-import dev.sixik.unigui.widgets.WrapPanel;
+import dev.sixik.unigui.widgets.containers.Box;
+import dev.sixik.unigui.widgets.interaction.Button;
+import dev.sixik.unigui.widgets.caching.CachedSubtreeWidget;
+import dev.sixik.unigui.widgets.containers.DockPanel;
+import dev.sixik.unigui.widgets.containers.DockSide;
+import dev.sixik.unigui.widgets.interaction.DropDownBox;
+import dev.sixik.unigui.widgets.containers.GridBox;
+import dev.sixik.unigui.widgets.containers.HBox;
+import dev.sixik.unigui.widgets.display.Label;
+import dev.sixik.unigui.widgets.graph.NodeGraph;
+import dev.sixik.unigui.widgets.graph.NodeGraphItem;
+import dev.sixik.unigui.widgets.core.Orientation;
+import dev.sixik.unigui.widgets.interaction.ComboBox;
+import dev.sixik.unigui.widgets.feedback.OverlayLayer;
+import dev.sixik.unigui.widgets.feedback.Popup;
+import dev.sixik.unigui.widgets.containers.ScrollView;
+import dev.sixik.unigui.widgets.containers.SplitPanel;
+import dev.sixik.unigui.widgets.containers.StackPanel;
+import dev.sixik.unigui.widgets.containers.VBox;
+import dev.sixik.unigui.widgets.data.VirtualListView;
+import dev.sixik.unigui.widgets.containers.WrapPanel;
 
 import java.util.concurrent.atomic.AtomicInteger;
+import dev.sixik.unigui.widgets.containers.LinearBox;
+import dev.sixik.unigui.widgets.containers.PanelWidget;
+import dev.sixik.unigui.widgets.interaction.ScrollBar;
 
 public final class LayoutV3SelfTest {
     public static void main(String[] args) {
@@ -2008,7 +2011,7 @@ public final class LayoutV3SelfTest {
     private static void assertVerticalScrollBarReservesLayoutSlot(ScrollView scroll,
                                                                   dev.sixik.unigui.api.widget.Widget content,
                                                                   String label) {
-        float reservation = dev.sixik.unigui.widgets.ScrollBar.DEFAULT_SIZE + scroll.scrollbarGap();
+        float reservation = dev.sixik.unigui.widgets.interaction.ScrollBar.DEFAULT_SIZE + scroll.scrollbarGap();
         float viewportWidth = scroll.layoutBounds().width() - reservation;
         expect(scroll.children().contains(scroll.verticalScrollBar())
                         && !scroll.children().contains(scroll.horizontalScrollBar()),
@@ -2022,7 +2025,7 @@ public final class LayoutV3SelfTest {
                         scroll.layoutBounds().x() + viewportWidth + scroll.scrollbarGap())
                         && near(scroll.verticalScrollBar().layoutBounds().y(), scroll.layoutBounds().y())
                         && near(scroll.verticalScrollBar().layoutBounds().width(),
-                        dev.sixik.unigui.widgets.ScrollBar.DEFAULT_SIZE)
+                        dev.sixik.unigui.widgets.interaction.ScrollBar.DEFAULT_SIZE)
                         && near(scroll.verticalScrollBar().layoutBounds().height(), scroll.layoutBounds().height()),
                 label + " should arrange vertical scrollbar in the reserved right-side slot");
     }
@@ -2185,8 +2188,8 @@ public final class LayoutV3SelfTest {
         return formatted;
     }
 
-    private static void assertLinearBoxMatches(dev.sixik.unigui.widgets.LinearBox v2,
-                                               dev.sixik.unigui.widgets.LinearBox v3,
+    private static void assertLinearBoxMatches(dev.sixik.unigui.widgets.containers.LinearBox v2,
+                                               dev.sixik.unigui.widgets.containers.LinearBox v3,
                                                MutableRect bounds,
                                                String label) {
         v2.measure(new dev.sixik.unigui.api.layout.LayoutContext(bounds.width(), bounds.height()));

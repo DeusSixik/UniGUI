@@ -1,7 +1,7 @@
 package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.math.ColorView;
-import dev.sixik.unigui.widgets.ColorPicker;
+import dev.sixik.unigui.widgets.interaction.ColorPicker;
 
 public record ColorPickerState(
         float x,

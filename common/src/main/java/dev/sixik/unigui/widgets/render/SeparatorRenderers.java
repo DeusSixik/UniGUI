@@ -1,7 +1,7 @@
 package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.render.Paint;
-import dev.sixik.unigui.widgets.Orientation;
+import dev.sixik.unigui.widgets.core.Orientation;
 
 public final class SeparatorRenderers {
     public static final SeparatorRenderer DEFAULT = (draw, state) -> {

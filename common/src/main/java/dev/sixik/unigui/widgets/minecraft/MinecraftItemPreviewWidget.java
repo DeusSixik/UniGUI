@@ -4,7 +4,7 @@ import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.backend.minecraft.MinecraftGuiRenderBackend;
-import dev.sixik.unigui.widgets.OverlayLayer;
+import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ItemLike;
 

@@ -4,7 +4,7 @@ import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.impl.text.TextEngine;
-import dev.sixik.unigui.widgets.Chart;
+import dev.sixik.unigui.widgets.display.Chart;
 
 import java.util.Locale;
 

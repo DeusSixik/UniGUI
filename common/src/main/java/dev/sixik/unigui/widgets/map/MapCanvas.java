@@ -10,9 +10,10 @@ import dev.sixik.unigui.api.render.TexturePlacement;
 import dev.sixik.unigui.api.viewport.Viewport2D;
 import dev.sixik.unigui.api.viewport.ViewportPoint;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.widgets.AnchorWidget;
-import dev.sixik.unigui.widgets.WorldCanvas;
+import dev.sixik.unigui.widgets.world.AnchorWidget;
+import dev.sixik.unigui.widgets.world.WorldCanvas;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import dev.sixik.unigui.widgets.interaction.Button;
 
 /**
  * Карточный/картографический виджет поверх {@link WorldCanvas}.

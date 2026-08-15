@@ -1,8 +1,8 @@
 package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.math.ColorView;
-import dev.sixik.unigui.widgets.Chart;
-import dev.sixik.unigui.widgets.Sparkline;
+import dev.sixik.unigui.widgets.display.Chart;
+import dev.sixik.unigui.widgets.display.Sparkline;
 
 import java.util.List;
 

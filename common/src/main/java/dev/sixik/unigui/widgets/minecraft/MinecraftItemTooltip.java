@@ -2,7 +2,7 @@ package dev.sixik.unigui.widgets.minecraft;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.widgets.Tooltip;
+import dev.sixik.unigui.widgets.feedback.Tooltip;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.Objects;

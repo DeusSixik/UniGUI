@@ -1,7 +1,7 @@
 package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.math.ColorView;
-import dev.sixik.unigui.widgets.Shape;
+import dev.sixik.unigui.widgets.display.Shape;
 
 public record ShapeState(
         float x,

@@ -1,7 +1,7 @@
 package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.math.ColorView;
-import dev.sixik.unigui.widgets.Spinner;
+import dev.sixik.unigui.widgets.feedback.Spinner;
 
 public record LoadingIndicatorState(
         float x,

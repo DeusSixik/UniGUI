@@ -10,8 +10,8 @@ import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.impl.widget.WidgetBase;
-import dev.sixik.unigui.widgets.AnchorWidget;
-import dev.sixik.unigui.widgets.WorldCanvas;
+import dev.sixik.unigui.widgets.world.AnchorWidget;
+import dev.sixik.unigui.widgets.world.WorldCanvas;
 
 public final class WorldCanvasSelfTest {
     private static final float EPSILON = 0.0005f;

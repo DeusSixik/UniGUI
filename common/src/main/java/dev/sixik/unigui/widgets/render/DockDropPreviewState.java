@@ -1,6 +1,6 @@
 package dev.sixik.unigui.widgets.render;
 
-import dev.sixik.unigui.widgets.DockArea;
+import dev.sixik.unigui.widgets.docking.DockArea;
 
 public record DockDropPreviewState(
         boolean visible,

@@ -1,7 +1,7 @@
 package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.render.Paint;
-import dev.sixik.unigui.widgets.Shape;
+import dev.sixik.unigui.widgets.display.Shape;
 
 public final class ShapeRenderers {
     public static final ShapeRenderer DEFAULT = (draw, state) -> {

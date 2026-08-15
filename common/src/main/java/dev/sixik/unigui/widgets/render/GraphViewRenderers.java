@@ -6,7 +6,7 @@ import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.impl.text.TextEngine;
-import dev.sixik.unigui.widgets.GraphView;
+import dev.sixik.unigui.widgets.graph.GraphView;
 
 public final class GraphViewRenderers {
     public static final GraphViewRenderer DEFAULT = (draw, state) -> {

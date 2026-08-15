@@ -2,7 +2,7 @@ package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.Paint;
-import dev.sixik.unigui.widgets.DockSplitOrientation;
+import dev.sixik.unigui.widgets.docking.DockSplitOrientation;
 
 public final class DockSplitHandleRenderers {
     // DEFAULT renderer (block with a centre line)

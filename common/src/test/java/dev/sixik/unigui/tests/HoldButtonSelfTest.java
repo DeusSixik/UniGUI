@@ -9,7 +9,7 @@ import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
-import dev.sixik.unigui.widgets.HoldButton;
+import dev.sixik.unigui.widgets.interaction.HoldButton;
 
 public final class HoldButtonSelfTest {
     public static void main(String[] args) {
