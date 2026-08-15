@@ -1,6 +1,7 @@
 package dev.sixik.unigui.api.render.shaders;
 
 import dev.sixik.unigui.api.render.DrawCommandType;
+import org.intellij.lang.annotations.Language;
 
 import java.util.Objects;
 
@@ -15,7 +16,7 @@ public final class ShaderHandle {
     private final String vertexSource;
     private final String fragmentSource;
 
-    private ShaderHandle(String id, String vertexSource, String fragmentSource) {
+    private ShaderHandle(String id, @Language("GLSL") String vertexSource, @Language("GLSL") String fragmentSource) {
         this.id = normalizeId(id);
         this.vertexSource = emptyToNull(vertexSource);
         this.fragmentSource = emptyToNull(fragmentSource);
@@ -25,11 +26,11 @@ public final class ShaderHandle {
         return new ShaderHandle(id, null, null);
     }
 
-    public static ShaderHandle fragmentSource(String id, String fragmentSource) {
+    public static ShaderHandle fragmentSource(String id, @Language("GLSL") String fragmentSource) {
         return new ShaderHandle(id, null, Objects.requireNonNull(fragmentSource, "fragmentSource"));
     }
 
-    public static ShaderHandle source(String id, String vertexSource, String fragmentSource) {
+    public static ShaderHandle source(String id, @Language("GLSL") String vertexSource, @Language("GLSL") String fragmentSource) {
         return new ShaderHandle(id,
                 Objects.requireNonNull(vertexSource, "vertexSource"),
                 Objects.requireNonNull(fragmentSource, "fragmentSource"));
