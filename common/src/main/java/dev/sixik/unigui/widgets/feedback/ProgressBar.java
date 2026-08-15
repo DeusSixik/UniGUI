@@ -2,10 +2,12 @@ package dev.sixik.unigui.widgets.feedback;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.FrameContext;
+import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.widgets.render.ProgressBarRenderer;
 import dev.sixik.unigui.widgets.render.ProgressBarState;
@@ -20,9 +22,14 @@ import dev.sixik.unigui.widgets.containers.Box;
  * with {@link LoadingIndicator.Mode#BAR} instead.</p>
  */
 public class ProgressBar extends Box {
+    public static final float DEFAULT_PREFERRED_WIDTH = 120.0f;
+    public static final float DEFAULT_PREFERRED_HEIGHT = 12.0f;
+
     private final MutableColor trackColor = new MutableColor(0.16f, 0.16f, 0.16f, 1.0f);
     private final MutableColor fillColor = new MutableColor(0.25f, 0.78f, 1.0f, 1.0f);
     private ProgressBarRenderer renderer;
+    private float preferredWidth = DEFAULT_PREFERRED_WIDTH;
+    private float preferredHeight = DEFAULT_PREFERRED_HEIGHT;
     private float min;
     private float max = 1.0f;
     private float value;
@@ -117,6 +124,43 @@ public class ProgressBar extends Box {
         return renderer(null);
     }
 
+    public float preferredWidth() {
+        return preferredWidth;
+    }
+
+    public ProgressBar preferredWidth(float preferredWidth) {
+        float normalized = positiveOr(preferredWidth, DEFAULT_PREFERRED_WIDTH);
+        if (this.preferredWidth == normalized) return this;
+        this.preferredWidth = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public float preferredHeight() {
+        return preferredHeight;
+    }
+
+    public ProgressBar preferredHeight(float preferredHeight) {
+        float normalized = positiveOr(preferredHeight, DEFAULT_PREFERRED_HEIGHT);
+        if (this.preferredHeight == normalized) return this;
+        this.preferredHeight = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public ProgressBar preferredSize(float width, float height) {
+        return preferredWidth(width).preferredHeight(height);
+    }
+
+    @Override
+    public void measure(LayoutContext context) {
+        if (visibility() == Visibility.COLLAPSED) {
+            setDesiredSize(0.0f, 0.0f);
+            return;
+        }
+        setDesiredSize(resolveDesiredSize(context, preferredWidth, preferredHeight));
+    }
+
     @Override
     protected void applyTheme() {
         super.applyTheme();
@@ -161,6 +205,10 @@ public class ProgressBar extends Box {
 
     private static float clamp(float value, float min, float max) {
         return Math.max(min, Math.min(max, value));
+    }
+
+    private static float positiveOr(float value, float fallback) {
+        return Float.isFinite(value) && value > 0.0f ? value : fallback;
     }
 
     private static float wrap01(float value) {

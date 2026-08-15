@@ -4,10 +4,25 @@ import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.widgets.display.Label;
 
+/**
+ * Готовая card-like оболочка для небольших панелей интерфейса.
+ *
+ * <p>{@code View} наследует визуальные возможности {@link Box}, но сразу
+ * создаёт внутренний {@link VBox} с заголовком и content-зоной. Это удобный
+ * строительный блок для demo/debug экранов и простых панелей, где нужен
+ * единый фон, рамка, padding и title.</p>
+ *
+ * <p>Детей следует добавлять через {@link #addContent(Widget)} или напрямую в
+ * {@link #content()}, чтобы они попадали во внутренний вертикальный layout под
+ * заголовком.</p>
+ */
 public class View extends Box {
     private final VBox content = new VBox();
     private final Label title = new Label("");
 
+    /**
+     * Создаёт view с пустым заголовком и стандартной визуальной оболочкой.
+     */
     public View() {
         backgroundVisible(true);
         borderVisible(true);
@@ -21,20 +36,42 @@ public class View extends Box {
         super.addChild(content);
     }
 
+    /**
+     * Создаёт view с заданным заголовком.
+     *
+     * @param title текст заголовка; {@code null} превращается в пустую строку
+     */
     public View(String title) {
         this();
         title(title);
     }
 
+    /**
+     * Задаёт текст заголовка.
+     *
+     * @param title новый текст заголовка; {@code null} превращается в пустую строку
+     * @return этот view для fluent-настройки
+     */
     public View title(String title) {
         this.title.text(title == null ? "" : title);
         return this;
     }
 
+    /**
+     * Возвращает внутренний вертикальный контейнер содержимого.
+     *
+     * @return live {@link VBox}, содержащий title label и пользовательский контент
+     */
     public VBox content() {
         return content;
     }
 
+    /**
+     * Добавляет виджет во внутренний content-контейнер под заголовком.
+     *
+     * @param widget виджет для добавления; {@code null} игнорируется через {@link VBox#addChild(Widget)}
+     * @return этот view для fluent-настройки
+     */
     public View addContent(Widget widget) {
         content.addChild(widget);
         return this;

@@ -23,36 +23,94 @@ import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+/**
+ * Базовый контейнер для виджетов с несколькими дочерними элементами.
+ *
+ * <p>{@code PanelWidget} отвечает за владение детьми: назначает parent,
+ * прокидывает {@link UIContext}, вызывает {@code measure/arrange/tick/render}
+ * и корректно освобождает дочерние виджеты при очистке. Мутации списка детей
+ * ставятся в очередь, поэтому {@link #addChild(Widget)} и
+ * {@link #removeChild(Widget)} безопасно вызывать во время обработки событий
+ * или render/tick-прохода.</p>
+ *
+ * <p>Дефолтная раскладка ведёт себя как stack/overlay: все обычные дети
+ * получают content-bounds контейнера с учётом margin/alignment, а absolute-дети
+ * раскладываются через {@link AbsoluteLayoutEngine}. Специализированные
+ * контейнеры переопределяют только measurement/arrange, сохраняя общий
+ * механизм владения и рендера детей.</p>
+ *
+ * @see StackPanel
+ * @see Box
+ */
 public class PanelWidget extends WidgetBase {
     private final List<Widget> children = new ObjectArrayList<>();
     private final List<Widget> childrenView = Collections.unmodifiableList(children);
+    /** Очередь отложенных изменений, чтобы не менять список детей во время обхода. */
     private final Queue<ChildMutation> mutations = new ConcurrentLinkedQueue<>();
+    /** Кэшированный массив для горячих циклов tick/render/layout. */
     private Widget[] childSnapshot = new Widget[0];
     private boolean childSnapshotDirty = true;
 
+    /**
+     * Добавляет дочерний виджет в конец списка.
+     *
+     * <p>Фактическое добавление выполняется при ближайшем
+     * {@link #applyQueuedMutations()}. Повторное добавление того же экземпляра
+     * игнорируется.</p>
+     *
+     * @param child виджет для добавления; {@code null} игнорируется
+     */
     public void addChild(Widget child) {
         if (child == null) return;
         mutations.add(new ChildMutation(ChildMutationType.ADD, child));
         invalidate(InvalidationFlags.LAYOUT);
     }
 
+    /**
+     * Вставляет дочерний виджет на заданную позицию.
+     *
+     * <p>Индекс зажимается в допустимый диапазон при применении queued mutation.</p>
+     *
+     * @param index желаемая позиция вставки
+     * @param child виджет для вставки; {@code null} игнорируется
+     */
     public void insertChild(int index, Widget child) {
         if (child == null) return;
         mutations.add(new ChildMutation(ChildMutationType.INSERT, child, index));
         invalidate(InvalidationFlags.LAYOUT);
     }
 
+    /**
+     * Удаляет дочерний виджет из контейнера.
+     *
+     * <p>При фактическом удалении у {@link WidgetBase}-ребёнка сбрасываются
+     * parent и UI context. Если виджет не является ребёнком, операция не меняет
+     * состояние контейнера.</p>
+     *
+     * @param child виджет для удаления; {@code null} игнорируется
+     */
     public void removeChild(Widget child) {
         if (child == null) return;
         mutations.add(new ChildMutation(ChildMutationType.REMOVE, child));
         invalidate(InvalidationFlags.LAYOUT);
     }
 
+    /**
+     * Удаляет и dispose'ит всех детей контейнера.
+     */
     public void clearChildren() {
         mutations.add(new ChildMutation(ChildMutationType.CLEAR, null));
         invalidate(InvalidationFlags.LAYOUT);
     }
 
+    /**
+     * Применяет все отложенные изменения списка детей.
+     *
+     * <p>Контейнеры вызывают этот метод перед layout/render/tick-проходами.
+     * Если наследник напрямую зависит от актуального списка детей, он должен
+     * вызвать этот метод перед чтением {@link #children()} или
+     * {@link #childSnapshot()}.</p>
+     */
     public void applyQueuedMutations() {
         ChildMutation mutation;
         while ((mutation = mutations.poll()) != null) {
@@ -75,6 +133,11 @@ public class PanelWidget extends WidgetBase {
         }
     }
 
+    /**
+     * Возвращает неизменяемое live-представление дочерних виджетов.
+     *
+     * @return список детей в порядке layout/render обхода
+     */
     @Override
     public List<Widget> children() {
         return childrenView;
@@ -134,6 +197,11 @@ public class PanelWidget extends WidgetBase {
         }
     }
 
+    /**
+     * Рендерит всех видимых детей с учётом overflow clipping.
+     *
+     * @param context текущий render context
+     */
     protected void renderChildren(RenderContext context) {
         applyQueuedMutations();
         boolean clipsChildren = layoutStyle().overflowX() != Overflow.VISIBLE
@@ -173,6 +241,14 @@ public class PanelWidget extends WidgetBase {
         applyClear();
     }
 
+    /**
+     * Возвращает стабильный snapshot детей для горячих циклов.
+     *
+     * <p>Snapshot пересоздаётся только после изменения списка детей. Это
+     * снижает количество iterator/allocation в tick/render/layout-проходах.</p>
+     *
+     * @return массив детей в текущем порядке обхода
+     */
     protected final Widget[] childSnapshot() {
         if (childSnapshotDirty) {
             childSnapshot = children.toArray(new Widget[children.size()]);
@@ -181,6 +257,14 @@ public class PanelWidget extends WidgetBase {
         return childSnapshot;
     }
 
+    /**
+     * Меняет порядок детей без смены parent/UI context.
+     *
+     * <p>Метод полезен для overlay-контейнеров, которым нужно сортировать детей
+     * по z-index перед render-проходом.</p>
+     *
+     * @param comparator comparator нового порядка; {@code null} игнорируется
+     */
     protected final void reorderChildren(Comparator<? super Widget> comparator) {
         if (comparator != null && children.size() > 1) {
             children.sort(comparator);

@@ -31,6 +31,9 @@ import java.util.List;
 import java.util.function.Function;
 
 public final class GraphView extends WidgetBase {
+    public static final float DEFAULT_PREFERRED_WIDTH = 240.0f;
+    public static final float DEFAULT_PREFERRED_HEIGHT = 130.0f;
+
     private static final float DEFAULT_NODE_RADIUS = 5.0f;
     private static final float NODE_HIT_RADIUS = 8.0f;
 
@@ -51,6 +54,8 @@ public final class GraphView extends WidgetBase {
     private Function<NodePoint, String> nodeLabelProvider = NodePoint::id;
     private Function<NodePoint, String> nodeTooltipProvider = node -> node.id();
     private int hoveredNodeIndex = -1;
+    private float preferredWidth = DEFAULT_PREFERRED_WIDTH;
+    private float preferredHeight = DEFAULT_PREFERRED_HEIGHT;
 
     public GraphView() {
         nodeColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
@@ -163,6 +168,34 @@ public final class GraphView extends WidgetBase {
         return renderer(null);
     }
 
+    public float preferredWidth() {
+        return preferredWidth;
+    }
+
+    public GraphView preferredWidth(float preferredWidth) {
+        float normalized = positiveOr(preferredWidth, DEFAULT_PREFERRED_WIDTH);
+        if (this.preferredWidth == normalized) return this;
+        this.preferredWidth = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public float preferredHeight() {
+        return preferredHeight;
+    }
+
+    public GraphView preferredHeight(float preferredHeight) {
+        float normalized = positiveOr(preferredHeight, DEFAULT_PREFERRED_HEIGHT);
+        if (this.preferredHeight == normalized) return this;
+        this.preferredHeight = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public GraphView preferredSize(float width, float height) {
+        return preferredWidth(width).preferredHeight(height);
+    }
+
     public EventSubscription onNodeClick(EventListener<? super GraphNodeClickEvent> listener) {
         return on(GraphNodeClickEvent.TYPE, listener);
     }
@@ -173,7 +206,7 @@ public final class GraphView extends WidgetBase {
             setDesiredSize(0.0f, 0.0f);
             return;
         }
-        setDesiredSize(resolveDesiredSize(context, 240.0f, 130.0f));
+        setDesiredSize(resolveDesiredSize(context, preferredWidth, preferredHeight));
     }
 
     @Override
@@ -353,6 +386,10 @@ public final class GraphView extends WidgetBase {
     private static float clamp(float value, float min, float max) {
         if (max < min) return min;
         return Math.max(min, Math.min(max, value));
+    }
+
+    private static float positiveOr(float value, float fallback) {
+        return Float.isFinite(value) && value > 0.0f ? value : fallback;
     }
 
     public enum NodeLabelPlacement {

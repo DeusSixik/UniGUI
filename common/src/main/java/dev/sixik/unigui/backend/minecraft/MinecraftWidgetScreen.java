@@ -486,10 +486,14 @@ public class MinecraftWidgetScreen extends Screen {
 
         Widget focused = uiContext.focusManager().focusedWidget();
         if (focused == null) {
-            return super.keyPressed(keyCode, scanCode, modifiers);
+            return vanillaKeyPressed(keyCode, scanCode, modifiers);
         }
 
         return uiContext.routedEvents().dispatch(new KeyPressedEvent(focused, keyCode, scanCode, modifiers));
+    }
+
+    protected boolean vanillaKeyPressed(int keyCode, int scanCode, int modifiers) {
+        return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
     @Override

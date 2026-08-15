@@ -14,6 +14,7 @@ import dev.sixik.unigui.api.event.PointerReleasedEvent;
 import dev.sixik.unigui.api.event.SliderValueChangedEvent;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.input.PointerButton;
+import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
@@ -25,12 +26,17 @@ import dev.sixik.unigui.widgets.render.SliderState;
 import dev.sixik.unigui.widgets.containers.Box;
 
 public class Slider extends Box {
+    public static final float DEFAULT_PREFERRED_WIDTH = 120.0f;
+    public static final float DEFAULT_PREFERRED_HEIGHT = 18.0f;
+
     private static final float KNOB_WIDTH = 8.0f;
 
     private final MutableColor trackColor = new MutableColor(0.25f, 0.25f, 0.25f, 1.0f);
     private final MutableColor fillColor = new MutableColor(0.25f, 0.78f, 1.0f, 1.0f);
     private final MutableColor knobColor = new MutableColor(0.95f, 0.95f, 0.95f, 1.0f);
     private SliderRenderer renderer;
+    private float preferredWidth = DEFAULT_PREFERRED_WIDTH;
+    private float preferredHeight = DEFAULT_PREFERRED_HEIGHT;
     private float min;
     private float max = 1.0f;
     private float value;
@@ -117,8 +123,45 @@ public class Slider extends Box {
         return renderer(null);
     }
 
+    public float preferredWidth() {
+        return preferredWidth;
+    }
+
+    public Slider preferredWidth(float preferredWidth) {
+        float normalized = positiveOr(preferredWidth, DEFAULT_PREFERRED_WIDTH);
+        if (this.preferredWidth == normalized) return this;
+        this.preferredWidth = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public float preferredHeight() {
+        return preferredHeight;
+    }
+
+    public Slider preferredHeight(float preferredHeight) {
+        float normalized = positiveOr(preferredHeight, DEFAULT_PREFERRED_HEIGHT);
+        if (this.preferredHeight == normalized) return this;
+        this.preferredHeight = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public Slider preferredSize(float width, float height) {
+        return preferredWidth(width).preferredHeight(height);
+    }
+
     public EventSubscription onValueChanged(EventListener<? super SliderValueChangedEvent> listener) {
         return on(SliderValueChangedEvent.TYPE, listener);
+    }
+
+    @Override
+    public void measure(LayoutContext context) {
+        if (visibility() == Visibility.COLLAPSED) {
+            setDesiredSize(0.0f, 0.0f);
+            return;
+        }
+        setDesiredSize(resolveDesiredSize(context, preferredWidth, preferredHeight));
     }
 
     @Override
@@ -242,5 +285,9 @@ public class Slider extends Box {
 
     private static float clamp(float value, float min, float max) {
         return Math.max(min, Math.min(max, value));
+    }
+
+    private static float positiveOr(float value, float fallback) {
+        return Float.isFinite(value) && value > 0.0f ? value : fallback;
     }
 }

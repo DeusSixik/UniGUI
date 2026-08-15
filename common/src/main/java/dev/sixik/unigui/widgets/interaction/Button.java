@@ -38,6 +38,7 @@ public class Button extends Box {
     protected static final float DEFAULT_TEXT_PADDING_X = 8.0f;
     protected static final float TEXT_PADDING_X = DEFAULT_TEXT_PADDING_X;
     protected static final float DEFAULT_HEIGHT = 18.0f;
+    protected static final float DEFAULT_TEXT_PADDING_Y = (DEFAULT_HEIGHT - TextEngine.LINE_HEIGHT) * 0.5f;
     protected static final float APPROX_CHAR_WIDTH = TextEngine.APPROX_CHAR_WIDTH;
 
     private String text = "";
@@ -45,6 +46,7 @@ public class Button extends Box {
     private final MutableColor textColor = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private ButtonRenderer renderer;
     private float textPaddingX = DEFAULT_TEXT_PADDING_X;
+    private float textPaddingY = DEFAULT_TEXT_PADDING_Y;
     private boolean pressed;
     private boolean interactionTransitions;
     private TransitionSpec interactionTransition = TransitionSpec.of(0.10f, AnimationEasing.EASE_OUT);
@@ -118,10 +120,26 @@ public class Button extends Box {
         return textPaddingX;
     }
 
+    public Button textPadding(float horizontal, float vertical) {
+        return textPaddingX(horizontal).textPaddingY(vertical);
+    }
+
     public Button textPaddingX(float textPaddingX) {
         float normalized = Float.isFinite(textPaddingX) ? Math.max(0.0f, textPaddingX) : DEFAULT_TEXT_PADDING_X;
         if (this.textPaddingX == normalized) return this;
         this.textPaddingX = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public float textPaddingY() {
+        return textPaddingY;
+    }
+
+    public Button textPaddingY(float textPaddingY) {
+        float normalized = Float.isFinite(textPaddingY) ? Math.max(0.0f, textPaddingY) : DEFAULT_TEXT_PADDING_Y;
+        if (this.textPaddingY == normalized) return this;
+        this.textPaddingY = normalized;
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
@@ -197,10 +215,11 @@ public class Button extends Box {
             setDesiredSize(0.0f, 0.0f);
             return;
         }
-        float textWidth = Math.max(
-                TextEngine.measureLineWidth(richText),
-                TextEngine.measureLineWidth(text));
-        setDesiredSize(resolveDesiredSize(context, textWidth + textPaddingX * 2.0f, DEFAULT_HEIGHT));
+        float textWidth = TextEngine.measureLineWidth(richText);
+        float textHeight = intrinsicTextHeight();
+        setDesiredSize(resolveDesiredSize(context,
+                textWidth + textPaddingX * 2.0f,
+                textHeight + textPaddingY * 2.0f));
     }
 
     public ButtonClickEvent click() {
@@ -277,6 +296,11 @@ public class Button extends Box {
 
     private static String normalize(String text) {
         return text == null ? "" : text;
+    }
+
+    protected float intrinsicTextHeight() {
+        float measured = TextEngine.measureTextHeight(richText);
+        return measured > 0.0f ? measured : TextEngine.LINE_HEIGHT;
     }
 
     @Override

@@ -5,7 +5,6 @@ import dev.sixik.unigui.api.event.EventPhase;
 import dev.sixik.unigui.api.event.PointerEnteredEvent;
 import dev.sixik.unigui.api.event.PointerExitedEvent;
 import dev.sixik.unigui.api.layout.Alignment;
-import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.UiRenderPolicy;
 import dev.sixik.unigui.api.widget.Widget;
@@ -103,7 +102,10 @@ public class DominionScreen {
 
     private static ToggleSwitch toggleSwitch(String text, boolean checked, boolean labelLeft) {
         ToggleSwitch toggle = new ToggleSwitch(text);
-        toggle.layout(layout -> layout.size(22.0f * 2, 3.2f * 2));
+        toggle.layout(layout -> layout
+                .align(Alignment.START, Alignment.START)
+                .flexGrow(0.0f)
+                .flexShrink(0.0f));
         toggle.transform().position().set(10, 10);
         toggle.backgroundVisible(false);
         toggle.borderVisible(false);
@@ -127,7 +129,10 @@ public class DominionScreen {
 
     private static Checkbox checkbox(String text, boolean checked) {
         Checkbox checkbox = new Checkbox(text);
-        checkbox.layout(layout -> layout.size(44.0f, 6.4f));
+        checkbox.layout(layout -> layout
+                .align(Alignment.START, Alignment.START)
+                .flexGrow(0.0f)
+                .flexShrink(0.0f));
         checkbox.transform().position().set(10, 10);
         checkbox.backgroundVisible(false);
         checkbox.borderVisible(false);
@@ -157,7 +162,10 @@ public class DominionScreen {
 
     private static RadioButton radioButton(String text, String value, boolean checked) {
         RadioButton radio = new RadioButton(text, value);
-        radio.layout(layout -> layout.size(44.0f, 6.4f));
+        radio.layout(layout -> layout
+                .align(Alignment.START, Alignment.START)
+                .flexGrow(0.0f)
+                .flexShrink(0.0f));
         radio.transform().position().set(10, 10);
         radio.backgroundVisible(false);
         radio.borderVisible(false);
@@ -228,7 +236,11 @@ public class DominionScreen {
         bar.range(0, 20);
         bar.value(12);
         bar.transform().position().set(10, 10);
-        bar.layout(layout -> layout.size(100, 8).flexGrow(0).flexShrink(0.0f));
+        bar.preferredSize(100.0f, 8.0f);
+        bar.layout(layout -> layout
+                .align(Alignment.START, Alignment.START)
+                .flexGrow(0.0f)
+                .flexShrink(0.0f));
         bar.renderer(renderer);
         return bar;
     }
@@ -236,9 +248,11 @@ public class DominionScreen {
     private static Button button(String text, ButtonRenderer renderer, boolean animText,
                                  MutableColor... onHoverColor) {
         Button button = new Button();
-        button.text(text);
+        button.richText(DestinyLikeButtonRenders.dominionButtonText(text, onHoverColor[0]));
+        button.textPadding(
+                DestinyLikeButtonRenders.INTRINSIC_TEXT_PADDING_X,
+                DestinyLikeButtonRenders.INTRINSIC_TEXT_PADDING_Y);
         button.layout(layout -> layout
-                .size(LayoutConstraints.AUTO, 12)
                 .align(Alignment.START, Alignment.START)
                 .flexGrow(0.0f)
                 .flexShrink(0.0f));
@@ -269,8 +283,11 @@ public class DominionScreen {
 
     private static HoldButton holdButton(String text, ButtonRenderer renderer) {
         HoldButton button = new HoldButton(text);
+        button.richText(DestinyLikeButtonRenders.dominionButtonText(text, MutableColor.rgba255(255, 255, 255, 255)));
+        button.textPadding(
+                DestinyLikeButtonRenders.INTRINSIC_TEXT_PADDING_X,
+                DestinyLikeButtonRenders.INTRINSIC_TEXT_PADDING_Y);
         button.layout(layout -> layout
-                .size(LayoutConstraints.AUTO, 12)
                 .align(Alignment.START, Alignment.START)
                 .flexGrow(0.0f)
                 .flexShrink(0.0f));

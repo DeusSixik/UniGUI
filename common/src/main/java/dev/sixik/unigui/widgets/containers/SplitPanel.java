@@ -11,6 +11,27 @@ import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.impl.layout.v3.LayoutV3SplitAdapter;
 import dev.sixik.unigui.widgets.core.Orientation;
 
+/**
+ * Контейнер из двух областей с перетаскиваемым разделителем.
+ *
+ * <p>{@code SplitPanel} держит два пользовательских слота: {@link #first()} и
+ * {@link #second()}. Между ними всегда находится внутренний {@link Splitter},
+ * который получает pointer capture во время drag'а и меняет
+ * {@link #splitRatio(float)}.</p>
+ *
+ * <p>При горизонтальной ориентации первая область слева, вторая справа. При
+ * вертикальной ориентации первая область сверху, вторая снизу. Минимальные
+ * размеры слотов задаются через {@link #minFirstSize(float)} и
+ * {@link #minSecondSize(float)}.</p>
+ *
+ * <pre>{@code
+ * SplitPanel split = new SplitPanel(sidebar, editor)
+ *         .orientation(Orientation.HORIZONTAL)
+ *         .splitRatio(0.28f)
+ *         .minFirstSize(96.0f)
+ *         .minSecondSize(160.0f);
+ * }</pre>
+ */
 public class SplitPanel extends PanelWidget {
     private final Splitter splitter = new Splitter(this);
     private Widget first;
@@ -23,20 +44,40 @@ public class SplitPanel extends PanelWidget {
     private float dragStartRoot;
     private float dragStartRatio;
 
+    /**
+     * Создаёт пустую split-панель с внутренним splitter'ом.
+     */
     public SplitPanel() {
         super.addChild(splitter);
     }
 
+    /**
+     * Создаёт split-панель с двумя начальными областями.
+     *
+     * @param first виджет первой области
+     * @param second виджет второй области
+     */
     public SplitPanel(Widget first, Widget second) {
         this();
         first(first);
         second(second);
     }
 
+    /**
+     * Возвращает виджет первой области.
+     *
+     * @return первый слот или {@code null}
+     */
     public Widget first() {
         return first;
     }
 
+    /**
+     * Заменяет виджет первой области.
+     *
+     * @param first новый первый виджет или {@code null}
+     * @return эта split-панель для fluent-настройки
+     */
     public SplitPanel first(Widget first) {
         if (this.first == first || first == splitter) return this;
         if (this.first != null) {
@@ -51,10 +92,21 @@ public class SplitPanel extends PanelWidget {
         return this;
     }
 
+    /**
+     * Возвращает виджет второй области.
+     *
+     * @return второй слот или {@code null}
+     */
     public Widget second() {
         return second;
     }
 
+    /**
+     * Заменяет виджет второй области.
+     *
+     * @param second новый второй виджет или {@code null}
+     * @return эта split-панель для fluent-настройки
+     */
     public SplitPanel second(Widget second) {
         if (this.second == second || second == splitter) return this;
         if (this.second != null) {
@@ -69,14 +121,30 @@ public class SplitPanel extends PanelWidget {
         return this;
     }
 
+    /**
+     * Возвращает внутренний разделитель.
+     *
+     * @return splitter, управляющий drag resize
+     */
     public Splitter splitter() {
         return splitter;
     }
 
+    /**
+     * Возвращает ориентацию split'а.
+     *
+     * @return горизонтальная или вертикальная ориентация
+     */
     public Orientation orientation() {
         return orientation;
     }
 
+    /**
+     * Задаёт ориентацию split'а.
+     *
+     * @param orientation новая ориентация; {@code null} трактуется как {@link Orientation#HORIZONTAL}
+     * @return эта split-панель для fluent-настройки
+     */
     public SplitPanel orientation(Orientation orientation) {
         Orientation normalized = orientation == null ? Orientation.HORIZONTAL : orientation;
         if (this.orientation == normalized) return this;
@@ -85,10 +153,25 @@ public class SplitPanel extends PanelWidget {
         return this;
     }
 
+    /**
+     * Возвращает долю доступной области, занимаемую первым слотом.
+     *
+     * @return ratio в диапазоне {@code [0, 1]}
+     */
     public float splitRatio() {
         return splitRatio;
     }
 
+    /**
+     * Задаёт долю доступной области, занимаемую первым слотом.
+     *
+     * <p>Значение зажимается в диапазон {@code [0, 1]}, а итоговая геометрия
+     * дополнительно ограничивается {@link #minFirstSize()} и
+     * {@link #minSecondSize()}.</p>
+     *
+     * @param splitRatio новая доля первого слота
+     * @return эта split-панель для fluent-настройки
+     */
     public SplitPanel splitRatio(float splitRatio) {
         float normalized = clamp01(splitRatio);
         if (this.splitRatio == normalized) return this;
@@ -97,14 +180,34 @@ public class SplitPanel extends PanelWidget {
         return this;
     }
 
+    /**
+     * Задаёт split ratio тем же clamped-путём, что и {@link #splitRatio(float)}.
+     *
+     * <p>Метод оставлен как удобная точка для внутренних/controlled обновлений
+     * и сейчас не отличается по invalidation-поведению от обычного setter'а.</p>
+     *
+     * @param splitRatio новая доля первого слота
+     * @return эта split-панель для fluent-настройки
+     */
     public SplitPanel silentSplitRatio(float splitRatio) {
         return splitRatio(splitRatio);
     }
 
+    /**
+     * Возвращает толщину разделителя.
+     *
+     * @return толщина splitter'а в пикселях UI-пространства
+     */
     public float splitterThickness() {
         return splitterThickness;
     }
 
+    /**
+     * Задаёт толщину разделителя.
+     *
+     * @param splitterThickness толщина в пикселях; минимум {@code 1}
+     * @return эта split-панель для fluent-настройки
+     */
     public SplitPanel splitterThickness(float splitterThickness) {
         float normalized = Float.isFinite(splitterThickness) ? Math.max(1.0f, splitterThickness) : 5.0f;
         if (this.splitterThickness == normalized) return this;
@@ -113,30 +216,66 @@ public class SplitPanel extends PanelWidget {
         return this;
     }
 
+    /**
+     * Возвращает минимальный размер первой области на главной оси.
+     *
+     * @return минимальная ширина или высота первого слота
+     */
     public float minFirstSize() {
         return minFirstSize;
     }
 
+    /**
+     * Задаёт минимальный размер первой области на главной оси.
+     *
+     * @param minFirstSize минимальный размер; невалидные значения заменяются на {@code 0}
+     * @return эта split-панель для fluent-настройки
+     */
     public SplitPanel minFirstSize(float minFirstSize) {
         this.minFirstSize = sanitizeMin(minFirstSize);
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
 
+    /**
+     * Возвращает минимальный размер второй области на главной оси.
+     *
+     * @return минимальная ширина или высота второго слота
+     */
     public float minSecondSize() {
         return minSecondSize;
     }
 
+    /**
+     * Задаёт минимальный размер второй области на главной оси.
+     *
+     * @param minSecondSize минимальный размер; невалидные значения заменяются на {@code 0}
+     * @return эта split-панель для fluent-настройки
+     */
     public SplitPanel minSecondSize(float minSecondSize) {
         this.minSecondSize = sanitizeMin(minSecondSize);
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
 
+    /**
+     * Возвращает, находится ли разделитель в состоянии drag'а.
+     *
+     * @return {@code true}, пока пользователь перетаскивает splitter
+     */
     public boolean dragging() {
         return splitter.dragging();
     }
 
+    /**
+     * Добавляет ребёнка в первый свободный пользовательский слот.
+     *
+     * <p>Первый вызов заполняет {@link #first(Widget)}, второй —
+     * {@link #second(Widget)}. Остальные вызовы игнорируются: split-панель
+     * намеренно поддерживает только два пользовательских слота.</p>
+     *
+     * @param child виджет для добавления; {@code null} игнорируется
+     */
     @Override
     public void addChild(Widget child) {
         if (child == null) return;
@@ -147,6 +286,11 @@ public class SplitPanel extends PanelWidget {
         }
     }
 
+    /**
+     * Удаляет ребёнка из первого или второго пользовательского слота.
+     *
+     * @param child виджет для удаления; splitter удалить через этот API нельзя
+     */
     @Override
     public void removeChild(Widget child) {
         if (child == null || child == splitter) return;
@@ -159,6 +303,9 @@ public class SplitPanel extends PanelWidget {
         }
     }
 
+    /**
+     * Очищает только пользовательские слоты, оставляя внутренний splitter.
+     */
     @Override
     public void clearChildren() {
         first(null);

@@ -15,13 +15,33 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Generic two-sided row: arbitrary widgets can be packed on the left and on the right.
+ * Двусторонняя строка панели: произвольные виджеты слева и справа.
  *
- * <p>This is useful for settings/title/action panels: titles or navigation buttons can be placed
- * on the left, while controls or action buttons stay pinned to the right edge.</p>
+ * <p>Контейнер удобен для title bars, toolbars и строк настроек: заголовки или
+ * navigation-кнопки можно класть слева, а действия и controls держать у правого
+ * края. Левая группа раскладывается от левого края, правая — от правого.</p>
+ *
+ * <p>{@link #leftWidth(float)} и {@link #rightWidth(float)} могут зафиксировать
+ * ширину группы. Значение {@link LayoutConstraints#AUTO} оставляет ширину по
+ * measured-size детей.</p>
+ *
+ * <pre>{@code
+ * PanelRowWidget row = new PanelRowWidget()
+ *         .rowHeight(24.0f)
+ *         .gap(12.0f);
+ * row.left(titleLabel);
+ * row.addRight(cancelButton);
+ * row.addRight(applyButton);
+ * }</pre>
  */
 public class PanelRowWidget extends PanelWidget {
+    /**
+     * Дефолтная высота строки в пикселях UI-пространства.
+     */
     public static final float DEFAULT_ROW_HEIGHT = 24.0f;
+    /**
+     * Дефолтное расстояние между группами и элементами.
+     */
     public static final float DEFAULT_GAP = 8.0f;
 
     private final List<Widget> leftWidgets = new ObjectArrayList<>();
@@ -36,52 +56,116 @@ public class PanelRowWidget extends PanelWidget {
     private float leftWidth = LayoutConstraints.AUTO;
     private float rightWidth = LayoutConstraints.AUTO;
 
+    /**
+     * Создаёт пустую двустороннюю строку.
+     */
     public PanelRowWidget() {
     }
 
+    /**
+     * Создаёт строку с одним виджетом слева и одним справа.
+     *
+     * @param left начальный левый виджет
+     * @param right начальный правый виджет
+     */
     public PanelRowWidget(Widget left, Widget right) {
         left(left);
         right(right);
     }
 
+    /**
+     * Возвращает неизменяемое представление левой группы.
+     *
+     * @return виджеты слева в порядке раскладки
+     */
     public List<Widget> leftWidgets() {
         return leftWidgetsView;
     }
 
+    /**
+     * Возвращает неизменяемое представление правой группы.
+     *
+     * @return виджеты справа в порядке добавления
+     */
     public List<Widget> rightWidgets() {
         return rightWidgetsView;
     }
 
+    /**
+     * Заменяет левую группу одним виджетом.
+     *
+     * @param widget новый левый виджет; {@code null} просто очищает группу
+     * @return эта строка для fluent-настройки
+     */
     public PanelRowWidget left(Widget widget) {
         clearLeft();
         return addLeft(widget);
     }
 
+    /**
+     * Заменяет правую группу одним виджетом.
+     *
+     * @param widget новый правый виджет; {@code null} просто очищает группу
+     * @return эта строка для fluent-настройки
+     */
     public PanelRowWidget right(Widget widget) {
         clearRight();
         return addRight(widget);
     }
 
+    /**
+     * Добавляет виджет в левую группу.
+     *
+     * @param widget виджет для добавления; {@code null} игнорируется
+     * @return эта строка для fluent-настройки
+     */
     public PanelRowWidget addLeft(Widget widget) {
         return addToSide(widget, leftWidgets, rightWidgets);
     }
 
+    /**
+     * Добавляет виджет в правую группу.
+     *
+     * @param widget виджет для добавления; {@code null} игнорируется
+     * @return эта строка для fluent-настройки
+     */
     public PanelRowWidget addRight(Widget widget) {
         return addToSide(widget, rightWidgets, leftWidgets);
     }
 
+    /**
+     * Очищает левую группу.
+     *
+     * @return эта строка для fluent-настройки
+     */
     public PanelRowWidget clearLeft() {
         return clearSide(leftWidgets);
     }
 
+    /**
+     * Очищает правую группу.
+     *
+     * @return эта строка для fluent-настройки
+     */
     public PanelRowWidget clearRight() {
         return clearSide(rightWidgets);
     }
 
+    /**
+     * Возвращает предпочитаемую высоту строки.
+     *
+     * @return высота строки или {@link LayoutConstraints#AUTO}
+     */
     public float rowHeight() {
         return rowHeight;
     }
 
+    /**
+     * Задаёт предпочитаемую высоту строки.
+     *
+     * @param rowHeight высота строки; {@link LayoutConstraints#AUTO} оставляет высоту по содержимому
+     * @return эта строка для fluent-настройки
+     */
     public PanelRowWidget rowHeight(float rowHeight) {
         float normalized = normalizeSizeOrAuto(rowHeight, DEFAULT_ROW_HEIGHT);
         if (this.rowHeight == normalized || bothAuto(this.rowHeight, normalized)) return this;
@@ -90,10 +174,21 @@ public class PanelRowWidget extends PanelWidget {
         return this;
     }
 
+    /**
+     * Возвращает расстояние между левой и правой группами.
+     *
+     * @return gap между группами
+     */
     public float gap() {
         return gap;
     }
 
+    /**
+     * Задаёт расстояние между левой и правой группами.
+     *
+     * @param gap gap в пикселях UI-пространства; невалидные значения заменяются дефолтом
+     * @return эта строка для fluent-настройки
+     */
     public PanelRowWidget gap(float gap) {
         float normalized = normalizeGap(gap, DEFAULT_GAP);
         if (this.gap == normalized) return this;
@@ -102,10 +197,21 @@ public class PanelRowWidget extends PanelWidget {
         return this;
     }
 
+    /**
+     * Возвращает gap между элементами левой группы.
+     *
+     * @return left-side item gap
+     */
     public float leftGap() {
         return leftGap;
     }
 
+    /**
+     * Задаёт gap между элементами левой группы.
+     *
+     * @param leftGap gap в пикселях UI-пространства
+     * @return эта строка для fluent-настройки
+     */
     public PanelRowWidget leftGap(float leftGap) {
         float normalized = normalizeGap(leftGap, DEFAULT_GAP);
         if (this.leftGap == normalized) return this;
@@ -114,10 +220,21 @@ public class PanelRowWidget extends PanelWidget {
         return this;
     }
 
+    /**
+     * Возвращает gap между элементами правой группы.
+     *
+     * @return right-side item gap
+     */
     public float rightGap() {
         return rightGap;
     }
 
+    /**
+     * Задаёт gap между элементами правой группы.
+     *
+     * @param rightGap gap в пикселях UI-пространства
+     * @return эта строка для fluent-настройки
+     */
     public PanelRowWidget rightGap(float rightGap) {
         float normalized = normalizeGap(rightGap, DEFAULT_GAP);
         if (this.rightGap == normalized) return this;
@@ -126,10 +243,21 @@ public class PanelRowWidget extends PanelWidget {
         return this;
     }
 
+    /**
+     * Возвращает предпочитаемую ширину левой группы.
+     *
+     * @return ширина или {@link LayoutConstraints#AUTO}
+     */
     public float leftWidth() {
         return leftWidth;
     }
 
+    /**
+     * Задаёт предпочитаемую ширину левой группы.
+     *
+     * @param leftWidth ширина группы или {@link LayoutConstraints#AUTO}
+     * @return эта строка для fluent-настройки
+     */
     public PanelRowWidget leftWidth(float leftWidth) {
         float normalized = normalizeSizeOrAuto(leftWidth, LayoutConstraints.AUTO);
         if (this.leftWidth == normalized || bothAuto(this.leftWidth, normalized)) return this;
@@ -138,10 +266,21 @@ public class PanelRowWidget extends PanelWidget {
         return this;
     }
 
+    /**
+     * Возвращает предпочитаемую ширину правой группы.
+     *
+     * @return ширина или {@link LayoutConstraints#AUTO}
+     */
     public float rightWidth() {
         return rightWidth;
     }
 
+    /**
+     * Задаёт предпочитаемую ширину правой группы.
+     *
+     * @param rightWidth ширина группы или {@link LayoutConstraints#AUTO}
+     * @return эта строка для fluent-настройки
+     */
     public PanelRowWidget rightWidth(float rightWidth) {
         float normalized = normalizeSizeOrAuto(rightWidth, LayoutConstraints.AUTO);
         if (this.rightWidth == normalized || bothAuto(this.rightWidth, normalized)) return this;

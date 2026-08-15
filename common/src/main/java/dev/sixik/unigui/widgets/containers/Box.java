@@ -27,6 +27,32 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Визуальный контейнер с фоном, текстурой, рамкой, радиусом и дочерними виджетами.
+ *
+ * <p>{@code Box} расширяет {@link PanelWidget}: дети измеряются и рендерятся как
+ * у обычной панели, а перед ними отрисовывается собственная визуальная подложка.
+ * Подложка может состоять из цвета, texture placement'а, border'а и radius'а.
+ * Для простого layout-контейнера без визуальной оболочки используй
+ * {@link PanelWidget} или {@link StackPanel}.</p>
+ *
+ * <p>При включённом {@link #themeEnabled()} значения визуального состояния
+ * могут подхватываться из {@link Theme} и local styles родителей. Прямые setter'ы
+ * всё ещё можно использовать для ручной настройки или анимаций.</p>
+ *
+ * <pre>{@code
+ * Box card = new Box()
+ *         .backgroundVisible(true)
+ *         .borderVisible(true)
+ *         .radius(4.0f);
+ * card.background().set(0.08f, 0.09f, 0.11f, 0.95f);
+ * card.addChild(content);
+ * }</pre>
+ *
+ * @see BoxRenderer
+ * @see BoxState
+ * @see PanelWidget
+ */
 public class Box extends PanelWidget {
     private final MutableColor background = new MutableColor(0.0f, 0.0f, 0.0f, 0.0f);
     private TextureHandle backgroundTexture;
@@ -43,6 +69,9 @@ public class Box extends PanelWidget {
     private long lastAppliedStyleVersion = Long.MIN_VALUE;
     private long lastAppliedScopeStyleVersion = Long.MIN_VALUE;
 
+    /**
+     * Создаёт пустой box и подписывает live-цвета/rect на visual invalidation.
+     */
     public Box() {
         background.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         backgroundTextureTint.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
@@ -50,20 +79,45 @@ public class Box extends PanelWidget {
         borderColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
     }
 
+    /**
+     * Возвращает live-цвет фона.
+     *
+     * @return изменяемый цвет фона
+     */
     public MutableColor background() {
         return background;
     }
 
+    /**
+     * Анимирует цвет фона за заданное время.
+     *
+     * @param color целевой цвет
+     * @param durationSeconds длительность анимации в секундах
+     * @return этот box для fluent-настройки
+     */
     public Box animateBackgroundColor(ColorView color, float durationSeconds) {
         animateColor(background, color, durationSeconds);
         return this;
     }
 
+    /**
+     * Анимирует цвет фона по заданной transition-спецификации.
+     *
+     * @param color целевой цвет
+     * @param spec параметры transition'а
+     * @return этот box для fluent-настройки
+     */
     public Box animateBackgroundColor(ColorView color, TransitionSpec spec) {
         animateColor(background, color, spec);
         return this;
     }
 
+    /**
+     * Включает или выключает отрисовку цветового/текстурного фона.
+     *
+     * @param backgroundVisible {@code true}, чтобы renderer рисовал фон
+     * @return этот box для fluent-настройки
+     */
     public Box backgroundVisible(boolean backgroundVisible) {
         if (this.backgroundVisible == backgroundVisible) return this;
         this.backgroundVisible = backgroundVisible;
@@ -71,14 +125,30 @@ public class Box extends PanelWidget {
         return this;
     }
 
+    /**
+     * Возвращает, должен ли renderer рисовать фон.
+     *
+     * @return {@code true}, если фон включён
+     */
     public boolean backgroundVisible() {
         return backgroundVisible;
     }
 
+    /**
+     * Возвращает renderer, заданный напрямую для этого box'а.
+     *
+     * @return кастомный renderer или {@code null}, если используется тема/default
+     */
     public BoxRenderer boxRenderer() {
         return boxRenderer;
     }
 
+    /**
+     * Задаёт renderer визуальной подложки.
+     *
+     * @param boxRenderer renderer box'а или {@code null} для theme/default renderer'а
+     * @return этот box для fluent-настройки
+     */
     public Box boxRenderer(BoxRenderer boxRenderer) {
         if (this.boxRenderer == boxRenderer) return this;
         this.boxRenderer = boxRenderer;
@@ -86,14 +156,30 @@ public class Box extends PanelWidget {
         return this;
     }
 
+    /**
+     * Сбрасывает кастомный renderer и снова использует renderer из темы/default.
+     *
+     * @return этот box для fluent-настройки
+     */
     public Box useDefaultBoxRenderer() {
         return boxRenderer(null);
     }
 
+    /**
+     * Возвращает текстуру фона.
+     *
+     * @return handle текстуры или {@code null}, если текстурный фон не задан
+     */
     public TextureHandle backgroundTexture() {
         return backgroundTexture;
     }
 
+    /**
+     * Задаёт текстуру фона.
+     *
+     * @param backgroundTexture handle текстуры или {@code null}
+     * @return этот box для fluent-настройки
+     */
     public Box backgroundTexture(TextureHandle backgroundTexture) {
         if (this.backgroundTexture == backgroundTexture) return this;
         this.backgroundTexture = backgroundTexture;
@@ -101,33 +187,77 @@ public class Box extends PanelWidget {
         return this;
     }
 
+    /**
+     * Возвращает live tint-цвет фоновой текстуры.
+     *
+     * @return изменяемый tint-цвет
+     */
     public MutableColor backgroundTextureTint() {
         return backgroundTextureTint;
     }
 
+    /**
+     * Анимирует tint фоновой текстуры за заданное время.
+     *
+     * @param color целевой tint-цвет
+     * @param durationSeconds длительность анимации в секундах
+     * @return этот box для fluent-настройки
+     */
     public Box animateBackgroundTextureTint(ColorView color, float durationSeconds) {
         animateColor(backgroundTextureTint, color, durationSeconds);
         return this;
     }
 
+    /**
+     * Анимирует tint фоновой текстуры по заданной transition-спецификации.
+     *
+     * @param color целевой tint-цвет
+     * @param spec параметры transition'а
+     * @return этот box для fluent-настройки
+     */
     public Box animateBackgroundTextureTint(ColorView color, TransitionSpec spec) {
         animateColor(backgroundTextureTint, color, spec);
         return this;
     }
 
+    /**
+     * Возвращает source-rect фоновой текстуры в UV-координатах.
+     *
+     * @return live rect {@code u/v/width/height}
+     */
     public MutableRect backgroundTextureSource() {
         return backgroundTextureSource;
     }
 
+    /**
+     * Задаёт source-rect фоновой текстуры в UV-координатах.
+     *
+     * @param u левый UV-offset
+     * @param v верхний UV-offset
+     * @param width ширина UV-области
+     * @param height высота UV-области
+     * @return этот box для fluent-настройки
+     */
     public Box backgroundTextureSource(float u, float v, float width, float height) {
         backgroundTextureSource.set(u, v, width, height);
         return this;
     }
 
+    /**
+     * Возвращает способ вписывания фоновой текстуры в bounds box'а.
+     *
+     * @return режим вписывания текстуры
+     */
     public ImageFit backgroundTextureFit() {
         return backgroundTextureFit;
     }
 
+    /**
+     * Задаёт способ вписывания фоновой текстуры в bounds box'а.
+     *
+     * @param fit режим вписывания; {@code null} трактуется как {@link ImageFit#STRETCH}
+     * @return этот box для fluent-настройки
+     */
     public Box backgroundTextureFit(ImageFit fit) {
         ImageFit effectiveFit = fit == null ? ImageFit.STRETCH : fit;
         if (backgroundTextureFit == effectiveFit) return this;
@@ -136,20 +266,45 @@ public class Box extends PanelWidget {
         return this;
     }
 
+    /**
+     * Возвращает live-цвет рамки.
+     *
+     * @return изменяемый цвет рамки
+     */
     public MutableColor borderColor() {
         return borderColor;
     }
 
+    /**
+     * Анимирует цвет рамки за заданное время.
+     *
+     * @param color целевой цвет рамки
+     * @param durationSeconds длительность анимации в секундах
+     * @return этот box для fluent-настройки
+     */
     public Box animateBorderColor(ColorView color, float durationSeconds) {
         animateColor(borderColor, color, durationSeconds);
         return this;
     }
 
+    /**
+     * Анимирует цвет рамки по заданной transition-спецификации.
+     *
+     * @param color целевой цвет рамки
+     * @param spec параметры transition'а
+     * @return этот box для fluent-настройки
+     */
     public Box animateBorderColor(ColorView color, TransitionSpec spec) {
         animateColor(borderColor, color, spec);
         return this;
     }
 
+    /**
+     * Включает или выключает отрисовку рамки.
+     *
+     * @param borderVisible {@code true}, чтобы renderer рисовал рамку
+     * @return этот box для fluent-настройки
+     */
     public Box borderVisible(boolean borderVisible) {
         if (this.borderVisible == borderVisible) return this;
         this.borderVisible = borderVisible;
@@ -157,14 +312,30 @@ public class Box extends PanelWidget {
         return this;
     }
 
+    /**
+     * Возвращает, должна ли отрисовываться рамка.
+     *
+     * @return {@code true}, если рамка включена
+     */
     public boolean borderVisible() {
         return borderVisible;
     }
 
+    /**
+     * Возвращает толщину рамки.
+     *
+     * @return толщина рамки в пикселях UI-пространства
+     */
     public float borderWidth() {
         return borderWidth;
     }
 
+    /**
+     * Задаёт толщину рамки.
+     *
+     * @param borderWidth толщина рамки в пикселях UI-пространства
+     * @return этот box для fluent-настройки
+     */
     public Box borderWidth(float borderWidth) {
         if (this.borderWidth == borderWidth) return this;
         this.borderWidth = borderWidth;
@@ -172,19 +343,44 @@ public class Box extends PanelWidget {
         return this;
     }
 
+    /**
+     * Анимирует толщину рамки за заданное время.
+     *
+     * @param borderWidth целевая толщина рамки
+     * @param durationSeconds длительность анимации в секундах
+     * @return этот box для fluent-настройки
+     */
     public Box animateBorderWidth(float borderWidth, float durationSeconds) {
         return animateBorderWidth(borderWidth, TransitionSpec.of(durationSeconds));
     }
 
+    /**
+     * Анимирует толщину рамки по заданной transition-спецификации.
+     *
+     * @param borderWidth целевая толщина рамки
+     * @param spec параметры transition'а
+     * @return этот box для fluent-настройки
+     */
     public Box animateBorderWidth(float borderWidth, TransitionSpec spec) {
         animateParameter("Box.borderWidth", this::borderWidth, this::borderWidth, borderWidth, spec);
         return this;
     }
 
+    /**
+     * Возвращает радиус скругления box'а.
+     *
+     * @return радиус скругления в пикселях UI-пространства
+     */
     public float radius() {
         return radius;
     }
 
+    /**
+     * Задаёт радиус скругления box'а.
+     *
+     * @param radius радиус скругления в пикселях UI-пространства
+     * @return этот box для fluent-настройки
+     */
     public Box radius(float radius) {
         if (this.radius == radius) return this;
         this.radius = radius;
@@ -192,19 +388,47 @@ public class Box extends PanelWidget {
         return this;
     }
 
+    /**
+     * Анимирует радиус скругления за заданное время.
+     *
+     * @param radius целевой радиус скругления
+     * @param durationSeconds длительность анимации в секундах
+     * @return этот box для fluent-настройки
+     */
     public Box animateRadius(float radius, float durationSeconds) {
         return animateRadius(radius, TransitionSpec.of(durationSeconds));
     }
 
+    /**
+     * Анимирует радиус скругления по заданной transition-спецификации.
+     *
+     * @param radius целевой радиус скругления
+     * @param spec параметры transition'а
+     * @return этот box для fluent-настройки
+     */
     public Box animateRadius(float radius, TransitionSpec spec) {
         animateParameter("Box.radius", this::radius, this::radius, radius, spec);
         return this;
     }
 
+    /**
+     * Возвращает, участвует ли box в theme/style lookup.
+     *
+     * @return {@code true}, если значения renderer/цветов могут браться из темы
+     */
     public boolean themeEnabled() {
         return themeEnabled;
     }
 
+    /**
+     * Включает или выключает theme/style lookup для этого box'а.
+     *
+     * <p>Когда theme отключена, renderer и style values берутся только из
+     * локальных полей и fallback-значений.</p>
+     *
+     * @param themeEnabled {@code true}, чтобы применять theme/local styles
+     * @return этот box для fluent-настройки
+     */
     public Box themeEnabled(boolean themeEnabled) {
         if (this.themeEnabled == themeEnabled) return this;
         this.themeEnabled = themeEnabled;
@@ -224,16 +448,31 @@ public class Box extends PanelWidget {
         }
     }
 
+    /**
+     * Рендерит визуальную подложку box'а перед дочерними виджетами.
+     *
+     * @param context текущий render context
+     */
     protected void renderBox(RenderContext context) {
         applyTheme();
 
         effectiveBoxRenderer().render(new DrawScope(context, transform(), layoutBounds()), boxState());
     }
 
+    /**
+     * Возвращает renderer, который будет использован на текущем render-проходе.
+     *
+     * @return локальный, theme или default renderer
+     */
     protected BoxRenderer effectiveBoxRenderer() {
         return boxRenderer == null ? styleRenderer(BoxRenderer.class, WidgetsRender.box()) : boxRenderer;
     }
 
+    /**
+     * Создаёт immutable snapshot visual-состояния для renderer'а.
+     *
+     * @return состояние box'а на текущий кадр
+     */
     protected BoxState boxState() {
         TexturePlacement placement = backgroundTexture == null
                 ? null
@@ -255,10 +494,21 @@ public class Box extends PanelWidget {
                 borderWidth);
     }
 
+    /**
+     * Рендерит содержимое box'а после собственной подложки.
+     *
+     * @param context текущий render context
+     */
     protected void renderContent(RenderContext context) {
         renderChildren(context);
     }
 
+    /**
+     * Применяет theme/local style значения к визуальным полям box'а.
+     *
+     * <p>Метод вызывается лениво перед render'ом и следит за версиями theme и
+     * local style scopes, чтобы invalidate происходил при смене стилей.</p>
+     */
     protected void applyTheme() {
         if (!themeEnabled) return;
         UIContext context = uiContext();
@@ -306,11 +556,21 @@ public class Box extends PanelWidget {
         }
     }
 
+    /**
+     * Возвращает состояние виджета для style lookup.
+     *
+     * @return disabled, hovered или normal
+     */
     protected WidgetState styleState() {
         if (!enabled()) return WidgetState.DISABLED;
         return hovered() ? WidgetState.HOVERED : WidgetState.NORMAL;
     }
 
+    /**
+     * Возвращает style type, по которому theme ищет значения для этого box'а.
+     *
+     * @return имя runtime-класса по умолчанию
+     */
     protected String styleType() {
         return getClass().getSimpleName();
     }
@@ -320,10 +580,25 @@ public class Box extends PanelWidget {
         return themeEnabled ? super.styleRenderer(rendererType, fallback) : fallback;
     }
 
+    /**
+     * Ищет style value в theme и local style scopes.
+     *
+     * @param key ключ style-значения
+     * @param fallback значение, если style ничего не задал
+     * @return найденное или fallback-значение
+     */
     protected <T> T styleValue(StyleKey<T> key, T fallback) {
         return styleValue(key, styleState(), fallback);
     }
 
+    /**
+     * Ищет style value для конкретного {@link WidgetState}.
+     *
+     * @param key ключ style-значения
+     * @param state состояние виджета для style lookup
+     * @param fallback значение, если style ничего не задал
+     * @return найденное или fallback-значение
+     */
     protected <T> T styleValue(StyleKey<T> key, WidgetState state, T fallback) {
         if (!themeEnabled) return fallback;
         UIContext context = uiContext();

@@ -6,10 +6,10 @@ import dev.sixik.unigui.api.core.UIContext;
 import dev.sixik.unigui.api.event.Event;
 import dev.sixik.unigui.api.event.EventPhase;
 import dev.sixik.unigui.api.event.ScrollEvent;
+import dev.sixik.unigui.api.input.KeyModifiers;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.layout.Overflow;
-import dev.sixik.unigui.api.input.KeyModifiers;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
@@ -17,13 +17,40 @@ import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.impl.layout.v3.LayoutV3ScrollAdapter;
 import dev.sixik.unigui.impl.widget.WidgetBase;
+import dev.sixik.unigui.widgets.core.Orientation;
+import dev.sixik.unigui.widgets.interaction.ScrollBar;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
-import dev.sixik.unigui.widgets.core.Orientation;
-import dev.sixik.unigui.widgets.interaction.ScrollBar;
 
+/**
+ * Контейнер viewport'а для одного большого content-виджета.
+ *
+ * <p>{@code ScrollView} измеряет content, вычисляет видимую область и при
+ * необходимости показывает горизонтальный/вертикальный {@link ScrollBar}. Оси
+ * скролла включаются через {@code layoutStyle().overflowX/Y(...)}: обычно
+ * {@link Overflow#AUTO} показывает scrollbar только при переполнении, а
+ * {@link Overflow#SCROLL} резервирует его всегда.</p>
+ *
+ * <p>Если явный {@link #contentSize(float, float)} не задан, scroll extent
+ * берётся из measured-size content'а. Позиция скролла всегда зажимается в
+ * диапазон {@code 0..maxScrollX/Y}. Колесо мыши скроллит обе оси, а
+ * {@code Shift + vertical wheel} переключает вертикальный wheel в горизонтальный
+ * скролл, если горизонтальная ось доступна.</p>
+ *
+ * <pre>{@code
+ * ScrollView listViewport = new ScrollView(list)
+ *         .scrollStep(18.0f)
+ *         .scrollbarGap(2.0f);
+ * listViewport.layout(style -> style
+ *         .overflowX(Overflow.HIDDEN)
+ *         .overflowY(Overflow.AUTO));
+ * }</pre>
+ *
+ * @see ScrollBar
+ * @see Overflow
+ */
 public class ScrollView extends WidgetBase {
     private static final float SCROLLBAR_SIZE = ScrollBar.DEFAULT_SIZE;
 
@@ -49,6 +76,9 @@ public class ScrollView extends WidgetBase {
     private boolean childrenViewHasHorizontalScrollBar;
     private boolean childrenViewHasVerticalScrollBar;
 
+    /**
+     * Создаёт пустой scroll viewport с {@code overflowX=HIDDEN} и {@code overflowY=AUTO}.
+     */
     public ScrollView() {
         layout(style -> style
                 .overflowX(Overflow.HIDDEN)
@@ -73,15 +103,36 @@ public class ScrollView extends WidgetBase {
         verticalScrollBar.onValueChanged(event -> scrollTo(scrollX, event.newValue()));
     }
 
+    /**
+     * Создаёт scroll viewport с начальным content-виджетом.
+     *
+     * @param content content, который будет расположен внутри viewport'а
+     */
     public ScrollView(Widget content) {
         this();
         content(content);
     }
 
+    /**
+     * Возвращает текущий content-виджет.
+     *
+     * @return content или {@code null}
+     */
     public Widget content() {
         return content;
     }
 
+    /**
+     * Заменяет content-виджет внутри scroll viewport'а.
+     *
+     * <p>У старого content'а сбрасываются parent/UI context, у нового —
+     * назначаются текущие parent/UI context. Сам {@code ScrollView} не может
+     * быть собственным content'ом.</p>
+     *
+     * @param content новый content или {@code null}
+     * @return этот scroll view для fluent-настройки
+     * @throws IllegalArgumentException если передан сам {@code ScrollView}
+     */
     public ScrollView content(Widget content) {
         if (this.content == content) return this;
         if (content == this) throw new IllegalArgumentException("ScrollView cannot contain itself");
@@ -93,14 +144,34 @@ public class ScrollView extends WidgetBase {
         return this;
     }
 
+    /**
+     * Возвращает явно заданную ширину content extent'а.
+     *
+     * @return ширина content'а; {@code 0} означает использовать measured width
+     */
     public float contentWidth() {
         return contentWidth;
     }
 
+    /**
+     * Возвращает явно заданную высоту content extent'а.
+     *
+     * @return высота content'а; {@code 0} означает использовать measured height
+     */
     public float contentHeight() {
         return contentHeight;
     }
 
+    /**
+     * Задаёт явный scroll extent content'а.
+     *
+     * <p>Значения зажимаются к {@code >= 0}. Если размер равен {@code 0}, для
+     * соответствующей оси используется measured-size content'а.</p>
+     *
+     * @param width ширина scroll content'а
+     * @param height высота scroll content'а
+     * @return этот scroll view для fluent-настройки
+     */
     public ScrollView contentSize(float width, float height) {
         float normalizedWidth = Math.max(0.0f, width);
         float normalizedHeight = Math.max(0.0f, height);
@@ -112,27 +183,62 @@ public class ScrollView extends WidgetBase {
         return this;
     }
 
+    /**
+     * Возвращает горизонтальную позицию скролла.
+     *
+     * @return x-offset content'а относительно viewport'а
+     */
     public float scrollX() {
         return scrollX;
     }
 
+    /**
+     * Возвращает вертикальную позицию скролла.
+     *
+     * @return y-offset content'а относительно viewport'а
+     */
     public float scrollY() {
         return scrollY;
     }
 
+    /**
+     * Возвращает множитель wheel/page step'а.
+     *
+     * @return количество UI-пикселей на единицу scroll delta
+     */
     public float scrollStep() {
         return scrollStep;
     }
 
+    /**
+     * Задаёт множитель wheel/page step'а.
+     *
+     * @param scrollStep количество UI-пикселей на единицу scroll delta; минимум {@code 1}
+     * @return этот scroll view для fluent-настройки
+     */
     public ScrollView scrollStep(float scrollStep) {
         this.scrollStep = Math.max(1.0f, scrollStep);
         return this;
     }
 
+    /**
+     * Возвращает, включён ли пользовательский scrolling.
+     *
+     * @return {@code true}, если wheel и scrollbar'ы могут менять scroll position
+     */
     public boolean scrollingEnabled() {
         return scrollingEnabled;
     }
 
+    /**
+     * Включает или выключает пользовательский scrolling.
+     *
+     * <p>При выключении позиция скролла сбрасывается в {@code 0,0}, а scrollbar'ы
+     * скрываются независимо от overflow-настроек.</p>
+     *
+     * @param scrollingEnabled {@code true}, чтобы разрешить scrolling
+     * @return этот scroll view для fluent-настройки
+     */
     public ScrollView scrollingEnabled(boolean scrollingEnabled) {
         if (this.scrollingEnabled == scrollingEnabled) return this;
         this.scrollingEnabled = scrollingEnabled;
@@ -148,27 +254,63 @@ public class ScrollView extends WidgetBase {
         return this;
     }
 
+    /**
+     * Выключает пользовательский scrolling.
+     *
+     * @return этот scroll view для fluent-настройки
+     */
     public ScrollView disableScrolling() {
         return scrollingEnabled(false);
     }
 
+    /**
+     * Включает пользовательский scrolling.
+     *
+     * @return этот scroll view для fluent-настройки
+     */
     public ScrollView enableScrolling() {
         return scrollingEnabled(true);
     }
 
+    /**
+     * Возвращает, будет ли wheel-событие потребляться на границах scroll range.
+     *
+     * @return {@code true}, если scroll view блокирует propagation wheel'а на своих границах
+     */
     public boolean consumeWheelAtScrollBounds() {
         return consumeWheelAtScrollBounds;
     }
 
+    /**
+     * Управляет потреблением wheel-событий на границах scroll range.
+     *
+     * <p>Если включено, scroll view может отменить wheel-событие даже когда
+     * позиция уже упёрлась в начало/конец, чтобы родительские scroll areas не
+     * начали прокручиваться от того же события.</p>
+     *
+     * @param consumeWheelAtScrollBounds {@code true}, чтобы потреблять wheel на границах
+     * @return этот scroll view для fluent-настройки
+     */
     public ScrollView consumeWheelAtScrollBounds(boolean consumeWheelAtScrollBounds) {
         this.consumeWheelAtScrollBounds = consumeWheelAtScrollBounds;
         return this;
     }
 
+    /**
+     * Возвращает расстояние между content viewport'ом и scrollbar'ами.
+     *
+     * @return gap в пикселях UI-пространства
+     */
     public float scrollbarGap() {
         return scrollbarGap;
     }
 
+    /**
+     * Задаёт расстояние между content viewport'ом и scrollbar'ами.
+     *
+     * @param scrollbarGap gap в пикселях UI-пространства; невалидные значения заменяются дефолтом
+     * @return этот scroll view для fluent-настройки
+     */
     public ScrollView scrollbarGap(float scrollbarGap) {
         float normalized = Float.isFinite(scrollbarGap) ? Math.max(0.0f, scrollbarGap) : ScrollBar.DEFAULT_GAP;
         if (this.scrollbarGap == normalized) return this;
@@ -177,6 +319,17 @@ public class ScrollView extends WidgetBase {
         return this;
     }
 
+    /**
+     * Прокручивает content к абсолютной позиции.
+     *
+     * <p>Координаты автоматически зажимаются в диапазон
+     * {@code 0..maxScrollX/Y}, а scrollbar'ы синхронизируются без обратного
+     * value callback'а.</p>
+     *
+     * @param x желаемый горизонтальный offset
+     * @param y желаемый вертикальный offset
+     * @return этот scroll view для fluent-настройки
+     */
     public ScrollView scrollTo(float x, float y) {
         float clampedX = clamp(x, 0.0f, maxScrollX());
         float clampedY = clamp(y, 0.0f, maxScrollY());
@@ -188,32 +341,75 @@ public class ScrollView extends WidgetBase {
         return this;
     }
 
+    /**
+     * Прокручивает content относительно текущей позиции.
+     *
+     * @param dx изменение горизонтального offset'а
+     * @param dy изменение вертикального offset'а
+     * @return этот scroll view для fluent-настройки
+     */
     public ScrollView scrollBy(float dx, float dy) {
         return scrollTo(scrollX + dx, scrollY + dy);
     }
 
+    /**
+     * Возвращает максимальный горизонтальный scroll offset.
+     *
+     * @return {@code 0}, если горизонтальный scrolling выключен или content помещается
+     */
     public float maxScrollX() {
         if (!scrollingEnabled || !horizontalScrollingEnabled()) return 0.0f;
         return Math.max(0.0f, effectiveContentWidth() - viewportWidth());
     }
 
+    /**
+     * Возвращает максимальный вертикальный scroll offset.
+     *
+     * @return {@code 0}, если вертикальный scrolling выключен или content помещается
+     */
     public float maxScrollY() {
         if (!scrollingEnabled || !verticalScrollingEnabled()) return 0.0f;
         return Math.max(0.0f, effectiveContentHeight() - viewportHeight());
     }
 
+    /**
+     * Возвращает live-цвет дорожки scrollbar'ов.
+     *
+     * @return изменяемый цвет track'а для обеих осей
+     */
     public MutableColor scrollbarTrackColor() {
         return scrollbarTrackColor;
     }
 
+    /**
+     * Возвращает live-цвет thumb scrollbar'ов.
+     *
+     * @return изменяемый цвет thumb'а для обеих осей
+     */
     public MutableColor scrollbarThumbColor() {
         return scrollbarThumbColor;
     }
 
+    /**
+     * Возвращает вертикальный scrollbar.
+     *
+     * <p>Scrollbar принадлежит этому {@code ScrollView}; его можно стилизовать,
+     * но не нужно добавлять в другой контейнер вручную.</p>
+     *
+     * @return внутренний вертикальный scrollbar
+     */
     public ScrollBar verticalScrollBar() {
         return verticalScrollBar;
     }
 
+    /**
+     * Возвращает горизонтальный scrollbar.
+     *
+     * <p>Scrollbar принадлежит этому {@code ScrollView}; его можно стилизовать,
+     * но не нужно добавлять в другой контейнер вручную.</p>
+     *
+     * @return внутренний горизонтальный scrollbar
+     */
     public ScrollBar horizontalScrollBar() {
         return horizontalScrollBar;
     }
@@ -228,6 +424,15 @@ public class ScrollView extends WidgetBase {
         verticalScrollBar.setUiContextInternal(uiContext);
     }
 
+    /**
+     * Возвращает content и видимые scrollbar'ы как дочерние виджеты.
+     *
+     * <p>Список пересобирается лениво, когда меняется видимость scrollbar'ов
+     * или content. Это сохраняет обычную event/navigation модель для внутренних
+     * scrollbar'ов.</p>
+     *
+     * @return неизменяемый список текущих детей scroll view
+     */
     @Override
     public List<Widget> children() {
         boolean horizontalVisible = showsHorizontalScrollBar();

@@ -119,8 +119,10 @@ import dev.sixik.unigui.widgets.interaction.DropDownBox;
 import dev.sixik.unigui.widgets.navigation.ExpandablePanel;
 import dev.sixik.unigui.widgets.containers.GridBox;
 import dev.sixik.unigui.widgets.containers.HBox;
+import dev.sixik.unigui.widgets.display.Chart;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.feedback.LoadingIndicator;
+import dev.sixik.unigui.widgets.graph.GraphView;
 import dev.sixik.unigui.widgets.graph.NodeGraph;
 import dev.sixik.unigui.widgets.graph.NodeGraphConnection;
 import dev.sixik.unigui.widgets.graph.NodeGraphConnectionValidation;
@@ -182,8 +184,10 @@ import dev.sixik.unigui.widgets.feedback.WindowManager;
 import dev.sixik.unigui.widgets.graph.NodeGraphSelectionMode;
 import dev.sixik.unigui.widgets.interaction.ScrollBar;
 import dev.sixik.unigui.widgets.interaction.SearchableGridPickerWidget;
+import dev.sixik.unigui.widgets.display.Sparkline;
 import dev.sixik.unigui.widgets.interaction.TextField;
 import dev.sixik.unigui.widgets.interaction.TextInput;
+import dev.sixik.unigui.widgets.world.WorldCanvas;
 
 public final class BasicControlsSelfTest {
     public static void main(String[] args) {
@@ -1259,6 +1263,99 @@ public final class BasicControlsSelfTest {
         field.measure(generous);
         expect(near(field.desiredSize().width(), 100.0f) && near(field.desiredSize().height(), 18.0f),
                 "Explicit preferred width should override measured text width");
+
+        RichText compactButtonText = RichText.builder().size(4.0f).tracking(0.3f).uppercase().append("ok").build();
+        Button compactButton = new Button().richText(compactButtonText).textPadding(1.5f, 2.0f);
+        compactButton.measure(generous);
+        expect(near(compactButton.desiredSize().width(), TextEngine.measureLineWidth(compactButtonText) + 3.0f)
+                        && near(compactButton.desiredSize().height(), TextEngine.measureTextHeight(compactButtonText) + 4.0f),
+                "Button should derive intrinsic size from rich text and configurable padding");
+
+        Checkbox compactCheckbox = new Checkbox();
+        compactCheckbox.richText(compactButtonText);
+        compactCheckbox.boxSize(5.0f).textGap(1.0f);
+        compactCheckbox.measure(generous);
+        expect(near(compactCheckbox.desiredSize().width(), 5.0f + 1.0f + TextEngine.measureLineWidth(compactButtonText))
+                        && near(compactCheckbox.desiredSize().height(), Math.max(5.0f, TextEngine.measureTextHeight(compactButtonText))),
+                "Checkbox should derive intrinsic size from marker, rich text and gap");
+
+        RadioButton compactRadio = new RadioButton();
+        compactRadio.richText(compactButtonText);
+        compactRadio.outerSize(5.0f).textGap(1.0f);
+        compactRadio.measure(generous);
+        expect(near(compactRadio.desiredSize().width(), 5.0f + 1.0f + TextEngine.measureLineWidth(compactButtonText))
+                        && near(compactRadio.desiredSize().height(), Math.max(5.0f, TextEngine.measureTextHeight(compactButtonText))),
+                "RadioButton should derive intrinsic size from marker, rich text and gap");
+
+        ProgressBar compactProgress = new ProgressBar().preferredSize(48.0f, 6.0f);
+        compactProgress.measure(generous);
+        expect(near(compactProgress.desiredSize().width(), 48.0f)
+                        && near(compactProgress.desiredSize().height(), 6.0f),
+                "ProgressBar should expose an intrinsic preferred size without external layout size");
+
+        Slider compactSlider = new Slider().preferredSize(64.0f, 10.0f);
+        compactSlider.measure(generous);
+        expect(near(compactSlider.desiredSize().width(), 64.0f)
+                        && near(compactSlider.desiredSize().height(), 10.0f),
+                "Slider should expose an intrinsic preferred size without external layout size");
+
+        ScrollBar verticalScrollBar = new ScrollBar().preferredSize(72.0f, 4.0f);
+        verticalScrollBar.measure(generous);
+        expect(near(verticalScrollBar.desiredSize().width(), 4.0f)
+                        && near(verticalScrollBar.desiredSize().height(), 72.0f),
+                "Vertical ScrollBar should measure thickness by length from intrinsic preferred size");
+
+        ScrollBar horizontalScrollBar = new ScrollBar()
+                .orientation(Orientation.HORIZONTAL)
+                .preferredSize(72.0f, 4.0f);
+        horizontalScrollBar.measure(generous);
+        expect(near(horizontalScrollBar.desiredSize().width(), 72.0f)
+                        && near(horizontalScrollBar.desiredSize().height(), 4.0f),
+                "Horizontal ScrollBar should swap length and thickness in desired size");
+
+        LoadingIndicator compactSpinner = new LoadingIndicator().indicatorSize(16.0f);
+        compactSpinner.measure(generous);
+        expect(near(compactSpinner.desiredSize().width(), 16.0f)
+                        && near(compactSpinner.desiredSize().height(), 16.0f),
+                "LoadingIndicator indicatorSize should set intrinsic square size without external layout size");
+
+        LoadingIndicator compactBarIndicator = new LoadingIndicator()
+                .mode(LoadingIndicator.Mode.BAR)
+                .preferredSize(64.0f, 5.0f);
+        compactBarIndicator.measure(generous);
+        expect(near(compactBarIndicator.desiredSize().width(), 64.0f)
+                        && near(compactBarIndicator.desiredSize().height(), 5.0f),
+                "LoadingIndicator bar mode should expose intrinsic preferred size without external layout size");
+
+        Sparkline compactSparkline = new Sparkline().preferredSize(90.0f, 22.0f);
+        compactSparkline.measure(generous);
+        expect(near(compactSparkline.desiredSize().width(), 90.0f)
+                        && near(compactSparkline.desiredSize().height(), 22.0f),
+                "Sparkline should expose an intrinsic preferred size without external layout size");
+
+        Chart compactChart = new Chart().preferredSize(160.0f, 70.0f);
+        compactChart.measure(generous);
+        expect(near(compactChart.desiredSize().width(), 160.0f)
+                        && near(compactChart.desiredSize().height(), 70.0f),
+                "Chart should expose an intrinsic preferred size without external layout size");
+
+        GraphView compactGraphView = new GraphView().preferredSize(150.0f, 80.0f);
+        compactGraphView.measure(generous);
+        expect(near(compactGraphView.desiredSize().width(), 150.0f)
+                        && near(compactGraphView.desiredSize().height(), 80.0f),
+                "GraphView should expose an intrinsic preferred size without external layout size");
+
+        NodeGraph compactNodeGraph = new NodeGraph().preferredSize(180.0f, 90.0f);
+        compactNodeGraph.measure(generous);
+        expect(near(compactNodeGraph.desiredSize().width(), 180.0f)
+                        && near(compactNodeGraph.desiredSize().height(), 90.0f),
+                "NodeGraph should expose an intrinsic preferred size without external layout size");
+
+        WorldCanvas compactWorldCanvas = new WorldCanvas().preferredSize(200.0f, 96.0f);
+        compactWorldCanvas.measure(generous);
+        expect(near(compactWorldCanvas.desiredSize().width(), 200.0f)
+                        && near(compactWorldCanvas.desiredSize().height(), 96.0f),
+                "WorldCanvas should expose an intrinsic preferred size without external layout size");
 
         HBox hbox = new HBox();
         hbox.spacing(5.0f);

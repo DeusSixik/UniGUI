@@ -12,7 +12,6 @@ import dev.sixik.unigui.api.event.PointerExitedEvent;
 import dev.sixik.unigui.api.event.PointerMovedEvent;
 import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.input.PointerButton;
-import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
@@ -27,6 +26,9 @@ import java.util.Collections;
 import java.util.List;
 
 public final class Chart extends Sparkline {
+    public static final float DEFAULT_PREFERRED_WIDTH = 220.0f;
+    public static final float DEFAULT_PREFERRED_HEIGHT = 120.0f;
+
     private static final float ZERO_BAR_HEIGHT = 1.0f;
     private static final float BAR_HIT_MIN_HEIGHT = 8.0f;
 
@@ -44,6 +46,10 @@ public final class Chart extends Sparkline {
     private BarValueRenderer barValueRenderer;
     private BarTooltipRenderer barTooltipRenderer;
     private int hoveredBarIndex = -1;
+
+    public Chart() {
+        super(DEFAULT_PREFERRED_WIDTH, DEFAULT_PREFERRED_HEIGHT);
+    }
 
     public enum Type {
         LINE,
@@ -145,17 +151,26 @@ public final class Chart extends Sparkline {
         return renderer(null);
     }
 
-    public EventSubscription onBarClick(EventListener<? super ChartBarClickEvent> listener) {
-        return on(ChartBarClickEvent.TYPE, listener);
+    @Override
+    public Chart preferredWidth(float preferredWidth) {
+        super.preferredWidth(preferredWidth);
+        return this;
     }
 
     @Override
-    public void measure(LayoutContext context) {
-        if (visibility() == Visibility.COLLAPSED) {
-            setDesiredSize(0.0f, 0.0f);
-            return;
-        }
-        setDesiredSize(resolveDesiredSize(context, 220.0f, 120.0f));
+    public Chart preferredHeight(float preferredHeight) {
+        super.preferredHeight(preferredHeight);
+        return this;
+    }
+
+    @Override
+    public Chart preferredSize(float width, float height) {
+        super.preferredSize(width, height);
+        return this;
+    }
+
+    public EventSubscription onBarClick(EventListener<? super ChartBarClickEvent> listener) {
+        return on(ChartBarClickEvent.TYPE, listener);
     }
 
     @Override

@@ -12,6 +12,8 @@ import dev.sixik.unigui.widgets.render.ButtonRenderer;
 public final class DestinyLikeButtonRenders {
     private static final float BORDER_WIDTH = 0.16f;
     private static final float TEXT_HORIZONTAL_PADDING = 3.2f;
+    public static final float INTRINSIC_TEXT_PADDING_X = TEXT_HORIZONTAL_PADDING;
+    public static final float INTRINSIC_TEXT_PADDING_Y = 4.0f;
     private static final float TEXT_SIZE = 3.2f;
     private static final float MIN_TEXT_SIZE = 1.8f;
     private static final float TEXT_TRACKING = 0.34f;
@@ -41,6 +43,10 @@ public final class DestinyLikeButtonRenders {
     });
 
     private DestinyLikeButtonRenders() {
+    }
+
+    public static RichText dominionButtonText(String value, ColorView color) {
+        return buildDestinyText(value, color, TEXT_SIZE);
     }
 
     private static RichText destinyText(DrawScope draw, String value, ColorView color, float maxWidth) {

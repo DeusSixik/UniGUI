@@ -7,35 +7,67 @@ import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.impl.layout.v3.LayoutV3DockAdapter;
-
-import java.util.IdentityHashMap;
-import java.util.Map;
 import dev.sixik.unigui.widgets.docking.DockArea;
 import dev.sixik.unigui.widgets.docking.DockingManager;
 import dev.sixik.unigui.widgets.docking.DockingRoot;
 
+import java.util.IdentityHashMap;
+import java.util.Map;
+
 /**
- * Simple dock-layout container for arranging children against LEFT/RIGHT/TOP/BOTTOM edges.
+ * Простой dock-layout контейнер для приклеивания детей к краям области.
  *
- * <p>DockPanel is not the IDE-style docking system root. For panes, tabs,
- * drag-drop areas and layout snapshots, use {@link DockingRoot} and
- * {@link DockingManager}. DockPanel uses {@link DockSide}; docking uses
+ * <p>{@code DockPanel} последовательно обходит детей и отдаёт каждому полосу
+ * у одной из сторон: {@link DockSide#LEFT}, {@link DockSide#RIGHT},
+ * {@link DockSide#TOP} или {@link DockSide#BOTTOM}. После каждого ребёнка
+ * доступная область уменьшается. Если {@link #lastChildFill()} включён, последний
+ * ребёнок занимает весь оставшийся прямоугольник.</p>
+ *
+ * <p>Это не IDE-style docking root. Для панелей, вкладок, drag-drop зон и
+ * snapshot'ов layout'а используй {@link DockingRoot} и {@link DockingManager}.
+ * {@code DockPanel} использует {@link DockSide}, а docking-система —
  * {@link DockArea}.</p>
+ *
+ * <pre>{@code
+ * DockPanel root = new DockPanel();
+ * root.addChild(header, DockSide.TOP);
+ * root.addChild(sidebar, DockSide.LEFT);
+ * root.addChild(content); // заполнит остаток при lastChildFill(true)
+ * }</pre>
  */
 public final class DockPanel extends PanelWidget {
     private final Map<Widget, DockSide> docks = new IdentityHashMap<>();
     private boolean lastChildFill = true;
 
+    /**
+     * Добавляет ребёнка с заданной dock-стороной.
+     *
+     * @param child дочерний виджет; {@code null} игнорируется
+     * @param dockSide сторона приклеивания; {@code null} трактуется как {@link DockSide#LEFT}
+     */
     public void addChild(Widget child, DockSide dockSide) {
         if (child == null) return;
         docks.put(child, dockSide == null ? DockSide.LEFT : dockSide);
         super.addChild(child);
     }
 
+    /**
+     * Возвращает dock-сторону ребёнка.
+     *
+     * @param child дочерний виджет
+     * @return сохранённая сторона или {@link DockSide#LEFT}, если сторона не задана
+     */
     public DockSide dockSide(Widget child) {
         return docks.getOrDefault(child, DockSide.LEFT);
     }
 
+    /**
+     * Меняет dock-сторону уже добавленного или будущего ребёнка.
+     *
+     * @param child виджет, для которого сохраняется сторона; {@code null} игнорируется
+     * @param dockSide новая сторона; {@code null} трактуется как {@link DockSide#LEFT}
+     * @return этот контейнер для fluent-настройки
+     */
     public DockPanel dockSide(Widget child, DockSide dockSide) {
         if (child == null) return this;
         DockSide normalized = dockSide == null ? DockSide.LEFT : dockSide;
@@ -45,10 +77,21 @@ public final class DockPanel extends PanelWidget {
         return this;
     }
 
+    /**
+     * Возвращает, занимает ли последний ребёнок всю оставшуюся область.
+     *
+     * @return {@code true}, если последний ребёнок fill'ит остаток
+     */
     public boolean lastChildFill() {
         return lastChildFill;
     }
 
+    /**
+     * Управляет fill-поведением последнего ребёнка.
+     *
+     * @param lastChildFill {@code true}, чтобы последний ребёнок занимал остаток области
+     * @return этот контейнер для fluent-настройки
+     */
     public DockPanel lastChildFill(boolean lastChildFill) {
         if (this.lastChildFill == lastChildFill) return this;
         this.lastChildFill = lastChildFill;
@@ -56,6 +99,11 @@ public final class DockPanel extends PanelWidget {
         return this;
     }
 
+    /**
+     * Добавляет ребёнка со стороной {@link DockSide#LEFT} по умолчанию.
+     *
+     * @param child дочерний виджет; {@code null} игнорируется
+     */
     @Override
     public void addChild(Widget child) {
         addChild(child, DockSide.LEFT);

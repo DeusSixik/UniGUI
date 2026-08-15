@@ -28,6 +28,9 @@ import java.util.Collections;
 import java.util.List;
 
 public class Sparkline extends WidgetBase {
+    public static final float DEFAULT_PREFERRED_WIDTH = 140.0f;
+    public static final float DEFAULT_PREFERRED_HEIGHT = 34.0f;
+
     private static final float POINT_HIT_RADIUS = 7.0f;
 
     private final FloatArrayList values = new FloatArrayList();
@@ -47,8 +50,16 @@ public class Sparkline extends WidgetBase {
     private SparkPointTooltipRenderer pointTooltipRenderer;
     private SparklineRenderer renderer;
     private int hoveredPointIndex = -1;
+    private float preferredWidth;
+    private float preferredHeight;
 
     public Sparkline() {
+        this(DEFAULT_PREFERRED_WIDTH, DEFAULT_PREFERRED_HEIGHT);
+    }
+
+    protected Sparkline(float preferredWidth, float preferredHeight) {
+        this.preferredWidth = positiveOr(preferredWidth, DEFAULT_PREFERRED_WIDTH);
+        this.preferredHeight = positiveOr(preferredHeight, DEFAULT_PREFERRED_HEIGHT);
         lineColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         fillColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         pointColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
@@ -164,6 +175,34 @@ public class Sparkline extends WidgetBase {
         return renderer(null);
     }
 
+    public float preferredWidth() {
+        return preferredWidth;
+    }
+
+    public Sparkline preferredWidth(float preferredWidth) {
+        float normalized = positiveOr(preferredWidth, DEFAULT_PREFERRED_WIDTH);
+        if (this.preferredWidth == normalized) return this;
+        this.preferredWidth = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public float preferredHeight() {
+        return preferredHeight;
+    }
+
+    public Sparkline preferredHeight(float preferredHeight) {
+        float normalized = positiveOr(preferredHeight, DEFAULT_PREFERRED_HEIGHT);
+        if (this.preferredHeight == normalized) return this;
+        this.preferredHeight = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public Sparkline preferredSize(float width, float height) {
+        return preferredWidth(width).preferredHeight(height);
+    }
+
     public EventSubscription onPointClick(EventListener<? super SparkPointClickEvent> listener) {
         return on(SparkPointClickEvent.TYPE, listener);
     }
@@ -174,7 +213,7 @@ public class Sparkline extends WidgetBase {
             setDesiredSize(0.0f, 0.0f);
             return;
         }
-        setDesiredSize(resolveDesiredSize(context, 140.0f, 34.0f));
+        setDesiredSize(resolveDesiredSize(context, preferredWidth, preferredHeight));
     }
 
     @Override
@@ -320,6 +359,10 @@ public class Sparkline extends WidgetBase {
         if (hoveredPointIndex == -1) return;
         hoveredPointIndex = -1;
         invalidate(InvalidationFlags.VISUAL);
+    }
+
+    private static float positiveOr(float value, float fallback) {
+        return Float.isFinite(value) && value > 0.0f ? value : fallback;
     }
 
     public enum PointMode {

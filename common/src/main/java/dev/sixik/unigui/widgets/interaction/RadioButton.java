@@ -193,8 +193,10 @@ public class RadioButton extends Button {
             setDesiredSize(0.0f, 0.0f);
             return;
         }
-        float textWidth = text().isEmpty() ? 0.0f : textGap + TextEngine.measureLineWidth(richText());
-        setDesiredSize(resolveDesiredSize(context, outerSize + textWidth, DEFAULT_HEIGHT));
+        boolean hasText = !text().isEmpty();
+        float textWidth = hasText ? textGap + TextEngine.measureLineWidth(richText()) : 0.0f;
+        float textHeight = hasText ? TextEngine.measureTextHeight(richText()) : 0.0f;
+        setDesiredSize(resolveDesiredSize(context, outerSize + textWidth, Math.max(outerSize, textHeight)));
     }
 
     @Override

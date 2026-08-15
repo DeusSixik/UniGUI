@@ -12,15 +12,38 @@ import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.impl.layout.v3.LayoutV3GridAdapter;
 
+/**
+ * Простая равномерная сетка с фиксированным количеством колонок.
+ *
+ * <p>{@code GridBox} раскладывает видимые дочерние виджеты построчно: индекс
+ * ребёнка определяет строку и колонку. Количество колонок всегда не меньше
+ * единицы, а расстояния между ячейками задаются отдельно по горизонтали и
+ * вертикали.</p>
+ *
+ * <p>Размеры и alignment конкретного ребёнка продолжают задаваться через его
+ * {@code LayoutConstraints}/{@code LayoutStyle}; сам контейнер отвечает только
+ * за разбиение доступной области на ячейки.</p>
+ */
 public final class GridBox extends PanelWidget {
     private int columns = 1;
     private float horizontalSpacing;
     private float verticalSpacing;
 
+    /**
+     * Возвращает количество колонок сетки.
+     *
+     * @return число колонок, минимум {@code 1}
+     */
     public int columns() {
         return columns;
     }
 
+    /**
+     * Задаёт количество колонок сетки.
+     *
+     * @param columns желаемое количество колонок; значения меньше {@code 1} приводятся к {@code 1}
+     * @return эта сетка для fluent-настройки
+     */
     public GridBox columns(int columns) {
         int normalized = Math.max(1, columns);
         if (this.columns == normalized) return this;
@@ -29,10 +52,21 @@ public final class GridBox extends PanelWidget {
         return this;
     }
 
+    /**
+     * Возвращает горизонтальный gap между колонками.
+     *
+     * @return расстояние между колонками в пикселях UI-пространства
+     */
     public float horizontalSpacing() {
         return horizontalSpacing;
     }
 
+    /**
+     * Задаёт горизонтальный gap между колонками.
+     *
+     * @param horizontalSpacing расстояние между колонками в пикселях UI-пространства
+     * @return эта сетка для fluent-настройки
+     */
     public GridBox horizontalSpacing(float horizontalSpacing) {
         if (this.horizontalSpacing == horizontalSpacing) return this;
         this.horizontalSpacing = horizontalSpacing;
@@ -40,10 +74,21 @@ public final class GridBox extends PanelWidget {
         return this;
     }
 
+    /**
+     * Возвращает вертикальный gap между строками.
+     *
+     * @return расстояние между строками в пикселях UI-пространства
+     */
     public float verticalSpacing() {
         return verticalSpacing;
     }
 
+    /**
+     * Задаёт вертикальный gap между строками.
+     *
+     * @param verticalSpacing расстояние между строками в пикселях UI-пространства
+     * @return эта сетка для fluent-настройки
+     */
     public GridBox verticalSpacing(float verticalSpacing) {
         if (this.verticalSpacing == verticalSpacing) return this;
         this.verticalSpacing = verticalSpacing;
@@ -51,6 +96,12 @@ public final class GridBox extends PanelWidget {
         return this;
     }
 
+    /**
+     * Задаёт одинаковый gap между строками и колонками.
+     *
+     * @param spacing расстояние между ячейками в пикселях UI-пространства
+     * @return эта сетка для fluent-настройки
+     */
     public GridBox spacing(float spacing) {
         return horizontalSpacing(spacing).verticalSpacing(spacing);
     }

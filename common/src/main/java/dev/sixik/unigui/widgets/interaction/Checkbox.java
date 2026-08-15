@@ -192,8 +192,10 @@ public class Checkbox extends ToggleButton {
             setDesiredSize(0.0f, 0.0f);
             return;
         }
-        float textWidth = text().isEmpty() ? 0.0f : textGap + TextEngine.measureLineWidth(richText());
-        setDesiredSize(resolveDesiredSize(context, boxSize + textWidth, DEFAULT_HEIGHT));
+        boolean hasText = !text().isEmpty();
+        float textWidth = hasText ? textGap + TextEngine.measureLineWidth(richText()) : 0.0f;
+        float textHeight = hasText ? TextEngine.measureTextHeight(richText()) : 0.0f;
+        setDesiredSize(resolveDesiredSize(context, boxSize + textWidth, Math.max(boxSize, textHeight)));
     }
 
     @Override

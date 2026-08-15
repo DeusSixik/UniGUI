@@ -65,8 +65,9 @@ import java.util.Objects;
 import dev.sixik.unigui.widgets.containers.StackPanel;
 
 public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapper, RenderedBoundsMapper {
-    private static final float DEFAULT_WIDTH = 320.0f;
-    private static final float DEFAULT_HEIGHT = 200.0f;
+    public static final float DEFAULT_PREFERRED_WIDTH = 320.0f;
+    public static final float DEFAULT_PREFERRED_HEIGHT = 200.0f;
+
     private static final float MIN_ITEM_SIZE = 1.0f;
     private static final float PORT_RADIUS = 5.0f;
     private static final float PORT_HIT_RADIUS = 7.0f;
@@ -126,6 +127,8 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     private NodeGraphPortRef hoveredPort = new NodeGraphPortRef("", "");
     private String hoveredConnectionId = "";
     private int nextConnectionId = 1;
+    private float preferredWidth = DEFAULT_PREFERRED_WIDTH;
+    private float preferredHeight = DEFAULT_PREFERRED_HEIGHT;
 
     private DragState dragState;
     private ConnectionDragState connectionDragState;
@@ -611,6 +614,34 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return renderer(null);
     }
 
+    public float preferredWidth() {
+        return preferredWidth;
+    }
+
+    public NodeGraph preferredWidth(float preferredWidth) {
+        float normalized = positiveOr(preferredWidth, DEFAULT_PREFERRED_WIDTH);
+        if (this.preferredWidth == normalized) return this;
+        this.preferredWidth = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public float preferredHeight() {
+        return preferredHeight;
+    }
+
+    public NodeGraph preferredHeight(float preferredHeight) {
+        float normalized = positiveOr(preferredHeight, DEFAULT_PREFERRED_HEIGHT);
+        if (this.preferredHeight == normalized) return this;
+        this.preferredHeight = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public NodeGraph preferredSize(float width, float height) {
+        return preferredWidth(width).preferredHeight(height);
+    }
+
     public NodeGraphConnectionPolicy connectionPolicy() {
         return connectionPolicy;
     }
@@ -989,7 +1020,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
             float height = item.autoHeight() ? StackPanel.preferredHeight(item.content(), 0.0f) + padding : item.height();
             item.arrangedSize(Math.max(MIN_ITEM_SIZE, width), Math.max(MIN_ITEM_SIZE, height));
         }
-        setDesiredSize(resolveDesiredSize(context, DEFAULT_WIDTH, DEFAULT_HEIGHT));
+        setDesiredSize(resolveDesiredSize(context, preferredWidth, preferredHeight));
     }
 
     @Override
@@ -1986,6 +2017,10 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     private static float clamp(float value, float min, float max) {
         if (max < min) return min;
         return Math.max(min, Math.min(max, value));
+    }
+
+    private static float positiveOr(float value, float fallback) {
+        return Float.isFinite(value) && value > 0.0f ? value : fallback;
     }
 
     private enum DragKind {

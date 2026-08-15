@@ -22,7 +22,9 @@ import dev.sixik.unigui.widgets.containers.Box;
  * represents progress for a ranged operation, but the current value is unknown.</p>
  */
 public class LoadingIndicator extends Box {
-    private static final float DEFAULT_SIZE = 24.0f;
+    public static final float DEFAULT_PREFERRED_SIZE = 24.0f;
+    public static final float DEFAULT_BAR_PREFERRED_WIDTH = 96.0f;
+    public static final float DEFAULT_BAR_PREFERRED_HEIGHT = 8.0f;
 
     private final MutableColor accentColor = new MutableColor(0.25f, 0.78f, 1.0f, 1.0f);
     private final MutableColor secondaryColor = new MutableColor(1.0f, 1.0f, 1.0f, 0.95f);
@@ -41,6 +43,8 @@ public class LoadingIndicator extends Box {
     private float thickness = 3.0f;
     private float radius;
     private float angle = (float) (Math.PI * 1.45);
+    private float preferredWidth = Float.NaN;
+    private float preferredHeight = Float.NaN;
 
     public LoadingIndicator() {
         backgroundVisible(false);
@@ -219,8 +223,43 @@ public class LoadingIndicator extends Box {
     }
 
     public LoadingIndicator indicatorSize(float size) {
-        float normalized = Float.isFinite(size) ? Math.max(1.0f, size) : DEFAULT_SIZE;
-        layout(style -> style.size(normalized, normalized));
+        float normalized = positiveOr(size, DEFAULT_PREFERRED_SIZE);
+        return preferredSize(normalized, normalized);
+    }
+
+    public float preferredWidth() {
+        return effectivePreferredWidth();
+    }
+
+    public LoadingIndicator preferredWidth(float preferredWidth) {
+        float normalized = positiveOr(preferredWidth, defaultPreferredWidth());
+        if (this.preferredWidth == normalized) return this;
+        this.preferredWidth = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public float preferredHeight() {
+        return effectivePreferredHeight();
+    }
+
+    public LoadingIndicator preferredHeight(float preferredHeight) {
+        float normalized = positiveOr(preferredHeight, defaultPreferredHeight());
+        if (this.preferredHeight == normalized) return this;
+        this.preferredHeight = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public LoadingIndicator preferredSize(float width, float height) {
+        return preferredWidth(width).preferredHeight(height);
+    }
+
+    public LoadingIndicator useDefaultPreferredSize() {
+        if (Float.isNaN(preferredWidth) && Float.isNaN(preferredHeight)) return this;
+        preferredWidth = Float.NaN;
+        preferredHeight = Float.NaN;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
 
@@ -242,9 +281,7 @@ public class LoadingIndicator extends Box {
             setDesiredSize(LayoutSize.ZERO);
             return;
         }
-        float width = mode == Mode.BAR ? 96.0f : DEFAULT_SIZE;
-        float height = mode == Mode.BAR ? 8.0f : DEFAULT_SIZE;
-        setDesiredSize(resolveDesiredSize(context, width, height));
+        setDesiredSize(resolveDesiredSize(context, effectivePreferredWidth(), effectivePreferredHeight()));
     }
 
     @Override
@@ -306,6 +343,26 @@ public class LoadingIndicator extends Box {
         if (radius > 0.0f) return radius;
         float size = Math.max(1.0f, Math.min(layoutBounds().width(), layoutBounds().height()));
         return Math.max(1.0f, size * 0.5f - Math.max(1.0f, thickness));
+    }
+
+    private float effectivePreferredWidth() {
+        return Float.isFinite(preferredWidth) ? preferredWidth : defaultPreferredWidth();
+    }
+
+    private float effectivePreferredHeight() {
+        return Float.isFinite(preferredHeight) ? preferredHeight : defaultPreferredHeight();
+    }
+
+    private float defaultPreferredWidth() {
+        return mode == Mode.BAR ? DEFAULT_BAR_PREFERRED_WIDTH : DEFAULT_PREFERRED_SIZE;
+    }
+
+    private float defaultPreferredHeight() {
+        return mode == Mode.BAR ? DEFAULT_BAR_PREFERRED_HEIGHT : DEFAULT_PREFERRED_SIZE;
+    }
+
+    private static float positiveOr(float value, float fallback) {
+        return Float.isFinite(value) && value > 0.0f ? value : fallback;
     }
 
     private static float wrap01(float value) {

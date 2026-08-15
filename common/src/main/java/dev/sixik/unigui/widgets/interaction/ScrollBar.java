@@ -14,6 +14,7 @@ import dev.sixik.unigui.api.event.PointerReleasedEvent;
 import dev.sixik.unigui.api.event.ScrollBarValueChangedEvent;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.input.PointerButton;
+import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
@@ -28,11 +29,15 @@ import dev.sixik.unigui.widgets.core.Orientation;
 public class ScrollBar extends Box {
     public static final float DEFAULT_SIZE = 6.0f;
     public static final float DEFAULT_GAP = 8.0f;
+    public static final float DEFAULT_PREFERRED_LENGTH = 120.0f;
+    public static final float DEFAULT_PREFERRED_THICKNESS = DEFAULT_SIZE;
 
     private final MutableColor trackColor = new MutableColor(0.0f, 0.0f, 0.0f, 0.28f);
     private final MutableColor thumbColor = new MutableColor(0.25f, 0.78f, 1.0f, 0.75f);
     private Orientation orientation = Orientation.VERTICAL;
     private ScrollBarRenderer renderer;
+    private float preferredLength = DEFAULT_PREFERRED_LENGTH;
+    private float preferredThickness = DEFAULT_PREFERRED_THICKNESS;
     private float min;
     private float max;
     private float value;
@@ -144,8 +149,49 @@ public class ScrollBar extends Box {
         return renderer(null);
     }
 
+    public float preferredLength() {
+        return preferredLength;
+    }
+
+    public ScrollBar preferredLength(float preferredLength) {
+        float normalized = positiveOr(preferredLength, DEFAULT_PREFERRED_LENGTH);
+        if (this.preferredLength == normalized) return this;
+        this.preferredLength = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public float preferredThickness() {
+        return preferredThickness;
+    }
+
+    public ScrollBar preferredThickness(float preferredThickness) {
+        float normalized = positiveOr(preferredThickness, DEFAULT_PREFERRED_THICKNESS);
+        if (this.preferredThickness == normalized) return this;
+        this.preferredThickness = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public ScrollBar preferredSize(float length, float thickness) {
+        return preferredLength(length).preferredThickness(thickness);
+    }
+
     public EventSubscription onValueChanged(EventListener<? super ScrollBarValueChangedEvent> listener) {
         return on(ScrollBarValueChangedEvent.TYPE, listener);
+    }
+
+    @Override
+    public void measure(LayoutContext context) {
+        if (visibility() == Visibility.COLLAPSED) {
+            setDesiredSize(0.0f, 0.0f);
+            return;
+        }
+        if (orientation == Orientation.VERTICAL) {
+            setDesiredSize(resolveDesiredSize(context, preferredThickness, preferredLength));
+        } else {
+            setDesiredSize(resolveDesiredSize(context, preferredLength, preferredThickness));
+        }
     }
 
     @Override
@@ -267,5 +313,9 @@ public class ScrollBar extends Box {
 
     private static float clamp(float value, float min, float max) {
         return Math.max(min, Math.min(max, value));
+    }
+
+    private static float positiveOr(float value, float fallback) {
+        return Float.isFinite(value) && value > 0.0f ? value : fallback;
     }
 }

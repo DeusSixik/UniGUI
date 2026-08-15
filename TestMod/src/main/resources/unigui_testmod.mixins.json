@@ -3,10 +3,14 @@
   "package": "dev.sixik.unigui.testmod.mixin",
   "compatibilityLevel": "JAVA_17",
   "client": [
+    "PauseScreenMixin",
     "TitleScreenMixin",
-    "PauseScreenMixin"
+    "minecraft.MixinVideoSettingsScreen"
   ],
   "injectors": {
     "defaultRequire": 1
-  }
+  },
+  "mixins": [
+    "minecraft.MixinOptionsScreen"
+  ]
 }

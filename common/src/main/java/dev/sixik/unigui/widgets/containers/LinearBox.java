@@ -10,19 +10,55 @@ import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.impl.layout.v3.LayoutV3FlexAdapter;
 import dev.sixik.unigui.widgets.core.Orientation;
 
+/**
+ * Одномерный flex-контейнер без переноса строк.
+ *
+ * <p>{@code LinearBox} синхронизирует своё {@code orientation/spacing} с
+ * {@link dev.sixik.unigui.api.layout.LayoutStyle}: горизонтальная ориентация
+ * использует {@code FlexDirection.ROW} и {@code columnGap}, вертикальная —
+ * {@code FlexDirection.COLUMN} и {@code rowGap}. Остальные flex-свойства детей
+ * задаются через {@code child.layout(style -> ...)}.</p>
+ *
+ * <p>Для обычного кода чаще используются готовые наследники {@link HBox} и
+ * {@link VBox}. Сам {@code LinearBox} удобен, когда направление нужно менять
+ * динамически.</p>
+ *
+ * @see HBox
+ * @see VBox
+ * @see WrapPanel
+ */
 public class LinearBox extends PanelWidget {
     private Orientation orientation;
     private float spacing;
 
+    /**
+     * Создаёт линейный контейнер с заданной ориентацией.
+     *
+     * @param orientation направление раскладки; {@code null} трактуется как {@link Orientation#VERTICAL}
+     */
     public LinearBox(Orientation orientation) {
         this.orientation = orientation == null ? Orientation.VERTICAL : orientation;
         syncLayoutStyle();
     }
 
+    /**
+     * Возвращает направление раскладки детей.
+     *
+     * @return горизонтальная или вертикальная ориентация
+     */
     public Orientation orientation() {
         return orientation;
     }
 
+    /**
+     * Меняет направление раскладки детей.
+     *
+     * <p>При смене направления контейнер обновляет flex-настройки своего
+     * {@code LayoutStyle} и инвалидирует layout.</p>
+     *
+     * @param orientation новое направление; {@code null} трактуется как {@link Orientation#VERTICAL}
+     * @return этот контейнер для fluent-настройки
+     */
     public LinearBox orientation(Orientation orientation) {
         Orientation normalized = orientation == null ? Orientation.VERTICAL : orientation;
         if (this.orientation == normalized) return this;
@@ -32,10 +68,21 @@ public class LinearBox extends PanelWidget {
         return this;
     }
 
+    /**
+     * Возвращает расстояние между соседними детьми на главной оси.
+     *
+     * @return spacing в пикселях UI-пространства
+     */
     public float spacing() {
         return spacing;
     }
 
+    /**
+     * Задаёт расстояние между соседними детьми на главной оси.
+     *
+     * @param spacing spacing в пикселях UI-пространства
+     * @return этот контейнер для fluent-настройки
+     */
     public LinearBox spacing(float spacing) {
         if (this.spacing == spacing) return this;
         this.spacing = spacing;

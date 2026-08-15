@@ -78,8 +78,8 @@ import java.util.List;
  * @see dev.sixik.unigui.widgets.map.MapCanvas
  */
 public class WorldCanvas extends WidgetBase {
-    private static final float DEFAULT_WIDTH = 320.0f;
-    private static final float DEFAULT_HEIGHT = 240.0f;
+    public static final float DEFAULT_PREFERRED_WIDTH = 320.0f;
+    public static final float DEFAULT_PREFERRED_HEIGHT = 240.0f;
 
     private Viewport2D viewport = new Viewport2D();
     /**
@@ -112,6 +112,8 @@ public class WorldCanvas extends WidgetBase {
     private float wheelPanStep = 32.0f;
     private float zoomStep = 1.1f;
     private PointerButton panButton = PointerButton.PRIMARY;
+    private float preferredWidth = DEFAULT_PREFERRED_WIDTH;
+    private float preferredHeight = DEFAULT_PREFERRED_HEIGHT;
     private PanDragState panDrag;
 
     /**
@@ -490,6 +492,63 @@ public class WorldCanvas extends WidgetBase {
     }
 
     /**
+     * Возвращает intrinsic-ширину canvas'а, используемую при {@code AUTO} layout-size.
+     *
+     * @return preferred ширина в screen-space пикселях
+     */
+    public float preferredWidth() {
+        return preferredWidth;
+    }
+
+    /**
+     * Задаёт intrinsic-ширину canvas'а без записи явного размера в layout-style.
+     *
+     * @param preferredWidth preferred ширина; неположительные/NaN значения сбрасываются к default
+     * @return этот canvas для fluent-настройки
+     */
+    public WorldCanvas preferredWidth(float preferredWidth) {
+        float normalized = positiveOr(preferredWidth, DEFAULT_PREFERRED_WIDTH);
+        if (this.preferredWidth == normalized) return this;
+        this.preferredWidth = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Возвращает intrinsic-высоту canvas'а, используемую при {@code AUTO} layout-size.
+     *
+     * @return preferred высота в screen-space пикселях
+     */
+    public float preferredHeight() {
+        return preferredHeight;
+    }
+
+    /**
+     * Задаёт intrinsic-высоту canvas'а без записи явного размера в layout-style.
+     *
+     * @param preferredHeight preferred высота; неположительные/NaN значения сбрасываются к default
+     * @return этот canvas для fluent-настройки
+     */
+    public WorldCanvas preferredHeight(float preferredHeight) {
+        float normalized = positiveOr(preferredHeight, DEFAULT_PREFERRED_HEIGHT);
+        if (this.preferredHeight == normalized) return this;
+        this.preferredHeight = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Задаёт intrinsic-размер canvas'а для авто-компоновки.
+     *
+     * @param width preferred ширина
+     * @param height preferred высота
+     * @return этот canvas для fluent-настройки
+     */
+    public WorldCanvas preferredSize(float width, float height) {
+        return preferredWidth(width).preferredHeight(height);
+    }
+
+    /**
      * Переводит X из world-space в root-space.
      *
      * <p>Root-space — координаты верхнего UI-дерева/экрана, то есть уже с
@@ -619,7 +678,7 @@ public class WorldCanvas extends WidgetBase {
                 child.measure(childContext);
             }
         }
-        setDesiredSize(resolveDesiredSize(context, DEFAULT_WIDTH, DEFAULT_HEIGHT));
+        setDesiredSize(resolveDesiredSize(context, preferredWidth, preferredHeight));
     }
 
     @Override
@@ -898,6 +957,10 @@ public class WorldCanvas extends WidgetBase {
 
     private static float sanitizeSize(float value) {
         return Float.isFinite(value) ? Math.max(0.0f, value) : 0.0f;
+    }
+
+    private static float positiveOr(float value, float fallback) {
+        return Float.isFinite(value) && value > 0.0f ? value : fallback;
     }
 
     private static boolean rectsIntersect(float ax, float ay, float aw, float ah,
