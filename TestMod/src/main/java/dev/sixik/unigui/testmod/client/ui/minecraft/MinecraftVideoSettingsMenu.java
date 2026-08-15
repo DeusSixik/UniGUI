@@ -4,17 +4,21 @@ import com.google.common.collect.ImmutableList;
 import com.mojang.blaze3d.platform.Monitor;
 import com.mojang.blaze3d.platform.VideoMode;
 import com.mojang.blaze3d.platform.Window;
+import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UnityLikeUIScaleProvider;
 import dev.sixik.unigui.api.event.EventPhase;
 import dev.sixik.unigui.api.event.KeyPressedEvent;
 import dev.sixik.unigui.api.event.PointerEnteredEvent;
 import dev.sixik.unigui.api.event.PointerExitedEvent;
+import dev.sixik.unigui.api.event.PointerMovedEvent;
 import dev.sixik.unigui.api.layout.Align;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.Justify;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
+import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.Overflow;
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.UiRenderPolicy;
 import dev.sixik.unigui.api.render.shaders.ShaderDrawOptions;
@@ -22,7 +26,9 @@ import dev.sixik.unigui.api.render.shaders.ShaderHandle;
 import dev.sixik.unigui.api.render.shaders.ShaderUniforms;
 import dev.sixik.unigui.api.text.Fonts;
 import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.backend.minecraft.MinecraftClipboardService;
 import dev.sixik.unigui.backend.minecraft.MinecraftWidgetScreen;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
@@ -31,6 +37,7 @@ import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeCheckboxRenders;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeDropDownRenders;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeScrollBarRenders;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeSliderRenders;
+import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeTooltipRenders;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeToggleSwitchRenders;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.HBox;
@@ -46,6 +53,7 @@ import dev.sixik.unigui.widgets.interaction.Slider;
 import dev.sixik.unigui.widgets.interaction.ToggleButton;
 import dev.sixik.unigui.widgets.interaction.ToggleSwitch;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
+import dev.sixik.unigui.widgets.feedback.Tooltip;
 import dev.sixik.unigui.widgets.render.ButtonRenderer;
 import net.minecraft.client.AttackIndicatorStatus;
 import net.minecraft.client.CloudStatus;
@@ -231,6 +239,10 @@ public final class MinecraftVideoSettingsMenu {
     private static final float TOGGLE_SWITCH_WIDTH = 14.0f;
     private static final float TOGGLE_SWITCH_HEIGHT = 7.0f;
     private static final float TOGGLE_SWITCH_THUMB = 5.0f;
+    private static final float TOOLTIP_OFFSET_X = 10.0f;
+    private static final float TOOLTIP_OFFSET_Y = 8.0f;
+    private static final float TOOLTIP_MAX_WIDTH = 285.0f;
+    private static final float TOOLTIP_WIDTH_BUFFER = 34.0f;
 
     private static final MutableColor TEXT = MutableColor.rgba255(245, 247, 255, 255);
     private static final MutableColor STARFIELD_FALLBACK_BACKGROUND = MutableColor.rgba255(8, 13, 27, 255);
@@ -243,6 +255,8 @@ public final class MinecraftVideoSettingsMenu {
     private static final MutableColor BUTTON_BACKGROUND = MutableColor.rgba255(22, 25, 31, 255);
     private static final MutableColor BUTTON_CONFIRM = MutableColor.rgba255(90, 165, 106, 255);
     private static final MutableColor BUTTON_RESET = MutableColor.rgba255(214, 207, 145, 255);
+    private static final MutableColor TOOLTIP_TITLE = MutableColor.rgba255(230, 223, 196, 255);
+    private static final MutableColor TOOLTIP_BODY = MutableColor.rgba255(218, 220, 225, 255);
 
     public static MinecraftWidgetScreen openGui(Screen last, Options options) {
         DefaultUIContext context = new DefaultUIContext(new MinecraftClipboardService());
@@ -254,18 +268,25 @@ public final class MinecraftVideoSettingsMenu {
 
         context.scaleProvider(scale);
 
+        List<SettingTooltipTarget> settingTooltipTargets = new ArrayList<>();
         int oldMipmaps = options.mipmapLevels().get();
-        return openScreen(last, screen(options, last, oldMipmaps), context, options, oldMipmaps);
+        return openScreen(last, screen(options, last, oldMipmaps, settingTooltipTargets), context, options, oldMipmaps, settingTooltipTargets);
     }
 
     private static MinecraftWidgetScreen openScreen(Screen last,
                                                     Widget root,
                                                     DefaultUIContext context,
                                                     Options options,
-                                                    int oldMipmaps) {
+                                                    int oldMipmaps, List<SettingTooltipTarget> settingTooltipTargets) {
+        boolean[] tooltipsEnabled = {true};
         MinecraftWidgetScreen screen = new MinecraftWidgetScreen(Component.empty(), root, context) {
             @Override
             protected boolean vanillaKeyPressed(int keyCode, int scanCode, int modifiers) {
+                if(keyCode == GLFW.GLFW_KEY_T) {
+                    tooltipsEnabled[0] = !tooltipsEnabled[0];
+                    setTooltipsVisible(settingTooltipTargets, tooltipsEnabled[0]);
+                }
+
                 if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
                     finishVideoSettings(last, options, oldMipmaps);
                     return true;
@@ -279,7 +300,7 @@ public final class MinecraftVideoSettingsMenu {
         return screen;
     }
 
-    private static Widget screen(Options options, Screen last, int oldMipmaps) {
+    private static Widget screen(Options options, Screen last, int oldMipmaps, List<SettingTooltipTarget> settingTooltipTargets) {
         StackPanel root = new StackPanel();
         root.layout(style -> style.align(Alignment.STRETCH, Alignment.STRETCH));
         root.on(KeyPressedEvent.TYPE, event -> {
@@ -289,9 +310,20 @@ public final class MinecraftVideoSettingsMenu {
         });
 
         root.addChild(backdrop());
-        root.addChild(settingsPanel(last, options, oldMipmaps));
+        root.addChild(settingsPanel(last, options, oldMipmaps, settingTooltipTargets));
 
-        return new OverlayLayer(root);
+        OverlayLayer layer = new OverlayLayer(root);
+        for (SettingTooltipTarget target : settingTooltipTargets) {
+            layer.addOverlay(settingTooltip(target));
+        }
+        return layer;
+    }
+
+    private static void setTooltipsVisible(List<SettingTooltipTarget> targets, boolean visible) {
+        Visibility visibility = visible ? Visibility.VISIBLE : Visibility.HIDDEN;
+        for (SettingTooltipTarget target : targets) {
+            target.tooltipVisibility(visibility);
+        }
     }
 
     private static CanvasWidget backdrop() {
@@ -317,7 +349,10 @@ public final class MinecraftVideoSettingsMenu {
         return backdrop;
     }
 
-    private static Box settingsPanel(Screen last, Options options, int oldMipmaps) {
+    private static Box settingsPanel(Screen last,
+                                     Options options,
+                                     int oldMipmaps,
+                                     List<SettingTooltipTarget> settingTooltipTargets) {
         Box panel = new Box();
         panel.themeEnabled(false);
         panel.backgroundVisible(true);
@@ -340,7 +375,7 @@ public final class MinecraftVideoSettingsMenu {
                 .alignItems(Align.CENTER));
 
         List<Runnable> resetRefreshers = new ArrayList<>();
-        VBox rows = videoSettingsRows(options, resetRefreshers);
+        VBox rows = videoSettingsRows(options, resetRefreshers, settingTooltipTargets);
 
         content.addChild(title());
         content.addChild(separator());
@@ -380,7 +415,9 @@ public final class MinecraftVideoSettingsMenu {
         return scroll;
     }
 
-    private static VBox videoSettingsRows(Options options, List<Runnable> resetRefreshers) {
+    private static VBox videoSettingsRows(Options options,
+                                          List<Runnable> resetRefreshers,
+                                          List<SettingTooltipTarget> settingTooltipTargets) {
         VBox rows = new VBox();
         rows.spacing(ROW_SPACING);
         rows.layout(style -> style
@@ -391,32 +428,213 @@ public final class MinecraftVideoSettingsMenu {
                 .flexGrow(0.0f)
                 .flexShrink(0.0f));
 
-        rows.addChild(settingRow("FULLSCREEN RESOLUTION", fullscreenResolutionControl(options, resetRefreshers)));
-        rows.addChild(settingRow(optionLabel(options.biomeBlendRadius()), intSlider(options, options.biomeBlendRadius(), 0, 7, 1, value -> (value * 2 + 1) + "x" + (value * 2 + 1), resetRefreshers)));
-        rows.addChild(settingRow(optionLabel(options.graphicsMode()), graphicsDropBox(options, resetRefreshers)));
-        rows.addChild(settingRow(optionLabel(options.renderDistance()), intSlider(options, options.renderDistance(), 2, maxChunkDistance(), 1, value -> Integer.toString(value), resetRefreshers)));
-        rows.addChild(settingRow(optionLabel(options.prioritizeChunkUpdates()), enumDropBox(options.prioritizeChunkUpdates(), PrioritizeChunkUpdates.values(), value -> setOption(options, options.prioritizeChunkUpdates(), value), resetRefreshers)));
-        rows.addChild(settingRow(optionLabel(options.simulationDistance()), intSlider(options, options.simulationDistance(), 5, maxChunkDistance(), 1, value -> Integer.toString(value), resetRefreshers)));
-        rows.addChild(settingRow(optionLabel(options.ambientOcclusion()), booleanSwitch(options, options.ambientOcclusion(), resetRefreshers)));
-        rows.addChild(settingRow(optionLabel(options.framerateLimit()), intSlider(options, options.framerateLimit(), 10, Options.UNLIMITED_FRAMERATE_CUTOFF, 10, value -> value >= Options.UNLIMITED_FRAMERATE_CUTOFF ? "MAX" : Integer.toString(value), resetRefreshers)));
-        rows.addChild(settingRow(optionLabel(options.enableVsync()), booleanSwitch(options, options.enableVsync(), resetRefreshers)));
-        rows.addChild(settingRow(optionLabel(options.bobView()), booleanSwitch(options, options.bobView(), resetRefreshers)));
-        rows.addChild(settingRow(optionLabel(options.guiScale()), intSlider(options, options.guiScale(), 0, maxGuiScale(), 1, value -> value == 0 ? "AUTO" : Integer.toString(value), value -> setGuiScale(options, value), resetRefreshers)));
-        rows.addChild(settingRow(optionLabel(options.attackIndicator()), enumDropBox(options.attackIndicator(), AttackIndicatorStatus.values(), value -> setOption(options, options.attackIndicator(), value), resetRefreshers)));
-        rows.addChild(settingRow(optionLabel(options.gamma()), doubleSlider(options, options.gamma(), 0.0, 1.0, 0.01, MinecraftVideoSettingsMenu::percentLabel, resetRefreshers)));
-        rows.addChild(settingRow(optionLabel(options.cloudStatus()), enumDropBox(options.cloudStatus(), CloudStatus.values(), value -> setOption(options, options.cloudStatus(), value), resetRefreshers)));
-        rows.addChild(settingRow(optionLabel(options.fullscreen()), booleanSwitch(options, options.fullscreen(), resetRefreshers)));
-        rows.addChild(settingRow(optionLabel(options.particles()), enumDropBox(options.particles(), ParticleStatus.values(), value -> setOption(options, options.particles(), value), resetRefreshers)));
-        rows.addChild(settingRow(optionLabel(options.mipmapLevels()), intSlider(options, options.mipmapLevels(), 0, 4, 1, value -> value == 0 ? "OFF" : Integer.toString(value), resetRefreshers)));
-        rows.addChild(settingRow(optionLabel(options.entityShadows()), booleanSwitch(options, options.entityShadows(), resetRefreshers)));
-        rows.addChild(settingRow(optionLabel(options.screenEffectScale()), doubleSlider(options, options.screenEffectScale(), 0.0, 1.0, 0.01, MinecraftVideoSettingsMenu::percentLabel, resetRefreshers)));
-        rows.addChild(settingRow(optionLabel(options.entityDistanceScaling()), doubleSlider(options, options.entityDistanceScaling(), 0.5, 5.0, 0.25, value -> String.format(java.util.Locale.ROOT, "%.2fx", value), resetRefreshers)));
-        rows.addChild(settingRow(optionLabel(options.fovEffectScale()), doubleSlider(options, options.fovEffectScale(), 0.0, 1.0, 0.01, MinecraftVideoSettingsMenu::percentLabel, resetRefreshers)));
-        rows.addChild(settingRow(optionLabel(options.showAutosaveIndicator()), booleanSwitch(options, options.showAutosaveIndicator(), resetRefreshers)));
-        rows.addChild(settingRow(optionLabel(options.glintSpeed()), doubleSlider(options, options.glintSpeed(), 0.0, 1.0, 0.01, MinecraftVideoSettingsMenu::percentLabel, resetRefreshers)));
-        rows.addChild(settingRow(optionLabel(options.glintStrength()), doubleSlider(options, options.glintStrength(), 0.0, 1.0, 0.01, MinecraftVideoSettingsMenu::percentLabel, resetRefreshers)));
-
+        addSettingRow(rows, settingTooltipTargets, "FULLSCREEN RESOLUTION", fullscreenResolutionControl(options, resetRefreshers));
+        addSettingRow(rows, settingTooltipTargets, optionLabel(options.biomeBlendRadius()), intSlider(options, options.biomeBlendRadius(), 0, 7, 1, value -> (value * 2 + 1) + "x" + (value * 2 + 1), resetRefreshers));
+        addSettingRow(rows, settingTooltipTargets, optionLabel(options.graphicsMode()), graphicsDropBox(options, resetRefreshers));
+        addSettingRow(rows, settingTooltipTargets, optionLabel(options.renderDistance()), intSlider(options, options.renderDistance(), 2, maxChunkDistance(), 1, value -> Integer.toString(value), resetRefreshers));
+        addSettingRow(rows, settingTooltipTargets, optionLabel(options.prioritizeChunkUpdates()), enumDropBox(options.prioritizeChunkUpdates(), PrioritizeChunkUpdates.values(), value -> setOption(options, options.prioritizeChunkUpdates(), value), resetRefreshers));
+        addSettingRow(rows, settingTooltipTargets, optionLabel(options.simulationDistance()), intSlider(options, options.simulationDistance(), 5, maxChunkDistance(), 1, value -> Integer.toString(value), resetRefreshers));
+        addSettingRow(rows, settingTooltipTargets, optionLabel(options.ambientOcclusion()), booleanSwitch(options, options.ambientOcclusion(), resetRefreshers));
+        addSettingRow(rows, settingTooltipTargets, optionLabel(options.framerateLimit()), intSlider(options, options.framerateLimit(), 10, Options.UNLIMITED_FRAMERATE_CUTOFF, 10, value -> value >= Options.UNLIMITED_FRAMERATE_CUTOFF ? "MAX" : Integer.toString(value), resetRefreshers));
+        addSettingRow(rows, settingTooltipTargets, optionLabel(options.enableVsync()), booleanSwitch(options, options.enableVsync(), resetRefreshers));
+        addSettingRow(rows, settingTooltipTargets, optionLabel(options.bobView()), booleanSwitch(options, options.bobView(), resetRefreshers));
+        addSettingRow(rows, settingTooltipTargets, optionLabel(options.guiScale()), intSlider(options, options.guiScale(), 0, maxGuiScale(), 1, value -> value == 0 ? "AUTO" : Integer.toString(value), value -> setGuiScale(options, value), resetRefreshers));
+        addSettingRow(rows, settingTooltipTargets, optionLabel(options.attackIndicator()), enumDropBox(options.attackIndicator(), AttackIndicatorStatus.values(), value -> setOption(options, options.attackIndicator(), value), resetRefreshers));
+        addSettingRow(rows, settingTooltipTargets, optionLabel(options.gamma()), doubleSlider(options, options.gamma(), 0.0, 1.0, 0.01, MinecraftVideoSettingsMenu::percentLabel, resetRefreshers));
+        addSettingRow(rows, settingTooltipTargets, optionLabel(options.cloudStatus()), enumDropBox(options.cloudStatus(), CloudStatus.values(), value -> setOption(options, options.cloudStatus(), value), resetRefreshers));
+        addSettingRow(rows, settingTooltipTargets, optionLabel(options.fullscreen()), booleanSwitch(options, options.fullscreen(), resetRefreshers));
+        addSettingRow(rows, settingTooltipTargets, optionLabel(options.particles()), enumDropBox(options.particles(), ParticleStatus.values(), value -> setOption(options, options.particles(), value), resetRefreshers));
+        addSettingRow(rows, settingTooltipTargets, optionLabel(options.mipmapLevels()), intSlider(options, options.mipmapLevels(), 0, 4, 1, value -> value == 0 ? "OFF" : Integer.toString(value), resetRefreshers));
+        addSettingRow(rows, settingTooltipTargets, optionLabel(options.entityShadows()), booleanSwitch(options, options.entityShadows(), resetRefreshers));
+        addSettingRow(rows, settingTooltipTargets, optionLabel(options.screenEffectScale()), doubleSlider(options, options.screenEffectScale(), 0.0, 1.0, 0.01, MinecraftVideoSettingsMenu::percentLabel, resetRefreshers));
+        addSettingRow(rows, settingTooltipTargets, optionLabel(options.entityDistanceScaling()), doubleSlider(options, options.entityDistanceScaling(), 0.5, 5.0, 0.25, value -> String.format(java.util.Locale.ROOT, "%.2fx", value), resetRefreshers));
+        addSettingRow(rows, settingTooltipTargets, optionLabel(options.fovEffectScale()), doubleSlider(options, options.fovEffectScale(), 0.0, 1.0, 0.01, MinecraftVideoSettingsMenu::percentLabel, resetRefreshers));
+        addSettingRow(rows, settingTooltipTargets, optionLabel(options.showAutosaveIndicator()), booleanSwitch(options, options.showAutosaveIndicator(), resetRefreshers));
+        addSettingRow(rows, settingTooltipTargets, optionLabel(options.glintSpeed()), doubleSlider(options, options.glintSpeed(), 0.0, 1.0, 0.01, MinecraftVideoSettingsMenu::percentLabel, resetRefreshers));
+        addSettingRow(rows, settingTooltipTargets, optionLabel(options.glintStrength()), doubleSlider(options, options.glintStrength(), 0.0, 1.0, 0.01, MinecraftVideoSettingsMenu::percentLabel, resetRefreshers));
         return rows;
+    }
+
+    private static void addSettingRow(VBox rows, List<SettingTooltipTarget> settingTooltipTargets, String text, Widget control) {
+        HBox row = settingRow(text, control);
+        SettingTooltipTarget target = new SettingTooltipTarget(row, text);
+        row.on(PointerMovedEvent.TYPE, event -> target.mouseRootX(event.rootX()));
+        row.on(PointerEnteredEvent.TYPE, event -> target.mouseRootX(event.rootX()));
+        rows.addChild(row);
+        settingTooltipTargets.add(target);
+    }
+
+    private static Tooltip settingTooltip(SettingTooltipTarget target) {
+        DescendantAwareTooltip tooltip = new DescendantAwareTooltip(target, settingTooltipText(target.title()));
+        tooltip.renderer(DestinyLikeTooltipRenders.DEFAULT);
+        tooltip.offset(TOOLTIP_OFFSET_X, TOOLTIP_OFFSET_Y);
+        tooltip.maxWidth(TOOLTIP_MAX_WIDTH);
+        target.tooltip(tooltip);
+        tooltip.themeEnabled(false);
+        tooltip.backgroundVisible(false);
+        tooltip.borderVisible(false);
+        tooltip.radius(0.0f);
+        tooltip.textColor().set(TOOLTIP_TITLE);
+        return tooltip;
+    }
+
+    private static RichText settingTooltipText(String title) {
+        return RichText.builder()
+                .font(Fonts.defaultFace())
+                .size(5.5f)
+                .tracking(0.18f)
+                .uppercase()
+                .color(TOOLTIP_TITLE)
+                .append(title == null || title.isBlank() ? "SETTING" : title)
+                .build()
+                .append(RichText.builder()
+                        .font(Fonts.defaultFace())
+                        .size(5.0f)
+                        .tracking(0.02f)
+                        .color(TOOLTIP_BODY)
+                        .append("\nSub-screens can also be\naccessed via d-pad.")
+                        .build());
+    }
+
+    private static final class SettingTooltipTarget {
+        private final Widget anchor;
+        private final String title;
+        private DescendantAwareTooltip tooltip;
+        private float mouseRootX = Float.NaN;
+
+        private SettingTooltipTarget(Widget anchor, String title) {
+            this.anchor = anchor;
+            this.title = title;
+        }
+
+        private Widget anchor() {
+            return anchor;
+        }
+
+        private String title() {
+            return title;
+        }
+
+        private float mouseRootX() {
+            return mouseRootX;
+        }
+
+        private void tooltip(DescendantAwareTooltip tooltip) {
+            this.tooltip = tooltip;
+        }
+
+        private void tooltipVisibility(Visibility visibility) {
+            if (tooltip != null) {
+                tooltip.visibility(visibility);
+            }
+        }
+
+        private void mouseRootX(float mouseRootX) {
+            if (!Float.isFinite(mouseRootX)) return;
+            this.mouseRootX = mouseRootX;
+            if (tooltip != null) {
+                tooltip.invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+            }
+        }
+    }
+
+    private static final class DescendantAwareTooltip extends Tooltip {
+        private final SettingTooltipTarget target;
+
+        private DescendantAwareTooltip(SettingTooltipTarget target, RichText text) {
+            super(target == null ? null : target.anchor(), text);
+            this.target = target;
+        }
+
+        @Override
+        public void measure(LayoutContext context) {
+            if (visibility() == Visibility.COLLAPSED || text().isEmpty()) {
+                setDesiredSize(0.0f, 0.0f);
+                return;
+            }
+
+            List<RichText> lines = TextEngine.wrapLines(null, richText(), Float.MAX_VALUE);
+            if (lines.isEmpty()) {
+                setDesiredSize(0.0f, 0.0f);
+                return;
+            }
+
+            float textHeight = 0.0f;
+            float titleWidth = 0.0f;
+            float bodyWidth = 0.0f;
+            for (int i = 0; i < lines.size(); i++) {
+                RichText line = lines.get(i);
+                float lineWidth = TextEngine.measureLineWidth(line);
+                if (i == 0) {
+                    titleWidth = Math.max(titleWidth, lineWidth);
+                } else {
+                    bodyWidth = Math.max(bodyWidth, lineWidth);
+                }
+                textHeight += TextEngine.lineHeight(line);
+            }
+
+            float availableWidth = context == null ? TOOLTIP_MAX_WIDTH : Math.max(0.0f, context.availableWidth());
+            float widthLimit = availableWidth > 0.0f ? Math.min(TOOLTIP_MAX_WIDTH, availableWidth) : TOOLTIP_MAX_WIDTH;
+            float contentWidth = Math.max(
+                    titleWidth + DestinyLikeTooltipRenders.TEXT_PADDING_X * 2.0f,
+                    bodyWidth + DestinyLikeTooltipRenders.TEXT_PADDING_X * 2.0f + DestinyLikeTooltipRenders.BODY_INDENT);
+            float width = Math.min(widthLimit, contentWidth + TOOLTIP_WIDTH_BUFFER);
+            float height = DestinyLikeTooltipRenders.TEXT_PADDING_TOP
+                    + textHeight
+                    + (lines.size() > 1 ? DestinyLikeTooltipRenders.BODY_GAP : 0.0f)
+                    + DestinyLikeTooltipRenders.BOTTOM_PADDING;
+            setDesiredSize(resolveDesiredSize(context, width, height));
+        }
+
+        @Override
+        public void arrangeInHost(RectView hostBounds) {
+            if (visibility() == Visibility.COLLAPSED || anchor() == null || hostBounds == null) {
+                mutableLayoutBounds().set(0.0f, 0.0f, 0.0f, 0.0f);
+                return;
+            }
+
+            RectView anchorBounds = anchor().layoutBounds();
+            float width = Math.min(Math.max(0.0f, desiredSize().width()), Math.max(0.0f, hostBounds.width()));
+            float height = Math.min(Math.max(0.0f, desiredSize().height()), Math.max(0.0f, hostBounds.height()));
+            float mouseX = target == null || !Float.isFinite(target.mouseRootX())
+                    ? anchorBounds.x()
+                    : target.mouseRootX();
+            float x = mouseX + TOOLTIP_OFFSET_X;
+            float y = anchorBounds.y() + anchorBounds.height() + TOOLTIP_OFFSET_Y;
+
+            if (y + height > hostBounds.y() + hostBounds.height()) {
+                y = anchorBounds.y() - height - TOOLTIP_OFFSET_Y;
+            }
+
+            float maxX = Math.max(hostBounds.x(), hostBounds.x() + hostBounds.width() - width);
+            float maxY = Math.max(hostBounds.y(), hostBounds.y() + hostBounds.height() - height);
+            mutableLayoutBounds().set(
+                    clamp(x, hostBounds.x(), maxX),
+                    clamp(y, hostBounds.y(), maxY),
+                    width,
+                    height);
+        }
+
+        @Override
+        public boolean showing() {
+            return visibility() == Visibility.VISIBLE
+                    && anchor() != null
+                    && subtreeHovered(anchor())
+                    && !text().isEmpty();
+        }
+
+        private static boolean subtreeHovered(Widget widget) {
+            if (widget == null || widget.visibility() != Visibility.VISIBLE) return false;
+            if (widget.hovered()) return true;
+            for (Widget child : widget.children()) {
+                if (subtreeHovered(child)) return true;
+            }
+            return false;
+        }
+
+        private static float clamp(float value, float min, float max) {
+            return Math.max(min, Math.min(max, value));
+        }
     }
 
     private static HBox settingRow(String text, Widget control) {
