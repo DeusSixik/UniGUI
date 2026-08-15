@@ -1,6 +1,7 @@
 package dev.sixik.unigui.testmod.client.ui;
 
 import dev.sixik.unigui.api.core.MutableUIScaleProvider;
+import dev.sixik.unigui.api.core.UnityLikeUIScaleProvider;
 import dev.sixik.unigui.api.event.EventPhase;
 import dev.sixik.unigui.api.event.PointerEnteredEvent;
 import dev.sixik.unigui.api.event.PointerExitedEvent;
@@ -28,8 +29,15 @@ public class DominionScreen {
     private static final MutableUIScaleProvider SCALE = new MutableUIScaleProvider(10.0f);
 
     public static void openGui() {
-        DefaultUIContext context = new DefaultUIContext(new MinecraftClipboardService())
-                .scaleProvider(SCALE);
+        DefaultUIContext context = new DefaultUIContext(new MinecraftClipboardService());
+        UnityLikeUIScaleProvider scale = new UnityLikeUIScaleProvider()
+                .referenceResolution(1920.0f, 1080.0f)
+                .matchBalanced()
+                .scaleRange(0.75f, 6f)
+                .userScale(6f);
+
+        context.scaleProvider(scale);
+
         openScreen(screen(context), context);
     }
 

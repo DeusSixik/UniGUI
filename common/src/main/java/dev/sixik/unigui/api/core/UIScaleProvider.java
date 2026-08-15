@@ -19,6 +19,9 @@ public interface UIScaleProvider {
         return logicalPixels * sanitize(scale());
     }
 
+    default void viewportSize(float width, float height) {
+    }
+
     default float toLogicalPixels(float backendPixels) {
         return backendPixels / sanitize(scale());
     }
