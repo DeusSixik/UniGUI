@@ -17,6 +17,7 @@ import dev.sixik.unigui.impl.text.SdfGlyphProvider;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
+import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -25,6 +26,8 @@ import java.util.List;
 /** Preserves rich-text ordering when Minecraft and SDF faces share one text command. */
 final class MinecraftMixedTextRenderer {
     private static final float VANILLA_BASE_SIZE = 9.0f;
+    private static final float PIXEL_SNAP_MAX_SIZE = 18.0f;
+    private static final float MATRIX_EPSILON = 0.0001f;
     /**
      * Vanilla Font treats colors with the high alpha bits cleared as "alpha not specified"
      * and promotes them to opaque, so skip those startup fade values instead of flashing.
@@ -175,7 +178,10 @@ final class MinecraftMixedTextRenderer {
             RenderSystem.depthMask(false);
             MinecraftTransform.apply(command, pose);
             float scale = Math.max(1.0f, pixelSize) / VANILLA_BASE_SIZE;
-            pose.translate(x, y, 0.0f);
+            Matrix4f matrix = pose.last().pose();
+            float drawX = shouldPixelSnap(command, pixelSize) ? snapLocalX(x, matrix) : x;
+            float drawY = shouldPixelSnap(command, pixelSize) ? snapLocalY(y, matrix) : y;
+            pose.translate(drawX, drawY, 0.0f);
             pose.scale(scale, scale, 1.0f);
             int color = argb(command.paint().color(), runColor);
             if (tracking <= 0.0f) {
@@ -289,6 +295,29 @@ final class MinecraftMixedTextRenderer {
 
     private static float positive(float value) {
         return value > 0.0f ? value : TextRun.DEFAULT_PIXEL_SIZE;
+    }
+
+    private static boolean shouldPixelSnap(DrawCommand command, float pixelSize) {
+        return (command == null || command.textPixelSnap())
+                && Float.isFinite(pixelSize)
+                && pixelSize > 0.0f
+                && pixelSize <= PIXEL_SNAP_MAX_SIZE;
+    }
+
+    private static float snapLocalX(float x, Matrix4f matrix) {
+        if (matrix == null || Math.abs(matrix.m10()) > MATRIX_EPSILON
+                || Math.abs(matrix.m00()) <= MATRIX_EPSILON) {
+            return x;
+        }
+        return (float) ((Math.round(x * matrix.m00() + matrix.m30()) - matrix.m30()) / matrix.m00());
+    }
+
+    private static float snapLocalY(float y, Matrix4f matrix) {
+        if (matrix == null || Math.abs(matrix.m01()) > MATRIX_EPSILON
+                || Math.abs(matrix.m11()) <= MATRIX_EPSILON) {
+            return y;
+        }
+        return (float) ((Math.round(y * matrix.m11() + matrix.m31()) - matrix.m31()) / matrix.m11());
     }
 
     private static float clamp01(float value) {

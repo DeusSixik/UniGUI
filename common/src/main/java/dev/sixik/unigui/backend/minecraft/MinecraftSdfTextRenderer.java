@@ -44,6 +44,8 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
     private static final int ATLAS_SIZE = 1024;
     private static final int FLOATS_PER_VERTEX = 9;
     private static final boolean DEBUG_GL = Boolean.getBoolean("unigui.sdf.debugGl");
+    private static final float PIXEL_SNAP_MAX_SIZE = 18.0f;
+    private static final float MATRIX_EPSILON = 0.0001f;
     private static final Logger LOGGER = LoggerFactory.getLogger(MinecraftSdfTextRenderer.class);
 
     private static final String VERTEX_SHADER = """
@@ -325,6 +327,9 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
         int lineIndex = 0;
         float baseline = lineTop + lines.get(0).ascent;
         int glyphsInLine = 0;
+        float lineSnapOffsetX = 0.0f;
+        float lineSnapOffsetY = 0.0f;
+        boolean lineSnapInitialized = false;
 
         for (TextRun run : text.runs()) {
             FontFace face = resolvedFace(run);
@@ -343,6 +348,9 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
                     lineIndex = Math.min(lineIndex + 1, lines.size() - 1);
                     baseline = lineTop + lines.get(lineIndex).ascent;
                     glyphsInLine = 0;
+                    lineSnapOffsetX = 0.0f;
+                    lineSnapOffsetY = 0.0f;
+                    lineSnapInitialized = false;
                     continue;
                 }
 
@@ -358,8 +366,19 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
                 float width = placement.width * scale;
                 float height = placement.height * scale;
                 if (runVisible) {
+                    float drawLeft = left;
+                    float drawTop = top;
+                    if (shouldPixelSnap(command, run.pixelSize(), transformState)) {
+                        if (!lineSnapInitialized) {
+                            lineSnapOffsetX = snapScreenX(left, transformState) - left;
+                            lineSnapOffsetY = snapScreenY(top, transformState) - top;
+                            lineSnapInitialized = true;
+                        }
+                        drawLeft += lineSnapOffsetX;
+                        drawTop += lineSnapOffsetY;
+                    }
                     Batch batch = nextBatch(batches, placement.page);
-                    addQuad(batch.vertices, left, top, width, height,
+                    addQuad(batch.vertices, drawLeft, drawTop, width, height,
                             placement.u0, placement.v0, placement.u1, placement.v1,
                             command.paint(), runColor, transformState);
                 }
@@ -517,6 +536,27 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
     private static float trackingAdvance(TextRun run) {
         return run == null ? 0.0f : Math.max(0.0f, run.tracking()) * run.pixelSize();
     }
+
+    private static boolean shouldPixelSnap(DrawCommand command, float pixelSize, TransformState state) {
+        return (command == null || command.textPixelSnap())
+                && Float.isFinite(pixelSize)
+                && pixelSize > 0.0f
+                && pixelSize <= PIXEL_SNAP_MAX_SIZE
+                && state != null
+                && Math.abs(state.m10()) <= MATRIX_EPSILON
+                && Math.abs(state.m01()) <= MATRIX_EPSILON
+                && Math.abs(state.m00()) > MATRIX_EPSILON
+                && Math.abs(state.m11()) > MATRIX_EPSILON;
+    }
+
+    private static float snapScreenX(float x, TransformState state) {
+        return (float) ((Math.round(x * state.m00() + state.m30()) - state.m30()) / state.m00());
+    }
+
+    private static float snapScreenY(float y, TransformState state) {
+        return (float) ((Math.round(y * state.m11() + state.m31()) - state.m31()) / state.m11());
+    }
+
     private static float clamp01(float value) {
         if (!Float.isFinite(value)) return 1.0f;
         return Math.max(0.0f, Math.min(1.0f, value));

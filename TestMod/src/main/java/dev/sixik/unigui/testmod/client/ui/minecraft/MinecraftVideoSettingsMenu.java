@@ -278,7 +278,7 @@ public final class MinecraftVideoSettingsMenu {
                                                     DefaultUIContext context,
                                                     Options options,
                                                     int oldMipmaps, List<SettingTooltipTarget> settingTooltipTargets) {
-        boolean[] tooltipsEnabled = {true};
+        boolean[] tooltipsEnabled = {false};
         MinecraftWidgetScreen screen = new MinecraftWidgetScreen(Component.empty(), root, context) {
             @Override
             protected boolean vanillaKeyPressed(int keyCode, int scanCode, int modifiers) {

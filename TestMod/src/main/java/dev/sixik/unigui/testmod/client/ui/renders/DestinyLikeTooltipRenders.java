@@ -59,7 +59,7 @@ public final class DestinyLikeTooltipRenders {
             float textX = x + TEXT_PADDING_X + (title ? 0.0f : BODY_INDENT);
             float availableWidth = Math.max(0.0f, width - (textX - x) - TEXT_PADDING_X);
             draw.text(state.lines().get(i), textX, lineY, availableWidth, lineHeight,
-                    Paint.fill(title ? state.textColor() : BODY_TEXT));
+                    Paint.fill(title ? state.textColor() : BODY_TEXT), false);
 
             if (i == 1) {
                 drawBullet(draw, x + TEXT_PADDING_X + BULLET_SIZE * 0.5f, lineY + lineHeight * 0.52f);

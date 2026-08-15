@@ -25,6 +25,7 @@ public final class DrawCommand {
     private TextureHandle texture;
     private String text;
     private RichText richText;
+    private boolean textPixelSnap = true;
     private CustomDraw customDraw;
     private ShaderHandle shader;
     private ShaderUniforms shaderUniforms = ShaderUniforms.empty();
@@ -217,6 +218,15 @@ public final class DrawCommand {
         return this;
     }
 
+    public boolean textPixelSnap() {
+        return textPixelSnap;
+    }
+
+    public DrawCommand textPixelSnap(boolean textPixelSnap) {
+        this.textPixelSnap = textPixelSnap;
+        return this;
+    }
+
     public CustomDraw customDraw() {
         return customDraw;
     }
@@ -274,6 +284,7 @@ public final class DrawCommand {
         copy.texture = texture;
         copy.text = text;
         copy.richText = richText;
+        copy.textPixelSnap = textPixelSnap;
         copy.customDraw = customDraw;
         copy.shader = shader == null ? null : shader.copy();
         copy.shaderUniforms = shaderUniforms == null ? ShaderUniforms.empty() : shaderUniforms.copy();

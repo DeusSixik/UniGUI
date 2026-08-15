@@ -113,10 +113,15 @@ public final class DrawScope {
     }
 
     public void text(RichText text, float x, float y, float width, float height, Paint paint) {
+        text(text, x, y, width, height, paint, true);
+    }
+
+    public void text(RichText text, float x, float y, float width, float height,
+                     Paint paint, boolean textPixelSnap) {
         if (transform == null) {
-            context.text(text, x, y, width, height, paint);
+            context.text(text, x, y, width, height, paint, textPixelSnap);
         } else {
-            context.text(text, x, y, width, height, paint, transformFor(x, y));
+            context.text(text, x, y, width, height, paint, transformFor(x, y), textPixelSnap);
         }
     }
 

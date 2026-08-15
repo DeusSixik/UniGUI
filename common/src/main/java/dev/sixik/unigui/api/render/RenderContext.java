@@ -174,19 +174,31 @@ public interface RenderContext {
     }
 
     default void text(RichText text, float x, float y, float width, float height, Paint paint) {
-        submit(new DrawCommand(DrawCommandType.TEXT)
-                .richText(text)
-                .bounds(new MutableRect(x, y, width, height))
-                .paint(effectivePaint(paint)));
+        text(text, x, y, width, height, paint, true);
     }
 
     default void text(RichText text, float x, float y, float width, float height,
-                      Paint paint, Transform transform) {
+                      Paint paint, boolean textPixelSnap) {
         submit(new DrawCommand(DrawCommandType.TEXT)
                 .richText(text)
                 .bounds(new MutableRect(x, y, width, height))
                 .paint(effectivePaint(paint))
-                .transform(transform));
+                .textPixelSnap(textPixelSnap));
+    }
+
+    default void text(RichText text, float x, float y, float width, float height,
+                      Paint paint, Transform transform) {
+        text(text, x, y, width, height, paint, transform, true);
+    }
+
+    default void text(RichText text, float x, float y, float width, float height,
+                      Paint paint, Transform transform, boolean textPixelSnap) {
+        submit(new DrawCommand(DrawCommandType.TEXT)
+                .richText(text)
+                .bounds(new MutableRect(x, y, width, height))
+                .paint(effectivePaint(paint))
+                .transform(transform)
+                .textPixelSnap(textPixelSnap));
     }
 
     default void custom(CustomDraw customDraw) {
