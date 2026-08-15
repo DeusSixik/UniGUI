@@ -6,8 +6,10 @@ import dev.sixik.unigui.api.event.Event;
 import dev.sixik.unigui.api.event.EventPhase;
 import dev.sixik.unigui.api.event.KeyPressedEvent;
 import dev.sixik.unigui.api.input.KeyCodes;
+import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
+import dev.sixik.unigui.api.layout.Overflow;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
@@ -16,6 +18,7 @@ import dev.sixik.unigui.api.widget.Widget;
 import java.util.Objects;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.LinearBox;
+import dev.sixik.unigui.widgets.containers.ScrollView;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.widgets.feedback.Popup;
@@ -29,9 +32,14 @@ import dev.sixik.unigui.widgets.feedback.Popup;
  */
 public class DropDownBox extends LinearBox {
     private static final float HEADER_HEIGHT = 22.0f;
+    private static final float CONTENT_INSET = 2.0f;
+    private static final float DEFAULT_DROP_DOWN_ROW_HEIGHT = HEADER_HEIGHT;
+    private static final int DEFAULT_MAX_VISIBLE_ROWS = 6;
+    private static final float DEFAULT_MAX_CONTENT_HEIGHT = DEFAULT_DROP_DOWN_ROW_HEIGHT * DEFAULT_MAX_VISIBLE_ROWS;
 
     private final Button headerButton = new Button();
     private final Box contentHost = new Box();
+    private final ScrollView contentScroll = new ScrollView();
     private final Popup dropDownPopup = new Popup();
     private Widget content;
     private String headerText = "Open...";
@@ -41,6 +49,7 @@ public class DropDownBox extends LinearBox {
     private OverlayLayer attachedOverlayLayer;
     private float dropDownWidth;
     private boolean dropDownMatchesWidgetWidth;
+    private float maxContentHeight = DEFAULT_MAX_CONTENT_HEIGHT;
     private boolean syncingPopup;
     private boolean opened;
 
@@ -58,7 +67,26 @@ public class DropDownBox extends LinearBox {
         contentHost.background().set(0.025f, 0.030f, 0.040f, 0.97f);
         contentHost.borderColor().set(0.25f, 0.78f, 1.0f, 0.75f);
         contentHost.visibility(Visibility.COLLAPSED);
-        contentHost.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
+        contentHost.layout(style -> style
+                .size(LayoutConstraints.AUTO, LayoutConstraints.AUTO)
+                .overflow(Overflow.HIDDEN)
+                .flexGrow(0)
+                .flexShrink(0.0f));
+
+        contentScroll.scrollStep(DEFAULT_DROP_DOWN_ROW_HEIGHT);
+        contentScroll.scrollbarGap(1.0f);
+        contentScroll.scrollbarTrackColor().set(0.0f, 0.0f, 0.0f, 0.36f);
+        contentScroll.scrollbarThumbColor().set(0.82f, 0.84f, 0.88f, 0.82f);
+        contentScroll.layout(style -> style
+                .size(LayoutConstraints.AUTO, LayoutConstraints.AUTO)
+                .maxHeight(DEFAULT_MAX_CONTENT_HEIGHT)
+                .margin(CONTENT_INSET)
+                .align(Alignment.STRETCH, Alignment.START)
+                .overflowX(Overflow.HIDDEN)
+                .overflowY(Overflow.HIDDEN)
+                .flexGrow(0)
+                .flexShrink(0.0f));
+        contentHost.addChild(contentScroll);
 
         dropDownPopup.anchor(headerButton);
         dropDownPopup.padding(EdgeInsets.all(0.0f));
@@ -83,13 +111,9 @@ public class DropDownBox extends LinearBox {
 
     public DropDownBox content(Widget content) {
         if (this.content == content) return this;
-        if (this.content != null) {
-            contentHost.removeChild(this.content);
-        }
         this.content = content;
-        if (content != null) {
-            contentHost.addChild(content);
-        }
+        contentScroll.content(content);
+        contentScroll.scrollTo(0.0f, 0.0f);
         syncDropDownAttachment();
         syncDropDownVisibility();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
@@ -207,6 +231,10 @@ public class DropDownBox extends LinearBox {
         return contentHost;
     }
 
+    public ScrollView contentScroll() {
+        return contentScroll;
+    }
+
     public float dropDownWidth() {
         return dropDownWidth;
     }
@@ -249,6 +277,23 @@ public class DropDownBox extends LinearBox {
             invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         }
         return this;
+    }
+
+    public float maxContentHeight() {
+        return maxContentHeight;
+    }
+
+    public DropDownBox maxContentHeight(float height) {
+        float normalized = Float.isFinite(height) && height > 0.0f ? height : 0.0f;
+        if (maxContentHeight == normalized) return this;
+        maxContentHeight = normalized;
+        syncDropDownSize();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public DropDownBox unrestrictedContentHeight() {
+        return maxContentHeight(0.0f);
     }
 
     @Override
@@ -382,11 +427,37 @@ public class DropDownBox extends LinearBox {
 
     private void syncDropDownSize() {
         float resolvedWidth = resolvedDropDownWidth();
-        if (resolvedWidth > 0.0f) {
-            contentHost.layout(style -> style.size(resolvedWidth, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
-        } else {
-            contentHost.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
+        float width = resolvedWidth > 0.0f ? resolvedWidth : LayoutConstraints.AUTO;
+        float scrollWidth = resolvedWidth > CONTENT_INSET * 2.0f ? resolvedWidth - CONTENT_INSET * 2.0f : LayoutConstraints.AUTO;
+        float hostMaxHeight = maxContentHeight > 0.0f
+                ? maxContentHeight + CONTENT_INSET * 2.0f
+                : Float.POSITIVE_INFINITY;
+        float scrollMaxHeight = maxContentHeight > 0.0f ? maxContentHeight : Float.POSITIVE_INFINITY;
+        Overflow verticalOverflow = shouldScrollContent() ? Overflow.SCROLL : Overflow.HIDDEN;
+
+        contentHost.layout(style -> style
+                .size(width, LayoutConstraints.AUTO)
+                .maxHeight(hostMaxHeight)
+                .overflow(Overflow.HIDDEN)
+                .flexGrow(0)
+                .flexShrink(0.0f));
+        contentScroll.layout(style -> style
+                .size(scrollWidth, LayoutConstraints.AUTO)
+                .maxHeight(scrollMaxHeight)
+                .margin(CONTENT_INSET)
+                .align(Alignment.STRETCH, Alignment.START)
+                .overflowX(Overflow.HIDDEN)
+                .overflowY(verticalOverflow)
+                .flexGrow(0)
+                .flexShrink(0.0f));
+    }
+
+    private boolean shouldScrollContent() {
+        if (maxContentHeight <= 0.0f || content == null) {
+            return false;
         }
+        float contentHeight = content.desiredSize().height() + content.layoutConstraints().margin().vertical();
+        return contentHeight > maxContentHeight + 0.5f;
     }
 
     private float resolvedDropDownWidth() {

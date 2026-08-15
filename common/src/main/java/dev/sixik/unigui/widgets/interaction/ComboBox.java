@@ -33,6 +33,7 @@ public class ComboBox extends LinearBox {
     private static final float HEADER_HEIGHT = 22.0f;
     private static final float OPTION_HEIGHT = 20.0f;
     private static final float OPTIONS_INSET = 2.0f;
+    private static final int DEFAULT_MAX_VISIBLE_OPTIONS = 6;
 
     private final Button headerButton = new Button();
     private final Box optionsHost = new Box();
@@ -52,7 +53,7 @@ public class ComboBox extends LinearBox {
     private float dropDownWidth;
     private boolean dropDownMatchesWidgetWidth;
     private float optionRowHeight = OPTION_HEIGHT;
-    private int maxVisibleOptions;
+    private int maxVisibleOptions = DEFAULT_MAX_VISIBLE_OPTIONS;
     private boolean syncingPopup;
 
     public ComboBox() {
