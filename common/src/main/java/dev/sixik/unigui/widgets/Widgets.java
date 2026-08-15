@@ -69,6 +69,22 @@ public final class Widgets {
         return new RadioGroup();
     }
 
+    public static PanelRowWidget panelRow() {
+        return new PanelRowWidget();
+    }
+
+    public static PanelRowWidget panelRow(Widget left, Widget right) {
+        return new PanelRowWidget(left, right);
+    }
+
+    public static SettingRow settingRow(String label, Widget control) {
+        return new SettingRow(label, control);
+    }
+
+    public static SettingRow settingRow(RichText label, Widget control) {
+        return new SettingRow(label, control);
+    }
+
     public static ComboBox comboBox() {
         return new ComboBox();
     }

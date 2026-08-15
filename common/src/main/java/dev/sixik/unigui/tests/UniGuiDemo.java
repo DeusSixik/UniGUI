@@ -639,6 +639,108 @@ public final class UniGuiDemo {
         choice.addChild(detailed);
         page.addChild(section("Selection", choice));
 
+        VBox settings = new VBox();
+        settings.spacing(3.0f);
+        settings.layout(style -> style.size(360.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
+
+        ToggleSwitch crossplay = new ToggleSwitch().checked(true);
+        crossplay.layout(style -> style.size(LayoutConstraints.AUTO, 20.0f).flexGrow(0).flexShrink(0.0f));
+        crossplay.onCheckedChanged(event -> status.text("Crossplay: " + event.newValue()));
+        settings.addChild(new SettingRow("CROSSPLAY", crossplay)
+                .rowHeight(24.0f)
+                .gap(14.0f));
+
+        ComboBox fireteamPrivacy = new ComboBox()
+                .items(List.of("Closed", "Friends Only", "Public"))
+                .silentSelectedIndex(0);
+        fireteamPrivacy.dropDownSameWidth();
+        fireteamPrivacy.layout(style -> style.size(142.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
+        fireteamPrivacy.onSelectionChanged(event -> status.text("Fireteam privacy: " + fireteamPrivacy.selectedItem()));
+        settings.addChild(new SettingRow("FIRETEAM PRIVACY", fireteamPrivacy)
+                .rowHeight(28.0f)
+                .gap(14.0f)
+                .controlWidth(142.0f));
+
+        Checkbox textChat = new Checkbox();
+        textChat.layout(style -> style.size(LayoutConstraints.AUTO, 20.0f).flexGrow(0).flexShrink(0.0f));
+        textChat.onCheckedChanged(event -> status.text("Text chat: " + event.newValue()));
+        settings.addChild(new SettingRow("TEXT CHAT", textChat)
+                .rowHeight(24.0f)
+                .gap(14.0f));
+
+        NumberField fieldOfView = new NumberField().range(55.0d, 120.0d).step(1.0d).value(104.0d);
+        fieldOfView.layout(style -> style.size(84.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
+        fieldOfView.onValueChanged(event -> status.text(String.format(Locale.ROOT, "Field of view: %.0f", event.newValue())));
+        settings.addChild(new SettingRow("FIELD OF VIEW", fieldOfView)
+                .rowHeight(28.0f)
+                .gap(14.0f)
+                .controlWidth(84.0f));
+
+        page.addChild(section("Settings rows", settings));
+
+        VBox panelRows = new VBox();
+        panelRows.spacing(4.0f);
+        panelRows.layout(style -> style.size(420.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
+
+        Label titleLeft = new Label("SETTINGS");
+        Label titleRight = new Label("GAMEPLAY");
+        titleLeft.layout(style -> style.size(LayoutConstraints.AUTO, 18.0f).flexGrow(0).flexShrink(0.0f));
+        titleRight.layout(style -> style.size(LayoutConstraints.AUTO, 18.0f).flexGrow(0).flexShrink(0.0f));
+        PanelRowWidget titlePanel = new PanelRowWidget()
+                .rowHeight(28.0f)
+                .gap(16.0f)
+                .addLeft(titleLeft)
+                .addRight(titleRight);
+        titlePanel.layout(style -> style.size(420.0f, 28.0f).flexGrow(0).flexShrink(0.0f));
+
+        Button gameplayTab = new Button("GAMEPLAY");
+        Button videoTab = new Button("VIDEO");
+        Button soundTab = new Button("SOUND");
+        Button accessibilityTab = new Button("ACCESSIBILITY");
+        gameplayTab.layout(style -> style.size(LayoutConstraints.AUTO, 22.0f).flexGrow(0).flexShrink(0.0f));
+        videoTab.layout(style -> style.size(LayoutConstraints.AUTO, 22.0f).flexGrow(0).flexShrink(0.0f));
+        soundTab.layout(style -> style.size(LayoutConstraints.AUTO, 22.0f).flexGrow(0).flexShrink(0.0f));
+        accessibilityTab.layout(style -> style.size(LayoutConstraints.AUTO, 22.0f).flexGrow(0).flexShrink(0.0f));
+        PanelRowWidget navigationPanel = new PanelRowWidget()
+                .rowHeight(28.0f)
+                .leftGap(6.0f)
+                .addLeft(gameplayTab)
+                .addLeft(videoTab)
+                .addLeft(soundTab)
+                .addLeft(accessibilityTab);
+        navigationPanel.layout(style -> style.size(420.0f, 28.0f).flexGrow(0).flexShrink(0.0f));
+        gameplayTab.onClick(event -> status.text("Panel tab: Gameplay"));
+        videoTab.onClick(event -> status.text("Panel tab: Video"));
+        soundTab.onClick(event -> status.text("Panel tab: Sound"));
+        accessibilityTab.onClick(event -> status.text("Panel tab: Accessibility"));
+
+        Button restoreDefaults = new Button("RESTORE DEFAULTS");
+        Button applySettings = new Button("APPLY");
+        restoreDefaults.layout(style -> style.size(LayoutConstraints.AUTO, 22.0f).flexGrow(0).flexShrink(0.0f));
+        applySettings.layout(style -> style.size(LayoutConstraints.AUTO, 22.0f).flexGrow(0).flexShrink(0.0f));
+        PanelRowWidget actionPanel = new PanelRowWidget()
+                .rowHeight(28.0f)
+                .rightGap(6.0f)
+                .addRight(restoreDefaults)
+                .addRight(applySettings);
+        actionPanel.layout(style -> style.size(420.0f, 28.0f).flexGrow(0).flexShrink(0.0f));
+        restoreDefaults.onClick(event -> status.text("Panel action: restore defaults"));
+        applySettings.onClick(event -> status.text("Panel action: apply"));
+
+        panelRows.addChild(titlePanel);
+        panelRows.addChild(navigationPanel);
+        panelRows.addChild(new SettingRow("HUD OPACITY", new Slider().range(0.0f, 100.0f).value(72.0f)
+                        .layout(style -> style.size(140.0f, 22.0f).flexGrow(0).flexShrink(0.0f)))
+                .rowHeight(28.0f)
+                .gap(14.0f)
+                .controlWidth(140.0f));
+        panelRows.addChild(new SettingRow("SUBTITLES", new ToggleSwitch().checked(true)
+                        .layout(style -> style.size(LayoutConstraints.AUTO, 20.0f).flexGrow(0).flexShrink(0.0f)))
+                .rowHeight(24.0f)
+                .gap(14.0f));
+        panelRows.addChild(actionPanel);
+        page.addChild(section("Panel rows", panelRows));
+
         WrapPanel feedback = wrap();
         Slider slider = new Slider().range(0.0f, 100.0f).step(5.0f).value(42.0f);
         ProgressBar progress = new ProgressBar().range(0.0f, 100.0f).value(42.0f);

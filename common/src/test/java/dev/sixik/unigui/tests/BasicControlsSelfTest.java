@@ -134,12 +134,14 @@ import dev.sixik.unigui.widgets.Orientation;
 import dev.sixik.unigui.widgets.OverlayLayer;
 import dev.sixik.unigui.widgets.PageView;
 import dev.sixik.unigui.widgets.PanelWidget;
+import dev.sixik.unigui.widgets.PanelRowWidget;
 import dev.sixik.unigui.widgets.PasswordField;
 import dev.sixik.unigui.widgets.Popup;
 import dev.sixik.unigui.widgets.ProgressBar;
 import dev.sixik.unigui.widgets.RadioButton;
 import dev.sixik.unigui.widgets.RadioGroup;
 import dev.sixik.unigui.widgets.SearchField;
+import dev.sixik.unigui.widgets.SettingRow;
 import dev.sixik.unigui.widgets.ScrollView;
 import dev.sixik.unigui.widgets.Slider;
 import dev.sixik.unigui.widgets.Spinner;
@@ -413,11 +415,47 @@ public final class BasicControlsSelfTest {
         expect(uiContext.focusManager().focusedWidget() == target,
                 "Clicking Label with focusTarget should focus the associated control");
 
+        ToggleSwitch settingControl = new ToggleSwitch().trackSize(20.0f, 10.0f).thumbSize(8.0f);
+        SettingRow settingRow = new SettingRow("Crossplay", settingControl)
+                .rowHeight(24.0f)
+                .gap(12.0f)
+                .controlWidth(30.0f);
+        settingRow.measure(new LayoutContext(200.0f, 80.0f));
+        settingRow.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 24.0f));
+        expect(near(settingRow.desiredSize().height(), 24.0f)
+                        && near(settingRow.label().layoutBounds().x(), 0.0f)
+                        && near(settingControl.layoutBounds().x(), 170.0f)
+                        && near(settingControl.layoutBounds().width(), 30.0f),
+                "SettingRow should measure from its label/control and pin the control to the right edge");
+
+        Button titleLeft = new Button("Settings");
+        Button resetAction = new Button("Reset");
+        Button applyAction = new Button("Apply");
+        titleLeft.layout(style -> style.size(80.0f, 20.0f).flexGrow(0).flexShrink(0.0f));
+        resetAction.layout(style -> style.size(70.0f, 20.0f).flexGrow(0).flexShrink(0.0f));
+        applyAction.layout(style -> style.size(56.0f, 20.0f).flexGrow(0).flexShrink(0.0f));
+        PanelRowWidget panelRow = new PanelRowWidget()
+                .rowHeight(28.0f)
+                .gap(20.0f)
+                .rightGap(6.0f)
+                .addLeft(titleLeft)
+                .addRight(resetAction)
+                .addRight(applyAction);
+        panelRow.measure(new LayoutContext(260.0f, 80.0f));
+        panelRow.arrange(new MutableRect(0.0f, 0.0f, 260.0f, 28.0f));
+        expect(near(panelRow.desiredSize().height(), 28.0f)
+                        && near(titleLeft.layoutBounds().x(), 0.0f)
+                        && near(resetAction.layoutBounds().x(), 128.0f)
+                        && near(applyAction.layoutBounds().x(), 204.0f),
+                "PanelRowWidget should support arbitrary left/right widgets and pin right widgets to the row edge");
+
         expect(Widgets.text("Display") instanceof Text
                         && Widgets.label("Caption") instanceof Label
+                        && Widgets.panelRow(new Label("Left"), new Button("Right")) instanceof PanelRowWidget
+                        && Widgets.settingRow("Setting", new ToggleSwitch()) instanceof SettingRow
                         && Widgets.textBlock("Paragraph") instanceof TextBlock
                         && Widgets.richTextView(rich) instanceof RichTextView,
-                "Widgets factory should expose separated Text, Label, TextBlock and RichTextView roles");
+                "Widgets factory should expose separated Text, Label, PanelRowWidget, SettingRow, TextBlock and RichTextView roles");
     }
 
     private void testRichTextAndSdfContracts() {
