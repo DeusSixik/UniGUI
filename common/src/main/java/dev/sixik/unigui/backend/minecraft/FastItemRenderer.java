@@ -7,7 +7,6 @@ import com.mojang.blaze3d.vertex.VertexSorting;
 import dev.sixik.unigui.api.render.RenderTargetOptions;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.backend.minecraft.custom_renders.MinecraftRendererPlatformHook;
-import dev.sixik.unigui.tests.mixin.ItemRendererAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.entity.ItemRenderer;
@@ -16,6 +15,8 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.ItemTags;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.ItemStack;
 import org.joml.Matrix4f;
 import org.lwjgl.BufferUtils;
@@ -125,8 +126,12 @@ final class FastItemRenderer implements AutoCloseable {
     private boolean isSafeToCache(ItemStack stack, BakedModel model) {
         if (model == null || model.isCustomRenderer()) return false;
         if (stack.hasFoil()) return false;
-        if (ItemRendererAccessor.ug$hasAnimatedTexture(stack)) return false;
+        if (hasAnimatedTexture(stack)) return false;
         return !MinecraftRendererPlatformHook.hasCustomItemRendererImpl(stack);
+    }
+
+    private static boolean hasAnimatedTexture(ItemStack stack) {
+        return stack.is(ItemTags.COMPASSES) || stack.is(Items.CLOCK);
     }
 
     private CachedIcon bake(IconCacheKey key, ItemStack sourceStack, BakedModel model, MinecraftRenderTarget restoreTarget) {

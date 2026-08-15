@@ -1,12 +1,9 @@
 package dev.sixik.unigui.backend.minecraft.custom_renders;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import dev.sixik.unigui.tests.mixin.ItemRendererAccessor;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.entity.ItemRenderer;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 
@@ -18,9 +15,7 @@ public abstract class MinecraftRendererPlatformHook {
         protected void renderByItem(ItemStack itemStack, ItemDisplayContext itemDisplayContext,
                                     PoseStack poseStack, MultiBufferSource multiBufferSource,
                                     int i, int j) {
-            final ItemRenderer itemRender = Minecraft.getInstance().getItemRenderer();
-            final ItemRendererAccessor accessor = (ItemRendererAccessor) itemRender;
-            accessor.getBlockEntityRenderer().renderByItem(itemStack, itemDisplayContext, poseStack, multiBufferSource, i, j);
+            // Platform hooks can render custom item renderers where the loader exposes a stable API.
         }
     };
 
