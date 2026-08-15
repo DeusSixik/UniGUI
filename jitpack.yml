@@ -1,8 +1,8 @@
 jdk:
-  - openjdk17
+  - openjdk21
 
 before_install:
   - chmod +x gradlew
 
 install:
-  - ./gradlew clean publishToMavenLocal -x test --no-daemon
+  - ./gradlew -Dorg.gradle.java.home=$JAVA_HOME publishToMavenLocal -x test --no-daemon
