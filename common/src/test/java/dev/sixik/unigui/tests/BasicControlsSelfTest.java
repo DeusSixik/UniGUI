@@ -9,6 +9,7 @@ import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.FramePhase;
 import dev.sixik.unigui.api.core.MutableUIScaleProvider;
 import dev.sixik.unigui.api.core.UIScaleProvider;
+import dev.sixik.unigui.api.core.UnityLikeUIScaleProvider;
 import dev.sixik.unigui.api.event.ContextMenuItemSelectedEvent;
 import dev.sixik.unigui.api.event.ExpandedChangedEvent;
 import dev.sixik.unigui.api.event.KeyPressedEvent;
@@ -288,6 +289,26 @@ public final class BasicControlsSelfTest {
         expect(near(mutable.scale(), 1.0f)
                         && near(UIScaleProvider.fixed(Float.NaN).scale(), 1.0f),
                 "UI scale providers should sanitize invalid scales to identity");
+
+        UnityLikeUIScaleProvider unityLike = new UnityLikeUIScaleProvider()
+                .referenceResolution(1920.0f, 1080.0f)
+                .viewport(3840.0f, 1080.0f)
+                .matchBalanced();
+        expect(near(unityLike.scale(), 1.4142f),
+                "UnityLikeUIScaleProvider should blend width and height scale logarithmically");
+
+        expect(near(unityLike.matchWidth().scale(), 2.0f)
+                        && near(unityLike.matchHeight().scale(), 1.0f),
+                "UnityLikeUIScaleProvider should support width and height matching modes");
+
+        unityLike.scaleRange(0.75f, 1.25f).matchWidth();
+        expect(near(unityLike.scale(), 1.25f),
+                "UnityLikeUIScaleProvider should clamp calculated scale to the configured range");
+
+        unityLike.scaleRange(0.75f, 2.5f).matchBalanced();
+        unityLike.viewportSize(Float.NaN, Float.NaN);
+        expect(near(unityLike.scale(), 1.0f),
+                "UnityLikeUIScaleProvider should fall back to reference viewport for invalid sizes");
     }
 
     private void testTextInputShellAndTextFieldChrome() {

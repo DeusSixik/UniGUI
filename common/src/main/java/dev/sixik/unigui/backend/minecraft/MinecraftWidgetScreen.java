@@ -193,6 +193,7 @@ public class MinecraftWidgetScreen extends Screen {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         long uiCpuStartNanos = System.nanoTime();
+        updateScaleProviderViewport();
         float uiScale = effectiveUiScale();
         float logicalWidth = toLogicalPixels(width, uiScale);
         float logicalHeight = toLogicalPixels(height, uiScale);
@@ -217,7 +218,6 @@ public class MinecraftWidgetScreen extends Screen {
         layoutChangedThisFrame = false;
         try (ProfileScope ignored = uiContext.profiler().scope("layout")) {
             if (shouldRunLayout(logicalWidth, logicalHeight, uiScale)) {
-                uiContext.scaleProvider().viewportSize(minecraft.getWindow().getWidth(), minecraft.getWindow().getHeight());
                 root.measure(new LayoutContext(logicalWidth, logicalHeight));
                 root.arrange(new MutableRect(0.0f, 0.0f, logicalWidth, logicalHeight));
                 layoutInitialized = true;
@@ -807,6 +807,13 @@ public class MinecraftWidgetScreen extends Screen {
         if (widget instanceof WidgetBase base) {
             base.setUiContextInternal(uiContext);
         }
+    }
+
+    private void updateScaleProviderViewport() {
+        if (minecraft == null || minecraft.getWindow() == null) return;
+        UIScaleProvider provider = uiContext.scaleProvider();
+        if (provider == null) return;
+        provider.viewportSize(minecraft.getWindow().getWidth(), minecraft.getWindow().getHeight());
     }
 
     private float effectiveUiScale() {

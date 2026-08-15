@@ -1,6 +1,5 @@
 package dev.sixik.unigui.testmod.client.ui;
 
-import dev.sixik.unigui.api.core.MutableUIScaleProvider;
 import dev.sixik.unigui.api.core.UnityLikeUIScaleProvider;
 import dev.sixik.unigui.api.event.EventPhase;
 import dev.sixik.unigui.api.event.PointerEnteredEvent;
@@ -25,8 +24,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
 public class DominionScreen {
-
-    private static final MutableUIScaleProvider SCALE = new MutableUIScaleProvider(10.0f);
 
     public static void openGui() {
         DefaultUIContext context = new DefaultUIContext(new MinecraftClipboardService());

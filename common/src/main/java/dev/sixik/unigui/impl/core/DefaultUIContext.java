@@ -76,7 +76,7 @@ public final class DefaultUIContext implements UIContext {
                             RoutedEventDispatcher routedEvents, HitTester hitTester, FocusManager focusManager,
                             ClipboardService clipboard, Theme theme, UiProfiler profiler, UiDebugCounters debugCounters) {
         this.dispatcher = dispatcher;
-        this.scaleProvider = scaleProvider;
+        this.scaleProvider = scaleProvider == null ? UIScaleProvider.IDENTITY : scaleProvider;
         this.events = events;
         this.routedEvents = routedEvents == null ? RoutedEventDispatcher.DIRECT : routedEvents;
         this.hitTester = hitTester == null ? HitTester.NONE : hitTester;
