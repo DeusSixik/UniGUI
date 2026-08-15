@@ -76,9 +76,6 @@ public final class DestinyLikeButtonRenders {
                                    float width,
                                    float height,
                                    ColorView color) {
-        draw.addLine(x, y, x + width, y, color, BORDER_WIDTH);
-        draw.addLine(x, y + height, x + width, y + height, color, BORDER_WIDTH);
-        draw.addLine(x, y, x, y + height, color, BORDER_WIDTH);
-        draw.addLine(x + width, y, x + width, y + height, color, BORDER_WIDTH);
+        DestinyLikeRenderPrimitives.rectBorder(draw, x, y, width, height, color, BORDER_WIDTH);
     }
 }

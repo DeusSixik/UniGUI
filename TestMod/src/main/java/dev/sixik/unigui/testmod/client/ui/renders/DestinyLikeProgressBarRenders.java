@@ -78,10 +78,7 @@ public final class DestinyLikeProgressBarRenders {
         float innerHeight = Math.max(0.0f, height - PADDED_FILL_SPACE_MUL_2);
 
         draw.rect(x, y, width, height, PADDED_WHITE_PAINT_ALPHA);
-        draw.addLine(x, y + height, x + width, y + height, PADDED_WHITE_COLOR, PADDED_BORDER_WIDTH);
-        draw.addLine(x, y, x + width, y, PADDED_WHITE_COLOR, PADDED_BORDER_WIDTH);
-        draw.addLine(x, y, x, y + height, PADDED_WHITE_COLOR, PADDED_BORDER_WIDTH);
-        draw.addLine(x + width, y, x + width, y + height, PADDED_WHITE_COLOR, PADDED_BORDER_WIDTH);
+        DestinyLikeRenderPrimitives.rectBorder(draw, x, y, width, height, PADDED_WHITE_COLOR, PADDED_BORDER_WIDTH);
 
         if (innerWidth <= 0.0f || innerHeight <= 0.0f) return;
 
@@ -246,10 +243,7 @@ public final class DestinyLikeProgressBarRenders {
                                    float width,
                                    float height,
                                    ColorView color) {
-        draw.addLine(x, y, x + width, y, color, BORDER_WIDTH);
-        draw.addLine(x, y + height, x + width, y + height, color, BORDER_WIDTH);
-        draw.addLine(x, y, x, y + height, color, BORDER_WIDTH);
-        draw.addLine(x + width, y, x + width, y + height, color, BORDER_WIDTH);
+        DestinyLikeRenderPrimitives.rectBorder(draw, x, y, width, height, color, BORDER_WIDTH);
     }
 
     private static void drawTexts(DrawScope draw,

@@ -7,7 +7,6 @@ import dev.sixik.unigui.api.text.Fonts;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.render.BoxRenderer;
-import dev.sixik.unigui.widgets.render.BoxState;
 import dev.sixik.unigui.widgets.render.ButtonRenderer;
 import dev.sixik.unigui.widgets.render.ButtonState;
 
@@ -37,7 +36,8 @@ public final class DestinyLikeDropDownRenders {
         if (width <= 0.0f || height <= 0.0f) return;
 
         draw.rect(x, y, width, height, Paint.fill(BACKGROUND));
-        draw.rect(x, y, width, height, Paint.stroke(state.hovered() && state.enabled() ? BORDER_HOVER : BORDER, BORDER_WIDTH));
+        DestinyLikeRenderPrimitives.rectBorder(draw, x, y, width, height,
+                state.hovered() && state.enabled() ? BORDER_HOVER : BORDER, BORDER_WIDTH);
         drawLabel(draw, state, displayText(state.text()), x + TEXT_PADDING_X,
                 Math.max(0.0f, width - TEXT_PADDING_X - CHEVRON_RIGHT_PADDING - CHEVRON_SIZE - 5.0f),
                 state.enabled() ? TEXT : TEXT_HOVER);
@@ -55,7 +55,8 @@ public final class DestinyLikeDropDownRenders {
             draw.rect(x, y, width, height, Paint.fill(state.background()));
         }
         if (state.borderVisible()) {
-            drawFullBorder(draw, state, x, y, width, height);
+            DestinyLikeRenderPrimitives.rectBorder(draw, x, y, width, height,
+                    state.borderColor(), state.borderWidth());
         }
     };
 
@@ -68,7 +69,7 @@ public final class DestinyLikeDropDownRenders {
 
         draw.rect(x, y, width, height, Paint.fill(state.hovered() || state.checked() ? OPTION_HOVER_BACKGROUND : BACKGROUND));
         if (state.hovered() && state.enabled()) {
-            draw.rect(x, y, width, height, Paint.stroke(BORDER_HOVER, BORDER_WIDTH));
+            DestinyLikeRenderPrimitives.rectBorder(draw, x, y, width, height, BORDER_HOVER, BORDER_WIDTH);
         }
         drawLabel(draw, state, displayText(state.text()), x + TEXT_PADDING_X,
                 Math.max(0.0f, width - TEXT_PADDING_X * 2.0f), TEXT);
@@ -111,25 +112,6 @@ public final class DestinyLikeDropDownRenders {
         } finally {
             draw.popClip();
         }
-    }
-
-    private static void drawFullBorder(dev.sixik.unigui.api.render.DrawScope draw,
-                                       BoxState state,
-                                       float x,
-                                       float y,
-                                       float width,
-                                       float height) {
-        float stroke = Math.max(0.01f, state.borderWidth());
-        float inset = stroke * 0.5f;
-        float left = x + inset;
-        float top = y + inset;
-        float right = x + width - inset;
-        float bottom = y + height - inset;
-
-        draw.addLine(left, top, right, top, state.borderColor(), stroke);
-        draw.addLine(right, top, right, bottom, state.borderColor(), stroke);
-        draw.addLine(right, bottom, left, bottom, state.borderColor(), stroke);
-        draw.addLine(left, bottom, left, top, state.borderColor(), stroke);
     }
 
     private static void drawChevron(dev.sixik.unigui.api.render.DrawScope draw, float x, float y) {

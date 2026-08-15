@@ -38,10 +38,11 @@ public final class DestinyLikeToggleSwitchRenders {
 
         draw.rect(trackX, trackY, trackWidth, trackHeight,
                 Paint.fill(mix(DOMINION_SWITCH_TRACK_OFF, DOMINION_SWITCH_TRACK_ON, progress)));
-        draw.rect(trackX, trackY, trackWidth, trackHeight,
-                Paint.stroke(state.hovered() && state.enabled()
+        DestinyLikeRenderPrimitives.rectBorder(draw, trackX, trackY, trackWidth, trackHeight,
+                state.hovered() && state.enabled()
                         ? DOMINION_SWITCH_BORDER_HOVER
-                        : mix(DOMINION_SWITCH_BORDER_OFF, DOMINION_SWITCH_BORDER_ON, progress), DOMINION_SWITCH_BORDER_WIDTH));
+                        : mix(DOMINION_SWITCH_BORDER_OFF, DOMINION_SWITCH_BORDER_ON, progress),
+                DOMINION_SWITCH_BORDER_WIDTH);
 
         float thumbPadding = Math.max(0.24f, (trackHeight - thumbSize) * 0.5f);
         float thumbTravel = Math.max(0.0f, trackWidth - thumbSize - thumbPadding * 2.0f);

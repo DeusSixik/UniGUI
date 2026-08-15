@@ -72,14 +72,23 @@ public final class MinecraftVideoSettingsMenu {
     private static final Component WARNING_CANCEL = Component.translatable("options.graphics.warning.cancel");
 
     private static final float MENU_WIDTH = 265.0f;
-    private static final float MENU_HEIGHT = 205.0f;
+    private static final float MENU_HEIGHT = 213.0f;
     private static final float MENU_CONTENT_WIDTH = 232.0f;
     private static final float SETTINGS_HEIGHT = 122.0f;
-    private static final float DROPBOX_WIDTH = 98.0f;
+    private static final float CONTROL_WIDTH = 98.0f;
+    private static final float DROPBOX_WIDTH = 76.0f;
+    private static final float DROPBOX_HEIGHT = 16.0f;
+    private static final float DROPBOX_OPTION_HEIGHT = 16.0f;
     private static final float SLIDER_WIDTH = 70.0f;
     private static final float VALUE_WIDTH = 23.0f;
     private static final float ROW_HEIGHT = 17.0f;
     private static final float ROW_SPACING = 4.0f;
+    private static final float ACTION_BUTTON_SCALE = 1.5f;
+    private static final float ACTION_BUTTON_HEIGHT = 30.0f;
+    private static final float ACTION_BUTTON_SPACING = 12.0f;
+    private static final float TOGGLE_SWITCH_WIDTH = 14.0f;
+    private static final float TOGGLE_SWITCH_HEIGHT = 7.0f;
+    private static final float TOGGLE_SWITCH_THUMB = 5.0f;
 
     private static final MutableColor TEXT = MutableColor.rgba255(245, 247, 255, 255);
     private static final MutableColor PANEL_BACKGROUND = MutableColor.rgba255(13, 16, 22, 230);
@@ -276,9 +285,9 @@ public final class MinecraftVideoSettingsMenu {
 
     private static HBox actionButtons(Screen last, Options options, int oldMipmaps, List<Runnable> resetRefreshers) {
         HBox actions = new HBox();
-        actions.spacing(8.0f);
+        actions.spacing(ACTION_BUTTON_SPACING);
         actions.layout(style -> style
-                .size(MENU_CONTENT_WIDTH, 22.0f)
+                .size(MENU_CONTENT_WIDTH, ACTION_BUTTON_HEIGHT)
                 .align(Alignment.CENTER, Alignment.CENTER)
                 .alignItems(Align.CENTER)
                 .justifyContent(Justify.SPACE_BETWEEN)
@@ -290,7 +299,7 @@ public final class MinecraftVideoSettingsMenu {
         back.onClick(event -> finishVideoSettings(last, options, oldMipmaps));
 
         HBox rightActions = new HBox();
-        rightActions.spacing(8.0f);
+        rightActions.spacing(ACTION_BUTTON_SPACING);
         rightActions.layout(style -> style
                 .size(LayoutConstraints.AUTO, LayoutConstraints.AUTO)
                 .align(Alignment.CENTER, Alignment.CENTER)
@@ -491,7 +500,7 @@ public final class MinecraftVideoSettingsMenu {
         HBox control = new HBox();
         control.spacing(5.0f);
         control.layout(style -> style
-                .size(DROPBOX_WIDTH, 16.0f)
+                .size(CONTROL_WIDTH, 16.0f)
                 .align(Alignment.CENTER, Alignment.CENTER)
                 .alignItems(Align.CENTER)
                 .justifyContent(Justify.CENTER)
@@ -503,7 +512,7 @@ public final class MinecraftVideoSettingsMenu {
     private static Label valueLabel(String text) {
         Label label = new Label(labelText(text, 4.0f));
         label.layout(style -> style
-                .size(DROPBOX_WIDTH, 15.0f)
+                .size(CONTROL_WIDTH, 15.0f)
                 .align(Alignment.CENTER, Alignment.CENTER)
                 .flexGrow(0.0f)
                 .flexShrink(0.0f));
@@ -533,7 +542,7 @@ public final class MinecraftVideoSettingsMenu {
         dropBox.richItems(dropBoxItems(options));
         dropBox.silentSelectedIndex(clampIndex(selectedIndex, options));
         dropBox.dropDownSameWidth();
-        dropBox.optionRowHeight(DestinyLikeDropDownRenders.OPTION_HEIGHT);
+        dropBox.optionRowHeight(DROPBOX_OPTION_HEIGHT);
         dropBox.maxVisibleOptions(6);
         dropBox.headerButton().renderer(DestinyLikeDropDownRenders.HEADER);
         dropBox.headerButton().textPadding(DestinyLikeDropDownRenders.TEXT_PADDING_X, 0.0f);
@@ -541,7 +550,7 @@ public final class MinecraftVideoSettingsMenu {
         dropBox.headerButton().borderVisible(false);
         dropBox.headerButton().themeEnabled(false);
         dropBox.headerButton().layout(style -> style
-                .size(DROPBOX_WIDTH, DestinyLikeDropDownRenders.HEADER_HEIGHT)
+                .size(DROPBOX_WIDTH, DROPBOX_HEIGHT)
                 .flexGrow(0.0f)
                 .flexShrink(0.0f));
 
@@ -554,7 +563,7 @@ public final class MinecraftVideoSettingsMenu {
         dropBox.optionsHost().background().set(0.09f, 0.10f, 0.13f, 0.98f);
         dropBox.optionsHost().borderColor().set(0.41f, 0.43f, 0.48f, 0.88f);
         dropBox.optionsScroll().scrollbarGap(1.0f);
-        dropBox.optionsScroll().scrollStep(DestinyLikeDropDownRenders.OPTION_HEIGHT);
+        dropBox.optionsScroll().scrollStep(DROPBOX_OPTION_HEIGHT);
         dropBox.optionsScroll().scrollbarTrackColor().set(0.0f, 0.0f, 0.0f, 0.42f);
         dropBox.optionsScroll().scrollbarThumbColor().set(0.82f, 0.84f, 0.88f, 0.86f);
 
@@ -566,13 +575,13 @@ public final class MinecraftVideoSettingsMenu {
             option.borderVisible(false);
             option.themeEnabled(false);
             option.layout(style -> style
-                    .size(LayoutConstraints.AUTO, DestinyLikeDropDownRenders.OPTION_HEIGHT)
+                    .size(LayoutConstraints.AUTO, DROPBOX_OPTION_HEIGHT)
                     .flexGrow(0.0f)
                     .flexShrink(0.0f));
         }
 
         dropBox.layout(style -> style
-                .size(DROPBOX_WIDTH, DestinyLikeDropDownRenders.HEADER_HEIGHT)
+                .size(DROPBOX_WIDTH, DROPBOX_HEIGHT)
                 .align(Alignment.CENTER, Alignment.CENTER)
                 .flexGrow(0.0f)
                 .flexShrink(0.0f));
@@ -611,8 +620,8 @@ public final class MinecraftVideoSettingsMenu {
         Button button = new Button();
         button.richText(DestinyLikeButtonRenders.dominionButtonText(text, textColor));
         button.textPadding(
-                DestinyLikeButtonRenders.INTRINSIC_TEXT_PADDING_X,
-                DestinyLikeButtonRenders.INTRINSIC_TEXT_PADDING_Y);
+                DestinyLikeButtonRenders.INTRINSIC_TEXT_PADDING_X * ACTION_BUTTON_SCALE,
+                DestinyLikeButtonRenders.INTRINSIC_TEXT_PADDING_Y * ACTION_BUTTON_SCALE);
         button.layout(layout -> layout
                 .size(LayoutConstraints.AUTO, LayoutConstraints.AUTO)
                 .align(Alignment.CENTER, Alignment.CENTER)
@@ -870,8 +879,8 @@ public final class MinecraftVideoSettingsMenu {
         toggle.backgroundVisible(false);
         toggle.borderVisible(false);
         toggle.themeEnabled(false);
-        toggle.trackSize(5.2f * 2, 2.6f * 2);
-        toggle.thumbSize(1.7f * 2);
+        toggle.trackSize(TOGGLE_SWITCH_WIDTH, TOGGLE_SWITCH_HEIGHT);
+        toggle.thumbSize(TOGGLE_SWITCH_THUMB);
         toggle.labelGap(1.35f);
         toggle.labelLeft(labelLeft);
         toggle.richText(DestinyLikeToggleSwitchRenders.dominionSwitchText(text));

@@ -35,10 +35,11 @@ public final class DestinyLikeCheckboxRenders {
 
         draw.rect(boxX, boxY, boxSize, boxSize,
                 Paint.fill(mix(DOMINION_CHECKBOX_BOX_OFF, DOMINION_CHECKBOX_BOX_ON, progress)));
-        draw.rect(boxX, boxY, boxSize, boxSize,
-                Paint.stroke(state.hovered() && state.enabled()
+        DestinyLikeRenderPrimitives.rectBorder(draw, boxX, boxY, boxSize, boxSize,
+                state.hovered() && state.enabled()
                         ? DOMINION_CHECKBOX_BORDER_HOVER
-                        : mix(DOMINION_CHECKBOX_BORDER_OFF, DOMINION_CHECKBOX_BORDER_ON, progress), DOMINION_CHECKBOX_BORDER_WIDTH));
+                        : mix(DOMINION_CHECKBOX_BORDER_OFF, DOMINION_CHECKBOX_BORDER_ON, progress),
+                DOMINION_CHECKBOX_BORDER_WIDTH);
 
         if (progress > 0.0f) {
             if (state.indeterminate()) {
