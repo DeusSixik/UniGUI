@@ -25,6 +25,8 @@ import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.viewport.Viewport2D;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -77,6 +79,7 @@ import java.util.List;
  * @see AnchorLayer
  * @see dev.sixik.unigui.widgets.map.MapCanvas
  */
+@XmlWidgetName("WorldCanvas")
 public class WorldCanvas extends WidgetBase {
     public static final float DEFAULT_PREFERRED_WIDTH = 320.0f;
     public static final float DEFAULT_PREFERRED_HEIGHT = 240.0f;
@@ -244,6 +247,7 @@ public class WorldCanvas extends WidgetBase {
      * @param clampToWorldBounds {@code true}, чтобы зажимать pan/zoom по границам мира
      * @return этот canvas для fluent-настройки
      */
+    @XmlAttribute(value = "clampToWorldBounds", category = "Behavior", defaultValue = "false", description = "Whether pan/zoom is constrained to configured world bounds.")
     public WorldCanvas clampToWorldBounds(boolean clampToWorldBounds) {
         viewport.clampToWorldBounds(clampToWorldBounds);
         clampViewport();
@@ -337,6 +341,7 @@ public class WorldCanvas extends WidgetBase {
      * @param clippingEnabled {@code true}, чтобы резать содержимое по bounds
      * @return этот canvas для fluent-настройки
      */
+    @XmlAttribute(value = "clippingEnabled", category = "Behavior", defaultValue = "true", description = "Whether world layers and anchors are clipped to canvas bounds.")
     public WorldCanvas clippingEnabled(boolean clippingEnabled) {
         if (this.clippingEnabled == clippingEnabled) return this;
         this.clippingEnabled = clippingEnabled;
@@ -359,6 +364,7 @@ public class WorldCanvas extends WidgetBase {
      * @param panningEnabled {@code true}, чтобы разрешить перетаскивание viewport'а
      * @return этот canvas для fluent-настройки
      */
+    @XmlAttribute(value = "panningEnabled", category = "Behavior", defaultValue = "true", description = "Whether pointer drag can pan the viewport.")
     public WorldCanvas panningEnabled(boolean panningEnabled) {
         this.panningEnabled = panningEnabled;
         return this;
@@ -379,6 +385,7 @@ public class WorldCanvas extends WidgetBase {
      * @param zoomEnabled {@code true}, чтобы разрешить интерактивный zoom
      * @return этот canvas для fluent-настройки
      */
+    @XmlAttribute(value = "zoomEnabled", category = "Behavior", defaultValue = "true", description = "Whether Ctrl-wheel zoom gestures are enabled.")
     public WorldCanvas zoomEnabled(boolean zoomEnabled) {
         this.zoomEnabled = zoomEnabled;
         return this;
@@ -401,6 +408,7 @@ public class WorldCanvas extends WidgetBase {
      * @param wheelPanningEnabled {@code true}, чтобы scroll двигал viewport
      * @return этот canvas для fluent-настройки
      */
+    @XmlAttribute(value = "wheelPanningEnabled", category = "Behavior", defaultValue = "true", description = "Whether wheel gestures pan the viewport.")
     public WorldCanvas wheelPanningEnabled(boolean wheelPanningEnabled) {
         this.wheelPanningEnabled = wheelPanningEnabled;
         return this;
@@ -424,6 +432,7 @@ public class WorldCanvas extends WidgetBase {
      * @param consumeWheelWhileHovered {@code true}, чтобы отменять scroll внутри canvas'а
      * @return этот canvas для fluent-настройки
      */
+    @XmlAttribute(value = "consumeWheelWhileHovered", category = "Behavior", defaultValue = "true", description = "Whether wheel events are consumed while the canvas is hovered.")
     public WorldCanvas consumeWheelWhileHovered(boolean consumeWheelWhileHovered) {
         this.consumeWheelWhileHovered = consumeWheelWhileHovered;
         return this;
@@ -444,6 +453,7 @@ public class WorldCanvas extends WidgetBase {
      * @param wheelPanStep шаг pan в screen-space пикселях, отрицательные/NaN значения нормализуются
      * @return этот canvas для fluent-настройки
      */
+    @XmlAttribute(value = "wheelPanStep", category = "Behavior", defaultValue = "32", description = "Viewport pan distance applied per wheel delta unit.")
     public WorldCanvas wheelPanStep(float wheelPanStep) {
         this.wheelPanStep = Float.isFinite(wheelPanStep) ? Math.max(0.0f, wheelPanStep) : 32.0f;
         return this;
@@ -466,6 +476,7 @@ public class WorldCanvas extends WidgetBase {
      * @param zoomStep положительный множитель зума
      * @return этот canvas для fluent-настройки
      */
+    @XmlAttribute(value = "zoomStep", category = "Behavior", defaultValue = "1.1", description = "Multiplicative zoom factor applied per wheel delta unit.")
     public WorldCanvas zoomStep(float zoomStep) {
         this.zoomStep = Float.isFinite(zoomStep) && zoomStep > 0.0f ? zoomStep : 1.1f;
         return this;
@@ -486,6 +497,7 @@ public class WorldCanvas extends WidgetBase {
      * @param panButton кнопка pan; {@code null} возвращает {@link PointerButton#PRIMARY}
      * @return этот canvas для fluent-настройки
      */
+    @XmlAttribute(value = "panButton", category = "Behavior", defaultValue = "primary", description = "Pointer button that starts drag panning.")
     public WorldCanvas panButton(PointerButton panButton) {
         this.panButton = panButton == null ? PointerButton.PRIMARY : panButton;
         return this;
@@ -506,6 +518,7 @@ public class WorldCanvas extends WidgetBase {
      * @param preferredWidth preferred ширина; неположительные/NaN значения сбрасываются к default
      * @return этот canvas для fluent-настройки
      */
+    @XmlAttribute(value = "preferredWidth", category = "Layout", defaultValue = "320", description = "Intrinsic canvas width before layout constraints are applied.")
     public WorldCanvas preferredWidth(float preferredWidth) {
         float normalized = positiveOr(preferredWidth, DEFAULT_PREFERRED_WIDTH);
         if (this.preferredWidth == normalized) return this;
@@ -529,6 +542,7 @@ public class WorldCanvas extends WidgetBase {
      * @param preferredHeight preferred высота; неположительные/NaN значения сбрасываются к default
      * @return этот canvas для fluent-настройки
      */
+    @XmlAttribute(value = "preferredHeight", category = "Layout", defaultValue = "240", description = "Intrinsic canvas height before layout constraints are applied.")
     public WorldCanvas preferredHeight(float preferredHeight) {
         float normalized = positiveOr(preferredHeight, DEFAULT_PREFERRED_HEIGHT);
         if (this.preferredHeight == normalized) return this;

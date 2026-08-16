@@ -12,10 +12,13 @@ import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.TexturePlacement;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.render.TextureWidgetRenderer;
 import dev.sixik.unigui.widgets.render.TextureWidgetState;
 
+@XmlWidgetName("TextureWidget")
 public class TextureWidget extends WidgetBase {
     private static final String TEXTURE_CROSSFADE_KEY = "TextureWidget.textureCrossfade";
 
@@ -45,6 +48,7 @@ public class TextureWidget extends WidgetBase {
         return texture;
     }
 
+    @XmlAttribute(value = "texture", category = "Assets", defaultValue = "", description = "Texture resource id resolved through XmlWidgetOptions.textureResolver.")
     public TextureWidget texture(TextureHandle texture) {
         if (this.texture == texture) return this;
         this.texture = texture;
@@ -119,6 +123,7 @@ public class TextureWidget extends WidgetBase {
         return fit;
     }
 
+    @XmlAttribute(value = "fit", category = "Assets", defaultValue = "stretch", description = "Placement mode for the texture.")
     public TextureWidget fit(ImageFit fit) {
         ImageFit effectiveFit = fit == null ? ImageFit.STRETCH : fit;
         if (this.fit == effectiveFit) return this;
@@ -131,6 +136,7 @@ public class TextureWidget extends WidgetBase {
         return radius;
     }
 
+    @XmlAttribute(value = "radius", category = "Appearance", defaultValue = "0", description = "Corner radius used while rendering the texture.")
     public TextureWidget radius(float radius) {
         float effectiveRadius = Float.isFinite(radius) ? Math.max(0.0f, radius) : 0.0f;
         if (this.radius == effectiveRadius) return this;

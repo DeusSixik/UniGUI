@@ -17,11 +17,14 @@ import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.CheckboxState;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.render.ButtonRenderType;
 import dev.sixik.unigui.widgets.render.ButtonRenderer;
 import dev.sixik.unigui.widgets.render.ButtonState;
 
+@XmlWidgetName("Checkbox")
 public class Checkbox extends ToggleButton {
     private static final float BOX_SIZE = 12.0f;
     private static final float CHECK_SIZE = 6.0f;
@@ -65,6 +68,7 @@ public class Checkbox extends ToggleButton {
         return this;
     }
 
+    @XmlAttribute(value = "state", category = "Behavior", defaultValue = "unchecked", description = "Initial checkbox state without emitting change events during XML load.")
     public Checkbox silentState(CheckboxState state) {
         setState(state, false);
         return this;
@@ -82,6 +86,7 @@ public class Checkbox extends ToggleButton {
         return triState;
     }
 
+    @XmlAttribute(value = "triState", category = "Behavior", defaultValue = "false", description = "Allows cycling through checked, unchecked and indeterminate states.")
     public Checkbox triState(boolean triState) {
         this.triState = triState;
         return this;
@@ -91,6 +96,7 @@ public class Checkbox extends ToggleButton {
         return boxSize;
     }
 
+    @XmlAttribute(value = "boxSize", category = "Layout", defaultValue = "12", description = "Checkbox square size in UI pixels.")
     public Checkbox boxSize(float boxSize) {
         float normalized = positiveOr(boxSize, BOX_SIZE);
         if (this.boxSize == normalized) return this;
@@ -104,6 +110,7 @@ public class Checkbox extends ToggleButton {
         return checkSize;
     }
 
+    @XmlAttribute(value = "checkSize", category = "Layout", defaultValue = "6", description = "Check mark size in UI pixels.")
     public Checkbox checkSize(float checkSize) {
         float normalized = Math.min(positiveOr(checkSize, CHECK_SIZE), boxSize);
         if (this.checkSize == normalized) return this;
@@ -116,6 +123,7 @@ public class Checkbox extends ToggleButton {
         return textGap;
     }
 
+    @XmlAttribute(value = "textGap", category = "Layout", defaultValue = "4", description = "Gap between checkbox mark and label text.")
     public Checkbox textGap(float textGap) {
         float normalized = Float.isFinite(textGap) ? Math.max(0.0f, textGap) : TEXT_GAP;
         if (this.textGap == normalized) return this;
@@ -128,6 +136,7 @@ public class Checkbox extends ToggleButton {
         return labelLeft;
     }
 
+    @XmlAttribute(value = "labelLeft", category = "Layout", defaultValue = "false", description = "Whether label text is rendered before the checkbox mark.")
     public Checkbox labelLeft(boolean labelLeft) {
         if (this.labelLeft == labelLeft) return this;
         this.labelLeft = labelLeft;
@@ -164,6 +173,7 @@ public class Checkbox extends ToggleButton {
     }
 
     @Override
+    @XmlAttribute(value = "checked", category = "Behavior", defaultValue = "false", description = "Initial checked state without emitting change events during XML load.")
     public Checkbox silentChecked(boolean checked) {
         setState(checked ? CheckboxState.CHECKED : CheckboxState.UNCHECKED, false);
         return this;

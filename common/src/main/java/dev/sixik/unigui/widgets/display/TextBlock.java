@@ -2,6 +2,8 @@ package dev.sixik.unigui.widgets.display;
 
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 
 /**
  * Plain multiline paragraph widget.
@@ -9,6 +11,7 @@ import dev.sixik.unigui.api.text.RichText;
  * <p>TextBlock intentionally flattens RichText input to plain text. Use
  * {@link RichTextView} when segment-level font/style runs must be preserved.</p>
  */
+@XmlWidgetName("TextBlock")
 public final class TextBlock extends TextWidget {
     public TextBlock() {
         wrap(true);
@@ -25,6 +28,7 @@ public final class TextBlock extends TextWidget {
     }
 
     @Override
+    @XmlAttribute(value = "text", category = "Content", defaultValue = "", description = "Plain text content displayed by the text block.")
     public TextBlock text(String text) {
         super.text(text);
         return this;

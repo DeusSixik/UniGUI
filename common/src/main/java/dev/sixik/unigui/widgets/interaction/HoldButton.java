@@ -23,6 +23,8 @@ import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.render.ButtonRenderType;
 import dev.sixik.unigui.widgets.render.ButtonRenderer;
@@ -40,6 +42,7 @@ import dev.sixik.unigui.widgets.render.HoldButtonState;
  * renderer draws a progress fill over the button surface and then renders the
  * usual centered button label.</p>
  */
+@XmlWidgetName("HoldButton")
 public class HoldButton extends Button {
     private static final float DEFAULT_HOLD_DURATION_SECONDS = 0.65f;
 
@@ -70,6 +73,7 @@ public class HoldButton extends Button {
         return holdDurationSeconds;
     }
 
+    @XmlAttribute(value = "holdDurationSeconds", category = "Behavior", defaultValue = "0.65", description = "Required hold duration before firing the button action.")
     public HoldButton holdDurationSeconds(float holdDurationSeconds) {
         float normalized = Float.isFinite(holdDurationSeconds)
                 ? Math.max(0.01f, holdDurationSeconds)
@@ -105,6 +109,7 @@ public class HoldButton extends Button {
         return cancelOnPointerExit;
     }
 
+    @XmlAttribute(value = "cancelOnPointerExit", category = "Behavior", defaultValue = "true", description = "Whether leaving the button cancels an active hold gesture.")
     public HoldButton cancelOnPointerExit(boolean cancelOnPointerExit) {
         this.cancelOnPointerExit = cancelOnPointerExit;
         return this;

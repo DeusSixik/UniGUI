@@ -24,6 +24,8 @@ import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.render.ColorPickerRenderer;
 import dev.sixik.unigui.widgets.render.ColorPickerState;
@@ -35,6 +37,7 @@ import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.feedback.Popup;
 
+@XmlWidgetName("ColorPicker")
 public final class ColorPicker extends LinearBox {
     private static final float PICKER_WIDTH = 224.0f;
     private static final float COLOR_PLANE_HEIGHT = 128.0f;
@@ -121,6 +124,7 @@ public final class ColorPicker extends LinearBox {
                 | channel(color.b());
     }
 
+    @XmlAttribute(value = "color", category = "Appearance", defaultValue = "#FFFFFFFF", description = "Selected color parsed from XML color syntax.")
     public ColorPicker color(ColorView color) {
         if (color != null) {
             setColor(color.r(), color.g(), color.b(), color.a(), false);
@@ -128,6 +132,7 @@ public final class ColorPicker extends LinearBox {
         return this;
     }
 
+    @XmlAttribute(value = "argb", category = "Appearance", defaultValue = "-1", description = "Selected color as packed ARGB integer.")
     public ColorPicker argb(int argb) {
         return rgba255(
                 (argb >>> 16) & 0xFF,
@@ -150,6 +155,7 @@ public final class ColorPicker extends LinearBox {
         return type;
     }
 
+    @XmlAttribute(value = "type", category = "Behavior", defaultValue = "hsv", description = "Visible picker editing mode.")
     public ColorPicker type(Type type) {
         Type normalized = type == null ? Type.HSV : type;
         this.type = normalized;

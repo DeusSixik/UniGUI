@@ -18,6 +18,8 @@ import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.render.ButtonRenderType;
 import dev.sixik.unigui.widgets.render.ButtonRenderer;
@@ -25,6 +27,7 @@ import dev.sixik.unigui.widgets.render.ButtonState;
 
 import java.util.Objects;
 
+@XmlWidgetName("RadioButton")
 public class RadioButton extends Button {
     private static final float OUTER_SIZE = 12.0f;
     private static final float INNER_SIZE = 6.0f;
@@ -78,6 +81,7 @@ public class RadioButton extends Button {
         return value;
     }
 
+    @XmlAttribute(value = "value", category = "Behavior", defaultValue = "", description = "Radio option value associated with this button.")
     public RadioButton value(String value) {
         String normalized = normalize(value);
         if (Objects.equals(this.value, normalized)) return this;
@@ -94,6 +98,7 @@ public class RadioButton extends Button {
         return this;
     }
 
+    @XmlAttribute(value = "checked", category = "Behavior", defaultValue = "false", description = "Initial checked state without emitting change events during XML load.")
     public RadioButton silentChecked(boolean checked) {
         setChecked(checked, false);
         return this;
@@ -103,6 +108,7 @@ public class RadioButton extends Button {
         return outerSize;
     }
 
+    @XmlAttribute(value = "outerSize", category = "Layout", defaultValue = "12", description = "Outer radio circle size in UI pixels.")
     public RadioButton outerSize(float outerSize) {
         float normalized = positiveOr(outerSize, OUTER_SIZE);
         if (this.outerSize == normalized) return this;
@@ -116,6 +122,7 @@ public class RadioButton extends Button {
         return innerSize;
     }
 
+    @XmlAttribute(value = "innerSize", category = "Layout", defaultValue = "6", description = "Inner selected dot size in UI pixels.")
     public RadioButton innerSize(float innerSize) {
         float normalized = Math.min(positiveOr(innerSize, INNER_SIZE), outerSize);
         if (this.innerSize == normalized) return this;
@@ -128,6 +135,7 @@ public class RadioButton extends Button {
         return textGap;
     }
 
+    @XmlAttribute(value = "textGap", category = "Layout", defaultValue = "4", description = "Gap between radio mark and label text.")
     public RadioButton textGap(float textGap) {
         float normalized = Float.isFinite(textGap) ? Math.max(0.0f, textGap) : TEXT_GAP;
         if (this.textGap == normalized) return this;
@@ -140,6 +148,7 @@ public class RadioButton extends Button {
         return labelLeft;
     }
 
+    @XmlAttribute(value = "labelLeft", category = "Layout", defaultValue = "false", description = "Whether label text is rendered before the radio mark.")
     public RadioButton labelLeft(boolean labelLeft) {
         if (this.labelLeft == labelLeft) return this;
         this.labelLeft = labelLeft;

@@ -9,6 +9,7 @@ import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.layout.v3.LayoutV3StackAdapter;
 
 /**
@@ -25,6 +26,7 @@ import dev.sixik.unigui.impl.layout.v3.LayoutV3StackAdapter;
  * @see PanelWidget
  * @see WrapPanel
  */
+@XmlWidgetName("StackPanel")
 public final class StackPanel extends PanelWidget {
     @Override
     public void measure(LayoutContext context) {

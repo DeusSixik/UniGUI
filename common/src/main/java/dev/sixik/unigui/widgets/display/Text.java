@@ -1,6 +1,7 @@
 package dev.sixik.unigui.widgets.display;
 
 import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 
 /**
  * Generic display text widget.
@@ -9,6 +10,7 @@ import dev.sixik.unigui.api.text.RichText;
  * that control on click. Use {@link TextBlock} for plain multiline paragraphs
  * and {@link RichTextView} for rich multiline content.</p>
  */
+@XmlWidgetName("Text")
 public final class Text extends TextWidget {
     public Text() {
     }

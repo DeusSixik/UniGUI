@@ -9,6 +9,8 @@ import dev.sixik.unigui.api.layout.PositionType;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Iterator;
@@ -21,6 +23,7 @@ import dev.sixik.unigui.widgets.containers.Box;
  * <p>{@link Toast} owns the visual card/message/duration behavior. NotificationView
  * owns queueing, max-visible policy and host-relative stacking.</p>
  */
+@XmlWidgetName("NotificationView")
 public class NotificationView extends Box implements OverlayHostAware {
     public enum Placement {
         TOP_RIGHT,
@@ -51,6 +54,7 @@ public class NotificationView extends Box implements OverlayHostAware {
         return pendingText;
     }
 
+    @XmlAttribute(value = "text", category = "Content", defaultValue = "", description = "Pending notification text used by show().")
     public NotificationView text(String text) {
         pendingText = text == null ? "" : text;
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
@@ -61,6 +65,7 @@ public class NotificationView extends Box implements OverlayHostAware {
         return defaultDurationSeconds;
     }
 
+    @XmlAttribute(value = "duration", category = "Behavior", defaultValue = "3.5", description = "Default lifetime for newly created toasts.")
     public NotificationView duration(float seconds) {
         defaultDurationSeconds = sanitizeDuration(seconds);
         return this;
@@ -70,6 +75,7 @@ public class NotificationView extends Box implements OverlayHostAware {
         return spacing;
     }
 
+    @XmlAttribute(value = "spacing", category = "Layout", defaultValue = "8", description = "Vertical gap between visible notification cards.")
     public NotificationView spacing(float spacing) {
         this.spacing = Float.isFinite(spacing) ? Math.max(0.0f, spacing) : 8.0f;
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
@@ -80,6 +86,7 @@ public class NotificationView extends Box implements OverlayHostAware {
         return margin;
     }
 
+    @XmlAttribute(value = "margin", category = "Layout", defaultValue = "10", description = "Distance from host edges in UI pixels.")
     public NotificationView margin(float margin) {
         this.margin = Float.isFinite(margin) ? Math.max(0.0f, margin) : 10.0f;
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
@@ -90,6 +97,7 @@ public class NotificationView extends Box implements OverlayHostAware {
         return maxVisible;
     }
 
+    @XmlAttribute(value = "maxVisible", category = "Behavior", defaultValue = "3", description = "Maximum number of concurrently visible notification cards.")
     public NotificationView maxVisible(int maxVisible) {
         this.maxVisible = Math.max(1, maxVisible);
         updateVisibleCards();
@@ -101,6 +109,7 @@ public class NotificationView extends Box implements OverlayHostAware {
         return placement;
     }
 
+    @XmlAttribute(value = "placement", category = "Layout", defaultValue = "top_right", description = "Host-relative notification stack placement.")
     public NotificationView placement(Placement placement) {
         this.placement = placement == null ? Placement.TOP_RIGHT : placement;
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);

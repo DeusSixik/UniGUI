@@ -1,9 +1,12 @@
 package dev.sixik.unigui.widgets.interaction;
 
+import dev.sixik.unigui.api.xml.XmlWidgetName;
+
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.List;
 import java.util.function.Function;
 
+@XmlWidgetName("TreeListPicker")
 public final class TreeListPicker<T> extends ComboBox {
     private final List<T> values = new ObjectArrayList<>();
     private Function<T, String> labelProvider = value -> value == null ? "" : value.toString();

@@ -108,6 +108,14 @@ tasks.register("textureManagementSelfTest", JavaExec) {
     mainClass = "dev.sixik.unigui.tests.TextureManagementSelfTest"
 }
 
+tasks.register("xmlWidgetSelfTest", JavaExec) {
+    group = "verification"
+    description = "Runs XML widget loader self-test assertions."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.XmlWidgetSelfTest"
+}
+
 tasks.named("test") {
     dependsOn tasks.named("layoutV3SelfTest")
     dependsOn tasks.named("windowManagerSelfTest")
@@ -120,5 +128,6 @@ tasks.named("test") {
     dependsOn tasks.named("mapCanvasSelfTest")
     dependsOn tasks.named("renderPolishSelfTest")
     dependsOn tasks.named("textureManagementSelfTest")
+    dependsOn tasks.named("xmlWidgetSelfTest")
     dependsOn tasks.named("holdButtonSelfTest")
 }

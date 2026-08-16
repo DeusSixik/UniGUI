@@ -7,6 +7,8 @@ import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.layout.v3.LayoutV3FlexAdapter;
 import dev.sixik.unigui.widgets.core.Orientation;
 
@@ -27,6 +29,7 @@ import dev.sixik.unigui.widgets.core.Orientation;
  * @see VBox
  * @see WrapPanel
  */
+@XmlWidgetName("LinearBox")
 public class LinearBox extends PanelWidget {
     private Orientation orientation;
     private float spacing;
@@ -59,6 +62,7 @@ public class LinearBox extends PanelWidget {
      * @param orientation новое направление; {@code null} трактуется как {@link Orientation#VERTICAL}
      * @return этот контейнер для fluent-настройки
      */
+    @XmlAttribute(value = "orientation", category = "Layout", defaultValue = "vertical", description = "Main axis used to arrange children.")
     public LinearBox orientation(Orientation orientation) {
         Orientation normalized = orientation == null ? Orientation.VERTICAL : orientation;
         if (this.orientation == normalized) return this;
@@ -83,6 +87,7 @@ public class LinearBox extends PanelWidget {
      * @param spacing spacing в пикселях UI-пространства
      * @return этот контейнер для fluent-настройки
      */
+    @XmlAttribute(value = "spacing", category = "Layout", defaultValue = "0", description = "Gap between adjacent children on the main axis.")
     public LinearBox spacing(float spacing) {
         if (this.spacing == spacing) return this;
         this.spacing = spacing;

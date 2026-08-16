@@ -18,6 +18,8 @@ import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.render.SparklineRenderer;
 import dev.sixik.unigui.widgets.render.SparklineState;
@@ -27,6 +29,7 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
 
+@XmlWidgetName("Sparkline")
 public class Sparkline extends WidgetBase {
     public static final float DEFAULT_PREFERRED_WIDTH = 140.0f;
     public static final float DEFAULT_PREFERRED_HEIGHT = 34.0f;
@@ -113,6 +116,7 @@ public class Sparkline extends WidgetBase {
         return tooltipBorder;
     }
 
+    @XmlAttribute(value = "fillVisible", category = "Appearance", defaultValue = "true", description = "Whether the sparkline area fill is rendered.")
     public Sparkline fillVisible(boolean fillVisible) {
         if (this.fillVisible == fillVisible) return this;
         this.fillVisible = fillVisible;
@@ -120,6 +124,7 @@ public class Sparkline extends WidgetBase {
         return this;
     }
 
+    @XmlAttribute(value = "pointMode", category = "Appearance", defaultValue = "extrema", description = "Which sparkline points are rendered and hit-tested.")
     public Sparkline pointMode(PointMode pointMode) {
         PointMode normalized = pointMode == null ? PointMode.NONE : pointMode;
         if (this.pointMode == normalized) return this;
@@ -129,6 +134,7 @@ public class Sparkline extends WidgetBase {
         return this;
     }
 
+    @XmlAttribute(value = "pointLabelsVisible", category = "Appearance", defaultValue = "false", description = "Whether point value labels are rendered.")
     public Sparkline pointLabelsVisible(boolean pointLabelsVisible) {
         if (this.pointLabelsVisible == pointLabelsVisible) return this;
         this.pointLabelsVisible = pointLabelsVisible;
@@ -136,6 +142,7 @@ public class Sparkline extends WidgetBase {
         return this;
     }
 
+    @XmlAttribute(value = "pointLabelPlacement", category = "Appearance", defaultValue = "above", description = "Placement of point value labels.")
     public Sparkline pointLabelPlacement(PointLabelPlacement pointLabelPlacement) {
         this.pointLabelPlacement = pointLabelPlacement == null ? PointLabelPlacement.ABOVE : pointLabelPlacement;
         invalidate(InvalidationFlags.VISUAL);
@@ -179,6 +186,7 @@ public class Sparkline extends WidgetBase {
         return preferredWidth;
     }
 
+    @XmlAttribute(value = "preferredWidth", category = "Layout", defaultValue = "140", description = "Intrinsic sparkline width before layout constraints are applied.")
     public Sparkline preferredWidth(float preferredWidth) {
         float normalized = positiveOr(preferredWidth, DEFAULT_PREFERRED_WIDTH);
         if (this.preferredWidth == normalized) return this;
@@ -191,6 +199,7 @@ public class Sparkline extends WidgetBase {
         return preferredHeight;
     }
 
+    @XmlAttribute(value = "preferredHeight", category = "Layout", defaultValue = "34", description = "Intrinsic sparkline height before layout constraints are applied.")
     public Sparkline preferredHeight(float preferredHeight) {
         float normalized = positiveOr(preferredHeight, DEFAULT_PREFERRED_HEIGHT);
         if (this.preferredHeight == normalized) return this;

@@ -11,6 +11,7 @@ import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.backend.minecraft.MinecraftGuiRenderBackend;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.containers.Box;
@@ -45,6 +46,7 @@ public abstract class MinecraftPreviewWidget extends Box {
         return label;
     }
 
+    @XmlAttribute(value = "label", category = "Content", defaultValue = "", description = "Preview caption text.")
     public MinecraftPreviewWidget label(String label) {
         String normalized = label == null ? "" : label;
         if (Objects.equals(this.label, normalized)) return this;
@@ -71,6 +73,7 @@ public abstract class MinecraftPreviewWidget extends Box {
         return previewSize;
     }
 
+    @XmlAttribute(value = "previewSize", category = "Layout", defaultValue = "54", description = "Square preview area size in UI pixels.")
     public MinecraftPreviewWidget previewSize(float previewSize) {
         float normalized = Float.isFinite(previewSize) ? Math.max(16.0f, previewSize) : DEFAULT_SIZE;
         if (this.previewSize == normalized) return this;
@@ -83,6 +86,7 @@ public abstract class MinecraftPreviewWidget extends Box {
         return labelVisible;
     }
 
+    @XmlAttribute(value = "labelVisible", category = "Appearance", defaultValue = "true", description = "Whether the preview caption is rendered.")
     public MinecraftPreviewWidget labelVisible(boolean labelVisible) {
         if (this.labelVisible == labelVisible) return this;
         this.labelVisible = labelVisible;

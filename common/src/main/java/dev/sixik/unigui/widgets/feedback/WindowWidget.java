@@ -38,6 +38,8 @@ import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
 import dev.sixik.unigui.widgets.render.WindowRenderer;
@@ -61,6 +63,7 @@ import dev.sixik.unigui.widgets.navigation.TreeView;
 /**
  * Retained overlay window/dialog shell hosted by {@link OverlayLayer}.
  */
+@XmlWidgetName("WindowWidget")
 public final class WindowWidget extends Box implements OverlayHostAware {
     private static final float DEFAULT_WIDTH = 220.0f;
     private static final float DEFAULT_HEIGHT = 120.0f;
@@ -149,6 +152,7 @@ public final class WindowWidget extends Box implements OverlayHostAware {
         return title;
     }
 
+    @XmlAttribute(value = "title", category = "Content", defaultValue = "", description = "Window title text.")
     public WindowWidget title(String title) {
         String normalized = title == null ? "" : title;
         if (Objects.equals(this.title, normalized)) return this;
@@ -200,6 +204,7 @@ public final class WindowWidget extends Box implements OverlayHostAware {
         return modal;
     }
 
+    @XmlAttribute(value = "modal", category = "Behavior", defaultValue = "false", description = "Whether the window blocks interaction outside itself while open.")
     public WindowWidget modal(boolean modal) {
         if (this.modal == modal) return this;
         boolean oldModal = this.modal;
@@ -219,6 +224,7 @@ public final class WindowWidget extends Box implements OverlayHostAware {
         return fixedModal;
     }
 
+    @XmlAttribute(value = "fixedModal", category = "Behavior", defaultValue = "false", description = "Whether modal state disables dragging and resizing.")
     public WindowWidget fixedModal(boolean fixedModal) {
         if (this.fixedModal == fixedModal) return this;
         this.fixedModal = fixedModal;
@@ -234,6 +240,7 @@ public final class WindowWidget extends Box implements OverlayHostAware {
         return dockRedockLocked;
     }
 
+    @XmlAttribute(value = "dockRedockLocked", category = "Behavior", defaultValue = "false", description = "Whether docking/redocking actions are locked for this window.")
     public WindowWidget dockRedockLocked(boolean dockRedockLocked) {
         if (this.dockRedockLocked == dockRedockLocked) return this;
         this.dockRedockLocked = dockRedockLocked;
@@ -258,6 +265,7 @@ public final class WindowWidget extends Box implements OverlayHostAware {
         return open(!open);
     }
 
+    @XmlAttribute(value = "open", category = "Behavior", defaultValue = "false", description = "Whether the window is visible.")
     public WindowWidget open(boolean open) {
         if (this.open == open) return this;
         this.open = open;
@@ -286,6 +294,7 @@ public final class WindowWidget extends Box implements OverlayHostAware {
         return draggable;
     }
 
+    @XmlAttribute(value = "draggable", category = "Behavior", defaultValue = "true", description = "Whether the window can be moved by dragging its header.")
     public WindowWidget draggable(boolean draggable) {
         if (this.draggable == draggable) return this;
         this.draggable = draggable;
@@ -303,6 +312,7 @@ public final class WindowWidget extends Box implements OverlayHostAware {
         return resizable;
     }
 
+    @XmlAttribute(value = "resizable", category = "Behavior", defaultValue = "true", description = "Whether the window can be resized by edge handles.")
     public WindowWidget resizable(boolean resizable) {
         if (this.resizable == resizable) return this;
         this.resizable = resizable;
@@ -325,6 +335,7 @@ public final class WindowWidget extends Box implements OverlayHostAware {
         return closeButtonVisible;
     }
 
+    @XmlAttribute(value = "closeButtonVisible", category = "Behavior", defaultValue = "true", description = "Whether the close button is shown in the header.")
     public WindowWidget closeButtonVisible(boolean closeButtonVisible) {
         if (this.closeButtonVisible == closeButtonVisible) return this;
         this.closeButtonVisible = closeButtonVisible;
@@ -341,6 +352,7 @@ public final class WindowWidget extends Box implements OverlayHostAware {
         return closeOnOutsideClick;
     }
 
+    @XmlAttribute(value = "closeOnOutsideClick", category = "Behavior", defaultValue = "false", description = "Whether outside pointer presses close the window.")
     public WindowWidget closeOnOutsideClick(boolean closeOnOutsideClick) {
         this.closeOnOutsideClick = closeOnOutsideClick;
         return this;
@@ -350,6 +362,7 @@ public final class WindowWidget extends Box implements OverlayHostAware {
         return constrainToHost;
     }
 
+    @XmlAttribute(value = "constrainToHost", category = "Layout", defaultValue = "true", description = "Whether arrangement clamps the window inside the overlay host.")
     public WindowWidget constrainToHost(boolean constrainToHost) {
         if (this.constrainToHost == constrainToHost) return this;
         this.constrainToHost = constrainToHost;
@@ -379,6 +392,7 @@ public final class WindowWidget extends Box implements OverlayHostAware {
         return headerHeight;
     }
 
+    @XmlAttribute(value = "headerHeight", category = "Layout", defaultValue = "22", description = "Window header height in UI pixels.")
     public WindowWidget headerHeight(float headerHeight) {
         float normalized = Float.isFinite(headerHeight) ? Math.max(12.0f, headerHeight) : DEFAULT_HEADER_HEIGHT;
         if (this.headerHeight == normalized) return this;
@@ -401,6 +415,7 @@ public final class WindowWidget extends Box implements OverlayHostAware {
         return padding;
     }
 
+    @XmlAttribute(value = "padding", category = "Layout", defaultValue = "8", description = "Inner padding around window content.")
     public WindowWidget padding(EdgeInsets padding) {
         EdgeInsets normalized = padding == null ? EdgeInsets.ZERO : padding;
         if (this.padding.equals(normalized)) return this;

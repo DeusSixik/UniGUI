@@ -17,6 +17,8 @@ import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.widgets.render.SparklineRenderer;
 import dev.sixik.unigui.widgets.render.SparklineState;
 import it.unimi.dsi.fastutil.floats.FloatArrayList;
@@ -25,6 +27,7 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
 
+@XmlWidgetName("Chart")
 public final class Chart extends Sparkline {
     public static final float DEFAULT_PREFERRED_WIDTH = 220.0f;
     public static final float DEFAULT_PREFERRED_HEIGHT = 120.0f;
@@ -74,6 +77,7 @@ public final class Chart extends Sparkline {
         return Collections.unmodifiableList(values);
     }
 
+    @XmlAttribute(value = "type", category = "Appearance", defaultValue = "line", description = "Chart rendering type.")
     public Chart type(Type type) {
         this.type = type == null ? Type.LINE : type;
         hoveredBarIndex = -1;
@@ -109,6 +113,7 @@ public final class Chart extends Sparkline {
         return tooltipBorder;
     }
 
+    @XmlAttribute(value = "barValuesVisible", category = "Appearance", defaultValue = "true", description = "Whether bar value labels are rendered.")
     public Chart barValuesVisible(boolean barValuesVisible) {
         if (this.barValuesVisible == barValuesVisible) return this;
         this.barValuesVisible = barValuesVisible;
@@ -116,6 +121,7 @@ public final class Chart extends Sparkline {
         return this;
     }
 
+    @XmlAttribute(value = "barValuePlacement", category = "Appearance", defaultValue = "head", description = "Placement of bar value labels.")
     public Chart barValuePlacement(BarValuePlacement barValuePlacement) {
         this.barValuePlacement = barValuePlacement == null ? BarValuePlacement.HEAD : barValuePlacement;
         invalidate(InvalidationFlags.VISUAL);
@@ -152,12 +158,14 @@ public final class Chart extends Sparkline {
     }
 
     @Override
+    @XmlAttribute(value = "preferredWidth", category = "Layout", defaultValue = "220", description = "Intrinsic chart width before layout constraints are applied.")
     public Chart preferredWidth(float preferredWidth) {
         super.preferredWidth(preferredWidth);
         return this;
     }
 
     @Override
+    @XmlAttribute(value = "preferredHeight", category = "Layout", defaultValue = "120", description = "Intrinsic chart height before layout constraints are applied.")
     public Chart preferredHeight(float preferredHeight) {
         super.preferredHeight(preferredHeight);
         return this;

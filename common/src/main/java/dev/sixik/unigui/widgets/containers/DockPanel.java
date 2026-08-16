@@ -6,6 +6,8 @@ import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.layout.v3.LayoutV3DockAdapter;
 import dev.sixik.unigui.widgets.docking.DockArea;
 import dev.sixik.unigui.widgets.docking.DockingManager;
@@ -35,6 +37,7 @@ import java.util.Map;
  * root.addChild(content); // заполнит остаток при lastChildFill(true)
  * }</pre>
  */
+@XmlWidgetName("DockPanel")
 public final class DockPanel extends PanelWidget {
     private final Map<Widget, DockSide> docks = new IdentityHashMap<>();
     private boolean lastChildFill = true;
@@ -92,6 +95,7 @@ public final class DockPanel extends PanelWidget {
      * @param lastChildFill {@code true}, чтобы последний ребёнок занимал остаток области
      * @return этот контейнер для fluent-настройки
      */
+    @XmlAttribute(value = "lastChildFill", category = "Layout", defaultValue = "true", description = "Whether the last child fills the remaining dock area.")
     public DockPanel lastChildFill(boolean lastChildFill) {
         if (this.lastChildFill == lastChildFill) return this;
         this.lastChildFill = lastChildFill;

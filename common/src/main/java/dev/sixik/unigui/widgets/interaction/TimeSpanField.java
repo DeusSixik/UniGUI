@@ -3,10 +3,13 @@ package dev.sixik.unigui.widgets.interaction;
 import dev.sixik.unigui.api.event.Event;
 import dev.sixik.unigui.api.event.FocusLostEvent;
 import dev.sixik.unigui.api.event.TextInputEvent;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 
 import java.time.Duration;
 import java.util.Locale;
 
+@XmlWidgetName("TimeSpanField")
 public final class TimeSpanField extends TextField {
     private Duration value = Duration.ZERO;
 
@@ -21,6 +24,13 @@ public final class TimeSpanField extends TextField {
 
     public TimeSpanField value(Duration value) {
         this.value = value == null ? Duration.ZERO : value;
+        super.text(format(this.value));
+        return this;
+    }
+
+    @XmlAttribute(value = "value", category = "Behavior", defaultValue = "00:00:00", description = "Time span value formatted as HH:MM:SS or colon-separated units.")
+    public TimeSpanField value(String value) {
+        this.value = parse(value);
         super.text(format(this.value));
         return this;
     }

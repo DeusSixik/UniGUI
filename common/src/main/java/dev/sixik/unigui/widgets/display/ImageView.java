@@ -2,8 +2,10 @@ package dev.sixik.unigui.widgets.display;
 
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.widgets.render.TextureWidgetRenderer;
 
+@XmlWidgetName("ImageView")
 public final class ImageView extends TextureWidget {
     public ImageView() {
     }

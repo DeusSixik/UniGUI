@@ -33,6 +33,9 @@ import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.Theme;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlLayoutAttributes;
+import dev.sixik.unigui.api.xml.XmlStyleAttributes;
 import dev.sixik.unigui.impl.event.FastEventEmitter;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -45,6 +48,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
+@XmlLayoutAttributes
+@XmlStyleAttributes
 public abstract class WidgetBase implements Widget {
     /**
      * Хранит подписки и отправку событий, связанных с жизненным циклом и вводом виджета.
@@ -152,6 +157,10 @@ public abstract class WidgetBase implements Widget {
      * Хранит локальные стили, переопределяющие оформление для конкретных типов виджетов.
      */
     private final Map<String, Style> localStyles = new HashMap<>();
+    /**
+     * Runtime/editor id виджета для XML/code-behind lookup и будущего editor tree.
+     */
+    private String id = "";
 
     /**
      * Создаёт экземпляр {@code WidgetBase} и подготавливает начальное состояние виджета.
@@ -203,6 +212,26 @@ public abstract class WidgetBase implements Widget {
     @Override
     public List<Widget> children() {
         return Collections.emptyList();
+    }
+
+    /**
+     * Возвращает runtime/editor id виджета.
+     */
+    @Override
+    public String id() {
+        return id;
+    }
+
+    /**
+     * Задаёт runtime/editor id виджета.
+     */
+    @Override
+    @XmlAttribute(value = "id", category = "Common", description = "Runtime/debug/editor identifier for code-behind lookup.")
+    public WidgetBase id(String id) {
+        String normalized = id == null ? "" : id;
+        if (this.id.equals(normalized)) return this;
+        this.id = normalized;
+        return this;
     }
 
     /**

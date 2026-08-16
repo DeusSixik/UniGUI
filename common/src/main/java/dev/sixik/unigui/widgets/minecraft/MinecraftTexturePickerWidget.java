@@ -11,6 +11,8 @@ import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.render.TexturePlacement;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextRun;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.backend.minecraft.MinecraftFonts;
 import dev.sixik.unigui.backend.minecraft.MinecraftTextureHandle;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
@@ -31,6 +33,7 @@ import java.util.Optional;
 /**
  * Compact Minecraft texture selector backed by the generic searchable grid picker.
  */
+@XmlWidgetName("MinecraftTexturePickerWidget")
 public class MinecraftTexturePickerWidget extends SearchableGridPickerWidget<MinecraftTexturePickerWidget.TextureEntry> {
     private static final MutableColor WHITE = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
 
@@ -145,6 +148,7 @@ public class MinecraftTexturePickerWidget extends SearchableGridPickerWidget<Min
     }
 
     @Override
+    @XmlAttribute(value = "query", category = "Behavior", defaultValue = "", description = "Initial search query used to filter textures.")
     public MinecraftTexturePickerWidget query(String query) {
         super.query(query);
         return this;
@@ -157,12 +161,14 @@ public class MinecraftTexturePickerWidget extends SearchableGridPickerWidget<Min
     }
 
     @Override
+    @XmlAttribute(value = "selectedIndex", category = "Behavior", defaultValue = "-1", description = "Initial selected texture index.")
     public MinecraftTexturePickerWidget selectIndex(int index) {
         super.selectIndex(index);
         return this;
     }
 
     @Override
+    @XmlAttribute(value = "selectedFilteredIndex", category = "Behavior", defaultValue = "-1", description = "Initial selected index in the filtered texture list.")
     public MinecraftTexturePickerWidget selectFilteredIndex(int filteredIndex) {
         super.selectFilteredIndex(filteredIndex);
         return this;

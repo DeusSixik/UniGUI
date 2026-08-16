@@ -9,6 +9,8 @@ import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.layout.v3.LayoutV3StackAdapter;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 
@@ -24,6 +26,7 @@ import dev.sixik.unigui.widgets.containers.PanelWidget;
  * it does not add previous/next buttons, indicator text, cyclic transition chrome or
  * timer behavior.</p>
  */
+@XmlWidgetName("PageView")
 public class PageView extends PanelWidget {
     private final List<Widget> pages = new ObjectArrayList<>();
     private int selectedIndex;
@@ -107,6 +110,7 @@ public class PageView extends PanelWidget {
         return this;
     }
 
+    @XmlAttribute(value = "selectedIndex", category = "Behavior", defaultValue = "0", description = "Initial selected page index without emitting change events during XML load.")
     public PageView silentSelectedIndex(int selectedIndex) {
         setSelectedIndex(selectedIndex, false);
         return this;

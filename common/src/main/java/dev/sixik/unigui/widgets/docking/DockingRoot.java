@@ -34,6 +34,8 @@ import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.render.DockDropPreviewRenderer;
 import dev.sixik.unigui.widgets.render.DockDropPreviewState;
@@ -68,6 +70,7 @@ import dev.sixik.unigui.widgets.feedback.WindowWidget;
  * <p>Use {@link DockPanel} for simple edge-based child layout. DockingRoot is
  * the docking system root; DockPanel is only a layout container.</p>
  */
+@XmlWidgetName("DockingRoot")
 public final class DockingRoot extends Box {
     private static final float DEFAULT_WIDTH = 320.0f;
     private static final float DEFAULT_HEIGHT = 200.0f;
@@ -155,6 +158,7 @@ public final class DockingRoot extends Box {
         return allowFloatingOutsideHost;
     }
 
+    @XmlAttribute(value = "allowFloatingOutsideHost", category = "Behavior", defaultValue = "false", description = "Whether floating dock windows may move outside the root host bounds.")
     public DockingRoot allowFloatingOutsideHost(boolean allowFloatingOutsideHost) {
         if (this.allowFloatingOutsideHost == allowFloatingOutsideHost) return this;
         this.allowFloatingOutsideHost = allowFloatingOutsideHost;
@@ -165,6 +169,7 @@ public final class DockingRoot extends Box {
         return floatingWindowsRedockLocked;
     }
 
+    @XmlAttribute(value = "floatingWindowsRedockLocked", category = "Behavior", defaultValue = "false", description = "Whether floating dock windows are prevented from redocking.")
     public DockingRoot floatingWindowsRedockLocked(boolean floatingWindowsRedockLocked) {
         this.floatingWindowsRedockLocked = floatingWindowsRedockLocked;
         syncFloatingDockWindowRedockLocks();
@@ -252,6 +257,7 @@ public final class DockingRoot extends Box {
         return tabHeight;
     }
 
+    @XmlAttribute(value = "tabHeight", category = "Layout", defaultValue = "22", description = "Dock tab strip height in UI pixels.")
     public DockingRoot tabHeight(float tabHeight) {
         float normalized = Float.isFinite(tabHeight) ? Math.max(14.0f, tabHeight) : 22.0f;
         if (this.tabHeight == normalized) return this;
@@ -264,6 +270,7 @@ public final class DockingRoot extends Box {
         return splitHandleThickness;
     }
 
+    @XmlAttribute(value = "splitHandleThickness", category = "Layout", defaultValue = "5", description = "Dock split handle thickness in UI pixels.")
     public DockingRoot splitHandleThickness(float splitHandleThickness) {
         float normalized = Float.isFinite(splitHandleThickness) ? Math.max(1.0f, splitHandleThickness) : 5.0f;
         if (this.splitHandleThickness == normalized) return this;

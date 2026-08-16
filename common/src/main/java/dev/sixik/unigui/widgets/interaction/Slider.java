@@ -21,10 +21,13 @@ import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.widgets.render.SliderRenderer;
 import dev.sixik.unigui.widgets.render.SliderState;
 import dev.sixik.unigui.widgets.containers.Box;
 
+@XmlWidgetName("Slider")
 public class Slider extends Box {
     public static final float DEFAULT_PREFERRED_WIDTH = 120.0f;
     public static final float DEFAULT_PREFERRED_HEIGHT = 18.0f;
@@ -56,8 +59,18 @@ public class Slider extends Box {
         return min;
     }
 
+    @XmlAttribute(value = "min", category = "Behavior", defaultValue = "0", description = "Minimum slider value.")
+    public Slider min(float min) {
+        return range(min, max);
+    }
+
     public float max() {
         return max;
+    }
+
+    @XmlAttribute(value = "max", category = "Behavior", defaultValue = "1", description = "Maximum slider value.")
+    public Slider max(float max) {
+        return range(min, max);
     }
 
     public Slider range(float min, float max) {
@@ -78,6 +91,7 @@ public class Slider extends Box {
         return value;
     }
 
+    @XmlAttribute(value = "value", category = "Behavior", defaultValue = "0", description = "Current slider value clamped to min/max.")
     public Slider value(float value) {
         setValue(value, true);
         return this;
@@ -87,6 +101,7 @@ public class Slider extends Box {
         return step;
     }
 
+    @XmlAttribute(value = "step", category = "Behavior", defaultValue = "0", description = "Snap increment; 0 disables snapping.")
     public Slider step(float step) {
         this.step = Math.max(0.0f, step);
         return this;
@@ -127,6 +142,7 @@ public class Slider extends Box {
         return preferredWidth;
     }
 
+    @XmlAttribute(value = "preferredWidth", category = "Layout", defaultValue = "120", description = "Intrinsic slider width before layout constraints are applied.")
     public Slider preferredWidth(float preferredWidth) {
         float normalized = positiveOr(preferredWidth, DEFAULT_PREFERRED_WIDTH);
         if (this.preferredWidth == normalized) return this;
@@ -139,6 +155,7 @@ public class Slider extends Box {
         return preferredHeight;
     }
 
+    @XmlAttribute(value = "preferredHeight", category = "Layout", defaultValue = "18", description = "Intrinsic slider height before layout constraints are applied.")
     public Slider preferredHeight(float preferredHeight) {
         float normalized = positiveOr(preferredHeight, DEFAULT_PREFERRED_HEIGHT);
         if (this.preferredHeight == normalized) return this;

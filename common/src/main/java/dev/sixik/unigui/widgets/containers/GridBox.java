@@ -10,6 +10,8 @@ import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.layout.v3.LayoutV3GridAdapter;
 
 /**
@@ -24,6 +26,7 @@ import dev.sixik.unigui.impl.layout.v3.LayoutV3GridAdapter;
  * {@code LayoutConstraints}/{@code LayoutStyle}; сам контейнер отвечает только
  * за разбиение доступной области на ячейки.</p>
  */
+@XmlWidgetName("GridBox")
 public final class GridBox extends PanelWidget {
     private int columns = 1;
     private float horizontalSpacing;
@@ -44,6 +47,7 @@ public final class GridBox extends PanelWidget {
      * @param columns желаемое количество колонок; значения меньше {@code 1} приводятся к {@code 1}
      * @return эта сетка для fluent-настройки
      */
+    @XmlAttribute(value = "columns", category = "Layout", defaultValue = "1", description = "Number of grid columns.")
     public GridBox columns(int columns) {
         int normalized = Math.max(1, columns);
         if (this.columns == normalized) return this;
@@ -67,6 +71,7 @@ public final class GridBox extends PanelWidget {
      * @param horizontalSpacing расстояние между колонками в пикселях UI-пространства
      * @return эта сетка для fluent-настройки
      */
+    @XmlAttribute(value = "horizontalSpacing", category = "Layout", defaultValue = "0", description = "Horizontal gap between grid columns.")
     public GridBox horizontalSpacing(float horizontalSpacing) {
         if (this.horizontalSpacing == horizontalSpacing) return this;
         this.horizontalSpacing = horizontalSpacing;
@@ -89,6 +94,7 @@ public final class GridBox extends PanelWidget {
      * @param verticalSpacing расстояние между строками в пикселях UI-пространства
      * @return эта сетка для fluent-настройки
      */
+    @XmlAttribute(value = "verticalSpacing", category = "Layout", defaultValue = "0", description = "Vertical gap between grid rows.")
     public GridBox verticalSpacing(float verticalSpacing) {
         if (this.verticalSpacing == verticalSpacing) return this;
         this.verticalSpacing = verticalSpacing;

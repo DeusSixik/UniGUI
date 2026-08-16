@@ -2,6 +2,8 @@ package dev.sixik.unigui.widgets.navigation;
 
 import dev.sixik.unigui.api.event.EventSubscription;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
@@ -11,6 +13,7 @@ import java.util.Map;
 import dev.sixik.unigui.widgets.containers.LinearBox;
 import dev.sixik.unigui.widgets.core.Orientation;
 
+@XmlWidgetName("Accordion")
 public class Accordion extends LinearBox {
     private final List<ExpandablePanel> panels = new ObjectArrayList<>();
     private final Map<ExpandablePanel, EventSubscription> subscriptions = new IdentityHashMap<>();
@@ -26,6 +29,7 @@ public class Accordion extends LinearBox {
         return singleOpen;
     }
 
+    @XmlAttribute(value = "singleOpen", category = "Behavior", defaultValue = "true", description = "Whether opening one panel automatically collapses the others.")
     public Accordion singleOpen(boolean singleOpen) {
         if (this.singleOpen == singleOpen) return this;
         this.singleOpen = singleOpen;

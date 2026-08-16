@@ -20,6 +20,8 @@ import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.widgets.render.BoxRenderer;
 import dev.sixik.unigui.widgets.render.BoxState;
 
@@ -53,6 +55,7 @@ import java.util.List;
  * @see BoxState
  * @see PanelWidget
  */
+@XmlWidgetName("Box")
 public class Box extends PanelWidget {
     private final MutableColor background = new MutableColor(0.0f, 0.0f, 0.0f, 0.0f);
     private TextureHandle backgroundTexture;
@@ -118,6 +121,7 @@ public class Box extends PanelWidget {
      * @param backgroundVisible {@code true}, чтобы renderer рисовал фон
      * @return этот box для fluent-настройки
      */
+    @XmlAttribute(value = "backgroundVisible", category = "Appearance", defaultValue = "false", description = "Whether the box background is rendered.")
     public Box backgroundVisible(boolean backgroundVisible) {
         if (this.backgroundVisible == backgroundVisible) return this;
         this.backgroundVisible = backgroundVisible;
@@ -180,6 +184,7 @@ public class Box extends PanelWidget {
      * @param backgroundTexture handle текстуры или {@code null}
      * @return этот box для fluent-настройки
      */
+    @XmlAttribute(value = "backgroundTexture", category = "Assets", defaultValue = "", description = "Texture resource id used as the box background.")
     public Box backgroundTexture(TextureHandle backgroundTexture) {
         if (this.backgroundTexture == backgroundTexture) return this;
         this.backgroundTexture = backgroundTexture;
@@ -258,6 +263,7 @@ public class Box extends PanelWidget {
      * @param fit режим вписывания; {@code null} трактуется как {@link ImageFit#STRETCH}
      * @return этот box для fluent-настройки
      */
+    @XmlAttribute(value = "backgroundTextureFit", category = "Assets", defaultValue = "stretch", description = "Placement mode for the background texture.")
     public Box backgroundTextureFit(ImageFit fit) {
         ImageFit effectiveFit = fit == null ? ImageFit.STRETCH : fit;
         if (backgroundTextureFit == effectiveFit) return this;
@@ -305,6 +311,7 @@ public class Box extends PanelWidget {
      * @param borderVisible {@code true}, чтобы renderer рисовал рамку
      * @return этот box для fluent-настройки
      */
+    @XmlAttribute(value = "borderVisible", category = "Appearance", defaultValue = "false", description = "Whether the box border is rendered.")
     public Box borderVisible(boolean borderVisible) {
         if (this.borderVisible == borderVisible) return this;
         this.borderVisible = borderVisible;
@@ -336,6 +343,7 @@ public class Box extends PanelWidget {
      * @param borderWidth толщина рамки в пикселях UI-пространства
      * @return этот box для fluent-настройки
      */
+    @XmlAttribute(value = "borderWidth", category = "Appearance", defaultValue = "1", description = "Border thickness in UI pixels.")
     public Box borderWidth(float borderWidth) {
         if (this.borderWidth == borderWidth) return this;
         this.borderWidth = borderWidth;
@@ -381,6 +389,7 @@ public class Box extends PanelWidget {
      * @param radius радиус скругления в пикселях UI-пространства
      * @return этот box для fluent-настройки
      */
+    @XmlAttribute(value = "radius", category = "Appearance", defaultValue = "0", description = "Corner radius in UI pixels.")
     public Box radius(float radius) {
         if (this.radius == radius) return this;
         this.radius = radius;
@@ -429,6 +438,7 @@ public class Box extends PanelWidget {
      * @param themeEnabled {@code true}, чтобы применять theme/local styles
      * @return этот box для fluent-настройки
      */
+    @XmlAttribute(value = "themeEnabled", category = "Appearance", defaultValue = "true", description = "Whether theme/style lookup can override box visual values.")
     public Box themeEnabled(boolean themeEnabled) {
         if (this.themeEnabled == themeEnabled) return this;
         this.themeEnabled = themeEnabled;

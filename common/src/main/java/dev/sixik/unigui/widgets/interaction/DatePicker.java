@@ -19,6 +19,8 @@ import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.render.ButtonRenderer;
@@ -40,6 +42,7 @@ import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.feedback.Popup;
 
+@XmlWidgetName("DatePicker")
 public final class DatePicker extends LinearBox {
     private static final float CALENDAR_WIDTH = 184.0f;
     private static final float DAY_CELL_WIDTH = 24.0f;
@@ -148,6 +151,13 @@ public final class DatePicker extends LinearBox {
 
     public DatePicker value(LocalDate value) {
         setValue(value, false, true);
+        return this;
+    }
+
+    @XmlAttribute(value = "value", category = "Behavior", defaultValue = "today", description = "Selected date in ISO-8601 YYYY-MM-DD format.")
+    public DatePicker value(String value) {
+        LocalDate parsed = value == null || value.isBlank() ? LocalDate.now() : LocalDate.parse(value);
+        setValue(parsed, false, true);
         return this;
     }
 

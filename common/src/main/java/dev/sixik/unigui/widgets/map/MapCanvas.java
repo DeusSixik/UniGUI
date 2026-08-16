@@ -10,6 +10,8 @@ import dev.sixik.unigui.api.render.TexturePlacement;
 import dev.sixik.unigui.api.viewport.Viewport2D;
 import dev.sixik.unigui.api.viewport.ViewportPoint;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.widgets.world.AnchorWidget;
 import dev.sixik.unigui.widgets.world.WorldCanvas;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -53,6 +55,7 @@ import dev.sixik.unigui.widgets.interaction.Button;
  *         .pivot(0.5f, 0.5f);
  * }</pre>
  */
+@XmlWidgetName("MapCanvas")
 public class MapCanvas extends WorldCanvas {
     private static final float DEFAULT_MAP_WIDTH = 1024.0f;
     private static final float DEFAULT_MAP_HEIGHT = 512.0f;
@@ -151,8 +154,9 @@ public class MapCanvas extends WorldCanvas {
 
     /**
      * Fluent override для скорости wheel-pan.
-     */
+    */
     @Override
+    @XmlAttribute(value = "wheelPanStep", category = "Behavior", defaultValue = "32", description = "Viewport pan distance applied per wheel delta unit.")
     public MapCanvas wheelPanStep(float wheelPanStep) {
         super.wheelPanStep(wheelPanStep);
         return this;
@@ -160,8 +164,9 @@ public class MapCanvas extends WorldCanvas {
 
     /**
      * Fluent override для шага Ctrl+wheel zoom.
-     */
+    */
     @Override
+    @XmlAttribute(value = "zoomStep", category = "Behavior", defaultValue = "1.1", description = "Multiplicative zoom factor applied per wheel delta unit.")
     public MapCanvas zoomStep(float zoomStep) {
         super.zoomStep(zoomStep);
         return this;
@@ -180,6 +185,7 @@ public class MapCanvas extends WorldCanvas {
      * <p>Если texture не задана, карта рисует fallback-прямоугольник цветом
      * {@link #mapColor()}.</p>
      */
+    @XmlAttribute(value = "texture", category = "Assets", defaultValue = "", description = "Texture resource id rendered as the map surface.")
     public MapCanvas texture(TextureHandle texture) {
         if (this.texture == texture) return this;
         this.texture = texture;
@@ -296,6 +302,7 @@ public class MapCanvas extends WorldCanvas {
     /**
      * Включает/выключает фон всего canvas за пределами поверхности карты.
      */
+    @XmlAttribute(value = "backgroundVisible", category = "Appearance", defaultValue = "true", description = "Whether the map canvas background is rendered behind the map surface.")
     public MapCanvas backgroundVisible(boolean backgroundVisible) {
         if (this.backgroundVisible == backgroundVisible) return this;
         this.backgroundVisible = backgroundVisible;
@@ -313,6 +320,7 @@ public class MapCanvas extends WorldCanvas {
     /**
      * Включает/выключает рамку поверхности карты.
      */
+    @XmlAttribute(value = "mapBorderVisible", category = "Appearance", defaultValue = "true", description = "Whether the map surface border is rendered.")
     public MapCanvas mapBorderVisible(boolean mapBorderVisible) {
         if (this.mapBorderVisible == mapBorderVisible) return this;
         this.mapBorderVisible = mapBorderVisible;
@@ -330,6 +338,7 @@ public class MapCanvas extends WorldCanvas {
     /**
      * Включает/выключает встроенную grid-сетку.
      */
+    @XmlAttribute(value = "gridVisible", category = "Appearance", defaultValue = "true", description = "Whether the built-in map grid is rendered.")
     public MapCanvas gridVisible(boolean gridVisible) {
         if (this.gridVisible == gridVisible) return this;
         this.gridVisible = gridVisible;
@@ -347,6 +356,7 @@ public class MapCanvas extends WorldCanvas {
     /**
      * Задает размер клетки grid в map-координатах.
      */
+    @XmlAttribute(value = "gridSize", category = "Appearance", defaultValue = "128", description = "Map-space size of one rendered grid cell.")
     public MapCanvas gridSize(float gridSize) {
         float next = sanitizePositive(gridSize, 128.0f);
         if (this.gridSize == next) return this;
@@ -361,6 +371,7 @@ public class MapCanvas extends WorldCanvas {
      * <p>Если включено, pan не даст полностью увести карту за пределы виджета.
      * Если выключено, карту можно свободно двигать как бесконечный canvas.</p>
      */
+    @XmlAttribute(value = "clampToMapBounds", category = "Behavior", defaultValue = "false", description = "Whether pan/zoom is constrained to the map surface bounds.")
     public MapCanvas clampToMapBounds(boolean clamp) {
         worldBounds(0.0f, 0.0f, mapWidth, mapHeight);
         clampToWorldBounds(clamp);

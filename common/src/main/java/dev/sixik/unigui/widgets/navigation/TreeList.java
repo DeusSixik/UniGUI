@@ -1,7 +1,9 @@
 package dev.sixik.unigui.widgets.navigation;
 
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 
 
+@XmlWidgetName("TreeList")
 public final class TreeList extends TreeView {
     public TreeList addPath(String... labels) {
         if (labels == null || labels.length == 0) return this;

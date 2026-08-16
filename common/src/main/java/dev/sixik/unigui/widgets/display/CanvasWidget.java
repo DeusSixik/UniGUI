@@ -2,11 +2,13 @@ package dev.sixik.unigui.widgets.display;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.List;
 
+@XmlWidgetName("CanvasWidget")
 public final class CanvasWidget extends WidgetBase {
     private final List<CanvasDrawCallback> callbacks = new ObjectArrayList<>();
     private CanvasDrawCallback[] callbackSnapshot = new CanvasDrawCallback[0];

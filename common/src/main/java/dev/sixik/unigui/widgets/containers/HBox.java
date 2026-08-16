@@ -1,6 +1,7 @@
 package dev.sixik.unigui.widgets.containers;
 
 import dev.sixik.unigui.widgets.core.Orientation;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 
 /**
  * Горизонтальный shorthand для {@link LinearBox}.
@@ -19,6 +20,7 @@ import dev.sixik.unigui.widgets.core.Orientation;
  * @see LinearBox
  * @see VBox
  */
+@XmlWidgetName("HBox")
 public final class HBox extends LinearBox {
     /**
      * Создаёт горизонтальный контейнер с направлением {@link Orientation#HORIZONTAL}.

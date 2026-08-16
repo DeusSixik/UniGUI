@@ -13,9 +13,12 @@ import dev.sixik.unigui.api.event.SearchSubmittedEvent;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.widgets.render.TextInputRenderer;
 import dev.sixik.unigui.widgets.render.TextInputRenderType;
 
+@XmlWidgetName("SearchField")
 public class SearchField extends TextInput {
     private static final float CLEAR_ZONE_WIDTH = 14.0f;
     private float searchChangeDebounceSeconds = 0.25f;
@@ -49,6 +52,7 @@ public class SearchField extends TextInput {
         return searchChangeDebounceSeconds;
     }
 
+    @XmlAttribute(value = "searchChangeDebounceSeconds", category = "Behavior", defaultValue = "0.25", description = "Delay before emitting search-change events.")
     public SearchField searchChangeDebounceSeconds(float seconds) {
         float normalized = Float.isFinite(seconds) ? Math.max(0.0f, seconds) : 0.25f;
         this.searchChangeDebounceSeconds = normalized;

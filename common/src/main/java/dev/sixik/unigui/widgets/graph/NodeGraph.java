@@ -48,6 +48,8 @@ import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.viewport.Viewport2D;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.render.NodeGraphItemState;
 import dev.sixik.unigui.widgets.render.NodeGraphConnectionPreviewState;
@@ -64,6 +66,7 @@ import java.util.List;
 import java.util.Objects;
 import dev.sixik.unigui.widgets.containers.StackPanel;
 
+@XmlWidgetName("NodeGraph")
 public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapper, RenderedBoundsMapper {
     public static final float DEFAULT_PREFERRED_WIDTH = 320.0f;
     public static final float DEFAULT_PREFERRED_HEIGHT = 200.0f;
@@ -218,6 +221,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return itemContentPadding;
     }
 
+    @XmlAttribute(value = "itemContentPadding", category = "Layout", defaultValue = "0", description = "Padding applied around item content during node layout.")
     public NodeGraph itemContentPadding(float padding) {
         float normalized = Float.isFinite(padding) ? Math.max(0.0f, padding) : DEFAULT_ITEM_CONTENT_PADDING;
         if (itemContentPadding == normalized) return this;
@@ -618,6 +622,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return preferredWidth;
     }
 
+    @XmlAttribute(value = "preferredWidth", category = "Layout", defaultValue = "320", description = "Intrinsic node graph width before layout constraints are applied.")
     public NodeGraph preferredWidth(float preferredWidth) {
         float normalized = positiveOr(preferredWidth, DEFAULT_PREFERRED_WIDTH);
         if (this.preferredWidth == normalized) return this;
@@ -630,6 +635,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return preferredHeight;
     }
 
+    @XmlAttribute(value = "preferredHeight", category = "Layout", defaultValue = "200", description = "Intrinsic node graph height before layout constraints are applied.")
     public NodeGraph preferredHeight(float preferredHeight) {
         float normalized = positiveOr(preferredHeight, DEFAULT_PREFERRED_HEIGHT);
         if (this.preferredHeight == normalized) return this;
@@ -655,6 +661,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return selectionMode;
     }
 
+    @XmlAttribute(value = "selectionMode", category = "Behavior", defaultValue = "single", description = "Selection mode used by node graph items.")
     public NodeGraph selectionMode(NodeGraphSelectionMode selectionMode) {
         NodeGraphSelectionMode next = selectionMode == null ? NodeGraphSelectionMode.SINGLE : selectionMode;
         if (this.selectionMode == next) return this;
@@ -693,6 +700,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return gridSize;
     }
 
+    @XmlAttribute(value = "gridSize", category = "Appearance", defaultValue = "24", description = "World-space spacing between rendered grid lines.")
     public NodeGraph gridSize(float gridSize) {
         float next = Float.isFinite(gridSize) ? Math.max(2.0f, gridSize) : 24.0f;
         if (this.gridSize == next) return this;
@@ -705,6 +713,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return clippingEnabled;
     }
 
+    @XmlAttribute(value = "clippingEnabled", category = "Behavior", defaultValue = "true", description = "Whether graph content is clipped to widget bounds.")
     public NodeGraph clippingEnabled(boolean clippingEnabled) {
         if (this.clippingEnabled == clippingEnabled) return this;
         this.clippingEnabled = clippingEnabled;
@@ -716,6 +725,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return itemDraggingEnabled;
     }
 
+    @XmlAttribute(value = "itemDraggingEnabled", category = "Behavior", defaultValue = "true", description = "Whether node items can be moved by pointer dragging.")
     public NodeGraph itemDraggingEnabled(boolean itemDraggingEnabled) {
         this.itemDraggingEnabled = itemDraggingEnabled;
         return this;
@@ -725,6 +735,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return panningEnabled;
     }
 
+    @XmlAttribute(value = "panningEnabled", category = "Behavior", defaultValue = "true", description = "Whether pointer gestures can pan the graph viewport.")
     public NodeGraph panningEnabled(boolean panningEnabled) {
         this.panningEnabled = panningEnabled;
         return this;
@@ -734,6 +745,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return zoomEnabled;
     }
 
+    @XmlAttribute(value = "zoomEnabled", category = "Behavior", defaultValue = "true", description = "Whether wheel gestures can zoom the graph viewport.")
     public NodeGraph zoomEnabled(boolean zoomEnabled) {
         this.zoomEnabled = zoomEnabled;
         return this;
@@ -743,6 +755,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return scaleContentWithZoom;
     }
 
+    @XmlAttribute(value = "scaleContentWithZoom", category = "Behavior", defaultValue = "true", description = "Whether embedded item widgets scale with viewport zoom.")
     public NodeGraph scaleContentWithZoom(boolean scaleContentWithZoom) {
         if (this.scaleContentWithZoom == scaleContentWithZoom) return this;
         this.scaleContentWithZoom = scaleContentWithZoom;
@@ -776,6 +789,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return lassoSelectionEnabled;
     }
 
+    @XmlAttribute(value = "lassoSelectionEnabled", category = "Behavior", defaultValue = "true", description = "Whether pointer drag can create lasso item selections.")
     public NodeGraph lassoSelectionEnabled(boolean lassoSelectionEnabled) {
         this.lassoSelectionEnabled = lassoSelectionEnabled;
         return this;
@@ -785,6 +799,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return resizeEnabled;
     }
 
+    @XmlAttribute(value = "resizeEnabled", category = "Behavior", defaultValue = "true", description = "Whether selected node items can be resized.")
     public NodeGraph resizeEnabled(boolean resizeEnabled) {
         this.resizeEnabled = resizeEnabled;
         return this;
@@ -794,6 +809,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return keyboardEditingEnabled;
     }
 
+    @XmlAttribute(value = "keyboardEditingEnabled", category = "Behavior", defaultValue = "true", description = "Whether keyboard shortcuts can edit node graph selections.")
     public NodeGraph keyboardEditingEnabled(boolean keyboardEditingEnabled) {
         this.keyboardEditingEnabled = keyboardEditingEnabled;
         return this;
@@ -803,6 +819,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return consumeWheelWhileHovered;
     }
 
+    @XmlAttribute(value = "consumeWheelWhileHovered", category = "Behavior", defaultValue = "true", description = "Whether wheel events are consumed while the graph is hovered.")
     public NodeGraph consumeWheelWhileHovered(boolean consumeWheelWhileHovered) {
         this.consumeWheelWhileHovered = consumeWheelWhileHovered;
         return this;
@@ -812,6 +829,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return wheelPanningEnabled;
     }
 
+    @XmlAttribute(value = "wheelPanningEnabled", category = "Behavior", defaultValue = "true", description = "Whether non-zoom wheel gestures pan the graph viewport.")
     public NodeGraph wheelPanningEnabled(boolean wheelPanningEnabled) {
         this.wheelPanningEnabled = wheelPanningEnabled;
         return this;
@@ -821,6 +839,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return wheelPanStep;
     }
 
+    @XmlAttribute(value = "wheelPanStep", category = "Behavior", defaultValue = "32", description = "Viewport pan distance applied per wheel delta unit.")
     public NodeGraph wheelPanStep(float wheelPanStep) {
         this.wheelPanStep = Float.isFinite(wheelPanStep) ? Math.max(1.0f, wheelPanStep) : 32.0f;
         return this;
@@ -830,6 +849,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return bringToFrontOnSelect;
     }
 
+    @XmlAttribute(value = "bringToFrontOnSelect", category = "Behavior", defaultValue = "true", description = "Whether selecting an item moves it above sibling nodes.")
     public NodeGraph bringToFrontOnSelect(boolean bringToFrontOnSelect) {
         this.bringToFrontOnSelect = bringToFrontOnSelect;
         return this;

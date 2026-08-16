@@ -9,6 +9,8 @@ import dev.sixik.unigui.api.layout.Overflow;
 import dev.sixik.unigui.api.layout.PositionType;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.StackPanel;
 import dev.sixik.unigui.widgets.display.TextBlock;
@@ -20,6 +22,7 @@ import dev.sixik.unigui.widgets.display.TextBlock;
  * short-lived and bottom-right positioned, while NotificationView remains a
  * richer/persistent notification surface.</p>
  */
+@XmlWidgetName("Toast")
 public final class Toast extends Box implements OverlayHostAware {
     private final TextBlock message = new TextBlock();
     private boolean open;
@@ -50,12 +53,14 @@ public final class Toast extends Box implements OverlayHostAware {
         return message.text();
     }
 
+    @XmlAttribute(value = "text", category = "Content", defaultValue = "", description = "Toast message text.")
     public Toast text(String text) {
         message.text(text);
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
 
+    @XmlAttribute(value = "duration", category = "Behavior", defaultValue = "2.5", description = "Toast lifetime in seconds; 0 keeps it open.")
     public Toast duration(float seconds) {
         lifeSeconds = Float.isFinite(seconds) ? Math.max(0.0f, seconds) : 2.5f;
         return this;
@@ -76,6 +81,7 @@ public final class Toast extends Box implements OverlayHostAware {
         return margin;
     }
 
+    @XmlAttribute(value = "margin", category = "Layout", defaultValue = "10", description = "Distance from host edges in UI pixels.")
     public Toast margin(float margin) {
         this.margin = Float.isFinite(margin) ? Math.max(0.0f, margin) : 10.0f;
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);

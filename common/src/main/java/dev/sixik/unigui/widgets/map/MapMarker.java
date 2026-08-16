@@ -2,6 +2,8 @@ package dev.sixik.unigui.widgets.map;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.widgets.world.AnchorWidget;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.display.Label;
@@ -18,6 +20,7 @@ import dev.sixik.unigui.widgets.display.Label;
  * обычно лучше собрать собственный виджет и добавить его через
  * {@link MapCanvas#addMarkerWidget(String, float, float, Widget)}.</p>
  */
+@XmlWidgetName("MapMarker")
 public class MapMarker extends Box {
     private Widget content;
     private Label label;
@@ -76,6 +79,7 @@ public class MapMarker extends Box {
     /**
      * Быстро заменяет контент маркера на текстовый {@link Label}.
      */
+    @XmlAttribute(value = "label", category = "Content", defaultValue = "", description = "Plain text label displayed inside the marker.")
     public MapMarker label(String text) {
         Label next = new Label(text == null ? "" : text);
         return content(next);
@@ -91,6 +95,7 @@ public class MapMarker extends Box {
     /**
      * Устанавливает выбранное состояние.
      */
+    @XmlAttribute(value = "selected", category = "Behavior", defaultValue = "false", description = "Initial selected visual state.")
     public MapMarker selected(boolean selected) {
         if (this.selected == selected) return this;
         this.selected = selected;
@@ -108,6 +113,7 @@ public class MapMarker extends Box {
     /**
      * Устанавливает подсветку.
      */
+    @XmlAttribute(value = "highlighted", category = "Behavior", defaultValue = "false", description = "Initial highlighted visual state.")
     public MapMarker highlighted(boolean highlighted) {
         if (this.highlighted == highlighted) return this;
         this.highlighted = highlighted;

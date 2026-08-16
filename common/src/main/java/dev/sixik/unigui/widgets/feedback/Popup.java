@@ -12,10 +12,13 @@ import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.RenderedBoundsMapper;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.layout.v3.OverlayLayoutResolver;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.StackPanel;
 
+@XmlWidgetName("Popup")
 public final class Popup extends Box implements OverlayHostAware {
     private Widget anchor;
     private Widget content;
@@ -90,6 +93,7 @@ public final class Popup extends Box implements OverlayHostAware {
         return open(!open);
     }
 
+    @XmlAttribute(value = "open", category = "Behavior", defaultValue = "false", description = "Whether the popup is visible.")
     public Popup open(boolean open) {
         if (this.open == open) return this;
         this.open = open;
@@ -110,6 +114,7 @@ public final class Popup extends Box implements OverlayHostAware {
         return closeOnOutsideClick;
     }
 
+    @XmlAttribute(value = "closeOnOutsideClick", category = "Behavior", defaultValue = "true", description = "Whether outside pointer presses close the popup.")
     public Popup closeOnOutsideClick(boolean closeOnOutsideClick) {
         this.closeOnOutsideClick = closeOnOutsideClick;
         return this;
@@ -125,6 +130,7 @@ public final class Popup extends Box implements OverlayHostAware {
         return this;
     }
 
+    @XmlAttribute(value = "padding", category = "Layout", defaultValue = "6", description = "Inner padding around popup content.")
     public Popup padding(EdgeInsets padding) {
         EdgeInsets normalized = padding == null ? EdgeInsets.all(0.0f) : padding;
         if (this.padding.equals(normalized)) return this;

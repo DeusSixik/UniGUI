@@ -9,6 +9,8 @@ import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
@@ -18,6 +20,7 @@ import dev.sixik.unigui.widgets.containers.WrapPanel;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.interaction.Button;
 
+@XmlWidgetName("Breadcrumb")
 public class Breadcrumb extends PanelWidget {
     private static final float ITEM_HEIGHT = 20.0f;
     private static final float SEPARATOR_WIDTH = 10.0f;
@@ -38,12 +41,14 @@ public class Breadcrumb extends PanelWidget {
         return host;
     }
 
+    @XmlAttribute(value = "spacing", category = "Layout", defaultValue = "2", description = "Horizontal gap between breadcrumb items and separators.")
     public Breadcrumb spacing(float spacing) {
         host.spacing(spacing);
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
 
+    @XmlAttribute(value = "lineSpacing", category = "Layout", defaultValue = "2", description = "Vertical gap between wrapped breadcrumb lines.")
     public Breadcrumb lineSpacing(float lineSpacing) {
         host.lineSpacing(lineSpacing);
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
@@ -152,6 +157,7 @@ public class Breadcrumb extends PanelWidget {
         return separator;
     }
 
+    @XmlAttribute(value = "separator", category = "Content", defaultValue = "\u203A", description = "Text shown between breadcrumb items.")
     public Breadcrumb separator(String separator) {
         String normalized = separator == null ? "" : separator;
         if (this.separator.equals(normalized)) return this;
@@ -181,6 +187,7 @@ public class Breadcrumb extends PanelWidget {
         return this;
     }
 
+    @XmlAttribute(value = "selectedIndex", category = "Behavior", defaultValue = "-1", description = "Initial selected breadcrumb item index without emitting change events during XML load.")
     public Breadcrumb silentSelectedIndex(int index) {
         setSelectedIndex(index, false);
         return this;

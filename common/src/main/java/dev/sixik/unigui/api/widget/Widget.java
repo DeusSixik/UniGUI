@@ -32,6 +32,20 @@ public interface Widget extends EventEmitter {
     List<Widget> children();
 
     /**
+     * Возвращает runtime/editor id виджета внутри UI-дерева.
+     */
+    default String id() {
+        return "";
+    }
+
+    /**
+     * Задаёт runtime/editor id виджета внутри UI-дерева.
+     */
+    default Widget id(String id) {
+        return this;
+    }
+
+    /**
      * Возвращает текущие границы виджета после компоновки.
      */
     RectView layoutBounds();

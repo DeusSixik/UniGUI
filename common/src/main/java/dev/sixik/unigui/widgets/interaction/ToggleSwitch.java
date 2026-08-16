@@ -11,11 +11,14 @@ import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.render.ButtonRenderType;
 import dev.sixik.unigui.widgets.render.ButtonRenderer;
 import dev.sixik.unigui.widgets.render.ButtonState;
 
+@XmlWidgetName("ToggleSwitch")
 public class ToggleSwitch extends ToggleButton {
     public static final float DEFAULT_TRACK_WIDTH = 34.0f;
     public static final float DEFAULT_TRACK_HEIGHT = 18.0f;
@@ -61,6 +64,7 @@ public class ToggleSwitch extends ToggleButton {
     }
 
     @Override
+    @XmlAttribute(value = "checked", category = "Behavior", defaultValue = "false", description = "Initial checked state without emitting change events during XML load.")
     public ToggleSwitch silentChecked(boolean checked) {
         boolean changed = checked() != checked;
         super.silentChecked(checked);
@@ -72,6 +76,7 @@ public class ToggleSwitch extends ToggleButton {
         return trackWidth;
     }
 
+    @XmlAttribute(value = "trackWidth", category = "Layout", defaultValue = "34", description = "Switch track width in UI pixels.")
     public ToggleSwitch trackWidth(float trackWidth) {
         float normalized = positiveOr(trackWidth, DEFAULT_TRACK_WIDTH);
         if (this.trackWidth == normalized) return this;
@@ -84,6 +89,7 @@ public class ToggleSwitch extends ToggleButton {
         return trackHeight;
     }
 
+    @XmlAttribute(value = "trackHeight", category = "Layout", defaultValue = "18", description = "Switch track height in UI pixels.")
     public ToggleSwitch trackHeight(float trackHeight) {
         float normalized = positiveOr(trackHeight, DEFAULT_TRACK_HEIGHT);
         if (this.trackHeight == normalized) return this;
@@ -101,6 +107,7 @@ public class ToggleSwitch extends ToggleButton {
         return thumbSize;
     }
 
+    @XmlAttribute(value = "thumbSize", category = "Layout", defaultValue = "14", description = "Switch thumb size in UI pixels.")
     public ToggleSwitch thumbSize(float thumbSize) {
         float normalized = Math.min(positiveOr(thumbSize, DEFAULT_THUMB_SIZE), trackHeight);
         if (this.thumbSize == normalized) return this;
@@ -113,6 +120,7 @@ public class ToggleSwitch extends ToggleButton {
         return thumbColor;
     }
 
+    @XmlAttribute(value = "thumbColor", category = "Appearance", defaultValue = "#F2F2F2FF", description = "Switch thumb color.")
     public ToggleSwitch thumbColor(ColorView color) {
         thumbColor.set(color);
         return this;
@@ -122,6 +130,7 @@ public class ToggleSwitch extends ToggleButton {
         return labelGap;
     }
 
+    @XmlAttribute(value = "labelGap", category = "Layout", defaultValue = "6", description = "Gap between switch track and label text.")
     public ToggleSwitch labelGap(float labelGap) {
         float normalized = Float.isFinite(labelGap) ? Math.max(0.0f, labelGap) : DEFAULT_LABEL_GAP;
         if (this.labelGap == normalized) return this;
@@ -134,6 +143,7 @@ public class ToggleSwitch extends ToggleButton {
         return labelLeft;
     }
 
+    @XmlAttribute(value = "labelLeft", category = "Layout", defaultValue = "false", description = "Whether label text is rendered before the switch track.")
     public ToggleSwitch labelLeft(boolean labelLeft) {
         if (this.labelLeft == labelLeft) return this;
         this.labelLeft = labelLeft;

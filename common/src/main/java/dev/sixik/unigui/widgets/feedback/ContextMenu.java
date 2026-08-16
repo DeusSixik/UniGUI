@@ -19,6 +19,8 @@ import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.List;
@@ -27,6 +29,7 @@ import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.display.Separator;
 import dev.sixik.unigui.widgets.interaction.Button;
 
+@XmlWidgetName("ContextMenu")
 public final class ContextMenu extends Box implements OverlayHostAware {
     private final VBox itemsHost = new VBox();
     private final List<Button> itemButtons = new ObjectArrayList<>();
@@ -141,6 +144,7 @@ public final class ContextMenu extends Box implements OverlayHostAware {
         return selectedItemIndex;
     }
 
+    @XmlAttribute(value = "selectedItem", category = "Behavior", defaultValue = "0", description = "Initially selected menu item index.")
     public ContextMenu selectItem(int index) {
         if (itemButtons.isEmpty()) {
             selectedItemIndex = -1;
@@ -184,6 +188,7 @@ public final class ContextMenu extends Box implements OverlayHostAware {
         return open ? close() : openAt(x, y);
     }
 
+    @XmlAttribute(value = "open", category = "Behavior", defaultValue = "false", description = "Whether the context menu is visible.")
     public ContextMenu open(boolean open) {
         if (this.open == open) return this;
         this.open = open;
@@ -202,6 +207,7 @@ public final class ContextMenu extends Box implements OverlayHostAware {
         return closeOnOutsideClick;
     }
 
+    @XmlAttribute(value = "closeOnOutsideClick", category = "Behavior", defaultValue = "true", description = "Whether outside pointer presses close the menu.")
     public ContextMenu closeOnOutsideClick(boolean closeOnOutsideClick) {
         this.closeOnOutsideClick = closeOnOutsideClick;
         for (ContextMenu submenu : itemSubmenus) {
@@ -232,6 +238,7 @@ public final class ContextMenu extends Box implements OverlayHostAware {
         return false;
     }
 
+    @XmlAttribute(value = "padding", category = "Layout", defaultValue = "3", description = "Inner padding around menu items.")
     public ContextMenu padding(EdgeInsets padding) {
         this.padding = padding == null ? EdgeInsets.all(0.0f) : padding;
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);

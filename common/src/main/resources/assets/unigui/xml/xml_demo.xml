@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Box id="panel"
+     width="392"
+     height="248"
+     align="center"
+     padding="12"
+     background="#101827F2"
+     backgroundTexture="unigui:dynamic/xml_demo_uniformclouds"
+     backgroundTextureWidth="1024"
+     backgroundTextureHeight="1024"
+     backgroundTextureFit="cover"
+     backgroundTextureTint="#6F5FD966"
+     backgroundTextureSampling="linear"
+     border="#4C86CBE6"
+     borderWidth="1"
+     radius="4"
+     themeEnabled="false">
+    <VBox id="content" spacing="8" alignItems="stretch">
+        <Label id="title" text="XMLWidget Prototype" color="#F2F7FFFF" height="20" />
+        <TextBlock id="body"
+                   text="This panel was deserialized from a classpath XML resource. Java only finds widgets by id and wires events."
+                   color="#B9C7D9FF"
+                   height="42"
+                   overflowMode="clip" />
+        <Slider id="amount" min="0" max="100" value="42" step="1" height="18" />
+        <ProgressBar id="meter" min="0" max="100" value="42" height="12" fillColor="#52D273FF" />
+        <HBox id="actions" spacing="8" justifyContent="center" height="26">
+            <Button id="apply" text="Apply" width="76" height="22" />
+            <Button id="cycle" text="Cycle" width="76" height="22" />
+            <Checkbox id="strict" text="Strict XML" checked="true" width="104" height="22" />
+            <Button id="close" text="Close" width="76" height="22" />
+        </HBox>
+        <Label id="status" text="Loaded via XMLWidget.createResource(...)." color="#75D7FFFF" height="18" />
+    </VBox>
+</Box>

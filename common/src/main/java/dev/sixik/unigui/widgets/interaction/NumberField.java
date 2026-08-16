@@ -9,11 +9,14 @@ import dev.sixik.unigui.api.event.NumberValueChangedEvent;
 import dev.sixik.unigui.api.event.TextInputEvent;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.widgets.render.TextInputRenderer;
 import dev.sixik.unigui.widgets.render.TextInputRenderType;
 
 import java.util.Locale;
 
+@XmlWidgetName("NumberField")
 public class NumberField extends TextInput {
     private double min = -Double.MAX_VALUE;
     private double max = Double.MAX_VALUE;
@@ -29,9 +32,20 @@ public class NumberField extends TextInput {
         return value;
     }
 
+    @XmlAttribute(value = "value", category = "Behavior", defaultValue = "0", description = "Numeric value clamped to min/max.")
     public NumberField value(double value) {
         setNumberValue(value, true);
         return this;
+    }
+
+    @XmlAttribute(value = "min", category = "Behavior", defaultValue = "-Double.MAX_VALUE", description = "Minimum allowed numeric value.")
+    public NumberField min(double min) {
+        return range(min, max);
+    }
+
+    @XmlAttribute(value = "max", category = "Behavior", defaultValue = "Double.MAX_VALUE", description = "Maximum allowed numeric value.")
+    public NumberField max(double max) {
+        return range(min, max);
     }
 
     public NumberField silentValue(double value) {
@@ -51,6 +65,7 @@ public class NumberField extends TextInput {
         return this;
     }
 
+    @XmlAttribute(value = "step", category = "Behavior", defaultValue = "1", description = "Keyboard nudge increment.")
     public NumberField step(double step) {
         this.step = Math.max(0.0d, step);
         return this;

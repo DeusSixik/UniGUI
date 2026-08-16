@@ -27,6 +27,8 @@ import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.virtualization.FixedRowVirtualizer;
 import dev.sixik.unigui.api.virtualization.VirtualRange;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.render.VirtualListViewRenderer;
 import dev.sixik.unigui.widgets.render.VirtualListViewRenderPhase;
@@ -48,6 +50,7 @@ import dev.sixik.unigui.widgets.interaction.ScrollBar;
 /**
  * Fixed-row-height virtualized list for large scrollable datasets.
  */
+@XmlWidgetName("VirtualListView")
 public class VirtualListView extends WidgetBase {
     private static final float SCROLLBAR_WIDTH = ScrollBar.DEFAULT_SIZE;
     private static final float SCROLLBAR_GAP = ScrollBar.DEFAULT_GAP;
@@ -82,6 +85,7 @@ public class VirtualListView extends WidgetBase {
         return virtualizer.itemCount();
     }
 
+    @XmlAttribute(value = "itemCount", category = "Data", defaultValue = "0", description = "Number of virtual rows exposed by the list.")
     public VirtualListView itemCount(int itemCount) {
         if (virtualizer.itemCount() == Math.max(0, itemCount)) return this;
         List<Integer> oldSelection = selection.selectedIndices();
@@ -99,6 +103,7 @@ public class VirtualListView extends WidgetBase {
         return virtualizer.itemExtent();
     }
 
+    @XmlAttribute(value = "itemHeight", category = "Layout", defaultValue = "18", description = "Fixed row height used by virtualization.")
     public VirtualListView itemHeight(float itemHeight) {
         float previous = virtualizer.itemExtent();
         virtualizer.itemExtent(itemHeight);
@@ -112,6 +117,7 @@ public class VirtualListView extends WidgetBase {
         return virtualizer.overscan();
     }
 
+    @XmlAttribute(value = "overscan", category = "Behavior", defaultValue = "1", description = "Extra rows realized above and below the viewport.")
     public VirtualListView overscan(int overscan) {
         int previous = virtualizer.overscan();
         virtualizer.overscan(overscan);
@@ -131,6 +137,7 @@ public class VirtualListView extends WidgetBase {
         return offscreenCacheSize;
     }
 
+    @XmlAttribute(value = "offscreenCacheSize", category = "Behavior", defaultValue = "0", description = "Maximum number of recycled offscreen row widgets retained.")
     public VirtualListView offscreenCacheSize(int offscreenCacheSize) {
         int normalized = Math.max(0, offscreenCacheSize);
         if (this.offscreenCacheSize == normalized) return this;
@@ -143,6 +150,7 @@ public class VirtualListView extends WidgetBase {
         return virtualizer.scrollOffset();
     }
 
+    @XmlAttribute(value = "scrollStep", category = "Behavior", defaultValue = "16", description = "UI pixels scrolled per wheel/page delta unit.")
     public VirtualListView scrollStep(float scrollStep) {
         this.scrollStep = Float.isFinite(scrollStep) ? Math.max(1.0f, scrollStep) : 16.0f;
         syncScrollBar();
@@ -153,6 +161,7 @@ public class VirtualListView extends WidgetBase {
         return consumeWheelAtScrollBounds;
     }
 
+    @XmlAttribute(value = "consumeWheelAtScrollBounds", category = "Behavior", defaultValue = "true", description = "Whether wheel events are consumed at scroll range boundaries.")
     public VirtualListView consumeWheelAtScrollBounds(boolean consumeWheelAtScrollBounds) {
         this.consumeWheelAtScrollBounds = consumeWheelAtScrollBounds;
         return this;
@@ -186,6 +195,7 @@ public class VirtualListView extends WidgetBase {
         return selection.mode();
     }
 
+    @XmlAttribute(value = "selectionMode", category = "Behavior", defaultValue = "single", description = "Selection mode used by list rows.")
     public VirtualListView selectionMode(SelectionMode mode) {
         List<Integer> oldSelection = selection.selectedIndices();
         selection.mode(mode);
@@ -210,6 +220,7 @@ public class VirtualListView extends WidgetBase {
         return activeIndex;
     }
 
+    @XmlAttribute(value = "activeIndex", category = "Behavior", defaultValue = "-1", description = "Initial keyboard/navigation active row index.")
     public VirtualListView activeIndex(int index) {
         int normalized = clampIndexOrNone(index);
         if (activeIndex == normalized) return this;

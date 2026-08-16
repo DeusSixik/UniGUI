@@ -1,6 +1,7 @@
 package dev.sixik.unigui.tests;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.brigadier.CommandDispatcher;
 import dev.sixik.unigui.api.core.MutableUIScaleProvider;
 import dev.sixik.unigui.api.animation.AnimationEasing;
@@ -16,6 +17,7 @@ import dev.sixik.unigui.api.render.DrawCommand;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.SimpleTextureHandle;
+import dev.sixik.unigui.api.render.TextureOptions;
 import dev.sixik.unigui.api.render.UiRenderPolicy;
 import dev.sixik.unigui.api.render.shaders.ShaderDrawOptions;
 import dev.sixik.unigui.api.render.shaders.ShaderHandle;
@@ -26,8 +28,13 @@ import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.widget.CheckboxState;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.xml.XMLWidget;
+import dev.sixik.unigui.api.xml.XmlWidgetDiagnosticsPanel;
+import dev.sixik.unigui.api.xml.XmlWidgetHotReloadPreview;
+import dev.sixik.unigui.api.xml.XmlWidgetHotReloadSource;
 import dev.sixik.unigui.widgets.minecraft.MinecraftBlockPreviewWidget;
 import dev.sixik.unigui.backend.minecraft.MinecraftClipboardService;
+import dev.sixik.unigui.backend.minecraft.UniGuiTextures;
 import dev.sixik.unigui.widgets.minecraft.MinecraftEntityPreviewWidget;
 import dev.sixik.unigui.backend.minecraft.MinecraftFonts;
 import dev.sixik.unigui.widgets.minecraft.MinecraftItemPickerWidget;
@@ -51,6 +58,8 @@ import net.minecraft.world.level.block.Blocks;
 
 import java.time.Duration;
 import java.time.LocalDate;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
 import java.util.Locale;
 import dev.sixik.unigui.widgets.containers.Border;
@@ -135,9 +144,15 @@ import dev.sixik.unigui.widgets.navigation.TreeList;
 import dev.sixik.unigui.widgets.navigation.TreeView;
 import dev.sixik.unigui.widgets.navigation.TreeViewNode;
 import dev.sixik.unigui.widgets.world.WorldCanvas;
+import org.intellij.lang.annotations.Language;
 
 public final class UniGuiDemo {
     private static final MutableUIScaleProvider SCALE = new MutableUIScaleProvider(2.0f);
+    private static final String XML_OVERVIEW_RESOURCE = "assets/unigui/xml/overview.xml";
+    private static final String XML_DEMO_RESOURCE = "assets/unigui/xml/xml_demo.xml";
+    private static final String XML_DEMO_CLOUD_TEXTURE_ID = "unigui:dynamic/xml_demo_uniformclouds";
+    private static final String XML_DEMO_CLOUD_TEXTURE_RESOURCE = "assets/unigui_testmod/textures/gui/uniformclouds-1.png";
+    private static boolean xmlDemoCloudTextureLoadFailed;
 
     private static final ShaderHandle MAP_AURORA_BACKGROUND_SHADER = ShaderHandle.source(
             "unigui:demo_map_aurora_background",
@@ -501,12 +516,32 @@ public final class UniGuiDemo {
         RenderSystem.recordRenderCall(UniGuiDemo::openDemoClient);
     }
 
+    public static void openXmlDemo() {
+        RenderSystem.recordRenderCall(UniGuiDemo::openXmlDemoClient);
+    }
+
+    public static void openXmlHotReloadDemo() {
+        RenderSystem.recordRenderCall(UniGuiDemo::openXmlHotReloadDemoClient);
+    }
+
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("unigui")
                 .executes(ctx -> {
                     openDemo();
                     return 0;
-                }));
+                })
+                .then(Commands.literal("xml").executes(ctx -> {
+                    openXmlDemo();
+                    return 0;
+                }))
+                .then(Commands.literal("xmlhot").executes(ctx -> {
+                    openXmlHotReloadDemo();
+                    return 0;
+                }))
+                .then(Commands.literal("xml-hot").executes(ctx -> {
+                    openXmlHotReloadDemo();
+                    return 0;
+                })));
     }
 
     private static MinecraftWidgetScreen openScreen(Component title, Widget root, DefaultUIContext context) {
@@ -522,6 +557,156 @@ public final class UniGuiDemo {
                 .scaleProvider(SCALE);
         Widget root = demoScreenWidget(context);
         openScreen(Component.literal("UniGUI Demo"), root, context);
+    }
+
+    private static void openXmlDemoClient() {
+        DefaultUIContext context = new DefaultUIContext(new MinecraftClipboardService())
+                .scaleProvider(SCALE);
+        Widget root = xmlDemoScreenWidget();
+        openScreen(Component.literal("UniGUI XML Demo"), root, context);
+    }
+
+    private static void openXmlHotReloadDemoClient() {
+        DefaultUIContext context = new DefaultUIContext(new MinecraftClipboardService())
+                .scaleProvider(SCALE);
+        Widget root = xmlHotReloadDemoScreenWidget();
+        openScreen(Component.literal("UniGUI XML Hot Reload"), root, context);
+    }
+
+    private static Widget xmlDemoScreenWidget() {
+        StackPanel viewport = new StackPanel();
+        viewport.addChild(backgroundFrame());
+
+        ensureXmlDemoTextures();
+
+        Box panel = XMLWidget.createResource(XML_DEMO_RESOURCE, Box.class);
+
+        wireXmlDemoPanel(panel);
+
+        viewport.addChild(panel);
+        return new OverlayLayer(viewport);
+    }
+
+    private static Widget xmlHotReloadDemoScreenWidget() {
+        StackPanel viewport = new StackPanel();
+        viewport.addChild(backgroundFrame());
+
+        ensureXmlDemoTextures();
+
+        java.nio.file.Path sourcePath = xmlDemoHotReloadPath();
+        Label reloadStatus = new Label("Watching " + sourcePath.getFileName());
+        reloadStatus.layout(style -> style.size(LayoutConstraints.AUTO, 18.0f).flexGrow(1).flexShrink(1.0f));
+
+        XmlWidgetDiagnosticsPanel diagnostics = new XmlWidgetDiagnosticsPanel()
+                .entryLimit(5);
+        diagnostics.layout(style -> style
+                .margin(10.0f)
+                .size(408.0f, 154.0f)
+                .align(Alignment.END, Alignment.START)
+                .flexGrow(0)
+                .flexShrink(0.0f));
+
+        XmlWidgetHotReloadPreview<Box> preview = new XmlWidgetHotReloadPreview<>(
+                XmlWidgetHotReloadSource.path(sourcePath),
+                Box.class)
+                .reloadIntervalSeconds(0.35f)
+                .onReload(UniGuiDemo::wireXmlDemoPanel)
+                .onStatus(status -> {
+                    reloadStatus.text(xmlHotReloadStatusText(status));
+                    diagnostics.status(status);
+                });
+        preview.layout(style -> style.flexGrow(1).flexShrink(1.0f));
+        preview.reloadNow();
+
+        Box footer = panelBox(0.035f, 0.040f, 0.052f, 0.94f);
+        footer.layout(style -> style
+                .margin(10.0f)
+                .size(LayoutConstraints.AUTO, 34.0f)
+                .align(Alignment.CENTER, Alignment.END)
+                .flexGrow(0)
+                .flexShrink(0.0f));
+
+        HBox row = new HBox();
+        row.spacing(8.0f);
+        row.layout(style -> style.margin(8.0f, 6.0f).flexGrow(1).flexShrink(1.0f));
+
+        Label command = new Label("/unigui xmlhot");
+        command.layout(style -> style.size(106.0f, 18.0f).flexGrow(0).flexShrink(0.0f));
+        Button reload = new Button("Reload");
+        reload.layout(style -> style.size(70.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
+        reload.onClick(event -> preview.reloadNow());
+        Button close = new Button("Close");
+        close.layout(style -> style.size(70.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
+        close.onClick(event -> Minecraft.getInstance().setScreen(null));
+
+        row.addChild(command);
+        row.addChild(reloadStatus);
+        row.addChild(reload);
+        row.addChild(close);
+        footer.addChild(row);
+
+        viewport.addChild(preview);
+        viewport.addChild(diagnostics);
+        viewport.addChild(footer);
+        return new OverlayLayer(viewport);
+    }
+
+    private static void wireXmlDemoPanel(Box panel) {
+        if (panel == null) return;
+
+        Slider amount = XMLWidget.getWidget(panel, "amount", Slider.class);
+        ProgressBar meter = XMLWidget.getWidget(panel, "meter", ProgressBar.class);
+        Checkbox strict = XMLWidget.getWidget(panel, "strict", Checkbox.class);
+        Button apply = XMLWidget.getWidget(panel, "apply", Button.class);
+        Button cycle = XMLWidget.getWidget(panel, "cycle", Button.class);
+        Button close = XMLWidget.getWidget(panel, "close", Button.class);
+        Label status = XMLWidget.getWidget(panel, "status", Label.class);
+
+        amount.onValueChanged(event -> {
+            meter.value(event.newValue());
+            status.text(String.format(Locale.ROOT, "Slider -> %.0f, strict=%s", event.newValue(), strict.checked()));
+        });
+        apply.onClick(event -> status.text(String.format(Locale.ROOT,
+                "Apply clicked: value %.0f, strict=%s", amount.value(), strict.checked())));
+        strict.onCheckedChanged(event -> status.text("Strict XML: " + event.newValue()));
+        float[] cycleValues = {12.0f, 42.0f, 68.0f, 91.0f};
+        int[] cycleIndex = {1};
+        cycle.onClick(event -> {
+            cycleIndex[0] = (cycleIndex[0] + 1) % cycleValues.length;
+            amount.value(cycleValues[cycleIndex[0]]);
+        });
+        close.onClick(event -> Minecraft.getInstance().setScreen(null));
+    }
+
+    private static String xmlHotReloadStatusText(XmlWidgetHotReloadPreview.Status status) {
+        if (status == null) return "XML hot reload: waiting.";
+        String prefix = status.failed() ? "XML hot reload failed: " : "XML hot reload: ";
+        return prefix + status.message();
+    }
+
+    private static java.nio.file.Path xmlDemoHotReloadPath() {
+        String relativePath = "common/src/main/resources/" + XML_DEMO_RESOURCE;
+        java.nio.file.Path workingDirectory = java.nio.file.Paths.get("").toAbsolutePath().normalize();
+        for (java.nio.file.Path current = workingDirectory; current != null; current = current.getParent()) {
+            java.nio.file.Path candidate = current.resolve(relativePath).normalize();
+            if (java.nio.file.Files.exists(candidate)) return candidate;
+        }
+        return workingDirectory.resolve(relativePath).normalize();
+    }
+
+    private static void ensureXmlDemoTextures() {
+        if (xmlDemoCloudTextureLoadFailed || UniGuiTextures.get(XML_DEMO_CLOUD_TEXTURE_ID) != null) return;
+
+        ClassLoader loader = UniGuiDemo.class.getClassLoader();
+        try (InputStream stream = loader.getResourceAsStream(XML_DEMO_CLOUD_TEXTURE_RESOURCE)) {
+            if (stream == null) {
+                xmlDemoCloudTextureLoadFailed = true;
+                return;
+            }
+            UniGuiTextures.replace(XML_DEMO_CLOUD_TEXTURE_ID, NativeImage.read(stream), TextureOptions.linear());
+        } catch (IOException | RuntimeException failure) {
+            xmlDemoCloudTextureLoadFailed = true;
+        }
     }
 
     private static Widget demoScreenWidget(DefaultUIContext context) {
@@ -607,15 +792,10 @@ public final class UniGuiDemo {
 
 
     private static VBox overviewPage() {
-        VBox page = page("Overview", "A compact tour of the AAA UI Framework surface for Minecraft screens.");
-        page.addChild(paragraph("This demo is intentionally dense: each card or section exercises retained widgets, events, layout, renderers, overlays, virtualization, and Minecraft-specific preview widgets."));
-        WrapPanel cards = wrap();
-        cards.addChild(infoCard("Core Controls", "Button, ToggleButton, ToggleSwitch, HoldButton, Checkbox, RadioGroup, ComboBox, text inputs, sliders, progress and loaders."));
-        cards.addChild(infoCard("Containers", "StackPanel, DockPanel, WrapPanel, GridBox, SplitPanel, TabControl, Accordion, TreeView, TreeList and Carousel."));
-        cards.addChild(infoCard("Data", "VirtualListView, VirtualTableView, Chart, Sparkline and GraphView for large or visual datasets."));
-        cards.addChild(infoCard("Advanced", "DockingRoot, WindowWidget, Popup, Tooltip, ContextMenu, Toast, NodeGraph and Minecraft item/block/entity previews."));
-        page.addChild(cards);
-        page.addChild(section("Quick factories", factoryGallery()));
+        VBox page = XMLWidget.createResource(XML_OVERVIEW_RESOURCE, VBox.class);
+        VBox quickFactoriesSlot = XMLWidget.getWidget(page, "quickFactoriesSlot", VBox.class);
+        quickFactoriesSlot.addChild(factoryGallery());
+        quickFactoriesSlot.applyQueuedMutations();
         return page;
     }
 

@@ -12,6 +12,8 @@ import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
 import dev.sixik.unigui.widgets.render.TooltipRenderer;
@@ -21,6 +23,7 @@ import java.util.List;
 import java.util.Objects;
 import dev.sixik.unigui.widgets.containers.Box;
 
+@XmlWidgetName("Tooltip")
 public class Tooltip extends Box implements OverlayHostAware {
     private static final float HORIZONTAL_PADDING = 6.0f;
     private static final float VERTICAL_PADDING = 4.0f;
@@ -76,6 +79,7 @@ public class Tooltip extends Box implements OverlayHostAware {
         return text;
     }
 
+    @XmlAttribute(value = "text", category = "Content", defaultValue = "", description = "Plain tooltip text.")
     public Tooltip text(String text) {
         String normalized = text == null ? "" : text;
         RichText normalizedRichText = RichText.plain(normalized);
@@ -113,6 +117,7 @@ public class Tooltip extends Box implements OverlayHostAware {
         return maxWidth;
     }
 
+    @XmlAttribute(value = "maxWidth", category = "Layout", defaultValue = "220", description = "Maximum tooltip width in UI pixels.")
     public Tooltip maxWidth(float maxWidth) {
         float normalized = Float.isFinite(maxWidth) ? Math.max(HORIZONTAL_PADDING * 2.0f + TextEngine.APPROX_CHAR_WIDTH, maxWidth) : DEFAULT_MAX_WIDTH;
         if (this.maxWidth == normalized) return this;

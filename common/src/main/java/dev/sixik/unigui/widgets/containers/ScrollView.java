@@ -15,6 +15,8 @@ import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.layout.v3.LayoutV3ScrollAdapter;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.core.Orientation;
@@ -51,6 +53,7 @@ import java.util.List;
  * @see ScrollBar
  * @see Overflow
  */
+@XmlWidgetName("ScrollView")
 public class ScrollView extends WidgetBase {
     private static final float SCROLLBAR_SIZE = ScrollBar.DEFAULT_SIZE;
 
@@ -153,6 +156,11 @@ public class ScrollView extends WidgetBase {
         return contentWidth;
     }
 
+    @XmlAttribute(value = "contentWidth", category = "Layout", defaultValue = "0", description = "Explicit scroll content width; 0 uses measured width.")
+    public ScrollView contentWidth(float contentWidth) {
+        return contentSize(contentWidth, contentHeight);
+    }
+
     /**
      * Возвращает явно заданную высоту content extent'а.
      *
@@ -160,6 +168,11 @@ public class ScrollView extends WidgetBase {
      */
     public float contentHeight() {
         return contentHeight;
+    }
+
+    @XmlAttribute(value = "contentHeight", category = "Layout", defaultValue = "0", description = "Explicit scroll content height; 0 uses measured height.")
+    public ScrollView contentHeight(float contentHeight) {
+        return contentSize(contentWidth, contentHeight);
     }
 
     /**
@@ -216,6 +229,7 @@ public class ScrollView extends WidgetBase {
      * @param scrollStep количество UI-пикселей на единицу scroll delta; минимум {@code 1}
      * @return этот scroll view для fluent-настройки
      */
+    @XmlAttribute(value = "scrollStep", category = "Behavior", defaultValue = "16", description = "UI pixels scrolled per wheel/page delta unit.")
     public ScrollView scrollStep(float scrollStep) {
         this.scrollStep = Math.max(1.0f, scrollStep);
         return this;
@@ -239,6 +253,7 @@ public class ScrollView extends WidgetBase {
      * @param scrollingEnabled {@code true}, чтобы разрешить scrolling
      * @return этот scroll view для fluent-настройки
      */
+    @XmlAttribute(value = "scrollingEnabled", category = "Behavior", defaultValue = "true", description = "Whether wheel input and scrollbars can change scroll position.")
     public ScrollView scrollingEnabled(boolean scrollingEnabled) {
         if (this.scrollingEnabled == scrollingEnabled) return this;
         this.scrollingEnabled = scrollingEnabled;
@@ -291,6 +306,7 @@ public class ScrollView extends WidgetBase {
      * @param consumeWheelAtScrollBounds {@code true}, чтобы потреблять wheel на границах
      * @return этот scroll view для fluent-настройки
      */
+    @XmlAttribute(value = "consumeWheelAtScrollBounds", category = "Behavior", defaultValue = "true", description = "Whether wheel events are consumed at scroll range boundaries.")
     public ScrollView consumeWheelAtScrollBounds(boolean consumeWheelAtScrollBounds) {
         this.consumeWheelAtScrollBounds = consumeWheelAtScrollBounds;
         return this;
@@ -311,6 +327,7 @@ public class ScrollView extends WidgetBase {
      * @param scrollbarGap gap в пикселях UI-пространства; невалидные значения заменяются дефолтом
      * @return этот scroll view для fluent-настройки
      */
+    @XmlAttribute(value = "scrollbarGap", category = "Layout", defaultValue = "2", description = "Gap between viewport content and scrollbar tracks.")
     public ScrollView scrollbarGap(float scrollbarGap) {
         float normalized = Float.isFinite(scrollbarGap) ? Math.max(0.0f, scrollbarGap) : ScrollBar.DEFAULT_GAP;
         if (this.scrollbarGap == normalized) return this;

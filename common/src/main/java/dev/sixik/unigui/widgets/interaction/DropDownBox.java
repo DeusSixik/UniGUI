@@ -14,6 +14,8 @@ import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 
 import java.util.Objects;
 import dev.sixik.unigui.widgets.containers.Box;
@@ -30,6 +32,7 @@ import dev.sixik.unigui.widgets.feedback.Popup;
  * DropDownBox intentionally owns only the header/open state and a single
  * content widget.</p>
  */
+@XmlWidgetName("DropDownBox")
 public class DropDownBox extends LinearBox {
     private static final float HEADER_HEIGHT = 22.0f;
     private static final float CONTENT_INSET = 2.0f;
@@ -124,6 +127,7 @@ public class DropDownBox extends LinearBox {
         return headerText;
     }
 
+    @XmlAttribute(value = "headerText", category = "Content", defaultValue = "Open...", description = "Header button text when the dropdown is closed.")
     public DropDownBox headerText(String headerText) {
         String normalized = normalize(headerText);
         if (Objects.equals(this.headerText, normalized)) return this;
@@ -164,6 +168,7 @@ public class DropDownBox extends LinearBox {
         return opened(!opened);
     }
 
+    @XmlAttribute(value = "opened", category = "Behavior", defaultValue = "false", description = "Whether the dropdown content starts open.")
     public DropDownBox opened(boolean opened) {
         if (this.opened == opened) return this;
         this.opened = opened;
@@ -178,6 +183,7 @@ public class DropDownBox extends LinearBox {
         return dropDownMode;
     }
 
+    @XmlAttribute(value = "dropDownMode", category = "Behavior", defaultValue = "overlay", description = "Whether dropdown content is shown inline or in an overlay popup.")
     public DropDownBox dropDownMode(ComboBox.DropDownMode dropDownMode) {
         ComboBox.DropDownMode normalized = dropDownMode == null ? ComboBox.DropDownMode.INLINE : dropDownMode;
         if (this.dropDownMode == normalized) return this;
@@ -239,6 +245,7 @@ public class DropDownBox extends LinearBox {
         return dropDownWidth;
     }
 
+    @XmlAttribute(value = "dropDownWidth", category = "Layout", defaultValue = "0", description = "Explicit dropdown width; 0 uses automatic sizing.")
     public DropDownBox dropDownWidth(float width) {
         float normalized = Float.isFinite(width) ? Math.max(0.0f, width) : 0.0f;
         if (dropDownWidth == normalized && !dropDownMatchesWidgetWidth) return this;
@@ -253,6 +260,7 @@ public class DropDownBox extends LinearBox {
         return dropDownMatchesWidgetWidth;
     }
 
+    @XmlAttribute(value = "dropDownMatchesWidgetWidth", category = "Layout", defaultValue = "false", description = "Whether dropdown width follows the host widget width.")
     public DropDownBox dropDownMatchesWidgetWidth(boolean match) {
         if (dropDownMatchesWidgetWidth == match && (match || dropDownWidth <= 0.0f)) return this;
         dropDownMatchesWidgetWidth = match;
@@ -283,6 +291,7 @@ public class DropDownBox extends LinearBox {
         return maxContentHeight;
     }
 
+    @XmlAttribute(value = "maxContentHeight", category = "Layout", defaultValue = "132", description = "Maximum dropdown content height before scrolling is used; 0 disables the cap.")
     public DropDownBox maxContentHeight(float height) {
         float normalized = Float.isFinite(height) && height > 0.0f ? height : 0.0f;
         if (maxContentHeight == normalized) return this;

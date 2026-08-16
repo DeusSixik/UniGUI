@@ -21,6 +21,8 @@ import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.render.GraphViewRenderer;
@@ -30,6 +32,7 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.List;
 import java.util.function.Function;
 
+@XmlWidgetName("GraphView")
 public final class GraphView extends WidgetBase {
     public static final float DEFAULT_PREFERRED_WIDTH = 240.0f;
     public static final float DEFAULT_PREFERRED_HEIGHT = 130.0f;
@@ -110,6 +113,7 @@ public final class GraphView extends WidgetBase {
         return tooltipBorder;
     }
 
+    @XmlAttribute(value = "nodeLabelsVisible", category = "Appearance", defaultValue = "true", description = "Whether node labels are rendered.")
     public GraphView nodeLabelsVisible(boolean nodeLabelsVisible) {
         if (this.nodeLabelsVisible == nodeLabelsVisible) return this;
         this.nodeLabelsVisible = nodeLabelsVisible;
@@ -117,6 +121,7 @@ public final class GraphView extends WidgetBase {
         return this;
     }
 
+    @XmlAttribute(value = "nodeLabelPlacement", category = "Appearance", defaultValue = "right", description = "Placement of labels relative to graph nodes.")
     public GraphView nodeLabelPlacement(NodeLabelPlacement nodeLabelPlacement) {
         this.nodeLabelPlacement = nodeLabelPlacement == null ? NodeLabelPlacement.RIGHT : nodeLabelPlacement;
         invalidate(InvalidationFlags.VISUAL);
@@ -172,6 +177,7 @@ public final class GraphView extends WidgetBase {
         return preferredWidth;
     }
 
+    @XmlAttribute(value = "preferredWidth", category = "Layout", defaultValue = "240", description = "Intrinsic graph width before layout constraints are applied.")
     public GraphView preferredWidth(float preferredWidth) {
         float normalized = positiveOr(preferredWidth, DEFAULT_PREFERRED_WIDTH);
         if (this.preferredWidth == normalized) return this;
@@ -184,6 +190,7 @@ public final class GraphView extends WidgetBase {
         return preferredHeight;
     }
 
+    @XmlAttribute(value = "preferredHeight", category = "Layout", defaultValue = "130", description = "Intrinsic graph height before layout constraints are applied.")
     public GraphView preferredHeight(float preferredHeight) {
         float normalized = positiveOr(preferredHeight, DEFAULT_PREFERRED_HEIGHT);
         if (this.preferredHeight == normalized) return this;

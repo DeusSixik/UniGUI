@@ -9,6 +9,8 @@ import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.widgets.render.ProgressBarRenderer;
 import dev.sixik.unigui.widgets.render.ProgressBarState;
 import dev.sixik.unigui.widgets.containers.Box;
@@ -21,6 +23,7 @@ import dev.sixik.unigui.widgets.containers.Box;
  * indicator that is not tied to a range/value contract, use {@link LoadingIndicator}
  * with {@link LoadingIndicator.Mode#BAR} instead.</p>
  */
+@XmlWidgetName("ProgressBar")
 public class ProgressBar extends Box {
     public static final float DEFAULT_PREFERRED_WIDTH = 120.0f;
     public static final float DEFAULT_PREFERRED_HEIGHT = 12.0f;
@@ -44,6 +47,24 @@ public class ProgressBar extends Box {
         fillColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
     }
 
+    public float min() {
+        return min;
+    }
+
+    @XmlAttribute(value = "min", category = "Behavior", defaultValue = "0", description = "Minimum progress value.")
+    public ProgressBar min(float min) {
+        return range(min, max);
+    }
+
+    public float max() {
+        return max;
+    }
+
+    @XmlAttribute(value = "max", category = "Behavior", defaultValue = "1", description = "Maximum progress value.")
+    public ProgressBar max(float max) {
+        return range(min, max);
+    }
+
     public ProgressBar range(float min, float max) {
         if (max < min) {
             float swap = min;
@@ -61,6 +82,7 @@ public class ProgressBar extends Box {
         return value;
     }
 
+    @XmlAttribute(value = "value", category = "Behavior", defaultValue = "0", description = "Current progress value clamped to min/max.")
     public ProgressBar value(float value) {
         float normalized = clamp(value, min, max);
         if (this.value == normalized) return this;
@@ -78,6 +100,7 @@ public class ProgressBar extends Box {
         return indeterminate;
     }
 
+    @XmlAttribute(value = "indeterminate", category = "Behavior", defaultValue = "false", description = "Whether the progress bar shows an indeterminate animation.")
     public ProgressBar indeterminate(boolean indeterminate) {
         if (this.indeterminate == indeterminate) return this;
         this.indeterminate = indeterminate;
@@ -93,6 +116,7 @@ public class ProgressBar extends Box {
         return indeterminateSpeed;
     }
 
+    @XmlAttribute(value = "indeterminateSpeed", category = "Behavior", defaultValue = "0.85", description = "Indeterminate animation speed multiplier.")
     public ProgressBar indeterminateSpeed(float indeterminateSpeed) {
         float normalized = Float.isFinite(indeterminateSpeed) ? Math.max(0.0f, indeterminateSpeed) : 0.85f;
         if (this.indeterminateSpeed == normalized) return this;
@@ -128,6 +152,7 @@ public class ProgressBar extends Box {
         return preferredWidth;
     }
 
+    @XmlAttribute(value = "preferredWidth", category = "Layout", defaultValue = "120", description = "Intrinsic progress bar width before layout constraints are applied.")
     public ProgressBar preferredWidth(float preferredWidth) {
         float normalized = positiveOr(preferredWidth, DEFAULT_PREFERRED_WIDTH);
         if (this.preferredWidth == normalized) return this;
@@ -140,6 +165,7 @@ public class ProgressBar extends Box {
         return preferredHeight;
     }
 
+    @XmlAttribute(value = "preferredHeight", category = "Layout", defaultValue = "12", description = "Intrinsic progress bar height before layout constraints are applied.")
     public ProgressBar preferredHeight(float preferredHeight) {
         float normalized = positiveOr(preferredHeight, DEFAULT_PREFERRED_HEIGHT);
         if (this.preferredHeight == normalized) return this;

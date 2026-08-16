@@ -2,6 +2,7 @@ package dev.sixik.unigui.widgets.minecraft;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.widgets.feedback.Tooltip;
 import net.minecraft.world.item.ItemStack;
 
@@ -17,6 +18,7 @@ import java.util.function.Supplier;
  * overlayLayer.addOverlay(new MinecraftItemTooltip(anchor, () -> currentStack));
  * }</pre>
  */
+@XmlWidgetName("MinecraftItemTooltip")
 public final class MinecraftItemTooltip extends Tooltip {
     private Supplier<ItemStack> stackSupplier = () -> ItemStack.EMPTY;
 

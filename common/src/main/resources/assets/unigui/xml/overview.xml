@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<VBox id="overviewPage" spacing="8" margin="8" flexGrow="1" flexShrink="1">
+    <Label id="overviewTitle" text="Overview" height="20" flexGrow="0" flexShrink="0" />
+    <TextBlock id="overviewSubtitle"
+               text="A compact tour of the AAA UI Framework surface for Minecraft screens."
+               height="34"
+               wrap="true"
+               overflowMode="clip"
+               flexGrow="0"
+               flexShrink="0" />
+    <TextBlock id="overviewBody"
+               text="This demo is intentionally dense: each card or section exercises retained widgets, events, layout, renderers, overlays, virtualization, and Minecraft-specific preview widgets."
+               height="44"
+               wrap="true"
+               overflowMode="clip"
+               flexGrow="0"
+               flexShrink="0" />
+    <WrapPanel id="overviewCards" spacing="8" lineSpacing="8" flexGrow="0" flexShrink="0">
+        <Box id="coreControlsCard" width="174" minHeight="86" flexGrow="0" flexShrink="0" background="#0E1016EB" border="#33475CBF" radius="4" themeEnabled="false">
+            <VBox spacing="4" margin="6" flexGrow="0" flexShrink="0">
+                <Label text="Core Controls" flexGrow="0" flexShrink="0" />
+                <TextBlock text="Button, ToggleButton, ToggleSwitch, HoldButton, Checkbox, RadioGroup, ComboBox, text inputs, sliders, progress and loaders."
+                           wrap="true"
+                           overflowMode="clip"
+                           flexGrow="0"
+                           flexShrink="0" />
+            </VBox>
+        </Box>
+        <Box id="containersCard" width="174" minHeight="86" flexGrow="0" flexShrink="0" background="#0E1016EB" border="#33475CBF" radius="4" themeEnabled="false">
+            <VBox spacing="4" margin="6" flexGrow="0" flexShrink="0">
+                <Label text="Containers" flexGrow="0" flexShrink="0" />
+                <TextBlock text="StackPanel, DockPanel, WrapPanel, GridBox, SplitPanel, TabControl, Accordion, TreeView, TreeList and Carousel."
+                           wrap="true"
+                           overflowMode="clip"
+                           flexGrow="0"
+                           flexShrink="0" />
+            </VBox>
+        </Box>
+        <Box id="dataCard" width="174" minHeight="86" flexGrow="0" flexShrink="0" background="#0E1016EB" border="#33475CBF" radius="4" themeEnabled="false">
+            <VBox spacing="4" margin="6" flexGrow="0" flexShrink="0">
+                <Label text="Data" flexGrow="0" flexShrink="0" />
+                <TextBlock text="VirtualListView, VirtualTableView, Chart, Sparkline and GraphView for large or visual datasets."
+                           wrap="true"
+                           overflowMode="clip"
+                           flexGrow="0"
+                           flexShrink="0" />
+            </VBox>
+        </Box>
+        <Box id="advancedCard" width="174" minHeight="86" flexGrow="0" flexShrink="0" background="#0E1016EB" border="#33475CBF" radius="4" themeEnabled="false">
+            <VBox spacing="4" margin="6" flexGrow="0" flexShrink="0">
+                <Label text="Advanced" flexGrow="0" flexShrink="0" />
+                <TextBlock text="DockingRoot, WindowWidget, Popup, Tooltip, ContextMenu, Toast, NodeGraph and Minecraft item/block/entity previews."
+                           wrap="true"
+                           overflowMode="clip"
+                           flexGrow="0"
+                           flexShrink="0" />
+            </VBox>
+        </Box>
+    </WrapPanel>
+    <Box id="quickFactoriesSection" flexGrow="0" flexShrink="0" background="#0C0D11E0" border="#33475CBF" radius="4" themeEnabled="false">
+        <VBox spacing="6" margin="8" flexGrow="0" flexShrink="0">
+            <Label text="Quick factories" height="18" flexGrow="0" flexShrink="0" />
+            <VBox id="quickFactoriesSlot" flexGrow="0" flexShrink="0" />
+        </VBox>
+    </Box>
+</VBox>

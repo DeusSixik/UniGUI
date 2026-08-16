@@ -21,11 +21,14 @@ import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.widgets.render.ScrollBarRenderer;
 import dev.sixik.unigui.widgets.render.ScrollBarState;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.core.Orientation;
 
+@XmlWidgetName("ScrollBar")
 public class ScrollBar extends Box {
     public static final float DEFAULT_SIZE = 6.0f;
     public static final float DEFAULT_GAP = 8.0f;
@@ -57,6 +60,7 @@ public class ScrollBar extends Box {
         return orientation;
     }
 
+    @XmlAttribute(value = "orientation", category = "Layout", defaultValue = "vertical", description = "Scrollbar axis.")
     public ScrollBar orientation(Orientation orientation) {
         Orientation normalized = orientation == null ? Orientation.VERTICAL : orientation;
         if (this.orientation == normalized) return this;
@@ -69,8 +73,18 @@ public class ScrollBar extends Box {
         return min;
     }
 
+    @XmlAttribute(value = "min", category = "Behavior", defaultValue = "0", description = "Minimum scroll value.")
+    public ScrollBar min(float min) {
+        return range(min, max);
+    }
+
     public float max() {
         return max;
+    }
+
+    @XmlAttribute(value = "max", category = "Behavior", defaultValue = "0", description = "Maximum scroll value.")
+    public ScrollBar max(float max) {
+        return range(min, max);
     }
 
     public ScrollBar range(float min, float max) {
@@ -96,6 +110,7 @@ public class ScrollBar extends Box {
         return this;
     }
 
+    @XmlAttribute(value = "value", category = "Behavior", defaultValue = "0", description = "Initial scroll value without emitting change events during XML load.")
     public ScrollBar silentValue(float value) {
         setValue(value, false);
         return this;
@@ -105,6 +120,7 @@ public class ScrollBar extends Box {
         return pageSize;
     }
 
+    @XmlAttribute(value = "pageSize", category = "Behavior", defaultValue = "1", description = "Visible page size used to calculate thumb length.")
     public ScrollBar pageSize(float pageSize) {
         float normalized = Math.max(1.0f, pageSize);
         if (this.pageSize == normalized) return this;
@@ -117,6 +133,7 @@ public class ScrollBar extends Box {
         return step;
     }
 
+    @XmlAttribute(value = "step", category = "Behavior", defaultValue = "16", description = "Keyboard nudge increment.")
     public ScrollBar step(float step) {
         this.step = Math.max(1.0f, step);
         return this;
@@ -153,6 +170,7 @@ public class ScrollBar extends Box {
         return preferredLength;
     }
 
+    @XmlAttribute(value = "preferredLength", category = "Layout", defaultValue = "120", description = "Intrinsic length along the scroll axis.")
     public ScrollBar preferredLength(float preferredLength) {
         float normalized = positiveOr(preferredLength, DEFAULT_PREFERRED_LENGTH);
         if (this.preferredLength == normalized) return this;
@@ -165,6 +183,7 @@ public class ScrollBar extends Box {
         return preferredThickness;
     }
 
+    @XmlAttribute(value = "preferredThickness", category = "Layout", defaultValue = "6", description = "Intrinsic thickness across the scroll axis.")
     public ScrollBar preferredThickness(float preferredThickness) {
         float normalized = positiveOr(preferredThickness, DEFAULT_PREFERRED_THICKNESS);
         if (this.preferredThickness == normalized) return this;

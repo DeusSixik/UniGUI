@@ -26,6 +26,8 @@ import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.render.ButtonRenderer;
 import dev.sixik.unigui.widgets.render.ButtonRenderType;
@@ -34,6 +36,7 @@ import dev.sixik.unigui.widgets.render.ButtonState;
 import java.util.Objects;
 import dev.sixik.unigui.widgets.containers.Box;
 
+@XmlWidgetName("Button")
 public class Button extends Box {
     protected static final float DEFAULT_TEXT_PADDING_X = 8.0f;
     protected static final float TEXT_PADDING_X = DEFAULT_TEXT_PADDING_X;
@@ -79,6 +82,7 @@ public class Button extends Box {
         return text;
     }
 
+    @XmlAttribute(value = "text", category = "Content", defaultValue = "", description = "Button label text.")
     public Button text(String text) {
         String normalized = normalize(text);
         RichText normalizedRichText = RichText.plain(normalized);
@@ -124,6 +128,7 @@ public class Button extends Box {
         return textPaddingX(horizontal).textPaddingY(vertical);
     }
 
+    @XmlAttribute(value = "textPaddingX", category = "Layout", defaultValue = "8", description = "Horizontal padding around button text.")
     public Button textPaddingX(float textPaddingX) {
         float normalized = Float.isFinite(textPaddingX) ? Math.max(0.0f, textPaddingX) : DEFAULT_TEXT_PADDING_X;
         if (this.textPaddingX == normalized) return this;
@@ -136,6 +141,7 @@ public class Button extends Box {
         return textPaddingY;
     }
 
+    @XmlAttribute(value = "textPaddingY", category = "Layout", defaultValue = "4", description = "Vertical padding around button text.")
     public Button textPaddingY(float textPaddingY) {
         float normalized = Float.isFinite(textPaddingY) ? Math.max(0.0f, textPaddingY) : DEFAULT_TEXT_PADDING_Y;
         if (this.textPaddingY == normalized) return this;
@@ -167,6 +173,7 @@ public class Button extends Box {
         return interactionTransitions;
     }
 
+    @XmlAttribute(value = "interactionTransitions", category = "Behavior", defaultValue = "false", description = "Enables built-in hover/press transition animation.")
     public Button interactionTransitions(boolean interactionTransitions) {
         if (this.interactionTransitions == interactionTransitions) return this;
         this.interactionTransitions = interactionTransitions;
@@ -200,6 +207,7 @@ public class Button extends Box {
     }
 
     @Override
+    @XmlAttribute(value = "enabled", category = "Behavior", defaultValue = "true", description = "Whether the widget can be interacted with.")
     public Button enabled(boolean enabled) {
         boolean changed = enabled() != enabled;
         super.enabled(enabled);

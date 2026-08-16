@@ -13,6 +13,7 @@ import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 
@@ -42,6 +43,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * @see StackPanel
  * @see Box
  */
+@XmlWidgetName("Panel")
 public class PanelWidget extends WidgetBase {
     private static final ThreadLocal<RectView> RENDER_CULL_BOUNDS = new ThreadLocal<>();
 

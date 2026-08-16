@@ -6,6 +6,8 @@ import dev.sixik.unigui.api.event.EventSubscription;
 import dev.sixik.unigui.api.event.SelectionChangedEvent;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 
 import java.util.List;
 import dev.sixik.unigui.widgets.containers.HBox;
@@ -14,6 +16,7 @@ import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.interaction.Button;
 
+@XmlWidgetName("Carousel")
 public class Carousel extends LinearBox {
     private final HBox header = new HBox();
     private final Button previous = new Button("<");
@@ -68,6 +71,7 @@ public class Carousel extends LinearBox {
         return this;
     }
 
+    @XmlAttribute(value = "selectedIndex", category = "Behavior", defaultValue = "0", description = "Initial selected carousel page without emitting change events during XML load.")
     public Carousel silentSelectedIndex(int selectedIndex) {
         pageView.silentSelectedIndex(selectedIndex);
         updateIndicator();

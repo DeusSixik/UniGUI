@@ -17,6 +17,7 @@ import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.containers.PanelWidget;
@@ -30,6 +31,7 @@ import java.util.Map;
 /**
  * Root-level overlay host that renders overlay children above a normal content widget.
  */
+@XmlWidgetName("OverlayLayer")
 public final class OverlayLayer extends PanelWidget {
     private final WindowManager windowManager = new WindowManager(this);
     private final Map<Widget, Integer> overlayZ = new IdentityHashMap<>();

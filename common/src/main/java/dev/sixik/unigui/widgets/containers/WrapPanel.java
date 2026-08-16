@@ -7,6 +7,8 @@ import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.layout.v3.LayoutV3FlexAdapter;
 import dev.sixik.unigui.widgets.core.Orientation;
 
@@ -31,6 +33,7 @@ import dev.sixik.unigui.widgets.core.Orientation;
  *
  * @see LinearBox
  */
+@XmlWidgetName("WrapPanel")
 public final class WrapPanel extends PanelWidget {
     private Orientation orientation = Orientation.HORIZONTAL;
     private float spacing;
@@ -58,6 +61,7 @@ public final class WrapPanel extends PanelWidget {
      * @param orientation новая ориентация; {@code null} трактуется как {@link Orientation#HORIZONTAL}
      * @return этот контейнер для fluent-настройки
      */
+    @XmlAttribute(value = "orientation", category = "Layout", defaultValue = "horizontal", description = "Main axis used before wrapping children.")
     public WrapPanel orientation(Orientation orientation) {
         Orientation normalized = orientation == null ? Orientation.HORIZONTAL : orientation;
         if (this.orientation == normalized) return this;
@@ -82,6 +86,7 @@ public final class WrapPanel extends PanelWidget {
      * @param spacing spacing в пикселях UI-пространства; невалидные значения заменяются на {@code 0}
      * @return этот контейнер для fluent-настройки
      */
+    @XmlAttribute(value = "spacing", category = "Layout", defaultValue = "0", description = "Gap between children within one wrap line.")
     public WrapPanel spacing(float spacing) {
         float normalized = Float.isFinite(spacing) ? Math.max(0.0f, spacing) : 0.0f;
         if (this.spacing == normalized) return this;
@@ -106,6 +111,7 @@ public final class WrapPanel extends PanelWidget {
      * @param lineSpacing line spacing в пикселях UI-пространства; невалидные значения заменяются на {@code 0}
      * @return этот контейнер для fluent-настройки
      */
+    @XmlAttribute(value = "lineSpacing", category = "Layout", defaultValue = "0", description = "Gap between wrapped lines.")
     public WrapPanel lineSpacing(float lineSpacing) {
         float normalized = Float.isFinite(lineSpacing) ? Math.max(0.0f, lineSpacing) : 0.0f;
         if (this.lineSpacing == normalized) return this;

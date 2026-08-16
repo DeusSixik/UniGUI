@@ -6,6 +6,7 @@ import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 
 /**
  * Short caption text, optionally associated with a focusable control.
@@ -14,6 +15,7 @@ import dev.sixik.unigui.api.widget.Widget;
  * when {@link #focusTarget(Widget)} is set, primary click requests focus for
  * that control.</p>
  */
+@XmlWidgetName("Label")
 public final class Label extends TextWidget {
     private Widget focusTarget;
 

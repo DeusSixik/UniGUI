@@ -16,6 +16,8 @@ import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.render.TreeViewRenderer;
 import dev.sixik.unigui.widgets.render.TreeViewRowState;
@@ -29,6 +31,7 @@ import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.widgets.interaction.Button;
 
+@XmlWidgetName("TreeView")
 public class TreeView extends LinearBox {
     private static final float ROW_HEIGHT = 20.0f;
     private static final float INDENT_WIDTH = 12.0f;
@@ -182,6 +185,7 @@ public class TreeView extends LinearBox {
         return rowTextHoverScrollSpeed;
     }
 
+    @XmlAttribute(value = "rowTextHoverScrollSpeed", category = "Behavior", defaultValue = "24", description = "Text marquee speed for overflowing hovered tree rows.")
     public TreeView rowTextHoverScrollSpeed(float pixelsPerSecond) {
         float normalized = Float.isFinite(pixelsPerSecond)
                 ? Math.max(0.0f, pixelsPerSecond)
@@ -196,6 +200,7 @@ public class TreeView extends LinearBox {
         return rowTextHoverScrollSpeed();
     }
 
+    @XmlAttribute(value = "hoverScrollSpeed", category = "Behavior", defaultValue = "24", description = "Alias for rowTextHoverScrollSpeed.")
     public TreeView hoverScrollSpeed(float pixelsPerSecond) {
         return rowTextHoverScrollSpeed(pixelsPerSecond);
     }

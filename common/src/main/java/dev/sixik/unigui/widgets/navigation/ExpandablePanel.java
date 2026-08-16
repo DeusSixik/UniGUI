@@ -8,6 +8,8 @@ import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 
 import java.util.Objects;
 import dev.sixik.unigui.widgets.containers.LinearBox;
@@ -15,6 +17,7 @@ import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.widgets.interaction.ToggleButton;
 
+@XmlWidgetName("ExpandablePanel")
 public class ExpandablePanel extends LinearBox {
     private static final float HEADER_HEIGHT = 22.0f;
 
@@ -56,6 +59,7 @@ public class ExpandablePanel extends LinearBox {
         return title;
     }
 
+    @XmlAttribute(value = "title", category = "Content", defaultValue = "", description = "Panel header title text.")
     public ExpandablePanel title(String title) {
         String normalized = normalize(title);
         if (Objects.equals(this.title, normalized)) return this;
@@ -89,6 +93,7 @@ public class ExpandablePanel extends LinearBox {
         return this;
     }
 
+    @XmlAttribute(value = "expanded", category = "Behavior", defaultValue = "true", description = "Initial expanded state without emitting change events during XML load.")
     public ExpandablePanel silentExpanded(boolean expanded) {
         setExpanded(expanded, false);
         return this;

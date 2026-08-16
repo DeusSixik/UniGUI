@@ -15,6 +15,8 @@ import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -29,6 +31,7 @@ import dev.sixik.unigui.widgets.containers.StackPanel;
 import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.widgets.interaction.ToggleButton;
 
+@XmlWidgetName("TabControl")
 public class TabControl extends LinearBox {
     private static final float TAB_HEIGHT = 22.0f;
     private static final float TAB_HEADER_HEIGHT = 36.0f;
@@ -182,6 +185,7 @@ public class TabControl extends LinearBox {
         return this;
     }
 
+    @XmlAttribute(value = "selectedIndex", category = "Behavior", defaultValue = "-1", description = "Initial selected tab index without emitting change events during XML load.")
     public TabControl silentSelectTab(int index) {
         setSelectedIndex(index, false);
         return this;

@@ -10,6 +10,8 @@ import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.widgets.render.LoadingIndicatorRenderer;
 import dev.sixik.unigui.widgets.render.LoadingIndicatorState;
 import dev.sixik.unigui.widgets.containers.Box;
@@ -21,6 +23,7 @@ import dev.sixik.unigui.widgets.containers.Box;
  * progress range. Use {@link ProgressBar#indeterminate(boolean)} when the UI
  * represents progress for a ranged operation, but the current value is unknown.</p>
  */
+@XmlWidgetName("LoadingIndicator")
 public class LoadingIndicator extends Box {
     public static final float DEFAULT_PREFERRED_SIZE = 24.0f;
     public static final float DEFAULT_BAR_PREFERRED_WIDTH = 96.0f;
@@ -58,6 +61,7 @@ public class LoadingIndicator extends Box {
         return mode;
     }
 
+    @XmlAttribute(value = "mode", category = "Behavior", defaultValue = "spinner", description = "Indicator rendering mode.")
     public LoadingIndicator mode(Mode mode) {
         Mode normalized = mode == null ? Mode.SPINNER : mode;
         if (this.mode == normalized) return this;
@@ -85,6 +89,7 @@ public class LoadingIndicator extends Box {
         return running;
     }
 
+    @XmlAttribute(value = "running", category = "Behavior", defaultValue = "true", description = "Whether the indicator animation advances over time.")
     public LoadingIndicator running(boolean running) {
         if (this.running == running) return this;
         this.running = running;
@@ -104,6 +109,7 @@ public class LoadingIndicator extends Box {
         return phase;
     }
 
+    @XmlAttribute(value = "phase", category = "Behavior", defaultValue = "0", description = "Initial animation phase in the 0..1 range.")
     public LoadingIndicator phase(float phase) {
         float normalized = wrap01(phase);
         if (this.phase == normalized) return this;
@@ -117,6 +123,7 @@ public class LoadingIndicator extends Box {
         return speed;
     }
 
+    @XmlAttribute(value = "speed", category = "Behavior", defaultValue = "1", description = "Animation speed multiplier.")
     public LoadingIndicator speed(float speed) {
         float normalized = Float.isFinite(speed) ? Math.max(0.0f, speed) : 1.0f;
         if (this.speed == normalized) return this;
@@ -129,6 +136,7 @@ public class LoadingIndicator extends Box {
         return segments;
     }
 
+    @XmlAttribute(value = "segments", category = "Appearance", defaultValue = "8", description = "Segment count for segmented spinner styles.")
     public LoadingIndicator segments(int segments) {
         int normalized = Math.max(3, Math.min(96, segments));
         if (this.segments == normalized) return this;
@@ -141,6 +149,7 @@ public class LoadingIndicator extends Box {
         return spinnerStyle;
     }
 
+    @XmlAttribute(value = "spinnerStyle", category = "Appearance", defaultValue = "default", description = "Visual style used when mode is spinner.")
     public LoadingIndicator spinnerStyle(Spinner.Style spinnerStyle) {
         Spinner.Style normalized = spinnerStyle == null ? Spinner.Style.DEFAULT : spinnerStyle;
         if (this.spinnerStyle == normalized) return this;
@@ -154,6 +163,7 @@ public class LoadingIndicator extends Box {
         return dots;
     }
 
+    @XmlAttribute(value = "dots", category = "Appearance", defaultValue = "8", description = "Dot count for dotted loading styles.")
     public LoadingIndicator dots(int dots) {
         int normalized = Math.max(2, Math.min(32, dots));
         if (this.dots == normalized) return this;
@@ -166,6 +176,7 @@ public class LoadingIndicator extends Box {
         return activeDots;
     }
 
+    @XmlAttribute(value = "activeDots", category = "Appearance", defaultValue = "4", description = "Number of highlighted dots in dotted styles.")
     public LoadingIndicator activeDots(int activeDots) {
         int normalized = Math.max(1, Math.min(32, activeDots));
         if (this.activeDots == normalized) return this;
@@ -178,6 +189,7 @@ public class LoadingIndicator extends Box {
         return arcs;
     }
 
+    @XmlAttribute(value = "arcs", category = "Appearance", defaultValue = "3", description = "Arc count for multi-arc spinner styles.")
     public LoadingIndicator arcs(int arcs) {
         int normalized = Math.max(1, Math.min(12, arcs));
         if (this.arcs == normalized) return this;
@@ -190,6 +202,7 @@ public class LoadingIndicator extends Box {
         return thickness;
     }
 
+    @XmlAttribute(value = "thickness", category = "Appearance", defaultValue = "3", description = "Stroke thickness in UI pixels.")
     public LoadingIndicator thickness(float thickness) {
         float normalized = Float.isFinite(thickness) ? Math.max(1.0f, thickness) : 3.0f;
         if (this.thickness == normalized) return this;
@@ -202,6 +215,7 @@ public class LoadingIndicator extends Box {
         return radius;
     }
 
+    @XmlAttribute(value = "radius", category = "Appearance", defaultValue = "0", description = "Explicit indicator radius; 0 derives it from bounds.")
     public LoadingIndicator radius(float radius) {
         float normalized = Float.isFinite(radius) ? Math.max(0.0f, radius) : 0.0f;
         if (this.radius == normalized) return this;
@@ -214,6 +228,7 @@ public class LoadingIndicator extends Box {
         return angle;
     }
 
+    @XmlAttribute(value = "angle", category = "Appearance", defaultValue = "4.555", description = "Arc sweep angle in radians for arc-based styles.")
     public LoadingIndicator angle(float radians) {
         float normalized = Float.isFinite(radians) ? Math.max(0.0f, radians) : (float) (Math.PI * 1.45);
         if (this.angle == normalized) return this;
@@ -231,6 +246,7 @@ public class LoadingIndicator extends Box {
         return effectivePreferredWidth();
     }
 
+    @XmlAttribute(value = "preferredWidth", category = "Layout", defaultValue = "24", description = "Intrinsic indicator width before layout constraints are applied.")
     public LoadingIndicator preferredWidth(float preferredWidth) {
         float normalized = positiveOr(preferredWidth, defaultPreferredWidth());
         if (this.preferredWidth == normalized) return this;
@@ -243,6 +259,7 @@ public class LoadingIndicator extends Box {
         return effectivePreferredHeight();
     }
 
+    @XmlAttribute(value = "preferredHeight", category = "Layout", defaultValue = "24", description = "Intrinsic indicator height before layout constraints are applied.")
     public LoadingIndicator preferredHeight(float preferredHeight) {
         float normalized = positiveOr(preferredHeight, defaultPreferredHeight());
         if (this.preferredHeight == normalized) return this;

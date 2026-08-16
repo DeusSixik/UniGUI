@@ -2,6 +2,8 @@ package dev.sixik.unigui.widgets.containers;
 
 import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.widgets.display.Label;
 
 /**
@@ -16,6 +18,7 @@ import dev.sixik.unigui.widgets.display.Label;
  * {@link #content()}, чтобы они попадали во внутренний вертикальный layout под
  * заголовком.</p>
  */
+@XmlWidgetName("View")
 public class View extends Box {
     private final VBox content = new VBox();
     private final Label title = new Label("");
@@ -52,6 +55,7 @@ public class View extends Box {
      * @param title новый текст заголовка; {@code null} превращается в пустую строку
      * @return этот view для fluent-настройки
      */
+    @XmlAttribute(value = "title", category = "Content", defaultValue = "", description = "View title text.")
     public View title(String title) {
         this.title.text(title == null ? "" : title);
         return this;

@@ -31,6 +31,8 @@ import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.render.TextInputRenderer;
 import dev.sixik.unigui.widgets.render.TextInputRenderType;
@@ -51,6 +53,7 @@ import dev.sixik.unigui.widgets.containers.Box;
  * exposes the low-level editor model for advanced integrations; callers that
  * mutate it directly must preserve that single-line invariant themselves.</p>
  */
+@XmlWidgetName("TextInput")
 public class TextInput extends Box {
     protected static final float TEXT_PADDING = 4.0f;
     protected static final float APPROX_CHAR_WIDTH = TextEngine.APPROX_CHAR_WIDTH;
@@ -105,6 +108,7 @@ public class TextInput extends Box {
         return editor.text();
     }
 
+    @XmlAttribute(value = "text", category = "Content", defaultValue = "", description = "Editable text value.")
     public TextInput text(String text) {
         editor.text(normalize(text));
         return this;
@@ -114,6 +118,7 @@ public class TextInput extends Box {
         return placeholder;
     }
 
+    @XmlAttribute(value = "placeholder", category = "Content", defaultValue = "", description = "Placeholder text shown while the value is empty.")
     public TextInput placeholder(String placeholder) {
         String normalized = normalize(placeholder);
         if (Objects.equals(this.placeholder, normalized)) return this;
@@ -136,6 +141,7 @@ public class TextInput extends Box {
         return editor.cursorIndex();
     }
 
+    @XmlAttribute(value = "cursorIndex", category = "Behavior", defaultValue = "0", description = "Initial cursor position in the editable text.")
     public TextInput cursorIndex(int cursorIndex) {
         if (editor.cursorIndex(cursorIndex)) {
             invalidate(InvalidationFlags.VISUAL);
@@ -181,6 +187,7 @@ public class TextInput extends Box {
         return editor.maxLength();
     }
 
+    @XmlAttribute(value = "maxLength", category = "Behavior", defaultValue = "0", description = "Maximum editable character count; 0 means unlimited.")
     public TextInput maxLength(int maxLength) {
         if (editor.maxLength(maxLength)) {
             invalidate(InvalidationFlags.VISUAL);
@@ -223,6 +230,7 @@ public class TextInput extends Box {
         return visualOnlyTextChanges;
     }
 
+    @XmlAttribute(value = "visualOnlyTextChanges", category = "Behavior", defaultValue = "false", description = "Whether text changes invalidate visuals only instead of layout.")
     public TextInput visualOnlyTextChanges(boolean visualOnlyTextChanges) {
         if (this.visualOnlyTextChanges == visualOnlyTextChanges) return this;
         this.visualOnlyTextChanges = visualOnlyTextChanges;

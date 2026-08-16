@@ -12,6 +12,8 @@ import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.render.TextWidgetRenderer;
@@ -22,6 +24,7 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.List;
 import java.util.Objects;
 
+@XmlWidgetName("TextWidget")
 public class TextWidget extends WidgetBase {
     protected static final float APPROX_CHAR_WIDTH = TextEngine.APPROX_CHAR_WIDTH;
     protected static final float LINE_HEIGHT = TextEngine.LINE_HEIGHT;
@@ -53,6 +56,7 @@ public class TextWidget extends WidgetBase {
         return text;
     }
 
+    @XmlAttribute(value = "text", category = "Content", defaultValue = "", description = "Plain text content displayed by the widget.")
     public TextWidget text(String text) {
         String normalized = normalize(text);
         RichText normalizedRichText = RichText.plain(normalized);
@@ -106,6 +110,7 @@ public class TextWidget extends WidgetBase {
         return wrap;
     }
 
+    @XmlAttribute(value = "wrap", category = "Content", defaultValue = "true", description = "Whether text wraps within available width.")
     public TextWidget wrap(boolean wrap) {
         if (this.wrap == wrap) return this;
         this.wrap = wrap;
@@ -126,6 +131,7 @@ public class TextWidget extends WidgetBase {
         return overflowMode;
     }
 
+    @XmlAttribute(value = "overflowMode", category = "Content", defaultValue = "visible", description = "How text behaves when it exceeds its layout bounds.")
     public TextWidget overflowMode(TextOverflowMode overflowMode) {
         TextOverflowMode normalized = overflowMode == null ? TextOverflowMode.VISIBLE : overflowMode;
         if (this.overflowMode == normalized) return this;
@@ -151,6 +157,7 @@ public class TextWidget extends WidgetBase {
         return marqueeSpeed;
     }
 
+    @XmlAttribute(value = "marqueeSpeed", category = "Content", defaultValue = "24", description = "Marquee scroll speed in pixels per second.")
     public TextWidget marqueeSpeed(float marqueeSpeed) {
         float normalized = Float.isFinite(marqueeSpeed) ? Math.max(0.0f, marqueeSpeed) : 24.0f;
         if (this.marqueeSpeed == normalized) return this;
@@ -171,6 +178,7 @@ public class TextWidget extends WidgetBase {
         return marqueeGap;
     }
 
+    @XmlAttribute(value = "marqueeGap", category = "Content", defaultValue = "24", description = "Gap between repeated marquee text runs.")
     public TextWidget marqueeGap(float marqueeGap) {
         float normalized = Math.max(0.0f, marqueeGap);
         if (this.marqueeGap == normalized) return this;
