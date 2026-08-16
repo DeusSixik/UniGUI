@@ -4,12 +4,24 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/** Копируемый шаблон виджета исходного документа для повторного создания item/control XML. */
+/**
+ * Копируемый шаблон виджета исходного документа для повторного создания item/control XML.
+ *
+ * <p>Template хранит документ-копию и при каждом instantiate возвращает новую копию. Overrides
+ * из {@link XmlWidgetTemplateValues} применяются к root element-у или к элементам с matching id/name.</p>
+ */
 public final class XmlWidgetTemplate {
     private final String id;
     private final XmlWidgetTemplateKind kind;
     private final XmlWidgetDocument document;
 
+    /**
+     * Создаёт template из готового документа.
+     *
+     * @param id стабильный id template-а
+     * @param kind назначение template-а; {@code null} заменяется control
+     * @param document исходный документ template-а; копируется при создании
+     */
     public XmlWidgetTemplate(String id, XmlWidgetTemplateKind kind, XmlWidgetDocument document) {
         this.id = requireId(id);
         this.kind = kind == null ? XmlWidgetTemplateKind.CONTROL : kind;
@@ -17,30 +29,70 @@ public final class XmlWidgetTemplate {
         this.document = document.copy();
     }
 
+    /**
+     * Создаёт control template из XML-строки.
+     *
+     * @param id id template-а
+     * @param xml XML source template-а
+     * @return control template
+     */
     public static XmlWidgetTemplate control(String id, String xml) {
         return new XmlWidgetTemplate(id, XmlWidgetTemplateKind.CONTROL, XmlWidgetDocument.parse(xml));
     }
 
+    /**
+     * Создаёт item template из XML-строки.
+     *
+     * @param id id template-а
+     * @param xml XML source template-а
+     * @return item template
+     */
     public static XmlWidgetTemplate item(String id, String xml) {
         return new XmlWidgetTemplate(id, XmlWidgetTemplateKind.ITEM, XmlWidgetDocument.parse(xml));
     }
 
+    /**
+     * Возвращает id template-а.
+     *
+     * @return stable template id
+     */
     public String id() {
         return id;
     }
 
+    /**
+     * Возвращает назначение template-а.
+     *
+     * @return template kind
+     */
     public XmlWidgetTemplateKind kind() {
         return kind;
     }
 
+    /**
+     * Возвращает копию исходного документа template-а.
+     *
+     * @return document copy
+     */
     public XmlWidgetDocument document() {
         return document.copy();
     }
 
+    /**
+     * Создаёт экземпляр template-а без overrides.
+     *
+     * @return result с document copy
+     */
     public XmlWidgetDocumentResult instantiate() {
         return instantiate(XmlWidgetTemplateValues.empty());
     }
 
+    /**
+     * Создаёт экземпляр template-а и применяет attribute overrides.
+     *
+     * @param values набор overrides; {@code null} означает empty values
+     * @return result с document copy и diagnostics по ненайденным target ids
+     */
     public XmlWidgetDocumentResult instantiate(XmlWidgetTemplateValues values) {
         XmlWidgetTemplateValues normalized = values == null ? XmlWidgetTemplateValues.empty() : values;
         XmlWidgetDocument copy = document.copy();
@@ -59,6 +111,13 @@ public final class XmlWidgetTemplate {
         return new XmlWidgetDocumentResult(copy, diagnostics);
     }
 
+    /**
+     * Создаёт экземпляр template-а, применяет overrides и валидирует документ.
+     *
+     * @param values набор overrides; {@code null} означает empty values
+     * @param registry реестр XML descriptor-ов; {@code null} заменяется built-ins
+     * @return result с diagnostics instantiate + validation
+     */
     public XmlWidgetDocumentResult instantiate(XmlWidgetTemplateValues values, XmlWidgetRegistry registry) {
         XmlWidgetDocumentResult instantiated = instantiate(values);
         XmlWidgetRegistry normalized = registry == null ? XmlWidgetRegistry.builtIns() : registry;

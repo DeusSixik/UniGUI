@@ -10,8 +10,10 @@ import dev.sixik.unigui.api.render.ImageFit;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.render.TextureFilter;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.TexturePlacement;
+import dev.sixik.unigui.api.render.TextureWrap;
 import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.style.StyleKey;
 import dev.sixik.unigui.api.style.StyleKeys;
@@ -21,6 +23,7 @@ import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlTextureAttributes;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.widgets.render.BoxRenderer;
 import dev.sixik.unigui.widgets.render.BoxState;
@@ -89,6 +92,13 @@ public class Box extends PanelWidget {
      */
     public MutableColor background() {
         return background;
+    }
+
+    @XmlAttribute(value = "background", category = "Appearance", defaultValue = "#00000000", description = "Background color; setting it also enables background rendering.")
+    public Box background(ColorView color) {
+        background.set(color == null ? new MutableColor(0.0f, 0.0f, 0.0f, 0.0f) : color);
+        backgroundVisible(true);
+        return this;
     }
 
     /**
@@ -184,12 +194,42 @@ public class Box extends PanelWidget {
      * @param backgroundTexture handle текстуры или {@code null}
      * @return этот box для fluent-настройки
      */
-    @XmlAttribute(value = "backgroundTexture", category = "Assets", defaultValue = "", description = "Texture resource id used as the box background.")
+    @XmlAttribute(value = "backgroundTexture", displayName = "Background Texture", category = "Assets", defaultValue = "", description = "Texture resource id resolved through XmlWidgetOptions.textureResolver.")
     public Box backgroundTexture(TextureHandle backgroundTexture) {
         if (this.backgroundTexture == backgroundTexture) return this;
         this.backgroundTexture = backgroundTexture;
         invalidate(InvalidationFlags.VISUAL);
         return this;
+    }
+
+    @XmlAttribute(value = "backgroundTextureWidth", displayName = "Background Texture Width", category = "Assets", defaultValue = "16", description = "Source texture width used for contain and cover placement.")
+    public Box backgroundTextureWidth(int width) {
+        return backgroundTexture(XmlTextureAttributes.resize(backgroundTexture, width, null));
+    }
+
+    @XmlAttribute(value = "backgroundTextureHeight", displayName = "Background Texture Height", category = "Assets", defaultValue = "16", description = "Source texture height used for contain and cover placement.")
+    public Box backgroundTextureHeight(int height) {
+        return backgroundTexture(XmlTextureAttributes.resize(backgroundTexture, null, height));
+    }
+
+    @XmlAttribute(value = "backgroundTextureSampling", displayName = "Background Texture Sampling", category = "Assets", defaultValue = "nearest", description = "Texture filtering mode used by the renderer backend.")
+    public Box backgroundTextureSampling(TextureFilter filter) {
+        return backgroundTexture(XmlTextureAttributes.options(backgroundTexture, options -> options.sampling(filter)));
+    }
+
+    @XmlAttribute(value = "backgroundTextureWrap", displayName = "Background Texture Wrap", category = "Assets", defaultValue = "clamp-to-edge", description = "Texture coordinate wrap mode used by the renderer backend.")
+    public Box backgroundTextureWrap(TextureWrap wrap) {
+        return backgroundTexture(XmlTextureAttributes.options(backgroundTexture, options -> options.wrap(wrap)));
+    }
+
+    @XmlAttribute(value = "backgroundTextureMipmaps", displayName = "Background Texture Mipmaps", category = "Assets", defaultValue = "false", description = "Whether the texture should use mipmapped sampling.")
+    public Box backgroundTextureMipmaps(boolean mipmaps) {
+        return backgroundTexture(XmlTextureAttributes.options(backgroundTexture, options -> options.mipmaps(mipmaps)));
+    }
+
+    @XmlAttribute(value = "backgroundTexturePremultipliedAlpha", displayName = "Background Texture Premultiplied Alpha", category = "Assets", defaultValue = "false", description = "Whether the texture color data already uses premultiplied alpha.")
+    public Box backgroundTexturePremultipliedAlpha(boolean premultipliedAlpha) {
+        return backgroundTexture(XmlTextureAttributes.options(backgroundTexture, options -> options.premultipliedAlpha(premultipliedAlpha)));
     }
 
     /**
@@ -199,6 +239,12 @@ public class Box extends PanelWidget {
      */
     public MutableColor backgroundTextureTint() {
         return backgroundTextureTint;
+    }
+
+    @XmlAttribute(value = "backgroundTextureTint", displayName = "Background Texture Tint", category = "Assets", defaultValue = "#FFFFFFFF", description = "Tint color applied while drawing the background texture.")
+    public Box backgroundTextureTint(ColorView color) {
+        if (color != null) backgroundTextureTint.set(color);
+        return this;
     }
 
     /**
@@ -234,6 +280,12 @@ public class Box extends PanelWidget {
         return backgroundTextureSource;
     }
 
+    @XmlAttribute(value = "backgroundTextureSource", displayName = "Background Texture Source", category = "Assets", defaultValue = "0 0 1 1", description = "Normalized UV source rectangle: u v width height.")
+    public Box backgroundTextureSource(MutableRect source) {
+        backgroundTextureSource.set(source == null ? new MutableRect(0.0f, 0.0f, 1.0f, 1.0f) : source);
+        return this;
+    }
+
     /**
      * Задаёт source-rect фоновой текстуры в UV-координатах.
      *
@@ -263,7 +315,7 @@ public class Box extends PanelWidget {
      * @param fit режим вписывания; {@code null} трактуется как {@link ImageFit#STRETCH}
      * @return этот box для fluent-настройки
      */
-    @XmlAttribute(value = "backgroundTextureFit", category = "Assets", defaultValue = "stretch", description = "Placement mode for the background texture.")
+    @XmlAttribute(value = "backgroundTextureFit", displayName = "Background Texture Fit", category = "Assets", defaultValue = "stretch", description = "Placement mode for the background texture.")
     public Box backgroundTextureFit(ImageFit fit) {
         ImageFit effectiveFit = fit == null ? ImageFit.STRETCH : fit;
         if (backgroundTextureFit == effectiveFit) return this;
@@ -279,6 +331,19 @@ public class Box extends PanelWidget {
      */
     public MutableColor borderColor() {
         return borderColor;
+    }
+
+    @XmlAttribute(value = "border", category = "Appearance", defaultValue = "#FFFFFFFF", description = "Border color; setting it also enables border rendering.")
+    public Box border(ColorView color) {
+        borderColor(color);
+        borderVisible(true);
+        return this;
+    }
+
+    @XmlAttribute(value = "borderColor", category = "Appearance", defaultValue = "#FFFFFFFF", description = "Border color used when border rendering is enabled.")
+    public Box borderColor(ColorView color) {
+        if (color != null) borderColor.set(color);
+        return this;
     }
 
     /**

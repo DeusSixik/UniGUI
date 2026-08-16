@@ -10,10 +10,13 @@ import dev.sixik.unigui.api.layout.PositionType;
 import dev.sixik.unigui.api.layout.SizeValue;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.math.MutableRect;
+import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.impl.widget.WidgetBase;
+import dev.sixik.unigui.impl.xml.WidgetXmlType;
 import dev.sixik.unigui.widgets.containers.PanelWidget;
 import dev.sixik.unigui.widgets.containers.ScrollView;
 
@@ -33,12 +36,24 @@ import java.util.function.Supplier;
  * Вспомогательный reflection-класс для регистрации XML-виджетов по аннотациям.
  *
  * <p>Считывает {@link XmlWidgetName}, {@link XmlAttribute}, маркерные аннотации
- * общих атрибутов и собирает метаданные descriptor-ов для редактора и загрузчика.</p>
+ * общих атрибутов и собирает метаданные descriptor-ов для редактора и загрузчика.
+ * Класс не сканирует classpath сам по себе: вызывающий код явно передаёт классы
+ * виджетов в {@link XmlWidgetRegistry}.</p>
+ *
+ * <p>Поддерживаются простые fluent-setter-ы с одним параметром. Если атрибуту
+ * нужна нестандартная логика, её лучше оформить отдельным annotated setter-ом
+ * на самом виджете, а не держать в ручном registry bootstrap.</p>
  */
 public final class XmlWidgetAnnotations {
     private XmlWidgetAnnotations() {
     }
 
+    /**
+     * Возвращает XML-имя, объявленное на классе виджета.
+     *
+     * @param type класс виджета или любой другой тип
+     * @return значение {@link XmlWidgetName}, если оно задано и не пустое
+     */
     public static Optional<String> widgetName(Class<?> type) {
         if (type == null) return Optional.empty();
         XmlWidgetName annotation = type.getAnnotation(XmlWidgetName.class);
@@ -46,6 +61,15 @@ public final class XmlWidgetAnnotations {
         return Optional.of(annotation.value().trim());
     }
 
+    /**
+     * Собирает read-only descriptor класса по XML-аннотациям.
+     *
+     * <p>Метод не регистрирует тип и не создаёт factory. Он нужен для editor UI,
+     * codegen и self-test'ов, которым достаточно metadata.</p>
+     *
+     * @param widgetType класс виджета с {@link XmlWidgetName}
+     * @return descriptor, если у класса есть XML-имя
+     */
     public static Optional<XmlWidgetDescriptor> descriptor(Class<? extends Widget> widgetType) {
         return widgetName(widgetType).map(xmlName -> new XmlWidgetDescriptor(
                 xmlName,
@@ -57,10 +81,33 @@ public final class XmlWidgetAnnotations {
                 List.of()));
     }
 
+    /**
+     * Регистрирует аннотированный виджет в XML-реестре.
+     *
+     * <p>Класс должен иметь no-arg constructor. Для явной фабрики используй
+     * {@link #register(XmlWidgetRegistry, Class, Supplier)}.</p>
+     *
+     * @param registry целевой XML-реестр
+     * @param widgetType класс виджета с {@link XmlWidgetName}
+     * @param <T> runtime-тип виджета
+     * @return builder зарегистрированного XML-типа
+     */
     public static <T extends Widget> XmlWidgetType<T> register(XmlWidgetRegistry registry, Class<T> widgetType) {
         return register(registry, widgetType, constructorFactory(widgetType));
     }
 
+    /**
+     * Регистрирует аннотированный виджет в XML-реестре с явной фабрикой.
+     *
+     * <p>Метод добавляет common layout/style атрибуты, annotated setter-ы и базовые
+     * child policy для известных контейнерных типов.</p>
+     *
+     * @param registry целевой XML-реестр
+     * @param widgetType класс виджета с {@link XmlWidgetName}
+     * @param factory фабрика экземпляров для XML-loader'а
+     * @param <T> runtime-тип виджета
+     * @return builder зарегистрированного XML-типа
+     */
     public static <T extends Widget> XmlWidgetType<T> register(XmlWidgetRegistry registry,
                                                                Class<T> widgetType,
                                                                Supplier<T> factory) {
@@ -78,9 +125,43 @@ public final class XmlWidgetAnnotations {
         return registered;
     }
 
+    /**
+     * Применяет annotated setter-ы к уже зарегистрированному internal XML-типу.
+     *
+     * <p>Метод используется built-in bootstrap'ом, когда тип уже создан вручную
+     * из-за aliases или property-child policy, но атрибуты должны прийти из
+     * {@link XmlAttribute} на самом классе виджета.</p>
+     *
+     * @param registered уже созданный internal XML-тип
+     * @param widgetType класс, с которого читаются annotated setter-ы
+     * @param <T> runtime-тип виджета
+     * @return тот же internal XML-тип для chained-настройки
+     */
+    public static <T extends Widget> WidgetXmlType<T> applyAnnotatedAttributes(
+            WidgetXmlType<T> registered,
+            Class<?> widgetType) {
+        if (registered == null) throw new IllegalArgumentException("XML widget type must not be null");
+        if (widgetType == null) throw new IllegalArgumentException("XML annotated widget type must not be null");
+        for (Method method : annotatedSetters(widgetType)) {
+            registerImplAnnotatedAttribute(registered, method);
+        }
+        return registered;
+    }
+
+    /**
+     * Собирает descriptor-ы XML-атрибутов класса.
+     *
+     * <p>В результат входят inherited annotated setter-ы и общие layout/style
+     * blocks, если класс наследуется от {@link WidgetBase}. Список immutable и
+     * отсортирован стабильно для predictable editor UI.</p>
+     *
+     * @param type класс виджета
+     * @return immutable список descriptor-ов атрибутов
+     */
     public static List<XmlAttributeDescriptor> attributes(Class<?> type) {
         if (type == null) return List.of();
         Map<String, XmlAttributeDescriptor> attributes = new LinkedHashMap<>();
+        registerCommonAttributeDescriptors(attributes, type);
         Method[] methods = type.getMethods();
         Arrays.sort(methods, Comparator
                 .comparing(Method::getName)
@@ -96,19 +177,85 @@ public final class XmlWidgetAnnotations {
         return List.copyOf(attributes.values());
     }
 
+    /**
+     * Проверяет, добавляет ли тип общий набор layout XML-атрибутов.
+     *
+     * @param type класс виджета
+     * @return {@code true}, если тип или один из super-классов помечен {@link XmlLayoutAttributes}
+     */
     public static boolean contributesLayoutAttributes(Class<?> type) {
         return hasTypeAnnotation(type, XmlLayoutAttributes.class);
     }
 
+    /**
+     * Проверяет, добавляет ли тип общий набор style/state XML-атрибутов.
+     *
+     * @param type класс виджета
+     * @return {@code true}, если тип или один из super-классов помечен {@link XmlStyleAttributes}
+     */
     public static boolean contributesStyleAttributes(Class<?> type) {
         return hasTypeAnnotation(type, XmlStyleAttributes.class);
     }
 
     private static XmlAttributeDescriptor descriptor(String name, XmlAttribute annotation) {
         return XmlAttributeDescriptor.of(name)
+                .displayName(annotation.displayName())
                 .category(annotation.category())
                 .defaultValue(annotation.defaultValue())
                 .description(annotation.description());
+    }
+
+    private static void registerCommonAttributeDescriptors(Map<String, XmlAttributeDescriptor> attributes, Class<?> type) {
+        if (!WidgetBase.class.isAssignableFrom(type)) return;
+        if (contributesStyleAttributes(type)) registerStyleAttributeDescriptors(attributes);
+        if (contributesLayoutAttributes(type)) registerLayoutAttributeDescriptors(attributes);
+    }
+
+    private static void registerStyleAttributeDescriptors(Map<String, XmlAttributeDescriptor> attributes) {
+        put(attributes, XmlAttributeDescriptor.of("id").category("Common").defaultValue("")
+                .description("Runtime/debug/editor identifier for code-behind lookup."));
+        put(attributes, XmlAttributeDescriptor.of("enabled").category("Behavior").defaultValue("true"));
+        put(attributes, XmlAttributeDescriptor.of("visible").category("Behavior").defaultValue("true"));
+        put(attributes, XmlAttributeDescriptor.of("visibility").category("Behavior").defaultValue("visible"));
+        put(attributes, XmlAttributeDescriptor.of("opacity").category("Appearance").defaultValue("1"));
+        put(attributes, XmlAttributeDescriptor.of("rotation").category("Appearance").defaultValue("0"));
+        put(attributes, XmlAttributeDescriptor.of("x").category("Layout").defaultValue("0"));
+        put(attributes, XmlAttributeDescriptor.of("y").category("Layout").defaultValue("0"));
+        put(attributes, XmlAttributeDescriptor.of("scale").category("Appearance").defaultValue("1"));
+        put(attributes, XmlAttributeDescriptor.of("scaleX").category("Appearance").defaultValue("1"));
+        put(attributes, XmlAttributeDescriptor.of("scaleY").category("Appearance").defaultValue("1"));
+    }
+
+    private static void registerLayoutAttributeDescriptors(Map<String, XmlAttributeDescriptor> attributes) {
+        put(attributes, XmlAttributeDescriptor.of("width"));
+        put(attributes, XmlAttributeDescriptor.of("height"));
+        put(attributes, XmlAttributeDescriptor.of("minWidth"));
+        put(attributes, XmlAttributeDescriptor.of("minHeight"));
+        put(attributes, XmlAttributeDescriptor.of("maxWidth"));
+        put(attributes, XmlAttributeDescriptor.of("maxHeight"));
+        put(attributes, XmlAttributeDescriptor.of("padding"));
+        put(attributes, XmlAttributeDescriptor.of("margin"));
+        put(attributes, XmlAttributeDescriptor.of("flexGrow"));
+        put(attributes, XmlAttributeDescriptor.of("flexShrink"));
+        put(attributes, XmlAttributeDescriptor.of("flexDirection"));
+        put(attributes, XmlAttributeDescriptor.of("flexWrap"));
+        put(attributes, XmlAttributeDescriptor.of("rowGap"));
+        put(attributes, XmlAttributeDescriptor.of("columnGap"));
+        put(attributes, XmlAttributeDescriptor.of("alignItems"));
+        put(attributes, XmlAttributeDescriptor.of("alignSelf"));
+        put(attributes, XmlAttributeDescriptor.of("justifyContent"));
+        put(attributes, XmlAttributeDescriptor.of("overflow"));
+        put(attributes, XmlAttributeDescriptor.of("overflowX"));
+        put(attributes, XmlAttributeDescriptor.of("overflowY"));
+        put(attributes, XmlAttributeDescriptor.of("position"));
+        put(attributes, XmlAttributeDescriptor.of("left"));
+        put(attributes, XmlAttributeDescriptor.of("top"));
+        put(attributes, XmlAttributeDescriptor.of("right"));
+        put(attributes, XmlAttributeDescriptor.of("bottom"));
+    }
+
+    private static void put(Map<String, XmlAttributeDescriptor> attributes, XmlAttributeDescriptor descriptor) {
+        attributes.put(descriptor.name(), descriptor);
     }
 
     private static <T extends Widget> void registerCommonAttributes(XmlWidgetType<T> registered, Class<T> widgetType) {
@@ -146,6 +293,19 @@ public final class XmlWidgetAnnotations {
         registerReflectedAttribute(registered, name, parser, descriptor(name, annotation), method);
     }
 
+    private static <T extends Widget> void registerImplAnnotatedAttribute(
+            WidgetXmlType<T> registered,
+            Method method) {
+        XmlAttribute annotation = method.getAnnotation(XmlAttribute.class);
+        if (annotation == null || annotation.value().isBlank()) return;
+        if (Modifier.isStatic(method.getModifiers()) || method.getParameterCount() != 1) return;
+
+        String name = annotation.value().trim();
+        XmlValueParser<?> parser = parserFor(method.getParameterTypes()[0]);
+        method.setAccessible(true);
+        registerImplReflectedAttribute(registered, name, parser, descriptor(name, annotation), method);
+    }
+
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static <T extends Widget> void registerReflectedAttribute(XmlWidgetType<T> registered,
                                                                       String name,
@@ -153,6 +313,19 @@ public final class XmlWidgetAnnotations {
                                                                       XmlAttributeDescriptor descriptor,
                                                                       Method method) {
         registered.attribute(name, (XmlValueParser) parser, (widget, value) -> invokeSetter(method, widget, value), descriptor);
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static <T extends Widget> void registerImplReflectedAttribute(
+            WidgetXmlType<T> registered,
+            String name,
+            XmlValueParser<?> parser,
+            XmlAttributeDescriptor descriptor,
+            Method method) {
+        registered.attribute(name,
+                (dev.sixik.unigui.impl.xml.XmlValueParser) value -> ((XmlValueParser) parser).parse((String) value),
+                (widget, value) -> invokeSetter(method, widget, value),
+                descriptor);
     }
 
     private static void registerStyleAttributes(XmlWidgetType<? extends WidgetBase> registered) {
@@ -257,6 +430,7 @@ public final class XmlWidgetAnnotations {
         if (type == SizeValue.class) return XmlValueParsers.SIZE;
         if (type == EdgeInsets.class) return XmlValueParsers.INSETS;
         if (type == MutableColor.class || type == ColorView.class) return XmlValueParsers.COLOR;
+        if (type == MutableRect.class || type == RectView.class) return XmlValueParsers.RECT;
         if (type == TextureHandle.class) return XmlValueParsers.TEXTURE;
         if (type.isEnum()) return enumParser(type);
         throw new IllegalArgumentException("Unsupported @XmlAttribute parameter type: " + type.getName());

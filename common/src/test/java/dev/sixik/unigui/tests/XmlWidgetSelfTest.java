@@ -72,6 +72,7 @@ import dev.sixik.unigui.widgets.data.VirtualTableView;
 import dev.sixik.unigui.widgets.display.ImageView;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.display.TextWidget;
+import dev.sixik.unigui.widgets.display.TextureWidget;
 import dev.sixik.unigui.widgets.docking.DockingRoot;
 import dev.sixik.unigui.widgets.feedback.ProgressBar;
 import dev.sixik.unigui.widgets.graph.GraphView;
@@ -1286,6 +1287,12 @@ public final class XmlWidgetSelfTest {
                 "Annotation reflection helper should convert @XmlAttribute metadata into descriptors");
         expect(descriptor(reflectedButton.attributes(), "enabled").defaultValue().equals("true"),
                 "Annotation reflection helper should include inherited/overridden common attributes");
+        XmlAttributeDescriptor reflectedTextureWidth = descriptor(
+                XmlWidgetAnnotations.descriptor(TextureWidget.class).orElseThrow().attributes(),
+                "textureWidth");
+        expect(reflectedTextureWidth.category().equals("Assets")
+                        && reflectedTextureWidth.displayName().equals("Texture Width"),
+                "Annotation reflection helper should expose texture helper attributes from widget setters");
         expect(XmlWidgetAnnotations.contributesLayoutAttributes(Button.class)
                         && XmlWidgetAnnotations.contributesStyleAttributes(Button.class),
                 "Annotation reflection helper should see shared descriptor blocks on base widget classes");

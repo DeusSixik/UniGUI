@@ -2,23 +2,62 @@ package dev.sixik.unigui.api.xml;
 
 import java.util.Optional;
 
-/** Фабрики типовых undoable-команд редактора XML-документа. */
+/**
+ * Фабрики типовых undoable-команд редактора XML-документа.
+ *
+ * <p>Класс покрывает минимальный набор операций, из которых строятся inspector и hierarchy editor:
+ * установка атрибута, добавление, удаление и перемещение дочерних узлов. Команды работают через
+ * {@link XmlWidgetNodePath}, поэтому их можно хранить отдельно от конкретных object references.</p>
+ */
 public final class XmlWidgetDocumentEdits {
     private XmlWidgetDocumentEdits() {
     }
 
+    /**
+     * Создаёт команду установки или замены атрибута у элемента.
+     *
+     * @param elementPath path целевого элемента; {@code null} означает root
+     * @param name имя атрибута
+     * @param value новое значение атрибута
+     * @return undoable edit
+     */
     public static XmlWidgetDocumentEdit setAttribute(XmlWidgetNodePath elementPath, String name, String value) {
         return new SetAttributeEdit(elementPath, new XmlWidgetAttribute(name, value));
     }
 
+    /**
+     * Создаёт команду добавления child node к элементу.
+     *
+     * <p>Child копируется при создании команды и ещё раз при apply, чтобы повторное применение
+     * не переиспользовало mutable subtree.</p>
+     *
+     * @param parentPath path родительского элемента; {@code null} означает root
+     * @param index желаемая позиция вставки
+     * @param child узел, который нужно добавить
+     * @return undoable edit
+     */
     public static XmlWidgetDocumentEdit addChild(XmlWidgetNodePath parentPath, int index, XmlWidgetNode child) {
         return new AddChildEdit(parentPath, index, child);
     }
 
+    /**
+     * Создаёт команду удаления child node.
+     *
+     * @param childPath path удаляемого узла; root удалить нельзя
+     * @return undoable edit
+     */
     public static XmlWidgetDocumentEdit removeChild(XmlWidgetNodePath childPath) {
         return new RemoveChildEdit(childPath);
     }
 
+    /**
+     * Создаёт команду перемещения child node внутри одного родителя.
+     *
+     * @param parentPath path родительского элемента; {@code null} означает root
+     * @param fromIndex текущий индекс child node
+     * @param toIndex целевой индекс child node
+     * @return undoable edit
+     */
     public static XmlWidgetDocumentEdit moveChild(XmlWidgetNodePath parentPath, int fromIndex, int toIndex) {
         return new MoveChildEdit(parentPath, fromIndex, toIndex);
     }

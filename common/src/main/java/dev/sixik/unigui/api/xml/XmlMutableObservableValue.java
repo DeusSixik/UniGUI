@@ -6,7 +6,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-/** Простое in-memory observable-значение для code-behind и редакторских прототипов. */
+/**
+ * Простое in-memory observable-значение для code-behind и редакторских прототипов.
+ *
+ * <p>Значение хранится в памяти, проверяется по объявленному runtime-типу и
+ * синхронно рассылает {@link XmlBindingChange} подписчикам при изменении.</p>
+ *
+ * @param <T> тип значения
+ */
 public final class XmlMutableObservableValue<T> implements XmlObservableValue<T> {
     private final String name;
     private final Class<T> valueType;
@@ -19,25 +26,43 @@ public final class XmlMutableObservableValue<T> implements XmlObservableValue<T>
         this.value = checked(value);
     }
 
+    /**
+     * Создаёт observable-значение.
+     *
+     * @param name имя/path источника в binding context
+     * @param valueType runtime-тип значения
+     * @param value начальное значение
+     * @param <T> тип значения
+     * @return новый mutable observable
+     */
     public static <T> XmlMutableObservableValue<T> of(String name, Class<T> valueType, T value) {
         return new XmlMutableObservableValue<>(name, valueType, value);
     }
 
+    /** {@inheritDoc} */
     @Override
     public String name() {
         return name;
     }
 
+    /** {@inheritDoc} */
     @Override
     public Class<T> valueType() {
         return valueType;
     }
 
+    /** {@inheritDoc} */
     @Override
     public T get() {
         return value;
     }
 
+    /**
+     * Обновляет значение и уведомляет подписчиков, если значение реально изменилось.
+     *
+     * @param value новое значение; должно соответствовать {@link #valueType()}
+     * @return этот observable для chained-настройки
+     */
     public XmlMutableObservableValue<T> set(T value) {
         T next = checked(value);
         if (Objects.equals(this.value, next)) return this;
@@ -51,6 +76,7 @@ public final class XmlMutableObservableValue<T> implements XmlObservableValue<T>
         return this;
     }
 
+    /** {@inheritDoc} */
     @Override
     public EventSubscription onChanged(XmlBindingListener<T> listener) {
         if (listener == null) throw new IllegalArgumentException("XML binding listener must not be null");

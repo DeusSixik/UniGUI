@@ -5,23 +5,57 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/** Вспомогательные методы файлового ввода-вывода для исходных XML-документов редактора виджетов. */
+/**
+ * Вспомогательные методы файлового ввода-вывода для исходных XML-документов редактора виджетов.
+ *
+ * <p>Все операции используют UTF-8. Ошибки чтения и записи заворачиваются в
+ * {@link XmlWidgetLoadException}, чтобы вызывающий код редактора работал с единым типом ошибки.</p>
+ */
 public final class XmlWidgetDocumentIo {
     private XmlWidgetDocumentIo() {
     }
 
+    /**
+     * Загружает XML-файл как строгий document tree.
+     *
+     * @param path путь к XML-файлу
+     * @return parsed document
+     */
     public static XmlWidgetDocument load(Path path) {
         return XmlWidgetDocument.parse(read(path));
     }
 
+    /**
+     * Загружает XML-файл в editor mode и выполняет validation.
+     *
+     * @param path путь к XML-файлу
+     * @return document result с нефатальными diagnostics
+     */
     public static XmlWidgetDocumentResult loadEditor(Path path) {
         return XmlWidgetDocument.parseEditor(read(path));
     }
 
+    /**
+     * Сохраняет документ с pretty-настройками по умолчанию.
+     *
+     * @param path путь назначения
+     * @param document документ для сериализации
+     * @return путь назначения
+     */
     public static Path save(Path path, XmlWidgetDocument document) {
         return save(path, document, XmlWidgetSerializationOptions.PRETTY);
     }
 
+    /**
+     * Сохраняет документ с указанными настройками сериализации.
+     *
+     * <p>Родительские директории создаются автоматически.</p>
+     *
+     * @param path путь назначения
+     * @param document документ для сериализации; не может быть {@code null}
+     * @param options настройки serializer-а; {@code null} заменяется pretty defaults
+     * @return путь назначения
+     */
     public static Path save(Path path, XmlWidgetDocument document, XmlWidgetSerializationOptions options) {
         if (document == null) throw new IllegalArgumentException("XML widget document must not be null");
         write(path, document.toXmlString(options));

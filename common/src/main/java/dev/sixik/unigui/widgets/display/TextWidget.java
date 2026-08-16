@@ -4,6 +4,7 @@ import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.LayoutContext;
+import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.Transform;
 import dev.sixik.unigui.api.render.DrawScope;
@@ -89,6 +90,12 @@ public class TextWidget extends WidgetBase {
 
     public MutableColor color() {
         return color;
+    }
+
+    @XmlAttribute(value = "color", category = "Appearance", defaultValue = "#FFFFFFFF", description = "Text color parsed from XML color syntax.")
+    public TextWidget color(ColorView color) {
+        if (color != null) this.color.set(color);
+        return this;
     }
 
     public TextWidgetRenderer renderer() {

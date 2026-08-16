@@ -8,7 +8,13 @@ import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.display.TextBlock;
 
-/** Компактный виджет для отображения XML-диагностик в редакторе и hot-reload preview. */
+/**
+ * Компактный виджет для отображения XML-диагностик в редакторе и hot-reload preview.
+ *
+ * <p>Панель является обычным UniGUI widget-ом и не привязана к конкретному editor shell.
+ * Ей можно передать готовую {@link XmlWidgetDiagnosticsModel} или статус hot-reload preview,
+ * после чего она сама перестроит строки и подсветит состояние рамкой.</p>
+ */
 public final class XmlWidgetDiagnosticsPanel extends Box {
     private final VBox content = new VBox();
     private final Label title = new Label("XML Diagnostics");
@@ -17,6 +23,9 @@ public final class XmlWidgetDiagnosticsPanel extends Box {
     private XmlWidgetDiagnosticsModel model = XmlWidgetDiagnosticsModel.empty();
     private int entryLimit = 6;
 
+    /**
+     * Создаёт diagnostics panel с дефолтным dark styling.
+     */
     public XmlWidgetDiagnosticsPanel() {
         themeEnabled(false);
         backgroundVisible(true);
@@ -44,38 +53,83 @@ public final class XmlWidgetDiagnosticsPanel extends Box {
         model(XmlWidgetDiagnosticsModel.empty());
     }
 
+    /**
+     * Возвращает текущую модель диагностик.
+     *
+     * @return diagnostics model
+     */
     public XmlWidgetDiagnosticsModel model() {
         return model;
     }
 
+    /**
+     * Задаёт модель диагностик и перестраивает строки панели.
+     *
+     * @param model новая модель; {@code null} заменяется empty model
+     * @return эта панель для fluent-настройки
+     */
     public XmlWidgetDiagnosticsPanel model(XmlWidgetDiagnosticsModel model) {
         this.model = model == null ? XmlWidgetDiagnosticsModel.empty() : model;
         rebuildEntries();
         return this;
     }
 
+    /**
+     * Задаёт состояние панели из hot-reload status.
+     *
+     * @param status статус preview или {@code null}
+     * @return эта панель для fluent-настройки
+     */
     public XmlWidgetDiagnosticsPanel status(XmlWidgetHotReloadPreview.Status status) {
         return model(XmlWidgetDiagnosticsModel.from(status));
     }
 
+    /**
+     * Возвращает максимальное количество отображаемых строк.
+     *
+     * @return лимит visible entries
+     */
     public int entryLimit() {
         return entryLimit;
     }
 
+    /**
+     * Задаёт максимальное количество отображаемых строк.
+     *
+     * <p>Если diagnostics больше лимита, последняя строка покажет количество скрытых сообщений.</p>
+     *
+     * @param entryLimit новый лимит; значения меньше 1 нормализуются в 1
+     * @return эта панель для fluent-настройки
+     */
     public XmlWidgetDiagnosticsPanel entryLimit(int entryLimit) {
         this.entryLimit = Math.max(1, entryLimit);
         rebuildEntries();
         return this;
     }
 
+    /**
+     * Возвращает label заголовка для дополнительной настройки theme/style.
+     *
+     * @return title label
+     */
     public Label titleLabel() {
         return title;
     }
 
+    /**
+     * Возвращает label со сводкой diagnostics.
+     *
+     * @return summary label
+     */
     public Label summaryLabel() {
         return summary;
     }
 
+    /**
+     * Возвращает контейнер строк diagnostics.
+     *
+     * @return VBox, в который панель добавляет message rows
+     */
     public VBox entriesHost() {
         return entries;
     }

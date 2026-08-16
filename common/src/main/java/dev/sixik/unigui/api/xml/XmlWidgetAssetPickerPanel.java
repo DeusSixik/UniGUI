@@ -13,7 +13,12 @@ import dev.sixik.unigui.widgets.interaction.Button;
 import java.util.List;
 import java.util.Locale;
 
-/** Компактный редакторский виджет без привязки к backend-у для выбора XML-ассетов: текстур, шрифтов и shader-ов. */
+/**
+ * Компактный редакторский виджет без привязки к backend-у для выбора XML-ассетов: текстур, шрифтов и shader-ов.
+ *
+ * <p>Панель является готовой UI-обёрткой над {@link XmlWidgetAssetPickerModel}. Она показывает
+ * категории, результаты поиска и выбранный asset, но не загружает ресурсы и не пишет XML сама.</p>
+ */
 public final class XmlWidgetAssetPickerPanel extends Box {
     private final VBox content = new VBox();
     private final Label title = new Label("XML Assets");
@@ -23,10 +28,18 @@ public final class XmlWidgetAssetPickerPanel extends Box {
     private XmlWidgetAssetPickerModel model;
     private int entryLimit = 8;
 
+    /**
+     * Создаёт picker panel с пустым texture catalog-ом.
+     */
     public XmlWidgetAssetPickerPanel() {
         this(new XmlWidgetAssetPickerModel(XmlWidgetAssetCatalog.empty(), XmlWidgetAssetKind.TEXTURE));
     }
 
+    /**
+     * Создаёт picker panel поверх существующей модели.
+     *
+     * @param model состояние picker-а; {@code null} заменяется пустой texture model
+     */
     public XmlWidgetAssetPickerPanel(XmlWidgetAssetPickerModel model) {
         this.model = model == null
                 ? new XmlWidgetAssetPickerModel(XmlWidgetAssetCatalog.empty(), XmlWidgetAssetKind.TEXTURE)
@@ -60,10 +73,21 @@ public final class XmlWidgetAssetPickerPanel extends Box {
         rebuild();
     }
 
+    /**
+     * Возвращает модель состояния picker-а.
+     *
+     * @return picker model
+     */
     public XmlWidgetAssetPickerModel model() {
         return model;
     }
 
+    /**
+     * Заменяет модель состояния и полностью перестраивает panel UI.
+     *
+     * @param model новая модель; {@code null} заменяется пустой texture model
+     * @return эта панель для fluent-настройки
+     */
     public XmlWidgetAssetPickerPanel model(XmlWidgetAssetPickerModel model) {
         this.model = model == null
                 ? new XmlWidgetAssetPickerModel(XmlWidgetAssetCatalog.empty(), XmlWidgetAssetKind.TEXTURE)
@@ -72,52 +96,107 @@ public final class XmlWidgetAssetPickerPanel extends Box {
         return this;
     }
 
+    /**
+     * Заменяет catalog внутри текущей модели.
+     *
+     * @param catalog новый catalog; {@code null} заменяется empty catalog
+     * @return эта панель для fluent-настройки
+     */
     public XmlWidgetAssetPickerPanel catalog(XmlWidgetAssetCatalog catalog) {
         model.catalog(catalog);
         rebuild();
         return this;
     }
 
+    /**
+     * Задаёт активную категорию assets.
+     *
+     * @param kind новая категория; {@code null} заменяется texture
+     * @return эта панель для fluent-настройки
+     */
     public XmlWidgetAssetPickerPanel kind(XmlWidgetAssetKind kind) {
         model.kind(kind);
         rebuild();
         return this;
     }
 
+    /**
+     * Задаёт query поиска и перестраивает строки.
+     *
+     * @param query строка поиска
+     * @return эта панель для fluent-настройки
+     */
     public XmlWidgetAssetPickerPanel query(String query) {
         model.query(query);
         rebuildEntries();
         return this;
     }
 
+    /**
+     * Выбирает asset по id.
+     *
+     * @param id candidate asset id
+     * @return эта панель для fluent-настройки
+     */
     public XmlWidgetAssetPickerPanel select(String id) {
         model.select(id);
         rebuildEntries();
         return this;
     }
 
+    /**
+     * Возвращает максимальное количество строк assets.
+     *
+     * @return visible entry limit
+     */
     public int entryLimit() {
         return entryLimit;
     }
 
+    /**
+     * Задаёт максимальное количество отображаемых assets.
+     *
+     * @param entryLimit лимит строк; значения меньше 1 нормализуются в 1
+     * @return эта панель для fluent-настройки
+     */
     public XmlWidgetAssetPickerPanel entryLimit(int entryLimit) {
         this.entryLimit = Math.max(1, entryLimit);
         rebuildEntries();
         return this;
     }
 
+    /**
+     * Возвращает title label для настройки style/theme.
+     *
+     * @return title label
+     */
     public Label titleLabel() {
         return title;
     }
 
+    /**
+     * Возвращает summary label.
+     *
+     * @return summary label
+     */
     public Label summaryLabel() {
         return summary;
     }
 
+    /**
+     * Возвращает контейнер кнопок категорий.
+     *
+     * @return kind bar widget
+     */
     public HBox kindBar() {
         return kindBar;
     }
 
+    /**
+     * Возвращает контейнер строк assets.
+     *
+     * @return entries host
+     */
     public VBox entriesHost() {
         return entries;
     }

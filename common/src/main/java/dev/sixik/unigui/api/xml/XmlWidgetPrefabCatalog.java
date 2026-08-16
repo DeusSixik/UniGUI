@@ -11,45 +11,102 @@ import java.util.Optional;
  * Каталог prefab-ов исходного документа для раскрытия редакторских узлов {@code <Include prefab="..." />}.
  *
  * <p>Каталог хранит переиспользуемые фрагменты XML-документа и выдает копии,
- * чтобы вставка prefab-а не изменяла исходный шаблон.</p>
+ * чтобы вставка prefab-а не изменяла исходный шаблон. Поддерживаются aliases {@code Include}
+ * и {@code Prefab}, а id prefab-а можно указать атрибутом {@code prefab}, {@code src} или {@code template}.</p>
+ *
+ * <p>При раскрытии каталог защищается от циклов и слишком глубокой вложенности includes.
+ * Ошибки возвращаются как diagnostics, а проблемный include сохраняется копией в результирующем документе.</p>
  */
 public final class XmlWidgetPrefabCatalog {
     private static final int MAX_INCLUDE_DEPTH = 32;
 
     private final Map<String, XmlWidgetDocument> prefabs = new LinkedHashMap<>();
 
+    /**
+     * Создаёт пустой каталог prefab-ов.
+     *
+     * @return новый empty catalog
+     */
     public static XmlWidgetPrefabCatalog empty() {
         return new XmlWidgetPrefabCatalog();
     }
 
+    /**
+     * Регистрирует prefab из XML-строки.
+     *
+     * @param id id prefab-а
+     * @param xml XML fragment/document с одним root element
+     * @return этот catalog для chained-регистрации
+     */
     public XmlWidgetPrefabCatalog register(String id, String xml) {
         return register(id, XmlWidgetDocument.parse(xml));
     }
 
+    /**
+     * Регистрирует prefab из готового документа.
+     *
+     * <p>Документ копируется при регистрации, поэтому последующие изменения исходного object-а
+     * не меняют сохранённый prefab.</p>
+     *
+     * @param id id prefab-а
+     * @param document source document prefab-а
+     * @return этот catalog для chained-регистрации
+     */
     public XmlWidgetPrefabCatalog register(String id, XmlWidgetDocument document) {
         if (document == null) throw new IllegalArgumentException("XML prefab document must not be null");
         prefabs.put(requireId(id), document.copy());
         return this;
     }
 
+    /**
+     * Удаляет prefab по id.
+     *
+     * @param id id prefab-а
+     * @return этот catalog для chained-настройки
+     */
     public XmlWidgetPrefabCatalog remove(String id) {
         prefabs.remove(normalizeId(id));
         return this;
     }
 
+    /**
+     * Проверяет наличие prefab-а.
+     *
+     * @param id id prefab-а
+     * @return {@code true}, если catalog содержит prefab
+     */
     public boolean contains(String id) {
         return prefabs.containsKey(normalizeId(id));
     }
 
+    /**
+     * Возвращает копию документа prefab-а.
+     *
+     * @param id id prefab-а
+     * @return prefab document copy или empty
+     */
     public Optional<XmlWidgetDocument> document(String id) {
         XmlWidgetDocument document = prefabs.get(normalizeId(id));
         return document == null ? Optional.empty() : Optional.of(document.copy());
     }
 
+    /**
+     * Возвращает ids prefab-ов в порядке регистрации.
+     *
+     * @return immutable список ids
+     */
     public List<String> ids() {
         return List.copyOf(prefabs.keySet());
     }
 
+    /**
+     * Раскрывает include/prefab элементы в документе.
+     *
+     * <p>Метод возвращает новый документ; переданный document не мутируется.</p>
+     *
+     * @param document исходный XML document
+     * @return результат с expanded copy и diagnostics
+     */
     public XmlWidgetDocumentResult expand(XmlWidgetDocument document) {
         if (document == null) throw new IllegalArgumentException("XML prefab expansion document must not be null");
         List<XmlWidgetDiagnostic> diagnostics = new ArrayList<>();
@@ -78,6 +135,7 @@ public final class XmlWidgetPrefabCatalog {
                                            List<XmlWidgetDiagnostic> diagnostics,
                                            ArrayDeque<String> stack,
                                            int depth) {
+        // Include должен быть leaf-узлом: overrides задаются только атрибутами самого include element-а.
         Optional<String> prefabId = prefabId(include);
         if (prefabId.isEmpty()) {
             add(diagnostics, include, "XML Include element requires a non-empty 'prefab' attribute.");

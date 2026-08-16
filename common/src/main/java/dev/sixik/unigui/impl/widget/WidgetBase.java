@@ -323,6 +323,7 @@ public abstract class WidgetBase implements Widget {
         return this;
     }
 
+    @XmlAttribute(value = "rotation", category = "Appearance", defaultValue = "0", description = "Rotation in degrees applied to the widget transform.")
     public WidgetBase rotationDegrees(float degrees) {
         transitions.remove(AnimatedProperty.ROTATION_DEGREES);
         setAnimatedValue(AnimatedProperty.ROTATION_DEGREES, sanitizeFinite(degrees));
@@ -347,6 +348,7 @@ public abstract class WidgetBase implements Widget {
     /**
      * Возвращает текущую прозрачность виджета.
      */
+    @XmlAttribute(value = "opacity", category = "Appearance", defaultValue = "1", description = "Widget opacity clamped between 0 and 1.")
     public WidgetBase opacity(float opacity) {
         transitions.remove(AnimatedProperty.OPACITY);
         setAnimatedValue(AnimatedProperty.OPACITY, clamp01(opacity));
@@ -685,6 +687,7 @@ public abstract class WidgetBase implements Widget {
     /**
      * Возвращает или обновляет режим видимости виджета.
      */
+    @XmlAttribute(value = "visibility", category = "Behavior", defaultValue = "visible", description = "Visibility mode: visible, hidden or collapsed.")
     public WidgetBase visibility(Visibility visibility) {
         Visibility next = visibility == null ? Visibility.VISIBLE : visibility;
         if (this.visibility == next) return this;
@@ -708,6 +711,7 @@ public abstract class WidgetBase implements Widget {
     /**
      * Возвращает или задаёт простую видимость виджета через режим {@code Visibility}.
      */
+    @XmlAttribute(value = "visible", category = "Behavior", defaultValue = "true", description = "Whether the widget is visible without collapsing layout space.")
     public WidgetBase visible(boolean visible) {
         return visibility(visible ? Visibility.VISIBLE : Visibility.HIDDEN);
     }
@@ -723,6 +727,7 @@ public abstract class WidgetBase implements Widget {
     /**
      * Возвращает или задаёт доступность виджета для пользовательского ввода.
      */
+    @XmlAttribute(value = "enabled", category = "Behavior", defaultValue = "true", description = "Whether the widget can receive user interaction.")
     public WidgetBase enabled(boolean enabled) {
         if (this.enabled == enabled) return this;
         this.enabled = enabled;

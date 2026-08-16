@@ -9,10 +9,13 @@ import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.ImageFit;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.render.TextureFilter;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.TexturePlacement;
+import dev.sixik.unigui.api.render.TextureWrap;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlTextureAttributes;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.render.TextureWidgetRenderer;
@@ -48,7 +51,7 @@ public class TextureWidget extends WidgetBase {
         return texture;
     }
 
-    @XmlAttribute(value = "texture", category = "Assets", defaultValue = "", description = "Texture resource id resolved through XmlWidgetOptions.textureResolver.")
+    @XmlAttribute(value = "texture", displayName = "Texture", category = "Assets", defaultValue = "", description = "Texture resource id resolved through XmlWidgetOptions.textureResolver.")
     public TextureWidget texture(TextureHandle texture) {
         if (this.texture == texture) return this;
         this.texture = texture;
@@ -57,6 +60,36 @@ public class TextureWidget extends WidgetBase {
         stopParameterAnimation(TEXTURE_CROSSFADE_KEY);
         invalidate(InvalidationFlags.VISUAL);
         return this;
+    }
+
+    @XmlAttribute(value = "textureWidth", displayName = "Texture Width", category = "Assets", defaultValue = "16", description = "Source texture width used for contain and cover placement.")
+    public TextureWidget textureWidth(int width) {
+        return texture(XmlTextureAttributes.resize(texture, width, null));
+    }
+
+    @XmlAttribute(value = "textureHeight", displayName = "Texture Height", category = "Assets", defaultValue = "16", description = "Source texture height used for contain and cover placement.")
+    public TextureWidget textureHeight(int height) {
+        return texture(XmlTextureAttributes.resize(texture, null, height));
+    }
+
+    @XmlAttribute(value = "textureSampling", displayName = "Texture Sampling", category = "Assets", defaultValue = "nearest", description = "Texture filtering mode used by the renderer backend.")
+    public TextureWidget textureSampling(TextureFilter filter) {
+        return texture(XmlTextureAttributes.options(texture, options -> options.sampling(filter)));
+    }
+
+    @XmlAttribute(value = "textureWrap", displayName = "Texture Wrap", category = "Assets", defaultValue = "clamp-to-edge", description = "Texture coordinate wrap mode used by the renderer backend.")
+    public TextureWidget textureWrap(TextureWrap wrap) {
+        return texture(XmlTextureAttributes.options(texture, options -> options.wrap(wrap)));
+    }
+
+    @XmlAttribute(value = "textureMipmaps", displayName = "Texture Mipmaps", category = "Assets", defaultValue = "false", description = "Whether the texture should use mipmapped sampling.")
+    public TextureWidget textureMipmaps(boolean mipmaps) {
+        return texture(XmlTextureAttributes.options(texture, options -> options.mipmaps(mipmaps)));
+    }
+
+    @XmlAttribute(value = "texturePremultipliedAlpha", displayName = "Texture Premultiplied Alpha", category = "Assets", defaultValue = "false", description = "Whether the texture color data already uses premultiplied alpha.")
+    public TextureWidget texturePremultipliedAlpha(boolean premultipliedAlpha) {
+        return texture(XmlTextureAttributes.options(texture, options -> options.premultipliedAlpha(premultipliedAlpha)));
     }
 
     public TextureWidget animateTexture(TextureHandle texture, float durationSeconds) {
@@ -83,6 +116,12 @@ public class TextureWidget extends WidgetBase {
 
     public MutableColor tint() {
         return tint;
+    }
+
+    @XmlAttribute(value = "tint", displayName = "Tint", category = "Assets", defaultValue = "#FFFFFFFF", description = "Tint color applied while drawing the texture.")
+    public TextureWidget tint(ColorView color) {
+        if (color != null) tint.set(color);
+        return this;
     }
 
     public TextureWidget animateTint(ColorView color, float durationSeconds) {
@@ -119,11 +158,17 @@ public class TextureWidget extends WidgetBase {
         return this;
     }
 
+    @XmlAttribute(value = "source", displayName = "Source", category = "Assets", defaultValue = "0 0 1 1", description = "Normalized UV source rectangle: u v width height.")
+    public TextureWidget source(RectView source) {
+        this.source.set(source == null ? new MutableRect(0.0f, 0.0f, 1.0f, 1.0f) : source);
+        return this;
+    }
+
     public ImageFit fit() {
         return fit;
     }
 
-    @XmlAttribute(value = "fit", category = "Assets", defaultValue = "stretch", description = "Placement mode for the texture.")
+    @XmlAttribute(value = "fit", displayName = "Fit", category = "Assets", defaultValue = "stretch", description = "Placement mode for the texture.")
     public TextureWidget fit(ImageFit fit) {
         ImageFit effectiveFit = fit == null ? ImageFit.STRETCH : fit;
         if (this.fit == effectiveFit) return this;

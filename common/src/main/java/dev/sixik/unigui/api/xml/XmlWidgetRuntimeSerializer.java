@@ -33,12 +33,22 @@ import java.util.Locale;
  * Экспортер live-дерева виджетов обратно в исходный XML по принципу best-effort.
  *
  * <p>Сериализатор восстанавливает полезную структуру для редактора, но не пытается
- * гарантировать полную обратимость runtime-состояния.</p>
+ * гарантировать полную обратимость runtime-состояния. Например, callback-и, command bindings,
+ * runtime-only handles и пользовательские widget state не всегда имеют XML-представление.</p>
+ *
+ * <p>Неполно поддержанные типы всё равно экспортируются по class simple name, а результат получает
+ * diagnostics. Это позволяет сохранить структуру дерева и вручную доработать XML в редакторе.</p>
  */
 public final class XmlWidgetRuntimeSerializer {
     private XmlWidgetRuntimeSerializer() {
     }
 
+    /**
+     * Создаёт snapshot runtime widget tree как XML document result.
+     *
+     * @param root root widget live-дерева; не может быть {@code null}
+     * @return document result с best-effort XML и diagnostics по неподдержанным типам
+     */
     public static XmlWidgetDocumentResult snapshot(Widget root) {
         if (root == null) throw new IllegalArgumentException("XML runtime snapshot root must not be null");
         ArrayList<XmlWidgetDiagnostic> diagnostics = new ArrayList<>();
@@ -46,6 +56,15 @@ public final class XmlWidgetRuntimeSerializer {
         return new XmlWidgetDocumentResult(XmlWidgetDocument.of(element), diagnostics);
     }
 
+    /**
+     * Создаёт XML-документ из runtime widget tree и игнорирует diagnostics.
+     *
+     * <p>Если нужно показать пользователю предупреждения о неподдержанных типах, используйте
+     * {@link #snapshot(Widget)}.</p>
+     *
+     * @param root root widget live-дерева
+     * @return XML document snapshot
+     */
     public static XmlWidgetDocument document(Widget root) {
         return snapshot(root).document();
     }

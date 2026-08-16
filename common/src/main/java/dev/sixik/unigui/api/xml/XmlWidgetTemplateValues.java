@@ -3,7 +3,12 @@ package dev.sixik.unigui.api.xml;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Неизменяемый набор override-атрибутов исходного документа для экземпляра widget template. */
+/**
+ * Неизменяемый набор override-атрибутов исходного документа для экземпляра widget template.
+ *
+ * <p>Values применяются при {@link XmlWidgetTemplate#instantiate(XmlWidgetTemplateValues)}.
+ * Root override меняет атрибут корневого элемента, а обычный override ищет target по id/name.</p>
+ */
 public final class XmlWidgetTemplateValues {
     private static final XmlWidgetTemplateValues EMPTY = new XmlWidgetTemplateValues(List.of());
 
@@ -13,28 +18,65 @@ public final class XmlWidgetTemplateValues {
         this.attributes = List.copyOf(attributes == null ? List.of() : attributes);
     }
 
+    /**
+     * Возвращает общий пустой набор overrides.
+     *
+     * @return empty template values
+     */
     public static XmlWidgetTemplateValues empty() {
         return EMPTY;
     }
 
+    /**
+     * Возвращает новый набор с override-ом атрибута root element-а.
+     *
+     * @param name имя атрибута
+     * @param value новое значение
+     * @return новый values instance
+     */
     public XmlWidgetTemplateValues rootAttribute(String name, String value) {
         return attribute("", name, value);
     }
 
+    /**
+     * Возвращает новый набор с override-ом атрибута элемента по id/name.
+     *
+     * @param elementId id/name целевого элемента; blank означает root
+     * @param name имя атрибута
+     * @param value новое значение
+     * @return новый values instance
+     */
     public XmlWidgetTemplateValues attribute(String elementId, String name, String value) {
         ArrayList<AttributeOverride> next = new ArrayList<>(attributes);
         next.add(new AttributeOverride(elementId, name, value));
         return new XmlWidgetTemplateValues(next);
     }
 
+    /**
+     * Возвращает overrides в порядке добавления.
+     *
+     * @return immutable список overrides
+     */
     public List<AttributeOverride> attributes() {
         return attributes;
     }
 
+    /**
+     * Проверяет, что overrides отсутствуют.
+     *
+     * @return {@code true}, если список пуст
+     */
     public boolean isEmpty() {
         return attributes.isEmpty();
     }
 
+    /**
+     * Один override XML-атрибута при instantiation template-а.
+     *
+     * @param elementId id/name target element-а; пустая строка означает root
+     * @param name имя атрибута
+     * @param value новое значение атрибута
+     */
     public record AttributeOverride(String elementId, String name, String value) {
         public AttributeOverride {
             elementId = elementId == null ? "" : elementId.trim();
@@ -42,6 +84,11 @@ public final class XmlWidgetTemplateValues {
             value = value == null ? "" : value;
         }
 
+        /**
+         * Проверяет, что override применяется к root element-у.
+         *
+         * @return {@code true}, если elementId пустой
+         */
         public boolean rootTarget() {
             return elementId.isEmpty();
         }

@@ -10,14 +10,42 @@ import java.nio.file.Path;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
-/** Абстракция источника XML для editor/runtime hot-reload preview. */
+/**
+ * Абстракция источника XML для editor/runtime hot-reload preview.
+ *
+ * <p>Источник умеет вернуть человекочитаемую подпись, актуальный XML-текст и числовую версию.
+ * Preview сравнивает версии и перезагружает XML только когда версия изменилась.</p>
+ */
 public interface XmlWidgetHotReloadSource {
+    /**
+     * Возвращает подпись источника для статусов и diagnostics.
+     *
+     * @return label файла, resource-а или пользовательского источника
+     */
     String label();
 
+    /**
+     * Читает актуальный XML source.
+     *
+     * @return XML-текст
+     */
     String read();
 
+    /**
+     * Возвращает версию источника для обнаружения изменений.
+     *
+     * @return числовая версия; должна меняться при изменении XML
+     */
     long version();
 
+    /**
+     * Создаёт произвольный hot-reload source из callbacks.
+     *
+     * @param label подпись источника; blank значение заменяется дефолтным
+     * @param reader callback чтения XML; не может быть {@code null}
+     * @param version callback версии; {@code null} заменяется {@link System#nanoTime()}
+     * @return hot-reload source
+     */
     static XmlWidgetHotReloadSource of(String label, Supplier<String> reader, LongSupplier version) {
         if (reader == null) throw new IllegalArgumentException("XML hot reload source reader must not be null");
         LongSupplier normalizedVersion = version == null ? System::nanoTime : version;
@@ -40,6 +68,14 @@ public interface XmlWidgetHotReloadSource {
         };
     }
 
+    /**
+     * Создаёт source для файла на диске.
+     *
+     * <p>Версия строится из last modified time и размера файла.</p>
+     *
+     * @param path путь к XML-файлу
+     * @return file hot-reload source
+     */
     static XmlWidgetHotReloadSource path(Path path) {
         if (path == null) throw new IllegalArgumentException("XML hot reload path must not be null");
         Path normalized = path.toAbsolutePath().normalize();
@@ -48,6 +84,12 @@ public interface XmlWidgetHotReloadSource {
                 () -> pathVersion(normalized));
     }
 
+    /**
+     * Создаёт source для classpath resource.
+     *
+     * @param resourcePath путь resource-а, с ведущим {@code /} или без него
+     * @return resource hot-reload source
+     */
     static XmlWidgetHotReloadSource resource(String resourcePath) {
         if (resourcePath == null || resourcePath.isBlank()) {
             throw new IllegalArgumentException("XML hot reload resource path must not be blank");

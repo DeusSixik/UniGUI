@@ -5,17 +5,43 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/** Вспомогательные методы исходного документа для editor drag/resize handles поверх layout-атрибутов. */
+/**
+ * Вспомогательные методы исходного документа для editor drag/resize handles поверх layout-атрибутов.
+ *
+ * <p>Методы не мутируют переданный документ. Они создают копию, читают числовые атрибуты
+ * {@code x/y/width/height}, применяют move/resize и возвращают {@link XmlWidgetDocumentResult}
+ * с новой версией документа. Если атрибуты содержат неподходящие значения, результат содержит
+ * диагностики, а документ остаётся без частично применённой правки.</p>
+ */
 public final class XmlWidgetLayoutHandles {
     private static final float DEFAULT_MIN_SIZE = 1.0f;
 
     private XmlWidgetLayoutHandles() {
     }
 
+    /**
+     * Сдвигает layout frame выбранного элемента.
+     *
+     * @param document исходный документ
+     * @param path path элемента; {@code null} означает root
+     * @param deltaX смещение по X
+     * @param deltaY смещение по Y
+     * @return результат с копией документа и diagnostics
+     */
     public static XmlWidgetDocumentResult move(XmlWidgetDocument document, XmlWidgetNodePath path, float deltaX, float deltaY) {
         return transform(document, path, frame -> frame.move(deltaX, deltaY));
     }
 
+    /**
+     * Меняет размер frame с минимальным размером по умолчанию.
+     *
+     * @param document исходный документ
+     * @param path path элемента; {@code null} означает root
+     * @param handle активный resize handle; {@code null} означает south-east
+     * @param deltaX смещение указателя по X
+     * @param deltaY смещение указателя по Y
+     * @return результат с копией документа и diagnostics
+     */
     public static XmlWidgetDocumentResult resize(XmlWidgetDocument document,
                                                  XmlWidgetNodePath path,
                                                  XmlWidgetLayoutHandle handle,
@@ -24,6 +50,18 @@ public final class XmlWidgetLayoutHandles {
         return resize(document, path, handle, deltaX, deltaY, DEFAULT_MIN_SIZE, DEFAULT_MIN_SIZE);
     }
 
+    /**
+     * Меняет размер frame с явно заданным минимальным размером.
+     *
+     * @param document исходный документ
+     * @param path path элемента; {@code null} означает root
+     * @param handle активный resize handle; {@code null} означает south-east
+     * @param deltaX смещение указателя по X
+     * @param deltaY смещение указателя по Y
+     * @param minWidth минимальная ширина
+     * @param minHeight минимальная высота
+     * @return результат с копией документа и diagnostics
+     */
     public static XmlWidgetDocumentResult resize(XmlWidgetDocument document,
                                                  XmlWidgetNodePath path,
                                                  XmlWidgetLayoutHandle handle,
@@ -36,6 +74,12 @@ public final class XmlWidgetLayoutHandles {
         return transform(document, path, frame -> frame.resize(normalized, deltaX, deltaY, minWidth, minHeight));
     }
 
+    /**
+     * Читает numeric layout frame из XML-элемента.
+     *
+     * @param element source XML element
+     * @return frame или empty, если элемент отсутствует либо атрибуты нельзя распарсить
+     */
     public static Optional<XmlWidgetLayoutFrame> frame(XmlWidgetElement element) {
         if (element == null) return Optional.empty();
         ArrayList<XmlWidgetDiagnostic> diagnostics = new ArrayList<>();

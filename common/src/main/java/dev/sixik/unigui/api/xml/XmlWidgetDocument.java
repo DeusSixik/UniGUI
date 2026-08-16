@@ -27,20 +27,45 @@ import java.util.List;
  * Модель исходного XML-документа для редактора и round-trip сценариев.
  *
  * <p>Модель сохраняет структуру, атрибуты, текстовые узлы и комментарии так,
- * чтобы документ можно было редактировать и сериализовать обратно без потери контекста.</p>
+ * чтобы документ можно было редактировать и сериализовать обратно без потери контекста.
+ * В отличие от {@link XMLWidget}, этот класс не создаёт runtime-виджеты, а хранит именно
+ * редактируемое source-представление XML.</p>
+ *
+ * <p>Парсер настроен в безопасном режиме: внешние entity и DTD отключаются, а комментарии
+ * сохраняются только если конкретная SAX-реализация отдаёт lexical events.</p>
  */
 public final class XmlWidgetDocument {
     private final XmlWidgetElement root;
 
+    /**
+     * Создаёт документ с указанным корневым XML-элементом.
+     *
+     * @param root корневой элемент документа; не может быть {@code null}
+     */
     public XmlWidgetDocument(XmlWidgetElement root) {
         if (root == null) throw new IllegalArgumentException("XML widget document root must not be null");
         this.root = root;
     }
 
+    /**
+     * Создаёт документ из готового корневого элемента.
+     *
+     * @param root корневой элемент документа
+     * @return новый XML document wrapper
+     */
     public static XmlWidgetDocument of(XmlWidgetElement root) {
         return new XmlWidgetDocument(root);
     }
 
+    /**
+     * Парсит XML-строку в редактируемую модель документа.
+     *
+     * <p>Метод строгий: пустая строка, синтаксическая ошибка или отсутствие root element
+     * приводят к {@link XmlWidgetLoadException}.</p>
+     *
+     * @param xml исходный XML widget document
+     * @return document tree с root element, атрибутами, текстом и комментариями
+     */
     public static XmlWidgetDocument parse(String xml) {
         if (xml == null || xml.isBlank()) {
             throw new XmlWidgetLoadException("XML widget document source must not be blank.");
@@ -48,14 +73,36 @@ public final class XmlWidgetDocument {
         return new XmlWidgetDocument(parseRoot(xml));
     }
 
+    /**
+     * Парсит XML для редактора и валидирует его против встроенного реестра виджетов.
+     *
+     * @param xml исходный XML widget document
+     * @return результат с документом и нефатальными editor diagnostics
+     */
     public static XmlWidgetDocumentResult parseEditor(String xml) {
         return parseEditor(xml, XmlWidgetRegistry.builtIns());
     }
 
+    /**
+     * Парсит XML для редактора и валидирует его против указанного реестра.
+     *
+     * <p>Синтаксические ошибки остаются фатальными, а ошибки уровня schema/descriptor
+     * возвращаются как диагностики в {@link XmlWidgetDocumentResult}.</p>
+     *
+     * @param xml исходный XML widget document
+     * @param registry реестр XML-типов; {@code null} заменяется built-ins
+     * @return результат editor parse + validation
+     */
     public static XmlWidgetDocumentResult parseEditor(String xml, XmlWidgetRegistry registry) {
         return parse(xml).validate(registry);
     }
 
+    /**
+     * Читает UTF-8 XML из stream-а и парсит его в документ.
+     *
+     * @param xml input stream с XML-содержимым; не может быть {@code null}
+     * @return document tree
+     */
     public static XmlWidgetDocument parse(InputStream xml) {
         if (xml == null) {
             throw new XmlWidgetLoadException("XML widget document input stream must not be null.");
@@ -67,14 +114,33 @@ public final class XmlWidgetDocument {
         }
     }
 
+    /**
+     * Парсит stream для редактора и валидирует его против встроенного реестра.
+     *
+     * @param xml input stream с UTF-8 XML
+     * @return результат editor parse + validation
+     */
     public static XmlWidgetDocumentResult parseEditor(InputStream xml) {
         return parseEditor(xml, XmlWidgetRegistry.builtIns());
     }
 
+    /**
+     * Парсит stream для редактора и валидирует его против указанного реестра.
+     *
+     * @param xml input stream с UTF-8 XML
+     * @param registry реестр XML-типов; {@code null} заменяется built-ins
+     * @return результат editor parse + validation
+     */
     public static XmlWidgetDocumentResult parseEditor(InputStream xml, XmlWidgetRegistry registry) {
         return parse(xml).validate(registry);
     }
 
+    /**
+     * Загружает XML-документ из classpath resource.
+     *
+     * @param resourcePath путь resource-а, с ведущим {@code /} или без него
+     * @return document tree
+     */
     public static XmlWidgetDocument parseResource(String resourcePath) {
         try (InputStream stream = openResource(resourcePath)) {
             return parse(stream);
@@ -83,10 +149,23 @@ public final class XmlWidgetDocument {
         }
     }
 
+    /**
+     * Загружает XML resource для редактора и валидирует его против встроенного реестра.
+     *
+     * @param resourcePath путь classpath resource-а
+     * @return результат editor parse + validation
+     */
     public static XmlWidgetDocumentResult parseEditorResource(String resourcePath) {
         return parseEditorResource(resourcePath, XmlWidgetRegistry.builtIns());
     }
 
+    /**
+     * Загружает XML resource для редактора и валидирует его против указанного реестра.
+     *
+     * @param resourcePath путь classpath resource-а
+     * @param registry реестр XML-типов; {@code null} заменяется built-ins
+     * @return результат editor parse + validation
+     */
     public static XmlWidgetDocumentResult parseEditorResource(String resourcePath, XmlWidgetRegistry registry) {
         try (InputStream stream = openResource(resourcePath)) {
             return parseEditor(stream, registry);
@@ -95,28 +174,64 @@ public final class XmlWidgetDocument {
         }
     }
 
+    /**
+     * Возвращает корневой XML-элемент документа.
+     *
+     * @return root element
+     */
     public XmlWidgetElement root() {
         return root;
     }
 
+    /**
+     * Создаёт глубокую копию документа.
+     *
+     * @return новый документ с копиями всех узлов
+     */
     public XmlWidgetDocument copy() {
         return new XmlWidgetDocument(root.copy());
     }
 
+    /**
+     * Валидирует source tree против XML descriptor-ов реестра.
+     *
+     * @param registry реестр XML-типов; {@code null} заменяется built-ins
+     * @return результат с этим документом и списком найденных diagnostics
+     */
     public XmlWidgetDocumentResult validate(XmlWidgetRegistry registry) {
         XmlWidgetRegistry normalized = registry == null ? XmlWidgetRegistry.builtIns() : registry;
         return new XmlWidgetDocumentResult(this, XmlWidgetDocumentValidator.validate(root, normalized));
     }
 
+    /**
+     * Раскрывает prefab-ссылки в документе.
+     *
+     * <p>Исходный документ не мутируется: catalog возвращает новый результат с расширенной копией
+     * или с diagnostics, если prefab нельзя найти или применить.</p>
+     *
+     * @param catalog каталог prefab-шаблонов; {@code null} означает пустой каталог
+     * @return результат раскрытия prefabs
+     */
     public XmlWidgetDocumentResult expandPrefabs(XmlWidgetPrefabCatalog catalog) {
         XmlWidgetPrefabCatalog normalized = catalog == null ? XmlWidgetPrefabCatalog.empty() : catalog;
         return normalized.expand(this);
     }
 
+    /**
+     * Сериализует документ с pretty-настройками по умолчанию.
+     *
+     * @return XML-строка без потери значимых узлов документа
+     */
     public String toXmlString() {
         return toXmlString(XmlWidgetSerializationOptions.PRETTY);
     }
 
+    /**
+     * Сериализует документ с указанными настройками форматирования.
+     *
+     * @param options настройки XML declaration, indent и обработки whitespace text
+     * @return XML-строка
+     */
     public String toXmlString(XmlWidgetSerializationOptions options) {
         XmlWidgetSerializationOptions normalized = options == null ? XmlWidgetSerializationOptions.PRETTY : options;
         StringBuilder builder = new StringBuilder();

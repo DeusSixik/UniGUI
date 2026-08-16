@@ -3,6 +3,7 @@ package dev.sixik.unigui.impl.xml;
 import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.SizeValue;
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.TextureOptions;
 import dev.sixik.unigui.api.xml.XmlCommandRegistry;
@@ -24,6 +25,7 @@ public final class XmlValueParsers {
     public static final XmlValueParser<Float> FLOAT = value -> Float.parseFloat(required(value).trim());
     public static final XmlValueParser<Double> DOUBLE = value -> Double.parseDouble(required(value).trim());
     public static final XmlValueParser<MutableColor> COLOR = value -> MutableColor.fromHex(required(value).trim());
+    public static final XmlValueParser<MutableRect> RECT = XmlValueParsers::parseRect;
     public static final XmlValueParser<TextureHandle> TEXTURE = XmlValueParsers::parseTexture;
     public static final XmlValueParser<SizeValue> SIZE = XmlValueParsers::parseSize;
     public static final XmlValueParser<EdgeInsets> INSETS = XmlValueParsers::parseInsets;
@@ -47,7 +49,7 @@ public final class XmlValueParsers {
         return new TextureResolverScope(previousResolver, previousCommands);
     }
 
-    static TextureHandle resolveTexture(String id, int width, int height, TextureOptions options) {
+    public static TextureHandle resolveTexture(String id, int width, int height, TextureOptions options) {
         XmlTextureResolver resolver = TEXTURE_RESOLVER.get();
         XmlTextureResolver normalizedResolver = resolver == null ? XmlWidgetOptions.DEFAULT_TEXTURE_RESOLVER : resolver;
         return normalizedResolver.resolve(id, Math.max(1, width), Math.max(1, height),
@@ -86,6 +88,18 @@ public final class XmlValueParsers {
             throw new IllegalArgumentException("Texture id must not be blank");
         }
         return resolveTexture(id, 16, 16, TextureOptions.defaults());
+    }
+
+    private static MutableRect parseRect(String value) {
+        String[] parts = required(value).trim().split("\\s+");
+        if (parts.length != 4) {
+            throw new IllegalArgumentException("Expected 4 rect values: x y width height, got: " + value);
+        }
+        return new MutableRect(
+                Float.parseFloat(parts[0]),
+                Float.parseFloat(parts[1]),
+                Float.parseFloat(parts[2]),
+                Float.parseFloat(parts[3]));
     }
 
     /**

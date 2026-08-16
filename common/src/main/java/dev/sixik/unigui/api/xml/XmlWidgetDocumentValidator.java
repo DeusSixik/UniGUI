@@ -9,10 +9,24 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+/**
+ * Внутренний validator source XML tree против descriptor metadata реестра.
+ *
+ * <p>Validator используется только editor-mode загрузкой. Он не материализует runtime widgets,
+ * а проверяет структуру документа: известность типов, атрибуты, property-child элементы,
+ * допустимость children и повторяющиеся id/name.</p>
+ */
 final class XmlWidgetDocumentValidator {
     private XmlWidgetDocumentValidator() {
     }
 
+    /**
+     * Валидирует source tree и возвращает immutable список diagnostics.
+     *
+     * @param root корневой XML-элемент документа
+     * @param registry реестр XML descriptor-ов
+     * @return список найденных diagnostics
+     */
     static List<XmlWidgetDiagnostic> validate(XmlWidgetElement root, XmlWidgetRegistry registry) {
         List<XmlWidgetDiagnostic> diagnostics = new ArrayList<>();
         validateElement(root, registry, diagnostics, new HashMap<>(), null, 0);
@@ -31,6 +45,7 @@ final class XmlWidgetDocumentValidator {
 
         XmlPropertyElement propertyElement = propertyElementName(element.name());
         if (propertyElement != null) {
+            // Property-element синтаксис валиден только внутри owner widget-а и описывается descriptor-ом родителя.
             validatePropertyElement(element, propertyElement, parentDescriptor, registry, diagnostics, ids, depth);
             return;
         }
@@ -133,7 +148,9 @@ final class XmlWidgetDocumentValidator {
 
         Set<String> seenAttributes = new HashSet<>();
         for (XmlWidgetAttribute attribute : element.attributes()) {
+            // Namespace declarations разрешены даже если descriptor о них не знает.
             if (isNamespaceDeclaration(attribute)) continue;
+            // id/name являются editor-level identity attributes и не требуют регистрации на каждом виджете.
             if (isIdAttribute(attribute)) continue;
 
             String normalizedName = localName(attribute.name());

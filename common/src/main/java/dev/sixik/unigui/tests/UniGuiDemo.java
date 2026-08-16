@@ -56,6 +56,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.io.IOException;
@@ -653,29 +654,29 @@ public final class UniGuiDemo {
 
     private static void wireXmlDemoPanel(Box panel) {
         if (panel == null) return;
-
-        Slider amount = XMLWidget.getWidget(panel, "amount", Slider.class);
-        ProgressBar meter = XMLWidget.getWidget(panel, "meter", ProgressBar.class);
-        Checkbox strict = XMLWidget.getWidget(panel, "strict", Checkbox.class);
-        Button apply = XMLWidget.getWidget(panel, "apply", Button.class);
-        Button cycle = XMLWidget.getWidget(panel, "cycle", Button.class);
-        Button close = XMLWidget.getWidget(panel, "close", Button.class);
-        Label status = XMLWidget.getWidget(panel, "status", Label.class);
-
-        amount.onValueChanged(event -> {
-            meter.value(event.newValue());
-            status.text(String.format(Locale.ROOT, "Slider -> %.0f, strict=%s", event.newValue(), strict.checked()));
-        });
-        apply.onClick(event -> status.text(String.format(Locale.ROOT,
-                "Apply clicked: value %.0f, strict=%s", amount.value(), strict.checked())));
-        strict.onCheckedChanged(event -> status.text("Strict XML: " + event.newValue()));
-        float[] cycleValues = {12.0f, 42.0f, 68.0f, 91.0f};
-        int[] cycleIndex = {1};
-        cycle.onClick(event -> {
-            cycleIndex[0] = (cycleIndex[0] + 1) % cycleValues.length;
-            amount.value(cycleValues[cycleIndex[0]]);
-        });
-        close.onClick(event -> Minecraft.getInstance().setScreen(null));
+//
+//        Slider amount = XMLWidget.getWidget(panel, "amount", Slider.class);
+//        ProgressBar meter = XMLWidget.getWidget(panel, "meter", ProgressBar.class);
+//        Checkbox strict = XMLWidget.getWidget(panel, "strict", Checkbox.class);
+//        Button apply = XMLWidget.getWidget(panel, "apply", Button.class);
+//        Button cycle = XMLWidget.getWidget(panel, "cycle", Button.class);
+//        Button close = XMLWidget.getWidget(panel, "close", Button.class);
+//        Label status = XMLWidget.getWidget(panel, "status", Label.class);
+//
+//        amount.onValueChanged(event -> {
+//            meter.value(event.newValue());
+//            status.text(String.format(Locale.ROOT, "Slider -> %.0f, strict=%s", event.newValue(), strict.checked()));
+//        });
+//        apply.onClick(event -> status.text(String.format(Locale.ROOT,
+//                "Apply clicked: value %.0f, strict=%s", amount.value(), strict.checked())));
+//        strict.onCheckedChanged(event -> status.text("Strict XML: " + event.newValue()));
+//        float[] cycleValues = {12.0f, 42.0f, 68.0f, 91.0f};
+//        int[] cycleIndex = {1};
+//        cycle.onClick(event -> {
+//            cycleIndex[0] = (cycleIndex[0] + 1) % cycleValues.length;
+//            amount.value(cycleValues[cycleIndex[0]]);
+//        });
+//        close.onClick(event -> Minecraft.getInstance().setScreen(null));
     }
 
     private static String xmlHotReloadStatusText(XmlWidgetHotReloadPreview.Status status) {
@@ -686,7 +687,7 @@ public final class UniGuiDemo {
 
     private static java.nio.file.Path xmlDemoHotReloadPath() {
         String relativePath = "common/src/main/resources/" + XML_DEMO_RESOURCE;
-        java.nio.file.Path workingDirectory = java.nio.file.Paths.get("").toAbsolutePath().normalize();
+        java.nio.file.Path workingDirectory = Paths.get("").toAbsolutePath().normalize();
         for (java.nio.file.Path current = workingDirectory; current != null; current = current.getParent()) {
             java.nio.file.Path candidate = current.resolve(relativePath).normalize();
             if (java.nio.file.Files.exists(candidate)) return candidate;

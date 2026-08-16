@@ -5,7 +5,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/** Модель инспектора source XML-элементов, построенная на descriptor metadata. */
+/**
+ * Модель инспектора source XML-элементов, построенная на descriptor metadata.
+ *
+ * <p>Inspector сопоставляет реальные атрибуты элемента с {@link XmlAttributeDescriptor}
+ * из реестра, добавляет editor-level {@code id/name} атрибуты и возвращает список доступных
+ * атрибутов для UI. Он не меняет документ и не парсит значения атрибутов.</p>
+ */
 public final class XmlWidgetInspector {
     private static final XmlAttributeDescriptor ID_ATTRIBUTE = XmlAttributeDescriptor.of("id")
             .displayName("Id")
@@ -16,10 +22,23 @@ public final class XmlWidgetInspector {
     private XmlWidgetInspector() {
     }
 
+    /**
+     * Инспектирует элемент против встроенного XML-реестра.
+     *
+     * @param element source XML element
+     * @return immutable inspection snapshot
+     */
     public static Inspection inspect(XmlWidgetElement element) {
         return inspect(element, XmlWidgetRegistry.builtIns());
     }
 
+    /**
+     * Инспектирует элемент против указанного XML-реестра.
+     *
+     * @param element source XML element; не может быть {@code null}
+     * @param registry реестр descriptor-ов; {@code null} заменяется built-ins
+     * @return immutable inspection snapshot
+     */
     public static Inspection inspect(XmlWidgetElement element, XmlWidgetRegistry registry) {
         if (element == null) throw new IllegalArgumentException("XML widget element must not be null");
         XmlWidgetRegistry normalized = registry == null ? XmlWidgetRegistry.builtIns() : registry;
@@ -72,6 +91,15 @@ public final class XmlWidgetInspector {
         return prefix >= 0 ? name.substring(prefix + 1) : name;
     }
 
+    /**
+     * Результат инспекции одного source XML-элемента.
+     *
+     * @param element исходный элемент
+     * @param descriptor descriptor виджета, если тип известен
+     * @param attributes атрибуты элемента с metadata, если она найдена
+     * @param availableAttributes атрибуты, которые можно добавить через inspector UI
+     * @param propertyChildren property-child слоты, доступные для этого виджета
+     */
     public record Inspection(
             XmlWidgetElement element,
             Optional<XmlWidgetDescriptor> descriptor,
@@ -86,18 +114,39 @@ public final class XmlWidgetInspector {
             propertyChildren = List.copyOf(propertyChildren == null ? List.of() : propertyChildren);
         }
 
+        /**
+         * Проверяет, найден ли descriptor для XML-типа элемента.
+         *
+         * @return {@code true}, если widget type известен реестру
+         */
         public boolean knownWidget() {
             return descriptor.isPresent();
         }
 
+        /**
+         * Возвращает display name для inspector header.
+         *
+         * @return display name descriptor-а или raw XML tag name
+         */
         public String displayName() {
             return descriptor.map(XmlWidgetDescriptor::displayName).orElse(element.name());
         }
 
+        /**
+         * Возвращает категорию виджета.
+         *
+         * @return category descriptor-а или {@code Unknown}
+         */
         public String category() {
             return descriptor.map(XmlWidgetDescriptor::category).orElse("Unknown");
         }
 
+        /**
+         * Находит атрибут по raw или local name.
+         *
+         * @param name имя атрибута, возможно с namespace prefix
+         * @return inspected attribute или empty
+         */
         public Optional<Attribute> attribute(String name) {
             String normalized = localName(name);
             return attributes.stream()
@@ -107,6 +156,13 @@ public final class XmlWidgetInspector {
         }
     }
 
+    /**
+     * Атрибут source element-а, обогащённый descriptor metadata.
+     *
+     * @param source исходный XML-атрибут
+     * @param name local name без namespace prefix
+     * @param descriptor descriptor атрибута, если он известен реестру
+     */
     public record Attribute(
             XmlWidgetAttribute source,
             String name,
@@ -117,26 +173,56 @@ public final class XmlWidgetInspector {
             descriptor = descriptor == null ? Optional.empty() : descriptor;
         }
 
+        /**
+         * Проверяет, что атрибут описан descriptor-ом.
+         *
+         * @return {@code true}, если metadata найдена
+         */
         public boolean known() {
             return descriptor.isPresent();
         }
 
+        /**
+         * Возвращает текущее строковое значение source attribute.
+         *
+         * @return XML attribute value
+         */
         public String value() {
             return source.value();
         }
 
+        /**
+         * Возвращает имя для отображения в inspector UI.
+         *
+         * @return descriptor display name или raw source name
+         */
         public String displayName() {
             return descriptor.map(XmlAttributeDescriptor::displayName).orElse(source.name());
         }
 
+        /**
+         * Возвращает категорию атрибута.
+         *
+         * @return descriptor category или {@code Unknown}
+         */
         public String category() {
             return descriptor.map(XmlAttributeDescriptor::category).orElse("Unknown");
         }
 
+        /**
+         * Возвращает default value из descriptor metadata.
+         *
+         * @return default value или пустая строка
+         */
         public String defaultValue() {
             return descriptor.map(XmlAttributeDescriptor::defaultValue).orElse("");
         }
 
+        /**
+         * Возвращает описание атрибута для tooltip/help UI.
+         *
+         * @return описание или пустая строка
+         */
         public String description() {
             return descriptor.map(XmlAttributeDescriptor::description).orElse("");
         }
