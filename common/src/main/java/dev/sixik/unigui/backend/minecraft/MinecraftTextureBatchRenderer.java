@@ -9,6 +9,7 @@ import dev.sixik.unigui.api.math.Transform;
 import dev.sixik.unigui.api.render.DrawCommand;
 import dev.sixik.unigui.api.render.DrawCommandType;
 import dev.sixik.unigui.api.render.TextureHandle;
+import dev.sixik.unigui.api.render.TextureOptions;
 import dev.sixik.unigui.impl.render.DrawBatch;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.GameRenderer;
@@ -38,7 +39,7 @@ final class MinecraftTextureBatchRenderer {
             DrawCommand command = (DrawCommand) rawCommands[i];
             if (command == null || command.type() != DrawCommandType.TEXTURE
                     || command.texture() == null
-                    || !Objects.equals(texture.id(), command.texture().id())) {
+                    || !sameTexture(texture, command.texture())) {
                 return false;
             }
         }
@@ -48,9 +49,11 @@ final class MinecraftTextureBatchRenderer {
 
         graphics.flush();
         RenderState state = RenderState.capture();
+        MinecraftTextureSamplerState.Scope sampler = null;
         try {
             RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
             binding.bind();
+            sampler = MinecraftTextureSamplerState.apply(binding.options());
             RenderSystem.enableBlend();
             MinecraftUiBlend.applyTextureAlpha(binding.premultipliedAlpha(), renderingToPremultipliedTarget, batch.blendMode());
             RenderSystem.disableDepthTest();
@@ -70,6 +73,7 @@ final class MinecraftTextureBatchRenderer {
             LOGGER.error("UniGUI texture batch failed; falling back to legacy texture rendering", failure);
             return false;
         } finally {
+            if (sampler != null) sampler.close();
             state.restore();
         }
     }
@@ -188,6 +192,13 @@ final class MinecraftTextureBatchRenderer {
         return Math.max(0, Math.min(255, Math.round(value * 255.0f)));
     }
 
+    private static boolean sameTexture(TextureHandle left, TextureHandle right) {
+        if (left == right) return true;
+        if (left == null || right == null) return false;
+        return Objects.equals(left.id(), right.id())
+                && Objects.equals(left.options(), right.options());
+    }
+
     private static final class FloatPoints {
         private float[] values;
         private int size;
@@ -220,19 +231,21 @@ final class MinecraftTextureBatchRenderer {
         }
     }
 
-    private record TextureBinding(Integer textureId, ResourceLocation location, boolean flipY, boolean premultipliedAlpha) {
+    private record TextureBinding(Integer textureId, ResourceLocation location, boolean flipY,
+                                  boolean premultipliedAlpha, TextureOptions options) {
         private static TextureBinding resolve(TextureHandle texture) {
+            TextureOptions options = texture.options() == null ? TextureOptions.defaults() : texture.options();
             Object nativeHandle = texture.nativeHandle();
             if (nativeHandle instanceof MinecraftRenderTarget.ColorTextureHandle colorTexture) {
-                return new TextureBinding(colorTexture.textureId(), null, colorTexture.flipY(), true);
+                return new TextureBinding(colorTexture.textureId(), null, colorTexture.flipY(), true, options);
             }
             if (nativeHandle instanceof Integer textureId) {
-                return new TextureBinding(textureId, null, false, false);
+                return new TextureBinding(textureId, null, false, options.premultipliedAlpha(), options);
             }
             ResourceLocation location = nativeHandle instanceof ResourceLocation resourceLocation
                     ? resourceLocation
                     : ResourceLocation.tryParse(texture.id());
-            return location == null ? null : new TextureBinding(null, location, false, false);
+            return location == null ? null : new TextureBinding(null, location, false, options.premultipliedAlpha(), options);
         }
 
         private void bind() {

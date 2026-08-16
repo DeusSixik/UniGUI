@@ -62,7 +62,8 @@ public final class SimpleDrawBatcher implements DrawBatcher {
     private static boolean sameTexture(TextureHandle left, TextureHandle right) {
         if (left == right) return true;
         if (left == null || right == null) return false;
-        return Objects.equals(left.id(), right.id());
+        return Objects.equals(left.id(), right.id())
+                && Objects.equals(left.options(), right.options());
     }
 
     private static boolean isColorPrimitive(DrawCommandType type) {

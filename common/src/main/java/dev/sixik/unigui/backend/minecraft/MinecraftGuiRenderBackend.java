@@ -21,6 +21,7 @@ import dev.sixik.unigui.api.render.RenderBackend;
 import dev.sixik.unigui.api.render.RenderTarget;
 import dev.sixik.unigui.api.render.RenderTargetOptions;
 import dev.sixik.unigui.api.render.TextureHandle;
+import dev.sixik.unigui.api.render.TextureOptions;
 import dev.sixik.unigui.api.render.VectorPath;
 import dev.sixik.unigui.impl.render.DrawBatch;
 import dev.sixik.unigui.impl.render.DrawBatcher;
@@ -982,51 +983,21 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
         TextureHandle texture = command.texture();
         if (texture == null) return;
 
-        Object nativeHandle = texture.nativeHandle();
-        if (nativeHandle instanceof MinecraftRenderTarget.ColorTextureHandle colorTexture) {
-            renderTextureId(colorTexture.textureId(), colorTexture.flipY(), true, command);
-            return;
-        }
-        if (nativeHandle instanceof Integer textureId) {
-            renderTextureId(textureId, false, false, command);
-            return;
-        }
-
-        ResourceLocation location = resolveTexture(command.texture());
-        if (location == null) return;
-
-        RectView bounds = command.bounds();
-        int textureWidth = Math.max(1, texture.width());
-        int textureHeight = Math.max(1, texture.height());
-        RectView uv = command.uv();
-        ColorView tint = command.paint().color();
-        graphics.setColor(tint.r(), tint.g(), tint.b(), tint.a());
-        try {
-            graphics.blit(location,
-                    round(bounds.x()),
-                    round(bounds.y()),
-                    round(bounds.width()),
-                    round(bounds.height()),
-                    uv.x() * textureWidth,
-                    uv.y() * textureHeight,
-                    Math.max(1, round(uv.width() * textureWidth)),
-                    Math.max(1, round(uv.height() * textureHeight)),
-                    textureWidth,
-                    textureHeight);
-        } finally {
-            graphics.setColor(1.0f, 1.0f, 1.0f, 1.0f);
+        TextureBinding binding = TextureBinding.resolve(texture);
+        if (binding != null) {
+            renderTextureBinding(binding, command);
         }
     }
 
-    private void renderTextureId(int textureId, boolean flipY, boolean premultipliedSource, DrawCommand command) {
+    private void renderTextureBinding(TextureBinding binding, DrawCommand command) {
         RectView bounds = command.bounds();
         RectView uv = command.uv();
         ColorView tint = command.paint().color();
 
         float minU = uv.x();
         float maxU = uv.x() + uv.width();
-        float minV = flipY ? uv.y() + uv.height() : uv.y();
-        float maxV = flipY ? uv.y() : uv.y() + uv.height();
+        float minV = binding.flipY() ? uv.y() + uv.height() : uv.y();
+        float maxV = binding.flipY() ? uv.y() : uv.y() + uv.height();
         int x1 = round(bounds.x());
         int y1 = round(bounds.y());
         int x2 = round(bounds.x() + bounds.width());
@@ -1034,11 +1005,13 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
 
         graphics.flush();
         RenderState state = RenderState.capture();
+        MinecraftTextureSamplerState.Scope sampler = null;
         try {
-            RenderSystem.setShaderTexture(0, textureId);
+            binding.bind();
+            sampler = MinecraftTextureSamplerState.apply(binding.options());
             RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
             RenderSystem.enableBlend();
-            MinecraftUiBlend.applyTextureAlpha(premultipliedSource, activeRenderTarget != null);
+            MinecraftUiBlend.applyTextureAlpha(binding.premultipliedAlpha(), activeRenderTarget != null);
             RenderSystem.disableDepthTest();
             RenderSystem.depthMask(false);
             RenderSystem.disableCull();
@@ -1050,6 +1023,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
             addTextureVertex(buffer, matrix, x2, y1, maxU, minV, tint);
             MinecraftBufferCompat.drawWithShader(buffer);
         } finally {
+            if (sampler != null) sampler.close();
             state.restore();
         }
     }
@@ -1094,9 +1068,11 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
     private void renderTexturedMesh(DrawMesh mesh, TextureBinding binding) {
         graphics.flush();
         RenderState state = RenderState.capture();
+        MinecraftTextureSamplerState.Scope sampler = null;
         try {
             RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
             binding.bind();
+            sampler = MinecraftTextureSamplerState.apply(binding.options());
             RenderSystem.enableBlend();
             MinecraftUiBlend.applyTextureAlpha(binding.premultipliedAlpha(), activeRenderTarget != null);
             RenderSystem.disableDepthTest();
@@ -1113,6 +1089,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
             }
             MinecraftBufferCompat.drawWithShader(buffer);
         } finally {
+            if (sampler != null) sampler.close();
             state.restore();
         }
     }
@@ -1243,15 +1220,6 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
         MinecraftBufferCompat.colorVertex(buffer, matrix, x, y, color);
     }
 
-    private ResourceLocation resolveTexture(TextureHandle texture) {
-        if (texture == null) return null;
-        Object nativeHandle = texture.nativeHandle();
-        if (nativeHandle instanceof ResourceLocation location) {
-            return location;
-        }
-        return ResourceLocation.tryParse(texture.id());
-    }
-
     private static int argb(ColorView color) {
         int a = channel(color.a());
         int r = channel(color.r());
@@ -1304,20 +1272,22 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
         return inverse2 * inverse * x0 + 3.0f * inverse2 * t * x1 + 3.0f * inverse * t2 * x2 + t2 * t * x3;
     }
 
-    private record TextureBinding(Integer textureId, ResourceLocation location, boolean flipY, boolean premultipliedAlpha) {
+    private record TextureBinding(Integer textureId, ResourceLocation location, boolean flipY,
+                                  boolean premultipliedAlpha, TextureOptions options) {
         private static TextureBinding resolve(TextureHandle texture) {
             if (texture == null) return null;
+            TextureOptions options = texture.options() == null ? TextureOptions.defaults() : texture.options();
             Object nativeHandle = texture.nativeHandle();
             if (nativeHandle instanceof MinecraftRenderTarget.ColorTextureHandle colorTexture) {
-                return new TextureBinding(colorTexture.textureId(), null, colorTexture.flipY(), true);
+                return new TextureBinding(colorTexture.textureId(), null, colorTexture.flipY(), true, options);
             }
             if (nativeHandle instanceof Integer textureId) {
-                return new TextureBinding(textureId, null, false, false);
+                return new TextureBinding(textureId, null, false, options.premultipliedAlpha(), options);
             }
             ResourceLocation location = nativeHandle instanceof ResourceLocation resourceLocation
                     ? resourceLocation
                     : ResourceLocation.tryParse(texture.id());
-            return location == null ? null : new TextureBinding(null, location, false, false);
+            return location == null ? null : new TextureBinding(null, location, false, options.premultipliedAlpha(), options);
         }
 
         private void bind() {

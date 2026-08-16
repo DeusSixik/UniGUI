@@ -7,6 +7,10 @@ public interface TextureHandle {
 
     int height();
 
+    default TextureOptions options() {
+        return TextureOptions.defaults();
+    }
+
     default Object nativeHandle() {
         return null;
     }

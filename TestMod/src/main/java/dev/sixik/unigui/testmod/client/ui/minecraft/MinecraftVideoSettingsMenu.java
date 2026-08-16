@@ -1,5 +1,6 @@
 package dev.sixik.unigui.testmod.client.ui.minecraft;
 
+import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.platform.Monitor;
 import com.mojang.blaze3d.platform.VideoMode;
 import com.mojang.blaze3d.platform.Window;
@@ -19,6 +20,8 @@ import dev.sixik.unigui.api.layout.Overflow;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.render.TextureHandle;
+import dev.sixik.unigui.api.render.TextureOptions;
 import dev.sixik.unigui.api.render.UiRenderPolicy;
 import dev.sixik.unigui.api.render.shaders.ShaderDrawOptions;
 import dev.sixik.unigui.api.render.shaders.ShaderHandle;
@@ -27,6 +30,7 @@ import dev.sixik.unigui.api.text.Fonts;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.backend.minecraft.UniGuiTextures;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.backend.minecraft.MinecraftClipboardService;
 import dev.sixik.unigui.backend.minecraft.MinecraftWidgetScreen;
@@ -71,6 +75,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.OptionEnum;
 import org.lwjgl.glfw.GLFW;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -85,6 +91,10 @@ public final class MinecraftVideoSettingsMenu {
     private static final Component WARNING_TITLE = Component.translatable("options.graphics.warning.title").withStyle(ChatFormatting.RED);
     private static final Component WARNING_ACCEPT = Component.translatable("options.graphics.warning.accept");
     private static final Component WARNING_CANCEL = Component.translatable("options.graphics.warning.cancel");
+
+    private static final String CLOUD_TEXTURE_ID = "unigui_testmod:dynamic/video_settings_cloud_background";
+    private static TextureHandle futureCloudBackground;
+    private static boolean futureCloudBackgroundLoadFailed;
 
     private static final ShaderDrawOptions FUTURE_STARFIELD_OPTIONS = ShaderDrawOptions.defaults()
             .blend(true)
@@ -344,9 +354,43 @@ public final class MinecraftVideoSettingsMenu {
                     height,
                     ShaderUniforms.empty(),
                     FUTURE_STARFIELD_OPTIONS);
+//            TextureHandle texture = futureCloudBackground();
+//            if (texture != null) {
+//                context.texture(texture,
+//                        backdrop.layoutBounds().x(),
+//                        backdrop.layoutBounds().y(),
+//                        width,
+//                        height,
+//                        new Paint());
+//            }
         });
         backdrop.layout(style -> style.align(Alignment.STRETCH, Alignment.STRETCH));
         return backdrop;
+    }
+
+    private static TextureHandle futureCloudBackground() {
+        if (futureCloudBackground != null || futureCloudBackgroundLoadFailed) return futureCloudBackground;
+
+        try (InputStream stream = cloudTextureStream()) {
+            if (stream == null) {
+                futureCloudBackgroundLoadFailed = true;
+                return null;
+            }
+            futureCloudBackground = UniGuiTextures.replace(
+                    CLOUD_TEXTURE_ID,
+                    NativeImage.read(stream),
+                    TextureOptions.linear());
+            return futureCloudBackground;
+        } catch (IOException | RuntimeException failure) {
+            futureCloudBackgroundLoadFailed = true;
+            return null;
+        }
+    }
+
+    private static InputStream cloudTextureStream() {
+        ClassLoader loader = MinecraftVideoSettingsMenu.class.getClassLoader();
+        InputStream stream = loader.getResourceAsStream("assets/unigui_testmod/textures/gui/uniformclouds-1.png");
+        return stream != null ? stream : loader.getResourceAsStream("assets/test_mod/uniformclouds-1.png");
     }
 
     private static Box settingsPanel(Screen last,
