@@ -63,6 +63,7 @@ import dev.sixik.unigui.api.xml.XmlWidgetTemplateCatalog;
 import dev.sixik.unigui.api.xml.XmlWidgetTemplateKind;
 import dev.sixik.unigui.api.xml.XmlWidgetTemplateValues;
 import dev.sixik.unigui.widgets.containers.Box;
+import dev.sixik.unigui.widgets.containers.GridBox;
 import dev.sixik.unigui.widgets.containers.HBox;
 import dev.sixik.unigui.widgets.containers.ScrollView;
 import dev.sixik.unigui.widgets.containers.VBox;
@@ -71,15 +72,18 @@ import dev.sixik.unigui.widgets.data.VirtualListView;
 import dev.sixik.unigui.widgets.data.VirtualTableView;
 import dev.sixik.unigui.widgets.display.ImageView;
 import dev.sixik.unigui.widgets.display.Label;
+import dev.sixik.unigui.widgets.display.Shape;
 import dev.sixik.unigui.widgets.display.TextWidget;
 import dev.sixik.unigui.widgets.display.TextureWidget;
 import dev.sixik.unigui.widgets.docking.DockingRoot;
 import dev.sixik.unigui.widgets.feedback.ProgressBar;
+import dev.sixik.unigui.widgets.feedback.Spinner;
 import dev.sixik.unigui.widgets.graph.GraphView;
 import dev.sixik.unigui.widgets.graph.NodeGraph;
 import dev.sixik.unigui.widgets.graph.NodeGraphSelectionMode;
 import dev.sixik.unigui.widgets.interaction.Button;
 import dev.sixik.unigui.widgets.interaction.Slider;
+import dev.sixik.unigui.widgets.interaction.TextField;
 import dev.sixik.unigui.widgets.map.MapCanvas;
 import dev.sixik.unigui.widgets.map.MapMarker;
 import dev.sixik.unigui.widgets.navigation.Accordion;
@@ -184,9 +188,19 @@ public final class XmlWidgetSelfTest {
                 "XMLWidget.create(InputStream, type) should load UTF-8 XML");
 
         Box fromResource = XMLWidget.createResource("assets/unigui/xml/xml_demo.xml", Box.class);
-        expect(fromResource.id().equals("panel"), "XMLWidget.createResource should load XML from classpath resources");
-        expect(XMLWidget.getWidget(fromResource, "meter", ProgressBar.class).value() == 42.0f,
-                "Resource-loaded demo XML should materialize nested controls");
+        expect(fromResource.id().equals("serverDashboard"), "XMLWidget.createResource should load XML from classpath resources");
+        expect(XMLWidget.getWidget(fromResource, "statusDot", Shape.class).type() == Shape.Type.CIRCLE,
+                "Resource-loaded demo XML should materialize annotated display widgets");
+        expect(near(XMLWidget.getWidget(fromResource, "statusDot", Shape.class).color().g(), 0xB9 / 255.0f),
+                "Resource-loaded demo XML should apply Shape color attributes");
+        expect(XMLWidget.getWidget(fromResource, "syncSpinner", Spinner.class).running(),
+                "Resource-loaded demo XML should materialize annotated feedback widgets");
+        expect(XMLWidget.getWidget(fromResource, "actionGrid", GridBox.class).children().size() == 4,
+                "Resource-loaded demo XML should materialize annotated container widgets");
+        expect(near(XMLWidget.getWidget(fromResource, "cpuBar", ProgressBar.class).value(), 67.0f),
+                "Resource-loaded demo XML should apply nested control attributes");
+        expect(XMLWidget.getWidget(fromResource, "commandInput", TextField.class).placeholder().contains("command"),
+                "Resource-loaded demo XML should materialize annotated input widgets");
 
         VBox overview = XMLWidget.createResource("assets/unigui/xml/overview.xml", VBox.class);
         expect(XMLWidget.getWidget(overview, "overviewTitle", Label.class).text().equals("Overview"),

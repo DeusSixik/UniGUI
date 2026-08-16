@@ -2,9 +2,11 @@ package dev.sixik.unigui.impl.xml;
 
 import dev.sixik.unigui.api.widget.CheckboxState;
 import dev.sixik.unigui.widgets.feedback.ProgressBar;
+import dev.sixik.unigui.widgets.feedback.Spinner;
 import dev.sixik.unigui.widgets.interaction.Button;
 import dev.sixik.unigui.widgets.interaction.Checkbox;
 import dev.sixik.unigui.widgets.interaction.Slider;
+import dev.sixik.unigui.widgets.interaction.TextField;
 import dev.sixik.unigui.widgets.interaction.ToggleButton;
 
 final class BuiltInControlXml {
@@ -17,6 +19,8 @@ final class BuiltInControlXml {
         checkbox(registry.register("Checkbox", Checkbox::new));
         slider(registry.register("Slider", Slider::new));
         progressBar(registry.register("ProgressBar", ProgressBar::new));
+        BuiltInWidgetXmlSupport.box(registry.register("Spinner", Spinner::new), Spinner.class);
+        BuiltInWidgetXmlSupport.box(registry.register("TextField", TextField::new), TextField.class);
     }
 
     private static <T extends Button> WidgetXmlType<T> button(WidgetXmlType<T> type) {

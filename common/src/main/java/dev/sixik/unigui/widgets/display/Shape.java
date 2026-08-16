@@ -1,6 +1,7 @@
 package dev.sixik.unigui.widgets.display;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
@@ -39,6 +40,12 @@ public class Shape extends WidgetBase {
 
     public MutableColor color() {
         return color;
+    }
+
+    @XmlAttribute(value = "color", category = "Appearance", defaultValue = "#FFFFFFFF", description = "Shape fill or stroke color parsed from XML color syntax.")
+    public Shape color(ColorView color) {
+        if (color != null) this.color.set(color);
+        return this;
     }
 
     public ShapeRenderer renderer() {

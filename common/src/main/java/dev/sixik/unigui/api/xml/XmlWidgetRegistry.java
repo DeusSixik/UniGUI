@@ -5,6 +5,7 @@ import dev.sixik.unigui.impl.xml.BuiltInWidgetXmlRegistry;
 import dev.sixik.unigui.impl.xml.WidgetXmlRegistry;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 
@@ -171,6 +172,19 @@ public final class XmlWidgetRegistry {
         return delegate.types().stream()
                 .map(dev.sixik.unigui.impl.xml.WidgetXmlType::descriptor)
                 .toList();
+    }
+
+    /**
+     * Возвращает aliases, зарегистрированные в реестре.
+     *
+     * <p>Ключ map — alias XML-имя, значение — основное XML-имя descriptor-а.
+     * Snapshot immutable и подходит для генераторов документации, палитр редактора
+     * и подсказок автодополнения.</p>
+     *
+     * @return immutable snapshot соответствий alias-to-target
+     */
+    public Map<String, String> aliases() {
+        return delegate.aliases();
     }
 
     WidgetXmlRegistry delegate() {

@@ -288,7 +288,7 @@ public final class XmlWidgetAnnotations {
         if (Modifier.isStatic(method.getModifiers()) || method.getParameterCount() != 1) return;
 
         String name = annotation.value().trim();
-        XmlValueParser<?> parser = parserFor(method.getParameterTypes()[0]);
+        XmlValueParser<?> parser = parserFor(method.getParameterTypes()[0], annotation);
         method.setAccessible(true);
         registerReflectedAttribute(registered, name, parser, descriptor(name, annotation), method);
     }
@@ -301,7 +301,7 @@ public final class XmlWidgetAnnotations {
         if (Modifier.isStatic(method.getModifiers()) || method.getParameterCount() != 1) return;
 
         String name = annotation.value().trim();
-        XmlValueParser<?> parser = parserFor(method.getParameterTypes()[0]);
+        XmlValueParser<?> parser = parserFor(method.getParameterTypes()[0], annotation);
         method.setAccessible(true);
         registerImplReflectedAttribute(registered, name, parser, descriptor(name, annotation), method);
     }
@@ -422,10 +422,16 @@ public final class XmlWidgetAnnotations {
     }
 
     private static XmlValueParser<?> parserFor(Class<?> type) {
+        return parserFor(type, null);
+    }
+
+    private static XmlValueParser<?> parserFor(Class<?> type, XmlAttribute annotation) {
         if (type == String.class) return XmlValueParsers.STRING;
         if (type == boolean.class || type == Boolean.class) return XmlValueParsers.BOOLEAN;
         if (type == int.class || type == Integer.class) return XmlValueParsers.INT;
-        if (type == float.class || type == Float.class) return XmlValueParsers.FLOAT;
+        if (type == float.class || type == Float.class) {
+            return supportsAutoFloat(annotation) ? XmlValueParsers.FLOAT_OR_AUTO : XmlValueParsers.FLOAT;
+        }
         if (type == double.class || type == Double.class) return XmlValueParsers.DOUBLE;
         if (type == SizeValue.class) return XmlValueParsers.SIZE;
         if (type == EdgeInsets.class) return XmlValueParsers.INSETS;
@@ -434,6 +440,12 @@ public final class XmlWidgetAnnotations {
         if (type == TextureHandle.class) return XmlValueParsers.TEXTURE;
         if (type.isEnum()) return enumParser(type);
         throw new IllegalArgumentException("Unsupported @XmlAttribute parameter type: " + type.getName());
+    }
+
+    private static boolean supportsAutoFloat(XmlAttribute annotation) {
+        if (annotation == null) return false;
+        return "auto".equalsIgnoreCase(annotation.defaultValue().trim())
+                || annotation.description().toLowerCase(java.util.Locale.ROOT).contains("or auto");
     }
 
     private static boolean supportsParser(Class<?> type) {

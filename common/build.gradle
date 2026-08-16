@@ -116,6 +116,15 @@ tasks.register("xmlWidgetSelfTest", JavaExec) {
     mainClass = "dev.sixik.unigui.tests.XmlWidgetSelfTest"
 }
 
+tasks.register("dumpXmlWidgetReference", JavaExec) {
+    group = "documentation"
+    description = "Generates XML widget reference markdown from registry descriptors."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.XmlWidgetReferenceDump"
+    args rootProject.file("XML_WIDGET_REFERENCE.md").absolutePath
+}
+
 tasks.named("test") {
     dependsOn tasks.named("layoutV3SelfTest")
     dependsOn tasks.named("windowManagerSelfTest")

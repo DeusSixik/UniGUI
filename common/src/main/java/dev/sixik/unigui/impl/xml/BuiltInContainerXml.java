@@ -2,9 +2,11 @@ package dev.sixik.unigui.impl.xml;
 
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.containers.Box;
+import dev.sixik.unigui.widgets.containers.GridBox;
 import dev.sixik.unigui.widgets.containers.HBox;
 import dev.sixik.unigui.widgets.containers.PanelWidget;
 import dev.sixik.unigui.widgets.containers.ScrollView;
+import dev.sixik.unigui.widgets.containers.SettingRow;
 import dev.sixik.unigui.widgets.containers.StackPanel;
 import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.containers.WrapPanel;
@@ -22,6 +24,8 @@ final class BuiltInContainerXml {
         panel(registry.register("StackPanel", StackPanel::new));
         panel(wrapPanel(registry.register("WrapPanel", WrapPanel::new)));
         scrollView(registry.register("ScrollView", ScrollView::new));
+        BuiltInWidgetXmlSupport.annotated(panel(registry.register("GridBox", GridBox::new)), GridBox.class);
+        BuiltInWidgetXmlSupport.commonWidget(registry.register("SettingRow", SettingRow::new), SettingRow.class);
     }
 
     private static <T extends PanelWidget> WidgetXmlType<T> panel(WidgetXmlType<T> type) {

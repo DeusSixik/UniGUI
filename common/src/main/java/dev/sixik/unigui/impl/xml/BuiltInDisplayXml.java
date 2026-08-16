@@ -1,9 +1,12 @@
 package dev.sixik.unigui.impl.xml;
 
+import dev.sixik.unigui.widgets.display.Chart;
 import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.widgets.display.ImageView;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.display.Separator;
+import dev.sixik.unigui.widgets.display.Shape;
+import dev.sixik.unigui.widgets.display.Sparkline;
 import dev.sixik.unigui.widgets.display.Text;
 import dev.sixik.unigui.widgets.display.TextBlock;
 import dev.sixik.unigui.widgets.display.TextWidget;
@@ -22,6 +25,9 @@ final class BuiltInDisplayXml {
         BuiltInWidgetXmlSupport.textureWidget(registry.register("ImageView", ImageView::new), ImageView.class);
 
         separator(registry.register("Separator", Separator::new));
+        BuiltInWidgetXmlSupport.commonWidget(registry.register("Shape", Shape::new), Shape.class);
+        BuiltInWidgetXmlSupport.commonWidget(registry.register("Sparkline", Sparkline::new), Sparkline.class);
+        BuiltInWidgetXmlSupport.commonWidget(registry.register("Chart", Chart::new), Chart.class);
     }
 
     private static WidgetXmlType<Separator> separator(WidgetXmlType<Separator> type) {

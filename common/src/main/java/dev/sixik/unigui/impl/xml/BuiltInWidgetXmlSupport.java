@@ -87,7 +87,11 @@ final class BuiltInWidgetXmlSupport {
                 WidgetBase.class);
     }
 
-    private static <T extends dev.sixik.unigui.api.widget.Widget> WidgetXmlType<T> annotated(WidgetXmlType<T> type, Class<?> widgetType) {
+    static <T extends WidgetBase> WidgetXmlType<T> commonWidget(WidgetXmlType<T> type, Class<?> widgetType) {
+        return annotated(commonWidget(type), widgetType);
+    }
+
+    static <T extends dev.sixik.unigui.api.widget.Widget> WidgetXmlType<T> annotated(WidgetXmlType<T> type, Class<?> widgetType) {
         return XmlWidgetAnnotations.applyAnnotatedAttributes(type, widgetType);
     }
 

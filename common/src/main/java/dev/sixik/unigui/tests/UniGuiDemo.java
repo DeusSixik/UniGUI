@@ -654,6 +654,12 @@ public final class UniGuiDemo {
 
     private static void wireXmlDemoPanel(Box panel) {
         if (panel == null) return;
+
+        if(XMLWidget.findWidget(panel, "playerChart").isEmpty())
+            return;
+        Chart chart = XMLWidget.getWidget(panel, "playerChart", Chart.class);
+        chart.values(List.of(8, 14, 10, 22, 18, 30, 24, 36, 28));
+
 //
 //        Slider amount = XMLWidget.getWidget(panel, "amount", Slider.class);
 //        ProgressBar meter = XMLWidget.getWidget(panel, "meter", ProgressBar.class);

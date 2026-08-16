@@ -59,4 +59,8 @@ public final class WidgetXmlRegistry {
     public List<WidgetXmlType<? extends Widget>> types() {
         return List.copyOf(types.values());
     }
+
+    public Map<String, String> aliases() {
+        return Map.copyOf(aliases);
+    }
 }

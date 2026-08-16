@@ -1,35 +1,351 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Box id="panel"
-     width="392"
-     height="248"
+<Box id="reactorPanel"
+     width="560"
+     height="420"
      align="center"
      padding="12"
-     background="#101827F2"
+     background="#0B101DF2"
      backgroundTexture="unigui:dynamic/xml_demo_uniformclouds"
      backgroundTextureWidth="1024"
      backgroundTextureHeight="1024"
      backgroundTextureFit="cover"
-     backgroundTextureTint="#6F5FD966"
+     backgroundTextureTint="#24406F55"
      backgroundTextureSampling="linear"
-     border="#4C86CBE6"
+     border="#4A7DFFE6"
      borderWidth="1"
-     radius="4"
+     radius="8"
      themeEnabled="false">
-    <VBox id="content" spacing="8" alignItems="stretch">
-        <Label id="title" text="XMLWidget Prototype" color="#F2F7FFFF" height="20" />
-        <TextBlock id="body"
-                   text="This panel was deserialized from a classpath XML resource. Java only finds widgets by id and wires events."
-                   color="#B9C7D9FF"
-                   height="42"
-                   overflowMode="clip" />
-        <Slider id="amount" min="0" max="100" value="42" step="1" height="18" />
-        <ProgressBar id="meter" min="0" max="100" value="42" height="12" fillColor="#52D273FF" />
-        <HBox id="actions" spacing="8" justifyContent="center" height="26">
-            <Button id="apply" text="Apply" width="76" height="22" />
-            <Button id="cycle" text="Cycle" width="76" height="22" />
-            <Checkbox id="strict" text="Strict XML" checked="true" width="104" height="22" />
-            <Button id="close" text="Close" width="76" height="22" />
+
+    <VBox id="layout"
+          spacing="10"
+          alignItems="stretch"
+          flexGrow="1"
+          flexShrink="1">
+
+        <HBox id="header"
+              spacing="8"
+              alignItems="center"
+              height="34"
+              flexGrow="0"
+              flexShrink="0">
+
+            <VBox id="headerText"
+                  spacing="2"
+                  width="390"
+                  flexGrow="0"
+                  flexShrink="0">
+
+                <Label id="title"
+                       text="Aurora Reactor Control"
+                       color="#EAF4FFFF"
+                       height="18"
+                       flexGrow="0"
+                       flexShrink="0" />
+
+                <Label id="subtitle"
+                       text="Experimental energy core dashboard"
+                       color="#8FB7FFFF"
+                       height="14"
+                       flexGrow="0"
+                       flexShrink="0" />
+            </VBox>
+
+            <Checkbox id="safeMode"
+                      text="Safe Mode"
+                      checked="true"
+                      width="120"
+                      height="20"
+                      flexGrow="0"
+                      flexShrink="0" />
         </HBox>
-        <Label id="status" text="Loaded via XMLWidget.createResource(...)." color="#75D7FFFF" height="18" />
+
+        <WrapPanel id="metricCards"
+                   spacing="8"
+                   lineSpacing="8"
+                   flexGrow="0"
+                   flexShrink="0">
+
+            <Box id="temperatureCard"
+                 width="126"
+                 minHeight="104"
+                 background="#0F1728EB"
+                 border="#3D5A8FFF"
+                 borderWidth="1"
+                 radius="6"
+                 themeEnabled="false">
+
+                <VBox spacing="4"
+                      margin="8"
+                      alignItems="stretch"
+                      flexGrow="0"
+                      flexShrink="0">
+
+                    <Label text="Temperature"
+                           color="#9BD9FFFF"
+                           height="16"
+                           flexGrow="0"
+                           flexShrink="0" />
+
+                    <TextBlock text="Core heat is stable but needs monitoring during burst phase."
+                               color="#B9C7D9FF"
+                               width="110"
+                               height="36"
+                               wrap="true"
+                               overflowMode="clip"
+                               flexGrow="0"
+                               flexShrink="0" />
+
+                    <ProgressBar id="temperatureBar"
+                                 min="0"
+                                 max="100"
+                                 value="58"
+                                 height="10"
+                                 fillColor="#FFB454FF"
+                                 flexGrow="0"
+                                 flexShrink="0" />
+                </VBox>
+            </Box>
+
+            <Box id="energyCard"
+                 width="126"
+                 minHeight="104"
+                 background="#0F1728EB"
+                 border="#3D5A8FFF"
+                 borderWidth="1"
+                 radius="6"
+                 themeEnabled="false">
+
+                <VBox spacing="4"
+                      margin="8"
+                      alignItems="stretch"
+                      flexGrow="0"
+                      flexShrink="0">
+
+                    <Label text="Energy"
+                           color="#9BD9FFFF"
+                           height="16"
+                           flexGrow="0"
+                           flexShrink="0" />
+
+                    <TextBlock text="Output buffer is charging from residual plasma flow."
+                               color="#B9C7D9FF"
+                               width="110"
+                               height="36"
+                               wrap="true"
+                               overflowMode="clip"
+                               flexGrow="0"
+                               flexShrink="0" />
+
+                    <ProgressBar id="energyBar"
+                                 min="0"
+                                 max="100"
+                                 value="74"
+                                 height="10"
+                                 fillColor="#52D273FF"
+                                 flexGrow="0"
+                                 flexShrink="0" />
+                </VBox>
+            </Box>
+
+            <Box id="fuelCard"
+                 width="126"
+                 minHeight="104"
+                 background="#0F1728EB"
+                 border="#3D5A8FFF"
+                 borderWidth="1"
+                 radius="6"
+                 themeEnabled="false">
+
+                <VBox spacing="4"
+                      margin="8"
+                      alignItems="stretch"
+                      flexGrow="0"
+                      flexShrink="0">
+
+                    <Label text="Fuel"
+                           color="#9BD9FFFF"
+                           height="16"
+                           flexGrow="0"
+                           flexShrink="0" />
+
+                    <TextBlock text="Fuel rods are at partial capacity. Replace after cycle."
+                               color="#B9C7D9FF"
+                               width="110"
+                               height="36"
+                               wrap="true"
+                               overflowMode="clip"
+                               flexGrow="0"
+                               flexShrink="0" />
+
+                    <ProgressBar id="fuelBar"
+                                 min="0"
+                                 max="100"
+                                 value="41"
+                                 height="10"
+                                 fillColor="#F2D25BFF"
+                                 flexGrow="0"
+                                 flexShrink="0" />
+                </VBox>
+            </Box>
+
+            <Box id="shieldCard"
+                 width="126"
+                 minHeight="104"
+                 background="#0F1728EB"
+                 border="#3D5A8FFF"
+                 borderWidth="1"
+                 radius="6"
+                 themeEnabled="false">
+
+                <VBox spacing="4"
+                      margin="8"
+                      alignItems="stretch"
+                      flexGrow="0"
+                      flexShrink="0">
+
+                    <Label text="Shield"
+                           color="#9BD9FFFF"
+                           height="16"
+                           flexGrow="0"
+                           flexShrink="0" />
+
+                    <TextBlock text="Deflector grid holds strong under current load."
+                               color="#B9C7D9FF"
+                               width="110"
+                               height="36"
+                               wrap="true"
+                               overflowMode="clip"
+                               flexGrow="0"
+                               flexShrink="0" />
+
+                    <ProgressBar id="shieldBar"
+                                 min="0"
+                                 max="100"
+                                 value="87"
+                                 height="10"
+                                 fillColor="#66A9FFFF"
+                                 flexGrow="0"
+                                 flexShrink="0" />
+                </VBox>
+            </Box>
+        </WrapPanel>
+
+        <Box id="controlsCard"
+             flexGrow="0"
+             flexShrink="0"
+             background="#0C1222E6"
+             border="#33475CBF"
+             borderWidth="1"
+             radius="6"
+             themeEnabled="false">
+
+            <VBox spacing="8"
+                  margin="10"
+                  alignItems="stretch"
+                  flexGrow="0"
+                  flexShrink="0">
+
+                <HBox spacing="8"
+                      alignItems="center"
+                      height="18"
+                      flexGrow="0"
+                      flexShrink="0">
+
+                    <Label text="Power Limit"
+                           color="#D6E6FFFF"
+                           width="90"
+                           height="16"
+                           flexGrow="0"
+                           flexShrink="0" />
+
+                    <Slider id="powerLimit"
+                            min="0"
+                            max="100"
+                            value="66"
+                            step="1"
+                            width="300"
+                            height="16"
+                            flexGrow="0"
+                            flexShrink="0" />
+
+                    <Label id="powerValue"
+                           text="66%"
+                           color="#7DFFB1FF"
+                           width="36"
+                           height="16"
+                           flexGrow="0"
+                           flexShrink="0" />
+                </HBox>
+
+                <HBox id="controlsRow"
+                      spacing="8"
+                      justifyContent="center"
+                      height="26"
+                      flexGrow="0"
+                      flexShrink="0">
+
+                    <Button id="startReactor"
+                            text="Start"
+                            width="90"
+                            height="24" />
+
+                    <Button id="stopReactor"
+                            text="Stop"
+                            width="90"
+                            height="24" />
+
+                    <Button id="ventPlasma"
+                            text="Vent"
+                            width="90"
+                            height="24" />
+
+                    <Button id="autoTune"
+                            text="Auto Tune"
+                            width="110"
+                            height="24" />
+                </HBox>
+            </VBox>
+        </Box>
+
+        <Box id="logCard"
+             flexGrow="0"
+             flexShrink="0"
+             minHeight="104"
+             background="#080C16E0"
+             border="#27405FBF"
+             borderWidth="1"
+             radius="6"
+             themeEnabled="false">
+
+            <VBox spacing="6"
+                  margin="8"
+                  alignItems="stretch"
+                  flexGrow="0"
+                  flexShrink="0">
+
+                <Label text="Event Log"
+                       color="#93A9C9FF"
+                       height="16"
+                       flexGrow="0"
+                       flexShrink="0" />
+
+                <TextBlock id="logText"
+                           text="Core initialized. Coolant pressure normalized. Safe mode enabled. Waiting for operator command."
+                           color="#7FD3FFFF"
+                           width="504"
+                           height="56"
+                           wrap="true"
+                           overflowMode="clip"
+                           flexGrow="0"
+                           flexShrink="0" />
+            </VBox>
+        </Box>
+
+        <Label id="status"
+               text="Status: STANDBY"
+               color="#75D7FFFF"
+               height="18"
+               flexGrow="0"
+               flexShrink="0" />
     </VBox>
 </Box>

@@ -1,6 +1,7 @@
 package dev.sixik.unigui.impl.xml;
 
 import dev.sixik.unigui.api.layout.EdgeInsets;
+import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.layout.SizeValue;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
@@ -23,6 +24,7 @@ public final class XmlValueParsers {
     public static final XmlValueParser<Boolean> BOOLEAN = XmlValueParsers::parseBoolean;
     public static final XmlValueParser<Integer> INT = value -> Integer.parseInt(required(value).trim());
     public static final XmlValueParser<Float> FLOAT = value -> Float.parseFloat(required(value).trim());
+    public static final XmlValueParser<Float> FLOAT_OR_AUTO = XmlValueParsers::parseFloatOrAuto;
     public static final XmlValueParser<Double> DOUBLE = value -> Double.parseDouble(required(value).trim());
     public static final XmlValueParser<MutableColor> COLOR = value -> MutableColor.fromHex(required(value).trim());
     public static final XmlValueParser<MutableRect> RECT = XmlValueParsers::parseRect;
@@ -80,6 +82,12 @@ public final class XmlValueParsers {
             return SizeValue.px(Float.parseFloat(normalized.substring(0, normalized.length() - 2).trim()));
         }
         return SizeValue.px(Float.parseFloat(normalized));
+    }
+
+    private static float parseFloatOrAuto(String value) {
+        String normalized = required(value).trim();
+        if (normalized.equalsIgnoreCase("auto")) return LayoutConstraints.AUTO;
+        return Float.parseFloat(normalized);
     }
 
     private static TextureHandle parseTexture(String value) {

@@ -27,6 +27,8 @@ public final class XmlValueParsers {
     public static final XmlValueParser<Integer> INT = value -> dev.sixik.unigui.impl.xml.XmlValueParsers.INT.parse(value);
     /** Parser float-чисел. */
     public static final XmlValueParser<Float> FLOAT = value -> dev.sixik.unigui.impl.xml.XmlValueParsers.FLOAT.parse(value);
+    /** Parser float-чисел и специального значения {@code auto} для старых layout-полей. */
+    public static final XmlValueParser<Float> FLOAT_OR_AUTO = value -> dev.sixik.unigui.impl.xml.XmlValueParsers.FLOAT_OR_AUTO.parse(value);
     /** Parser double-чисел. */
     public static final XmlValueParser<Double> DOUBLE = value -> dev.sixik.unigui.impl.xml.XmlValueParsers.DOUBLE.parse(value);
     /** Parser цвета в формате {@code RRGGBB}, {@code RRGGBBAA} или с ведущим {@code #}. */
