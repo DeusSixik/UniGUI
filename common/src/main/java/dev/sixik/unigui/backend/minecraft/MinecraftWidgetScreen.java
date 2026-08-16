@@ -37,6 +37,7 @@ import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextRun;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.xml.XmlWidgetScreen;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.impl.debug.DebugOverlayRenderer;
 import dev.sixik.unigui.impl.render.DefaultRenderContext;
@@ -96,11 +97,29 @@ public class MinecraftWidgetScreen extends Screen {
         this(title, root, new DefaultUIContext(new MinecraftClipboardService()));
     }
 
+    public MinecraftWidgetScreen(XmlWidgetScreen<? extends Widget> xmlScreen) {
+        this(Component.empty(), xmlScreen);
+    }
+
+    public MinecraftWidgetScreen(Component title, XmlWidgetScreen<? extends Widget> xmlScreen) {
+        this(title, xmlScreenRoot(xmlScreen), xmlScreenContext(xmlScreen));
+        applyXmlScreenConfig(xmlScreen);
+    }
+
     public MinecraftWidgetScreen(Component title, Widget root, UIContext uiContext) {
         super(title == null ? Component.empty() : title);
         this.root = Objects.requireNonNull(root, "root");
         this.uiContext = uiContext == null ? new DefaultUIContext() : uiContext;
         attachContext(root);
+    }
+
+    private static Widget xmlScreenRoot(XmlWidgetScreen<? extends Widget> xmlScreen) {
+        return Objects.requireNonNull(xmlScreen, "xmlScreen").root();
+    }
+
+    private static UIContext xmlScreenContext(XmlWidgetScreen<? extends Widget> xmlScreen) {
+        return new DefaultUIContext(new MinecraftClipboardService())
+                .scaleProvider(Objects.requireNonNull(xmlScreen, "xmlScreen").scaleProvider());
     }
 
     public Widget root() {
@@ -153,6 +172,16 @@ public class MinecraftWidgetScreen extends Screen {
         layoutInitialized = false;
         invalidateRenderCache();
         root.invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public MinecraftWidgetScreen applyXmlScreenConfig(XmlWidgetScreen<?> xmlScreen) {
+        if (xmlScreen == null) return this;
+        if (uiContext instanceof DefaultUIContext context) {
+            context.scaleProvider(xmlScreen.scaleProvider());
+        }
+        useContextScale();
+        scaleWithMinecraftGui(xmlScreen.scaleWithMinecraftGui());
         return this;
     }
 

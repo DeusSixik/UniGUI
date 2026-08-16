@@ -1,9 +1,13 @@
 package dev.sixik.unigui.impl.xml;
 
+import dev.sixik.unigui.api.core.MutableUIScaleProvider;
+import dev.sixik.unigui.api.core.UIScaleProvider;
+import dev.sixik.unigui.api.core.UnityLikeUIScaleProvider;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.xml.XmlWidgetDiagnostic;
 import dev.sixik.unigui.api.xml.XmlWidgetLoadException;
 import dev.sixik.unigui.api.xml.XmlWidgetOptions;
+import dev.sixik.unigui.api.xml.XmlWidgetScreen;
 import dev.sixik.unigui.widgets.display.TextWidget;
 import dev.sixik.unigui.widgets.interaction.Button;
 
@@ -33,7 +37,9 @@ import java.io.StringReader;
 import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * DOM-загрузчик, который превращает XML-описание в обычное дерево виджетов UniGUI.
@@ -44,6 +50,25 @@ import java.util.Map;
 public final class XmlWidgetLoader {
     private static final String XMLNS_URI = XMLConstants.XMLNS_ATTRIBUTE_NS_URI;
     private static final String LOCATION_KEY = XmlWidgetLoader.class.getName() + ".location";
+    private static final Set<String> SCREEN_ATTRIBUTE_NAMES = Set.of(
+            "type",
+            "scaleProvider",
+            "scaleProviderType",
+            "uiScale",
+            "scale",
+            "referenceWidth",
+            "referenceHeight",
+            "referenceResolution",
+            "match",
+            "userScale",
+            "minScale",
+            "maxScale",
+            "scaleRange",
+            "viewportWidth",
+            "viewportHeight",
+            "viewport",
+            "scaleWithMinecraftGui",
+            "independentScale");
 
     private final WidgetXmlRegistry registry;
     private final int maxDepth;
@@ -70,6 +95,10 @@ public final class XmlWidgetLoader {
     }
 
     public Widget load(String xml) {
+        return loadScreen(xml).root();
+    }
+
+    public XmlWidgetScreen<Widget> loadScreen(String xml) {
         if (xml == null || xml.isBlank()) {
             throw fail("XML widget source must not be blank.");
         }
@@ -77,8 +106,255 @@ public final class XmlWidgetLoader {
             Document document = parse(xml);
             Element root = document.getDocumentElement();
             if (root == null) throw fail("XML document does not contain a root widget.");
-            return readElement(root, new HashMap<>(), 0);
+            if (isScreenElement(elementName(root))) {
+                return readScreenElement(root);
+            }
+            return new XmlWidgetScreen<>(readElement(root, new HashMap<>(), 0), UIScaleProvider.IDENTITY, true);
         }
+    }
+
+    private XmlWidgetScreen<Widget> readScreenElement(Element element) {
+        ScreenConfig config = readScreenConfig(element, "Screen");
+        Map<String, Widget> ids = new HashMap<>();
+        Widget root = null;
+
+        TextContent textContent = textContent(element);
+        if (textContent.hasNonWhitespace()) {
+            throw fail(element, "Screen element cannot contain text content.");
+        }
+
+        NodeList nodes = element.getChildNodes();
+        for (int i = 0; i < nodes.getLength(); i++) {
+            Node node = nodes.item(i);
+            if (!(node instanceof Element childElement)) continue;
+
+            XmlPropertyElement propertyElement = propertyElementName(elementName(childElement), childElement);
+            if (propertyElement != null) {
+                if (!isScreenElement(propertyElement.ownerName())) {
+                    throw fail(childElement, "Property element '" + elementName(childElement)
+                            + "' cannot be used inside Screen.");
+                }
+                switch (propertyElement.propertyName()) {
+                    case "ScaleProvider" -> config = config.merge(readScreenConfig(childElement, elementName(childElement)));
+                    case "Content" -> root = readScreenContentProperty(childElement, root, ids);
+                    default -> throw fail(childElement, "Unknown property element '" + elementName(childElement) + "' on Screen.");
+                }
+                continue;
+            }
+
+            if (root != null) {
+                throw fail(childElement, "Screen element must contain exactly one root widget.");
+            }
+            root = readElement(childElement, ids, 0);
+        }
+
+        if (root == null) {
+            throw fail(element, "Screen element must contain exactly one root widget.");
+        }
+        return new XmlWidgetScreen<>(root, config.scaleProvider(), config.scaleWithMinecraftGui());
+    }
+
+    private Widget readScreenContentProperty(Element element, Widget currentRoot, Map<String, Widget> ids) {
+        validatePropertyElementAttributes(element, elementName(element));
+        TextContent textContent = textContent(element);
+        if (textContent.hasNonWhitespace()) {
+            throw fail(element, "Property element '" + elementName(element) + "' cannot contain text content.");
+        }
+        Widget root = currentRoot;
+        NodeList nodes = element.getChildNodes();
+        for (int i = 0; i < nodes.getLength(); i++) {
+            Node node = nodes.item(i);
+            if (!(node instanceof Element childElement)) continue;
+            if (propertyElementName(elementName(childElement), childElement) != null) {
+                throw fail(childElement, "Property element '" + elementName(element)
+                        + "' must contain a widget element, got property element '" + elementName(childElement) + "'.");
+            }
+            if (root != null) {
+                throw fail(childElement, "Screen element must contain exactly one root widget.");
+            }
+            root = readElement(childElement, ids, 0);
+        }
+        return root;
+    }
+
+    private ScreenConfig readScreenConfig(Element element, String xmlName) {
+        Map<String, XmlAttributeValue> attributes = collectScreenAttributes(element, xmlName);
+        boolean hasScaleProvider = containsAny(attributes,
+                "type", "scaleProvider", "scaleProviderType", "uiScale", "scale", "userScale",
+                "referenceWidth", "referenceHeight", "referenceResolution", "match",
+                "minScale", "maxScale", "scaleRange", "viewportWidth", "viewportHeight", "viewport");
+        boolean hasScaleWithMinecraftGui = containsAny(attributes, "scaleWithMinecraftGui", "independentScale");
+        boolean scaleWithMinecraftGui = !booleanValue(attributes, false, "independentScale");
+        scaleWithMinecraftGui = booleanValue(attributes, scaleWithMinecraftGui, "scaleWithMinecraftGui");
+        return new ScreenConfig(screenScaleProvider(attributes), hasScaleProvider, scaleWithMinecraftGui, hasScaleWithMinecraftGui);
+    }
+
+    private Map<String, XmlAttributeValue> collectScreenAttributes(Element element, String xmlName) {
+        Map<String, XmlAttributeValue> values = new LinkedHashMap<>();
+        NamedNodeMap attributes = element.getAttributes();
+        for (int i = 0; i < attributes.getLength(); i++) {
+            Node attribute = attributes.item(i);
+            if (isNamespaceDeclaration(attribute)) continue;
+
+            String name = attributeName(attribute);
+            if (!SCREEN_ATTRIBUTE_NAMES.contains(name)) {
+                if (strictAttributes) {
+                    throw fail(attribute, "Unknown attribute '" + displayName(attribute) + "' on " + xmlName + ".");
+                }
+                continue;
+            }
+            XmlSourceLocation location = location(attribute);
+            if (values.putIfAbsent(name, new XmlAttributeValue(
+                    displayName(attribute),
+                    attribute.getNodeValue(),
+                    location.line(),
+                    location.column())) != null) {
+                throw fail(attribute, "Duplicate attribute '" + displayName(attribute) + "' on " + xmlName + ".");
+            }
+        }
+        return values;
+    }
+
+    private UIScaleProvider screenScaleProvider(Map<String, XmlAttributeValue> attributes) {
+        String type = stringValue(attributes, null, "scaleProvider", "scaleProviderType", "type");
+        String normalizedType = normalizeName(type == null ? inferredScaleProviderType(attributes) : type);
+        return switch (normalizedType) {
+            case "", "identity", "none", "default" -> UIScaleProvider.IDENTITY;
+            case "fixed" -> UIScaleProvider.fixed(floatValue(attributes, 1.0f, "uiScale", "scale", "userScale"));
+            case "mutable" -> new MutableUIScaleProvider(floatValue(attributes, 1.0f, "uiScale", "scale", "userScale"));
+            case "unity", "unitylike", "unityscale", "canvasscaler", "reference" -> unityLikeScaleProvider(attributes);
+            default -> throw failAttribute(attributeFor(attributes, "scaleProvider", "scaleProviderType", "type"),
+                    "Unknown UIScaleProvider type '" + type + "'.");
+        };
+    }
+
+    private UnityLikeUIScaleProvider unityLikeScaleProvider(Map<String, XmlAttributeValue> attributes) {
+        UnityLikeUIScaleProvider provider = new UnityLikeUIScaleProvider();
+        float[] reference = pairValue(attributes, null, "referenceResolution");
+        if (reference != null) {
+            provider.referenceResolution(reference[0], reference[1]);
+        }
+        provider.referenceResolution(
+                floatValue(attributes, provider.referenceWidth(), "referenceWidth"),
+                floatValue(attributes, provider.referenceHeight(), "referenceHeight"));
+
+        float[] viewport = pairValue(attributes, null, "viewport");
+        if (viewport != null) {
+            provider.viewport(viewport[0], viewport[1]);
+        }
+        provider.viewport(
+                floatValue(attributes, provider.viewportWidth(), "viewportWidth"),
+                floatValue(attributes, provider.viewportHeight(), "viewportHeight"));
+
+        provider.match(matchValue(attributes, provider.match(), "match"));
+        provider.userScale(floatValue(attributes, provider.userScale(), "userScale", "uiScale", "scale"));
+
+        float[] range = pairValue(attributes, null, "scaleRange");
+        float min = range == null ? provider.minScale() : range[0];
+        float max = range == null ? provider.maxScale() : range[1];
+        provider.scaleRange(
+                floatValue(attributes, min, "minScale"),
+                floatValue(attributes, max, "maxScale"));
+        return provider;
+    }
+
+    private static String inferredScaleProviderType(Map<String, XmlAttributeValue> attributes) {
+        if (containsAny(attributes,
+                "referenceWidth", "referenceHeight", "referenceResolution", "match",
+                "minScale", "maxScale", "scaleRange", "viewportWidth", "viewportHeight", "viewport")) {
+            return "unity";
+        }
+        if (containsAny(attributes, "uiScale", "scale", "userScale")) return "fixed";
+        return "identity";
+    }
+
+    private static boolean containsAny(Map<String, XmlAttributeValue> attributes, String... names) {
+        for (String name : names) {
+            if (attributes.containsKey(name)) return true;
+        }
+        return false;
+    }
+
+    private static String stringValue(Map<String, XmlAttributeValue> attributes, String fallback, String... names) {
+        XmlAttributeValue value = attributeFor(attributes, names);
+        if (value == null || value.value() == null) return fallback;
+        String normalized = value.value().trim();
+        return normalized.isEmpty() ? fallback : normalized;
+    }
+
+    private static boolean booleanValue(Map<String, XmlAttributeValue> attributes, boolean fallback, String... names) {
+        XmlAttributeValue value = attributeFor(attributes, names);
+        if (value == null) return fallback;
+        try {
+            return XmlValueParsers.BOOLEAN.parse(value.value());
+        } catch (RuntimeException failure) {
+            throw fail("Cannot apply attribute on Screen: Cannot parse/apply attribute '" + value.displayName()
+                    + "' value '" + value.value() + "': " + failure.getMessage(), value.line(), value.column(), failure);
+        }
+    }
+
+    private static float floatValue(Map<String, XmlAttributeValue> attributes, float fallback, String... names) {
+        XmlAttributeValue value = attributeFor(attributes, names);
+        if (value == null) return fallback;
+        try {
+            return XmlValueParsers.FLOAT.parse(value.value());
+        } catch (RuntimeException failure) {
+            throw fail("Cannot apply attribute on Screen: Cannot parse/apply attribute '" + value.displayName()
+                    + "' value '" + value.value() + "': " + failure.getMessage(), value.line(), value.column(), failure);
+        }
+    }
+
+    private static float matchValue(Map<String, XmlAttributeValue> attributes, float fallback, String... names) {
+        XmlAttributeValue value = attributeFor(attributes, names);
+        if (value == null) return fallback;
+        String normalized = normalizeName(value.value());
+        return switch (normalized) {
+            case "width", "horizontal", "x" -> 0.0f;
+            case "balanced", "balance", "center", "middle" -> 0.5f;
+            case "height", "vertical", "y" -> 1.0f;
+            default -> floatValue(attributes, fallback, names);
+        };
+    }
+
+    private static float[] pairValue(Map<String, XmlAttributeValue> attributes, float[] fallback, String... names) {
+        XmlAttributeValue value = attributeFor(attributes, names);
+        if (value == null) return fallback;
+        String[] parts = value.value() == null
+                ? new String[0]
+                : value.value().trim().split("[xX,\\s]+", -1);
+        if (parts.length != 2 || parts[0].isBlank() || parts[1].isBlank()) {
+            throw fail("Cannot apply attribute on Screen: Cannot parse/apply attribute '" + value.displayName()
+                    + "' value '" + value.value() + "': Expected two numeric values.", value.line(), value.column(), null);
+        }
+        try {
+            return new float[] {Float.parseFloat(parts[0]), Float.parseFloat(parts[1])};
+        } catch (RuntimeException failure) {
+            throw fail("Cannot apply attribute on Screen: Cannot parse/apply attribute '" + value.displayName()
+                    + "' value '" + value.value() + "': " + failure.getMessage(), value.line(), value.column(), failure);
+        }
+    }
+
+    private static XmlAttributeValue attributeFor(Map<String, XmlAttributeValue> attributes, String... names) {
+        for (String name : names) {
+            XmlAttributeValue value = attributes.get(name);
+            if (value != null) return value;
+        }
+        return null;
+    }
+
+    private static XmlWidgetLoadException failAttribute(XmlAttributeValue value, String message) {
+        if (value == null) return fail(message);
+        return fail(message, value.line(), value.column(), null);
+    }
+
+    private static boolean isScreenElement(String xmlName) {
+        String normalized = normalizeName(xmlName);
+        return normalized.equals("screen") || normalized.equals("uiscreen") || normalized.equals("xmlscreen");
+    }
+
+    private static String normalizeName(String value) {
+        if (value == null) return "";
+        return value.trim().replace("-", "").replace("_", "").replace(" ", "").toLowerCase(Locale.ROOT);
     }
 
     private Widget readElement(Element element, Map<String, Widget> ids, int depth) {
@@ -405,6 +681,25 @@ public final class XmlWidgetLoader {
     }
 
     private record XmlPropertyElement(String ownerName, String propertyName) {
+    }
+
+    private record ScreenConfig(
+            UIScaleProvider scaleProvider,
+            boolean hasScaleProvider,
+            boolean scaleWithMinecraftGui,
+            boolean hasScaleWithMinecraftGui) {
+        private ScreenConfig {
+            scaleProvider = scaleProvider == null ? UIScaleProvider.IDENTITY : scaleProvider;
+        }
+
+        private ScreenConfig merge(ScreenConfig other) {
+            if (other == null) return this;
+            return new ScreenConfig(
+                    other.hasScaleProvider ? other.scaleProvider : scaleProvider,
+                    hasScaleProvider || other.hasScaleProvider,
+                    other.hasScaleWithMinecraftGui ? other.scaleWithMinecraftGui : scaleWithMinecraftGui,
+                    hasScaleWithMinecraftGui || other.hasScaleWithMinecraftGui);
+        }
     }
 
     private record XmlSourceLocation(int line, int column) {

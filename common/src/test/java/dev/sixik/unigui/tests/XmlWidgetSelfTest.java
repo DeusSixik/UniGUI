@@ -1,5 +1,7 @@
 package dev.sixik.unigui.tests;
 
+import dev.sixik.unigui.api.core.UIScaleProvider;
+import dev.sixik.unigui.api.core.UnityLikeUIScaleProvider;
 import dev.sixik.unigui.api.event.Event;
 import dev.sixik.unigui.api.event.EventSubscription;
 import dev.sixik.unigui.api.layout.Align;
@@ -58,6 +60,7 @@ import dev.sixik.unigui.api.xml.XmlWidgetPrefabCatalog;
 import dev.sixik.unigui.api.xml.XmlWidgetRegistryContributions;
 import dev.sixik.unigui.api.xml.XmlWidgetRuntimeSerializer;
 import dev.sixik.unigui.api.xml.XmlWidgetSerializationOptions;
+import dev.sixik.unigui.api.xml.XmlWidgetScreen;
 import dev.sixik.unigui.api.xml.XmlWidgetSelectionModel;
 import dev.sixik.unigui.api.xml.XmlWidgetTemplateCatalog;
 import dev.sixik.unigui.api.xml.XmlWidgetTemplateKind;
@@ -112,6 +115,7 @@ public final class XmlWidgetSelfTest {
         testTypedRootAttributesAndChildren();
         testStreamAndResourceLoading();
         testLoaderOptions();
+        testScreenScaleProviderXml();
         testNamespaceNameAndTextContent();
         testAliasesAndPropertyElements();
         testCustomRegistryApi();
@@ -229,6 +233,56 @@ public final class XmlWidgetSelfTest {
             expect(failure.getMessage().contains("deeper than the configured limit"),
                     "maxDepth failure should mention configured limit, got: " + failure.getMessage());
         }
+    }
+
+    private void testScreenScaleProviderXml() {
+        XmlWidgetScreen<VBox> fixedScreen = XMLWidget.createScreen("""
+                <Screen uiScale="2.5" scaleWithMinecraftGui="false">
+                    <VBox id="screenRoot" spacing="4" />
+                </Screen>
+                """, VBox.class);
+        expect(fixedScreen.root().id().equals("screenRoot"), "Screen XML should expose its content root widget");
+        expect(near(fixedScreen.scaleProvider().scale(), 2.5f), "Screen uiScale should create a fixed UIScaleProvider");
+        expect(!fixedScreen.scaleWithMinecraftGui(), "Screen scaleWithMinecraftGui=false should be preserved");
+
+        XmlWidgetScreen<Box> unityScreen = XMLWidget.createScreen("""
+                <UIScreen scaleProvider="unity"
+                          referenceResolution="960x540"
+                          match="balanced"
+                          userScale="2"
+                          scaleRange="0.5 8">
+                    <Box id="panel" />
+                </UIScreen>
+                """, Box.class);
+        expect(unityScreen.scaleProvider() instanceof UnityLikeUIScaleProvider,
+                "Screen scaleProvider=unity should create UnityLikeUIScaleProvider");
+        UnityLikeUIScaleProvider unity = (UnityLikeUIScaleProvider) unityScreen.scaleProvider();
+        unity.viewportSize(1920.0f, 1080.0f);
+        expect(near(unity.scale(), 4.0f), "Unity-like XML scale should use reference resolution, match and userScale");
+        expect(unityScreen.scaleWithMinecraftGui(), "Screen should multiply by Minecraft GUI scale by default");
+
+        XmlWidgetScreen<Label> propertyScreen = XMLWidget.createScreen("""
+                <Screen independentScale="true">
+                    <Screen.ScaleProvider type="mutable" scale="3" />
+                    <Screen.Content>
+                        <Label id="caption" text="Scaled" />
+                    </Screen.Content>
+                </Screen>
+                """, Label.class);
+        expect(propertyScreen.root().text().equals("Scaled"), "Screen.Content should provide the typed root widget");
+        expect(near(propertyScreen.scaleProvider().scale(), 3.0f), "Screen.ScaleProvider should configure UIScaleProvider");
+        expect(!propertyScreen.scaleWithMinecraftGui(), "independentScale=true should disable Minecraft GUI scale multiplication");
+
+        XmlWidgetScreen<Label> plainWidget = XMLWidget.createScreen("<Label id=\"plain\" text=\"Plain\" />", Label.class);
+        expect(plainWidget.scaleProvider() == UIScaleProvider.IDENTITY,
+                "Plain widget XML should load as a screen payload with identity scale");
+
+        XmlWidgetDocumentResult editorResult = XmlWidgetDocument.parseEditor("""
+                <Screen uiScale="2">
+                    <Label id="editorCaption" text="Editor" />
+                </Screen>
+                """);
+        expect(editorResult.valid(), "Editor XML validation should accept Screen scale provider wrapper");
     }
 
     private void testNamespaceNameAndTextContent() {

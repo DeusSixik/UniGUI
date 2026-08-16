@@ -125,6 +125,138 @@ public final class XMLWidget {
     }
 
     /**
+     * Загружает XML как screen document: root widget плюс screen-level настройки.
+     *
+     * <p>Обычный widget-root тоже допустим: в этом случае screen-настройки будут дефолтными.
+     * Для явных настроек используй wrapper {@code <Screen>} или {@code <UIScreen>}.</p>
+     *
+     * @param xml исходный XML screen/widget document
+     * @return screen payload с root widget и настройками масштаба
+     */
+    public static XmlWidgetScreen<Widget> createScreen(String xml) {
+        return createScreen(xml, registry(), XmlWidgetOptions.DEFAULT);
+    }
+
+    /**
+     * Загружает XML как screen document с явными настройками loader-а.
+     *
+     * @param xml исходный XML screen/widget document
+     * @param options настройки loader-а; {@code null} заменяется дефолтными
+     * @return screen payload с root widget и настройками масштаба
+     */
+    public static XmlWidgetScreen<Widget> createScreen(String xml, XmlWidgetOptions options) {
+        return createScreen(xml, registry(), options);
+    }
+
+    /**
+     * Загружает XML как screen document, предварительно изменив дефолтные настройки.
+     *
+     * @param xml исходный XML screen/widget document
+     * @param options функция изменения {@link XmlWidgetOptions#DEFAULT}; может быть {@code null}
+     * @return screen payload с root widget и настройками масштаба
+     */
+    public static XmlWidgetScreen<Widget> createScreen(String xml, UnaryOperator<XmlWidgetOptions> options) {
+        return createScreen(xml, applyOptions(options));
+    }
+
+    /**
+     * Загружает XML как screen document через указанный registry.
+     *
+     * @param xml исходный XML screen/widget document
+     * @param registry реестр XML-типов; {@code null} заменяется built-ins
+     * @return screen payload с root widget и настройками масштаба
+     */
+    public static XmlWidgetScreen<Widget> createScreen(String xml, XmlWidgetRegistry registry) {
+        return createScreen(xml, registry, XmlWidgetOptions.DEFAULT);
+    }
+
+    /**
+     * Загружает XML как screen document через указанный registry/options.
+     *
+     * @param xml исходный XML screen/widget document
+     * @param registry реестр XML-типов; {@code null} заменяется built-ins
+     * @param options настройки loader-а; {@code null} заменяется дефолтными
+     * @return screen payload с root widget и настройками масштаба
+     */
+    public static XmlWidgetScreen<Widget> createScreen(String xml, XmlWidgetRegistry registry, XmlWidgetOptions options) {
+        return loader(registry, options).loadScreen(xml);
+    }
+
+    /**
+     * Загружает XML как screen document и проверяет runtime-тип root widget-а.
+     *
+     * @param xml исходный XML screen/widget document
+     * @param widgetType ожидаемый тип root widget-а
+     * @param <T> тип root widget-а
+     * @return typed screen payload
+     */
+    public static <T extends Widget> XmlWidgetScreen<T> createScreen(String xml, Class<T> widgetType) {
+        return createScreen(xml, widgetType, registry(), XmlWidgetOptions.DEFAULT);
+    }
+
+    /**
+     * Загружает XML как screen document и проверяет тип root widget-а с явными настройками.
+     *
+     * @param xml исходный XML screen/widget document
+     * @param widgetType ожидаемый тип root widget-а
+     * @param options настройки loader-а; {@code null} заменяется дефолтными
+     * @param <T> тип root widget-а
+     * @return typed screen payload
+     */
+    public static <T extends Widget> XmlWidgetScreen<T> createScreen(String xml,
+                                                                     Class<T> widgetType,
+                                                                     XmlWidgetOptions options) {
+        return createScreen(xml, widgetType, registry(), options);
+    }
+
+    /**
+     * Загружает XML как screen document и проверяет тип root widget-а, предварительно изменив настройки.
+     *
+     * @param xml исходный XML screen/widget document
+     * @param widgetType ожидаемый тип root widget-а
+     * @param options функция изменения {@link XmlWidgetOptions#DEFAULT}; может быть {@code null}
+     * @param <T> тип root widget-а
+     * @return typed screen payload
+     */
+    public static <T extends Widget> XmlWidgetScreen<T> createScreen(String xml,
+                                                                     Class<T> widgetType,
+                                                                     UnaryOperator<XmlWidgetOptions> options) {
+        return createScreen(xml, widgetType, applyOptions(options));
+    }
+
+    /**
+     * Загружает XML как screen document через указанный registry и проверяет тип root widget-а.
+     *
+     * @param xml исходный XML screen/widget document
+     * @param widgetType ожидаемый тип root widget-а
+     * @param registry реестр XML-типов; {@code null} заменяется built-ins
+     * @param <T> тип root widget-а
+     * @return typed screen payload
+     */
+    public static <T extends Widget> XmlWidgetScreen<T> createScreen(String xml,
+                                                                     Class<T> widgetType,
+                                                                     XmlWidgetRegistry registry) {
+        return createScreen(xml, widgetType, registry, XmlWidgetOptions.DEFAULT);
+    }
+
+    /**
+     * Загружает XML как screen document через указанный registry/options и проверяет тип root widget-а.
+     *
+     * @param xml исходный XML screen/widget document
+     * @param widgetType ожидаемый тип root widget-а
+     * @param registry реестр XML-типов; {@code null} заменяется built-ins
+     * @param options настройки loader-а; {@code null} заменяется дефолтными
+     * @param <T> тип root widget-а
+     * @return typed screen payload
+     */
+    public static <T extends Widget> XmlWidgetScreen<T> createScreen(String xml,
+                                                                     Class<T> widgetType,
+                                                                     XmlWidgetRegistry registry,
+                                                                     XmlWidgetOptions options) {
+        return castScreenRoot(createScreen(xml, registry, options), widgetType);
+    }
+
+    /**
      * Загружает XML-строку и проверяет runtime-тип корневого виджета.
      *
      * @param xml исходный XML виджетов
@@ -251,6 +383,52 @@ public final class XMLWidget {
     }
 
     /**
+     * Загружает XML screen document из UTF-8 потока.
+     *
+     * @param xml поток с XML-текстом; метод не закрывает поток
+     * @return screen payload с root widget и настройками масштаба
+     */
+    public static XmlWidgetScreen<Widget> createScreen(InputStream xml) {
+        return createScreen(readUtf8(xml));
+    }
+
+    /**
+     * Загружает XML screen document из UTF-8 потока с явными настройками.
+     *
+     * @param xml поток с XML-текстом; метод не закрывает поток
+     * @param options настройки loader-а; {@code null} заменяется дефолтными
+     * @return screen payload с root widget и настройками масштаба
+     */
+    public static XmlWidgetScreen<Widget> createScreen(InputStream xml, XmlWidgetOptions options) {
+        return createScreen(readUtf8(xml), options);
+    }
+
+    /**
+     * Загружает XML screen document из UTF-8 потока через указанный registry.
+     *
+     * @param xml поток с XML-текстом; метод не закрывает поток
+     * @param registry реестр XML-типов; {@code null} заменяется built-ins
+     * @return screen payload с root widget и настройками масштаба
+     */
+    public static XmlWidgetScreen<Widget> createScreen(InputStream xml, XmlWidgetRegistry registry) {
+        return createScreen(readUtf8(xml), registry);
+    }
+
+    /**
+     * Загружает XML screen document из UTF-8 потока через указанный registry/options.
+     *
+     * @param xml поток с XML-текстом; метод не закрывает поток
+     * @param registry реестр XML-типов; {@code null} заменяется built-ins
+     * @param options настройки loader-а; {@code null} заменяется дефолтными
+     * @return screen payload с root widget и настройками масштаба
+     */
+    public static XmlWidgetScreen<Widget> createScreen(InputStream xml,
+                                                       XmlWidgetRegistry registry,
+                                                       XmlWidgetOptions options) {
+        return createScreen(readUtf8(xml), registry, options);
+    }
+
+    /**
      * Загружает XML из UTF-8 потока и проверяет тип корневого виджета.
      *
      * @param xml поток с XML-текстом; метод не закрывает поток
@@ -318,6 +496,65 @@ public final class XMLWidget {
                                              XmlWidgetRegistry registry,
                                              XmlWidgetOptions options) {
         return create(readUtf8(xml), widgetType, registry, options);
+    }
+
+    /**
+     * Загружает XML screen document из UTF-8 потока и проверяет тип root widget-а.
+     *
+     * @param xml поток с XML-текстом; метод не закрывает поток
+     * @param widgetType ожидаемый тип root widget-а
+     * @param <T> тип root widget-а
+     * @return typed screen payload
+     */
+    public static <T extends Widget> XmlWidgetScreen<T> createScreen(InputStream xml, Class<T> widgetType) {
+        return createScreen(readUtf8(xml), widgetType);
+    }
+
+    /**
+     * Загружает XML screen document из UTF-8 потока и проверяет тип root widget-а с явными настройками.
+     *
+     * @param xml поток с XML-текстом; метод не закрывает поток
+     * @param widgetType ожидаемый тип root widget-а
+     * @param options настройки loader-а; {@code null} заменяется дефолтными
+     * @param <T> тип root widget-а
+     * @return typed screen payload
+     */
+    public static <T extends Widget> XmlWidgetScreen<T> createScreen(InputStream xml,
+                                                                     Class<T> widgetType,
+                                                                     XmlWidgetOptions options) {
+        return createScreen(readUtf8(xml), widgetType, options);
+    }
+
+    /**
+     * Загружает XML screen document из UTF-8 потока через registry и проверяет тип root widget-а.
+     *
+     * @param xml поток с XML-текстом; метод не закрывает поток
+     * @param widgetType ожидаемый тип root widget-а
+     * @param registry реестр XML-типов; {@code null} заменяется built-ins
+     * @param <T> тип root widget-а
+     * @return typed screen payload
+     */
+    public static <T extends Widget> XmlWidgetScreen<T> createScreen(InputStream xml,
+                                                                     Class<T> widgetType,
+                                                                     XmlWidgetRegistry registry) {
+        return createScreen(readUtf8(xml), widgetType, registry);
+    }
+
+    /**
+     * Загружает XML screen document из UTF-8 потока через registry/options и проверяет тип root widget-а.
+     *
+     * @param xml поток с XML-текстом; метод не закрывает поток
+     * @param widgetType ожидаемый тип root widget-а
+     * @param registry реестр XML-типов; {@code null} заменяется built-ins
+     * @param options настройки loader-а; {@code null} заменяется дефолтными
+     * @param <T> тип root widget-а
+     * @return typed screen payload
+     */
+    public static <T extends Widget> XmlWidgetScreen<T> createScreen(InputStream xml,
+                                                                     Class<T> widgetType,
+                                                                     XmlWidgetRegistry registry,
+                                                                     XmlWidgetOptions options) {
+        return createScreen(readUtf8(xml), widgetType, registry, options);
     }
 
     /**
@@ -517,6 +754,80 @@ public final class XMLWidget {
     }
 
     /**
+     * Загружает XML screen document из classpath-ресурса.
+     *
+     * @param resourcePath путь ресурса в classpath
+     * @return screen payload с root widget и настройками масштаба
+     */
+    public static XmlWidgetScreen<Widget> createScreenResource(String resourcePath) {
+        try (InputStream stream = openResource(resourcePath)) {
+            return createScreen(stream);
+        } catch (IOException failure) {
+            throw new XmlWidgetLoadException("Cannot close XML widget resource '" + resourcePath + "'.", failure);
+        }
+    }
+
+    /**
+     * Загружает XML screen document из classpath-ресурса с явными настройками.
+     *
+     * @param resourcePath путь ресурса в classpath
+     * @param options настройки loader-а; {@code null} заменяется дефолтными
+     * @return screen payload с root widget и настройками масштаба
+     */
+    public static XmlWidgetScreen<Widget> createScreenResource(String resourcePath, XmlWidgetOptions options) {
+        try (InputStream stream = openResource(resourcePath)) {
+            return createScreen(stream, options);
+        } catch (IOException failure) {
+            throw new XmlWidgetLoadException("Cannot close XML widget resource '" + resourcePath + "'.", failure);
+        }
+    }
+
+    /**
+     * Загружает XML screen document из classpath-ресурса, предварительно изменив настройки.
+     *
+     * @param resourcePath путь ресурса в classpath
+     * @param options функция изменения {@link XmlWidgetOptions#DEFAULT}; может быть {@code null}
+     * @return screen payload с root widget и настройками масштаба
+     */
+    public static XmlWidgetScreen<Widget> createScreenResource(String resourcePath,
+                                                              UnaryOperator<XmlWidgetOptions> options) {
+        return createScreenResource(resourcePath, applyOptions(options));
+    }
+
+    /**
+     * Загружает XML screen document из classpath-ресурса через registry.
+     *
+     * @param resourcePath путь ресурса в classpath
+     * @param registry реестр XML-типов; {@code null} заменяется built-ins
+     * @return screen payload с root widget и настройками масштаба
+     */
+    public static XmlWidgetScreen<Widget> createScreenResource(String resourcePath, XmlWidgetRegistry registry) {
+        try (InputStream stream = openResource(resourcePath)) {
+            return createScreen(stream, registry);
+        } catch (IOException failure) {
+            throw new XmlWidgetLoadException("Cannot close XML widget resource '" + resourcePath + "'.", failure);
+        }
+    }
+
+    /**
+     * Загружает XML screen document из classpath-ресурса через registry/options.
+     *
+     * @param resourcePath путь ресурса в classpath
+     * @param registry реестр XML-типов; {@code null} заменяется built-ins
+     * @param options настройки loader-а; {@code null} заменяется дефолтными
+     * @return screen payload с root widget и настройками масштаба
+     */
+    public static XmlWidgetScreen<Widget> createScreenResource(String resourcePath,
+                                                              XmlWidgetRegistry registry,
+                                                              XmlWidgetOptions options) {
+        try (InputStream stream = openResource(resourcePath)) {
+            return createScreen(stream, registry, options);
+        } catch (IOException failure) {
+            throw new XmlWidgetLoadException("Cannot close XML widget resource '" + resourcePath + "'.", failure);
+        }
+    }
+
+    /**
      * Загружает XML из classpath-ресурса и проверяет тип корня.
      *
      * @param resourcePath путь ресурса в classpath
@@ -601,6 +912,82 @@ public final class XMLWidget {
                                                      XmlWidgetOptions options) {
         try (InputStream stream = openResource(resourcePath)) {
             return create(stream, widgetType, registry, options);
+        } catch (IOException failure) {
+            throw new XmlWidgetLoadException("Cannot close XML widget resource '" + resourcePath + "'.", failure);
+        }
+    }
+
+    /**
+     * Загружает XML screen document из classpath-ресурса и проверяет тип root widget-а.
+     *
+     * @param resourcePath путь ресурса в classpath
+     * @param widgetType ожидаемый тип root widget-а
+     * @param <T> тип root widget-а
+     * @return typed screen payload
+     */
+    public static <T extends Widget> XmlWidgetScreen<T> createScreenResource(String resourcePath,
+                                                                             Class<T> widgetType) {
+        try (InputStream stream = openResource(resourcePath)) {
+            return createScreen(stream, widgetType);
+        } catch (IOException failure) {
+            throw new XmlWidgetLoadException("Cannot close XML widget resource '" + resourcePath + "'.", failure);
+        }
+    }
+
+    /**
+     * Загружает XML screen document из classpath-ресурса и проверяет тип root widget-а с явными настройками.
+     *
+     * @param resourcePath путь ресурса в classpath
+     * @param widgetType ожидаемый тип root widget-а
+     * @param options настройки loader-а; {@code null} заменяется дефолтными
+     * @param <T> тип root widget-а
+     * @return typed screen payload
+     */
+    public static <T extends Widget> XmlWidgetScreen<T> createScreenResource(String resourcePath,
+                                                                             Class<T> widgetType,
+                                                                             XmlWidgetOptions options) {
+        try (InputStream stream = openResource(resourcePath)) {
+            return createScreen(stream, widgetType, options);
+        } catch (IOException failure) {
+            throw new XmlWidgetLoadException("Cannot close XML widget resource '" + resourcePath + "'.", failure);
+        }
+    }
+
+    /**
+     * Загружает XML screen document из classpath-ресурса через registry и проверяет тип root widget-а.
+     *
+     * @param resourcePath путь ресурса в classpath
+     * @param widgetType ожидаемый тип root widget-а
+     * @param registry реестр XML-типов; {@code null} заменяется built-ins
+     * @param <T> тип root widget-а
+     * @return typed screen payload
+     */
+    public static <T extends Widget> XmlWidgetScreen<T> createScreenResource(String resourcePath,
+                                                                             Class<T> widgetType,
+                                                                             XmlWidgetRegistry registry) {
+        try (InputStream stream = openResource(resourcePath)) {
+            return createScreen(stream, widgetType, registry);
+        } catch (IOException failure) {
+            throw new XmlWidgetLoadException("Cannot close XML widget resource '" + resourcePath + "'.", failure);
+        }
+    }
+
+    /**
+     * Загружает XML screen document из classpath-ресурса через registry/options и проверяет тип root widget-а.
+     *
+     * @param resourcePath путь ресурса в classpath
+     * @param widgetType ожидаемый тип root widget-а
+     * @param registry реестр XML-типов; {@code null} заменяется built-ins
+     * @param options настройки loader-а; {@code null} заменяется дефолтными
+     * @param <T> тип root widget-а
+     * @return typed screen payload
+     */
+    public static <T extends Widget> XmlWidgetScreen<T> createScreenResource(String resourcePath,
+                                                                             Class<T> widgetType,
+                                                                             XmlWidgetRegistry registry,
+                                                                             XmlWidgetOptions options) {
+        try (InputStream stream = openResource(resourcePath)) {
+            return createScreen(stream, widgetType, registry, options);
         } catch (IOException failure) {
             throw new XmlWidgetLoadException("Cannot close XML widget resource '" + resourcePath + "'.", failure);
         }
@@ -716,6 +1103,11 @@ public final class XMLWidget {
         if (widgetType == null) throw new IllegalArgumentException("widgetType must not be null");
         if (widgetType.isInstance(root)) return widgetType.cast(root);
         throw new XmlWidgetLoadException("XML root is " + simpleName(root) + ", expected " + widgetType.getSimpleName() + ".");
+    }
+
+    private static <T extends Widget> XmlWidgetScreen<T> castScreenRoot(XmlWidgetScreen<Widget> screen, Class<T> widgetType) {
+        T root = castRoot(screen.root(), widgetType);
+        return new XmlWidgetScreen<>(root, screen.scaleProvider(), screen.scaleWithMinecraftGui());
     }
 
     private static <T extends Widget> T castLookup(String id, Widget widget, Class<T> widgetType) {

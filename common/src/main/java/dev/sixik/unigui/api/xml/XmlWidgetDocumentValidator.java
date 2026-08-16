@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -17,6 +18,26 @@ import java.util.Set;
  * допустимость children и повторяющиеся id/name.</p>
  */
 final class XmlWidgetDocumentValidator {
+    private static final Set<String> SCREEN_ATTRIBUTE_NAMES = Set.of(
+            "type",
+            "scaleProvider",
+            "scaleProviderType",
+            "uiScale",
+            "scale",
+            "referenceWidth",
+            "referenceHeight",
+            "referenceResolution",
+            "match",
+            "userScale",
+            "minScale",
+            "maxScale",
+            "scaleRange",
+            "viewportWidth",
+            "viewportHeight",
+            "viewport",
+            "scaleWithMinecraftGui",
+            "independentScale");
+
     private XmlWidgetDocumentValidator() {
     }
 
@@ -43,6 +64,11 @@ final class XmlWidgetDocumentValidator {
             add(diagnostics, element, "Property element '" + element.name() + "' cannot be used as XML root.");
         }
 
+        if (depth == 0 && isScreenElement(element.name())) {
+            validateScreenElement(element, registry, diagnostics, ids, depth);
+            return;
+        }
+
         XmlPropertyElement propertyElement = propertyElementName(element.name());
         if (propertyElement != null) {
             // Property-element синтаксис валиден только внутри owner widget-а и описывается descriptor-ом родителя.
@@ -59,6 +85,100 @@ final class XmlWidgetDocumentValidator {
 
         validateAttributes(element, descriptor.get(), diagnostics, ids);
         validateNormalChildren(element, descriptor.get(), registry, diagnostics, ids, depth);
+    }
+
+    private static void validateScreenElement(XmlWidgetElement element,
+                                              XmlWidgetRegistry registry,
+                                              List<XmlWidgetDiagnostic> diagnostics,
+                                              Map<String, XmlWidgetElement> ids,
+                                              int depth) {
+        validateScreenAttributes(element, diagnostics, "Screen");
+
+        int rootChildren = 0;
+        for (XmlWidgetNode child : element.children()) {
+            if (child instanceof XmlWidgetText text && !text.text().isBlank()) {
+                add(diagnostics, element, "Screen element cannot contain text content.");
+            } else if (child instanceof XmlWidgetElement childElement) {
+                XmlPropertyElement propertyElement = propertyElementName(childElement.name());
+                if (propertyElement != null) {
+                    if (!isScreenElement(propertyElement.ownerName())) {
+                        add(diagnostics, childElement, "Property element '" + childElement.name()
+                                + "' cannot be used inside Screen.");
+                    } else if ("ScaleProvider".equals(propertyElement.propertyName())) {
+                        validateScaleProviderProperty(childElement, diagnostics);
+                    } else if ("Content".equals(propertyElement.propertyName())) {
+                        rootChildren += validateScreenContentProperty(childElement, registry, diagnostics, ids, depth);
+                    } else {
+                        add(diagnostics, childElement, "Unknown property element '" + childElement.name() + "' on Screen.");
+                    }
+                    continue;
+                }
+
+                rootChildren++;
+                validateElement(childElement, registry, diagnostics, ids, null, depth + 1);
+            }
+        }
+
+        if (rootChildren == 0) {
+            add(diagnostics, element, "Screen element must contain exactly one root widget.");
+        } else if (rootChildren > 1) {
+            add(diagnostics, element, "Screen element must contain exactly one root widget.");
+        }
+    }
+
+    private static void validateScaleProviderProperty(XmlWidgetElement element, List<XmlWidgetDiagnostic> diagnostics) {
+        validateScreenAttributes(element, diagnostics, element.name());
+        for (XmlWidgetNode child : element.children()) {
+            if (child instanceof XmlWidgetText text && !text.text().isBlank()) {
+                add(diagnostics, element, "Property element '" + element.name() + "' cannot contain text content.");
+            } else if (child instanceof XmlWidgetElement childElement) {
+                add(diagnostics, childElement, "Property element '" + element.name() + "' cannot contain child elements.");
+            }
+        }
+    }
+
+    private static int validateScreenContentProperty(XmlWidgetElement element,
+                                                     XmlWidgetRegistry registry,
+                                                     List<XmlWidgetDiagnostic> diagnostics,
+                                                     Map<String, XmlWidgetElement> ids,
+                                                     int depth) {
+        for (XmlWidgetAttribute attribute : element.attributes()) {
+            if (!isNamespaceDeclaration(attribute)) {
+                add(diagnostics, attribute, "Property element '" + element.name()
+                        + "' cannot have attribute '" + attribute.name() + "'.");
+            }
+        }
+
+        int rootChildren = 0;
+        for (XmlWidgetNode child : element.children()) {
+            if (child instanceof XmlWidgetText text && !text.text().isBlank()) {
+                add(diagnostics, element, "Property element '" + element.name() + "' cannot contain text content.");
+            } else if (child instanceof XmlWidgetElement childElement) {
+                if (propertyElementName(childElement.name()) != null) {
+                    add(diagnostics, childElement, "Property element '" + element.name()
+                            + "' must contain a widget element, got property element '" + childElement.name() + "'.");
+                } else {
+                    rootChildren++;
+                    validateElement(childElement, registry, diagnostics, ids, null, depth + 1);
+                }
+            }
+        }
+        return rootChildren;
+    }
+
+    private static void validateScreenAttributes(XmlWidgetElement element,
+                                                 List<XmlWidgetDiagnostic> diagnostics,
+                                                 String xmlName) {
+        Set<String> seenAttributes = new HashSet<>();
+        for (XmlWidgetAttribute attribute : element.attributes()) {
+            if (isNamespaceDeclaration(attribute)) continue;
+            String normalizedName = localName(attribute.name());
+            if (!SCREEN_ATTRIBUTE_NAMES.contains(normalizedName)) {
+                add(diagnostics, attribute, "Unknown attribute '" + attribute.name() + "' on " + xmlName + ".");
+            } else if (!seenAttributes.add(normalizedName)) {
+                add(diagnostics, attribute, "Duplicate attribute '" + attribute.name() + "' on " + xmlName + ".");
+            }
+        }
     }
 
     private static void validatePropertyElement(XmlWidgetElement element,
@@ -207,6 +327,15 @@ final class XmlWidgetDocumentValidator {
         String name = attribute.name();
         return XMLConstants.XMLNS_ATTRIBUTE.equals(name)
                 || name.startsWith(XMLConstants.XMLNS_ATTRIBUTE + ":");
+    }
+
+    private static boolean isScreenElement(String name) {
+        String normalized = normalizeName(name);
+        return normalized.equals("screen") || normalized.equals("uiscreen") || normalized.equals("xmlscreen");
+    }
+
+    private static String normalizeName(String value) {
+        return localName(value).trim().replace("-", "").replace("_", "").replace(" ", "").toLowerCase(Locale.ROOT);
     }
 
     private static String localName(String name) {
