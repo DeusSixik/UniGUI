@@ -359,8 +359,13 @@ public class VirtualListView extends WidgetBase {
             DrawScope draw = new DrawScope(context, transform(), layoutBounds());
             draw.pushClip(layoutBounds().x(), layoutBounds().y(), viewportWidth(), layoutBounds().height());
             activeRenderer.render(draw, snapshot(VirtualListViewRenderPhase.BACKGROUND));
-            for (Widget item : realizedWidgetSnapshot()) {
-                renderChildWithInheritedTransform(context, item);
+            context.pushTextPixelSnap(false);
+            try {
+                for (Widget item : realizedWidgetSnapshot()) {
+                    renderChildWithInheritedTransform(context, item);
+                }
+            } finally {
+                context.popTextPixelSnap();
             }
             activeRenderer.render(draw, snapshot(VirtualListViewRenderPhase.FOREGROUND));
             draw.popClip();

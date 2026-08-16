@@ -525,8 +525,10 @@ public class ScrollView extends WidgetBase {
                 }
                 RectView previousCullBounds = PanelWidget.pushRenderCullBounds(viewportBounds);
                 try {
+                    context.pushTextPixelSnap(false);
                     renderChildWithInheritedTransform(context, content);
                 } finally {
+                    context.popTextPixelSnap();
                     PanelWidget.restoreRenderCullBounds(previousCullBounds);
                     if (clipsContent) {
                         context.popClip();

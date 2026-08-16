@@ -700,9 +700,14 @@ public class VirtualTableView extends WidgetBase {
             DrawScope draw = new DrawScope(context, transform(), layoutBounds());
             renderHeader(context);
             draw.pushClip(layoutBounds().x(), rowViewportY(), viewportWidth(), rowViewportHeight());
-            renderRows(context);
-            if (editing()) {
-                renderChildWithInheritedTransform(context, cellEditor);
+            context.pushTextPixelSnap(false);
+            try {
+                renderRows(context);
+                if (editing()) {
+                    renderChildWithInheritedTransform(context, cellEditor);
+                }
+            } finally {
+                context.popTextPixelSnap();
             }
             draw.popClip();
             if (hasVerticalScrollBar()) {

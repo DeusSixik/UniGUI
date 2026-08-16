@@ -17,10 +17,12 @@ import java.util.List;
 public final class DefaultRenderContext implements RenderContext {
     private final DrawList drawList;
     private final Deque<Float> opacityStack = new ArrayDeque<>();
+    private final Deque<Boolean> textPixelSnapStack = new ArrayDeque<>();
     private final List<TransformLayer> transformStack = new ObjectArrayList<>();
     private final List<TransformLayer> transformStackView = Collections.unmodifiableList(transformStack);
     private RenderBackend backend;
     private float opacityMultiplier = 1.0f;
+    private boolean textPixelSnapEnabled = true;
 
     public DefaultRenderContext(DrawList drawList) {
         this.drawList = drawList;
@@ -55,6 +57,22 @@ public final class DefaultRenderContext implements RenderContext {
     @Override
     public float opacityMultiplier() {
         return opacityMultiplier;
+    }
+
+    @Override
+    public void pushTextPixelSnap(boolean enabled) {
+        textPixelSnapStack.push(textPixelSnapEnabled);
+        textPixelSnapEnabled = textPixelSnapEnabled && enabled;
+    }
+
+    @Override
+    public void popTextPixelSnap() {
+        textPixelSnapEnabled = textPixelSnapStack.isEmpty() ? true : textPixelSnapStack.pop();
+    }
+
+    @Override
+    public boolean textPixelSnapEnabled() {
+        return textPixelSnapEnabled;
     }
 
     @Override

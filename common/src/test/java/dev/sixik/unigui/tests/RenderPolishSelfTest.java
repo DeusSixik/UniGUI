@@ -7,6 +7,7 @@ import dev.sixik.unigui.api.render.DrawCommandType;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextTransform;
+import dev.sixik.unigui.impl.render.DefaultRenderContext;
 
 public final class RenderPolishSelfTest {
     private static final float EPSILON = 0.0005f;
@@ -20,6 +21,7 @@ public final class RenderPolishSelfTest {
         paintCopyKeepsDashAndBlend();
         richTextAppliesTrackingAndUppercase();
         dashedLineExpandsToSolidSegments();
+        textPixelSnapScopeAffectsTextCommands();
     }
 
     private void paintCopyKeepsDashAndBlend() {
@@ -62,6 +64,23 @@ public final class RenderPolishSelfTest {
             assertTrue(!command.paint().dashed(), "dash segment paint should be solid");
             assertTrue(command.paint().blendMode() == BlendMode.ADDITIVE, "dash segment should keep additive blend");
         }
+    }
+
+    private void textPixelSnapScopeAffectsTextCommands() {
+        DefaultRenderContext context = new DefaultRenderContext(new dev.sixik.unigui.api.render.DrawList());
+
+        context.text("static", 0.0f, 0.0f, 40.0f, 10.0f, Paint.fill(new MutableColor(1.0f, 1.0f, 1.0f, 1.0f)));
+        context.pushTextPixelSnap(false);
+        try {
+            context.text("moving", 0.0f, 1.0f, 40.0f, 10.0f, Paint.fill(new MutableColor(1.0f, 1.0f, 1.0f, 1.0f)));
+        } finally {
+            context.popTextPixelSnap();
+        }
+        context.text("static", 0.0f, 2.0f, 40.0f, 10.0f, Paint.fill(new MutableColor(1.0f, 1.0f, 1.0f, 1.0f)));
+
+        assertTrue(context.drawList().commands().get(0).textPixelSnap(), "text snap should default to enabled");
+        assertTrue(!context.drawList().commands().get(1).textPixelSnap(), "disabled scope should mark text commands unsnapped");
+        assertTrue(context.drawList().commands().get(2).textPixelSnap(), "text snap should restore after scope");
     }
 
     private static void assertClose(float expected, float actual, String message) {

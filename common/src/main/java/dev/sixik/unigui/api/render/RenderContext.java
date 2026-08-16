@@ -32,6 +32,16 @@ public interface RenderContext {
         return 1.0f;
     }
 
+    default void pushTextPixelSnap(boolean enabled) {
+    }
+
+    default void popTextPixelSnap() {
+    }
+
+    default boolean textPixelSnapEnabled() {
+        return true;
+    }
+
     default void pushTransform(RectView bounds, Transform transform) {
     }
 
@@ -166,11 +176,14 @@ public interface RenderContext {
         shader(ShaderHandle.resource(shaderResource), x, y, width, height, uniforms);
     }
     default void text(String text, float x, float y, float width, float height, Paint paint) {
-        submit(DrawCommand.text(text, new MutableRect(x, y, width, height), effectivePaint(paint)));
+        submit(DrawCommand.text(text, new MutableRect(x, y, width, height), effectivePaint(paint))
+                .textPixelSnap(textPixelSnapEnabled()));
     }
 
     default void text(String text, float x, float y, float width, float height, Paint paint, Transform transform) {
-        submit(DrawCommand.text(text, new MutableRect(x, y, width, height), effectivePaint(paint)).transform(transform));
+        submit(DrawCommand.text(text, new MutableRect(x, y, width, height), effectivePaint(paint))
+                .transform(transform)
+                .textPixelSnap(textPixelSnapEnabled()));
     }
 
     default void text(RichText text, float x, float y, float width, float height, Paint paint) {
@@ -183,7 +196,7 @@ public interface RenderContext {
                 .richText(text)
                 .bounds(new MutableRect(x, y, width, height))
                 .paint(effectivePaint(paint))
-                .textPixelSnap(textPixelSnap));
+                .textPixelSnap(textPixelSnap && textPixelSnapEnabled()));
     }
 
     default void text(RichText text, float x, float y, float width, float height,
@@ -198,7 +211,7 @@ public interface RenderContext {
                 .bounds(new MutableRect(x, y, width, height))
                 .paint(effectivePaint(paint))
                 .transform(transform)
-                .textPixelSnap(textPixelSnap));
+                .textPixelSnap(textPixelSnap && textPixelSnapEnabled()));
     }
 
     default void custom(CustomDraw customDraw) {

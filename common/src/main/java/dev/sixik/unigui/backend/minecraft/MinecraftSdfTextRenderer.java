@@ -7,6 +7,7 @@ import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.math.Transform;
 import dev.sixik.unigui.api.render.DrawCommand;
 import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.render.TransformLayer;
 import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.FontMetrics;
 import dev.sixik.unigui.api.text.RichText;
@@ -539,6 +540,7 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
 
     private static boolean shouldPixelSnap(DrawCommand command, float pixelSize, TransformState state) {
         return (command == null || command.textPixelSnap())
+                && !hasVisualTransform(command)
                 && Float.isFinite(pixelSize)
                 && pixelSize > 0.0f
                 && pixelSize <= PIXEL_SNAP_MAX_SIZE
@@ -547,6 +549,28 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
                 && Math.abs(state.m01()) <= MATRIX_EPSILON
                 && Math.abs(state.m00()) > MATRIX_EPSILON
                 && Math.abs(state.m11()) > MATRIX_EPSILON;
+    }
+
+    private static boolean hasVisualTransform(DrawCommand command) {
+        if (command == null) return false;
+        if (hasVisualTransform(command.transform())) return true;
+        Object[] rawLayers = command.transformStackElements();
+        for (int i = 0, size = command.transformStackSize(); i < size; i++) {
+            Object rawLayer = rawLayers[i];
+            if (rawLayer instanceof TransformLayer layer && hasVisualTransform(layer.transform())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasVisualTransform(Transform transform) {
+        if (transform == null) return false;
+        return Math.abs(transform.position().x()) > MATRIX_EPSILON
+                || Math.abs(transform.position().y()) > MATRIX_EPSILON
+                || Math.abs(transform.rotationDegrees()) > MATRIX_EPSILON
+                || Math.abs(transform.scale().x() - 1.0f) > MATRIX_EPSILON
+                || Math.abs(transform.scale().y() - 1.0f) > MATRIX_EPSILON;
     }
 
     private static float snapScreenX(float x, TransformState state) {
