@@ -16,6 +16,7 @@ import dev.sixik.unigui.widgets.render.ProgressBarRenderer;
 import dev.sixik.unigui.widgets.render.ScrollBarRenderer;
 import dev.sixik.unigui.widgets.render.SliderRenderer;
 import dev.sixik.unigui.widgets.render.SparklineRenderer;
+import dev.sixik.unigui.widgets.render.TextAreaRenderer;
 import dev.sixik.unigui.widgets.render.TextInputRenderer;
 import dev.sixik.unigui.widgets.render.ShapeRenderer;
 import dev.sixik.unigui.widgets.render.SeparatorRenderer;
@@ -159,6 +160,11 @@ public final class WidgetsRender {
     public static TextInputRenderer numberField() {
         TextInputRenderer renderer = impl.numberField();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.numberField() : renderer;
+    }
+
+    public static TextAreaRenderer textArea() {
+        TextAreaRenderer renderer = impl.textArea();
+        return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.textArea() : renderer;
     }
 
     public static ShapeRenderer shape() {

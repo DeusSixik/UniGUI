@@ -10,6 +10,10 @@ import dev.sixik.unigui.api.core.FramePhase;
 import dev.sixik.unigui.api.core.MutableUIScaleProvider;
 import dev.sixik.unigui.api.core.UIScaleProvider;
 import dev.sixik.unigui.api.core.UnityLikeUIScaleProvider;
+import dev.sixik.unigui.api.editor.CommandChangedEvent;
+import dev.sixik.unigui.api.editor.CommandManager;
+import dev.sixik.unigui.api.editor.EditorCommand;
+import dev.sixik.unigui.api.editor.KeyBinding;
 import dev.sixik.unigui.api.event.ContextMenuItemSelectedEvent;
 import dev.sixik.unigui.api.event.ExpandedChangedEvent;
 import dev.sixik.unigui.api.event.KeyPressedEvent;
@@ -79,6 +83,17 @@ import dev.sixik.unigui.api.text.TextRun;
 import dev.sixik.unigui.api.widget.CheckboxState;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.api.xml.XmlAttributeDescriptor;
+import dev.sixik.unigui.api.xml.XmlWidgetAsset;
+import dev.sixik.unigui.api.xml.XmlWidgetAssetCatalog;
+import dev.sixik.unigui.api.xml.XmlWidgetAssetKind;
+import dev.sixik.unigui.api.xml.XmlWidgetDiagnostic;
+import dev.sixik.unigui.api.xml.XmlWidgetDiagnosticsModel;
+import dev.sixik.unigui.api.xml.XmlWidgetDocument;
+import dev.sixik.unigui.api.xml.XmlWidgetElement;
+import dev.sixik.unigui.api.xml.XmlWidgetLayoutFrame;
+import dev.sixik.unigui.api.xml.XmlWidgetLayoutHandle;
+import dev.sixik.unigui.api.xml.XmlWidgetNodePath;
 import dev.sixik.unigui.api.virtualization.FixedRowVirtualizer;
 import dev.sixik.unigui.api.virtualization.VirtualRange;
 import dev.sixik.unigui.backend.minecraft.MinecraftGuiRenderBackend;
@@ -104,6 +119,7 @@ import dev.sixik.unigui.widgets.navigation.BreadcrumbItem;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.navigation.Carousel;
 import dev.sixik.unigui.widgets.interaction.Checkbox;
+import dev.sixik.unigui.widgets.interaction.CodeEditor;
 import dev.sixik.unigui.widgets.interaction.ComboBox;
 import dev.sixik.unigui.widgets.feedback.ContextMenu;
 import dev.sixik.unigui.widgets.containers.DockPanel;
@@ -116,7 +132,10 @@ import dev.sixik.unigui.widgets.docking.DockPaneKind;
 import dev.sixik.unigui.widgets.containers.DockSide;
 import dev.sixik.unigui.widgets.docking.DockingRoot;
 import dev.sixik.unigui.widgets.interaction.DropDownBox;
+import dev.sixik.unigui.widgets.interaction.IconButton;
 import dev.sixik.unigui.widgets.navigation.ExpandablePanel;
+import dev.sixik.unigui.widgets.navigation.Menu;
+import dev.sixik.unigui.widgets.navigation.MenuBar;
 import dev.sixik.unigui.widgets.containers.GridBox;
 import dev.sixik.unigui.widgets.containers.HBox;
 import dev.sixik.unigui.widgets.display.Chart;
@@ -153,6 +172,25 @@ import dev.sixik.unigui.widgets.containers.StackPanel;
 import dev.sixik.unigui.widgets.navigation.TabControl;
 import dev.sixik.unigui.widgets.display.Text;
 import dev.sixik.unigui.widgets.display.TextBlock;
+import dev.sixik.unigui.widgets.editor.AssetBrowserPanel;
+import dev.sixik.unigui.widgets.editor.CommandPalette;
+import dev.sixik.unigui.widgets.editor.DesignCanvasOverlay;
+import dev.sixik.unigui.widgets.editor.Dialog;
+import dev.sixik.unigui.widgets.editor.DragPayload;
+import dev.sixik.unigui.widgets.editor.DragSource;
+import dev.sixik.unigui.widgets.editor.DropTarget;
+import dev.sixik.unigui.widgets.editor.PaneHeader;
+import dev.sixik.unigui.widgets.editor.PaneVisibilityController;
+import dev.sixik.unigui.widgets.editor.PalettePanel;
+import dev.sixik.unigui.widgets.editor.PropertyFieldRow;
+import dev.sixik.unigui.widgets.editor.PropertyGrid;
+import dev.sixik.unigui.widgets.editor.ProjectPickerPanel;
+import dev.sixik.unigui.widgets.editor.ResizablePanelHeader;
+import dev.sixik.unigui.widgets.editor.SearchBoxWithFilterChips;
+import dev.sixik.unigui.widgets.editor.SelectionOverlay;
+import dev.sixik.unigui.widgets.editor.StatusBar;
+import dev.sixik.unigui.widgets.editor.WidgetPalette;
+import dev.sixik.unigui.widgets.interaction.TextArea;
 import dev.sixik.unigui.widgets.interaction.TextField;
 import dev.sixik.unigui.widgets.interaction.TextInput;
 import dev.sixik.unigui.widgets.display.TextWidget;
@@ -187,7 +225,10 @@ import dev.sixik.unigui.widgets.interaction.SearchableGridPickerWidget;
 import dev.sixik.unigui.widgets.display.Sparkline;
 import dev.sixik.unigui.widgets.interaction.TextField;
 import dev.sixik.unigui.widgets.interaction.TextInput;
+import dev.sixik.unigui.widgets.interaction.ToggleToolButton;
+import dev.sixik.unigui.widgets.interaction.ToolButton;
 import dev.sixik.unigui.widgets.world.WorldCanvas;
+import dev.sixik.unigui.widgets.navigation.ToolBar;
 
 public final class BasicControlsSelfTest {
     public static void main(String[] args) {
@@ -205,6 +246,23 @@ public final class BasicControlsSelfTest {
         testTextFieldFocusAndEditing();
         testTextFieldSelectionAndClipboard();
         testTextInputClippingMetricsAndSelection();
+        testTextAreaMultilineEditingAndScrolling();
+        testCodeEditorDecorationsAndDirtyState();
+        testEditorCommandManagerAndKeyBindings();
+        testMenuBarCommandBackedPopups();
+        testToolBarCommandButtonsAndDisplayModes();
+        testPropertyGridContracts();
+        testSelectionOverlayContracts();
+        testPaneVisibilityControllerContracts();
+        testProjectPickerPanelContracts();
+        testStatusBarContracts();
+        testWidgetPaletteContracts();
+        testCommandPaletteContracts();
+        testAssetBrowserPanelContracts();
+        testSearchBoxWithFilterChipsContracts();
+        testDialogContracts();
+        testPaneHeaderContracts();
+        testDragDropHelperContracts();
         testTextWidgetRoleContracts();
         testPasswordAndSearchFields();
         testDefaultThemeContracts();
@@ -842,6 +900,1042 @@ public final class BasicControlsSelfTest {
         dragField.select(0, 2);
         uiContext.focusManager().clearFocus();
         expect(!dragField.focused() && !dragField.hasSelection(), "TextInput should clear selection when focus is lost");
+    }
+
+    private void testTextAreaMultilineEditingAndScrolling() {
+        DefaultUIContext uiContext = new DefaultUIContext();
+        TextArea area = new TextArea().placeholder("XML").visibleLines(2);
+        area.setUiContextInternal(uiContext);
+        area.arrange(new MutableRect(0.0f, 0.0f, 120.0f, 36.0f));
+
+        Counter textChanges = new Counter();
+        area.onTextChanged(event -> {
+            textChanges.count++;
+            textChanges.lastText = event.newText();
+        });
+
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(area, 6.0f, 8.0f, 6.0f, 8.0f, 0, PointerButton.PRIMARY));
+        expect(area.focused() && uiContext.focusManager().focusedWidget() == area,
+                "TextArea should focus on primary pointer press");
+        uiContext.routedEvents().dispatch(new TextInputEvent(area, '<', 0));
+        uiContext.routedEvents().dispatch(new TextInputEvent(area, 'A', 0));
+        uiContext.routedEvents().dispatch(new TextInputEvent(area, '>', 0));
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(area, KeyCodes.ENTER, 0, 0));
+        uiContext.routedEvents().dispatch(new TextInputEvent(area, 'x', 0));
+        expect(area.text().equals("<A>\nx"), "TextArea should preserve newline-aware editing");
+        expect(textChanges.count == 5 && textChanges.lastText.equals("<A>\nx"),
+                "TextArea should emit text changed events for multiline edits");
+
+        area.text("alpha\nbeta\ngamma").cursorIndex(area.text().length());
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(area, KeyCodes.UP, 0, 0));
+        expect(area.cursorIndex() == 10, "TextArea Up should keep visual column when moving to a shorter line");
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(area, KeyCodes.HOME, 0, 0));
+        expect(area.cursorIndex() == 6, "TextArea Home should move to the current line start");
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(area, KeyCodes.END, 0, 0));
+        expect(area.cursorIndex() == 10, "TextArea End should move to the current line end");
+
+        area.select(0, 5);
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(area, KeyCodes.C, 0, KeyModifiers.CONTROL));
+        expect(uiContext.clipboard().getText().equals("alpha"), "TextArea Ctrl+C should copy selected text");
+        uiContext.clipboard().setText("<VBox>\r\n</VBox>");
+        area.selectAll();
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(area, KeyCodes.V, 0, KeyModifiers.CONTROL));
+        expect(area.text().equals("<VBox>\n</VBox>"), "TextArea paste should normalize and preserve line breaks");
+
+        area.text("one\ntwo\nthree\nfour\nfive").cursorIndex(area.text().length());
+        DrawList drawList = new DrawList();
+        area.render(new DefaultRenderContext(drawList));
+        expect(area.scrollY() > 0.0f, "TextArea render should scroll vertically to keep the caret visible");
+        expect(firstCommandIndex(drawList, DrawCommandType.PUSH_CLIP, 0) >= 0 && hasText(drawList, "five"),
+                "TextArea should clip and render visible multiline content");
+
+        area.scrollTo(0.0f, 0.0f);
+        uiContext.routedEvents().dispatch(new ScrollEvent(area, 8.0f, 8.0f, 8.0f, 8.0f, 0.0f, -1.0f));
+        expect(area.scrollY() > 0.0f, "TextArea should handle wheel scrolling");
+
+        expect(Widgets.textArea("factory") instanceof TextArea, "Widgets.textArea should create TextArea instances");
+    }
+
+    private void testCodeEditorDecorationsAndDirtyState() {
+        CodeEditor editor = new CodeEditor();
+        editor.visibleLines(2);
+        editor.loadText("one\ntwo\nthree");
+        editor.arrange(new MutableRect(0.0f, 0.0f, 120.0f, 40.0f));
+        expect(!editor.dirty(), "CodeEditor loadText should establish a clean snapshot");
+        editor.text("one\ntwo changed\nthree");
+        expect(editor.dirty(), "CodeEditor should track dirty state after edits");
+        editor.markClean();
+        expect(!editor.dirty(), "CodeEditor markClean should clear dirty state");
+
+        editor.diagnostic(CodeEditor.Severity.ERROR, 2, 2, "Bad token");
+        DrawList drawList = new DrawList();
+        editor.render(new DefaultRenderContext(drawList));
+        expect(hasText(drawList, "1") && hasText(drawList, "2"),
+                "CodeEditor should render line numbers in the gutter");
+        expect(hasFillColor(drawList, 1.0f, 0.25f, 0.25f, 0.92f),
+                "CodeEditor should render diagnostic underline markers");
+
+        editor.scrollToLine(3);
+        expect(editor.scrollY() > 0.0f, "CodeEditor scrollToLine should move the viewport to the requested line");
+        expect(Widgets.codeEditor("factory") instanceof CodeEditor, "Widgets.codeEditor should create CodeEditor instances");
+    }
+
+    private void testEditorCommandManagerAndKeyBindings() {
+        CommandManager manager = new CommandManager();
+        boolean[] enabled = {true};
+        boolean[] checked = {false};
+        Counter executions = new Counter();
+        Counter commandChanges = new Counter();
+        Counter managerChanges = new Counter();
+
+        EditorCommand save = EditorCommand.of("project.save", "Save", () -> executions.count++)
+                .enabledWhen(() -> enabled[0])
+                .checkedWhen(() -> checked[0]);
+        save.onChanged(event -> {
+            commandChanges.count++;
+            commandChanges.lastText = event.commandId();
+            commandChanges.lastOldText = event.kind().name();
+        });
+        manager.onChanged(event -> {
+            managerChanges.count++;
+            managerChanges.lastText = event.commandId();
+            managerChanges.lastOldText = event.kind().name();
+        });
+
+        manager.register(save);
+        expect(manager.commands().size() == 1 && manager.requireCommand("project.save") == save,
+                "CommandManager should register commands by stable id");
+        expect(managerChanges.count == 1 && managerChanges.lastOldText.equals(CommandChangedEvent.Kind.REGISTERED.name()),
+                "CommandManager should emit a registration change event");
+
+        save.label("Save Project");
+        expect(save.label().equals("Save Project")
+                        && commandChanges.lastText.equals("project.save")
+                        && managerChanges.lastOldText.equals(CommandChangedEvent.Kind.UPDATED.name()),
+                "EditorCommand state changes should notify direct and manager listeners");
+
+        expect(save.enabled() && !save.checked(), "EditorCommand should read enabled and checked suppliers");
+        expect(manager.execute("project.save") && executions.count == 1,
+                "CommandManager execute should run enabled commands by id");
+        enabled[0] = false;
+        save.notifyChanged();
+        expect(!manager.execute("project.save") && executions.count == 1,
+                "CommandManager execute should ignore disabled commands");
+
+        KeyBinding saveShortcut = KeyBinding.ctrl('s');
+        expect(saveShortcut.keyCode() == 'S'
+                        && saveShortcut.modifiers() == KeyModifiers.CONTROL
+                        && saveShortcut.shortcutText().equals("Ctrl+S"),
+                "KeyBinding should normalize letter keys and expose shortcut text");
+        manager.bind("project.save", saveShortcut);
+        expect(save.shortcutText().equals("Ctrl+S") && manager.keyBindings("project.save").size() == 1,
+                "CommandManager bind should expose shortcut text on the command");
+
+        enabled[0] = true;
+        checked[0] = true;
+        save.notifyChanged();
+        expect(save.checked(), "EditorCommand checked supplier should update observable command state");
+        expect(!manager.handleKey('S', KeyModifiers.CONTROL | KeyModifiers.SHIFT) && executions.count == 1,
+                "CommandManager shortcuts should require exact modifiers");
+        expect(manager.handleKey('S', KeyModifiers.CONTROL) && executions.count == 2,
+                "CommandManager should dispatch matching keyboard shortcuts");
+
+        KeyPressedEvent keyEvent = new KeyPressedEvent(new Button(), 'S', 0, KeyModifiers.CONTROL);
+        expect(manager.handleKey(keyEvent) && keyEvent.isCancelled() && executions.count == 3,
+                "CommandManager should cancel handled key events");
+        expect(manager.unbind("project.save", saveShortcut)
+                        && !manager.handleKey('S', KeyModifiers.CONTROL)
+                        && manager.remove("project.save"),
+                "CommandManager should unbind shortcuts and remove commands cleanly");
+    }
+
+    private void testMenuBarCommandBackedPopups() {
+        CommandManager manager = new CommandManager();
+        Counter commandRuns = new Counter();
+        Counter actionRuns = new Counter();
+        boolean[] saveEnabled = {true};
+        boolean[] propertiesChecked = {true};
+
+        EditorCommand save = EditorCommand.of("project.save", "Save Project", () -> commandRuns.count++)
+                .enabledWhen(() -> saveEnabled[0]);
+        EditorCommand properties = EditorCommand.of("view.properties.toggle", "Properties", () -> commandRuns.started++)
+                .checkedWhen(() -> propertiesChecked[0]);
+        manager.register(save).bind("project.save", KeyBinding.ctrl('s'));
+        manager.register(properties);
+
+        MenuBar menuBar = Widgets.menuBar().commandManager(manager);
+        Menu recent = new Menu("Recent").action("Project A", () -> actionRuns.started++);
+        menuBar.menu(new Menu("File")
+                .command("project.save")
+                .separator()
+                .action("Close", () -> actionRuns.count++)
+                .submenu(recent));
+        menuBar.menu(new Menu("View").command("view.properties.toggle"));
+
+        DefaultUIContext uiContext = new DefaultUIContext();
+        menuBar.setUiContextInternal(uiContext);
+        menuBar.measure(new LayoutContext(320.0f, 80.0f));
+        menuBar.arrange(new MutableRect(0.0f, 0.0f, 320.0f, 22.0f));
+
+        expect(menuBar.menuCount() == 2 && menuBar.children().size() == 2,
+                "MenuBar should materialize top-level menu headers as retained buttons");
+        menuBar.openMenu(0);
+        ContextMenu filePopup = menuBar.openedPopup();
+        expect(filePopup != null && filePopup.opened() && filePopup.itemCount() == 3,
+                "MenuBar should open a ContextMenu popup for a top-level menu");
+        expect(filePopup.itemButton(0).text().contains("Save Project")
+                        && filePopup.itemButton(0).text().contains("Ctrl+S"),
+                "MenuBar command rows should resolve command labels and shortcut text");
+        expect(filePopup.itemButton(2).text().contains("Recent >"),
+                "MenuBar should materialize nested submenus");
+        filePopup.itemButton(0).click();
+        expect(commandRuns.count == 1, "MenuBar command menu items should execute through CommandManager");
+
+        menuBar.openMenu(0);
+        menuBar.openedPopup().itemButton(1).click();
+        expect(actionRuns.count == 1, "MenuBar action menu items should run direct callbacks");
+
+        menuBar.openMenu(0);
+        saveEnabled[0] = false;
+        save.notifyChanged();
+        expect(!menuBar.openedPopup().itemButton(0).enabled(),
+                "MenuBar should refresh open popups when command enabled state changes");
+
+        menuBar.openMenu(1);
+        expect(menuBar.openedPopup().itemButton(0).text().startsWith("[x] Properties"),
+                "MenuBar should render checked command state in menu rows");
+        expect(Widgets.menuBar() instanceof MenuBar, "Widgets.menuBar should create MenuBar instances");
+    }
+
+    private void testToolBarCommandButtonsAndDisplayModes() {
+        CommandManager manager = new CommandManager();
+        Counter commandRuns = new Counter();
+        boolean[] saveEnabled = {true};
+        boolean[] playChecked = {false};
+
+        EditorCommand save = EditorCommand.of("project.save", "Save Project", () -> commandRuns.count++)
+                .enabledWhen(() -> saveEnabled[0]);
+        EditorCommand play = new EditorCommand("run.play", "Play").checkedWhen(() -> playChecked[0]);
+        play.action(() -> {
+            playChecked[0] = !playChecked[0];
+            commandRuns.started++;
+            play.notifyChanged();
+        });
+        manager.register(save).bind("project.save", KeyBinding.ctrl('s'));
+        manager.register(play);
+
+        ToolBar toolbar = Widgets.toolBar().commandManager(manager);
+        ToolButton saveButton = toolbar.command("project.save", "S", ToolButton.DisplayMode.ICON_AND_TEXT);
+        toolbar.separator();
+        IconButton missingButton = toolbar.iconCommand("run.stop", "X");
+        toolbar.spacer();
+        ToggleToolButton playButton = toolbar.toggleCommand("run.play", "P", ToolButton.DisplayMode.ICON_ONLY);
+        toolbar.measure(new LayoutContext(320.0f, 40.0f));
+        toolbar.arrange(new MutableRect(0.0f, 0.0f, 320.0f, 26.0f));
+
+        expect(toolbar.children().size() == 5,
+                "ToolBar should compose command buttons, separators and flexible spacer widgets");
+        expect(saveButton.text().equals("S Save Project")
+                        && saveButton.tooltip().equals("Save Project (Ctrl+S)")
+                        && saveButton.enabled(),
+                "ToolBar command buttons should resolve command labels, shortcuts and enabled state");
+        expect(missingButton.text().equals("X") && !missingButton.enabled(),
+                "ToolBar should disable buttons whose command id is not registered");
+        expect(playButton.text().equals("P") && !playButton.checked(),
+                "ToggleToolButton should support icon-only toolbar display mode");
+
+        saveButton.click();
+        expect(commandRuns.count == 1, "ToolBar command buttons should execute through CommandManager");
+        saveEnabled[0] = false;
+        save.notifyChanged();
+        saveButton.click();
+        expect(!saveButton.enabled() && commandRuns.count == 1,
+                "ToolBar should refresh disabled command buttons and avoid executing them");
+
+        playButton.click();
+        expect(commandRuns.started == 1 && playButton.checked(),
+                "ToggleToolButton should reflect checked command state after command execution");
+        expect(Widgets.toolBar() instanceof ToolBar
+                        && Widgets.toolButton("Save") instanceof ToolButton
+                        && Widgets.iconButton("S") instanceof IconButton
+                        && Widgets.toggleToolButton("Run") instanceof ToggleToolButton,
+                "Widgets factories should expose toolbar primitives");
+    }
+
+    private void testPropertyGridContracts() {
+        XmlWidgetElement buttonElement = new XmlWidgetElement("Button")
+                .attribute("id", "saveButton")
+                .attribute("text", "Save")
+                .attribute("enabled", "false")
+                .attribute("width", "120")
+                .attribute("backgroundColor", "not-a-color");
+
+        PropertyGrid grid = Widgets.propertyGrid(buttonElement);
+        expect(grid.inspection() != null && grid.inspection().knownWidget(),
+                "PropertyGrid should inspect selected XML widget metadata");
+        expect(grid.row("text").orElseThrow().fieldKind() == PropertyFieldRow.FieldKind.STRING
+                        && grid.row("enabled").orElseThrow().fieldKind() == PropertyFieldRow.FieldKind.BOOLEAN
+                        && grid.row("width").orElseThrow().fieldKind() == PropertyFieldRow.FieldKind.SIZE_VALUE
+                        && grid.row("backgroundColor").orElseThrow().fieldKind() == PropertyFieldRow.FieldKind.COLOR,
+                "PropertyGrid should infer reusable property field types from descriptors and values");
+        expect(grid.row("backgroundColor").orElseThrow().validationState() == PropertyFieldRow.ValidationState.WARNING,
+                "PropertyGrid rows should expose validation state for suspicious values");
+        expect(grid.categories().stream().anyMatch(category -> category.name().equals("Content"))
+                        && grid.categories().stream().anyMatch(category -> category.name().equals("Behavior"))
+                        && grid.row("radius").orElseThrow().present() == false,
+                "PropertyGrid should group rows by category and include unset descriptor attributes");
+
+        Counter changes = new Counter();
+        grid.onAttributeChanged(change -> {
+            changes.count++;
+            changes.lastText = change.attributeName();
+            changes.lastOldText = change.oldValue();
+        });
+        grid.setAttributeValue("text", "Apply");
+        expect(buttonElement.attribute("text").orElseThrow().equals("Apply")
+                        && changes.count == 1
+                        && changes.lastText.equals("text")
+                        && changes.lastOldText.equals("Save"),
+                "PropertyGrid should write changed attribute values back to the XML element");
+
+        grid.resetAttribute("enabled");
+        expect(buttonElement.attribute("enabled").orElseThrow().equals("true"),
+                "PropertyGrid reset should restore descriptor default values");
+        grid.removeAttribute("width");
+        expect(buttonElement.attribute("width").isEmpty(),
+                "PropertyGrid remove should delete attributes from the XML element");
+
+        PropertyFieldRow booleanRow = Widgets.propertyFieldRow(XmlAttributeDescriptor.of("visible").defaultValue("true"), "false", true);
+        PropertyFieldRow invalidNumber = Widgets.propertyFieldRow(XmlAttributeDescriptor.of("opacity").defaultValue("1"), "abc", true);
+        expect(booleanRow.fieldKind() == PropertyFieldRow.FieldKind.BOOLEAN
+                        && booleanRow.editor() instanceof Checkbox
+                        && invalidNumber.validationState() == PropertyFieldRow.ValidationState.ERROR
+                        && Widgets.propertyGrid() instanceof PropertyGrid,
+                "Widgets factories should expose reusable property grid and property field rows");
+    }
+
+    private void testSelectionOverlayContracts() {
+        XmlWidgetDocument document = XmlWidgetDocument.of(new XmlWidgetElement("VBox")
+                .attribute("x", "0")
+                .attribute("y", "0")
+                .attribute("width", "200")
+                .attribute("height", "120")
+                .addElement(new XmlWidgetElement("Button")
+                        .attribute("x", "10")
+                        .attribute("y", "12")
+                        .attribute("width", "80")
+                        .attribute("height", "20")));
+        SelectionOverlay overlay = Widgets.selectionOverlay()
+                .document(document)
+                .selectedPath(XmlWidgetNodePath.of(0));
+        XmlWidgetLayoutFrame selected = overlay.selectedFrame().orElseThrow();
+        expect(near(selected.x(), 10.0f)
+                        && near(selected.y(), 12.0f)
+                        && near(selected.width(), 80.0f)
+                        && near(selected.height(), 20.0f),
+                "SelectionOverlay should resolve selected XML source frames");
+        expect(overlay.pathAt(15.0f, 15.0f).filter(XmlWidgetNodePath.of(0)::equals).isPresent(),
+                "SelectionOverlay hit-test should prefer the deepest framed XML element");
+        expect(overlay.handleAt(90.0f, 32.0f).filter(XmlWidgetLayoutHandle.SOUTH_EAST::equals).isPresent(),
+                "SelectionOverlay should expose resize handles around the selected frame");
+        expect(Widgets.designCanvasOverlay() instanceof DesignCanvasOverlay,
+                "Widgets factories should expose the design canvas overlay alias");
+
+        DefaultUIContext uiContext = new DefaultUIContext();
+        overlay.setUiContextInternal(uiContext);
+        overlay.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 120.0f));
+        Counter changes = new Counter();
+        overlay.onDocumentChanged(change -> {
+            changes.count++;
+            changes.lastValue = change.deltaX();
+            changes.lastNewHeight = change.deltaY();
+        });
+        overlay.handle(new PointerPressedEvent(overlay, 15.0f, 15.0f, 15.0f, 15.0f, 2, PointerButton.PRIMARY));
+        expect(uiContext.capturedPointer(2) == overlay,
+                "SelectionOverlay should capture the active pointer while dragging source frames");
+        overlay.handle(new PointerMovedEvent(overlay, 25.0f, 21.0f, 25.0f, 21.0f, 2));
+        overlay.handle(new PointerReleasedEvent(overlay, 25.0f, 21.0f, 25.0f, 21.0f, 2, PointerButton.PRIMARY));
+        XmlWidgetElement movedButton = overlay.document().root().elementChildren().get(0);
+        expect(overlay.lastResult().orElseThrow().valid()
+                        && movedButton.attribute("x").orElseThrow().equals("20")
+                        && movedButton.attribute("y").orElseThrow().equals("18")
+                        && changes.count == 1
+                        && near(changes.lastValue, 10.0f)
+                        && near(changes.lastNewHeight, 6.0f)
+                        && uiContext.capturedPointer(2) == null,
+                "SelectionOverlay drag should move XML frame attributes and release pointer capture");
+
+        overlay.handle(new PointerMovedEvent(overlay, 1.0f, 1.0f, 1.0f, 1.0f, 3));
+        DrawList drawList = new DrawList();
+        overlay.render(new DefaultRenderContext(drawList));
+        expect(countCommands(drawList, DrawCommandType.RECT) + countCommands(drawList, DrawCommandType.ROUNDED_RECT) >= 10
+                        && drawList.commands().stream().anyMatch(command -> command.paint() != null && command.paint().dashed()),
+                "SelectionOverlay should render hover outline, selected outline and transform handles");
+    }
+
+    private void testPaneVisibilityControllerContracts() {
+        DockingRoot root = new DockingRoot();
+        DockPane scene = DockPane.document("scene", "Scene", testDockContent("Scene canvas"));
+        DockPane properties = DockPane.tool("properties", "Properties", testDockContent("Property grid"));
+        DockPane diagnostics = DockPane.tool("diagnostics", "Diagnostics", testDockContent("Errors"));
+        PaneVisibilityController controller = new PaneVisibilityController(root);
+        Counter visibilityChanges = new Counter();
+        controller.onVisibilityChanged(change -> {
+            visibilityChanges.count++;
+            visibilityChanges.lastText = change.paneId();
+            visibilityChanges.lastChecked = change.visible();
+            visibilityChanges.lastOldText = change.reason().name();
+        });
+
+        controller.registerPane(scene, DockArea.CENTER)
+                .registerPane(properties, DockArea.RIGHT, "scene", true)
+                .registerPane(diagnostics, DockArea.BOTTOM, "scene", false)
+                .diagnosticsPaneId("diagnostics");
+        expect(root.manager().containsPane("scene")
+                        && root.manager().containsPane("properties")
+                        && !root.manager().containsPane("diagnostics")
+                        && controller.visiblePaneIds().contains("scene")
+                        && controller.hiddenPaneIds().contains("diagnostics"),
+                "PaneVisibilityController should register visible panes and keep hidden panes available for later restore");
+
+        expect(controller.pinned("properties", false)
+                        && !controller.pinned("properties")
+                        && !properties.pinned(),
+                "PaneVisibilityController should synchronize pin state with DockPane metadata");
+        expect(controller.hidePane("properties")
+                        && !controller.isVisible("properties")
+                        && !root.manager().containsPane("properties")
+                        && visibilityChanges.lastText.equals("properties")
+                        && !visibilityChanges.lastChecked,
+                "PaneVisibilityController hide should detach panes from the docking workspace");
+        expect(controller.showPane("properties")
+                        && controller.isVisible("properties")
+                        && root.manager().containsPane("properties")
+                        && !properties.pinned(),
+                "PaneVisibilityController show should restore panes using their preferred dock area and pin state");
+
+        CommandManager commands = new CommandManager();
+        controller.bindViewCommands(commands, "view.");
+        String propertiesCommand = controller.viewCommandId("properties");
+        expect(commands.command(propertiesCommand).orElseThrow().checked(),
+                "PaneVisibilityController should expose checked View-menu toggle commands for visible panes");
+        expect(commands.execute(propertiesCommand)
+                        && !controller.isVisible("properties")
+                        && !commands.command(propertiesCommand).orElseThrow().checked(),
+                "View-menu toggle command should hide a visible pane");
+        expect(commands.execute(propertiesCommand)
+                        && controller.isVisible("properties")
+                        && commands.command(propertiesCommand).orElseThrow().checked(),
+                "View-menu toggle command should restore a hidden pane");
+
+        XmlWidgetDiagnosticsModel errors = XmlWidgetDiagnosticsModel.errors(java.util.List.of(
+                new XmlWidgetDiagnostic("Broken XML")));
+        expect(controller.updateDiagnostics(errors)
+                        && controller.isVisible("diagnostics")
+                        && root.manager().selectedPane().id().equals("diagnostics"),
+                "PaneVisibilityController should auto-open the diagnostics pane when XML errors appear");
+        expect(!controller.updateDiagnostics(XmlWidgetDiagnosticsModel.empty()),
+                "PaneVisibilityController should not hide diagnostics automatically when errors are cleared");
+        controller.hidePane("diagnostics");
+        controller.autoOpenDiagnosticsOnErrors(false);
+        expect(!controller.updateDiagnostics(errors) && !controller.isVisible("diagnostics"),
+                "PaneVisibilityController should respect disabled diagnostics auto-open behavior");
+
+        PaneVisibilityController.PaneState propertiesState = controller.panes().stream()
+                .filter(state -> state.paneId().equals("properties"))
+                .findFirst()
+                .orElseThrow();
+        expect(!propertiesState.pinned()
+                        && propertiesState.preferredArea() == DockArea.RIGHT
+                        && propertiesState.kind() == DockPaneKind.TOOL,
+                "PaneVisibilityController state snapshots should support View menu and workspace restore UI");
+    }
+
+    private void testProjectPickerPanelContracts() {
+        ProjectPickerPanel panel = Widgets.projectPicker()
+                .maxRecentProjects(2)
+                .currentProject(ProjectPickerPanel.ProjectReference.path(
+                        "shop", "Shop UI", "E:/projects/shop.xml"))
+                .dirty(true);
+        panel.addRecentProject(ProjectPickerPanel.ProjectReference.resource(
+                "builtin", "Builtin Demo", "unigui:demo"));
+        panel.addRecentProject(ProjectPickerPanel.ProjectReference.path(
+                "settings", "Settings UI", "E:/projects/settings.xml"));
+        expect(panel instanceof ProjectPickerPanel
+                        && panel.recentProjects().size() == 2
+                        && panel.currentProjectLabel().text().contains("Shop UI *")
+                        && panel.currentProjectLabel().text().contains("E:/projects/shop.xml")
+                        && panel.recentList().children().size() == 2,
+                "ProjectPickerPanel should show current project path/resource labels and a capped recent project list");
+
+        Counter actions = new Counter();
+        Counter prompts = new Counter();
+        panel.onProjectAction(action -> {
+            actions.count++;
+            actions.lastText = action.kind().name();
+            actions.lastOldText = action.path();
+            actions.lastChecked = action.fromRecent();
+        });
+        panel.unsavedChangePrompt(action -> {
+            prompts.count++;
+            return false;
+        });
+        expect(!panel.requestNewProject()
+                        && actions.count == 0
+                        && prompts.count == 1,
+                "ProjectPickerPanel should allow hosts to cancel destructive actions when unsaved changes exist");
+
+        panel.unsavedChangePrompt(action -> {
+            prompts.count++;
+            return true;
+        });
+        expect(panel.requestOpenProject("E:/projects/new.xml")
+                        && actions.count == 1
+                        && actions.lastText.equals("OPEN_PROJECT")
+                        && actions.lastOldText.equals("E:/projects/new.xml"),
+                "ProjectPickerPanel should emit open callbacks after unsaved-change confirmation");
+        expect(panel.openRecentProject("settings")
+                        && actions.count == 2
+                        && actions.lastChecked
+                        && panel.currentProject().orElseThrow().id().equals("settings"),
+                "ProjectPickerPanel should open recent projects through the same confirmed callback path");
+
+        CommandManager commands = new CommandManager();
+        panel.registerCommands(commands);
+        expect(commands.command(ProjectPickerPanel.COMMAND_NEW_PROJECT).isPresent()
+                        && commands.command(ProjectPickerPanel.COMMAND_OPEN_PROJECT).isPresent()
+                        && commands.command(ProjectPickerPanel.COMMAND_SAVE_PROJECT).orElseThrow().enabled()
+                        && commands.command(ProjectPickerPanel.COMMAND_LAST_PROJECTS).orElseThrow().enabled(),
+                "ProjectPickerPanel should register toolbar command ids for new/open/save/recent project actions");
+        expect(commands.execute(ProjectPickerPanel.COMMAND_SAVE_PROJECT)
+                        && actions.lastText.equals("SAVE_PROJECT")
+                        && !panel.dirty(),
+                "ProjectPickerPanel save command should emit save and clear dirty state");
+        expect(commands.execute(ProjectPickerPanel.COMMAND_LAST_PROJECTS)
+                        && actions.lastText.equals("LAST_PROJECTS"),
+                "ProjectPickerPanel recent command should notify hosts to show the recent project surface");
+    }
+
+    private void testStatusBarContracts() {
+        StatusBar statusBar = Widgets.statusBar()
+                .dirty(true)
+                .mode("XML")
+                .selectedNodePath(XmlWidgetNodePath.of(0, 2))
+                .viewScale(1.25f)
+                .diagnostics(XmlWidgetDiagnosticsModel.errors(java.util.List.of(
+                        new XmlWidgetDiagnostic("Broken XML"))));
+        expect(statusBar.children().size() == 5
+                        && statusBar.dirtyLabel().text().equals("Unsaved *")
+                        && statusBar.modeLabel().text().equals("Mode: XML")
+                        && statusBar.diagnosticsLabel().text().equals("Errors: 1, Warnings: 0")
+                        && statusBar.selectedPathLabel().text().contains("/0/2")
+                        && statusBar.scaleLabel().text().equals("Scale: 125%"),
+                "StatusBar should summarize dirty state, mode, diagnostics, selection and canvas scale");
+
+        statusBar.dirty(false).selectedNodePath("").errorCount(0).warningCount(2).viewScale(-1.0f);
+        expect(statusBar.dirtyLabel().text().equals("Saved")
+                        && statusBar.selectedPathLabel().text().equals("Selection: none")
+                        && statusBar.diagnosticsLabel().text().equals("Errors: 0, Warnings: 2")
+                        && statusBar.scaleLabel().text().equals("Scale: 100%"),
+                "StatusBar should normalize empty selection, manual diagnostics counts and invalid scale values");
+
+        expect(Widgets.diagnosticsStrip().mode().equals("Diagnostics"),
+                "DiagnosticsStrip should be a compact status bar alias for diagnostics-focused footers");
+    }
+
+    private void testWidgetPaletteContracts() {
+        WidgetPalette palette = Widgets.widgetPalette()
+                .selectedCategory("Controls")
+                .search("button");
+        expect(palette.categories().contains("Controls")
+                        && !palette.categories().contains("Editor")
+                        && palette.visibleItems().stream().anyMatch(item -> item.xmlName().equals("Button"))
+                        && palette.visibleItems().stream().noneMatch(item -> item.category().equals("Display"))
+                        && palette.categoryList().children().size() == palette.categories().size()
+                        && !palette.itemList().children().isEmpty(),
+                "WidgetPalette should expose searchable descriptor-backed items grouped by category");
+        expect(!palette.includeInternalWidgets()
+                        && palette.visibleItems().stream().noneMatch(item -> item.category().equals("Editor"))
+                        && !palette.selectWidget("WidgetPalette"),
+                "WidgetPalette should hide editor-only widgets from the user-facing palette by default");
+
+        WidgetPalette editorPalette = Widgets.widgetPalette()
+                .includeInternalWidgets(true)
+                .selectedCategory("Editor")
+                .search("palette");
+        expect(editorPalette.includeInternalWidgets()
+                        && editorPalette.categories().contains("Editor")
+                        && editorPalette.visibleItems().stream().anyMatch(item -> item.xmlName().equals("WidgetPalette"))
+                        && editorPalette.selectWidget("WidgetPalette"),
+                "WidgetPalette should allow explicit editor/internal widget exposure for editor layout demos");
+
+        Counter selections = new Counter();
+        Counter inserts = new Counter();
+        WidgetPalette.PaletteInsertRequest[] lastRequest = new WidgetPalette.PaletteInsertRequest[1];
+        palette.onSelectionChanged(change -> {
+            selections.count++;
+            selections.lastText = change.selectedXmlName();
+            selections.lastOldText = change.previousXmlName();
+        });
+        palette.onInsertRequested(request -> {
+            inserts.count++;
+            inserts.lastText = request.descriptor().xmlName();
+            inserts.lastOldText = request.parentPath().toString();
+            inserts.lastRow = request.index();
+            lastRequest[0] = request;
+        });
+        expect(palette.selectWidget("Button")
+                        && selections.count == 1
+                        && selections.lastText.equals("Button")
+                        && palette.selectedDescriptor().orElseThrow().xmlName().equals("Button")
+                        && palette.insertButton().enabled(),
+                "WidgetPalette should track selected widget descriptors and enable insertion");
+        expect(palette.requestInsertSelected(XmlWidgetNodePath.root(), 0)
+                        && inserts.count == 1
+                        && inserts.lastText.equals("Button")
+                        && inserts.lastOldText.equals("/")
+                        && inserts.lastRow == 0
+                        && lastRequest[0].element().name().equals("Button"),
+                "WidgetPalette should emit insert requests with target hierarchy path and XML element payload");
+
+        XmlWidgetDocument document = XmlWidgetDocument.of(new XmlWidgetElement("VBox"));
+        lastRequest[0].edit().apply(document);
+        expect(document.root().elementChildren().size() == 1
+                        && document.root().elementChildren().get(0).name().equals("Button"),
+                "WidgetPalette insert requests should provide undoable document edits for hierarchy/canvas insertion");
+
+        palette.search("not-a-widget");
+        expect(palette.visibleItems().isEmpty()
+                        && palette.itemList().children().size() == 1,
+                "WidgetPalette should show an empty-state row when search filters out every descriptor");
+        PalettePanel panel = Widgets.palettePanel();
+        expect(panel instanceof WidgetPalette && panel.title().equals("Palette"),
+                "PalettePanel should be a title-adjusted WidgetPalette alias for editor layouts");
+    }
+
+    private void testCommandPaletteContracts() {
+        Counter commandRuns = new Counter();
+        CommandManager commands = new CommandManager();
+        commands.register(new EditorCommand("file.open", "Open Project")
+                .shortcutText("Ctrl+O")
+                .action(() -> commandRuns.count++));
+        commands.register(new EditorCommand("file.save", "Save Project")
+                .enabledWhen(() -> false)
+                .action(() -> commandRuns.cancelled++));
+        commands.register(new EditorCommand("view.palette.toggle", "Toggle Palette")
+                .checkedWhen(() -> true)
+                .action(() -> commandRuns.started++));
+
+        CommandPalette palette = Widgets.commandPalette()
+                .commandManager(commands)
+                .search("project");
+        expect(palette.visibleCommands().size() == 2
+                        && palette.visibleCommands().stream().anyMatch(item -> item.id().equals("file.open") && item.enabled())
+                        && palette.visibleCommands().stream().anyMatch(item -> item.id().equals("file.save") && !item.enabled())
+                        && palette.visibleCommands().stream().noneMatch(item -> item.id().equals("view.palette.toggle"))
+                        && palette.commandList().children().size() == 2,
+                "CommandPalette should show searchable command rows backed by CommandManager state");
+
+        Counter selections = new Counter();
+        Counter invocations = new Counter();
+        palette.onSelectionChanged(change -> {
+            selections.count++;
+            selections.lastText = change.selectedCommandId();
+            selections.lastOldText = change.previousCommandId();
+        });
+        palette.onCommandInvoked(invocation -> {
+            invocations.count++;
+            invocations.lastText = invocation.commandId();
+            invocations.lastChecked = invocation.executed();
+        });
+        expect(palette.selectCommand("file.open")
+                        && selections.count == 1
+                        && selections.lastText.equals("file.open")
+                        && palette.executeButton().enabled(),
+                "CommandPalette should track selected commands and enable execution only when runnable");
+        expect(palette.executeSelected()
+                        && commandRuns.count == 1
+                        && invocations.count == 1
+                        && invocations.lastText.equals("file.open")
+                        && invocations.lastChecked,
+                "CommandPalette should execute the selected command and notify host listeners");
+        expect(!palette.executeCommand("file.save")
+                        && commandRuns.cancelled == 0
+                        && invocations.count == 2
+                        && invocations.lastText.equals("file.save")
+                        && !invocations.lastChecked,
+                "CommandPalette should surface disabled command attempts without running their actions");
+
+        palette.search("missing-command");
+        expect(palette.visibleCommands().isEmpty()
+                        && palette.commandList().children().size() == 1,
+                "CommandPalette should show an empty-state row when no command matches the search");
+    }
+
+    private void testAssetBrowserPanelContracts() {
+        XmlWidgetAssetCatalog catalog = XmlWidgetAssetCatalog.builder()
+                .add(XmlWidgetAsset.texture("test:textures/ui/button.png", 64, 32)
+                        .displayName("Button Texture")
+                        .description("Nine-slice button background"))
+                .add(XmlWidgetAsset.texture("minecraft:textures/block/stone.png", 16, 16)
+                        .displayName("Stone"))
+                .add(XmlWidgetAsset.font("minecraft:default").displayName("Default Font"))
+                .add(XmlWidgetAsset.shader("unigui:glow").displayName("Glow Shader"))
+                .build();
+        AssetBrowserPanel browser = Widgets.assetBrowser()
+                .catalog(catalog)
+                .kind(XmlWidgetAssetKind.TEXTURE)
+                .targetAttribute("backgroundTexture")
+                .search("button");
+        expect(browser.categories().size() == XmlWidgetAssetKind.values().length
+                        && browser.categoryList().children().size() == XmlWidgetAssetKind.values().length
+                        && browser.visibleAssets().size() == 1
+                        && browser.visibleAssets().get(0).id().equals("test:textures/ui/button.png")
+                        && browser.assetList().children().size() == 1
+                        && browser.previewLabel().text().equals("No asset selected"),
+                "AssetBrowserPanel should expose category buttons and searchable catalog-backed asset rows");
+
+        Counter selections = new Counter();
+        Counter applies = new Counter();
+        browser.onAssetSelected(selection -> {
+            selections.count++;
+            selections.lastText = selection.asset().id();
+            selections.lastOldText = selection.targetAttribute();
+            selections.lastChecked = selection.applyRequested();
+        });
+        browser.onAssetApplied(selection -> {
+            applies.count++;
+            applies.lastText = selection.asset().id();
+            applies.lastOldText = selection.targetAttribute();
+            applies.lastChecked = selection.applyRequested();
+        });
+        expect(browser.selectAsset("test:textures/ui/button.png")
+                        && selections.count == 1
+                        && selections.lastText.equals("test:textures/ui/button.png")
+                        && selections.lastOldText.equals("backgroundTexture")
+                        && !selections.lastChecked
+                        && browser.selectedAsset().orElseThrow().hasDimensions()
+                        && browser.previewLabel().text().contains("64x32")
+                        && browser.applyButton().enabled(),
+                "AssetBrowserPanel should update preview and emit selection callbacks for catalog assets");
+        expect(browser.requestApplySelected()
+                        && applies.count == 1
+                        && applies.lastText.equals("test:textures/ui/button.png")
+                        && applies.lastOldText.equals("backgroundTexture")
+                        && applies.lastChecked,
+                "AssetBrowserPanel should emit apply callbacks for selecting an asset into the current property field");
+
+        browser.kind(XmlWidgetAssetKind.FONT).search("");
+        expect(browser.selectedAssetId().isEmpty()
+                        && browser.visibleAssets().size() == 1
+                        && browser.visibleAssets().get(0).kind() == XmlWidgetAssetKind.FONT
+                        && !browser.applyButton().enabled(),
+                "AssetBrowserPanel should switch asset categories and clear invalid selections");
+        browser.search("missing");
+        expect(browser.visibleAssets().isEmpty()
+                        && browser.assetList().children().size() == 1,
+                "AssetBrowserPanel should show an empty-state row when filters hide every asset");
+    }
+
+    private void testSearchBoxWithFilterChipsContracts() {
+        SearchBoxWithFilterChips filters = Widgets.searchBoxWithFilterChips()
+                .filters("errors:Errors|warnings:Warnings|assets:Assets")
+                .activeFilters("errors,warnings")
+                .search("button");
+        expect(filters.filters().size() == 3
+                        && filters.activeFilters().size() == 2
+                        && filters.filterActive("errors")
+                        && filters.filterActive("warnings")
+                        && filters.search().equals("button")
+                        && filters.chipRow().children().size() == 3,
+                "SearchBoxWithFilterChips should parse XML-style filters and active chip state");
+
+        Counter changes = new Counter();
+        filters.onFilterChanged(change -> {
+            changes.count++;
+            changes.lastText = change.changedFilterId();
+            changes.lastOldText = change.search();
+            changes.lastChecked = change.active();
+            changes.lastSelection = change.activeFilters().stream()
+                    .map(String::length)
+                    .toList();
+        });
+        expect(filters.toggleFilter("errors")
+                        && !filters.filterActive("errors")
+                        && changes.count == 1
+                        && changes.lastText.equals("errors")
+                        && !changes.lastChecked,
+                "SearchBoxWithFilterChips should toggle active chips and emit filter changes");
+        expect(filters.setFilterActive("assets", true)
+                        && filters.filterActive("assets")
+                        && changes.count == 2
+                        && changes.lastText.equals("assets")
+                        && changes.lastChecked,
+                "SearchBoxWithFilterChips should allow direct filter activation");
+        filters.search("texture");
+        expect(changes.count == 3
+                        && changes.lastText.isEmpty()
+                        && changes.lastOldText.equals("texture"),
+                "SearchBoxWithFilterChips should emit changes when the search query changes");
+        filters.clearFilters();
+        expect(filters.activeFilters().isEmpty()
+                        && changes.count == 4,
+                "SearchBoxWithFilterChips should clear active chips as a single filter change");
+    }
+
+    private void testDialogContracts() {
+        Dialog dialog = Widgets.dialog()
+                .title("Unsaved changes")
+                .message("Save before closing?")
+                .buttons("save:Save|discard:Discard|cancel:Cancel")
+                .defaultResult("save")
+                .cancelResult("cancel")
+                .content(new Label("Project settings changed"));
+        expect(dialog instanceof WindowWidget
+                        && dialog.window() == dialog
+                        && dialog.shellContent() == dialog.body()
+                        && dialog.content() instanceof Label
+                        && dialog.message().equals("Save before closing?")
+                        && dialog.buttonRow().children().size() == 3
+                        && dialog.modal()
+                        && dialog.fixedModal()
+                        && !dialog.resizable(),
+                "Dialog should wrap a WindowWidget shell with message, content and standardized result buttons");
+
+        Counter results = new Counter();
+        dialog.onDialogResult(result -> {
+            results.count++;
+            results.lastText = result.resultId();
+            results.lastOldText = result.label();
+            results.lastChecked = result.defaultResult();
+            if (result.cancelResult()) results.cancelled++;
+        });
+        dialog.open();
+        expect(dialog.opened(), "Dialog should open through the inherited WindowWidget lifecycle");
+        expect(dialog.requestDefault()
+                        && results.count == 1
+                        && results.lastText.equals("save")
+                        && results.lastOldText.equals("Save")
+                        && results.lastChecked
+                        && !dialog.opened(),
+                "Dialog should emit the configured default result and close by default");
+
+        dialog.open();
+        ((Button) dialog.buttonRow().children().get(1)).click();
+        expect(results.count == 2
+                        && results.lastText.equals("discard")
+                        && results.lastOldText.equals("Discard")
+                        && !results.lastChecked
+                        && !dialog.opened(),
+                "Dialog button controls should emit their result id and label");
+
+        dialog.closeOnResult(false).open();
+        expect(dialog.requestCancel()
+                        && results.count == 3
+                        && results.lastText.equals("cancel")
+                        && results.cancelled == 1
+                        && dialog.opened(),
+                "Dialog should support non-closing result callbacks for host-driven validation");
+
+        dialog.closeOnResult(true);
+        dialog.closeButton().click();
+        expect(results.count == 4
+                        && results.lastText.equals("cancel")
+                        && !dialog.opened(),
+                "Dialog close button should emit the configured cancel result");
+
+        OverlayLayer overlay = Widgets.overlayLayer();
+        overlay.addOverlay(dialog);
+        overlay.applyQueuedMutations();
+        dialog.openModal();
+        expect(overlay.windowManager().registered(dialog)
+                        && overlay.windowManager().topModalWindow() == dialog,
+                "Dialog should participate in OverlayLayer WindowManager modal registration");
+    }
+
+    private void testPaneHeaderContracts() {
+        DockPane pane = DockPane.tool("properties", "Properties", new Label("Body"))
+                .dirty(true)
+                .pinned(false)
+                .closable(true);
+        PaneHeader header = Widgets.paneHeader()
+                .pane(pane)
+                .menuVisible(true);
+        expect(header.paneId().equals("properties")
+                        && header.title().equals("Properties")
+                        && header.dirty()
+                        && !header.pinned()
+                        && header.closable()
+                        && header.titleLabel().text().equals("Properties")
+                        && header.dirtyLabel().visibility() == Visibility.VISIBLE
+                        && header.pinButton().visible()
+                        && header.menuButton().visible()
+                        && header.closeButton().visible(),
+                "PaneHeader should mirror DockPane title, dirty, pin and closable state into header controls");
+
+        Counter actions = new Counter();
+        header.onAction(action -> {
+            actions.count++;
+            actions.lastText = action.action().name();
+            actions.lastOldText = action.paneId();
+            actions.lastChecked = action.pinned();
+        });
+        expect(header.togglePinned()
+                        && header.pinned()
+                        && pane.pinned()
+                        && actions.count == 1
+                        && actions.lastText.equals(PaneHeader.Action.PIN_CHANGED.name())
+                        && actions.lastOldText.equals("properties")
+                        && actions.lastChecked,
+                "PaneHeader should toggle pin state, sync the DockPane and emit pin callbacks");
+        expect(header.requestMenu()
+                        && actions.count == 2
+                        && actions.lastText.equals(PaneHeader.Action.MENU_REQUESTED.name()),
+                "PaneHeader should emit menu request callbacks");
+        expect(header.requestClose()
+                        && actions.count == 3
+                        && actions.lastText.equals(PaneHeader.Action.CLOSE_REQUESTED.name()),
+                "PaneHeader should emit close request callbacks");
+        header.closable(false);
+        expect(!header.requestClose()
+                        && actions.count == 3
+                        && !header.closeButton().visible()
+                        && !pane.closable(),
+                "PaneHeader should hide and suppress close requests when the pane is not closable");
+
+        PaneHeader minimal = Widgets.paneHeader()
+                .title("Hierarchy")
+                .dirty(true)
+                .pinVisible(false)
+                .menuVisible(false)
+                .closeVisible(false);
+        expect(minimal.titleLabel().text().equals("Hierarchy")
+                        && minimal.dirtyLabel().visibility() == Visibility.VISIBLE
+                        && !minimal.pinButton().visible()
+                        && !minimal.menuButton().visible()
+                        && !minimal.closeButton().visible(),
+                "PaneHeader should support minimal custom pane headers without action buttons");
+
+        ResizablePanelHeader resizable = Widgets.resizablePanelHeader()
+                .paneId("assets")
+                .title("Assets")
+                .sizeRange(120.0f, 300.0f)
+                .panelSize(240.0f)
+                .resizeEdge(ResizablePanelHeader.ResizeEdge.LEFT);
+        Counter resizes = new Counter();
+        resizable.onResizeRequested(request -> {
+            resizes.count++;
+            resizes.lastText = request.edge().name();
+            resizes.lastValue = request.oldSize();
+            resizes.lastNewWidth = request.newSize();
+        });
+        expect(resizable.requestResize(500.0f)
+                        && resizes.count == 1
+                        && resizes.lastText.equals("LEFT")
+                        && near(resizes.lastValue, 240.0f)
+                        && near(resizes.lastNewWidth, 300.0f)
+                        && near(resizable.panelSize(), 300.0f),
+                "ResizablePanelHeader should clamp resize requests and report old/new panel sizes");
+        resizable.resizingEnabled(false);
+        expect(!resizable.requestResize(180.0f)
+                        && resizes.count == 1
+                        && !resizable.resizeButton().enabled(),
+                "ResizablePanelHeader should suppress resize requests when disabled");
+    }
+
+    private void testDragDropHelperContracts() {
+        DragSource source = Widgets.dragSource()
+                .payloadId("Button")
+                .payloadType("widget")
+                .dragPreview("<Button />")
+                .dragThreshold(3.0f);
+        expect(source.payload().id().equals("Button")
+                        && source.payload().type().equals("widget")
+                        && source.payload().preview().equals("<Button />"),
+                "DragSource should expose payload id, type and preview metadata");
+
+        DropTarget target = Widgets.dropTarget().acceptedPayloadTypes("widget|tree-node");
+        Counter previews = new Counter();
+        Counter drops = new Counter();
+        target.onDropPreview(preview -> {
+            previews.count++;
+            previews.lastChecked = preview.accepted();
+            previews.lastText = preview.payload().id();
+        });
+        target.onDrop(drop -> {
+            drops.count++;
+            drops.lastText = drop.payload().id();
+            drops.lastOldText = drop.result().name();
+        });
+
+        DropTarget.DropPreview preview = target.previewDrop(source.payload(), 18.0f, 22.0f);
+        expect(preview.accepted()
+                        && target.dropPreviewActive()
+                        && target.previewPayload().id().equals("Button")
+                        && previews.count == 1
+                        && previews.lastChecked
+                        && previews.lastText.equals("Button"),
+                "DropTarget should validate matching payload types and expose accepted previews");
+
+        Counter drags = new Counter();
+        source.onDrag(event -> {
+            if (event.action() == DragSource.Action.STARTED) drags.started++;
+            if (event.action() == DragSource.Action.MOVED) drags.moved++;
+            if (event.action() == DragSource.Action.ENDED) drags.committed++;
+            if (event.action() == DragSource.Action.CANCELLED) drags.cancelled++;
+            drags.lastText = event.dropResult().name();
+        });
+        expect(source.startDrag(10.0f, 10.0f)
+                        && source.moveDrag(14.0f, 10.0f)
+                        && source.dropOn(target, 20.0f, 24.0f) == DropTarget.DropResult.ACCEPTED
+                        && !source.dragging()
+                        && source.lastDropResult() == DropTarget.DropResult.ACCEPTED
+                        && drags.started == 1
+                        && drags.moved == 1
+                        && drags.committed == 1
+                        && drops.count == 1
+                        && drops.lastText.equals("Button")
+                        && drops.lastOldText.equals("ACCEPTED")
+                        && !target.dropPreviewActive(),
+                "DragSource should emit drag lifecycle callbacks and DropTarget should emit accepted drops");
+
+        target.addValidator(payload -> !payload.id().equals("Blocked"));
+        expect(target.requestDrop(DragPayload.of("Blocked", "widget", "Blocked"), 30.0f, 30.0f) == DropTarget.DropResult.REJECTED
+                        && drops.count == 1
+                        && target.lastDropResult() == DropTarget.DropResult.REJECTED,
+                "DropTarget validators should reject payloads without emitting accepted drop callbacks");
+        expect(!target.accepts(DragPayload.of("Button", "asset", "Asset")),
+                "DropTarget acceptedPayloadTypes should reject mismatched payload types");
+
+        DragSource pointerSource = Widgets.dragSource()
+                .payloadId("Label")
+                .payloadType("widget")
+                .dragThreshold(4.0f);
+        DefaultUIContext uiContext = new DefaultUIContext();
+        pointerSource.setUiContextInternal(uiContext);
+        pointerSource.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 20.0f));
+        Counter pointerDrags = new Counter();
+        pointerSource.onDrag(event -> {
+            if (event.action() == DragSource.Action.STARTED) pointerDrags.started++;
+            if (event.action() == DragSource.Action.ENDED) pointerDrags.committed++;
+        });
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(pointerSource, 2.0f, 2.0f, 2.0f, 2.0f, 4, PointerButton.PRIMARY));
+        expect(pointerSource.pointerActive()
+                        && !pointerSource.dragging()
+                        && uiContext.capturedPointer(4) == pointerSource,
+                "DragSource pointer press should capture the active pointer before threshold is crossed");
+        uiContext.routedEvents().dispatch(new PointerMovedEvent(pointerSource, 4.0f, 2.0f, 4.0f, 2.0f, 4));
+        expect(!pointerSource.dragging() && pointerDrags.started == 0,
+                "DragSource should wait for the configured movement threshold before starting drag");
+        uiContext.routedEvents().dispatch(new PointerMovedEvent(pointerSource, 8.0f, 2.0f, 8.0f, 2.0f, 4));
+        expect(pointerSource.dragging() && pointerDrags.started == 1,
+                "DragSource should start dragging once pointer movement crosses the threshold");
+        uiContext.routedEvents().dispatch(new PointerReleasedEvent(pointerSource, 8.0f, 2.0f, 8.0f, 2.0f, 4, PointerButton.PRIMARY));
+        expect(!pointerSource.pointerActive()
+                        && !pointerSource.dragging()
+                        && pointerDrags.committed == 1
+                        && uiContext.capturedPointer(4) == null,
+                "DragSource pointer release should end drag and release pointer capture");
     }
 
     private void testPasswordAndSearchFields() {

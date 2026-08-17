@@ -3,6 +3,8 @@ package dev.sixik.unigui.widgets.core;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.xml.XmlAttributeDescriptor;
+import dev.sixik.unigui.api.xml.XmlWidgetElement;
 import dev.sixik.unigui.widgets.caching.CachedSubtreeWidget;
 import dev.sixik.unigui.widgets.containers.Border;
 import dev.sixik.unigui.widgets.containers.Box;
@@ -32,6 +34,24 @@ import dev.sixik.unigui.widgets.display.Sparkline;
 import dev.sixik.unigui.widgets.display.Text;
 import dev.sixik.unigui.widgets.display.TextBlock;
 import dev.sixik.unigui.widgets.display.TextureWidget;
+import dev.sixik.unigui.widgets.editor.AssetBrowserPanel;
+import dev.sixik.unigui.widgets.editor.CommandPalette;
+import dev.sixik.unigui.widgets.editor.DesignCanvasOverlay;
+import dev.sixik.unigui.widgets.editor.DiagnosticsStrip;
+import dev.sixik.unigui.widgets.editor.Dialog;
+import dev.sixik.unigui.widgets.editor.DragSource;
+import dev.sixik.unigui.widgets.editor.DropTarget;
+import dev.sixik.unigui.widgets.editor.GridOverlay;
+import dev.sixik.unigui.widgets.editor.PalettePanel;
+import dev.sixik.unigui.widgets.editor.PaneHeader;
+import dev.sixik.unigui.widgets.editor.PropertyFieldRow;
+import dev.sixik.unigui.widgets.editor.PropertyGrid;
+import dev.sixik.unigui.widgets.editor.ProjectPickerPanel;
+import dev.sixik.unigui.widgets.editor.ResizablePanelHeader;
+import dev.sixik.unigui.widgets.editor.SearchBoxWithFilterChips;
+import dev.sixik.unigui.widgets.editor.SelectionOverlay;
+import dev.sixik.unigui.widgets.editor.StatusBar;
+import dev.sixik.unigui.widgets.editor.WidgetPalette;
 import dev.sixik.unigui.widgets.feedback.ContextMenu;
 import dev.sixik.unigui.widgets.feedback.LoadingIndicator;
 import dev.sixik.unigui.widgets.feedback.NotificationView;
@@ -46,10 +66,12 @@ import dev.sixik.unigui.widgets.graph.GraphView;
 import dev.sixik.unigui.widgets.graph.NodeGraph;
 import dev.sixik.unigui.widgets.interaction.Button;
 import dev.sixik.unigui.widgets.interaction.Checkbox;
+import dev.sixik.unigui.widgets.interaction.CodeEditor;
 import dev.sixik.unigui.widgets.interaction.ColorPicker;
 import dev.sixik.unigui.widgets.interaction.ComboBox;
 import dev.sixik.unigui.widgets.interaction.DatePicker;
 import dev.sixik.unigui.widgets.interaction.DropDownBox;
+import dev.sixik.unigui.widgets.interaction.IconButton;
 import dev.sixik.unigui.widgets.interaction.NumberField;
 import dev.sixik.unigui.widgets.interaction.PasswordField;
 import dev.sixik.unigui.widgets.interaction.RadioButton;
@@ -57,19 +79,26 @@ import dev.sixik.unigui.widgets.interaction.RadioGroup;
 import dev.sixik.unigui.widgets.interaction.ScrollBar;
 import dev.sixik.unigui.widgets.interaction.SearchField;
 import dev.sixik.unigui.widgets.interaction.Slider;
+import dev.sixik.unigui.widgets.interaction.TextArea;
 import dev.sixik.unigui.widgets.interaction.TextField;
 import dev.sixik.unigui.widgets.interaction.TextInput;
 import dev.sixik.unigui.widgets.interaction.TimeSpanField;
 import dev.sixik.unigui.widgets.interaction.ToggleButton;
 import dev.sixik.unigui.widgets.interaction.ToggleSwitch;
+import dev.sixik.unigui.widgets.interaction.ToggleToolButton;
+import dev.sixik.unigui.widgets.interaction.ToolButton;
 import dev.sixik.unigui.widgets.interaction.TreeListPicker;
+import dev.sixik.unigui.widgets.interaction.XmlCodeEditor;
 import dev.sixik.unigui.widgets.navigation.Accordion;
 import dev.sixik.unigui.widgets.navigation.Breadcrumb;
 import dev.sixik.unigui.widgets.navigation.BreadcrumbItem;
 import dev.sixik.unigui.widgets.navigation.Carousel;
 import dev.sixik.unigui.widgets.navigation.ExpandablePanel;
+import dev.sixik.unigui.widgets.navigation.Menu;
+import dev.sixik.unigui.widgets.navigation.MenuBar;
 import dev.sixik.unigui.widgets.navigation.PageView;
 import dev.sixik.unigui.widgets.navigation.TabControl;
+import dev.sixik.unigui.widgets.navigation.ToolBar;
 import dev.sixik.unigui.widgets.navigation.TreeList;
 import dev.sixik.unigui.widgets.navigation.TreeView;
 import dev.sixik.unigui.widgets.navigation.TreeViewNode;
@@ -265,6 +294,106 @@ public final class Widgets {
         return new ContextMenu();
     }
 
+    public static MenuBar menuBar() {
+        return new MenuBar();
+    }
+
+    public static Menu menu(String label) {
+        return new Menu(label);
+    }
+
+    public static ToolBar toolBar() {
+        return new ToolBar();
+    }
+
+    public static ToolButton toolButton(String label) {
+        return new ToolButton(label);
+    }
+
+    public static IconButton iconButton(String icon) {
+        return new IconButton(icon);
+    }
+
+    public static ToggleToolButton toggleToolButton(String label) {
+        return new ToggleToolButton(label);
+    }
+
+    public static PropertyGrid propertyGrid() {
+        return new PropertyGrid();
+    }
+
+    public static PropertyGrid propertyGrid(XmlWidgetElement element) {
+        return new PropertyGrid().inspect(element);
+    }
+
+    public static PropertyFieldRow propertyFieldRow(XmlAttributeDescriptor descriptor, String value, boolean present) {
+        return new PropertyFieldRow(descriptor, value, present);
+    }
+
+    public static SelectionOverlay selectionOverlay() {
+        return new SelectionOverlay();
+    }
+
+    public static DesignCanvasOverlay designCanvasOverlay() {
+        return new DesignCanvasOverlay();
+    }
+
+    public static GridOverlay gridOverlay() {
+        return new GridOverlay();
+    }
+
+    public static ProjectPickerPanel projectPicker() {
+        return new ProjectPickerPanel();
+    }
+
+    public static StatusBar statusBar() {
+        return new StatusBar();
+    }
+
+    public static DiagnosticsStrip diagnosticsStrip() {
+        return new DiagnosticsStrip();
+    }
+
+    public static WidgetPalette widgetPalette() {
+        return new WidgetPalette();
+    }
+
+    public static PalettePanel palettePanel() {
+        return new PalettePanel();
+    }
+
+    public static CommandPalette commandPalette() {
+        return new CommandPalette();
+    }
+
+    public static AssetBrowserPanel assetBrowser() {
+        return new AssetBrowserPanel();
+    }
+
+    public static SearchBoxWithFilterChips searchBoxWithFilterChips() {
+        return new SearchBoxWithFilterChips();
+    }
+
+    public static Dialog dialog() {
+        return new Dialog();
+    }
+
+    public static PaneHeader paneHeader() {
+        return new PaneHeader();
+    }
+
+    public static ResizablePanelHeader resizablePanelHeader() {
+        return new ResizablePanelHeader();
+    }
+
+    public static DragSource dragSource() {
+        return new DragSource();
+    }
+
+    public static DropTarget dropTarget() {
+        return new DropTarget();
+    }
+
     public static Toast toast(String text) {
         return new Toast(text);
     }
@@ -307,6 +436,30 @@ public final class Widgets {
 
     public static TextInput textInput(String text) {
         return new TextInput(text);
+    }
+
+    public static TextArea textArea() {
+        return new TextArea();
+    }
+
+    public static TextArea textArea(String text) {
+        return new TextArea(text);
+    }
+
+    public static CodeEditor codeEditor() {
+        return new CodeEditor();
+    }
+
+    public static CodeEditor codeEditor(String text) {
+        return new CodeEditor(text);
+    }
+
+    public static XmlCodeEditor xmlCodeEditor() {
+        return new XmlCodeEditor();
+    }
+
+    public static XmlCodeEditor xmlCodeEditor(String xml) {
+        return new XmlCodeEditor(xml);
     }
 
     public static PasswordField passwordField() {

@@ -16,6 +16,7 @@ import dev.sixik.unigui.widgets.render.ScrollBarRenderer;
 import dev.sixik.unigui.widgets.render.SliderRenderer;
 import dev.sixik.unigui.widgets.render.SparklineRenderer;
 import dev.sixik.unigui.widgets.render.ButtonRenderer;
+import dev.sixik.unigui.widgets.render.TextAreaRenderer;
 import dev.sixik.unigui.widgets.render.TextInputRenderer;
 import dev.sixik.unigui.widgets.render.ShapeRenderer;
 import dev.sixik.unigui.widgets.render.SeparatorRenderer;
@@ -122,6 +123,10 @@ public interface WidgetsRenderImpl {
     }
 
     default TextInputRenderer numberField() {
+        return null;
+    }
+
+    default TextAreaRenderer textArea() {
         return null;
     }
 

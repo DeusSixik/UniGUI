@@ -74,6 +74,7 @@ public class VirtualListView extends WidgetBase {
     private int offscreenCacheSize;
     private boolean consumeWheelAtScrollBounds = true;
     private int activeIndex = -1;
+    private int pendingActiveIndex = -1;
 
     public VirtualListView() {
         focusable(true);
@@ -90,7 +91,14 @@ public class VirtualListView extends WidgetBase {
         if (virtualizer.itemCount() == Math.max(0, itemCount)) return this;
         List<Integer> oldSelection = selection.selectedIndices();
         virtualizer.itemCount(itemCount);
-        activeIndex = clampIndexOrNone(activeIndex);
+        if (pendingActiveIndex >= 0) {
+            activeIndex = clampIndexOrNone(pendingActiveIndex);
+            if (activeIndex >= 0) {
+                pendingActiveIndex = -1;
+            }
+        } else {
+            activeIndex = clampIndexOrNone(activeIndex);
+        }
         pruneRealized();
         pruneRecycled();
         emitSelectionChangeIfChanged(oldSelection, selection.retainWithin(virtualizer.itemCount()));
@@ -222,6 +230,11 @@ public class VirtualListView extends WidgetBase {
 
     @XmlAttribute(value = "activeIndex", category = "Behavior", defaultValue = "-1", description = "Initial keyboard/navigation active row index.")
     public VirtualListView activeIndex(int index) {
+        if (index >= 0 && virtualizer.itemCount() <= 0) {
+            pendingActiveIndex = index;
+        } else {
+            pendingActiveIndex = -1;
+        }
         int normalized = clampIndexOrNone(index);
         if (activeIndex == normalized) return this;
         activeIndex = normalized;

@@ -2,6 +2,7 @@ package dev.sixik.unigui.widgets.interaction;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.widgets.render.TextInputRenderer;
 import dev.sixik.unigui.widgets.render.TextInputRenderType;
@@ -28,6 +29,12 @@ public class PasswordField extends TextInput {
         this.mask = mask == 0 ? '\u2022' : mask;
         invalidate(InvalidationFlags.VISUAL);
         return this;
+    }
+
+    @XmlAttribute(value = "mask", category = "Appearance", defaultValue = "\u2022", description = "Single character used to hide the password text.")
+    public PasswordField mask(String mask) {
+        if (mask == null || mask.isEmpty()) return mask('\u2022');
+        return mask(mask.charAt(0));
     }
 
     @Override

@@ -172,7 +172,7 @@ public final class XmlWidgetAnnotations {
             if (annotation == null || annotation.value().isBlank()) continue;
             if (Modifier.isStatic(method.getModifiers()) || method.getParameterCount() != 1) continue;
             String name = annotation.value().trim();
-            attributes.put(name, descriptor(name, annotation));
+            attributes.put(name, descriptor(name, annotation, method.getParameterTypes()[0]));
         }
         return List.copyOf(attributes.values());
     }
@@ -197,12 +197,53 @@ public final class XmlWidgetAnnotations {
         return hasTypeAnnotation(type, XmlStyleAttributes.class);
     }
 
-    private static XmlAttributeDescriptor descriptor(String name, XmlAttribute annotation) {
+    /**
+     * Returns editor-facing metadata for one common style/layout attribute.
+     *
+     * @param name XML attribute name
+     * @return descriptor when the name belongs to the shared widget attribute surface
+     */
+    public static Optional<XmlAttributeDescriptor> commonAttributeDescriptor(String name) {
+        if (name == null || name.isBlank()) return Optional.empty();
+        Map<String, XmlAttributeDescriptor> attributes = new LinkedHashMap<>();
+        registerStyleAttributeDescriptors(attributes);
+        registerLayoutAttributeDescriptors(attributes);
+        return Optional.ofNullable(attributes.get(name));
+    }
+
+    private static XmlAttributeDescriptor descriptor(String name, XmlAttribute annotation, Class<?> parameterType) {
         return XmlAttributeDescriptor.of(name)
                 .displayName(annotation.displayName())
                 .category(annotation.category())
                 .defaultValue(annotation.defaultValue())
-                .description(annotation.description());
+                .description(annotation.description())
+                .valueType(valueTypeFor(parameterType, name, annotation));
+    }
+
+    private static XmlAttributeValueType valueTypeFor(Class<?> parameterType, String name, XmlAttribute annotation) {
+        if (parameterType == String.class) {
+            XmlAttributeValueType inferred = XmlAttributeDescriptor.of(name)
+                    .defaultValue(annotation.defaultValue())
+                    .valueType();
+            if (inferred == XmlAttributeValueType.RESOURCE_ID
+                    || inferred == XmlAttributeValueType.BINDING_OR_ACTION) {
+                return inferred;
+            }
+            return XmlAttributeValueType.STRING;
+        }
+        if (parameterType == boolean.class || parameterType == Boolean.class) return XmlAttributeValueType.BOOLEAN;
+        if (parameterType == int.class || parameterType == Integer.class
+                || parameterType == float.class || parameterType == Float.class
+                || parameterType == double.class || parameterType == Double.class) {
+            return XmlAttributeValueType.NUMBER;
+        }
+        if (parameterType == SizeValue.class) return XmlAttributeValueType.SIZE_VALUE;
+        if (parameterType == EdgeInsets.class) return XmlAttributeValueType.INSETS;
+        if (parameterType == MutableColor.class || parameterType == ColorView.class) return XmlAttributeValueType.COLOR;
+        if (parameterType == MutableRect.class || parameterType == RectView.class) return XmlAttributeValueType.STRING;
+        if (parameterType == TextureHandle.class) return XmlAttributeValueType.RESOURCE_ID;
+        if (parameterType.isEnum()) return XmlAttributeValueType.ENUM;
+        return XmlAttributeDescriptor.of(name).defaultValue(annotation.defaultValue()).valueType();
     }
 
     private static void registerCommonAttributeDescriptors(Map<String, XmlAttributeDescriptor> attributes, Class<?> type) {
@@ -212,46 +253,101 @@ public final class XmlWidgetAnnotations {
     }
 
     private static void registerStyleAttributeDescriptors(Map<String, XmlAttributeDescriptor> attributes) {
-        put(attributes, XmlAttributeDescriptor.of("id").category("Common").defaultValue("")
-                .description("Runtime/debug/editor identifier for code-behind lookup."));
-        put(attributes, XmlAttributeDescriptor.of("enabled").category("Behavior").defaultValue("true"));
-        put(attributes, XmlAttributeDescriptor.of("visible").category("Behavior").defaultValue("true"));
-        put(attributes, XmlAttributeDescriptor.of("visibility").category("Behavior").defaultValue("visible"));
-        put(attributes, XmlAttributeDescriptor.of("opacity").category("Appearance").defaultValue("1"));
-        put(attributes, XmlAttributeDescriptor.of("rotation").category("Appearance").defaultValue("0"));
-        put(attributes, XmlAttributeDescriptor.of("x").category("Layout").defaultValue("0"));
-        put(attributes, XmlAttributeDescriptor.of("y").category("Layout").defaultValue("0"));
-        put(attributes, XmlAttributeDescriptor.of("scale").category("Appearance").defaultValue("1"));
-        put(attributes, XmlAttributeDescriptor.of("scaleX").category("Appearance").defaultValue("1"));
-        put(attributes, XmlAttributeDescriptor.of("scaleY").category("Appearance").defaultValue("1"));
+        put(attributes, commonDescriptor("id", "Common", "",
+                "Runtime/debug/editor identifier for code-behind lookup."));
+        put(attributes, commonDescriptor("class", "Common", "",
+                "Optional style class alias preserved for editor/theme integration."));
+        put(attributes, commonDescriptor("styleClass", "Common", "",
+                "Optional style class name preserved for editor/theme integration."));
+        put(attributes, commonDescriptor("enabled", "Behavior", "true",
+                "Whether the widget can receive user interaction."));
+        put(attributes, commonDescriptor("visible", "Behavior", "true",
+                "Whether the widget is visible without collapsing layout space."));
+        put(attributes, commonDescriptor("visibility", "Behavior", "visible",
+                "Visibility mode: visible, hidden or collapsed."));
+        put(attributes, commonDescriptor("opacity", "Appearance", "1",
+                "Widget opacity clamped between 0 and 1."));
+        put(attributes, commonDescriptor("rotation", "Appearance", "0",
+                "Rotation in degrees applied to the widget transform."));
+        put(attributes, commonDescriptor("x", "Layout", "0",
+                "Local transform offset on the X axis, in pixels."));
+        put(attributes, commonDescriptor("y", "Layout", "0",
+                "Local transform offset on the Y axis, in pixels."));
+        put(attributes, commonDescriptor("scale", "Appearance", "1",
+                "Uniform local transform scale applied on both axes."));
+        put(attributes, commonDescriptor("scaleX", "Appearance", "1",
+                "Local transform scale on the X axis."));
+        put(attributes, commonDescriptor("scaleY", "Appearance", "1",
+                "Local transform scale on the Y axis."));
     }
 
     private static void registerLayoutAttributeDescriptors(Map<String, XmlAttributeDescriptor> attributes) {
-        put(attributes, XmlAttributeDescriptor.of("width"));
-        put(attributes, XmlAttributeDescriptor.of("height"));
-        put(attributes, XmlAttributeDescriptor.of("minWidth"));
-        put(attributes, XmlAttributeDescriptor.of("minHeight"));
-        put(attributes, XmlAttributeDescriptor.of("maxWidth"));
-        put(attributes, XmlAttributeDescriptor.of("maxHeight"));
-        put(attributes, XmlAttributeDescriptor.of("padding"));
-        put(attributes, XmlAttributeDescriptor.of("margin"));
-        put(attributes, XmlAttributeDescriptor.of("flexGrow"));
-        put(attributes, XmlAttributeDescriptor.of("flexShrink"));
-        put(attributes, XmlAttributeDescriptor.of("flexDirection"));
-        put(attributes, XmlAttributeDescriptor.of("flexWrap"));
-        put(attributes, XmlAttributeDescriptor.of("rowGap"));
-        put(attributes, XmlAttributeDescriptor.of("columnGap"));
-        put(attributes, XmlAttributeDescriptor.of("alignItems"));
-        put(attributes, XmlAttributeDescriptor.of("alignSelf"));
-        put(attributes, XmlAttributeDescriptor.of("justifyContent"));
-        put(attributes, XmlAttributeDescriptor.of("overflow"));
-        put(attributes, XmlAttributeDescriptor.of("overflowX"));
-        put(attributes, XmlAttributeDescriptor.of("overflowY"));
-        put(attributes, XmlAttributeDescriptor.of("position"));
-        put(attributes, XmlAttributeDescriptor.of("left"));
-        put(attributes, XmlAttributeDescriptor.of("top"));
-        put(attributes, XmlAttributeDescriptor.of("right"));
-        put(attributes, XmlAttributeDescriptor.of("bottom"));
+        put(attributes, commonDescriptor("width", "Layout", "auto",
+                "Preferred layout width; accepts px, percent or auto values."));
+        put(attributes, commonDescriptor("height", "Layout", "auto",
+                "Preferred layout height; accepts px, percent or auto values."));
+        put(attributes, commonDescriptor("minWidth", "Layout", "0",
+                "Minimum layout width constraint."));
+        put(attributes, commonDescriptor("minHeight", "Layout", "0",
+                "Minimum layout height constraint."));
+        put(attributes, commonDescriptor("maxWidth", "Layout", "auto",
+                "Maximum layout width constraint; auto means unlimited."));
+        put(attributes, commonDescriptor("maxHeight", "Layout", "auto",
+                "Maximum layout height constraint; auto means unlimited."));
+        put(attributes, commonDescriptor("padding", "Layout", "0",
+                "Inner content padding; accepts one, two, three or four inset values."));
+        put(attributes, commonDescriptor("margin", "Layout", "0",
+                "Outer layout margin; accepts one, two, three or four inset values."));
+        put(attributes, commonDescriptor("flexGrow", "Layout", "0",
+                "Flex grow weight inside flex-capable parent layouts."));
+        put(attributes, commonDescriptor("flexShrink", "Layout", "1",
+                "Flex shrink weight inside flex-capable parent layouts."));
+        put(attributes, commonDescriptor("flexDirection", "Layout", "column",
+                "Primary child layout direction for flex-capable widgets."));
+        put(attributes, commonDescriptor("flexWrap", "Layout", "nowrap",
+                "Whether flex children wrap onto additional rows or columns."));
+        put(attributes, commonDescriptor("rowGap", "Layout", "0",
+                "Spacing between layout rows."));
+        put(attributes, commonDescriptor("columnGap", "Layout", "0",
+                "Spacing between layout columns."));
+        put(attributes, commonDescriptor("align", "Layout", "stretch",
+                "Legacy shorthand that applies the same alignment to both axes."));
+        put(attributes, commonDescriptor("alignItems", "Layout", "stretch",
+                "Cross-axis alignment applied to child widgets."));
+        put(attributes, commonDescriptor("alignSelf", "Layout", "auto",
+                "Per-widget alignment override inside the parent layout."));
+        put(attributes, commonDescriptor("justifyContent", "Layout", "start",
+                "Main-axis distribution for children in flex-capable layouts."));
+        put(attributes, commonDescriptor("overflow", "Layout", "visible",
+                "Overflow mode applied to both axes."));
+        put(attributes, commonDescriptor("overflowX", "Layout", "visible",
+                "Horizontal overflow mode."));
+        put(attributes, commonDescriptor("overflowY", "Layout", "visible",
+                "Vertical overflow mode."));
+        put(attributes, commonDescriptor("position", "Layout", "relative",
+                "Layout positioning mode: relative or absolute."));
+        put(attributes, commonDescriptor("left", "Layout", "auto",
+                "Absolute-position left inset; used when position is absolute."));
+        put(attributes, commonDescriptor("top", "Layout", "auto",
+                "Absolute-position top inset; used when position is absolute."));
+        put(attributes, commonDescriptor("right", "Layout", "auto",
+                "Absolute-position right inset; used when position is absolute."));
+        put(attributes, commonDescriptor("bottom", "Layout", "auto",
+                "Absolute-position bottom inset; used when position is absolute."));
+    }
+
+    private static XmlAttributeDescriptor commonDescriptor(String name,
+                                                           String category,
+                                                           String defaultValue,
+                                                           String description) {
+        return XmlAttributeDescriptor.of(name)
+                .category(category)
+                .defaultValue(defaultValue)
+                .description(description);
+    }
+
+    private static XmlAttributeDescriptor commonAttribute(String name) {
+        return commonAttributeDescriptor(name).orElse(XmlAttributeDescriptor.of(name));
     }
 
     private static void put(Map<String, XmlAttributeDescriptor> attributes, XmlAttributeDescriptor descriptor) {
@@ -274,11 +370,20 @@ public final class XmlWidgetAnnotations {
 
     private static <T extends Widget> void registerChildPolicy(XmlWidgetType<T> registered, Class<T> widgetType) {
         if (PanelWidget.class.isAssignableFrom(widgetType)) {
-            registered.childPolicy((parent, child) -> ((PanelWidget) parent).addChild(child));
+            XmlChildPolicy<T> children = (parent, child) -> ((PanelWidget) parent).addChild(child);
+            registered.childPolicy(children)
+                    .propertyChild("Children", children,
+                            XmlPropertyChildDescriptor.of("Children")
+                                    .category("Content")
+                                    .description("Child widgets hosted by this annotated container."));
             return;
         }
         if (ScrollView.class.isAssignableFrom(widgetType)) {
-            registered.propertyChild("Content", (parent, child) -> ((ScrollView) parent).content(child));
+            registered.propertyChild("Content", (parent, child) -> ((ScrollView) parent).content(child),
+                    XmlPropertyChildDescriptor.of("Content")
+                            .category("Content")
+                            .description("Single scrollable content widget.")
+                            .singleChildOnly());
         }
     }
 
@@ -288,9 +393,10 @@ public final class XmlWidgetAnnotations {
         if (Modifier.isStatic(method.getModifiers()) || method.getParameterCount() != 1) return;
 
         String name = annotation.value().trim();
-        XmlValueParser<?> parser = parserFor(method.getParameterTypes()[0], annotation);
+        Class<?> parameterType = method.getParameterTypes()[0];
+        XmlValueParser<?> parser = parserFor(parameterType, annotation);
         method.setAccessible(true);
-        registerReflectedAttribute(registered, name, parser, descriptor(name, annotation), method);
+        registerReflectedAttribute(registered, name, parser, descriptor(name, annotation, parameterType), method);
     }
 
     private static <T extends Widget> void registerImplAnnotatedAttribute(
@@ -301,9 +407,10 @@ public final class XmlWidgetAnnotations {
         if (Modifier.isStatic(method.getModifiers()) || method.getParameterCount() != 1) return;
 
         String name = annotation.value().trim();
-        XmlValueParser<?> parser = parserFor(method.getParameterTypes()[0], annotation);
+        Class<?> parameterType = method.getParameterTypes()[0];
+        XmlValueParser<?> parser = parserFor(parameterType, annotation);
         method.setAccessible(true);
-        registerImplReflectedAttribute(registered, name, parser, descriptor(name, annotation), method);
+        registerImplReflectedAttribute(registered, name, parser, descriptor(name, annotation, parameterType), method);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -330,61 +437,60 @@ public final class XmlWidgetAnnotations {
 
     private static void registerStyleAttributes(XmlWidgetType<? extends WidgetBase> registered) {
         attribute(registered, "id", XmlValueParsers.STRING, WidgetBase::id,
-                XmlAttributeDescriptor.of("id").category("Common").defaultValue("")
-                        .description("Runtime/debug/editor identifier for code-behind lookup."));
+                commonAttribute("id"));
         attribute(registered, "enabled", XmlValueParsers.BOOLEAN, WidgetBase::enabled,
-                XmlAttributeDescriptor.of("enabled").category("Behavior").defaultValue("true"));
+                commonAttribute("enabled"));
         attribute(registered, "visible", XmlValueParsers.BOOLEAN, WidgetBase::visible,
-                XmlAttributeDescriptor.of("visible").category("Behavior").defaultValue("true"));
+                commonAttribute("visible"));
         attribute(registered, "visibility", XmlValueParsers.enumValue(Visibility.class), WidgetBase::visibility,
-                XmlAttributeDescriptor.of("visibility").category("Behavior").defaultValue("visible"));
+                commonAttribute("visibility"));
         attribute(registered, "opacity", XmlValueParsers.FLOAT, WidgetBase::opacity,
-                XmlAttributeDescriptor.of("opacity").category("Appearance").defaultValue("1"));
+                commonAttribute("opacity"));
         attribute(registered, "rotation", XmlValueParsers.FLOAT, WidgetBase::rotationDegrees,
-                XmlAttributeDescriptor.of("rotation").category("Appearance").defaultValue("0"));
+                commonAttribute("rotation"));
         attribute(registered, "x", XmlValueParsers.FLOAT,
                 (widget, value) -> widget.transform().position().set(value, widget.transform().position().y()),
-                XmlAttributeDescriptor.of("x").category("Layout").defaultValue("0"));
+                commonAttribute("x"));
         attribute(registered, "y", XmlValueParsers.FLOAT,
                 (widget, value) -> widget.transform().position().set(widget.transform().position().x(), value),
-                XmlAttributeDescriptor.of("y").category("Layout").defaultValue("0"));
+                commonAttribute("y"));
         attribute(registered, "scale", XmlValueParsers.FLOAT,
                 (widget, value) -> widget.transform().scale().set(value, value),
-                XmlAttributeDescriptor.of("scale").category("Appearance").defaultValue("1"));
+                commonAttribute("scale"));
         attribute(registered, "scaleX", XmlValueParsers.FLOAT,
                 (widget, value) -> widget.transform().scale().set(value, widget.transform().scale().y()),
-                XmlAttributeDescriptor.of("scaleX").category("Appearance").defaultValue("1"));
+                commonAttribute("scaleX"));
         attribute(registered, "scaleY", XmlValueParsers.FLOAT,
                 (widget, value) -> widget.transform().scale().set(widget.transform().scale().x(), value),
-                XmlAttributeDescriptor.of("scaleY").category("Appearance").defaultValue("1"));
+                commonAttribute("scaleY"));
     }
 
     private static void registerLayoutAttributes(XmlWidgetType<? extends WidgetBase> registered) {
-        attribute(registered, "width", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.width(value)));
-        attribute(registered, "height", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.height(value)));
-        attribute(registered, "minWidth", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.minWidth(value)));
-        attribute(registered, "minHeight", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.minHeight(value)));
-        attribute(registered, "maxWidth", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.maxWidth(value)));
-        attribute(registered, "maxHeight", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.maxHeight(value)));
-        attribute(registered, "padding", XmlValueParsers.INSETS, (widget, value) -> widget.layout(style -> style.padding(value)));
-        attribute(registered, "margin", XmlValueParsers.INSETS, (widget, value) -> widget.layout(style -> style.margin(value)));
-        attribute(registered, "flexGrow", XmlValueParsers.FLOAT, (widget, value) -> widget.layout(style -> style.flexGrow(value)));
-        attribute(registered, "flexShrink", XmlValueParsers.FLOAT, (widget, value) -> widget.layout(style -> style.flexShrink(value)));
-        attribute(registered, "flexDirection", XmlValueParsers.enumValue(FlexDirection.class), (widget, value) -> widget.layout(style -> style.flexDirection(value)));
-        attribute(registered, "flexWrap", XmlValueParsers.enumValue(FlexWrap.class), (widget, value) -> widget.layout(style -> style.flexWrap(value)));
-        attribute(registered, "rowGap", XmlValueParsers.FLOAT, (widget, value) -> widget.layout(style -> style.rowGap(value)));
-        attribute(registered, "columnGap", XmlValueParsers.FLOAT, (widget, value) -> widget.layout(style -> style.columnGap(value)));
-        attribute(registered, "alignItems", XmlValueParsers.enumValue(Align.class), (widget, value) -> widget.layout(style -> style.alignItems(value)));
-        attribute(registered, "alignSelf", XmlValueParsers.enumValue(Align.class), (widget, value) -> widget.layout(style -> style.alignSelf(value)));
-        attribute(registered, "justifyContent", XmlValueParsers.enumValue(Justify.class), (widget, value) -> widget.layout(style -> style.justifyContent(value)));
-        attribute(registered, "overflow", XmlValueParsers.enumValue(Overflow.class), (widget, value) -> widget.layout(style -> style.overflow(value)));
-        attribute(registered, "overflowX", XmlValueParsers.enumValue(Overflow.class), (widget, value) -> widget.layout(style -> style.overflowX(value)));
-        attribute(registered, "overflowY", XmlValueParsers.enumValue(Overflow.class), (widget, value) -> widget.layout(style -> style.overflowY(value)));
-        attribute(registered, "position", XmlValueParsers.enumValue(PositionType.class), (widget, value) -> widget.layout(style -> style.position(value)));
-        attribute(registered, "left", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.left(value)));
-        attribute(registered, "top", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.top(value)));
-        attribute(registered, "right", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.right(value)));
-        attribute(registered, "bottom", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.bottom(value)));
+        attribute(registered, "width", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.width(value)), commonAttribute("width"));
+        attribute(registered, "height", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.height(value)), commonAttribute("height"));
+        attribute(registered, "minWidth", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.minWidth(value)), commonAttribute("minWidth"));
+        attribute(registered, "minHeight", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.minHeight(value)), commonAttribute("minHeight"));
+        attribute(registered, "maxWidth", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.maxWidth(value)), commonAttribute("maxWidth"));
+        attribute(registered, "maxHeight", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.maxHeight(value)), commonAttribute("maxHeight"));
+        attribute(registered, "padding", XmlValueParsers.INSETS, (widget, value) -> widget.layout(style -> style.padding(value)), commonAttribute("padding"));
+        attribute(registered, "margin", XmlValueParsers.INSETS, (widget, value) -> widget.layout(style -> style.margin(value)), commonAttribute("margin"));
+        attribute(registered, "flexGrow", XmlValueParsers.FLOAT, (widget, value) -> widget.layout(style -> style.flexGrow(value)), commonAttribute("flexGrow"));
+        attribute(registered, "flexShrink", XmlValueParsers.FLOAT, (widget, value) -> widget.layout(style -> style.flexShrink(value)), commonAttribute("flexShrink"));
+        attribute(registered, "flexDirection", XmlValueParsers.enumValue(FlexDirection.class), (widget, value) -> widget.layout(style -> style.flexDirection(value)), commonAttribute("flexDirection"));
+        attribute(registered, "flexWrap", XmlValueParsers.enumValue(FlexWrap.class), (widget, value) -> widget.layout(style -> style.flexWrap(value)), commonAttribute("flexWrap"));
+        attribute(registered, "rowGap", XmlValueParsers.FLOAT, (widget, value) -> widget.layout(style -> style.rowGap(value)), commonAttribute("rowGap"));
+        attribute(registered, "columnGap", XmlValueParsers.FLOAT, (widget, value) -> widget.layout(style -> style.columnGap(value)), commonAttribute("columnGap"));
+        attribute(registered, "alignItems", XmlValueParsers.enumValue(Align.class), (widget, value) -> widget.layout(style -> style.alignItems(value)), commonAttribute("alignItems"));
+        attribute(registered, "alignSelf", XmlValueParsers.enumValue(Align.class), (widget, value) -> widget.layout(style -> style.alignSelf(value)), commonAttribute("alignSelf"));
+        attribute(registered, "justifyContent", XmlValueParsers.enumValue(Justify.class), (widget, value) -> widget.layout(style -> style.justifyContent(value)), commonAttribute("justifyContent"));
+        attribute(registered, "overflow", XmlValueParsers.enumValue(Overflow.class), (widget, value) -> widget.layout(style -> style.overflow(value)), commonAttribute("overflow"));
+        attribute(registered, "overflowX", XmlValueParsers.enumValue(Overflow.class), (widget, value) -> widget.layout(style -> style.overflowX(value)), commonAttribute("overflowX"));
+        attribute(registered, "overflowY", XmlValueParsers.enumValue(Overflow.class), (widget, value) -> widget.layout(style -> style.overflowY(value)), commonAttribute("overflowY"));
+        attribute(registered, "position", XmlValueParsers.enumValue(PositionType.class), (widget, value) -> widget.layout(style -> style.position(value)), commonAttribute("position"));
+        attribute(registered, "left", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.left(value)), commonAttribute("left"));
+        attribute(registered, "top", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.top(value)), commonAttribute("top"));
+        attribute(registered, "right", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.right(value)), commonAttribute("right"));
+        attribute(registered, "bottom", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.bottom(value)), commonAttribute("bottom"));
     }
 
     private static <T extends WidgetBase, V> void attribute(XmlWidgetType<? extends T> registered,

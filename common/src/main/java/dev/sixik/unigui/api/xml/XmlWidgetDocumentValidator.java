@@ -192,10 +192,11 @@ final class XmlWidgetDocumentValidator {
             add(diagnostics, element, "Property element '" + element.name() + "' must be nested inside a widget element.");
         } else {
             Optional<XmlWidgetDescriptor> owner = registry.descriptor(propertyElement.ownerName());
+            Optional<XmlPropertyChildDescriptor> propertyChild = propertyChildDescriptor(registry, parentDescriptor, propertyElement);
             if (owner.isEmpty() || !owner.get().xmlName().equals(parentDescriptor.xmlName())) {
                 add(diagnostics, element, "Property element '" + element.name()
                         + "' cannot be used inside " + parentDescriptor.xmlName() + ".");
-            } else if (!hasPropertyChild(parentDescriptor, propertyElement.propertyName())) {
+            } else if (propertyChild.isEmpty()) {
                 add(diagnostics, element, "Unknown property element '" + element.name() + "' on "
                         + parentDescriptor.xmlName() + ".");
             }
@@ -208,6 +209,11 @@ final class XmlWidgetDocumentValidator {
             }
         }
 
+        Optional<XmlPropertyChildDescriptor> propertyChild = parentDescriptor == null
+                ? Optional.empty()
+                : propertyChildDescriptor(registry, parentDescriptor, propertyElement);
+        int widgetChildren = 0;
+        boolean reportedTooManyWidgets = false;
         for (XmlWidgetNode child : element.children()) {
             if (child instanceof XmlWidgetText text && !text.text().isBlank()) {
                 add(diagnostics, element, "Property element '" + element.name() + "' cannot contain text content.");
@@ -217,6 +223,14 @@ final class XmlWidgetDocumentValidator {
                             + "' must contain widget elements, got property element '" + childElement.name() + "'.");
                     validateElement(childElement, registry, diagnostics, ids, parentDescriptor, depth + 1);
                 } else {
+                    widgetChildren++;
+                    if (!reportedTooManyWidgets
+                            && propertyChild.map(XmlPropertyChildDescriptor::singleChild).orElse(false)
+                            && widgetChildren > 1) {
+                        add(diagnostics, childElement, "Property element '" + element.name()
+                                + "' can contain only one widget child.");
+                        reportedTooManyWidgets = true;
+                    }
                     validateElement(childElement, registry, diagnostics, ids, null, depth + 1);
                 }
             }
@@ -229,9 +243,20 @@ final class XmlWidgetDocumentValidator {
                                                List<XmlWidgetDiagnostic> diagnostics,
                                                Map<String, XmlWidgetElement> ids,
                                                int depth) {
+        Map<String, XmlWidgetElement> singlePropertyElements = new HashMap<>();
         for (XmlWidgetNode child : element.children()) {
             if (child instanceof XmlWidgetElement childElement) {
-                if (propertyElementName(childElement.name()) != null) {
+                XmlPropertyElement propertyElement = propertyElementName(childElement.name());
+                if (propertyElement != null) {
+                    propertyChildDescriptor(registry, descriptor, propertyElement)
+                            .filter(XmlPropertyChildDescriptor::singleChild)
+                            .ifPresent(propertyChild -> {
+                                XmlWidgetElement previous = singlePropertyElements.putIfAbsent(propertyChild.name(), childElement);
+                                if (previous != null) {
+                                    add(diagnostics, childElement, "Property element '" + childElement.name()
+                                            + "' can appear only once on " + descriptor.xmlName() + ".");
+                                }
+                            });
                     validateElement(childElement, registry, diagnostics, ids, descriptor, depth + 1);
                 } else {
                     if (!descriptor.acceptsChildren()) {
@@ -302,11 +327,19 @@ final class XmlWidgetDocumentValidator {
         }
     }
 
-    private static boolean hasPropertyChild(XmlWidgetDescriptor descriptor, String propertyName) {
+    private static Optional<XmlPropertyChildDescriptor> propertyChildDescriptor(XmlWidgetRegistry registry,
+                                                                               XmlWidgetDescriptor descriptor,
+                                                                               XmlPropertyElement propertyElement) {
+        Optional<XmlWidgetDescriptor> owner = registry.descriptor(propertyElement.ownerName());
+        if (owner.isEmpty() || !owner.get().xmlName().equals(descriptor.xmlName())) return Optional.empty();
+        return propertyChildDescriptor(descriptor, propertyElement.propertyName());
+    }
+
+    private static Optional<XmlPropertyChildDescriptor> propertyChildDescriptor(XmlWidgetDescriptor descriptor, String propertyName) {
         for (XmlPropertyChildDescriptor propertyChild : descriptor.propertyChildren()) {
-            if (propertyChild.name().equals(propertyName)) return true;
+            if (propertyChild.name().equals(propertyName)) return Optional.of(propertyChild);
         }
-        return false;
+        return Optional.empty();
     }
 
     private static XmlPropertyElement propertyElementName(String xmlName) {

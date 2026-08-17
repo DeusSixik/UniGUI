@@ -1,5 +1,6 @@
 package dev.sixik.unigui.impl.xml;
 
+import dev.sixik.unigui.api.xml.XmlPropertyChildDescriptor;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.GridBox;
@@ -35,7 +36,10 @@ final class BuiltInContainerXml {
         };
         return BuiltInWidgetXmlSupport.commonWidget(type)
                 .childPolicy(children)
-                .propertyChild("Children", children);
+                .propertyChild("Children", children,
+                        XmlPropertyChildDescriptor.of("Children")
+                                .category("Content")
+                                .description("Child widgets hosted by this container."));
     }
 
     private static WidgetXmlType<ScrollView> scrollView(WidgetXmlType<ScrollView> type) {
@@ -55,7 +59,11 @@ final class BuiltInContainerXml {
                 .attribute("scrollbarTrackColor", XmlValueParsers.COLOR, (widget, color) -> widget.scrollbarTrackColor().set(color))
                 .attribute("scrollbarThumbColor", XmlValueParsers.COLOR, (widget, color) -> widget.scrollbarThumbColor().set(color))
                 .childPolicy(content)
-                .propertyChild("Content", content);
+                .propertyChild("Content", content,
+                        XmlPropertyChildDescriptor.of("Content")
+                                .category("Content")
+                                .description("Single scrollable content widget.")
+                                .singleChildOnly());
     }
 
     private static <T extends WidgetBase> WidgetXmlType<T> linear(WidgetXmlType<T> type) {

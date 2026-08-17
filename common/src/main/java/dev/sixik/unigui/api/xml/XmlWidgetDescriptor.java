@@ -28,7 +28,7 @@ public record XmlWidgetDescriptor(
         xmlName = normalizeRequired(xmlName, "xmlName");
         displayName = normalize(displayName, xmlName);
         category = normalize(category, "Widgets");
-        description = normalize(description, "");
+        description = normalize(description, descriptionFor(displayName, category, acceptsChildren));
         attributes = List.copyOf(attributes == null ? List.of() : attributes);
         propertyChildren = List.copyOf(propertyChildren == null ? List.of() : propertyChildren);
     }
@@ -84,5 +84,24 @@ public record XmlWidgetDescriptor(
     private static String normalize(String value, String fallback) {
         String normalized = value == null ? "" : value.trim();
         return normalized.isEmpty() ? fallback : normalized;
+    }
+
+    private static String descriptionFor(String displayName, String category, boolean acceptsChildren) {
+        String normalizedDisplay = normalize(displayName, "Widget");
+        String normalizedCategory = normalize(category, "Widgets");
+        String kind = switch (normalizedCategory) {
+            case "Containers" -> "container";
+            case "Controls" -> "control";
+            case "Display" -> "display";
+            case "Navigation" -> "navigation";
+            case "Feedback" -> "feedback";
+            case "Data" -> "data";
+            case "Editor" -> "editor";
+            case "Minecraft" -> "Minecraft";
+            case "Performance" -> "performance";
+            default -> "widget";
+        };
+        return normalizedDisplay + " XML " + kind + " widget"
+                + (acceptsChildren ? " with child widget support." : ".");
     }
 }

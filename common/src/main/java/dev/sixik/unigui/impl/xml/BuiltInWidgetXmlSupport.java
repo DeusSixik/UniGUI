@@ -8,6 +8,7 @@ import dev.sixik.unigui.api.layout.Justify;
 import dev.sixik.unigui.api.layout.Overflow;
 import dev.sixik.unigui.api.layout.PositionType;
 import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.api.xml.XmlAttributeDescriptor;
 import dev.sixik.unigui.api.xml.XmlWidgetAnnotations;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.containers.Box;
@@ -45,45 +46,45 @@ final class BuiltInWidgetXmlSupport {
     static <T extends WidgetBase> WidgetXmlType<T> commonWidget(WidgetXmlType<T> type) {
         return annotated(type
                 .attribute("class", XmlValueParsers.STRING, (widget, value) -> {
-                })
+                }, commonAttribute("class"))
                 .attribute("styleClass", XmlValueParsers.STRING, (widget, value) -> {
-                })
-                .attribute("enabled", XmlValueParsers.BOOLEAN, WidgetBase::enabled)
-                .attribute("visible", XmlValueParsers.BOOLEAN, WidgetBase::visible)
-                .attribute("visibility", XmlValueParsers.enumValue(Visibility.class), WidgetBase::visibility)
-                .attribute("opacity", XmlValueParsers.FLOAT, WidgetBase::opacity)
-                .attribute("rotation", XmlValueParsers.FLOAT, WidgetBase::rotationDegrees)
-                .attribute("x", XmlValueParsers.FLOAT, (widget, value) -> widget.transform().position().set(value, widget.transform().position().y()))
-                .attribute("y", XmlValueParsers.FLOAT, (widget, value) -> widget.transform().position().set(widget.transform().position().x(), value))
-                .attribute("scale", XmlValueParsers.FLOAT, (widget, value) -> widget.transform().scale().set(value, value))
-                .attribute("scaleX", XmlValueParsers.FLOAT, (widget, value) -> widget.transform().scale().set(value, widget.transform().scale().y()))
-                .attribute("scaleY", XmlValueParsers.FLOAT, (widget, value) -> widget.transform().scale().set(widget.transform().scale().x(), value))
-                .attribute("width", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.width(value)))
-                .attribute("height", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.height(value)))
-                .attribute("minWidth", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.minWidth(value)))
-                .attribute("minHeight", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.minHeight(value)))
-                .attribute("maxWidth", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.maxWidth(value)))
-                .attribute("maxHeight", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.maxHeight(value)))
-                .attribute("padding", XmlValueParsers.INSETS, (widget, value) -> widget.layout(style -> style.padding(value)))
-                .attribute("margin", XmlValueParsers.INSETS, (widget, value) -> widget.layout(style -> style.margin(value)))
-                .attribute("flexGrow", XmlValueParsers.FLOAT, (widget, value) -> widget.layout(style -> style.flexGrow(value)))
-                .attribute("flexShrink", XmlValueParsers.FLOAT, (widget, value) -> widget.layout(style -> style.flexShrink(value)))
-                .attribute("flexDirection", XmlValueParsers.enumValue(FlexDirection.class), (widget, value) -> widget.layout(style -> style.flexDirection(value)))
-                .attribute("flexWrap", XmlValueParsers.enumValue(FlexWrap.class), (widget, value) -> widget.layout(style -> style.flexWrap(value)))
-                .attribute("rowGap", XmlValueParsers.FLOAT, (widget, value) -> widget.layout(style -> style.rowGap(value)))
-                .attribute("columnGap", XmlValueParsers.FLOAT, (widget, value) -> widget.layout(style -> style.columnGap(value)))
-                .attribute("align", XmlValueParsers.enumValue(Alignment.class), (widget, value) -> widget.layout(style -> style.align(value, value)))
-                .attribute("alignItems", XmlValueParsers.enumValue(Align.class), (widget, value) -> widget.layout(style -> style.alignItems(value)))
-                .attribute("alignSelf", XmlValueParsers.enumValue(Align.class), (widget, value) -> widget.layout(style -> style.alignSelf(value)))
-                .attribute("justifyContent", XmlValueParsers.enumValue(Justify.class), (widget, value) -> widget.layout(style -> style.justifyContent(value)))
-                .attribute("overflow", XmlValueParsers.enumValue(Overflow.class), (widget, value) -> widget.layout(style -> style.overflow(value)))
-                .attribute("overflowX", XmlValueParsers.enumValue(Overflow.class), (widget, value) -> widget.layout(style -> style.overflowX(value)))
-                .attribute("overflowY", XmlValueParsers.enumValue(Overflow.class), (widget, value) -> widget.layout(style -> style.overflowY(value)))
-                .attribute("position", XmlValueParsers.enumValue(PositionType.class), (widget, value) -> widget.layout(style -> style.position(value)))
-                .attribute("left", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.left(value)))
-                .attribute("top", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.top(value)))
-                .attribute("right", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.right(value)))
-                .attribute("bottom", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.bottom(value))),
+                }, commonAttribute("styleClass"))
+                .attribute("enabled", XmlValueParsers.BOOLEAN, WidgetBase::enabled, commonAttribute("enabled"))
+                .attribute("visible", XmlValueParsers.BOOLEAN, WidgetBase::visible, commonAttribute("visible"))
+                .attribute("visibility", XmlValueParsers.enumValue(Visibility.class), WidgetBase::visibility, commonAttribute("visibility"))
+                .attribute("opacity", XmlValueParsers.FLOAT, WidgetBase::opacity, commonAttribute("opacity"))
+                .attribute("rotation", XmlValueParsers.FLOAT, WidgetBase::rotationDegrees, commonAttribute("rotation"))
+                .attribute("x", XmlValueParsers.FLOAT, (widget, value) -> widget.transform().position().set(value, widget.transform().position().y()), commonAttribute("x"))
+                .attribute("y", XmlValueParsers.FLOAT, (widget, value) -> widget.transform().position().set(widget.transform().position().x(), value), commonAttribute("y"))
+                .attribute("scale", XmlValueParsers.FLOAT, (widget, value) -> widget.transform().scale().set(value, value), commonAttribute("scale"))
+                .attribute("scaleX", XmlValueParsers.FLOAT, (widget, value) -> widget.transform().scale().set(value, widget.transform().scale().y()), commonAttribute("scaleX"))
+                .attribute("scaleY", XmlValueParsers.FLOAT, (widget, value) -> widget.transform().scale().set(widget.transform().scale().x(), value), commonAttribute("scaleY"))
+                .attribute("width", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.width(value)), commonAttribute("width"))
+                .attribute("height", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.height(value)), commonAttribute("height"))
+                .attribute("minWidth", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.minWidth(value)), commonAttribute("minWidth"))
+                .attribute("minHeight", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.minHeight(value)), commonAttribute("minHeight"))
+                .attribute("maxWidth", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.maxWidth(value)), commonAttribute("maxWidth"))
+                .attribute("maxHeight", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.maxHeight(value)), commonAttribute("maxHeight"))
+                .attribute("padding", XmlValueParsers.INSETS, (widget, value) -> widget.layout(style -> style.padding(value)), commonAttribute("padding"))
+                .attribute("margin", XmlValueParsers.INSETS, (widget, value) -> widget.layout(style -> style.margin(value)), commonAttribute("margin"))
+                .attribute("flexGrow", XmlValueParsers.FLOAT, (widget, value) -> widget.layout(style -> style.flexGrow(value)), commonAttribute("flexGrow"))
+                .attribute("flexShrink", XmlValueParsers.FLOAT, (widget, value) -> widget.layout(style -> style.flexShrink(value)), commonAttribute("flexShrink"))
+                .attribute("flexDirection", XmlValueParsers.enumValue(FlexDirection.class), (widget, value) -> widget.layout(style -> style.flexDirection(value)), commonAttribute("flexDirection"))
+                .attribute("flexWrap", XmlValueParsers.enumValue(FlexWrap.class), (widget, value) -> widget.layout(style -> style.flexWrap(value)), commonAttribute("flexWrap"))
+                .attribute("rowGap", XmlValueParsers.FLOAT, (widget, value) -> widget.layout(style -> style.rowGap(value)), commonAttribute("rowGap"))
+                .attribute("columnGap", XmlValueParsers.FLOAT, (widget, value) -> widget.layout(style -> style.columnGap(value)), commonAttribute("columnGap"))
+                .attribute("align", XmlValueParsers.enumValue(Alignment.class), (widget, value) -> widget.layout(style -> style.align(value, value)), commonAttribute("align"))
+                .attribute("alignItems", XmlValueParsers.enumValue(Align.class), (widget, value) -> widget.layout(style -> style.alignItems(value)), commonAttribute("alignItems"))
+                .attribute("alignSelf", XmlValueParsers.enumValue(Align.class), (widget, value) -> widget.layout(style -> style.alignSelf(value)), commonAttribute("alignSelf"))
+                .attribute("justifyContent", XmlValueParsers.enumValue(Justify.class), (widget, value) -> widget.layout(style -> style.justifyContent(value)), commonAttribute("justifyContent"))
+                .attribute("overflow", XmlValueParsers.enumValue(Overflow.class), (widget, value) -> widget.layout(style -> style.overflow(value)), commonAttribute("overflow"))
+                .attribute("overflowX", XmlValueParsers.enumValue(Overflow.class), (widget, value) -> widget.layout(style -> style.overflowX(value)), commonAttribute("overflowX"))
+                .attribute("overflowY", XmlValueParsers.enumValue(Overflow.class), (widget, value) -> widget.layout(style -> style.overflowY(value)), commonAttribute("overflowY"))
+                .attribute("position", XmlValueParsers.enumValue(PositionType.class), (widget, value) -> widget.layout(style -> style.position(value)), commonAttribute("position"))
+                .attribute("left", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.left(value)), commonAttribute("left"))
+                .attribute("top", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.top(value)), commonAttribute("top"))
+                .attribute("right", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.right(value)), commonAttribute("right"))
+                .attribute("bottom", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.bottom(value)), commonAttribute("bottom")),
                 WidgetBase.class);
     }
 
@@ -93,6 +94,10 @@ final class BuiltInWidgetXmlSupport {
 
     static <T extends dev.sixik.unigui.api.widget.Widget> WidgetXmlType<T> annotated(WidgetXmlType<T> type, Class<?> widgetType) {
         return XmlWidgetAnnotations.applyAnnotatedAttributes(type, widgetType);
+    }
+
+    private static XmlAttributeDescriptor commonAttribute(String name) {
+        return XmlWidgetAnnotations.commonAttributeDescriptor(name).orElse(XmlAttributeDescriptor.of(name));
     }
 
 }

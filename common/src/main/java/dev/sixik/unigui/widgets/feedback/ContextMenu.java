@@ -42,6 +42,7 @@ public final class ContextMenu extends Box implements OverlayHostAware {
     private float y;
     private EdgeInsets padding = EdgeInsets.all(3.0f);
     private int selectedItemIndex = -1;
+    private int pendingSelectedItemIndex = -1;
 
     public ContextMenu() {
         backgroundVisible(true);
@@ -54,6 +55,7 @@ public final class ContextMenu extends Box implements OverlayHostAware {
         focusable(true);
         itemsHost.spacing(1.0f);
         addChild(itemsHost);
+        applyQueuedMutations();
     }
 
     public ContextMenu item(String text) {
@@ -72,13 +74,20 @@ public final class ContextMenu extends Box implements OverlayHostAware {
     /** Prefer {@link #onItemSelected(EventListener)} for public UI actions. */
     public ContextMenu item(RichText text, Runnable action) {
         RichText normalizedText = text == null ? RichText.plain("") : text;
-        int itemIndex = itemButtons.size();
         Button button = new Button(normalizedText);
+        if (action != null) {
+            button.onClick(event -> action.run());
+        }
+        return item(button);
+    }
+
+    public ContextMenu item(Button button) {
+        if (button == null) return this;
+        int itemIndex = itemButtons.size();
         button.layout(style -> style.size(132.0f, 20.0f).flexGrow(0).flexShrink(0.0f));
         button.onClick(event -> {
             selectItem(itemIndex);
             emitItemSelected(itemIndex);
-            if (action != null) action.run();
             closeMenuChain();
         });
         button.on(PointerEnteredEvent.TYPE, event -> {
@@ -89,9 +98,8 @@ public final class ContextMenu extends Box implements OverlayHostAware {
         itemButtons.add(button);
         itemSubmenus.add(null);
         itemsHost.addChild(button);
-        if (selectedItemIndex < 0) {
-            selectedItemIndex = 0;
-        }
+        itemsHost.applyQueuedMutations();
+        syncSelectionAfterItemAdded();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
@@ -125,19 +133,34 @@ public final class ContextMenu extends Box implements OverlayHostAware {
         submenu.closeOnOutsideClick(closeOnOutsideClick);
         submenu.close();
         itemsHost.addChild(button);
-        if (selectedItemIndex < 0) {
-            selectedItemIndex = 0;
-        }
+        itemsHost.applyQueuedMutations();
+        syncSelectionAfterItemAdded();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
 
     public ContextMenu separator() {
-        Separator separator = new Separator();
-        separator.layout(style -> style.size(132.0f, 1.0f).margin(2.0f, 3.0f).flexGrow(0).flexShrink(0.0f));
-        itemsHost.addChild(separator);
+        return separator(new Separator());
+    }
+
+    public ContextMenu separator(Separator separator) {
+        Separator normalized = separator == null ? new Separator() : separator;
+        normalized.layout(style -> style.size(132.0f, 1.0f).margin(2.0f, 3.0f).flexGrow(0).flexShrink(0.0f));
+        itemsHost.addChild(normalized);
+        itemsHost.applyQueuedMutations();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
+    }
+
+    public int itemCount() {
+        return itemButtons.size();
+    }
+
+    public Button itemButton(int index) {
+        if (index < 0 || index >= itemButtons.size()) {
+            throw new IndexOutOfBoundsException("Context menu item index out of range: " + index);
+        }
+        return itemButtons.get(index);
     }
 
     public int selectedItemIndex() {
@@ -148,8 +171,10 @@ public final class ContextMenu extends Box implements OverlayHostAware {
     public ContextMenu selectItem(int index) {
         if (itemButtons.isEmpty()) {
             selectedItemIndex = -1;
+            pendingSelectedItemIndex = Math.max(0, index);
             return this;
         }
+        pendingSelectedItemIndex = -1;
         int normalized = Math.max(0, Math.min(index, itemButtons.size() - 1));
         selectedItemIndex = normalized;
         if (submenuAt(normalized) == null) {
@@ -160,6 +185,16 @@ public final class ContextMenu extends Box implements OverlayHostAware {
         }
         invalidate(InvalidationFlags.VISUAL);
         return this;
+    }
+
+    private void syncSelectionAfterItemAdded() {
+        if (pendingSelectedItemIndex >= 0 && itemButtons.size() > pendingSelectedItemIndex) {
+            int target = pendingSelectedItemIndex;
+            pendingSelectedItemIndex = -1;
+            selectItem(target);
+        } else if (selectedItemIndex < 0) {
+            selectedItemIndex = 0;
+        }
     }
 
     public EventSubscription onItemSelected(EventListener<? super ContextMenuItemSelectedEvent> listener) {
@@ -328,7 +363,8 @@ public final class ContextMenu extends Box implements OverlayHostAware {
     private void activateSelectedItem() {
         if (selectedItemIndex < 0 || selectedItemIndex >= itemButtons.size()) return;
         if (openSelectedSubmenu()) return;
-        itemButtons.get(selectedItemIndex).click();
+        Button button = itemButtons.get(selectedItemIndex);
+        if (button.enabled()) button.click();
     }
 
     private boolean openSelectedSubmenu() {

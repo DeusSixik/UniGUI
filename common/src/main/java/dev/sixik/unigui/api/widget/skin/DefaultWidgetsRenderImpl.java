@@ -32,6 +32,8 @@ import dev.sixik.unigui.widgets.render.SliderRenderer;
 import dev.sixik.unigui.widgets.render.SliderRenderers;
 import dev.sixik.unigui.widgets.render.SparklineRenderer;
 import dev.sixik.unigui.widgets.render.SparklineRenderers;
+import dev.sixik.unigui.widgets.render.TextAreaRenderer;
+import dev.sixik.unigui.widgets.render.TextAreaRenderers;
 import dev.sixik.unigui.widgets.render.TextInputRenderer;
 import dev.sixik.unigui.widgets.render.TextInputRenderers;
 import dev.sixik.unigui.widgets.render.ShapeRenderer;
@@ -182,6 +184,11 @@ public final class DefaultWidgetsRenderImpl implements WidgetsRenderImpl {
     @Override
     public TextInputRenderer numberField() {
         return TextInputRenderers.DEFAULT;
+    }
+
+    @Override
+    public TextAreaRenderer textArea() {
+        return TextAreaRenderers.DEFAULT;
     }
 
     @Override

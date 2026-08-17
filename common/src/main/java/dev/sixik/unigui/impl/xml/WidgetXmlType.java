@@ -197,13 +197,24 @@ public final class WidgetXmlType<T extends Widget> {
     private static XmlAttributeDescriptor normalizeDescriptor(String name, XmlAttributeDescriptor descriptor) {
         if (descriptor == null) return XmlAttributeDescriptor.of(name);
         if (descriptor.name().equals(name)) return descriptor;
-        return new XmlAttributeDescriptor(name, descriptor.displayName(), descriptor.category(), descriptor.defaultValue(), descriptor.description());
+        return new XmlAttributeDescriptor(
+                name,
+                descriptor.displayName(),
+                descriptor.category(),
+                descriptor.defaultValue(),
+                descriptor.description(),
+                descriptor.valueType());
     }
 
     private static XmlPropertyChildDescriptor normalizeDescriptor(String name, XmlPropertyChildDescriptor descriptor) {
         if (descriptor == null) return XmlPropertyChildDescriptor.of(name);
         if (descriptor.name().equals(name)) return descriptor;
-        return new XmlPropertyChildDescriptor(name, descriptor.displayName(), descriptor.category(), descriptor.description());
+        return new XmlPropertyChildDescriptor(
+                name,
+                descriptor.displayName(),
+                descriptor.category(),
+                descriptor.description(),
+                descriptor.singleChild());
     }
 
     private static String categoryFor(String xmlName, String explicitCategory) {

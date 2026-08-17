@@ -9,8 +9,11 @@ import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.SizeUnit;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.math.MutableRect;
+import dev.sixik.unigui.api.render.DrawCommandType;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.render.ImageFit;
+import dev.sixik.unigui.api.render.RenderTargetOptions;
 import dev.sixik.unigui.api.render.SimpleTextureHandle;
 import dev.sixik.unigui.api.render.TextureFilter;
 import dev.sixik.unigui.api.selection.SelectionMode;
@@ -21,6 +24,8 @@ import dev.sixik.unigui.api.xml.XmlBindingContext;
 import dev.sixik.unigui.api.xml.XmlBindingDiagnosticsModel;
 import dev.sixik.unigui.api.xml.XmlBindingStatus;
 import dev.sixik.unigui.api.xml.XmlAttributeDescriptor;
+import dev.sixik.unigui.api.xml.XmlAttributeValueType;
+import dev.sixik.unigui.api.xml.XmlPropertyChildDescriptor;
 import dev.sixik.unigui.api.xml.XmlWidgetAsset;
 import dev.sixik.unigui.api.xml.XmlWidgetAssetCatalog;
 import dev.sixik.unigui.api.xml.XmlWidgetAssetKind;
@@ -66,32 +71,73 @@ import dev.sixik.unigui.api.xml.XmlWidgetTemplateCatalog;
 import dev.sixik.unigui.api.xml.XmlWidgetTemplateKind;
 import dev.sixik.unigui.api.xml.XmlWidgetTemplateValues;
 import dev.sixik.unigui.widgets.containers.Box;
-import dev.sixik.unigui.widgets.containers.GridBox;
 import dev.sixik.unigui.widgets.containers.HBox;
 import dev.sixik.unigui.widgets.containers.ScrollView;
 import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.containers.WrapPanel;
+import dev.sixik.unigui.widgets.caching.CachedSubtreeWidget;
 import dev.sixik.unigui.widgets.data.VirtualListView;
 import dev.sixik.unigui.widgets.data.VirtualTableView;
 import dev.sixik.unigui.widgets.display.ImageView;
 import dev.sixik.unigui.widgets.display.Label;
-import dev.sixik.unigui.widgets.display.Shape;
+import dev.sixik.unigui.widgets.display.Separator;
 import dev.sixik.unigui.widgets.display.TextWidget;
 import dev.sixik.unigui.widgets.display.TextureWidget;
 import dev.sixik.unigui.widgets.docking.DockingRoot;
+import dev.sixik.unigui.widgets.editor.AssetBrowserPanel;
+import dev.sixik.unigui.widgets.editor.CommandPalette;
+import dev.sixik.unigui.widgets.editor.DesignCanvasOverlay;
+import dev.sixik.unigui.widgets.editor.DiagnosticsStrip;
+import dev.sixik.unigui.widgets.editor.Dialog;
+import dev.sixik.unigui.widgets.editor.DragSource;
+import dev.sixik.unigui.widgets.editor.DropTarget;
+import dev.sixik.unigui.widgets.editor.GridOverlay;
+import dev.sixik.unigui.widgets.editor.PalettePanel;
+import dev.sixik.unigui.widgets.editor.PaneHeader;
+import dev.sixik.unigui.widgets.editor.PropertyGrid;
+import dev.sixik.unigui.widgets.editor.ProjectPickerPanel;
+import dev.sixik.unigui.widgets.editor.ResizablePanelHeader;
+import dev.sixik.unigui.widgets.editor.SearchBoxWithFilterChips;
+import dev.sixik.unigui.widgets.editor.SelectionOverlay;
+import dev.sixik.unigui.widgets.editor.StatusBar;
+import dev.sixik.unigui.widgets.editor.WidgetPalette;
+import dev.sixik.unigui.widgets.feedback.ContextMenu;
+import dev.sixik.unigui.widgets.feedback.LoadingIndicator;
+import dev.sixik.unigui.widgets.feedback.NotificationView;
+import dev.sixik.unigui.widgets.feedback.OverlayLayer;
+import dev.sixik.unigui.widgets.feedback.Popup;
 import dev.sixik.unigui.widgets.feedback.ProgressBar;
-import dev.sixik.unigui.widgets.feedback.Spinner;
+import dev.sixik.unigui.widgets.feedback.Toast;
+import dev.sixik.unigui.widgets.feedback.Tooltip;
+import dev.sixik.unigui.widgets.feedback.WindowWidget;
 import dev.sixik.unigui.widgets.graph.GraphView;
 import dev.sixik.unigui.widgets.graph.NodeGraph;
 import dev.sixik.unigui.widgets.graph.NodeGraphSelectionMode;
 import dev.sixik.unigui.widgets.interaction.Button;
+import dev.sixik.unigui.widgets.interaction.Checkbox;
+import dev.sixik.unigui.widgets.interaction.ColorPicker;
+import dev.sixik.unigui.widgets.interaction.ComboBox;
+import dev.sixik.unigui.widgets.interaction.DatePicker;
+import dev.sixik.unigui.widgets.interaction.DropDownBox;
+import dev.sixik.unigui.widgets.interaction.NumberField;
+import dev.sixik.unigui.widgets.interaction.PasswordField;
+import dev.sixik.unigui.widgets.interaction.RadioButton;
+import dev.sixik.unigui.widgets.interaction.SearchField;
 import dev.sixik.unigui.widgets.interaction.Slider;
-import dev.sixik.unigui.widgets.interaction.TextField;
+import dev.sixik.unigui.widgets.interaction.TextArea;
+import dev.sixik.unigui.widgets.interaction.TextInput;
+import dev.sixik.unigui.widgets.interaction.TimeSpanField;
+import dev.sixik.unigui.widgets.interaction.ToggleSwitch;
+import dev.sixik.unigui.widgets.interaction.TreeListPicker;
+import dev.sixik.unigui.widgets.interaction.XmlCodeEditor;
 import dev.sixik.unigui.widgets.map.MapCanvas;
 import dev.sixik.unigui.widgets.map.MapMarker;
+import dev.sixik.unigui.widgets.minecraft.MinecraftTexturePickerWidget;
 import dev.sixik.unigui.widgets.navigation.Accordion;
 import dev.sixik.unigui.widgets.navigation.Breadcrumb;
+import dev.sixik.unigui.widgets.navigation.Carousel;
 import dev.sixik.unigui.widgets.navigation.ExpandablePanel;
+import dev.sixik.unigui.widgets.navigation.MenuBar;
 import dev.sixik.unigui.widgets.navigation.PageView;
 import dev.sixik.unigui.widgets.navigation.TabControl;
 import dev.sixik.unigui.widgets.navigation.TreeList;
@@ -104,6 +150,8 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
+import java.time.LocalDate;
 import java.util.List;
 
 public final class XmlWidgetSelfTest {
@@ -124,6 +172,7 @@ public final class XmlWidgetSelfTest {
         testCommandRegistryApi();
         testTypedObservableBindingModel();
         testDescriptorMetadata();
+        testXmlCodeEditorWidgetContracts();
         testDescriptorBackedInspectorModel();
         testTextureXmlAttributes();
         testXmlAssetCatalogAndPickerModel();
@@ -137,6 +186,7 @@ public final class XmlWidgetSelfTest {
         testDiagnosticsPanelWidget();
         testEditorHierarchyAndSelectionModels();
         testEditorLayoutDragResizeHandles();
+        testGridOverlayWidgetContracts();
         testUndoableDocumentEdits();
         testEditorDiagnosticsCollection();
         testEditorPreservesUnsupportedAttributes();
@@ -153,11 +203,12 @@ public final class XmlWidgetSelfTest {
                     <Label id="title" text="Video Settings" color="#11223344" />
                     <Button id="apply" text="Apply" enabled="false" />
                     <Slider id="gamma" min="0" max="10" value="5" step="0.5" />
+                    <TextArea id="notes" text="Line A&#10;Line B" visibleLines="3" />
                 </VBox>
                 """, VBox.class);
 
         expect(root.id().equals("root"), "XML id should be assigned to the root widget");
-        expect(root.children().size() == 3, "Panel children should attach in XML order");
+        expect(root.children().size() == 4, "Panel children should attach in XML order");
         expect(near(root.spacing(), 6.0f), "VBox spacing attribute should apply");
         expect(root.layoutStyle().width().unit() == SizeUnit.PIXELS && near(root.layoutStyle().width().value(), 240.0f),
                 "width attribute should apply as pixel SizeValue");
@@ -181,6 +232,9 @@ public final class XmlWidgetSelfTest {
         Slider gamma = XMLWidget.getWidget(root, "gamma", Slider.class);
         expect(near(gamma.min(), 0.0f) && near(gamma.max(), 10.0f) && near(gamma.value(), 5.0f),
                 "Slider min/max should apply before value regardless of DOM attribute order");
+        TextArea notes = XMLWidget.getWidget(root, "notes", TextArea.class);
+        expect(notes.text().equals("Line A\nLine B") && notes.visibleLines() == 3,
+                "TextArea should materialize multiline XML attributes");
         expect(XMLWidget.findWidget(root, "missing").isEmpty(), "findWidget should return empty for unknown ids");
     }
 
@@ -192,19 +246,17 @@ public final class XmlWidgetSelfTest {
                 "XMLWidget.create(InputStream, type) should load UTF-8 XML");
 
         Box fromResource = XMLWidget.createResource("assets/unigui/xml/xml_demo.xml", Box.class);
-        expect(fromResource.id().equals("serverDashboard"), "XMLWidget.createResource should load XML from classpath resources");
-        expect(XMLWidget.getWidget(fromResource, "statusDot", Shape.class).type() == Shape.Type.CIRCLE,
+        expect(fromResource.id().equals("reactorPanel"), "XMLWidget.createResource should load XML from classpath resources");
+        expect(XMLWidget.getWidget(fromResource, "logText", TextWidget.class).text().contains("Core initialized"),
                 "Resource-loaded demo XML should materialize annotated display widgets");
-        expect(near(XMLWidget.getWidget(fromResource, "statusDot", Shape.class).color().g(), 0xB9 / 255.0f),
-                "Resource-loaded demo XML should apply Shape color attributes");
-        expect(XMLWidget.getWidget(fromResource, "syncSpinner", Spinner.class).running(),
-                "Resource-loaded demo XML should materialize annotated feedback widgets");
-        expect(XMLWidget.getWidget(fromResource, "actionGrid", GridBox.class).children().size() == 4,
+        expect(XMLWidget.getWidget(fromResource, "safeMode", Checkbox.class).checked(),
+                "Resource-loaded demo XML should materialize annotated toggle controls");
+        expect(XMLWidget.getWidget(fromResource, "metricCards", WrapPanel.class).children().size() == 4,
                 "Resource-loaded demo XML should materialize annotated container widgets");
-        expect(near(XMLWidget.getWidget(fromResource, "cpuBar", ProgressBar.class).value(), 67.0f),
+        expect(near(XMLWidget.getWidget(fromResource, "temperatureBar", ProgressBar.class).value(), 58.0f),
                 "Resource-loaded demo XML should apply nested control attributes");
-        expect(XMLWidget.getWidget(fromResource, "commandInput", TextField.class).placeholder().contains("command"),
-                "Resource-loaded demo XML should materialize annotated input widgets");
+        expect(XMLWidget.getWidget(fromResource, "powerLimit", Slider.class).value() == 66.0f,
+                "Resource-loaded demo XML should apply slider attributes");
 
         VBox overview = XMLWidget.createResource("assets/unigui/xml/overview.xml", VBox.class);
         expect(XMLWidget.getWidget(overview, "overviewTitle", Label.class).text().equals("Overview"),
@@ -390,10 +442,13 @@ public final class XmlWidgetSelfTest {
                         && type.hasAttribute("width")
                         && type.hasAttribute("enabled"),
                 "Annotation-backed registration should include annotated, inherited and shared layout/style attributes");
-        expect(registry.descriptor("AnnotatedBadge").orElseThrow().attributes().stream()
-                        .anyMatch(attribute -> attribute.name().equals("importance")
-                                && attribute.category().equals("Behavior")
-                                && attribute.defaultValue().equals("0")),
+        List<XmlAttributeDescriptor> annotatedBadgeAttributes = registry.descriptor("AnnotatedBadge").orElseThrow().attributes();
+        expect(descriptor(annotatedBadgeAttributes, "importance").category().equals("Behavior")
+                        && descriptor(annotatedBadgeAttributes, "importance").defaultValue().equals("0")
+                        && descriptor(annotatedBadgeAttributes, "importance").valueType() == XmlAttributeValueType.NUMBER
+                        && descriptor(annotatedBadgeAttributes, "active").valueType() == XmlAttributeValueType.BOOLEAN
+                        && descriptor(annotatedBadgeAttributes, "tone").valueType() == XmlAttributeValueType.ENUM
+                        && descriptor(annotatedBadgeAttributes, "accent").valueType() == XmlAttributeValueType.COLOR,
                 "Annotation-backed registration should preserve @XmlAttribute descriptor metadata");
 
         AnnotatedBadge badge = XMLWidget.create("""
@@ -541,17 +596,940 @@ public final class XmlWidgetSelfTest {
         expect(box.xmlName().equals("Box") && box.category().equals("Containers"),
                 "Built-in widget descriptors should expose palette metadata");
         expect(box.acceptsChildren(), "Container descriptors should expose child support");
+        expect(registry.descriptors().stream()
+                        .allMatch(descriptor -> !descriptor.displayName().isBlank()
+                                && !descriptor.category().isBlank()
+                                && !descriptor.description().isBlank()),
+                "Built-in widget descriptors should include display/category/description metadata");
+        expect(registry.descriptors().stream()
+                        .flatMap(descriptor -> descriptor.attributes().stream())
+                        .allMatch(attribute -> !attribute.displayName().isBlank()
+                                && !attribute.category().isBlank()
+                                && attribute.defaultValue() != null
+                                && !attribute.description().isBlank()),
+                "Built-in XML attribute descriptors should include display/category/default/description metadata");
+        XmlPropertyChildDescriptor boxChildren = propertyChild(box.propertyChildren(), "Children");
+        expect(boxChildren.category().equals("Content") && !boxChildren.description().isBlank(),
+                "Container descriptors should expose property-child metadata for explicit Children slots");
+        XmlPropertyChildDescriptor scrollContent = propertyChild(
+                registry.descriptor("ScrollView").orElseThrow().propertyChildren(),
+                "Content");
+        expect(scrollContent.category().equals("Content") && !scrollContent.description().isBlank(),
+                "ScrollView descriptor should expose property-child metadata for the Content slot");
+        expect(scrollContent.singleChild(),
+                "ScrollView Content descriptor should expose single-child cardinality metadata");
+        expect(registry.descriptors().stream()
+                        .flatMap(descriptor -> descriptor.propertyChildren().stream())
+                        .allMatch(property -> !property.displayName().isBlank()
+                                && !property.category().isBlank()
+                                && !property.description().isBlank()),
+                "Built-in property-child descriptors should include display/category/description metadata");
         XmlAttributeDescriptor backgroundTexture = descriptor(box.attributes(), "backgroundTexture");
         expect(backgroundTexture.displayName().equals("Background Texture"),
                 "Attribute descriptors should expose human-readable names");
         expect(backgroundTexture.category().equals("Assets")
+                        && backgroundTexture.valueType() == XmlAttributeValueType.RESOURCE_ID
                         && backgroundTexture.description().contains("textureResolver"),
                 "Texture attributes should expose asset-picker friendly metadata");
         XmlAttributeDescriptor imageTexture = descriptor(registry.descriptor("ImageView").orElseThrow().attributes(), "texture");
-        expect(imageTexture.category().equals("Assets") && imageTexture.defaultValue().isEmpty(),
+        expect(imageTexture.category().equals("Assets")
+                        && imageTexture.valueType() == XmlAttributeValueType.RESOURCE_ID
+                        && imageTexture.defaultValue().isEmpty(),
                 "ImageView texture metadata should identify editable asset ids");
+        XmlWidgetDescriptor canvas = registry.descriptor("CanvasWidget").orElseThrow();
+        expect(canvas.category().equals("Display")
+                        && canvas.description().contains("draw callbacks")
+                        && descriptor(canvas.attributes(), "width").category().equals("Layout")
+                        && descriptor(canvas.attributes(), "width").valueType() == XmlAttributeValueType.SIZE_VALUE,
+                "CanvasWidget descriptor should expose editor-facing custom draw limitations");
+        XmlWidgetDescriptor path = registry.descriptor("Path").orElseThrow();
+        expect(path.category().equals("Display")
+                        && descriptor(path.attributes(), "data").category().equals("Content")
+                        && descriptor(path.attributes(), "data").valueType() == XmlAttributeValueType.STRING
+                        && descriptor(path.attributes(), "color").category().equals("Appearance")
+                        && descriptor(path.attributes(), "color").valueType() == XmlAttributeValueType.COLOR
+                        && descriptor(path.attributes(), "strokeWidth").category().equals("Appearance"),
+                "Path descriptor should expose limited vector path XML metadata");
+        dev.sixik.unigui.widgets.display.Path xmlPath = XMLWidget.create("""
+                <Path id="vectorArrow"
+                      data="M 0 0 L 1 0 Q 1 0.5 0.5 1 C 0.25 1 0 0.75 0 0 Z"
+                      color="#336699CC" stroke="false" strokeWidth="2"
+                      width="32" height="32" />
+                """, dev.sixik.unigui.widgets.display.Path.class);
+        expect(xmlPath.id().equals("vectorArrow")
+                        && xmlPath.path().size() == 5
+                        && !xmlPath.stroke()
+                        && near(xmlPath.strokeWidth(), 2.0f)
+                        && near(xmlPath.color().r(), 0x33 / 255.0f)
+                        && near(xmlPath.color().a(), 0xCC / 255.0f)
+                        && near(xmlPath.layoutStyle().width().value(), 32.0f),
+                "Path should materialize limited XML path data, color and stroke attributes");
+        expectFails("<Path data=\"H 2\" />", "Unsupported path command 'H'");
+        XmlWidgetDescriptor cachedSubtree = registry.descriptor("CachedSubtreeWidget").orElseThrow();
+        expect(cachedSubtree.category().equals("Performance")
+                        && cachedSubtree.acceptsChildren()
+                        && descriptor(cachedSubtree.attributes(), "targetOptions").category().equals("Performance")
+                        && descriptor(cachedSubtree.attributes(), "targetOptions").valueType() == XmlAttributeValueType.ENUM
+                        && descriptor(cachedSubtree.attributes(), "tint").category().equals("Appearance")
+                        && descriptor(cachedSubtree.attributes(), "tint").valueType() == XmlAttributeValueType.COLOR
+                        && propertyChild(cachedSubtree.propertyChildren(), "Content").singleChild(),
+                "CachedSubtreeWidget descriptor should expose advanced opt-in cache controls");
+        CachedSubtreeWidget xmlCachedSubtree = XMLWidget.create("""
+                <CachedSubtreeWidget id="cachedPreview" tint="#80FFFFFF" targetOptions="colorDepth">
+                    <CachedSubtreeWidget.Content>
+                        <Label id="cachedContent" text="Cached" />
+                    </CachedSubtreeWidget.Content>
+                </CachedSubtreeWidget>
+                """, CachedSubtreeWidget.class);
+        expect(xmlCachedSubtree.id().equals("cachedPreview")
+                        && near(xmlCachedSubtree.tint().r(), 0x80 / 255.0f)
+                        && near(xmlCachedSubtree.tint().a(), 1.0f)
+                        && xmlCachedSubtree.targetOptions().equals(RenderTargetOptions.COLOR_DEPTH)
+                        && xmlCachedSubtree.content() instanceof Label cachedContent
+                        && cachedContent.text().equals("Cached"),
+                "CachedSubtreeWidget should materialize tint, target options and one content subtree from XML");
+        expectFails("""
+                <CachedSubtreeWidget>
+                    <Label text="One" />
+                    <Label text="Two" />
+                </CachedSubtreeWidget>
+                """, "Widget CachedSubtreeWidget can contain only one content child");
         expect(registry.descriptor("ScrollViewer").orElseThrow().xmlName().equals("ScrollView"),
                 "Registry descriptors should resolve aliases to target descriptors");
+        XmlWidgetDescriptor textArea = registry.descriptor("TextArea").orElseThrow();
+        expect(textArea.category().equals("Controls")
+                        && descriptor(textArea.attributes(), "visibleLines").category().equals("Layout"),
+                "TextArea descriptor should expose editor-facing multiline metadata");
+        XmlWidgetDescriptor textInput = registry.descriptor("TextInput").orElseThrow();
+        expect(textInput.category().equals("Controls")
+                        && descriptor(textInput.attributes(), "placeholder").category().equals("Content"),
+                "TextInput descriptor should expose editor-facing single-line metadata");
+        XmlWidgetDescriptor numberField = registry.descriptor("NumberField").orElseThrow();
+        expect(numberField.category().equals("Controls")
+                        && descriptor(numberField.attributes(), "step").category().equals("Behavior"),
+                "NumberField descriptor should expose numeric editing metadata");
+        expect(descriptor(registry.descriptor("SearchField").orElseThrow().attributes(), "searchChangeDebounceSeconds")
+                        .category().equals("Behavior"),
+                "SearchField descriptor should expose debounce metadata");
+        expect(descriptor(registry.descriptor("PasswordField").orElseThrow().attributes(), "mask")
+                        .category().equals("Appearance"),
+                "PasswordField descriptor should expose mask metadata");
+        expect(descriptor(registry.descriptor("TimeSpanField").orElseThrow().attributes(), "value")
+                        .category().equals("Behavior"),
+                "TimeSpanField descriptor should expose duration value metadata");
+        XmlWidgetDescriptor toggleSwitch = registry.descriptor("ToggleSwitch").orElseThrow();
+        expect(toggleSwitch.category().equals("Controls")
+                        && descriptor(toggleSwitch.attributes(), "trackWidth").category().equals("Layout"),
+                "ToggleSwitch descriptor should expose switch-specific metadata");
+        XmlWidgetDescriptor radioButton = registry.descriptor("RadioButton").orElseThrow();
+        expect(radioButton.category().equals("Controls")
+                        && descriptor(radioButton.attributes(), "value").category().equals("Behavior"),
+                "RadioButton descriptor should expose radio-option metadata");
+        XmlWidgetDescriptor comboBox = registry.descriptor("ComboBox").orElseThrow();
+        expect(comboBox.category().equals("Controls")
+                        && descriptor(comboBox.attributes(), "items").category().equals("Content"),
+                "ComboBox descriptor should expose simple option-list metadata");
+        XmlWidgetDescriptor dropDownBox = registry.descriptor("DropDownBox").orElseThrow();
+        expect(dropDownBox.category().equals("Controls")
+                        && propertyChild(dropDownBox.propertyChildren(), "Content").singleChild(),
+                "DropDownBox descriptor should expose its dropdown content property child");
+        XmlWidgetDescriptor treeListPicker = registry.descriptor("TreeListPicker").orElseThrow();
+        expect(treeListPicker.category().equals("Controls")
+                        && descriptor(treeListPicker.attributes(), "items").category().equals("Content")
+                        && descriptor(treeListPicker.attributes(), "selectedIndex").category().equals("Behavior"),
+                "TreeListPicker descriptor should expose simple path-list picker metadata");
+        XmlWidgetDescriptor datePicker = registry.descriptor("DatePicker").orElseThrow();
+        expect(datePicker.category().equals("Controls")
+                        && descriptor(datePicker.attributes(), "value").category().equals("Behavior"),
+                "DatePicker descriptor should expose ISO date value metadata");
+        XmlWidgetDescriptor colorPicker = registry.descriptor("ColorPicker").orElseThrow();
+        expect(colorPicker.category().equals("Controls")
+                        && descriptor(colorPicker.attributes(), "color").category().equals("Appearance")
+                        && descriptor(colorPicker.attributes(), "argb").category().equals("Appearance")
+                        && descriptor(colorPicker.attributes(), "type").category().equals("Behavior"),
+                "ColorPicker descriptor should expose color value and editor mode metadata");
+        TextInput rawInput = XMLWidget.create(
+                "<TextInput id=\"rawInput\" text=\"abc\" placeholder=\"Type...\" maxLength=\"8\" cursorIndex=\"2\" />",
+                TextInput.class);
+        expect(rawInput.id().equals("rawInput")
+                        && rawInput.text().equals("abc")
+                        && rawInput.placeholder().equals("Type...")
+                        && rawInput.maxLength() == 8
+                        && rawInput.cursorIndex() == 2,
+                "TextInput should materialize from built-in XML registration");
+        NumberField xmlNumber = XMLWidget.create(
+                "<NumberField value=\"12.5\" min=\"0\" max=\"10\" step=\"0.25\" />",
+                NumberField.class);
+        expect(xmlNumber.value() == 10.0d && xmlNumber.text().equals("10"),
+                "NumberField should materialize and clamp XML values through min/max attributes");
+        SearchField xmlSearch = XMLWidget.create(
+                "<SearchField text=\"reactor\" placeholder=\"Find\" searchChangeDebounceSeconds=\"0.1\" />",
+                SearchField.class);
+        expect(xmlSearch.text().equals("reactor")
+                        && xmlSearch.placeholder().equals("Find")
+                        && near(xmlSearch.searchChangeDebounceSeconds(), 0.1f),
+                "SearchField should materialize from built-in XML registration");
+        PasswordField xmlPassword = XMLWidget.create(
+                "<PasswordField text=\"secret\" mask=\"*\" />",
+                PasswordField.class);
+        expect(xmlPassword.text().equals("secret") && xmlPassword.mask() == '*',
+                "PasswordField should materialize text and mask attributes from XML");
+        TimeSpanField xmlTimeSpan = XMLWidget.create(
+                "<TimeSpanField value=\"01:02:03\" />",
+                TimeSpanField.class);
+        expect(xmlTimeSpan.value().equals(Duration.ofSeconds(3723L)) && xmlTimeSpan.text().equals("01:02:03"),
+                "TimeSpanField should materialize duration values from XML");
+        ToggleSwitch xmlSwitch = XMLWidget.create(
+                "<ToggleSwitch text=\"Enabled\" checked=\"true\" trackWidth=\"42\" thumbSize=\"12\" labelLeft=\"true\" />",
+                ToggleSwitch.class);
+        expect(xmlSwitch.text().equals("Enabled")
+                        && xmlSwitch.checked()
+                        && near(xmlSwitch.trackWidth(), 42.0f)
+                        && near(xmlSwitch.thumbSize(), 12.0f)
+                        && xmlSwitch.labelLeft(),
+                "ToggleSwitch should materialize switch-specific XML attributes");
+        RadioButton xmlRadio = XMLWidget.create(
+                "<RadioButton text=\"Compact\" value=\"compact\" checked=\"true\" outerSize=\"14\" innerSize=\"7\" labelLeft=\"true\" />",
+                RadioButton.class);
+        expect(xmlRadio.text().equals("Compact")
+                        && xmlRadio.value().equals("compact")
+                        && xmlRadio.checked()
+                        && near(xmlRadio.outerSize(), 14.0f)
+                        && near(xmlRadio.innerSize(), 7.0f)
+                        && xmlRadio.labelLeft(),
+                "RadioButton should materialize radio-option XML attributes");
+        ComboBox xmlComboBox = XMLWidget.create(
+                "<ComboBox items=\"Small|Medium|Large\" selectedIndex=\"1\" placeholder=\"Size\" dropDownMode=\"inline\" opened=\"true\" />",
+                ComboBox.class);
+        expect(xmlComboBox.itemCount() == 3
+                        && xmlComboBox.selectedIndex() == 1
+                        && xmlComboBox.selectedItem().equals("Medium")
+                        && xmlComboBox.placeholder().equals("Size")
+                        && xmlComboBox.dropDownMode() == ComboBox.DropDownMode.INLINE
+                        && xmlComboBox.opened(),
+                "ComboBox should materialize option-list XML attributes");
+        DropDownBox xmlDropDownBox = XMLWidget.create("""
+                <DropDownBox headerText="Filters" dropDownMode="inline" opened="true" maxContentHeight="80">
+                    <DropDownBox.Content>
+                        <Label id="filtersLabel" text="Enabled filters" />
+                    </DropDownBox.Content>
+                </DropDownBox>
+                """, DropDownBox.class);
+        expect(xmlDropDownBox.headerText().equals("Filters")
+                        && xmlDropDownBox.dropDownMode() == ComboBox.DropDownMode.INLINE
+                        && xmlDropDownBox.opened()
+                        && near(xmlDropDownBox.maxContentHeight(), 80.0f)
+                        && xmlDropDownBox.content() instanceof Label label
+                        && label.text().equals("Enabled filters"),
+                "DropDownBox should materialize dropdown content property children from XML");
+        TreeListPicker<?> xmlTreeListPicker = XMLWidget.create(
+                "<TreeListPicker id=\"pathPicker\" items=\"Project/Screens/Main|Project/Screens/Settings|Assets\" selectedIndex=\"1\" placeholder=\"Path\" dropDownMode=\"inline\" opened=\"true\" />",
+                TreeListPicker.class);
+        expect(xmlTreeListPicker.id().equals("pathPicker")
+                        && xmlTreeListPicker.itemCount() == 3
+                        && xmlTreeListPicker.selectedIndex() == 1
+                        && xmlTreeListPicker.selectedItem().equals("Project/Screens/Settings")
+                        && xmlTreeListPicker.placeholder().equals("Path")
+                        && xmlTreeListPicker.dropDownMode() == ComboBox.DropDownMode.INLINE
+                        && xmlTreeListPicker.opened(),
+                "TreeListPicker should materialize simple path-list XML attributes");
+        DatePicker xmlDatePicker = XMLWidget.create(
+                "<DatePicker id=\"launchDate\" value=\"2026-08-17\" />",
+                DatePicker.class);
+        expect(xmlDatePicker.id().equals("launchDate")
+                        && xmlDatePicker.value().equals(LocalDate.of(2026, 8, 17))
+                        && xmlDatePicker.field().text().equals("2026-08-17"),
+                "DatePicker should materialize ISO date values from XML");
+        ColorPicker xmlColorPicker = XMLWidget.create(
+                "<ColorPicker id=\"accentColor\" color=\"#336699CC\" type=\"argb\" />",
+                ColorPicker.class);
+        expect(xmlColorPicker.id().equals("accentColor")
+                        && near(xmlColorPicker.color().r(), 0x33 / 255.0f)
+                        && near(xmlColorPicker.color().g(), 0x66 / 255.0f)
+                        && near(xmlColorPicker.color().b(), 0x99 / 255.0f)
+                        && near(xmlColorPicker.color().a(), 0xCC / 255.0f)
+                        && xmlColorPicker.type() == ColorPicker.Type.ARGB,
+                "ColorPicker should materialize color and picker mode from XML");
+        XmlWidgetDescriptor loadingIndicator = registry.descriptor("LoadingIndicator").orElseThrow();
+        expect(loadingIndicator.category().equals("Feedback")
+                        && descriptor(loadingIndicator.attributes(), "mode").category().equals("Behavior")
+                        && descriptor(loadingIndicator.attributes(), "segments").category().equals("Appearance")
+                        && descriptor(loadingIndicator.attributes(), "preferredWidth").category().equals("Layout"),
+                "LoadingIndicator descriptor should expose animation, appearance and sizing metadata");
+        LoadingIndicator xmlLoadingIndicator = XMLWidget.create("""
+                <LoadingIndicator id="busyIndicator" mode="bar" running="false"
+                                  phase="1.25" speed="2" segments="12"
+                                  preferredWidth="120" preferredHeight="10" />
+                """, LoadingIndicator.class);
+        expect(xmlLoadingIndicator.id().equals("busyIndicator")
+                        && xmlLoadingIndicator.mode() == LoadingIndicator.Mode.BAR
+                        && !xmlLoadingIndicator.running()
+                        && near(xmlLoadingIndicator.phase(), 0.25f)
+                        && near(xmlLoadingIndicator.speed(), 2.0f)
+                        && xmlLoadingIndicator.segments() == 12
+                        && near(xmlLoadingIndicator.preferredWidth(), 120.0f)
+                        && near(xmlLoadingIndicator.preferredHeight(), 10.0f),
+                "LoadingIndicator should materialize animation and sizing attributes from XML");
+        XmlWidgetDescriptor toast = registry.descriptor("Toast").orElseThrow();
+        expect(toast.category().equals("Feedback")
+                        && descriptor(toast.attributes(), "text").category().equals("Content")
+                        && descriptor(toast.attributes(), "duration").category().equals("Behavior")
+                        && descriptor(toast.attributes(), "open").category().equals("Behavior"),
+                "Toast descriptor should expose message, duration and open state metadata");
+        Toast xmlToast = XMLWidget.create("""
+                <Toast id="saveToast" text="Saved" duration="0" margin="14" open="true" />
+                """, Toast.class);
+        expect(xmlToast.id().equals("saveToast")
+                        && xmlToast.text().equals("Saved")
+                        && near(xmlToast.duration(), 0.0f)
+                        && near(xmlToast.margin(), 14.0f)
+                        && xmlToast.opened(),
+                "Toast should materialize visible transient message state from XML");
+        XmlWidgetDescriptor notificationView = registry.descriptor("NotificationView").orElseThrow();
+        expect(notificationView.category().equals("Feedback")
+                        && descriptor(notificationView.attributes(), "text").category().equals("Content")
+                        && descriptor(notificationView.attributes(), "maxVisible").category().equals("Behavior")
+                        && descriptor(notificationView.attributes(), "placement").category().equals("Layout")
+                        && descriptor(notificationView.attributes(), "open").category().equals("Behavior"),
+                "NotificationView descriptor should expose stacked notification metadata");
+        NotificationView xmlNotificationView = XMLWidget.create("""
+                <NotificationView id="notifications" text="Build complete" duration="0"
+                                  spacing="6" margin="12" maxVisible="2"
+                                  placement="bottom_right" open="true" />
+                """, NotificationView.class);
+        expect(xmlNotificationView.id().equals("notifications")
+                        && xmlNotificationView.text().equals("Build complete")
+                        && near(xmlNotificationView.duration(), 0.0f)
+                        && near(xmlNotificationView.spacing(), 6.0f)
+                        && near(xmlNotificationView.margin(), 12.0f)
+                        && xmlNotificationView.maxVisible() == 2
+                        && xmlNotificationView.placement() == NotificationView.Placement.BOTTOM_RIGHT
+                        && xmlNotificationView.opened()
+                        && xmlNotificationView.activeCount() == 1
+                        && xmlNotificationView.notifications().get(0).text().equals("Build complete"),
+                "NotificationView should materialize a visible pending notification from XML");
+        XmlWidgetDescriptor contextMenu = registry.descriptor("ContextMenu").orElseThrow();
+        expect(contextMenu.category().equals("Feedback")
+                        && contextMenu.acceptsChildren()
+                        && descriptor(contextMenu.attributes(), "open").category().equals("Behavior")
+                        && contextMenu.propertyChildren().stream().anyMatch(property -> property.name().equals("Items")),
+                "ContextMenu descriptor should expose menu item child metadata");
+        ContextMenu xmlContextMenu = XMLWidget.create("""
+                <ContextMenu open="true" selectedItem="1">
+                    <ContextMenu.Items>
+                        <Button id="copyAction" text="Copy" />
+                        <Separator id="contextDivider" />
+                        <Button id="pasteAction" text="Paste" enabled="false" />
+                    </ContextMenu.Items>
+                </ContextMenu>
+                """, ContextMenu.class);
+        expect(xmlContextMenu.opened()
+                        && xmlContextMenu.itemCount() == 2
+                        && xmlContextMenu.selectedItemIndex() == 1
+                        && xmlContextMenu.itemButton(0).text().equals("Copy")
+                        && xmlContextMenu.itemButton(0) == XMLWidget.getWidget(xmlContextMenu, "copyAction", Button.class)
+                        && !xmlContextMenu.itemButton(1).enabled()
+                        && XMLWidget.getWidget(xmlContextMenu, "contextDivider", Separator.class).parent() != null,
+                "ContextMenu should materialize XML Button and Separator children as retained menu items");
+        XmlWidgetDescriptor overlayLayer = registry.descriptor("OverlayLayer").orElseThrow();
+        expect(overlayLayer.category().equals("Feedback")
+                        && propertyChild(overlayLayer.propertyChildren(), "Content").singleChild()
+                        && overlayLayer.propertyChildren().stream().anyMatch(property -> property.name().equals("Overlays")),
+                "OverlayLayer descriptor should expose content and overlays property children");
+        XmlWidgetDescriptor popup = registry.descriptor("Popup").orElseThrow();
+        expect(popup.category().equals("Feedback")
+                        && descriptor(popup.attributes(), "closeOnOutsideClick").category().equals("Behavior")
+                        && propertyChild(popup.propertyChildren(), "Content").singleChild(),
+                "Popup descriptor should expose behavior attributes and content child metadata");
+        XmlWidgetDescriptor tooltip = registry.descriptor("Tooltip").orElseThrow();
+        expect(tooltip.category().equals("Feedback")
+                        && descriptor(tooltip.attributes(), "maxWidth").category().equals("Layout"),
+                "Tooltip descriptor should expose text tooltip metadata");
+        XmlWidgetDescriptor windowWidget = registry.descriptor("WindowWidget").orElseThrow();
+        expect(windowWidget.category().equals("Feedback")
+                        && descriptor(windowWidget.attributes(), "title").category().equals("Content")
+                        && descriptor(windowWidget.attributes(), "windowX").category().equals("Layout")
+                        && propertyChild(windowWidget.propertyChildren(), "Content").singleChild(),
+                "WindowWidget descriptor should expose window content and placement metadata");
+        OverlayLayer xmlOverlayLayer = XMLWidget.create("""
+                <OverlayLayer id="overlayHost" width="320" height="200" modalScrimColor="#00000080">
+                    <OverlayLayer.Content>
+                        <VBox id="overlayContent" />
+                    </OverlayLayer.Content>
+                    <OverlayLayer.Overlays>
+                        <WindowWidget id="inspectorWindow" title="Inspector" open="true" modal="true"
+                                      closeButtonVisible="false" windowX="12" windowY="18">
+                            <WindowWidget.Content>
+                                <Label id="windowBody" text="Properties" />
+                            </WindowWidget.Content>
+                        </WindowWidget>
+                        <Popup id="inlinePopup" open="true" closeOnOutsideClick="false" padding="4">
+                            <Popup.Content>
+                                <Label id="popupBody" text="Popup body" />
+                            </Popup.Content>
+                        </Popup>
+                        <Tooltip id="helpTip" text="Hover help" maxWidth="180" />
+                    </OverlayLayer.Overlays>
+                </OverlayLayer>
+                """, OverlayLayer.class);
+        WindowWidget xmlWindow = XMLWidget.getWidget(xmlOverlayLayer, "inspectorWindow", WindowWidget.class);
+        Popup xmlPopup = XMLWidget.getWidget(xmlOverlayLayer, "inlinePopup", Popup.class);
+        Tooltip xmlTooltip = XMLWidget.getWidget(xmlOverlayLayer, "helpTip", Tooltip.class);
+        expect(xmlOverlayLayer.content() instanceof VBox
+                        && XMLWidget.getWidget(xmlOverlayLayer, "overlayContent", VBox.class) == xmlOverlayLayer.content()
+                        && near(xmlOverlayLayer.modalScrimColor().a(), 0x80 / 255.0f)
+                        && xmlWindow.opened()
+                        && xmlWindow.modal()
+                        && !xmlWindow.closeButtonVisible()
+                        && near(xmlWindow.windowX(), 12.0f)
+                        && near(xmlWindow.windowY(), 18.0f)
+                        && xmlWindow.content() instanceof Label windowBody
+                        && windowBody.text().equals("Properties")
+                        && xmlPopup.opened()
+                        && !xmlPopup.closeOnOutsideClick()
+                        && xmlPopup.content() instanceof Label popupBody
+                        && popupBody.text().equals("Popup body")
+                        && xmlTooltip.text().equals("Hover help")
+                        && near(xmlTooltip.maxWidth(), 180.0f),
+                "OverlayLayer should materialize content, windows, popups and tooltips from XML property children");
+        XmlWidgetDescriptor virtualListView = registry.descriptor("VirtualListView").orElseThrow();
+        expect(virtualListView.category().equals("Data")
+                        && descriptor(virtualListView.attributes(), "itemCount").category().equals("Data")
+                        && descriptor(virtualListView.attributes(), "selectionMode").category().equals("Behavior"),
+                "VirtualListView descriptor should expose virtual list metadata");
+        VirtualListView xmlVirtualList = XMLWidget.create("""
+                <VirtualListView itemCount="12" itemHeight="22" overscan="3" selectionMode="multiple" activeIndex="5" />
+                """, VirtualListView.class);
+        expect(xmlVirtualList.itemCount() == 12
+                        && near(xmlVirtualList.itemHeight(), 22.0f)
+                        && xmlVirtualList.overscan() == 3
+                        && xmlVirtualList.selectionMode() == SelectionMode.MULTIPLE
+                        && xmlVirtualList.activeIndex() == 5,
+                "VirtualListView should materialize from built-in XML registration");
+        XmlWidgetDescriptor virtualTableView = registry.descriptor("VirtualTableView").orElseThrow();
+        expect(virtualTableView.category().equals("Data")
+                        && descriptor(virtualTableView.attributes(), "rowCount").category().equals("Data")
+                        && descriptor(virtualTableView.attributes(), "columns").category().equals("Data"),
+                "VirtualTableView descriptor should expose virtual table metadata");
+        VirtualTableView xmlVirtualTable = XMLWidget.create("""
+                <VirtualTableView columns="Name:120|Value:64" rowCount="7" rowHeight="19" headerHeight="24"
+                                  overscan="2" editable="true" selectionMode="multiple" />
+                """, VirtualTableView.class);
+        expect(xmlVirtualTable.rowCount() == 7
+                        && xmlVirtualTable.columns().size() == 2
+                        && xmlVirtualTable.columns().get(0).header().equals("Name")
+                        && near(xmlVirtualTable.columns().get(0).width(), 120.0f)
+                        && near(xmlVirtualTable.rowHeight(), 19.0f)
+                        && near(xmlVirtualTable.headerHeight(), 24.0f)
+                        && xmlVirtualTable.overscan() == 2
+                        && xmlVirtualTable.editable()
+                        && xmlVirtualTable.selectionMode() == SelectionMode.MULTIPLE,
+                "VirtualTableView should materialize rows, columns and editable state from built-in XML registration");
+        XmlWidgetDescriptor treeView = registry.descriptor("TreeView").orElseThrow();
+        expect(treeView.category().equals("Navigation")
+                        && descriptor(treeView.attributes(), "nodes").category().equals("Data")
+                        && descriptor(treeView.attributes(), "rowTextHoverScrollSpeed").category().equals("Behavior"),
+                "TreeView descriptor should expose path-backed XML node metadata");
+        TreeView xmlTreeView = XMLWidget.create("""
+                <TreeView nodes="Project/Screens/Main|Project/Screens/Settings|Assets" rowTextHoverScrollSpeed="30" />
+                """, TreeView.class);
+        expect(xmlTreeView.rootCount() == 2
+                        && xmlTreeView.root(0).value().equals("Project")
+                        && xmlTreeView.root(0).child(0).value().equals("Screens")
+                        && xmlTreeView.root(0).child(0).childCount() == 2
+                        && xmlTreeView.root(1).value().equals("Assets")
+                        && near(xmlTreeView.rowTextHoverScrollSpeed(), 30.0f),
+                "TreeView should materialize simple path-backed XML nodes");
+        XmlWidgetDescriptor tabControl = registry.descriptor("TabControl").orElseThrow();
+        expect(tabControl.category().equals("Navigation")
+                        && descriptor(tabControl.attributes(), "selectedIndex").category().equals("Behavior")
+                        && tabControl.propertyChildren().stream().anyMatch(property -> property.name().equals("Tabs")),
+                "TabControl descriptor should expose selected tab and XML tab content metadata");
+        TabControl xmlTabs = XMLWidget.create("""
+                <TabControl id="tabs" selectedIndex="1">
+                    <TabControl.Tabs>
+                        <Label id="firstTab" text="First" />
+                        <Label id="secondTab" text="Second" />
+                    </TabControl.Tabs>
+                </TabControl>
+                """, TabControl.class);
+        expect(xmlTabs.id().equals("tabs")
+                        && xmlTabs.tabCount() == 2
+                        && xmlTabs.selectedIndex() == 1
+                        && XMLWidget.getWidget(xmlTabs, "secondTab", Label.class).text().equals("Second"),
+                "TabControl should materialize XML tab content and selected index");
+        XmlWidgetDescriptor pageView = registry.descriptor("PageView").orElseThrow();
+        expect(pageView.category().equals("Navigation")
+                        && descriptor(pageView.attributes(), "selectedIndex").category().equals("Behavior")
+                        && pageView.propertyChildren().stream().anyMatch(property -> property.name().equals("Pages")),
+                "PageView descriptor should expose page content metadata");
+        PageView xmlPageView = XMLWidget.create("""
+                <PageView id="pages" selectedIndex="1">
+                    <PageView.Pages>
+                        <Label id="pageOne" text="One" />
+                        <Label id="pageTwo" text="Two" />
+                    </PageView.Pages>
+                </PageView>
+                """, PageView.class);
+        expect(xmlPageView.id().equals("pages")
+                        && xmlPageView.pageCount() == 2
+                        && xmlPageView.selectedIndex() == 1
+                        && XMLWidget.getWidget(xmlPageView, "pageTwo", Label.class).text().equals("Two"),
+                "PageView should materialize XML pages and selected index");
+        XmlWidgetDescriptor expandablePanel = registry.descriptor("ExpandablePanel").orElseThrow();
+        expect(expandablePanel.category().equals("Navigation")
+                        && descriptor(expandablePanel.attributes(), "title").category().equals("Content")
+                        && descriptor(expandablePanel.attributes(), "expanded").category().equals("Behavior")
+                        && expandablePanel.propertyChildren().stream().anyMatch(property -> property.name().equals("Content")),
+                "ExpandablePanel descriptor should expose title, expanded state and content slot metadata");
+        ExpandablePanel xmlExpandable = XMLWidget.create("""
+                <ExpandablePanel id="advancedPanel" title="Advanced" expanded="false">
+                    <ExpandablePanel.Content>
+                        <Label id="advancedBody" text="Options" />
+                    </ExpandablePanel.Content>
+                </ExpandablePanel>
+                """, ExpandablePanel.class);
+        expect(xmlExpandable.id().equals("advancedPanel")
+                        && xmlExpandable.title().equals("Advanced")
+                        && !xmlExpandable.expanded()
+                        && XMLWidget.getWidget(xmlExpandable, "advancedBody", Label.class).text().equals("Options"),
+                "ExpandablePanel should materialize title, expanded state and content from XML");
+        XmlWidgetDescriptor accordion = registry.descriptor("Accordion").orElseThrow();
+        expect(accordion.category().equals("Navigation")
+                        && descriptor(accordion.attributes(), "singleOpen").category().equals("Behavior")
+                        && accordion.propertyChildren().stream().anyMatch(property -> property.name().equals("Panels")),
+                "Accordion descriptor should expose single-open behavior and panel child metadata");
+        Accordion xmlAccordion = XMLWidget.create("""
+                <Accordion id="settingsAccordion" singleOpen="true">
+                    <Accordion.Panels>
+                        <ExpandablePanel id="generalPanel" title="General" expanded="true">
+                            <Label id="generalBody" text="General body" />
+                        </ExpandablePanel>
+                        <ExpandablePanel id="advancedAccordionPanel" title="Advanced" expanded="true">
+                            <Label id="advancedAccordionBody" text="Advanced body" />
+                        </ExpandablePanel>
+                    </Accordion.Panels>
+                </Accordion>
+                """, Accordion.class);
+        expect(xmlAccordion.id().equals("settingsAccordion")
+                        && xmlAccordion.singleOpen()
+                        && xmlAccordion.panels().size() == 2
+                        && !xmlAccordion.panels().get(0).expanded()
+                        && xmlAccordion.panels().get(1).expanded()
+                        && XMLWidget.getWidget(xmlAccordion, "advancedAccordionBody", Label.class).text().equals("Advanced body"),
+                "Accordion should materialize expandable panel children and enforce single-open state");
+        XmlWidgetDescriptor carousel = registry.descriptor("Carousel").orElseThrow();
+        expect(carousel.category().equals("Navigation")
+                        && descriptor(carousel.attributes(), "selectedIndex").category().equals("Behavior")
+                        && carousel.propertyChildren().stream().anyMatch(property -> property.name().equals("Pages")),
+                "Carousel descriptor should expose selected page and page child metadata");
+        Carousel xmlCarousel = XMLWidget.create("""
+                <Carousel id="carousel" selectedIndex="1">
+                    <Carousel.Pages>
+                        <Label id="slideOne" text="Slide 1" />
+                        <Label id="slideTwo" text="Slide 2" />
+                    </Carousel.Pages>
+                </Carousel>
+                """, Carousel.class);
+        expect(xmlCarousel.id().equals("carousel")
+                        && xmlCarousel.pageView().pageCount() == 2
+                        && xmlCarousel.selectedIndex() == 1
+                        && xmlCarousel.indicator().text().equals("2 / 2")
+                        && XMLWidget.getWidget(xmlCarousel, "slideTwo", Label.class).text().equals("Slide 2"),
+                "Carousel should materialize XML pages, selected index and indicator state");
+        XmlWidgetDescriptor dockingRoot = registry.descriptor("DockingRoot").orElseThrow();
+        expect(dockingRoot.category().equals("Containers")
+                        && descriptor(dockingRoot.attributes(), "tabHeight").category().equals("Layout")
+                        && dockingRoot.propertyChildren().stream().anyMatch(property -> property.name().equals("Documents"))
+                        && dockingRoot.propertyChildren().stream().anyMatch(property -> property.name().equals("ToolPanes")),
+                "DockingRoot descriptor should expose document/tool-pane XML child metadata");
+        DockingRoot xmlDockingRoot = XMLWidget.create("""
+                <DockingRoot id="workspace" allowFloatingOutsideHost="true" floatingWindowsRedockLocked="true"
+                             tabHeight="24" splitHandleThickness="6">
+                    <DockingRoot.Documents>
+                        <Label id="mainDoc" text="Main XML" />
+                    </DockingRoot.Documents>
+                    <DockingRoot.ToolPanes>
+                        <Label id="palettePane" text="Palette" />
+                    </DockingRoot.ToolPanes>
+                </DockingRoot>
+                """, DockingRoot.class);
+        expect(xmlDockingRoot.id().equals("workspace")
+                        && xmlDockingRoot.allowFloatingOutsideHost()
+                        && xmlDockingRoot.floatingWindowsRedockLocked()
+                        && near(xmlDockingRoot.tabHeight(), 24.0f)
+                        && near(xmlDockingRoot.splitHandleThickness(), 6.0f)
+                        && xmlDockingRoot.dockingManager().paneCount() == 2
+                        && XMLWidget.getWidget(xmlDockingRoot, "mainDoc", Label.class).text().equals("Main XML")
+                        && XMLWidget.getWidget(xmlDockingRoot, "palettePane", Label.class).text().equals("Palette"),
+                "DockingRoot should materialize XML child widgets as document and tool panes");
+        XmlWidgetDescriptor xmlCodeEditor = registry.descriptor("XmlCodeEditor").orElseThrow();
+        expect(xmlCodeEditor.category().equals("Controls")
+                        && descriptor(xmlCodeEditor.attributes(), "lineNumbers").category().equals("Appearance"),
+                "XmlCodeEditor descriptor should expose editor-facing source metadata");
+        XmlWidgetDescriptor menuBar = registry.descriptor("MenuBar").orElseThrow();
+        expect(menuBar.category().equals("Navigation")
+                        && descriptor(menuBar.attributes(), "height").category().equals("Layout"),
+                "MenuBar descriptor should expose editor-facing navigation metadata");
+        expect(XMLWidget.create("<MenuBar id=\"mainMenu\" height=\"22\" />", MenuBar.class).id().equals("mainMenu"),
+                "MenuBar should materialize from built-in XML registration");
+        XmlWidgetDescriptor propertyGrid = registry.descriptor("PropertyGrid").orElseThrow();
+        expect(propertyGrid.category().equals("Editor")
+                        && descriptor(propertyGrid.attributes(), "showUnsetAttributes").category().equals("Behavior")
+                        && descriptor(propertyGrid.attributes(), "labelWidth").category().equals("Layout"),
+                "PropertyGrid descriptor should expose editor inspector metadata");
+        PropertyGrid xmlPropertyGrid = XMLWidget.create("""
+                <PropertyGrid id="inspector" showUnsetAttributes="false"
+                              showPropertyChildren="false" labelWidth="140" />
+                """, PropertyGrid.class);
+        expect(xmlPropertyGrid.id().equals("inspector")
+                        && !xmlPropertyGrid.showUnsetAttributes()
+                        && !xmlPropertyGrid.showPropertyChildren()
+                        && near(xmlPropertyGrid.labelWidth(), 140.0f),
+                "PropertyGrid should materialize inspector options from built-in XML registration");
+        XmlWidgetDescriptor selectionOverlay = registry.descriptor("SelectionOverlay").orElseThrow();
+        expect(selectionOverlay.category().equals("Editor")
+                        && descriptor(selectionOverlay.attributes(), "editMode").category().equals("Behavior")
+                        && descriptor(selectionOverlay.attributes(), "handleSize").category().equals("Layout")
+                        && descriptor(selectionOverlay.attributes(), "selectionColor").category().equals("Appearance"),
+                "SelectionOverlay descriptor should expose editor canvas handle metadata");
+        SelectionOverlay xmlSelectionOverlay = XMLWidget.create("""
+                <SelectionOverlay id="overlay" editMode="false" resizeHandlesVisible="false"
+                                  moveHandleVisible="false" handleSize="8" outlineThickness="2"
+                                  minResizeWidth="12" minResizeHeight="6" />
+                """, SelectionOverlay.class);
+        expect(xmlSelectionOverlay.id().equals("overlay")
+                        && !xmlSelectionOverlay.editMode()
+                        && !xmlSelectionOverlay.resizeHandlesVisible()
+                        && !xmlSelectionOverlay.moveHandleVisible()
+                        && near(xmlSelectionOverlay.handleSize(), 8.0f)
+                        && near(xmlSelectionOverlay.outlineThickness(), 2.0f)
+                        && near(xmlSelectionOverlay.minResizeWidth(), 12.0f)
+                        && near(xmlSelectionOverlay.minResizeHeight(), 6.0f),
+                "SelectionOverlay should materialize editor canvas options from XML");
+        XmlWidgetDescriptor designCanvasOverlay = registry.descriptor("DesignCanvasOverlay").orElseThrow();
+        DesignCanvasOverlay xmlDesignCanvasOverlay = XMLWidget.create(
+                "<DesignCanvasOverlay id=\"designOverlay\" handleSize=\"9\" />",
+                DesignCanvasOverlay.class);
+        expect(designCanvasOverlay.category().equals("Editor")
+                        && descriptor(designCanvasOverlay.attributes(), "editMode").category().equals("Behavior")
+                        && xmlDesignCanvasOverlay.id().equals("designOverlay")
+                        && near(xmlDesignCanvasOverlay.handleSize(), 9.0f),
+                "DesignCanvasOverlay should be an XML-visible editor overlay alias");
+        XmlWidgetDescriptor gridOverlay = registry.descriptor("GridOverlay").orElseThrow();
+        expect(gridOverlay.category().equals("Editor")
+                        && descriptor(gridOverlay.attributes(), "spacing").category().equals("Layout")
+                        && descriptor(gridOverlay.attributes(), "spacing").valueType() == XmlAttributeValueType.NUMBER
+                        && descriptor(gridOverlay.attributes(), "lineColor").category().equals("Appearance")
+                        && descriptor(gridOverlay.attributes(), "lineColor").valueType() == XmlAttributeValueType.COLOR
+                        && descriptor(gridOverlay.attributes(), "snapEnabled").category().equals("Behavior"),
+                "GridOverlay descriptor should expose editor canvas grid and snap metadata");
+        XmlWidgetDescriptor projectPicker = registry.descriptor("ProjectPickerPanel").orElseThrow();
+        expect(projectPicker.category().equals("Editor")
+                        && descriptor(projectPicker.attributes(), "title").category().equals("Content")
+                        && descriptor(projectPicker.attributes(), "dirty").category().equals("State")
+                        && descriptor(projectPicker.attributes(), "maxRecentProjects").category().equals("Behavior"),
+                "ProjectPickerPanel descriptor should expose editor project picker metadata");
+        ProjectPickerPanel xmlProjectPicker = XMLWidget.create("""
+                <ProjectPickerPanel id="projectPicker"
+                                    title="Projects"
+                                    currentProjectName="Shop UI"
+                                    currentPath="E:/projects/shop.xml"
+                                    dirty="true"
+                                    maxRecentProjects="3" />
+                """, ProjectPickerPanel.class);
+        expect(xmlProjectPicker.id().equals("projectPicker")
+                        && xmlProjectPicker.title().equals("Projects")
+                        && xmlProjectPicker.dirty()
+                        && xmlProjectPicker.maxRecentProjects() == 3
+                        && xmlProjectPicker.currentProjectLabel().text().contains("Shop UI *")
+                        && xmlProjectPicker.currentProjectLabel().text().contains("E:/projects/shop.xml"),
+                "ProjectPickerPanel should materialize project labels and picker options from XML");
+        XmlWidgetDescriptor statusBar = registry.descriptor("StatusBar").orElseThrow();
+        expect(statusBar.category().equals("Editor")
+                        && descriptor(statusBar.attributes(), "dirty").category().equals("State")
+                        && descriptor(statusBar.attributes(), "mode").category().equals("State")
+                        && descriptor(statusBar.attributes(), "viewScale").category().equals("State"),
+                "StatusBar descriptor should expose editor footer state metadata");
+        StatusBar xmlStatusBar = XMLWidget.create("""
+                <StatusBar id="footer" dirty="true" mode="Preview"
+                           selectedNodePath="/0/1" viewScale="1.5" errorCount="2" warningCount="1" />
+                """, StatusBar.class);
+        expect(xmlStatusBar.id().equals("footer")
+                        && xmlStatusBar.dirtyLabel().text().equals("Unsaved *")
+                        && xmlStatusBar.modeLabel().text().equals("Mode: Preview")
+                        && xmlStatusBar.diagnosticsLabel().text().equals("Errors: 2, Warnings: 1")
+                        && xmlStatusBar.selectedPathLabel().text().contains("/0/1")
+                        && xmlStatusBar.scaleLabel().text().equals("Scale: 150%"),
+                "StatusBar should materialize compact editor footer state from XML");
+        XmlWidgetDescriptor diagnosticsStrip = registry.descriptor("DiagnosticsStrip").orElseThrow();
+        DiagnosticsStrip xmlDiagnosticsStrip = XMLWidget.create(
+                "<DiagnosticsStrip id=\"diagnosticsStrip\" errorCount=\"1\" />",
+                DiagnosticsStrip.class);
+        expect(diagnosticsStrip.category().equals("Editor")
+                        && descriptor(diagnosticsStrip.attributes(), "errorCount").category().equals("State")
+                        && xmlDiagnosticsStrip.id().equals("diagnosticsStrip")
+                        && xmlDiagnosticsStrip.mode().equals("Diagnostics")
+                        && xmlDiagnosticsStrip.diagnosticsLabel().text().equals("Errors: 1, Warnings: 0"),
+                "DiagnosticsStrip should be an XML-visible status footer alias");
+        XmlWidgetDescriptor widgetPalette = registry.descriptor("WidgetPalette").orElseThrow();
+        expect(widgetPalette.category().equals("Editor")
+                        && descriptor(widgetPalette.attributes(), "search").category().equals("Behavior")
+                        && descriptor(widgetPalette.attributes(), "category").category().equals("Behavior")
+                        && descriptor(widgetPalette.attributes(), "includeInternalWidgets").category().equals("Behavior")
+                        && descriptor(widgetPalette.attributes(), "selectedWidget").category().equals("State"),
+                "WidgetPalette descriptor should expose editor palette filter and selection metadata");
+        WidgetPalette xmlWidgetPalette = XMLWidget.create("""
+                <WidgetPalette id="widgetPalette" title="Widgets" category="Controls"
+                               search="button" selectedWidget="Button" />
+                """, WidgetPalette.class);
+        expect(xmlWidgetPalette.id().equals("widgetPalette")
+                        && xmlWidgetPalette.title().equals("Widgets")
+                        && xmlWidgetPalette.selectedCategory().equals("Controls")
+                        && xmlWidgetPalette.search().equals("button")
+                        && xmlWidgetPalette.selectedXmlName().equals("Button")
+                        && !xmlWidgetPalette.includeInternalWidgets()
+                        && xmlWidgetPalette.visibleItems().stream().anyMatch(item -> item.xmlName().equals("Button"))
+                        && xmlWidgetPalette.visibleItems().stream().noneMatch(item -> item.category().equals("Editor"))
+                        && xmlWidgetPalette.insertButton().enabled(),
+                "WidgetPalette should materialize search, category and selected descriptor state from XML");
+        WidgetPalette xmlInternalPalette = XMLWidget.create("""
+                <WidgetPalette id="internalPalette" includeInternalWidgets="true"
+                               category="Editor" search="palette" selectedWidget="WidgetPalette" />
+                """, WidgetPalette.class);
+        expect(xmlInternalPalette.id().equals("internalPalette")
+                        && xmlInternalPalette.includeInternalWidgets()
+                        && xmlInternalPalette.selectedCategory().equals("Editor")
+                        && xmlInternalPalette.selectedXmlName().equals("WidgetPalette")
+                        && xmlInternalPalette.visibleItems().stream().anyMatch(item -> item.xmlName().equals("WidgetPalette"))
+                        && xmlInternalPalette.insertButton().enabled(),
+                "WidgetPalette should allow explicit XML opt-in for editor/internal widget descriptors");
+        XmlWidgetDescriptor palettePanel = registry.descriptor("PalettePanel").orElseThrow();
+        PalettePanel xmlPalettePanel = XMLWidget.create(
+                "<PalettePanel id=\"palettePanel\" search=\"label\" />",
+                PalettePanel.class);
+        expect(palettePanel.category().equals("Editor")
+                        && descriptor(palettePanel.attributes(), "search").category().equals("Behavior")
+                        && xmlPalettePanel.id().equals("palettePanel")
+                        && xmlPalettePanel.title().equals("Palette")
+                        && xmlPalettePanel.search().equals("label"),
+                "PalettePanel should be an XML-visible widget palette alias");
+        XmlWidgetDescriptor commandPalette = registry.descriptor("CommandPalette").orElseThrow();
+        expect(commandPalette.category().equals("Editor")
+                        && descriptor(commandPalette.attributes(), "search").category().equals("Behavior")
+                        && descriptor(commandPalette.attributes(), "selectedCommand").category().equals("State"),
+                "CommandPalette descriptor should expose editor command search and selection metadata");
+        CommandPalette xmlCommandPalette = XMLWidget.create("""
+                <CommandPalette id="commandPalette" title="Commands" search="open" selectedCommand="file.open" />
+                """, CommandPalette.class);
+        expect(xmlCommandPalette.id().equals("commandPalette")
+                        && xmlCommandPalette.title().equals("Commands")
+                        && xmlCommandPalette.search().equals("open")
+                        && xmlCommandPalette.selectedCommandId().equals("file.open"),
+                "CommandPalette should materialize command palette shell state from XML");
+        XmlWidgetDescriptor assetBrowser = registry.descriptor("AssetBrowserPanel").orElseThrow();
+        expect(assetBrowser.category().equals("Editor")
+                        && descriptor(assetBrowser.attributes(), "kind").category().equals("Behavior")
+                        && descriptor(assetBrowser.attributes(), "search").category().equals("Behavior")
+                        && descriptor(assetBrowser.attributes(), "selectedAsset").category().equals("State")
+                        && descriptor(assetBrowser.attributes(), "targetAttribute").category().equals("Behavior"),
+                "AssetBrowserPanel descriptor should expose editor asset browser metadata");
+        AssetBrowserPanel xmlAssetBrowser = XMLWidget.create("""
+                <AssetBrowserPanel id="assetBrowser" title="Assets" kind="SHADER"
+                                   search="glow" selectedAsset="unigui:glow"
+                                   targetAttribute="backgroundTexture" maxVisibleAssets="4" />
+                """, AssetBrowserPanel.class);
+        expect(xmlAssetBrowser.id().equals("assetBrowser")
+                        && xmlAssetBrowser.title().equals("Assets")
+                        && xmlAssetBrowser.kind() == XmlWidgetAssetKind.SHADER
+                        && xmlAssetBrowser.search().equals("glow")
+                        && xmlAssetBrowser.selectedAssetId().equals("unigui:glow")
+                        && xmlAssetBrowser.targetAttribute().equals("backgroundTexture")
+                        && xmlAssetBrowser.maxVisibleAssets() == 4
+                        && xmlAssetBrowser.previewLabel().text().contains("unigui:glow"),
+                "AssetBrowserPanel should materialize editor asset browser shell state from XML");
+        XmlWidgetDescriptor filterChips = registry.descriptor("SearchBoxWithFilterChips").orElseThrow();
+        expect(filterChips.category().equals("Editor")
+                        && descriptor(filterChips.attributes(), "search").category().equals("Behavior")
+                        && descriptor(filterChips.attributes(), "filters").category().equals("Content")
+                        && descriptor(filterChips.attributes(), "activeFilters").category().equals("State"),
+                "SearchBoxWithFilterChips descriptor should expose reusable editor filter metadata");
+        SearchBoxWithFilterChips xmlFilterChips = XMLWidget.create("""
+                <SearchBoxWithFilterChips id="searchFilters" search="button"
+                                          filters="errors:Errors|warnings:Warnings|assets:Assets"
+                                          activeFilters="errors,assets" />
+                """, SearchBoxWithFilterChips.class);
+        expect(xmlFilterChips.id().equals("searchFilters")
+                        && xmlFilterChips.search().equals("button")
+                        && xmlFilterChips.filters().size() == 3
+                        && xmlFilterChips.activeFilters().size() == 2
+                        && xmlFilterChips.filterActive("errors")
+                        && xmlFilterChips.filterActive("assets")
+                        && xmlFilterChips.chipRow().children().size() == 3,
+                "SearchBoxWithFilterChips should materialize search text and filter chips from XML");
+        XmlWidgetDescriptor dialog = registry.descriptor("Dialog").orElseThrow();
+        expect(dialog.category().equals("Editor")
+                        && descriptor(dialog.attributes(), "message").category().equals("Content")
+                        && descriptor(dialog.attributes(), "buttons").category().equals("Content")
+                        && descriptor(dialog.attributes(), "defaultResult").category().equals("Behavior")
+                        && descriptor(dialog.attributes(), "cancelResult").category().equals("Behavior")
+                        && descriptor(dialog.attributes(), "windowX").category().equals("Layout")
+                        && propertyChild(dialog.propertyChildren(), "Content").singleChild(),
+                "Dialog descriptor should expose editor dialog message, result button and content metadata");
+        Dialog xmlDialog = XMLWidget.create("""
+                <Dialog id="saveDialog" title="Save Changes" message="Save before closing?"
+                        open="true" buttons="save:Save|discard:Discard|cancel:Cancel"
+                        defaultResult="save" cancelResult="cancel"
+                        closeOnResult="false" windowX="30" windowY="42">
+                    <Dialog.Content>
+                        <Label id="dialogBody" text="Project settings changed" />
+                    </Dialog.Content>
+                </Dialog>
+                """, Dialog.class);
+        expect(xmlDialog.id().equals("saveDialog")
+                        && xmlDialog.title().equals("Save Changes")
+                        && xmlDialog.message().equals("Save before closing?")
+                        && xmlDialog.opened()
+                        && xmlDialog.modal()
+                        && !xmlDialog.resizable()
+                        && xmlDialog.buttons().size() == 3
+                        && xmlDialog.defaultResult().equals("save")
+                        && xmlDialog.cancelResult().equals("cancel")
+                        && !xmlDialog.closeOnResult()
+                        && near(xmlDialog.windowX(), 30.0f)
+                        && near(xmlDialog.windowY(), 42.0f)
+                        && xmlDialog.content() instanceof Label dialogBody
+                        && dialogBody.text().equals("Project settings changed")
+                        && XMLWidget.getWidget(xmlDialog, "dialogBody", Label.class) == dialogBody,
+                "Dialog should materialize modal shell state, result buttons and content from XML");
+        XmlWidgetDescriptor paneHeader = registry.descriptor("PaneHeader").orElseThrow();
+        expect(paneHeader.category().equals("Editor")
+                        && descriptor(paneHeader.attributes(), "title").category().equals("Content")
+                        && descriptor(paneHeader.attributes(), "dirty").category().equals("State")
+                        && descriptor(paneHeader.attributes(), "pinned").category().equals("State")
+                        && descriptor(paneHeader.attributes(), "closable").category().equals("Behavior"),
+                "PaneHeader descriptor should expose editor pane title, dirty, pin and close metadata");
+        PaneHeader xmlPaneHeader = XMLWidget.create("""
+                <PaneHeader id="propertiesHeader" paneId="properties" title="Properties"
+                            dirty="true" pinned="false" closable="false"
+                            pinVisible="true" menuVisible="false" closeVisible="true"
+                            headerHeight="24" />
+                """, PaneHeader.class);
+        expect(xmlPaneHeader.id().equals("propertiesHeader")
+                        && xmlPaneHeader.paneId().equals("properties")
+                        && xmlPaneHeader.title().equals("Properties")
+                        && xmlPaneHeader.dirty()
+                        && !xmlPaneHeader.pinned()
+                        && !xmlPaneHeader.closable()
+                        && xmlPaneHeader.pinButton().visible()
+                        && !xmlPaneHeader.menuButton().visible()
+                        && !xmlPaneHeader.closeButton().visible()
+                        && near(xmlPaneHeader.headerHeight(), 24.0f),
+                "PaneHeader should materialize pane state and action visibility from XML");
+        XmlWidgetDescriptor resizableHeader = registry.descriptor("ResizablePanelHeader").orElseThrow();
+        expect(resizableHeader.category().equals("Editor")
+                        && descriptor(resizableHeader.attributes(), "resizeEdge").category().equals("Behavior")
+                        && descriptor(resizableHeader.attributes(), "panelSize").category().equals("State")
+                        && descriptor(resizableHeader.attributes(), "minPanelSize").category().equals("Layout")
+                        && descriptor(resizableHeader.attributes(), "maxPanelSize").category().equals("Layout"),
+                "ResizablePanelHeader descriptor should expose resize edge and panel size metadata");
+        ResizablePanelHeader xmlResizableHeader = XMLWidget.create("""
+                <ResizablePanelHeader id="assetsHeader" paneId="assets" title="Assets"
+                                      resizeEdge="left" panelSize="180"
+                                      minPanelSize="120" maxPanelSize="260"
+                                      resizeHandleVisible="true" resizingEnabled="false" />
+                """, ResizablePanelHeader.class);
+        expect(xmlResizableHeader.id().equals("assetsHeader")
+                        && xmlResizableHeader.paneId().equals("assets")
+                        && xmlResizableHeader.title().equals("Assets")
+                        && xmlResizableHeader.resizeEdge() == ResizablePanelHeader.ResizeEdge.LEFT
+                        && near(xmlResizableHeader.panelSize(), 180.0f)
+                        && near(xmlResizableHeader.minPanelSize(), 120.0f)
+                        && near(xmlResizableHeader.maxPanelSize(), 260.0f)
+                        && xmlResizableHeader.resizeButton().visible()
+                        && !xmlResizableHeader.resizingEnabled()
+                        && !xmlResizableHeader.resizeButton().enabled(),
+                "ResizablePanelHeader should materialize resize affordance state from XML");
+        XmlWidgetDescriptor dragSource = registry.descriptor("DragSource").orElseThrow();
+        expect(dragSource.category().equals("Editor")
+                        && dragSource.acceptsChildren()
+                        && descriptor(dragSource.attributes(), "payloadId").category().equals("State")
+                        && descriptor(dragSource.attributes(), "payloadType").category().equals("Behavior")
+                        && descriptor(dragSource.attributes(), "dragPreview").category().equals("Content")
+                        && descriptor(dragSource.attributes(), "dragThreshold").category().equals("Behavior"),
+                "DragSource descriptor should expose payload metadata and drag behavior attributes");
+        DragSource xmlDragSource = XMLWidget.create("""
+                <DragSource id="paletteButtonDrag" payloadId="Button" payloadType="widget"
+                            dragPreview="&lt;Button /&gt;" dragThreshold="2">
+                    <Label id="dragSourceLabel" text="Button" />
+                </DragSource>
+                """, DragSource.class);
+        expect(xmlDragSource.id().equals("paletteButtonDrag")
+                        && xmlDragSource.payload().id().equals("Button")
+                        && xmlDragSource.payload().type().equals("widget")
+                        && xmlDragSource.payload().preview().equals("<Button />")
+                        && near(xmlDragSource.dragThreshold(), 2.0f)
+                        && XMLWidget.getWidget(xmlDragSource, "dragSourceLabel", Label.class).text().equals("Button"),
+                "DragSource should materialize payload metadata and child preview content from XML");
+        XmlWidgetDescriptor dropTarget = registry.descriptor("DropTarget").orElseThrow();
+        expect(dropTarget.category().equals("Editor")
+                        && dropTarget.acceptsChildren()
+                        && descriptor(dropTarget.attributes(), "acceptedPayloadTypes").category().equals("Behavior")
+                        && descriptor(dropTarget.attributes(), "dropEnabled").category().equals("Behavior"),
+                "DropTarget descriptor should expose payload validation metadata");
+        DropTarget xmlDropTarget = XMLWidget.create("""
+                <DropTarget id="canvasDrop" acceptedPayloadTypes="widget,node" dropEnabled="true">
+                    <Label id="dropTargetLabel" text="Canvas" />
+                </DropTarget>
+                """, DropTarget.class);
+        expect(xmlDropTarget.id().equals("canvasDrop")
+                        && xmlDropTarget.acceptedPayloadTypes().equals("widget,node")
+                        && xmlDropTarget.accepts(xmlDragSource.payload())
+                        && !xmlDropTarget.accepts(dev.sixik.unigui.widgets.editor.DragPayload.of("Texture", "asset", "Texture"))
+                        && XMLWidget.getWidget(xmlDropTarget, "dropTargetLabel", Label.class).text().equals("Canvas"),
+                "DropTarget should materialize accepted payload types and child drop-zone content from XML");
+        XmlWidgetDescriptor itemPreview = registry.descriptor("MinecraftItemPreviewWidget").orElseThrow();
+        expect(itemPreview.category().equals("Minecraft")
+                        && descriptor(itemPreview.attributes(), "label").category().equals("Content")
+                        && descriptor(itemPreview.attributes(), "item").category().equals("Minecraft")
+                        && descriptor(itemPreview.attributes(), "item").valueType() == XmlAttributeValueType.RESOURCE_ID
+                        && descriptor(itemPreview.attributes(), "decorations").category().equals("Appearance"),
+                "MinecraftItemPreviewWidget descriptor should expose item id and preview metadata");
+        XmlWidgetDescriptor blockPreview = registry.descriptor("MinecraftBlockPreviewWidget").orElseThrow();
+        expect(blockPreview.category().equals("Minecraft")
+                        && descriptor(blockPreview.attributes(), "block").category().equals("Minecraft")
+                        && descriptor(blockPreview.attributes(), "block").valueType() == XmlAttributeValueType.RESOURCE_ID
+                        && descriptor(blockPreview.attributes(), "previewSize").category().equals("Layout"),
+                "MinecraftBlockPreviewWidget descriptor should expose block id and inherited preview metadata");
+        XmlWidgetDescriptor entityPreview = registry.descriptor("MinecraftEntityPreviewWidget").orElseThrow();
+        expect(entityPreview.category().equals("Minecraft")
+                        && descriptor(entityPreview.attributes(), "entityType").category().equals("Minecraft")
+                        && descriptor(entityPreview.attributes(), "entityType").valueType() == XmlAttributeValueType.RESOURCE_ID
+                        && descriptor(entityPreview.attributes(), "labelVisible").category().equals("Appearance"),
+                "MinecraftEntityPreviewWidget descriptor should expose entity id and preview metadata");
+        XmlWidgetDescriptor itemPicker = registry.descriptor("MinecraftItemPickerWidget").orElseThrow();
+        expect(itemPicker.category().equals("Minecraft")
+                        && descriptor(itemPicker.attributes(), "items").category().equals("Minecraft")
+                        && descriptor(itemPicker.attributes(), "items").valueType() == XmlAttributeValueType.RESOURCE_ID
+                        && descriptor(itemPicker.attributes(), "query").category().equals("Behavior")
+                        && descriptor(itemPicker.attributes(), "selectedIndex").category().equals("Behavior"),
+                "MinecraftItemPickerWidget descriptor should expose deterministic item list metadata");
+        XmlWidgetDescriptor texturePicker = registry.descriptor("MinecraftTexturePickerWidget").orElseThrow();
+        expect(texturePicker.category().equals("Minecraft")
+                        && descriptor(texturePicker.attributes(), "textures").category().equals("Minecraft")
+                        && descriptor(texturePicker.attributes(), "textures").valueType() == XmlAttributeValueType.RESOURCE_ID
+                        && descriptor(texturePicker.attributes(), "selectedIndex").category().equals("Behavior"),
+                "MinecraftTexturePickerWidget descriptor should expose deterministic texture list metadata");
+        MinecraftTexturePickerWidget xmlTexturePicker = XMLWidget.create("""
+                <MinecraftTexturePickerWidget id="texturePicker"
+                                              textures="minecraft:textures/block/stone.png|minecraft:textures/item/diamond.png"
+                                              selectedIndex="1" />
+                """, MinecraftTexturePickerWidget.class);
+        expect(xmlTexturePicker.id().equals("texturePicker")
+                        && xmlTexturePicker.textureCount() == 2
+                        && xmlTexturePicker.selectedId() != null
+                        && xmlTexturePicker.selectedId().toString().equals("minecraft:textures/item/diamond.png"),
+                "MinecraftTexturePickerWidget should materialize XML texture ids and selection");
         expect(registry.descriptors().stream().anyMatch(descriptor -> descriptor.xmlName().equals("ImageView")),
                 "Registry should expose read-only descriptor snapshots for editor palettes");
         expectFailsUnsupported(() -> box.attributes().add(XmlAttributeDescriptor.of("oops")),
@@ -578,6 +1556,35 @@ public final class XmlWidgetSelfTest {
         XmlAttributeDescriptor importance = descriptor(badge.attributes(), "importance");
         expect(importance.defaultValue().equals("0") && importance.description().contains("Sort priority"),
                 "Custom attribute descriptors should preserve defaults and descriptions");
+    }
+
+    private void testXmlCodeEditorWidgetContracts() {
+        XmlCodeEditor editor = new XmlCodeEditor().loadText("<VBox><Label text=\"Hi\" /></VBox>");
+        expect(editor.formatXml(), "XmlCodeEditor should format syntactically valid XML");
+        expect(editor.text().contains("\n    <Label") && editor.dirty(),
+                "XmlCodeEditor format action should write pretty XML and mark changed text dirty");
+        editor.markClean();
+        expect(editor.validateXml() && editor.diagnostics().isEmpty(),
+                "XmlCodeEditor should validate descriptor-clean XML without diagnostics");
+
+        editor.loadText("<Missing />");
+        expect(!editor.validateXml()
+                        && editor.diagnostics().size() == 1
+                        && editor.diagnostics().get(0).line() == 1,
+                "XmlCodeEditor should map XML validation diagnostics onto code diagnostics");
+
+        editor.loadText("<VBox>");
+        expect(!editor.formatXml() && !editor.diagnostics().isEmpty(),
+                "XmlCodeEditor format should fail softly and expose parse diagnostics");
+
+        XmlCodeEditor fromXml = XMLWidget.create("""
+                <XmlCodeEditor id="source" text="&lt;VBox /&gt;" lineNumbers="false" visibleLines="4" />
+                """, XmlCodeEditor.class);
+        expect(fromXml.id().equals("source")
+                        && fromXml.text().equals("<VBox />")
+                        && !fromXml.lineNumbersVisible()
+                        && fromXml.visibleLines() == 4,
+                "XmlCodeEditor should materialize from built-in XML registration");
     }
 
     private void testDescriptorBackedInspectorModel() {
@@ -1201,6 +2208,59 @@ public final class XmlWidgetSelfTest {
                 "Editor layout handles should diagnose non-numeric layout attributes");
     }
 
+    private void testGridOverlayWidgetContracts() {
+        GridOverlay grid = XMLWidget.create("""
+                <GridOverlay id="grid"
+                             spacing="8"
+                             majorEvery="4"
+                             offsetX="2"
+                             offsetY="1"
+                             lineThickness="0.5"
+                             majorLineThickness="2"
+                             lineColor="#40608055"
+                             majorLineColor="#80C8FFFF"
+                             snapEnabled="true"
+                             snapSize="8" />
+                """, GridOverlay.class);
+
+        expect(grid.id().equals("grid")
+                        && near(grid.spacing(), 8.0f)
+                        && grid.majorEvery() == 4
+                        && near(grid.offsetX(), 2.0f)
+                        && near(grid.offsetY(), 1.0f)
+                        && near(grid.lineThickness(), 0.5f)
+                        && near(grid.majorLineThickness(), 2.0f)
+                        && grid.snapEnabled()
+                        && near(grid.snapSize(), 8.0f)
+                        && near(grid.lineColor().r(), 0x40 / 255.0f)
+                        && near(grid.majorLineColor().a(), 1.0f),
+                "GridOverlay should materialize grid and snap options from XML");
+        expect(near(grid.snapX(13.0f), 10.0f)
+                        && near(grid.snapY(14.0f), 17.0f)
+                        && near(grid.snapPoint(13.0f, 14.0f).x(), 10.0f)
+                        && near(grid.snapPoint(13.0f, 14.0f).y(), 17.0f),
+                "GridOverlay snap helpers should quantize coordinates against axis offsets");
+
+        grid.arrange(new MutableRect(4.0f, 6.0f, 34.0f, 18.0f));
+        NoopRenderContext renderContext = new NoopRenderContext();
+        grid.render(renderContext);
+        long lineCommands = renderContext.drawList().commands().stream()
+                .filter(command -> command.type() == DrawCommandType.LINE)
+                .count();
+        expect(lineCommands >= 8
+                        && renderContext.drawList().commands().stream()
+                        .anyMatch(command -> command.paint() != null && near(command.paint().strokeWidth(), 2.0f)),
+                "GridOverlay should render minor and major grid line commands inside its layout bounds");
+
+        grid.gridVisible(false);
+        NoopRenderContext hiddenContext = new NoopRenderContext();
+        grid.render(hiddenContext);
+        expect(hiddenContext.drawList().size() == 0, "GridOverlay should skip rendering when gridVisible is false");
+
+        grid.snapEnabled(false);
+        expect(near(grid.snapX(13.0f), 13.0f), "GridOverlay should leave coordinates unchanged when snapping is disabled");
+    }
+
     private void testUndoableDocumentEdits() {
         XmlWidgetDocument document = XmlWidgetDocument.parse("""
                 <VBox id="root"><Label id="first" text="First" /><Button id="second" text="Second" /></VBox>
@@ -1276,6 +2336,33 @@ public final class XmlWidgetSelfTest {
                 "Editor diagnostics should include invalid child relationships");
         expect(messages.stream().anyMatch(message -> message.contains("Unknown widget type 'Missing'")),
                 "Editor diagnostics should include unknown widget types");
+
+        XmlWidgetDocumentResult repeatedContent = XmlWidgetDocument.parseEditor("""
+                <ScrollView>
+                    <ScrollView.Content><VBox /></ScrollView.Content>
+                    <ScrollView.Content><Label /></ScrollView.Content>
+                </ScrollView>
+                """);
+        List<String> repeatedMessages = repeatedContent.diagnosticMessages();
+        expect(!repeatedContent.valid()
+                        && repeatedMessages.stream().anyMatch(message -> message.contains(
+                        "Property element 'ScrollView.Content' can appear only once on ScrollView")),
+                "Editor diagnostics should report repeated single-child property elements");
+
+        XmlWidgetDocumentResult oversizedContent = XmlWidgetDocument.parseEditor("""
+                <ScrollView>
+                    <ScrollView.Content>
+                        <VBox />
+                        <Label />
+                    </ScrollView.Content>
+                </ScrollView>
+                """);
+        List<String> oversizedMessages = oversizedContent.diagnosticMessages();
+        expect(!oversizedContent.valid()
+                        && oversizedMessages.stream().anyMatch(message -> message.contains(
+                        "Property element 'ScrollView.Content' can contain only one widget child")),
+                "Editor diagnostics should report too many widgets in single-child property elements");
+
         expect(result.toString().contains("diagnostics"),
                 "Document result should remain a normal inspectable record");
         expectFailsUnsupported(() -> result.diagnostics().add(new XmlWidgetDiagnostic("oops")),
@@ -1351,15 +2438,18 @@ public final class XmlWidgetSelfTest {
         XmlWidgetDescriptor reflectedButton = XmlWidgetAnnotations.descriptor(Button.class).orElseThrow();
         expect(reflectedButton.xmlName().equals("Button") && reflectedButton.category().equals("Controls"),
                 "Annotation reflection helper should build widget descriptor metadata for Button");
-        expect(descriptor(reflectedButton.attributes(), "text").category().equals("Content"),
+        expect(descriptor(reflectedButton.attributes(), "text").category().equals("Content")
+                        && descriptor(reflectedButton.attributes(), "text").valueType() == XmlAttributeValueType.STRING,
                 "Annotation reflection helper should convert @XmlAttribute metadata into descriptors");
-        expect(descriptor(reflectedButton.attributes(), "enabled").defaultValue().equals("true"),
+        expect(descriptor(reflectedButton.attributes(), "enabled").defaultValue().equals("true")
+                        && descriptor(reflectedButton.attributes(), "enabled").valueType() == XmlAttributeValueType.BOOLEAN,
                 "Annotation reflection helper should include inherited/overridden common attributes");
         XmlAttributeDescriptor reflectedTextureWidth = descriptor(
                 XmlWidgetAnnotations.descriptor(TextureWidget.class).orElseThrow().attributes(),
                 "textureWidth");
         expect(reflectedTextureWidth.category().equals("Assets")
-                        && reflectedTextureWidth.displayName().equals("Texture Width"),
+                        && reflectedTextureWidth.displayName().equals("Texture Width")
+                        && reflectedTextureWidth.valueType() == XmlAttributeValueType.NUMBER,
                 "Annotation reflection helper should expose texture helper attributes from widget setters");
         expect(XmlWidgetAnnotations.contributesLayoutAttributes(Button.class)
                         && XmlWidgetAnnotations.contributesStyleAttributes(Button.class),
@@ -1474,6 +2564,14 @@ public final class XmlWidgetSelfTest {
                     <ScrollView.Content><Label /></ScrollView.Content>
                 </ScrollView>
                 """, "Widget ScrollView can contain only one content child");
+        expectFails("""
+                <ScrollView>
+                    <ScrollView.Content>
+                        <VBox />
+                        <Label />
+                    </ScrollView.Content>
+                </ScrollView>
+                """, "Widget ScrollView can contain only one content child");
         expectFails("<VBox />", Button.class, "XML root is VBox, expected Button");
         expectFailsLookup(XMLWidget.create("<VBox id=\"root\" />", VBox.class), "missing",
                 "Widget id 'missing' was not found under root 'root'");
@@ -1579,6 +2677,13 @@ public final class XmlWidgetSelfTest {
                 .filter(descriptor -> descriptor.name().equals(name))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("Missing XML attribute descriptor: " + name));
+    }
+
+    private static XmlPropertyChildDescriptor propertyChild(List<XmlPropertyChildDescriptor> descriptors, String name) {
+        return descriptors.stream()
+                .filter(descriptor -> descriptor.name().equals(name))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Missing XML property-child descriptor: " + name));
     }
 
     private static void expectFailsUnsupported(Runnable action, String message) {

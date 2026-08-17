@@ -8,6 +8,9 @@ import dev.sixik.unigui.api.animation.AnimationEasing;
 import dev.sixik.unigui.api.animation.TransitionSpec;
 import dev.sixik.unigui.api.animation.TransformOrigin;
 import dev.sixik.unigui.api.debug.DebugFlags;
+import dev.sixik.unigui.api.editor.CommandManager;
+import dev.sixik.unigui.api.editor.EditorCommand;
+import dev.sixik.unigui.api.editor.KeyBinding;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.math.MutableColor;
@@ -29,9 +32,17 @@ import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.widget.CheckboxState;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.xml.XMLWidget;
+import dev.sixik.unigui.api.xml.XmlAttributeDescriptor;
+import dev.sixik.unigui.api.xml.XmlAttributeValueType;
+import dev.sixik.unigui.api.xml.XmlWidgetAsset;
+import dev.sixik.unigui.api.xml.XmlWidgetAssetCatalog;
+import dev.sixik.unigui.api.xml.XmlWidgetAssetKind;
 import dev.sixik.unigui.api.xml.XmlWidgetDiagnosticsPanel;
+import dev.sixik.unigui.api.xml.XmlWidgetDocument;
+import dev.sixik.unigui.api.xml.XmlWidgetElement;
 import dev.sixik.unigui.api.xml.XmlWidgetHotReloadPreview;
 import dev.sixik.unigui.api.xml.XmlWidgetHotReloadSource;
+import dev.sixik.unigui.api.xml.XmlWidgetNodePath;
 import dev.sixik.unigui.widgets.minecraft.MinecraftBlockPreviewWidget;
 import dev.sixik.unigui.backend.minecraft.MinecraftClipboardService;
 import dev.sixik.unigui.backend.minecraft.UniGuiTextures;
@@ -99,6 +110,25 @@ import dev.sixik.unigui.widgets.display.TextWidget;
 import dev.sixik.unigui.widgets.docking.DockArea;
 import dev.sixik.unigui.widgets.docking.DockingRoot;
 import dev.sixik.unigui.widgets.docking.DockPane;
+import dev.sixik.unigui.widgets.editor.AssetBrowserPanel;
+import dev.sixik.unigui.widgets.editor.CommandPalette;
+import dev.sixik.unigui.widgets.editor.DesignCanvasOverlay;
+import dev.sixik.unigui.widgets.editor.DiagnosticsStrip;
+import dev.sixik.unigui.widgets.editor.Dialog;
+import dev.sixik.unigui.widgets.editor.DragSource;
+import dev.sixik.unigui.widgets.editor.DropTarget;
+import dev.sixik.unigui.widgets.editor.GridOverlay;
+import dev.sixik.unigui.widgets.editor.PalettePanel;
+import dev.sixik.unigui.widgets.editor.PaneHeader;
+import dev.sixik.unigui.widgets.editor.PaneVisibilityController;
+import dev.sixik.unigui.widgets.editor.ProjectPickerPanel;
+import dev.sixik.unigui.widgets.editor.PropertyFieldRow;
+import dev.sixik.unigui.widgets.editor.PropertyGrid;
+import dev.sixik.unigui.widgets.editor.ResizablePanelHeader;
+import dev.sixik.unigui.widgets.editor.SearchBoxWithFilterChips;
+import dev.sixik.unigui.widgets.editor.SelectionOverlay;
+import dev.sixik.unigui.widgets.editor.StatusBar;
+import dev.sixik.unigui.widgets.editor.WidgetPalette;
 import dev.sixik.unigui.widgets.feedback.ContextMenu;
 import dev.sixik.unigui.widgets.feedback.LoadingIndicator;
 import dev.sixik.unigui.widgets.feedback.NotificationView;
@@ -118,29 +148,38 @@ import dev.sixik.unigui.widgets.graph.NodeGraphPortSide;
 import dev.sixik.unigui.widgets.graph.NodeGraphSelectionMode;
 import dev.sixik.unigui.widgets.interaction.Button;
 import dev.sixik.unigui.widgets.interaction.Checkbox;
+import dev.sixik.unigui.widgets.interaction.CodeEditor;
 import dev.sixik.unigui.widgets.interaction.ColorPicker;
 import dev.sixik.unigui.widgets.interaction.ComboBox;
 import dev.sixik.unigui.widgets.interaction.DatePicker;
 import dev.sixik.unigui.widgets.interaction.DropDownBox;
 import dev.sixik.unigui.widgets.interaction.HoldButton;
+import dev.sixik.unigui.widgets.interaction.IconButton;
 import dev.sixik.unigui.widgets.interaction.NumberField;
 import dev.sixik.unigui.widgets.interaction.PasswordField;
 import dev.sixik.unigui.widgets.interaction.RadioButton;
 import dev.sixik.unigui.widgets.interaction.RadioGroup;
 import dev.sixik.unigui.widgets.interaction.SearchField;
 import dev.sixik.unigui.widgets.interaction.Slider;
+import dev.sixik.unigui.widgets.interaction.TextArea;
 import dev.sixik.unigui.widgets.interaction.TextField;
 import dev.sixik.unigui.widgets.interaction.TextInput;
 import dev.sixik.unigui.widgets.interaction.TimeSpanField;
 import dev.sixik.unigui.widgets.interaction.ToggleButton;
+import dev.sixik.unigui.widgets.interaction.ToggleToolButton;
 import dev.sixik.unigui.widgets.interaction.ToggleSwitch;
+import dev.sixik.unigui.widgets.interaction.ToolButton;
 import dev.sixik.unigui.widgets.interaction.TreeListPicker;
+import dev.sixik.unigui.widgets.interaction.XmlCodeEditor;
 import dev.sixik.unigui.widgets.navigation.Accordion;
 import dev.sixik.unigui.widgets.navigation.Breadcrumb;
 import dev.sixik.unigui.widgets.navigation.Carousel;
 import dev.sixik.unigui.widgets.navigation.ExpandablePanel;
+import dev.sixik.unigui.widgets.navigation.Menu;
+import dev.sixik.unigui.widgets.navigation.MenuBar;
 import dev.sixik.unigui.widgets.navigation.PageView;
 import dev.sixik.unigui.widgets.navigation.TabControl;
+import dev.sixik.unigui.widgets.navigation.ToolBar;
 import dev.sixik.unigui.widgets.navigation.TreeList;
 import dev.sixik.unigui.widgets.navigation.TreeView;
 import dev.sixik.unigui.widgets.navigation.TreeViewNode;
@@ -767,6 +806,7 @@ public final class UniGuiDemo {
         tabs.addTab("Controls", scroll(controlsPage()));
         tabs.addTab("Text", scroll(textPage()));
         tabs.addTab("Containers", scroll(containersPage()));
+        tabs.addTab("XML Editor", scroll(xmlEditorPage()));
         tabs.addTab("Data", scroll(dataPage()));
         tabs.addTab("Custom Renders", scroll(customRendersPage()));
         tabs.addTab("Animations", scroll(animationsPage()));
@@ -1166,6 +1206,413 @@ public final class UniGuiDemo {
         DockingRoot docking = compactDockingRoot();
         docking.layout(style -> style.size(LayoutConstraints.AUTO, 150.0f).flexGrow(0).flexShrink(0.0f));
         page.addChild(section("DockingRoot", docking));
+        return page;
+    }
+
+    private static VBox xmlEditorPage() {
+        VBox page = page("XML Editor", "Editor-facing widgets from XML_UI_EDITOR_WIDGET_GAPS: command shell, code view, palette, inspector, assets, canvas overlays and pane helpers.");
+
+        Label actionStatus = new Label("Ready: XML editor widgets are running from retained UniGUI controls.");
+        actionStatus.layout(style -> style.size(LayoutConstraints.AUTO, 18.0f).flexGrow(0).flexShrink(0.0f));
+        page.addChild(actionStatus);
+
+        GridOverlay canvasGrid = new GridOverlay();
+        canvasGrid.spacing(16.0f).majorEvery(4).snapSize(8.0f).snapEnabled(true);
+        canvasGrid.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO)
+                .align(Alignment.STRETCH, Alignment.STRETCH)
+                .flexGrow(1.0f)
+                .flexShrink(1.0f));
+
+        CommandManager commands = new CommandManager();
+        boolean[] propertiesVisible = {true};
+        commands.register(new EditorCommand("xml.new", "New XML Document")
+                .action(() -> actionStatus.text("Command: new XML document")));
+        commands.register(new EditorCommand("xml.open", "Open XML")
+                .action(() -> actionStatus.text("Command: open XML file")));
+        commands.register(new EditorCommand("xml.save", "Save XML")
+                .action(() -> actionStatus.text("Command: save XML file")));
+        commands.register(new EditorCommand("xml.preview", "Run Preview")
+                .action(() -> actionStatus.text("Command: run live preview")));
+        commands.register(new EditorCommand("xml.properties", "Toggle Properties")
+                .checkedWhen(() -> propertiesVisible[0])
+                .action(() -> {
+                    propertiesVisible[0] = !propertiesVisible[0];
+                    actionStatus.text("Properties pane: " + (propertiesVisible[0] ? "visible" : "hidden"));
+                    commands.command("xml.properties").ifPresent(command -> command.notifyChanged());
+                }));
+        commands.register(new EditorCommand("xml.grid", "Toggle Grid")
+                .checkedWhen(canvasGrid::gridVisible)
+                .action(() -> {
+                    canvasGrid.gridVisible(!canvasGrid.gridVisible());
+                    actionStatus.text("Canvas grid: " + (canvasGrid.gridVisible() ? "visible" : "hidden"));
+                    commands.command("xml.grid").ifPresent(command -> command.notifyChanged());
+                }));
+        commands.bind("xml.new", KeyBinding.ctrl('N'));
+        commands.bind("xml.open", KeyBinding.ctrl('O'));
+        commands.bind("xml.save", KeyBinding.ctrl('S'));
+        commands.bind("xml.preview", KeyBinding.ctrl('P'));
+
+        DockingRoot editorWorkspace = compactDockingRoot();
+        editorWorkspace.layout(style -> style.size(LayoutConstraints.AUTO, 154.0f).flexGrow(0).flexShrink(0.0f));
+        PaneVisibilityController paneVisibility = new PaneVisibilityController(editorWorkspace)
+                .bindViewCommands(commands)
+                .diagnosticsPaneId("log");
+        DockPane assetsPane = editorWorkspace.manager().findPane("assets");
+        DockPane inspectorPane = editorWorkspace.manager().findPane("inspector");
+        DockPane logPane = editorWorkspace.manager().findPane("log");
+        if (assetsPane != null) paneVisibility.registerPane(assetsPane, DockArea.LEFT, true);
+        if (inspectorPane != null) paneVisibility.registerPane(inspectorPane, DockArea.RIGHT, true);
+        if (logPane != null) paneVisibility.registerPane(logPane, DockArea.BOTTOM, false);
+        paneVisibility.onVisibilityChanged(event -> actionStatus.text("Pane " + event.paneId() + ": " + (event.visible() ? "visible" : "hidden")));
+
+        ProjectPickerPanel projectPicker = new ProjectPickerPanel();
+        projectPicker.title("Project");
+        projectPicker.currentProject(ProjectPickerPanel.ProjectReference.path(
+                "recipe-machine", "Recipe Machine UI", "screens/recipe_machine.xml"));
+        projectPicker.recentProjects(List.of(
+                ProjectPickerPanel.ProjectReference.path("inventory", "Inventory Screen", "screens/inventory.xml"),
+                ProjectPickerPanel.ProjectReference.path("crafting", "Crafting Screen", "screens/crafting.xml"),
+                ProjectPickerPanel.ProjectReference.resource("builtin-demo", "Built-in XML Demo", XML_DEMO_RESOURCE)
+        ));
+        projectPicker.dirty(true).maxRecentProjects(3).registerCommands(commands);
+        projectPicker.onProjectAction(action -> actionStatus.text("Project action: " + action.kind()));
+        projectPicker.layout(style -> style.size(230.0f, 138.0f).flexGrow(0).flexShrink(0.0f));
+
+        MenuBar menuBar = new MenuBar().commandManager(commands);
+        menuBar.menu(new Menu("File")
+                .command("xml.new")
+                .command("xml.open")
+                .separator()
+                .command("xml.save"));
+        menuBar.menu(new Menu("View")
+                .command("xml.properties")
+                .command("xml.grid")
+                .separator()
+                .command(paneVisibility.viewCommandId("assets"), "Assets Pane")
+                .command(paneVisibility.viewCommandId("inspector"), "Inspector Pane")
+                .command(paneVisibility.viewCommandId("log"), "Diagnostics Pane"));
+        menuBar.menu(new Menu("Run")
+                .command("xml.preview")
+                .separator()
+                .command(ProjectPickerPanel.COMMAND_LAST_PROJECTS, "Recent Projects"));
+        menuBar.layout(style -> style.size(LayoutConstraints.AUTO, 22.0f).flexGrow(0).flexShrink(0.0f));
+
+        ToolBar toolBar = new ToolBar().commandManager(commands);
+        toolBar.command("xml.new", "+", ToolButton.DisplayMode.ICON_AND_TEXT);
+        toolBar.command("xml.open", "O", ToolButton.DisplayMode.ICON_AND_TEXT);
+        toolBar.command("xml.save", "S", ToolButton.DisplayMode.ICON_AND_TEXT);
+        toolBar.separator();
+        toolBar.toggleCommand("xml.properties", "I", ToolButton.DisplayMode.ICON_AND_TEXT);
+        toolBar.toggleCommand("xml.grid", "#", ToolButton.DisplayMode.ICON_AND_TEXT);
+        toolBar.spacer();
+        toolBar.iconCommand("xml.preview", ">");
+        toolBar.layout(style -> style.size(LayoutConstraints.AUTO, 26.0f).flexGrow(0).flexShrink(0.0f));
+
+        WrapPanel toolButtonSamples = wrap();
+        ToolButton addTool = new ToolButton();
+        addTool.icon("+").label("Add").displayMode(ToolButton.DisplayMode.ICON_AND_TEXT);
+        addTool.tooltip("Standalone ToolButton");
+        addTool.onClick(event -> actionStatus.text("Standalone ToolButton clicked"));
+        IconButton saveIcon = new IconButton("S");
+        saveIcon.tooltip("IconButton example");
+        saveIcon.onClick(event -> commands.execute("xml.save"));
+        ToggleToolButton snapTool = new ToggleToolButton();
+        snapTool.icon("#").label("Snap").displayMode(ToolButton.DisplayMode.ICON_AND_TEXT).checked(true);
+        snapTool.onCheckedChanged(event -> actionStatus.text("Snap ToolButton: " + event.newValue()));
+        toolButtonSamples.addChild(addTool);
+        toolButtonSamples.addChild(saveIcon);
+        toolButtonSamples.addChild(snapTool);
+
+        CommandPalette commandPalette = new CommandPalette();
+        commandPalette.commandManager(commands).search("xml").selectedCommand("xml.save");
+        commandPalette.onCommandInvoked(invocation -> actionStatus.text("Command palette executed: " + invocation.commandId()));
+        commandPalette.layout(style -> style.size(250.0f, 138.0f).flexGrow(0).flexShrink(0.0f));
+
+        VBox commandColumn = new VBox();
+        commandColumn.spacing(6.0f);
+        commandColumn.layout(style -> style.size(420.0f, LayoutConstraints.AUTO).flexGrow(1.0f).flexShrink(1.0f));
+        commandColumn.addChild(menuBar);
+        commandColumn.addChild(toolBar);
+        commandColumn.addChild(toolButtonSamples);
+
+        HBox commandShell = new HBox();
+        commandShell.spacing(10.0f);
+        commandShell.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
+        commandShell.addChild(commandColumn);
+        commandShell.addChild(projectPicker);
+        commandShell.addChild(commandPalette);
+        page.addChild(section("Command shell / Project picker / Command palette", commandShell));
+
+        @Language("xml")
+        String sampleXml = """
+                <DockPanel id="screen" width="360" height="220">
+                  <ToolBar id="mainToolbar" />
+                  <StackPanel id="canvas" dock="center">
+                    <Button id="apply" text="Apply" x="52" y="36" width="154" height="54" />
+                    <Label id="status" text="Ready" x="46" y="104" width="188" height="26" />
+                  </StackPanel>
+                </DockPanel>
+                """;
+
+        XmlCodeEditor xmlCodeEditor = new XmlCodeEditor();
+        xmlCodeEditor.loadText(sampleXml);
+        xmlCodeEditor.diagnostic(CodeEditor.Severity.WARNING, 4, 21, "Demo diagnostic: inspect id/apply bindings before save.");
+        xmlCodeEditor.scrollToLine(3);
+        xmlCodeEditor.layout(style -> style.size(LayoutConstraints.AUTO, 158.0f).flexGrow(1.0f).flexShrink(1.0f));
+
+        TextArea sourceNotes = new TextArea("""
+                TextArea covers multiline editor notes.
+                XmlCodeEditor adds line numbers, XML diagnostics and format/validate hooks.
+                StatusBar and DiagnosticsStrip mirror dirty state, selected XML path and zoom.
+                """);
+        sourceNotes.visibleLines(4).lineHeight(15.0f);
+        sourceNotes.layout(style -> style.size(300.0f, 96.0f).flexGrow(0).flexShrink(0.0f));
+
+        StatusBar sourceStatus = new StatusBar();
+        sourceStatus.dirty(true).mode("Code").selectedNodePath("/0/1").viewScale(1.25f).errorCount(0).warningCount(1);
+        sourceStatus.layout(style -> style.size(LayoutConstraints.AUTO, 20.0f).flexGrow(0).flexShrink(0.0f));
+        DiagnosticsStrip diagnosticsStrip = new DiagnosticsStrip();
+        diagnosticsStrip.dirty(true).selectedNodePath("/0/1/0").viewScale(1.25f).errorCount(1).warningCount(1);
+        diagnosticsStrip.layout(style -> style.size(LayoutConstraints.AUTO, 20.0f).flexGrow(0).flexShrink(0.0f));
+
+        VBox sourceStack = new VBox();
+        sourceStack.spacing(6.0f);
+        sourceStack.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
+        HBox sourceRow = new HBox();
+        sourceRow.spacing(8.0f);
+        sourceRow.addChild(xmlCodeEditor);
+        sourceRow.addChild(sourceNotes);
+        sourceStack.addChild(sourceRow);
+        sourceStack.addChild(sourceStatus);
+        sourceStack.addChild(diagnosticsStrip);
+        page.addChild(section("Source editor / Diagnostics", sourceStack));
+
+        XmlWidgetElement inspectedButton = new XmlWidgetElement("Button")
+                .attribute("id", "apply")
+                .attribute("text", "Apply")
+                .attribute("width", "154")
+                .attribute("height", "54")
+                .attribute("enabled", "true")
+                .attribute("x", "52")
+                .attribute("y", "36");
+        PropertyGrid propertyGrid = new PropertyGrid();
+        propertyGrid.inspect(inspectedButton).showUnsetAttributes(true).labelWidth(108.0f);
+        propertyGrid.layout(style -> style.size(280.0f, 182.0f).flexGrow(0).flexShrink(0.0f));
+
+        PropertyFieldRow opacityRow = new PropertyFieldRow(
+                XmlAttributeDescriptor.of("opacity")
+                        .category("Appearance")
+                        .displayName("Opacity")
+                        .defaultValue("1")
+                        .description("Reusable numeric PropertyFieldRow demo.")
+                        .valueType(XmlAttributeValueType.NUMBER),
+                "0.85",
+                true);
+        opacityRow.layout(style -> style.size(280.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
+
+        PalettePanel palette = new PalettePanel();
+        palette.includeInternalWidgets(true).selectedCategory("Editor").search("Panel");
+        palette.selectWidget("PropertyGrid");
+        palette.onInsertRequested(request -> actionStatus.text("Palette insert requested: <" + request.element().name() + ">"));
+        palette.layout(style -> style.size(240.0f, 150.0f).flexGrow(0).flexShrink(0.0f));
+
+        WidgetPalette userPalette = new WidgetPalette();
+        userPalette.title("User Palette").selectedCategory("Controls").search("Button");
+        userPalette.selectWidget("Button");
+        userPalette.onInsertRequested(request -> actionStatus.text("User palette insert requested: <" + request.element().name() + ">"));
+        userPalette.layout(style -> style.size(240.0f, 118.0f).flexGrow(0).flexShrink(0.0f));
+
+        XmlWidgetAssetCatalog assetCatalog = XmlWidgetAssetCatalog.builder()
+                .add(XmlWidgetAsset.texture("minecraft:textures/gui/widgets.png", 256, 256)
+                        .displayName("Vanilla Widgets")
+                        .description("Built-in button atlas."))
+                .add(XmlWidgetAsset.texture("unigui:editor/checkerboard", 64, 64)
+                        .displayName("Checkerboard")
+                        .description("Canvas transparency preview."))
+                .font("minecraft:default")
+                .shader("unigui:rounded_rect")
+                .build();
+        AssetBrowserPanel assetBrowser = new AssetBrowserPanel();
+        assetBrowser.catalog(assetCatalog)
+                .kind(XmlWidgetAssetKind.TEXTURE)
+                .targetAttribute("texture")
+                .selectedAsset("minecraft:textures/gui/widgets.png")
+                .maxVisibleAssets(4);
+        assetBrowser.onAssetApplied(selection -> actionStatus.text("Asset applied to " + selection.targetAttribute() + ": " + selection.asset().id()));
+        assetBrowser.layout(style -> style.size(278.0f, 182.0f).flexGrow(0).flexShrink(0.0f));
+
+        VBox inspectorColumn = new VBox();
+        inspectorColumn.spacing(6.0f);
+        inspectorColumn.addChild(propertyGrid);
+        inspectorColumn.addChild(opacityRow);
+
+        VBox paletteColumn = new VBox();
+        paletteColumn.spacing(6.0f);
+        paletteColumn.addChild(palette);
+        paletteColumn.addChild(userPalette);
+
+        HBox inspectorRow = new HBox();
+        inspectorRow.spacing(10.0f);
+        inspectorRow.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
+        inspectorRow.addChild(paletteColumn);
+        inspectorRow.addChild(inspectorColumn);
+        inspectorRow.addChild(assetBrowser);
+        page.addChild(section("Palette / Inspector / Assets", inspectorRow));
+
+        XmlWidgetElement canvasRoot = new XmlWidgetElement("StackPanel")
+                .attribute("x", "0")
+                .attribute("y", "0")
+                .attribute("width", "360")
+                .attribute("height", "160");
+        canvasRoot.addChild(new XmlWidgetElement("Button")
+                .attribute("id", "apply")
+                .attribute("text", "Apply")
+                .attribute("x", "52")
+                .attribute("y", "36")
+                .attribute("width", "154")
+                .attribute("height", "54"));
+        canvasRoot.addChild(new XmlWidgetElement("Label")
+                .attribute("id", "status")
+                .attribute("text", "Ready")
+                .attribute("x", "46")
+                .attribute("y", "104")
+                .attribute("width", "188")
+                .attribute("height", "26"));
+        XmlWidgetDocument canvasDocument = XmlWidgetDocument.of(canvasRoot);
+
+        StackPanel canvas = new StackPanel();
+        canvas.layout(style -> style.size(LayoutConstraints.AUTO, 166.0f).flexGrow(0).flexShrink(0.0f));
+        Box canvasBack = panelBox(0.020f, 0.024f, 0.032f, 0.98f);
+        canvasBack.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO)
+                .align(Alignment.STRETCH, Alignment.STRETCH)
+                .flexGrow(1.0f)
+                .flexShrink(1.0f));
+
+        Box selectedWidget = panelBox(0.075f, 0.120f, 0.155f, 0.95f);
+        selectedWidget.borderColor().set(0.25f, 0.78f, 1.0f, 0.90f);
+        selectedWidget.layout(style -> style.size(154.0f, 54.0f)
+                .margin(52.0f, 36.0f, 0.0f, 0.0f)
+                .align(Alignment.START, Alignment.START)
+                .flexGrow(0)
+                .flexShrink(0.0f));
+        selectedWidget.addChild(new Label("Button: Apply").layout(style -> style.margin(8.0f, 18.0f).size(LayoutConstraints.AUTO, 16.0f)));
+
+        Box statusWidget = panelBox(0.070f, 0.095f, 0.070f, 0.92f);
+        statusWidget.layout(style -> style.size(188.0f, 26.0f)
+                .margin(46.0f, 104.0f, 0.0f, 0.0f)
+                .align(Alignment.START, Alignment.START)
+                .flexGrow(0)
+                .flexShrink(0.0f));
+        statusWidget.addChild(new Label("Label: Ready").layout(style -> style.margin(8.0f, 5.0f).size(LayoutConstraints.AUTO, 16.0f)));
+
+        SelectionOverlay selectionOverlay = new SelectionOverlay();
+        selectionOverlay.document(canvasDocument).selectedPath(XmlWidgetNodePath.of(0));
+        selectionOverlay.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO)
+                .align(Alignment.STRETCH, Alignment.STRETCH)
+                .flexGrow(1.0f)
+                .flexShrink(1.0f));
+        DesignCanvasOverlay designOverlay = new DesignCanvasOverlay();
+        designOverlay.document(canvasDocument).selectedPath(XmlWidgetNodePath.of(1));
+        designOverlay.editMode(false).resizeHandlesVisible(false).outlineThickness(1.0f);
+        designOverlay.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO)
+                .align(Alignment.STRETCH, Alignment.STRETCH)
+                .flexGrow(1.0f)
+                .flexShrink(1.0f));
+
+        canvas.addChild(canvasBack);
+        canvas.addChild(canvasGrid);
+        canvas.addChild(selectedWidget);
+        canvas.addChild(statusWidget);
+        canvas.addChild(selectionOverlay);
+        canvas.addChild(designOverlay);
+        page.addChild(section("Design canvas overlays / GridOverlay", canvas));
+
+        PaneHeader paneHeader = new PaneHeader()
+                .paneId("inspector")
+                .title("Inspector")
+                .dirty(true)
+                .pinned(true);
+        paneHeader.onAction(action -> actionStatus.text("PaneHeader action: " + action.action()));
+        paneHeader.layout(style -> style.size(260.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
+
+        ResizablePanelHeader resizableHeader = new ResizablePanelHeader();
+        resizableHeader.paneId("assets")
+                .title("Assets")
+                .resizeEdge(ResizablePanelHeader.ResizeEdge.RIGHT)
+                .panelSize(240.0f)
+                .sizeRange(160.0f, 420.0f);
+        resizableHeader.onResizeRequested(request -> actionStatus.text("Resize request: " + request.paneId() + " -> " + Math.round(request.newSize())));
+        resizableHeader.layout(style -> style.size(260.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
+
+        SearchBoxWithFilterChips filters = new SearchBoxWithFilterChips();
+        filters.filters("layout:Layout|input:Input|diagnostics:Diagnostics|editor:Editor");
+        filters.activeFilters("layout|diagnostics");
+        filters.search("button");
+        filters.onFilterChanged(change -> actionStatus.text("Filter search: " + change.search() + " active=" + change.activeFilters()));
+        filters.layout(style -> style.size(300.0f, 48.0f).flexGrow(0).flexShrink(0.0f));
+
+        DragSource dragSource = new DragSource();
+        dragSource.payloadId("Button").payloadType("widget").dragPreview("<Button text=\"Apply\" />");
+        dragSource.backgroundVisible(true).borderVisible(true).radius(4.0f);
+        dragSource.background().set(0.055f, 0.080f, 0.115f, 0.96f);
+        dragSource.borderColor().set(0.25f, 0.78f, 1.0f, 0.75f);
+        dragSource.addChild(new Label("DragSource: <Button />").layout(style -> style.margin(8.0f, 10.0f).size(LayoutConstraints.AUTO, 16.0f)));
+        dragSource.layout(style -> style.size(184.0f, 42.0f).flexGrow(0).flexShrink(0.0f));
+
+        DropTarget dropTarget = new DropTarget();
+        dropTarget.acceptedPayloadTypes("widget");
+        dropTarget.previewDrop(dragSource.payload(), 0.0f, 0.0f);
+        dropTarget.backgroundVisible(true).borderVisible(true).radius(4.0f);
+        dropTarget.background().set(0.060f, 0.105f, 0.070f, 0.95f);
+        dropTarget.borderColor().set(0.40f, 1.0f, 0.48f, 0.75f);
+        dropTarget.addChild(new Label("DropTarget: widget payloads").layout(style -> style.margin(8.0f, 10.0f).size(LayoutConstraints.AUTO, 16.0f)));
+        dropTarget.layout(style -> style.size(210.0f, 42.0f).flexGrow(0).flexShrink(0.0f));
+
+        Dialog unsavedDialog = new Dialog();
+        unsavedDialog.title("Unsaved Changes");
+        unsavedDialog.message("The demo XML document has edits.");
+        unsavedDialog.buttons("save:Save|discard:Discard|cancel:Cancel");
+        unsavedDialog.defaultResult("save").cancelResult("cancel").closeOnResult(false);
+        unsavedDialog.content(paragraph("Dialog content slot can host any retained widget."));
+        unsavedDialog.open(true);
+        unsavedDialog.layout(style -> style.size(300.0f, 118.0f).flexGrow(0).flexShrink(0.0f));
+        unsavedDialog.onDialogResult(result -> actionStatus.text("Dialog result: " + result.resultId()));
+
+        StackPanel dialogStage = new StackPanel();
+        dialogStage.layout(style -> style.size(340.0f, 134.0f).flexGrow(0).flexShrink(0.0f));
+        Box dialogBack = panelBox(0.020f, 0.024f, 0.032f, 0.90f);
+        dialogBack.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO)
+                .align(Alignment.STRETCH, Alignment.STRETCH)
+                .flexGrow(1.0f)
+                .flexShrink(1.0f));
+        dialogStage.addChild(dialogBack);
+        dialogStage.addChild(unsavedDialog);
+
+        VBox headerColumn = new VBox();
+        headerColumn.spacing(6.0f);
+        headerColumn.layout(style -> style.size(300.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
+        headerColumn.addChild(paneHeader);
+        headerColumn.addChild(resizableHeader);
+        headerColumn.addChild(filters);
+
+        HBox helperRow = new HBox();
+        helperRow.spacing(10.0f);
+        helperRow.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
+        helperRow.addChild(headerColumn);
+        VBox dragColumn = new VBox();
+        dragColumn.spacing(8.0f);
+        dragColumn.addChild(dragSource);
+        dragColumn.addChild(dropTarget);
+        helperRow.addChild(dragColumn);
+        helperRow.addChild(dialogStage);
+        page.addChild(section("Pane headers / Search chips / Drag-drop / Dialog", helperRow));
+
+        VBox dockingColumn = new VBox();
+        dockingColumn.spacing(6.0f);
+        dockingColumn.addChild(paragraph("PaneVisibilityController binds view.* commands to DockingRoot panes. The diagnostics pane starts hidden here, while Assets and Inspector remain visible."));
+        dockingColumn.addChild(editorWorkspace);
+        page.addChild(section("Docking pane visibility controller", dockingColumn));
+
         return page;
     }
 

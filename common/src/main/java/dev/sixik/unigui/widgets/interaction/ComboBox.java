@@ -130,6 +130,19 @@ public class ComboBox extends LinearBox {
         return this;
     }
 
+    @XmlAttribute(value = "items", category = "Content", defaultValue = "", description = "Dropdown options separated by '|', ';' or line breaks.")
+    public ComboBox items(String items) {
+        if (items == null || items.isBlank()) {
+            return items(List.of());
+        }
+        List<String> parsed = new ObjectArrayList<>();
+        for (String item : items.split("[|;\\r\\n]+")) {
+            String normalized = item.trim();
+            if (!normalized.isEmpty()) parsed.add(normalized);
+        }
+        return items(parsed);
+    }
+
     public ComboBox richItems(List<RichText> items) {
         this.items.clear();
         this.richItems.clear();

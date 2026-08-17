@@ -64,7 +64,7 @@ import dev.sixik.unigui.widgets.navigation.TreeView;
  * Retained overlay window/dialog shell hosted by {@link OverlayLayer}.
  */
 @XmlWidgetName("WindowWidget")
-public final class WindowWidget extends Box implements OverlayHostAware {
+public class WindowWidget extends Box implements OverlayHostAware {
     private static final float DEFAULT_WIDTH = 220.0f;
     private static final float DEFAULT_HEIGHT = 120.0f;
     private static final float DEFAULT_HEADER_HEIGHT = 22.0f;

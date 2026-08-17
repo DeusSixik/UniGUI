@@ -16,7 +16,15 @@ public record XmlPropertyChildDescriptor(
         String name,
         String displayName,
         String category,
-        String description) {
+        String description,
+        boolean singleChild) {
+    public XmlPropertyChildDescriptor(String name,
+                                      String displayName,
+                                      String category,
+                                      String description) {
+        this(name, displayName, category, description, false);
+    }
+
     /** Нормализует обязательное имя и optional metadata-поля. */
     public XmlPropertyChildDescriptor {
         name = normalizeRequired(name, "name");
@@ -32,7 +40,7 @@ public record XmlPropertyChildDescriptor(
      * @return descriptor слота
      */
     public static XmlPropertyChildDescriptor of(String name) {
-        return new XmlPropertyChildDescriptor(name, null, null, null);
+        return new XmlPropertyChildDescriptor(name, null, null, null, false);
     }
 
     /**
@@ -42,7 +50,7 @@ public record XmlPropertyChildDescriptor(
      * @return новая копия descriptor-а
      */
     public XmlPropertyChildDescriptor displayName(String displayName) {
-        return new XmlPropertyChildDescriptor(name, displayName, category, description);
+        return new XmlPropertyChildDescriptor(name, displayName, category, description, singleChild);
     }
 
     /**
@@ -52,7 +60,7 @@ public record XmlPropertyChildDescriptor(
      * @return новая копия descriptor-а
      */
     public XmlPropertyChildDescriptor category(String category) {
-        return new XmlPropertyChildDescriptor(name, displayName, category, description);
+        return new XmlPropertyChildDescriptor(name, displayName, category, description, singleChild);
     }
 
     /**
@@ -62,7 +70,15 @@ public record XmlPropertyChildDescriptor(
      * @return новая копия descriptor-а
      */
     public XmlPropertyChildDescriptor description(String description) {
-        return new XmlPropertyChildDescriptor(name, displayName, category, description);
+        return new XmlPropertyChildDescriptor(name, displayName, category, description, singleChild);
+    }
+
+    public XmlPropertyChildDescriptor singleChildOnly() {
+        return singleChild(true);
+    }
+
+    public XmlPropertyChildDescriptor singleChild(boolean singleChild) {
+        return new XmlPropertyChildDescriptor(name, displayName, category, description, singleChild);
     }
 
     private static String normalizeRequired(String value, String field) {

@@ -13,6 +13,11 @@ public final class BuiltInWidgetXmlRegistry {
         BuiltInContainerXml.register(registry);
         BuiltInDisplayXml.register(registry);
         BuiltInControlXml.register(registry);
+        BuiltInDataXml.register(registry);
+        BuiltInNavigationXml.register(registry);
+        BuiltInMinecraftXml.register(registry);
+        BuiltInDockingXml.register(registry);
+        BuiltInEditorXml.register(registry);
         registerAliases(registry);
 
         return registry;
