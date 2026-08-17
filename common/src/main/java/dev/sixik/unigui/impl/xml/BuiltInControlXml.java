@@ -3,6 +3,7 @@ package dev.sixik.unigui.impl.xml;
 import dev.sixik.unigui.api.widget.CheckboxState;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.xml.XmlAttributeDescriptor;
+import dev.sixik.unigui.api.xml.XmlAttributeValueType;
 import dev.sixik.unigui.api.xml.XmlPropertyChildDescriptor;
 import dev.sixik.unigui.widgets.display.Separator;
 import dev.sixik.unigui.widgets.feedback.ContextMenu;
@@ -104,7 +105,12 @@ final class BuiltInControlXml {
                 .attribute("textPaddingX", XmlValueParsers.FLOAT, Button::textPaddingX)
                 .attribute("textPaddingY", XmlValueParsers.FLOAT, Button::textPaddingY)
                 .attribute("interactionTransitions", XmlValueParsers.BOOLEAN, Button::interactionTransitions)
-                .attribute("onClick", XmlValueParsers.STRING, BuiltInControlXml::bindClickCommand);
+                .attribute("onClick", XmlValueParsers.STRING, BuiltInControlXml::bindClickCommand,
+                        XmlAttributeDescriptor.of("onClick")
+                                .category("Behavior")
+                                .defaultValue("")
+                                .valueType(XmlAttributeValueType.BINDING_OR_ACTION)
+                                .description("Named command/action id invoked when the button is clicked."));
     }
 
     private static void bindClickCommand(Button button, String commandName) {

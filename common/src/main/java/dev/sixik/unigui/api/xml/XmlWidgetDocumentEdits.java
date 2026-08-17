@@ -26,6 +26,17 @@ public final class XmlWidgetDocumentEdits {
     }
 
     /**
+     * Создаёт команду удаления атрибута у элемента.
+     *
+     * @param elementPath path целевого элемента; {@code null} означает root
+     * @param name имя атрибута
+     * @return undoable edit
+     */
+    public static XmlWidgetDocumentEdit removeAttribute(XmlWidgetNodePath elementPath, String name) {
+        return new RemoveAttributeEdit(elementPath, name);
+    }
+
+    /**
      * Создаёт команду добавления child node к элементу.
      *
      * <p>Child копируется при создании команды и ещё раз при apply, чтобы повторное применение
@@ -101,6 +112,41 @@ public final class XmlWidgetDocumentEdits {
                 element.setAttribute(previous);
             } else {
                 element.removeAttribute(next.name());
+            }
+        }
+    }
+
+    private static final class RemoveAttributeEdit implements XmlWidgetDocumentEdit {
+        private final XmlWidgetNodePath elementPath;
+        private final String name;
+        private XmlWidgetAttribute previous;
+        private boolean hadPrevious;
+
+        private RemoveAttributeEdit(XmlWidgetNodePath elementPath, String name) {
+            this.elementPath = elementPath == null ? XmlWidgetNodePath.root() : elementPath;
+            this.name = new XmlWidgetAttribute(name, "").name();
+        }
+
+        @Override
+        public String description() {
+            return "Remove attribute " + name;
+        }
+
+        @Override
+        public void apply(XmlWidgetDocument document) {
+            XmlWidgetElement element = element(document, elementPath);
+            Optional<XmlWidgetAttribute> existing = element.attributes().stream()
+                    .filter(attribute -> attribute.name().equals(name))
+                    .findFirst();
+            hadPrevious = existing.isPresent();
+            previous = existing.orElse(null);
+            element.removeAttribute(name);
+        }
+
+        @Override
+        public void undo(XmlWidgetDocument document) {
+            if (hadPrevious && previous != null) {
+                element(document, elementPath).setAttribute(previous);
             }
         }
     }

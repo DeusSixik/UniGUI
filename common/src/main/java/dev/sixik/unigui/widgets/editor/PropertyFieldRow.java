@@ -259,7 +259,8 @@ public class PropertyFieldRow extends LinearBox {
         if (options.isEmpty()) return textEditor();
         ComboBox comboBox = new ComboBox()
                 .items(options)
-                .dropDownMode(ComboBox.DropDownMode.INLINE)
+                .useOverlay()
+                .dropDownSameWidth()
                 .placeholder(descriptor.defaultValue());
         int selected = options.indexOf(value);
         if (selected < 0) selected = options.indexOf(descriptor.defaultValue());

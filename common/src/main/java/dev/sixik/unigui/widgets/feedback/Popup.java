@@ -98,6 +98,9 @@ public final class Popup extends Box implements OverlayHostAware {
         if (this.open == open) return this;
         this.open = open;
         visible(open);
+        if (open && parent() instanceof OverlayLayer layer) {
+            layer.bringOverlayToFront(this);
+        }
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         if (onOpenChanged != null) {
             onOpenChanged.run();

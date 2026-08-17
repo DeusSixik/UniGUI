@@ -17,6 +17,9 @@ import dev.sixik.unigui.widgets.editor.SearchBoxWithFilterChips;
 import dev.sixik.unigui.widgets.editor.SelectionOverlay;
 import dev.sixik.unigui.widgets.editor.StatusBar;
 import dev.sixik.unigui.widgets.editor.WidgetPalette;
+import dev.sixik.unigui.widgets.editor.XmlDesignCanvas;
+import dev.sixik.unigui.widgets.editor.XmlPropertiesPanel;
+import dev.sixik.unigui.widgets.editor.XmlRuntimeViewPane;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.xml.XmlAttributeDescriptor;
 import dev.sixik.unigui.api.xml.XmlPropertyChildDescriptor;
@@ -29,10 +32,16 @@ final class BuiltInEditorXml {
     static void register(WidgetXmlRegistry registry) {
         BuiltInWidgetXmlSupport.commonWidget(registry.register("PropertyGrid", PropertyGrid::new), PropertyGrid.class)
                 .describe("Property Grid", "Editor", "Descriptor-backed inspector for XML widget attributes and property-child slots.");
+        BuiltInWidgetXmlSupport.commonWidget(registry.register("XmlPropertiesPanel", XmlPropertiesPanel::new), XmlPropertiesPanel.class)
+                .describe("XML Properties Panel", "Editor", "Session-aware XML inspector pane that applies attribute edits through undoable document edits.");
         BuiltInWidgetXmlSupport.commonWidget(registry.register("SelectionOverlay", SelectionOverlay::new), SelectionOverlay.class)
                 .describe("Selection Overlay", "Editor", "Editor overlay for XML widget hover, selection, move and resize handles.");
         BuiltInWidgetXmlSupport.commonWidget(registry.register("DesignCanvasOverlay", DesignCanvasOverlay::new), DesignCanvasOverlay.class)
                 .describe("Design Canvas Overlay", "Editor", "Design-surface overlay alias for XML selection and transform handles.");
+        BuiltInWidgetXmlSupport.commonWidget(registry.register("XmlDesignCanvas", XmlDesignCanvas::new), XmlDesignCanvas.class)
+                .describe("XML Design Canvas", "Editor", "Design-surface host that layers XML preview, grid and selection overlay.");
+        BuiltInWidgetXmlSupport.commonWidget(registry.register("XmlRuntimeViewPane", XmlRuntimeViewPane::new), XmlRuntimeViewPane.class)
+                .describe("XML Runtime View Pane", "Editor", "Play-mode host that materializes the current XML snapshot as a runtime widget tree.");
         BuiltInWidgetXmlSupport.commonWidget(registry.register("GridOverlay", GridOverlay::new), GridOverlay.class)
                 .describe("Grid Overlay", "Editor", "Design-surface grid overlay with major lines and coordinate snap helpers.");
         BuiltInWidgetXmlSupport.commonWidget(registry.register("ProjectPickerPanel", ProjectPickerPanel::new), ProjectPickerPanel.class)

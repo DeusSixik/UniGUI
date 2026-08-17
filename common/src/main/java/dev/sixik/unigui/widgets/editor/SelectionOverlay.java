@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 @XmlWidgetName("SelectionOverlay")
 public class SelectionOverlay extends WidgetBase {
@@ -62,7 +63,10 @@ public class SelectionOverlay extends WidgetBase {
     private boolean resizeHandlesVisible = true;
     private boolean moveHandleVisible = true;
     private XmlWidgetDocumentResult lastResult;
+    private Function<XmlWidgetNodePath, Optional<XmlWidgetLayoutFrame>> frameResolver;
     private Consumer<DocumentChange> documentChanged = change -> {
+    };
+    private Consumer<SelectionChange> selectionChanged = change -> {
     };
 
     public SelectionOverlay() {
@@ -100,12 +104,20 @@ public class SelectionOverlay extends WidgetBase {
     }
 
     public SelectionOverlay selectedPath(XmlWidgetNodePath path) {
+        Optional<XmlWidgetNodePath> previous = selectedPath();
         if (path == null) {
             selection.clear();
         } else if (document == null || path.resolve(document).isPresent()) {
             selection.select(path);
         } else {
             selection.clear();
+        }
+        Optional<XmlWidgetNodePath> next = selectedPath();
+        if (!Objects.equals(previous, next)) {
+            selectionChanged.accept(new SelectionChange(
+                    this,
+                    previous.orElse(null),
+                    next.orElse(null)));
         }
         invalidate(InvalidationFlags.VISUAL);
         return this;
@@ -245,6 +257,20 @@ public class SelectionOverlay extends WidgetBase {
         };
     }
 
+    public EventSubscription onSelectionChanged(Consumer<SelectionChange> listener) {
+        selectionChanged = listener == null ? change -> {
+        } : listener;
+        return () -> selectionChanged = change -> {
+        };
+    }
+
+    public SelectionOverlay frameResolver(Function<XmlWidgetNodePath, Optional<XmlWidgetLayoutFrame>> frameResolver) {
+        if (this.frameResolver == frameResolver) return this;
+        this.frameResolver = frameResolver;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
     public Optional<XmlWidgetLayoutFrame> selectedFrame() {
         return selectedPath().flatMap(this::frameFor);
     }
@@ -330,7 +356,7 @@ public class SelectionOverlay extends WidgetBase {
             selectedPath(hit.get());
             startDrag(hit.get(), XmlWidgetLayoutHandle.MOVE, pointer);
         } else {
-            selection.clear();
+            selectedPath(null);
             hoverPath = null;
         }
         pointer.cancel();
@@ -445,11 +471,17 @@ public class SelectionOverlay extends WidgetBase {
 
     private Optional<XmlWidgetLayoutFrame> frameFor(XmlWidgetNodePath path) {
         if (document == null || path == null) return Optional.empty();
+        if (frameResolver != null) {
+            Optional<XmlWidgetLayoutFrame> resolved = frameResolver.apply(path);
+            if (resolved != null && resolved.isPresent()) {
+                return resolved;
+            }
+        }
         return path.resolveElement(document).flatMap(XmlWidgetLayoutHandles::frame);
     }
 
     private void collectFrames(XmlWidgetElement element, XmlWidgetNodePath path, List<PathFrame> frames) {
-        XmlWidgetLayoutHandles.frame(element).ifPresent(frame -> frames.add(new PathFrame(path, frame)));
+        frameFor(path).ifPresent(frame -> frames.add(new PathFrame(path, frame)));
         List<XmlWidgetNode> children = element.children();
         for (int i = 0; i < children.size(); i++) {
             if (children.get(i) instanceof XmlWidgetElement child) {
@@ -521,5 +553,10 @@ public class SelectionOverlay extends WidgetBase {
                                  XmlWidgetLayoutHandle handle,
                                  float deltaX,
                                  float deltaY) {
+    }
+
+    public record SelectionChange(SelectionOverlay overlay,
+                                  XmlWidgetNodePath previousPath,
+                                  XmlWidgetNodePath path) {
     }
 }

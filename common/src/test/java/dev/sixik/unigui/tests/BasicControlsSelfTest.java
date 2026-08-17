@@ -1212,6 +1212,30 @@ public final class BasicControlsSelfTest {
                         && invalidNumber.validationState() == PropertyFieldRow.ValidationState.ERROR
                         && Widgets.propertyGrid() instanceof PropertyGrid,
                 "Widgets factories should expose reusable property grid and property field rows");
+
+        PropertyFieldRow enumRow = Widgets.propertyFieldRow(
+                XmlAttributeDescriptor.of("orientation").defaultValue("horizontal"),
+                "vertical",
+                true);
+        VBox propertyPanel = new VBox();
+        propertyPanel.addChild(enumRow);
+        OverlayLayer propertyOverlay = new OverlayLayer(propertyPanel);
+        propertyOverlay.measure(new LayoutContext(240.0f, 120.0f));
+        propertyOverlay.arrange(new MutableRect(0.0f, 0.0f, 240.0f, 120.0f));
+        ComboBox enumCombo = (ComboBox) enumRow.editor();
+        enumCombo.open();
+        propertyOverlay.measure(new LayoutContext(240.0f, 120.0f));
+        propertyOverlay.arrange(new MutableRect(0.0f, 0.0f, 240.0f, 120.0f));
+        DrawList enumOverlayDrawList = new DrawList();
+        propertyOverlay.render(new DefaultRenderContext(enumOverlayDrawList));
+        expect(enumRow.fieldKind() == PropertyFieldRow.FieldKind.ENUM
+                        && enumCombo.dropDownMode() == ComboBox.DropDownMode.OVERLAY
+                        && enumCombo.attachedOverlayLayer() == propertyOverlay
+                        && enumCombo.dropDownPopup().parent() == propertyOverlay
+                        && enumCombo.dropDownPopup().opened()
+                        && propertyOverlay.children().get(propertyOverlay.children().size() - 1) == enumCombo.dropDownPopup()
+                        && hasText(enumOverlayDrawList, "horizontal"),
+                "PropertyFieldRow enum editors should open dropdown options through the top overlay layer");
     }
 
     private void testSelectionOverlayContracts() {

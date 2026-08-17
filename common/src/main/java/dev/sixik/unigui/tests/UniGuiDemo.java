@@ -129,6 +129,7 @@ import dev.sixik.unigui.widgets.editor.SearchBoxWithFilterChips;
 import dev.sixik.unigui.widgets.editor.SelectionOverlay;
 import dev.sixik.unigui.widgets.editor.StatusBar;
 import dev.sixik.unigui.widgets.editor.WidgetPalette;
+import dev.sixik.unigui.widgets.editor.XmlEditorDemoScreen;
 import dev.sixik.unigui.widgets.feedback.ContextMenu;
 import dev.sixik.unigui.widgets.feedback.LoadingIndicator;
 import dev.sixik.unigui.widgets.feedback.NotificationView;
@@ -564,6 +565,10 @@ public final class UniGuiDemo {
         RenderSystem.recordRenderCall(UniGuiDemo::openXmlHotReloadDemoClient);
     }
 
+    public static void openXmlEditorDemo() {
+        RenderSystem.recordRenderCall(UniGuiDemo::openXmlEditorDemoClient);
+    }
+
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("unigui")
                 .executes(ctx -> {
@@ -580,6 +585,14 @@ public final class UniGuiDemo {
                 }))
                 .then(Commands.literal("xml-hot").executes(ctx -> {
                     openXmlHotReloadDemo();
+                    return 0;
+                }))
+                .then(Commands.literal("xmleditor").executes(ctx -> {
+                    openXmlEditorDemo();
+                    return 0;
+                }))
+                .then(Commands.literal("xml-editor").executes(ctx -> {
+                    openXmlEditorDemo();
                     return 0;
                 })));
     }
@@ -611,6 +624,23 @@ public final class UniGuiDemo {
                 .scaleProvider(SCALE);
         Widget root = xmlHotReloadDemoScreenWidget();
         openScreen(Component.literal("UniGUI XML Hot Reload"), root, context);
+    }
+
+    private static void openXmlEditorDemoClient() {
+        DefaultUIContext context = new DefaultUIContext(new MinecraftClipboardService())
+                .scaleProvider(SCALE);
+        StackPanel viewport = new StackPanel();
+        viewport.addChild(backgroundFrame());
+
+        XmlEditorDemoScreen editor = new XmlEditorDemoScreen();
+        editor.layout(style -> style.margin(10.0f)
+                .size(LayoutConstraints.AUTO, LayoutConstraints.AUTO)
+                .align(Alignment.STRETCH, Alignment.STRETCH)
+                .flexGrow(1.0f)
+                .flexShrink(1.0f));
+        viewport.addChild(editor);
+
+        openScreen(Component.literal("UniGUI XML Editor"), new OverlayLayer(viewport), context);
     }
 
     private static Widget xmlDemoScreenWidget() {
@@ -1215,6 +1245,10 @@ public final class UniGuiDemo {
         Label actionStatus = new Label("Ready: XML editor widgets are running from retained UniGUI controls.");
         actionStatus.layout(style -> style.size(LayoutConstraints.AUTO, 18.0f).flexGrow(0).flexShrink(0.0f));
         page.addChild(actionStatus);
+
+        XmlEditorDemoScreen editorDemoScreen = new XmlEditorDemoScreen();
+        editorDemoScreen.layout(style -> style.size(LayoutConstraints.AUTO, 344.0f).flexGrow(0.0f).flexShrink(0.0f));
+        page.addChild(section("Session MVP / Docking workspace", editorDemoScreen));
 
         GridOverlay canvasGrid = new GridOverlay();
         canvasGrid.spacing(16.0f).majorEvery(4).snapSize(8.0f).snapEnabled(true);

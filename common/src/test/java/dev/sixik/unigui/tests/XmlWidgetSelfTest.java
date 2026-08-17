@@ -29,6 +29,7 @@ import dev.sixik.unigui.api.xml.XmlPropertyChildDescriptor;
 import dev.sixik.unigui.api.xml.XmlWidgetAsset;
 import dev.sixik.unigui.api.xml.XmlWidgetAssetCatalog;
 import dev.sixik.unigui.api.xml.XmlWidgetAssetKind;
+import dev.sixik.unigui.api.xml.XmlWidgetAssetProviders;
 import dev.sixik.unigui.api.xml.XmlWidgetAssetPickerModel;
 import dev.sixik.unigui.api.xml.XmlWidgetAssetPickerPanel;
 import dev.sixik.unigui.api.xml.XmlCommandRegistry;
@@ -70,6 +71,12 @@ import dev.sixik.unigui.api.xml.XmlWidgetSelectionModel;
 import dev.sixik.unigui.api.xml.XmlWidgetTemplateCatalog;
 import dev.sixik.unigui.api.xml.XmlWidgetTemplateKind;
 import dev.sixik.unigui.api.xml.XmlWidgetTemplateValues;
+import dev.sixik.unigui.api.xml.editor.XmlEditorDiagnosticChannel;
+import dev.sixik.unigui.api.xml.editor.XmlEditorDocumentSource;
+import dev.sixik.unigui.api.xml.editor.XmlEditorDocumentSources;
+import dev.sixik.unigui.api.xml.editor.XmlEditorMode;
+import dev.sixik.unigui.api.xml.editor.XmlEditorSession;
+import dev.sixik.unigui.api.xml.editor.XmlEditorSessionChange;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.HBox;
 import dev.sixik.unigui.widgets.containers.ScrollView;
@@ -94,6 +101,7 @@ import dev.sixik.unigui.widgets.editor.DropTarget;
 import dev.sixik.unigui.widgets.editor.GridOverlay;
 import dev.sixik.unigui.widgets.editor.PalettePanel;
 import dev.sixik.unigui.widgets.editor.PaneHeader;
+import dev.sixik.unigui.widgets.editor.PropertyFieldRow;
 import dev.sixik.unigui.widgets.editor.PropertyGrid;
 import dev.sixik.unigui.widgets.editor.ProjectPickerPanel;
 import dev.sixik.unigui.widgets.editor.ResizablePanelHeader;
@@ -101,6 +109,11 @@ import dev.sixik.unigui.widgets.editor.SearchBoxWithFilterChips;
 import dev.sixik.unigui.widgets.editor.SelectionOverlay;
 import dev.sixik.unigui.widgets.editor.StatusBar;
 import dev.sixik.unigui.widgets.editor.WidgetPalette;
+import dev.sixik.unigui.widgets.editor.XmlDesignCanvas;
+import dev.sixik.unigui.widgets.editor.XmlEditorDemoScreen;
+import dev.sixik.unigui.widgets.editor.XmlHierarchyPanel;
+import dev.sixik.unigui.widgets.editor.XmlPropertiesPanel;
+import dev.sixik.unigui.widgets.editor.XmlRuntimeViewPane;
 import dev.sixik.unigui.widgets.feedback.ContextMenu;
 import dev.sixik.unigui.widgets.feedback.LoadingIndicator;
 import dev.sixik.unigui.widgets.feedback.NotificationView;
@@ -153,6 +166,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
+import net.minecraft.resources.ResourceLocation;
 
 public final class XmlWidgetSelfTest {
     public static void main(String[] args) {
@@ -187,8 +201,17 @@ public final class XmlWidgetSelfTest {
         testEditorHierarchyAndSelectionModels();
         testEditorLayoutDragResizeHandles();
         testGridOverlayWidgetContracts();
+        testXmlDesignCanvasWidgetContracts();
+        testXmlRuntimeViewPaneContracts();
         testUndoableDocumentEdits();
         testEditorDiagnosticsCollection();
+        testXmlEditorSessionParseFailurePreservesLastValidDocument();
+        testXmlEditorSessionUndoRedoAndSelectionSurvival();
+        testXmlEditorSessionSaveRevertAndEvents();
+        testXmlEditorDemoScreenWorkspaceContracts();
+        testXmlHierarchyPanelWidgetContracts();
+        testXmlPropertiesPanelSessionContracts();
+        testXmlPropertiesPanelObjectPickerContracts();
         testEditorPreservesUnsupportedAttributes();
         testAnnotationPrototypeMetadata();
         testExpandedAnnotatedWidgetRegistration();
@@ -505,6 +528,9 @@ public final class XmlWidgetSelfTest {
 
         expect(clicks[0] == 1 && seen[0].equals("apply:button.click"),
                 "XML command registry should wire Button onClick to a named Java handler");
+        expect(descriptor(XMLWidget.registry().descriptor("Button").orElseThrow().attributes(), "onClick")
+                        .valueType() == XmlAttributeValueType.BINDING_OR_ACTION,
+                "Button onClick descriptor should expose action metadata for editor inspectors");
         expectFails("<Button onClick=\"video.missing\" />", Button.class, "Unknown XML command 'video.missing'");
         expectFails("<Button onClick=\"\" />", Button.class, "onClick command name must not be blank");
         expectFailsUnsupported(() -> XmlCommandRegistry.none().register("bad", (source, event) -> {}),
@@ -992,6 +1018,15 @@ public final class XmlWidgetSelfTest {
                         && xmlTooltip.text().equals("Hover help")
                         && near(xmlTooltip.maxWidth(), 180.0f),
                 "OverlayLayer should materialize content, windows, popups and tooltips from XML property children");
+        OverlayLayer zLayer = new OverlayLayer(new VBox());
+        Popup zPopup = new Popup(null, new Label("Popup"));
+        WindowWidget zWindow = new WindowWidget().title("Window").open();
+        zLayer.addOverlay(zPopup);
+        zLayer.addOverlay(zWindow);
+        zLayer.applyQueuedMutations();
+        zPopup.open();
+        expect(zLayer.children().get(zLayer.children().size() - 1) == zPopup,
+                "Opening a popup should bring it above existing overlay windows");
         XmlWidgetDescriptor virtualListView = registry.descriptor("VirtualListView").orElseThrow();
         expect(virtualListView.category().equals("Data")
                         && descriptor(virtualListView.attributes(), "itemCount").category().equals("Data")
@@ -1187,6 +1222,20 @@ public final class XmlWidgetSelfTest {
                         && !xmlPropertyGrid.showPropertyChildren()
                         && near(xmlPropertyGrid.labelWidth(), 140.0f),
                 "PropertyGrid should materialize inspector options from built-in XML registration");
+        XmlWidgetDescriptor xmlPropertiesPanel = registry.descriptor("XmlPropertiesPanel").orElseThrow();
+        expect(xmlPropertiesPanel.category().equals("Editor")
+                        && descriptor(xmlPropertiesPanel.attributes(), "showUnsetAttributes").category().equals("Behavior")
+                        && descriptor(xmlPropertiesPanel.attributes(), "labelWidth").category().equals("Layout"),
+                "XmlPropertiesPanel descriptor should expose session-aware inspector metadata");
+        XmlPropertiesPanel materializedPropertiesPanel = XMLWidget.create("""
+                <XmlPropertiesPanel id="propertiesPanel" showUnsetAttributes="false"
+                                    showPropertyChildren="false" labelWidth="136" />
+                """, XmlPropertiesPanel.class);
+        expect(materializedPropertiesPanel.id().equals("propertiesPanel")
+                        && !materializedPropertiesPanel.showUnsetAttributes()
+                        && !materializedPropertiesPanel.showPropertyChildren()
+                        && near(materializedPropertiesPanel.labelWidth(), 136.0f),
+                "XmlPropertiesPanel should materialize inspector options from built-in XML registration");
         XmlWidgetDescriptor selectionOverlay = registry.descriptor("SelectionOverlay").orElseThrow();
         expect(selectionOverlay.category().equals("Editor")
                         && descriptor(selectionOverlay.attributes(), "editMode").category().equals("Behavior")
@@ -1216,6 +1265,25 @@ public final class XmlWidgetSelfTest {
                         && xmlDesignCanvasOverlay.id().equals("designOverlay")
                         && near(xmlDesignCanvasOverlay.handleSize(), 9.0f),
                 "DesignCanvasOverlay should be an XML-visible editor overlay alias");
+        XmlWidgetDescriptor xmlDesignCanvas = registry.descriptor("XmlDesignCanvas").orElseThrow();
+        XmlDesignCanvas materializedDesignCanvas = XMLWidget.create(
+                "<XmlDesignCanvas id=\"designCanvas\" gridVisible=\"false\" editMode=\"false\" />",
+                XmlDesignCanvas.class);
+        expect(xmlDesignCanvas.category().equals("Editor")
+                        && descriptor(xmlDesignCanvas.attributes(), "gridVisible").category().equals("Behavior")
+                        && descriptor(xmlDesignCanvas.attributes(), "editMode").category().equals("Behavior")
+                        && materializedDesignCanvas.id().equals("designCanvas")
+                        && !materializedDesignCanvas.gridVisible()
+                        && !materializedDesignCanvas.editMode(),
+                "XmlDesignCanvas should expose XML-visible design host metadata");
+        XmlWidgetDescriptor xmlRuntimeViewPane = registry.descriptor("XmlRuntimeViewPane").orElseThrow();
+        XmlRuntimeViewPane materializedRuntimeViewPane = XMLWidget.create(
+                "<XmlRuntimeViewPane id=\"runtimePane\" />",
+                XmlRuntimeViewPane.class);
+        expect(xmlRuntimeViewPane.category().equals("Editor")
+                        && materializedRuntimeViewPane.id().equals("runtimePane")
+                        && !materializedRuntimeViewPane.running(),
+                "XmlRuntimeViewPane should expose an XML-visible play-mode host descriptor");
         XmlWidgetDescriptor gridOverlay = registry.descriptor("GridOverlay").orElseThrow();
         expect(gridOverlay.category().equals("Editor")
                         && descriptor(gridOverlay.attributes(), "spacing").category().equals("Layout")
@@ -1560,6 +1628,21 @@ public final class XmlWidgetSelfTest {
 
     private void testXmlCodeEditorWidgetContracts() {
         XmlCodeEditor editor = new XmlCodeEditor().loadText("<VBox><Label text=\"Hi\" /></VBox>");
+        expect(editor.lineCount() == 1, "CodeEditor should expose line count for gutter and diagnostics navigation");
+        editor.cursorIndex(6);
+        expect(editor.cursorIndex() == 6, "XmlCodeEditor should inherit cursor positioning from TextArea");
+        editor.select(7, 12);
+        expect(editor.selectedText().equals("Label"),
+                "XmlCodeEditor should inherit text selection from the multiline TextArea");
+
+        editor.loadText("<VBox>\n    <Label text=\"One\" />\n    <Label text=\"Two\" />\n</VBox>");
+        editor.visibleLines(1);
+        editor.lineHeight(12.0f);
+        expect(editor.lineCount() == 4, "CodeEditor should count multiline XML rows for line-number display");
+        editor.scrollToLine(3);
+        expect(editor.scrollY() > 0.0f, "CodeEditor should scroll to a requested XML source line");
+
+        editor.loadText("<VBox><Label text=\"Hi\" /></VBox>");
         expect(editor.formatXml(), "XmlCodeEditor should format syntactically valid XML");
         expect(editor.text().contains("\n    <Label") && editor.dirty(),
                 "XmlCodeEditor format action should write pretty XML and mark changed text dirty");
@@ -1567,11 +1650,19 @@ public final class XmlWidgetSelfTest {
         expect(editor.validateXml() && editor.diagnostics().isEmpty(),
                 "XmlCodeEditor should validate descriptor-clean XML without diagnostics");
 
-        editor.loadText("<Missing />");
+        editor.loadText("""
+                <VBox>
+                    <Missing />
+                </VBox>
+                """);
         expect(!editor.validateXml()
                         && editor.diagnostics().size() == 1
-                        && editor.diagnostics().get(0).line() == 1,
+                        && editor.firstDiagnostic().orElseThrow().hasLocation()
+                        && editor.firstDiagnostic().orElseThrow().line() == 2
+                        && editor.firstDiagnostic().orElseThrow().column() > 0,
                 "XmlCodeEditor should map XML validation diagnostics onto code diagnostics");
+        editor.scrollToFirstDiagnostic();
+        expect(editor.scrollY() > 0.0f, "CodeEditor should navigate to the first located diagnostic line");
 
         editor.loadText("<VBox>");
         expect(!editor.formatXml() && !editor.diagnostics().isEmpty(),
@@ -1711,6 +1802,35 @@ public final class XmlWidgetSelfTest {
                 "XML asset catalog should support query filtering for picker UIs");
         expectFailsUnsupported(() -> catalog.assets().clear(),
                 "XML asset catalog entries should be immutable snapshots");
+
+        XmlWidgetAssetCatalog providerCatalog = XmlWidgetAssetCatalog.builder()
+                .texture("test_mod:coin", 16, 16)
+                .build();
+        AutoCloseable catalogProvider = XmlWidgetAssetProviders.registerCatalog(providerCatalog);
+        AutoCloseable directProvider = XmlWidgetAssetProviders.register(builder -> builder
+                .add(XmlWidgetAsset.texture("test:icon", 128, 64).displayName("Override Icon"))
+                .add(XmlWidgetAsset.texture("test_mod:shop_icon", 32, 32)
+                        .displayName("Shop Icon")
+                        .description("Registered host mod icon")));
+        try {
+            XmlWidgetAssetCatalog providerOnly = XmlWidgetAssetProviders.catalog();
+            expect(providerOnly.find(XmlWidgetAssetKind.TEXTURE, "test_mod:coin").isPresent()
+                            && providerOnly.find(XmlWidgetAssetKind.TEXTURE, "test_mod:shop_icon").isPresent(),
+                    "XML asset providers should build a catalog from registered mod contributions");
+            expect(providerOnly.search(XmlWidgetAssetKind.TEXTURE, "shop").size() == 1,
+                    "XML asset providers should preserve display-name/description search metadata");
+
+            XmlWidgetAssetCatalog mergedCatalog = XmlWidgetAssetProviders.catalog(catalog);
+            expect(mergedCatalog.find(XmlWidgetAssetKind.TEXTURE, "test_mod:coin").isPresent()
+                            && mergedCatalog.find(XmlWidgetAssetKind.TEXTURE, "test:icon").orElseThrow().width() == 128,
+                    "XML asset providers should merge with base catalogs and override duplicate ids last");
+        } finally {
+            closeUnchecked(directProvider);
+            closeUnchecked(catalogProvider);
+        }
+        expect(XmlWidgetAssetProviders.catalog().find(XmlWidgetAssetKind.TEXTURE, "test_mod:coin").isEmpty()
+                        && XmlWidgetAssetProviders.catalog().find(XmlWidgetAssetKind.TEXTURE, "test_mod:shop_icon").isEmpty(),
+                "Closing XML asset provider handles should unregister mod contributions");
 
         XmlWidgetAssetPickerModel picker = new XmlWidgetAssetPickerModel(catalog, XmlWidgetAssetKind.TEXTURE)
                 .query("stone")
@@ -2261,6 +2381,193 @@ public final class XmlWidgetSelfTest {
         expect(near(grid.snapX(13.0f), 13.0f), "GridOverlay should leave coordinates unchanged when snapping is disabled");
     }
 
+    private void testXmlDesignCanvasWidgetContracts() {
+        XmlEditorSession session = XmlEditorSession.create("""
+                <VBox id="root" width="220" height="140">
+                    <Box id="panel" x="10" y="20" width="80" height="30" />
+                </VBox>
+                """);
+        XmlDesignCanvas canvas = new XmlDesignCanvas().session(session);
+
+        expect(canvas.previewRoot().isPresent()
+                        && canvas.previewRoot().orElseThrow().id().equals("root")
+                        && canvas.previewWidget(XmlWidgetNodePath.of(1)).orElseThrow().id().equals("panel")
+                        && canvas.previewHost().children().size() == 1
+                        && canvas.overlay().document() == session.document(),
+                "XmlDesignCanvas should rebuild a live preview, map XML paths to runtime widgets and bind overlay to the session document");
+        XmlEditorSession actionSession = XmlEditorSession.create("""
+                <VBox id="actionRoot" width="180" height="96">
+                    <Button id="actionButton" text="Run" onClick="demo.design" />
+                </VBox>
+                """).commands(XmlCommandRegistry.empty()
+                .register("demo.design", (source, event) -> {
+                }));
+        XmlDesignCanvas actionCanvas = new XmlDesignCanvas().session(actionSession);
+        expect(actionCanvas.previewRoot().isPresent()
+                        && actionCanvas.previewError().isEmpty()
+                        && actionCanvas.previewWidget(XmlWidgetNodePath.of(1)).orElseThrow().id().equals("actionButton"),
+                "XmlDesignCanvas should use session commands when building Design preview for onClick XML");
+        XmlEditorSession offsetSession = XmlEditorSession.create(
+                "<VBox id=\"offsetRoot\" x=\"40\" y=\"32\" width=\"220\" height=\"140\"><Box id=\"offsetPanel\" x=\"10\" y=\"20\" width=\"80\" height=\"30\" /></VBox>");
+        XmlDesignCanvas offsetCanvas = new XmlDesignCanvas().session(offsetSession);
+        offsetCanvas.measure(new LayoutContext(320.0f, 180.0f));
+        offsetCanvas.arrange(new MutableRect(0.0f, 0.0f, 320.0f, 180.0f));
+        offsetCanvas.overlay().selectedPath(XmlWidgetNodePath.of(0));
+        Widget offsetRoot = offsetCanvas.previewWidget(XmlWidgetNodePath.root()).orElseThrow();
+        Widget offsetPanel = offsetCanvas.previewWidget(XmlWidgetNodePath.of(0)).orElseThrow();
+        XmlWidgetLayoutFrame offsetFrame = offsetCanvas.overlay().selectedFrame().orElseThrow();
+        float expectedPanelX = offsetPanel.layoutBounds().x() - offsetCanvas.overlay().layoutBounds().x()
+                + offsetRoot.transform().position().x()
+                + offsetPanel.transform().position().x();
+        float expectedPanelY = offsetPanel.layoutBounds().y() - offsetCanvas.overlay().layoutBounds().y()
+                + offsetRoot.transform().position().y()
+                + offsetPanel.transform().position().y();
+        expect(near(offsetFrame.x(), expectedPanelX)
+                        && near(offsetFrame.y(), expectedPanelY)
+                        && near(offsetFrame.width(), offsetPanel.layoutBounds().width())
+                        && near(offsetFrame.height(), offsetPanel.layoutBounds().height())
+                        && offsetCanvas.overlay().pathAt(offsetFrame.x() + 1.0f, offsetFrame.y() + 1.0f)
+                        .filter(XmlWidgetNodePath.of(0)::equals)
+                        .isPresent(),
+                "XmlDesignCanvas overlay frames should follow rendered preview bounds, including parent and child transforms");
+        XmlEditorSession scaledSession = XmlEditorSession.create(
+                "<VBox id=\"scaledRoot\" scale=\"2\" width=\"220\" height=\"140\"><Box id=\"scaledPanel\" x=\"10\" y=\"20\" width=\"80\" height=\"30\" /></VBox>");
+        XmlDesignCanvas scaledCanvas = new XmlDesignCanvas().session(scaledSession);
+        scaledCanvas.measure(new LayoutContext(320.0f, 180.0f));
+        scaledCanvas.arrange(new MutableRect(0.0f, 0.0f, 320.0f, 180.0f));
+        scaledCanvas.overlay().selectedPath(XmlWidgetNodePath.of(0));
+        XmlWidgetLayoutFrame scaledFrame = scaledCanvas.overlay().selectedFrame().orElseThrow();
+        expect(near(scaledFrame.x(), 20.0f)
+                        && near(scaledFrame.y(), 40.0f)
+                        && near(scaledFrame.width(), 160.0f)
+                        && near(scaledFrame.height(), 60.0f)
+                        && scaledCanvas.overlay().pathAt(21.0f, 41.0f)
+                        .filter(XmlWidgetNodePath.of(0)::equals)
+                        .isPresent(),
+                "XmlDesignCanvas overlay frames should apply child transforms before parent transforms");
+        expect(canvas.selectAt(12.0f, 22.0f).orElseThrow().equals(XmlWidgetNodePath.of(1))
+                        && session.selectedPath().orElseThrow().equals(XmlWidgetNodePath.of(1)),
+                "XmlDesignCanvas should map hit-tested frames back to XmlWidgetNodePath selection");
+
+        XmlWidgetDocumentResult moved = XmlWidgetLayoutHandles.move(
+                session.document(),
+                XmlWidgetNodePath.of(1),
+                5.0f,
+                -4.0f);
+        expect(canvas.applyDesignResult(moved, XmlWidgetNodePath.of(1)),
+                "XmlDesignCanvas should accept valid design-handle document results");
+        XmlWidgetElement movedPanel = session.document().root().elementChildren().get(0);
+        expect(movedPanel.attribute("x").orElseThrow().equals("15")
+                        && movedPanel.attribute("y").orElseThrow().equals("16")
+                        && canvas.previewRoot().orElseThrow().id().equals("root")
+                        && canvas.lastDesignResult().orElseThrow().valid(),
+                "XmlDesignCanvas should push move/resize results back through the editor session and preview");
+
+        WidgetPalette palette = new WidgetPalette();
+        java.util.List<WidgetPalette.PaletteInsertRequest> paletteRequests = new java.util.ArrayList<>();
+        EventSubscription paletteSubscription = palette.onInsertRequested(paletteRequests::add);
+        expect(palette.requestInsert("Label", XmlWidgetNodePath.root(), Integer.MAX_VALUE),
+                "WidgetPalette should be able to create a palette insert request for canvas drop");
+        DropTarget.DropResult dropResult = canvas.dropPaletteRequest(paletteRequests.get(0), 1.0f, 1.0f);
+        XmlWidgetNodePath insertedPath = session.selectedPath().orElseThrow();
+        expect(dropResult == DropTarget.DropResult.ACCEPTED
+                        && insertedPath.resolveElement(session.document()).orElseThrow().name().equals("Label")
+                        && canvas.previewWidget(insertedPath).isPresent()
+                        && session.text().contains("<Label"),
+                "XmlDesignCanvas should accept palette drops on valid container targets and select the inserted XML node");
+        closeUnchecked(paletteSubscription);
+
+        Widget previewBefore = canvas.previewRoot().orElseThrow();
+        session.replaceText("<VBox><Box></VBox>");
+        expect(canvas.previewRoot().orElseThrow() == previewBefore
+                        && session.document().root().attribute("id").orElseThrow().equals("root"),
+                "XmlDesignCanvas should keep the previous valid preview when Code View text is syntactically invalid");
+
+        session.mode(XmlEditorMode.RUNTIME);
+        expect(!canvas.editMode(), "XmlDesignCanvas should disable editor overlay input while the session is in runtime mode");
+        session.mode(XmlEditorMode.DESIGN);
+        expect(canvas.editMode(), "XmlDesignCanvas should re-enable editor overlay input in design mode");
+    }
+
+    private void testXmlRuntimeViewPaneContracts() {
+        XmlEditorSession session = XmlEditorSession.create("""
+                <Screen uiScale="2.5" scaleWithMinecraftGui="false">
+                    <VBox id="runtimeRoot" width="160" height="96">
+                        <Button id="play" text="Play" />
+                    </VBox>
+                </Screen>
+                """);
+        XmlRuntimeViewPane pane = new XmlRuntimeViewPane().session(session);
+
+        expect(!pane.running()
+                        && pane.runtimeRoot().isEmpty()
+                        && pane.runtimeHost().children().isEmpty(),
+                "XmlRuntimeViewPane should stay idle until the editor enters runtime mode");
+        expect(pane.start(), "XmlRuntimeViewPane should enter runtime mode from the current XML snapshot");
+        expect(session.mode() == XmlEditorMode.RUNTIME
+                        && pane.running()
+                        && pane.runtimeRoot().orElseThrow().id().equals("runtimeRoot")
+                        && pane.runtimeHost().children().size() == 1
+                        && near(pane.scaleProvider().scale(), 2.5f)
+                        && !pane.scaleWithMinecraftGui(),
+                "XmlRuntimeViewPane should materialize a runtime root and preserve screen scale settings");
+
+        Widget previousRuntimeRoot = pane.runtimeRoot().orElseThrow();
+        expect(session.replaceText("<VBox id=\"changed\"><Label text=\"Live\" /></VBox>"),
+                "Runtime session should still accept valid XML text changes");
+        expect(pane.running()
+                        && pane.runtimeRoot().orElseThrow() != previousRuntimeRoot
+                        && pane.runtimeRoot().orElseThrow().id().equals("changed")
+                        && pane.runtimeXml().contains("changed")
+                        && session.diagnostics(XmlEditorDiagnosticChannel.RUNTIME).isEmpty(),
+                "XmlRuntimeViewPane should rebuild the runtime tree from the latest valid XML snapshot");
+
+        XmlEditorSession brokenSession = XmlEditorSession.create("<MissingRuntimeWidget id=\"bad\" />");
+        XmlRuntimeViewPane brokenPane = new XmlRuntimeViewPane().session(brokenSession);
+        expect(!brokenPane.start()
+                        && brokenSession.mode() == XmlEditorMode.RUNTIME
+                        && !brokenPane.runtimeError().isEmpty()
+                        && brokenSession.diagnostics(XmlEditorDiagnosticChannel.RUNTIME).size() == 1,
+                "XmlRuntimeViewPane should surface runtime materialization failures through the session diagnostics channel");
+        expect(brokenSession.replaceText("<VBox id=\"recovered\"><Label text=\"Recovered\" /></VBox>")
+                        && brokenPane.running()
+                        && brokenPane.runtimeRoot().orElseThrow().id().equals("recovered")
+                        && brokenSession.diagnostics(XmlEditorDiagnosticChannel.RUNTIME).isEmpty(),
+                "XmlRuntimeViewPane should clear runtime diagnostics after a successful runtime rebuild");
+        expect(brokenPane.stop()
+                        && brokenSession.mode() == XmlEditorMode.DESIGN
+                        && brokenSession.diagnostics(XmlEditorDiagnosticChannel.RUNTIME).isEmpty(),
+                "XmlRuntimeViewPane should clear runtime diagnostics when leaving runtime mode");
+
+        int[] runtimeClicks = {0};
+        XmlEditorSession actionSession = XmlEditorSession.create("""
+                <VBox id="actions">
+                    <Button id="play" text="Play" onClick="demo.play" />
+                </VBox>
+                """).commands(XmlCommandRegistry.empty()
+                .register("demo.play", (source, event) -> runtimeClicks[0]++));
+        XmlRuntimeViewPane actionPane = new XmlRuntimeViewPane().session(actionSession);
+        expect(actionPane.start(), "XmlRuntimeViewPane should start when XML action commands are registered on the session");
+        XMLWidget.getWidget(actionPane.runtimeRoot().orElseThrow(), "play", Button.class).click();
+        expect(runtimeClicks[0] == 1,
+                "XmlRuntimeViewPane should pass the session XmlCommandRegistry into runtime XML onClick handlers");
+        actionSession.commands(XmlCommandRegistry.empty()
+                .register("demo.play", (source, event) -> runtimeClicks[0] += 10));
+        XMLWidget.getWidget(actionPane.runtimeRoot().orElseThrow(), "play", Button.class).click();
+        expect(runtimeClicks[0] == 11,
+                "Changing session runtime commands should rebuild Runtime View with the new command handlers");
+        actionPane.stop();
+
+        String textBeforeStop = session.text();
+        expect(pane.stop(), "XmlRuntimeViewPane should leave runtime mode on stop");
+        expect(session.mode() == XmlEditorMode.DESIGN
+                        && !pane.running()
+                        && pane.runtimeRoot().isEmpty()
+                        && pane.runtimeHost().children().isEmpty()
+                        && session.text().equals(textBeforeStop),
+                "Stopping Runtime View should dispose the runtime tree without writing runtime state back into XML");
+    }
+
     private void testUndoableDocumentEdits() {
         XmlWidgetDocument document = XmlWidgetDocument.parse("""
                 <VBox id="root"><Label id="first" text="First" /><Button id="second" text="Second" /></VBox>
@@ -2390,6 +2697,421 @@ public final class XmlWidgetSelfTest {
             expect(failure.diagnostics().size() == result.diagnostics().size(),
                     "throwIfDiagnostics should preserve the full diagnostic list");
         }
+    }
+
+    private void testXmlEditorSessionParseFailurePreservesLastValidDocument() {
+        XmlEditorSession session = XmlEditorSession.create(
+                "<VBox><Button id=\"ok\" text=\"OK\" /></VBox>");
+        session.select(XmlWidgetNodePath.of(0));
+
+        boolean parsed = session.replaceText("<VBox><Button></VBox>");
+
+        expect(!parsed, "Editor session should reject malformed XML text");
+        expect(session.text().equals("<VBox><Button></VBox>"),
+                "Editor session should retain the raw invalid text buffer for code view");
+        expect(session.document().root().name().equals("VBox")
+                        && session.document().root().elementChildren().get(0).attribute("id").orElseThrow().equals("ok"),
+                "Editor session should preserve the previous valid source document after parse failure");
+        expect(session.selectedPath().orElseThrow().equals(XmlWidgetNodePath.of(0)),
+                "Editor session should preserve selection path while the code buffer is invalid");
+        expect(session.diagnostics(XmlEditorDiagnosticChannel.PARSE).size() == 1
+                        && session.diagnostics(XmlEditorDiagnosticChannel.VALIDATION).isEmpty(),
+                "Editor session should expose parse diagnostics separately from validation diagnostics");
+        expect(session.dirty(), "Invalid code edits should still mark the XML text buffer dirty");
+    }
+
+    private void testXmlEditorSessionUndoRedoAndSelectionSurvival() {
+        XmlEditorSession session = XmlEditorSession.create(
+                "<VBox><Label id=\"first\" /><Button id=\"selected\" /></VBox>");
+        session.select(XmlWidgetNodePath.of(1));
+
+        boolean applied = session.applyEdit(XmlWidgetDocumentEdits.addChild(
+                XmlWidgetNodePath.root(),
+                0,
+                new XmlWidgetElement("TextWidget").attribute("id", "inserted")));
+        expect(applied, "Editor session should apply undoable document edits");
+        expect(session.undoCount() == 1 && session.redoCount() == 0,
+                "Editor session should track undo/redo stack sizes after document edits");
+        expect(session.selectedPath().orElseThrow().equals(XmlWidgetNodePath.of(2)),
+                "Editor session should remap selection to the same source node after insertion before it");
+        expect(session.text().contains("inserted"),
+                "Editor session should regenerate XML text after inspector-style document edits");
+
+        expect(session.undo(), "Editor session should undo the latest document edit");
+        expect(session.undoCount() == 0 && session.redoCount() == 1,
+                "Editor session should move edits to redo stack after undo");
+        expect(session.selectedPath().orElseThrow().equals(XmlWidgetNodePath.of(1)),
+                "Editor session should remap selection back after undo");
+
+        expect(session.redo(), "Editor session should redo the undone document edit");
+        expect(session.undoCount() == 1 && session.redoCount() == 0,
+                "Editor session should restore undo stack after redo");
+        expect(session.selectedPath().orElseThrow().equals(XmlWidgetNodePath.of(2)),
+                "Editor session should keep selection on the same source node after redo");
+
+        XmlEditorSession insertionSession = XmlEditorSession.create("<VBox><Button id=\"button\" /></VBox>");
+        expect(!insertionSession.insertChild(
+                        XmlWidgetNodePath.of(0),
+                        Integer.MAX_VALUE,
+                        new XmlWidgetElement("Label").attribute("id", "rejected")),
+                "Validated editor insertion should reject child nodes that violate widget child policy");
+        expect(insertionSession.document().root().elementChildren().get(0).elementChildren().isEmpty()
+                        && insertionSession.undoCount() == 0
+                        && insertionSession.diagnostics(XmlEditorDiagnosticChannel.EDIT).stream()
+                        .anyMatch(diagnostic -> diagnostic.message().contains("Widget Button cannot contain child Label")),
+                "Rejected editor insertion should preserve the source document and expose edit diagnostics");
+        expect(insertionSession.insertChild(
+                        XmlWidgetNodePath.root(),
+                        Integer.MAX_VALUE,
+                        new XmlWidgetElement("Label").attribute("id", "inserted")),
+                "Validated editor insertion should accept child nodes allowed by the target descriptor");
+        expect(insertionSession.document().root().elementChildren().size() == 2
+                        && insertionSession.selectedPath().orElseThrow().resolveElement(insertionSession.document())
+                        .orElseThrow().attribute("id").orElseThrow().equals("inserted")
+                        && insertionSession.undoCount() == 1
+                        && insertionSession.diagnostics(XmlEditorDiagnosticChannel.EDIT).isEmpty(),
+                "Accepted editor insertion should update text, selection, undo stack and clear edit diagnostics");
+    }
+
+    private void testXmlEditorSessionSaveRevertAndEvents() {
+        XmlEditorDocumentSource source = XmlEditorDocumentSources.memory(
+                "demo",
+                "Demo XML",
+                "<Label id=\"saved\" text=\"Saved\" />");
+        XmlEditorSession session = XmlEditorSession.open(source);
+        List<XmlEditorSessionChange.Kind> events = new java.util.ArrayList<>();
+        EventSubscription subscription = session.onChanged(change -> events.add(change.kind()));
+
+        expect(!session.dirty(), "Opened editor source should start clean");
+        session.mode(XmlEditorMode.CODE);
+        expect(session.mode() == XmlEditorMode.CODE
+                        && events.contains(XmlEditorSessionChange.Kind.MODE_CHANGED),
+                "Editor session should emit mode-change events for pane refreshes");
+
+        expect(session.applyEdit(XmlWidgetDocumentEdits.setAttribute(XmlWidgetNodePath.root(), "id", "edited")),
+                "Editor session should apply root inspector edits");
+        expect(session.dirty(), "Document edits should mark the session dirty by changing the XML text");
+        expect(events.contains(XmlEditorSessionChange.Kind.DOCUMENT_CHANGED)
+                        && events.contains(XmlEditorSessionChange.Kind.UNDO_STACK_CHANGED),
+                "Editor session should emit document and undo-stack events after edits");
+
+        expect(session.save(), "Writable editor sources should save session text");
+        expect(!session.dirty() && source.readText().contains("id=\"edited\""),
+                "Editor session save should persist XML text and clear dirty state");
+
+        expect(session.replaceText("<Label id=\"unsaved\" text=\"Unsaved\" />"),
+                "Editor session should accept valid code-view replacement text");
+        expect(session.dirty()
+                        && session.document().root().attribute("id").orElseThrow().equals("unsaved"),
+                "Valid code-view replacement should update document and dirty state");
+
+        expect(session.revert(), "Editor session should revert from its current source");
+        expect(!session.dirty()
+                        && session.document().root().attribute("id").orElseThrow().equals("edited")
+                        && events.contains(XmlEditorSessionChange.Kind.REVERTED),
+                "Editor session revert should restore saved source text and emit a revert event");
+
+        subscription.close();
+        session.markClean();
+        expect(!events.contains(XmlEditorSessionChange.Kind.SAVED)
+                        || java.util.Collections.frequency(events, XmlEditorSessionChange.Kind.SAVED) == 1,
+                "Unsubscribed editor session listeners should stop receiving changes");
+    }
+
+    private void testXmlEditorDemoScreenWorkspaceContracts() {
+        AutoCloseable assetProvider = XmlWidgetAssetProviders.register(builder -> builder.add(
+                XmlWidgetAsset.texture("test_mod:shop_icon", 32, 32).displayName("Shop Icon")));
+        XmlEditorDemoScreen screen;
+        try {
+            screen = new XmlEditorDemoScreen();
+            expect(screen.assetCatalog().find(XmlWidgetAssetKind.TEXTURE, "test_mod:shop_icon").isPresent(),
+                    "XML editor demo screen should include registered mod asset providers in its catalog");
+        } finally {
+            closeUnchecked(assetProvider);
+        }
+        screen.refreshAssetCatalog();
+        expect(screen.assetCatalog().find(XmlWidgetAssetKind.TEXTURE, "test_mod:shop_icon").isEmpty(),
+                "XML editor demo screen should refresh its catalog after provider unload");
+
+        expect(screen.session().document().root().name().equals("VBox"),
+                "XML editor demo screen should own a valid default editor session");
+        expect(screen.workspace().manager().containsPane(XmlEditorDemoScreen.PANE_DESIGN)
+                        && screen.workspace().manager().containsPane(XmlEditorDemoScreen.PANE_CODE)
+                        && screen.workspace().manager().containsPane(XmlEditorDemoScreen.PANE_HIERARCHY)
+                        && screen.workspace().manager().containsPane(XmlEditorDemoScreen.PANE_PROPERTIES),
+                "XML editor demo screen should create the default design/code/hierarchy/properties workspace panes");
+        expect(screen.paneVisibility().isRegistered(XmlEditorDemoScreen.PANE_DIAGNOSTICS)
+                        && screen.paneVisibility().isRegistered(XmlEditorDemoScreen.PANE_PALETTE)
+                        && screen.paneVisibility().isRegistered(XmlEditorDemoScreen.PANE_ASSETS)
+                        && screen.paneVisibility().isRegistered(XmlEditorDemoScreen.PANE_BINDINGS)
+                        && screen.paneVisibility().isRegistered(XmlEditorDemoScreen.PANE_CONSOLE),
+                "XML editor demo screen should register secondary view-toggle panes");
+        expect(!screen.paneVisibility().isVisible(XmlEditorDemoScreen.PANE_DIAGNOSTICS),
+                "Diagnostics pane should start hidden in the compact workspace");
+        expect(screen.assetBrowserPanel().catalog().assets().size() >= 5
+                        && screen.assetBrowserPanel().visibleAssets().stream()
+                        .anyMatch(asset -> asset.kind() == XmlWidgetAssetKind.TEXTURE)
+                        && screen.propertiesPanel().assetCatalog().assets().size()
+                        == screen.assetBrowserPanel().catalog().assets().size(),
+                "XML editor demo screen should back the Assets pane and Properties picker with the same asset catalog");
+        expect(screen.commands().command(ProjectPickerPanel.COMMAND_NEW_PROJECT).isPresent()
+                        && screen.commands().command(ProjectPickerPanel.COMMAND_OPEN_PROJECT).isPresent()
+                        && screen.commands().command(ProjectPickerPanel.COMMAND_SAVE_PROJECT).isPresent()
+                        && screen.commands().command(XmlEditorDemoScreen.COMMAND_SAVE_PROJECT_AS).isPresent()
+                        && screen.commands().command(ProjectPickerPanel.COMMAND_LAST_PROJECTS).isPresent(),
+                "XML editor demo screen should expose project commands required by the editor shell");
+        expect(screen.commands().command(screen.paneVisibility().viewCommandId(XmlEditorDemoScreen.PANE_CONSOLE)).isPresent(),
+                "XML editor demo screen should expose View menu commands through PaneVisibilityController");
+
+        String encodedLayout = screen.encodedLayout();
+        expect(encodedLayout.startsWith("DLS1|"),
+                "XML editor demo screen should persist dock layout through DockLayoutSnapshotCodec");
+        screen.commands().execute(XmlEditorDemoScreen.COMMAND_LAYOUT_SAVE);
+        expect(screen.commands().command(XmlEditorDemoScreen.COMMAND_LAYOUT_RESTORE).orElseThrow().enabled(),
+                "Saving the dock layout should enable restore-layout command");
+        expect(screen.restoreEncodedLayout(encodedLayout),
+                "XML editor demo screen should restore an encoded dock layout snapshot");
+
+        screen.commands().execute(XmlEditorDemoScreen.COMMAND_RUN);
+        expect(screen.session().mode() == XmlEditorMode.RUNTIME,
+                "Run command should switch the editor session into runtime mode");
+        screen.commands().execute(XmlEditorDemoScreen.COMMAND_STOP);
+        expect(screen.session().mode() == XmlEditorMode.DESIGN,
+                "Stop command should return the editor session to design mode");
+
+        screen.codeEditor().text("<VBox id=\"codeEdited\"><Label text=\"OK\" /></VBox>");
+        expect(screen.session().mode() == XmlEditorMode.CODE
+                        && screen.session().document().root().attribute("id").orElseThrow().equals("codeEdited")
+                        && screen.session().diagnostics(XmlEditorDiagnosticChannel.PARSE).isEmpty(),
+                "Valid Code View edits should switch to code mode and update the editor document");
+        screen.commands().execute(XmlEditorDemoScreen.COMMAND_FORMAT_XML);
+        expect(screen.codeEditor().text().contains("\n    <Label")
+                        && screen.session().document().root().attribute("id").orElseThrow().equals("codeEdited"),
+                "Format XML command should pretty-print the code view through XmlWidgetDocument serialization");
+
+        screen.codeEditor().text("<VBox><Label></VBox>");
+        expect(!screen.session().diagnostics(XmlEditorDiagnosticChannel.PARSE).isEmpty(),
+                "Code-view parse failures should flow into session parse diagnostics");
+        expect(screen.session().document().root().attribute("id").orElseThrow().equals("codeEdited"),
+                "Code-view parse failures should preserve the last valid editor document");
+        expect(screen.paneVisibility().isVisible(XmlEditorDemoScreen.PANE_DIAGNOSTICS),
+                "Diagnostics pane should auto-open when parse diagnostics appear");
+    }
+
+    private void testXmlHierarchyPanelWidgetContracts() {
+        XmlWidgetDocument document = XmlWidgetDocument.parse(
+                "<VBox id=\"root\"><Label id=\"first\" /><Button id=\"second\" /></VBox>");
+        XmlHierarchyPanel panel = new XmlHierarchyPanel().document(document);
+
+        expect(panel.rowCount() == 3,
+                "XML hierarchy panel should display root and child XML element rows");
+        expect(panel.visibleItems().get(0).label().equals("VBox#root")
+                        && panel.visibleItems().get(1).label().equals("Label#first")
+                        && panel.visibleItems().get(2).label().equals("Button#second"),
+                "XML hierarchy panel should display element labels as Tag#id where ids are available");
+        expectFailsUnsupported(() -> panel.visibleItems().clear(),
+                "XML hierarchy panel visible item snapshot should be immutable");
+
+        List<XmlHierarchyPanel.SelectionChange> selectionChanges = new java.util.ArrayList<>();
+        EventSubscription selectionSubscription = panel.onSelectionChanged(selectionChanges::add);
+        panel.selectPath(XmlWidgetNodePath.of(1));
+        expect(panel.selectedPath().orElseThrow().equals(XmlWidgetNodePath.of(1))
+                        && selectionChanges.size() == 1
+                        && selectionChanges.get(0).path().equals(XmlWidgetNodePath.of(1)),
+                "XML hierarchy panel should select nodes by XmlWidgetNodePath and emit selection changes");
+        closeUnchecked(selectionSubscription);
+
+        List<XmlHierarchyPanel.AddChildRequest> addRequests = new java.util.ArrayList<>();
+        EventSubscription addSubscription = panel.onAddChildRequested(addRequests::add);
+        panel.selectedPath(XmlWidgetNodePath.root());
+        expect(panel.requestAddChild(new XmlWidgetElement("Label").attribute("id", "third")),
+                "XML hierarchy panel should request child insertion under the selected XML element");
+        expect(addRequests.size() == 1
+                        && addRequests.get(0).parentPath().equals(XmlWidgetNodePath.root())
+                        && addRequests.get(0).element().name().equals("Label")
+                        && addRequests.get(0).element().attribute("id").orElseThrow().equals("third"),
+                "XML hierarchy panel add-child request should carry parent path, index and copied element");
+
+        WidgetPalette palette = new WidgetPalette();
+        EventSubscription paletteSubscription = panel.bindPalette(palette);
+        addRequests.clear();
+        expect(palette.requestInsert("Button", XmlWidgetNodePath.of(1), 0),
+                "Bound widget palette should be able to request hierarchy insertion");
+        expect(addRequests.size() == 1
+                        && addRequests.get(0).parentPath().equals(XmlWidgetNodePath.root())
+                        && addRequests.get(0).element().name().equals("Button"),
+                "XML hierarchy panel should insert palette widgets under the current selected XML element");
+        closeUnchecked(paletteSubscription);
+        closeUnchecked(addSubscription);
+
+        List<XmlHierarchyPanel.NodeAction> deleteRequests = new java.util.ArrayList<>();
+        EventSubscription deleteSubscription = panel.onDeleteRequested(deleteRequests::add);
+        panel.selectedPath(XmlWidgetNodePath.of(0));
+        expect(panel.requestDeleteSelected(),
+                "XML hierarchy panel should request deletion for non-root selections");
+        expect(deleteRequests.size() == 1 && deleteRequests.get(0).path().equals(XmlWidgetNodePath.of(0)),
+                "XML hierarchy panel delete request should carry the selected path");
+        panel.selectedPath(XmlWidgetNodePath.root());
+        expect(!panel.requestDeleteSelected(),
+                "XML hierarchy panel should not request root deletion");
+        closeUnchecked(deleteSubscription);
+
+        List<XmlHierarchyPanel.MoveRequest> moveRequests = new java.util.ArrayList<>();
+        EventSubscription moveSubscription = panel.onMoveRequested(moveRequests::add);
+        panel.selectedPath(XmlWidgetNodePath.of(1));
+        expect(panel.requestMoveSelectedUp(),
+                "XML hierarchy panel should request moving the selected child up within its parent");
+        panel.selectedPath(XmlWidgetNodePath.of(0));
+        expect(panel.requestMoveSelectedDown(),
+                "XML hierarchy panel should request moving the selected child down within its parent");
+        expect(moveRequests.size() == 2
+                        && moveRequests.get(0).parentPath().equals(XmlWidgetNodePath.root())
+                        && moveRequests.get(0).fromIndex() == 1
+                        && moveRequests.get(0).toIndex() == 0
+                        && moveRequests.get(1).fromIndex() == 0
+                        && moveRequests.get(1).toIndex() == 1,
+                "XML hierarchy panel move requests should carry parent path and sibling indexes");
+        closeUnchecked(moveSubscription);
+
+        XmlWidgetDocumentEdits.moveChild(XmlWidgetNodePath.root(), 0, 1).apply(document);
+        panel.document(document);
+        expect(panel.visibleItems().get(1).label().equals("Button#second")
+                        && panel.visibleItems().get(2).label().equals("Label#first"),
+                "XML hierarchy panel should rebuild rows when the same document instance is reordered");
+    }
+
+    private void testXmlPropertiesPanelSessionContracts() {
+        XmlEditorSession session = XmlEditorSession.create(
+                "<VBox id=\"root\" x=\"2\" spacing=\"4\"><Label id=\"title\" text=\"Hello\" futureEditorAttr=\"keep\" /></VBox>");
+        session.selectRoot();
+        XmlPropertiesPanel panel = new XmlPropertiesPanel().session(session);
+
+        expect(panel.rowCount() > 0
+                        && panel.grid().categories().stream().anyMatch(category -> category.name().equals("Common"))
+                        && panel.grid().categories().stream().anyMatch(category -> category.name().equals("Layout")),
+                "XML properties panel should group fields by descriptor category");
+        expect(panel.row("x").orElseThrow().fieldKind() == PropertyFieldRow.FieldKind.NUMBER,
+                "XML properties panel should render numeric fields from descriptor metadata");
+
+        expect(panel.setAttributeValue("x", "8"),
+                "XML properties panel should apply simple attribute edits through the editor session");
+        expect(session.document().root().attribute("x").orElseThrow().equals("8")
+                        && session.text().contains("x=\"8\"")
+                        && session.undoCount() == 1,
+                "XML properties panel edits should update document text and undo stack");
+
+        panel.grid().setAttributeValue("x", "wide");
+        expect(session.document().root().attribute("x").orElseThrow().equals("8")
+                        && panel.lastRejectedAttribute().equals("x")
+                        && panel.lastValidationMessage().contains("number"),
+                "XML properties panel should validate typed values before committing invalid edits");
+
+        expect(panel.addAvailableAttribute("height"),
+                "XML properties panel should add available descriptor attributes with their default value");
+        expect(session.document().root().attribute("height").orElseThrow().equals(
+                        panel.row("height").orElseThrow().defaultValue()),
+                "XML properties panel add-attribute should use descriptor defaults");
+
+        expect(panel.resetAttribute("spacing"),
+                "XML properties panel should reset attributes to descriptor defaults");
+        expect(session.document().root().attribute("spacing").orElseThrow().equals(
+                        panel.row("spacing").orElseThrow().defaultValue()),
+                "XML properties panel reset should write the descriptor default value");
+
+        expect(panel.removeAttribute("height"),
+                "XML properties panel should remove optional attributes through undoable document edits");
+        expect(session.document().root().attribute("height").isEmpty(),
+                "XML properties panel remove should delete the selected XML attribute");
+        expect(session.undo(), "XML properties panel remove edit should be undoable");
+        expect(session.document().root().attribute("height").orElseThrow().equals(
+                        panel.row("height").orElseThrow().defaultValue()),
+                "Undo should restore the removed XML attribute");
+
+        session.select(XmlWidgetNodePath.of(0));
+        expect(panel.row("futureEditorAttr").orElseThrow().fieldKind() == PropertyFieldRow.FieldKind.STRING
+                        && panel.row("futureEditorAttr").orElseThrow().category().equals("Unknown"),
+                "XML properties panel should fall back unknown source attributes to string fields");
+        expect(panel.setAttributeValue("text", "Updated"),
+                "XML properties panel should edit selected child attributes after hierarchy selection changes");
+        expect(XmlWidgetNodePath.of(0).resolveElement(session.document())
+                        .orElseThrow()
+                        .attribute("text")
+                        .orElseThrow()
+                        .equals("Updated"),
+                "XML properties panel should follow the current editor selection");
+    }
+
+    private void testXmlPropertiesPanelObjectPickerContracts() {
+        XmlEditorSession session = XmlEditorSession.create(
+                "<VBox id=\"root\" shaderId=\"old:shader\" item=\"minecraft:apple\">"
+                        + "<Label id=\"title\" text=\"Hello\" color=\"#11223344\" />"
+                        + "<TextureWidget id=\"texture\" texture=\"minecraft:textures/block/stone.png\" />"
+                        + "</VBox>");
+        XmlPropertiesPanel panel = new XmlPropertiesPanel().session(session)
+                .assetCatalog(XmlWidgetAssetCatalog.builder()
+                        .shader("test:glow")
+                        .texture("test:icon", 16, 16)
+                        .font("test:font")
+                        .build());
+
+        session.selectRoot();
+        expect(panel.openObjectPicker("shaderId")
+                        && panel.activePicker() == XmlPropertiesPanel.ObjectPickerKind.ASSET
+                        && panel.assetPicker().kind() == XmlWidgetAssetKind.SHADER
+                        && panel.assetPicker().targetAttribute().equals("shaderId"),
+                "XML properties panel should route generic asset resource attributes to the asset picker");
+        int undoBeforeAsset = session.undoCount();
+        expect(panel.assetPicker().selectAsset("test:glow") && panel.applySelectedAsset(),
+                "XML properties panel asset picker should apply the selected catalog asset");
+        expect(session.document().root().attribute("shaderId").orElseThrow().equals("test:glow")
+                        && session.undoCount() == undoBeforeAsset + 1,
+                "XML properties panel asset picker should write an undoable XML attribute edit");
+
+        ResourceLocation stoneTexture = ResourceLocation.tryParse("minecraft:textures/block/stone.png");
+        ResourceLocation diamondTexture = ResourceLocation.tryParse("minecraft:textures/item/diamond.png");
+        panel.texturePicker().textureIds(List.of(stoneTexture, diamondTexture));
+        session.select(XmlWidgetNodePath.of(1));
+        expect(panel.openObjectPicker("texture")
+                        && panel.activePicker() == XmlPropertiesPanel.ObjectPickerKind.TEXTURE
+                        && panel.pickerAttributeName().equals("texture"),
+                "XML properties panel should route texture resource attributes to the Minecraft texture picker");
+        panel.texturePicker().selectId(diamondTexture);
+        expect(XmlWidgetNodePath.of(1).resolveElement(session.document())
+                        .orElseThrow()
+                        .attribute("texture")
+                        .orElseThrow()
+                        .equals("minecraft:textures/item/diamond.png"),
+                "XML properties panel texture picker should write selected texture ids to XML");
+
+        session.selectRoot();
+        panel.itemPickerValues(List.of("minecraft:apple", "minecraft:diamond"));
+        expect(panel.openObjectPicker("item")
+                        && panel.activePicker() == XmlPropertiesPanel.ObjectPickerKind.ITEM,
+                "XML properties panel should route item attributes to the item resource picker");
+        panel.itemPicker().selectedIndex(1);
+        expect(session.document().root()
+                        .attribute("item")
+                        .orElseThrow()
+                        .equals("minecraft:diamond"),
+                "XML properties panel item picker should write selected item ids to XML");
+
+        session.select(XmlWidgetNodePath.of(0));
+        expect(panel.openObjectPicker("color")
+                        && panel.activePicker() == XmlPropertiesPanel.ObjectPickerKind.COLOR,
+                "XML properties panel should route color attributes to the color picker");
+        panel.colorPicker().rgba255(0x22, 0x44, 0x66, 0x88);
+        expect(panel.applySelectedColor(),
+                "XML properties panel color picker should apply the selected color value");
+        expect(XmlWidgetNodePath.of(0).resolveElement(session.document())
+                        .orElseThrow()
+                        .attribute("color")
+                        .orElseThrow()
+                        .equals("#22446688"),
+                "XML properties panel color picker should write #RRGGBBAA XML color values");
+
+        expect(!panel.openObjectPicker("text")
+                        && panel.activePicker() == XmlPropertiesPanel.ObjectPickerKind.NONE,
+                "XML properties panel should reject object pickers for plain string attributes");
     }
 
     private void testEditorPreservesUnsupportedAttributes() {

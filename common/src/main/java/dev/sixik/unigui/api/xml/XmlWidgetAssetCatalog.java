@@ -163,6 +163,24 @@ public final class XmlWidgetAssetCatalog {
             return this;
         }
 
+        public Builder addAll(Collection<XmlWidgetAsset> assets) {
+            if (assets != null) {
+                for (XmlWidgetAsset asset : assets) {
+                    add(asset);
+                }
+            }
+            return this;
+        }
+
+        public Builder addAll(XmlWidgetAssetCatalog catalog) {
+            return catalog == null ? this : addAll(catalog.assets());
+        }
+
+        public Builder contribute(XmlWidgetAssetProvider provider) {
+            if (provider != null) provider.contribute(this);
+            return this;
+        }
+
         /**
          * Добавляет texture asset.
          *

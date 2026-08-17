@@ -103,7 +103,7 @@ Recommended panes:
 - `Hierarchy` - source XML node tree.
 - `Properties` - Unity-like inspector for selected XML element.
 - `Palette` - available widgets from `XmlWidgetRegistry` descriptors.
-- `Assets` - textures, item ids, resources and later SDM Shop assets.
+- `Assets` - textures, item ids, resources and host-mod assets registered through generic providers.
 - `Bindings` - binding/action list and status.
 - `Diagnostics` - parse, validation, loading and binding errors.
 - `Console` - editor operation log.
@@ -249,7 +249,7 @@ These pieces already exist and should be reused instead of replaced.
 
 - [x] `XmlBinding`, `XmlBindingContext`, `XmlBindingDiagnosticsModel` exist as binding groundwork.
 - [x] `XmlCommand` and `XmlCommandRegistry` exist as a command/action direction.
-- [ ] Event attributes such as `onClick="shop.buySelected"` need loader/runtime wiring.
+- [x] Event attributes such as `onClick="shop.buySelected"` need loader/runtime wiring.
 - [ ] Script-backed actions need a sandboxed execution model.
 
 ---
@@ -262,105 +262,105 @@ Precondition:
 
 ### Phase 1 - Editor Session MVP
 
-- [ ] Add `XmlEditorMode` enum: `DESIGN`, `CODE`, `RUNTIME`.
-- [ ] Add `XmlEditorSession` as the single editor state owner.
-- [ ] Add source abstraction for file/resource/project XML documents.
-- [ ] Add session-level diagnostics merge: parse, validation, loading, binding, script.
-- [ ] Add undo/redo stack over `XmlWidgetDocumentEdit`.
-- [ ] Add dirty state and save/revert operations.
-- [ ] Add session events/listeners so panes can refresh without tight coupling.
-- [ ] Add tests for selection survival after document edits.
-- [ ] Add tests for parse failure preserving last valid document.
+- [x] Add `XmlEditorMode` enum: `DESIGN`, `CODE`, `RUNTIME`.
+- [x] Add `XmlEditorSession` as the single editor state owner.
+- [x] Add source abstraction for file/resource/project XML documents.
+- [x] Add session-level diagnostics merge: parse, validation, loading, binding, script.
+- [x] Add undo/redo stack over `XmlWidgetDocumentEdit`.
+- [x] Add dirty state and save/revert operations.
+- [x] Add session events/listeners so panes can refresh without tight coupling.
+- [x] Add tests for selection survival after document edits.
+- [x] Add tests for parse failure preserving last valid document.
 
 ### Phase 2 - Docking Editor Screen
 
-- [ ] Add `XmlEditorScreen` or dev-only `XmlEditorDemoScreen`.
-- [ ] Use `DockingRoot` as the workspace root.
-- [ ] Add a compact default workspace with Design/Code area visible and secondary panes hidden or collapsed.
-- [ ] Add default panes: Design, Code, Hierarchy, Properties, Diagnostics.
-- [ ] Add toolbar/menu groups: File, Edit, View, Project, Run, Layout, Diagnostics.
-- [ ] Add project commands: `new_project`, `open_project`, `save_project`, `save_project_as`, `last_projects`.
-- [ ] Add View menu toggles for Hierarchy, Properties, Code View, Palette, Assets, Bindings, Diagnostics and Console.
-- [ ] Add pane pin/unpin or collapsed-state behavior so the editor does not overload small screens.
-- [ ] Add auto-open Diagnostics when parse/load/runtime errors appear.
-- [ ] Add quick actions: Save, Revert, Format XML, Design, Run, Stop, Reload.
-- [ ] Persist/restore editor docking layout through `DockLayoutSnapshotCodec`.
-- [ ] Add command entry point, for example `/unigui xmleditor`.
-- [ ] Keep existing `/unigui docking` demo separate or convert it into editor demo deliberately.
+- [x] Add `XmlEditorScreen` or dev-only `XmlEditorDemoScreen`.
+- [x] Use `DockingRoot` as the workspace root.
+- [x] Add a compact default workspace with Design/Code area visible and secondary panes hidden or collapsed.
+- [x] Add default panes: Design, Code, Hierarchy, Properties, Diagnostics.
+- [x] Add toolbar/menu groups: File, Edit, View, Project, Run, Layout, Diagnostics.
+- [x] Add project commands: `new_project`, `open_project`, `save_project`, `save_project_as`, `last_projects`.
+- [x] Add View menu toggles for Hierarchy, Properties, Code View, Palette, Assets, Bindings, Diagnostics and Console.
+- [x] Add pane pin/unpin or collapsed-state behavior so the editor does not overload small screens.
+- [x] Add auto-open Diagnostics when parse/load/runtime errors appear.
+- [x] Add quick actions: Save, Revert, Format XML, Design, Run, Stop, Reload.
+- [x] Persist/restore editor docking layout through `DockLayoutSnapshotCodec`.
+- [x] Add command entry point, for example `/unigui xmleditor`.
+- [x] Keep existing `/unigui docking` demo separate or convert it into editor demo deliberately.
 
 ### Phase 3 - Hierarchy Pane
 
-- [ ] Implement `XmlHierarchyPanel` widget around `XmlWidgetHierarchy`.
-- [ ] Display element label as `Tag#id` where available.
-- [ ] Select XML node by `XmlWidgetNodePath`.
-- [ ] Support rename/id edit through inspector, not inline at first.
-- [ ] Support add child from palette.
-- [ ] Support delete selected node.
-- [ ] Support move up/down within parent.
+- [x] Implement `XmlHierarchyPanel` widget around `XmlWidgetHierarchy`.
+- [x] Display element label as `Tag#id` where available.
+- [x] Select XML node by `XmlWidgetNodePath`.
+- [x] Support rename/id edit through inspector, not inline at first.
+- [x] Support add child from palette.
+- [x] Support delete selected node.
+- [x] Support move up/down within parent.
 - [ ] Later: support drag/drop reorder/reparent with child policy validation.
 
 ### Phase 4 - Properties Pane
 
-- [ ] Implement `XmlPropertiesPanel` widget around `XmlWidgetInspector`.
-- [ ] Group fields by descriptor category.
-- [ ] Render editor field type from parser/descriptor metadata where possible.
-- [ ] Fallback unknown attrs to string fields.
-- [ ] Apply edits through `XmlWidgetDocumentEdits.setAttribute(...)`.
-- [ ] Add support for removing/resetting optional attributes.
-- [ ] Add support for adding available descriptor attributes.
-- [ ] Validate values before committing when parser metadata is available.
-- [ ] Add object pickers for assets, textures, items and colors.
+- [x] Implement `XmlPropertiesPanel` widget around `XmlWidgetInspector`.
+- [x] Group fields by descriptor category.
+- [x] Render editor field type from parser/descriptor metadata where possible.
+- [x] Fallback unknown attrs to string fields.
+- [x] Apply edits through `XmlWidgetDocumentEdits.setAttribute(...)`.
+- [x] Add support for removing/resetting optional attributes.
+- [x] Add support for adding available descriptor attributes.
+- [x] Validate values before committing when parser metadata is available.
+- [x] Add object pickers for assets, textures, items and colors.
 
 ### Phase 5 - Code View
 
-- [ ] Decide first implementation: simple multiline text area or external file hot-reload.
-- [ ] Add or promote a multiline `TextArea` / `CodeEditor` widget.
-- [ ] Support XML text input, cursor, selection, clipboard and scroll.
-- [ ] Add basic line numbers and parse diagnostics line/column display.
-- [ ] Add format XML action using `XmlWidgetDocument.toXmlString(...)`.
-- [ ] Keep previous valid preview on syntax errors.
+- [x] Decide first implementation: simple multiline text area or external file hot-reload.
+- [x] Add or promote a multiline `TextArea` / `CodeEditor` widget.
+- [x] Support XML text input, cursor, selection, clipboard and scroll.
+- [x] Add basic line numbers and parse diagnostics line/column display.
+- [x] Add format XML action using `XmlWidgetDocument.toXmlString(...)`.
+- [x] Keep previous valid preview on syntax errors.
 - [ ] Later: syntax highlighting and autocomplete from `XmlWidgetRegistry` descriptors.
 
 ### Phase 6 - Design Canvas
 
-- [ ] Implement `XmlDesignCanvas` host for visual preview plus editor overlay.
-- [ ] Rebuild preview from current valid XML document.
-- [ ] Map runtime widgets back to `XmlWidgetNodePath`.
-- [ ] Select widget under cursor without triggering runtime widget actions.
-- [ ] Draw selected widget bounds.
-- [ ] Draw hover bounds.
+- [x] Implement `XmlDesignCanvas` host for visual preview plus editor overlay.
+- [x] Rebuild preview from current valid XML document.
+- [x] Map runtime widgets back to `XmlWidgetNodePath`.
+- [x] Select widget under cursor without triggering runtime widget actions.
+- [x] Draw selected widget bounds.
+- [x] Draw hover bounds.
 - [ ] Draw margin/padding/layout debug overlays.
-- [ ] Use `XmlWidgetLayoutHandles` for move/resize where numeric frame attrs are available.
-- [ ] Add drag/drop insertion from palette.
-- [ ] Validate child insertion through widget child policy/descriptor metadata.
+- [x] Use `XmlWidgetLayoutHandles` for move/resize where numeric frame attrs are available.
+- [x] Add drag/drop insertion from palette.
+- [x] Validate child insertion through widget child policy/descriptor metadata.
 - [ ] Later: snapping, grid, guides and align/distribute tools.
 
 ### Phase 7 - Runtime View / Play Mode
 
-- [ ] Implement `XmlRuntimeViewPane` or runtime overlay mode.
-- [ ] Enter Runtime View from current XML snapshot.
-- [ ] Build runtime root through `XMLWidget.createScreen(...)` when XML root is `<Screen>`.
-- [ ] Apply `UIScaleProvider` exactly as runtime screens do.
-- [ ] Forward pointer, keyboard, scroll, focus and text input to runtime UI.
-- [ ] Disable design selection/handles while Runtime View is active.
+- [x] Implement `XmlRuntimeViewPane` or runtime overlay mode.
+- [x] Enter Runtime View from current XML snapshot.
+- [x] Build runtime root through `XMLWidget.createScreen(...)` when XML root is `<Screen>`.
+- [x] Apply `UIScaleProvider` exactly as runtime screens do.
+- [x] Forward pointer, keyboard, scroll, focus and text input to runtime UI.
+- [x] Disable design selection/handles while Runtime View is active.
 - [ ] Show runtime binding/action diagnostics live.
-- [ ] Stop Runtime View and dispose runtime tree cleanly.
-- [ ] Confirm no runtime state is written back into XML without explicit user action.
+- [x] Stop Runtime View and dispose runtime tree cleanly.
+- [x] Confirm no runtime state is written back into XML without explicit user action.
 
 ### Phase 8 - Palette / Assets
 
-- [ ] Build widget palette from `XmlWidgetRegistry` descriptors.
-- [ ] Group widgets by category.
-- [ ] Insert selected widget into hierarchy/design canvas.
-- [ ] Support prefab/templates from `XmlWidgetTemplateCatalog` / `XmlWidgetPrefabCatalog`.
-- [ ] Use `XmlWidgetAssetPickerPanel` for texture/resource fields.
-- [ ] Add SDM Shop-specific asset providers later: products, categories, currencies, icons.
+- [x] Build widget palette from `XmlWidgetRegistry` descriptors.
+- [x] Group widgets by category.
+- [x] Insert selected widget into hierarchy/design canvas.
+- [x] Support prefab/templates from `XmlWidgetTemplateCatalog` / `XmlWidgetPrefabCatalog`.
+- [x] Use asset picker panels (`XmlWidgetAssetPickerPanel` / `AssetBrowserPanel`) for texture/resource fields.
+- [x] Add mod-registerable asset providers for host-specific resource/icon catalogs; SDM Shop can plug into this API without editor hardcode.
 
 ### Phase 9 - Bindings / Actions / Scripts
 
 - [ ] Define XML binding syntax for values: `{shop.selected.priceText}`.
-- [ ] Define XML action syntax for events: `onClick="shop.buySelected"`.
-- [ ] Wire event attributes to `XmlCommandRegistry`.
+- [x] Define XML action syntax for events: `onClick="shop.buySelected"`.
+- [x] Wire event attributes to `XmlCommandRegistry`.
 - [ ] Add binding diagnostics for missing paths, wrong types and failed conversion.
 - [ ] Add mock binding context for editor preview.
 - [ ] Add Java binding provider API for mods.
@@ -508,9 +508,9 @@ The first useful editor is done when:
 - [ ] Changes update the XML document and preview.
 - [ ] Code View can show the current XML source.
 - [ ] Diagnostics show parse/validation/load errors.
-- [ ] Run button enters Runtime View.
-- [ ] Stop button exits Runtime View and restores Design Mode.
-- [ ] Runtime View uses real input and scale provider config.
+- [x] Run button enters Runtime View.
+- [x] Stop button exits Runtime View and restores Design Mode.
+- [x] Runtime View uses real input and scale provider config.
 - [ ] Last valid preview remains visible after invalid XML edits.
 - [ ] Basic tests cover parse/edit/rebuild/selection behavior.
 

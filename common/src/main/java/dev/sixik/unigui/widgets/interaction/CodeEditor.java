@@ -13,6 +13,7 @@ import dev.sixik.unigui.impl.text.TextEngine;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Lightweight code editor wrapper over {@link TextArea}.
@@ -106,8 +107,29 @@ public class CodeEditor extends TextArea {
         return this;
     }
 
+    public int lineCount() {
+        String value = text();
+        if (value.isEmpty()) return 1;
+        int count = 1;
+        for (int i = 0; i < value.length(); i++) {
+            if (value.charAt(i) == '\n') count++;
+        }
+        return count;
+    }
+
     public List<Diagnostic> diagnostics() {
         return diagnostics;
+    }
+
+    public Optional<Diagnostic> firstDiagnostic() {
+        return diagnostics.stream().findFirst();
+    }
+
+    public CodeEditor scrollToFirstDiagnostic() {
+        firstDiagnostic()
+                .filter(Diagnostic::hasLocation)
+                .ifPresent(diagnostic -> scrollToLine(diagnostic.line()));
+        return this;
     }
 
     public CodeEditor diagnostics(List<Diagnostic> diagnostics) {
@@ -232,16 +254,6 @@ public class CodeEditor extends TextArea {
     private float gutterWidth() {
         int digits = Math.max(2, Integer.toString(lineCount()).length());
         return Math.max(GUTTER_MIN_WIDTH, digits * APPROX_CHAR_WIDTH + GUTTER_PADDING * 2.0f);
-    }
-
-    private int lineCount() {
-        String value = text();
-        if (value.isEmpty()) return 1;
-        int count = 1;
-        for (int i = 0; i < value.length(); i++) {
-            if (value.charAt(i) == '\n') count++;
-        }
-        return count;
     }
 
     private void updateDirty(String currentText) {
