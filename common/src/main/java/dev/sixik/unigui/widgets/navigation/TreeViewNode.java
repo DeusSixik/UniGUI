@@ -25,7 +25,7 @@ public final class TreeViewNode {
 
     public TreeViewNode(String text) {
         this.text = normalize(text);
-        this.richText = RichText.plain(this.text);
+        this.richText = RichText.resolve(this.text);
         this.value = this.text;
     }
 
@@ -43,7 +43,7 @@ public final class TreeViewNode {
         String normalized = normalize(text);
         if (Objects.equals(this.text, normalized)) return this;
         this.text = normalized;
-        this.richText = RichText.plain(normalized);
+        this.richText = RichText.resolve(normalized);
         notifyVisualChanged();
         return this;
     }

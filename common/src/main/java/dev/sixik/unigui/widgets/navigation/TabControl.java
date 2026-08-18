@@ -109,7 +109,7 @@ public class TabControl extends LinearBox {
     }
 
     public TabControl insertTab(int index, String title, Widget content) {
-        return insertTab(index, RichText.plain(title), content);
+        return insertTab(index, RichText.resolve(title), content);
     }
 
     public TabControl insertTab(int index, RichText title, Widget content) {
@@ -316,7 +316,7 @@ public class TabControl extends LinearBox {
 
         public Tab title(String title) {
             this.title = normalize(title);
-            this.richTitle = RichText.plain(this.title);
+            this.richTitle = RichText.resolve(this.title);
             button.richText(this.richTitle);
             return this;
         }

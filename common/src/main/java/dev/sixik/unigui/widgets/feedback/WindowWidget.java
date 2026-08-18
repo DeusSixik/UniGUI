@@ -157,7 +157,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
         String normalized = title == null ? "" : title;
         if (Objects.equals(this.title, normalized)) return this;
         this.title = normalized;
-        this.richTitle = RichText.plain(normalized);
+        this.richTitle = RichText.resolve(normalized);
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }

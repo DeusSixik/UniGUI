@@ -60,7 +60,7 @@ public class TextWidget extends WidgetBase {
     @XmlAttribute(value = "text", category = "Content", defaultValue = "", description = "Plain text content displayed by the widget.")
     public TextWidget text(String text) {
         String normalized = normalize(text);
-        RichText normalizedRichText = RichText.plain(normalized);
+        RichText normalizedRichText = RichText.resolve(normalized);
         if (Objects.equals(this.richText, normalizedRichText)) return this;
         this.text = normalized;
         this.richText = normalizedRichText;

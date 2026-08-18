@@ -2,6 +2,7 @@ package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.impl.text.TextEngine;
 
 public final class VirtualTableViewRenderers {
     public static final VirtualTableViewRenderer DEFAULT = (draw, state) -> {
@@ -64,7 +65,7 @@ public final class VirtualTableViewRenderers {
             for (VirtualTableViewTextSegment segment : segments) {
                 if (segment.text() == null || segment.text().isEmpty()) continue;
                 DrawScope segmentDraw = segment.transform() == null ? draw : draw.withTransform(segment.transform());
-                segmentDraw.text(segment.text(), segment.x(), segment.y(), segment.width(), segment.height(),
+                TextEngine.drawInline(segmentDraw, segment.text(), segment.x(), segment.y(), segment.width(), segment.height(),
                         Paint.fill(state.textColor()));
             }
         } finally {

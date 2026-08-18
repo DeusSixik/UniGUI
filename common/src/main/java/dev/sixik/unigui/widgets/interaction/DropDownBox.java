@@ -132,7 +132,7 @@ public class DropDownBox extends LinearBox {
         String normalized = normalize(headerText);
         if (Objects.equals(this.headerText, normalized)) return this;
         this.headerText = normalized;
-        this.richHeaderText = RichText.plain(normalized);
+        this.richHeaderText = RichText.resolve(normalized);
         updateHeaderText();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;

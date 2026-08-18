@@ -8,7 +8,7 @@ import dev.sixik.unigui.impl.text.TextEngine;
 public final class DatePickerRenderers {
     public static final DatePickerRenderer DEFAULT = (draw, state) -> {
         if (state.text().isEmpty()) return;
-        TextEngine.draw(draw.context(), RichText.plain(state.text()),
+        TextEngine.draw(draw.context(), RichText.resolve(state.text()),
                 state.x(), state.y(), state.width(), state.height(),
                 Paint.fill(state.textColor()), draw.transform(),
                 Alignment.CENTER, Alignment.CENTER);

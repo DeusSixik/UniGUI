@@ -32,7 +32,7 @@ public abstract class MinecraftPreviewWidget extends Box {
 
     protected MinecraftPreviewWidget(String label) {
         this.label = label == null ? "" : label;
-        this.richLabel = RichText.plain(this.label);
+        this.richLabel = RichText.resolve(this.label);
         backgroundVisible(true);
         borderVisible(true);
         radius(4.0f);
@@ -51,7 +51,7 @@ public abstract class MinecraftPreviewWidget extends Box {
         String normalized = label == null ? "" : label;
         if (Objects.equals(this.label, normalized)) return this;
         this.label = normalized;
-        this.richLabel = RichText.plain(normalized);
+        this.richLabel = RichText.resolve(normalized);
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }

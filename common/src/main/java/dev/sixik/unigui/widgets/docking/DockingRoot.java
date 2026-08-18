@@ -37,6 +37,7 @@ import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
+import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.render.DockDropPreviewRenderer;
 import dev.sixik.unigui.widgets.render.DockDropPreviewState;
 import dev.sixik.unigui.widgets.render.DockPaneRenderer;
@@ -1144,7 +1145,7 @@ public final class DockingRoot extends Box {
             }
             draw.pushClip(x + 6.0f, rowY, Math.max(0.0f, menuWidth - 12.0f), rowHeight);
             try {
-                draw.text(pane.richTitle(), x + 6.0f, rowY + 4.0f,
+                TextEngine.drawInline(draw, pane.richTitle(), x + 6.0f, rowY + 4.0f,
                         Math.max(0.0f, menuWidth - 12.0f), Math.max(0.0f, rowHeight - 6.0f),
                         Paint.fill(OVERFLOW_MENU_TEXT));
             } finally {

@@ -11,7 +11,7 @@ public record VirtualTableColumn(String header,
                                  Alignment verticalAlignment,
                                  TextOverflowMode overflowMode) {
     public VirtualTableColumn(String header, float width) {
-        this(header, RichText.plain(header), width, Alignment.START, Alignment.CENTER, TextOverflowMode.CLIP);
+        this(header, RichText.resolve(header), width, Alignment.START, Alignment.CENTER, TextOverflowMode.CLIP);
     }
 
     public VirtualTableColumn(RichText header, float width) {
@@ -23,11 +23,11 @@ public record VirtualTableColumn(String header,
                               Alignment horizontalAlignment,
                               Alignment verticalAlignment,
                               TextOverflowMode overflowMode) {
-        this(header, RichText.plain(header), width, horizontalAlignment, verticalAlignment, overflowMode);
+        this(header, RichText.resolve(header), width, horizontalAlignment, verticalAlignment, overflowMode);
     }
 
     public VirtualTableColumn {
-        RichText normalizedHeader = richHeader == null ? RichText.plain(header) : richHeader;
+        RichText normalizedHeader = richHeader == null ? RichText.resolve(header) : richHeader;
         header = normalizedHeader.plainText();
         richHeader = normalizedHeader;
         width = Float.isFinite(width) ? Math.max(1.0f, width) : 80.0f;

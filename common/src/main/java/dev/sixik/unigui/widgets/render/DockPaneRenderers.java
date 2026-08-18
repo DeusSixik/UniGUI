@@ -3,6 +3,7 @@ package dev.sixik.unigui.widgets.render;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.widgets.docking.DockPaneKind;
+import dev.sixik.unigui.impl.text.TextEngine;
 
 public final class DockPaneRenderers {
     private static final MutableColor PANE_BORDER = new MutableColor(0.24f, 0.28f, 0.36f, 0.95f);
@@ -52,7 +53,7 @@ public final class DockPaneRenderers {
             }
             draw.pushClip(tab.x() + 6.0f, tab.y(), Math.max(0.0f, tab.width() - 12.0f), tab.height());
             try {
-                draw.text(tab.title(), tab.x() + 6.0f, tab.y() + 4.0f,
+                TextEngine.drawInline(draw, tab.title(), tab.x() + 6.0f, tab.y() + 4.0f,
                         Math.max(0.0f, tab.width() - 12.0f), Math.max(0.0f, tab.height() - 6.0f),
                         Paint.fill(tab.selected() ? TAB_TEXT : TAB_TEXT_MUTED));
             } finally {

@@ -1,6 +1,7 @@
 package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.impl.text.TextEngine;
 
 public final class WindowRenderers {
     public static final WindowRenderer DEFAULT = (draw, state) -> {
@@ -34,7 +35,7 @@ public final class WindowRenderers {
             if (state.title() != null && !state.title().isEmpty()) {
                 float drawHeight = Math.min(headerHeight, Math.max(0.0f, state.titleTextHeight()));
                 float drawY = state.y() + Math.max(0.0f, headerHeight - drawHeight) * 0.5f;
-                draw.text(state.title(), titleX, drawY, titleWidth, drawHeight, Paint.fill(state.titleColor()));
+                TextEngine.drawInline(draw, state.title(), titleX, drawY, titleWidth, drawHeight, Paint.fill(state.titleColor()));
             }
         } finally {
             draw.popClip();

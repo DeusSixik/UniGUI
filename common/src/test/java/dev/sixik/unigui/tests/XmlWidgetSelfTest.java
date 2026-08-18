@@ -21,6 +21,7 @@ import dev.sixik.unigui.api.render.RenderTargetOptions;
 import dev.sixik.unigui.api.render.SimpleTextureHandle;
 import dev.sixik.unigui.api.render.TextureFilter;
 import dev.sixik.unigui.api.selection.SelectionMode;
+import dev.sixik.unigui.api.text.InlineContentSpan;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.xml.XMLWidget;
 import dev.sixik.unigui.api.xml.XmlBinding;
@@ -1786,6 +1787,14 @@ public final class XmlWidgetSelfTest {
                         && resolvedImage.texture().height() == 24
                         && resolvedImage.texture().options().minFilter() == TextureFilter.LINEAR,
                 "Texture resolver hook should survive XML dimension and option attributes");
+
+        TextWidget inlineText = XMLWidget.create("""
+                <Text text="A {icon:test_mod:inline_text@9x7} B" />
+                """, TextWidget.class, resolverOptions);
+        expect(inlineText.text().equals("A {icon:test_mod:inline_text@9x7} B")
+                        && inlineText.richText().hasInlineContent()
+                        && inlineText.richText().plainText().equals("A " + InlineContentSpan.DEFAULT_FALLBACK_TEXT + " B"),
+                "XML text attributes should resolve inline icon markers through the configured texture resolver");
 
         expectFails("<Image texture=\"\" />", "Texture id must not be blank");
         expectFails("<Image texture=\"test:bad\" source=\"0 0 1\" />", "Expected 4 rect values");

@@ -1,6 +1,7 @@
 package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.impl.text.TextEngine;
 
 public final class TreeViewRenderers {
     public static final TreeViewRenderer DEFAULT = (draw, state) -> {
@@ -9,7 +10,7 @@ public final class TreeViewRenderers {
         float clipWidth = Math.max(0.0f, state.width() - state.textPaddingX() * 2.0f - state.depth() * state.indentWidth());
         draw.pushClip(clipX, state.y(), clipWidth, state.height());
         try {
-            draw.text(state.text(), state.textX(), state.textY(), Math.max(0.0f, state.textWidth()), state.textHeight(),
+            TextEngine.drawInline(draw, state.text(), state.textX(), state.textY(), Math.max(0.0f, state.textWidth()), state.textHeight(),
                     Paint.fill(state.textColor()));
         } finally {
             draw.popClip();

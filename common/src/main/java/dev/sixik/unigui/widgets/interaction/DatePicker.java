@@ -68,7 +68,8 @@ public final class DatePicker extends LinearBox {
             }
 
             if (state.hasVisibleText()) {
-                draw.text(state.richText(),
+                TextEngine.drawInline(draw,
+                        state.richText(),
                         state.viewportX() + textOffset - state.horizontalScrollPixels(),
                         state.textY(),
                         Math.max(state.viewportWidth(), state.measuredTextWidth()),

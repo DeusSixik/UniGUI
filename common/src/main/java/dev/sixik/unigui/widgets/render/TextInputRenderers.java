@@ -1,6 +1,7 @@
 package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.impl.text.TextEngine;
 
 public final class TextInputRenderers {
     public static final TextInputRenderer DEFAULT = (draw, state) -> {
@@ -18,7 +19,8 @@ public final class TextInputRenderers {
             }
 
             if (state.hasVisibleText()) {
-                draw.text(state.richText(),
+                TextEngine.drawInline(draw,
+                        state.richText(),
                         state.viewportX() - state.horizontalScrollPixels(),
                         state.textY(),
                         Math.max(state.viewportWidth(), state.measuredTextWidth()),

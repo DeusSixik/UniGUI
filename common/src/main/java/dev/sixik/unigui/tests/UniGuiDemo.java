@@ -27,6 +27,8 @@ import dev.sixik.unigui.api.render.shaders.ShaderHandle;
 import dev.sixik.unigui.api.render.shaders.ShaderUniforms;
 import dev.sixik.unigui.api.selection.SelectionMode;
 import dev.sixik.unigui.api.text.Fonts;
+import dev.sixik.unigui.api.text.InlineContentResolverScope;
+import dev.sixik.unigui.api.text.InlineContentResolvers;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.widget.CheckboxState;
@@ -1145,15 +1147,36 @@ public final class UniGuiDemo {
                 .font(MinecraftFonts.uniformFace()).size(14.0f).color(MutableColor.rgba(0.35f, 1.0f, 0.45f, 1.0f)).append("Uniform ")
                 .font(MinecraftFonts.altFace()).size(16.0f).color(MutableColor.rgba(1.0f, 0.4f, 0.8f, 1.0f)).append("Alt")
                 .build();
+        RichText inlineDraw = RichText.builder()
+                .font(MinecraftFonts.defaultFace()).size(13.0f).color(MutableColor.rgba(0.92f, 0.96f, 1.0f, 1.0f)).append("Inline draw ")
+                .inline("demo:status-dot", "[dot]", 12.0f, 12.0f, (draw, context) -> {
+                    draw.roundedRect(context.x(), context.y(), context.width(), context.height(), 3.0f,
+                            Paint.fill(MutableColor.rgba(0.10f, 0.44f, 0.30f, 1.0f)));
+                    draw.circle(context.x() + 3.0f, context.y() + 3.0f, 6.0f, 6.0f,
+                            Paint.fill(MutableColor.rgba(0.46f, 1.0f, 0.66f, 1.0f)));
+                })
+                .append(" inside RichText")
+                .build();
+        Label markerLabel;
+        try (InlineContentResolverScope ignored = InlineContentResolvers.push(InlineContentResolvers
+                .textureMarkers(SimpleTextureHandle::new)
+        )) {
+            markerLabel = new Label("Marker resolver {icon:minecraft:textures/item/diamond.png@10x10} + text");
+        }
         TextBlock richBlock = new TextBlock();
         richBlock.richText(rich);
         richBlock.layout(style -> style.size(LayoutConstraints.AUTO, 30.0f).flexGrow(0).flexShrink(0.0f));
         RichTextView richView = new RichTextView(rich);
         richView.layout(style -> style.size(LayoutConstraints.AUTO, 42.0f).flexGrow(0).flexShrink(0.0f));
+        RichTextView inlineDrawView = new RichTextView(inlineDraw);
+        inlineDrawView.layout(style -> style.size(LayoutConstraints.AUTO, 24.0f).flexGrow(0).flexShrink(0.0f));
+        markerLabel.layout(style -> style.size(LayoutConstraints.AUTO, 22.0f).flexGrow(0).flexShrink(0.0f));
         VBox richBox = new VBox();
         richBox.spacing(6.0f);
         richBox.addChild(richBlock);
         richBox.addChild(richView);
+        richBox.addChild(inlineDrawView);
+        richBox.addChild(markerLabel);
         page.addChild(section("RichText / Fonts", richBox));
         return page;
     }

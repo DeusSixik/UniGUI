@@ -35,7 +35,7 @@ public class ExpandablePanel extends LinearBox {
         super(Orientation.VERTICAL);
         spacing(2.0f);
         this.title = normalize(title);
-        this.richTitle = RichText.plain(this.title);
+        this.richTitle = RichText.resolve(this.title);
 
         headerButton.layout(style -> style.size(LayoutConstraints.AUTO, HEADER_HEIGHT).flexGrow(0).flexShrink(0.0f));
         headerButton.silentChecked(expanded);
@@ -64,7 +64,7 @@ public class ExpandablePanel extends LinearBox {
         String normalized = normalize(title);
         if (Objects.equals(this.title, normalized)) return this;
         this.title = normalized;
-        this.richTitle = RichText.plain(normalized);
+        this.richTitle = RichText.resolve(normalized);
         updateHeaderText();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;

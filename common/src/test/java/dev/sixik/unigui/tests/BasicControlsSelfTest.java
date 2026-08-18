@@ -79,6 +79,8 @@ import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.FontMetrics;
+import dev.sixik.unigui.api.text.InlineContentResolvers;
+import dev.sixik.unigui.api.text.InlineContentSpan;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextRun;
 import dev.sixik.unigui.api.widget.CheckboxState;
@@ -499,6 +501,59 @@ public final class BasicControlsSelfTest {
                         && richIndex < Integer.MAX_VALUE
                         && richDrawList.commands().get(richIndex).richText().equals(rich),
                 "RichTextView should preserve RichText runs for rich multiline content");
+
+        RichText inline = RichText.builder()
+                .append("A")
+                .icon("test-icon", new SimpleTextureHandle("test:inline-icon", 8, 8), 8.0f)
+                .append("B")
+                .build();
+        expect(inline.hasInlineContent()
+                        && inline.spans().size() == 3
+                        && inline.runs().size() == 2
+                        && inline.plainText().equals("A" + InlineContentSpan.DEFAULT_FALLBACK_TEXT + "B")
+                        && near(TextEngine.measureLineWidth(inline), 20.0f),
+                "RichText should preserve inline spans with fallback text and measured width");
+
+        RichTextView inlineView = new RichTextView(inline);
+        inlineView.noWrap();
+        inlineView.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 20.0f));
+        DrawList inlineDrawList = new DrawList();
+        inlineView.render(new DefaultRenderContext(inlineDrawList));
+        int inlineIconIndex = firstCommandIndex(inlineDrawList, DrawCommandType.TEXTURE, 0);
+        expect(countCommands(inlineDrawList, DrawCommandType.TEXT) == 2
+                        && inlineIconIndex > textCommandIndex(inlineDrawList, "A", 0)
+                        && textCommandIndex(inlineDrawList, "B", inlineIconIndex + 1) < Integer.MAX_VALUE
+                        && near(inlineDrawList.commands().get(inlineIconIndex).bounds().width(), 8.0f),
+                "RichTextView should render inline icon spans between surrounding text runs");
+
+        try (var ignored = InlineContentResolvers.push(InlineContentResolvers.textureMarkers(
+                (id, width, height) -> new SimpleTextureHandle("test:scoped-inline-icon/" + id, width, height)))) {
+            Label markerLabel = new Label("A {icon:test:warning@9x7} B");
+            expect(markerLabel.richText().hasInlineContent()
+                            && markerLabel.text().equals("A {icon:test:warning@9x7} B")
+                            && markerLabel.richText().plainText().equals("A " + InlineContentSpan.DEFAULT_FALLBACK_TEXT + " B"),
+                    "TextWidget text(String) should resolve scoped inline icon markers");
+            markerLabel.arrange(new MutableRect(0.0f, 0.0f, 90.0f, 20.0f));
+            DrawList markerDrawList = new DrawList();
+            markerLabel.render(new DefaultRenderContext(markerDrawList));
+            int markerIconIndex = firstCommandIndex(markerDrawList, DrawCommandType.TEXTURE, 0);
+            expect(markerIconIndex >= 0
+                            && markerDrawList.commands().get(markerIconIndex).texture().id().equals("test:scoped-inline-icon/test:warning")
+                            && near(markerDrawList.commands().get(markerIconIndex).bounds().width(), 9.0f)
+                            && near(markerDrawList.commands().get(markerIconIndex).bounds().height(), 7.0f),
+                    "Scoped inline content resolver should render marker icons with parsed dimensions");
+            TreeViewNode markerNode = new TreeViewNode("Node {icon:test:tree@6}");
+            Tooltip markerTooltip = new Tooltip(new Label("Anchor"), "Tip {icon:test:tooltip@5}");
+            ComboBox markerCombo = new ComboBox().addItem("Pick {icon:test:combo@4}");
+            DockPane markerPane = DockPane.tool("inline", "Pane {icon:test:pane@4}", new Label("Body"));
+            expect(markerNode.richText().hasInlineContent()
+                            && markerNode.text().equals("Node {icon:test:tree@6}")
+                            && markerTooltip.richText().hasInlineContent()
+                            && markerTooltip.text().equals("Tip {icon:test:tooltip@5}")
+                            && markerCombo.selectedRichItem().hasInlineContent()
+                            && markerPane.richTitle().hasInlineContent(),
+                    "Scoped inline content resolver should apply to common String label widgets");
+        }
 
         DefaultUIContext uiContext = new DefaultUIContext();
         TextField target = new TextField("focus me");

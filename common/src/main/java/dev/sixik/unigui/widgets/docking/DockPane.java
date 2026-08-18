@@ -26,7 +26,7 @@ public final class DockPane {
     public DockPane(String id, String title, Widget content) {
         this.id = normalizeId(id);
         this.title = title == null ? "" : title;
-        this.richTitle = RichText.plain(this.title);
+        this.richTitle = RichText.resolve(this.title);
         this.content = content == null ? new PanelWidget() : content;
     }
 
@@ -99,7 +99,7 @@ public final class DockPane {
 
     public DockPane title(String title) {
         this.title = title == null ? "" : title;
-        this.richTitle = RichText.plain(this.title);
+        this.richTitle = RichText.resolve(this.title);
         content.invalidate(InvalidationFlags.VISUAL);
         return this;
     }

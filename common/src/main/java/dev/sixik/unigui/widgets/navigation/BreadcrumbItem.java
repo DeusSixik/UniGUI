@@ -16,7 +16,7 @@ public final class BreadcrumbItem {
 
     public BreadcrumbItem(String text) {
         this.text = normalize(text);
-        this.richText = RichText.plain(this.text);
+        this.richText = RichText.resolve(this.text);
         this.value = this.text;
     }
 
@@ -32,7 +32,7 @@ public final class BreadcrumbItem {
 
     public BreadcrumbItem text(String text) {
         this.text = normalize(text);
-        this.richText = RichText.plain(this.text);
+        this.richText = RichText.resolve(this.text);
         if (value.isEmpty()) {
             value = this.text;
         }

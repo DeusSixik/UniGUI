@@ -18,7 +18,7 @@ public final class ButtonRenderers {
 
         draw.pushClip(contentX, state.y(), contentWidth, state.height());
         try {
-            draw.text(state.richText(), drawX, drawY,
+            TextEngine.drawInline(draw, state.richText(), drawX, drawY,
                     drawWidth,
                     drawHeight,
                     Paint.fill(state.textColor()));
@@ -128,7 +128,7 @@ public final class ButtonRenderers {
 
         draw.pushClip(contentX, state.y(), contentWidth, state.height());
         try {
-            draw.text(state.richText(), contentX, drawY, contentWidth, drawHeight, Paint.fill(state.textColor()));
+            TextEngine.drawInline(draw, state.richText(), contentX, drawY, contentWidth, drawHeight, Paint.fill(state.textColor()));
         } finally {
             draw.popClip();
         }
@@ -149,7 +149,7 @@ public final class ButtonRenderers {
 
         draw.pushClip(contentX, state.y(), contentWidth, state.height());
         try {
-            draw.text(state.richText(), contentX, drawY, contentWidth, drawHeight, Paint.fill(state.textColor()));
+            TextEngine.drawInline(draw, state.richText(), contentX, drawY, contentWidth, drawHeight, Paint.fill(state.textColor()));
         } finally {
             draw.popClip();
         }

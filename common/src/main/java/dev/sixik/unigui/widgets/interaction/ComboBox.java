@@ -118,7 +118,7 @@ public class ComboBox extends LinearBox {
         this.richItems.clear();
         if (items != null) {
             for (String item : items) {
-                addItemInternal(RichText.plain(item));
+                addItemInternal(RichText.resolve(item));
             }
         }
         if (selectedIndex >= this.items.size()) {
@@ -161,7 +161,7 @@ public class ComboBox extends LinearBox {
     }
 
     public ComboBox addItem(String item) {
-        addItemInternal(RichText.plain(item));
+        addItemInternal(RichText.resolve(item));
         rebuildOptions();
         if (selectedIndex < 0) {
             setSelectedIndex(0, false);
@@ -391,7 +391,7 @@ public class ComboBox extends LinearBox {
         String normalized = normalize(placeholder);
         if (Objects.equals(this.placeholder, normalized)) return this;
         this.placeholder = normalized;
-        this.richPlaceholder = RichText.plain(normalized);
+        this.richPlaceholder = RichText.resolve(normalized);
         updateHeaderText();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;

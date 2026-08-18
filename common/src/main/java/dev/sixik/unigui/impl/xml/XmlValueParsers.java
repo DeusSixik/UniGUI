@@ -7,6 +7,8 @@ import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.TextureOptions;
+import dev.sixik.unigui.api.text.InlineContentResolverScope;
+import dev.sixik.unigui.api.text.InlineContentResolvers;
 import dev.sixik.unigui.api.xml.XmlCommandRegistry;
 import dev.sixik.unigui.api.xml.XmlTextureResolver;
 import dev.sixik.unigui.api.xml.XmlWidgetOptions;
@@ -46,9 +48,12 @@ public final class XmlValueParsers {
     static TextureResolverScope pushLoadContext(XmlTextureResolver resolver, XmlCommandRegistry commands) {
         XmlTextureResolver previousResolver = TEXTURE_RESOLVER.get();
         XmlCommandRegistry previousCommands = COMMANDS.get();
-        TEXTURE_RESOLVER.set(resolver == null ? XmlWidgetOptions.DEFAULT_TEXTURE_RESOLVER : resolver);
+        XmlTextureResolver normalizedResolver = resolver == null ? XmlWidgetOptions.DEFAULT_TEXTURE_RESOLVER : resolver;
+        TEXTURE_RESOLVER.set(normalizedResolver);
         COMMANDS.set(commands == null ? XmlWidgetOptions.DEFAULT_COMMANDS : commands);
-        return new TextureResolverScope(previousResolver, previousCommands);
+        InlineContentResolverScope inlineScope = InlineContentResolvers.push(InlineContentResolvers.textureMarkers(
+                (id, width, height) -> normalizedResolver.resolve(id, width, height, TextureOptions.defaults())));
+        return new TextureResolverScope(previousResolver, previousCommands, inlineScope);
     }
 
     public static TextureHandle resolveTexture(String id, int width, int height, TextureOptions options) {
@@ -161,14 +166,18 @@ public final class XmlValueParsers {
     static final class TextureResolverScope implements AutoCloseable {
         private final XmlTextureResolver previousResolver;
         private final XmlCommandRegistry previousCommands;
+        private final InlineContentResolverScope inlineScope;
 
-        private TextureResolverScope(XmlTextureResolver previousResolver, XmlCommandRegistry previousCommands) {
+        private TextureResolverScope(XmlTextureResolver previousResolver, XmlCommandRegistry previousCommands,
+                                     InlineContentResolverScope inlineScope) {
             this.previousResolver = previousResolver;
             this.previousCommands = previousCommands;
+            this.inlineScope = inlineScope;
         }
 
         @Override
         public void close() {
+            if (inlineScope != null) inlineScope.close();
             if (previousResolver == null) {
                 TEXTURE_RESOLVER.remove();
             } else {

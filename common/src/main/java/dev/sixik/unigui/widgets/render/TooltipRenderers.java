@@ -1,6 +1,7 @@
 package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.impl.text.TextEngine;
 
 public final class TooltipRenderers {
     public static final TooltipRenderer DEFAULT = (draw, state) -> {
@@ -11,7 +12,8 @@ public final class TooltipRenderers {
             for (int i = 0; i < state.lines().size(); i++) {
                 float lineHeight = state.lineHeight(i);
                 if (lineY >= limitY) break;
-                draw.text(state.lines().get(i),
+                TextEngine.drawInline(draw,
+                        state.lines().get(i),
                         state.textX(),
                         lineY,
                         state.textWidth(),

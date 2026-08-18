@@ -59,7 +59,7 @@ public final class ContextMenu extends Box implements OverlayHostAware {
     }
 
     public ContextMenu item(String text) {
-        return item(RichText.plain(text), null);
+        return item(RichText.resolve(text), null);
     }
 
     public ContextMenu item(RichText text) {
@@ -68,7 +68,7 @@ public final class ContextMenu extends Box implements OverlayHostAware {
 
     /** Prefer {@link #onItemSelected(EventListener)} for public UI actions. */
     public ContextMenu item(String text, Runnable action) {
-        return item(RichText.plain(text), action);
+        return item(RichText.resolve(text), action);
     }
 
     /** Prefer {@link #onItemSelected(EventListener)} for public UI actions. */

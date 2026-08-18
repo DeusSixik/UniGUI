@@ -2,6 +2,7 @@ package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.impl.text.TextEngine;
 
 public final class TextAreaRenderers {
     public static final TextAreaRenderer DEFAULT = (draw, state) -> {
@@ -14,7 +15,8 @@ public final class TextAreaRenderers {
             for (TextAreaLineState line : state.lines()) {
                 if (!intersectsViewport(line, state)) continue;
                 if (line.hasVisibleText()) {
-                    draw.text(line.richText(),
+                    TextEngine.drawInline(draw,
+                            line.richText(),
                             state.viewportX() - state.horizontalScrollPixels(),
                             line.y(),
                             Math.max(state.viewportWidth(), line.measuredWidth()),
