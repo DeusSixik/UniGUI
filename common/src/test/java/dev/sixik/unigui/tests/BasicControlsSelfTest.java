@@ -16,6 +16,7 @@ import dev.sixik.unigui.api.editor.EditorCommand;
 import dev.sixik.unigui.api.editor.KeyBinding;
 import dev.sixik.unigui.api.event.ContextMenuItemSelectedEvent;
 import dev.sixik.unigui.api.event.ExpandedChangedEvent;
+import dev.sixik.unigui.api.event.EventPhase;
 import dev.sixik.unigui.api.event.KeyPressedEvent;
 import dev.sixik.unigui.api.event.PointerEnteredEvent;
 import dev.sixik.unigui.api.event.PointerExitedEvent;
@@ -1104,6 +1105,39 @@ public final class BasicControlsSelfTest {
         menuBar.openMenu(1);
         expect(menuBar.openedPopup().itemButton(0).text().startsWith("[x] Properties"),
                 "MenuBar should render checked command state in menu rows");
+
+        MenuBar overlayMenuBar = Widgets.menuBar().commandManager(manager);
+        overlayMenuBar.menu(new Menu("File").command("project.save"));
+        overlayMenuBar.menu(new Menu("View").command("view.properties.toggle"));
+        OverlayLayer overlayLayer = new OverlayLayer(overlayMenuBar);
+        overlayLayer.applyQueuedMutations();
+        overlayLayer.measure(new LayoutContext(320.0f, 120.0f));
+        overlayLayer.arrange(new MutableRect(0.0f, 0.0f, 320.0f, 120.0f));
+        overlayMenuBar.openMenu(0);
+        overlayLayer.applyQueuedMutations();
+        ContextMenu overlayPopup = overlayMenuBar.openedPopup();
+        expect(overlayPopup != null && overlayPopup.opened() && overlayPopup.parent() == overlayLayer,
+                "MenuBar popups should attach to the nearest overlay layer when available");
+        overlayLayer.handle(new PointerPressedEvent(
+                overlayLayer,
+                overlayLayer,
+                EventPhase.CAPTURE,
+                8.0f,
+                48.0f,
+                8.0f,
+                48.0f,
+                7,
+                PointerButton.PRIMARY));
+        expect(!overlayPopup.opened(),
+                "OverlayLayer outside clicks should close MenuBar context menus");
+        properties.notifyChanged();
+        expect(overlayMenuBar.openedMenuIndex() == -1 && overlayMenuBar.openedPopup() == null,
+                "MenuBar should drop stale open state after an overlay-level outside close");
+        Widget viewHeader = overlayMenuBar.children().get(1);
+        viewHeader.handle(new PointerEnteredEvent(viewHeader, 42.0f, 8.0f, 4.0f, 4.0f, 8));
+        expect(overlayMenuBar.openedPopup() == null,
+                "MenuBar hover traversal should not reopen a menu after outside close has disarmed the menu bar");
+
         expect(Widgets.menuBar() instanceof MenuBar, "Widgets.menuBar should create MenuBar instances");
     }
 
@@ -1282,6 +1316,12 @@ public final class BasicControlsSelfTest {
         Counter changes = new Counter();
         overlay.onDocumentChanged(change -> {
             changes.count++;
+            if (change.finalChange()) {
+                changes.committed++;
+            } else {
+                changes.started++;
+            }
+            changes.lastChecked = change.finalChange();
             changes.lastValue = change.deltaX();
             changes.lastNewHeight = change.deltaY();
         });
@@ -1294,11 +1334,14 @@ public final class BasicControlsSelfTest {
         expect(overlay.lastResult().orElseThrow().valid()
                         && movedButton.attribute("x").orElseThrow().equals("20")
                         && movedButton.attribute("y").orElseThrow().equals("18")
-                        && changes.count == 1
+                        && changes.count == 2
+                        && changes.started == 1
+                        && changes.committed == 1
+                        && changes.lastChecked
                         && near(changes.lastValue, 10.0f)
                         && near(changes.lastNewHeight, 6.0f)
                         && uiContext.capturedPointer(2) == null,
-                "SelectionOverlay drag should move XML frame attributes and release pointer capture");
+                "SelectionOverlay drag should publish live and final XML frame changes and release pointer capture");
 
         overlay.handle(new PointerMovedEvent(overlay, 1.0f, 1.0f, 1.0f, 1.0f, 3));
         DrawList drawList = new DrawList();

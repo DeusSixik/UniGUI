@@ -6,6 +6,7 @@ import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
+import dev.sixik.unigui.api.math.Transform;
 import dev.sixik.unigui.api.math.TransformGeometry;
 import dev.sixik.unigui.api.widget.RenderedBoundsMapper;
 import dev.sixik.unigui.api.widget.Widget;
@@ -16,6 +17,7 @@ import dev.sixik.unigui.api.xml.XmlWidgetDocumentResult;
 import dev.sixik.unigui.api.xml.XmlWidgetElement;
 import dev.sixik.unigui.api.xml.XmlWidgetLoadException;
 import dev.sixik.unigui.api.xml.XmlWidgetLayoutFrame;
+import dev.sixik.unigui.api.xml.XmlWidgetLayoutHandles;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.api.xml.XmlWidgetNode;
 import dev.sixik.unigui.api.xml.XmlWidgetNodePath;
@@ -25,6 +27,7 @@ import dev.sixik.unigui.api.xml.XmlWidgetSerializationOptions;
 import dev.sixik.unigui.api.xml.editor.XmlEditorDiagnosticChannel;
 import dev.sixik.unigui.api.xml.editor.XmlEditorMode;
 import dev.sixik.unigui.api.xml.editor.XmlEditorSession;
+import dev.sixik.unigui.api.xml.editor.XmlEditorSessionChange;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.PanelWidget;
 import dev.sixik.unigui.widgets.containers.ScrollView;
@@ -60,6 +63,7 @@ public class XmlDesignCanvas extends PanelWidget {
     private String previewXml = "";
     private String previewError = "";
     private XmlWidgetDocumentResult lastDesignResult;
+    private boolean liveDesignPreview;
     private boolean syncingOverlaySelection;
 
     public XmlDesignCanvas() {
@@ -101,7 +105,7 @@ public class XmlDesignCanvas extends PanelWidget {
         }
         this.session = session;
         if (session != null) {
-            sessionSubscription = session.onChanged(change -> refreshFromSession());
+            sessionSubscription = session.onChanged(this::refreshFromSession);
         }
         refreshFromSession();
         return this;
@@ -244,10 +248,23 @@ public class XmlDesignCanvas extends PanelWidget {
     }
 
     public void refreshFromSession() {
+        refreshFromSession(null);
+    }
+
+    private void refreshFromSession(XmlEditorSessionChange change) {
         if (session == null) return;
-        document(session.document());
-        syncOverlaySelection(session.selectedPath().orElse(null));
-        overlay.editMode(session.mode() != XmlEditorMode.RUNTIME);
+        boolean fullRefresh = change == null;
+        boolean documentChanged = fullRefresh || affectsPreviewDocument(change.kind());
+        if (documentChanged) {
+            liveDesignPreview = false;
+            document(session.document());
+        }
+        if (documentChanged || change.kind() == XmlEditorSessionChange.Kind.SELECTION_CHANGED) {
+            syncOverlaySelection(session.selectedPath().orElse(null));
+        }
+        if (fullRefresh || change.kind() == XmlEditorSessionChange.Kind.MODE_CHANGED) {
+            overlay.editMode(session.mode() != XmlEditorMode.RUNTIME);
+        }
     }
 
     public boolean applyDesignResult(XmlWidgetDocumentResult result, XmlWidgetNodePath path) {
@@ -261,6 +278,7 @@ public class XmlDesignCanvas extends PanelWidget {
         }
 
         XmlWidgetDocument nextDocument = result.document();
+        liveDesignPreview = false;
         document(nextDocument);
         syncOverlaySelection(path);
         if (session != null) {
@@ -283,7 +301,22 @@ public class XmlDesignCanvas extends PanelWidget {
     }
 
     private void handleOverlayDocumentChange(SelectionOverlay.DocumentChange change) {
-        applyDesignResult(change.result(), change.path());
+        if (change.finalChange()) {
+            applyDesignResult(change.result(), change.path());
+        } else {
+            previewDesignResult(change.result(), change.path());
+        }
+    }
+
+    private void previewDesignResult(XmlWidgetDocumentResult result, XmlWidgetNodePath path) {
+        if (result == null) return;
+        lastDesignResult = result;
+        if (!result.valid()) return;
+        document = result.document();
+        liveDesignPreview = true;
+        overlay.document(document);
+        syncOverlaySelection(path);
+        invalidate(InvalidationFlags.VISUAL);
     }
 
     private void handleOverlaySelectionChange(SelectionOverlay.SelectionChange change) {
@@ -298,6 +331,14 @@ public class XmlDesignCanvas extends PanelWidget {
         } finally {
             syncingOverlaySelection = false;
         }
+    }
+
+    private static boolean affectsPreviewDocument(XmlEditorSessionChange.Kind kind) {
+        return kind == XmlEditorSessionChange.Kind.DOCUMENT_CHANGED
+                || kind == XmlEditorSessionChange.Kind.TEXT_CHANGED
+                || kind == XmlEditorSessionChange.Kind.RUNTIME_OPTIONS_CHANGED
+                || kind == XmlEditorSessionChange.Kind.SOURCE_CHANGED
+                || kind == XmlEditorSessionChange.Kind.REVERTED;
     }
 
     private XmlWidgetRegistry registry() {
@@ -328,9 +369,12 @@ public class XmlDesignCanvas extends PanelWidget {
     }
 
     private Optional<XmlWidgetLayoutFrame> previewFrameFor(XmlWidgetNodePath path) {
-        Widget widget = previewWidgets.get(path == null ? XmlWidgetNodePath.root() : path);
+        XmlWidgetNodePath normalized = path == null ? XmlWidgetNodePath.root() : path;
+        Widget widget = previewWidgets.get(normalized);
         if (widget == null) return Optional.empty();
-        RectView bounds = transformedPreviewBounds(widget);
+        RectView bounds = liveDesignPreview && document != null
+                ? transformedLivePreviewBounds(normalized, widget)
+                : transformedPreviewBounds(widget);
         if (bounds == null || !isUsableBounds(bounds)) return Optional.empty();
         return Optional.of(new XmlWidgetLayoutFrame(
                 bounds.x() - overlay.layoutBounds().x(),
@@ -349,9 +393,30 @@ public class XmlDesignCanvas extends PanelWidget {
                 widget.layoutBounds().y(),
                 widget.layoutBounds().width(),
                 widget.layoutBounds().height());
+        return transformRouteBounds(bounds, route, null);
+    }
+
+    private RectView transformedLivePreviewBounds(XmlWidgetNodePath path, Widget widget) {
+        if (path == null || widget == null || document == null) return transformedPreviewBounds(widget);
+        Optional<XmlWidgetLayoutFrame> liveFrame = path.resolveElement(document).flatMap(XmlWidgetLayoutHandles::frame);
+        if (liveFrame.isEmpty()) return transformedPreviewBounds(widget);
+        List<Widget> route = previewRoute(widget);
+        if (route.isEmpty()) return null;
+
+        XmlWidgetLayoutFrame frame = liveFrame.get();
+        MutableRect bounds = new MutableRect(
+                widget.layoutBounds().x(),
+                widget.layoutBounds().y(),
+                frame.width(),
+                frame.height());
+        return transformRouteBounds(bounds, route, document);
+    }
+
+    private RectView transformRouteBounds(MutableRect bounds, List<Widget> route, XmlWidgetDocument liveDocument) {
         for (int index = route.size() - 1; index >= 0; index--) {
             Widget current = route.get(index);
-            TransformGeometry.transformBoundsInto(bounds, bounds, current.layoutBounds(), current.transform());
+            Transform transform = liveDocument == null ? current.transform() : liveTransformFor(current, liveDocument);
+            TransformGeometry.transformBoundsInto(bounds, bounds, current.layoutBounds(), transform);
             if (index > 0 && route.get(index - 1) instanceof RenderedBoundsMapper mapper) {
                 RectView mapped = mapper.renderedBoundsForChild(current, bounds);
                 if (mapped != null) {
@@ -360,6 +425,53 @@ public class XmlDesignCanvas extends PanelWidget {
             }
         }
         return bounds;
+    }
+
+    private Transform liveTransformFor(Widget widget, XmlWidgetDocument liveDocument) {
+        XmlWidgetNodePath path = previewPathForWidget(widget);
+        if (path == null || liveDocument == null) return widget.transform();
+        Optional<XmlWidgetElement> element = path.resolveElement(liveDocument);
+        if (element.isEmpty()) return widget.transform();
+
+        Transform transform = widget.transform().copy();
+        XmlWidgetElement liveElement = element.get();
+        transform.position().set(
+                xmlFloat(liveElement, "x", transform.position().x()),
+                xmlFloat(liveElement, "y", transform.position().y()));
+        Optional<Float> uniformScale = xmlFloat(liveElement, "scale");
+        if (uniformScale.isPresent()) {
+            transform.scale().set(uniformScale.get(), uniformScale.get());
+        }
+        transform.scale().set(
+                xmlFloat(liveElement, "scaleX", transform.scale().x()),
+                xmlFloat(liveElement, "scaleY", transform.scale().y()));
+        transform.setRotationDegrees(xmlFloat(liveElement, "rotation", transform.rotationDegrees()));
+        return transform;
+    }
+
+    private XmlWidgetNodePath previewPathForWidget(Widget widget) {
+        if (widget == null) return null;
+        for (Map.Entry<XmlWidgetNodePath, Widget> entry : previewWidgets.entrySet()) {
+            if (entry.getValue() == widget) return entry.getKey();
+        }
+        return null;
+    }
+
+    private static float xmlFloat(XmlWidgetElement element, String attributeName, float fallback) {
+        return xmlFloat(element, attributeName).orElse(fallback);
+    }
+
+    private static Optional<Float> xmlFloat(XmlWidgetElement element, String attributeName) {
+        if (element == null || attributeName == null) return Optional.empty();
+        Optional<String> raw = element.attribute(attributeName);
+        if (raw.isEmpty()) return Optional.empty();
+        String normalized = raw.get().trim();
+        if (normalized.endsWith("px")) normalized = normalized.substring(0, normalized.length() - 2).trim();
+        try {
+            return Optional.of(Float.parseFloat(normalized));
+        } catch (NumberFormatException ignored) {
+            return Optional.empty();
+        }
     }
 
     private List<Widget> previewRoute(Widget widget) {

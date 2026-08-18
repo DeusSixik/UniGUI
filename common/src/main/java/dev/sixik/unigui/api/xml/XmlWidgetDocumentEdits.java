@@ -73,6 +73,20 @@ public final class XmlWidgetDocumentEdits {
         return new MoveChildEdit(parentPath, fromIndex, toIndex);
     }
 
+    /**
+     * Creates an undoable edit that moves an existing child node to another parent/index.
+     *
+     * @param sourcePath path of the moved node; root cannot be moved
+     * @param targetParentPath target parent element path; {@code null} means root
+     * @param targetIndex target insertion index inside the target parent
+     * @return undoable edit
+     */
+    public static XmlWidgetDocumentEdit moveChild(XmlWidgetNodePath sourcePath,
+                                                  XmlWidgetNodePath targetParentPath,
+                                                  int targetIndex) {
+        return new MoveChildToParentEdit(sourcePath, targetParentPath, targetIndex);
+    }
+
     private static XmlWidgetElement element(XmlWidgetDocument document, XmlWidgetNodePath path) {
         return path.resolveElement(document)
                 .orElseThrow(() -> new XmlWidgetLoadException("XML document edit target '" + path + "' is not an element."));
@@ -245,6 +259,83 @@ public final class XmlWidgetDocumentEdits {
             if (!element(document, parentPath).moveChild(toIndex, fromIndex)) {
                 throw new XmlWidgetLoadException("XML document edit move target index " + toIndex + " was not found.");
             }
+        }
+    }
+    private static final class MoveChildToParentEdit implements XmlWidgetDocumentEdit {
+        private final XmlWidgetNodePath sourcePath;
+        private final XmlWidgetNodePath sourceParentPath;
+        private final XmlWidgetNodePath targetParentPath;
+        private final int sourceIndex;
+        private final int targetIndex;
+        private XmlWidgetNodePath appliedTargetParentPath;
+        private int appliedIndex = -1;
+
+        private MoveChildToParentEdit(XmlWidgetNodePath sourcePath, XmlWidgetNodePath targetParentPath, int targetIndex) {
+            if (sourcePath == null || sourcePath.rootPath()) {
+                throw new IllegalArgumentException("XML move-child edit requires a non-root source path");
+            }
+            this.sourcePath = sourcePath;
+            this.sourceParentPath = sourcePath.parent().orElseThrow();
+            this.targetParentPath = targetParentPath == null ? XmlWidgetNodePath.root() : targetParentPath;
+            this.sourceIndex = sourcePath.indexes().get(sourcePath.indexes().size() - 1);
+            this.targetIndex = targetIndex;
+        }
+
+        @Override
+        public String description() {
+            return "Move child";
+        }
+
+        @Override
+        public void apply(XmlWidgetDocument document) {
+            if (isDescendantOrSelf(sourcePath, targetParentPath)) {
+                throw new XmlWidgetLoadException("XML document edit cannot move a node inside itself.");
+            }
+            XmlWidgetElement sourceParent = element(document, sourceParentPath);
+            XmlWidgetNode moved = sourceParent.removeChild(sourceIndex)
+                    .orElseThrow(() -> new XmlWidgetLoadException("XML document edit child '" + sourcePath + "' was not found."));
+            appliedTargetParentPath = shiftedAfterRemove(sourcePath, targetParentPath);
+            XmlWidgetElement targetParent = element(document, appliedTargetParentPath);
+            int normalizedIndex = targetIndex;
+            if (sourceParentPath.equals(targetParentPath) && targetIndex > sourceIndex) {
+                normalizedIndex--;
+            }
+            appliedIndex = Math.max(0, Math.min(normalizedIndex, targetParent.children().size()));
+            targetParent.insertChild(appliedIndex, moved);
+        }
+
+        @Override
+        public void undo(XmlWidgetDocument document) {
+            if (appliedIndex < 0 || appliedTargetParentPath == null) return;
+            XmlWidgetElement targetParent = element(document, appliedTargetParentPath);
+            XmlWidgetNode moved = targetParent.removeChild(appliedIndex)
+                    .orElseThrow(() -> new XmlWidgetLoadException("XML document edit moved child was not found."));
+            element(document, sourceParentPath).insertChild(sourceIndex, moved);
+        }
+
+        private static XmlWidgetNodePath shiftedAfterRemove(XmlWidgetNodePath removedPath, XmlWidgetNodePath path) {
+            if (removedPath == null || path == null || removedPath.rootPath()) return path;
+            XmlWidgetNodePath removedParent = removedPath.parent().orElse(XmlWidgetNodePath.root());
+            if (path.indexes().size() <= removedParent.indexes().size()) return path;
+            for (int i = 0; i < removedParent.indexes().size(); i++) {
+                if (!removedParent.indexes().get(i).equals(path.indexes().get(i))) return path;
+            }
+            int pivot = removedParent.indexes().size();
+            int removedIndex = removedPath.indexes().get(pivot);
+            int pathIndex = path.indexes().get(pivot);
+            if (pathIndex <= removedIndex) return path;
+            java.util.ArrayList<Integer> shifted = new java.util.ArrayList<>(path.indexes());
+            shifted.set(pivot, pathIndex - 1);
+            return new XmlWidgetNodePath(shifted);
+        }
+
+        private static boolean isDescendantOrSelf(XmlWidgetNodePath source, XmlWidgetNodePath candidate) {
+            if (source == null || candidate == null) return false;
+            if (candidate.indexes().size() < source.indexes().size()) return false;
+            for (int i = 0; i < source.indexes().size(); i++) {
+                if (!source.indexes().get(i).equals(candidate.indexes().get(i))) return false;
+            }
+            return true;
         }
     }
 }

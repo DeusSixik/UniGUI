@@ -97,13 +97,13 @@ public final class MenuBar extends LinearBox {
     }
 
     public int openedMenuIndex() {
+        syncOpenedMenuState();
         return openedMenuIndex;
     }
 
     public ContextMenu openedPopup() {
-        return openedMenuIndex >= 0 && openedMenuIndex < menuPopups.size()
-                ? menuPopups.get(openedMenuIndex)
-                : null;
+        syncOpenedMenuState();
+        return openedPopup(true);
     }
 
     public MenuBar openMenu(int index) {
@@ -190,7 +190,7 @@ public final class MenuBar extends LinearBox {
             final int menuIndex = index;
             button.onClick(event -> openMenu(menuIndex));
             button.on(PointerEnteredEvent.TYPE, event -> {
-                if (event.phase() == EventPhase.TARGET && openedMenuIndex >= 0 && openedMenuIndex != menuIndex) {
+                if (event.phase() == EventPhase.TARGET && menuTraversalActive() && openedMenuIndex != menuIndex) {
                     openMenu(menuIndex);
                 }
             });
@@ -236,11 +236,31 @@ public final class MenuBar extends LinearBox {
 
     private void refreshOpenMenu() {
         int index = openedMenuIndex;
-        if (index >= 0) {
+        if (index >= 0 && openedPopup(true) != null) {
             openMenu(index);
         } else {
+            openedMenuIndex = -1;
             invalidate(InvalidationFlags.VISUAL);
         }
+    }
+
+    private boolean menuTraversalActive() {
+        return openedPopup(true) != null;
+    }
+
+    private void syncOpenedMenuState() {
+        if (openedMenuIndex >= 0 && openedPopup(true) == null) {
+            openedMenuIndex = -1;
+            invalidate(InvalidationFlags.VISUAL);
+        }
+    }
+
+    private ContextMenu openedPopup(boolean requireOpen) {
+        ContextMenu popup = openedMenuIndex >= 0 && openedMenuIndex < menuPopups.size()
+                ? menuPopups.get(openedMenuIndex)
+                : null;
+        if (requireOpen && (popup == null || !popup.opened())) return null;
+        return popup;
     }
 
     private int nextMenuIndex(int delta) {

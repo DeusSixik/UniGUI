@@ -4,6 +4,10 @@ import dev.sixik.unigui.api.core.UIScaleProvider;
 import dev.sixik.unigui.api.core.UnityLikeUIScaleProvider;
 import dev.sixik.unigui.api.event.Event;
 import dev.sixik.unigui.api.event.EventSubscription;
+import dev.sixik.unigui.api.event.PointerEnteredEvent;
+import dev.sixik.unigui.api.event.PointerMovedEvent;
+import dev.sixik.unigui.api.event.PointerPressedEvent;
+import dev.sixik.unigui.api.event.PointerReleasedEvent;
 import dev.sixik.unigui.api.layout.Align;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.SizeUnit;
@@ -206,6 +210,7 @@ public final class XmlWidgetSelfTest {
         testUndoableDocumentEdits();
         testEditorDiagnosticsCollection();
         testXmlEditorSessionParseFailurePreservesLastValidDocument();
+        testXmlEditorSessionSelectionNoOpDoesNotEmit();
         testXmlEditorSessionUndoRedoAndSelectionSurvival();
         testXmlEditorSessionSaveRevertAndEvents();
         testXmlEditorDemoScreenWorkspaceContracts();
@@ -2445,6 +2450,25 @@ public final class XmlWidgetSelfTest {
                         .filter(XmlWidgetNodePath.of(0)::equals)
                         .isPresent(),
                 "XmlDesignCanvas overlay frames should apply child transforms before parent transforms");
+        String scaledTextBeforeDrag = scaledSession.text();
+        scaledCanvas.overlay().handle(new PointerPressedEvent(
+                scaledCanvas.overlay(), 80.0f, 60.0f, 80.0f, 60.0f, 9, PointerButton.PRIMARY));
+        scaledCanvas.overlay().handle(new PointerMovedEvent(
+                scaledCanvas.overlay(), 85.0f, 66.0f, 85.0f, 66.0f, 9));
+        XmlWidgetLayoutFrame scaledLiveDragFrame = scaledCanvas.overlay().selectedFrame().orElseThrow();
+        expect(near(scaledLiveDragFrame.x(), 30.0f)
+                        && near(scaledLiveDragFrame.y(), 52.0f)
+                        && near(scaledLiveDragFrame.width(), 160.0f)
+                        && near(scaledLiveDragFrame.height(), 60.0f)
+                        && scaledSession.text().equals(scaledTextBeforeDrag),
+                "XmlDesignCanvas live drag frames should stay in transformed preview coordinates without committing XML text before release");
+        scaledCanvas.overlay().handle(new PointerReleasedEvent(
+                scaledCanvas.overlay(), 85.0f, 66.0f, 85.0f, 66.0f, 9, PointerButton.PRIMARY));
+        Widget previewBeforeSelection = canvas.previewRoot().orElseThrow();
+        session.select(XmlWidgetNodePath.of(1));
+        expect(canvas.previewRoot().orElseThrow() == previewBeforeSelection,
+                "XmlDesignCanvas should not rebuild the preview tree for selection-only session changes");
+
         expect(canvas.selectAt(12.0f, 22.0f).orElseThrow().equals(XmlWidgetNodePath.of(1))
                         && session.selectedPath().orElseThrow().equals(XmlWidgetNodePath.of(1)),
                 "XmlDesignCanvas should map hit-tested frames back to XmlWidgetNodePath selection");
@@ -2720,6 +2744,28 @@ public final class XmlWidgetSelfTest {
         expect(session.dirty(), "Invalid code edits should still mark the XML text buffer dirty");
     }
 
+    private void testXmlEditorSessionSelectionNoOpDoesNotEmit() {
+        XmlEditorSession session = XmlEditorSession.create(
+                "<VBox><Button id=\"ok\" /></VBox>");
+        int[] selectionChanges = {0};
+        EventSubscription subscription = session.onChanged(change -> {
+            if (change.kind() == XmlEditorSessionChange.Kind.SELECTION_CHANGED) {
+                selectionChanges[0]++;
+            }
+        });
+
+        session.select(XmlWidgetNodePath.of(0));
+        session.select(XmlWidgetNodePath.of(0));
+        expect(selectionChanges[0] == 1,
+                "Editor session should not emit selection changes when the selected path is unchanged");
+
+        session.select(null);
+        session.select(null);
+        expect(selectionChanges[0] == 2,
+                "Editor session should not emit selection changes when the selection is already empty");
+        closeUnchecked(subscription);
+    }
+
     private void testXmlEditorSessionUndoRedoAndSelectionSurvival() {
         XmlEditorSession session = XmlEditorSession.create(
                 "<VBox><Label id=\"first\" /><Button id=\"selected\" /></VBox>");
@@ -2978,6 +3024,84 @@ public final class XmlWidgetSelfTest {
         expect(panel.visibleItems().get(1).label().equals("Button#second")
                         && panel.visibleItems().get(2).label().equals("Label#first"),
                 "XML hierarchy panel should rebuild rows when the same document instance is reordered");
+
+        XmlWidgetDocument treeDocument = XmlWidgetDocument.parse("""
+                <VBox id=\"root\"><HBox id=\"container\"><Label id=\"veryLongHierarchyLabelThatNeedsTooltip\" /></HBox><Button id=\"sibling\" /></VBox>
+                """);
+        XmlHierarchyPanel treePanel = new XmlHierarchyPanel().document(treeDocument);
+        expect(treePanel.rowCount() == 4,
+                "XML hierarchy panel tree should show expanded root, parent and nested child rows by default");
+        expect(treePanel.setExpanded(XmlWidgetNodePath.of(0), false)
+                        && treePanel.rowCount() == 3
+                        && treePanel.visibleItems().stream().noneMatch(item -> item.path().equals(XmlWidgetNodePath.of(0, 0))),
+                "XML hierarchy panel should collapse nested rows under collapsed parents");
+        expect(treePanel.setExpanded(XmlWidgetNodePath.of(0), true)
+                        && treePanel.rowCount() == 4
+                        && treePanel.rowWidget(XmlWidgetNodePath.of(0, 0)).isPresent(),
+                "XML hierarchy panel should expand nested rows and expose row widgets by XML path");
+
+        treePanel.measure(new LayoutContext(96.0f, 140.0f));
+        treePanel.arrange(new MutableRect(0.0f, 0.0f, 96.0f, 140.0f));
+        Widget longRow = treePanel.rowWidget(XmlWidgetNodePath.of(0, 0)).orElseThrow();
+        String longLabel = "Label#veryLongHierarchyLabelThatNeedsTooltip";
+        NoopRenderContext normalHierarchyRender = new NoopRenderContext();
+        treePanel.render(normalHierarchyRender);
+        long beforeHoverLongLabelCommands = normalHierarchyRender.drawList().commands().stream()
+                .filter(command -> command.type() == DrawCommandType.TEXT && longLabel.equals(command.text()))
+                .count();
+        longRow.handle(new PointerEnteredEvent(longRow,
+                longRow.layoutBounds().x() + 10.0f,
+                longRow.layoutBounds().y() + 10.0f,
+                10.0f,
+                10.0f,
+                0));
+        NoopRenderContext hoveredHierarchyRender = new NoopRenderContext();
+        treePanel.render(hoveredHierarchyRender);
+        long hoveredLongLabelCommands = hoveredHierarchyRender.drawList().commands().stream()
+                .filter(command -> command.type() == DrawCommandType.TEXT && longLabel.equals(command.text()))
+                .count();
+        long hierarchyClipCommands = hoveredHierarchyRender.drawList().commands().stream()
+                .filter(command -> command.type() == DrawCommandType.PUSH_CLIP)
+                .count();
+        expect(beforeHoverLongLabelCommands == 1 && hoveredLongLabelCommands >= 2 && hierarchyClipCommands >= treePanel.rowCount(),
+                "XML hierarchy panel should clip overflowing row text and render the full label again as a hover tooltip");
+
+        List<XmlHierarchyPanel.ReparentRequest> reparentRequests = new java.util.ArrayList<>();
+        EventSubscription reparentSubscription = treePanel.onReparentRequested(reparentRequests::add);
+        Widget sourceRow = treePanel.rowWidget(XmlWidgetNodePath.of(1)).orElseThrow();
+        Widget targetRow = treePanel.rowWidget(XmlWidgetNodePath.of(0)).orElseThrow();
+        float sourceX = sourceRow.layoutBounds().x() + 24.0f;
+        float sourceY = sourceRow.layoutBounds().y() + 10.0f;
+        float targetY = targetRow.layoutBounds().y() + targetRow.layoutBounds().height() * 0.5f;
+        sourceRow.handle(new PointerPressedEvent(sourceRow, sourceX, sourceY, 24.0f, 10.0f, 1, PointerButton.PRIMARY));
+        sourceRow.handle(new PointerMovedEvent(sourceRow, sourceX, targetY, 24.0f, targetY - sourceRow.layoutBounds().y(), 1));
+        sourceRow.handle(new PointerReleasedEvent(sourceRow, sourceX, targetY, 24.0f, targetY - sourceRow.layoutBounds().y(), 1, PointerButton.PRIMARY));
+        expect(reparentRequests.size() == 1
+                        && reparentRequests.get(0).sourcePath().equals(XmlWidgetNodePath.of(1))
+                        && reparentRequests.get(0).targetParentPath().equals(XmlWidgetNodePath.of(0))
+                        && reparentRequests.get(0).targetIndex() == 1,
+                "XML hierarchy panel drag-and-drop should request reparenting into the hovered tree row");
+        closeUnchecked(reparentSubscription);
+
+        XmlWidgetDocument reparentDocument = XmlWidgetDocument.parse(
+                "<VBox id=\"root\"><HBox id=\"source\" /><HBox id=\"target\" /></VBox>");
+        XmlWidgetDocumentEdit reparentEdit = XmlWidgetDocumentEdits.moveChild(XmlWidgetNodePath.of(0), XmlWidgetNodePath.of(1), 0);
+        reparentEdit.apply(reparentDocument);
+        expect(XmlWidgetNodePath.of(0, 0).resolveElement(reparentDocument)
+                        .flatMap(element -> element.attribute("id"))
+                        .orElseThrow()
+                        .equals("source"),
+                "XML move-child edit should adjust target parent paths when source removal shifts siblings");
+        reparentEdit.undo(reparentDocument);
+        expect(XmlWidgetNodePath.of(0).resolveElement(reparentDocument)
+                        .flatMap(element -> element.attribute("id"))
+                        .orElseThrow()
+                        .equals("source")
+                        && XmlWidgetNodePath.of(1).resolveElement(reparentDocument)
+                        .flatMap(element -> element.attribute("id"))
+                        .orElseThrow()
+                        .equals("target"),
+                "XML move-child edit undo should restore cross-parent moves after shifted target paths");
     }
 
     private void testXmlPropertiesPanelSessionContracts() {

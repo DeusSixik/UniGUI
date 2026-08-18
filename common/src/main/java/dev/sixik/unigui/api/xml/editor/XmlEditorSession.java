@@ -183,12 +183,16 @@ public final class XmlEditorSession {
     }
 
     public XmlEditorSession select(XmlWidgetNodePath path) {
+        Optional<XmlWidgetNodePath> previous = selection.selectedPath();
         if (path == null) {
             selection.clear();
         } else {
             selection.selectIfPresent(document, path);
         }
-        emit(XmlEditorSessionChange.Kind.SELECTION_CHANGED, mode, "Selection changed");
+        Optional<XmlWidgetNodePath> next = selection.selectedPath();
+        if (!Objects.equals(previous, next)) {
+            emit(XmlEditorSessionChange.Kind.SELECTION_CHANGED, mode, "Selection changed");
+        }
         return this;
     }
 

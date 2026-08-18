@@ -63,6 +63,11 @@ public class SelectionOverlay extends WidgetBase {
     private boolean resizeHandlesVisible = true;
     private boolean moveHandleVisible = true;
     private XmlWidgetDocumentResult lastResult;
+    private XmlWidgetDocumentResult pendingDragResult;
+    private XmlWidgetNodePath pendingDragPath;
+    private XmlWidgetLayoutHandle pendingDragHandle;
+    private float pendingDragDeltaX;
+    private float pendingDragDeltaY;
     private Function<XmlWidgetNodePath, Optional<XmlWidgetLayoutFrame>> frameResolver;
     private Consumer<DocumentChange> documentChanged = change -> {
     };
@@ -394,11 +399,21 @@ public class SelectionOverlay extends WidgetBase {
     private void handlePointerReleased(PointerReleasedEvent pointer) {
         if (activeHandle == null) return;
         if (pointer.pointerId() != activePointerId) return;
+        XmlWidgetDocumentResult commitResult = pendingDragResult;
+        XmlWidgetNodePath commitPath = pendingDragPath == null ? activePath : pendingDragPath;
+        XmlWidgetLayoutHandle commitHandle = pendingDragHandle == null ? activeHandle : pendingDragHandle;
+        float commitDeltaX = pendingDragDeltaX;
+        float commitDeltaY = pendingDragDeltaY;
         cancelDrag();
+        if (commitResult != null) {
+            documentChanged.accept(new DocumentChange(this, commitResult, commitPath, commitHandle, commitDeltaX, commitDeltaY, true));
+        }
+        clearPendingDragResult();
         pointer.cancel();
     }
 
     private void startDrag(XmlWidgetNodePath path, XmlWidgetLayoutHandle handle, PointerEvent pointer) {
+        clearPendingDragResult();
         activePath = path;
         activeHandle = handle == null ? XmlWidgetLayoutHandle.MOVE : handle;
         hotHandle = activeHandle;
@@ -428,12 +443,25 @@ public class SelectionOverlay extends WidgetBase {
                              float deltaX,
                              float deltaY) {
         lastResult = result;
+        pendingDragResult = result;
+        pendingDragPath = path;
+        pendingDragHandle = handle;
+        pendingDragDeltaX = deltaX;
+        pendingDragDeltaY = deltaY;
         if (result.valid()) {
             document = result.document();
             selection.selectIfPresent(document, path);
         }
-        documentChanged.accept(new DocumentChange(this, result, path, handle, deltaX, deltaY));
+        documentChanged.accept(new DocumentChange(this, result, path, handle, deltaX, deltaY, false));
         invalidate(InvalidationFlags.VISUAL);
+    }
+
+    private void clearPendingDragResult() {
+        pendingDragResult = null;
+        pendingDragPath = null;
+        pendingDragHandle = null;
+        pendingDragDeltaX = 0.0f;
+        pendingDragDeltaY = 0.0f;
     }
 
     private void renderHover(RenderContext context) {
@@ -552,7 +580,8 @@ public class SelectionOverlay extends WidgetBase {
                                  XmlWidgetNodePath path,
                                  XmlWidgetLayoutHandle handle,
                                  float deltaX,
-                                 float deltaY) {
+                                 float deltaY,
+                                 boolean finalChange) {
     }
 
     public record SelectionChange(SelectionOverlay overlay,

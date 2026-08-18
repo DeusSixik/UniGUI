@@ -17,6 +17,7 @@ import dev.sixik.unigui.api.xml.XmlWidgetSerializationOptions;
 import dev.sixik.unigui.api.xml.editor.XmlEditorDocumentSources;
 import dev.sixik.unigui.api.xml.editor.XmlEditorMode;
 import dev.sixik.unigui.api.xml.editor.XmlEditorSession;
+import dev.sixik.unigui.api.xml.editor.XmlEditorSessionChange;
 import dev.sixik.unigui.widgets.containers.HBox;
 import dev.sixik.unigui.widgets.containers.LinearBox;
 import dev.sixik.unigui.widgets.containers.ScrollView;
@@ -152,10 +153,16 @@ public final class XmlEditorDemoScreen extends LinearBox {
                 request.parentPath(),
                 request.fromIndex(),
                 request.toIndex())));
+        hierarchyPanel.onReparentRequested(request -> this.session.applyEdit(XmlWidgetDocumentEdits.moveChild(
+                request.sourcePath(),
+                request.targetParentPath(),
+                request.targetIndex())));
         hierarchyPanel.bindPalette(palettePanel);
         this.session.onChanged(change -> {
-            refreshFromSession();
-            paneVisibility.updateDiagnostics(this.session.diagnosticsModel());
+            refreshFromSession(change);
+            if (affectsDiagnostics(change.kind())) {
+                paneVisibility.updateDiagnostics(this.session.diagnosticsModel());
+            }
         });
         refreshFromSession();
     }
@@ -475,25 +482,63 @@ public final class XmlEditorDemoScreen extends LinearBox {
     }
 
     private void refreshFromSession() {
-        syncingCodeEditor = true;
-        if (!codeEditor.text().equals(session.text())) {
-            codeEditor.text(session.text());
-        }
-        codeEditor.dirty(session.dirty());
-        codeEditor.xmlDiagnostics(session.diagnostics());
-        syncingCodeEditor = false;
+        refreshFromSession(null);
+    }
 
-        diagnosticsPanel.model(session.diagnosticsModel());
+    private void refreshFromSession(XmlEditorSessionChange change) {
+        boolean fullRefresh = change == null;
+        XmlEditorSessionChange.Kind kind = fullRefresh ? XmlEditorSessionChange.Kind.DOCUMENT_CHANGED : change.kind();
+
+        if (fullRefresh || affectsCodeEditor(kind)) {
+            syncingCodeEditor = true;
+            if (!codeEditor.text().equals(session.text())) {
+                codeEditor.text(session.text());
+            }
+            codeEditor.dirty(session.dirty());
+            codeEditor.xmlDiagnostics(session.diagnostics());
+            syncingCodeEditor = false;
+        }
+
+        if (fullRefresh || affectsDiagnostics(kind)) {
+            diagnosticsPanel.model(session.diagnosticsModel());
+        }
+
         statusBar.dirty(session.dirty())
                 .mode(formatMode(session.mode()))
                 .selectedNodePath(session.selectedPath().orElse(null))
                 .diagnostics(session.diagnosticsModel());
-        designCanvas.refreshFromSession();
-        runtimeView.refreshFromSession();
-        propertiesPanel.refreshFromSession();
-        hierarchyPanel.document(session.document())
-                .selectedPath(session.selectedPath().orElse(null));
+
+        if (fullRefresh || affectsHierarchyDocument(kind)) {
+            hierarchyPanel.document(session.document())
+                    .selectedPath(session.selectedPath().orElse(null));
+        } else if (kind == XmlEditorSessionChange.Kind.SELECTION_CHANGED) {
+            hierarchyPanel.selectedPath(session.selectedPath().orElse(null));
+        }
+
         syncCommandStates();
+    }
+
+    private static boolean affectsCodeEditor(XmlEditorSessionChange.Kind kind) {
+        return kind == XmlEditorSessionChange.Kind.DOCUMENT_CHANGED
+                || kind == XmlEditorSessionChange.Kind.TEXT_CHANGED
+                || kind == XmlEditorSessionChange.Kind.DIAGNOSTICS_CHANGED
+                || kind == XmlEditorSessionChange.Kind.SAVED
+                || kind == XmlEditorSessionChange.Kind.REVERTED
+                || kind == XmlEditorSessionChange.Kind.SOURCE_CHANGED;
+    }
+
+    private static boolean affectsDiagnostics(XmlEditorSessionChange.Kind kind) {
+        return kind == XmlEditorSessionChange.Kind.DOCUMENT_CHANGED
+                || kind == XmlEditorSessionChange.Kind.TEXT_CHANGED
+                || kind == XmlEditorSessionChange.Kind.DIAGNOSTICS_CHANGED
+                || kind == XmlEditorSessionChange.Kind.REVERTED;
+    }
+
+    private static boolean affectsHierarchyDocument(XmlEditorSessionChange.Kind kind) {
+        return kind == XmlEditorSessionChange.Kind.DOCUMENT_CHANGED
+                || kind == XmlEditorSessionChange.Kind.TEXT_CHANGED
+                || kind == XmlEditorSessionChange.Kind.REVERTED
+                || kind == XmlEditorSessionChange.Kind.SOURCE_CHANGED;
     }
 
     private void deleteSelected() {
