@@ -731,6 +731,14 @@ public interface RenderContext {
         submit(DrawCommand.pushClip(new MutableRect(x, y, width, height)));
     }
 
+    default void pushClip(float x, float y, float width, float height, Transform transform) {
+        DrawCommand command = DrawCommand.pushClip(new MutableRect(x, y, width, height));
+        if (transform != null) {
+            command.transform(transform);
+        }
+        submit(command);
+    }
+
     default void popClip() {
         submit(DrawCommand.popClip());
     }

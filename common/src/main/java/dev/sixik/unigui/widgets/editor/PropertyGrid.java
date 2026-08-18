@@ -229,22 +229,32 @@ public class PropertyGrid extends LinearBox {
         header.layout(style -> style.height(20.0f).flexGrow(0.0f).flexShrink(0.0f));
         content.addChild(header);
 
+        Map<String, XmlWidgetInspector.Attribute> presentByName = new LinkedHashMap<>();
+        for (XmlWidgetInspector.Attribute attribute : inspection.attributes()) {
+            String rowName = attribute.descriptor().map(XmlAttributeDescriptor::name).orElse(attribute.name());
+            presentByName.putIfAbsent(rowName, attribute);
+        }
+
         Map<String, List<PropertyFieldRow>> grouped = new LinkedHashMap<>();
         Set<String> seen = new LinkedHashSet<>();
+        for (XmlAttributeDescriptor descriptor : inspection.availableAttributes()) {
+            XmlWidgetInspector.Attribute attribute = presentByName.get(descriptor.name());
+            if (attribute != null) {
+                addRow(grouped, descriptor, attribute.source().name(), attribute.value(), true);
+                seen.add(descriptor.name());
+            } else if (showUnsetAttributes) {
+                addRow(grouped, descriptor, descriptor.name(), descriptor.defaultValue(), false);
+                seen.add(descriptor.name());
+            }
+        }
+
         for (XmlWidgetInspector.Attribute attribute : inspection.attributes()) {
             XmlAttributeDescriptor descriptor = attribute.descriptor()
                     .orElseGet(() -> XmlAttributeDescriptor.of(attribute.name()).category("Unknown"));
             String rowName = attribute.descriptor().map(XmlAttributeDescriptor::name).orElse(attribute.name());
+            if (seen.contains(rowName)) continue;
             seen.add(rowName);
             addRow(grouped, descriptor, attribute.source().name(), attribute.value(), true);
-        }
-
-        if (showUnsetAttributes) {
-            for (XmlAttributeDescriptor descriptor : inspection.availableAttributes()) {
-                if (!seen.contains(descriptor.name())) {
-                    addRow(grouped, descriptor, descriptor.name(), descriptor.defaultValue(), false);
-                }
-            }
         }
 
         for (Map.Entry<String, List<PropertyFieldRow>> entry : grouped.entrySet()) {

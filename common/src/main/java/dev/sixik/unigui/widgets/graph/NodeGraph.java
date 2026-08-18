@@ -1106,24 +1106,12 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         for (int i = start; i < commands.size(); i++) {
             DrawCommand command = commands.get(i);
             if (command == null) continue;
-            if (command.type() == DrawCommandType.PUSH_CLIP) {
-                // Scissor rectangles are not drawn through the PoseStack/matrix path,
-                // so their bounds must be converted to screen-space directly.
-                scaleBounds(command.bounds(), pivotX, pivotY, zoom);
-            } else if (command.type() != DrawCommandType.POP_CLIP) {
-                // Drawn primitives, SDF/Minecraft text, meshes and CUSTOM callbacks
+            if (command.type() != DrawCommandType.POP_CLIP) {
+                // Drawn primitives, text, meshes, CUSTOM callbacks and clip rectangles
                 // all go through command.transform(), so compose node zoom there.
                 composeZoom(command, pivotX, pivotY, zoom);
             }
         }
-    }
-
-    private static void scaleBounds(MutableRect bounds, float pivotX, float pivotY, float zoom) {
-        bounds.set(
-                pivotX + (bounds.x() - pivotX) * zoom,
-                pivotY + (bounds.y() - pivotY) * zoom,
-                bounds.width() * zoom,
-                bounds.height() * zoom);
     }
 
     private static void composeZoom(DrawCommand command, float pivotX, float pivotY, float zoom) {

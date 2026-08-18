@@ -1185,6 +1185,17 @@ public final class BasicControlsSelfTest {
                         && grid.row("radius").orElseThrow().present() == false,
                 "PropertyGrid should group rows by category and include unset descriptor attributes");
 
+        int radiusIndexBefore = propertyRowIndex(grid, "radius");
+        String radiusPreviousName = grid.rows().get(radiusIndexBefore - 1).name();
+        String radiusNextName = grid.rows().get(radiusIndexBefore + 1).name();
+        grid.setAttributeValue("radius", "6");
+        int radiusIndexAfter = propertyRowIndex(grid, "radius");
+        expect(radiusIndexAfter == radiusIndexBefore
+                        && grid.row("radius").orElseThrow().present()
+                        && grid.rows().get(radiusIndexAfter - 1).name().equals(radiusPreviousName)
+                        && grid.rows().get(radiusIndexAfter + 1).name().equals(radiusNextName),
+                "PropertyGrid should keep descriptor rows in place after writing an unset attribute");
+
         Counter changes = new Counter();
         grid.onAttributeChanged(change -> {
             changes.count++;
@@ -6024,6 +6035,22 @@ public final class BasicControlsSelfTest {
         expect(toggleTextIndex < Integer.MAX_VALUE && near(toggleDrawList.commands().get(toggleTextIndex).bounds().y(), 5.0f),
                 "Button text should be vertically centered in the control bounds");
 
+        Button movedButton = new Button("Moved");
+        movedButton.arrange(new MutableRect(0.0f, 0.0f, 72.0f, 20.0f));
+        movedButton.transform().position().set(28.0f, 24.0f);
+        DrawList movedButtonDrawList = new DrawList();
+        movedButton.render(new DefaultRenderContext(movedButtonDrawList));
+        int movedButtonClipIndex = firstCommandIndex(movedButtonDrawList, DrawCommandType.PUSH_CLIP, 0);
+        int movedButtonTextIndex = textCommandIndex(movedButtonDrawList, "Moved", 0);
+        expect(movedButtonClipIndex >= 0
+                        && movedButtonTextIndex < Integer.MAX_VALUE
+                        && movedButtonClipIndex < movedButtonTextIndex
+                        && near(movedButtonDrawList.commands().get(movedButtonClipIndex).transform().position().x(), 28.0f)
+                        && near(movedButtonDrawList.commands().get(movedButtonClipIndex).transform().position().y(), 24.0f)
+                        && near(movedButtonDrawList.commands().get(movedButtonTextIndex).transform().position().x(), 28.0f)
+                        && near(movedButtonDrawList.commands().get(movedButtonTextIndex).transform().position().y(), 24.0f),
+                "Button text clip should follow widget transform on both axes");
+
         Counter checkedChanges = new Counter();
         toggle.onCheckedChanged(event -> {
             checkedChanges.count++;
@@ -6303,6 +6330,15 @@ public final class BasicControlsSelfTest {
 
     private static long countTextCommands(DrawList drawList) {
         return drawList.commands().stream().filter(command -> command.type() == DrawCommandType.TEXT).count();
+    }
+
+    private static int propertyRowIndex(PropertyGrid grid, String name) {
+        for (int i = 0; i < grid.rows().size(); i++) {
+            if (grid.rows().get(i).name().equals(name)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private static int textCommandIndex(DrawList drawList, String text, int startIndex) {

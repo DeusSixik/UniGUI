@@ -644,9 +644,40 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
     }
 
     private void pushClip(DrawCommand command) {
-        RectView bounds = scaledClipBounds(command.bounds());
+        RectView bounds = scaledClipBounds(transformedClipBounds(command));
         ScissorStack.Rect next = scissorStack.push(bounds);
         applyScissor(next);
+    }
+
+    private RectView transformedClipBounds(DrawCommand command) {
+        if (command == null) return new MutableRect();
+        RectView bounds = command.bounds();
+        Matrix4f matrix = MinecraftTransform.commandMatrix(new Matrix4f(), command);
+        float x1 = bounds.x();
+        float y1 = bounds.y();
+        float x2 = bounds.x() + bounds.width();
+        float y2 = bounds.y() + bounds.height();
+        float tx1 = transformX(matrix, x1, y1);
+        float ty1 = transformY(matrix, x1, y1);
+        float tx2 = transformX(matrix, x2, y1);
+        float ty2 = transformY(matrix, x2, y1);
+        float tx3 = transformX(matrix, x2, y2);
+        float ty3 = transformY(matrix, x2, y2);
+        float tx4 = transformX(matrix, x1, y2);
+        float ty4 = transformY(matrix, x1, y2);
+        float left = Math.min(Math.min(tx1, tx2), Math.min(tx3, tx4));
+        float top = Math.min(Math.min(ty1, ty2), Math.min(ty3, ty4));
+        float right = Math.max(Math.max(tx1, tx2), Math.max(tx3, tx4));
+        float bottom = Math.max(Math.max(ty1, ty2), Math.max(ty3, ty4));
+        return new MutableRect(left, top, Math.max(0.0f, right - left), Math.max(0.0f, bottom - top));
+    }
+
+    private static float transformX(Matrix4f matrix, float x, float y) {
+        return matrix.m00() * x + matrix.m10() * y + matrix.m30();
+    }
+
+    private static float transformY(Matrix4f matrix, float x, float y) {
+        return matrix.m01() * x + matrix.m11() * y + matrix.m31();
     }
 
     private RectView scaledClipBounds(RectView bounds) {

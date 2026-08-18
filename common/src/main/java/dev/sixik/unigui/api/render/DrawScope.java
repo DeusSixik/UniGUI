@@ -324,7 +324,11 @@ public final class DrawScope {
     }
 
     public void pushClip(float x, float y, float width, float height) {
-        context.pushClip(x, y, width, height);
+        if (transform == null) {
+            context.pushClip(x, y, width, height);
+        } else {
+            context.pushClip(x, y, width, height, transformFor(x, y));
+        }
     }
 
     public void popClip() {
