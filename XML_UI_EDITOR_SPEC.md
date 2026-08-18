@@ -8,6 +8,8 @@ The long-term target is an editor that can be used by mods such as SDM Shop, whe
 
 Before implementing the editor screen itself, complete the widget readiness audit in `XML_UI_EDITOR_WIDGET_GAPS.md`. The editor should not start with temporary ad-hoc controls for menus, toolbars, properties, code editing or canvas handles.
 
+Text, RichText and CodeEditor hardening is tracked in `TEXT_AND_CODE_EDITOR_SPEC.md`. Code View and editor-facing text widgets should follow that contract instead of growing one-off editor-only behavior.
+
 Core principle:
 
 ```text
