@@ -20,11 +20,15 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.List;
 
 /**
- * Small shared text layout helper for retained widgets.
+ * Общий helper для измерения, переноса и рендера текста в retained widgets.
  *
- * <p>The current renderer still delegates glyph drawing to the backend, but widgets should not each guess
- * their own baseline. Keep these constants and alignment math in one place until a richer font metrics
- * backend is wired in.</p>
+ * <p>Обычный текст по-прежнему отдаётся backend'у как один {@link RichText}. Если значение содержит
+ * {@link InlineContentSpan}, engine переключается на локальную раскладку: проходит по span'ам,
+ * измеряет текстовые run'ы через {@link FontFace}, ставит inline-content как атомарные блоки и
+ * вызывает их renderer с уже рассчитанными bounds.</p>
+ *
+ * <p>Важно: inline-content здесь не превращается в widget. Это только часть текстового потока,
+ * поэтому он наследует clip/transform родительского текста и не получает input events.</p>
  */
 public final class TextEngine {
     public static final float APPROX_CHAR_WIDTH = 6.0f;
@@ -48,6 +52,7 @@ public final class TextEngine {
         if (text == null || text.isEmpty()) return 0.0f;
         RenderBackend backend = context == null ? null : context.backend();
         if (backend == null || text.hasInlineContent()) {
+            // Backend умеет быстро измерять plain rich text, но inline-span'ы знает только TextEngine.
             FontFace defaultFace = backend == null ? null : backend.defaultTextFace();
             return measureLineWidth(text, defaultFace);
         }
@@ -158,6 +163,7 @@ public final class TextEngine {
                             Paint paint, Transform transform,
                             Alignment horizontalAlignment, Alignment verticalAlignment) {
         if (text == null || text.isEmpty()) return;
+        // String API тоже проходит через resolver, чтобы XML/модовый scope мог подменить marker'ы.
         draw(context, RichText.resolve(text), x, y, width, height, paint, transform, horizontalAlignment, verticalAlignment);
     }
 
@@ -172,6 +178,7 @@ public final class TextEngine {
         float drawX = alignedStart(x, Math.max(0.0f, width), textWidth, horizontalAlignment);
         float drawY = alignedStart(y, Math.max(0.0f, height), textHeight, verticalAlignment);
         if (text.hasInlineContent()) {
+            // Inline-rich path раскладывает span'ы вручную, потому что backend.text не знает custom draw atoms.
             drawInline(new DrawScope(context, transform), text, drawX, drawY,
                     Math.max(0.0f, width - (drawX - x)), textHeight, paint);
         } else {
@@ -179,6 +186,14 @@ public final class TextEngine {
         }
     }
 
+    /**
+     * Рисует rich text с поддержкой inline-content.
+     *
+     * <p>Для plain rich text метод делегирует в {@link DrawScope#text(RichText, float, float, float, float, Paint)}.
+     * Для mixed content он последовательно рисует текстовые chunks и вызывает renderer каждого
+     * {@link InlineContentSpan}. Переносы внутри text-run'ов поддерживаются, но редактирование inline-span'ов
+     * остаётся задачей будущего editor layout.</p>
+     */
     public static void drawInline(DrawScope draw, RichText text,
                                   float x, float y, float width, float height,
                                   Paint paint) {
@@ -249,6 +264,7 @@ public final class TextEngine {
         TextRun chunkRun = new TextRun(chunk, run.font(), run.pixelSize(), run.color(), run.tracking(), run.transform());
         RichText chunkText = new RichText(List.of(chunkRun));
         float chunkWidth = measureRunWidth(chunkRun, defaultFace);
+        // Текстовые chunks всё ещё рисуются штатным backend renderer'ом, чтобы сохранить font/tint поведение.
         draw.text(chunkText, x, y, chunkWidth, lineHeight, paint);
         return x + chunkWidth;
     }
@@ -293,6 +309,7 @@ public final class TextEngine {
             int lastBreakStart = -1;
             float lineWidth = 0.0f;
             boolean emitted = false;
+            // WidthCursor синхронизирует plain-index из fallback text с реальным span-потоком.
             WidthCursor widthCursor = new WidthCursor(richText, lineStart, defaultFace);
 
             while (index < end) {
@@ -420,6 +437,14 @@ public final class TextEngine {
     private record TextRunDrawResult(float cursorX, float cursorY) {
     }
 
+    /**
+     * Cursor для измерения переносов по plain fallback индексам.
+     *
+     * <p>Wrap algorithm идёт по {@link RichText#plainText()}, потому что переносы и slicing работают
+     * с обычными индексами строки. Этот cursor держит соответствующий {@link RichTextSpan} и отдаёт
+     * ширину либо конкретного code point внутри {@link TextRun}, либо всей inline-span ширины на
+     * первом fallback-индексе inline-content.</p>
+     */
     private static final class WidthCursor {
         private final RichText text;
         private final FontFace defaultFace;

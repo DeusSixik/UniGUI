@@ -51,6 +51,8 @@ public final class XmlValueParsers {
         XmlTextureResolver normalizedResolver = resolver == null ? XmlWidgetOptions.DEFAULT_TEXTURE_RESOLVER : resolver;
         TEXTURE_RESOLVER.set(normalizedResolver);
         COMMANDS.set(commands == null ? XmlWidgetOptions.DEFAULT_COMMANDS : commands);
+        // XML text-атрибуты остаются строками. На время загрузки включаем resolver,
+        // который превращает marker'ы {icon:...}/{texture:...} в inline texture span'ы.
         InlineContentResolverScope inlineScope = InlineContentResolvers.push(InlineContentResolvers.textureMarkers(
                 (id, width, height) -> normalizedResolver.resolve(id, width, height, TextureOptions.defaults())));
         return new TextureResolverScope(previousResolver, previousCommands, inlineScope);
