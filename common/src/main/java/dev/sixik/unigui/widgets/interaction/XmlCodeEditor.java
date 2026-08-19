@@ -18,11 +18,13 @@ public class XmlCodeEditor extends CodeEditor {
     private XmlWidgetDocumentResult lastResult;
 
     public XmlCodeEditor() {
+        languagePreset(CodeLanguagePreset.XAML);
         placeholder("<VBox>...</VBox>");
     }
 
     public XmlCodeEditor(String xml) {
         super(xml);
+        languagePreset(CodeLanguagePreset.XAML);
         placeholder("<VBox>...</VBox>");
     }
 

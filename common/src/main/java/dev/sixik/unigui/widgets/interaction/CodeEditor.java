@@ -57,6 +57,7 @@ public class CodeEditor extends TextArea {
     private boolean dirty;
     private boolean lineNumbersVisible = true;
     private String languageId = "";
+    private CodeLanguagePreset languagePreset = CodeLanguagePreset.NONE;
     private int tabSize = 4;
     private TabInputMode tabInputMode = TabInputMode.INSERT_TAB;
     private TabStorageMode tabStorageMode = TabStorageMode.PRESERVE;
@@ -192,6 +193,31 @@ public class CodeEditor extends TextArea {
         clearSyntaxCache();
         invalidate(InvalidationFlags.VISUAL);
         return this;
+    }
+
+    public CodeLanguagePreset languagePreset() {
+        return languagePreset;
+    }
+
+    @XmlAttribute(value = "languagePreset", category = "Behavior", defaultValue = "NONE", description = "Built-in language preset used to install a default tokenizer.")
+    public CodeEditor languagePreset(CodeLanguagePreset languagePreset) {
+        CodeLanguagePreset normalized = languagePreset == null ? CodeLanguagePreset.NONE : languagePreset;
+        if (this.languagePreset == normalized) {
+            if (!isLanguagePresetApplied(normalized)) {
+                CodeLanguagePresets.apply(this, normalized);
+            }
+            return this;
+        }
+        this.languagePreset = normalized;
+        CodeLanguagePresets.apply(this, normalized);
+        return this;
+    }
+
+    private boolean isLanguagePresetApplied(CodeLanguagePreset preset) {
+        return switch (preset) {
+            case NONE -> languageId.isEmpty() && tokenizer == CodeTokenizer.NONE;
+            case XAML -> languageId.equals("xaml") && tokenizer == CodeLanguagePresets.xamlTokenizer();
+        };
     }
 
     public int tabSize() {

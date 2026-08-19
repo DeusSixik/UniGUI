@@ -133,6 +133,7 @@ import dev.sixik.unigui.widgets.graph.NodeGraph;
 import dev.sixik.unigui.widgets.graph.NodeGraphSelectionMode;
 import dev.sixik.unigui.widgets.interaction.Button;
 import dev.sixik.unigui.widgets.interaction.Checkbox;
+import dev.sixik.unigui.widgets.interaction.CodeLanguagePreset;
 import dev.sixik.unigui.widgets.interaction.ColorPicker;
 import dev.sixik.unigui.widgets.interaction.ComboBox;
 import dev.sixik.unigui.widgets.interaction.DatePicker;
@@ -1675,12 +1676,14 @@ public final class XmlWidgetSelfTest {
                 "XmlCodeEditor format should fail softly and expose parse diagnostics");
 
         XmlCodeEditor fromXml = XMLWidget.create("""
-                <XmlCodeEditor id="source" text="&lt;VBox /&gt;" lineNumbers="false" visibleLines="4" />
+                <XmlCodeEditor id="source" text="&lt;VBox /&gt;" lineNumbers="false" visibleLines="4" languagePreset="xaml" />
                 """, XmlCodeEditor.class);
         expect(fromXml.id().equals("source")
                         && fromXml.text().equals("<VBox />")
                         && !fromXml.lineNumbersVisible()
-                        && fromXml.visibleLines() == 4,
+                        && fromXml.visibleLines() == 4
+                        && fromXml.languagePreset() == CodeLanguagePreset.XAML
+                        && fromXml.languageId().equals("xaml"),
                 "XmlCodeEditor should materialize from built-in XML registration");
     }
 

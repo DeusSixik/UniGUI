@@ -124,7 +124,9 @@ import dev.sixik.unigui.widgets.navigation.Carousel;
 import dev.sixik.unigui.widgets.interaction.Checkbox;
 import dev.sixik.unigui.widgets.interaction.CodeDiagnostic;
 import dev.sixik.unigui.widgets.interaction.CodeEditor;
+import dev.sixik.unigui.widgets.interaction.CodeLanguagePreset;
 import dev.sixik.unigui.widgets.interaction.CodeToken;
+import dev.sixik.unigui.widgets.interaction.CodeTokenizationContext;
 import dev.sixik.unigui.widgets.interaction.CompletionItem;
 import dev.sixik.unigui.widgets.interaction.TokenStyle;
 import dev.sixik.unigui.widgets.interaction.ComboBox;
@@ -221,6 +223,7 @@ import dev.sixik.unigui.widgets.render.ButtonRenderers;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
+import java.util.List;
 import dev.sixik.unigui.widgets.containers.Splitter;
 import dev.sixik.unigui.widgets.docking.DockingManager;
 import dev.sixik.unigui.widgets.docking.DockNode;
@@ -1173,6 +1176,28 @@ public final class BasicControlsSelfTest {
         editor.tokenizer(context -> { throw new IllegalStateException("tokenizer failed"); });
         DrawList failedTokenizerDrawList = new DrawList();
         editor.render(new DefaultRenderContext(failedTokenizerDrawList));
+
+        CodeEditor xamlEditor = new CodeEditor("<Grid x:Name=\"Root\"><TextBlock Text=\"Hi\" />Hi &amp; Bye</Grid>")
+                .languagePreset(CodeLanguagePreset.XAML);
+        expect(xamlEditor.languagePreset() == CodeLanguagePreset.XAML && xamlEditor.languageId().equals("xaml"),
+                "CodeEditor languagePreset should install the built-in XAML language id");
+        List<CodeToken> xamlTokens = xamlEditor.tokenizer().tokenize(
+                new CodeTokenizationContext(xamlEditor.text(), xamlEditor.languageId()));
+        expect(hasTokenText(xamlEditor.text(), xamlTokens, "Grid")
+                        && hasTokenText(xamlEditor.text(), xamlTokens, "x:Name")
+                        && hasTokenText(xamlEditor.text(), xamlTokens, "\"Root\"")
+                        && hasTokenText(xamlEditor.text(), xamlTokens, "Text")
+                        && hasTokenText(xamlEditor.text(), xamlTokens, "&amp;"),
+                "CodeEditor XAML preset should tokenize element names, attribute names, strings and entities");
+        xamlEditor.arrange(new MutableRect(0.0f, 0.0f, 260.0f, 48.0f));
+        DrawList xamlDrawList = new DrawList();
+        xamlEditor.render(new DefaultRenderContext(xamlDrawList));
+        expect(hasFillColor(xamlDrawList, 0.42f, 0.78f, 1.0f, 1.0f),
+                "CodeEditor XAML preset should render element tokens with the preset color");
+        xamlEditor.languagePreset(CodeLanguagePreset.NONE);
+        expect(xamlEditor.languageId().isEmpty()
+                        && xamlEditor.tokenizer().tokenize(new CodeTokenizationContext(xamlEditor.text(), xamlEditor.languageId())).isEmpty(),
+                "CodeEditor NONE languagePreset should clear built-in language tokenization");
 
         expect(Widgets.codeEditor("factory") instanceof CodeEditor, "Widgets.codeEditor should create CodeEditor instances");
     }
@@ -6594,6 +6619,12 @@ public final class BasicControlsSelfTest {
                 .filter(command -> command.paint() != null && !command.paint().isStroke())
                 .map(command -> command.paint().color())
                 .anyMatch(color -> near(color.r(), r) && near(color.g(), g) && near(color.b(), b) && near(color.a(), a));
+    }
+
+    private static boolean hasTokenText(String text, List<CodeToken> tokens, String value) {
+        return tokens.stream()
+                .filter(token -> token.startIndex() >= 0 && token.endIndex() <= text.length())
+                .anyMatch(token -> value.equals(text.substring(token.startIndex(), token.endIndex())));
     }
 
     private static boolean near(float left, float right) {
