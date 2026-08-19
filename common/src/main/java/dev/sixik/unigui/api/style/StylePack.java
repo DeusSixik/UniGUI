@@ -55,6 +55,30 @@ public final class StylePack implements Theme {
     }
 
     /**
+     * Парсит XML-документ {@code <StylePack>} через стандартный registry свойств.
+     *
+     * <p>Это короткий entrypoint поверх {@link StylePackXml#parse(String)}, чтобы пользовательский
+     * код мог писать {@code StylePack.from(xml)} без прямой зависимости от codec-класса.</p>
+     *
+     * @param xml XML-документ StylePack
+     * @return загруженный style pack
+     */
+    public static StylePack from(String xml) {
+        return StylePackXml.parse(xml);
+    }
+
+    /**
+     * Парсит XML-документ {@code <StylePack>} через указанный registry свойств.
+     *
+     * @param xml XML-документ StylePack
+     * @param registry registry известных style-свойств
+     * @return загруженный style pack
+     */
+    public static StylePack from(String xml, StyleKeyRegistry registry) {
+        return StylePackXml.parse(xml, registry);
+    }
+
+    /**
      * @return id style pack'а
      */
     public String id() {

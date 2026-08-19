@@ -27,6 +27,31 @@ public interface Style {
     };
 
     /**
+     * Парсит одиночный XML-элемент {@code <Style>} через стандартный registry свойств.
+     *
+     * <p>Метод читает только style-свойства: {@code <Setter>} и {@code <State>}. Атрибуты уровня
+     * {@link StyleDefinition}, {@code <Event>} и связи с renderer'ом не попадают в {@code Style};
+     * для полного style pack'а используй {@link StylePack#from(String)}.</p>
+     *
+     * @param xml XML с корневым элементом {@code <Style>}
+     * @return загруженный стиль
+     */
+    static Style from(String xml) {
+        return StylePackXml.parseStyle(xml);
+    }
+
+    /**
+     * Парсит одиночный XML-элемент {@code <Style>} через указанный registry свойств.
+     *
+     * @param xml XML с корневым элементом {@code <Style>}
+     * @param registry registry известных style-свойств
+     * @return загруженный стиль
+     */
+    static Style from(String xml, StyleKeyRegistry registry) {
+        return StylePackXml.parseStyle(xml, registry);
+    }
+
+    /**
      * Возвращает версию стиля для кэшей и invalidation.
      *
      * <p>Версия должна меняться при любом изменении значений. Неизменяемые стили могут

@@ -93,6 +93,45 @@ public final class StylePackXml {
     }
 
     /**
+     * Парсит одиночный XML-элемент {@code <Style>} через стандартный registry свойств.
+     *
+     * <p>Метод возвращает только декларативные значения {@link Style}: {@code <Setter>} и
+     * {@code <State>}. Атрибуты {@code id}, {@code target}, {@code class}, {@code widgetId},
+     * {@code renderer} и дочерние {@code <Event>} относятся к {@link StyleDefinition} и при таком
+     * разборе не сохраняются. Для полного формата используй {@link StylePack#from(String)}.</p>
+     *
+     * @param xml XML с корневым элементом {@code <Style>}
+     * @return загруженный стиль
+     */
+    public static Style parseStyle(String xml) {
+        return parseStyle(xml, StyleKeyRegistry.builtIns());
+    }
+
+    /**
+     * Парсит одиночный XML-элемент {@code <Style>} через указанный registry свойств.
+     *
+     * @param xml XML с корневым элементом {@code <Style>}
+     * @param registry registry известных style-свойств
+     * @return загруженный стиль
+     */
+    public static Style parseStyle(String xml, StyleKeyRegistry registry) {
+        StyleKeyRegistry effectiveRegistry = registry == null ? StyleKeyRegistry.builtIns() : registry;
+        XmlWidgetDocument document = XmlWidgetDocument.parse(xml);
+        XmlWidgetElement root = document.root();
+        List<XmlWidgetDiagnostic> diagnostics = new ArrayList<>();
+        if (!root.name().equals("Style")) {
+            diagnostics.add(diagnostic(root, "Expected root element <Style>, got <" + root.name() + ">."));
+            throw new XmlWidgetLoadException(diagnostics);
+        }
+
+        Style style = parseStyleValues(root, effectiveRegistry, diagnostics, null);
+        if (!diagnostics.isEmpty()) {
+            throw new XmlWidgetLoadException(diagnostics);
+        }
+        return style;
+    }
+
+    /**
      * Сериализует style pack обратно в XML.
      *
      * @param pack pack для сохранения; {@code null} сериализуется как пустой pack
@@ -133,16 +172,8 @@ public final class StylePackXml {
             return;
         }
 
-        MutableStyle style = new MutableStyle();
         Map<String, String> events = new LinkedHashMap<>();
-        for (XmlWidgetElement child : element.elementChildren()) {
-            switch (child.name()) {
-                case "Setter" -> parseSetter(style, WidgetState.NORMAL, child, registry, diagnostics);
-                case "State" -> parseState(style, child, registry, diagnostics);
-                case "Event" -> parseEvent(events, child, diagnostics);
-                default -> diagnostics.add(diagnostic(child, "Unknown Style child <" + child.name() + ">."));
-            }
-        }
+        MutableStyle style = parseStyleValues(element, registry, diagnostics, events);
 
         String renderer = element.attributeOrDefault("renderer", "").trim();
         String target = element.attributeOrDefault("target", "").trim();
@@ -160,6 +191,26 @@ public final class StylePackXml {
         if (!target.isEmpty() && styleClass.isEmpty() && widgetId.isEmpty()) {
             pack.bind(target, id);
         }
+    }
+
+    private static MutableStyle parseStyleValues(XmlWidgetElement element,
+                                                 StyleKeyRegistry registry,
+                                                 List<XmlWidgetDiagnostic> diagnostics,
+                                                 Map<String, String> events) {
+        MutableStyle style = new MutableStyle();
+        for (XmlWidgetElement child : element.elementChildren()) {
+            switch (child.name()) {
+                case "Setter" -> parseSetter(style, WidgetState.NORMAL, child, registry, diagnostics);
+                case "State" -> parseState(style, child, registry, diagnostics);
+                case "Event" -> {
+                    if (events != null) {
+                        parseEvent(events, child, diagnostics);
+                    }
+                }
+                default -> diagnostics.add(diagnostic(child, "Unknown Style child <" + child.name() + ">."));
+            }
+        }
+        return style;
     }
 
     private static void parseBinding(StylePack pack, XmlWidgetElement element, List<XmlWidgetDiagnostic> diagnostics) {
