@@ -51,6 +51,8 @@ import java.util.Objects;
 public class TextArea extends Box {
     protected static final float TEXT_PADDING = 4.0f;
     protected static final float APPROX_CHAR_WIDTH = TextEngine.APPROX_CHAR_WIDTH;
+    private static final float SCROLLBAR_SIZE = 3.0f;
+    private static final float SCROLLBAR_MIN_THUMB = 8.0f;
 
     private final TextEditorModel editor = new TextEditorModel();
     private final MutableColor textColor = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -75,6 +77,10 @@ public class TextArea extends Box {
     private float measuredTextWidth;
     private List<LineMetrics> lineMetrics = List.of(new LineMetrics(0, 0, 0, "", RichText.plain(""), 0.0f, new float[]{0.0f}));
     private boolean visualOnlyTextChanges;
+    private boolean readOnly;
+    private boolean followCaretRequested = true;
+    private ScrollDragAxis draggingScrollAxis = ScrollDragAxis.NONE;
+    private float scrollDragPointerOffsetPixels;
 
     public TextArea() {
         mouseCursor(MouseCursor.TEXT);
@@ -132,6 +138,19 @@ public class TextArea extends Box {
         return this;
     }
 
+    public FontFace fontFace() {
+        return font;
+    }
+
+    public float fontSize() {
+        return pixelSize;
+    }
+
+    @XmlAttribute(value = "fontSize", category = "Appearance", defaultValue = "10", description = "Default text size in UI pixels.")
+    public TextArea fontSize(float pixelSize) {
+        return font(font, pixelSize);
+    }
+
     public TextArea font(FontFace font, float pixelSize) {
         float normalizedSize = Float.isFinite(pixelSize) ? Math.max(1.0f, pixelSize) : TextRun.DEFAULT_PIXEL_SIZE;
         if (this.font == font && this.pixelSize == normalizedSize) return this;
@@ -183,6 +202,7 @@ public class TextArea extends Box {
     public TextArea cursorIndex(int cursorIndex) {
         if (editor.cursorIndex(cursorIndex)) {
             resetDesiredCursorX();
+            requestCursorFollow();
             invalidate(InvalidationFlags.VISUAL);
         }
         return this;
@@ -207,6 +227,7 @@ public class TextArea extends Box {
     public TextArea select(int start, int end) {
         if (editor.select(start, end)) {
             resetDesiredCursorX();
+            requestCursorFollow();
             invalidate(InvalidationFlags.VISUAL);
         }
         return this;
@@ -235,6 +256,22 @@ public class TextArea extends Box {
             invalidate(InvalidationFlags.VISUAL);
         }
         return this;
+    }
+
+    public boolean readOnly() {
+        return readOnly;
+    }
+
+    @XmlAttribute(value = "readOnly", category = "Behavior", defaultValue = "false", description = "When true, user input cannot mutate the text value.")
+    public TextArea readOnly(boolean readOnly) {
+        if (this.readOnly == readOnly) return this;
+        this.readOnly = readOnly;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    protected boolean canMutateText() {
+        return !readOnly;
     }
 
     public boolean focused() {
@@ -273,6 +310,7 @@ public class TextArea extends Box {
         updateLineMetrics(null);
         float nextX = clamp(Float.isFinite(x) ? x : 0.0f, 0.0f, maxScrollX());
         float nextY = clamp(Float.isFinite(y) ? y : 0.0f, 0.0f, maxScrollY());
+        followCaretRequested = false;
         if (horizontalScrollPixels == nextX && verticalScrollPixels == nextY) return this;
         horizontalScrollPixels = nextX;
         verticalScrollPixels = nextY;
@@ -364,6 +402,7 @@ public class TextArea extends Box {
         }
         if (event instanceof FocusLostEvent) {
             selectingWithPointer = false;
+            draggingScrollAxis = ScrollDragAxis.NONE;
             UIContext context = uiContext();
             if (context != null) {
                 context.releasePointer(0, this);
@@ -374,14 +413,38 @@ public class TextArea extends Box {
         }
         if (event instanceof PointerEvent pointerEvent && pointerEvent.phase() == EventPhase.CAPTURE) return;
 
+        if (event instanceof PointerMovedEvent pointer && draggingScrollAxis != ScrollDragAxis.NONE) {
+            updateScrollBarDrag(pointer.rootX(), pointer.rootY());
+            event.cancel();
+            return;
+        }
+
+        if (event instanceof PointerReleasedEvent pointer && pointer.button() == PointerButton.PRIMARY && draggingScrollAxis != ScrollDragAxis.NONE) {
+            updateScrollBarDrag(pointer.rootX(), pointer.rootY());
+            draggingScrollAxis = ScrollDragAxis.NONE;
+            UIContext context = uiContext();
+            if (context != null) {
+                context.releasePointer(pointer.pointerId(), this);
+            }
+            event.cancel();
+            return;
+        }
+
         if (event instanceof PointerPressedEvent pointer && pointer.button() == PointerButton.PRIMARY) {
+            ScrollDragAxis scrollAxis = hitScrollBar(localXFromRoot(pointer.rootX()), localYFromRoot(pointer.rootY()));
+            if (scrollAxis != ScrollDragAxis.NONE) {
+                beginScrollBarDrag(pointer, scrollAxis);
+                event.cancel();
+                return;
+            }
+
             UIContext context = uiContext();
             if (context != null) {
                 context.focusManager().requestFocus(this);
             } else {
                 setFocused(true);
             }
-            int cursor = indexAtLocal(pointer.localX(), pointer.localY());
+            int cursor = indexAtLocal(localXFromRoot(pointer.rootX()), localYFromRoot(pointer.rootY()));
             moveCursor(cursor, false);
             pointerSelectionAnchor = cursor;
             selectingWithPointer = true;
@@ -393,7 +456,7 @@ public class TextArea extends Box {
         }
 
         if (event instanceof PointerMovedEvent pointer && selectingWithPointer) {
-            moveCursor(indexAtLocal(pointer.localX(), pointer.localY()), true, pointerSelectionAnchor);
+            moveCursor(indexAtLocal(localXFromRoot(pointer.rootX()), localYFromRoot(pointer.rootY())), true, pointerSelectionAnchor);
             event.cancel();
             return;
         }
@@ -442,7 +505,10 @@ public class TextArea extends Box {
 
     protected void renderTextArea(RenderContext context) {
         updateLineMetrics(context);
-        ensureCursorVisible();
+        if (followCaretRequested) {
+            ensureCursorVisible();
+            followCaretRequested = false;
+        }
         effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), textAreaState());
     }
 
@@ -543,9 +609,11 @@ public class TextArea extends Box {
 
     protected void cutSelection() {
         copySelection();
+        if (!canMutateText()) return;
         if (editor.deleteSelectionIfNeeded()) {
             clearLineMetrics();
             resetDesiredCursorX();
+            requestCursorFollow();
             invalidate(InvalidationFlags.VISUAL);
         }
     }
@@ -554,13 +622,13 @@ public class TextArea extends Box {
         return normalizeEditableText(text);
     }
 
-    private void updateLineMetrics(RenderContext context) {
+    protected void updateLineMetrics(RenderContext context) {
         String displayText = displayText();
         float lineHeight = effectiveLineHeight();
         Object metricsSource = context == null ? null : context.backend();
         if (Objects.equals(measuredDisplayText, displayText)
-                && measuredMetricsSource == metricsSource
-                && measuredLineHeight == lineHeight) {
+                && measuredLineHeight == lineHeight
+                && (measuredMetricsSource == metricsSource || context == null)) {
             return;
         }
 
@@ -577,10 +645,15 @@ public class TextArea extends Box {
             String lineText = displayText.substring(start, end);
             RichText richText = richText(lineText);
             float[] prefixWidths = new float[lineText.length() + 1];
-            for (int i = 1; i <= lineText.length(); i++) {
-                prefixWidths[i] = TextEngine.measureLineWidth(context, richText(lineText.substring(0, i)));
+            float width = 0.0f;
+            for (int i = 0; i < lineText.length(); ) {
+                int next = lineText.offsetByCodePoints(i, 1);
+                width = TextEngine.measureLineWidth(context, richText(lineText.substring(0, next)));
+                for (int fill = i + 1; fill <= next; fill++) {
+                    prefixWidths[fill] = width;
+                }
+                i = next;
             }
-            float width = prefixWidths.length == 0 ? 0.0f : prefixWidths[prefixWidths.length - 1];
             measuredTextWidth = Math.max(measuredTextWidth, width);
             lines.add(new LineMetrics(lineIndex, start, end, lineText, richText, width, prefixWidths));
             lineIndex++;
@@ -595,11 +668,11 @@ public class TextArea extends Box {
         verticalScrollPixels = clamp(verticalScrollPixels, 0.0f, maxScrollY());
     }
 
-    private void clearLineMetrics() {
+    protected void clearLineMetrics() {
         measuredDisplayText = null;
     }
 
-    private void ensureCursorVisible() {
+    protected void ensureCursorVisible() {
         if (isShowingPlaceholder() || text().isEmpty()) {
             horizontalScrollPixels = 0.0f;
             verticalScrollPixels = 0.0f;
@@ -642,32 +715,159 @@ public class TextArea extends Box {
         return indexAtLineX(lineMetrics.get(lineIndex), x);
     }
 
+    private ScrollDragAxis hitScrollBar(float localX, float localY) {
+        updateLineMetrics(null);
+        if (verticalScrollbarVisible()
+                && localX >= verticalScrollbarLocalX()
+                && localX <= verticalScrollbarLocalX() + SCROLLBAR_SIZE
+                && localY >= topTextPadding()
+                && localY <= topTextPadding() + textViewportHeight()) {
+            return ScrollDragAxis.VERTICAL;
+        }
+        if (horizontalScrollbarVisible()
+                && localX >= leftTextPadding()
+                && localX <= leftTextPadding() + textViewportWidth()
+                && localY >= horizontalScrollbarLocalY()
+                && localY <= horizontalScrollbarLocalY() + SCROLLBAR_SIZE) {
+            return ScrollDragAxis.HORIZONTAL;
+        }
+        return ScrollDragAxis.NONE;
+    }
+
+    private void beginScrollBarDrag(PointerEvent pointer, ScrollDragAxis axis) {
+        UIContext context = uiContext();
+        if (context != null) {
+            context.focusManager().requestFocus(this);
+            context.capturePointer(pointer.pointerId(), this);
+        } else {
+            setFocused(true);
+        }
+        selectingWithPointer = false;
+        draggingScrollAxis = axis;
+        scrollDragPointerOffsetPixels = scrollBarPointerOffset(axis,
+                localXFromRoot(pointer.rootX()),
+                localYFromRoot(pointer.rootY()));
+        updateScrollBarDrag(pointer.rootX(), pointer.rootY());
+    }
+
+    private void updateScrollBarDrag(float rootX, float rootY) {
+        updateLineMetrics(null);
+        if (draggingScrollAxis == ScrollDragAxis.VERTICAL) {
+            float maxY = maxScrollY();
+            if (maxY <= 0.0f) return;
+            float travel = Math.max(1.0f, textViewportHeight() - verticalScrollbarThumbHeight());
+            float thumbTop = localYFromRoot(rootY) - topTextPadding() - scrollDragPointerOffsetPixels;
+            scrollTo(horizontalScrollPixels, maxY * clamp(thumbTop / travel, 0.0f, 1.0f));
+        } else if (draggingScrollAxis == ScrollDragAxis.HORIZONTAL) {
+            float maxX = maxScrollX();
+            if (maxX <= 0.0f) return;
+            float travel = Math.max(1.0f, textViewportWidth() - horizontalScrollbarThumbWidth());
+            float thumbLeft = localXFromRoot(rootX) - leftTextPadding() - scrollDragPointerOffsetPixels;
+            scrollTo(maxX * clamp(thumbLeft / travel, 0.0f, 1.0f), verticalScrollPixels);
+        }
+    }
+
+    private float scrollBarPointerOffset(ScrollDragAxis axis, float localX, float localY) {
+        if (axis == ScrollDragAxis.VERTICAL) {
+            float thumbY = verticalScrollbarThumbLocalY();
+            float thumbHeight = verticalScrollbarThumbHeight();
+            if (localY >= thumbY && localY <= thumbY + thumbHeight) {
+                return localY - thumbY;
+            }
+            return thumbHeight * 0.5f;
+        }
+        if (axis == ScrollDragAxis.HORIZONTAL) {
+            float thumbX = horizontalScrollbarThumbLocalX();
+            float thumbWidth = horizontalScrollbarThumbWidth();
+            if (localX >= thumbX && localX <= thumbX + thumbWidth) {
+                return localX - thumbX;
+            }
+            return thumbWidth * 0.5f;
+        }
+        return 0.0f;
+    }
+
+    private boolean verticalScrollbarVisible() {
+        return maxScrollY() > 0.0f && textViewportHeight() > 0.0f;
+    }
+
+    private boolean horizontalScrollbarVisible() {
+        return maxScrollX() > 0.0f && textViewportWidth() > 0.0f;
+    }
+
+    private float verticalScrollbarLocalX() {
+        return leftTextPadding() + Math.max(0.0f, textViewportWidth() - SCROLLBAR_SIZE);
+    }
+
+    private float horizontalScrollbarLocalY() {
+        return topTextPadding() + Math.max(0.0f, textViewportHeight() - SCROLLBAR_SIZE);
+    }
+
+    private float verticalScrollbarThumbHeight() {
+        float viewportHeight = textViewportHeight();
+        if (viewportHeight <= 0.0f) return 0.0f;
+        float contentHeight = contentHeight();
+        float proportionalHeight = viewportHeight * Math.min(1.0f, viewportHeight / Math.max(viewportHeight, contentHeight));
+        return Math.min(viewportHeight, Math.max(SCROLLBAR_MIN_THUMB, proportionalHeight));
+    }
+
+    private float verticalScrollbarThumbLocalY() {
+        float maxY = maxScrollY();
+        float travel = Math.max(1.0f, textViewportHeight() - verticalScrollbarThumbHeight());
+        return topTextPadding() + travel * (maxY <= 0.0f ? 0.0f : Math.min(1.0f, verticalScrollPixels / maxY));
+    }
+
+    private float horizontalScrollbarThumbWidth() {
+        float viewportWidth = textViewportWidth();
+        if (viewportWidth <= 0.0f) return 0.0f;
+        float proportionalWidth = viewportWidth * Math.min(1.0f, viewportWidth / Math.max(viewportWidth, measuredTextWidth));
+        return Math.min(viewportWidth, Math.max(SCROLLBAR_MIN_THUMB, proportionalWidth));
+    }
+
+    private float horizontalScrollbarThumbLocalX() {
+        float maxX = maxScrollX();
+        float travel = Math.max(1.0f, textViewportWidth() - horizontalScrollbarThumbWidth());
+        return leftTextPadding() + travel * (maxX <= 0.0f ? 0.0f : Math.min(1.0f, horizontalScrollPixels / maxX));
+    }
+
+    private float localXFromRoot(float rootX) {
+        return rootX - layoutBounds().x();
+    }
+
+    private float localYFromRoot(float rootY) {
+        return rootY - layoutBounds().y();
+    }
+
     private int indexAtLineX(LineMetrics line, float x) {
         if (line.length() <= 0) return line.start;
-        for (int i = 0; i < line.length(); i++) {
-            float midpoint = (line.prefixWidth(i) + line.prefixWidth(i + 1)) * 0.5f;
-            if (x < midpoint) return line.start + i;
+        for (int localIndex = 0; localIndex < line.length(); ) {
+            int next = line.text.offsetByCodePoints(localIndex, 1);
+            float midpoint = (line.prefixWidth(localIndex) + line.prefixWidth(next)) * 0.5f;
+            if (x < midpoint) return line.start + localIndex;
+            localIndex = next;
         }
         return line.end;
     }
 
-    private void moveCursor(int cursorIndex, boolean extendSelection) {
+    protected void moveCursor(int cursorIndex, boolean extendSelection) {
         moveCursor(cursorIndex, extendSelection, false);
     }
 
-    private void moveCursor(int cursorIndex, boolean extendSelection, int selectionAnchor) {
+    protected void moveCursor(int cursorIndex, boolean extendSelection, int selectionAnchor) {
         boolean changed = extendSelection
                 ? editor.select(selectionAnchor, cursorIndex)
                 : editor.moveCursor(cursorIndex, false);
         if (changed) {
             resetDesiredCursorX();
+            requestCursorFollow();
             invalidate(InvalidationFlags.VISUAL);
         }
     }
 
-    private void moveCursor(int cursorIndex, boolean extendSelection, boolean keepDesiredCursorX) {
+    protected void moveCursor(int cursorIndex, boolean extendSelection, boolean keepDesiredCursorX) {
         if (editor.moveCursor(cursorIndex, extendSelection)) {
             if (!keepDesiredCursorX) resetDesiredCursorX();
+            requestCursorFollow();
             invalidate(InvalidationFlags.VISUAL);
         }
     }
@@ -682,7 +882,7 @@ public class TextArea extends Box {
         return text().offsetByCodePoints(cursorIndex(), 1);
     }
 
-    private boolean handleKey(int keyCode, int modifiers) {
+    protected boolean handleKey(int keyCode, int modifiers) {
         if (KeyModifiers.has(modifiers, KeyModifiers.CONTROL)) {
             return handleControlKey(keyCode, modifiers);
         }
@@ -690,11 +890,11 @@ public class TextArea extends Box {
         boolean extendSelection = KeyModifiers.has(modifiers, KeyModifiers.SHIFT);
         return switch (keyCode) {
             case KeyCodes.BACKSPACE -> {
-                backspace();
+                if (canMutateText()) backspace();
                 yield true;
             }
             case KeyCodes.DELETE -> {
-                delete();
+                if (canMutateText()) delete();
                 yield true;
             }
             case KeyCodes.LEFT -> {
@@ -730,11 +930,11 @@ public class TextArea extends Box {
                 yield true;
             }
             case KeyCodes.ENTER, KeyCodes.KEYPAD_ENTER -> {
-                insertText("\n");
+                if (canMutateText()) insertText("\n");
                 yield true;
             }
             case KeyCodes.TAB -> {
-                insertText("\t");
+                handleTabKey(modifiers);
                 yield true;
             }
             case KeyCodes.ESCAPE -> {
@@ -750,7 +950,7 @@ public class TextArea extends Box {
         };
     }
 
-    private boolean handleControlKey(int keyCode, int modifiers) {
+    protected boolean handleControlKey(int keyCode, int modifiers) {
         boolean extendSelection = KeyModifiers.has(modifiers, KeyModifiers.SHIFT);
         return switch (keyCode) {
             case KeyCodes.A -> {
@@ -762,11 +962,11 @@ public class TextArea extends Box {
                 yield true;
             }
             case KeyCodes.X -> {
-                cutSelection();
+                if (canMutateText()) cutSelection();
                 yield true;
             }
             case KeyCodes.V -> {
-                pasteClipboard();
+                if (canMutateText()) pasteClipboard();
                 yield true;
             }
             case KeyCodes.HOME -> {
@@ -781,7 +981,7 @@ public class TextArea extends Box {
         };
     }
 
-    private void moveVertical(int lineDelta, boolean extendSelection) {
+    protected void moveVertical(int lineDelta, boolean extendSelection) {
         updateLineMetrics(null);
         if (lineMetrics.isEmpty()) return;
         LineMetrics current = lineForIndex(cursorIndex());
@@ -797,44 +997,55 @@ public class TextArea extends Box {
         return Math.max(1, (int) Math.floor(textViewportHeight() / Math.max(1.0f, effectiveLineHeight())));
     }
 
-    private void insertCodePoint(int codePoint) {
+    protected void insertCodePoint(int codePoint) {
+        if (!canMutateText()) return;
         if (codePoint == '\r' || codePoint == '\n') {
             insertText("\n");
             return;
         }
         if (codePoint == '\t') {
-            insertText("\t");
+            handleTabKey(0);
             return;
         }
         if (!Character.isValidCodePoint(codePoint) || !TextEditorModel.isPrintable(codePoint)) return;
         insertText(new String(Character.toChars(codePoint)));
     }
 
-    private void insertText(String text) {
+    protected void handleTabKey(int modifiers) {
+        if (canMutateText()) insertText("\t");
+    }
+
+    protected void insertText(String text) {
+        if (!canMutateText()) return;
         if (editor.insertText(sanitizeTextInput(text))) {
             clearLineMetrics();
             resetDesiredCursorX();
+            requestCursorFollow();
             invalidate(InvalidationFlags.VISUAL);
         }
     }
 
-    private void backspace() {
+    protected void backspace() {
+        if (!canMutateText()) return;
         if (editor.backspace()) {
             clearLineMetrics();
             resetDesiredCursorX();
+            requestCursorFollow();
             invalidate(InvalidationFlags.VISUAL);
         }
     }
 
-    private void delete() {
+    protected void delete() {
+        if (!canMutateText()) return;
         if (editor.delete()) {
             clearLineMetrics();
             resetDesiredCursorX();
+            requestCursorFollow();
             invalidate(InvalidationFlags.VISUAL);
         }
     }
 
-    private void pasteClipboard() {
+    protected void pasteClipboard() {
         UIContext context = uiContext();
         if (context == null) return;
         String clipboard = context.clipboard().getText();
@@ -842,30 +1053,86 @@ public class TextArea extends Box {
         insertText(clipboard);
     }
 
+    protected float textIndexX(int index) {
+        LineMetrics line = lineForIndex(index);
+        int clamped = TextEditorModel.clampToCodePointBoundary(text(), index);
+        return textViewportX() + line.prefixWidth(clamped - line.start) - horizontalScrollPixels;
+    }
+
+    protected float textIndexY(int index) {
+        return textViewportY() + lineForIndex(index).lineIndex * effectiveLineHeight() - verticalScrollPixels;
+    }
+
+    protected float textRangeWidth(int startIndex, int endIndex) {
+        LineMetrics line = lineForIndex(startIndex);
+        int start = TextEditorModel.clampToCodePointBoundary(text(), startIndex);
+        int end = TextEditorModel.clampToCodePointBoundary(text(), endIndex);
+        if (end < start) {
+            int swap = start;
+            start = end;
+            end = swap;
+        }
+        end = Math.min(end, line.end);
+        return Math.max(0.0f, line.prefixWidth(end - line.start) - line.prefixWidth(start - line.start));
+    }
+
+    protected int lineStartIndex(int oneBasedLine) {
+        return lineAt(oneBasedLine).start;
+    }
+
+    protected int lineEndIndex(int oneBasedLine) {
+        return lineAt(oneBasedLine).end;
+    }
+
+    protected int lineColumnToIndex(int oneBasedLine, int oneBasedColumn) {
+        LineMetrics line = lineAt(oneBasedLine);
+        int remainingColumns = Math.max(0, oneBasedColumn - 1);
+        int localIndex = 0;
+        while (localIndex < line.length() && remainingColumns > 0) {
+            localIndex = line.text.offsetByCodePoints(localIndex, 1);
+            remainingColumns--;
+        }
+        return line.start + localIndex;
+    }
+
+    protected float lineColumnX(int oneBasedLine, int oneBasedColumn) {
+        return textIndexX(lineColumnToIndex(oneBasedLine, oneBasedColumn));
+    }
+
+    protected void requestCursorFollow() {
+        followCaretRequested = true;
+    }
+
+    private LineMetrics lineAt(int oneBasedLine) {
+        if (measuredDisplayText == null) updateLineMetrics(null);
+        int index = clamp(oneBasedLine - 1, 0, Math.max(0, lineMetrics.size() - 1));
+        return lineMetrics.get(index);
+    }
+
     private LineMetrics lineForIndex(int index) {
         if (measuredDisplayText == null) {
             updateLineMetrics(null);
         }
-        int clamped = clamp(index, 0, isShowingPlaceholder() ? 0 : text().length());
+        int clamped = TextEditorModel.clampToCodePointBoundary(text(), index);
         for (LineMetrics line : lineMetrics) {
             if (clamped >= line.start && clamped <= line.end) return line;
         }
         return clamped < lineMetrics.get(0).start ? lineMetrics.get(0) : lineMetrics.get(lineMetrics.size() - 1);
     }
 
-    private float contentHeight() {
+    protected float contentHeight() {
         return lineMetrics.size() * effectiveLineHeight();
     }
 
-    private float maxScrollX() {
+    protected float maxScrollX() {
         return Math.max(0.0f, measuredTextWidth - textViewportWidth());
     }
 
-    private float maxScrollY() {
+    protected float maxScrollY() {
         return Math.max(0.0f, contentHeight() - textViewportHeight());
     }
 
-    private RichText richText(String text) {
+    protected RichText richText(String text) {
         return RichText.of(text, font, pixelSize);
     }
 
@@ -876,7 +1143,7 @@ public class TextArea extends Box {
         invalidate(InvalidationFlags.VISUAL);
     }
 
-    private void resetDesiredCursorX() {
+    protected void resetDesiredCursorX() {
         desiredCursorXPixels = Float.NaN;
     }
 
@@ -896,6 +1163,12 @@ public class TextArea extends Box {
 
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
+    }
+
+    private enum ScrollDragAxis {
+        NONE,
+        HORIZONTAL,
+        VERTICAL
     }
 
     private record LineMetrics(int lineIndex,

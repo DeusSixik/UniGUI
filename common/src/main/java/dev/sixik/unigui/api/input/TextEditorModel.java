@@ -27,7 +27,7 @@ public final class TextEditorModel {
     }
 
     public boolean cursorIndex(int cursorIndex) {
-        int clamped = clamp(cursorIndex, 0, text.length());
+        int clamped = clampToCodePointBoundary(text, cursorIndex);
         boolean changed = this.cursorIndex != clamped;
         this.cursorIndex = clamped;
         return clearSelection() || changed;
@@ -58,8 +58,8 @@ public final class TextEditorModel {
     }
 
     public boolean select(int start, int end) {
-        int normalizedAnchor = clamp(start, 0, text.length());
-        int normalizedFocus = clamp(end, 0, text.length());
+        int normalizedAnchor = clampToCodePointBoundary(text, start);
+        int normalizedFocus = clampToCodePointBoundary(text, end);
         int normalizedCursor = normalizedFocus;
         boolean changed = selectionAnchor != normalizedAnchor || selectionFocus != normalizedFocus || cursorIndex != normalizedCursor;
         selectionAnchor = normalizedAnchor;
@@ -69,7 +69,7 @@ public final class TextEditorModel {
     }
 
     public boolean moveCursor(int cursorIndex, boolean extendSelection) {
-        int clamped = clamp(cursorIndex, 0, text.length());
+        int clamped = clampToCodePointBoundary(text, cursorIndex);
         if (extendSelection) {
             int anchor = selectionAnchor >= 0 ? selectionAnchor : this.cursorIndex;
             return select(anchor, clamped);
@@ -101,12 +101,10 @@ public final class TextEditorModel {
         this.maxLength = normalized;
         boolean changed = false;
         if (text.length() > normalized) {
-            changed = setText(text.substring(0, normalized), true);
+            changed = setText(text.substring(0, clampToCodePointBoundary(text, normalized)), true);
         }
-        cursorIndex = clamp(cursorIndex, 0, text.length());
-        if (selectionAnchor > text.length() || selectionFocus > text.length()) {
-            changed = clearSelection() || changed;
-        }
+        cursorIndex = clampToCodePointBoundary(text, cursorIndex);
+        normalizeSelectionBounds();
         return changed;
     }
 
@@ -122,7 +120,7 @@ public final class TextEditorModel {
         int baseLength = this.text.length() - Math.max(0, end - start);
         int remaining = Math.max(0, maxLength - baseLength);
         if (inserted.length() > remaining) {
-            inserted = inserted.substring(0, remaining);
+            inserted = inserted.substring(0, clampToCodePointBoundary(inserted, remaining));
         }
         if (inserted.isEmpty() && !hasSelection()) return false;
 
@@ -174,23 +172,31 @@ public final class TextEditorModel {
         return builder.toString();
     }
 
+    public static int clampToCodePointBoundary(String text, int index) {
+        String value = normalize(text);
+        int clamped = clamp(index, 0, value.length());
+        if (clamped > 0
+                && clamped < value.length()
+                && Character.isLowSurrogate(value.charAt(clamped))
+                && Character.isHighSurrogate(value.charAt(clamped - 1))) {
+            return clamped - 1;
+        }
+        return clamped;
+    }
+
     private boolean setText(String text, boolean emitChange) {
         String normalized = trimToMax(normalize(text));
         boolean changed = !Objects.equals(this.text, normalized);
         if (!changed) {
-            cursorIndex = clamp(cursorIndex, 0, this.text.length());
-            if (selectionAnchor > this.text.length() || selectionFocus > this.text.length()) {
-                clearSelection();
-            }
+            cursorIndex = clampToCodePointBoundary(this.text, cursorIndex);
+            normalizeSelectionBounds();
             return false;
         }
 
         String oldText = this.text;
         this.text = normalized;
-        cursorIndex = clamp(cursorIndex, 0, this.text.length());
-        if (selectionAnchor > this.text.length() || selectionFocus > this.text.length()) {
-            clearSelection();
-        }
+        cursorIndex = clampToCodePointBoundary(this.text, cursorIndex);
+        normalizeSelectionBounds();
         if (emitChange) {
             changeListener.onTextChanged(oldText, this.text);
         }
@@ -198,7 +204,12 @@ public final class TextEditorModel {
     }
 
     private String trimToMax(String value) {
-        return value.length() <= maxLength ? value : value.substring(0, maxLength);
+        return value.length() <= maxLength ? value : value.substring(0, clampToCodePointBoundary(value, maxLength));
+    }
+
+    private void normalizeSelectionBounds() {
+        if (selectionAnchor >= 0) selectionAnchor = clampToCodePointBoundary(text, selectionAnchor);
+        if (selectionFocus >= 0) selectionFocus = clampToCodePointBoundary(text, selectionFocus);
     }
 
     private static String normalize(String text) {

@@ -122,7 +122,11 @@ import dev.sixik.unigui.widgets.navigation.BreadcrumbItem;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.navigation.Carousel;
 import dev.sixik.unigui.widgets.interaction.Checkbox;
+import dev.sixik.unigui.widgets.interaction.CodeDiagnostic;
 import dev.sixik.unigui.widgets.interaction.CodeEditor;
+import dev.sixik.unigui.widgets.interaction.CodeToken;
+import dev.sixik.unigui.widgets.interaction.CompletionItem;
+import dev.sixik.unigui.widgets.interaction.TokenStyle;
 import dev.sixik.unigui.widgets.interaction.ComboBox;
 import dev.sixik.unigui.widgets.feedback.ContextMenu;
 import dev.sixik.unigui.widgets.containers.DockPanel;
@@ -998,6 +1002,19 @@ public final class BasicControlsSelfTest {
         uiContext.routedEvents().dispatch(new KeyPressedEvent(area, KeyCodes.V, 0, KeyModifiers.CONTROL));
         expect(area.text().equals("<VBox>\n</VBox>"), "TextArea paste should normalize and preserve line breaks");
 
+        area.text("abc").cursorIndex(3).readOnly(true);
+        uiContext.routedEvents().dispatch(new TextInputEvent(area, 'z', 0));
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(area, KeyCodes.BACKSPACE, 0, 0));
+        expect(area.text().equals("abc"), "TextArea readOnly should block typed text and deletion");
+        area.select(0, 3);
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(area, KeyCodes.C, 0, KeyModifiers.CONTROL));
+        expect(uiContext.clipboard().getText().equals("abc"), "TextArea readOnly should still allow selection copy");
+        area.readOnly(false).text("a😀b").cursorIndex(2);
+        expect(area.cursorIndex() == 1, "TextArea cursorIndex should not split surrogate pairs");
+        area.cursorIndex(3);
+        uiContext.routedEvents().dispatch(new KeyPressedEvent(area, KeyCodes.BACKSPACE, 0, 0));
+        expect(area.text().equals("ab"), "TextArea backspace should delete one Unicode code point");
+
         area.text("one\ntwo\nthree\nfour\nfive").cursorIndex(area.text().length());
         DrawList drawList = new DrawList();
         area.render(new DefaultRenderContext(drawList));
@@ -1006,8 +1023,45 @@ public final class BasicControlsSelfTest {
                 "TextArea should clip and render visible multiline content");
 
         area.scrollTo(0.0f, 0.0f);
+        DrawList stableScrollDrawList = new DrawList();
+        area.render(new DefaultRenderContext(stableScrollDrawList));
+        expect(area.scrollY() == 0.0f, "TextArea render should preserve manual scroll when caret follow is not requested");
         uiContext.routedEvents().dispatch(new ScrollEvent(area, 8.0f, 8.0f, 8.0f, 8.0f, 0.0f, -1.0f));
         expect(area.scrollY() > 0.0f, "TextArea should handle wheel scrolling");
+        expect(hasFillColor(stableScrollDrawList, 0.55f, 0.62f, 0.72f, 0.72f),
+                "TextArea should render visible scrollbar thumbs when content overflows");
+        area.scrollTo(0.0f, 0.0f).clearSelection();
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(area, 114.5f, 6.0f, 114.5f, 6.0f, 7, PointerButton.PRIMARY));
+        uiContext.routedEvents().dispatch(new PointerMovedEvent(area, 114.5f, 32.0f, 114.5f, 32.0f, 7));
+        uiContext.routedEvents().dispatch(new PointerReleasedEvent(area, 114.5f, 32.0f, 114.5f, 32.0f, 7, PointerButton.PRIMARY));
+        expect(area.scrollY() > 0.0f, "TextArea vertical scrollbar thumb drag should update scrollY");
+        expect(!area.hasSelection(), "TextArea scrollbar thumb drag should not start text selection");
+
+        CodeEditor hitEditor = new CodeEditor("abcdefghijklmnopqrstuvwxyz")
+                .lineNumbersVisible(false);
+        hitEditor.setUiContextInternal(uiContext);
+        hitEditor.arrange(new MutableRect(10.0f, 5.0f, 160.0f, 32.0f));
+        DrawList hitMetricsDrawList = new DrawList();
+        hitEditor.render(new DefaultRenderContext(hitMetricsDrawList).backend(new FixedTextMetricsBackend(4.0f)));
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(hitEditor, 54.1f, 10.0f, 0.0f, 0.0f, 8, PointerButton.PRIMARY));
+        expect(hitEditor.cursorIndex() == 10,
+                "CodeEditor mouse hit testing should use the last rendered text metrics, not fallback widths");
+
+        uiContext.focusManager().requestFocus(area);
+        area.text("abc\ndef\nghi").select(1, 8);
+        DrawList multilineSelectionDrawList = new DrawList();
+        area.render(new DefaultRenderContext(multilineSelectionDrawList).backend(new FixedTextMetricsBackend(6.0f)));
+        long wideSelectionRects = multilineSelectionDrawList.commands().stream()
+                .filter(command -> command.type() == DrawCommandType.RECT)
+                .filter(command -> command.paint() != null && !command.paint().isStroke())
+                .filter(command -> near(command.paint().color().r(), 0.25f)
+                        && near(command.paint().color().g(), 0.78f)
+                        && near(command.paint().color().b(), 1.0f)
+                        && near(command.paint().color().a(), 1.0f))
+                .filter(command -> command.bounds().width() > TextEngine.APPROX_CHAR_WIDTH)
+                .count();
+        expect(wideSelectionRects >= 2,
+                "TextArea multiline selection should fill selected line ranges instead of one-character strips");
 
         expect(Widgets.textArea("factory") instanceof TextArea, "Widgets.textArea should create TextArea instances");
     }
@@ -1033,6 +1087,75 @@ public final class BasicControlsSelfTest {
 
         editor.scrollToLine(3);
         expect(editor.scrollY() > 0.0f, "CodeEditor scrollToLine should move the viewport to the requested line");
+
+        CodeEditor policyEditor = new CodeEditor()
+                .tabSize(2)
+                .tabInputMode(CodeEditor.TabInputMode.INSERT_SPACES)
+                .tabStorageMode(CodeEditor.TabStorageMode.PRESERVE);
+        DefaultUIContext codeContext = new DefaultUIContext();
+        policyEditor.setUiContextInternal(codeContext);
+        policyEditor.arrange(new MutableRect(0.0f, 0.0f, 160.0f, 42.0f));
+        codeContext.routedEvents().dispatch(new PointerPressedEvent(policyEditor, 6.0f, 8.0f, 6.0f, 8.0f, 0, PointerButton.PRIMARY));
+        codeContext.routedEvents().dispatch(new KeyPressedEvent(policyEditor, KeyCodes.TAB, 0, 0));
+        expect(policyEditor.text().equals("  "), "CodeEditor Tab should insert spaces according to tabInputMode");
+        policyEditor.tabInputMode(CodeEditor.TabInputMode.INSERT_TAB)
+                .tabStorageMode(CodeEditor.TabStorageMode.CONVERT_TABS_TO_SPACES)
+                .cursorIndex(policyEditor.text().length());
+        codeContext.routedEvents().dispatch(new KeyPressedEvent(policyEditor, KeyCodes.TAB, 0, 0));
+        expect(policyEditor.text().equals("    "), "CodeEditor tabStorageMode should convert inserted tabs to spaces");
+        policyEditor.readOnly(true);
+        codeContext.routedEvents().dispatch(new TextInputEvent(policyEditor, 'x', 0));
+        expect(policyEditor.text().equals("    "), "CodeEditor readOnly should block text input on the same widget");
+
+        editor.languageId("xml")
+                .validator(context -> java.util.List.of(new CodeDiagnostic(CodeEditor.Severity.WARNING, 2, 2, 2, 5, "Name")))
+                .tokenizer(context -> java.util.List.of(new CodeToken(0, 3, TokenStyle.color(MutableColor.rgba(0.1f, 0.9f, 0.2f, 1.0f)))))
+                .completionProvider(context -> java.util.List.of(new CompletionItem("Widget", "Widget", "XML node", context.cursorIndex(), context.cursorIndex())));
+        expect(editor.validateCode().size() == 1 && editor.diagnostics().get(0).endColumn() == 5,
+                "CodeEditor validator should populate measured diagnostics without crashing");
+        editor.cursorIndex(editor.text().length());
+        editor.acceptCompletion(editor.completionItems().get(0));
+        expect(editor.text().endsWith("Widget"), "CodeEditor completion should insert provider text at the caret");
+
+        DefaultUIContext completionContext = new DefaultUIContext();
+        OverlayLayer completionOverlay = new OverlayLayer();
+        completionOverlay.setUiContextInternal(completionContext);
+        CodeEditor completionEditor = new CodeEditor("Wi")
+                .completionOverlayLayer(completionOverlay)
+                .completionProvider(context -> java.util.List.of(
+                        new CompletionItem("Widget", "Widget", "class", 0, context.cursorIndex()),
+                        new CompletionItem("WidgetFactory", "WidgetFactory", "factory", 0, context.cursorIndex())));
+        completionEditor.setUiContextInternal(completionContext);
+        completionEditor.arrange(new MutableRect(16.0f, 20.0f, 180.0f, 42.0f));
+        completionOverlay.arrange(new MutableRect(0.0f, 0.0f, 320.0f, 160.0f));
+        completionContext.focusManager().requestFocus(completionEditor);
+        completionEditor.cursorIndex(completionEditor.text().length());
+        completionContext.routedEvents().dispatch(new KeyPressedEvent(completionEditor, KeyCodes.SPACE, 0, KeyModifiers.CONTROL));
+        expect(completionEditor.completionPopupOpened(), "CodeEditor Ctrl+Space should open completion popup on the configured overlay");
+        expect(completionEditor.activeCompletionItems().size() == 2,
+                "CodeEditor completion popup should expose provider items");
+        completionOverlay.applyQueuedMutations();
+        completionOverlay.measure(new LayoutContext(320.0f, 160.0f));
+        completionOverlay.arrange(new MutableRect(0.0f, 0.0f, 320.0f, 160.0f));
+        expect(completionEditor.completionPopup().layoutBounds().x() >= 16.0f
+                        && completionEditor.completionPopup().layoutBounds().y() >= 20.0f,
+                "CodeEditor completion popup should anchor near the caret bounds");
+        completionContext.routedEvents().dispatch(new KeyPressedEvent(completionEditor, KeyCodes.DOWN, 0, 0));
+        expect(completionEditor.selectedCompletionIndex() == 1,
+                "CodeEditor completion popup should support keyboard selection navigation");
+        completionContext.routedEvents().dispatch(new KeyPressedEvent(completionEditor, KeyCodes.ENTER, 0, 0));
+        expect(completionEditor.text().equals("WidgetFactory"),
+                "CodeEditor completion popup should accept the selected provider item");
+        expect(!completionEditor.completionPopupOpened(), "CodeEditor completion popup should close after accepting an item");
+
+        DrawList tokenDrawList = new DrawList();
+        editor.render(new DefaultRenderContext(tokenDrawList));
+        expect(hasFillColor(tokenDrawList, 0.1f, 0.9f, 0.2f, 1.0f),
+                "CodeEditor tokenizer should render syntax token colors");
+        editor.tokenizer(context -> { throw new IllegalStateException("tokenizer failed"); });
+        DrawList failedTokenizerDrawList = new DrawList();
+        editor.render(new DefaultRenderContext(failedTokenizerDrawList));
+
         expect(Widgets.codeEditor("factory") instanceof CodeEditor, "Widgets.codeEditor should create CodeEditor instances");
     }
 
