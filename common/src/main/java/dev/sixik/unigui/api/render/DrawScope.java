@@ -9,11 +9,15 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Safe draw-list-style facade for widget renderers.
+ * Безопасный draw-list facade для renderer'ов виджетов.
  *
- * <p>DrawScope intentionally exposes backend-neutral primitives instead of the
- * active RenderBackend. Custom widget renderers can use it like a small
- * ImGui-style draw list while UniGUI still records normal DrawCommands.</p>
+ * <p>{@code DrawScope} намеренно отдаёт backend-neutral primitives вместо активного
+ * {@link RenderBackend}. Custom renderer может использовать его как компактный immediate-mode API,
+ * но UniGUI всё равно записывает обычные {@link DrawCommand} в {@link DrawList}.</p>
+ *
+ * <p>Scope также применяет transform виджета к создаваемым командам. Если transform привязан к
+ * исходным bounds виджета, {@code DrawScope} корректирует pivot для каждой команды, чтобы текст,
+ * texture и shape-команды двигались как единый визуальный блок.</p>
  */
 public final class DrawScope {
     private final RenderContext context;
@@ -22,10 +26,23 @@ public final class DrawScope {
     private final float transformBoundsX;
     private final float transformBoundsY;
 
+    /**
+     * Создаёт scope без anchor bounds для transform pivot.
+     *
+     * @param context render context, куда будут попадать команды
+     * @param transform transform виджета или {@code null}
+     */
     public DrawScope(RenderContext context, Transform transform) {
         this(context, transform, null);
     }
 
+    /**
+     * Создаёт scope с bounds, относительно которых нужно удерживать transform pivot.
+     *
+     * @param context render context, куда будут попадать команды
+     * @param transform transform виджета или {@code null}
+     * @param transformBounds исходные bounds виджета для привязки pivot
+     */
     public DrawScope(RenderContext context, Transform transform, RectView transformBounds) {
         this.context = Objects.requireNonNull(context, "context");
         this.transform = transform;
@@ -34,14 +51,22 @@ public final class DrawScope {
         this.transformBoundsY = transformBounds == null ? 0.0f : transformBounds.y();
     }
 
+    /** @return render context, в который пишет scope */
     public RenderContext context() {
         return context;
     }
 
+    /** @return transform, применяемый scope'ом к командам */
     public Transform transform() {
         return transform;
     }
 
+    /**
+     * Создаёт новый scope с тем же context и другим transform.
+     *
+     * @param transform новый transform
+     * @return дочерний scope
+     */
     public DrawScope withTransform(Transform transform) {
         return transformBoundsAnchored
                 ? new DrawScope(context, transform, new AnchorBounds(transformBoundsX, transformBoundsY))
@@ -331,6 +356,12 @@ public final class DrawScope {
         }
     }
 
+    /**
+     * Открывает clip область для текста с небольшим bleed по краям glyph'ов.
+     *
+     * <p>Обычный scissor может срезать антиалиасинг или части glyph'ов на разных UI scale. Этот метод
+     * добавляет минимальный запас, сохраняя поведение обычного clip для пустых размеров.</p>
+     */
     public void pushTextClip(float x, float y, float width, float height) {
         if (width <= 0.0f || height <= 0.0f) {
             pushClip(x, y, width, height);

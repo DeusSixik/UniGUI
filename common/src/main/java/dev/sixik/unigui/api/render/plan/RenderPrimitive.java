@@ -10,8 +10,19 @@ import dev.sixik.unigui.impl.text.TextEngine;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Inspectable declarative draw primitive emitted by render plans. */
+/**
+ * Инспектируемый декларативный draw primitive, созданный render plan builder'ом.
+ *
+ * <p>Каждый primitive знает, как записать себя в {@link DrawScope}, но остаётся обычными данными:
+ * координаты, paint, texture placement, clip children и text block. Это делает StylePack-рендер
+ * редактируемым и предсказуемым для tooling.</p>
+ */
 public sealed interface RenderPrimitive permits RenderPrimitive.Rect, RenderPrimitive.RoundedRect, RenderPrimitive.Circle, RenderPrimitive.Line, RenderPrimitive.Texture, RenderPrimitive.RichTextBlock, RenderPrimitive.Clip {
+    /**
+     * Записывает primitive в draw scope.
+     *
+     * @param draw draw scope текущего виджета
+     */
     void render(DrawScope draw);
 
     record Rect(float x,

@@ -5,12 +5,45 @@ import dev.sixik.unigui.api.math.RectView;
 
 import java.util.Objects;
 
+/**
+ * Результат размещения source-текстуры в destination bounds.
+ *
+ * <p>Запись хранит финальные экранные координаты и UV-область. {@link #fit(TextureHandle, RectView, ImageFit)}
+ * применяет {@link ImageFit#STRETCH}, {@link ImageFit#CONTAIN} или {@link ImageFit#COVER}, чтобы виджет
+ * мог передать backend'у уже готовую geometry/uv пару.</p>
+ *
+ * @param x X-координата назначения
+ * @param y Y-координата назначения
+ * @param width ширина назначения
+ * @param height высота назначения
+ * @param u начальная U-координата source
+ * @param v начальная V-координата source
+ * @param uWidth ширина source UV области
+ * @param vHeight высота source UV области
+ */
 public record TexturePlacement(float x, float y, float width, float height,
                                float u, float v, float uWidth, float vHeight) {
+    /**
+     * Размещает всю текстуру внутри destination.
+     *
+     * @param texture текстура
+     * @param destination целевые bounds
+     * @param fit режим размещения
+     * @return рассчитанное размещение
+     */
     public static TexturePlacement fit(TextureHandle texture, RectView destination, ImageFit fit) {
         return fit(texture, new MutableRect(0.0f, 0.0f, 1.0f, 1.0f), destination, fit);
     }
 
+    /**
+     * Размещает часть текстуры внутри destination.
+     *
+     * @param texture текстура
+     * @param source source UV область в диапазоне {@code 0..1}
+     * @param destination целевые bounds
+     * @param fit режим размещения
+     * @return рассчитанное размещение
+     */
     public static TexturePlacement fit(TextureHandle texture, RectView source,
                                        RectView destination, ImageFit fit) {
         Objects.requireNonNull(texture, "texture");

@@ -6,14 +6,42 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
+/**
+ * Изменяемая реализация {@link Style}.
+ *
+ * <p>Класс используется в Java builders, XML loader'е и editor tooling, где стиль нужно собирать
+ * постепенно: добавлять свойства, state override'ы и renderer override. Все значения проверяются
+ * по типу через {@link StyleKey#type()}, поэтому ошибка в значении обнаруживается в момент записи,
+ * а не во время рендера виджета.</p>
+ *
+ * @see StyleKey
+ * @see WidgetState
+ */
 public final class MutableStyle implements Style {
     private final EnumMap<WidgetState, Map<StyleKey<?>, Object>> values = new EnumMap<>(WidgetState.class);
     private long version;
 
+    /**
+     * Записывает значение свойства для обычного состояния {@link WidgetState#NORMAL}.
+     *
+     * @param key типизированный ключ свойства
+     * @param value значение свойства или {@code null}
+     * @return этот стиль для fluent-настройки
+     * @param <T> Java-тип свойства
+     */
     public <T> MutableStyle put(StyleKey<T> key, T value) {
         return put(key, WidgetState.NORMAL, value);
     }
 
+    /**
+     * Записывает значение свойства для конкретного состояния виджета.
+     *
+     * @param key типизированный ключ свойства
+     * @param state состояние, для которого действует значение
+     * @param value значение свойства или {@code null}
+     * @return этот стиль для fluent-настройки
+     * @param <T> Java-тип свойства
+     */
     public <T> MutableStyle put(StyleKey<T> key, WidgetState state, T value) {
         Objects.requireNonNull(key, "key");
         Objects.requireNonNull(state, "state");
@@ -25,10 +53,23 @@ public final class MutableStyle implements Style {
         return this;
     }
 
+    /**
+     * Удаляет значение свойства из обычного состояния.
+     *
+     * @param key ключ свойства
+     * @return этот стиль для fluent-настройки
+     */
     public MutableStyle remove(StyleKey<?> key) {
         return remove(key, WidgetState.NORMAL);
     }
 
+    /**
+     * Удаляет значение свойства из конкретного состояния.
+     *
+     * @param key ключ свойства
+     * @param state состояние, из которого нужно удалить значение
+     * @return этот стиль для fluent-настройки
+     */
     public MutableStyle remove(StyleKey<?> key, WidgetState state) {
         Objects.requireNonNull(key, "key");
         Objects.requireNonNull(state, "state");
@@ -43,16 +84,26 @@ public final class MutableStyle implements Style {
     }
 
     /**
-     * Sets the default renderer override for widgets using this style.
+     * Задаёт renderer override для виджетов, использующих этот стиль.
      *
-     * <p>The concrete widget casts this value to its renderer interface. Local
-     * per-instance renderer setters still have priority over this style value.</p>
+     * <p>Конкретный виджет приводит значение к своему renderer-интерфейсу. Локальный renderer,
+     * назначенный прямо на instance виджета, остаётся приоритетнее этого style-значения.</p>
+     *
+     * @param renderer renderer-объект, совместимый с конкретным типом виджета
+     * @return этот стиль для fluent-настройки
      */
     public MutableStyle renderer(Object renderer) {
         return put(StyleKeys.RENDERER, renderer);
     }
+
     /**
-     * Sets a renderer override by registry id for declarative StylePack and XML styles.
+     * Задаёт renderer override по id из {@link dev.sixik.unigui.api.widget.render.WidgetRendererRegistry}.
+     *
+     * <p>Этот вариант нужен для декларативных StylePack/XML стилей, где нельзя хранить Java-объект,
+     * но можно сослаться на renderer по стабильной строке.</p>
+     *
+     * @param rendererId id renderer'а в registry
+     * @return этот стиль для fluent-настройки
      */
     public MutableStyle rendererId(String rendererId) {
         return put(StyleKeys.RENDERER, rendererId == null ? "" : rendererId.trim());

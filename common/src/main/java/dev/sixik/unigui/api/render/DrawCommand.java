@@ -12,6 +12,16 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Одна backend-neutral команда отрисовки в {@link DrawList}.
+ *
+ * <p>Команда хранит тип, bounds, paint, transform, optional texture/text/path/mesh/shader данные и
+ * используется как промежуточный формат между виджетами и {@link RenderBackend}. Большинство setter'ов
+ * возвращают саму команду, чтобы renderer мог собирать её fluent-цепочкой.</p>
+ *
+ * <p>Команда копирует mutable данные при записи: {@link Paint}, {@link VectorPath}, {@link DrawMesh},
+ * {@link Transform} и shader options не должны протекать наружу после попадания в draw list.</p>
+ */
 public final class DrawCommand {
     private DrawCommandType type;
     private final MutableRect bounds = new MutableRect();
@@ -32,54 +42,141 @@ public final class DrawCommand {
     private ShaderDrawOptions shaderOptions = ShaderDrawOptions.defaults();
     private float radius;
 
+    /**
+     * Создаёт команду прямоугольника.
+     *
+     * @param bounds bounds команды
+     * @param paint параметры заливки/обводки
+     * @return новая команда
+     */
     public static DrawCommand rect(RectView bounds, Paint paint) {
         return new DrawCommand(DrawCommandType.RECT).bounds(bounds).paint(paint);
     }
 
+    /**
+     * Создаёт команду текстуры.
+     *
+     * @param texture handle текстуры
+     * @param bounds bounds назначения
+     * @param paint tint/blend параметры
+     * @return новая команда
+     */
     public static DrawCommand texture(TextureHandle texture, RectView bounds, Paint paint) {
         return new DrawCommand(DrawCommandType.TEXTURE).texture(texture).bounds(bounds).paint(paint);
     }
 
+    /**
+     * Создаёт команду plain text.
+     *
+     * @param text текст
+     * @param bounds bounds текстового блока
+     * @param paint цвет и blend параметры
+     * @return новая команда
+     */
     public static DrawCommand text(String text, RectView bounds, Paint paint) {
         return new DrawCommand(DrawCommandType.TEXT).text(text).bounds(bounds).paint(paint);
     }
 
+    /**
+     * Создаёт команду vector path.
+     *
+     * @param path path для рендера
+     * @param bounds bounds path-команды
+     * @param paint параметры заливки/обводки
+     * @return новая команда
+     */
     public static DrawCommand path(VectorPath path, RectView bounds, Paint paint) {
         return new DrawCommand(DrawCommandType.PATH).path(path).bounds(bounds).paint(paint);
     }
 
+    /**
+     * Создаёт команду окружности/эллипса.
+     *
+     * @param bounds bounds фигуры
+     * @param paint параметры рендера
+     * @return новая команда
+     */
     public static DrawCommand circle(RectView bounds, Paint paint) {
         return new DrawCommand(DrawCommandType.CIRCLE).bounds(bounds).paint(paint);
     }
 
+    /**
+     * Создаёт команду линии.
+     *
+     * @param bounds хранит start point и delta до end point
+     * @param paint параметры stroke
+     * @return новая команда
+     */
     public static DrawCommand line(RectView bounds, Paint paint) {
         return new DrawCommand(DrawCommandType.LINE).bounds(bounds).paint(paint);
     }
 
+    /**
+     * Создаёт команду custom callback.
+     *
+     * @param customDraw callback backend-specific рендера
+     * @return новая команда
+     */
     public static DrawCommand custom(CustomDraw customDraw) {
         return new DrawCommand(DrawCommandType.CUSTOM).customDraw(customDraw);
     }
 
+    /**
+     * Создаёт shader-команду.
+     *
+     * @param shader handle шейдера
+     * @param bounds bounds fullscreen/quad области
+     * @param uniforms uniforms команды
+     * @return новая команда
+     */
     public static DrawCommand shader(ShaderHandle shader, RectView bounds, ShaderUniforms uniforms) {
         return new DrawCommand(DrawCommandType.SHADER).shader(shader).bounds(bounds).shaderUniforms(uniforms);
     }
 
+    /**
+     * Создаёт mesh-команду.
+     *
+     * @param mesh треугольная mesh-геометрия
+     * @param texture необязательная текстура
+     * @return новая команда
+     */
     public static DrawCommand mesh(DrawMesh mesh, TextureHandle texture) {
         return new DrawCommand(DrawCommandType.MESH).mesh(mesh).texture(texture);
     }
 
+    /**
+     * Создаёт marker-команду {@link DrawCommandType#DRAW_CMD}.
+     *
+     * @return новая команда
+     */
     public static DrawCommand drawCmd() {
         return new DrawCommand(DrawCommandType.DRAW_CMD);
     }
 
+    /**
+     * Создаёт команду открытия clip/scissor области.
+     *
+     * @param bounds bounds clip области
+     * @return новая команда
+     */
     public static DrawCommand pushClip(RectView bounds) {
         return new DrawCommand(DrawCommandType.PUSH_CLIP).bounds(bounds);
     }
 
+    /**
+     * Создаёт команду закрытия последней clip/scissor области.
+     *
+     * @return новая команда
+     */
     public static DrawCommand popClip() {
         return new DrawCommand(DrawCommandType.POP_CLIP);
     }
 
+    /**
+     * Создаёт команду указанного типа.
+     *
+     * @param type тип draw-команды
+     */
     public DrawCommand(DrawCommandType type) {
         this.type = type;
     }
@@ -272,6 +369,11 @@ public final class DrawCommand {
         return this;
     }
 
+    /**
+     * Создаёт глубокую копию команды для безопасного хранения в draw list.
+     *
+     * @return независимая копия команды
+     */
     public DrawCommand copy() {
         DrawCommand copy = new DrawCommand(type);
         copy.bounds.set(bounds);

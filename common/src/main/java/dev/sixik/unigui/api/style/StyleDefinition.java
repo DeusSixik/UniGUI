@@ -74,7 +74,7 @@ public record StyleDefinition(String id,
         this(id, StyleSelector.EMPTY, backend, eventAnimations);
     }
 
-    /** Нормализует null-значения и отбрасывает пустые event-animation links. */
+    /** Нормализует null-значения и отбрасывает пустые связи событий с анимациями. */
     public StyleDefinition {
         id = normalizeRequired(id, "id");
         selector = selector == null ? StyleSelector.EMPTY : selector;
@@ -159,7 +159,7 @@ public record StyleDefinition(String id,
     /**
      * Ограничивает стиль типом виджета.
      *
-     * @param target widget type id, обычно из {@link StyleIds.Widget} или {@code Button.STYLE_TYPE}
+     * @param target id типа виджета, обычно из {@link StyleIds.Widget} или {@code Button.STYLE_TYPE}
      * @return новый {@code StyleDefinition}
      */
     public StyleDefinition target(String target) {
@@ -190,7 +190,7 @@ public record StyleDefinition(String id,
     }
 
     /**
-     * Заменяет декларативные свойства, сохраняя id, selector и event-animation links.
+     * Заменяет декларативные свойства, сохраняя id, selector и связи событий с анимациями.
      *
      * @param style новый набор свойств
      * @return новый {@code StyleDefinition}
@@ -217,7 +217,7 @@ public record StyleDefinition(String id,
      * {@code Button.AnimationEvents.ON_CLICK}.</p>
      *
      * @param eventName id события
-     * @param animationId id {@link StyleAnimationDefinition}
+     * @param animationId id определения {@link StyleAnimationDefinition}
      * @return новый {@code StyleDefinition}
      */
     public StyleDefinition eventAnimation(String eventName, String animationId) {

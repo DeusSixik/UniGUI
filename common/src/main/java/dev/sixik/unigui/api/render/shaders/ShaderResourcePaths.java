@@ -6,12 +6,22 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Shared path normalization for shader resource handles.
+ * Общая нормализация путей для shader resource handles.
+ *
+ * <p>Класс строит candidates для classpath и namespaced resource lookup. Он принимает как простые id,
+ * так и {@code namespace:path}, добавляет стандартные {@code shaders/} и extension варианты и убирает
+ * дубликаты с сохранением порядка.</p>
  */
 public final class ShaderResourcePaths {
     private ShaderResourcePaths() {
     }
 
+    /**
+     * Парсит shader id в namespace/path пару.
+     *
+     * @param id id шейдера
+     * @return id ресурса
+     */
     public static ResourceId parse(String id) {
         String normalized = normalize(id);
         int separator = normalized.indexOf(':');
@@ -25,14 +35,23 @@ public final class ShaderResourcePaths {
         return new ResourceId(null, normalizePath(normalized));
     }
 
+    /** @return classpath candidates для fragment shader source */
     public static List<String> classpathFragmentCandidates(String id) {
         return classpathCandidates(id, "fsh");
     }
 
+    /** @return classpath candidates для vertex shader source */
     public static List<String> classpathVertexCandidates(String id) {
         return classpathCandidates(id, "vsh");
     }
 
+    /**
+     * Строит classpath candidates для shader resource.
+     *
+     * @param id id шейдера
+     * @param extension расширение без точки
+     * @return candidates в порядке lookup
+     */
     public static List<String> classpathCandidates(String id, String extension) {
         ResourceId parsed = parse(id);
         String ext = normalizeExtension(extension);
@@ -48,14 +67,23 @@ public final class ShaderResourcePaths {
         return new ObjectArrayList<>(candidates);
     }
 
+    /** @return namespaced candidates для fragment shader source */
     public static List<NamespacedPath> namespacedFragmentCandidates(String id) {
         return namespacedCandidates(id, "fsh");
     }
 
+    /** @return namespaced candidates для vertex shader source */
     public static List<NamespacedPath> namespacedVertexCandidates(String id) {
         return namespacedCandidates(id, "vsh");
     }
 
+    /**
+     * Строит namespaced resource candidates.
+     *
+     * @param id id шейдера с namespace
+     * @param extension расширение без точки
+     * @return candidates в порядке lookup
+     */
     public static List<NamespacedPath> namespacedCandidates(String id, String extension) {
         ResourceId parsed = parse(id);
         if (!parsed.hasNamespace()) return List.of();
@@ -136,12 +164,25 @@ public final class ShaderResourcePaths {
         return normalized.isEmpty() ? "fsh" : normalized;
     }
 
+    /**
+     * Разобранный resource id.
+     *
+     * @param namespace namespace или {@code null}
+     * @param path нормализованный путь
+     */
     public record ResourceId(String namespace, String path) {
+        /** @return {@code true}, если id содержит namespace */
         public boolean hasNamespace() {
             return namespace != null && !namespace.isBlank();
         }
     }
 
+    /**
+     * Namespaced путь для backend resource lookup.
+     *
+     * @param namespace namespace ресурса
+     * @param path путь внутри namespace
+     */
     public record NamespacedPath(String namespace, String path) {
     }
 }

@@ -1,11 +1,21 @@
 package dev.sixik.unigui.api.render;
 
-/** Controls how often a screen's retained UI is rebuilt and rendered. */
+/**
+ * Политика частоты пересборки и рендера retained UI.
+ *
+ * <p>Policy позволяет runtime не перерисовывать UI каждый кадр, если экран статичен, или наоборот
+ * держать непрерывный render для анимаций, shader effects и editor preview.</p>
+ */
 public final class UiRenderPolicy {
+    /** Режим работы render policy. */
     public enum Mode {
+        /** UI перестраивается и рендерится каждый кадр. */
         CONTINUOUS,
+        /** UI рендерится только после invalidation/dirty signal. */
         ON_DIRTY,
+        /** UI рендерится с фиксированной частотой. */
         FIXED_FPS,
+        /** UI ориентируется на refresh rate окна/backend'а. */
         VSYNC
     }
 
@@ -21,14 +31,22 @@ public final class UiRenderPolicy {
         this.fps = fps;
     }
 
+    /** @return policy непрерывного рендера */
     public static UiRenderPolicy continuous() {
         return CONTINUOUS;
     }
 
+    /** @return policy рендера только по dirty/invalidation signal */
     public static UiRenderPolicy onDirty() {
         return ON_DIRTY;
     }
 
+    /**
+     * Создаёт policy фиксированной частоты.
+     *
+     * @param fps частота кадров UI
+     * @return policy с фиксированным fps
+     */
     public static UiRenderPolicy fixedFps(float fps) {
         if (!Float.isFinite(fps) || fps <= 0.0f) {
             throw new IllegalArgumentException("fps must be finite and greater than zero");
@@ -36,19 +54,30 @@ public final class UiRenderPolicy {
         return new UiRenderPolicy(Mode.FIXED_FPS, fps);
     }
 
-    /** Uses the current Minecraft window refresh rate as the UI render interval. */
+    /**
+     * Использует текущую частоту обновления Minecraft/window как интервал UI render.
+     *
+     * @return policy, синхронизированная с vsync
+     */
     public static UiRenderPolicy vsync() {
         return VSYNC;
     }
 
+    /** @return режим policy */
     public Mode mode() {
         return mode;
     }
 
+    /** @return fps для {@link Mode#FIXED_FPS} или {@code 0.0f} */
     public float fps() {
         return fps;
     }
 
+    /**
+     * Возвращает интервал fixed-fps policy в наносекундах.
+     *
+     * @return интервал или {@code 0}, если режим не {@link Mode#FIXED_FPS}
+     */
     public long intervalNanos() {
         return mode == Mode.FIXED_FPS
                 ? Math.max(1L, Math.round(1_000_000_000.0 / fps))

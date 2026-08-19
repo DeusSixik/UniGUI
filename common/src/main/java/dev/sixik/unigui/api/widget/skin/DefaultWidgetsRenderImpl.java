@@ -65,9 +65,18 @@ import dev.sixik.unigui.widgets.render.TreeViewRenderers;
 import dev.sixik.unigui.widgets.render.VirtualTableViewRenderer;
 import dev.sixik.unigui.widgets.render.VirtualTableViewRenderers;
 
+/**
+ * Дефолтная реализация renderer-набора UniGUI.
+ *
+ * <p>Класс связывает публичный facade {@link WidgetsRender} с конкретными renderer-константами
+ * из {@code dev.sixik.unigui.widgets.render}. Его методы не создают новый visual state,
+ * а возвращают уже готовые stateless renderer instances.</p>
+ */
 public final class DefaultWidgetsRenderImpl implements WidgetsRenderImpl {
+    /** Единственный дефолтный instance renderer-набора. */
     public static final DefaultWidgetsRenderImpl INSTANCE = new DefaultWidgetsRenderImpl();
 
+    /** Закрытый конструктор: используется singleton {@link #INSTANCE}. */
     private DefaultWidgetsRenderImpl() {
     }
 

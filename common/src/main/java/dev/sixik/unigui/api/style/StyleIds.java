@@ -1,21 +1,21 @@
 package dev.sixik.unigui.api.style;
 
 /**
- * Central string identifiers used by the style/theme system.
+ * Центральные строковые id, используемые style/theme системой.
  *
- * <p>Use {@link Key} for {@link StyleKey} ids and {@link Widget} for widget
- * type ids passed to {@link Theme#styleFor(String)}, {@link MutableTheme#put}
- * and widget local-style APIs. Keeping these ids in one place avoids fragile
- * magic strings in themes and custom skins.</p>
+ * <p>{@link Key} содержит id style-свойств для {@link StyleKey}. {@link Widget} содержит id типов
+ * виджетов, которые передаются в {@link Theme#styleFor(String)}, {@link MutableTheme#put(String, Style)}
+ * и локальные style APIs виджетов. Хранение id в одном месте уменьшает количество хрупких строковых
+ * литералов в темах, XML и custom skin'ах.</p>
  */
 public final class StyleIds {
-    /** Wildcard style id used for fallback/local styles. */
+    /** Wildcard id для fallback/local стилей. */
     public static final String WILDCARD = Theme.WILDCARD;
 
     private StyleIds() {
     }
 
-    /** Style property ids used to create {@link StyleKey} constants. */
+    /** Id style-свойств, на основе которых создаются {@link StyleKey} constants. */
     public static final class Key {
         public static final String RENDERER = "renderer";
         public static final String BACKGROUND_COLOR = "background.color";
@@ -35,7 +35,7 @@ public final class StyleIds {
         }
     }
 
-    /** Widget type ids used by theme and local style lookup. */
+    /** Id типов виджетов, используемые Theme и local style lookup. */
     public static final class Widget {
         public static final String ACCORDION = "Accordion";
         public static final String BORDER = "Border";
@@ -108,7 +108,8 @@ public final class StyleIds {
         public static final String VIRTUAL_TABLE_VIEW = "VirtualTableView";
         public static final String WINDOW_WIDGET = "WindowWidget";
         public static final String WRAP_PANEL = "WrapPanel";
-        // XML/editor widget ids that do not belong to the initial core control set.
+
+        // Id XML/editor виджетов, которые не входят в начальный набор core controls.
         public static final String ASSET_BROWSER_PANEL = "AssetBrowserPanel";
         public static final String CODE_EDITOR = "CodeEditor";
         public static final String COMMAND_PALETTE = "CommandPalette";
@@ -149,7 +150,6 @@ public final class StyleIds {
         public static final String XML_HIERARCHY_PANEL = "XmlHierarchyPanel";
         public static final String XML_PROPERTIES_PANEL = "XmlPropertiesPanel";
         public static final String XML_RUNTIME_VIEW_PANE = "XmlRuntimeViewPane";
-
 
         private Widget() {
         }

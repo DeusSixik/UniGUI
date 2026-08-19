@@ -10,14 +10,30 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
-/** Registry of style properties that can be parsed, serialized and edited as data. */
+/**
+ * Registry style-свойств, которые можно парсить, сериализовать и редактировать как данные.
+ *
+ * <p>Сам {@link StyleKey} знает только id и Java-тип. Registry добавляет metadata:
+ * отображаемое имя, категорию, значение по умолчанию и {@link StyleValueCodec}. XML loader
+ * и editor inspector используют registry, чтобы не хардкодить список свойств в UI.</p>
+ */
 public final class StyleKeyRegistry {
     private final Map<String, StylePropertyDescriptor<?>> descriptors = new LinkedHashMap<>();
 
+    /**
+     * Создаёт пустой registry.
+     *
+     * @return новый registry без зарегистрированных свойств
+     */
     public static StyleKeyRegistry empty() {
         return new StyleKeyRegistry();
     }
 
+    /**
+     * Создаёт registry стандартных UniGUI style-свойств.
+     *
+     * @return registry с базовыми цветами, border, radius и texture fit свойствами
+     */
     public static StyleKeyRegistry builtIns() {
         StyleValueCodec<ColorView> color = StyleValueCodec.color();
         StyleValueCodec<Float> number = StyleValueCodec.floatingPoint();
@@ -36,16 +52,36 @@ public final class StyleKeyRegistry {
                 .register(new StylePropertyDescriptor<>(StyleKeys.THUMB_COLOR, "Thumb color", "Controls", null, color, "Thumb color for slider/scroll controls."));
     }
 
+    /**
+     * Регистрирует descriptor свойства.
+     *
+     * @param descriptor metadata свойства
+     * @return этот registry для fluent-настройки
+     * @param <T> Java-тип значения свойства
+     */
     public <T> StyleKeyRegistry register(StylePropertyDescriptor<T> descriptor) {
         Objects.requireNonNull(descriptor, "descriptor");
         descriptors.put(descriptor.key().id(), descriptor);
         return this;
     }
 
+    /**
+     * Ищет descriptor по строковому id свойства.
+     *
+     * @param propertyId id свойства из XML/StylePack
+     * @return descriptor или {@link Optional#empty()}
+     */
     public Optional<StylePropertyDescriptor<?>> descriptor(String propertyId) {
         return Optional.ofNullable(descriptors.get(normalize(propertyId)));
     }
 
+    /**
+     * Ищет descriptor по типизированному ключу и проверяет совместимость типов.
+     *
+     * @param key ключ свойства
+     * @return типизированный descriptor или {@link Optional#empty()}
+     * @param <T> Java-тип значения свойства
+     */
     public <T> Optional<StylePropertyDescriptor<T>> descriptor(StyleKey<T> key) {
         Objects.requireNonNull(key, "key");
         StylePropertyDescriptor<?> descriptor = descriptors.get(key.id());
@@ -57,6 +93,11 @@ public final class StyleKeyRegistry {
         return Optional.of(typed);
     }
 
+    /**
+     * Возвращает зарегистрированные descriptors.
+     *
+     * @return read-only view descriptors в порядке регистрации
+     */
     public Collection<StylePropertyDescriptor<?>> descriptors() {
         return Collections.unmodifiableCollection(descriptors.values());
     }

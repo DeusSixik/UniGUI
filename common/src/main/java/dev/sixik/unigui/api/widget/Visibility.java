@@ -1,21 +1,28 @@
 package dev.sixik.unigui.api.widget;
 
 /**
- * Controls how a widget participates in layout, rendering and input.
+ * Режим участия виджета в layout, render, input и focus pipeline.
+ *
+ * <p>Видимость здесь шире, чем простой boolean. Иногда контрол нужно скрыть визуально,
+ * но оставить занимаемое место в layout, а иногда полностью убрать его из потока. Этот enum
+ * фиксирует оба сценария и позволяет layout engine и input system принимать одинаковое решение.</p>
+ *
+ * @see Widget#visibility()
+ * @see Widget#visible()
  */
 public enum Visibility {
     /**
-     * Widget is measured, arranged, rendered and can receive input/focus.
+     * Виджет измеряется, размещается, рисуется и может получать input/focus.
      */
     VISIBLE,
 
     /**
-     * Widget keeps its layout slot but does not render or receive input/focus.
+     * Виджет сохраняет место в layout, но не рисуется и не принимает input/focus.
      */
     HIDDEN,
 
     /**
-     * Widget is removed from layout and does not render or receive input/focus.
+     * Виджет исключается из layout, не рисуется и не принимает input/focus.
      */
     COLLAPSED
 }

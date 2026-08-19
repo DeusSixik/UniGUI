@@ -16,11 +16,15 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Named collection of reusable styles and animation presets.
+ * Именованная коллекция переиспользуемых стилей и animation preset'ов.
  *
- * <p>{@code StylePack} is also a {@link Theme}: existing widgets can consume it
- * through {@code UIContext.theme(...)} while editors can work with named entries,
- * bindings and event animation links as regular data.</p>
+ * <p>{@code StylePack} одновременно является {@link Theme}: существующие виджеты могут получать
+ * его через {@code UIContext.theme(...)}, а редактор может работать с именованными стилями,
+ * binding'ами и связями событий с анимациями как с обычными данными.</p>
+ *
+ * <p>Pack решает три задачи: хранит {@link StyleDefinition}, выбирает подходящие определения
+ * через {@link StyleSelector} и строит {@link RenderPlan} через {@link StyleRenderPlanRegistry},
+ * когда для типа виджета зарегистрирован декларативный render-plan builder.</p>
  */
 public final class StylePack implements Theme {
     private String id;
@@ -31,18 +35,38 @@ public final class StylePack implements Theme {
     private String fallbackStyleId = "";
     private long version;
 
+    /**
+     * Создаёт style pack с указанным id.
+     *
+     * @param id id pack'а; пустое значение заменяется на {@code style-pack}
+     */
     public StylePack(String id) {
         this.id = normalizeOptional(id, "style-pack");
     }
 
+    /**
+     * Фабрика style pack'а.
+     *
+     * @param id id pack'а
+     * @return новый {@code StylePack}
+     */
     public static StylePack create(String id) {
         return new StylePack(id);
     }
 
+    /**
+     * @return id style pack'а
+     */
     public String id() {
         return id;
     }
 
+    /**
+     * Меняет id style pack'а.
+     *
+     * @param id новый id
+     * @return этот pack для fluent-настройки
+     */
     public StylePack id(String id) {
         String normalized = normalizeOptional(id, "style-pack");
         if (this.id.equals(normalized)) return this;
@@ -51,11 +75,22 @@ public final class StylePack implements Theme {
         return this;
     }
 
+    /**
+     * Возвращает fallback-стиль pack'а.
+     *
+     * @return стиль из {@link #fallbackStyle(String)} или прямой fallback
+     */
     public Style fallback() {
         Style fallbackStyle = styleById(fallbackStyleId);
         return fallbackStyle == null ? fallback : fallbackStyle;
     }
 
+    /**
+     * Задаёт прямой fallback-стиль.
+     *
+     * @param fallback стиль для виджетов без совпавших definitions
+     * @return этот pack для fluent-настройки
+     */
     public StylePack fallback(Style fallback) {
         this.fallback = fallback == null ? Style.EMPTY : fallback;
         this.fallbackStyleId = "";
@@ -63,29 +98,68 @@ public final class StylePack implements Theme {
         return this;
     }
 
+    /**
+     * Задаёт fallback через id одного из стилей pack'а.
+     *
+     * @param styleId id определения стиля
+     * @return этот pack для fluent-настройки
+     */
     public StylePack fallbackStyle(String styleId) {
         this.fallbackStyleId = normalizeOptional(styleId, "");
         version++;
         return this;
     }
 
+    /**
+     * Возвращает snapshot зарегистрированных стилей.
+     *
+     * @return карта {@code styleId -> StyleDefinition}
+     */
     public Map<String, StyleDefinition> styles() {
         return Collections.unmodifiableMap(new LinkedHashMap<>(styles));
     }
 
+    /**
+     * Ищет style definition по id.
+     *
+     * @param styleId id стиля
+     * @return definition или {@link Optional#empty()}
+     */
     public Optional<StyleDefinition> styleDefinition(String styleId) {
         return Optional.ofNullable(styles.get(normalizeOptional(styleId, "")));
     }
 
+    /**
+     * Возвращает наиболее приоритетный стиль для типа виджета без class/style-id условий.
+     *
+     * @param widgetType тип виджета
+     * @return подходящее definition или empty
+     */
     public Optional<StyleDefinition> styleDefinitionFor(String widgetType) {
         return styleDefinitionFor(widgetType, "", List.of());
     }
 
+    /**
+     * Возвращает наиболее приоритетный стиль для конкретного виджета.
+     *
+     * @param widgetType тип виджета
+     * @param widgetStyleId явный style id виджета
+     * @param styleClasses style classes виджета
+     * @return последний подходящее definition после сортировки specificity
+     */
     public Optional<StyleDefinition> styleDefinitionFor(String widgetType, String widgetStyleId, Collection<String> styleClasses) {
         List<StyleDefinition> definitions = matchingDefinitions(widgetType, widgetStyleId, styleClasses);
         return definitions.isEmpty() ? Optional.empty() : Optional.of(definitions.get(definitions.size() - 1));
     }
 
+    /**
+     * Возвращает custom renderer id для конкретного виджета.
+     *
+     * @param widgetType тип виджета
+     * @param widgetStyleId явный style id виджета
+     * @param styleClasses style classes виджета
+     * @return renderer id или пустая строка
+     */
     public String rendererIdFor(String widgetType, String widgetStyleId, Collection<String> styleClasses) {
         List<StyleDefinition> definitions = matchingDefinitions(widgetType, widgetStyleId, styleClasses);
         for (int i = definitions.size() - 1; i >= 0; i--) {
@@ -98,10 +172,23 @@ public final class StylePack implements Theme {
         return "";
     }
 
+    /**
+     * Добавляет декларативный стиль по id.
+     *
+     * @param styleId id стиля
+     * @param style style-свойства
+     * @return этот pack для fluent-настройки
+     */
     public StylePack putStyle(String styleId, Style style) {
         return put(StyleDefinition.of(styleId, style));
     }
 
+    /**
+     * Добавляет или заменяет style definition.
+     *
+     * @param definition definition стиля
+     * @return этот pack для fluent-настройки
+     */
     public StylePack put(StyleDefinition definition) {
         Objects.requireNonNull(definition, "definition");
         styles.put(definition.id(), definition);
@@ -109,6 +196,12 @@ public final class StylePack implements Theme {
         return this;
     }
 
+    /**
+     * Удаляет style definition и связанные bindings.
+     *
+     * @param styleId id удаляемого стиля
+     * @return этот pack для fluent-настройки
+     */
     public StylePack removeStyle(String styleId) {
         String normalized = normalizeOptional(styleId, "");
         if (normalized.isEmpty()) return this;
@@ -122,14 +215,32 @@ public final class StylePack implements Theme {
         return this;
     }
 
+    /**
+     * Возвращает snapshot bindings типа виджета к style id.
+     *
+     * @return карта {@code widgetType -> styleId}
+     */
     public Map<String, String> widgetBindings() {
         return Collections.unmodifiableMap(new LinkedHashMap<>(widgetBindings));
     }
 
+    /**
+     * Возвращает style binding для типа виджета.
+     *
+     * @param widgetType тип виджета
+     * @return style id или пустая строка
+     */
     public String binding(String widgetType) {
         return widgetBindings.getOrDefault(normalizeOptional(widgetType, ""), "");
     }
 
+    /**
+     * Привязывает тип виджета к style id.
+     *
+     * @param widgetType тип виджета
+     * @param styleId id стиля
+     * @return этот pack для fluent-настройки
+     */
     public StylePack bind(String widgetType, String styleId) {
         String normalizedWidgetType = normalizeOptional(widgetType, "");
         String normalizedStyleId = normalizeOptional(styleId, "");
@@ -146,18 +257,41 @@ public final class StylePack implements Theme {
         return this;
     }
 
+    /**
+     * Удаляет binding для типа виджета.
+     *
+     * @param widgetType тип виджета
+     * @return этот pack для fluent-настройки
+     */
     public StylePack unbind(String widgetType) {
         return bind(widgetType, "");
     }
 
+    /**
+     * Возвращает snapshot animation preset'ов.
+     *
+     * @return карта {@code animationId -> definition}
+     */
     public Map<String, StyleAnimationDefinition> animations() {
         return Collections.unmodifiableMap(new LinkedHashMap<>(animations));
     }
 
+    /**
+     * Ищет animation preset по id.
+     *
+     * @param animationId id preset'а
+     * @return animation definition или empty
+     */
     public Optional<StyleAnimationDefinition> animation(String animationId) {
         return Optional.ofNullable(animations.get(normalizeOptional(animationId, "")));
     }
 
+    /**
+     * Добавляет или заменяет animation preset.
+     *
+     * @param animation определение анимации
+     * @return этот pack для fluent-настройки
+     */
     public StylePack putAnimation(StyleAnimationDefinition animation) {
         Objects.requireNonNull(animation, "animation");
         animations.put(animation.id(), animation);
@@ -165,6 +299,12 @@ public final class StylePack implements Theme {
         return this;
     }
 
+    /**
+     * Удаляет animation preset.
+     *
+     * @param animationId id preset'а
+     * @return этот pack для fluent-настройки
+     */
     public StylePack removeAnimation(String animationId) {
         String normalized = normalizeOptional(animationId, "");
         if (normalized.isEmpty()) return this;
@@ -174,12 +314,27 @@ public final class StylePack implements Theme {
         return this;
     }
 
+    /**
+     * Возвращает animation id, привязанный к событию конкретного стиля.
+     *
+     * @param styleId id стиля
+     * @param eventName id события
+     * @return animation id или пустая строка
+     */
     public String eventAnimation(String styleId, String eventName) {
         return styleDefinition(styleId)
                 .map(definition -> definition.eventAnimation(eventName))
                 .orElse("");
     }
 
+    /**
+     * Собирает итоговый стиль для конкретного виджета.
+     *
+     * @param widgetType тип виджета
+     * @param widgetStyleId явный style id виджета
+     * @param styleClasses style classes виджета
+     * @return итоговый стиль из fallback и подходящее definitions
+     */
     public Style resolveStyleFor(String widgetType, String widgetStyleId, Collection<String> styleClasses) {
         List<Style> layers = new ArrayList<>();
         Style fallbackStyle = fallback();
@@ -190,6 +345,16 @@ public final class StylePack implements Theme {
         return ResolvedStyle.of(layers);
     }
 
+    /**
+     * Строит RenderPlan для типа виджета без class/style-id условий.
+     *
+     * @param widgetType тип виджета
+     * @param stateType Java-тип render state
+     * @param renderState snapshot состояния виджета
+     * @param widgetState текущее visual state виджета
+     * @return план рендера или empty, если builder не зарегистрирован
+     * @param <S> тип render state
+     */
     public <S> Optional<RenderPlan> renderPlanFor(String widgetType,
                                                    Class<S> stateType,
                                                    S renderState,
@@ -197,6 +362,19 @@ public final class StylePack implements Theme {
         return renderPlanFor(widgetType, "", List.of(), stateType, renderState, widgetState);
     }
 
+
+    /**
+     * Строит RenderPlan для конкретного виджета с учётом style id и class'ов.
+     *
+     * @param widgetType тип виджета
+     * @param widgetStyleId явный style id виджета
+     * @param styleClasses style classes виджета
+     * @param stateType Java-тип render state
+     * @param renderState snapshot состояния виджета
+     * @param widgetState текущее visual state виджета
+     * @return план рендера или empty, если builder не зарегистрирован
+     * @param <S> тип render state
+     */
     public <S> Optional<RenderPlan> renderPlanFor(String widgetType,
                                                    String widgetStyleId,
                                                    Collection<String> styleClasses,
@@ -207,6 +385,14 @@ public final class StylePack implements Theme {
         return StyleRenderPlanRegistry.global().plan(widgetType, stateType, renderState, style, widgetState);
     }
 
+    /**
+     * Возвращает все matching style definitions в порядке применения.
+     *
+     * @param widgetType тип виджета
+     * @param widgetStyleId явный style id виджета
+     * @param styleClasses style classes виджета
+     * @return definitions от меньшего приоритета к большему
+     */
     public List<StyleDefinition> matchingDefinitions(String widgetType, String widgetStyleId, Collection<String> styleClasses) {
         String normalizedWidgetType = normalizeOptional(widgetType, "");
         String normalizedStyleId = normalizeOptional(widgetStyleId, "");

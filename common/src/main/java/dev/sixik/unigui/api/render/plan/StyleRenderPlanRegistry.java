@@ -7,16 +7,32 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 
-/** Registry that connects widget type ids to style-aware RenderPlan builders. */
+/**
+ * Registry, связывающий widget type id со style-aware {@link RenderPlan} builder'ами.
+ *
+ * <p>StylePack использует registry, чтобы превратить resolved style и render-state snapshot в
+ * декларативный план рендера. Registry типизирован по state class: builder для ButtonState не будет
+ * случайно применён к TextInputState.</p>
+ */
 public final class StyleRenderPlanRegistry {
     private static final StyleRenderPlanRegistry GLOBAL = new StyleRenderPlanRegistry();
 
     private final Map<String, Entry<?>> entries = new LinkedHashMap<>();
 
+    /** @return глобальный registry render-plan builder'ов */
     public static StyleRenderPlanRegistry global() {
         return GLOBAL;
     }
 
+    /**
+     * Регистрирует builder для типа виджета.
+     *
+     * @param widgetType id типа виджета
+     * @param stateType Java-класс render-state snapshot'а
+     * @param builder builder render plan'а
+     * @return этот registry для fluent-настройки
+     * @param <S> тип render state
+     */
     public synchronized <S> StyleRenderPlanRegistry register(String widgetType,
                                                               Class<S> stateType,
                                                               StyledRenderPlanBuilder<? super S> builder) {
@@ -26,15 +42,38 @@ public final class StyleRenderPlanRegistry {
         return this;
     }
 
+    /**
+     * Удаляет builder для типа виджета.
+     *
+     * @param widgetType id типа виджета
+     * @return этот registry для fluent-настройки
+     */
     public synchronized StyleRenderPlanRegistry unregister(String widgetType) {
         entries.remove(normalize(widgetType));
         return this;
     }
 
+    /**
+     * Проверяет наличие builder'а.
+     *
+     * @param widgetType id типа виджета
+     * @return {@code true}, если builder зарегистрирован
+     */
     public synchronized boolean registered(String widgetType) {
         return entries.containsKey(normalize(widgetType));
     }
 
+    /**
+     * Строит render plan для конкретного виджета.
+     *
+     * @param widgetType id типа виджета
+     * @param stateType ожидаемый тип state
+     * @param state snapshot render-state виджета
+     * @param style разрешённый стиль
+     * @param widgetState visual state виджета
+     * @return render plan или empty, если builder отсутствует/тип несовместим
+     * @param <S> тип render state
+     */
     public synchronized <S> Optional<RenderPlan> plan(String widgetType,
                                                        Class<S> stateType,
                                                        S state,

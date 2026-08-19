@@ -3,12 +3,18 @@ package dev.sixik.unigui.api.render.shaders;
 import java.util.Optional;
 
 /**
- * Resolves shader source code for backend-specific or application-specific shader ids.
+ * Разрешает shader source code для backend-specific или application-specific shader id.
  *
- * <p>Providers can be registered at runtime through {@link ShaderProviders#register(ShaderProvider)}
- * or discovered with Java {@link java.util.ServiceLoader} by adding a
- * {@code META-INF/services/dev.sixik.unigui.api.render.shaders.ShaderProvider} file.</p>
+ * <p>Provider можно зарегистрировать вручную через {@link ShaderProviders#register(ShaderProvider)}
+ * или обнаружить через Java {@link java.util.ServiceLoader}, добавив файл
+ * {@code META-INF/services/dev.sixik.unigui.api.render.shaders.ShaderProvider}.</p>
  */
 public interface ShaderProvider {
+    /**
+     * Загружает source для shader handle.
+     *
+     * @param handle handle шейдера
+     * @return source или {@link Optional#empty()}, если provider не знает этот shader
+     */
     Optional<ShaderSource> load(ShaderHandle handle);
 }

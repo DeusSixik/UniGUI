@@ -6,19 +6,36 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Loads shader files from the Java classpath.
+ * Загружает shader-файлы из Java classpath.
+ *
+ * <p>Provider ищет fragment/vertex sources по candidates из {@link ShaderResourcePaths}. Он нужен как
+ * дефолтный fallback для модов и приложений, которые кладут shader resources рядом с Java assets.</p>
  */
 public final class ClasspathShaderProvider implements ShaderProvider {
     private final ClassLoader classLoader;
 
+    /**
+     * Создаёт provider с context class loader текущего потока.
+     */
     public ClasspathShaderProvider() {
         this(defaultClassLoader());
     }
 
+    /**
+     * Создаёт provider с явным class loader.
+     *
+     * @param classLoader loader для поиска resources
+     */
     public ClasspathShaderProvider(ClassLoader classLoader) {
         this.classLoader = Objects.requireNonNull(classLoader, "classLoader");
     }
 
+    /**
+     * Пытается загрузить source для shader handle из classpath.
+     *
+     * @param handle handle шейдера
+     * @return shader source или empty
+     */
     @Override
     public Optional<ShaderSource> load(ShaderHandle handle) {
         if (handle == null || handle.hasEmbeddedFragmentSource()) return Optional.empty();

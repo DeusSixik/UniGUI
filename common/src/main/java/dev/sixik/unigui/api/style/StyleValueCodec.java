@@ -7,12 +7,39 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.function.Function;
 
-/** Converts a declarative style value between XML text and a typed Java value. */
+/**
+ * Преобразует декларативное style-значение между XML-текстом и типизированным Java-значением.
+ *
+ * <p>Codec подключается к {@link StylePropertyDescriptor}. Это позволяет одному editor/XML pipeline
+ * одинаково работать с числами, цветами, enum'ами и будущими пользовательскими типами.</p>
+ *
+ * @param <T> Java-тип значения свойства
+ */
 public interface StyleValueCodec<T> {
+    /**
+     * Парсит строку в типизированное значение.
+     *
+     * @param value строка из ввод XML/editor
+     * @return типизированное значение
+     */
     T parse(String value);
 
+    /**
+     * Форматирует значение обратно в XML/editor строку.
+     *
+     * @param value значение свойства
+     * @return строковое представление
+     */
     String format(T value);
 
+    /**
+     * Создаёт codec из двух функций.
+     *
+     * @param parser функция парсинга
+     * @param formatter функция форматирования
+     * @return новый codec
+     * @param <T> Java-тип значения
+     */
     static <T> StyleValueCodec<T> of(Function<String, T> parser, Function<T, String> formatter) {
         Objects.requireNonNull(parser, "parser");
         Objects.requireNonNull(formatter, "formatter");
@@ -29,10 +56,16 @@ public interface StyleValueCodec<T> {
         };
     }
 
+    /**
+     * @return codec для обычных строк
+     */
     static StyleValueCodec<String> string() {
         return of(value -> value, value -> value);
     }
 
+    /**
+     * @return codec для {@link Float} значений
+     */
     static StyleValueCodec<Float> floatingPoint() {
         return of(value -> {
             if (value == null || value.isBlank()) {
@@ -47,6 +80,9 @@ public interface StyleValueCodec<T> {
         });
     }
 
+    /**
+     * @return codec для RGBA/HEX цветов
+     */
     static StyleValueCodec<ColorView> color() {
         return of(MutableColor::fromHex, value -> {
             if (value == null) return "";
@@ -54,6 +90,13 @@ public interface StyleValueCodec<T> {
         });
     }
 
+    /**
+     * Создаёт codec для enum-значений.
+     *
+     * @param type enum-класс
+     * @return codec, принимающий {@code kebab-case}, {@code dot.case} и {@code UPPER_CASE}
+     * @param <E> enum-тип
+     */
     static <E extends Enum<E>> StyleValueCodec<E> enumCodec(Class<E> type) {
         Objects.requireNonNull(type, "type");
         return of(value -> {

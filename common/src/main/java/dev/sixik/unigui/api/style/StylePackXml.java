@@ -15,23 +15,55 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-/** XML codec for declarative {@link StylePack} assets. */
+/**
+ * XML codec для декларативных ресурсов {@link StylePack}.
+ *
+ * <p>Codec поддерживает strict parse для runtime и tolerant parse для редактора. Strict-методы
+ * бросают ошибку при diagnostics, а editor-методы возвращают {@link StylePackResult}, чтобы UI мог
+ * показать частично загруженный pack и список ошибок без потери данных.</p>
+ */
 public final class StylePackXml {
     private StylePackXml() {
     }
 
+    /**
+     * Парсит XML через стандартный registry свойств.
+     *
+     * @param xml XML-документ StylePack
+     * @return загруженный pack
+     */
     public static StylePack parse(String xml) {
         return parse(xml, StyleKeyRegistry.builtIns());
     }
 
+    /**
+     * Strict-парсинг XML через указанный registry свойств.
+     *
+     * @param xml XML-документ StylePack
+     * @param registry registry известных style-свойств
+     * @return загруженный pack
+     */
     public static StylePack parse(String xml, StyleKeyRegistry registry) {
         return parseEditor(xml, registry).throwIfDiagnostics().pack();
     }
 
+    /**
+     * Tolerant-парсинг XML для editor/hot-reload сценариев.
+     *
+     * @param xml XML-документ StylePack
+     * @return pack и diagnostics
+     */
     public static StylePackResult parseEditor(String xml) {
         return parseEditor(xml, StyleKeyRegistry.builtIns());
     }
 
+    /**
+     * Tolerant-парсинг XML через указанный registry свойств.
+     *
+     * @param xml XML-документ StylePack
+     * @param registry registry известных style-свойств
+     * @return pack и diagnostics
+     */
     public static StylePackResult parseEditor(String xml, StyleKeyRegistry registry) {
         StyleKeyRegistry effectiveRegistry = registry == null ? StyleKeyRegistry.builtIns() : registry;
         XmlWidgetDocument document;
@@ -60,6 +92,12 @@ public final class StylePackXml {
         return new StylePackResult(pack, diagnostics);
     }
 
+    /**
+     * Сериализует style pack обратно в XML.
+     *
+     * @param pack pack для сохранения; {@code null} сериализуется как пустой pack
+     * @return XML-строка
+     */
     public static String toXmlString(StylePack pack) {
         StylePack source = pack == null ? StylePack.create("style-pack") : pack;
         StringBuilder xml = new StringBuilder();

@@ -6,10 +6,23 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Ordered style stack where later layers override earlier layers. */
+/**
+ * Упорядоченный стек стилей, где более поздние слои перекрывают ранние.
+ *
+ * <p>Этот класс используется после разрешения StylePack selector'ов: fallback, binding style,
+ * class/id selector'ы и явный style id складываются в один {@code ResolvedStyle}. При чтении
+ * свойства каждый следующий слой получает значение предыдущего слоя как fallback.</p>
+ *
+ * @see StylePack#resolveStyleFor(String, String, java.util.Collection)
+ */
 public final class ResolvedStyle implements Style {
     private final List<Style> layers;
 
+    /**
+     * Создаёт resolved style из списка слоёв.
+     *
+     * @param layers слои в порядке возрастания приоритета
+     */
     public ResolvedStyle(List<Style> layers) {
         if (layers == null || layers.isEmpty()) {
             this.layers = List.of();
@@ -24,11 +37,20 @@ public final class ResolvedStyle implements Style {
         this.layers = List.copyOf(normalized);
     }
 
+    /**
+     * Создаёт resolved style или возвращает {@link Style#EMPTY}, если полезных слоёв нет.
+     *
+     * @param layers слои в порядке возрастания приоритета
+     * @return resolved style или пустой стиль
+     */
     public static Style of(List<Style> layers) {
         ResolvedStyle resolved = new ResolvedStyle(layers);
         return resolved.layers.isEmpty() ? Style.EMPTY : resolved;
     }
 
+    /**
+     * @return слои в порядке возрастания приоритета
+     */
     public List<Style> layers() {
         return layers;
     }

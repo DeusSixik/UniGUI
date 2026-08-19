@@ -13,11 +13,33 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Высокоуровневый API записи draw-команд текущего UI кадра.
+ *
+ * <p>{@code RenderContext} является основной точкой, через которую виджеты и {@link DrawScope}
+ * добавляют primitives в {@link DrawList}. Методы по умолчанию строят {@link DrawCommand}, применяют
+ * opacity/text pixel snap/transform stack и оставляют backend'у только исполнение готового списка.</p>
+ *
+ * <p>Интерфейс содержит два слоя API: простые primitives ({@code rect}, {@code text}, {@code texture})
+ * и ImGui-like helpers ({@code addRectFilled}, {@code pathLineTo}, {@code channelsSplit}). Backend
+ * реализации обычно переопределяют только {@link #drawList()}, {@link #backend()} и состояние stack'ов.</p>
+ */
 public interface RenderContext {
+    /** Полный круг в радианах, используется path helpers. */
     float TAU = (float) (Math.PI * 2.0);
 
+    /**
+     * Возвращает draw list текущего кадра.
+     *
+     * @return список команд, куда пишут виджеты
+     */
     DrawList drawList();
 
+    /**
+     * Возвращает активный backend, если он доступен context'у.
+     *
+     * @return backend или {@code null}
+     */
     default RenderBackend backend() {
         return null;
     }
@@ -32,6 +54,11 @@ public interface RenderContext {
         return 1.0f;
     }
 
+    /**
+     * Временно включает или выключает pixel snap для text commands.
+     *
+     * @param enabled новое состояние pixel snap
+     */
     default void pushTextPixelSnap(boolean enabled) {
     }
 
@@ -42,6 +69,12 @@ public interface RenderContext {
         return true;
     }
 
+    /**
+     * Добавляет transform layer для потомков.
+     *
+     * @param bounds bounds виджета, которому принадлежит transform
+     * @param transform transform слоя
+     */
     default void pushTransform(RectView bounds, Transform transform) {
     }
 
@@ -52,6 +85,11 @@ public interface RenderContext {
         return List.of();
     }
 
+    /**
+     * Отправляет команду в draw list с учётом текущего transform stack.
+     *
+     * @param command команда; {@code null} игнорируется
+     */
     default void submit(DrawCommand command) {
         if (command == null) return;
         List<TransformLayer> stack = transformStack();
@@ -727,6 +765,14 @@ public interface RenderContext {
         pathArcTo(x1 + r, y2 - r, r, (float) (Math.PI * 0.5), (float) Math.PI, segments);
     }
 
+    /**
+     * Открывает clip/scissor область.
+     *
+     * @param x X-граница clip-области
+     * @param y Y-граница clip-области
+     * @param width ширина clip bounds
+     * @param height высота clip bounds
+     */
     default void pushClip(float x, float y, float width, float height) {
         submit(DrawCommand.pushClip(new MutableRect(x, y, width, height)));
     }

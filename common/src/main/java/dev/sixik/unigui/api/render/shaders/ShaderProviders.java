@@ -8,7 +8,11 @@ import java.util.ServiceLoader;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * Global shader provider registry used by render backends.
+ * Глобальный registry shader providers, используемый render backend'ами.
+ *
+ * <p>Resolve order: embedded source в {@link ShaderHandle}, preferred providers из вызова,
+ * вручную зарегистрированные providers, ServiceLoader providers и classpath fallback. Ошибки
+ * отдельных providers намеренно подавляются, чтобы один сломанный provider не ломал весь UI.</p>
  */
 public final class ShaderProviders {
     private static final CopyOnWriteArrayList<ShaderProvider> REGISTERED = new CopyOnWriteArrayList<>();
@@ -19,20 +23,42 @@ public final class ShaderProviders {
     private ShaderProviders() {
     }
 
+    /**
+     * Регистрирует provider вручную.
+     *
+     * @param provider поставщик shader source-ов
+     * @return closeable, который удаляет provider из registry
+     */
     public static AutoCloseable register(ShaderProvider provider) {
         ShaderProvider normalized = Objects.requireNonNull(provider, "provider");
         REGISTERED.addIfAbsent(normalized);
         return () -> unregister(normalized);
     }
 
+    /**
+     * Удаляет provider из ручной регистрации.
+     *
+     * @param provider provider для удаления
+     * @return {@code true}, если provider был зарегистрирован
+     */
     public static boolean unregister(ShaderProvider provider) {
         return provider != null && REGISTERED.remove(provider);
     }
 
+    /**
+     * @return snapshot вручную зарегистрированных providers
+     */
     public static List<ShaderProvider> registeredProviders() {
         return List.copyOf(REGISTERED);
     }
 
+    /**
+     * Разрешает shader source с опциональным списком preferred providers.
+     *
+     * @param handle handle шейдера
+     * @param preferredProviders providers с максимальным приоритетом
+     * @return shader source или empty
+     */
     public static Optional<ShaderSource> resolve(ShaderHandle handle, ShaderProvider... preferredProviders) {
         if (handle == null) return Optional.empty();
 
@@ -61,10 +87,21 @@ public final class ShaderProviders {
         return load(CLASSPATH, handle);
     }
 
+    /**
+     * Разрешает shader source через стандартный provider chain.
+     *
+     * @param handle handle шейдера
+     * @return shader source или empty
+     */
     public static Optional<ShaderSource> resolve(ShaderHandle handle) {
         return resolve(handle, new ShaderProvider[0]);
     }
 
+    /**
+     * Возвращает полный snapshot provider chain после ServiceLoader discovery.
+     *
+     * @return providers в порядке применения
+     */
     public static List<ShaderProvider> allProvidersSnapshot() {
         ensureServicesLoaded();
         List<ShaderProvider> providers = new ObjectArrayList<>(REGISTERED.size() + SERVICES.size() + 1);
@@ -74,6 +111,7 @@ public final class ShaderProviders {
         return List.copyOf(providers);
     }
 
+    /** Повторно загружает providers из ServiceLoader. */
     public static void reloadServices() {
         SERVICES.clear();
         servicesLoaded = false;
@@ -106,7 +144,7 @@ public final class ShaderProviders {
                 SERVICES.addIfAbsent(provider);
             }
         } catch (Throwable ignored) {
-            // Service discovery is best-effort; manual registration and classpath fallback remain available.
+            // ServiceLoader discovery выполняется best-effort; ручная регистрация и classpath fallback остаются доступными.
         }
     }
 }
