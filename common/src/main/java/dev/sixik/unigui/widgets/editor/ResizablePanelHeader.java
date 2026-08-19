@@ -15,6 +15,8 @@ import java.util.function.Consumer;
 /** Pane header variant with a resize affordance for custom splitter-backed editor panels. */
 @XmlWidgetName("ResizablePanelHeader")
 public class ResizablePanelHeader extends PaneHeader {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.RESIZABLE_PANEL_HEADER;
+
     private final ToolButton resizeButton = new ToolButton();
     private final List<Consumer<PanelResizeRequest>> resizeListeners = new ArrayList<>();
     private ResizeEdge resizeEdge = ResizeEdge.RIGHT;

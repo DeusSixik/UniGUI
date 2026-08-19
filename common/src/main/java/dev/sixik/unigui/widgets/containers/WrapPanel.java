@@ -35,6 +35,8 @@ import dev.sixik.unigui.widgets.core.Orientation;
  */
 @XmlWidgetName("WrapPanel")
 public final class WrapPanel extends PanelWidget {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.WRAP_PANEL;
+
     private Orientation orientation = Orientation.HORIZONTAL;
     private float spacing;
     private float lineSpacing;

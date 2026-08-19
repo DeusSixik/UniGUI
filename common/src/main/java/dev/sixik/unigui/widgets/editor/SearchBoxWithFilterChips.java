@@ -21,6 +21,8 @@ import java.util.function.Consumer;
 /** Search box paired with reusable toggle chips for editor filtering surfaces. */
 @XmlWidgetName("SearchBoxWithFilterChips")
 public class SearchBoxWithFilterChips extends LinearBox {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.SEARCH_BOX_WITH_FILTER_CHIPS;
+
     private final SearchField searchField = new SearchField();
     private final HBox chipRow = new HBox();
     private final List<FilterChip> filters = new ArrayList<>();

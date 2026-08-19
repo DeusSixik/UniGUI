@@ -45,6 +45,8 @@ import java.util.function.Consumer;
 /** Tree-like editor pane backed by {@link XmlWidgetHierarchy}. */
 @XmlWidgetName("XmlHierarchyPanel")
 public final class XmlHierarchyPanel extends LinearBox {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.XML_HIERARCHY_PANEL;
+
     private static final float ROW_H = 20.0f;
     private static final float PAD_X = 6.0f;
     private static final float INDENT = 12.0f;

@@ -43,6 +43,8 @@ import java.util.Optional;
 /** Design-surface host that layers XML preview, grid and editor selection overlay. */
 @XmlWidgetName("XmlDesignCanvas")
 public class XmlDesignCanvas extends PanelWidget {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.XML_DESIGN_CANVAS;
+
     private static final XmlWidgetSerializationOptions PREVIEW_XML =
             XmlWidgetSerializationOptions.COMPACT.xmlDeclaration(false);
     private static final XmlWidgetSerializationOptions EDITOR_XML =

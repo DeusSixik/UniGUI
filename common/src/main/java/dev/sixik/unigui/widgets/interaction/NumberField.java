@@ -15,9 +15,22 @@ import dev.sixik.unigui.widgets.render.TextInputRenderer;
 import dev.sixik.unigui.widgets.render.TextInputRenderType;
 
 import java.util.Locale;
+import dev.sixik.unigui.api.style.StyleAnimationIds;
+import dev.sixik.unigui.api.style.StyleIds;
 
 @XmlWidgetName("NumberField")
 public class NumberField extends TextInput {
+    public static final String STYLE_TYPE = StyleIds.Widget.NUMBER_FIELD;
+
+    public static final class AnimationEvents {
+        public static final String ON_VALUE_CHANGED = StyleAnimationIds.Event.ON_VALUE_CHANGED;
+        public static final String ON_TEXT_CHANGED = StyleAnimationIds.Event.ON_TEXT_CHANGED;
+        public static final java.util.List<String> ALL = java.util.List.of(ON_VALUE_CHANGED, ON_TEXT_CHANGED);
+
+        private AnimationEvents() {
+        }
+    }
+
     private double min = -Double.MAX_VALUE;
     private double max = Double.MAX_VALUE;
     private double value;
@@ -161,8 +174,13 @@ public class NumberField extends TextInput {
     }
 
     @Override
+    protected TextInputRenderer defaultRenderer() {
+        return WidgetsRender.numberField();
+    }
+
+    @Override
     protected TextInputRenderer effectiveRenderer() {
-        return renderer() == null ? styleRenderer(TextInputRenderer.class, WidgetsRender.numberField()) : renderer();
+        return renderer() == null ? styleRenderer(TextInputRenderer.class, defaultRenderer()) : renderer();
     }
 
     @Override

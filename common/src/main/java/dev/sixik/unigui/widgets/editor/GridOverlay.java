@@ -16,6 +16,8 @@ import dev.sixik.unigui.impl.widget.WidgetBase;
 
 @XmlWidgetName("GridOverlay")
 public class GridOverlay extends WidgetBase {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.GRID_OVERLAY;
+
     private static final float DEFAULT_SPACING = 16.0f;
     private static final float DEFAULT_LINE_THICKNESS = 1.0f;
     private static final float DEFAULT_MAJOR_LINE_THICKNESS = 1.25f;

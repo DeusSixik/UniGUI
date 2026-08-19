@@ -17,6 +17,7 @@ import dev.sixik.unigui.api.render.TextureWrap;
 import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.style.StyleKey;
 import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.style.StylePack;
 import dev.sixik.unigui.api.style.Theme;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.widget.Visibility;
@@ -31,6 +32,8 @@ import dev.sixik.unigui.widgets.render.BoxState;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
+import dev.sixik.unigui.api.style.StyleAnimationIds;
+import dev.sixik.unigui.api.style.StyleIds;
 
 /**
  * Визуальный контейнер с фоном, текстурой, рамкой, радиусом и дочерними виджетами.
@@ -60,6 +63,39 @@ import java.util.List;
  */
 @XmlWidgetName("Box")
 public class Box extends PanelWidget {
+    /** Style type id для StylePack selector/binding. */
+    public static final String STYLE_TYPE = StyleIds.Widget.BOX;
+
+    /** Style property id, которые понимает стандартный Box RenderPlan. */
+    public static final class StyleProperties {
+        public static final String BACKGROUND_COLOR = StyleIds.Key.BACKGROUND_COLOR;
+        public static final String BACKGROUND_TEXTURE = StyleIds.Key.BACKGROUND_TEXTURE;
+        public static final String BACKGROUND_TEXTURE_TINT = StyleIds.Key.BACKGROUND_TEXTURE_TINT;
+        public static final String BACKGROUND_TEXTURE_FIT = StyleIds.Key.BACKGROUND_TEXTURE_FIT;
+        public static final String BORDER_COLOR = StyleIds.Key.BORDER_COLOR;
+        public static final String BORDER_WIDTH = StyleIds.Key.BORDER_WIDTH;
+        public static final String RADIUS = StyleIds.Key.RADIUS;
+
+        private StyleProperties() {
+        }
+    }
+
+    /** Animation property id для Box и его визуальной подложки. */
+    public static final class AnimationProperties {
+        public static final String BACKGROUND_COLOR = StyleAnimationIds.Property.BACKGROUND_COLOR;
+        public static final String BACKGROUND_TEXTURE_TINT = StyleAnimationIds.Property.BACKGROUND_TEXTURE_TINT;
+        public static final String BORDER_COLOR = StyleAnimationIds.Property.BORDER_COLOR;
+        public static final String BORDER_WIDTH = StyleAnimationIds.Property.BORDER_WIDTH;
+        public static final String RADIUS = StyleAnimationIds.Property.RADIUS;
+        public static final String OPACITY = StyleAnimationIds.Property.OPACITY;
+        public static final String SCALE = StyleAnimationIds.Property.SCALE;
+        public static final String ROTATION_DEGREES = StyleAnimationIds.Property.ROTATION_DEGREES;
+        public static final java.util.List<String> ALL = StyleAnimationIds.Property.BOX;
+
+        private AnimationProperties() {
+        }
+    }
+
     private final MutableColor background = new MutableColor(0.0f, 0.0f, 0.0f, 0.0f);
     private TextureHandle backgroundTexture;
     private final MutableColor backgroundTextureTint = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -530,8 +566,19 @@ public class Box extends PanelWidget {
      */
     protected void renderBox(RenderContext context) {
         applyTheme();
-
-        effectiveBoxRenderer().render(new DrawScope(context, transform(), layoutBounds()), boxState());
+        BoxState state = boxState();
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        if (boxRenderer != null) {
+            boxRenderer.render(draw, state);
+            return;
+        }
+        BoxRenderer styled = styleRendererOverride(BoxRenderer.class);
+        if (styled != null) {
+            styled.render(draw, state);
+            return;
+        }
+        if (renderStylePlan(context, BoxState.class, state)) return;
+        WidgetsRender.box().render(draw, state);
     }
 
     /**
@@ -655,6 +702,16 @@ public class Box extends PanelWidget {
         return themeEnabled ? super.styleRenderer(rendererType, fallback) : fallback;
     }
 
+    @Override
+    protected <T> T styleRendererOverride(Class<T> rendererType) {
+        return themeEnabled ? super.styleRendererOverride(rendererType) : null;
+    }
+
+    @Override
+    protected boolean stylePlansEnabled() {
+        return themeEnabled;
+    }
+
     /**
      * Ищет style value в theme и local style scopes.
      *
@@ -679,7 +736,10 @@ public class Box extends PanelWidget {
         UIContext context = uiContext();
         Theme theme = context == null ? Theme.EMPTY : context.theme();
         String type = styleType();
-        T value = theme.styleFor(type).get(key, state, fallback);
+        Style themeStyle = theme instanceof StylePack stylePack
+                ? stylePack.resolveStyleFor(type, styleId(), styleClasses())
+                : theme.styleFor(type);
+        T value = themeStyle.get(key, state, fallback);
         for (Widget current : styleLookupChain()) {
             Style localStyle = current.localStyle(type);
             value = localStyle.get(key, state, value);

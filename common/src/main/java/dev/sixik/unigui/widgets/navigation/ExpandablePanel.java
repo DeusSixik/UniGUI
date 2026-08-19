@@ -19,6 +19,8 @@ import dev.sixik.unigui.widgets.interaction.ToggleButton;
 
 @XmlWidgetName("ExpandablePanel")
 public class ExpandablePanel extends LinearBox {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.EXPANDABLE_PANEL;
+
     private static final float HEADER_HEIGHT = 22.0f;
 
     private final ToggleButton headerButton = new ToggleButton();

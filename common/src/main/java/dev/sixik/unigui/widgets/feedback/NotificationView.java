@@ -25,6 +25,8 @@ import dev.sixik.unigui.widgets.containers.Box;
  */
 @XmlWidgetName("NotificationView")
 public class NotificationView extends Box implements OverlayHostAware {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.NOTIFICATION_VIEW;
+
     public enum Placement {
         TOP_RIGHT,
         BOTTOM_RIGHT

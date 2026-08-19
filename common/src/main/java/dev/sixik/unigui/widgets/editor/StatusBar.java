@@ -13,6 +13,8 @@ import dev.sixik.unigui.widgets.display.Label;
 /** Compact editor status strip for document, diagnostics, selection and zoom state. */
 @XmlWidgetName("StatusBar")
 public class StatusBar extends LinearBox {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.STATUS_BAR;
+
     private final Label dirtyLabel = new Label("Saved");
     private final Label modeLabel = new Label("Mode: Design");
     private final Label diagnosticsLabel = new Label("Diagnostics: OK");

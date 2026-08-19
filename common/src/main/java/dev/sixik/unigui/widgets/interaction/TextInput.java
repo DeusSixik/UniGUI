@@ -35,6 +35,8 @@ import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.render.TextInputRenderer;
+import dev.sixik.unigui.api.style.StyleAnimationIds;
+import dev.sixik.unigui.api.style.StyleIds;
 import dev.sixik.unigui.widgets.render.TextInputRenderType;
 import dev.sixik.unigui.widgets.render.TextInputState;
 
@@ -55,6 +57,50 @@ import dev.sixik.unigui.widgets.containers.Box;
  */
 @XmlWidgetName("TextInput")
 public class TextInput extends Box {
+    public static final String STYLE_TYPE = StyleIds.Widget.TEXT_INPUT;
+
+    public static final class StyleProperties {
+        public static final String BACKGROUND_COLOR = StyleIds.Key.BACKGROUND_COLOR;
+        public static final String BORDER_COLOR = StyleIds.Key.BORDER_COLOR;
+        public static final String BORDER_WIDTH = StyleIds.Key.BORDER_WIDTH;
+        public static final String RADIUS = StyleIds.Key.RADIUS;
+        public static final String TEXT_COLOR = StyleIds.Key.TEXT_COLOR;
+        public static final String PLACEHOLDER_COLOR = StyleIds.Key.PLACEHOLDER_COLOR;
+        public static final String ACCENT_COLOR = StyleIds.Key.ACCENT_COLOR;
+
+        private StyleProperties() {
+        }
+    }
+
+    public static final class AnimationProperties {
+        public static final String TEXT_COLOR = StyleAnimationIds.Property.TEXT_COLOR;
+        public static final String PLACEHOLDER_COLOR = StyleAnimationIds.Property.PLACEHOLDER_COLOR;
+        public static final String CARET_COLOR = StyleAnimationIds.Property.CARET_COLOR;
+        public static final String BACKGROUND_COLOR = StyleAnimationIds.Property.BACKGROUND_COLOR;
+        public static final String BORDER_COLOR = StyleAnimationIds.Property.BORDER_COLOR;
+        public static final String BORDER_WIDTH = StyleAnimationIds.Property.BORDER_WIDTH;
+        public static final String RADIUS = StyleAnimationIds.Property.RADIUS;
+        public static final String OPACITY = StyleAnimationIds.Property.OPACITY;
+        public static final String SCALE = StyleAnimationIds.Property.SCALE;
+        public static final java.util.List<String> ALL = StyleAnimationIds.Property.TEXT_INPUT;
+
+        private AnimationProperties() {
+        }
+    }
+
+    public static final class AnimationEvents {
+        public static final String ON_TEXT_CHANGED = StyleAnimationIds.Event.ON_TEXT_CHANGED;
+        public static final String ON_FOCUS = StyleAnimationIds.Event.ON_FOCUS;
+        public static final String ON_BLUR = StyleAnimationIds.Event.ON_BLUR;
+        public static final String ON_HOVER = StyleAnimationIds.Event.ON_HOVER;
+        public static final String ON_HOVER_ENTER = StyleAnimationIds.Event.ON_HOVER_ENTER;
+        public static final String ON_HOVER_EXIT = StyleAnimationIds.Event.ON_HOVER_EXIT;
+        public static final java.util.List<String> ALL = StyleAnimationIds.Event.TEXT_INPUT;
+
+        private AnimationEvents() {
+        }
+    }
+
     protected static final float TEXT_PADDING = 4.0f;
     protected static final float APPROX_CHAR_WIDTH = TextEngine.APPROX_CHAR_WIDTH;
 
@@ -352,13 +398,25 @@ public class TextInput extends Box {
         float viewportWidth = textViewportWidth();
         float viewportHeight = Math.max(1.0f, layoutBounds().height() - 6.0f);
         float textY = layoutBounds().y() + 4.0f;
-        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), textInputState(
+        TextInputState state = textInputState(
                 visibleText,
                 viewportX,
                 viewportY,
                 viewportWidth,
                 viewportHeight,
-                textY));
+                textY);
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        if (renderer != null) {
+            renderer.render(draw, state);
+            return;
+        }
+        TextInputRenderer styled = styleRendererOverride(TextInputRenderer.class);
+        if (styled != null) {
+            styled.render(draw, state);
+            return;
+        }
+        if (renderStylePlan(context, TextInputState.class, state)) return;
+        defaultRenderer().render(draw, state);
     }
 
     protected TextInputState textInputState(String visibleText,
@@ -400,8 +458,12 @@ public class TextInput extends Box {
                 clearButtonHeight());
     }
 
+    protected TextInputRenderer defaultRenderer() {
+        return WidgetsRender.textInput();
+    }
+
     protected TextInputRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(TextInputRenderer.class, WidgetsRender.textInput()) : renderer;
+        return renderer == null ? styleRenderer(TextInputRenderer.class, defaultRenderer()) : renderer;
     }
 
     protected TextInputRenderType renderType() {

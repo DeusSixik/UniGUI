@@ -81,6 +81,8 @@ import java.util.List;
  */
 @XmlWidgetName("WorldCanvas")
 public class WorldCanvas extends WidgetBase {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.WORLD_CANVAS;
+
     public static final float DEFAULT_PREFERRED_WIDTH = 320.0f;
     public static final float DEFAULT_PREFERRED_HEIGHT = 240.0f;
 

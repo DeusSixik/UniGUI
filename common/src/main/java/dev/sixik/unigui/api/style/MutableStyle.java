@@ -1,5 +1,6 @@
 package dev.sixik.unigui.api.style;
 
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
@@ -24,6 +25,23 @@ public final class MutableStyle implements Style {
         return this;
     }
 
+    public MutableStyle remove(StyleKey<?> key) {
+        return remove(key, WidgetState.NORMAL);
+    }
+
+    public MutableStyle remove(StyleKey<?> key, WidgetState state) {
+        Objects.requireNonNull(key, "key");
+        Objects.requireNonNull(state, "state");
+        Map<StyleKey<?>, Object> stateValues = values.get(state);
+        if (stateValues == null || !stateValues.containsKey(key)) return this;
+        stateValues.remove(key);
+        if (stateValues.isEmpty()) {
+            values.remove(state);
+        }
+        version++;
+        return this;
+    }
+
     /**
      * Sets the default renderer override for widgets using this style.
      *
@@ -32,6 +50,12 @@ public final class MutableStyle implements Style {
      */
     public MutableStyle renderer(Object renderer) {
         return put(StyleKeys.RENDERER, renderer);
+    }
+    /**
+     * Sets a renderer override by registry id for declarative StylePack and XML styles.
+     */
+    public MutableStyle rendererId(String rendererId) {
+        return put(StyleKeys.RENDERER, rendererId == null ? "" : rendererId.trim());
     }
 
     @Override
@@ -49,6 +73,18 @@ public final class MutableStyle implements Style {
         }
         value = lookup(key, WidgetState.NORMAL);
         return value == null ? fallback : value;
+    }
+
+    @Override
+    public Map<WidgetState, Map<StyleKey<?>, Object>> values() {
+        if (values.isEmpty()) return Map.of();
+        EnumMap<WidgetState, Map<StyleKey<?>, Object>> snapshot = new EnumMap<>(WidgetState.class);
+        for (Map.Entry<WidgetState, Map<StyleKey<?>, Object>> entry : values.entrySet()) {
+            if (!entry.getValue().isEmpty()) {
+                snapshot.put(entry.getKey(), Map.copyOf(entry.getValue()));
+            }
+        }
+        return Collections.unmodifiableMap(snapshot);
     }
 
     private <T> T lookup(StyleKey<T> key, WidgetState state) {

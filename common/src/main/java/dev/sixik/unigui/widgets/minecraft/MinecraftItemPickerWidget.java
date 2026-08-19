@@ -31,6 +31,8 @@ import java.util.Optional;
  */
 @XmlWidgetName("MinecraftItemPickerWidget")
 public class MinecraftItemPickerWidget extends SearchableGridPickerWidget<MinecraftItemPickerWidget.ItemEntry> {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.MINECRAFT_ITEM_PICKER_WIDGET;
+
     private final Map<ItemEntry, ItemStack> stackCache = new HashMap<>();
 
     public MinecraftItemPickerWidget() {

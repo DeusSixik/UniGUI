@@ -25,6 +25,8 @@ import java.util.function.Consumer;
 /** Editor asset browser for catalog-backed texture/font/shader resource selection. */
 @XmlWidgetName("AssetBrowserPanel")
 public class AssetBrowserPanel extends LinearBox {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.ASSET_BROWSER_PANEL;
+
     private final Label titleLabel = new Label("Asset Browser");
     private final SearchField searchField = new SearchField();
     private final Label categoriesHeader = new Label("Categories");

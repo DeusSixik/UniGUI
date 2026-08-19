@@ -31,6 +31,8 @@ import dev.sixik.unigui.widgets.core.Orientation;
  */
 @XmlWidgetName("LinearBox")
 public class LinearBox extends PanelWidget {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.LINEAR_BOX;
+
     private Orientation orientation;
     private float spacing;
 

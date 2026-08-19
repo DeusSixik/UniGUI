@@ -17,9 +17,24 @@ import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.widgets.render.TextInputRenderer;
 import dev.sixik.unigui.widgets.render.TextInputRenderType;
+import dev.sixik.unigui.api.style.StyleAnimationIds;
+import dev.sixik.unigui.api.style.StyleIds;
 
 @XmlWidgetName("SearchField")
 public class SearchField extends TextInput {
+    public static final String STYLE_TYPE = StyleIds.Widget.SEARCH_FIELD;
+
+    public static final class AnimationEvents {
+        public static final String ON_SEARCH_CHANGED = StyleAnimationIds.Event.ON_SEARCH_CHANGED;
+        public static final String ON_SEARCH_SUBMITTED = StyleAnimationIds.Event.ON_SEARCH_SUBMITTED;
+        public static final String ON_TEXT_CHANGED = StyleAnimationIds.Event.ON_TEXT_CHANGED;
+        public static final String ON_SUBMIT = StyleAnimationIds.Event.ON_SUBMIT;
+        public static final java.util.List<String> ALL = StyleAnimationIds.Event.SEARCH_FIELD;
+
+        private AnimationEvents() {
+        }
+    }
+
     private static final float CLEAR_ZONE_WIDTH = 14.0f;
     private float searchChangeDebounceSeconds = 0.25f;
     private float searchChangeRemainingSeconds;
@@ -112,8 +127,13 @@ public class SearchField extends TextInput {
     }
 
     @Override
+    protected TextInputRenderer defaultRenderer() {
+        return WidgetsRender.searchField();
+    }
+
+    @Override
     protected TextInputRenderer effectiveRenderer() {
-        return renderer() == null ? styleRenderer(TextInputRenderer.class, WidgetsRender.searchField()) : renderer();
+        return renderer() == null ? styleRenderer(TextInputRenderer.class, defaultRenderer()) : renderer();
     }
 
     @Override

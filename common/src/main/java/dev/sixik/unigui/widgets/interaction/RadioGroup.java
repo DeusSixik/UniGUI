@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Objects;
 
 public final class RadioGroup {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.RADIO_GROUP;
+
     private final List<RadioButton> buttons = new ObjectArrayList<>();
     private RadioButton selectedButton;
 

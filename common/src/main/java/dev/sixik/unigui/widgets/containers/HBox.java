@@ -22,6 +22,8 @@ import dev.sixik.unigui.api.xml.XmlWidgetName;
  */
 @XmlWidgetName("HBox")
 public final class HBox extends LinearBox {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.HBOX;
+
     /**
      * Создаёт горизонтальный контейнер с направлением {@link Orientation#HORIZONTAL}.
      */

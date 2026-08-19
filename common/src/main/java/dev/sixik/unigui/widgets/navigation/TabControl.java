@@ -33,6 +33,8 @@ import dev.sixik.unigui.widgets.interaction.ToggleButton;
 
 @XmlWidgetName("TabControl")
 public class TabControl extends LinearBox {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TAB_CONTROL;
+
     private static final float TAB_HEIGHT = 22.0f;
     private static final float TAB_HEADER_HEIGHT = 36.0f;
     private static final float TAB_TEXT_PADDING_X = 10.0f;

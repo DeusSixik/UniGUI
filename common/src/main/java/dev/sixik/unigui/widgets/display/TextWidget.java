@@ -27,6 +27,8 @@ import java.util.Objects;
 
 @XmlWidgetName("TextWidget")
 public class TextWidget extends WidgetBase {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TEXT_WIDGET;
+
     protected static final float APPROX_CHAR_WIDTH = TextEngine.APPROX_CHAR_WIDTH;
     protected static final float LINE_HEIGHT = TextEngine.LINE_HEIGHT;
 

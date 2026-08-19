@@ -39,6 +39,8 @@ import java.util.Map;
  */
 @XmlWidgetName("DockPanel")
 public final class DockPanel extends PanelWidget {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.DOCK_PANEL;
+
     private final Map<Widget, DockSide> docks = new IdentityHashMap<>();
     private boolean lastChildFill = true;
 

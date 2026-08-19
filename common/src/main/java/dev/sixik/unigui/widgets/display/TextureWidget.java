@@ -20,9 +20,36 @@ import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.render.TextureWidgetRenderer;
 import dev.sixik.unigui.widgets.render.TextureWidgetState;
+import dev.sixik.unigui.api.style.StyleAnimationIds;
+import dev.sixik.unigui.api.style.StyleIds;
 
 @XmlWidgetName("TextureWidget")
 public class TextureWidget extends WidgetBase {
+    public static final String STYLE_TYPE = StyleIds.Widget.TEXTURE_WIDGET;
+
+    public static final class StyleProperties {
+        public static final String BACKGROUND_TEXTURE = StyleIds.Key.BACKGROUND_TEXTURE;
+        public static final String BACKGROUND_TEXTURE_TINT = StyleIds.Key.BACKGROUND_TEXTURE_TINT;
+        public static final String BACKGROUND_TEXTURE_FIT = StyleIds.Key.BACKGROUND_TEXTURE_FIT;
+        public static final String RADIUS = StyleIds.Key.RADIUS;
+
+        private StyleProperties() {
+        }
+    }
+
+    public static final class AnimationProperties {
+        public static final String TEXTURE = StyleAnimationIds.Property.TEXTURE;
+        public static final String TEXTURE_TINT = StyleAnimationIds.Property.TEXTURE_TINT;
+        public static final String RADIUS = StyleAnimationIds.Property.RADIUS;
+        public static final String OPACITY = StyleAnimationIds.Property.OPACITY;
+        public static final String SCALE = StyleAnimationIds.Property.SCALE;
+        public static final String ROTATION_DEGREES = StyleAnimationIds.Property.ROTATION_DEGREES;
+        public static final java.util.List<String> ALL = StyleAnimationIds.Property.TEXTURE_WIDGET;
+
+        private AnimationProperties() {
+        }
+    }
+
     private static final String TEXTURE_CROSSFADE_KEY = "TextureWidget.textureCrossfade";
 
     private TextureHandle texture;
@@ -204,10 +231,9 @@ public class TextureWidget extends WidgetBase {
         if (texture == null && previousTexture == null) return;
         pushOpacity(context);
         try {
-            TextureWidgetRenderer effective = effectiveRenderer();
             DrawScope draw = new DrawScope(context, transform(), layoutBounds());
             if (previousTexture != null && textureCrossfadeProgress < 1.0f) {
-                effective.render(draw, snapshot(
+                renderTextureState(context, draw, snapshot(
                         previousTexture,
                         previousSource,
                         previousFit,
@@ -217,15 +243,33 @@ public class TextureWidget extends WidgetBase {
                 ColorView effectiveTint = previousTexture == null
                         ? tint.copy()
                         : multipliedAlpha(tint, textureCrossfadeProgress);
-                effective.render(draw, snapshot(texture, source, fit, effectiveTint));
+                renderTextureState(context, draw, snapshot(texture, source, fit, effectiveTint));
             }
         } finally {
             popOpacity(context);
         }
     }
 
+    protected void renderTextureState(RenderContext context, DrawScope draw, TextureWidgetState state) {
+        if (renderer != null) {
+            renderer.render(draw, state);
+            return;
+        }
+        TextureWidgetRenderer styled = styleRendererOverride(TextureWidgetRenderer.class);
+        if (styled != null) {
+            styled.render(draw, state);
+            return;
+        }
+        if (renderStylePlan(context, TextureWidgetState.class, state)) return;
+        defaultRenderer().render(draw, state);
+    }
+
+    protected TextureWidgetRenderer defaultRenderer() {
+        return WidgetsRender.textureWidget();
+    }
+
     protected TextureWidgetRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(TextureWidgetRenderer.class, WidgetsRender.textureWidget()) : renderer;
+        return renderer == null ? styleRenderer(TextureWidgetRenderer.class, defaultRenderer()) : renderer;
     }
 
     protected TextureWidgetState snapshot() {

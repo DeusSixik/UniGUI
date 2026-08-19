@@ -28,6 +28,8 @@ import dev.sixik.unigui.impl.layout.v3.LayoutV3GridAdapter;
  */
 @XmlWidgetName("GridBox")
 public final class GridBox extends PanelWidget {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.GRID_BOX;
+
     private int columns = 1;
     private float horizontalSpacing;
     private float verticalSpacing;

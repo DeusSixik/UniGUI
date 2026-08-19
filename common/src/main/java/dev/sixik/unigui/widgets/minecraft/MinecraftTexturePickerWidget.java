@@ -35,6 +35,8 @@ import java.util.Optional;
  */
 @XmlWidgetName("MinecraftTexturePickerWidget")
 public class MinecraftTexturePickerWidget extends SearchableGridPickerWidget<MinecraftTexturePickerWidget.TextureEntry> {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.MINECRAFT_TEXTURE_PICKER_WIDGET;
+
     private static final MutableColor WHITE = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
 
     public MinecraftTexturePickerWidget() {

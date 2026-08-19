@@ -39,6 +39,8 @@ import dev.sixik.unigui.widgets.feedback.Popup;
 
 @XmlWidgetName("ColorPicker")
 public final class ColorPicker extends LinearBox {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.COLOR_PICKER;
+
     private static final float PICKER_WIDTH = 224.0f;
     private static final float COLOR_PLANE_HEIGHT = 128.0f;
     private static final float ROW_HEIGHT = 20.0f;

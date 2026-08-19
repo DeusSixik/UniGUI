@@ -18,6 +18,8 @@ import dev.sixik.unigui.widgets.interaction.Button;
 
 @XmlWidgetName("Carousel")
 public class Carousel extends LinearBox {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.CAROUSEL;
+
     private final HBox header = new HBox();
     private final Button previous = new Button("<");
     private final Label indicator = new Label("0 / 0");

@@ -19,9 +19,30 @@ import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.render.ButtonRenderType;
 import dev.sixik.unigui.widgets.render.ButtonRenderer;
 import dev.sixik.unigui.widgets.render.ButtonState;
+import dev.sixik.unigui.api.style.StyleAnimationIds;
+import dev.sixik.unigui.api.style.StyleIds;
 
 @XmlWidgetName("ToggleButton")
 public class ToggleButton extends Button {
+    /** Style type id для StylePack selector/binding. */
+    public static final String STYLE_TYPE = StyleIds.Widget.TOGGLE_BUTTON;
+
+    /** Event id, которые имеет смысл показывать для checked-контролов. */
+    public static final class AnimationEvents {
+        public static final String ON_CLICK = StyleAnimationIds.Event.ON_CLICK;
+        public static final String ON_CHECKED_CHANGED = StyleAnimationIds.Event.ON_CHECKED_CHANGED;
+        public static final String ON_STATE_CHANGED = StyleAnimationIds.Event.ON_STATE_CHANGED;
+        public static final String ON_FOCUS = StyleAnimationIds.Event.ON_FOCUS;
+        public static final String ON_BLUR = StyleAnimationIds.Event.ON_BLUR;
+        public static final String ON_HOVER = StyleAnimationIds.Event.ON_HOVER;
+        public static final String ON_PRESS = StyleAnimationIds.Event.ON_PRESS;
+        public static final String ON_RELEASE = StyleAnimationIds.Event.ON_RELEASE;
+        public static final java.util.List<String> ALL = StyleAnimationIds.Event.CHECKED_CONTROL;
+
+        private AnimationEvents() {
+        }
+    }
+
     private final MutableColor checkedBackground = new MutableColor(0.18f, 0.45f, 0.75f, 1.0f);
     private final MutableColor uncheckedBackground = new MutableColor(0.12f, 0.12f, 0.12f, 1.0f);
     private boolean checked;
@@ -85,8 +106,13 @@ public class ToggleButton extends Button {
     }
 
     @Override
+    protected ButtonRenderer defaultRenderer() {
+        return WidgetsRender.toggleButton();
+    }
+
+    @Override
     protected ButtonRenderer effectiveRenderer() {
-        return renderer() == null ? styleRenderer(ButtonRenderer.class, WidgetsRender.toggleButton()) : renderer();
+        return renderer() == null ? styleRenderer(ButtonRenderer.class, defaultRenderer()) : renderer();
     }
 
     @Override

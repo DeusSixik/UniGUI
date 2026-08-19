@@ -31,6 +31,8 @@ import dev.sixik.unigui.widgets.interaction.Button;
 
 @XmlWidgetName("ContextMenu")
 public final class ContextMenu extends Box implements OverlayHostAware {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.CONTEXT_MENU;
+
     private final VBox itemsHost = new VBox();
     private final List<Button> itemButtons = new ObjectArrayList<>();
     private final List<ContextMenu> itemSubmenus = new ObjectArrayList<>();

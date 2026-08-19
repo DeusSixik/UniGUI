@@ -12,6 +12,8 @@ import dev.sixik.unigui.api.xml.XmlWidgetName;
  */
 @XmlWidgetName("Text")
 public final class Text extends TextWidget {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TEXT;
+
     public Text() {
     }
 

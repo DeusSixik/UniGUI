@@ -75,6 +75,8 @@ import dev.sixik.unigui.widgets.interaction.TextField;
  */
 @XmlWidgetName("VirtualTableView")
 public class VirtualTableView extends WidgetBase {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.VIRTUAL_TABLE_VIEW;
+
     private static final float SCROLLBAR_WIDTH = ScrollBar.DEFAULT_SIZE;
     private static final float SCROLLBAR_GAP = ScrollBar.DEFAULT_GAP;
     private static final float HEADER_RESIZE_HIT_SLOP = 4.0f;

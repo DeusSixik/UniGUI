@@ -33,6 +33,8 @@ import dev.sixik.unigui.widgets.interaction.Button;
 
 @XmlWidgetName("TreeView")
 public class TreeView extends LinearBox {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TREE_VIEW;
+
     private static final float ROW_HEIGHT = 20.0f;
     private static final float INDENT_WIDTH = 12.0f;
     private static final float ROW_TEXT_HOVER_SCROLL_SPEED = 24.0f;

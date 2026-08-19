@@ -20,6 +20,8 @@ import dev.sixik.unigui.widgets.containers.StackPanel;
 
 @XmlWidgetName("Popup")
 public final class Popup extends Box implements OverlayHostAware {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.POPUP;
+
     private Widget anchor;
     private Widget content;
     private boolean open;

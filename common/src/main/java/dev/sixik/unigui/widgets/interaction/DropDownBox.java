@@ -34,6 +34,8 @@ import dev.sixik.unigui.widgets.feedback.Popup;
  */
 @XmlWidgetName("DropDownBox")
 public class DropDownBox extends LinearBox {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.DROP_DOWN_BOX;
+
     private static final float HEADER_HEIGHT = 22.0f;
     private static final float CONTENT_INSET = 2.0f;
     private static final float DEFAULT_DROP_DOWN_ROW_HEIGHT = HEADER_HEIGHT;

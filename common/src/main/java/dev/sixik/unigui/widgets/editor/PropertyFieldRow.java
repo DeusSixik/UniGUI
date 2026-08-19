@@ -24,6 +24,8 @@ import java.util.function.Consumer;
 
 @XmlWidgetName("PropertyFieldRow")
 public class PropertyFieldRow extends LinearBox {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.PROPERTY_FIELD_ROW;
+
     private static final float DEFAULT_LABEL_WIDTH = 112.0f;
     private static final float ROW_HEIGHT = 22.0f;
 

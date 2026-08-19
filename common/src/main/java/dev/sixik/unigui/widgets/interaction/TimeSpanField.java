@@ -11,6 +11,8 @@ import java.util.Locale;
 
 @XmlWidgetName("TimeSpanField")
 public final class TimeSpanField extends TextField {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TIME_SPAN_FIELD;
+
     private Duration value = Duration.ZERO;
 
     public TimeSpanField() {

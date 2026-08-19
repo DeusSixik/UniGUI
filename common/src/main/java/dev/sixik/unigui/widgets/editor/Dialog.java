@@ -26,6 +26,8 @@ import java.util.function.Consumer;
 /** Standard modal dialog shell for editor flows that need consistent buttons and results. */
 @XmlWidgetName("Dialog")
 public class Dialog extends WindowWidget {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.DIALOG;
+
     private static final String DEFAULT_BUTTONS = "ok:OK|cancel:Cancel";
 
     private final VBox body = new VBox();

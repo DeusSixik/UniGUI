@@ -26,9 +26,49 @@ import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.widgets.render.SliderRenderer;
 import dev.sixik.unigui.widgets.render.SliderState;
 import dev.sixik.unigui.widgets.containers.Box;
+import dev.sixik.unigui.api.style.StyleAnimationIds;
+import dev.sixik.unigui.api.style.StyleIds;
 
 @XmlWidgetName("Slider")
 public class Slider extends Box {
+    public static final String STYLE_TYPE = StyleIds.Widget.SLIDER;
+
+    public static final class StyleProperties {
+        public static final String TRACK_COLOR = StyleIds.Key.TRACK_COLOR;
+        public static final String ACCENT_COLOR = StyleIds.Key.ACCENT_COLOR;
+        public static final String THUMB_COLOR = StyleIds.Key.THUMB_COLOR;
+
+        private StyleProperties() {
+        }
+    }
+
+    public static final class AnimationProperties {
+        public static final String VALUE = StyleAnimationIds.Property.VALUE;
+        public static final String PROGRESS = StyleAnimationIds.Property.PROGRESS;
+        public static final String TRACK_COLOR = StyleAnimationIds.Property.TRACK_COLOR;
+        public static final String ACCENT_COLOR = StyleAnimationIds.Property.ACCENT_COLOR;
+        public static final String THUMB_COLOR = StyleAnimationIds.Property.THUMB_COLOR;
+        public static final String OPACITY = StyleAnimationIds.Property.OPACITY;
+        public static final String SCALE = StyleAnimationIds.Property.SCALE;
+        public static final java.util.List<String> ALL = StyleAnimationIds.Property.VALUE_CONTROL;
+
+        private AnimationProperties() {
+        }
+    }
+
+    public static final class AnimationEvents {
+        public static final String ON_VALUE_CHANGED = StyleAnimationIds.Event.ON_VALUE_CHANGED;
+        public static final String ON_FOCUS = StyleAnimationIds.Event.ON_FOCUS;
+        public static final String ON_BLUR = StyleAnimationIds.Event.ON_BLUR;
+        public static final String ON_HOVER = StyleAnimationIds.Event.ON_HOVER;
+        public static final String ON_PRESS = StyleAnimationIds.Event.ON_PRESS;
+        public static final String ON_RELEASE = StyleAnimationIds.Event.ON_RELEASE;
+        public static final java.util.List<String> ALL = StyleAnimationIds.Event.VALUE_CONTROL;
+
+        private AnimationEvents() {
+        }
+    }
+
     public static final float DEFAULT_PREFERRED_WIDTH = 120.0f;
     public static final float DEFAULT_PREFERRED_HEIGHT = 18.0f;
 
@@ -229,7 +269,18 @@ public class Slider extends Box {
 
     @Override
     protected void renderContent(RenderContext context) {
-        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot());
+        SliderState state = snapshot();
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        if (renderer != null) {
+            renderer.render(draw, state);
+        } else {
+            SliderRenderer styled = styleRendererOverride(SliderRenderer.class);
+            if (styled != null) {
+                styled.render(draw, state);
+            } else if (!renderStylePlan(context, SliderState.class, state)) {
+                WidgetsRender.slider().render(draw, state);
+            }
+        }
         super.renderContent(context);
     }
 

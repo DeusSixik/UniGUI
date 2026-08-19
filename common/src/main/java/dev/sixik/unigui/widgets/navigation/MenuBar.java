@@ -28,6 +28,8 @@ import java.util.List;
 /** Horizontal application menu bar backed by {@link CommandManager}. */
 @XmlWidgetName("MenuBar")
 public final class MenuBar extends LinearBox {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.MENU_BAR;
+
     private final List<Menu> menus = new ObjectArrayList<>();
     private final List<Menu> menusView = Collections.unmodifiableList(menus);
     private final List<Button> menuButtons = new ObjectArrayList<>();

@@ -34,6 +34,8 @@ import java.util.Optional;
  */
 @XmlWidgetName("CodeEditor")
 public class CodeEditor extends TextArea {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.CODE_EDITOR;
+
     private static final float GUTTER_PADDING = 6.0f;
     private static final float GUTTER_MIN_WIDTH = 28.0f;
     private static final float DIAGNOSTIC_UNDERLINE_MIN_WIDTH = 4.0f;

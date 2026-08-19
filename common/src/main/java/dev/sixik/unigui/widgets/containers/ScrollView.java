@@ -55,6 +55,8 @@ import java.util.List;
  */
 @XmlWidgetName("ScrollView")
 public class ScrollView extends WidgetBase {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.SCROLL_VIEW;
+
     private static final float SCROLLBAR_SIZE = ScrollBar.DEFAULT_SIZE;
 
     private final MutableColor scrollbarTrackColor = new MutableColor(0.0f, 0.0f, 0.0f, 0.28f);

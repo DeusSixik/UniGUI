@@ -36,6 +36,8 @@ import dev.sixik.unigui.widgets.core.Orientation;
  */
 @XmlWidgetName("SplitPanel")
 public class SplitPanel extends PanelWidget {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.SPLIT_PANEL;
+
     private final Splitter splitter = new Splitter(this);
     private Widget first;
     private Widget second;

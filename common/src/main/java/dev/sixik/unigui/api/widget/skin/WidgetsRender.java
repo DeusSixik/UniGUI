@@ -1,5 +1,8 @@
 package dev.sixik.unigui.api.widget.skin;
 
+import dev.sixik.unigui.api.widget.render.WidgetRendererRegistry;
+import dev.sixik.unigui.api.render.plan.StyleRenderPlanRegistry;
+import dev.sixik.unigui.api.style.StyleIds;
 import dev.sixik.unigui.widgets.render.LoadingIndicatorRenderer;
 import dev.sixik.unigui.widgets.render.ChartRenderer;
 import dev.sixik.unigui.widgets.render.ColorPickerRenderer;
@@ -32,9 +35,33 @@ import dev.sixik.unigui.widgets.render.TextWidgetRenderer;
 import dev.sixik.unigui.widgets.render.VirtualListViewRenderer;
 import dev.sixik.unigui.widgets.render.TreeViewRenderer;
 import dev.sixik.unigui.widgets.render.VirtualTableViewRenderer;
+import dev.sixik.unigui.widgets.render.BorderRenderPlans;
+import dev.sixik.unigui.widgets.render.BorderState;
+import dev.sixik.unigui.widgets.render.BoxRenderPlans;
+import dev.sixik.unigui.widgets.render.BoxState;
+import dev.sixik.unigui.widgets.render.ButtonRenderPlans;
+import dev.sixik.unigui.widgets.render.ButtonState;
+import dev.sixik.unigui.widgets.render.ProgressBarRenderPlans;
+import dev.sixik.unigui.widgets.render.ProgressBarState;
+import dev.sixik.unigui.widgets.render.ScrollBarRenderPlans;
+import dev.sixik.unigui.widgets.render.ScrollBarState;
+import dev.sixik.unigui.widgets.render.SeparatorRenderPlans;
+import dev.sixik.unigui.widgets.render.SeparatorState;
+import dev.sixik.unigui.widgets.render.ShapeRenderPlans;
+import dev.sixik.unigui.widgets.render.ShapeState;
+import dev.sixik.unigui.widgets.render.SliderRenderPlans;
+import dev.sixik.unigui.widgets.render.SliderState;
+import dev.sixik.unigui.widgets.render.TextInputRenderPlans;
+import dev.sixik.unigui.widgets.render.TextInputState;
+import dev.sixik.unigui.widgets.render.TextureWidgetRenderPlans;
+import dev.sixik.unigui.widgets.render.TextureWidgetState;
 
 public final class WidgetsRender {
     private static volatile WidgetsRenderImpl impl = DefaultWidgetsRenderImpl.INSTANCE;
+
+    static {
+        registerDefaults(WidgetRendererRegistry.global());
+    }
 
     private WidgetsRender() {
     }
@@ -45,6 +72,84 @@ public final class WidgetsRender {
 
     public static void use(WidgetsRenderImpl customImpl) {
         impl = customImpl == null ? DefaultWidgetsRenderImpl.INSTANCE : customImpl;
+        registerDefaults(WidgetRendererRegistry.global());
+    }
+
+
+    public static void registerDefaults() {
+        registerDefaults(WidgetRendererRegistry.global());
+    }
+
+    public static void registerDefaults(WidgetRendererRegistry registry) {
+        if (registry == null) return;
+        registry.register("unigui:loading/default", LoadingIndicatorRenderer.class, loadingDefault());
+        registry.register("unigui:loading/spinner", LoadingIndicatorRenderer.class, loadingSpinner());
+        registry.register("unigui:loading/dots", LoadingIndicatorRenderer.class, loadingDots());
+        registry.register("unigui:loading/bar", LoadingIndicatorRenderer.class, loadingBar());
+        registry.register("unigui:progress-bar/default", ProgressBarRenderer.class, progressBar());
+        registry.register("unigui:slider/default", SliderRenderer.class, slider());
+        registry.register("unigui:sparkline/default", SparklineRenderer.class, sparkline());
+        registry.register("unigui:chart/default", ChartRenderer.class, chart());
+        registry.register("unigui:graph-view/default", GraphViewRenderer.class, graphView());
+        registry.register("unigui:node-graph/default", NodeGraphRenderer.class, nodeGraph());
+        registry.register("unigui:color-picker/default", ColorPickerRenderer.class, colorPicker());
+        registry.register("unigui:date-picker/default", DatePickerRenderer.class, datePicker());
+        registry.register("unigui:scroll-bar/default", ScrollBarRenderer.class, scrollBar());
+        registry.register("unigui:button/default", ButtonRenderer.class, button());
+        registry.register("unigui:toggle-button/default", ButtonRenderer.class, toggleButton());
+        registry.register("unigui:toggle-switch/default", ButtonRenderer.class, toggleSwitch());
+        registry.register("unigui:checkbox/default", ButtonRenderer.class, checkbox());
+        registry.register("unigui:radio-button/default", ButtonRenderer.class, radioButton());
+        registry.register("unigui:text-input/default", TextInputRenderer.class, textInput());
+        registry.register("unigui:text-field/default", TextInputRenderer.class, textField());
+        registry.register("unigui:search-field/default", TextInputRenderer.class, searchField());
+        registry.register("unigui:password-field/default", TextInputRenderer.class, passwordField());
+        registry.register("unigui:number-field/default", TextInputRenderer.class, numberField());
+        registry.register("unigui:text-area/default", TextAreaRenderer.class, textArea());
+        registry.register("unigui:shape/default", ShapeRenderer.class, shape());
+        registry.register("unigui:separator/default", SeparatorRenderer.class, separator());
+        registry.register("unigui:border/default", BorderRenderer.class, border());
+        registry.register("unigui:tooltip/default", TooltipRenderer.class, tooltip());
+        registry.register("unigui:texture-widget/default", TextureWidgetRenderer.class, textureWidget());
+        registry.register("unigui:image-view/default", TextureWidgetRenderer.class, imageView());
+        registry.register("unigui:path/default", PathRenderer.class, path());
+        registry.register("unigui:cached-subtree/default", CachedSubtreeRenderer.class, cachedSubtree());
+        registry.register("unigui:box/default", BoxRenderer.class, box());
+        registry.register("unigui:window/default", WindowRenderer.class, window());
+        registry.register("unigui:modal-scrim/default", ModalScrimRenderer.class, modalScrim());
+        registry.register("unigui:docking-root/default", DockingRootRenderer.class, dockingRoot());
+        registry.register("unigui:dock-pane/default", DockPaneRenderer.class, dockPane());
+        registry.register("unigui:dock-split-handle/default", DockSplitHandleRenderer.class, dockSplitHandle());
+        registry.register("unigui:dock-drop-preview/default", DockDropPreviewRenderer.class, dockDropPreview());
+        registry.register("unigui:splitter/default", SplitterRenderer.class, splitter());
+        registry.register("unigui:text-widget/default", TextWidgetRenderer.class, textWidget());
+        registry.register("unigui:virtual-list-view/default", VirtualListViewRenderer.class, virtualListView());
+        registry.register("unigui:tree-view/default", TreeViewRenderer.class, treeView());
+        registry.register("unigui:virtual-table-view/default", VirtualTableViewRenderer.class, virtualTableView());
+        registerDefaultRenderPlans(StyleRenderPlanRegistry.global());
+    }
+
+    public static void registerDefaultRenderPlans(StyleRenderPlanRegistry registry) {
+        if (registry == null) return;
+        registry.register(StyleIds.Widget.BORDER, BorderState.class, BorderRenderPlans::styledPlan);
+        registry.register(StyleIds.Widget.BOX, BoxState.class, BoxRenderPlans::styledPlan);
+        registry.register(StyleIds.Widget.BUTTON, ButtonState.class, ButtonRenderPlans::styledPlan);
+        registry.register(StyleIds.Widget.TOGGLE_BUTTON, ButtonState.class, ButtonRenderPlans::styledPlan);
+        registry.register(StyleIds.Widget.TOGGLE_SWITCH, ButtonState.class, ButtonRenderPlans::styledPlan);
+        registry.register(StyleIds.Widget.CHECKBOX, ButtonState.class, ButtonRenderPlans::styledPlan);
+        registry.register(StyleIds.Widget.RADIO_BUTTON, ButtonState.class, ButtonRenderPlans::styledPlan);
+        registry.register(StyleIds.Widget.PROGRESS_BAR, ProgressBarState.class, ProgressBarRenderPlans::styledPlan);
+        registry.register(StyleIds.Widget.SCROLL_BAR, ScrollBarState.class, ScrollBarRenderPlans::styledPlan);
+        registry.register(StyleIds.Widget.SEPARATOR, SeparatorState.class, SeparatorRenderPlans::styledPlan);
+        registry.register(StyleIds.Widget.SHAPE, ShapeState.class, ShapeRenderPlans::styledPlan);
+        registry.register(StyleIds.Widget.SLIDER, SliderState.class, SliderRenderPlans::styledPlan);
+        registry.register(StyleIds.Widget.TEXT_INPUT, TextInputState.class, TextInputRenderPlans::styledPlan);
+        registry.register(StyleIds.Widget.TEXT_FIELD, TextInputState.class, TextInputRenderPlans::styledPlan);
+        registry.register(StyleIds.Widget.PASSWORD_FIELD, TextInputState.class, TextInputRenderPlans::styledPlan);
+        registry.register(StyleIds.Widget.NUMBER_FIELD, TextInputState.class, TextInputRenderPlans::styledPlan);
+        registry.register(StyleIds.Widget.SEARCH_FIELD, TextInputState.class, TextInputRenderPlans::searchStyledPlan);
+        registry.register(StyleIds.Widget.TEXTURE_WIDGET, TextureWidgetState.class, TextureWidgetRenderPlans::styledPlan);
+        registry.register(StyleIds.Widget.IMAGE_VIEW, TextureWidgetState.class, TextureWidgetRenderPlans::styledPlan);
     }
 
     public static LoadingIndicatorRenderer loadingDefault() {

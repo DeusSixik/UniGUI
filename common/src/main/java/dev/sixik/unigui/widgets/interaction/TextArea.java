@@ -49,6 +49,8 @@ import java.util.Objects;
  */
 @XmlWidgetName("TextArea")
 public class TextArea extends Box {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TEXT_AREA;
+
     protected static final float TEXT_PADDING = 4.0f;
     protected static final float APPROX_CHAR_WIDTH = TextEngine.APPROX_CHAR_WIDTH;
     private static final float SCROLLBAR_SIZE = 3.0f;

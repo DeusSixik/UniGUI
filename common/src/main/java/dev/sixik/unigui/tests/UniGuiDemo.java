@@ -80,11 +80,9 @@ import dev.sixik.unigui.widgets.containers.Border;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.DockPanel;
 import dev.sixik.unigui.widgets.containers.DockSide;
-import dev.sixik.unigui.widgets.containers.GridBox;
 import dev.sixik.unigui.widgets.containers.HBox;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 import dev.sixik.unigui.widgets.containers.PanelRowWidget;
-import dev.sixik.unigui.widgets.containers.PanelWidget;
 import dev.sixik.unigui.widgets.containers.ScrollView;
 import dev.sixik.unigui.widgets.containers.SettingRow;
 import dev.sixik.unigui.widgets.containers.SplitPanel;
@@ -92,7 +90,6 @@ import dev.sixik.unigui.widgets.containers.StackPanel;
 import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.containers.View;
 import dev.sixik.unigui.widgets.containers.WrapPanel;
-import dev.sixik.unigui.widgets.core.Widgets;
 import dev.sixik.unigui.widgets.data.VirtualListView;
 import dev.sixik.unigui.widgets.data.VirtualTableColumn;
 import dev.sixik.unigui.widgets.data.VirtualTableView;
@@ -108,7 +105,6 @@ import dev.sixik.unigui.widgets.display.Sparkline;
 import dev.sixik.unigui.widgets.display.Text;
 import dev.sixik.unigui.widgets.display.TextBlock;
 import dev.sixik.unigui.widgets.display.TextureWidget;
-import dev.sixik.unigui.widgets.display.TextWidget;
 import dev.sixik.unigui.widgets.docking.DockArea;
 import dev.sixik.unigui.widgets.docking.DockingRoot;
 import dev.sixik.unigui.widgets.docking.DockPane;
@@ -140,7 +136,6 @@ import dev.sixik.unigui.widgets.feedback.ProgressBar;
 import dev.sixik.unigui.widgets.feedback.Spinner;
 import dev.sixik.unigui.widgets.feedback.Toast;
 import dev.sixik.unigui.widgets.feedback.Tooltip;
-import dev.sixik.unigui.widgets.feedback.WindowManager;
 import dev.sixik.unigui.widgets.feedback.WindowWidget;
 import dev.sixik.unigui.widgets.graph.GraphView;
 import dev.sixik.unigui.widgets.graph.NodeGraph;
@@ -180,7 +175,6 @@ import dev.sixik.unigui.widgets.navigation.Carousel;
 import dev.sixik.unigui.widgets.navigation.ExpandablePanel;
 import dev.sixik.unigui.widgets.navigation.Menu;
 import dev.sixik.unigui.widgets.navigation.MenuBar;
-import dev.sixik.unigui.widgets.navigation.PageView;
 import dev.sixik.unigui.widgets.navigation.TabControl;
 import dev.sixik.unigui.widgets.navigation.ToolBar;
 import dev.sixik.unigui.widgets.navigation.TreeList;
@@ -579,6 +573,10 @@ public final class UniGuiDemo {
                 })
                 .then(Commands.literal("xml").executes(ctx -> {
                     openXmlDemo();
+                    return 0;
+                }))
+                .then(Commands.literal("animations").executes(ctx -> {
+                    RenderSystem.recordRenderCall(AnimationsSampler::openDemoClient);
                     return 0;
                 }))
                 .then(Commands.literal("xmlhot").executes(ctx -> {

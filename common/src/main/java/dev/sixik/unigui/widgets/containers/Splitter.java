@@ -30,6 +30,8 @@ import dev.sixik.unigui.widgets.render.SplitterState;
  * @see SplitterRenderer
  */
 public final class Splitter extends Box {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.SPLITTER;
+
     private final SplitPanel owner;
     private final MutableColor handleColor = new MutableColor(0.25f, 0.78f, 1.0f, 0.55f);
     private SplitterRenderer renderer;

@@ -44,6 +44,8 @@ import dev.sixik.unigui.widgets.render.HoldButtonState;
  */
 @XmlWidgetName("HoldButton")
 public class HoldButton extends Button {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.HOLD_BUTTON;
+
     private static final float DEFAULT_HOLD_DURATION_SECONDS = 0.65f;
 
     private final MutableColor holdColor = new MutableColor(0.25f, 0.78f, 1.0f, 0.35f);

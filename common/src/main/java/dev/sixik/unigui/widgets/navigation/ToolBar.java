@@ -22,6 +22,8 @@ import java.util.Optional;
 /** Compact command toolbar with grouped buttons, separators and right-aligned regions. */
 @XmlWidgetName("ToolBar")
 public final class ToolBar extends LinearBox {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TOOL_BAR;
+
     private final List<ToolButton> commandButtons = new ObjectArrayList<>();
     private CommandManager commandManager = new CommandManager();
     private EventSubscription commandSubscription;

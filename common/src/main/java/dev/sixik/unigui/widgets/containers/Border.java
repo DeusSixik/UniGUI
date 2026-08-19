@@ -8,6 +8,8 @@ import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.render.BorderRenderer;
 import dev.sixik.unigui.widgets.render.BorderState;
+import dev.sixik.unigui.api.style.StyleAnimationIds;
+import dev.sixik.unigui.api.style.StyleIds;
 
 /**
  * Render-only рамка без дочерних виджетов.
@@ -24,6 +26,28 @@ import dev.sixik.unigui.widgets.render.BorderState;
  * @see Box
  */
 public final class Border extends WidgetBase {
+    public static final String STYLE_TYPE = StyleIds.Widget.BORDER;
+
+    public static final class StyleProperties {
+        public static final String BORDER_COLOR = StyleIds.Key.BORDER_COLOR;
+        public static final String BORDER_WIDTH = StyleIds.Key.BORDER_WIDTH;
+        public static final String RADIUS = StyleIds.Key.RADIUS;
+
+        private StyleProperties() {
+        }
+    }
+
+    public static final class AnimationProperties {
+        public static final String BORDER_COLOR = StyleAnimationIds.Property.BORDER_COLOR;
+        public static final String BORDER_WIDTH = StyleAnimationIds.Property.BORDER_WIDTH;
+        public static final String RADIUS = StyleAnimationIds.Property.RADIUS;
+        public static final String OPACITY = StyleAnimationIds.Property.OPACITY;
+        public static final java.util.List<String> ALL = java.util.List.of(BORDER_COLOR, BORDER_WIDTH, RADIUS, OPACITY);
+
+        private AnimationProperties() {
+        }
+    }
+
     private final MutableColor color = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private BorderRenderer renderer;
     private float thickness = 1.0f;
@@ -127,7 +151,19 @@ public final class Border extends WidgetBase {
     public void render(RenderContext context) {
         pushOpacity(context);
         try {
-            effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot());
+            BorderState state = snapshot();
+            DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+            if (renderer != null) {
+                renderer.render(draw, state);
+                return;
+            }
+            BorderRenderer styled = styleRendererOverride(BorderRenderer.class);
+            if (styled != null) {
+                styled.render(draw, state);
+                return;
+            }
+            if (renderStylePlan(context, BorderState.class, state)) return;
+            WidgetsRender.border().render(draw, state);
         } finally {
             popOpacity(context);
         }

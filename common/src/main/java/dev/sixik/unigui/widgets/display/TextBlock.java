@@ -13,6 +13,8 @@ import dev.sixik.unigui.api.xml.XmlWidgetName;
  */
 @XmlWidgetName("TextBlock")
 public final class TextBlock extends TextWidget {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TEXT_BLOCK;
+
     public TextBlock() {
         wrap(true);
     }

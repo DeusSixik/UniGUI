@@ -27,21 +27,28 @@ import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.math.Transform;
+import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.render.plan.RenderPlan;
 import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.style.StylePack;
 import dev.sixik.unigui.api.style.Theme;
+import dev.sixik.unigui.api.style.WidgetState;
+import dev.sixik.unigui.api.widget.render.WidgetRendererRegistry;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlLayoutAttributes;
 import dev.sixik.unigui.api.xml.XmlStyleAttributes;
 import dev.sixik.unigui.impl.event.FastEventEmitter;
+import dev.sixik.unigui.api.style.StyleAnimationIds;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -51,6 +58,36 @@ import java.util.function.Consumer;
 @XmlLayoutAttributes
 @XmlStyleAttributes
 public abstract class WidgetBase implements Widget {
+    /** Общие animation property id, доступные всем виджетам. */
+    public static final class AnimationProperties {
+        public static final String POSITION_X = StyleAnimationIds.Property.POSITION_X;
+        public static final String POSITION_Y = StyleAnimationIds.Property.POSITION_Y;
+        public static final String SCALE = StyleAnimationIds.Property.SCALE;
+        public static final String SCALE_X = StyleAnimationIds.Property.SCALE_X;
+        public static final String SCALE_Y = StyleAnimationIds.Property.SCALE_Y;
+        public static final String ROTATION_DEGREES = StyleAnimationIds.Property.ROTATION_DEGREES;
+        public static final String OPACITY = StyleAnimationIds.Property.OPACITY;
+        public static final java.util.List<String> ALL = StyleAnimationIds.Property.COMMON_WIDGET;
+
+        private AnimationProperties() {
+        }
+    }
+
+    /** Общие event id для hover/focus/press анимаций. */
+    public static final class AnimationEvents {
+        public static final String ON_FOCUS = StyleAnimationIds.Event.ON_FOCUS;
+        public static final String ON_BLUR = StyleAnimationIds.Event.ON_BLUR;
+        public static final String ON_HOVER = StyleAnimationIds.Event.ON_HOVER;
+        public static final String ON_HOVER_ENTER = StyleAnimationIds.Event.ON_HOVER_ENTER;
+        public static final String ON_HOVER_EXIT = StyleAnimationIds.Event.ON_HOVER_EXIT;
+        public static final String ON_PRESS = StyleAnimationIds.Event.ON_PRESS;
+        public static final String ON_RELEASE = StyleAnimationIds.Event.ON_RELEASE;
+        public static final java.util.List<String> ALL = StyleAnimationIds.Event.COMMON_WIDGET;
+
+        private AnimationEvents() {
+        }
+    }
+
     /**
      * Хранит подписки и отправку событий, связанных с жизненным циклом и вводом виджета.
      */
@@ -161,6 +198,8 @@ public abstract class WidgetBase implements Widget {
      * Runtime/editor id виджета для XML/code-behind lookup и будущего editor tree.
      */
     private String id = "";
+    private String styleId = "";
+    private final LinkedHashSet<String> styleClasses = new LinkedHashSet<>();
 
     /**
      * Создаёт экземпляр {@code WidgetBase} и подготавливает начальное состояние виджета.
@@ -232,6 +271,87 @@ public abstract class WidgetBase implements Widget {
         if (this.id.equals(normalized)) return this;
         this.id = normalized;
         return this;
+    }
+    /**
+     * Возвращает явный id стиля виджета.
+     */
+    @Override
+    public String styleId() {
+        return styleId;
+    }
+
+    /**
+     * Задаёт явный id стиля виджета через XML-атрибут {@code style}.
+     */
+    @Override
+    @XmlAttribute(value = "style", category = "Common", description = "Explicit StylePack style id applied to this widget.")
+    public WidgetBase styleId(String styleId) {
+        String normalized = styleId == null ? "" : styleId.trim();
+        if (this.styleId.equals(normalized)) return this;
+        this.styleId = normalized;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Возвращает style classes виджета.
+     */
+    @Override
+    public List<String> styleClasses() {
+        return List.copyOf(styleClasses);
+    }
+
+    /**
+     * Задаёт style classes через XML-атрибут {@code class}.
+     */
+    @Override
+    @XmlAttribute(value = "class", category = "Common", description = "Space-separated StylePack classes applied to this widget.")
+    public WidgetBase styleClass(String styleClasses) {
+        LinkedHashSet<String> parsed = parseStyleClasses(styleClasses);
+        if (this.styleClasses.equals(parsed)) return this;
+        this.styleClasses.clear();
+        this.styleClasses.addAll(parsed);
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Задаёт style classes одной строкой.
+     */
+    @Override
+    public WidgetBase styleClasses(String styleClasses) {
+        return styleClass(styleClasses);
+    }
+
+    /**
+     * Добавляет один style class.
+     */
+    @Override
+    public WidgetBase addStyleClass(String styleClass) {
+        String normalized = normalizeStyleClass(styleClass);
+        if (normalized.isEmpty() || !styleClasses.add(normalized)) return this;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Удаляет один style class.
+     */
+    @Override
+    public WidgetBase removeStyleClass(String styleClass) {
+        String normalized = normalizeStyleClass(styleClass);
+        if (normalized.isEmpty() || !styleClasses.remove(normalized)) return this;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Проверяет наличие style class.
+     */
+    @Override
+    public boolean hasStyleClass(String styleClass) {
+        String normalized = normalizeStyleClass(styleClass);
+        return !normalized.isEmpty() && styleClasses.contains(normalized);
     }
 
     /**
@@ -868,6 +988,13 @@ public abstract class WidgetBase implements Widget {
      * Помечает часть состояния виджета как требующую пересчёта или перерисовки.
      */
     /**
+     * Returns the widget state used by declarative style lookup.
+     */
+    protected WidgetState styleState() {
+        if (!enabled()) return WidgetState.DISABLED;
+        return hovered() ? WidgetState.HOVERED : WidgetState.NORMAL;
+    }
+    /**
      * Returns the style type used by theme and local style lookup.
      */
     protected String styleType() {
@@ -883,16 +1010,58 @@ public abstract class WidgetBase implements Widget {
      * are ignored.</p>
      */
     protected <T> T styleRenderer(Class<T> rendererType, T fallback) {
-        if (rendererType == null) return fallback;
+        T override = styleRendererOverride(rendererType);
+        return override == null ? fallback : override;
+    }
+
+    /**
+     * Resolves only an explicit Java renderer override from style data.
+     *
+     * <p>This keeps the new declarative path separate from the old default
+     * renderer fallback: widgets can try instance renderer, style renderer,
+     * StylePack RenderPlan and only then fall back to {@code WidgetsRender}.</p>
+     */
+    protected <T> T styleRendererOverride(Class<T> rendererType) {
+        if (rendererType == null) return null;
         UIContext context = uiContext();
         Theme theme = context == null ? Theme.EMPTY : context.theme();
         String type = styleType();
-        Object value = theme.styleFor(type).get(StyleKeys.RENDERER, null, null);
+        Style themeStyle = theme instanceof StylePack stylePack
+                ? stylePack.resolveStyleFor(type, styleId(), styleClasses())
+                : theme.styleFor(type);
+        Object value = themeStyle.get(StyleKeys.RENDERER, null, null);
+        if ((value == null || value.equals("")) && theme instanceof StylePack stylePack) {
+            value = stylePack.rendererIdFor(type, styleId(), styleClasses());
+        }
         for (Widget current : styleLookupChain()) {
             Style localStyle = current.localStyle(type);
             value = localStyle.get(StyleKeys.RENDERER, null, value);
         }
-        return rendererType.isInstance(value) ? rendererType.cast(value) : fallback;
+        return WidgetRendererRegistry.global().resolve(rendererType, value, null);
+    }
+
+    /**
+     * Tries to render the current widget through the active StylePack RenderPlan.
+     *
+     * @return {@code true}, if a non-empty declarative plan was rendered
+     */
+    protected <S> boolean renderStylePlan(RenderContext context, Class<S> stateType, S state) {
+        if (!stylePlansEnabled() || context == null || stateType == null || state == null) return false;
+        UIContext ui = uiContext();
+        Theme theme = ui == null ? Theme.EMPTY : ui.theme();
+        if (!(theme instanceof StylePack stylePack)) return false;
+        RenderPlan plan = stylePack.renderPlanFor(styleType(), styleId(), styleClasses(), stateType, state, styleState())
+                .orElse(RenderPlan.EMPTY);
+        if (plan.empty()) return false;
+        plan.render(new DrawScope(context, transform(), layoutBounds()));
+        return true;
+    }
+
+    /**
+     * Allows widgets with a local theme toggle to suppress StylePack RenderPlans.
+     */
+    protected boolean stylePlansEnabled() {
+        return true;
     }
 
     private List<Widget> styleLookupChain() {
@@ -1276,6 +1445,20 @@ public abstract class WidgetBase implements Widget {
         }
     }
 
+
+    private static LinkedHashSet<String> parseStyleClasses(String value) {
+        LinkedHashSet<String> result = new LinkedHashSet<>();
+        if (value == null || value.isBlank()) return result;
+        for (String token : value.split("[\\s,]+")) {
+            String normalized = normalizeStyleClass(token);
+            if (!normalized.isEmpty()) result.add(normalized);
+        }
+        return result;
+    }
+
+    private static String normalizeStyleClass(String value) {
+        return value == null ? "" : value.trim().toLowerCase(java.util.Locale.ROOT);
+    }
     /**
      * Ограничивает число диапазоном от 0 до 1.
      */

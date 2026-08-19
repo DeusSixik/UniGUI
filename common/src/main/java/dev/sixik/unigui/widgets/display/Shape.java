@@ -11,9 +11,35 @@ import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.render.ShapeRenderer;
 import dev.sixik.unigui.widgets.render.ShapeState;
+import dev.sixik.unigui.api.style.StyleAnimationIds;
+import dev.sixik.unigui.api.style.StyleIds;
 
 @XmlWidgetName("Shape")
 public class Shape extends WidgetBase {
+    public static final String STYLE_TYPE = StyleIds.Widget.SHAPE;
+
+    public static final class StyleProperties {
+        public static final String ACCENT_COLOR = StyleIds.Key.ACCENT_COLOR;
+        public static final String BORDER_COLOR = StyleIds.Key.BORDER_COLOR;
+        public static final String BORDER_WIDTH = StyleIds.Key.BORDER_WIDTH;
+        public static final String RADIUS = StyleIds.Key.RADIUS;
+
+        private StyleProperties() {
+        }
+    }
+
+    public static final class AnimationProperties {
+        public static final String ACCENT_COLOR = StyleAnimationIds.Property.ACCENT_COLOR;
+        public static final String BORDER_COLOR = StyleAnimationIds.Property.BORDER_COLOR;
+        public static final String BORDER_WIDTH = StyleAnimationIds.Property.BORDER_WIDTH;
+        public static final String RADIUS = StyleAnimationIds.Property.RADIUS;
+        public static final String OPACITY = StyleAnimationIds.Property.OPACITY;
+        public static final java.util.List<String> ALL = java.util.List.of(ACCENT_COLOR, BORDER_COLOR, BORDER_WIDTH, RADIUS, OPACITY);
+
+        private AnimationProperties() {
+        }
+    }
+
     private Type type = Type.RECT;
     private final MutableColor color = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private ShapeRenderer renderer;
@@ -103,7 +129,19 @@ public class Shape extends WidgetBase {
     public void render(RenderContext context) {
         pushOpacity(context);
         try {
-            effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot());
+            ShapeState state = snapshot();
+            DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+            if (renderer != null) {
+                renderer.render(draw, state);
+                return;
+            }
+            ShapeRenderer styled = styleRendererOverride(ShapeRenderer.class);
+            if (styled != null) {
+                styled.render(draw, state);
+                return;
+            }
+            if (renderStylePlan(context, ShapeState.class, state)) return;
+            WidgetsRender.shape().render(draw, state);
         } finally {
             popOpacity(context);
         }

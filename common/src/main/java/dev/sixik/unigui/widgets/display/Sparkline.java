@@ -31,6 +31,8 @@ import java.util.List;
 
 @XmlWidgetName("Sparkline")
 public class Sparkline extends WidgetBase {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.SPARKLINE;
+
     public static final float DEFAULT_PREFERRED_WIDTH = 140.0f;
     public static final float DEFAULT_PREFERRED_HEIGHT = 34.0f;
 

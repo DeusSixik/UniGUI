@@ -28,6 +28,8 @@ import dev.sixik.unigui.widgets.containers.StackPanel;
 
 @XmlWidgetName("CachedSubtreeWidget")
 public final class CachedSubtreeWidget extends WidgetBase {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.CACHED_SUBTREE_WIDGET;
+
     private static final MutableColor DEBUG_HIT_COLOR = new MutableColor(0.15f, 0.85f, 0.25f, 0.9f);
     private static final MutableColor DEBUG_MISS_COLOR = new MutableColor(1.0f, 0.55f, 0.05f, 0.9f);
     private static final MutableColor DEBUG_TEXT_COLOR = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);

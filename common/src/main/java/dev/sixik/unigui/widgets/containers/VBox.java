@@ -22,6 +22,8 @@ import dev.sixik.unigui.api.xml.XmlWidgetName;
  */
 @XmlWidgetName("VBox")
 public final class VBox extends LinearBox {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.VBOX;
+
     /**
      * Создаёт вертикальный контейнер с направлением {@link Orientation#VERTICAL}.
      */

@@ -6,6 +6,8 @@ import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.widgets.render.TextInputRenderer;
 import dev.sixik.unigui.widgets.render.TextInputRenderType;
+import dev.sixik.unigui.api.style.StyleAnimationIds;
+import dev.sixik.unigui.api.style.StyleIds;
 
 /**
  * Styled single-line text field specialization.
@@ -16,6 +18,8 @@ import dev.sixik.unigui.widgets.render.TextInputRenderType;
  */
 @XmlWidgetName("TextField")
 public class TextField extends TextInput {
+    public static final String STYLE_TYPE = StyleIds.Widget.TEXT_FIELD;
+
     public TextField() {
         enableDefaultTextInputChrome();
     }
@@ -73,8 +77,13 @@ public class TextField extends TextInput {
     }
 
     @Override
+    protected TextInputRenderer defaultRenderer() {
+        return WidgetsRender.textField();
+    }
+
+    @Override
     protected TextInputRenderer effectiveRenderer() {
-        return renderer() == null ? styleRenderer(TextInputRenderer.class, WidgetsRender.textField()) : renderer();
+        return renderer() == null ? styleRenderer(TextInputRenderer.class, defaultRenderer()) : renderer();
     }
 
     @Override

@@ -23,6 +23,8 @@ import java.util.function.Consumer;
 /** Editor drag source helper that exposes XML-configurable payload id/type and preview metadata. */
 @XmlWidgetName("DragSource")
 public class DragSource extends Box {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.DRAG_SOURCE;
+
     private final List<Consumer<DragEvent>> listeners = new ArrayList<>();
     private String payloadId = "";
     private String payloadType = "generic";

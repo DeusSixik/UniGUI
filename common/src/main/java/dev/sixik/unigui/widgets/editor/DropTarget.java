@@ -17,6 +17,8 @@ import java.util.function.Predicate;
 /** Editor drop target helper with payload type filters, validation callbacks and drop results. */
 @XmlWidgetName("DropTarget")
 public class DropTarget extends Box {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.DROP_TARGET;
+
     private final Set<String> acceptedTypes = new LinkedHashSet<>();
     private final List<Predicate<DragPayload>> validators = new ArrayList<>();
     private final List<Consumer<DropPreview>> previewListeners = new ArrayList<>();

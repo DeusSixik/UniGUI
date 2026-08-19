@@ -45,6 +45,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 @XmlWidgetName("Panel")
 public class PanelWidget extends WidgetBase {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.PANEL_WIDGET;
+
     private static final ThreadLocal<RectView> RENDER_CULL_BOUNDS = new ThreadLocal<>();
 
     private final List<Widget> children = new ObjectArrayList<>();

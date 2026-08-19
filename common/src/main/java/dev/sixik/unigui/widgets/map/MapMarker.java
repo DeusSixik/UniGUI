@@ -22,6 +22,8 @@ import dev.sixik.unigui.widgets.display.Label;
  */
 @XmlWidgetName("MapMarker")
 public class MapMarker extends Box {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.MAP_MARKER;
+
     private Widget content;
     private Label label;
     private AnchorWidget anchor;

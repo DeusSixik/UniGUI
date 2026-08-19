@@ -57,6 +57,8 @@ import dev.sixik.unigui.widgets.interaction.Button;
  */
 @XmlWidgetName("MapCanvas")
 public class MapCanvas extends WorldCanvas {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.MAP_CANVAS;
+
     private static final float DEFAULT_MAP_WIDTH = 1024.0f;
     private static final float DEFAULT_MAP_HEIGHT = 512.0f;
 

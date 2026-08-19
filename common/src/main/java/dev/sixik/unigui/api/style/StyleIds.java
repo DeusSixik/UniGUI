@@ -108,6 +108,48 @@ public final class StyleIds {
         public static final String VIRTUAL_TABLE_VIEW = "VirtualTableView";
         public static final String WINDOW_WIDGET = "WindowWidget";
         public static final String WRAP_PANEL = "WrapPanel";
+        // XML/editor widget ids that do not belong to the initial core control set.
+        public static final String ASSET_BROWSER_PANEL = "AssetBrowserPanel";
+        public static final String CODE_EDITOR = "CodeEditor";
+        public static final String COMMAND_PALETTE = "CommandPalette";
+        public static final String DESIGN_CANVAS_OVERLAY = "DesignCanvasOverlay";
+        public static final String DIAGNOSTICS_STRIP = "DiagnosticsStrip";
+        public static final String DIALOG = "Dialog";
+        public static final String DRAG_SOURCE = "DragSource";
+        public static final String DROP_TARGET = "DropTarget";
+        public static final String GRID_OVERLAY = "GridOverlay";
+        public static final String HOLD_BUTTON = "HoldButton";
+        public static final String ICON_BUTTON = "IconButton";
+        public static final String MAP_CANVAS = "MapCanvas";
+        public static final String MAP_MARKER = "MapMarker";
+        public static final String MENU_BAR = "MenuBar";
+        public static final String MINECRAFT_ITEM_PICKER_WIDGET = "MinecraftItemPickerWidget";
+        public static final String MINECRAFT_ITEM_TOOLTIP = "MinecraftItemTooltip";
+        public static final String MINECRAFT_TEXTURE_PICKER_WIDGET = "MinecraftTexturePickerWidget";
+        public static final String PALETTE_PANEL = "PalettePanel";
+        public static final String PANE_HEADER = "PaneHeader";
+        public static final String PANEL_ROW_WIDGET = "PanelRowWidget";
+        public static final String PROJECT_PICKER_PANEL = "ProjectPickerPanel";
+        public static final String PROPERTY_FIELD_ROW = "PropertyFieldRow";
+        public static final String PROPERTY_GRID = "PropertyGrid";
+        public static final String RESIZABLE_PANEL_HEADER = "ResizablePanelHeader";
+        public static final String SEARCH_BOX_WITH_FILTER_CHIPS = "SearchBoxWithFilterChips";
+        public static final String SELECTION_OVERLAY = "SelectionOverlay";
+        public static final String SETTING_ROW = "SettingRow";
+        public static final String STATUS_BAR = "StatusBar";
+        public static final String TEXT_AREA = "TextArea";
+        public static final String TOGGLE_TOOL_BUTTON = "ToggleToolButton";
+        public static final String TOOL_BAR = "ToolBar";
+        public static final String TOOL_BUTTON = "ToolButton";
+        public static final String WIDGET_PALETTE = "WidgetPalette";
+        public static final String WORLD_CANVAS = "WorldCanvas";
+        public static final String XML_CODE_EDITOR = "XmlCodeEditor";
+        public static final String XML_DESIGN_CANVAS = "XmlDesignCanvas";
+        public static final String XML_EDITOR_DEMO_SCREEN = "XmlEditorDemoScreen";
+        public static final String XML_HIERARCHY_PANEL = "XmlHierarchyPanel";
+        public static final String XML_PROPERTIES_PANEL = "XmlPropertiesPanel";
+        public static final String XML_RUNTIME_VIEW_PANE = "XmlRuntimeViewPane";
+
 
         private Widget() {
         }

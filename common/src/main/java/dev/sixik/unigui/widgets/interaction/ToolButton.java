@@ -13,6 +13,8 @@ import dev.sixik.unigui.widgets.render.ButtonState;
 /** Compact toolbar-friendly button with optional icon, text and command metadata. */
 @XmlWidgetName("ToolButton")
 public class ToolButton extends Button {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TOOL_BUTTON;
+
     private String icon = "";
     private String label = "";
     private String tooltip = "";

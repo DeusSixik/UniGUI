@@ -29,6 +29,8 @@ import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
+import dev.sixik.unigui.api.style.StyleAnimationIds;
+import dev.sixik.unigui.api.style.StyleIds;
 import dev.sixik.unigui.widgets.render.ButtonRenderer;
 import dev.sixik.unigui.widgets.render.ButtonRenderType;
 import dev.sixik.unigui.widgets.render.ButtonState;
@@ -38,6 +40,49 @@ import dev.sixik.unigui.widgets.containers.Box;
 
 @XmlWidgetName("Button")
 public class Button extends Box {
+    public static final String STYLE_TYPE = StyleIds.Widget.BUTTON;
+
+    public static final class StyleProperties {
+        public static final String BACKGROUND_COLOR = StyleIds.Key.BACKGROUND_COLOR;
+        public static final String BORDER_COLOR = StyleIds.Key.BORDER_COLOR;
+        public static final String BORDER_WIDTH = StyleIds.Key.BORDER_WIDTH;
+        public static final String RADIUS = StyleIds.Key.RADIUS;
+        public static final String TEXT_COLOR = StyleIds.Key.TEXT_COLOR;
+
+        private StyleProperties() {
+        }
+    }
+
+    public static final class AnimationProperties {
+        public static final String TEXT_COLOR = StyleAnimationIds.Property.TEXT_COLOR;
+        public static final String BACKGROUND_COLOR = StyleAnimationIds.Property.BACKGROUND_COLOR;
+        public static final String BORDER_COLOR = StyleAnimationIds.Property.BORDER_COLOR;
+        public static final String BORDER_WIDTH = StyleAnimationIds.Property.BORDER_WIDTH;
+        public static final String RADIUS = StyleAnimationIds.Property.RADIUS;
+        public static final String OPACITY = StyleAnimationIds.Property.OPACITY;
+        public static final String SCALE = StyleAnimationIds.Property.SCALE;
+        public static final String ROTATION_DEGREES = StyleAnimationIds.Property.ROTATION_DEGREES;
+        public static final java.util.List<String> ALL = StyleAnimationIds.Property.BUTTON;
+
+        private AnimationProperties() {
+        }
+    }
+
+    public static final class AnimationEvents {
+        public static final String ON_CLICK = StyleAnimationIds.Event.ON_CLICK;
+        public static final String ON_FOCUS = StyleAnimationIds.Event.ON_FOCUS;
+        public static final String ON_BLUR = StyleAnimationIds.Event.ON_BLUR;
+        public static final String ON_HOVER = StyleAnimationIds.Event.ON_HOVER;
+        public static final String ON_HOVER_ENTER = StyleAnimationIds.Event.ON_HOVER_ENTER;
+        public static final String ON_HOVER_EXIT = StyleAnimationIds.Event.ON_HOVER_EXIT;
+        public static final String ON_PRESS = StyleAnimationIds.Event.ON_PRESS;
+        public static final String ON_RELEASE = StyleAnimationIds.Event.ON_RELEASE;
+        public static final java.util.List<String> ALL = StyleAnimationIds.Event.BUTTON;
+
+        private AnimationEvents() {
+        }
+    }
+
     protected static final float DEFAULT_TEXT_PADDING_X = 8.0f;
     protected static final float TEXT_PADDING_X = DEFAULT_TEXT_PADDING_X;
     protected static final float DEFAULT_HEIGHT = 18.0f;
@@ -269,12 +314,31 @@ public class Button extends Box {
     @Override
     protected void renderContent(RenderContext context) {
         applyTheme();
-        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot(context));
+        renderButtonVisual(context, snapshot(context));
         super.renderContent(context);
     }
 
+    protected void renderButtonVisual(RenderContext context, ButtonState state) {
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        if (renderer != null) {
+            renderer.render(draw, state);
+            return;
+        }
+        ButtonRenderer styled = styleRendererOverride(ButtonRenderer.class);
+        if (styled != null) {
+            styled.render(draw, state);
+            return;
+        }
+        if (renderStylePlan(context, ButtonState.class, state)) return;
+        defaultRenderer().render(draw, state);
+    }
+
+    protected ButtonRenderer defaultRenderer() {
+        return WidgetsRender.button();
+    }
+
     protected ButtonRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(ButtonRenderer.class, WidgetsRender.button()) : renderer;
+        return renderer == null ? styleRenderer(ButtonRenderer.class, defaultRenderer()) : renderer;
     }
 
     protected ButtonState snapshot(RenderContext context) {

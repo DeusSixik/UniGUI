@@ -8,6 +8,8 @@ import java.util.function.Function;
 
 @XmlWidgetName("TreeListPicker")
 public final class TreeListPicker<T> extends ComboBox {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TREE_LIST_PICKER;
+
     private final List<T> values = new ObjectArrayList<>();
     private Function<T, String> labelProvider = value -> value == null ? "" : value.toString();
 

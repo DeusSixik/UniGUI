@@ -73,6 +73,8 @@ import dev.sixik.unigui.widgets.feedback.WindowWidget;
  */
 @XmlWidgetName("DockingRoot")
 public final class DockingRoot extends Box {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.DOCKING_ROOT;
+
     private static final float DEFAULT_WIDTH = 320.0f;
     private static final float DEFAULT_HEIGHT = 200.0f;
     private static final float DEFAULT_TOOL_PANE_FRACTION = 0.28f;

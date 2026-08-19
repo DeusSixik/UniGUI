@@ -27,9 +27,49 @@ import dev.sixik.unigui.widgets.render.ScrollBarRenderer;
 import dev.sixik.unigui.widgets.render.ScrollBarState;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.core.Orientation;
+import dev.sixik.unigui.api.style.StyleAnimationIds;
+import dev.sixik.unigui.api.style.StyleIds;
 
 @XmlWidgetName("ScrollBar")
 public class ScrollBar extends Box {
+    public static final String STYLE_TYPE = StyleIds.Widget.SCROLL_BAR;
+
+    public static final class StyleProperties {
+        public static final String TRACK_COLOR = StyleIds.Key.TRACK_COLOR;
+        public static final String ACCENT_COLOR = StyleIds.Key.ACCENT_COLOR;
+        public static final String THUMB_COLOR = StyleIds.Key.THUMB_COLOR;
+
+        private StyleProperties() {
+        }
+    }
+
+    public static final class AnimationProperties {
+        public static final String VALUE = StyleAnimationIds.Property.VALUE;
+        public static final String PROGRESS = StyleAnimationIds.Property.PROGRESS;
+        public static final String TRACK_COLOR = StyleAnimationIds.Property.TRACK_COLOR;
+        public static final String ACCENT_COLOR = StyleAnimationIds.Property.ACCENT_COLOR;
+        public static final String THUMB_COLOR = StyleAnimationIds.Property.THUMB_COLOR;
+        public static final String OPACITY = StyleAnimationIds.Property.OPACITY;
+        public static final String SCALE = StyleAnimationIds.Property.SCALE;
+        public static final java.util.List<String> ALL = StyleAnimationIds.Property.VALUE_CONTROL;
+
+        private AnimationProperties() {
+        }
+    }
+
+    public static final class AnimationEvents {
+        public static final String ON_VALUE_CHANGED = StyleAnimationIds.Event.ON_VALUE_CHANGED;
+        public static final String ON_FOCUS = StyleAnimationIds.Event.ON_FOCUS;
+        public static final String ON_BLUR = StyleAnimationIds.Event.ON_BLUR;
+        public static final String ON_HOVER = StyleAnimationIds.Event.ON_HOVER;
+        public static final String ON_PRESS = StyleAnimationIds.Event.ON_PRESS;
+        public static final String ON_RELEASE = StyleAnimationIds.Event.ON_RELEASE;
+        public static final java.util.List<String> ALL = StyleAnimationIds.Event.VALUE_CONTROL;
+
+        private AnimationEvents() {
+        }
+    }
+
     public static final float DEFAULT_SIZE = 6.0f;
     public static final float DEFAULT_GAP = 8.0f;
     public static final float DEFAULT_PREFERRED_LENGTH = 120.0f;
@@ -260,7 +300,18 @@ public class ScrollBar extends Box {
 
     @Override
     protected void renderContent(RenderContext context) {
-        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot());
+        ScrollBarState state = snapshot();
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        if (renderer != null) {
+            renderer.render(draw, state);
+        } else {
+            ScrollBarRenderer styled = styleRendererOverride(ScrollBarRenderer.class);
+            if (styled != null) {
+                styled.render(draw, state);
+            } else if (!renderStylePlan(context, ScrollBarState.class, state)) {
+                WidgetsRender.scrollBar().render(draw, state);
+            }
+        }
         super.renderContent(context);
     }
 

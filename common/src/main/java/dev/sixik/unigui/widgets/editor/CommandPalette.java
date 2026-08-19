@@ -25,6 +25,8 @@ import java.util.function.Consumer;
 /** Searchable command surface backed by an editor CommandManager. */
 @XmlWidgetName("CommandPalette")
 public class CommandPalette extends LinearBox {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.COMMAND_PALETTE;
+
     private final Label titleLabel = new Label("Command Palette");
     private final SearchField searchField = new SearchField();
     private final Button executeButton = new Button("Run");

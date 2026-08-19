@@ -20,6 +20,8 @@ import java.util.function.Supplier;
  */
 @XmlWidgetName("MinecraftItemTooltip")
 public final class MinecraftItemTooltip extends Tooltip {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.MINECRAFT_ITEM_TOOLTIP;
+
     private Supplier<ItemStack> stackSupplier = () -> ItemStack.EMPTY;
 
     public MinecraftItemTooltip() {

@@ -15,6 +15,8 @@ import dev.sixik.unigui.widgets.core.Orientation;
 
 @XmlWidgetName("Accordion")
 public class Accordion extends LinearBox {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.ACCORDION;
+
     private final List<ExpandablePanel> panels = new ObjectArrayList<>();
     private final Map<ExpandablePanel, EventSubscription> subscriptions = new IdentityHashMap<>();
     private boolean singleOpen = true;

@@ -6,9 +6,13 @@ import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.widgets.render.TextInputRenderer;
 import dev.sixik.unigui.widgets.render.TextInputRenderType;
+import dev.sixik.unigui.api.style.StyleAnimationIds;
+import dev.sixik.unigui.api.style.StyleIds;
 
 @XmlWidgetName("PasswordField")
 public class PasswordField extends TextInput {
+    public static final String STYLE_TYPE = StyleIds.Widget.PASSWORD_FIELD;
+
     private char mask = '\u2022';
 
     public PasswordField() {
@@ -58,8 +62,13 @@ public class PasswordField extends TextInput {
     }
 
     @Override
+    protected TextInputRenderer defaultRenderer() {
+        return WidgetsRender.passwordField();
+    }
+
+    @Override
     protected TextInputRenderer effectiveRenderer() {
-        return renderer() == null ? styleRenderer(TextInputRenderer.class, WidgetsRender.passwordField()) : renderer();
+        return renderer() == null ? styleRenderer(TextInputRenderer.class, defaultRenderer()) : renderer();
     }
 
     @Override

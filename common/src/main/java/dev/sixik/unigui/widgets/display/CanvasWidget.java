@@ -10,6 +10,8 @@ import java.util.List;
 
 @XmlWidgetName("CanvasWidget")
 public final class CanvasWidget extends WidgetBase {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.CANVAS_WIDGET;
+
     private final List<CanvasDrawCallback> callbacks = new ObjectArrayList<>();
     private CanvasDrawCallback[] callbackSnapshot = new CanvasDrawCallback[0];
     private boolean callbackSnapshotDirty = true;

@@ -20,6 +20,8 @@ import dev.sixik.unigui.widgets.display.Label;
  */
 @XmlWidgetName("View")
 public class View extends Box {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.VIEW;
+
     private final VBox content = new VBox();
     private final Label title = new Label("");
 

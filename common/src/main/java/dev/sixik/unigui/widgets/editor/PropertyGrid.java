@@ -28,6 +28,8 @@ import java.util.function.Consumer;
 
 @XmlWidgetName("PropertyGrid")
 public class PropertyGrid extends LinearBox {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.PROPERTY_GRID;
+
     private static final float DEFAULT_LABEL_WIDTH = 112.0f;
 
     private final VBox content = new VBox();

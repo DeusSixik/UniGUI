@@ -34,6 +34,8 @@ import java.util.function.Function;
 
 @XmlWidgetName("GraphView")
 public final class GraphView extends WidgetBase {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.GRAPH_VIEW;
+
     public static final float DEFAULT_PREFERRED_WIDTH = 240.0f;
     public static final float DEFAULT_PREFERRED_HEIGHT = 130.0f;
 

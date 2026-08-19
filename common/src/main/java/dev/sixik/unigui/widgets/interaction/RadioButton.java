@@ -11,7 +11,6 @@ import dev.sixik.unigui.api.event.KeyPressedEvent;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableColor;
-import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
@@ -26,9 +25,30 @@ import dev.sixik.unigui.widgets.render.ButtonRenderer;
 import dev.sixik.unigui.widgets.render.ButtonState;
 
 import java.util.Objects;
+import dev.sixik.unigui.api.style.StyleAnimationIds;
+import dev.sixik.unigui.api.style.StyleIds;
 
 @XmlWidgetName("RadioButton")
 public class RadioButton extends Button {
+    /** Style type id для StylePack selector/binding. */
+    public static final String STYLE_TYPE = StyleIds.Widget.RADIO_BUTTON;
+
+    /** Event id, которые имеет смысл показывать для checked-контролов. */
+    public static final class AnimationEvents {
+        public static final String ON_CLICK = StyleAnimationIds.Event.ON_CLICK;
+        public static final String ON_CHECKED_CHANGED = StyleAnimationIds.Event.ON_CHECKED_CHANGED;
+        public static final String ON_STATE_CHANGED = StyleAnimationIds.Event.ON_STATE_CHANGED;
+        public static final String ON_FOCUS = StyleAnimationIds.Event.ON_FOCUS;
+        public static final String ON_BLUR = StyleAnimationIds.Event.ON_BLUR;
+        public static final String ON_HOVER = StyleAnimationIds.Event.ON_HOVER;
+        public static final String ON_PRESS = StyleAnimationIds.Event.ON_PRESS;
+        public static final String ON_RELEASE = StyleAnimationIds.Event.ON_RELEASE;
+        public static final java.util.List<String> ALL = StyleAnimationIds.Event.CHECKED_CONTROL;
+
+        private AnimationEvents() {
+        }
+    }
+
     private static final float OUTER_SIZE = 12.0f;
     private static final float INNER_SIZE = 6.0f;
     private static final float TEXT_GAP = 4.0f;
@@ -239,13 +259,18 @@ public class RadioButton extends Button {
     @Override
     protected void renderContent(RenderContext context) {
         applyTheme();
-        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot(context));
+        renderButtonVisual(context, snapshot(context));
         renderChildren(context);
     }
 
     @Override
+    protected ButtonRenderer defaultRenderer() {
+        return WidgetsRender.radioButton();
+    }
+
+    @Override
     protected ButtonRenderer effectiveRenderer() {
-        return renderer() == null ? styleRenderer(ButtonRenderer.class, WidgetsRender.radioButton()) : renderer();
+        return renderer() == null ? styleRenderer(ButtonRenderer.class, defaultRenderer()) : renderer();
     }
 
     @Override

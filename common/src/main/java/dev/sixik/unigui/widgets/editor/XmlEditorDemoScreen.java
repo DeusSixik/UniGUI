@@ -46,6 +46,8 @@ import java.util.Optional;
 /** Dev-only XML editor shell that wires the Phase 1 session into a docked workspace. */
 @XmlWidgetName("XmlEditorDemoScreen")
 public final class XmlEditorDemoScreen extends LinearBox {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.XML_EDITOR_DEMO_SCREEN;
+
     public static final String PANE_DESIGN = "design";
     public static final String PANE_RUNTIME = "runtime";
     public static final String PANE_CODE = "code";

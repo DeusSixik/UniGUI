@@ -32,6 +32,8 @@ import java.util.Optional;
 /** Session-aware XML inspector pane backed by {@link XmlWidgetInspector}. */
 @XmlWidgetName("XmlPropertiesPanel")
 public final class XmlPropertiesPanel extends LinearBox {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.XML_PROPERTIES_PANEL;
+
     private final PropertyGrid grid = new PropertyGrid();
     private final AssetBrowserPanel assetPicker = new AssetBrowserPanel();
     private final MinecraftTexturePickerWidget texturePicker = new MinecraftTexturePickerWidget(false);

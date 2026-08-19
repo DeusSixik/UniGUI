@@ -65,6 +65,8 @@ import dev.sixik.unigui.widgets.navigation.TreeView;
  */
 @XmlWidgetName("WindowWidget")
 public class WindowWidget extends Box implements OverlayHostAware {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.WINDOW_WIDGET;
+
     private static final float DEFAULT_WIDTH = 220.0f;
     private static final float DEFAULT_HEIGHT = 120.0f;
     private static final float DEFAULT_HEADER_HEIGHT = 22.0f;

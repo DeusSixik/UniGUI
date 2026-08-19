@@ -13,6 +13,8 @@ import dev.sixik.unigui.api.xml.XmlWidgetName;
  */
 @XmlWidgetName("RichTextView")
 public final class RichTextView extends TextWidget {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.RICH_TEXT_VIEW;
+
     public RichTextView() {
         wrap(true);
     }

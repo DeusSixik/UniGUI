@@ -7,6 +7,8 @@ import dev.sixik.unigui.api.xml.XmlWidgetName;
 /** Convenience alias for the default spinner-style loading indicator. */
 @XmlWidgetName("Spinner")
 public final class Spinner extends LoadingIndicator {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.SPINNER;
+
     public Spinner() {
         super();
         mode(Mode.SPINNER);

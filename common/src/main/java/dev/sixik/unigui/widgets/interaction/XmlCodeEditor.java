@@ -14,6 +14,8 @@ import java.util.List;
 /** XML-aware code editor shell for the widget editor code view. */
 @XmlWidgetName("XmlCodeEditor")
 public class XmlCodeEditor extends CodeEditor {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.XML_CODE_EDITOR;
+
     private XmlWidgetRegistry registry = XmlWidgetRegistry.builtIns();
     private XmlWidgetDocumentResult lastResult;
 

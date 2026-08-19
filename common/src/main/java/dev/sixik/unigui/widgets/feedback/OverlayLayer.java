@@ -33,6 +33,8 @@ import java.util.Map;
  */
 @XmlWidgetName("OverlayLayer")
 public final class OverlayLayer extends PanelWidget {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.OVERLAY_LAYER;
+
     private final WindowManager windowManager = new WindowManager(this);
     private final Map<Widget, Integer> overlayZ = new IdentityHashMap<>();
     private final MutableColor modalScrimColor = new MutableColor(0.0f, 0.0f, 0.0f, 0.48f);

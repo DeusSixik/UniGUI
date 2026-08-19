@@ -28,6 +28,8 @@ import dev.sixik.unigui.widgets.containers.PanelWidget;
  */
 @XmlWidgetName("PageView")
 public class PageView extends PanelWidget {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.PAGE_VIEW;
+
     private final List<Widget> pages = new ObjectArrayList<>();
     private int selectedIndex;
     private boolean hasArrangedBounds;

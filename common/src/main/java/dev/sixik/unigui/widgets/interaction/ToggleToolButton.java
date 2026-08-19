@@ -9,6 +9,8 @@ import dev.sixik.unigui.api.xml.XmlWidgetName;
 /** Toolbar button that toggles its checked state when clicked. */
 @XmlWidgetName("ToggleToolButton")
 public final class ToggleToolButton extends ToolButton {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TOGGLE_TOOL_BUTTON;
+
     public ToggleToolButton() {
         onClick(this::toggleOnClick);
     }

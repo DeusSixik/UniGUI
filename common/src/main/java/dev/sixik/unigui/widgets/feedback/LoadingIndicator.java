@@ -25,6 +25,8 @@ import dev.sixik.unigui.widgets.containers.Box;
  */
 @XmlWidgetName("LoadingIndicator")
 public class LoadingIndicator extends Box {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.LOADING_INDICATOR;
+
     public static final float DEFAULT_PREFERRED_SIZE = 24.0f;
     public static final float DEFAULT_BAR_PREFERRED_WIDTH = 96.0f;
     public static final float DEFAULT_BAR_PREFERRED_HEIGHT = 8.0f;

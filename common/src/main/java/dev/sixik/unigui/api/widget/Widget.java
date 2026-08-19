@@ -44,6 +44,61 @@ public interface Widget extends EventEmitter {
     default Widget id(String id) {
         return this;
     }
+    /**
+     * Возвращает явный id стиля, назначенный виджету через атрибут style.
+     */
+    default String styleId() {
+        return "";
+    }
+
+    /**
+     * Задаёт явный id стиля, назначенный виджету через атрибут style.
+     */
+    default Widget styleId(String styleId) {
+        return this;
+    }
+
+    /**
+     * Возвращает style classes виджета в порядке назначения.
+     */
+    default List<String> styleClasses() {
+        return List.of();
+    }
+
+    /**
+     * Задаёт style classes одной строкой, разделённой пробелами или запятыми.
+     */
+    default Widget styleClass(String styleClasses) {
+        return this;
+    }
+
+    /**
+     * Задаёт style classes одной строкой, разделённой пробелами или запятыми.
+     */
+    default Widget styleClasses(String styleClasses) {
+        return styleClass(styleClasses);
+    }
+
+    /**
+     * Добавляет один style class.
+     */
+    default Widget addStyleClass(String styleClass) {
+        return this;
+    }
+
+    /**
+     * Удаляет один style class.
+     */
+    default Widget removeStyleClass(String styleClass) {
+        return this;
+    }
+
+    /**
+     * Проверяет наличие style class.
+     */
+    default boolean hasStyleClass(String styleClass) {
+        return false;
+    }
 
     /**
      * Возвращает текущие границы виджета после компоновки.

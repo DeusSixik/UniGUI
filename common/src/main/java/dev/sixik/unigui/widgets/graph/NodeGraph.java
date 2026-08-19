@@ -68,6 +68,8 @@ import dev.sixik.unigui.widgets.containers.StackPanel;
 
 @XmlWidgetName("NodeGraph")
 public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapper, RenderedBoundsMapper {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.NODE_GRAPH;
+
     public static final float DEFAULT_PREFERRED_WIDTH = 320.0f;
     public static final float DEFAULT_PREFERRED_HEIGHT = 200.0f;
 

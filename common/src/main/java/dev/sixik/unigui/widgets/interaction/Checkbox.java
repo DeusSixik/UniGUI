@@ -12,7 +12,6 @@ import dev.sixik.unigui.api.event.EventSubscription;
 import dev.sixik.unigui.api.event.KeyPressedEvent;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.layout.LayoutContext;
-import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.CheckboxState;
@@ -23,9 +22,30 @@ import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.render.ButtonRenderType;
 import dev.sixik.unigui.widgets.render.ButtonRenderer;
 import dev.sixik.unigui.widgets.render.ButtonState;
+import dev.sixik.unigui.api.style.StyleAnimationIds;
+import dev.sixik.unigui.api.style.StyleIds;
 
 @XmlWidgetName("Checkbox")
 public class Checkbox extends ToggleButton {
+    /** Style type id для StylePack selector/binding. */
+    public static final String STYLE_TYPE = StyleIds.Widget.CHECKBOX;
+
+    /** Event id, которые имеет смысл показывать для checked-контролов. */
+    public static final class AnimationEvents {
+        public static final String ON_CLICK = StyleAnimationIds.Event.ON_CLICK;
+        public static final String ON_CHECKED_CHANGED = StyleAnimationIds.Event.ON_CHECKED_CHANGED;
+        public static final String ON_STATE_CHANGED = StyleAnimationIds.Event.ON_STATE_CHANGED;
+        public static final String ON_FOCUS = StyleAnimationIds.Event.ON_FOCUS;
+        public static final String ON_BLUR = StyleAnimationIds.Event.ON_BLUR;
+        public static final String ON_HOVER = StyleAnimationIds.Event.ON_HOVER;
+        public static final String ON_PRESS = StyleAnimationIds.Event.ON_PRESS;
+        public static final String ON_RELEASE = StyleAnimationIds.Event.ON_RELEASE;
+        public static final java.util.List<String> ALL = StyleAnimationIds.Event.CHECKED_CONTROL;
+
+        private AnimationEvents() {
+        }
+    }
+
     private static final float BOX_SIZE = 12.0f;
     private static final float CHECK_SIZE = 6.0f;
     private static final float TEXT_GAP = 4.0f;
@@ -225,13 +245,19 @@ public class Checkbox extends ToggleButton {
 
     @Override
     protected void renderContent(RenderContext context) {
-        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot(context));
+        applyTheme();
+        renderButtonVisual(context, snapshot(context));
         renderChildren(context);
     }
 
     @Override
+    protected ButtonRenderer defaultRenderer() {
+        return WidgetsRender.checkbox();
+    }
+
+    @Override
     protected ButtonRenderer effectiveRenderer() {
-        return renderer() == null ? styleRenderer(ButtonRenderer.class, WidgetsRender.checkbox()) : renderer();
+        return renderer() == null ? styleRenderer(ButtonRenderer.class, defaultRenderer()) : renderer();
     }
 
     @Override

@@ -17,6 +17,8 @@ import dev.sixik.unigui.api.xml.XmlWidgetName;
  */
 @XmlWidgetName("Label")
 public final class Label extends TextWidget {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.LABEL;
+
     private Widget focusTarget;
 
     public Label() {

@@ -32,6 +32,8 @@ import java.util.function.Consumer;
 /** Descriptor-backed palette for inserting XML-visible widgets into an editor document. */
 @XmlWidgetName("WidgetPalette")
 public class WidgetPalette extends LinearBox {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.WIDGET_PALETTE;
+
     private static final String ALL_CATEGORIES = "All";
 
     private final Label titleLabel = new Label("Widget Palette");

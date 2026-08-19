@@ -27,6 +27,8 @@ import java.util.Optional;
 /** Runtime/play-mode host for the current XML editor snapshot. */
 @XmlWidgetName("XmlRuntimeViewPane")
 public final class XmlRuntimeViewPane extends PanelWidget {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.XML_RUNTIME_VIEW_PANE;
+
     private static final XmlWidgetSerializationOptions RUNTIME_XML =
             XmlWidgetSerializationOptions.COMPACT.xmlDeclaration(false);
 

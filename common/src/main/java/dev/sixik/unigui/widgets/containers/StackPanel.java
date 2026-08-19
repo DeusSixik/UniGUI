@@ -28,6 +28,8 @@ import dev.sixik.unigui.impl.layout.v3.LayoutV3StackAdapter;
  */
 @XmlWidgetName("StackPanel")
 public final class StackPanel extends PanelWidget {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.STACK_PANEL;
+
     @Override
     public void measure(LayoutContext context) {
         if (visibility() == Visibility.COLLAPSED) {

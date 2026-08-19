@@ -52,6 +52,8 @@ import dev.sixik.unigui.widgets.interaction.ScrollBar;
  */
 @XmlWidgetName("VirtualListView")
 public class VirtualListView extends WidgetBase {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.VIRTUAL_LIST_VIEW;
+
     private static final float SCROLLBAR_WIDTH = ScrollBar.DEFAULT_SIZE;
     private static final float SCROLLBAR_GAP = ScrollBar.DEFAULT_GAP;
     private static final MutableColor SELECTED_ROW_COLOR = new MutableColor(0.18f, 0.45f, 0.75f, 0.35f);

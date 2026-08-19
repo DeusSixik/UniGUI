@@ -29,6 +29,8 @@ import java.util.List;
 
 @XmlWidgetName("Chart")
 public final class Chart extends Sparkline {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.CHART;
+
     public static final float DEFAULT_PREFERRED_WIDTH = 220.0f;
     public static final float DEFAULT_PREFERRED_HEIGHT = 120.0f;
 

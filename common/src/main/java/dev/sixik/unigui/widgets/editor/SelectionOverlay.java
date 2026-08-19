@@ -39,6 +39,8 @@ import java.util.function.Function;
 
 @XmlWidgetName("SelectionOverlay")
 public class SelectionOverlay extends WidgetBase {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.SELECTION_OVERLAY;
+
     private static final float DEFAULT_HANDLE_SIZE = 6.0f;
     private static final float DEFAULT_OUTLINE_THICKNESS = 1.0f;
 

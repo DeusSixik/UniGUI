@@ -26,6 +26,8 @@ import dev.sixik.unigui.widgets.display.Label;
  */
 @XmlWidgetName("SettingRow")
 public class SettingRow extends PanelRowWidget {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.SETTING_ROW;
+
     /**
      * Дефолтная высота строки настроек.
      */

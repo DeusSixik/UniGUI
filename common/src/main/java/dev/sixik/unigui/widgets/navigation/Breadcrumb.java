@@ -22,6 +22,8 @@ import dev.sixik.unigui.widgets.interaction.Button;
 
 @XmlWidgetName("Breadcrumb")
 public class Breadcrumb extends PanelWidget {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.BREADCRUMB;
+
     private static final float ITEM_HEIGHT = 20.0f;
     private static final float SEPARATOR_WIDTH = 10.0f;
 

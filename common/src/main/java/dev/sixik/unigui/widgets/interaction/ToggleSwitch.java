@@ -17,9 +17,29 @@ import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.render.ButtonRenderType;
 import dev.sixik.unigui.widgets.render.ButtonRenderer;
 import dev.sixik.unigui.widgets.render.ButtonState;
+import dev.sixik.unigui.api.style.StyleAnimationIds;
 
 @XmlWidgetName("ToggleSwitch")
 public class ToggleSwitch extends ToggleButton {
+    /** Style type id для StylePack selector/binding. */
+    public static final String STYLE_TYPE = StyleIds.Widget.TOGGLE_SWITCH;
+
+    /** Event id, которые имеет смысл показывать для checked-контролов. */
+    public static final class AnimationEvents {
+        public static final String ON_CLICK = StyleAnimationIds.Event.ON_CLICK;
+        public static final String ON_CHECKED_CHANGED = StyleAnimationIds.Event.ON_CHECKED_CHANGED;
+        public static final String ON_STATE_CHANGED = StyleAnimationIds.Event.ON_STATE_CHANGED;
+        public static final String ON_FOCUS = StyleAnimationIds.Event.ON_FOCUS;
+        public static final String ON_BLUR = StyleAnimationIds.Event.ON_BLUR;
+        public static final String ON_HOVER = StyleAnimationIds.Event.ON_HOVER;
+        public static final String ON_PRESS = StyleAnimationIds.Event.ON_PRESS;
+        public static final String ON_RELEASE = StyleAnimationIds.Event.ON_RELEASE;
+        public static final java.util.List<String> ALL = StyleAnimationIds.Event.CHECKED_CONTROL;
+
+        private AnimationEvents() {
+        }
+    }
+
     public static final float DEFAULT_TRACK_WIDTH = 34.0f;
     public static final float DEFAULT_TRACK_HEIGHT = 18.0f;
     public static final float DEFAULT_THUMB_SIZE = 14.0f;
@@ -181,8 +201,13 @@ public class ToggleSwitch extends ToggleButton {
     }
 
     @Override
+    protected ButtonRenderer defaultRenderer() {
+        return WidgetsRender.toggleSwitch();
+    }
+
+    @Override
     protected ButtonRenderer effectiveRenderer() {
-        return renderer() == null ? styleRenderer(ButtonRenderer.class, WidgetsRender.toggleSwitch()) : renderer();
+        return renderer() == null ? styleRenderer(ButtonRenderer.class, defaultRenderer()) : renderer();
     }
 
     @Override

@@ -20,6 +20,8 @@ import java.util.function.Consumer;
 /** Compact editor pane header with title, dirty marker, pin, menu and close affordances. */
 @XmlWidgetName("PaneHeader")
 public class PaneHeader extends LinearBox {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.PANE_HEADER;
+
     private static final float DEFAULT_HEIGHT = 22.0f;
 
     private final Label titleLabel = new Label("Pane");

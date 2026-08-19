@@ -38,6 +38,8 @@ import java.util.List;
  */
 @XmlWidgetName("PanelRowWidget")
 public class PanelRowWidget extends PanelWidget {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.PANEL_ROW_WIDGET;
+
     /**
      * Дефолтная высота строки в пикселях UI-пространства.
      */

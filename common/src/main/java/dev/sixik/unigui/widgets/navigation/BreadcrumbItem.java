@@ -5,6 +5,8 @@ import dev.sixik.unigui.api.text.RichText;
 import java.util.Objects;
 
 public final class BreadcrumbItem {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.BREADCRUMB_ITEM;
+
     private String text;
     private RichText richText;
     private String value;

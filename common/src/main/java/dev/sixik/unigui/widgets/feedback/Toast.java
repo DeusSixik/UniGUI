@@ -24,6 +24,8 @@ import dev.sixik.unigui.widgets.display.TextBlock;
  */
 @XmlWidgetName("Toast")
 public final class Toast extends Box implements OverlayHostAware {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TOAST;
+
     private final TextBlock message = new TextBlock();
     private boolean open;
     private float lifeSeconds = 2.5f;

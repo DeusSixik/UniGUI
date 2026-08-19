@@ -44,6 +44,8 @@ import dev.sixik.unigui.widgets.feedback.Popup;
 
 @XmlWidgetName("DatePicker")
 public final class DatePicker extends LinearBox {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.DATE_PICKER;
+
     private static final float CALENDAR_WIDTH = 184.0f;
     private static final float DAY_CELL_WIDTH = 24.0f;
     private static final float DAY_CELL_HEIGHT = 20.0f;

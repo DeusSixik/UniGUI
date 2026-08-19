@@ -58,6 +58,8 @@ import dev.sixik.unigui.api.render.DrawCommandType;
 import dev.sixik.unigui.api.render.DrawList;
 import dev.sixik.unigui.api.render.ImageFit;
 import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.render.plan.RenderPrimitive;
+import dev.sixik.unigui.api.render.plan.RenderPlan;
 import dev.sixik.unigui.api.render.RenderBackend;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.render.RenderTarget;
@@ -72,9 +74,17 @@ import dev.sixik.unigui.api.selection.SelectionMode;
 import dev.sixik.unigui.api.sort.SortDirection;
 import dev.sixik.unigui.api.style.MutableStyle;
 import dev.sixik.unigui.api.style.MutableTheme;
+import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleKey;
 import dev.sixik.unigui.api.style.StyleIds;
+import dev.sixik.unigui.api.style.StylePropertyTween;
+import dev.sixik.unigui.api.style.StylePack;
+import dev.sixik.unigui.api.style.StyleDefinition;
+import dev.sixik.unigui.api.style.StyleAnimationDefinition;
 import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.style.StyleKeyRegistry;
+import dev.sixik.unigui.api.style.StylePackResult;
+import dev.sixik.unigui.api.style.StylePackXml;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.text.FontFace;
@@ -86,6 +96,8 @@ import dev.sixik.unigui.api.text.TextRun;
 import dev.sixik.unigui.api.widget.CheckboxState;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.api.widget.render.WidgetRendererRegistry;
+import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttributeDescriptor;
 import dev.sixik.unigui.api.xml.XmlWidgetAsset;
 import dev.sixik.unigui.api.xml.XmlWidgetAssetCatalog;
@@ -218,8 +230,30 @@ import dev.sixik.unigui.widgets.data.VirtualTableView;
 import dev.sixik.unigui.widgets.core.Widgets;
 import dev.sixik.unigui.widgets.feedback.WindowWidget;
 import dev.sixik.unigui.widgets.containers.WrapPanel;
+import dev.sixik.unigui.widgets.render.BoxRenderPlans;
+import dev.sixik.unigui.widgets.render.BorderRenderPlans;
+import dev.sixik.unigui.widgets.render.BorderState;
+import dev.sixik.unigui.widgets.render.ShapeRenderPlans;
+import dev.sixik.unigui.widgets.render.ShapeState;
+import dev.sixik.unigui.widgets.render.ScrollBarRenderPlans;
+import dev.sixik.unigui.widgets.render.ScrollBarState;
+import dev.sixik.unigui.widgets.render.TextureWidgetRenderPlans;
+import dev.sixik.unigui.widgets.render.TextureWidgetState;
+import dev.sixik.unigui.widgets.render.BoxState;
 import dev.sixik.unigui.widgets.render.ButtonRenderer;
+import dev.sixik.unigui.widgets.render.ButtonRenderPlans;
+import dev.sixik.unigui.widgets.render.ButtonRenderType;
+import dev.sixik.unigui.widgets.render.ButtonState;
 import dev.sixik.unigui.widgets.render.ButtonRenderers;
+import dev.sixik.unigui.widgets.render.TextInputRenderPlans;
+import dev.sixik.unigui.widgets.render.TextInputRenderType;
+import dev.sixik.unigui.widgets.render.TextInputState;
+import dev.sixik.unigui.widgets.render.ProgressBarRenderPlans;
+import dev.sixik.unigui.widgets.render.ProgressBarState;
+import dev.sixik.unigui.widgets.render.SeparatorRenderPlans;
+import dev.sixik.unigui.widgets.render.SeparatorState;
+import dev.sixik.unigui.widgets.render.SliderRenderPlans;
+import dev.sixik.unigui.widgets.render.SliderState;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
@@ -277,6 +311,8 @@ public final class BasicControlsSelfTest {
         testTextWidgetRoleContracts();
         testPasswordAndSearchFields();
         testDefaultThemeContracts();
+        testStylePackContracts();
+        testStylePackXmlContracts();
         testStyleInheritanceAndScopes();
         testKeyboardFocusTraversal();
         testDirectionalFocusNavigation();
@@ -412,6 +448,44 @@ public final class BasicControlsSelfTest {
         expect(new PasswordField() instanceof TextInput, "PasswordField should reuse TextInput shell directly");
         expect(new NumberField() instanceof TextInput, "NumberField should reuse TextInput shell directly");
         expect(new SearchField() instanceof TextInput, "SearchField should reuse TextInput shell directly");
+
+        TextInputState textInputPlanState = new TextInputState(
+                TextInputRenderType.TEXT_INPUT,
+                0.0f,
+                0.0f,
+                100.0f,
+                18.0f,
+                4.0f,
+                2.0f,
+                80.0f,
+                14.0f,
+                4.0f,
+                10.0f,
+                0.0f,
+                30.0f,
+                "abc",
+                RichText.plain("abc"),
+                true,
+                false,
+                true,
+                0,
+                2,
+                3,
+                MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f),
+                MutableColor.rgba(0.6f, 0.6f, 0.6f, 1.0f),
+                MutableColor.rgba(0.2f, 0.6f, 1.0f, 1.0f),
+                new float[]{0.0f, 6.0f, 12.0f, 18.0f},
+                true,
+                90.0f,
+                3.0f,
+                8.0f,
+                10.0f);
+        RenderPrimitive textInputPrimitive = TextInputRenderPlans.defaultPlan(textInputPlanState).primitives().get(0);
+        expect(textInputPrimitive instanceof RenderPrimitive.Clip
+                        && ((RenderPrimitive.Clip) textInputPrimitive).children().size() == 3,
+                "TextInput render plan should clip selection, rich text and caret together");
+        expect(TextInputRenderPlans.searchFieldPlan(textInputPlanState).primitives().size() == 2,
+                "SearchField render plan should add clear-button text outside the text viewport clip");
     }
 
     private void testTextOverflowModes() {
@@ -759,6 +833,120 @@ public final class BasicControlsSelfTest {
         box.radius(6.0f);
         box.arrange(destination);
 
+        BoxState planState = new BoxState(
+                destination.x(), destination.y(), destination.width(), destination.height(),
+                true,
+                MutableColor.rgba(0.1f, 0.2f, 0.3f, 1.0f),
+                texture,
+                MutableColor.rgba(0.8f, 0.7f, 0.6f, 0.5f),
+                cover,
+                ImageFit.COVER,
+                6.0f,
+                true,
+                MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f),
+                1.0f);
+        expect(BoxRenderPlans.defaultPlan(planState).primitives().size() == 3,
+                "Box default render plan should expose background, texture and border primitives");
+        ButtonState buttonPlanState = new ButtonState(
+                ButtonRenderType.BUTTON,
+                4.0f,
+                5.0f,
+                80.0f,
+                18.0f,
+                "Render Plan",
+                RichText.plain("Render Plan"),
+                8.0f,
+                44.0f,
+                10.0f,
+                MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f),
+                false,
+                false,
+                true,
+                false,
+                false,
+                0.0f,
+                0.0f,
+                0.0f,
+                MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f),
+                MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f));
+        expect(ButtonRenderPlans.defaultPlan(buttonPlanState).primitives().size() == 1,
+                "Button default render plan should expose a rich-text primitive");
+        ButtonState indicatorButtonPlanState = new ButtonState(
+                ButtonRenderType.CHECKBOX,
+                4.0f,
+                5.0f,
+                80.0f,
+                18.0f,
+                "Render Plan",
+                RichText.plain("Render Plan"),
+                8.0f,
+                44.0f,
+                10.0f,
+                MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f),
+                false,
+                false,
+                true,
+                true,
+                false,
+                12.0f,
+                6.0f,
+                4.0f,
+                MutableColor.rgba(0.2f, 0.6f, 1.0f, 1.0f),
+                MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f));
+        expect(ButtonRenderPlans.checkboxPlan(indicatorButtonPlanState).primitives().size() == 3,
+                "Checkbox render plan should expose border, mark and label primitives");
+        expect(ButtonRenderPlans.radioButtonPlan(indicatorButtonPlanState).primitives().size() == 3,
+                "Radio button render plan should expose ring, fill and label primitives");
+        expect(ButtonRenderPlans.toggleSwitchPlan(indicatorButtonPlanState).primitives().size() == 3,
+                "Toggle switch render plan should expose track, thumb and label primitives");
+        expect(BorderRenderPlans.defaultPlan(new BorderState(
+                        1.0f,
+                        2.0f,
+                        30.0f,
+                        12.0f,
+                        MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f),
+                        2.0f,
+                        4.0f)).primitives().get(0) instanceof RenderPrimitive.RoundedRect,
+                "Border render plan should expose a rounded stroke primitive");
+        expect(ShapeRenderPlans.defaultPlan(new ShapeState(
+                        0.0f,
+                        0.0f,
+                        10.0f,
+                        8.0f,
+                        dev.sixik.unigui.widgets.display.Shape.Type.LINE,
+                        MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f),
+                        true,
+                        1.0f,
+                        0.0f)).primitives().get(0) instanceof RenderPrimitive.Line,
+                "Shape render plan should expose line primitives for LINE shapes");
+        expect(ScrollBarRenderPlans.defaultPlan(new ScrollBarState(
+                        0.0f,
+                        0.0f,
+                        6.0f,
+                        100.0f,
+                        Orientation.VERTICAL,
+                        0.0f,
+                        100.0f,
+                        50.0f,
+                        20.0f,
+                        5.0f,
+                        0.5f,
+                        false,
+                        MutableColor.rgba(0.1f, 0.1f, 0.1f, 1.0f),
+                        MutableColor.rgba(0.8f, 0.8f, 0.8f, 1.0f))).primitives().size() == 2,
+                "ScrollBar render plan should expose track and thumb primitives");
+        expect(TextureWidgetRenderPlans.defaultPlan(new TextureWidgetState(
+                        destination.x(),
+                        destination.y(),
+                        destination.width(),
+                        destination.height(),
+                        texture,
+                        destination,
+                        ImageFit.COVER,
+                        6.0f,
+                        MutableColor.rgba(0.8f, 0.7f, 0.6f, 0.5f),
+                        cover)).primitives().get(0) instanceof RenderPrimitive.Texture,
+                "TextureWidget render plan should expose a texture primitive");
         DrawList drawList = new DrawList();
         box.render(new DefaultRenderContext(drawList));
         expect(drawList.size() == 3, "Textured Box should emit color, texture and border commands");
@@ -2393,6 +2581,287 @@ public final class BasicControlsSelfTest {
         expect(hasFlag(child.invalidationFlags(), InvalidationFlags.VISUAL), "theme(root) should invalidate child visuals");
     }
 
+    private void testStylePackContracts() {
+        MutableStyle primaryButton = new MutableStyle()
+                .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.05f, 0.18f, 0.32f, 1.0f))
+                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.HOVERED, MutableColor.rgba(0.10f, 0.28f, 0.48f, 1.0f))
+                .put(StyleKeys.TEXT_COLOR, MutableColor.rgba(0.92f, 0.96f, 1.0f, 1.0f));
+        expect(primaryButton.values(WidgetState.NORMAL).containsKey(StyleKeys.BACKGROUND_COLOR),
+                "Style should expose state snapshots for editor inspectors");
+        expect(primaryButton.values().get(WidgetState.HOVERED).containsKey(StyleKeys.BACKGROUND_COLOR),
+                "Style should expose state override snapshots for editor inspectors");
+
+        expect(Button.STYLE_TYPE.equals(StyleIds.Widget.BUTTON)
+                        && ToggleButton.STYLE_TYPE.equals(StyleIds.Widget.TOGGLE_BUTTON)
+                        && TextInput.STYLE_TYPE.equals(StyleIds.Widget.TEXT_INPUT)
+                        && ProgressBar.STYLE_TYPE.equals(StyleIds.Widget.PROGRESS_BAR)
+                        && TextureWidget.STYLE_TYPE.equals(StyleIds.Widget.TEXTURE_WIDGET)
+                        && TextArea.STYLE_TYPE.equals(StyleIds.Widget.TEXT_AREA)
+                        && CodeEditor.STYLE_TYPE.equals(StyleIds.Widget.CODE_EDITOR)
+                        && ToolButton.STYLE_TYPE.equals(StyleIds.Widget.TOOL_BUTTON)
+                        && MenuBar.STYLE_TYPE.equals(StyleIds.Widget.MENU_BAR)
+                        && WorldCanvas.STYLE_TYPE.equals(StyleIds.Widget.WORLD_CANVAS)
+                        && MinecraftItemPickerWidget.STYLE_TYPE.equals(StyleIds.Widget.MINECRAFT_ITEM_PICKER_WIDGET),
+                "Widgets should expose exact StylePack type ids as static constants");
+        expect(Button.AnimationProperties.SCALE.equals(StyleAnimationIds.Property.SCALE)
+                        && Button.AnimationProperties.OPACITY.equals(StyleAnimationIds.Property.OPACITY)
+                        && Label.AnimationProperties.OPACITY.equals(StyleAnimationIds.Property.OPACITY)
+                        && Button.AnimationEvents.ON_CLICK.equals(StyleAnimationIds.Event.ON_CLICK)
+                        && TextInput.AnimationEvents.ON_TEXT_CHANGED.equals(StyleAnimationIds.Event.ON_TEXT_CHANGED)
+                        && ProgressBar.AnimationProperties.VALUE.equals(StyleAnimationIds.Property.VALUE),
+                "Widgets should expose animation property/event ids without magic strings");
+        StyleAnimationDefinition pulse = StyleAnimationDefinition.of("pulse",
+                StylePropertyTween.currentTo(Button.AnimationProperties.OPACITY, "0.65", TransitionSpec.of(0.12f, AnimationEasing.EASE_OUT)),
+                new StylePropertyTween(Button.AnimationProperties.SCALE, StylePropertyTween.CURRENT, "1.04", TransitionSpec.of(0.12f, AnimationEasing.EASE_OUT).yoyo()));
+        StyleDefinition primaryDefinition = StyleDefinition.of("primaryButton", primaryButton)
+                .eventAnimation(Button.AnimationEvents.ON_CLICK, pulse.id());
+        StyleDefinition customDefinition = StyleDefinition.custom("neonButton", "demo:neon_button", primaryButton);
+        StylePack pack = StylePack.create("demo")
+                .put(primaryDefinition)
+                .put(customDefinition)
+                .putAnimation(pulse)
+                .bind(StyleIds.Widget.BUTTON, "primaryButton")
+                .fallback(new MutableStyle().put(StyleKeys.ACCENT_COLOR, MutableColor.rgba(0.6f, 0.4f, 1.0f, 1.0f)));
+
+        expect(pack.styleFor(StyleIds.Widget.BUTTON).get(StyleKeys.BACKGROUND_COLOR, WidgetState.NORMAL, null) != null,
+                "StylePack should resolve bound widget styles through Theme.styleFor");
+        expect(pack.styleFor("UnknownWidget").get(StyleKeys.ACCENT_COLOR, WidgetState.CHECKED, null) != null,
+                "StylePack should provide fallback style values for unknown widget types");
+        MutableStyle coolButton = new MutableStyle()
+                .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.0f, 0.2f, 0.8f, 1.0f));
+        MutableStyle warmButton = new MutableStyle()
+                .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.8f, 0.2f, 0.0f, 1.0f));
+        StylePack switchablePack = StylePack.create("switchable")
+                .put(StyleDefinition.of("button.cool", coolButton)
+                        .target(Button.STYLE_TYPE)
+                        .widgetId("button.cool"))
+                .put(StyleDefinition.of("button.warm", warmButton)
+                        .target(Button.STYLE_TYPE)
+                        .widgetId("button.warm"));
+        ColorView resolvedCool = switchablePack.resolveStyleFor(Button.STYLE_TYPE, "button.cool", List.of())
+                .get(StyleKeys.BACKGROUND_COLOR, WidgetState.NORMAL, null);
+        ColorView resolvedWarm = switchablePack.resolveStyleFor(Button.STYLE_TYPE, "button.warm", List.of())
+                .get(StyleKeys.BACKGROUND_COLOR, WidgetState.NORMAL, null);
+        expect(resolvedCool != null && resolvedWarm != null
+                        && near(resolvedCool.b(), 0.8f)
+                        && near(resolvedWarm.r(), 0.8f),
+                "StylePack widgetId selectors should make runtime styleId switching visible");
+        expect(pack.eventAnimation("primaryButton", Button.AnimationEvents.ON_CLICK).equals("pulse")
+                        && pack.animation("pulse").orElseThrow().tweens().size() == 2,
+                "StylePack should keep event animation links as editable data");
+        WidgetsRender.registerDefaults();
+        ButtonState stylePlanButtonState = new ButtonState(
+                ButtonRenderType.BUTTON,
+                0.0f,
+                0.0f,
+                80.0f,
+                18.0f,
+                "Styled",
+                RichText.plain("Styled"),
+                8.0f,
+                36.0f,
+                10.0f,
+                MutableColor.rgba(0.0f, 0.0f, 0.0f, 1.0f),
+                false,
+                false,
+                true,
+                false,
+                false,
+                0.0f,
+                0.0f,
+                0.0f,
+                MutableColor.rgba(0.0f, 0.0f, 0.0f, 1.0f),
+                MutableColor.rgba(0.0f, 0.0f, 0.0f, 1.0f));
+        RenderPlan buttonStylePlan = pack.renderPlanFor(
+                StyleIds.Widget.BUTTON,
+                ButtonState.class,
+                stylePlanButtonState,
+                WidgetState.NORMAL).orElseThrow();
+        expect(buttonStylePlan.primitives().get(0) instanceof RenderPrimitive.RichTextBlock,
+                "StylePack should resolve Button to the registered rich-text render plan");
+        RenderPrimitive.RichTextBlock styledText = (RenderPrimitive.RichTextBlock) buttonStylePlan.primitives().get(0);
+        expect(near(styledText.paint().color().r(), 0.92f) && near(styledText.paint().color().g(), 0.96f),
+                "StylePack render plan should apply resolved Button text color before rendering");
+
+        StylePack boxPack = StylePack.create("box-plan")
+                .putStyle("boxCard", new MutableStyle()
+                        .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.25f, 0.35f, 0.45f, 1.0f))
+                        .put(StyleKeys.BORDER_COLOR, MutableColor.rgba(0.75f, 0.85f, 0.95f, 1.0f))
+                        .put(StyleKeys.BORDER_WIDTH, 3.0f)
+                        .put(StyleKeys.RADIUS, 9.0f))
+                .bind(StyleIds.Widget.BOX, "boxCard");
+        BoxState stylePlanBoxState = new BoxState(
+                2.0f,
+                3.0f,
+                50.0f,
+                20.0f,
+                true,
+                MutableColor.rgba(0.0f, 0.0f, 0.0f, 1.0f),
+                null,
+                MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f),
+                null,
+                ImageFit.STRETCH,
+                0.0f,
+                true,
+                MutableColor.rgba(0.0f, 0.0f, 0.0f, 1.0f),
+                1.0f);
+        RenderPlan boxStylePlan = boxPack.renderPlanFor(
+                StyleIds.Widget.BOX,
+                BoxState.class,
+                stylePlanBoxState,
+                WidgetState.NORMAL).orElseThrow();
+        RenderPrimitive.RoundedRect styledBoxBackground = (RenderPrimitive.RoundedRect) boxStylePlan.primitives().get(0);
+        RenderPrimitive.RoundedRect styledBoxBorder = (RenderPrimitive.RoundedRect) boxStylePlan.primitives().get(1);
+        expect(near(styledBoxBackground.paint().color().r(), 0.25f)
+                        && near(styledBoxBackground.radius(), 9.0f)
+                        && near(styledBoxBorder.paint().strokeWidth(), 3.0f),
+                "StylePack render plan should apply Box color, radius and border keys to primitives");
+        expect(boxPack.renderPlanFor(StyleIds.Widget.BOX, ButtonState.class, stylePlanButtonState, WidgetState.NORMAL).isEmpty(),
+                "StylePack render plan registry should reject mismatched render-state types");
+        expect(pack.styleDefinition("neonButton").orElseThrow().customRenderer()
+                        && pack.styleDefinition("neonButton").orElseThrow().rendererId().equals("demo:neon_button"),
+                "StyleDefinition should preserve custom renderer ids as an escape hatch");
+
+        DefaultUIContext uiContext = new DefaultUIContext();
+        Button button = new Button("Pack");
+        button.setUiContextInternal(uiContext);
+        button.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 18.0f));
+        uiContext.theme(pack, button);
+        DrawList drawList = new DrawList();
+        button.render(new DefaultRenderContext(drawList));
+        expect(hasFillColor(drawList, 0.05f, 0.18f, 0.32f, 1.0f),
+                "StylePack should be usable directly as a UIContext theme");
+        class RuntimeStyleButton extends Button {
+            private int planHits;
+
+            RuntimeStyleButton(String text) {
+                super(text);
+            }
+
+            @Override
+            protected String styleType() {
+                return StyleIds.Widget.BUTTON;
+            }
+
+            @Override
+            protected <S> boolean renderStylePlan(RenderContext context, Class<S> stateType, S state) {
+                boolean rendered = super.renderStylePlan(context, stateType, state);
+                if (rendered) planHits++;
+                return rendered;
+            }
+        }
+        DefaultUIContext runtimePlanContext = new DefaultUIContext();
+        RuntimeStyleButton runtimePlanButton = new RuntimeStyleButton("Plan");
+        runtimePlanButton.setUiContextInternal(runtimePlanContext);
+        runtimePlanButton.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 18.0f));
+        runtimePlanContext.theme(pack, runtimePlanButton);
+        runtimePlanButton.render(new DefaultRenderContext(new DrawList()));
+        expect(runtimePlanButton.planHits == 1,
+                "Button runtime rendering should use StylePack RenderPlan before default renderer fallback");
+
+        long versionBefore = pack.version();
+        pack.putStyle("Button", new MutableStyle().put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.2f, 0.3f, 0.4f, 1.0f)))
+                .unbind(StyleIds.Widget.BUTTON);
+        expect(pack.version() != versionBefore
+                        && pack.styleFor(StyleIds.Widget.BUTTON).get(StyleKeys.BACKGROUND_COLOR, WidgetState.NORMAL, null) != null,
+                "StylePack should support convention-based style ids and version changes");
+    }
+
+    private void testStylePackXmlContracts() {
+        String xml = "<StylePack id=\"demo.dark\">\n"
+                + "  <Animation id=\"button.press\">\n"
+                + "    <Tween property=\"scale.x\" from=\"current\" to=\"0.96\" duration=\"0.08\" easing=\"EASE_OUT\" yoyo=\"true\" />\n"
+                + "    <Tween property=\"opacity\" to=\"0.75\" durationMs=\"120\" easing=\"LINEAR\" />\n"
+                + "  </Animation>\n"
+                + "  <Style id=\"PrimaryButton\" target=\"Button\" renderer=\"demo:primary_button\">\n"
+                + "    <Setter property=\"background.color\" value=\"#123456FF\" />\n"
+                + "    <Setter property=\"background.texture.fit\" value=\"cover\" />\n"
+                + "    <Setter property=\"radius\" value=\"4\" />\n"
+                + "    <State name=\"HOVERED\">\n"
+                + "      <Setter property=\"background.color\" value=\"#1E5E99FF\" />\n"
+                + "    </State>\n"
+                + "    <Event name=\"onClick\" animation=\"button.press\" />\n"
+                + "  </Style>\n"
+                + "  <Style id=\"DangerButton\" target=\"Button\" class=\"danger\">\n"
+                + "    <Setter property=\"background.color\" value=\"#B00020FF\" />\n"
+                + "  </Style>\n"
+                + "</StylePack>";
+
+        StylePackResult result = StylePackXml.parseEditor(xml, StyleKeyRegistry.builtIns());
+        expect(result.valid(), "StylePack XML should parse without diagnostics: " + result.diagnosticMessages());
+        StylePack pack = result.pack();
+        expect(pack.id().equals("demo.dark"), "StylePack XML should preserve pack id");
+        expect(pack.binding(StyleIds.Widget.BUTTON).equals("PrimaryButton"), "StylePack XML should bind style target to widget type");
+        expect(pack.styleDefinition("PrimaryButton").orElseThrow().rendererId().equals("demo:primary_button"),
+                "StylePack XML should preserve custom renderer ids");
+
+        ColorView normal = pack.styleFor(StyleIds.Widget.BUTTON)
+                .get(StyleKeys.BACKGROUND_COLOR, WidgetState.NORMAL, null);
+        ColorView hovered = pack.styleFor(StyleIds.Widget.BUTTON)
+                .get(StyleKeys.BACKGROUND_COLOR, WidgetState.HOVERED, null);
+        expect(normal != null && near(normal.r(), 0x12 / 255.0f) && near(normal.g(), 0x34 / 255.0f),
+                "StylePack XML should parse normal color setters");
+        expect(hovered != null && near(hovered.r(), 0x1E / 255.0f) && near(hovered.b(), 0x99 / 255.0f),
+                "StylePack XML should parse state override setters");
+        expect(pack.styleFor(StyleIds.Widget.BUTTON).get(StyleKeys.BACKGROUND_TEXTURE_FIT, WidgetState.NORMAL, null) == ImageFit.COVER,
+                "StylePack XML should parse enum style values");
+        expect(near(pack.styleFor(StyleIds.Widget.BUTTON).get(StyleKeys.RADIUS, WidgetState.NORMAL, 0.0f), 4.0f),
+                "StylePack XML should parse numeric style values");
+        ColorView danger = pack.resolveStyleFor(StyleIds.Widget.BUTTON, "", List.of("danger"))
+                .get(StyleKeys.BACKGROUND_COLOR, WidgetState.NORMAL, null);
+        expect(danger != null && near(danger.r(), 0xB0 / 255.0f) && near(danger.g(), 0.0f) && near(danger.b(), 0x20 / 255.0f),
+                "StylePack XML should resolve target+class selectors over target bindings");
+        ColorView explicit = pack.resolveStyleFor(StyleIds.Widget.BUTTON, "PrimaryButton", List.of())
+                .get(StyleKeys.BACKGROUND_COLOR, WidgetState.NORMAL, null);
+        expect(explicit != null && near(explicit.r(), normal.r()) && near(explicit.g(), normal.g()),
+                "StylePack should resolve explicit widget style ids");
+        Button identityButton = new Button("Identity");
+        identityButton.styleId("PrimaryButton").styleClass("danger primary");
+        expect(identityButton.styleId().equals("PrimaryButton")
+                        && identityButton.hasStyleClass("danger")
+                        && identityButton.styleClasses().equals(List.of("danger", "primary")),
+                "Widget style identity API should preserve explicit style id and normalized classes");
+        expect(pack.eventAnimation("PrimaryButton", Button.AnimationEvents.ON_CLICK).equals("button.press")
+                        && pack.animation("button.press").orElseThrow().tweens().size() == 2,
+                "StylePack XML should parse event animation links and tweens");
+        WidgetsRender.registerDefaults();
+        expect(WidgetRendererRegistry.global().renderer("unigui:button/default", ButtonRenderer.class).orElseThrow() == WidgetsRender.button(),
+                "WidgetsRender should register stable ids for built-in default renderers");
+        Counter rendererCounter = new Counter();
+        ButtonRenderer countingRenderer = (draw, state) -> rendererCounter.count++;
+        WidgetRendererRegistry.global().register("demo:primary_button", ButtonRenderer.class, countingRenderer);
+        try {
+            DefaultUIContext uiContext = new DefaultUIContext();
+            Button styledButton = new Button("Registry");
+            styledButton.setUiContextInternal(uiContext);
+            styledButton.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 18.0f));
+            uiContext.theme(pack, styledButton);
+            styledButton.render(new DefaultRenderContext(new DrawList()));
+            expect(rendererCounter.count == 1,
+                    "StylePack XML renderer ids should resolve through WidgetRendererRegistry at render time");
+        } finally {
+            WidgetRendererRegistry.global().unregister("demo:primary_button");
+        }
+
+        StylePack reparsed = StylePackXml.parse(StylePackXml.toXmlString(pack), StyleKeyRegistry.builtIns());
+        expect(reparsed.binding(StyleIds.Widget.BUTTON).equals("PrimaryButton")
+                        && reparsed.eventAnimation("PrimaryButton", Button.AnimationEvents.ON_CLICK).equals("button.press"),
+                "StylePack XML should round-trip bindings and event links");
+        expect(reparsed.styleFor(StyleIds.Widget.BUTTON).get(StyleKeys.BACKGROUND_TEXTURE_FIT, WidgetState.NORMAL, null) == ImageFit.COVER,
+                "StylePack XML should round-trip enum style values");
+
+        String invalidXml = "<StylePack id=\"bad\">"
+                + "<Style id=\"Broken\">"
+                + "<Setter property=\"unknown.property\" value=\"1\" />"
+                + "<Setter property=\"background.color\" value=\"not-a-color\" />"
+                + "</Style>"
+                + "</StylePack>";
+        StylePackResult invalid = StylePackXml.parseEditor(invalidXml, StyleKeyRegistry.builtIns());
+        expect(invalid.hasDiagnostics()
+                        && invalid.diagnosticMessages().stream().anyMatch(message -> message.contains("unknown.property"))
+                        && invalid.diagnosticMessages().stream().anyMatch(message -> message.contains("background.color")),
+                "StylePack XML editor parsing should report unknown properties and invalid values");
+    }
     private void testStyleInheritanceAndScopes() {
         DefaultUIContext uiContext = new DefaultUIContext();
         Box root = new Box();
@@ -3342,6 +3811,23 @@ public final class BasicControlsSelfTest {
         uiContext.routedEvents().dispatch(new KeyPressedEvent(slider, KeyCodes.LEFT, 0, 0));
         expect(slider.value() == 95.0f, "Focused Slider should nudge left by step");
         expect(changes.count >= 3 && changes.lastValue == 95.0f, "Slider should emit value changed events");
+        SliderState sliderPlanState = new SliderState(
+                0.0f,
+                0.0f,
+                200.0f,
+                20.0f,
+                0.0f,
+                100.0f,
+                95.0f,
+                5.0f,
+                0.95f,
+                10.0f,
+                false,
+                MutableColor.rgba(0.2f, 0.2f, 0.2f, 1.0f),
+                MutableColor.rgba(0.2f, 0.6f, 1.0f, 1.0f),
+                MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f));
+        expect(SliderRenderPlans.defaultPlan(sliderPlanState).primitives().size() == 3,
+                "Slider render plan should expose track, fill and knob primitives");
     }
 
     private void testScrollViewBubbledWheelInput() {
@@ -6495,6 +6981,21 @@ public final class BasicControlsSelfTest {
         DrawList progressDrawList = new DrawList();
         progressBar.render(new DefaultRenderContext(progressDrawList));
         expect(progressDrawList.size() >= 2, "ProgressBar should render track and fill commands");
+        ProgressBarState progressPlanState = new ProgressBarState(
+                0.0f,
+                0.0f,
+                100.0f,
+                12.0f,
+                0.0f,
+                200.0f,
+                50.0f,
+                0.25f,
+                false,
+                0.0f,
+                MutableColor.rgba(0.1f, 0.1f, 0.1f, 1.0f),
+                MutableColor.rgba(0.2f, 0.6f, 1.0f, 1.0f));
+        expect(ProgressBarRenderPlans.defaultPlan(progressPlanState).primitives().size() == 2,
+                "ProgressBar render plan should expose track and fill primitives");
 
         ProgressBar indeterminateProgress = new ProgressBar().indeterminate(true);
         indeterminateProgress.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 12.0f));
@@ -6505,6 +7006,36 @@ public final class BasicControlsSelfTest {
                         && indeterminateProgress.indeterminateOffset() > 0.0f
                         && indeterminateProgressDrawList.size() >= 2,
                 "Indeterminate ProgressBar should animate and render a moving fill segment");
+        ProgressBarState indeterminateProgressPlanState = new ProgressBarState(
+                0.0f,
+                0.0f,
+                100.0f,
+                12.0f,
+                0.0f,
+                1.0f,
+                0.0f,
+                0.0f,
+                true,
+                0.5f,
+                MutableColor.rgba(0.1f, 0.1f, 0.1f, 1.0f),
+                MutableColor.rgba(0.2f, 0.6f, 1.0f, 1.0f));
+        RenderPrimitive indeterminatePrimitive = ProgressBarRenderPlans.defaultPlan(indeterminateProgressPlanState).primitives().get(1);
+        expect(indeterminatePrimitive instanceof RenderPrimitive.Clip
+                        && ((RenderPrimitive.Clip) indeterminatePrimitive).children().size() == 1,
+                "Indeterminate ProgressBar render plan should clip the moving fill segment");
+        SeparatorState separatorPlanState = new SeparatorState(
+                2.0f,
+                3.0f,
+                40.0f,
+                20.0f,
+                Orientation.VERTICAL,
+                2.0f,
+                MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f));
+        RenderPrimitive separatorPrimitive = SeparatorRenderPlans.defaultPlan(separatorPlanState).primitives().get(0);
+        expect(separatorPrimitive instanceof RenderPrimitive.Rect
+                        && near(((RenderPrimitive.Rect) separatorPrimitive).width(), 2.0f)
+                        && near(((RenderPrimitive.Rect) separatorPrimitive).height(), 20.0f),
+                "Separator render plan should respect vertical thickness geometry");
 
         ProgressBar lowProgressBar = new ProgressBar().range(0.0f, 100.0f);
         lowProgressBar.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 12.0f));

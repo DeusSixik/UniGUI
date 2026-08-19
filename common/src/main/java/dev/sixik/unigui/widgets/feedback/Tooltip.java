@@ -25,6 +25,8 @@ import dev.sixik.unigui.widgets.containers.Box;
 
 @XmlWidgetName("Tooltip")
 public class Tooltip extends Box implements OverlayHostAware {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TOOLTIP;
+
     private static final float HORIZONTAL_PADDING = 6.0f;
     private static final float VERTICAL_PADDING = 4.0f;
     private static final float DEFAULT_MAX_WIDTH = 220.0f;

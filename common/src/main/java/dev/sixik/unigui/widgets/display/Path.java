@@ -14,6 +14,8 @@ import dev.sixik.unigui.widgets.render.PathState;
 
 @XmlWidgetName("Path")
 public final class Path extends WidgetBase {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.PATH;
+
     private final VectorPath path = new VectorPath();
     private final MutableColor color = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private PathRenderer renderer;

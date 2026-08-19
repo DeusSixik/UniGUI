@@ -23,6 +23,8 @@ import java.util.function.Consumer;
 /** Compact editor panel for current project actions and recent project selection. */
 @XmlWidgetName("ProjectPickerPanel")
 public class ProjectPickerPanel extends LinearBox {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.PROJECT_PICKER_PANEL;
+
     public static final String COMMAND_NEW_PROJECT = "new_project";
     public static final String COMMAND_OPEN_PROJECT = "open_project";
     public static final String COMMAND_SAVE_PROJECT = "save_project";

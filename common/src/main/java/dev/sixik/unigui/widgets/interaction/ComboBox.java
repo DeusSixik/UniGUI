@@ -33,6 +33,8 @@ import dev.sixik.unigui.widgets.feedback.Popup;
 
 @XmlWidgetName("ComboBox")
 public class ComboBox extends LinearBox {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.COMBO_BOX;
+
     private static final float HEADER_HEIGHT = 22.0f;
     private static final float OPTION_HEIGHT = 20.0f;
     private static final float OPTIONS_INSET = 2.0f;
