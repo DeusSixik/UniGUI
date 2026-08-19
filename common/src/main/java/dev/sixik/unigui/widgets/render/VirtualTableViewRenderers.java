@@ -59,7 +59,7 @@ public final class VirtualTableViewRenderers {
                                  float clipHeight,
                                  Iterable<VirtualTableViewTextSegment> segments) {
         if (clipped) {
-            draw.pushClip(clipX, clipY, clipWidth, clipHeight);
+            draw.pushTextClip(clipX, clipY, clipWidth, clipHeight);
         }
         try {
             for (VirtualTableViewTextSegment segment : segments) {

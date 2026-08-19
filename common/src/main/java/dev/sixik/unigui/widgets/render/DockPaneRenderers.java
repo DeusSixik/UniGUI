@@ -51,7 +51,7 @@ public final class DockPaneRenderers {
                         tab.x() + 4.0f, tab.y() + Math.max(4.0f, tab.height() - 4.0f),
                         Paint.stroke(OVERFLOW, 1.0f));
             }
-            draw.pushClip(tab.x() + 6.0f, tab.y(), Math.max(0.0f, tab.width() - 12.0f), tab.height());
+            draw.pushTextClip(tab.x() + 6.0f, tab.y(), Math.max(0.0f, tab.width() - 12.0f), tab.height());
             try {
                 TextEngine.drawInline(draw, tab.title(), tab.x() + 6.0f, tab.y() + 4.0f,
                         Math.max(0.0f, tab.width() - 12.0f), Math.max(0.0f, tab.height() - 6.0f),

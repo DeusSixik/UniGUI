@@ -635,7 +635,7 @@ public class CodeEditor extends TextArea {
         List<CodeToken> tokens = syntaxTokens();
         if (tokens.isEmpty() || isShowingPlaceholder()) return;
         DrawScope draw = new DrawScope(context, transform(), layoutBounds());
-        draw.pushClip(textViewportX(), textViewportY(), textViewportWidth(), textViewportHeight());
+        draw.pushTextClip(textViewportX(), textViewportY(), textViewportWidth(), textViewportHeight());
         try {
             for (CodeToken token : tokens) {
                 renderSyntaxToken(draw, token);

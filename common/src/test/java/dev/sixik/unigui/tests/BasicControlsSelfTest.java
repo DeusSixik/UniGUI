@@ -247,6 +247,7 @@ public final class BasicControlsSelfTest {
         testUIScaleProviderContracts();
         testTextInputShellAndTextFieldChrome();
         testTextOverflowModes();
+        testTextClipAddsGlyphBleed();
         testRichTextAndSdfContracts();
         testTexturePlacementAndBackgrounds();
         testShaderDrawCommandContracts();
@@ -467,6 +468,23 @@ public final class BasicControlsSelfTest {
         marquee.render(new DefaultRenderContext(marqueeDrawList));
         expect(marqueeDrawList.commands().stream().filter(command -> command.type() == DrawCommandType.TEXT).count() == 2,
                 "TextWidget MARQUEE_ON_HOVER should draw a wrapped marquee copy while hovered");
+    }
+
+    private void testTextClipAddsGlyphBleed() {
+        Button button = new Button("=");
+        button.arrange(new MutableRect(10.0f, 20.0f, 18.0f, 18.0f));
+
+        DrawList drawList = new DrawList();
+        button.render(new DefaultRenderContext(drawList));
+        int clipIndex = firstCommandIndex(drawList, DrawCommandType.PUSH_CLIP, 0);
+        int textIndex = firstCommandIndex(drawList, DrawCommandType.TEXT, 0);
+        expect(clipIndex >= 0 && textIndex > clipIndex,
+                "Button text should be rendered inside a text clip");
+
+        DrawCommand clip = drawList.commands().get(clipIndex);
+        expect(clip.bounds().y() < button.layoutBounds().y()
+                        && clip.bounds().height() > button.layoutBounds().height(),
+                "Text clip should include glyph bleed so tight controls do not crop letters");
     }
 
     private void testTextWidgetRoleContracts() {

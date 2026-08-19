@@ -1143,7 +1143,7 @@ public final class DockingRoot extends Box {
                 draw.rect(x + 1.0f, rowY + 1.0f, Math.max(0.0f, menuWidth - 2.0f), Math.max(0.0f, rowHeight - 2.0f),
                         Paint.fill(OVERFLOW_MENU_SELECTED));
             }
-            draw.pushClip(x + 6.0f, rowY, Math.max(0.0f, menuWidth - 12.0f), rowHeight);
+            draw.pushTextClip(x + 6.0f, rowY, Math.max(0.0f, menuWidth - 12.0f), rowHeight);
             try {
                 TextEngine.drawInline(draw, pane.richTitle(), x + 6.0f, rowY + 4.0f,
                         Math.max(0.0f, menuWidth - 12.0f), Math.max(0.0f, rowHeight - 6.0f),

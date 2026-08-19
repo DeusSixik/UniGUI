@@ -5,7 +5,7 @@ import dev.sixik.unigui.impl.text.TextEngine;
 
 public final class TooltipRenderers {
     public static final TooltipRenderer DEFAULT = (draw, state) -> {
-        draw.pushClip(state.textX(), state.textY(), state.textWidth(), state.textHeight());
+        draw.pushTextClip(state.textX(), state.textY(), state.textWidth(), state.textHeight());
         try {
             float lineY = state.textY();
             float limitY = state.textY() + state.textHeight();

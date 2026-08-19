@@ -113,11 +113,16 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
     }
 
     public boolean render(GuiGraphics graphics, List<DrawCommand> commands, PoseStack pose) {
-        return render(graphics, commands, pose, false);
+        return render(graphics, commands, pose, false, 1.0f);
     }
 
     public boolean render(GuiGraphics graphics, List<DrawCommand> commands, PoseStack pose,
                           boolean renderingToPremultipliedTarget) {
+        return render(graphics, commands, pose, renderingToPremultipliedTarget, 1.0f);
+    }
+
+    public boolean render(GuiGraphics graphics, List<DrawCommand> commands, PoseStack pose,
+                          boolean renderingToPremultipliedTarget, float guiScale) {
         if (graphics == null || commands == null || commands.isEmpty() || pose == null || unavailable) return false;
         for (DrawCommand command : commands) {
             if (!canRender(command)) return false;
@@ -132,7 +137,8 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
                 }
             }
             if (!initialize()) return false;
-            List<Batch> batches = layout(commands, pose.last().pose());
+            float coordinateScale = sanitizeScale(guiScale);
+            List<Batch> batches = layout(commands, pose.last().pose(), coordinateScale);
             if (batches.isEmpty()) return true;
 
             GL20.glUseProgram(program);
@@ -181,12 +187,17 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
 
     public boolean render(GuiGraphics graphics, DrawBatch batch, PoseStack pose,
                           boolean renderingToPremultipliedTarget) {
+        return render(graphics, batch, pose, renderingToPremultipliedTarget, 1.0f);
+    }
+
+    public boolean render(GuiGraphics graphics, DrawBatch batch, PoseStack pose,
+                          boolean renderingToPremultipliedTarget, float guiScale) {
         if (batch == null) return false;
-        return renderRaw(graphics, batch.commandElements(), batch.size(), pose, renderingToPremultipliedTarget);
+        return renderRaw(graphics, batch.commandElements(), batch.size(), pose, renderingToPremultipliedTarget, guiScale);
     }
 
     private boolean renderRaw(GuiGraphics graphics, Object[] rawCommands, int commandCount, PoseStack pose,
-                              boolean renderingToPremultipliedTarget) {
+                              boolean renderingToPremultipliedTarget, float guiScale) {
         if (graphics == null || rawCommands == null || commandCount == 0 || pose == null || unavailable) return false;
         for (int i = 0; i < commandCount; i++) {
             DrawCommand command = (DrawCommand) rawCommands[i];
@@ -202,7 +213,8 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
                 }
             }
             if (!initialize()) return false;
-            ObjectArrayList<Batch> batches = layout(rawCommands, commandCount, pose.last().pose());
+            float coordinateScale = sanitizeScale(guiScale);
+            ObjectArrayList<Batch> batches = layout(rawCommands, commandCount, pose.last().pose(), coordinateScale);
             if (batches.isEmpty()) return true;
 
             GL20.glUseProgram(program);
@@ -300,26 +312,26 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
         return true;
     }
 
-    private ObjectArrayList<Batch> layout(Object[] rawCommands, int commandCount, org.joml.Matrix4f basePose) {
+    private ObjectArrayList<Batch> layout(Object[] rawCommands, int commandCount, org.joml.Matrix4f basePose, float guiScale) {
         ObjectArrayList<Batch> batches = new ObjectArrayList<>();
         for (int i = 0; i < commandCount; i++) {
             DrawCommand command = (DrawCommand) rawCommands[i];
             if (!hasText(command) || !visibleAlpha(command.paint().color(), null)) continue;
-            layoutCommand(batches, command, richText(command), basePose);
+            layoutCommand(batches, command, richText(command), basePose, guiScale);
         }
         return batches;
     }
-    private List<Batch> layout(List<DrawCommand> commands, org.joml.Matrix4f basePose) {
+    private List<Batch> layout(List<DrawCommand> commands, org.joml.Matrix4f basePose, float guiScale) {
         List<Batch> batches = new ObjectArrayList<>();
         for (DrawCommand command : commands) {
             if (!hasText(command) || !visibleAlpha(command.paint().color(), null)) continue;
-            layoutCommand(batches, command, richText(command), basePose);
+            layoutCommand(batches, command, richText(command), basePose, guiScale);
         }
         return batches;
     }
 
     private void layoutCommand(List<Batch> batches, DrawCommand command, RichText text,
-                               org.joml.Matrix4f basePose) {
+                               org.joml.Matrix4f basePose, float guiScale) {
         RectView bounds = command.bounds();
         List<LineInfo> lines = lineInfo(text);
         TransformState transformState = TransformState.from(command, basePose);
@@ -371,8 +383,8 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
                     float drawTop = top;
                     if (shouldPixelSnap(command, run.pixelSize(), transformState)) {
                         if (!lineSnapInitialized) {
-                            lineSnapOffsetX = snapScreenX(left, transformState) - left;
-                            lineSnapOffsetY = snapScreenY(top, transformState) - top;
+                            lineSnapOffsetX = snapScreenX(left, transformState, guiScale) - left;
+                            lineSnapOffsetY = snapScreenY(top, transformState, guiScale) - top;
                             lineSnapInitialized = true;
                         }
                         drawLeft += lineSnapOffsetX;
@@ -573,12 +585,20 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
                 || Math.abs(transform.scale().y() - 1.0f) > MATRIX_EPSILON;
     }
 
-    private static float snapScreenX(float x, TransformState state) {
-        return (float) ((Math.round(x * state.m00() + state.m30()) - state.m30()) / state.m00());
+    private static float snapScreenX(float x, TransformState state, float guiScale) {
+        float scale = sanitizeScale(guiScale);
+        float screen = x * state.m00() + state.m30();
+        return (float) (((Math.round(screen * scale) / scale) - state.m30()) / state.m00());
     }
 
-    private static float snapScreenY(float y, TransformState state) {
-        return (float) ((Math.round(y * state.m11() + state.m31()) - state.m31()) / state.m11());
+    private static float snapScreenY(float y, TransformState state, float guiScale) {
+        float scale = sanitizeScale(guiScale);
+        float screen = y * state.m11() + state.m31();
+        return (float) (((Math.round(screen * scale) / scale) - state.m31()) / state.m11());
+    }
+
+    private static float sanitizeScale(float value) {
+        return Float.isFinite(value) && value > 0.0f ? value : 1.0f;
     }
 
     private static float clamp01(float value) {

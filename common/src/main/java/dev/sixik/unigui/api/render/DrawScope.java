@@ -331,6 +331,17 @@ public final class DrawScope {
         }
     }
 
+    public void pushTextClip(float x, float y, float width, float height) {
+        if (width <= 0.0f || height <= 0.0f) {
+            pushClip(x, y, width, height);
+            return;
+        }
+        float bleedX = 1.0f;
+        float bleedTop = 1.0f;
+        float bleedBottom = 2.0f;
+        pushClip(x - bleedX, y - bleedTop, width + bleedX * 2.0f, height + bleedTop + bleedBottom);
+    }
+
     public void popClip() {
         context.popClip();
     }

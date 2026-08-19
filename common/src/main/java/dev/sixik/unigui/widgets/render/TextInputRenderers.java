@@ -5,7 +5,7 @@ import dev.sixik.unigui.impl.text.TextEngine;
 
 public final class TextInputRenderers {
     public static final TextInputRenderer DEFAULT = (draw, state) -> {
-        draw.pushClip(state.viewportX(), state.viewportY(), state.viewportWidth(), state.viewportHeight());
+        draw.pushTextClip(state.viewportX(), state.viewportY(), state.viewportWidth(), state.viewportHeight());
         try {
             if (state.focused() && state.hasSelection() && !state.showingPlaceholder()) {
                 float selectionX = state.viewportX() + state.prefixWidth(state.selectionStart()) - state.horizontalScrollPixels();

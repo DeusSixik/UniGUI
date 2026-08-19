@@ -16,7 +16,7 @@ public final class ButtonRenderers {
         float drawX = contentX + Math.max(0.0f, contentWidth - drawWidth) * 0.5f;
         float drawY = state.y() + Math.max(0.0f, state.height() - drawHeight) * 0.5f;
 
-        draw.pushClip(contentX, state.y(), contentWidth, state.height());
+        draw.pushTextClip(contentX, state.y(), contentWidth, state.height());
         try {
             TextEngine.drawInline(draw, state.richText(), drawX, drawY,
                     drawWidth,
@@ -126,7 +126,7 @@ public final class ButtonRenderers {
         float indicatorCenterY = indicatorY + state.indicatorSize() * 0.5f;
         float drawY = indicatorCenterY - drawHeight * 0.5f + LEADING_LABEL_VISUAL_CENTER_OFFSET;
 
-        draw.pushClip(contentX, state.y(), contentWidth, state.height());
+        draw.pushTextClip(contentX, state.y(), contentWidth, state.height());
         try {
             TextEngine.drawInline(draw, state.richText(), contentX, drawY, contentWidth, drawHeight, Paint.fill(state.textColor()));
         } finally {
@@ -147,7 +147,7 @@ public final class ButtonRenderers {
         float drawHeight = Math.min(Math.max(0.0f, state.height()), Math.max(0.0f, state.textHeight()));
         float drawY = state.y() + Math.max(0.0f, state.height() - drawHeight) * 0.5f;
 
-        draw.pushClip(contentX, state.y(), contentWidth, state.height());
+        draw.pushTextClip(contentX, state.y(), contentWidth, state.height());
         try {
             TextEngine.drawInline(draw, state.richText(), contentX, drawY, contentWidth, drawHeight, Paint.fill(state.textColor()));
         } finally {

@@ -431,7 +431,7 @@ public final class XmlHierarchyPanel extends LinearBox {
         DrawScope draw = new DrawScope(context, transform(), layoutBounds());
         draw.roundedRect(x, y, width, height, 3.0f, Paint.fill(TIP_BG));
         draw.roundedRect(x, y, width, height, 3.0f, Paint.stroke(DROP, 1.0f));
-        draw.pushClip(x + 6.0f, y + 4.0f, Math.max(0.0f, width - 12.0f), Math.max(0.0f, height - 8.0f));
+        draw.pushTextClip(x + 6.0f, y + 4.0f, Math.max(0.0f, width - 12.0f), Math.max(0.0f, height - 8.0f));
         try {
             draw.text(text, x + 6.0f, y + 4.0f, textWidth, TextEngine.LINE_HEIGHT, Paint.fill(TEXT));
         } finally {
@@ -575,7 +575,7 @@ public final class XmlHierarchyPanel extends LinearBox {
             float textY = y + Math.max(0.0f, height - TextEngine.LINE_HEIGHT) * 0.5f;
             String disclosure = item.childCount() > 0 ? (panel.expanded(item.path()) ? "\u25BE" : "\u25B8") : "";
             if (!disclosure.isEmpty()) draw.text(disclosure, disclosureX, textY, TWIRL, TextEngine.LINE_HEIGHT, Paint.fill(MUTED_TEXT));
-            draw.pushClip(labelX, y, labelWidth, height);
+            draw.pushTextClip(labelX, y, labelWidth, height);
             try {
                 draw.text(fullText(), labelX, textY,
                         Math.max(0.0f, TextEngine.measureLineWidth(context, fullText())),

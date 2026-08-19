@@ -30,7 +30,7 @@ public final class WindowRenderers {
         float closeReserved = state.closeButtonVisible() ? state.closeButtonWidth() + 6.0f : 0.0f;
         float titleX = state.x() + state.paddingLeft();
         float titleWidth = Math.max(0.0f, state.width() - state.paddingLeft() - state.paddingRight() - closeReserved);
-        draw.pushClip(titleX, state.y(), titleWidth, headerHeight);
+        draw.pushTextClip(titleX, state.y(), titleWidth, headerHeight);
         try {
             if (state.title() != null && !state.title().isEmpty()) {
                 float drawHeight = Math.min(headerHeight, Math.max(0.0f, state.titleTextHeight()));

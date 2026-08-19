@@ -7,7 +7,7 @@ import dev.sixik.unigui.impl.text.TextEngine;
 public final class TextWidgetRenderers {
     public static final TextWidgetRenderer DEFAULT = (draw, state) -> {
         if (state.clipped()) {
-            draw.pushClip(state.clipX(), state.clipY(), state.clipWidth(), state.clipHeight());
+            draw.pushTextClip(state.clipX(), state.clipY(), state.clipWidth(), state.clipHeight());
         }
         try {
             for (TextWidgetSegment segment : state.segments()) {

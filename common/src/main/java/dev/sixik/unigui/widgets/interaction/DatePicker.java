@@ -54,7 +54,7 @@ public final class DatePicker extends LinearBox {
     private static final float CALENDAR_PANEL_HEIGHT = 20.0f + 4.0f + 14.0f + 4.0f + DAYS_PANEL_HEIGHT;
     private static final TextInputRenderer CENTERED_TEXT_INPUT_RENDERER = (draw, state) -> {
         float textOffset = Math.max(0.0f, state.viewportWidth() - state.measuredTextWidth()) * 0.5f;
-        draw.pushClip(state.viewportX(), state.viewportY(), state.viewportWidth(), state.viewportHeight());
+        draw.pushTextClip(state.viewportX(), state.viewportY(), state.viewportWidth(), state.viewportHeight());
         try {
             if (state.focused() && state.hasSelection() && !state.showingPlaceholder()) {
                 float selectionX = state.viewportX() + textOffset + state.prefixWidth(state.selectionStart()) - state.horizontalScrollPixels();

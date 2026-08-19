@@ -521,12 +521,13 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
                 && shapeBatchRenderer.render(graphics, batch, renderingToPremultipliedTarget)) {
             return;
         }
+        float textGuiScale = shaderGuiScale();
         if (batch.type() == DrawCommandType.TEXT
-                && mixedTextRenderer.render(graphics, batch, graphics.pose(), renderingToPremultipliedTarget)) {
+                && mixedTextRenderer.render(graphics, batch, graphics.pose(), renderingToPremultipliedTarget, textGuiScale)) {
             return;
         }
         if (batch.type() == DrawCommandType.TEXT
-                && sdfTextRenderer.render(graphics, batch, graphics.pose(), renderingToPremultipliedTarget)) {
+                && sdfTextRenderer.render(graphics, batch, graphics.pose(), renderingToPremultipliedTarget, textGuiScale)) {
             return;
         }
         if (batch.type() == DrawCommandType.TEXTURE

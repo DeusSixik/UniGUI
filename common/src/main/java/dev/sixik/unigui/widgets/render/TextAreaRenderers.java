@@ -12,7 +12,7 @@ public final class TextAreaRenderers {
     private static final MutableColor SCROLLBAR_THUMB = new MutableColor(0.55f, 0.62f, 0.72f, 0.72f);
 
     public static final TextAreaRenderer DEFAULT = (draw, state) -> {
-        draw.pushClip(state.viewportX(), state.viewportY(), state.viewportWidth(), state.viewportHeight());
+        draw.pushTextClip(state.viewportX(), state.viewportY(), state.viewportWidth(), state.viewportHeight());
         try {
             if (state.focused() && state.hasSelection() && !state.showingPlaceholder()) {
                 renderSelection(draw, state);

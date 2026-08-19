@@ -45,6 +45,11 @@ final class MinecraftMixedTextRenderer {
 
     boolean render(GuiGraphics graphics, DrawBatch batch, PoseStack pose,
                    boolean renderingToPremultipliedTarget) {
+        return render(graphics, batch, pose, renderingToPremultipliedTarget, 1.0f);
+    }
+
+    boolean render(GuiGraphics graphics, DrawBatch batch, PoseStack pose,
+                   boolean renderingToPremultipliedTarget, float guiScale) {
         if (graphics == null || batch == null || batch.size() == 0 || pose == null) return false;
         Object[] rawCommands = batch.commandElements();
         int commandCount = batch.size();
@@ -54,8 +59,8 @@ final class MinecraftMixedTextRenderer {
         for (int i = 0; i < commandCount; i++) {
             DrawCommand command = (DrawCommand) rawCommands[i];
             if (!hasText(command)) continue;
-            renderCommand(graphics, command, richText(command), pendingSdf, renderingToPremultipliedTarget);
-            flushSdf(graphics, pendingSdf, renderingToPremultipliedTarget);
+            renderCommand(graphics, command, richText(command), pendingSdf, renderingToPremultipliedTarget, guiScale);
+            flushSdf(graphics, pendingSdf, renderingToPremultipliedTarget, guiScale);
         }
         return true;
     }
@@ -78,7 +83,8 @@ final class MinecraftMixedTextRenderer {
     }
 
     private void renderCommand(GuiGraphics graphics, DrawCommand command, RichText text,
-                               ObjectArrayList<DrawCommand> pendingSdf, boolean renderingToPremultipliedTarget) {
+                               ObjectArrayList<DrawCommand> pendingSdf, boolean renderingToPremultipliedTarget,
+                               float guiScale) {
         if (!visibleAlpha(command.paint().color(), null)) return;
         RectView bounds = command.bounds();
         List<LineInfo> lines = lineInfo(text);
@@ -97,7 +103,7 @@ final class MinecraftMixedTextRenderer {
                 index += Character.charCount(codePoint);
                 if (codePoint == '\n') {
                     penX = renderSegment(graphics, command, run, face, metrics,
-                            segment, penX, baseline, pendingSdf, renderingToPremultipliedTarget);
+                            segment, penX, baseline, pendingSdf, renderingToPremultipliedTarget, guiScale);
                     segment.setLength(0);
                     penX = bounds.x();
                     lineTop += lines.get(lineIndex).height;
@@ -108,7 +114,7 @@ final class MinecraftMixedTextRenderer {
                 }
             }
             renderSegment(graphics, command, run, face, metrics,
-                    segment, penX, baseline, pendingSdf, renderingToPremultipliedTarget);
+                    segment, penX, baseline, pendingSdf, renderingToPremultipliedTarget, guiScale);
             penX += measure(face, segment, run.pixelSize(), run.tracking());
         }
     }
@@ -116,14 +122,14 @@ final class MinecraftMixedTextRenderer {
     private float renderSegment(GuiGraphics graphics, DrawCommand command, TextRun run,
                                 FontFace face, FontMetrics metrics, StringBuilder segment,
                                 float x, float baseline, ObjectArrayList<DrawCommand> pendingSdf,
-                                boolean renderingToPremultipliedTarget) {
+                                boolean renderingToPremultipliedTarget, float guiScale) {
         if (segment.isEmpty()) return x;
         String value = segment.toString();
         float width = measure(face, segment, run.pixelSize(), run.tracking());
         float top = baseline - metrics.ascent();
         if (face instanceof MinecraftFontFace minecraftFace) {
-            flushSdf(graphics, pendingSdf, renderingToPremultipliedTarget);
-            drawVanilla(graphics, command, value, minecraftFace, run.pixelSize(), run.tracking(), run.color(), x, top);
+            flushSdf(graphics, pendingSdf, renderingToPremultipliedTarget, guiScale);
+            drawVanilla(graphics, command, value, minecraftFace, run.pixelSize(), run.tracking(), run.color(), x, top, guiScale);
         } else {
             Transform segmentTransform = command.transform().copy();
             segmentTransform.pivot().set(
@@ -147,20 +153,20 @@ final class MinecraftMixedTextRenderer {
     }
 
     private void flushSdf(GuiGraphics graphics, ObjectArrayList<DrawCommand> pendingSdf) {
-        flushSdf(graphics, pendingSdf, false);
+        flushSdf(graphics, pendingSdf, false, 1.0f);
     }
 
     private void flushSdf(GuiGraphics graphics, ObjectArrayList<DrawCommand> pendingSdf,
-                          boolean renderingToPremultipliedTarget) {
+                          boolean renderingToPremultipliedTarget, float guiScale) {
         if (pendingSdf.isEmpty()) return;
-        if (!sdfRenderer.render(graphics, pendingSdf, graphics.pose(), renderingToPremultipliedTarget)) {
+        if (!sdfRenderer.render(graphics, pendingSdf, graphics.pose(), renderingToPremultipliedTarget, guiScale)) {
             MinecraftFontFace fallback = MinecraftFonts.defaultFace();
             Object[] rawPendingSdf = pendingSdf.elements();
             for (int i = 0, size = pendingSdf.size(); i < size; i++) {
                 DrawCommand command = (DrawCommand) rawPendingSdf[i];
                 TextRun run = command.richText().runs().get(0);
                 drawVanilla(graphics, command, run.text(), fallback, run.pixelSize(), run.tracking(), run.color(),
-                        command.bounds().x(), command.bounds().y());
+                        command.bounds().x(), command.bounds().y(), guiScale);
             }
         }
         pendingSdf.clear();
@@ -168,7 +174,7 @@ final class MinecraftMixedTextRenderer {
 
     private void drawVanilla(GuiGraphics graphics, DrawCommand command, String text,
                              MinecraftFontFace face, float pixelSize, float tracking, ColorView runColor,
-                             float x, float y) {
+                             float x, float y, float guiScale) {
         if (!visibleAlpha(command.paint().color(), runColor)) return;
         PoseStack pose = graphics.pose();
         graphics.flush();
@@ -181,8 +187,8 @@ final class MinecraftMixedTextRenderer {
             MinecraftTransform.apply(command, pose);
             float scale = Math.max(1.0f, pixelSize) / VANILLA_BASE_SIZE;
             Matrix4f matrix = pose.last().pose();
-            float drawX = shouldPixelSnap(command, pixelSize) ? snapLocalX(x, matrix) : x;
-            float drawY = shouldPixelSnap(command, pixelSize) ? snapLocalY(y, matrix) : y;
+            float drawX = shouldPixelSnap(command, pixelSize) ? snapLocalX(x, matrix, guiScale) : x;
+            float drawY = shouldPixelSnap(command, pixelSize) ? snapLocalY(y, matrix, guiScale) : y;
             pose.translate(drawX, drawY, 0.0f);
             pose.scale(scale, scale, 1.0f);
             int color = argb(command.paint().color(), runColor);
@@ -329,20 +335,28 @@ final class MinecraftMixedTextRenderer {
                 || Math.abs(transform.scale().y() - 1.0f) > MATRIX_EPSILON;
     }
 
-    private static float snapLocalX(float x, Matrix4f matrix) {
+    private static float snapLocalX(float x, Matrix4f matrix, float guiScale) {
         if (matrix == null || Math.abs(matrix.m10()) > MATRIX_EPSILON
                 || Math.abs(matrix.m00()) <= MATRIX_EPSILON) {
             return x;
         }
-        return (float) ((Math.round(x * matrix.m00() + matrix.m30()) - matrix.m30()) / matrix.m00());
+        float scale = sanitizeScale(guiScale);
+        float screen = x * matrix.m00() + matrix.m30();
+        return (float) (((Math.round(screen * scale) / scale) - matrix.m30()) / matrix.m00());
     }
 
-    private static float snapLocalY(float y, Matrix4f matrix) {
+    private static float snapLocalY(float y, Matrix4f matrix, float guiScale) {
         if (matrix == null || Math.abs(matrix.m01()) > MATRIX_EPSILON
                 || Math.abs(matrix.m11()) <= MATRIX_EPSILON) {
             return y;
         }
-        return (float) ((Math.round(y * matrix.m11() + matrix.m31()) - matrix.m31()) / matrix.m11());
+        float scale = sanitizeScale(guiScale);
+        float screen = y * matrix.m11() + matrix.m31();
+        return (float) (((Math.round(screen * scale) / scale) - matrix.m31()) / matrix.m11());
+    }
+
+    private static float sanitizeScale(float value) {
+        return Float.isFinite(value) && value > 0.0f ? value : 1.0f;
     }
 
     private static float clamp01(float value) {
