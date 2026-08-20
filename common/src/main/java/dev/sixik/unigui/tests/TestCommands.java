@@ -132,6 +132,10 @@ public final class TestCommands {
                 .then(Commands.literal("nodegraph").executes(ctx -> {
                     RenderSystem.recordRenderCall(TestCommands::openNodeGraphExampleScreen);
                     return 0;
+                }))
+                .then(Commands.literal("terminal").executes(ctx -> {
+                    RenderSystem.recordRenderCall(DosTerminalDemo::openDemoClient);
+                    return 0;
                 })));
     }
 

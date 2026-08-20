@@ -249,7 +249,9 @@ final class MinecraftTextureBatchRenderer {
         }
 
         private void bind() {
+            RenderSystem.activeTexture(GL13.GL_TEXTURE0);
             if (textureId != null) {
+                RenderSystem.bindTexture(textureId);
                 RenderSystem.setShaderTexture(0, textureId);
             } else {
                 RenderSystem.setShaderTexture(0, location);

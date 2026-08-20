@@ -5,6 +5,8 @@ import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.DrawCommand;
+import dev.sixik.unigui.api.render.TextureHandle;
+import dev.sixik.unigui.api.render.TextureOptions;
 import dev.sixik.unigui.api.render.shaders.ShaderDrawOptions;
 import dev.sixik.unigui.api.render.shaders.ShaderHandle;
 import dev.sixik.unigui.api.render.shaders.ShaderProviders;
@@ -13,6 +15,7 @@ import dev.sixik.unigui.api.render.shaders.ShaderUniform;
 import dev.sixik.unigui.api.render.shaders.ShaderUniforms;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.resources.ResourceLocation;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
@@ -64,8 +67,10 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
 
         graphics.flush();
         RenderState state = RenderState.capture();
+        MinecraftTextureSamplerState.Scope sampler = null;
         try {
             GL20.glUseProgram(program.id);
+            sampler = bindSourceTexture(program.id, command.texture());
             uploadBuiltins(program.id, graphics, command,
                     Math.max(1.0f, screenWidth),
                     Math.max(1.0f, screenHeight),
@@ -93,10 +98,27 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
             LOGGER.error("UniGUI shader draw failed for {}", command.shader().id(), failure);
             return false;
         } finally {
+            if (sampler != null) {
+                sampler.close();
+            }
             state.restore();
         }
     }
 
+
+    private MinecraftTextureSamplerState.Scope bindSourceTexture(int program, TextureHandle texture) {
+        if (texture == null) return null;
+        TextureBinding binding = TextureBinding.resolve(texture);
+        if (binding == null) return null;
+
+        binding.bind();
+        MinecraftTextureSamplerState.Scope sampler = MinecraftTextureSamplerState.apply(binding.options());
+        uploadInt(program, "SourceTexture", 0);
+        uploadInt(program, "Texture0", 0);
+        uploadVec2(program, "SourceSize", Math.max(1.0f, texture.width()), Math.max(1.0f, texture.height()));
+        uploadFloat(program, "SourceFlipY", binding.flipY() ? 1.0f : 0.0f);
+        return sampler;
+    }
     private Program program(Minecraft minecraft, ShaderHandle shader) {
         ShaderSource source = ShaderProviders.resolve(shader, new MinecraftResourceShaderProvider(minecraft)).orElse(null);
         if (source == null || source.fragmentSource().isBlank()) {
@@ -259,6 +281,33 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
     }
 
     private record Program(int id) {
+    }
+    private record TextureBinding(Integer textureId, ResourceLocation location, boolean flipY, TextureOptions options) {
+        private static TextureBinding resolve(TextureHandle texture) {
+            if (texture == null) return null;
+            TextureOptions options = texture.options() == null ? TextureOptions.defaults() : texture.options();
+            Object nativeHandle = texture.nativeHandle();
+            if (nativeHandle instanceof MinecraftRenderTarget.ColorTextureHandle colorTexture) {
+                return new TextureBinding(colorTexture.textureId(), null, colorTexture.flipY(), options);
+            }
+            if (nativeHandle instanceof Integer textureId) {
+                return new TextureBinding(textureId, null, false, options);
+            }
+            ResourceLocation location = nativeHandle instanceof ResourceLocation resourceLocation
+                    ? resourceLocation
+                    : ResourceLocation.tryParse(texture.id());
+            return location == null ? null : new TextureBinding(null, location, false, options);
+        }
+
+        private void bind() {
+            RenderSystem.activeTexture(GL13.GL_TEXTURE0);
+            if (textureId != null) {
+                RenderSystem.bindTexture(textureId);
+                RenderSystem.setShaderTexture(0, textureId);
+            } else {
+                RenderSystem.setShaderTexture(0, location);
+            }
+        }
     }
 
     private record RenderState(int program,

@@ -20,6 +20,10 @@ import dev.sixik.unigui.api.input.KeyModifiers;
 import dev.sixik.unigui.api.input.MouseCursor;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.layout.LayoutContext;
+import dev.sixik.unigui.api.posteffect.UiLayerBounds;
+import dev.sixik.unigui.api.posteffect.UiPostEffectChain;
+import dev.sixik.unigui.api.posteffect.UiPostEffectRenderer;
+import dev.sixik.unigui.api.posteffect.UiPostEffects;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.Transform;
@@ -68,6 +72,7 @@ public class MinecraftWidgetScreen extends Screen {
     private final DefaultRenderContext renderContext = new DefaultRenderContext(drawList);
     private final DefaultRenderContext cacheRenderContext = new DefaultRenderContext(cacheDrawList);
     private MinecraftGuiRenderBackend backend;
+    private UiPostEffectChain postEffect = UiPostEffectChain.none();
     private FontFace defaultFont = MinecraftFonts.defaultFace();
     private Float screenScale;
     private boolean scaleWithMinecraftGui = true;
@@ -134,6 +139,33 @@ public class MinecraftWidgetScreen extends Screen {
         return configuredUiScale();
     }
 
+
+    /**
+     * Задаёт screen-level PostEffect по зарегистрированному id.
+     *
+     * <p>Effect применяется ко всему финальному UI-слою после сборки draw list. Если backend не умеет
+     * PostEffect или id не зарегистрирован, экран отрисуется обычным способом.</p>
+     */
+    public MinecraftWidgetScreen postEffect(String effectId) {
+        return postEffect(UiPostEffects.chain(effectId));
+    }
+
+    /** Задаёт screen-level PostEffect chain. */
+    public MinecraftWidgetScreen postEffect(UiPostEffectChain chain) {
+        this.postEffect = chain == null ? UiPostEffectChain.none() : chain.copy();
+        return this;
+    }
+
+    /** Отключает screen-level PostEffect. */
+    public MinecraftWidgetScreen clearPostEffect() {
+        this.postEffect = UiPostEffectChain.none();
+        return this;
+    }
+
+    /** @return текущий screen-level PostEffect chain */
+    public UiPostEffectChain postEffect() {
+        return postEffect.copy();
+    }
     public float effectiveMinecraftUiScale() {
         return effectiveUiScale();
     }
@@ -332,7 +364,8 @@ public class MinecraftWidgetScreen extends Screen {
         lastFrameCpuMillis = (System.nanoTime() - uiCpuStartNanos) / 1_000_000.0f;
 
         try (ProfileScope ignored = uiContext.profiler().scope("renderBackend")) {
-            backend.render(scaledDrawList(drawList, uiScale, scaledDrawList), null);
+            DrawList backendDrawList = scaledDrawList(drawList, uiScale, scaledDrawList);
+            UiPostEffectRenderer.render(backend, backendDrawList, UiLayerBounds.viewport(width, height), postEffect);
             backend.endFrame();
         }
         lastFrameTotalMillis = (System.nanoTime() - uiCpuStartNanos) / 1_000_000.0f;

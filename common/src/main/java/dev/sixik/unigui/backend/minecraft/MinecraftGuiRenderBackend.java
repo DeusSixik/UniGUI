@@ -6,6 +6,12 @@ import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.math.Axis;
 import dev.sixik.unigui.api.core.FrameContext;
+import dev.sixik.unigui.api.posteffect.UiLayerBounds;
+import dev.sixik.unigui.api.posteffect.UiPostEffectBackend;
+import dev.sixik.unigui.api.posteffect.UiPostEffectChain;
+import dev.sixik.unigui.api.posteffect.UiPostEffectPass;
+import dev.sixik.unigui.api.posteffect.UiPostEffectRegistry;
+import dev.sixik.unigui.api.posteffect.UiPostEffects;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
@@ -23,8 +29,11 @@ import dev.sixik.unigui.api.render.RenderTargetOptions;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.TextureOptions;
 import dev.sixik.unigui.api.render.VectorPath;
+import dev.sixik.unigui.api.render.shaders.ShaderDrawOptions;
+import dev.sixik.unigui.api.render.shaders.ShaderUniforms;
 import dev.sixik.unigui.impl.render.DrawBatch;
 import dev.sixik.unigui.impl.render.DrawBatcher;
+import dev.sixik.unigui.impl.render.RenderTargetCache;
 import dev.sixik.unigui.impl.render.ScissorStack;
 import dev.sixik.unigui.impl.render.SimpleDrawBatcher;
 import dev.sixik.unigui.impl.text.DefaultFontRegistry;
@@ -53,12 +62,16 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
-public final class MinecraftGuiRenderBackend implements RenderBackend, AutoCloseable {
+public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEffectBackend, AutoCloseable {
     /**
      * Vanilla Font treats colors with alpha 0..3 as "alpha not specified" and promotes them
      * to opaque, which causes fade-in text to flash on the first visible frame.
      */
     private static final int MIN_VANILLA_TEXT_ALPHA_CHANNEL = 4;
+    private static final RenderTargetOptions POST_EFFECT_LAYER_TARGET =
+            new RenderTargetOptions(false, true, "post_effect_layer");
+    private static final RenderTargetOptions POST_EFFECT_PING_TARGET =
+            new RenderTargetOptions(false, true, "post_effect_ping");
 
     private final Minecraft minecraft;
     private final DrawBatcher batcher;
@@ -69,6 +82,9 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
     private final MinecraftShapeBatchRenderer shapeBatchRenderer = new MinecraftShapeBatchRenderer();
     private final MinecraftTextureBatchRenderer textureBatchRenderer = new MinecraftTextureBatchRenderer();
     private final MinecraftShaderQuadRenderer shaderQuadRenderer = new MinecraftShaderQuadRenderer();
+    private final RenderTargetCache postEffectLayerTargets = new RenderTargetCache(this);
+    private final RenderTargetCache postEffectPingTargets = new RenderTargetCache(this);
+    private final DrawList postEffectDrawList = new DrawList();
     private final FastItemRenderer fastItemRenderer;
     private GuiGraphics graphics;
     private int appliedScissorDepth;
@@ -94,6 +110,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
         this.sdfTextRenderer.defaultFace(MinecraftFonts.defaultFace());
         this.mixedTextRenderer = new MinecraftMixedTextRenderer(this.minecraft, sdfTextRenderer);
         this.fastItemRenderer = new FastItemRenderer(this.minecraft);
+        UiPostEffects.ensureRegistered();
     }
 
     public MinecraftGuiRenderBackend graphics(GuiGraphics graphics) {
@@ -335,6 +352,102 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
         renderToTarget(drawList, minecraftTarget);
     }
 
+
+    @Override
+    public boolean supportsPostEffects() {
+        return true;
+    }
+
+    @Override
+    public void renderWithPostEffect(DrawList drawList, UiLayerBounds bounds, UiPostEffectChain chain, RenderTarget target) {
+        UiPostEffects.ensureRegistered();
+        if (drawList == null || chain == null || chain.isNone()) {
+            render(drawList, target);
+            return;
+        }
+
+        List<UiPostEffectPass> passes = chain.resolve(UiPostEffectRegistry.global());
+        if (passes.isEmpty()) {
+            render(drawList, target);
+            return;
+        }
+
+        UiLayerBounds layerBounds = bounds == null ? currentPostEffectBounds() : bounds;
+        int targetWidth = layerBounds.targetWidth();
+        int targetHeight = layerBounds.targetHeight();
+        RenderTarget layerTarget = postEffectLayerTargets.acquire(targetWidth, targetHeight, POST_EFFECT_LAYER_TARGET);
+        RenderTarget pingTarget = postEffectPingTargets.acquire(targetWidth, targetHeight, POST_EFFECT_PING_TARGET);
+
+        render(drawList, layerTarget);
+        RenderTarget current = layerTarget;
+        for (UiPostEffectPass pass : passes) {
+            RenderTarget destination = current == layerTarget ? pingTarget : layerTarget;
+            if (!renderPostEffectPass(pass, current, destination)) {
+                compositePostEffectTexture(current, layerBounds, target);
+                return;
+            }
+            current = destination;
+        }
+        compositePostEffectTexture(current, layerBounds, target);
+    }
+
+    private boolean renderPostEffectPass(UiPostEffectPass pass, RenderTarget source, RenderTarget destination) {
+        if (!(destination instanceof MinecraftRenderTarget minecraftDestination) || source == null || pass == null) {
+            return false;
+        }
+        ShaderUniforms uniforms = pass.uniforms().resolve();
+        DrawCommand command = DrawCommand.shader(
+                        pass.shader(),
+                        new MutableRect(0.0f, 0.0f, destination.width(), destination.height()),
+                        uniforms)
+                .texture(source.colorTexture())
+                .shaderOptions(ShaderDrawOptions.defaults()
+                        .blend(pass.blendMode().blendEnabled())
+                        .squareVertexOffset(0.0f));
+
+        graphics.flush();
+        minecraftDestination.bindWrite();
+        activeRenderTarget = minecraftDestination;
+        activeRenderTargetScaleX = renderTargetScaleX(minecraftDestination);
+        activeRenderTargetScaleY = renderTargetScaleY(minecraftDestination);
+        try {
+            boolean rendered = shaderQuadRenderer.render(
+                    graphics,
+                    minecraft,
+                    command,
+                    true,
+                    shaderScreenWidth(),
+                    shaderScreenHeight(),
+                    shaderGuiScale());
+            graphics.flush();
+            return rendered;
+        } finally {
+            clearScissorStack();
+            activeRenderTarget = null;
+            activeRenderTargetScaleX = 1.0f;
+            activeRenderTargetScaleY = 1.0f;
+            minecraftDestination.unbindWrite();
+            minecraft.getMainRenderTarget().bindWrite(true);
+        }
+    }
+
+    private void compositePostEffectTexture(RenderTarget source, UiLayerBounds bounds, RenderTarget target) {
+        postEffectDrawList.clear();
+        postEffectDrawList.add(DrawCommand.texture(
+                source.colorTexture(),
+                new MutableRect(bounds.x(), bounds.y(), bounds.safeWidth(), bounds.safeHeight()),
+                Paint.fill(new MutableColor(1.0f, 1.0f, 1.0f, 1.0f))));
+        render(postEffectDrawList, target);
+    }
+
+    private UiLayerBounds currentPostEffectBounds() {
+        if (minecraft.getWindow() == null) {
+            return UiLayerBounds.viewport(1.0f, 1.0f);
+        }
+        return UiLayerBounds.viewport(
+                Math.max(1.0f, minecraft.getWindow().getGuiScaledWidth()),
+                Math.max(1.0f, minecraft.getWindow().getGuiScaledHeight()));
+    }
     @Override
     public void endFrame() {
         graphics.flush();
@@ -546,6 +659,8 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
         fastItemRenderer.close();
         shapeBatchRenderer.close();
         shaderQuadRenderer.close();
+        postEffectLayerTargets.close();
+        postEffectPingTargets.close();
         sdfTextRenderer.close();
         if (gpuTimerQueryId != 0 && isGpuTimerQueryObject()) {
             GL15.glDeleteQueries(gpuTimerQueryId);
@@ -1324,7 +1439,9 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
         }
 
         private void bind() {
+            RenderSystem.activeTexture(GL13.GL_TEXTURE0);
             if (textureId != null) {
+                RenderSystem.bindTexture(textureId);
                 RenderSystem.setShaderTexture(0, textureId);
             } else {
                 RenderSystem.setShaderTexture(0, location);
