@@ -5,6 +5,14 @@ import dev.sixik.unigui.widgets.core.Orientation;
 
 public final class SplitterRenderers {
     public static final SplitterRenderer DEFAULT = (draw, state) -> {
+        if (state.backgroundVisible()) {
+            draw.roundedRect(state.x(), state.y(), state.width(), state.height(), state.radius(),
+                    Paint.fill(state.backgroundColor()));
+        }
+        if (state.borderVisible() && state.borderWidth() > 0.0f) {
+            draw.roundedRect(state.x(), state.y(), state.width(), state.height(), state.radius(),
+                    Paint.stroke(state.borderColor(), state.borderWidth()));
+        }
         if (state.orientation() == Orientation.HORIZONTAL) {
             float handleWidth = Math.max(1.0f, Math.min(2.0f, state.width()));
             draw.roundedRect(

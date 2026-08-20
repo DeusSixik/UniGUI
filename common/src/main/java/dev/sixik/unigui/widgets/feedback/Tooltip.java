@@ -41,6 +41,7 @@ public class Tooltip extends Box implements OverlayHostAware {
     private float maxWidth = DEFAULT_MAX_WIDTH;
 
     public Tooltip() {
+        boxVisualEnabled(false);
         backgroundVisible(true);
         borderVisible(true);
         radius(3.0f);
@@ -204,6 +205,7 @@ public class Tooltip extends Box implements OverlayHostAware {
 
     @Override
     protected void renderContent(RenderContext context) {
+        applyTheme();
         float textX = layoutBounds().x() + HORIZONTAL_PADDING;
         float textY = layoutBounds().y() + VERTICAL_PADDING;
         float textWidth = Math.max(0.0f, layoutBounds().width() - HORIZONTAL_PADDING * 2.0f);
@@ -218,6 +220,12 @@ public class Tooltip extends Box implements OverlayHostAware {
                 layoutBounds().y(),
                 layoutBounds().width(),
                 layoutBounds().height(),
+                backgroundVisible(),
+                background().copy(),
+                radius(),
+                borderVisible(),
+                borderColor().copy(),
+                borderWidth(),
                 textX,
                 textY,
                 textWidth,

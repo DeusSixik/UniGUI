@@ -86,6 +86,7 @@ public class TextArea extends Box {
 
     public TextArea() {
         mouseCursor(MouseCursor.TEXT);
+        boxVisualEnabled(false);
         focusable(true);
         enableDefaultTextAreaChrome();
         editor.onChanged((oldText, newText) -> {
@@ -501,6 +502,7 @@ public class TextArea extends Box {
 
     @Override
     protected void renderContent(RenderContext context) {
+        applyTheme();
         renderTextArea(context);
         super.renderContent(context);
     }
@@ -535,6 +537,12 @@ public class TextArea extends Box {
                 layoutBounds().y(),
                 layoutBounds().width(),
                 layoutBounds().height(),
+                backgroundVisible(),
+                background().copy(),
+                radius(),
+                borderVisible(),
+                borderColor().copy(),
+                borderWidth(),
                 textViewportX(),
                 textViewportY(),
                 textViewportWidth(),

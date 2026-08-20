@@ -6,12 +6,13 @@ import dev.sixik.unigui.api.render.Paint;
 
 public final class HoldButtonRenderers {
     public static final HoldButtonRenderer DEFAULT = (draw, state) -> {
+        ButtonRenderPlans.chromePlan(state.button()).render(draw);
         float progress = Math.max(0.0f, Math.min(1.0f, state.holdProgress()));
         if (progress > 0.0f) {
             draw.rect(state.x(), state.y(), state.width() * progress, state.height(),
                     Paint.fill(state.holdColor()));
         }
-        ButtonRenderers.DEFAULT.render(draw, state.button());
+        ButtonRenderPlans.textPlan(state.button()).render(draw);
     };
 
     private HoldButtonRenderers() {

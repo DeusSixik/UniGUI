@@ -231,7 +231,7 @@ public class HoldButton extends Button {
             return (draw, state) -> {
                 buttonRenderer.render(draw, state.button());
 
-                if(styled == null) {
+                if (styled == null) {
                     float progress = Math.max(0.0f, Math.min(1.0f, state.holdProgress()));
                     if (progress > 0.0f) {
                         draw.rect(state.x(), state.y(), state.width() * progress, state.height(),
@@ -268,7 +268,15 @@ public class HoldButton extends Button {
                 0.0f,
                 0.0f,
                 background().copy(),
-                borderColor().copy());
+                borderColor().copy(),
+                0.0f,
+                false,
+                backgroundVisible(),
+                background().copy(),
+                radius(),
+                borderVisible(),
+                borderColor().copy(),
+                borderWidth());
 
         return new HoldButtonState(
                 button,

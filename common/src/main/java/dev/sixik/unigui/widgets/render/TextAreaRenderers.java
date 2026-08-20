@@ -12,6 +12,7 @@ public final class TextAreaRenderers {
     private static final MutableColor SCROLLBAR_THUMB = new MutableColor(0.55f, 0.62f, 0.72f, 0.72f);
 
     public static final TextAreaRenderer DEFAULT = (draw, state) -> {
+        renderChrome(draw, state);
         draw.pushTextClip(state.viewportX(), state.viewportY(), state.viewportWidth(), state.viewportHeight());
         try {
             if (state.focused() && state.hasSelection() && !state.showingPlaceholder()) {
@@ -50,6 +51,19 @@ public final class TextAreaRenderers {
     };
 
     private TextAreaRenderers() {
+    }
+
+    private static void renderChrome(DrawScope draw, TextAreaState state) {
+        if (state.backgroundVisible()) {
+            draw.roundedRect(
+                    state.x(), state.y(), state.width(), state.height(), state.radius(),
+                    Paint.fill(state.backgroundColor()));
+        }
+        if (state.borderVisible() && state.borderWidth() > 0.0f) {
+            draw.roundedRect(
+                    state.x(), state.y(), state.width(), state.height(), state.radius(),
+                    Paint.stroke(state.borderColor(), state.borderWidth()));
+        }
     }
 
     private static void renderScrollbars(DrawScope draw, TextAreaState state) {

@@ -975,6 +975,7 @@ public class MinecraftWidgetScreen extends Screen {
             builder.font(run.font())
                     .size(run.pixelSize() * scale)
                     .color(run.color())
+                    .brush(run.brush())
                     .tracking(run.tracking())
                     .transform(run.transform())
                     .append(run.text());

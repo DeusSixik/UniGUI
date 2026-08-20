@@ -107,6 +107,7 @@ public class Button extends Box {
 
     public Button() {
         mouseCursor(MouseCursor.POINTER);
+        boxVisualEnabled(false);
         backgroundVisible(true);
         borderVisible(true);
         focusable(true);
@@ -363,7 +364,15 @@ public class Button extends Box {
                 0.0f,
                 0.0f,
                 background().copy(),
-                borderColor().copy());
+                borderColor().copy(),
+                0.0f,
+                false,
+                backgroundVisible(),
+                background().copy(),
+                radius(),
+                borderVisible(),
+                borderColor().copy(),
+                borderWidth());
     }
 
     private static String normalize(String text) {

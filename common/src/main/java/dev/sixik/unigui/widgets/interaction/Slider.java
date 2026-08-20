@@ -87,6 +87,7 @@ public class Slider extends Box {
     private boolean dragging;
 
     public Slider() {
+        boxVisualEnabled(false);
         backgroundVisible(false);
         borderVisible(false);
         focusable(true);
@@ -269,6 +270,7 @@ public class Slider extends Box {
 
     @Override
     protected void renderContent(RenderContext context) {
+        applyTheme();
         SliderState state = snapshot();
         DrawScope draw = new DrawScope(context, transform(), layoutBounds());
         if (renderer != null) {

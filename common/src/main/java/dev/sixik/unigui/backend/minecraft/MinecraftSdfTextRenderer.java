@@ -11,6 +11,9 @@ import dev.sixik.unigui.api.render.TransformLayer;
 import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.FontMetrics;
 import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.text.LinearGradientTextBrush;
+import dev.sixik.unigui.api.text.SolidTextBrush;
+import dev.sixik.unigui.api.text.TextBrush;
 import dev.sixik.unigui.api.text.TextRun;
 import dev.sixik.unigui.impl.render.DrawBatch;
 import dev.sixik.unigui.impl.text.DefaultFontRegistry;
@@ -393,7 +396,7 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
                     Batch batch = nextBatch(batches, placement.page);
                     addQuad(batch.vertices, drawLeft, drawTop, width, height,
                             placement.u0, placement.v0, placement.u1, placement.v1,
-                            command.paint(), runColor, transformState);
+                            command.paint(), runColor, run.brush(), bounds, transformState);
                 }
                 penX += placement.advance * scale;
                 glyphsInLine++;
@@ -452,27 +455,53 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
 
     private static void addQuad(FloatArray vertices, float x, float y, float width, float height,
                                 float u0, float v0, float u1, float v1, Paint paint,
-                                ColorView runColor, TransformState transformState) {
-        ColorView base = paint.color();
-        float r = clamp01(base.r()) * (runColor == null ? 1.0f : clamp01(runColor.r()));
-        float g = clamp01(base.g()) * (runColor == null ? 1.0f : clamp01(runColor.g()));
-        float b = clamp01(base.b()) * (runColor == null ? 1.0f : clamp01(runColor.b()));
-        float a = clamp01(base.a()) * (runColor == null ? 1.0f : clamp01(runColor.a()));
-
-        addVertex(vertices, x, y, u0, v0, r, g, b, a, transformState);
-        addVertex(vertices, x, y + height, u0, v1, r, g, b, a, transformState);
-        addVertex(vertices, x + width, y + height, u1, v1, r, g, b, a, transformState);
-        addVertex(vertices, x, y, u0, v0, r, g, b, a, transformState);
-        addVertex(vertices, x + width, y + height, u1, v1, r, g, b, a, transformState);
-        addVertex(vertices, x + width, y, u1, v0, r, g, b, a, transformState);
+                                ColorView runColor, TextBrush brush, RectView brushBounds,
+                                TransformState transformState) {
+        addVertex(vertices, x, y, u0, v0, paint, runColor, brush, brushBounds, transformState);
+        addVertex(vertices, x, y + height, u0, v1, paint, runColor, brush, brushBounds, transformState);
+        addVertex(vertices, x + width, y + height, u1, v1, paint, runColor, brush, brushBounds, transformState);
+        addVertex(vertices, x, y, u0, v0, paint, runColor, brush, brushBounds, transformState);
+        addVertex(vertices, x + width, y + height, u1, v1, paint, runColor, brush, brushBounds, transformState);
+        addVertex(vertices, x + width, y, u1, v0, paint, runColor, brush, brushBounds, transformState);
     }
 
     private static void addVertex(FloatArray vertices, float x, float y, float u, float v,
-                                  float r, float g, float b, float a, TransformState state) {
+                                  Paint paint, ColorView runColor, TextBrush brush, RectView brushBounds,
+                                  TransformState state) {
+        ColorView base = paint.color();
+        float baseAlpha = base == null ? 1.0f : clamp01(base.a());
+        float runAlpha = runColor == null ? 1.0f : clamp01(runColor.a());
+        float r;
+        float g;
+        float b;
+        float a = baseAlpha * runAlpha;
+        if (brush instanceof SolidTextBrush solid) {
+            ColorView color = solid.color();
+            r = clamp01(color.r());
+            g = clamp01(color.g());
+            b = clamp01(color.b());
+            a *= clamp01(color.a());
+        } else if (brush instanceof LinearGradientTextBrush gradient) {
+            float t = gradient.factor(x, y, brushBounds);
+            ColorView start = gradient.startColor();
+            ColorView end = gradient.endColor();
+            r = lerp(clamp01(start.r()), clamp01(end.r()), t);
+            g = lerp(clamp01(start.g()), clamp01(end.g()), t);
+            b = lerp(clamp01(start.b()), clamp01(end.b()), t);
+            a *= lerp(clamp01(start.a()), clamp01(end.a()), t);
+        } else {
+            r = (base == null ? 1.0f : clamp01(base.r())) * (runColor == null ? 1.0f : clamp01(runColor.r()));
+            g = (base == null ? 1.0f : clamp01(base.g())) * (runColor == null ? 1.0f : clamp01(runColor.g()));
+            b = (base == null ? 1.0f : clamp01(base.b())) * (runColor == null ? 1.0f : clamp01(runColor.b()));
+        }
         float poseX = state.m00 * x + state.m10 * y + state.m30;
         float poseY = state.m01 * x + state.m11 * y + state.m31;
         float poseZ = state.m02 * x + state.m12 * y + state.m32;
         vertices.add(poseX, poseY, poseZ, u, v, r, g, b, a);
+    }
+
+    private static float lerp(float from, float to, float t) {
+        return from + (to - from) * t;
     }
 
     private void uploadMatrix(int location, org.joml.Matrix4f matrix) {

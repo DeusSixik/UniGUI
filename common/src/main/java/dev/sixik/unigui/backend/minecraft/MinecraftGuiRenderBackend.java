@@ -1151,6 +1151,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, AutoClose
             builder.font(run.font() == null ? defaultFont() : run.font())
                     .size(run.pixelSize())
                     .color(run.color())
+                    .brush(run.brush())
                     .tracking(run.tracking())
                     .transform(run.transform())
                     .append(run.text());

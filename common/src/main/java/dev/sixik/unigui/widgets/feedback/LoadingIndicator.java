@@ -52,6 +52,7 @@ public class LoadingIndicator extends Box {
     private float preferredHeight = Float.NaN;
 
     public LoadingIndicator() {
+        boxVisualEnabled(false);
         backgroundVisible(false);
         borderVisible(false);
         accentColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));

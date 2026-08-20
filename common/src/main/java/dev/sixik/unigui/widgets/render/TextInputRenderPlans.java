@@ -20,6 +20,8 @@ public final class TextInputRenderPlans {
 
     public static RenderPlan defaultPlan(TextInputState state) {
         if (state == null) return RenderPlan.EMPTY;
+        List<RenderPrimitive> primitives = new ArrayList<>(3);
+        addChrome(primitives, state);
         List<RenderPrimitive> viewportPrimitives = new ArrayList<>(3);
         if (state.focused() && state.hasSelection() && !state.showingPlaceholder()) {
             float selectionX = state.viewportX() + state.prefixWidth(state.selectionStart()) - state.horizontalScrollPixels();
@@ -56,14 +58,15 @@ public final class TextInputRenderPlans {
                     Paint.fill(state.caretColor())));
         }
 
-        if (viewportPrimitives.isEmpty()) return RenderPlan.EMPTY;
-        return RenderPlan.of(List.of(new RenderPrimitive.Clip(
+        if (viewportPrimitives.isEmpty()) return RenderPlan.of(primitives);
+        primitives.add(new RenderPrimitive.Clip(
                 state.viewportX(),
                 state.viewportY(),
                 state.viewportWidth(),
                 state.viewportHeight(),
                 true,
-                viewportPrimitives)));
+                viewportPrimitives));
+        return RenderPlan.of(primitives);
     }
 
     public static RenderPlan searchFieldPlan(TextInputState state) {
@@ -94,6 +97,19 @@ public final class TextInputRenderPlans {
         return searchFieldPlan(styledState(state, style, widgetState));
     }
 
+    private static void addChrome(List<RenderPrimitive> primitives, TextInputState state) {
+        if (state.backgroundVisible()) {
+            primitives.add(new RenderPrimitive.RoundedRect(
+                    state.x(), state.y(), state.width(), state.height(), state.radius(),
+                    Paint.fill(state.backgroundColor())));
+        }
+        if (state.borderVisible() && state.borderWidth() > 0.0f) {
+            primitives.add(new RenderPrimitive.RoundedRect(
+                    state.x(), state.y(), state.width(), state.height(), state.radius(),
+                    Paint.stroke(state.borderColor(), state.borderWidth())));
+        }
+    }
+
     private static TextInputState styledState(TextInputState state, Style style, WidgetState widgetState) {
         if (state == null) return null;
         ColorView textColor = StyledRenderPlans.value(style, StyleKeys.TEXT_COLOR, widgetState, state.textColor());
@@ -105,6 +121,12 @@ public final class TextInputRenderPlans {
                 state.y(),
                 state.width(),
                 state.height(),
+                state.backgroundVisible(),
+                StyledRenderPlans.value(style, StyleKeys.BACKGROUND_COLOR, widgetState, state.backgroundColor()),
+                StyledRenderPlans.value(style, StyleKeys.RADIUS, widgetState, state.radius()),
+                state.borderVisible(),
+                StyledRenderPlans.value(style, StyleKeys.BORDER_COLOR, widgetState, state.borderColor()),
+                StyledRenderPlans.value(style, StyleKeys.BORDER_WIDTH, widgetState, state.borderWidth()),
                 state.viewportX(),
                 state.viewportY(),
                 state.viewportWidth(),

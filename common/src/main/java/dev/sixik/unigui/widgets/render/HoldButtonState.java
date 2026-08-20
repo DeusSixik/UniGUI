@@ -65,11 +65,11 @@ public record HoldButtonState(
     }
 
     public ColorView backgroundColor() {
-        return button.indicatorColor();
+        return button.backgroundColor();
     }
 
     public ColorView borderColor() {
-        return button.indicatorBorderColor();
+        return button.borderColor();
     }
 
     public boolean hasText() {

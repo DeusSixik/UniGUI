@@ -9,6 +9,12 @@ public record SplitterState(
         float width,
         float height,
         Orientation orientation,
+        boolean backgroundVisible,
+        ColorView backgroundColor,
+        float radius,
+        boolean borderVisible,
+        ColorView borderColor,
+        float borderWidth,
         boolean dragging,
         ColorView handleColor
 ) {

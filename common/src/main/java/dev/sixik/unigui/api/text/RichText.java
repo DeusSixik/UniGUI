@@ -126,6 +126,35 @@ public final class RichText {
     }
 
     /**
+     * Создаёт rich-text из одного текстового run'а с brush-заливкой.
+     *
+     * @param text исходный текст
+     * @param font font face или {@code null}, чтобы backend выбрал default
+     * @param pixelSize размер текста в UI-пикселях
+     * @param brush brush-заливка текста или {@code null} для обычного цвета
+     * @return rich-text из одного {@link TextRun}
+     */
+    public static RichText brushed(String text, FontFace font, float pixelSize, TextBrush brush) {
+        return new RichText(List.of(new TextRun(text, font, pixelSize, null, brush)));
+    }
+
+    /**
+     * Создаёт rich-text из одного run'а с линейным градиентом.
+     *
+     * @param text исходный текст
+     * @param font font face или {@code null}, чтобы backend выбрал default
+     * @param pixelSize размер текста в UI-пикселях
+     * @param startColor цвет начала градиента
+     * @param endColor цвет конца градиента
+     * @param angleDegrees угол направления в градусах
+     * @return rich-text с {@link LinearGradientTextBrush}
+     */
+    public static RichText gradient(String text, FontFace font, float pixelSize,
+                                    ColorView startColor, ColorView endColor, float angleDegrees) {
+        return brushed(text, font, pixelSize, TextBrush.linearGradient(startColor, endColor, angleDegrees));
+    }
+
+    /**
      * Создаёт rich-text из полного списка layout-span'ов.
      *
      * @param spans текстовые и inline span'ы
@@ -181,6 +210,42 @@ public final class RichText {
      */
     public boolean isEmpty() {
         return spans.isEmpty();
+    }
+
+    /**
+     * Возвращает копию rich-text, где все текстовые run'ы используют заданный brush.
+     *
+     * <p>Inline-content span'ы сохраняются как есть. Цвет run'а не удаляется и продолжает работать как tint.
+     * {@code null} сбрасывает brush и возвращает обычную solid-заливку через paint/run color.</p>
+     *
+     * @param brush новый brush для всех {@link TextRun}
+     * @return новое immutable rich-text значение
+     */
+    public RichText withBrush(TextBrush brush) {
+        if (spans.isEmpty()) return this;
+        ObjectArrayList<RichTextSpan> updated = new ObjectArrayList<>(spans.size());
+        for (RichTextSpan span : spans) {
+            if (span instanceof TextRun run) {
+                updated.add(new TextRun(
+                        run.text(),
+                        run.font(),
+                        run.pixelSize(),
+                        run.color(),
+                        brush,
+                        run.tracking(),
+                        run.transform()));
+            } else {
+                updated.add(span);
+            }
+        }
+        return new RichText(updated, true);
+    }
+
+    /**
+     * Возвращает копию rich-text с линейным градиентом на всех текстовых run'ах.
+     */
+    public RichText withLinearGradient(ColorView startColor, ColorView endColor, float angleDegrees) {
+        return withBrush(TextBrush.linearGradient(startColor, endColor, angleDegrees));
     }
 
     /**
@@ -263,6 +328,7 @@ public final class RichText {
                 run.font(),
                 run.pixelSize(),
                 run.color(),
+                run.brush(),
                 run.tracking(),
                 run.transform());
     }
@@ -280,7 +346,7 @@ public final class RichText {
     /**
      * Fluent builder для {@link RichText}.
      *
-     * <p>Builder хранит текущие параметры text-run'а: font, size, color, tracking и transform.
+     * <p>Builder хранит текущие параметры text-run'а: font, size, color, brush, tracking и transform.
      * Они применяются к последующим {@link #append(String)}. Inline-span'ы добавляются как отдельные
      * атомы и не наследуют эти параметры, кроме тех случаев, когда renderer сам использует paint.</p>
      */
@@ -289,6 +355,7 @@ public final class RichText {
         private FontFace font;
         private float pixelSize = TextRun.DEFAULT_PIXEL_SIZE;
         private ColorView color;
+        private TextBrush brush;
         private float tracking;
         private TextTransform transform = TextTransform.NONE;
 
@@ -323,6 +390,40 @@ public final class RichText {
         public Builder color(ColorView color) {
             this.color = color;
             return this;
+        }
+
+        /**
+         * Задаёт brush-заливку для следующих текстовых run'ов.
+         *
+         * <p>Цвет run'а остаётся tint'ом: итоговый цвет умножается на paint color, run color и brush color.</p>
+         *
+         * @param brush brush или {@code null}, чтобы использовать обычную solid-заливку
+         * @return этот builder
+         */
+        public Builder brush(TextBrush brush) {
+            this.brush = brush;
+            return this;
+        }
+
+        /**
+         * Задаёт линейный градиент для следующих текстовых run'ов.
+         *
+         * @param startColor цвет начала градиента
+         * @param endColor цвет конца градиента
+         * @param angleDegrees угол направления в градусах
+         * @return этот builder
+         */
+        public Builder linearGradient(ColorView startColor, ColorView endColor, float angleDegrees) {
+            return brush(TextBrush.linearGradient(startColor, endColor, angleDegrees));
+        }
+
+        /**
+         * Сбрасывает brush и возвращает обычную solid-заливку через paint/run color.
+         *
+         * @return этот builder
+         */
+        public Builder clearBrush() {
+            return brush(null);
         }
 
         /**
@@ -363,7 +464,7 @@ public final class RichText {
          * @return этот builder
          */
         public Builder append(String text) {
-            TextRun run = new TextRun(text, font, pixelSize, color, tracking, transform);
+            TextRun run = new TextRun(text, font, pixelSize, color, brush, tracking, transform);
             if (!run.isEmpty()) spans.add(run);
             return this;
         }

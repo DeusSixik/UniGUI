@@ -123,6 +123,7 @@ public class TextInput extends Box {
 
     public TextInput() {
         mouseCursor(MouseCursor.TEXT);
+        boxVisualEnabled(false);
         focusable(true);
         editor.onChanged((oldText, newText) -> {
             invalidate(visualOnlyTextChanges ? InvalidationFlags.VISUAL : InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
@@ -384,6 +385,7 @@ public class TextInput extends Box {
 
     @Override
     protected void renderContent(RenderContext context) {
+        applyTheme();
         renderTextInput(context);
         super.renderContent(context);
     }
@@ -431,6 +433,12 @@ public class TextInput extends Box {
                 layoutBounds().y(),
                 layoutBounds().width(),
                 layoutBounds().height(),
+                backgroundVisible(),
+                background().copy(),
+                radius(),
+                borderVisible(),
+                borderColor().copy(),
+                borderWidth(),
                 viewportX,
                 viewportY,
                 viewportWidth,

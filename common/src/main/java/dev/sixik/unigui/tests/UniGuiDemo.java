@@ -45,6 +45,7 @@ import dev.sixik.unigui.api.xml.XmlWidgetElement;
 import dev.sixik.unigui.api.xml.XmlWidgetHotReloadPreview;
 import dev.sixik.unigui.api.xml.XmlWidgetHotReloadSource;
 import dev.sixik.unigui.api.xml.XmlWidgetNodePath;
+import dev.sixik.unigui.widgets.display.*;
 import dev.sixik.unigui.widgets.minecraft.MinecraftBlockPreviewWidget;
 import dev.sixik.unigui.backend.minecraft.MinecraftClipboardService;
 import dev.sixik.unigui.backend.minecraft.UniGuiTextures;
@@ -93,18 +94,6 @@ import dev.sixik.unigui.widgets.containers.WrapPanel;
 import dev.sixik.unigui.widgets.data.VirtualListView;
 import dev.sixik.unigui.widgets.data.VirtualTableColumn;
 import dev.sixik.unigui.widgets.data.VirtualTableView;
-import dev.sixik.unigui.widgets.display.CanvasWidget;
-import dev.sixik.unigui.widgets.display.Chart;
-import dev.sixik.unigui.widgets.display.ImageView;
-import dev.sixik.unigui.widgets.display.Label;
-import dev.sixik.unigui.widgets.display.Path;
-import dev.sixik.unigui.widgets.display.RichTextView;
-import dev.sixik.unigui.widgets.display.Separator;
-import dev.sixik.unigui.widgets.display.Shape;
-import dev.sixik.unigui.widgets.display.Sparkline;
-import dev.sixik.unigui.widgets.display.Text;
-import dev.sixik.unigui.widgets.display.TextBlock;
-import dev.sixik.unigui.widgets.display.TextureWidget;
 import dev.sixik.unigui.widgets.docking.DockArea;
 import dev.sixik.unigui.widgets.docking.DockingRoot;
 import dev.sixik.unigui.widgets.docking.DockPane;
@@ -1155,12 +1144,10 @@ public final class UniGuiDemo {
                 })
                 .append(" inside RichText")
                 .build();
-        Label markerLabel;
-        try (InlineContentResolverScope ignored = InlineContentResolvers.push(InlineContentResolvers
-                .textureMarkers(SimpleTextureHandle::new)
-        )) {
-            markerLabel = new Label("Marker resolver {icon:minecraft:textures/item/diamond.png@10x10} + text");
-        }
+        TextWidget markerLabel = new Label("Marker resolver text").textGradient(
+                MutableColor.fromHex("#60D8FF"),
+                MutableColor.fromHex("#F7C45A"),
+                0);
         TextBlock richBlock = new TextBlock();
         richBlock.richText(rich);
         richBlock.layout(style -> style.size(LayoutConstraints.AUTO, 30.0f).flexGrow(0).flexShrink(0.0f));

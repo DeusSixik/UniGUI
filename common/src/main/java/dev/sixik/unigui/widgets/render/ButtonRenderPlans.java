@@ -20,18 +20,24 @@ public final class ButtonRenderPlans {
     }
 
     public static RenderPlan defaultPlan(ButtonState state) {
+        if (state == null) return RenderPlan.EMPTY;
+        List<RenderPrimitive> primitives = new ArrayList<>(3);
+        addChrome(primitives, state);
+        addDefaultText(primitives, state);
+        return RenderPlan.of(primitives);
+    }
+
+    public static RenderPlan chromePlan(ButtonState state) {
+        if (state == null) return RenderPlan.EMPTY;
+        List<RenderPrimitive> primitives = new ArrayList<>(2);
+        addChrome(primitives, state);
+        return RenderPlan.of(primitives);
+    }
+
+    public static RenderPlan textPlan(ButtonState state) {
         if (state == null || !state.hasText()) return RenderPlan.EMPTY;
-
-        float contentX = state.textContentX();
-        float contentWidth = state.textContentWidth();
-        float drawWidth = Math.min(Math.max(0.0f, contentWidth), Math.max(0.0f, state.textWidth()));
-        float drawHeight = Math.min(Math.max(0.0f, state.height()), Math.max(0.0f, state.textHeight()));
-        float drawX = contentX + Math.max(0.0f, contentWidth - drawWidth) * 0.5f;
-        float drawY = state.y() + Math.max(0.0f, state.height() - drawHeight) * 0.5f;
-
         List<RenderPrimitive> primitives = new ArrayList<>(1);
-        primitives.add(richText(state, drawX, drawY, drawWidth, drawHeight,
-                contentX, state.y(), contentWidth, state.height()));
+        addDefaultText(primitives, state);
         return RenderPlan.of(primitives);
     }
 
@@ -180,7 +186,39 @@ public final class ButtonRenderPlans {
                 indicatorColor,
                 indicatorBorderColor,
                 state.indicatorProgress(),
-                state.labelLeft());
+                state.labelLeft(),
+                state.backgroundVisible(),
+                StyledRenderPlans.value(style, StyleKeys.BACKGROUND_COLOR, widgetState, state.backgroundColor()),
+                StyledRenderPlans.value(style, StyleKeys.RADIUS, widgetState, state.radius()),
+                state.borderVisible(),
+                StyledRenderPlans.value(style, StyleKeys.BORDER_COLOR, widgetState, state.borderColor()),
+                StyledRenderPlans.value(style, StyleKeys.BORDER_WIDTH, widgetState, state.borderWidth()));
+    }
+
+    private static void addDefaultText(List<RenderPrimitive> primitives, ButtonState state) {
+        if (!state.hasText()) return;
+        float contentX = state.textContentX();
+        float contentWidth = state.textContentWidth();
+        if (contentWidth <= 0.0f) return;
+        float drawWidth = Math.min(Math.max(0.0f, contentWidth), Math.max(0.0f, state.textWidth()));
+        float drawHeight = Math.min(Math.max(0.0f, state.height()), Math.max(0.0f, state.textHeight()));
+        float drawX = contentX + Math.max(0.0f, contentWidth - drawWidth) * 0.5f;
+        float drawY = state.y() + Math.max(0.0f, state.height() - drawHeight) * 0.5f;
+        primitives.add(richText(state, drawX, drawY, drawWidth, drawHeight,
+                contentX, state.y(), contentWidth, state.height()));
+    }
+
+    private static void addChrome(List<RenderPrimitive> primitives, ButtonState state) {
+        if (state.backgroundVisible()) {
+            primitives.add(new RenderPrimitive.RoundedRect(
+                    state.x(), state.y(), state.width(), state.height(), state.radius(),
+                    Paint.fill(state.backgroundColor())));
+        }
+        if (state.borderVisible() && state.borderWidth() > 0.0f) {
+            primitives.add(new RenderPrimitive.RoundedRect(
+                    state.x(), state.y(), state.width(), state.height(), state.radius(),
+                    Paint.stroke(state.borderColor(), state.borderWidth())));
+        }
     }
 
     private static void addLeadingLabel(List<RenderPrimitive> primitives, ButtonState state) {

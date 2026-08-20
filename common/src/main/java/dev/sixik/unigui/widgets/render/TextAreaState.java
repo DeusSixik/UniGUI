@@ -1,6 +1,7 @@
 package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.math.ColorView;
+import dev.sixik.unigui.api.math.MutableColor;
 
 import java.util.List;
 
@@ -9,6 +10,12 @@ public record TextAreaState(
         float y,
         float width,
         float height,
+        boolean backgroundVisible,
+        ColorView backgroundColor,
+        float radius,
+        boolean borderVisible,
+        ColorView borderColor,
+        float borderWidth,
         float viewportX,
         float viewportY,
         float viewportWidth,
@@ -31,7 +38,13 @@ public record TextAreaState(
         ColorView caretColor,
         float approximateCharWidth
 ) {
+    private static final MutableColor TRANSPARENT = new MutableColor(0.0f, 0.0f, 0.0f, 0.0f);
+
     public TextAreaState {
+        backgroundColor = backgroundColor == null ? TRANSPARENT : backgroundColor;
+        borderColor = borderColor == null ? TRANSPARENT : borderColor;
+        radius = Math.max(0.0f, radius);
+        borderWidth = Math.max(0.0f, borderWidth);
         lines = lines == null ? List.of() : List.copyOf(lines);
     }
 

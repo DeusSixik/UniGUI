@@ -105,6 +105,7 @@ public class Box extends PanelWidget {
     private BoxRenderer boxRenderer;
     private boolean backgroundVisible;
     private boolean borderVisible;
+    private boolean boxVisualEnabled = true;
     private float borderWidth = 1.0f;
     private float radius;
     private boolean themeEnabled = true;
@@ -182,6 +183,32 @@ public class Box extends PanelWidget {
      */
     public boolean backgroundVisible() {
         return backgroundVisible;
+    }
+
+    /**
+     * Возвращает, рисует ли Box собственную визуальную подложку.
+     *
+     * <p>Этот флаг отделяет layout/container часть {@code Box} от старого fallback-рендера.
+     * Наследники с собственным renderer'ом выключают его, чтобы не получать лишний фон/рамку от Box.</p>
+     *
+     * @return {@code true}, если {@link #renderBox(RenderContext)} может рисовать Box visual
+     */
+    public boolean boxVisualEnabled() {
+        return boxVisualEnabled;
+    }
+
+    /**
+     * Включает или выключает собственный Box visual для этого instance.
+     *
+     * @param boxVisualEnabled {@code true}, чтобы рисовать Box renderer/RenderPlan/fallback
+     * @return этот box для fluent-настройки
+     */
+    @XmlAttribute(value = "boxVisualEnabled", category = "Appearance", defaultValue = "true", description = "Whether inherited Box visual rendering is enabled.")
+    public Box boxVisualEnabled(boolean boxVisualEnabled) {
+        if (this.boxVisualEnabled == boxVisualEnabled) return this;
+        this.boxVisualEnabled = boxVisualEnabled;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
     }
 
     /**
@@ -565,6 +592,7 @@ public class Box extends PanelWidget {
      * @param context текущий render context
      */
     protected void renderBox(RenderContext context) {
+        if (!boxVisualEnabled) return;
         applyTheme();
         BoxState state = boxState();
         DrawScope draw = new DrawScope(context, transform(), layoutBounds());
@@ -578,7 +606,43 @@ public class Box extends PanelWidget {
             return;
         }
         if (renderStylePlan(context, BoxState.class, state)) return;
+        if (hasNonBoxStyleRendererOverride()) return;
         WidgetsRender.box().render(draw, state);
+    }
+
+    /**
+     * Проверяет, задан ли для текущего widget type style renderer, который не является {@link BoxRenderer}.
+     *
+     * <p>{@code Box} исторически рисовал fallback-подложку для всех наследников. Это мешает новым
+     * StylePack renderer'ам: например, стиль кнопки может указать custom {@code ButtonRenderer}, но
+     * унаследованный {@code WidgetsRender.box()} всё равно рисовал старый фон под ним. Если renderer
+     * найден на уровне текущего style type, но он не смог разрешиться как {@link BoxRenderer}, значит
+     * его должен обработать сам наследник в своём renderContent/renderVisual path, а Box fallback
+     * нужно пропустить.</p>
+     *
+     * @return {@code true}, если унаследованный fallback {@code WidgetsRender.box()} нужно пропустить
+     */
+    protected boolean hasNonBoxStyleRendererOverride() {
+        if (!themeEnabled) return false;
+        UIContext context = uiContext();
+        Theme theme = context == null ? Theme.EMPTY : context.theme();
+        String type = styleType();
+        Style themeStyle = theme instanceof StylePack stylePack
+                ? stylePack.resolveStyleFor(type, styleId(), styleClasses())
+                : theme.styleFor(type);
+        Object value = themeStyle.get(StyleKeys.RENDERER, null, null);
+        if (!rendererValuePresent(value) && theme instanceof StylePack stylePack) {
+            value = stylePack.rendererIdFor(type, styleId(), styleClasses());
+        }
+        for (Widget current : styleLookupChain()) {
+            Style localStyle = current.localStyle(type);
+            value = localStyle.get(StyleKeys.RENDERER, null, value);
+        }
+        return rendererValuePresent(value);
+    }
+
+    private static boolean rendererValuePresent(Object value) {
+        return value != null && (!(value instanceof String rendererId) || !rendererId.isBlank());
     }
 
     /**

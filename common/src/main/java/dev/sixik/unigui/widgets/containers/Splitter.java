@@ -39,6 +39,7 @@ public final class Splitter extends Box {
 
     Splitter(SplitPanel owner) {
         this.owner = owner;
+        boxVisualEnabled(false);
         backgroundVisible(true);
         borderVisible(false);
         background().set(0.09f, 0.10f, 0.12f, 0.95f);
@@ -138,6 +139,7 @@ public final class Splitter extends Box {
 
     @Override
     protected void renderContent(RenderContext context) {
+        applyTheme();
         super.renderContent(context);
         effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot());
     }
@@ -163,6 +165,12 @@ public final class Splitter extends Box {
                 layoutBounds().width(),
                 layoutBounds().height(),
                 owner.orientation(),
+                backgroundVisible(),
+                background().copy(),
+                radius(),
+                borderVisible(),
+                borderColor().copy(),
+                borderWidth(),
                 dragging,
                 handleColor.copy());
     }

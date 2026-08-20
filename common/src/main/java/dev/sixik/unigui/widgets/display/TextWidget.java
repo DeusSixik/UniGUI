@@ -11,6 +11,7 @@ import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.text.TextBrush;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
@@ -88,6 +89,52 @@ public class TextWidget extends WidgetBase {
     /** Selects a face for the current plain text while preserving the normal TextWidget API. */
     public TextWidget font(FontFace font, float pixelSize) {
         return richText(RichText.of(text, font, pixelSize));
+    }
+
+    /**
+     * Применяет brush-заливку ко всем текстовым run'ам текущего rich text.
+     *
+     * @param brush brush или {@code null}, чтобы вернуть обычную solid-заливку
+     * @return этот widget для fluent-настройки
+     */
+    public TextWidget textBrush(TextBrush brush) {
+        return richText(effectiveRichText().withBrush(brush));
+    }
+
+    /**
+     * Применяет brush-заливку из XML/XAML-строки.
+     *
+     * <p>Примеры: {@code solid(#FFFFFF)}, {@code #FFFFFF},
+     * {@code linear-gradient(#60D8FF, #F7C45A, 35)} или {@code none}.</p>
+     *
+     * @param expression строковое описание brush'а
+     * @return этот widget для fluent-настройки
+     */
+    @XmlAttribute(value = "textBrush", category = "Appearance", defaultValue = "none",
+            description = "Text brush expression: solid(#RRGGBB) or linear-gradient(#RRGGBB, #RRGGBB, angle).")
+    public TextWidget textBrushExpression(String expression) {
+        return textBrush(TextBrush.parse(expression));
+    }
+
+    /**
+     * Применяет линейный градиент ко всем текстовым run'ам текущего rich text.
+     *
+     * @param startColor цвет начала градиента
+     * @param endColor цвет конца градиента
+     * @param angleDegrees угол направления в градусах
+     * @return этот widget для fluent-настройки
+     */
+    public TextWidget textGradient(ColorView startColor, ColorView endColor, float angleDegrees) {
+        return textBrush(TextBrush.linearGradient(startColor, endColor, angleDegrees));
+    }
+
+    /**
+     * Сбрасывает brush-заливку текста.
+     *
+     * @return этот widget для fluent-настройки
+     */
+    public TextWidget clearTextBrush() {
+        return textBrush(null);
     }
 
     public MutableColor color() {
@@ -366,8 +413,7 @@ public class TextWidget extends WidgetBase {
         float textHeight = Math.min(availableHeight, TextEngine.measureTextHeight(drawText));
         float drawX = TextEngine.alignedStart(x, availableWidth, textWidth, horizontal);
         float drawY = TextEngine.alignedStart(y, availableHeight, textHeight, vertical);
-        return new TextWidgetSegment(drawText, drawX, drawY,
-                Math.max(0.0f, width - (drawX - x)), textHeight, transform);
+        return new TextWidgetSegment(drawText, drawX, drawY, textWidth, textHeight, transform);
     }
 
     private TextWidgetState textState(List<TextWidgetSegment> segments, boolean clipped,

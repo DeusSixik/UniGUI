@@ -261,7 +261,7 @@ public final class TextEngine {
                                        Paint paint, FontFace defaultFace) {
         if (start >= end) return x;
         String chunk = run.text().substring(start, end);
-        TextRun chunkRun = new TextRun(chunk, run.font(), run.pixelSize(), run.color(), run.tracking(), run.transform());
+        TextRun chunkRun = new TextRun(chunk, run.font(), run.pixelSize(), run.color(), run.brush(), run.tracking(), run.transform());
         RichText chunkText = new RichText(List.of(chunkRun));
         float chunkWidth = measureRunWidth(chunkRun, defaultFace);
         // Текстовые chunks всё ещё рисуются штатным backend renderer'ом, чтобы сохранить font/tint поведение.

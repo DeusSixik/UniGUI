@@ -1,6 +1,7 @@
 package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.math.ColorView;
+import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.text.RichText;
 
 import java.util.Arrays;
@@ -11,6 +12,12 @@ public record TextInputState(
         float y,
         float width,
         float height,
+        boolean backgroundVisible,
+        ColorView backgroundColor,
+        float radius,
+        boolean borderVisible,
+        ColorView borderColor,
+        float borderWidth,
         float viewportX,
         float viewportY,
         float viewportWidth,
@@ -37,7 +44,13 @@ public record TextInputState(
         float clearButtonWidth,
         float clearButtonHeight
 ) {
+    private static final MutableColor TRANSPARENT = new MutableColor(0.0f, 0.0f, 0.0f, 0.0f);
+
     public TextInputState {
+        backgroundColor = backgroundColor == null ? TRANSPARENT : backgroundColor;
+        borderColor = borderColor == null ? TRANSPARENT : borderColor;
+        radius = Math.max(0.0f, radius);
+        borderWidth = Math.max(0.0f, borderWidth);
         prefixWidths = prefixWidths == null ? new float[]{0.0f} : Arrays.copyOf(prefixWidths, prefixWidths.length);
     }
 

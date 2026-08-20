@@ -81,6 +81,7 @@ public class ProgressBar extends Box {
     private float indeterminateSpeed = 0.85f;
 
     public ProgressBar() {
+        boxVisualEnabled(false);
         backgroundVisible(false);
         borderVisible(false);
         trackColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
@@ -236,6 +237,7 @@ public class ProgressBar extends Box {
 
     @Override
     protected void renderContent(RenderContext context) {
+        applyTheme();
         ProgressBarState state = snapshot();
         DrawScope draw = new DrawScope(context, transform(), layoutBounds());
         if (renderer != null) {

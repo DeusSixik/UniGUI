@@ -115,6 +115,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
     private final MutableRect hostBounds = new MutableRect();
 
     public WindowWidget() {
+        boxVisualEnabled(false);
         backgroundVisible(true);
         borderVisible(true);
         focusable(true);
@@ -656,6 +657,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
 
     @Override
     protected void renderContent(RenderContext context) {
+        applyTheme();
         effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot(context));
         super.renderContent(context);
     }
@@ -670,6 +672,12 @@ public class WindowWidget extends Box implements OverlayHostAware {
                 layoutBounds().y(),
                 layoutBounds().width(),
                 layoutBounds().height(),
+                backgroundVisible(),
+                background().copy(),
+                radius(),
+                borderVisible(),
+                borderColor().copy(),
+                borderWidth(),
                 headerHeight,
                 padding.left(),
                 padding.right(),

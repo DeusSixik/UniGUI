@@ -11,7 +11,10 @@ import dev.sixik.unigui.api.render.DrawCommandType;
 import dev.sixik.unigui.api.render.TransformLayer;
 import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.FontMetrics;
+import dev.sixik.unigui.api.text.LinearGradientTextBrush;
 import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.text.SolidTextBrush;
+import dev.sixik.unigui.api.text.TextBrush;
 import dev.sixik.unigui.api.text.TextRun;
 import dev.sixik.unigui.impl.render.DrawBatch;
 import dev.sixik.unigui.impl.text.SdfGlyphProvider;
@@ -129,7 +132,8 @@ final class MinecraftMixedTextRenderer {
         float top = baseline - metrics.ascent();
         if (face instanceof MinecraftFontFace minecraftFace) {
             flushSdf(graphics, pendingSdf, renderingToPremultipliedTarget, guiScale);
-            drawVanilla(graphics, command, value, minecraftFace, run.pixelSize(), run.tracking(), run.color(), x, top, guiScale);
+            drawVanilla(graphics, command, value, minecraftFace, run.pixelSize(), run.tracking(), run.color(),
+                    run.brush(), command.bounds(), x, top, guiScale);
         } else {
             Transform segmentTransform = command.transform().copy();
             segmentTransform.pivot().set(
@@ -140,6 +144,7 @@ final class MinecraftMixedTextRenderer {
                             .font(face)
                             .size(run.pixelSize())
                             .color(run.color())
+                            .brush(run.brush())
                             .tracking(run.tracking())
                             .append(value)
                             .build())
@@ -166,7 +171,7 @@ final class MinecraftMixedTextRenderer {
                 DrawCommand command = (DrawCommand) rawPendingSdf[i];
                 TextRun run = command.richText().runs().get(0);
                 drawVanilla(graphics, command, run.text(), fallback, run.pixelSize(), run.tracking(), run.color(),
-                        command.bounds().x(), command.bounds().y(), guiScale);
+                        run.brush(), command.bounds(), command.bounds().x(), command.bounds().y(), guiScale);
             }
         }
         pendingSdf.clear();
@@ -174,8 +179,8 @@ final class MinecraftMixedTextRenderer {
 
     private void drawVanilla(GuiGraphics graphics, DrawCommand command, String text,
                              MinecraftFontFace face, float pixelSize, float tracking, ColorView runColor,
-                             float x, float y, float guiScale) {
-        if (!visibleAlpha(command.paint().color(), runColor)) return;
+                             TextBrush brush, RectView brushBounds, float x, float y, float guiScale) {
+        if (!visibleAlpha(command.paint().color(), runColor, brush)) return;
         PoseStack pose = graphics.pose();
         graphics.flush();
         boolean depthTest = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
@@ -191,25 +196,34 @@ final class MinecraftMixedTextRenderer {
             float drawY = shouldPixelSnap(command, pixelSize) ? snapLocalY(y, matrix, guiScale) : y;
             pose.translate(drawX, drawY, 0.0f);
             pose.scale(scale, scale, 1.0f);
-            int color = argb(command.paint().color(), runColor);
-            if (tracking <= 0.0f) {
+            if (tracking <= 0.0f && !(brush instanceof LinearGradientTextBrush)) {
+                int color = argb(command.paint().color(), runColor, brush, brushBounds, x, y + pixelSize * 0.5f);
                 Component component = Component.literal(text)
                         .withStyle(style -> style.withFont(face.location()));
                 graphics.drawString(minecraft.font, component, 0, 0, color, false);
             } else {
                 float localX = 0.0f;
+                float penUiX = x;
                 int glyphIndex = 0;
                 float invScale = scale <= 0.0f ? 1.0f : 1.0f / scale;
-                float trackingLocal = Math.max(0.0f, tracking) * pixelSize * invScale;
+                float trackingUi = Math.max(0.0f, tracking) * pixelSize;
+                float trackingLocal = trackingUi * invScale;
                 for (int index = 0; index < text.length(); ) {
                     int codePoint = text.codePointAt(index);
                     index += Character.charCount(codePoint);
-                    if (glyphIndex > 0) localX += trackingLocal;
+                    if (glyphIndex > 0) {
+                        localX += trackingLocal;
+                        penUiX += trackingUi;
+                    }
+                    float advance = Math.max(0.0f, face.advance(codePoint, pixelSize));
+                    int color = argb(command.paint().color(), runColor, brush, brushBounds,
+                            penUiX + advance * 0.5f, y + pixelSize * 0.5f);
                     String glyph = new String(Character.toChars(codePoint));
                     Component component = Component.literal(glyph)
                             .withStyle(style -> style.withFont(face.location()));
                     graphics.drawString(minecraft.font, component, Math.round(localX), 0, color, false);
-                    localX += Math.max(0.0f, face.advance(codePoint, pixelSize)) * invScale;
+                    localX += advance * invScale;
+                    penUiX += advance;
                     glyphIndex++;
                 }
             }
@@ -288,17 +302,55 @@ final class MinecraftMixedTextRenderer {
     }
 
     private static int argb(ColorView base, ColorView run) {
-        float r = clamp01(base.r()) * (run == null ? 1.0f : clamp01(run.r()));
-        float g = clamp01(base.g()) * (run == null ? 1.0f : clamp01(run.g()));
-        float b = clamp01(base.b()) * (run == null ? 1.0f : clamp01(run.b()));
-        float a = clamp01(base.a()) * (run == null ? 1.0f : clamp01(run.a()));
+        return argb(base, run, null, null, 0.0f, 0.0f);
+    }
+
+    private static int argb(ColorView base, ColorView run, TextBrush brush, RectView bounds, float x, float y) {
+        float baseAlpha = base == null ? 1.0f : clamp01(base.a());
+        float runAlpha = run == null ? 1.0f : clamp01(run.a());
+        float r;
+        float g;
+        float b;
+        float a = baseAlpha * runAlpha;
+        if (brush instanceof SolidTextBrush solid) {
+            ColorView color = solid.color();
+            r = clamp01(color.r());
+            g = clamp01(color.g());
+            b = clamp01(color.b());
+            a *= clamp01(color.a());
+        } else if (brush instanceof LinearGradientTextBrush gradient) {
+            float t = gradient.factor(x, y, bounds);
+            ColorView start = gradient.startColor();
+            ColorView end = gradient.endColor();
+            r = lerp(clamp01(start.r()), clamp01(end.r()), t);
+            g = lerp(clamp01(start.g()), clamp01(end.g()), t);
+            b = lerp(clamp01(start.b()), clamp01(end.b()), t);
+            a *= lerp(clamp01(start.a()), clamp01(end.a()), t);
+        } else {
+            r = (base == null ? 1.0f : clamp01(base.r())) * (run == null ? 1.0f : clamp01(run.r()));
+            g = (base == null ? 1.0f : clamp01(base.g())) * (run == null ? 1.0f : clamp01(run.g()));
+            b = (base == null ? 1.0f : clamp01(base.b())) * (run == null ? 1.0f : clamp01(run.b()));
+        }
         return channel(a) << 24 | channel(r) << 16 | channel(g) << 8 | channel(b);
     }
 
     private static boolean visibleAlpha(ColorView base, ColorView run) {
-        if (base == null) return true;
-        float alpha = clamp01(base.a()) * (run == null ? 1.0f : clamp01(run.a()));
+        return visibleAlpha(base, run, null);
+    }
+
+    private static boolean visibleAlpha(ColorView base, ColorView run, TextBrush brush) {
+        float alpha = base == null ? 1.0f : clamp01(base.a());
+        alpha *= run == null ? 1.0f : clamp01(run.a());
+        if (brush instanceof SolidTextBrush solid) {
+            alpha *= clamp01(solid.color().a());
+        } else if (brush instanceof LinearGradientTextBrush gradient) {
+            alpha *= Math.max(clamp01(gradient.startColor().a()), clamp01(gradient.endColor().a()));
+        }
         return channel(alpha) >= MIN_VANILLA_ALPHA_CHANNEL;
+    }
+
+    private static float lerp(float from, float to, float t) {
+        return from + (to - from) * t;
     }
 
     private static float positive(float value) {

@@ -8,6 +8,7 @@ public final class WindowRenderers {
         if (state.width() <= 0.0f || state.height() <= 0.0f) return;
 
         float headerHeight = Math.min(state.headerHeight(), state.height());
+        renderChrome(draw, state);
         draw.rect(state.x(), state.y(), state.width(), headerHeight, Paint.fill(state.headerColor()));
         draw.line(state.x(), state.y() + state.headerHeight(),
                 state.x() + state.width(), state.y() + state.headerHeight(),
@@ -43,5 +44,16 @@ public final class WindowRenderers {
     };
 
     private WindowRenderers() {
+    }
+
+    private static void renderChrome(dev.sixik.unigui.api.render.DrawScope draw, WindowState state) {
+        if (state.backgroundVisible()) {
+            draw.roundedRect(state.x(), state.y(), state.width(), state.height(), state.radius(),
+                    Paint.fill(state.backgroundColor()));
+        }
+        if (state.borderVisible() && state.borderWidth() > 0.0f) {
+            draw.roundedRect(state.x(), state.y(), state.width(), state.height(), state.radius(),
+                    Paint.stroke(state.borderColor(), state.borderWidth()));
+        }
     }
 }

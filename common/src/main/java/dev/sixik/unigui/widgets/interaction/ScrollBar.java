@@ -89,6 +89,7 @@ public class ScrollBar extends Box {
     private boolean dragging;
 
     public ScrollBar() {
+        boxVisualEnabled(false);
         backgroundVisible(false);
         borderVisible(false);
         focusable(true);
@@ -300,6 +301,7 @@ public class ScrollBar extends Box {
 
     @Override
     protected void renderContent(RenderContext context) {
+        applyTheme();
         ScrollBarState state = snapshot();
         DrawScope draw = new DrawScope(context, transform(), layoutBounds());
         if (renderer != null) {
