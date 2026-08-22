@@ -1,37 +1,98 @@
 # JitPack build
 
-This project is configured for JitPack through the root jitpack.yml.
+This project is configured for JitPack through the root `jitpack.yml`.
 
 ## Build command
 
-JitPack uses Java 17 and publishes all Gradle Maven publications to the local Maven repository:
+JitPack starts the build on JDK 21:
 
-    ./gradlew clean publishToMavenLocal -x test --no-daemon
+```yaml
+jdk:
+  - openjdk21
+```
 
-The Gradle wrapper executable bit is restored in JitPack with:
+The project itself uses Gradle toolchains because different Minecraft profiles require different Java versions:
 
-    chmod +x gradlew
+| Minecraft | Java toolchain |
+| --- | --- |
+| `1.20.1` | Java 17 |
+| `1.21.1` | Java 21 |
+
+`settings.gradle` applies `org.gradle.toolchains.foojay-resolver-convention`, so Gradle can download a missing Java 17 toolchain on JitPack even though the main build JVM is Java 21.
+
+JitPack publishes all Gradle Maven publications to the local Maven repository with:
+
+```bash
+./gradlew -Dorg.gradle.java.home=$JAVA_HOME publishToMavenLocal -x test --no-daemon
+```
+
+The Gradle wrapper executable bit is restored with:
+
+```bash
+chmod +x gradlew
+```
 
 ## Published modules
 
-The Gradle publication artifact ids are derived from archives_name and the module name:
+Artifact ids are derived from `archives_name`, module name and Minecraft version:
 
-- unigui-common
-- unigui-fabric
-- unigui-forge
+```groovy
+artifactId = "${archives_name}-$project.name-${minecraft_version}"
+```
+
+For version `1.1.0`, the expected artifacts are:
+
+| Minecraft | Loader/module | Artifact id |
+| --- | --- | --- |
+| `1.20.1` | common | `unigui-common-1.20.1` |
+| `1.20.1` | Fabric | `unigui-fabric-1.20.1` |
+| `1.20.1` | Forge | `unigui-forge-1.20.1` |
+| `1.21.1` | common | `unigui-common-1.21.1` |
+| `1.21.1` | Fabric | `unigui-fabric-1.21.1` |
+| `1.21.1` | Forge | `unigui-forge-1.21.1` |
+| `1.21.1` | NeoForge | `unigui-neoforge-1.21.1` |
 
 ## Consumer example
 
-Replace <USER>, <REPO> and <TAG_OR_COMMIT> with the GitHub repository owner, repository name and a JitPack-supported version.
+Replace `<USER>`, `<REPO>` and `<TAG_OR_COMMIT>` with the GitHub repository owner, repository name and a JitPack-supported version.
 
-    repositories {
-        maven { url = uri("https://jitpack.io") }
-    }
+```groovy
+repositories {
+    maven { url = uri("https://jitpack.io") }
+}
+```
 
-    dependencies {
-        implementation "com.github.<USER>.<REPO>:unigui-common:<TAG_OR_COMMIT>"
-        modImplementation "com.github.<USER>.<REPO>:unigui-fabric:<TAG_OR_COMMIT>"
-        modImplementation "com.github.<USER>.<REPO>:unigui-forge:<TAG_OR_COMMIT>"
-    }
+Minecraft `1.20.1`:
 
-For mod loader projects, prefer the platform module matching the target loader and use the loader-specific dependency configuration (modImplementation, modApi, etc.) used by that project.
+```groovy
+dependencies {
+    implementation "com.github.<USER>.<REPO>:unigui-common-1.20.1:<TAG_OR_COMMIT>"
+    modImplementation "com.github.<USER>.<REPO>:unigui-fabric-1.20.1:<TAG_OR_COMMIT>"
+    // or
+    modImplementation "com.github.<USER>.<REPO>:unigui-forge-1.20.1:<TAG_OR_COMMIT>"
+}
+```
+
+Minecraft `1.21.1`:
+
+```groovy
+dependencies {
+    implementation "com.github.<USER>.<REPO>:unigui-common-1.21.1:<TAG_OR_COMMIT>"
+    modImplementation "com.github.<USER>.<REPO>:unigui-fabric-1.21.1:<TAG_OR_COMMIT>"
+    // or
+    modImplementation "com.github.<USER>.<REPO>:unigui-forge-1.21.1:<TAG_OR_COMMIT>"
+    // or
+    modImplementation "com.github.<USER>.<REPO>:unigui-neoforge-1.21.1:<TAG_OR_COMMIT>"
+}
+```
+
+For mod loader projects, prefer the platform module matching the target loader and use the loader-specific dependency configuration (`modImplementation`, `modApi`, etc.) used by that project.
+
+## Versioning rule
+
+Minecraft version is part of the artifact id. Library/JitPack version is the dependency version:
+
+```text
+com.github.<USER>.<REPO> : unigui-fabric-1.21.1 : 1.1.0
+        group id          artifact + MC version   Git tag / JitPack version
+```
