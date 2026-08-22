@@ -12,12 +12,13 @@ dependencies {
     // We depend on Fabric Loader here to use the Fabric @Environment annotations,
     // which get remapped to the correct annotations on each platform.
     // Do NOT use other classes from Fabric Loader.
-    modImplementation "net.fabricmc:fabric-loader:${versionProject.fabric_loader_version}"
+    modCompileOnly "net.fabricmc:fabric-loader:${versionProject.fabric_loader_version}"
 }
 
 tasks.register("layoutV3SelfTest", JavaExec) {
     group = "verification"
     description = "Runs Layout V3 self-test assertions."
+    dependsOn tasks.named("testClasses")
     dependsOn tasks.named("testClasses")
     classpath = sourceSets.test.runtimeClasspath
     mainClass = "dev.sixik.unigui.tests.LayoutV3SelfTest"

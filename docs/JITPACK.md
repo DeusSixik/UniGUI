@@ -59,6 +59,8 @@ Replace `<USER>`, `<REPO>` and `<TAG_OR_COMMIT>` with the GitHub repository owne
 ```groovy
 repositories {
     maven { url = uri("https://jitpack.io") }
+    // Required when consuming Fabric artifacts or any dependency that resolves Fabric Loader.
+    maven { url = uri("https://maven.fabricmc.net/") }
 }
 ```
 
@@ -86,7 +88,7 @@ dependencies {
 }
 ```
 
-For mod loader projects, prefer the platform module matching the target loader and use the loader-specific dependency configuration (`modImplementation`, `modApi`, etc.) used by that project.
+For mod loader projects, prefer the platform module matching the target loader and use the loader-specific dependency configuration (`modImplementation`, `modApi`, etc.) used by that project. If you only consume `unigui-common-*`, the common artifact should not bring Fabric Loader transitively; Fabric Maven is still needed for Fabric platform artifacts.
 
 ## Versioning rule
 
