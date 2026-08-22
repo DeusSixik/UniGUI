@@ -142,6 +142,17 @@ public final class TextEditorModel {
         return changed;
     }
 
+    public boolean backspaceWord() {
+        if (deleteSelectionIfNeeded()) return true;
+        if (cursorIndex <= 0 || text.isEmpty()) return false;
+        int start = previousWordBoundary(cursorIndex);
+        if (start == cursorIndex) return false;
+        String nextText = text.substring(0, start) + text.substring(cursorIndex);
+        boolean changed = setText(nextText, true);
+        cursorIndex = start;
+        return changed;
+    }
+
     public boolean delete() {
         if (deleteSelectionIfNeeded()) return true;
         if (cursorIndex >= text.length() || text.isEmpty()) return false;
@@ -201,6 +212,32 @@ public final class TextEditorModel {
             changeListener.onTextChanged(oldText, this.text);
         }
         return true;
+    }
+
+    private int previousWordBoundary(int index) {
+        int position = clampToCodePointBoundary(text, index);
+        while (position > 0) {
+            int previous = text.offsetByCodePoints(position, -1);
+            int codePoint = text.codePointAt(previous);
+            if (!Character.isWhitespace(codePoint)) break;
+            position = previous;
+        }
+        if (position <= 0) return 0;
+
+        int previous = text.offsetByCodePoints(position, -1);
+        boolean word = isWordCodePoint(text.codePointAt(previous));
+        while (position > 0) {
+            previous = text.offsetByCodePoints(position, -1);
+            int codePoint = text.codePointAt(previous);
+            if (Character.isWhitespace(codePoint)) break;
+            if (isWordCodePoint(codePoint) != word) break;
+            position = previous;
+        }
+        return position;
+    }
+
+    private static boolean isWordCodePoint(int codePoint) {
+        return Character.isLetterOrDigit(codePoint) || codePoint == '_';
     }
 
     private String trimToMax(String value) {

@@ -136,6 +136,10 @@ public final class TestCommands {
                 .then(Commands.literal("terminal").executes(ctx -> {
                     RenderSystem.recordRenderCall(DosTerminalDemo::openDemoClient);
                     return 0;
+                }))
+                .then(Commands.literal("adminconsole").executes(ctx -> {
+                    RenderSystem.recordRenderCall(AdminConsoleDemo::openDemoClient);
+                    return 0;
                 })));
     }
 

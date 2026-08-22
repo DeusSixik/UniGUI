@@ -654,6 +654,10 @@ public class TextInput extends Box {
 
     private boolean handleControlKey(int keyCode) {
         return switch (keyCode) {
+            case KeyCodes.BACKSPACE -> {
+                backspaceWord();
+                yield true;
+            }
             case KeyCodes.A -> {
                 selectAll();
                 yield true;
@@ -682,6 +686,12 @@ public class TextInput extends Box {
 
     private void backspace() {
         if (editor.backspace()) {
+            invalidate(InvalidationFlags.VISUAL);
+        }
+    }
+
+    private void backspaceWord() {
+        if (editor.backspaceWord()) {
             invalidate(InvalidationFlags.VISUAL);
         }
     }

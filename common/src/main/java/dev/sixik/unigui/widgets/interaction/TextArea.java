@@ -963,6 +963,10 @@ public class TextArea extends Box {
     protected boolean handleControlKey(int keyCode, int modifiers) {
         boolean extendSelection = KeyModifiers.has(modifiers, KeyModifiers.SHIFT);
         return switch (keyCode) {
+            case KeyCodes.BACKSPACE -> {
+                if (canMutateText()) backspaceWord();
+                yield true;
+            }
             case KeyCodes.A -> {
                 selectAll();
                 yield true;
@@ -1038,6 +1042,16 @@ public class TextArea extends Box {
     protected void backspace() {
         if (!canMutateText()) return;
         if (editor.backspace()) {
+            clearLineMetrics();
+            resetDesiredCursorX();
+            requestCursorFollow();
+            invalidate(InvalidationFlags.VISUAL);
+        }
+    }
+
+    protected void backspaceWord() {
+        if (!canMutateText()) return;
+        if (editor.backspaceWord()) {
             clearLineMetrics();
             resetDesiredCursorX();
             requestCursorFollow();

@@ -356,6 +356,7 @@ public class ScrollView extends WidgetBase {
         scrollX = clampedX;
         scrollY = clampedY;
         syncScrollBars();
+        arrangeScrolledChildrenNow();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
@@ -600,6 +601,12 @@ public class ScrollView extends WidgetBase {
         horizontalScrollBar.setUiContextInternal(null);
         verticalScrollBar.setParentInternal(null);
         verticalScrollBar.setUiContextInternal(null);
+    }
+
+    private void arrangeScrolledChildrenNow() {
+        if (layoutBounds().width() <= 0.0f && layoutBounds().height() <= 0.0f) return;
+        arrangeContent();
+        arrangeScrollBars();
     }
 
     private void arrangeContent() {

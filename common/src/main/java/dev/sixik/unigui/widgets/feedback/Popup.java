@@ -26,6 +26,7 @@ public final class Popup extends Box implements OverlayHostAware {
     private Widget content;
     private boolean open;
     private boolean closeOnOutsideClick = true;
+    private Placement placement = Placement.BELOW;
     private float offsetX;
     private float offsetY = 4.0f;
     private EdgeInsets padding = EdgeInsets.all(6.0f);
@@ -125,6 +126,19 @@ public final class Popup extends Box implements OverlayHostAware {
         return this;
     }
 
+    public Placement placement() {
+        return placement;
+    }
+
+    @XmlAttribute(value = "placement", category = "Layout", defaultValue = "below", description = "Where the popup is placed relative to its anchor.")
+    public Popup placement(Placement placement) {
+        Placement normalized = placement == null ? Placement.BELOW : placement;
+        if (this.placement == normalized) return this;
+        this.placement = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
     public Popup offset(float x, float y) {
         float normalizedX = Float.isFinite(x) ? x : 0.0f;
         float normalizedY = Float.isFinite(y) ? y : 4.0f;
@@ -194,6 +208,11 @@ public final class Popup extends Box implements OverlayHostAware {
     }
 
     private MutableRect resolveV3Placement(RectView hostBounds, float width, float height) {
+        RectView anchorBounds = renderedAnchorBounds();
+        if (placement == Placement.ABOVE) {
+            return placeAbove(hostBounds, anchorBounds, width, height);
+        }
+
         OverlayLayoutResolver resolver = new OverlayLayoutResolver();
         OverlayLayoutResolver.Host host = new OverlayLayoutResolver.Host(
                 runtimeLayoutId("host", parent()),
@@ -201,12 +220,26 @@ public final class Popup extends Box implements OverlayHostAware {
         OverlayLayoutResolver.Request request = OverlayLayoutResolver.Request.below(
                         runtimeLayoutId("popup", this),
                         runtimeLayoutId("anchor", anchor),
-                        renderedAnchorBounds(),
+                        anchorBounds,
                         width,
                         height)
                 .offset(offsetX, offsetY);
         OverlayLayoutResolver.ResolvedOverlay resolved = resolver.resolve(host, request, 0);
         return new MutableRect(resolved.x(), resolved.y(), resolved.width(), resolved.height());
+    }
+
+    private MutableRect placeAbove(RectView hostBounds, RectView anchorBounds, float width, float height) {
+        float hostX = hostBounds == null ? 0.0f : hostBounds.x();
+        float hostY = hostBounds == null ? 0.0f : hostBounds.y();
+        float hostWidth = hostBounds == null ? width : Math.max(0.0f, hostBounds.width());
+        float hostHeight = hostBounds == null ? height : Math.max(0.0f, hostBounds.height());
+        float clampedWidth = Math.max(0.0f, width);
+        float clampedHeight = Math.max(0.0f, height);
+        float x = anchorBounds.x() + offsetX;
+        float y = anchorBounds.y() - clampedHeight - offsetY;
+        x = clamp(x, hostX, hostX + Math.max(0.0f, hostWidth - clampedWidth));
+        y = clamp(y, hostY, hostY + Math.max(0.0f, hostHeight - clampedHeight));
+        return new MutableRect(x, y, clampedWidth, clampedHeight);
     }
 
     private RectView renderedAnchorBounds() {
@@ -233,5 +266,14 @@ public final class Popup extends Box implements OverlayHostAware {
     private static LayoutNodeId runtimeLayoutId(String prefix, Object instance) {
         String suffix = instance == null ? "none" : Integer.toHexString(System.identityHashCode(instance));
         return LayoutNodeId.of(prefix + "@" + suffix);
+    }
+
+    private static float clamp(float value, float min, float max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
+    public enum Placement {
+        BELOW,
+        ABOVE
     }
 }

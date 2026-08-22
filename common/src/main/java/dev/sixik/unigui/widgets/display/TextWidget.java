@@ -42,6 +42,7 @@ public class TextWidget extends WidgetBase {
     private float marqueeSpeed = 24.0f;
     private float marqueeGap = 24.0f;
     private float marqueeOffset;
+    private boolean marqueeActive;
     private RichText wrappedCacheText;
     private Object wrappedCacheBackend;
     private float wrappedCacheWidth = Float.NaN;
@@ -230,6 +231,20 @@ public class TextWidget extends WidgetBase {
         return marqueeSpeed(pixelsPerSecond);
     }
 
+    public boolean marqueeActive() {
+        return marqueeActive;
+    }
+
+    public TextWidget marqueeActive(boolean marqueeActive) {
+        if (this.marqueeActive == marqueeActive) return this;
+        this.marqueeActive = marqueeActive;
+        if (!marqueeActive) {
+            marqueeOffset = 0.0f;
+        }
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
     public float marqueeGap() {
         return marqueeGap;
     }
@@ -266,7 +281,8 @@ public class TextWidget extends WidgetBase {
     @Override
     public void tick(FrameContext frame) {
         super.tick(frame);
-        if (overflowMode != TextOverflowMode.MARQUEE_ON_HOVER || !hovered() || text.isEmpty()) {
+        boolean activeMarquee = hovered() || marqueeActive;
+        if (overflowMode != TextOverflowMode.MARQUEE_ON_HOVER || !activeMarquee || text.isEmpty()) {
             if (marqueeOffset != 0.0f) {
                 marqueeOffset = 0.0f;
                 invalidate(InvalidationFlags.VISUAL);
@@ -387,11 +403,12 @@ public class TextWidget extends WidgetBase {
         float textHeight = Math.min(availableHeight, TextEngine.measureTextHeight(drawText));
         float drawY = TextEngine.alignedStart(layoutBounds().y(), availableHeight, textHeight, textVerticalAlignment());
         float period = Math.max(1.0f, textWidth + marqueeGap);
-        float offset = hovered() ? marqueeOffset % period : 0.0f;
+        boolean activeMarquee = hovered() || marqueeActive;
+        float offset = activeMarquee ? marqueeOffset % period : 0.0f;
         float firstX = layoutBounds().x() - offset;
 
         List<TextWidgetSegment> segments;
-        if (hovered()) {
+        if (activeMarquee) {
             segments = List.of(
                     new TextWidgetSegment(drawText, firstX, drawY, textWidth, textHeight, null),
                     new TextWidgetSegment(drawText, firstX + textWidth + marqueeGap, drawY, textWidth, textHeight, null));

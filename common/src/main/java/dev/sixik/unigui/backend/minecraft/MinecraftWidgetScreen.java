@@ -539,6 +539,10 @@ public class MinecraftWidgetScreen extends Screen {
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (keyCode == KeyCodes.TAB) {
+            Widget focused = uiContext.focusManager().focusedWidget();
+            if (focused != null && uiContext.routedEvents().dispatch(new KeyPressedEvent(focused, keyCode, scanCode, modifiers))) {
+                return true;
+            }
             return KeyModifiers.has(modifiers, KeyModifiers.SHIFT)
                     ? uiContext.focusManager().focusPrevious(root)
                     : uiContext.focusManager().focusNext(root);
