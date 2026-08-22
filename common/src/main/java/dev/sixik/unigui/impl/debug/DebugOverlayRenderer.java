@@ -22,11 +22,16 @@ public final class DebugOverlayRenderer {
     private static final float WIDTH = 580.0f;
     private static final float PADDING = 5.0f;
     private static final float LINE_HEIGHT = 10.0f;
-    private static final int SUMMARY_LINES = 9;
+    private static final int SUMMARY_LINES = 10;
     private static final int MAX_SCOPE_HISTORY_LINES = 6;
     private static final int MAX_WORST_FRAME_LINES = 5;
     private static final int TOTAL_LINES = SUMMARY_LINES + 1 + MAX_SCOPE_HISTORY_LINES + 1 + MAX_WORST_FRAME_LINES;
+    private static final float GRAPH_SPACING = 4.0f;
+    private static final float GRAPH_LABEL_HEIGHT = 11.0f;
+    private static final float GRAPH_HEIGHT = 90.0f;
+    private static final float GRAPH_LINE_WIDTH = 1.35f;
     private static final float FRAME_BUDGET_60_FPS_MS = 16.6667f;
+    private static final float FRAME_BUDGET_30_FPS_MS = 33.3334f;
     private static final float CPU_WARN_MS = 8.0f;
     private static final float CPU_BAD_MS = 11.0f;
     private static final float SCOPE_WARN_MS = 1.5f;
@@ -34,11 +39,15 @@ public final class DebugOverlayRenderer {
     private static final float UNSCOPED_WARN_MS = 1.0f;
     private static final float UNSCOPED_BAD_MS = 3.0f;
 
-    private static final MutableColor BACKGROUND = new MutableColor(0.025f, 0.027f, 0.031f, 0.82f);
-    private static final MutableColor HEADER = new MutableColor(0.76f, 0.78f, 0.82f, 1.0f);
-    private static final MutableColor TOTAL = new MutableColor(0.88f, 0.89f, 0.91f, 1.0f);
-    private static final MutableColor CPU = new MutableColor(0.62f, 0.73f, 0.81f, 1.0f);
-    private static final MutableColor GPU = new MutableColor(0.64f, 0.75f, 0.66f, 1.0f);
+    private static final MutableColor BACKGROUND = new MutableColor(0.025f, 0.027f, 0.031f, 0.86f);
+    private static final MutableColor GRAPH_BACKGROUND = new MutableColor(0.010f, 0.012f, 0.015f, 0.72f);
+    private static final MutableColor GRAPH_GRID = new MutableColor(0.23f, 0.28f, 0.33f, 0.42f);
+    private static final MutableColor GRAPH_BORDER = new MutableColor(0.39f, 0.45f, 0.52f, 0.62f);
+    private static final MutableColor GRAPH_BUDGET = new MutableColor(0.92f, 0.56f, 0.32f, 0.86f);
+    private static final MutableColor HEADER = new MutableColor(0.82f, 0.86f, 0.92f, 1.0f);
+    private static final MutableColor TOTAL = new MutableColor(0.96f, 0.80f, 0.32f, 1.0f);
+    private static final MutableColor CPU = new MutableColor(0.34f, 0.80f, 1.0f, 1.0f);
+    private static final MutableColor GPU = new MutableColor(0.40f, 0.92f, 0.53f, 1.0f);
     private static final MutableColor TEXT = new MutableColor(0.76f, 0.78f, 0.81f, 1.0f);
     private static final MutableColor GOOD = new MutableColor(0.55f, 0.78f, 0.58f, 1.0f);
     private static final MutableColor WARN = new MutableColor(0.82f, 0.68f, 0.43f, 1.0f);
@@ -89,7 +98,7 @@ public final class DebugOverlayRenderer {
                 "UniGUI frame " + debug.frameIndex() + " | history " + history.size() + "/" + settings.sampleWindow(),
                 position, scale, 0, HEADER);
         line(context, timingLine("Total", debug.frameTotalMillis(), totalStats), position, scale, 1,
-                severity(debug.frameTotalMillis(), CPU_WARN_MS, CPU_BAD_MS, TOTAL));
+                severity(debug.frameTotalMillis(), FRAME_BUDGET_60_FPS_MS, FRAME_BUDGET_30_FPS_MS, TOTAL));
         line(context, timingLine("CPU Total", debug.frameCpuMillis(), cpuStats), position, scale, 2,
                 severity(debug.frameCpuMillis(), CPU_WARN_MS, CPU_BAD_MS, CPU));
         line(context, timingLine("GPU Total", debug.frameGpuMillis(), gpuStats), position, scale, 3,
@@ -103,10 +112,12 @@ public final class DebugOverlayRenderer {
         line(context, cacheLine(debug), position, scale, 7, debug.textureCacheMisses() > 0L ? WARN : GOOD);
         line(context, "Last cache miss " + debug.lastTextureCacheMissReason(), position, scale, 8,
                 debug.textureCacheMisses() > 0L ? WARN : TEXT);
+        line(context, runtimeLine(viewportWidth, viewportHeight), position, scale, 9, TEXT);
 
         renderScopeHistory(context, position, scale, SUMMARY_LINES, history.scopeHistory());
         renderWorstFrames(context, position, scale,
                 SUMMARY_LINES + 1 + MAX_SCOPE_HISTORY_LINES, history.worstFrames(MAX_WORST_FRAME_LINES));
+        renderFrameGraph(context, position, scale, history);
     }
 
     private static TimingHistory history(UIContext uiContext) {
@@ -116,7 +127,7 @@ public final class DebugOverlayRenderer {
     }
 
     private static float overlayHeight() {
-        return PADDING * 2.0f + TOTAL_LINES * LINE_HEIGHT;
+        return PADDING * 2.0f + TOTAL_LINES * LINE_HEIGHT + GRAPH_SPACING + GRAPH_LABEL_HEIGHT + GRAPH_HEIGHT;
     }
 
     private static void renderScopeHistory(RenderContext context, Position position, float scale,
@@ -153,6 +164,100 @@ public final class DebugOverlayRenderer {
         }
     }
 
+    private static void renderFrameGraph(RenderContext context, Position position, float scale,
+                                         TimingHistory history) {
+        float labelY = PADDING + TOTAL_LINES * LINE_HEIGHT + GRAPH_SPACING;
+        float graphX = PADDING;
+        float graphY = labelY + GRAPH_LABEL_HEIGHT;
+        float graphWidth = WIDTH - PADDING * 2.0f;
+        float graphHeight = GRAPH_HEIGHT;
+        float maxMillis = graphScaleMillis(graphMaximumMillis(history));
+
+        context.rect(graphX, graphY, graphWidth, graphHeight, Paint.fill(GRAPH_BACKGROUND),
+                transform(position.x, position.y, graphX, graphY, scale));
+        drawGraphGrid(context, position, scale, graphX, graphY, graphWidth, graphHeight, maxMillis);
+
+        text(context, "FRAME GRAPH", graphX, labelY, 74.0f, 9.0f, position, scale, HEADER);
+        text(context, "Total", graphX + 84.0f, labelY, 34.0f, 9.0f, position, scale, TOTAL);
+        text(context, "CPU", graphX + 124.0f, labelY, 24.0f, 9.0f, position, scale, CPU);
+        text(context, "GPU", graphX + 154.0f, labelY, 24.0f, 9.0f, position, scale, GPU);
+        text(context, "scale 0-" + formatMillis(maxMillis) + " ms | budget "
+                        + formatMillis(FRAME_BUDGET_60_FPS_MS) + " ms",
+                graphX + 210.0f, labelY, graphWidth - 210.0f, 9.0f, position, scale, TEXT);
+
+        int sampleCount = Math.min(history.size(), Math.max(2, (int) graphWidth));
+        int startIndex = Math.max(0, history.size() - sampleCount);
+        drawGraphSeries(context, position, scale, history, startIndex, sampleCount,
+                graphX, graphY, graphWidth, graphHeight, maxMillis, FrameTiming::totalMillis, TOTAL);
+        drawGraphSeries(context, position, scale, history, startIndex, sampleCount,
+                graphX, graphY, graphWidth, graphHeight, maxMillis, FrameTiming::cpuMillis, CPU);
+        drawGraphSeries(context, position, scale, history, startIndex, sampleCount,
+                graphX, graphY, graphWidth, graphHeight, maxMillis, FrameTiming::gpuMillis, GPU);
+    }
+
+    private static void drawGraphGrid(RenderContext context, Position position, float scale,
+                                      float graphX, float graphY, float graphWidth, float graphHeight,
+                                      float maxMillis) {
+        for (int i = 0; i <= 4; i++) {
+            float y = graphY + graphHeight * i / 4.0f;
+            drawLine(context, position, scale, graphX, y, graphX + graphWidth, y,
+                    Paint.stroke(GRAPH_GRID, 0.75f));
+        }
+        for (int i = 0; i <= 8; i++) {
+            float x = graphX + graphWidth * i / 8.0f;
+            drawLine(context, position, scale, x, graphY, x, graphY + graphHeight,
+                    Paint.stroke(GRAPH_GRID, 0.75f));
+        }
+
+        float budgetY = graphYForMillis(FRAME_BUDGET_60_FPS_MS, graphY, graphHeight, maxMillis);
+        if (budgetY >= graphY && budgetY <= graphY + graphHeight) {
+            drawLine(context, position, scale, graphX, budgetY, graphX + graphWidth, budgetY,
+                    Paint.stroke(GRAPH_BUDGET, 1.0f).dash(4.0f, 4.0f));
+            text(context, "16.67", graphX + graphWidth - 34.0f, budgetY - 9.0f, 34.0f, 9.0f,
+                    position, scale, GRAPH_BUDGET);
+        }
+
+        drawLine(context, position, scale, graphX, graphY, graphX + graphWidth, graphY,
+                Paint.stroke(GRAPH_BORDER, 1.0f));
+        drawLine(context, position, scale, graphX, graphY + graphHeight, graphX + graphWidth, graphY + graphHeight,
+                Paint.stroke(GRAPH_BORDER, 1.0f));
+        drawLine(context, position, scale, graphX, graphY, graphX, graphY + graphHeight,
+                Paint.stroke(GRAPH_BORDER, 1.0f));
+        drawLine(context, position, scale, graphX + graphWidth, graphY, graphX + graphWidth, graphY + graphHeight,
+                Paint.stroke(GRAPH_BORDER, 1.0f));
+        text(context, formatMillis(maxMillis), graphX + graphWidth - 40.0f, graphY + 2.0f, 40.0f, 9.0f,
+                position, scale, TEXT);
+    }
+
+    private static void drawGraphSeries(RenderContext context, Position position, float scale,
+                                        TimingHistory history, int startIndex, int sampleCount,
+                                        float graphX, float graphY, float graphWidth, float graphHeight,
+                                        float maxMillis, TimingValue value, MutableColor color) {
+        if (sampleCount < 2) return;
+
+        Object[] raw = history.samples.elements();
+        float previousX = Float.NaN;
+        float previousY = Float.NaN;
+        for (int i = 0; i < sampleCount; i++) {
+            FrameTiming sample = (FrameTiming) raw[startIndex + i];
+            float millis = value.get(sample);
+            if (!Float.isFinite(millis) || millis < 0.0f) {
+                previousX = Float.NaN;
+                previousY = Float.NaN;
+                continue;
+            }
+
+            float x = graphX + graphWidth * i / Math.max(1.0f, sampleCount - 1.0f);
+            float y = graphYForMillis(millis, graphY, graphHeight, maxMillis);
+            if (Float.isFinite(previousX) && Float.isFinite(previousY)) {
+                drawLine(context, position, scale, previousX, previousY, x, y,
+                        Paint.stroke(color, GRAPH_LINE_WIDTH));
+            }
+            previousX = x;
+            previousY = y;
+        }
+    }
+
     private static Position anchoredPosition(DebugOverlayAnchor anchor, float margin,
                                              float viewportWidth, float viewportHeight,
                                              float overlayWidth, float overlayHeight) {
@@ -173,11 +278,22 @@ public final class DebugOverlayRenderer {
     }
 
     private static void line(RenderContext context, String text, Position position, float scale,
-                             int line, MutableColor color) {
+                              int line, MutableColor color) {
         float x = PADDING;
         float y = PADDING + line * LINE_HEIGHT;
-        context.text(text, x, y, WIDTH - PADDING * 2.0f, 9.0f, Paint.fill(color),
+        text(context, text, x, y, WIDTH - PADDING * 2.0f, 9.0f, position, scale, color);
+    }
+
+    private static void text(RenderContext context, String text, float x, float y,
+                             float width, float height, Position position, float scale,
+                             MutableColor color) {
+        context.text(text, x, y, width, height, Paint.fill(color),
                 transform(position.x, position.y, x, y, scale));
+    }
+
+    private static void drawLine(RenderContext context, Position position, float scale,
+                                 float x1, float y1, float x2, float y2, Paint paint) {
+        context.line(x1, y1, x2, y2, paint, transform(position.x, position.y, x1, y1, scale));
     }
 
     private static Transform transform(float x, float y, float localX, float localY, float scale) {
@@ -228,6 +344,15 @@ public final class DebugOverlayRenderer {
                 + " | miss " + debug.textureCacheMisses()
                 + " | hit-rate " + hitRate
                 + " | texture renders " + debug.textureRenders();
+    }
+
+
+    private static String runtimeLine(float viewportWidth, float viewportHeight) {
+        Runtime runtime = Runtime.getRuntime();
+        long used = runtime.totalMemory() - runtime.freeMemory();
+        return "Viewport " + formatOneDecimal(viewportWidth) + "x" + formatOneDecimal(viewportHeight)
+                + " | heap " + formatMegabytes(used) + "/" + formatMegabytes(runtime.maxMemory()) + " MB"
+                + " | allocated " + formatMegabytes(runtime.totalMemory()) + " MB";
     }
 
     private static String scopeHistoryLine(int rank, ScopeAggregate scope) {
@@ -314,6 +439,48 @@ public final class DebugOverlayRenderer {
 
     private static String formatFrame(long frameIndex) {
         return frameIndex < 0L ? "n/a" : Long.toString(frameIndex);
+    }
+
+
+    private static String formatMegabytes(long bytes) {
+        return String.format(Locale.ROOT, "%.1f", bytes / (1024.0f * 1024.0f));
+    }
+
+    private static float graphMaximumMillis(TimingHistory history) {
+        float maximum = FRAME_BUDGET_60_FPS_MS;
+        Object[] raw = history.samples.elements();
+        for (int i = 0, size = history.size(); i < size; i++) {
+            FrameTiming sample = (FrameTiming) raw[i];
+            maximum = Math.max(maximum, graphSampleMaximum(sample));
+        }
+        return maximum;
+    }
+
+    private static float graphSampleMaximum(FrameTiming sample) {
+        float maximum = validGraphMillis(sample.totalMillis()) ? sample.totalMillis() : 0.0f;
+        if (validGraphMillis(sample.cpuMillis())) maximum = Math.max(maximum, sample.cpuMillis());
+        if (validGraphMillis(sample.gpuMillis())) maximum = Math.max(maximum, sample.gpuMillis());
+        return maximum;
+    }
+
+    private static boolean validGraphMillis(float millis) {
+        return Float.isFinite(millis) && millis >= 0.0f;
+    }
+
+    private static float graphScaleMillis(float maximumMillis) {
+        float target = validGraphMillis(maximumMillis)
+                ? Math.max(FRAME_BUDGET_60_FPS_MS, maximumMillis * 1.15f)
+                : FRAME_BUDGET_60_FPS_MS;
+        if (target <= FRAME_BUDGET_60_FPS_MS) return FRAME_BUDGET_60_FPS_MS;
+        if (target <= FRAME_BUDGET_30_FPS_MS) return FRAME_BUDGET_30_FPS_MS;
+        if (target <= 50.0f) return 50.0f;
+        if (target <= 100.0f) return 100.0f;
+        return (float) Math.ceil(target / 50.0f) * 50.0f;
+    }
+
+    private static float graphYForMillis(float millis, float graphY, float graphHeight, float maxMillis) {
+        float ratio = maxMillis <= 0.0f ? 0.0f : clamp(millis / maxMillis, 0.0f, 1.0f);
+        return graphY + graphHeight - ratio * graphHeight;
     }
 
     private static String formatFps(float framesPerSecond) {
