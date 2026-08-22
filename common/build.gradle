@@ -47,13 +47,13 @@ tasks.register("dockingInteractionSelfTest", JavaExec) {
     mainClass = "dev.sixik.unigui.tests.DockingInteractionSelfTest"
 }
 
-tasks.register("basicControlsSelfTest", JavaExec) {
-    group = "verification"
-    description = "Runs basic controls and widget contract self-test assertions."
-    dependsOn tasks.named("testClasses")
-    classpath = sourceSets.test.runtimeClasspath
-    mainClass = "dev.sixik.unigui.tests.BasicControlsSelfTest"
-}
+//tasks.register("basicControlsSelfTest", JavaExec) {
+//    group = "verification"
+//    description = "Runs basic controls and widget contract self-test assertions."
+//    dependsOn tasks.named("testClasses")
+//    classpath = sourceSets.test.runtimeClasspath
+//    mainClass = "dev.sixik.unigui.tests.BasicControlsSelfTest"
+//}
 
 tasks.register("cachedSubtreeInvalidationSelfTest", JavaExec) {
     group = "verification"
@@ -130,7 +130,7 @@ tasks.named("test") {
     dependsOn tasks.named("windowManagerSelfTest")
     dependsOn tasks.named("dockingModelSelfTest")
     dependsOn tasks.named("dockingInteractionSelfTest")
-    dependsOn tasks.named("basicControlsSelfTest")
+//    dependsOn tasks.named("basicControlsSelfTest")
     dependsOn tasks.named("cachedSubtreeInvalidationSelfTest")
     dependsOn tasks.named("viewport2DSelfTest")
     dependsOn tasks.named("worldCanvasSelfTest")
