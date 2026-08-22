@@ -8,8 +8,8 @@ import dev.sixik.unigui.api.render.plan.StyledRenderPlans;
 import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /** Declarative render-plan builder for Button visuals. */
@@ -21,7 +21,7 @@ public final class ButtonRenderPlans {
 
     public static RenderPlan defaultPlan(ButtonState state) {
         if (state == null) return RenderPlan.EMPTY;
-        List<RenderPrimitive> primitives = new ArrayList<>(3);
+        List<RenderPrimitive> primitives = new ObjectArrayList<>(3);
         addChrome(primitives, state);
         addDefaultText(primitives, state);
         return RenderPlan.of(primitives);
@@ -29,21 +29,21 @@ public final class ButtonRenderPlans {
 
     public static RenderPlan chromePlan(ButtonState state) {
         if (state == null) return RenderPlan.EMPTY;
-        List<RenderPrimitive> primitives = new ArrayList<>(2);
+        List<RenderPrimitive> primitives = new ObjectArrayList<>(2);
         addChrome(primitives, state);
         return RenderPlan.of(primitives);
     }
 
     public static RenderPlan textPlan(ButtonState state) {
         if (state == null || !state.hasText()) return RenderPlan.EMPTY;
-        List<RenderPrimitive> primitives = new ArrayList<>(1);
+        List<RenderPrimitive> primitives = new ObjectArrayList<>(1);
         addDefaultText(primitives, state);
         return RenderPlan.of(primitives);
     }
 
     public static RenderPlan checkboxPlan(ButtonState state) {
         if (state == null) return RenderPlan.EMPTY;
-        List<RenderPrimitive> primitives = new ArrayList<>(3);
+        List<RenderPrimitive> primitives = new ObjectArrayList<>(3);
         float labelGap = state.hasText() ? Math.max(0.0f, state.indicatorGap()) : 0.0f;
         float labelWidth = state.hasText()
                 ? Math.min(Math.max(0.0f, state.textWidth()), Math.max(0.0f, state.width() - state.indicatorSize() - labelGap))
@@ -79,7 +79,7 @@ public final class ButtonRenderPlans {
 
     public static RenderPlan radioButtonPlan(ButtonState state) {
         if (state == null) return RenderPlan.EMPTY;
-        List<RenderPrimitive> primitives = new ArrayList<>(3);
+        List<RenderPrimitive> primitives = new ObjectArrayList<>(3);
         float labelGap = state.hasText() ? Math.max(0.0f, state.indicatorGap()) : 0.0f;
         float labelWidth = state.hasText()
                 ? Math.min(Math.max(0.0f, state.textWidth()), Math.max(0.0f, state.width() - state.indicatorSize() - labelGap))
@@ -114,7 +114,7 @@ public final class ButtonRenderPlans {
         float thumbSize = Math.max(0.0f, state.indicatorInnerSize());
         if (trackWidth <= 0.0f || trackHeight <= 0.0f || thumbSize <= 0.0f) return RenderPlan.EMPTY;
 
-        List<RenderPrimitive> primitives = new ArrayList<>(3);
+        List<RenderPrimitive> primitives = new ObjectArrayList<>(3);
         float labelGap = state.hasText() ? Math.max(0.0f, state.indicatorGap()) : 0.0f;
         float labelWidth = state.hasText()
                 ? Math.min(Math.max(0.0f, state.textWidth()), Math.max(0.0f, state.width() - trackWidth - labelGap))

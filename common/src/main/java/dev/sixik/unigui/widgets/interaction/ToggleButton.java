@@ -138,7 +138,15 @@ public class ToggleButton extends Button {
                 0.0f,
                 0.0f,
                 checkedBackground.copy(),
-                uncheckedBackground.copy());
+                uncheckedBackground.copy(),
+                checked ? 1.0f : 0.0f,
+                false,
+                backgroundVisible(),
+                background().copy(),
+                radius(),
+                borderVisible(),
+                borderColor().copy(),
+                borderWidth());
     }
 
     @Override
