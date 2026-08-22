@@ -38,7 +38,6 @@ public final class DefaultTheme implements Theme {
     private DefaultTheme() {
         fallback = new MutableStyle()
                 .put(StyleKeys.BACKGROUND_COLOR, BG_1)
-                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.HOVERED, BG_2)
                 .put(StyleKeys.BACKGROUND_COLOR, WidgetState.DISABLED, BG_DISABLED)
                 .put(StyleKeys.BORDER_COLOR, BORDER)
                 .put(StyleKeys.BORDER_COLOR, WidgetState.FOCUSED, ACCENT)
@@ -57,8 +56,8 @@ public final class DefaultTheme implements Theme {
         register(StyleIds.Widget.BUTTON, controlStyle());
         register(StyleIds.Widget.TOGGLE_BUTTON, toggleStyle());
         register(StyleIds.Widget.TOGGLE_SWITCH, switchStyle());
-        register(StyleIds.Widget.CHECKBOX, toggleStyle());
-        register(StyleIds.Widget.RADIO_BUTTON, toggleStyle());
+        register(StyleIds.Widget.CHECKBOX, checkedControlStyle());
+        register(StyleIds.Widget.RADIO_BUTTON, checkedControlStyle());
         register(StyleIds.Widget.TEXT_INPUT, textInputStyle());
         register(StyleIds.Widget.TEXT_FIELD, textInputStyle());
         register(StyleIds.Widget.NUMBER_FIELD, textInputStyle());
@@ -113,6 +112,28 @@ public final class DefaultTheme implements Theme {
                 .put(StyleKeys.ACCENT_COLOR, ACCENT)
                 .put(StyleKeys.ACCENT_COLOR, WidgetState.HOVERED, ACCENT_HI)
                 .put(StyleKeys.ACCENT_COLOR, WidgetState.CHECKED, TEXT_ON_ACCENT)
+                .put(StyleKeys.RADIUS, RADIUS);
+    }
+
+    private static Style checkedControlStyle() {
+        return new MutableStyle()
+                .put(StyleKeys.BACKGROUND_COLOR, BG_2)
+                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.HOVERED, BG_2_HOVER)
+                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.PRESSED, ACCENT_DIM)
+                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.CHECKED, ACCENT)
+                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.DISABLED, BG_DISABLED)
+                .put(StyleKeys.BORDER_COLOR, BORDER_STRONG)
+                .put(StyleKeys.BORDER_COLOR, WidgetState.HOVERED, ACCENT)
+                .put(StyleKeys.BORDER_COLOR, WidgetState.CHECKED, ACCENT_HI)
+                .put(StyleKeys.BORDER_COLOR, WidgetState.DISABLED, color(0x25, 0x2A, 0x34, 205))
+                .put(StyleKeys.TEXT_COLOR, TEXT_HI)
+                .put(StyleKeys.TEXT_COLOR, WidgetState.HOVERED, TEXT_HI)
+                .put(StyleKeys.TEXT_COLOR, WidgetState.CHECKED, TEXT_HI)
+                .put(StyleKeys.TEXT_COLOR, WidgetState.DISABLED, TEXT_LO)
+                .put(StyleKeys.ACCENT_COLOR, ACCENT)
+                .put(StyleKeys.ACCENT_COLOR, WidgetState.HOVERED, ACCENT_HI)
+                .put(StyleKeys.ACCENT_COLOR, WidgetState.CHECKED, ACCENT)
+                .put(StyleKeys.ACCENT_COLOR, WidgetState.DISABLED, ACCENT_DIM)
                 .put(StyleKeys.RADIUS, RADIUS);
     }
 

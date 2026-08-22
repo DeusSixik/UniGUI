@@ -15,6 +15,7 @@ import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.render.TextInputRenderer;
 import dev.sixik.unigui.widgets.render.TextInputRenderType;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
@@ -153,7 +154,7 @@ public class SearchField extends TextInput {
 
     @Override
     protected float clearButtonY() {
-        return layoutBounds().y() + 4.0f;
+        return textContentY(clearButtonHeight());
     }
 
     @Override
@@ -163,7 +164,7 @@ public class SearchField extends TextInput {
 
     @Override
     protected float clearButtonHeight() {
-        return Math.max(1.0f, layoutBounds().height() - 8.0f);
+        return TextEngine.LINE_HEIGHT;
     }
 
     private void scheduleSearchChanged(String query) {

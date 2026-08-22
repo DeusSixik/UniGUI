@@ -93,6 +93,7 @@ public class Button extends Box {
     private RichText richText = RichText.plain("");
     private final MutableColor textColor = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private ButtonRenderer renderer;
+    private int pressedPointerId = -1;
     private float textPaddingX = DEFAULT_TEXT_PADDING_X;
     private float textPaddingY = DEFAULT_TEXT_PADDING_Y;
     private boolean pressed;
@@ -296,19 +297,30 @@ public class Button extends Box {
         if (hoverChanged) {
             applyInteractionTransition();
         }
-        if (event.isCancelled()) return;
         if (event instanceof PointerEvent pointerEvent && pointerEvent.phase() == EventPhase.CAPTURE) return;
 
-        if (event instanceof PointerPressedEvent pointer && pointer.button() == PointerButton.PRIMARY) {
-            setPressed(true);
-            event.cancel();
-        } else if (event instanceof PointerReleasedEvent pointer && pointer.button() == PointerButton.PRIMARY) {
+        if (event instanceof PointerReleasedEvent pointer && pointer.button() == PointerButton.PRIMARY && ownsPressedPointer(pointer)) {
             boolean wasPressed = pressed;
-            setPressed(false);
-            if (wasPressed) {
+            boolean releasedInside = pointerInside(pointer);
+            releasePressedPointer(pointer.pointerId());
+            if (wasPressed && releasedInside && !event.isCancelled()) {
                 click();
+            }
+            if (wasPressed) {
                 event.cancel();
             }
+            return;
+        }
+
+        if (event instanceof PointerExitedEvent pointer && ownsPressedPointer(pointer)) {
+            releasePressedPointer(pointer.pointerId());
+        }
+
+        if (event.isCancelled()) return;
+
+        if (event instanceof PointerPressedEvent pointer && pointer.button() == PointerButton.PRIMARY) {
+            pressPointer(pointer.pointerId());
+            event.cancel();
         }
     }
 
@@ -401,6 +413,36 @@ public class Button extends Box {
         this.pressed = pressed;
         invalidate(InvalidationFlags.VISUAL);
         applyInteractionTransition();
+    }
+
+    private void pressPointer(int pointerId) {
+        pressedPointerId = pointerId;
+        UIContext context = uiContext();
+        if (context != null) {
+            context.capturePointer(pointerId, this);
+        }
+        setPressed(true);
+    }
+
+    private void releasePressedPointer(int pointerId) {
+        UIContext context = uiContext();
+        if (context != null) {
+            context.releasePointer(pointerId, this);
+        }
+        pressedPointerId = -1;
+        setPressed(false);
+    }
+
+    private boolean ownsPressedPointer(PointerEvent pointer) {
+        return pressed && pointer != null && (pressedPointerId < 0 || pressedPointerId == pointer.pointerId());
+    }
+
+    private boolean pointerInside(PointerEvent pointer) {
+        if (pointer == null) return false;
+        return pointer.localX() >= 0.0f
+                && pointer.localY() >= 0.0f
+                && pointer.localX() <= layoutBounds().width()
+                && pointer.localY() <= layoutBounds().height();
     }
 
     private void applyInteractionTransition() {

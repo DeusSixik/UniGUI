@@ -396,17 +396,19 @@ public class TextInput extends Box {
         ensureCursorVisible(context, visibleText);
 
         float viewportX = textViewportX();
-        float viewportY = layoutBounds().y() + 3.0f;
+        float viewportY = textViewportY();
         float viewportWidth = textViewportWidth();
-        float viewportHeight = Math.max(1.0f, layoutBounds().height() - 6.0f);
-        float textY = layoutBounds().y() + 4.0f;
+        float viewportHeight = textViewportHeight();
+        float textHeight = textLineHeight(visibleText);
+        float textY = textContentY(textHeight);
         TextInputState state = textInputState(
                 visibleText,
                 viewportX,
                 viewportY,
                 viewportWidth,
                 viewportHeight,
-                textY);
+                textY,
+                textHeight);
         DrawScope draw = new DrawScope(context, transform(), layoutBounds());
         if (renderer != null) {
             renderer.render(draw, state);
@@ -426,7 +428,8 @@ public class TextInput extends Box {
                                             float viewportY,
                                             float viewportWidth,
                                             float viewportHeight,
-                                            float textY) {
+                                            float textY,
+                                            float textHeight) {
         return new TextInputState(
                 renderType(),
                 layoutBounds().x(),
@@ -444,7 +447,7 @@ public class TextInput extends Box {
                 viewportWidth,
                 viewportHeight,
                 textY,
-                Math.max(0.0f, layoutBounds().height() - 8.0f),
+                textHeight,
                 horizontalScrollPixels,
                 measuredTextWidth(),
                 visibleText,
@@ -520,6 +523,29 @@ public class TextInput extends Box {
 
     protected float textViewportWidth() {
         return Math.max(0.0f, layoutBounds().width() - leftTextPadding() - rightTextPadding());
+    }
+
+    protected float textViewportY() {
+        return layoutBounds().y() + textVerticalInset();
+    }
+
+    protected float textViewportHeight() {
+        float inset = textVerticalInset();
+        return Math.max(1.0f, layoutBounds().height() - inset * 2.0f);
+    }
+
+    protected float textLineHeight(String visibleText) {
+        RichText line = richText(visibleText);
+        float measured = TextEngine.measureTextHeight(line);
+        return measured > 0.0f ? Math.max(TextEngine.LINE_HEIGHT, measured) : TextEngine.LINE_HEIGHT;
+    }
+
+    protected float textContentY(float contentHeight) {
+        return textViewportY() + (textViewportHeight() - Math.max(0.0f, contentHeight)) * 0.5f;
+    }
+
+    protected float textVerticalInset() {
+        return Math.min(3.0f, Math.max(0.0f, layoutBounds().height() * 0.5f));
     }
 
     private void updateMeasuredPrefixWidths(RenderContext context, String displayText) {
