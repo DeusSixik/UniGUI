@@ -1,6 +1,7 @@
 package dev.sixik.unigui.widgets.interaction;
 
 import dev.sixik.unigui.api.input.TextEditorModel;
+import dev.sixik.unigui.api.text.RichText;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 
 import java.util.ArrayList;
@@ -217,7 +218,7 @@ public final class AdminCommandRegistry {
         List<AdminConsole.CompletionItem> result = new ArrayList<>();
         for (Suggestion suggestion : suggestions) {
             if (suggestion == null || suggestion.insertText().isEmpty()) continue;
-            if (!matchesPrefix(request.prefix(), suggestion.insertText(), suggestion.displayText())) continue;
+            if (!matchesPrefix(request.prefix(), suggestion.insertText(), suggestion.displayPlainText())) continue;
             String replacement = suggestion.insertText();
             if (suggestion.appendSpace() && !replacement.endsWith(" ")) {
                 replacement += " ";
@@ -225,7 +226,7 @@ public final class AdminCommandRegistry {
             result.add(AdminConsole.CompletionItem.replace(
                     replacement,
                     suggestion.displayText(),
-                    suggestion.description().isEmpty() ? argument.description() : suggestion.description(),
+                    suggestion.description().isEmpty() ? RichText.resolve(argument.description()) : suggestion.description(),
                     request.replaceStart(),
                     request.replaceEnd()));
         }
@@ -260,7 +261,7 @@ public final class AdminCommandRegistry {
         for (Suggestion suggestion : suggestions) {
             if (suggestion == null) continue;
             if (normalize(suggestion.insertText(), "").trim().equalsIgnoreCase(normalized)) return true;
-            if (normalize(suggestion.displayText(), "").trim().equalsIgnoreCase(normalized)) return true;
+            if (normalize(suggestion.displayPlainText(), "").trim().equalsIgnoreCase(normalized)) return true;
         }
         return false;
     }
@@ -360,6 +361,10 @@ public final class AdminCommandRegistry {
 
     private static String normalize(String value, String fallback) {
         return value == null ? fallback : value;
+    }
+
+    private static RichText richText(String value) {
+        return RichText.resolve(normalize(value, ""));
     }
 
     /**
@@ -565,15 +570,27 @@ public final class AdminCommandRegistry {
      * Одна подсказка значения аргумента.
      *
      * @param insertText текст, который будет вставлен
-     * @param displayText текст, который увидит пользователь
-     * @param description описание подсказки
+     * @param displayText rich text, который увидит пользователь
+     * @param description rich text с описанием подсказки
      * @param appendSpace {@code true}, если после вставки нужно добавить пробел для перехода к следующему аргументу
      */
-    public record Suggestion(String insertText, String displayText, String description, boolean appendSpace) {
+    public record Suggestion(String insertText, RichText displayText, RichText description, boolean appendSpace) {
+        public Suggestion(String insertText, String displayText, String description, boolean appendSpace) {
+            this(insertText, RichText.resolve(normalize(displayText, insertText)), richText(description), appendSpace);
+        }
+
         public Suggestion {
             insertText = normalize(insertText, "");
-            displayText = normalize(displayText, insertText);
-            description = normalize(description, "");
+            displayText = displayText == null ? RichText.resolve(insertText) : displayText;
+            description = description == null ? RichText.plain("") : description;
+        }
+
+        public String displayPlainText() {
+            return displayText.plainText();
+        }
+
+        public String descriptionPlainText() {
+            return description.plainText();
         }
 
         /**
@@ -597,6 +614,10 @@ public final class AdminCommandRegistry {
             return new Suggestion(value, value, description, true);
         }
 
+        public static Suggestion value(String value, RichText description) {
+            return new Suggestion(value, RichText.resolve(normalize(value, "")), description, true);
+        }
+
         /**
          * Создаёт raw-подсказку без автоматического пробела после вставки.
          *
@@ -606,6 +627,10 @@ public final class AdminCommandRegistry {
          * @return подсказка без автоматического пробела
          */
         public static Suggestion raw(String insertText, String displayText, String description) {
+            return new Suggestion(insertText, displayText, description, false);
+        }
+
+        public static Suggestion raw(String insertText, RichText displayText, RichText description) {
             return new Suggestion(insertText, displayText, description, false);
         }
     }

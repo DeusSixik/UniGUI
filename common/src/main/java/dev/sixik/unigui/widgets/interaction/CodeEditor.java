@@ -831,9 +831,11 @@ public class CodeEditor extends TextArea {
         completionList.invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
     }
 
-    private String completionLabel(CompletionItem item) {
+    private RichText completionLabel(CompletionItem item) {
         if (item.detail().isEmpty()) return item.label();
-        return item.label() + "  " + item.detail();
+        return item.label()
+                .append(RichText.plain("  "))
+                .append(item.detail());
     }
 
     private float completionPopupWidth() {

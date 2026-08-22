@@ -28,6 +28,7 @@ import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.Fonts;
+import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
@@ -38,6 +39,8 @@ import dev.sixik.unigui.widgets.containers.ScrollView;
 import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.feedback.Popup;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectList;
 
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -97,10 +100,10 @@ public class AdminConsole extends Box {
     protected static final MutableColor COLOR_COMPLETION_PRESSED = MutableColor.rgba(0.115f, 0.150f, 0.185f, 0.96f);
 
     protected final AdminCommandRegistry commandRegistry = new AdminCommandRegistry();
-    protected final List<ConsoleLine> lines = new ArrayList<>();
-    protected final List<String> history = new ArrayList<>();
-    protected final List<CompletionItem> completions = new ArrayList<>();
-    protected final List<CompletionRow> completionRows = new ArrayList<>();
+    protected final ObjectList<ConsoleLine> lines = new ObjectArrayList<>();
+    protected final ObjectList<String> history = new ObjectArrayList<>();
+    protected final ObjectList<CompletionItem> completions = new ObjectArrayList<>();
+    protected final ObjectList<CompletionRow> completionRows = new ObjectArrayList<>();
     protected final VBox body = new VBox();
     protected HBox header;
     protected HBox inputRow;
@@ -120,6 +123,8 @@ public class AdminConsole extends Box {
     protected FontFace font = Fonts.defaultFace();
     protected String prompt = ">";
     protected String title = "Admin Console";
+    protected RichText promptRichText = RichText.resolve(prompt);
+    protected RichText titleRichText = RichText.resolve(title);
     protected float fontSize = 11.0f;
     protected int maxOutputLines = DEFAULT_MAX_OUTPUT_LINES;
     protected int historyIndex = -1;
@@ -251,7 +256,15 @@ public class AdminConsole extends Box {
      */
     public AdminConsole title(String title) {
         this.title = normalize(title, "Admin Console");
-        titleLabel.text(this.title);
+        this.titleRichText = RichText.resolve(this.title);
+        titleLabel.richText(this.titleRichText);
+        return this;
+    }
+
+    public AdminConsole title(RichText title) {
+        this.titleRichText = title == null ? RichText.resolve("Admin Console") : title;
+        this.title = this.titleRichText.plainText();
+        titleLabel.richText(this.titleRichText);
         return this;
     }
 
@@ -263,7 +276,15 @@ public class AdminConsole extends Box {
      */
     public AdminConsole prompt(String prompt) {
         this.prompt = normalize(prompt, ">");
-        promptLabel.text(this.prompt);
+        this.promptRichText = RichText.resolve(this.prompt);
+        promptLabel.richText(this.promptRichText);
+        return this;
+    }
+
+    public AdminConsole prompt(RichText prompt) {
+        this.promptRichText = prompt == null ? RichText.resolve(">") : prompt;
+        this.prompt = this.promptRichText.plainText();
+        promptLabel.richText(this.promptRichText);
         return this;
     }
 
@@ -403,6 +424,10 @@ public class AdminConsole extends Box {
         return appendOutput(text, LineKind.OUTPUT);
     }
 
+    public AdminConsole appendOutput(RichText text) {
+        return appendOutput(text, LineKind.OUTPUT);
+    }
+
     /**
      * Добавляет информационную строку вывода.
      *
@@ -410,6 +435,10 @@ public class AdminConsole extends Box {
      * @return эта консоль для fluent-настройки
      */
     public AdminConsole appendInfo(String text) {
+        return appendOutput(text, LineKind.INFO);
+    }
+
+    public AdminConsole appendInfo(RichText text) {
         return appendOutput(text, LineKind.INFO);
     }
 
@@ -423,6 +452,10 @@ public class AdminConsole extends Box {
         return appendOutput(text, LineKind.WARNING);
     }
 
+    public AdminConsole appendWarning(RichText text) {
+        return appendOutput(text, LineKind.WARNING);
+    }
+
     /**
      * Добавляет ошибку в вывод консоли.
      *
@@ -430,6 +463,10 @@ public class AdminConsole extends Box {
      * @return эта консоль для fluent-настройки
      */
     public AdminConsole appendError(String text) {
+        return appendOutput(text, LineKind.ERROR);
+    }
+
+    public AdminConsole appendError(RichText text) {
         return appendOutput(text, LineKind.ERROR);
     }
 
@@ -445,10 +482,18 @@ public class AdminConsole extends Box {
     public AdminConsole appendOutput(String text, LineKind kind) {
         String value = normalize(text, "");
         if (value.indexOf('\n') >= 0) {
-            for (String line : value.split("\\R", -1)) appendSingleLine(line, kind);
+            for (String line : value.split("\\R", -1)) appendSingleLine(RichText.resolve(line), kind);
         } else {
-            appendSingleLine(value, kind);
+            appendSingleLine(RichText.resolve(value), kind);
         }
+        trimOutput();
+        rebuildOutputRows();
+        pendingOutputScrollToEnd = true;
+        return this;
+    }
+
+    public AdminConsole appendOutput(RichText text, LineKind kind) {
+        appendSingleLine(normalizeRichText(text), kind);
         trimOutput();
         rebuildOutputRows();
         pendingOutputScrollToEnd = true;
@@ -610,7 +655,7 @@ public class AdminConsole extends Box {
      * @param titleLabel label, отображающий {@link #title}
      */
     protected void configureTitleLabel(Label titleLabel) {
-        titleLabel.text(title);
+        titleLabel.richText(titleRichText);
         titleLabel.font(font, fontSize + 1.0f);
         titleLabel.color(COLOR_TEXT);
         titleLabel.layout(style -> style.height(24.0f).flexGrow(1.0f).flexShrink(1.0f));
@@ -737,7 +782,7 @@ public class AdminConsole extends Box {
      * @param promptLabel label prompt'а
      */
     protected void configurePromptLabel(Label promptLabel) {
-        promptLabel.text(prompt);
+        promptLabel.richText(promptRichText);
         promptLabel.focusTarget(inputField);
         promptLabel.font(font, fontSize);
         promptLabel.color(COLOR_ACCENT);
@@ -1036,6 +1081,10 @@ public class AdminConsole extends Box {
     }
 
     protected void appendSingleLine(String text, LineKind kind) {
+        appendSingleLine(RichText.resolve(normalize(text, "")), kind);
+    }
+
+    protected void appendSingleLine(RichText text, LineKind kind) {
         lines.add(new ConsoleLine(text, kind == null ? LineKind.OUTPUT : kind));
     }
 
@@ -1114,7 +1163,7 @@ public class AdminConsole extends Box {
      * @return созданное событие выбора подсказки
      */
     protected AdminConsoleCompletionSelectedEvent completionSelected(CompletionItem item) {
-        AdminConsoleCompletionSelectedEvent event = new AdminConsoleCompletionSelectedEvent(this, item.insertText(), item.displayText(), item.description(), item.replacementStart(), item.replacementEnd());
+        AdminConsoleCompletionSelectedEvent event = new AdminConsoleCompletionSelectedEvent(this, item.insertText(), item.displayPlainText(), item.descriptionPlainText(), item.replacementStart(), item.replacementEnd());
         UIContext context = uiContext();
         if (context == null) emit(event);
         else context.routedEvents().dispatch(event);
@@ -1126,8 +1175,8 @@ public class AdminConsole extends Box {
     }
 
     protected static String completionRowText(CompletionItem item) {
-        String display = normalize(item.displayText(), item.insertText());
-        String description = normalize(item.description(), "").trim();
+        String display = normalize(item.displayPlainText(), item.insertText());
+        String description = normalize(item.descriptionPlainText(), "").trim();
         return description.isEmpty() ? display : display + "  -  " + description;
     }
 
@@ -1139,6 +1188,10 @@ public class AdminConsole extends Box {
 
     protected static String normalize(String value, String fallback) {
         return value == null ? fallback : value;
+    }
+
+    protected static RichText normalizeRichText(RichText value) {
+        return value == null ? RichText.plain("") : value;
     }
 
     /**
@@ -1168,34 +1221,46 @@ public class AdminConsole extends Box {
      * Один элемент автодополнения.
      *
      * @param insertText текст, который будет вставлен в input-поле
-     * @param displayText текст, который отображается пользователю в списке подсказок
-     * @param description дополнительное описание подсказки
+     * @param displayText rich text, который отображается пользователю в списке подсказок
+     * @param description rich text с дополнительным описанием подсказки
      * @param replacementStart начало заменяемого диапазона в input-тексте
      * @param replacementEnd конец заменяемого диапазона в input-тексте или {@link Integer#MAX_VALUE} для конца строки
      */
-    public record CompletionItem(String insertText, String displayText, String description, int replacementStart,
+    public record CompletionItem(String insertText, RichText displayText, RichText description, int replacementStart,
                                  int replacementEnd) {
         /**
-         * Создаёт подсказку, которая заменяет всю строку ввода.
+         * Создаёт plain-подсказку, которая заменяет всю строку ввода.
          *
          * @param insertText текст вставки
          * @param displayText видимый текст подсказки
          * @param description описание подсказки
          */
         public CompletionItem(String insertText, String displayText, String description) {
+            this(insertText, RichText.resolve(normalize(displayText, insertText)), RichText.resolve(normalize(description, "")), 0, Integer.MAX_VALUE);
+        }
+
+        public CompletionItem(String insertText, RichText displayText, RichText description) {
             this(insertText, displayText, description, 0, Integer.MAX_VALUE);
         }
 
         public CompletionItem {
             insertText = normalize(insertText, "");
-            displayText = normalize(displayText, insertText);
-            description = normalize(description, "");
+            displayText = displayText == null ? RichText.resolve(insertText) : displayText;
+            description = normalizeRichText(description);
             replacementStart = Math.max(0, replacementStart);
             replacementEnd = replacementEnd == Integer.MAX_VALUE ? Integer.MAX_VALUE : Math.max(replacementStart, replacementEnd);
         }
 
+        public String displayPlainText() {
+            return displayText.plainText();
+        }
+
+        public String descriptionPlainText() {
+            return description.plainText();
+        }
+
         /**
-         * Создаёт подсказку, которая заменяет конкретный диапазон input-текста.
+         * Создаёт plain-подсказку, которая заменяет конкретный диапазон input-текста.
          *
          * @param insertText текст вставки
          * @param displayText видимый текст подсказки
@@ -1205,6 +1270,10 @@ public class AdminConsole extends Box {
          * @return новый элемент автодополнения
          */
         public static CompletionItem replace(String insertText, String displayText, String description, int replacementStart, int replacementEnd) {
+            return replace(insertText, RichText.resolve(normalize(displayText, insertText)), RichText.resolve(normalize(description, "")), replacementStart, replacementEnd);
+        }
+
+        public static CompletionItem replace(String insertText, RichText displayText, RichText description, int replacementStart, int replacementEnd) {
             return new CompletionItem(insertText, displayText, description, replacementStart, replacementEnd);
         }
     }
@@ -1276,9 +1345,9 @@ public class AdminConsole extends Box {
      * @param text текст строки
      * @param kind тип строки
      */
-    protected record ConsoleLine(String text, LineKind kind) {
+    protected record ConsoleLine(RichText text, LineKind kind) {
         protected ConsoleLine {
-            text = normalize(text, "");
+            text = normalizeRichText(text);
             kind = kind == null ? LineKind.OUTPUT : kind;
         }
     }
@@ -1322,13 +1391,13 @@ public class AdminConsole extends Box {
             content.spacing(8.0f);
             content.layout(style -> style.height(LayoutConstraints.AUTO).alignItems(Align.CENTER));
 
-            displayLabel.text(normalize(item.displayText(), item.insertText()));
+            displayLabel.richText(item.displayText().isEmpty() ? RichText.resolve(item.insertText()) : item.displayText());
             displayLabel.font(owner.font, owner.fontSize);
             displayLabel.noWrap();
             displayLabel.overflowMode(TextOverflowMode.CLIP);
             displayLabel.layout(style -> style.width(132.0f).height(COMPLETION_ROW_HEIGHT - 4.0f).flexGrow(0.0f).flexShrink(0.0f));
 
-            descriptionLabel.text(normalize(item.description(), ""));
+            descriptionLabel.richText(item.description());
             descriptionLabel.font(owner.font, owner.fontSize);
             descriptionLabel.noWrap();
             descriptionLabel.marqueeOnHover();
