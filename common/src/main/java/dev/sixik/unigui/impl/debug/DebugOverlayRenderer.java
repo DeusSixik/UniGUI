@@ -211,8 +211,8 @@ public final class DebugOverlayRenderer {
 
         float budgetY = graphYForMillis(FRAME_BUDGET_60_FPS_MS, graphY, graphHeight, maxMillis);
         if (budgetY >= graphY && budgetY <= graphY + graphHeight) {
-            drawLine(context, position, scale, graphX, budgetY, graphX + graphWidth, budgetY,
-                    Paint.stroke(GRAPH_BUDGET, 1.0f).dash(4.0f, 4.0f));
+            drawDashedHorizontalLine(context, position, scale, graphX, budgetY, graphX + graphWidth,
+                    Paint.stroke(GRAPH_BUDGET, 1.0f), 4.0f, 4.0f);
             text(context, "16.67", graphX + graphWidth - 34.0f, budgetY - 9.0f, 34.0f, 9.0f,
                     position, scale, GRAPH_BUDGET);
         }
@@ -294,6 +294,21 @@ public final class DebugOverlayRenderer {
     private static void drawLine(RenderContext context, Position position, float scale,
                                  float x1, float y1, float x2, float y2, Paint paint) {
         context.line(x1, y1, x2, y2, paint, transform(position.x, position.y, x1, y1, scale));
+    }
+
+    private static void drawDashedHorizontalLine(RenderContext context, Position position, float scale,
+                                                 float x1, float y, float x2, Paint paint,
+                                                 float dashLength, float gapLength) {
+        float start = Math.min(x1, x2);
+        float end = Math.max(x1, x2);
+        float dash = Math.max(0.5f, dashLength);
+        float gap = Math.max(0.0f, gapLength);
+        for (float x = start; x < end; x += dash + gap) {
+            float dashEnd = Math.min(x + dash, end);
+            if (dashEnd > x) {
+                drawLine(context, position, scale, x, y, dashEnd, y, paint);
+            }
+        }
     }
 
     private static Transform transform(float x, float y, float localX, float localY, float scale) {
