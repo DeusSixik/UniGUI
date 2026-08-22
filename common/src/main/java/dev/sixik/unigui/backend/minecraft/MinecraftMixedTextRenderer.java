@@ -29,7 +29,7 @@ import java.util.List;
 
 /** Preserves rich-text ordering when Minecraft and SDF faces share one text command. */
 final class MinecraftMixedTextRenderer {
-    private static final float VANILLA_BASE_SIZE = 9.0f;
+    private static final float VANILLA_BASE_SIZE = TextRun.DEFAULT_PIXEL_SIZE;
     private static final float PIXEL_SNAP_MAX_SIZE = 18.0f;
     private static final float MATRIX_EPSILON = 0.0001f;
     /**

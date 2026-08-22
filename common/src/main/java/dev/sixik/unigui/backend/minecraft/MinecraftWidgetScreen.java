@@ -37,6 +37,7 @@ import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.TransformLayer;
 import dev.sixik.unigui.api.render.UiRenderPolicy;
 import dev.sixik.unigui.api.render.VectorPath;
+import dev.sixik.unigui.api.text.Fonts;
 import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextRun;
@@ -229,6 +230,14 @@ public class MinecraftWidgetScreen extends Screen {
         this.defaultFont = defaultFont == null ? MinecraftFonts.defaultFace() : defaultFont;
         if (backend != null) backend.defaultFont(this.defaultFont);
         return this;
+    }
+
+    public MinecraftWidgetScreen useSdfDefaultFont() {
+        return defaultFont(Fonts.defaultFace());
+    }
+
+    public MinecraftWidgetScreen useVanillaDefaultFont() {
+        return defaultFont(MinecraftFonts.defaultFace());
     }
 
     public UiRenderPolicy renderPolicy() {

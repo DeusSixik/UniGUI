@@ -157,6 +157,10 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         return defaultFont(MinecraftFonts.defaultFace());
     }
 
+    public MinecraftGuiRenderBackend useSdfDefaultFont() {
+        return defaultFont(DefaultFontRegistry.global().defaultFace());
+    }
+
     public void renderItemPreview(ItemStack stack, float x, float y, float size, float opacity, boolean decorations) {
         if (stack == null || stack.isEmpty() || size <= 0.0f) return;
         if (!decorations) {
@@ -875,10 +879,10 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
     private void applyRenderTargetScissor(ScissorStack.Rect rect) {
         int targetWidth = activeRenderTarget.width();
         int targetHeight = activeRenderTarget.height();
-        int x1 = Math.max(0, Math.min(targetWidth, Math.round(rect.x1() * activeRenderTargetScaleX)));
-        int y1 = Math.max(0, Math.min(targetHeight, Math.round(rect.y1() * activeRenderTargetScaleY)));
-        int x2 = Math.max(x1, Math.min(targetWidth, Math.round(rect.x2() * activeRenderTargetScaleX)));
-        int y2 = Math.max(y1, Math.min(targetHeight, Math.round(rect.y2() * activeRenderTargetScaleY)));
+        int x1 = Math.max(0, Math.min(targetWidth, (int) Math.floor(rect.x1() * activeRenderTargetScaleX)));
+        int y1 = Math.max(0, Math.min(targetHeight, (int) Math.floor(rect.y1() * activeRenderTargetScaleY)));
+        int x2 = Math.max(x1, Math.min(targetWidth, (int) Math.ceil(rect.x2() * activeRenderTargetScaleX)));
+        int y2 = Math.max(y1, Math.min(targetHeight, (int) Math.ceil(rect.y2() * activeRenderTargetScaleY)));
 
         graphics.flush();
         RenderSystem.enableScissor(x1, targetHeight - y2, x2 - x1, y2 - y1);

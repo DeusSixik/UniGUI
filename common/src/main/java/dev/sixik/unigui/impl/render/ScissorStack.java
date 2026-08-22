@@ -45,11 +45,11 @@ public final class ScissorStack {
 
     public record Rect(int x1, int y1, int x2, int y2) {
         public static Rect from(RectView bounds) {
-            int x1 = round(Math.min(bounds.x(), bounds.x() + bounds.width()));
-            int y1 = round(Math.min(bounds.y(), bounds.y() + bounds.height()));
-            int x2 = round(Math.max(bounds.x(), bounds.x() + bounds.width()));
-            int y2 = round(Math.max(bounds.y(), bounds.y() + bounds.height()));
-            return new Rect(x1, y1, x2, y2);
+            float minX = Math.min(bounds.x(), bounds.x() + bounds.width());
+            float minY = Math.min(bounds.y(), bounds.y() + bounds.height());
+            float maxX = Math.max(bounds.x(), bounds.x() + bounds.width());
+            float maxY = Math.max(bounds.y(), bounds.y() + bounds.height());
+            return new Rect(floor(minX), floor(minY), ceil(maxX), ceil(maxY));
         }
 
         public Rect intersect(Rect other) {
@@ -62,8 +62,12 @@ public final class ScissorStack {
                     Math.max(iy1, Math.min(y2, other.y2)));
         }
 
-        private static int round(float value) {
-            return Math.round(value);
+        private static int floor(float value) {
+            return (int) Math.floor(value);
+        }
+
+        private static int ceil(float value) {
+            return (int) Math.ceil(value);
         }
     }
 }
