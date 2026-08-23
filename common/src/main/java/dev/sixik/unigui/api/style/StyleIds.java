@@ -69,6 +69,7 @@ public final class StyleIds {
         public static final String OVERLAY_LAYER = "OverlayLayer";
         public static final String PAGE_VIEW = "PageView";
         public static final String PANEL_WIDGET = "PanelWidget";
+        public static final String POST_PROCESSING_LAYER = "PostProcessingLayer";
         public static final String PASSWORD_FIELD = "PasswordField";
         public static final String PATH = "Path";
         public static final String POPUP = "Popup";

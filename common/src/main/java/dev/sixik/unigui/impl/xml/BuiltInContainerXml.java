@@ -12,6 +12,7 @@ import dev.sixik.unigui.widgets.containers.StackPanel;
 import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.containers.WrapPanel;
 import dev.sixik.unigui.widgets.core.Orientation;
+import dev.sixik.unigui.widgets.effects.PostProcessingLayer;
 
 final class BuiltInContainerXml {
     private BuiltInContainerXml() {
@@ -23,6 +24,7 @@ final class BuiltInContainerXml {
         panel(linear(registry.register("VBox", VBox::new)));
         panel(linear(registry.register("HBox", HBox::new)));
         panel(registry.register("StackPanel", StackPanel::new));
+        postProcessingLayer(panel(registry.register("PostProcessingLayer", PostProcessingLayer::new)));
         panel(wrapPanel(registry.register("WrapPanel", WrapPanel::new)));
         scrollView(registry.register("ScrollView", ScrollView::new));
         BuiltInWidgetXmlSupport.annotated(panel(registry.register("GridBox", GridBox::new)), GridBox.class);
@@ -40,6 +42,10 @@ final class BuiltInContainerXml {
                         XmlPropertyChildDescriptor.of("Children")
                                 .category("Content")
                                 .description("Child widgets hosted by this container."));
+    }
+
+    private static WidgetXmlType<PostProcessingLayer> postProcessingLayer(WidgetXmlType<PostProcessingLayer> type) {
+        return BuiltInWidgetXmlSupport.annotated(type, PostProcessingLayer.class);
     }
 
     private static WidgetXmlType<ScrollView> scrollView(WidgetXmlType<ScrollView> type) {
