@@ -8,6 +8,7 @@ import dev.sixik.unigui.api.core.UIScaleProvider;
 import dev.sixik.unigui.api.debug.DebugFlags;
 import dev.sixik.unigui.api.debug.ProfileScope;
 import dev.sixik.unigui.api.event.KeyPressedEvent;
+import dev.sixik.unigui.api.event.KeyReleasedEvent;
 import dev.sixik.unigui.api.event.PointerMovedEvent;
 import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.event.PointerReleasedEvent;
@@ -378,6 +379,7 @@ public class MinecraftWidgetScreen extends Screen {
             backend.endFrame();
         }
         lastFrameTotalMillis = (System.nanoTime() - uiCpuStartNanos) / 1_000_000.0f;
+        uiContext.keyboard().endFrame();
         frameIndex++;
     }
 
@@ -547,6 +549,7 @@ public class MinecraftWidgetScreen extends Screen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        uiContext.keyboard().press(keyCode);
         if (keyCode == KeyCodes.TAB) {
             Widget focused = uiContext.focusManager().focusedWidget();
             if (focused != null && uiContext.routedEvents().dispatch(new KeyPressedEvent(focused, keyCode, scanCode, modifiers))) {
@@ -579,6 +582,15 @@ public class MinecraftWidgetScreen extends Screen {
     }
 
     @Override
+    public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
+        uiContext.keyboard().release(keyCode);
+        Widget focused = uiContext.focusManager().focusedWidget();
+        if (focused == null) {
+            return super.keyReleased(keyCode, scanCode, modifiers);
+        }
+        return uiContext.routedEvents().dispatch(new KeyReleasedEvent(focused, keyCode, scanCode, modifiers));
+    }
+    @Override
     public boolean charTyped(char codePoint, int modifiers) {
         Widget focused = uiContext.focusManager().focusedWidget();
         if (focused == null) {
@@ -593,6 +605,7 @@ public class MinecraftWidgetScreen extends Screen {
         releaseMouseCursors();
         uiContext.hoverManager().clearHover();
         uiContext.focusManager().clearFocus();
+        uiContext.keyboard().clear();
         uiContext.clearPointerCapture(0);
         if (backend != null) {
             backend.close();

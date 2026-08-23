@@ -12,6 +12,7 @@ import dev.sixik.unigui.api.input.ClipboardService;
 import dev.sixik.unigui.api.input.FocusManager;
 import dev.sixik.unigui.api.input.HitTester;
 import dev.sixik.unigui.api.input.HoverManager;
+import dev.sixik.unigui.api.input.KeyboardState;
 import dev.sixik.unigui.api.style.Theme;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.impl.debug.FrameDebugCounters;
@@ -35,6 +36,7 @@ public final class DefaultUIContext implements UIContext {
     private final HitTester hitTester;
     private final FocusManager focusManager;
     private final HoverManager hoverManager;
+    private final KeyboardState keyboard = new KeyboardState();
     private final ClipboardService clipboard;
     private Theme theme;
     private long styleVersion;
@@ -86,6 +88,11 @@ public final class DefaultUIContext implements UIContext {
         this.theme = theme == null ? Theme.EMPTY : theme;
         this.profiler = profiler == null ? UiProfiler.NOOP : profiler;
         this.debugCounters = debugCounters == null ? UiDebugCounters.NOOP : debugCounters;
+    }
+
+    @Override
+    public KeyboardState keyboard() {
+        return keyboard;
     }
 
     @Override

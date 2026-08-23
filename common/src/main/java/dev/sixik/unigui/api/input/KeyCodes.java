@@ -6,7 +6,9 @@ public final class KeyCodes {
     public static final int ESCAPE = 256;
     public static final int SPACE = 32;
     public static final int A = 65;
+    public static final int S = 83;
     public static final int C = 67;
+    public static final int D = 68;
     public static final int V = 86;
     public static final int W = 87;
     public static final int X = 88;

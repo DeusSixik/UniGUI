@@ -9,6 +9,7 @@ import dev.sixik.unigui.api.input.ClipboardService;
 import dev.sixik.unigui.api.input.FocusManager;
 import dev.sixik.unigui.api.input.HitTester;
 import dev.sixik.unigui.api.input.HoverManager;
+import dev.sixik.unigui.api.input.KeyboardState;
 import dev.sixik.unigui.api.style.Theme;
 import dev.sixik.unigui.api.widget.Widget;
 
@@ -27,6 +28,19 @@ import dev.sixik.unigui.api.widget.Widget;
  * @see Widget#uiContext()
  */
 public interface UIContext {
+    /**
+     * Возвращает состояние клавиатуры этого UI context'а.
+     *
+     * <p>Виджеты, которым нужно игровое управление или polling удерживаемых клавиш, читают этот сервис
+     * в {@code tick(...)} через {@link KeyboardState#isDown(int)} и edge-методы
+     * {@link KeyboardState#wasPressed(int)} / {@link KeyboardState#wasReleased(int)}.</p>
+     *
+     * @return keyboard state или {@link KeyboardState#NONE}, если runtime не поддерживает клавиатуру
+     */
+    default KeyboardState keyboard() {
+        return KeyboardState.NONE;
+    }
+
     /**
      * Возвращает dispatcher UI thread'а.
      *
