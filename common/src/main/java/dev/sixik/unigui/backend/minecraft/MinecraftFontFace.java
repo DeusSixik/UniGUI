@@ -2,7 +2,6 @@ package dev.sixik.unigui.backend.minecraft;
 
 import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.FontMetrics;
-import dev.sixik.unigui.api.text.TextRun;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.network.chat.Component;
@@ -14,7 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /** FontFace backed by a Minecraft FontSet and its resource-pack glyph providers. */
 public final class MinecraftFontFace implements FontFace {
-    private static final float VANILLA_BASE_SIZE = TextRun.DEFAULT_PIXEL_SIZE;
+    private static final float VANILLA_BASE_SIZE = 9.0f;
 
     private final ResourceLocation location;
     private final String id;
