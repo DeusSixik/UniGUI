@@ -375,7 +375,7 @@ public class MinecraftWidgetScreen extends Screen {
 
         try (ProfileScope ignored = uiContext.profiler().scope("renderBackend")) {
             DrawList backendDrawList = scaledDrawList(drawList, uiScale, scaledDrawList);
-            UiPostEffectRenderer.render(backend, backendDrawList, UiLayerBounds.viewport(width, height), postEffect);
+            UiPostEffectRenderer.render(backend, backendDrawList, screenPostEffectBounds(), postEffect);
             backend.endFrame();
         }
         lastFrameTotalMillis = (System.nanoTime() - uiCpuStartNanos) / 1_000_000.0f;
@@ -934,6 +934,10 @@ public class MinecraftWidgetScreen extends Screen {
         int guiWidth = minecraft.getWindow().getGuiScaledWidth();
         if (framebufferWidth <= 0 || guiWidth <= 0) return 1.0f;
         return UIScaleProvider.sanitize(framebufferWidth / (float) guiWidth);
+    }
+
+    private UiLayerBounds screenPostEffectBounds() {
+        return new UiLayerBounds(0.0f, 0.0f, width, height, minecraftGuiScale());
     }
 
     private float toLogicalPixels(double backendPixels) {

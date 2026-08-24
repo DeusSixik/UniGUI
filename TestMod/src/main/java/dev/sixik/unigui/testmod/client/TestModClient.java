@@ -1,7 +1,7 @@
 package dev.sixik.unigui.testmod.client;
 
 import dev.sixik.unigui.testmod.client.ui.DominionScreen;
-import dev.sixik.unigui.tests.UniGuiDemo;
+import dev.sixik.unigui.testmod.client.ui.RetroTerminalScreen;
 import net.fabricmc.api.ClientModInitializer;
 
 /**
@@ -21,5 +21,9 @@ public final class TestModClient implements ClientModInitializer {
      */
     public static void openDemo() {
         DominionScreen.openGui();
+    }
+
+    public static void openRetroTerminal() {
+        RetroTerminalScreen.open();
     }
 }

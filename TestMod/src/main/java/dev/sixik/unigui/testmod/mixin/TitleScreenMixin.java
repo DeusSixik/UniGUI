@@ -24,5 +24,8 @@ public abstract class TitleScreenMixin extends Screen {
         addRenderableWidget(Button.builder(Component.literal("UniGUI Demo"), button -> TestModClient.openDemo())
                 .bounds(width - 124, 8, 116, 20)
                 .build());
+        addRenderableWidget(Button.builder(Component.literal("Retro Terminal"), button -> TestModClient.openRetroTerminal())
+                .bounds(width - 124, 32, 116, 20)
+                .build());
     }
 }

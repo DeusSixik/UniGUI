@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.blaze3d.vertex.VertexSorting;
 import com.mojang.math.Axis;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.posteffect.UiLayerBounds;
@@ -382,11 +383,12 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         RenderTarget layerTarget = postEffectLayerTargets.acquire(targetWidth, targetHeight, POST_EFFECT_LAYER_TARGET);
         RenderTarget pingTarget = postEffectPingTargets.acquire(targetWidth, targetHeight, POST_EFFECT_PING_TARGET);
 
-        render(drawList, layerTarget);
+        float layerScale = layerBounds.safeScale();
+        renderPostEffectLayer(drawList, layerTarget, layerScale);
         RenderTarget current = layerTarget;
         for (UiPostEffectPass pass : passes) {
             RenderTarget destination = current == layerTarget ? pingTarget : layerTarget;
-            if (!renderPostEffectPass(pass, current, destination)) {
+            if (!renderPostEffectPass(pass, current, destination, layerScale)) {
                 compositePostEffectTexture(current, layerBounds, target);
                 return;
             }
@@ -395,7 +397,17 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         compositePostEffectTexture(current, layerBounds, target);
     }
 
-    private boolean renderPostEffectPass(UiPostEffectPass pass, RenderTarget source, RenderTarget destination) {
+    private void renderPostEffectLayer(DrawList drawList, RenderTarget target, float coordinateScale) {
+        if (!(target instanceof MinecraftRenderTarget minecraftTarget)) {
+            render(drawList, target);
+            return;
+        }
+
+        renderToTarget(drawList, minecraftTarget, coordinateScale, coordinateScale);
+    }
+
+    private boolean renderPostEffectPass(UiPostEffectPass pass, RenderTarget source, RenderTarget destination,
+                                         float coordinateScale) {
         if (!(destination instanceof MinecraftRenderTarget minecraftDestination) || source == null || pass == null) {
             return false;
         }
@@ -405,6 +417,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
                         new MutableRect(0.0f, 0.0f, destination.width(), destination.height()),
                         uniforms)
                 .texture(source.colorTexture())
+                .shaderTextures(pass.textures())
                 .shaderOptions(ShaderDrawOptions.defaults()
                         .blend(pass.blendMode().blendEnabled())
                         .squareVertexOffset(0.0f));
@@ -412,8 +425,9 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         graphics.flush();
         minecraftDestination.bindWrite();
         activeRenderTarget = minecraftDestination;
-        activeRenderTargetScaleX = renderTargetScaleX(minecraftDestination);
-        activeRenderTargetScaleY = renderTargetScaleY(minecraftDestination);
+        float scale = sanitizeScale(coordinateScale);
+        activeRenderTargetScaleX = scale;
+        activeRenderTargetScaleY = scale;
         try {
             boolean rendered = shaderQuadRenderer.render(
                     graphics,
@@ -458,22 +472,38 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
     }
 
     private void renderToTarget(DrawList drawList, MinecraftRenderTarget target) {
+        renderToTarget(drawList, target, renderTargetScaleX(target), renderTargetScaleY(target));
+    }
+
+    private void renderToTarget(DrawList drawList, MinecraftRenderTarget target, float coordinateScaleX, float coordinateScaleY) {
         graphics.flush();
         target.bindWrite();
         activeRenderTarget = target;
-        activeRenderTargetScaleX = renderTargetScaleX(target);
-        activeRenderTargetScaleY = renderTargetScaleY(target);
+        activeRenderTargetScaleX = sanitizeScale(coordinateScaleX);
+        activeRenderTargetScaleY = sanitizeScale(coordinateScaleY);
+        RenderSystem.backupProjectionMatrix();
         try {
+            applyRenderTargetProjection(target);
             renderBatches(drawList);
             graphics.flush();
         } finally {
             clearScissorStack();
+            RenderSystem.restoreProjectionMatrix();
             activeRenderTarget = null;
             activeRenderTargetScaleX = 1.0f;
             activeRenderTargetScaleY = 1.0f;
             target.unbindWrite();
             minecraft.getMainRenderTarget().bindWrite(true);
         }
+    }
+
+    private void applyRenderTargetProjection(MinecraftRenderTarget target) {
+        float coordinateWidth = Math.max(1.0f, target.width() / sanitizeScale(activeRenderTargetScaleX));
+        float coordinateHeight = Math.max(1.0f, target.height() / sanitizeScale(activeRenderTargetScaleY));
+        float depth = Math.max(1000.0f, Math.max(target.width(), target.height()) * 32.0f);
+        RenderSystem.setProjectionMatrix(
+                new Matrix4f().setOrtho(0.0f, coordinateWidth, coordinateHeight, 0.0f, -depth, depth),
+                VertexSorting.ORTHOGRAPHIC_Z);
     }
 
     private float renderTargetScaleX(MinecraftRenderTarget target) {

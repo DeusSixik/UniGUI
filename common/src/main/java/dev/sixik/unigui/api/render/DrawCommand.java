@@ -10,7 +10,9 @@ import dev.sixik.unigui.api.text.RichText;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Одна backend-neutral команда отрисовки в {@link DrawList}.
@@ -40,6 +42,8 @@ public final class DrawCommand {
     private ShaderHandle shader;
     private ShaderUniforms shaderUniforms = ShaderUniforms.empty();
     private ShaderDrawOptions shaderOptions = ShaderDrawOptions.defaults();
+    private final LinkedHashMap<String, TextureHandle> shaderTextures = new LinkedHashMap<>();
+    private final Map<String, TextureHandle> shaderTexturesView = Collections.unmodifiableMap(shaderTextures);
     private float radius;
 
     /**
@@ -360,6 +364,27 @@ public final class DrawCommand {
         return this;
     }
 
+    public Map<String, TextureHandle> shaderTextures() {
+        return shaderTexturesView;
+    }
+
+    public DrawCommand shaderTexture(String uniformName, TextureHandle texture) {
+        String name = uniformName == null ? "" : uniformName.trim();
+        if (name.isEmpty()) return this;
+        if (texture == null) shaderTextures.remove(name);
+        else shaderTextures.put(name, texture);
+        return this;
+    }
+
+    public DrawCommand shaderTextures(Map<String, TextureHandle> textures) {
+        shaderTextures.clear();
+        if (textures == null || textures.isEmpty()) return this;
+        for (Map.Entry<String, TextureHandle> entry : textures.entrySet()) {
+            shaderTexture(entry.getKey(), entry.getValue());
+        }
+        return this;
+    }
+
     public float radius() {
         return radius;
     }
@@ -391,6 +416,7 @@ public final class DrawCommand {
         copy.shader = shader == null ? null : shader.copy();
         copy.shaderUniforms = shaderUniforms == null ? ShaderUniforms.empty() : shaderUniforms.copy();
         copy.shaderOptions = shaderOptions == null ? ShaderDrawOptions.defaults() : shaderOptions.copy();
+        copy.shaderTextures(shaderTextures);
         copy.radius = radius;
         return copy;
     }

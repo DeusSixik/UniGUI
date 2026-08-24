@@ -24,9 +24,14 @@ final class MinecraftTextureSamplerState {
     }
 
     static Scope apply(TextureOptions options) {
+        return apply(0, options);
+    }
+
+    static Scope apply(int textureUnit, TextureOptions options) {
         TextureOptions normalized = options == null ? TextureOptions.defaults() : options;
         if (normalized.isDefault()) return NOOP;
-        return supportsSamplerObjects() ? applySamplerObject(normalized) : applyTextureParameters(normalized);
+        int unit = Math.max(0, textureUnit);
+        return supportsSamplerObjects() ? applySamplerObject(unit, normalized) : applyTextureParameters(unit, normalized);
     }
 
     static void applyOwnedTextureOptions(int textureId, TextureOptions options) {
@@ -58,24 +63,24 @@ final class MinecraftTextureSamplerState {
         }
     }
 
-    private static Scope applySamplerObject(TextureOptions options) {
+    private static Scope applySamplerObject(int textureUnit, TextureOptions options) {
         int activeTexture = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
-        RenderSystem.activeTexture(GL13.GL_TEXTURE0);
+        RenderSystem.activeTexture(GL13.GL_TEXTURE0 + textureUnit);
         int previousSampler = GL11.glGetInteger(GL33.GL_SAMPLER_BINDING);
         int sampler = sampler(options);
-        GL33.glBindSampler(0, sampler);
+        GL33.glBindSampler(textureUnit, sampler);
         RenderSystem.activeTexture(activeTexture);
         return () -> {
             int restoreActiveTexture = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
-            RenderSystem.activeTexture(GL13.GL_TEXTURE0);
-            GL33.glBindSampler(0, previousSampler);
+            RenderSystem.activeTexture(GL13.GL_TEXTURE0 + textureUnit);
+            GL33.glBindSampler(textureUnit, previousSampler);
             RenderSystem.activeTexture(restoreActiveTexture);
         };
     }
 
-    private static Scope applyTextureParameters(TextureOptions options) {
+    private static Scope applyTextureParameters(int textureUnit, TextureOptions options) {
         int activeTexture = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
-        RenderSystem.activeTexture(GL13.GL_TEXTURE0);
+        RenderSystem.activeTexture(GL13.GL_TEXTURE0 + textureUnit);
         int previousMin = GL11.glGetTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER);
         int previousMag = GL11.glGetTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER);
         int previousWrapS = GL11.glGetTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S);
@@ -89,7 +94,7 @@ final class MinecraftTextureSamplerState {
 
         return () -> {
             int restoreActiveTexture = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
-            RenderSystem.activeTexture(GL13.GL_TEXTURE0);
+            RenderSystem.activeTexture(GL13.GL_TEXTURE0 + textureUnit);
             GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, previousMin);
             GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, previousMag);
             GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, previousWrapS);

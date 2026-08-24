@@ -26,7 +26,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.FloatBuffer;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 final class MinecraftShaderQuadRenderer implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(MinecraftShaderQuadRenderer.class);
@@ -67,10 +69,12 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
 
         graphics.flush();
         RenderState state = RenderState.capture();
-        MinecraftTextureSamplerState.Scope sampler = null;
+        List<MinecraftTextureSamplerState.Scope> samplers = new ArrayList<>();
         try {
             GL20.glUseProgram(program.id);
-            sampler = bindSourceTexture(program.id, command.texture());
+            MinecraftTextureSamplerState.Scope sourceSampler = bindSourceTexture(program.id, command.texture());
+            if (sourceSampler != null) samplers.add(sourceSampler);
+            bindExtraTextures(program.id, command.shaderTextures(), samplers);
             uploadBuiltins(program.id, graphics, command,
                     Math.max(1.0f, screenWidth),
                     Math.max(1.0f, screenHeight),
@@ -98,8 +102,8 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
             LOGGER.error("UniGUI shader draw failed for {}", command.shader().id(), failure);
             return false;
         } finally {
-            if (sampler != null) {
-                sampler.close();
+            for (int i = samplers.size() - 1; i >= 0; i--) {
+                samplers.get(i).close();
             }
             state.restore();
         }
@@ -111,12 +115,39 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
         TextureBinding binding = TextureBinding.resolve(texture);
         if (binding == null) return null;
 
-        binding.bind();
+        binding.bind(0);
         MinecraftTextureSamplerState.Scope sampler = MinecraftTextureSamplerState.apply(binding.options());
         uploadInt(program, "SourceTexture", 0);
         uploadInt(program, "Texture0", 0);
         uploadVec2(program, "SourceSize", Math.max(1.0f, texture.width()), Math.max(1.0f, texture.height()));
         uploadFloat(program, "SourceFlipY", binding.flipY() ? 1.0f : 0.0f);
+        return sampler;
+    }
+
+    private void bindExtraTextures(int program,
+                                   Map<String, TextureHandle> textures,
+                                   List<MinecraftTextureSamplerState.Scope> samplers) {
+        if (textures == null || textures.isEmpty()) return;
+        int unit = 1;
+        for (Map.Entry<String, TextureHandle> entry : textures.entrySet()) {
+            if (entry == null || entry.getValue() == null) continue;
+            String uniform = entry.getKey() == null ? "" : entry.getKey().trim();
+            if (uniform.isEmpty()) continue;
+            MinecraftTextureSamplerState.Scope sampler = bindTexture(program, uniform, entry.getValue(), unit);
+            if (sampler != null) samplers.add(sampler);
+            unit++;
+        }
+    }
+
+    private MinecraftTextureSamplerState.Scope bindTexture(int program, String uniformName, TextureHandle texture, int unit) {
+        TextureBinding binding = TextureBinding.resolve(texture);
+        if (binding == null) return null;
+
+        int activeTexture = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
+        binding.bind(Math.max(0, unit));
+        MinecraftTextureSamplerState.Scope sampler = MinecraftTextureSamplerState.apply(unit, binding.options());
+        RenderSystem.activeTexture(activeTexture);
+        uploadInt(program, uniformName, Math.max(0, unit));
         return sampler;
     }
     private Program program(Minecraft minecraft, ShaderHandle shader) {
@@ -299,13 +330,14 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
             return location == null ? null : new TextureBinding(null, location, false, options);
         }
 
-        private void bind() {
-            RenderSystem.activeTexture(GL13.GL_TEXTURE0);
+        private void bind(int unit) {
+            int textureUnit = Math.max(0, unit);
+            RenderSystem.activeTexture(GL13.GL_TEXTURE0 + textureUnit);
             if (textureId != null) {
                 RenderSystem.bindTexture(textureId);
-                RenderSystem.setShaderTexture(0, textureId);
+                RenderSystem.setShaderTexture(textureUnit, textureId);
             } else {
-                RenderSystem.setShaderTexture(0, location);
+                RenderSystem.setShaderTexture(textureUnit, location);
             }
         }
     }
