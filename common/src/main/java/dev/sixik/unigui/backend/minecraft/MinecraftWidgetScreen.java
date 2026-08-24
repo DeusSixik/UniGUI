@@ -34,6 +34,7 @@ import dev.sixik.unigui.api.render.DrawMesh;
 import dev.sixik.unigui.api.render.DrawVertex;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderTargetOptions;
+import dev.sixik.unigui.api.render.ScaledCustomDraw;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.TransformLayer;
 import dev.sixik.unigui.api.render.UiRenderPolicy;
@@ -50,7 +51,6 @@ import dev.sixik.unigui.impl.render.DefaultRenderContext;
 import dev.sixik.unigui.impl.render.SimpleDrawBatcher;
 import dev.sixik.unigui.impl.render.WidgetTextureRenderer;
 import dev.sixik.unigui.impl.widget.WidgetBase;
-import dev.sixik.unigui.widgets.minecraft.MinecraftScaledCustomDraw;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -1006,7 +1006,7 @@ public class MinecraftWidgetScreen extends Screen {
             copy.richText(scaledRichText(command.richText(), scale));
         }
         if (command.customDraw() != null) {
-            if (command.customDraw() instanceof MinecraftScaledCustomDraw scaledCustomDraw) {
+            if (command.customDraw() instanceof ScaledCustomDraw scaledCustomDraw) {
                 copy.customDraw(backend -> scaledCustomDraw.draw(backend, scale));
             } else {
                 copy.customDraw(backend -> {

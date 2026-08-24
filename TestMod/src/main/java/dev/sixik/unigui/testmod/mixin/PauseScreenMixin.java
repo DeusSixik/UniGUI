@@ -22,7 +22,13 @@ public abstract class PauseScreenMixin extends Screen {
     @Inject(method = "init", at = @At("TAIL"))
     private void uniguiTestMod$addDemoButton(CallbackInfo ci) {
         addRenderableWidget(Button.builder(Component.literal("UniGUI Demo"), button -> TestModClient.openDemo())
-                .bounds(width - 124, 8, 116, 20)
+                .bounds(width - 148, 8, 140, 20)
+                .build());
+        addRenderableWidget(Button.builder(Component.literal("Solar Navigation"), button -> TestModClient.openSolarNavigation())
+                .bounds(width - 148, 32, 140, 20)
+                .build());
+        addRenderableWidget(Button.builder(Component.literal("Post FX Layer"), button -> TestModClient.openPostProcessingLayerDemo())
+                .bounds(width - 148, 56, 140, 20)
                 .build());
     }
 }

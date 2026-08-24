@@ -366,13 +366,13 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
     public void renderWithPostEffect(DrawList drawList, UiLayerBounds bounds, UiPostEffectChain chain, RenderTarget target) {
         UiPostEffects.ensureRegistered();
         if (drawList == null || chain == null || chain.isNone()) {
-            render(drawList, target);
+            renderDirect(drawList, target);
             return;
         }
 
         List<UiPostEffectPass> passes = chain.resolve(UiPostEffectRegistry.global());
         if (passes.isEmpty()) {
-            render(drawList, target);
+            renderDirect(drawList, target);
             return;
         }
 
@@ -441,7 +441,15 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
                 source.colorTexture(),
                 new MutableRect(bounds.x(), bounds.y(), bounds.safeWidth(), bounds.safeHeight()),
                 Paint.fill(new MutableColor(1.0f, 1.0f, 1.0f, 1.0f))));
-        render(postEffectDrawList, target);
+        renderDirect(postEffectDrawList, target);
+    }
+
+    private void renderDirect(DrawList drawList, RenderTarget target) {
+        if (target == null) {
+            renderNested(drawList);
+            return;
+        }
+        render(drawList, target);
     }
 
     private UiLayerBounds currentPostEffectBounds() {
@@ -513,7 +521,8 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         }
     }
 
-    void renderNested(DrawList drawList) {
+    @Override
+    public void renderNested(DrawList drawList) {
         renderNested(drawList, 1.0f);
     }
 

@@ -70,6 +70,18 @@ public interface RenderBackend {
      */
     void render(DrawList drawList, RenderTarget target);
 
+    /**
+     * Renders a draw list inside an already active backend render pass.
+     *
+     * <p>Custom draw and post-effect commands use this path to draw nested lists
+     * without starting a second frame render, GPU timer, or full backend state reset.</p>
+     *
+     * @param drawList commands for the nested render pass
+     */
+    default void renderNested(DrawList drawList) {
+        render(drawList, null);
+    }
+
     /** Завершает render frame и сбрасывает временное состояние backend'а. */
     void endFrame();
 }
