@@ -1,8 +1,8 @@
 package dev.sixik.unigui.tests;
 
 import dev.sixik.unigui.api.render.UiRenderPolicy;
-import dev.sixik.unigui.backend.minecraft.MinecraftClipboardService;
-import dev.sixik.unigui.backend.minecraft.MinecraftWidgetScreen;
+import dev.sixik.unigui.backend.minecraft_impl.MinecraftClipboardService;
+import dev.sixik.unigui.backend.minecraft_impl.MinecraftWidgetScreen;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.widgets.interaction.AdminCommandRegistry;
 import dev.sixik.unigui.widgets.interaction.AdminConsole;

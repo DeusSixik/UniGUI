@@ -213,7 +213,7 @@ Add a renderer capability object.
 
 Candidate class:
 
-- dev.sixik.unigui.backend.minecraft.MinecraftGpuCapabilities
+- dev.sixik.unigui.backend.minecraft_impl.MinecraftGpuCapabilities
 
 Fields:
 

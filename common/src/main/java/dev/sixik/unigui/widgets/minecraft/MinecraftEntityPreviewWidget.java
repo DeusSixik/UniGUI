@@ -1,7 +1,7 @@
 package dev.sixik.unigui.widgets.minecraft;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
-import dev.sixik.unigui.backend.minecraft.MinecraftGuiRenderBackend;
+import dev.sixik.unigui.backend.minecraft_impl.MinecraftGuiRenderBackend;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.Items;

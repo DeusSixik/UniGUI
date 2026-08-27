@@ -3,7 +3,7 @@ package dev.sixik.unigui.widgets.minecraft;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.backend.minecraft.MinecraftGuiRenderBackend;
+import dev.sixik.unigui.backend.minecraft_impl.MinecraftGuiRenderBackend;
 import dev.sixik.unigui.widgets.feedback.Tooltip;
 import dev.sixik.unigui.widgets.render.TooltipRenderer;
 import dev.sixik.unigui.widgets.render.TooltipState;

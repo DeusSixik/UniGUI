@@ -52,6 +52,7 @@ public class ComboBox extends LinearBox {
     private boolean opened;
     private String placeholder = "Select...";
     private RichText richPlaceholder = RichText.plain(placeholder);
+    private RichText headerIndicator = RichText.plain(" ?");
     private DropDownMode dropDownMode = DropDownMode.OVERLAY;
     private OverlayLayer explicitOverlayLayer;
     private OverlayLayer attachedOverlayLayer;
@@ -417,6 +418,22 @@ public class ComboBox extends LinearBox {
         return headerButton;
     }
 
+    public RichText headerIndicator() {
+        return headerIndicator;
+    }
+
+    public ComboBox headerIndicator(String indicator) {
+        return headerIndicator(RichText.resolve(normalize(indicator)));
+    }
+
+    public ComboBox headerIndicator(RichText indicator) {
+        RichText normalized = indicator == null ? RichText.plain("") : indicator;
+        if (Objects.equals(this.headerIndicator, normalized)) return this;
+        this.headerIndicator = normalized;
+        updateHeaderText();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
     public Box optionsHost() {
         return optionsHost;
     }
@@ -525,7 +542,7 @@ public class ComboBox extends LinearBox {
 
     private void updateHeaderText() {
         RichText value = selectedItem().isEmpty() ? richPlaceholder : selectedRichItem();
-        headerButton.richText(value.append(RichText.plain(" ?")));
+        headerButton.richText(headerIndicator.plainText().isEmpty() ? value : value.append(headerIndicator));
     }
 
     private void addItemInternal(RichText item) {

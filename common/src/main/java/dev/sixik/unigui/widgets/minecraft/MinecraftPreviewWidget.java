@@ -12,7 +12,7 @@ import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.backend.minecraft.MinecraftGuiRenderBackend;
+import dev.sixik.unigui.backend.minecraft_impl.MinecraftGuiRenderBackend;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.containers.Box;
 

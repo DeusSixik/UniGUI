@@ -8,7 +8,7 @@ import dev.sixik.unigui.api.render.SimpleTextureHandle;
 import dev.sixik.unigui.api.render.TextureFilter;
 import dev.sixik.unigui.api.render.TextureOptions;
 import dev.sixik.unigui.api.render.TextureWrap;
-import dev.sixik.unigui.backend.minecraft.MinecraftTextureHandle;
+import dev.sixik.unigui.backend.minecraft_impl.MinecraftTextureHandle;
 import dev.sixik.unigui.impl.render.SimpleDrawBatcher;
 import net.minecraft.resources.ResourceLocation;
 

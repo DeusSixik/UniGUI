@@ -7,7 +7,7 @@ import dev.sixik.unigui.api.render.DrawList;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.backend.minecraft.MinecraftGuiRenderBackend;
+import dev.sixik.unigui.backend.minecraft_impl.MinecraftGuiRenderBackend;
 import dev.sixik.unigui.impl.render.DefaultRenderContext;
 import dev.sixik.unigui.widgets.feedback.OverlayHostAware;
 import dev.sixik.unigui.widgets.containers.PanelWidget;

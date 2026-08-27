@@ -3,7 +3,7 @@ package dev.sixik.unigui.widgets.minecraft;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.render.TextureHandle;
-import dev.sixik.unigui.backend.minecraft.MinecraftGuiRenderBackend;
+import dev.sixik.unigui.backend.minecraft_impl.MinecraftGuiRenderBackend;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;

@@ -3,7 +3,8 @@
   "package": "dev.sixik.unigui.tests.mixin",
   "compatibilityLevel": "JAVA_17",
   "minVersion": "0.8",
-  "mixins": [
+  "mixins": [],
+  "client": [
     "MixinCommands"
   ],
   "injectors": {
