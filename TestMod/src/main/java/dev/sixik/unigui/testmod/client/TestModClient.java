@@ -4,8 +4,10 @@ import dev.sixik.unigui.testmod.client.ui.DominionScreen;
 import dev.sixik.unigui.testmod.client.ui.LevelMapScreen;
 import dev.sixik.unigui.testmod.client.ui.PlugSocketMinigameScreen;
 import dev.sixik.unigui.testmod.client.ui.RetroTerminalScreen;
+import dev.sixik.unigui.testmod.client.ui.SyncBatteryMinigameScreen;
 import dev.sixik.unigui.testmod.client.ui.TutorialScreen;
 import dev.sixik.unigui.testmod.client.ui.WrenchNutMinigameScreen;
+import dev.sixik.unigui.testmod.client.ui.WireConnectionMinigameScreen;
 import net.fabricmc.api.ClientModInitializer;
 
 /**
@@ -41,6 +43,14 @@ public final class TestModClient implements ClientModInitializer {
 
     public static void openWrenchNutMinigame() {
         WrenchNutMinigameScreen.open();
+    }
+
+    public static void openWireConnectionMinigame() {
+        WireConnectionMinigameScreen.open();
+    }
+
+    public static void openSyncBatteryMinigame() {
+        SyncBatteryMinigameScreen.open();
     }
 
     public static void openTutorial() {

@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Добавляет быстрый вход в UniGUI demo на главный экран Minecraft.
+ * Р”РѕР±Р°РІР»СЏРµС‚ Р±С‹СЃС‚СЂС‹Р№ РІС…РѕРґ РІ UniGUI demo РЅР° РіР»Р°РІРЅС‹Р№ СЌРєСЂР°РЅ Minecraft.
  */
 @Mixin(TitleScreen.class)
 public abstract class TitleScreenMixin extends Screen {
@@ -36,8 +36,14 @@ public abstract class TitleScreenMixin extends Screen {
         addRenderableWidget(Button.builder(Component.literal("Wrench Minigame"), button -> TestModClient.openWrenchNutMinigame())
                 .bounds(width - 124, 104, 116, 20)
                 .build());
-        addRenderableWidget(Button.builder(Component.literal("Tutorial"), button -> TestModClient.openTutorial())
+        addRenderableWidget(Button.builder(Component.literal("Wire Minigame"), button -> TestModClient.openWireConnectionMinigame())
                 .bounds(width - 124, 128, 116, 20)
+                .build());
+        addRenderableWidget(Button.builder(Component.literal("Sync Minigame"), button -> TestModClient.openSyncBatteryMinigame())
+                .bounds(width - 124, 152, 116, 20)
+                .build());
+        addRenderableWidget(Button.builder(Component.literal("Tutorial"), button -> TestModClient.openTutorial())
+                .bounds(width - 124, 176, 116, 20)
                 .build());
     }
 }
