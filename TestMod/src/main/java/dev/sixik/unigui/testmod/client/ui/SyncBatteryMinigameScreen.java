@@ -38,7 +38,12 @@ import net.minecraft.network.chat.Component;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Queue;
 import java.util.concurrent.ThreadLocalRandom;
 
 public final class SyncBatteryMinigameScreen {
@@ -49,10 +54,18 @@ public final class SyncBatteryMinigameScreen {
     }
 
     public static void open() {
-        open(null);
+        open(ColumnPuzzleConfig.defaultPreset(), null);
     }
 
     public static void open(Runnable completionHook) {
+        open(ColumnPuzzleConfig.defaultPreset(), completionHook);
+    }
+
+    public static void open(ColumnPuzzleConfig config) {
+        open(config, null);
+    }
+
+    public static void open(ColumnPuzzleConfig config, Runnable completionHook) {
         Minecraft minecraft = Minecraft.getInstance();
         Screen previous = minecraft.screen;
 
@@ -65,7 +78,7 @@ public final class SyncBatteryMinigameScreen {
         context.scaleProvider(scale);
 
         Runnable[] closeAction = new Runnable[1];
-        SyncBatteryMinigameWidget minigame = new SyncBatteryMinigameWidget();
+        SyncBatteryMinigameWidget minigame = new SyncBatteryMinigameWidget(config);
         minigame.onCompleted(() -> {
             if (completionHook != null) completionHook.run();
             if (closeAction[0] != null) closeAction[0].run();
@@ -107,7 +120,7 @@ public final class SyncBatteryMinigameScreen {
     public static final class SyncBatteryMinigameWidget extends WidgetBase {
         private static final int PANEL_W = 176;
         private static final int PANEL_H = 80;
-        private static final int BATTERY_COUNT = 5;
+        private static final int VISUAL_SLOTS = 5;
         private static final int SECTION_COUNT = 14;
         private static final float BATTERY_X = 42.0f;
         private static final float BATTERY_STEP = 19.0f;
@@ -121,6 +134,7 @@ public final class SyncBatteryMinigameScreen {
         private static final MutableColor FALLBACK_FILL = MutableColor.rgba(0.68f, 0.76f, 0.82f, 1.0f);
         private static final MutableColor FALLBACK_HOVER = MutableColor.rgba(0.80f, 0.86f, 0.92f, 1.0f);
         private static final MutableColor FALLBACK_PRESSED = MutableColor.rgba(0.28f, 0.30f, 0.34f, 1.0f);
+        private static final MutableColor TARGET_MARKER = MutableColor.rgba(0.95f, 0.82f, 0.42f, 0.95f);
         private static final TextureHandle PANEL_TEXTURE = SyncTextures.panel();
         private static final TextureHandle ARROW_LEFT_TEXTURE = SyncTextures.arrowLeft();
         private static final TextureHandle ARROW_RIGHT_TEXTURE = SyncTextures.arrowRight();
@@ -129,14 +143,20 @@ public final class SyncBatteryMinigameScreen {
         private static final TextureHandle BUTTON_HOVER_TEXTURE = SyncTextures.buttonHighlighted();
         private static final TextureHandle BUTTON_PRESSED_TEXTURE = SyncTextures.buttonPressed();
 
-        private final int[] levels = new int[BATTERY_COUNT];
-        private int targetLevel;
+        private final ColumnPuzzleConfig config;
+        private final int[] state;
         private int hoveredButton = -1;
         private int pressedButton = -1;
         private int capturedPointerId = -1;
         private Runnable completedCallback = () -> {};
 
         public SyncBatteryMinigameWidget() {
+            this(ColumnPuzzleConfig.defaultPreset());
+        }
+
+        public SyncBatteryMinigameWidget(ColumnPuzzleConfig config) {
+            this.config = config == null ? ColumnPuzzleConfig.defaultPreset() : config;
+            this.state = new int[this.config.columns()];
             focusable(true);
             mouseCursor(MouseCursor.POINTER);
             resetGame();
@@ -148,18 +168,20 @@ public final class SyncBatteryMinigameScreen {
         }
 
         public void resetGame() {
-            ThreadLocalRandom random = ThreadLocalRandom.current();
-            targetLevel = random.nextInt(3, SECTION_COUNT - 1);
-            for (int i = 0; i < levels.length; i++) {
-                levels[i] = random.nextInt(0, SECTION_COUNT + 1);
-            }
-            if (isCompleted()) {
-                levels[random.nextInt(levels.length)] = targetLevel == 0 ? 1 : targetLevel - 1;
-            }
+            int[] generated = config.generateInitialState();
+            System.arraycopy(generated, 0, state, 0, state.length);
             hoveredButton = -1;
             pressedButton = -1;
             capturedPointerId = -1;
             invalidate(InvalidationFlags.VISUAL);
+        }
+
+        public int[] state() {
+            return state.clone();
+        }
+
+        public ColumnPuzzleConfig config() {
+            return config;
         }
 
         @Override
@@ -186,7 +208,7 @@ public final class SyncBatteryMinigameScreen {
                 clipped = true;
                 renderPanel(draw);
                 renderBatteryFill(draw);
-                renderTargetArrows(draw);
+                renderTargetMarkers(draw);
                 renderButtons(draw);
             } finally {
                 if (clipped) draw.popClip();
@@ -236,7 +258,7 @@ public final class SyncBatteryMinigameScreen {
 
             int button = hitButton(panelLocalX(pointer), panelLocalY(pointer));
             if (button >= 0 && button == pressedButton) {
-                levels[button] = (levels[button] + 1) % (SECTION_COUNT + 1);
+                config.apply(state, button);
                 if (isCompleted()) completedCallback.run();
             }
             pressedButton = -1;
@@ -246,10 +268,7 @@ public final class SyncBatteryMinigameScreen {
         }
 
         private boolean isCompleted() {
-            for (int level : levels) {
-                if (level != targetLevel) return false;
-            }
-            return true;
+            return Arrays.equals(state, config.target());
         }
 
         private void renderPanel(DrawScope draw) {
@@ -262,9 +281,10 @@ public final class SyncBatteryMinigameScreen {
         }
 
         private void renderBatteryFill(DrawScope draw) {
-            for (int battery = 0; battery < BATTERY_COUNT; battery++) {
-                for (int section = 0; section < levels[battery]; section++) {
-                    float x = assetX(BATTERY_X + battery * BATTERY_STEP);
+            for (int column = 0; column < config.columns(); column++) {
+                int filledSections = filledSections(state[column]);
+                for (int section = 0; section < filledSections; section++) {
+                    float x = assetX(columnX(column));
                     float y = assetY(BATTERY_TOP + (SECTION_COUNT - 1 - section) * SECTION_H);
                     if (BATTERY_TEXTURE != null) {
                         draw.addImage(BATTERY_TEXTURE, x, y,
@@ -278,8 +298,22 @@ public final class SyncBatteryMinigameScreen {
             }
         }
 
-        private void renderTargetArrows(DrawScope draw) {
-            float y = targetY() - arrowHeight() * 0.5f;
+        private void renderTargetMarkers(DrawScope draw) {
+            int commonTarget = commonTargetLevel();
+            if (commonTarget >= 0) {
+                renderTargetArrows(draw, commonTarget);
+                return;
+            }
+
+            for (int column = 0; column < config.columns(); column++) {
+                float y = targetY(config.target(column));
+                draw.addRectFilled(assetX(columnX(column) - 1.0f), y - panelScale() * 0.5f,
+                        18.0f * panelScale(), Math.max(1.0f, panelScale()), 0.0f, TARGET_MARKER);
+            }
+        }
+
+        private void renderTargetArrows(DrawScope draw, int targetLevel) {
+            float y = targetY(targetLevel) - arrowHeight() * 0.5f;
             if (ARROW_LEFT_TEXTURE != null) {
                 draw.addImage(ARROW_LEFT_TEXTURE, assetX(LEFT_ARROW_X), y,
                         ARROW_LEFT_TEXTURE.width() * panelScale(),
@@ -305,9 +339,9 @@ public final class SyncBatteryMinigameScreen {
         }
 
         private void renderButtons(DrawScope draw) {
-            for (int button = 0; button < BATTERY_COUNT; button++) {
+            for (int button = 0; button < config.buttonCount(); button++) {
                 TextureHandle texture = buttonTexture(button);
-                float x = assetX(BATTERY_X + button * BATTERY_STEP);
+                float x = assetX(buttonX(button));
                 float y = assetY(BUTTON_Y);
                 if (texture != null) {
                     draw.addImage(texture, x, y, texture.width() * panelScale(), texture.height() * panelScale(), WHITE);
@@ -327,8 +361,8 @@ public final class SyncBatteryMinigameScreen {
 
         private int hitButton(float localX, float localY) {
             if (localX < 0.0f || localY < 0.0f || localX > PANEL_W || localY > PANEL_H) return -1;
-            for (int button = 0; button < BATTERY_COUNT; button++) {
-                float x = BATTERY_X + button * BATTERY_STEP;
+            for (int button = 0; button < config.buttonCount(); button++) {
+                float x = buttonX(button);
                 if (localX >= x && localX <= x + 16.0f && localY >= BUTTON_Y && localY <= BUTTON_Y + 9.0f) {
                     return button;
                 }
@@ -336,12 +370,35 @@ public final class SyncBatteryMinigameScreen {
             return -1;
         }
 
-        private float targetY() {
-            return assetY(BATTERY_TOP + (SECTION_COUNT - targetLevel) * SECTION_H + SECTION_H * 0.5f);
+        private int commonTargetLevel() {
+            int value = config.target(0);
+            for (int i = 1; i < config.columns(); i++) {
+                if (config.target(i) != value) return -1;
+            }
+            return value;
+        }
+
+        private int filledSections(int level) {
+            if (config.levelsPerColumn() <= 1) return 0;
+            return Math.round((float) level / (config.levelsPerColumn() - 1) * SECTION_COUNT);
+        }
+
+        private float targetY(int targetLevel) {
+            int filled = filledSections(targetLevel);
+            if (filled <= 0) return assetY(BATTERY_TOP + SECTION_COUNT * SECTION_H - SECTION_H * 0.5f);
+            return assetY(BATTERY_TOP + (SECTION_COUNT - filled) * SECTION_H + SECTION_H * 0.5f);
         }
 
         private float arrowHeight() {
             return (ARROW_LEFT_TEXTURE == null ? 9.0f : ARROW_LEFT_TEXTURE.height()) * panelScale();
+        }
+
+        private float columnX(int column) {
+            return BATTERY_X + column * BATTERY_STEP;
+        }
+
+        private float buttonX(int button) {
+            return BATTERY_X + button * BATTERY_STEP;
         }
 
         private float panelWidth() {
@@ -385,9 +442,279 @@ public final class SyncBatteryMinigameScreen {
         @Override
         public String toString() {
             return "SyncBatteryMinigameWidget{" +
-                    "targetLevel=" + targetLevel +
-                    ", levels=" + Arrays.toString(levels) +
+                    "state=" + Arrays.toString(state) +
+                    ", target=" + Arrays.toString(config.target()) +
                     '}';
+        }
+    }
+
+    public static final class ColumnPuzzleConfig {
+        private static final int MAX_VISUAL_SLOTS = 5;
+        private final int columns;
+        private final int levelsPerColumn;
+        private final int[][] buttonEffects;
+        private final int[] target;
+        private final int shuffleSteps;
+
+        public ColumnPuzzleConfig(int columns, int levelsPerColumn, int[][] buttonEffects, int[] target, int shuffleSteps) {
+            if (columns <= 0 || columns > MAX_VISUAL_SLOTS) {
+                throw new IllegalArgumentException("columns must be in range 1.." + MAX_VISUAL_SLOTS);
+            }
+            if (levelsPerColumn < 2) {
+                throw new IllegalArgumentException("levelsPerColumn must be >= 2");
+            }
+            if (buttonEffects == null || buttonEffects.length == 0 || buttonEffects.length > MAX_VISUAL_SLOTS) {
+                throw new IllegalArgumentException("buttonEffects must contain 1.." + MAX_VISUAL_SLOTS + " buttons");
+            }
+            if (target == null || target.length != columns) {
+                throw new IllegalArgumentException("target length must match columns");
+            }
+
+            this.columns = columns;
+            this.levelsPerColumn = levelsPerColumn;
+            this.buttonEffects = copyEffects(buttonEffects, columns);
+            this.target = normalizeTarget(target, levelsPerColumn);
+            this.shuffleSteps = Math.max(1, shuffleSteps);
+        }
+
+        public static ColumnPuzzleConfig defaultPreset() {
+            int columns = 5;
+            int levels = 15;
+            int[] target = {14, 14, 14, 14, 14};
+            int[][] buttons = {
+                    {1, 1, 0, 0, 0},
+                    {0, 1, 1, 0, 0},
+                    {0, 0, 1, 1, 0},
+                    {0, 0, 0, 1, 1},
+                    {1, 0, 0, 0, 1}
+            };
+            return new ColumnPuzzleConfig(columns, levels, buttons, target, 12);
+        }
+
+        public int columns() {
+            return columns;
+        }
+
+        public int levelsPerColumn() {
+            return levelsPerColumn;
+        }
+
+        public int buttonCount() {
+            return buttonEffects.length;
+        }
+
+        public int effect(int button, int column) {
+            return buttonEffects[button][column];
+        }
+
+        public int target(int column) {
+            return target[column];
+        }
+
+        public int[] target() {
+            return target.clone();
+        }
+
+        public int[][] buttonEffects() {
+            return copyEffects(buttonEffects, columns);
+        }
+
+        public int shuffleSteps() {
+            return shuffleSteps;
+        }
+
+        public int[] generateInitialState() {
+            ThreadLocalRandom random = ThreadLocalRandom.current();
+            int[] generated = target.clone();
+            for (int attempt = 0; attempt < 8; attempt++) {
+                System.arraycopy(target, 0, generated, 0, columns);
+                for (int step = 0; step < shuffleSteps; step++) {
+                    applyInverse(generated, random.nextInt(buttonEffects.length));
+                }
+                if (!Arrays.equals(generated, target) || !hasAnyNonZeroEffect()) {
+                    return generated;
+                }
+            }
+            apply(generated, firstNonZeroButton());
+            return generated;
+        }
+
+        public void apply(int[] state, int button) {
+            applyDelta(state, button, 1);
+        }
+
+        private void applyInverse(int[] state, int button) {
+            applyDelta(state, button, -1);
+        }
+
+        private void applyDelta(int[] state, int button, int direction) {
+            if (state == null || state.length != columns) {
+                throw new IllegalArgumentException("state length must match columns");
+            }
+            if (button < 0 || button >= buttonEffects.length) {
+                throw new IndexOutOfBoundsException("button index out of range: " + button);
+            }
+            for (int column = 0; column < columns; column++) {
+                state[column] = mod(state[column] + buttonEffects[button][column] * direction, levelsPerColumn);
+            }
+        }
+
+        public ColumnPuzzleSolution solve(int[] initialState) {
+            return solveByBfs(initialState, 1_000_000);
+        }
+
+        public ColumnPuzzleSolution solveByBfs(int[] initialState, int maxStates) {
+            if (initialState == null || initialState.length != columns) {
+                throw new IllegalArgumentException("initialState length must match columns");
+            }
+            int[] normalizedInitial = normalizeTarget(initialState, levelsPerColumn);
+            long totalStates = totalStateCount(maxStates);
+            if (totalStates < 0L) {
+                return ColumnPuzzleSolution.notAttempted(buttonEffects.length);
+            }
+
+            int total = (int) totalStates;
+            int start = encode(normalizedInitial);
+            int goal = encode(target);
+            int[] previous = new int[total];
+            int[] previousButton = new int[total];
+            Arrays.fill(previous, -1);
+            Arrays.fill(previousButton, -1);
+
+            Queue<Integer> queue = new ArrayDeque<>();
+            previous[start] = start;
+            queue.add(start);
+
+            int[] current = new int[columns];
+            while (!queue.isEmpty()) {
+                int code = queue.remove();
+                if (code == goal) {
+                    return reconstructSolution(start, goal, previous, previousButton);
+                }
+                decode(code, current);
+                for (int button = 0; button < buttonEffects.length; button++) {
+                    int[] next = current.clone();
+                    apply(next, button);
+                    int nextCode = encode(next);
+                    if (previous[nextCode] >= 0) continue;
+                    previous[nextCode] = code;
+                    previousButton[nextCode] = button;
+                    queue.add(nextCode);
+                }
+            }
+            return ColumnPuzzleSolution.unsolvable(buttonEffects.length);
+        }
+
+        private ColumnPuzzleSolution reconstructSolution(int start, int goal, int[] previous, int[] previousButton) {
+            int[] presses = new int[buttonEffects.length];
+            List<Integer> reversed = new ArrayList<>();
+            int cursor = goal;
+            while (cursor != start) {
+                int button = previousButton[cursor];
+                if (button < 0) return ColumnPuzzleSolution.unsolvable(buttonEffects.length);
+                presses[button]++;
+                reversed.add(button);
+                cursor = previous[cursor];
+            }
+            Collections.reverse(reversed);
+            int[] sequence = new int[reversed.size()];
+            for (int i = 0; i < reversed.size(); i++) {
+                sequence[i] = reversed.get(i);
+            }
+            return new ColumnPuzzleSolution(true, true, presses, sequence);
+        }
+
+        private int firstNonZeroButton() {
+            for (int button = 0; button < buttonEffects.length; button++) {
+                for (int value : buttonEffects[button]) {
+                    if (mod(value, levelsPerColumn) != 0) return button;
+                }
+            }
+            return 0;
+        }
+
+        private boolean hasAnyNonZeroEffect() {
+            for (int[] effect : buttonEffects) {
+                for (int value : effect) {
+                    if (mod(value, levelsPerColumn) != 0) return true;
+                }
+            }
+            return false;
+        }
+
+        private int encode(int[] value) {
+            int code = 0;
+            int factor = 1;
+            for (int column = 0; column < columns; column++) {
+                code += mod(value[column], levelsPerColumn) * factor;
+                factor *= levelsPerColumn;
+            }
+            return code;
+        }
+
+        private void decode(int code, int[] out) {
+            for (int column = 0; column < columns; column++) {
+                out[column] = code % levelsPerColumn;
+                code /= levelsPerColumn;
+            }
+        }
+
+        private long totalStateCount(int maxStates) {
+            long total = 1L;
+            for (int i = 0; i < columns; i++) {
+                total *= levelsPerColumn;
+                if (total > maxStates || total > Integer.MAX_VALUE) return -1L;
+            }
+            return total;
+        }
+
+        private static int[][] copyEffects(int[][] source, int columns) {
+            int[][] copy = new int[source.length][columns];
+            for (int button = 0; button < source.length; button++) {
+                if (source[button] == null || source[button].length != columns) {
+                    throw new IllegalArgumentException("button effect length must match columns");
+                }
+                System.arraycopy(source[button], 0, copy[button], 0, columns);
+            }
+            return copy;
+        }
+
+        private static int[] normalizeTarget(int[] source, int levelsPerColumn) {
+            int[] copy = source.clone();
+            for (int i = 0; i < copy.length; i++) {
+                copy[i] = mod(copy[i], levelsPerColumn);
+            }
+            return copy;
+        }
+
+        private static int mod(int value, int base) {
+            int result = value % base;
+            return result < 0 ? result + base : result;
+        }
+    }
+
+    public record ColumnPuzzleSolution(boolean attempted, boolean solvable, int[] presses, int[] sequence) {
+        private static ColumnPuzzleSolution notAttempted(int buttonCount) {
+            return new ColumnPuzzleSolution(false, false, new int[buttonCount], new int[0]);
+        }
+
+        private static ColumnPuzzleSolution unsolvable(int buttonCount) {
+            return new ColumnPuzzleSolution(true, false, new int[buttonCount], new int[0]);
+        }
+
+        public ColumnPuzzleSolution {
+            presses = presses == null ? new int[0] : presses.clone();
+            sequence = sequence == null ? new int[0] : sequence.clone();
+        }
+
+        @Override
+        public int[] presses() {
+            return presses.clone();
+        }
+
+        @Override
+        public int[] sequence() {
+            return sequence.clone();
         }
     }
 

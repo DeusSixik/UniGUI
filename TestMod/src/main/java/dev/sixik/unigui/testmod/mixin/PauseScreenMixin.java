@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Р”РѕР±Р°РІР»СЏРµС‚ Р±С‹СЃС‚СЂС‹Р№ РІС…РѕРґ РІ UniGUI demo РёР· pause menu, РєРѕРіРґР° СѓР¶Рµ РѕС‚РєСЂС‹С‚ РјРёСЂ.
+ * Р вЂќР С•Р В±Р В°Р Р†Р В»РЎРЏР ВµРЎвЂљ Р В±РЎвЂ№РЎРѓРЎвЂљРЎР‚РЎвЂ№Р в„– Р Р†РЎвЂ¦Р С•Р Т‘ Р Р† UniGUI demo Р С‘Р В· pause menu, Р С”Р С•Р С–Р Т‘Р В° РЎС“Р В¶Р Вµ Р С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљ Р СР С‘РЎР‚.
  */
 @Mixin(PauseScreen.class)
 public abstract class PauseScreenMixin extends Screen {
@@ -42,8 +42,11 @@ public abstract class PauseScreenMixin extends Screen {
         addRenderableWidget(Button.builder(Component.literal("Sync Minigame"), button -> TestModClient.openSyncBatteryMinigame())
                 .bounds(width - 124, 152, 116, 20)
                 .build());
-        addRenderableWidget(Button.builder(Component.literal("Tutorial"), button -> TestModClient.openTutorial())
+        addRenderableWidget(Button.builder(Component.literal("Spanner Minigame"), button -> TestModClient.openSpannerRhythmMinigame())
                 .bounds(width - 124, 176, 116, 20)
+                .build());
+        addRenderableWidget(Button.builder(Component.literal("Tutorial"), button -> TestModClient.openTutorial())
+                .bounds(width - 124, 200, 116, 20)
                 .build());
     }
 }

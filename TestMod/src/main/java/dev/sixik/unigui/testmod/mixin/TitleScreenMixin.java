@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Р”РѕР±Р°РІР»СЏРµС‚ Р±С‹СЃС‚СЂС‹Р№ РІС…РѕРґ РІ UniGUI demo РЅР° РіР»Р°РІРЅС‹Р№ СЌРєСЂР°РЅ Minecraft.
+ * Р вЂќР С•Р В±Р В°Р Р†Р В»РЎРЏР ВµРЎвЂљ Р В±РЎвЂ№РЎРѓРЎвЂљРЎР‚РЎвЂ№Р в„– Р Р†РЎвЂ¦Р С•Р Т‘ Р Р† UniGUI demo Р Р…Р В° Р С–Р В»Р В°Р Р†Р Р…РЎвЂ№Р в„– РЎРЊР С”РЎР‚Р В°Р Р… Minecraft.
  */
 @Mixin(TitleScreen.class)
 public abstract class TitleScreenMixin extends Screen {
@@ -42,8 +42,11 @@ public abstract class TitleScreenMixin extends Screen {
         addRenderableWidget(Button.builder(Component.literal("Sync Minigame"), button -> TestModClient.openSyncBatteryMinigame())
                 .bounds(width - 124, 152, 116, 20)
                 .build());
-        addRenderableWidget(Button.builder(Component.literal("Tutorial"), button -> TestModClient.openTutorial())
+        addRenderableWidget(Button.builder(Component.literal("Spanner Minigame"), button -> TestModClient.openSpannerRhythmMinigame())
                 .bounds(width - 124, 176, 116, 20)
+                .build());
+        addRenderableWidget(Button.builder(Component.literal("Tutorial"), button -> TestModClient.openTutorial())
+                .bounds(width - 124, 200, 116, 20)
                 .build());
     }
 }
