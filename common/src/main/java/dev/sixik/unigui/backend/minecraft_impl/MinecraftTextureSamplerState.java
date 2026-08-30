@@ -4,6 +4,8 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import dev.sixik.unigui.api.render.TextureFilter;
 import dev.sixik.unigui.api.render.TextureOptions;
 import dev.sixik.unigui.api.render.TextureWrap;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
@@ -17,7 +19,13 @@ import java.util.Map;
 final class MinecraftTextureSamplerState {
     private static final Scope NOOP = () -> {
     };
-    private static final Map<TextureOptions, Integer> SAMPLERS = new HashMap<>();
+    private static final Object2IntMap<TextureOptions> SAMPLERS;
+
+    static {
+        SAMPLERS = new Object2IntOpenHashMap<>();
+        SAMPLERS.defaultReturnValue(-1);
+    }
+
     private static Boolean samplerObjectsSupported;
 
     private MinecraftTextureSamplerState() {
@@ -104,8 +112,8 @@ final class MinecraftTextureSamplerState {
     }
 
     private static int sampler(TextureOptions options) {
-        Integer existing = SAMPLERS.get(options);
-        if (existing != null) return existing;
+        int existing = SAMPLERS.getInt(options);
+        if (existing != -1) return existing;
 
         int sampler = GL33.glGenSamplers();
         GL33.glSamplerParameteri(sampler, GL11.GL_TEXTURE_MIN_FILTER, minFilter(options.minFilter()));

@@ -13,7 +13,7 @@ import dev.sixik.unigui.api.render.shaders.ShaderProviders;
 import dev.sixik.unigui.api.render.shaders.ShaderSource;
 import dev.sixik.unigui.api.render.shaders.ShaderUniform;
 import dev.sixik.unigui.api.render.shaders.ShaderUniforms;
-import net.minecraft.client.Minecraft;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
 import org.joml.Matrix4f;
@@ -73,7 +73,8 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
         try {
             GL20.glUseProgram(program.id);
             MinecraftTextureSamplerState.Scope sourceSampler = bindSourceTexture(program.id, command.texture());
-            if (sourceSampler != null) samplers.add(sourceSampler);
+            if (sourceSampler != null)
+                samplers.add(sourceSampler);
             bindExtraTextures(program.id, command.shaderTextures(), samplers);
             uploadBuiltins(program.id, graphics, command,
                     Math.max(1.0f, screenWidth),
