@@ -49,11 +49,11 @@ final class MinecraftTextureBatchRenderer {
 
         graphics.flush();
         RenderState state = RenderState.capture();
-        MinecraftTextureSamplerState.Scope sampler = null;
+        int samplerDepth = MinecraftTextureSamplerState.depth();
         try {
             RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
             binding.bind();
-            sampler = MinecraftTextureSamplerState.apply(binding.options());
+            MinecraftTextureSamplerState.apply(binding.options());
             RenderSystem.enableBlend();
             MinecraftUiBlend.applyTextureAlpha(binding.premultipliedAlpha(), renderingToPremultipliedTarget, batch.blendMode());
             RenderSystem.disableDepthTest();
@@ -73,7 +73,7 @@ final class MinecraftTextureBatchRenderer {
             LOGGER.error("UniGUI texture batch failed; falling back to legacy texture rendering", failure);
             return false;
         } finally {
-            if (sampler != null) sampler.close();
+            MinecraftTextureSamplerState.restoreTo(samplerDepth);
             state.restore();
         }
     }

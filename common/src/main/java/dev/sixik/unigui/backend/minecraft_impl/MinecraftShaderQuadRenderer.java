@@ -26,9 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.FloatBuffer;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 final class MinecraftShaderQuadRenderer implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(MinecraftShaderQuadRenderer.class);
@@ -69,13 +67,11 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
 
         graphics.flush();
         RenderState state = RenderState.capture();
-        List<MinecraftTextureSamplerState.Scope> samplers = new ArrayList<>();
+        int samplerDepth = MinecraftTextureSamplerState.depth();
         try {
             GL20.glUseProgram(program.id);
-            MinecraftTextureSamplerState.Scope sourceSampler = bindSourceTexture(program.id, command.texture());
-            if (sourceSampler != null)
-                samplers.add(sourceSampler);
-            bindExtraTextures(program.id, command.shaderTextures(), samplers);
+            bindSourceTexture(program.id, command.texture());
+            bindExtraTextures(program.id, command.shaderTextures());
             uploadBuiltins(program.id, graphics, command,
                     Math.max(1.0f, screenWidth),
                     Math.max(1.0f, screenHeight),
@@ -103,53 +99,46 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
             LOGGER.error("UniGUI shader draw failed for {}", command.shader().id(), failure);
             return false;
         } finally {
-            for (int i = samplers.size() - 1; i >= 0; i--) {
-                samplers.get(i).close();
-            }
+            MinecraftTextureSamplerState.restoreTo(samplerDepth);
             state.restore();
         }
     }
 
 
-    private MinecraftTextureSamplerState.Scope bindSourceTexture(int program, TextureHandle texture) {
-        if (texture == null) return null;
+    private void bindSourceTexture(int program, TextureHandle texture) {
+        if (texture == null) return;
         TextureBinding binding = TextureBinding.resolve(texture);
-        if (binding == null) return null;
+        if (binding == null) return;
 
         binding.bind(0);
-        MinecraftTextureSamplerState.Scope sampler = MinecraftTextureSamplerState.apply(binding.options());
+        MinecraftTextureSamplerState.apply(binding.options());
         uploadInt(program, "SourceTexture", 0);
         uploadInt(program, "Texture0", 0);
         uploadVec2(program, "SourceSize", Math.max(1.0f, texture.width()), Math.max(1.0f, texture.height()));
         uploadFloat(program, "SourceFlipY", binding.flipY() ? 1.0f : 0.0f);
-        return sampler;
     }
 
-    private void bindExtraTextures(int program,
-                                   Map<String, TextureHandle> textures,
-                                   List<MinecraftTextureSamplerState.Scope> samplers) {
+    private void bindExtraTextures(int program, Map<String, TextureHandle> textures) {
         if (textures == null || textures.isEmpty()) return;
         int unit = 1;
         for (Map.Entry<String, TextureHandle> entry : textures.entrySet()) {
             if (entry == null || entry.getValue() == null) continue;
             String uniform = entry.getKey() == null ? "" : entry.getKey().trim();
             if (uniform.isEmpty()) continue;
-            MinecraftTextureSamplerState.Scope sampler = bindTexture(program, uniform, entry.getValue(), unit);
-            if (sampler != null) samplers.add(sampler);
+            bindTexture(program, uniform, entry.getValue(), unit);
             unit++;
         }
     }
 
-    private MinecraftTextureSamplerState.Scope bindTexture(int program, String uniformName, TextureHandle texture, int unit) {
+    private void bindTexture(int program, String uniformName, TextureHandle texture, int unit) {
         TextureBinding binding = TextureBinding.resolve(texture);
-        if (binding == null) return null;
+        if (binding == null) return;
 
         int activeTexture = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
         binding.bind(Math.max(0, unit));
-        MinecraftTextureSamplerState.Scope sampler = MinecraftTextureSamplerState.apply(unit, binding.options());
+        MinecraftTextureSamplerState.apply(unit, binding.options());
         RenderSystem.activeTexture(activeTexture);
         uploadInt(program, uniformName, Math.max(0, unit));
-        return sampler;
     }
     private Program program(Minecraft minecraft, ShaderHandle shader) {
         ShaderSource source = ShaderProviders.resolve(shader, new MinecraftResourceShaderProvider(minecraft)).orElse(null);

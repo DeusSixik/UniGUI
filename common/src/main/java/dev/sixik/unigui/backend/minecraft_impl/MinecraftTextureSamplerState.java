@@ -4,8 +4,8 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import dev.sixik.unigui.api.render.TextureFilter;
 import dev.sixik.unigui.api.render.TextureOptions;
 import dev.sixik.unigui.api.render.TextureWrap;
-import it.unimi.dsi.fastutil.objects.Object2IntMap;
-import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2IntMap;
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
@@ -13,46 +13,75 @@ import org.lwjgl.opengl.GL13;
 import org.lwjgl.opengl.GL14;
 import org.lwjgl.opengl.GL33;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Arrays;
 
 final class MinecraftTextureSamplerState {
-    private static final Scope NOOP = () -> {
-    };
-    private static final Object2IntMap<TextureOptions> SAMPLERS;
+    private static final RestoreState RESTORE_STATE = new RestoreState();
+    private static final Int2IntMap SAMPLERS;
+    private static boolean samplerObjectsSupported;
+    private static boolean samplerObjectsSupportChecked;
 
     static {
-        SAMPLERS = new Object2IntOpenHashMap<>();
+        SAMPLERS = new Int2IntOpenHashMap();
         SAMPLERS.defaultReturnValue(-1);
     }
-
-    private static Boolean samplerObjectsSupported;
 
     private MinecraftTextureSamplerState() {
     }
 
-    static Scope apply(TextureOptions options) {
+    static boolean apply(TextureOptions options) {
         return apply(0, options);
     }
 
-    static Scope apply(int textureUnit, TextureOptions options) {
+    static boolean apply(int textureUnit, TextureOptions options) {
         TextureOptions normalized = options == null ? TextureOptions.defaults() : options;
-        if (normalized.isDefault()) return NOOP;
+        if (normalized.isDefault()) return false;
         int unit = Math.max(0, textureUnit);
-        return supportsSamplerObjects() ? applySamplerObject(unit, normalized) : applyTextureParameters(unit, normalized);
+        boolean useSamplerObjects = supportsSamplerObjects();
+        RESTORE_STATE.capture(unit, useSamplerObjects);
+        if (useSamplerObjects) applySamplerObject(unit, normalized);
+        else applyTextureParameters(unit, normalized);
+        return true;
+    }
+
+    /**
+     * Восстанавливает последнее состояние, сохранённое через {@link #apply(TextureOptions)}.
+     *
+     * <p>Стек хранит только примитивные значения, поэтому во время операции
+     * отрисовки не создаётся объект-замыкание для восстановления состояния сэмплера.</p>
+     */
+    static void restore() {
+        RESTORE_STATE.restore();
+    }
+
+    /**
+     * Возвращает текущую глубину стека восстановления.
+     *
+     * @return глубина стека, которую нужно передать в {@link #restoreTo(int)}
+     */
+    static int depth() {
+        return RESTORE_STATE.depth();
+    }
+
+    /**
+     * Восстанавливает все состояния сэмплеров, добавленные после указанной глубины стека.
+     *
+     * @param depth глубина стека, сохранённая перед операцией рендера
+     */
+    static void restoreTo(int depth) {
+        RESTORE_STATE.restoreTo(depth);
     }
 
     static void applyOwnedTextureOptions(int textureId, TextureOptions options) {
         TextureOptions normalized = options == null ? TextureOptions.defaults() : options;
         if (textureId <= 0 || normalized.isDefault()) return;
 
-        Runnable apply = () -> applyOwnedTextureOptionsNow(textureId, normalized);
         if (!RenderSystem.isOnRenderThreadOrInit()) {
-            RenderSystem.recordRenderCall(apply::run);
+            RenderSystem.recordRenderCall(() -> applyOwnedTextureOptionsNow(textureId, normalized));
             return;
         }
 
-        apply.run();
+        applyOwnedTextureOptionsNow(textureId, normalized);
     }
 
     private static void applyOwnedTextureOptionsNow(int textureId, TextureOptions options) {
@@ -71,48 +100,22 @@ final class MinecraftTextureSamplerState {
         }
     }
 
-    private static Scope applySamplerObject(int textureUnit, TextureOptions options) {
-        int activeTexture = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
-        RenderSystem.activeTexture(GL13.GL_TEXTURE0 + textureUnit);
-        int previousSampler = GL11.glGetInteger(GL33.GL_SAMPLER_BINDING);
+    private static void applySamplerObject(int textureUnit, TextureOptions options) {
         int sampler = sampler(options);
         GL33.glBindSampler(textureUnit, sampler);
-        RenderSystem.activeTexture(activeTexture);
-        return () -> {
-            int restoreActiveTexture = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
-            RenderSystem.activeTexture(GL13.GL_TEXTURE0 + textureUnit);
-            GL33.glBindSampler(textureUnit, previousSampler);
-            RenderSystem.activeTexture(restoreActiveTexture);
-        };
     }
 
-    private static Scope applyTextureParameters(int textureUnit, TextureOptions options) {
-        int activeTexture = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
-        RenderSystem.activeTexture(GL13.GL_TEXTURE0 + textureUnit);
-        int previousMin = GL11.glGetTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER);
-        int previousMag = GL11.glGetTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER);
-        int previousWrapS = GL11.glGetTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S);
-        int previousWrapT = GL11.glGetTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T);
+    private static void applyTextureParameters(int textureUnit, TextureOptions options) {
 
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, minFilter(options.minFilter()));
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, magFilter(options.magFilter()));
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, wrap(options.wrapS()));
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, wrap(options.wrapT()));
-        RenderSystem.activeTexture(activeTexture);
-
-        return () -> {
-            int restoreActiveTexture = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
-            RenderSystem.activeTexture(GL13.GL_TEXTURE0 + textureUnit);
-            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, previousMin);
-            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, previousMag);
-            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, previousWrapS);
-            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, previousWrapT);
-            RenderSystem.activeTexture(restoreActiveTexture);
-        };
     }
 
     private static int sampler(TextureOptions options) {
-        int existing = SAMPLERS.getInt(options);
+        int key = options.packed();
+        int existing = SAMPLERS.get(key);
         if (existing != -1) return existing;
 
         int sampler = GL33.glGenSamplers();
@@ -120,17 +123,18 @@ final class MinecraftTextureSamplerState {
         GL33.glSamplerParameteri(sampler, GL11.GL_TEXTURE_MAG_FILTER, magFilter(options.magFilter()));
         GL33.glSamplerParameteri(sampler, GL11.GL_TEXTURE_WRAP_S, wrap(options.wrapS()));
         GL33.glSamplerParameteri(sampler, GL11.GL_TEXTURE_WRAP_T, wrap(options.wrapT()));
-        SAMPLERS.put(options, sampler);
+        SAMPLERS.put(key, sampler);
         return sampler;
     }
 
     private static boolean supportsSamplerObjects() {
-        if (samplerObjectsSupported != null) return samplerObjectsSupported;
+        if (samplerObjectsSupportChecked) return samplerObjectsSupported;
         try {
             samplerObjectsSupported = GL.getCapabilities() != null && GL.getCapabilities().OpenGL33;
         } catch (Throwable ignored) {
             samplerObjectsSupported = false;
         }
+        samplerObjectsSupportChecked = true;
         return samplerObjectsSupported;
     }
 
@@ -158,7 +162,70 @@ final class MinecraftTextureSamplerState {
         };
     }
 
-    interface Scope {
-        void close();
+    private static final class RestoreState {
+        private int[] units = new int[8];
+        private boolean[] samplerModes = new boolean[8];
+        private int[] activeTextures = new int[8];
+        private int[] previousSamplers = new int[8];
+        private int[] previousMinFilters = new int[8];
+        private int[] previousMagFilters = new int[8];
+        private int[] previousWrapS = new int[8];
+        private int[] previousWrapT = new int[8];
+        private int depth;
+
+        private void capture(int textureUnit, boolean samplerObjects) {
+            ensureCapacity(depth + 1);
+            int index = depth++;
+            units[index] = textureUnit;
+            samplerModes[index] = samplerObjects;
+            activeTextures[index] = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
+            RenderSystem.activeTexture(GL13.GL_TEXTURE0 + textureUnit);
+            if (samplerObjects) {
+                previousSamplers[index] = GL11.glGetInteger(GL33.GL_SAMPLER_BINDING);
+            } else {
+                previousMinFilters[index] = GL11.glGetTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER);
+                previousMagFilters[index] = GL11.glGetTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER);
+                previousWrapS[index] = GL11.glGetTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S);
+                previousWrapT[index] = GL11.glGetTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T);
+            }
+        }
+
+        private void restore() {
+            if (depth == 0) return;
+            int index = --depth;
+            int textureUnit = units[index];
+            RenderSystem.activeTexture(GL13.GL_TEXTURE0 + textureUnit);
+            if (samplerModes[index]) {
+                GL33.glBindSampler(textureUnit, previousSamplers[index]);
+            } else {
+                GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, previousMinFilters[index]);
+                GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, previousMagFilters[index]);
+                GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, previousWrapS[index]);
+                GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, previousWrapT[index]);
+            }
+            RenderSystem.activeTexture(activeTextures[index]);
+        }
+
+        private int depth() {
+            return depth;
+        }
+
+        private void restoreTo(int targetDepth) {
+            int target = Math.max(0, targetDepth);
+            while (depth > target) restore();
+        }
+
+        private void ensureCapacity(int required) {
+            if (required <= units.length) return;
+            int capacity = Math.max(required, units.length * 2);
+            units = Arrays.copyOf(units, capacity);
+            samplerModes = Arrays.copyOf(samplerModes, capacity);
+            activeTextures = Arrays.copyOf(activeTextures, capacity);
+            previousSamplers = Arrays.copyOf(previousSamplers, capacity);
+            previousMinFilters = Arrays.copyOf(previousMinFilters, capacity);
+            previousMagFilters = Arrays.copyOf(previousMagFilters, capacity);
+            previousWrapS = Arrays.copyOf(previousWrapS, capacity);
+            previousWrapT = Arrays.copyOf(previousWrapT, capacity);
+        }
     }
 }

@@ -1,7 +1,5 @@
 package dev.sixik.unigui.api.render;
 
-import java.util.Objects;
-
 /**
  * Immutable sampling/wrap параметры текстуры.
  *
@@ -25,6 +23,7 @@ public final class TextureOptions {
     private final TextureWrap wrapT;
     private final boolean mipmaps;
     private final boolean premultipliedAlpha;
+    private final int packed;
 
     private TextureOptions(TextureFilter minFilter,
                            TextureFilter magFilter,
@@ -38,6 +37,8 @@ public final class TextureOptions {
         this.wrapT = wrapT == null ? TextureWrap.CLAMP_TO_EDGE : wrapT;
         this.mipmaps = mipmaps;
         this.premultipliedAlpha = premultipliedAlpha;
+        this.packed = pack(this.minFilter, this.magFilter, this.wrapS, this.wrapT,
+                this.mipmaps, this.premultipliedAlpha);
     }
 
     /**
@@ -89,6 +90,19 @@ public final class TextureOptions {
     /** @return {@code true}, если texture data уже хранит premultiplied alpha */
     public boolean premultipliedAlpha() {
         return premultipliedAlpha;
+    }
+
+    /**
+     * Возвращает компактный ключ всех параметров texture sampling.
+     *
+     * <p>Ключ занимает 10 младших бит: по два бита на каждый filter/wrap и по
+     * одному биту на {@code mipmaps} и {@code premultipliedAlpha}. Значения enum
+     * кодируются явно, поэтому ключ не зависит от порядка констант enum.</p>
+     *
+     * @return стабильное целочисленное представление options
+     */
+    public int packed() {
+        return packed;
     }
 
     /**
@@ -176,7 +190,7 @@ public final class TextureOptions {
 
     /** @return {@code true}, если options равны {@link #defaults()} */
     public boolean isDefault() {
-        return equals(DEFAULTS);
+        return packed == DEFAULTS.packed;
     }
 
     @Override
@@ -193,7 +207,7 @@ public final class TextureOptions {
 
     @Override
     public int hashCode() {
-        return Objects.hash(minFilter, magFilter, wrapS, wrapT, mipmaps, premultipliedAlpha);
+        return packed;
     }
 
     @Override
@@ -212,6 +226,37 @@ public final class TextureOptions {
         return switch (filter) {
             case NEAREST, NEAREST_MIPMAP_NEAREST -> TextureFilter.NEAREST;
             case LINEAR, LINEAR_MIPMAP_LINEAR -> TextureFilter.LINEAR;
+        };
+    }
+
+    private static int pack(TextureFilter minFilter,
+                            TextureFilter magFilter,
+                            TextureWrap wrapS,
+                            TextureWrap wrapT,
+                            boolean mipmaps,
+                            boolean premultipliedAlpha) {
+        return filterCode(minFilter)
+                | (filterCode(magFilter) << 2)
+                | (wrapCode(wrapS) << 4)
+                | (wrapCode(wrapT) << 6)
+                | (mipmaps ? 1 << 8 : 0)
+                | (premultipliedAlpha ? 1 << 9 : 0);
+    }
+
+    private static int filterCode(TextureFilter filter) {
+        return switch (filter) {
+            case NEAREST -> 0;
+            case LINEAR -> 1;
+            case NEAREST_MIPMAP_NEAREST -> 2;
+            case LINEAR_MIPMAP_LINEAR -> 3;
+        };
+    }
+
+    private static int wrapCode(TextureWrap wrap) {
+        return switch (wrap) {
+            case CLAMP_TO_EDGE -> 0;
+            case REPEAT -> 1;
+            case MIRRORED_REPEAT -> 2;
         };
     }
 }

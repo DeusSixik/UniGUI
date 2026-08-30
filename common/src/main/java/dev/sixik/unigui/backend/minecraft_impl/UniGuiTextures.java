@@ -1,7 +1,6 @@
 package dev.sixik.unigui.backend.minecraft_impl;
 
 import com.mojang.blaze3d.platform.NativeImage;
-import com.mojang.blaze3d.systems.RenderSystem;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.TextureOptions;
 import net.minecraft.client.Minecraft;
@@ -171,11 +170,7 @@ public final class UniGuiTextures {
             TextureOptions current = options == null ? TextureOptions.defaults() : options;
             if (current.isDefault()) return;
 
-            if (RenderSystem.isOnRenderThreadOrInit()) {
-                MinecraftTextureSamplerState.applyOwnedTextureOptions(getId(), current);
-            } else {
-                RenderSystem.recordRenderCall(() -> MinecraftTextureSamplerState.applyOwnedTextureOptions(getId(), current));
-            }
+            MinecraftTextureSamplerState.applyOwnedTextureOptions(getId(), current);
         }
     }
 }

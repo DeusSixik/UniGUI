@@ -1215,10 +1215,10 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
 
         graphics.flush();
         RenderState state = RenderState.capture();
-        MinecraftTextureSamplerState.Scope sampler = null;
+        int samplerDepth = MinecraftTextureSamplerState.depth();
         try {
             binding.bind();
-            sampler = MinecraftTextureSamplerState.apply(binding.options());
+            MinecraftTextureSamplerState.apply(binding.options());
             RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
             RenderSystem.enableBlend();
             MinecraftUiBlend.applyTextureAlpha(binding.premultipliedAlpha(), activeRenderTarget != null);
@@ -1233,7 +1233,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
             addTextureVertex(buffer, matrix, x2, y1, maxU, minV, tint);
             MinecraftBufferCompat.drawWithShader(buffer);
         } finally {
-            if (sampler != null) sampler.close();
+            MinecraftTextureSamplerState.restoreTo(samplerDepth);
             state.restore();
         }
     }
@@ -1247,11 +1247,11 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
 
         graphics.flush();
         RenderState state = RenderState.capture();
-        MinecraftTextureSamplerState.Scope sampler = null;
+        int samplerDepth = MinecraftTextureSamplerState.depth();
         try {
             RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
             binding.bind();
-            sampler = MinecraftTextureSamplerState.apply(binding.options());
+            MinecraftTextureSamplerState.apply(binding.options());
             RenderSystem.enableBlend();
             MinecraftUiBlend.applyTextureAlpha(binding.premultipliedAlpha(), activeRenderTarget != null);
             RenderSystem.disableDepthTest();
@@ -1278,7 +1278,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
             addTextureVertex(buffer, matrix, command.quadX4(), command.quadY4(), command.quadU4(), v4, command.paint().color());
             MinecraftBufferCompat.drawWithShader(buffer);
         } finally {
-            if (sampler != null) sampler.close();
+            MinecraftTextureSamplerState.restoreTo(samplerDepth);
             state.restore();
         }
     }
@@ -1323,11 +1323,11 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
     private void renderTexturedMesh(DrawMesh mesh, TextureBinding binding) {
         graphics.flush();
         RenderState state = RenderState.capture();
-        MinecraftTextureSamplerState.Scope sampler = null;
+        int samplerDepth = MinecraftTextureSamplerState.depth();
         try {
             RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
             binding.bind();
-            sampler = MinecraftTextureSamplerState.apply(binding.options());
+            MinecraftTextureSamplerState.apply(binding.options());
             RenderSystem.enableBlend();
             MinecraftUiBlend.applyTextureAlpha(binding.premultipliedAlpha(), activeRenderTarget != null);
             RenderSystem.disableDepthTest();
@@ -1344,7 +1344,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
             }
             MinecraftBufferCompat.drawWithShader(buffer);
         } finally {
-            if (sampler != null) sampler.close();
+            MinecraftTextureSamplerState.restoreTo(samplerDepth);
             state.restore();
         }
     }
