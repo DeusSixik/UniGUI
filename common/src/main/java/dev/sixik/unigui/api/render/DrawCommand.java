@@ -1,6 +1,7 @@
 package dev.sixik.unigui.api.render;
 
 import dev.sixik.unigui.api.math.MutableRect;
+import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.math.Transform;
 import dev.sixik.unigui.api.render.shaders.ShaderDrawOptions;
@@ -45,6 +46,23 @@ public final class DrawCommand {
     private final LinkedHashMap<String, TextureHandle> shaderTextures = new LinkedHashMap<>();
     private final Map<String, TextureHandle> shaderTexturesView = Collections.unmodifiableMap(shaderTextures);
     private float radius;
+    private int segments;
+    private float quadX1;
+    private float quadY1;
+    private float quadX2;
+    private float quadY2;
+    private float quadX3;
+    private float quadY3;
+    private float quadX4;
+    private float quadY4;
+    private float quadU1;
+    private float quadV1;
+    private float quadU2;
+    private float quadV2;
+    private float quadU3;
+    private float quadV3;
+    private float quadU4;
+    private float quadV4;
 
     /**
      * Создаёт команду прямоугольника.
@@ -198,12 +216,22 @@ public final class DrawCommand {
         return this;
     }
 
+    DrawCommand bounds(float x, float y, float width, float height) {
+        this.bounds.set(x, y, width, height);
+        return this;
+    }
+
     public MutableRect uv() {
         return uv;
     }
 
     public DrawCommand uv(RectView uv) {
         this.uv.set(uv);
+        return this;
+    }
+
+    DrawCommand uv(float x, float y, float width, float height) {
+        this.uv.set(x, y, width, height);
         return this;
     }
 
@@ -272,12 +300,36 @@ public final class DrawCommand {
         return this;
     }
 
+    /** Записывает paint во внутренний объект команды без создания копии paint. */
+    DrawCommand paintOwned(Paint paint) {
+        this.paint.copyFrom(paint);
+        return this;
+    }
+
+    /** Записывает обычный цвет заливки без временного создания {@link Paint}. */
+    DrawCommand paintColorOwned(ColorView color, float opacity) {
+        if (color == null) {
+            paint.reset();
+            return this;
+        }
+        float multiplier = Float.isFinite(opacity) ? Math.max(0.0f, opacity) : 1.0f;
+        paint.color().set(color.r(), color.g(), color.b(), color.a() * multiplier);
+        paint.stroke(false).strokeWidth(0.0f).blend(BlendMode.NORMAL).clearDash();
+        return this;
+    }
+
     public VectorPath path() {
         return path;
     }
 
     public DrawCommand path(VectorPath path) {
         this.path = path == null ? null : path.copy();
+        return this;
+    }
+
+    /** Передаёт path во внутреннее владение команды без копирования. */
+    DrawCommand pathOwned(VectorPath path) {
+        this.path = path;
         return this;
     }
 
@@ -291,6 +343,12 @@ public final class DrawCommand {
 
     public DrawCommand mesh(DrawMesh mesh) {
         this.mesh = mesh == null ? null : mesh.copy();
+        return this;
+    }
+
+    /** Передаёт mesh во внутреннее владение команды без копирования. */
+    DrawCommand meshOwned(DrawMesh mesh) {
+        this.mesh = mesh;
         return this;
     }
 
@@ -394,6 +452,106 @@ public final class DrawCommand {
         return this;
     }
 
+    /** @return количество сегментов для геометрии окружности; {@code 0} означает значение backend по умолчанию */
+    public int segments() {
+        return segments;
+    }
+
+    /** Задаёт количество сегментов для окружности или эллипса. */
+    public DrawCommand segments(int segments) {
+        this.segments = Math.max(0, segments);
+        return this;
+    }
+
+    /** Записывает текстурированный quad без создания объектов позиций и вершин. */
+    public DrawCommand texturedQuad(float x1, float y1, float x2, float y2,
+                                    float x3, float y3, float x4, float y4,
+                                    float u1, float v1, float u2, float v2,
+                                    float u3, float v3, float u4, float v4) {
+        quadX1 = x1;
+        quadY1 = y1;
+        quadX2 = x2;
+        quadY2 = y2;
+        quadX3 = x3;
+        quadY3 = y3;
+        quadX4 = x4;
+        quadY4 = y4;
+        quadU1 = u1;
+        quadV1 = v1;
+        quadU2 = u2;
+        quadV2 = v2;
+        quadU3 = u3;
+        quadV3 = v3;
+        quadU4 = u4;
+        quadV4 = v4;
+        return this;
+    }
+
+    public float quadX1() { return quadX1; }
+    public float quadY1() { return quadY1; }
+    public float quadX2() { return quadX2; }
+    public float quadY2() { return quadY2; }
+    public float quadX3() { return quadX3; }
+    public float quadY3() { return quadY3; }
+    public float quadX4() { return quadX4; }
+    public float quadY4() { return quadY4; }
+    public float quadU1() { return quadU1; }
+    public float quadV1() { return quadV1; }
+    public float quadU2() { return quadU2; }
+    public float quadV2() { return quadV2; }
+    public float quadU3() { return quadU3; }
+    public float quadV3() { return quadV3; }
+    public float quadU4() { return quadU4; }
+    public float quadV4() { return quadV4; }
+
+    /**
+     * Подготавливает команду, полученную из retained-пула, к новой записи.
+     * Метод предназначен для внутреннего кадрового пути DrawList.
+     */
+    DrawCommand resetForReuse(DrawCommandType type) {
+        this.type = type;
+        bounds.set(0.0f, 0.0f, 0.0f, 0.0f);
+        uv.set(0.0f, 0.0f, 1.0f, 1.0f);
+        transform.position().set(0.0f, 0.0f);
+        transform.scale().set(1.0f, 1.0f);
+        transform.pivot().set(0.0f, 0.0f);
+        transform.setRotationDegrees(0.0f);
+        transformStack.clear();
+        paint.reset();
+        path = null;
+        mesh = null;
+        texture = null;
+        text = null;
+        richText = null;
+        textPixelSnap = true;
+        customDraw = null;
+        shader = null;
+        shaderUniforms.clear();
+        shaderOptions.builtinUniforms(true).blend(true).squareVertexOffset(-0.25f);
+        shaderTextures.clear();
+        radius = 0.0f;
+        segments = 0;
+        quadX1 = quadY1 = quadX2 = quadY2 = quadX3 = quadY3 = quadX4 = quadY4 = 0.0f;
+        quadU1 = quadV1 = quadU2 = quadV2 = quadU3 = quadV3 = quadU4 = quadV4 = 0.0f;
+        return this;
+    }
+
+    /** Освобождает внешние ссылки перед помещением команды в retained-пул. */
+    void releaseForPool() {
+        path = null;
+        mesh = null;
+        texture = null;
+        text = null;
+        richText = null;
+        customDraw = null;
+        shader = null;
+        shaderUniforms.clear();
+        shaderTextures.clear();
+        transformStack.clear();
+        quadX1 = quadY1 = quadX2 = quadY2 = quadX3 = quadY3 = quadX4 = quadY4 = 0.0f;
+        quadU1 = quadV1 = quadU2 = quadV2 = quadU3 = quadV3 = quadU4 = quadV4 = 0.0f;
+    }
+
     /**
      * Создаёт глубокую копию команды для безопасного хранения в draw list.
      *
@@ -418,6 +576,9 @@ public final class DrawCommand {
         copy.shaderOptions = shaderOptions == null ? ShaderDrawOptions.defaults() : shaderOptions.copy();
         copy.shaderTextures(shaderTextures);
         copy.radius = radius;
+        copy.segments = segments;
+        copy.texturedQuad(quadX1, quadY1, quadX2, quadY2, quadX3, quadY3, quadX4, quadY4,
+                quadU1, quadV1, quadU2, quadV2, quadU3, quadV3, quadU4, quadV4);
         return copy;
     }
 }

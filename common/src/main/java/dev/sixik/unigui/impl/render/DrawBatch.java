@@ -35,7 +35,7 @@ public final class DrawBatch {
 
     public static DrawBatch barrier(DrawCommand command) {
         DrawBatch batch = new DrawBatch(command.type(), command.texture(), blendMode(command.paint()), true);
-        batch.add(command);
+        batch.addOwned(command);
         return batch;
     }
 
@@ -57,6 +57,17 @@ public final class DrawBatch {
 
     public void add(DrawCommand command) {
         commands.add(command.copy());
+    }
+
+    /**
+     * Добавляет уже принадлежащую batch-команде без копирования.
+     *
+     * <p>Метод предназначен для внутреннего кадро-вого batcher'а: команды уже
+     * изолированы в {@link DrawList} и живут только до его очистки. Публичный
+     * {@link #add(DrawCommand)} сохраняет защитную копию для внешнего кода.</p>
+     */
+    void addOwned(DrawCommand command) {
+        if (command != null) commands.add(command);
     }
 
     public List<DrawCommand> commands() {

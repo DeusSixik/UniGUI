@@ -16,7 +16,9 @@ import java.util.List;
  * из разных мест кода.</p>
  */
 public final class DrawList {
+    private static final int MAX_RETAINED_COMMANDS = 8192;
     private final ObjectArrayList<DrawCommand> commands = new ObjectArrayList<>();
+    private final ObjectArrayList<DrawCommand> recycledCommands = new ObjectArrayList<>();
     private final List<DrawCommand> commandsView = Collections.unmodifiableList(commands);
     private final VectorPath path = new VectorPath();
     private ObjectArrayList<ObjectArrayList<DrawCommand>> channels;
@@ -36,12 +38,49 @@ public final class DrawList {
         }
     }
 
+    /**
+     * Получает команду из retained-пула.
+     *
+     * <p>Команду нельзя хранить после следующего {@link #clear()} и нельзя повторно
+     * добавлять в список. Метод используется внутренними render-helper'ами.</p>
+     */
+    public DrawCommand obtain(DrawCommandType type) {
+        if (!recycledCommands.isEmpty()) {
+            return recycledCommands.remove(recycledCommands.size() - 1).resetForReuse(type);
+        }
+        return new DrawCommand(type);
+    }
+
+    /** Передаёт draw list уже подготовленную команду без глубокой копии. */
+    void addOwned(DrawCommand command) {
+        if (command == null) return;
+        if (channels == null) {
+            commands.add(command);
+        } else {
+            channels.get(currentChannel).add(command);
+        }
+    }
+
     /** Очищает команды, текущий path и active channels. */
     public void clear() {
+        recycle(commands);
+        if (channels != null) {
+            for (int i = 0; i < channels.size(); i++) {
+                recycle(channels.get(i));
+            }
+        }
         commands.clear();
         path.clear();
         channels = null;
         currentChannel = 0;
+    }
+
+    private void recycle(ObjectArrayList<DrawCommand> source) {
+        for (int i = 0, size = source.size(); i < size && recycledCommands.size() < MAX_RETAINED_COMMANDS; i++) {
+            DrawCommand command = source.get(i);
+            command.releaseForPool();
+            recycledCommands.add(command);
+        }
     }
 
     /** @return read-only view команд */

@@ -163,14 +163,35 @@ public final class Paint {
     /** @return независимая копия paint'а */
     public Paint copy() {
         Paint copy = new Paint();
-        copy.color.set(color);
-        copy.strokeWidth = strokeWidth;
-        copy.stroke = stroke;
-        copy.blendMode = blendMode;
-        copy.dashLength = dashLength;
-        copy.dashGap = dashGap;
-        copy.dashOffset = dashOffset;
+        copy.copyFrom(this);
         return copy;
+    }
+
+    /** Копирует состояние paint в уже существующий объект без создания нового paint. */
+    Paint copyFrom(Paint source) {
+        if (source == null) {
+            return reset();
+        }
+        color.set(source.color);
+        strokeWidth = source.strokeWidth;
+        stroke = source.stroke;
+        blendMode = source.blendMode;
+        dashLength = source.dashLength;
+        dashGap = source.dashGap;
+        dashOffset = source.dashOffset;
+        return this;
+    }
+
+    /** Сбрасывает paint в состояние по умолчанию для повторного использования draw command. */
+    Paint reset() {
+        color.set(1.0f, 1.0f, 1.0f, 1.0f);
+        strokeWidth = 0.0f;
+        stroke = false;
+        blendMode = BlendMode.NORMAL;
+        dashLength = 0.0f;
+        dashGap = 0.0f;
+        dashOffset = 0.0f;
+        return this;
     }
 
     private static float sanitizeDash(float value) {

@@ -90,7 +90,7 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
             case RECT -> appendRect(buffer, matrix, command.bounds(), command.paint());
             case ROUNDED_RECT -> appendRoundedRect(buffer, matrix, command);
             case LINE -> appendLineCommand(buffer, matrix, command);
-            case CIRCLE -> appendCircle(buffer, matrix, command.bounds(), command.paint());
+            case CIRCLE -> appendCircle(buffer, matrix, command);
             case PATH -> appendPath(buffer, matrix, command);
             default -> 0;
         };
@@ -169,13 +169,17 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
         return lineQuad(buffer, matrix, x1, y1, x2, y2, thickness, command.paint().color());
     }
 
-    private static int appendCircle(Object buffer, Matrix4f matrix, RectView bounds, Paint paint) {
+    private static int appendCircle(Object buffer, Matrix4f matrix, DrawCommand command) {
+        RectView bounds = command.bounds();
+        Paint paint = command.paint();
         float cx = bounds.x() + bounds.width() * 0.5f;
         float cy = bounds.y() + bounds.height() * 0.5f;
         float rx = Math.abs(bounds.width()) * 0.5f;
         float ry = Math.abs(bounds.height()) * 0.5f;
         if (rx <= 0.0f || ry <= 0.0f) return 0;
-        int segments = curveSegments(Math.max(rx, ry));
+        int segments = command.segments() > 0
+                ? command.segments()
+                : curveSegments(Math.max(rx, ry));
         FloatPoints outline = new FloatPoints(segments);
         appendArc(outline, cx, cy, rx, ry, 0.0f, TAU, segments, true);
         return paint.isStroke()

@@ -755,19 +755,19 @@ public final class SolarNavigationScreen {
                                       float width, float height, float angle) {
             float hw = width * 0.5f;
             float hh = height * 0.5f;
-            draw.addImageQuad(texture,
-                    rotated(centerX, centerY, angle, -hw, -hh),
-                    rotated(centerX, centerY, angle, hw, -hh),
-                    rotated(centerX, centerY, angle, hw, hh),
-                    rotated(centerX, centerY, angle, -hw, hh),
-                    new DrawPoint(0.0f, 0.0f), new DrawPoint(1.0f, 0.0f),
-                    new DrawPoint(1.0f, 1.0f), new DrawPoint(0.0f, 1.0f), WHITE);
-        }
-
-        private static DrawPoint rotated(float originX, float originY, float angle, float localX, float localY) {
             float cos = (float) Math.cos(angle);
             float sin = (float) Math.sin(angle);
-            return new DrawPoint(originX + localX * cos - localY * sin, originY + localX * sin + localY * cos);
+            float x1 = centerX - hw * cos + hh * sin;
+            float y1 = centerY - hw * sin - hh * cos;
+            float x2 = centerX + hw * cos + hh * sin;
+            float y2 = centerY + hw * sin - hh * cos;
+            float x3 = centerX + hw * cos - hh * sin;
+            float y3 = centerY + hw * sin + hh * cos;
+            float x4 = centerX - hw * cos - hh * sin;
+            float y4 = centerY - hw * sin + hh * cos;
+            draw.addTexturedQuad(texture,
+                    x1, y1, x2, y2, x3, y3, x4, y4,
+                    0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f, WHITE);
         }
 
         private void drawStations(WorldCanvas canvas, DrawScope draw) {

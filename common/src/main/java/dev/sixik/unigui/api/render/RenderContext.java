@@ -100,35 +100,55 @@ public interface RenderContext {
         drawList().add(command.copy().prependTransformStack(stack));
     }
 
+    /** Передаёт команду, созданную через DrawList.obtain(), без промежуточной копии. */
+    default void submitOwned(DrawCommand command) {
+        if (command == null) return;
+        List<TransformLayer> stack = transformStack();
+        if (stack != null && !stack.isEmpty()) {
+            command.prependTransformStack(stack);
+        }
+        drawList().addOwned(command);
+    }
+
     default void rect(float x, float y, float width, float height, Paint paint) {
-        submit(DrawCommand.rect(new MutableRect(x, y, width, height), effectivePaint(paint)));
+        submitOwned(drawList().obtain(DrawCommandType.RECT)
+                .bounds(x, y, width, height)
+                .paintOwned(effectivePaint(paint)));
     }
 
     default void rect(float x, float y, float width, float height, Paint paint, Transform transform) {
-        submit(DrawCommand.rect(new MutableRect(x, y, width, height), effectivePaint(paint)).transform(transform));
+        submitOwned(drawList().obtain(DrawCommandType.RECT)
+                .bounds(x, y, width, height)
+                .paintOwned(effectivePaint(paint))
+                .transform(transform));
     }
 
     default void roundedRect(float x, float y, float width, float height, float radius, Paint paint) {
-        submit(new DrawCommand(DrawCommandType.ROUNDED_RECT)
-                .bounds(new MutableRect(x, y, width, height))
+        submitOwned(drawList().obtain(DrawCommandType.ROUNDED_RECT)
+                .bounds(x, y, width, height)
                 .radius(radius)
-                .paint(effectivePaint(paint)));
+                .paintOwned(effectivePaint(paint)));
     }
 
     default void roundedRect(float x, float y, float width, float height, float radius, Paint paint, Transform transform) {
-        submit(new DrawCommand(DrawCommandType.ROUNDED_RECT)
-                .bounds(new MutableRect(x, y, width, height))
+        submitOwned(drawList().obtain(DrawCommandType.ROUNDED_RECT)
+                .bounds(x, y, width, height)
                 .radius(radius)
-                .paint(effectivePaint(paint))
+                .paintOwned(effectivePaint(paint))
                 .transform(transform));
     }
 
     default void circle(float x, float y, float width, float height, Paint paint) {
-        submit(DrawCommand.circle(new MutableRect(x, y, width, height), effectivePaint(paint)));
+        submitOwned(drawList().obtain(DrawCommandType.CIRCLE)
+                .bounds(x, y, width, height)
+                .paintOwned(effectivePaint(paint)));
     }
 
     default void circle(float x, float y, float width, float height, Paint paint, Transform transform) {
-        submit(DrawCommand.circle(new MutableRect(x, y, width, height), effectivePaint(paint)).transform(transform));
+        submitOwned(drawList().obtain(DrawCommandType.CIRCLE)
+                .bounds(x, y, width, height)
+                .paintOwned(effectivePaint(paint))
+                .transform(transform));
     }
 
     default void line(float x1, float y1, float x2, float y2, Paint paint) {
@@ -137,7 +157,9 @@ public interface RenderContext {
             emitDashedLine(x1, y1, x2, y2, effective, null);
             return;
         }
-        submit(DrawCommand.line(new MutableRect(x1, y1, x2 - x1, y2 - y1), effective));
+        submitOwned(drawList().obtain(DrawCommandType.LINE)
+                .bounds(x1, y1, x2 - x1, y2 - y1)
+                .paintOwned(effective));
     }
 
     default void line(float x1, float y1, float x2, float y2, Paint paint, Transform transform) {
@@ -146,39 +168,58 @@ public interface RenderContext {
             emitDashedLine(x1, y1, x2, y2, effective, transform);
             return;
         }
-        submit(DrawCommand.line(new MutableRect(x1, y1, x2 - x1, y2 - y1), effective).transform(transform));
+        submitOwned(drawList().obtain(DrawCommandType.LINE)
+                .bounds(x1, y1, x2 - x1, y2 - y1)
+                .paintOwned(effective)
+                .transform(transform));
     }
 
     default void path(VectorPath path, float x, float y, float width, float height, Paint paint) {
-        submit(DrawCommand.path(path, new MutableRect(x, y, width, height), effectivePaint(paint)));
+        submitOwned(drawList().obtain(DrawCommandType.PATH)
+                .path(path)
+                .bounds(x, y, width, height)
+                .paintOwned(effectivePaint(paint)));
     }
 
     default void path(VectorPath path, float x, float y, float width, float height, Paint paint, Transform transform) {
-        submit(DrawCommand.path(path, new MutableRect(x, y, width, height), effectivePaint(paint)).transform(transform));
+        submitOwned(drawList().obtain(DrawCommandType.PATH)
+                .path(path)
+                .bounds(x, y, width, height)
+                .paintOwned(effectivePaint(paint))
+                .transform(transform));
     }
 
     default void texture(TextureHandle texture, float x, float y, float width, float height, Paint paint) {
-        submit(DrawCommand.texture(texture, new MutableRect(x, y, width, height), effectivePaint(paint)));
+        submitOwned(drawList().obtain(DrawCommandType.TEXTURE)
+                .texture(texture)
+                .bounds(x, y, width, height)
+                .paintOwned(effectivePaint(paint)));
     }
 
     default void texture(TextureHandle texture, float x, float y, float width, float height, Paint paint, Transform transform) {
-        submit(DrawCommand.texture(texture, new MutableRect(x, y, width, height), effectivePaint(paint)).transform(transform));
+        submitOwned(drawList().obtain(DrawCommandType.TEXTURE)
+                .texture(texture)
+                .bounds(x, y, width, height)
+                .paintOwned(effectivePaint(paint))
+                .transform(transform));
     }
 
     default void texture(TextureHandle texture, TexturePlacement placement, float radius, Paint paint) {
-        submit(DrawCommand.texture(texture,
-                        new MutableRect(placement.x(), placement.y(), placement.width(), placement.height()),
-                        effectivePaint(paint))
-                .uv(new MutableRect(placement.u(), placement.v(), placement.uWidth(), placement.vHeight()))
+        submitOwned(drawList().obtain(DrawCommandType.TEXTURE)
+                .texture(texture)
+                .bounds(placement.x(), placement.y(), placement.width(), placement.height())
+                .paintOwned(effectivePaint(paint))
+                .uv(placement.u(), placement.v(), placement.uWidth(), placement.vHeight())
                 .radius(radius));
     }
 
     default void texture(TextureHandle texture, TexturePlacement placement, float radius,
                          Paint paint, Transform transform) {
-        submit(DrawCommand.texture(texture,
-                        new MutableRect(placement.x(), placement.y(), placement.width(), placement.height()),
-                        effectivePaint(paint))
-                .uv(new MutableRect(placement.u(), placement.v(), placement.uWidth(), placement.vHeight()))
+        submitOwned(drawList().obtain(DrawCommandType.TEXTURE)
+                .texture(texture)
+                .bounds(placement.x(), placement.y(), placement.width(), placement.height())
+                .paintOwned(effectivePaint(paint))
+                .uv(placement.u(), placement.v(), placement.uWidth(), placement.vHeight())
                 .radius(radius)
                 .transform(transform));
     }
@@ -201,12 +242,15 @@ public interface RenderContext {
     default void shader(ShaderHandle shader, float x, float y, float width, float height,
                         ShaderUniforms uniforms, ShaderDrawOptions options, Transform transform) {
         if (shader == null || width == 0.0f || height == 0.0f) return;
-        DrawCommand command = DrawCommand.shader(shader, new MutableRect(x, y, width, height), uniforms)
+        DrawCommand command = drawList().obtain(DrawCommandType.SHADER)
+                .shader(shader)
+                .bounds(x, y, width, height)
+                .shaderUniforms(uniforms)
                 .shaderOptions(options);
         if (transform != null) {
             command.transform(transform);
         }
-        submit(command);
+        submitOwned(command);
     }
 
     default void shader(String shaderResource, float x, float y, float width, float height,
@@ -214,12 +258,18 @@ public interface RenderContext {
         shader(ShaderHandle.resource(shaderResource), x, y, width, height, uniforms);
     }
     default void text(String text, float x, float y, float width, float height, Paint paint) {
-        submit(DrawCommand.text(text, new MutableRect(x, y, width, height), effectivePaint(paint))
+        submitOwned(drawList().obtain(DrawCommandType.TEXT)
+                .text(text)
+                .bounds(x, y, width, height)
+                .paintOwned(effectivePaint(paint))
                 .textPixelSnap(textPixelSnapEnabled()));
     }
 
     default void text(String text, float x, float y, float width, float height, Paint paint, Transform transform) {
-        submit(DrawCommand.text(text, new MutableRect(x, y, width, height), effectivePaint(paint))
+        submitOwned(drawList().obtain(DrawCommandType.TEXT)
+                .text(text)
+                .bounds(x, y, width, height)
+                .paintOwned(effectivePaint(paint))
                 .transform(transform)
                 .textPixelSnap(textPixelSnapEnabled()));
     }
@@ -230,10 +280,10 @@ public interface RenderContext {
 
     default void text(RichText text, float x, float y, float width, float height,
                       Paint paint, boolean textPixelSnap) {
-        submit(new DrawCommand(DrawCommandType.TEXT)
+        submitOwned(drawList().obtain(DrawCommandType.TEXT)
                 .richText(text)
-                .bounds(new MutableRect(x, y, width, height))
-                .paint(effectivePaint(paint))
+                .bounds(x, y, width, height)
+                .paintOwned(effectivePaint(paint))
                 .textPixelSnap(textPixelSnap && textPixelSnapEnabled()));
     }
 
@@ -244,16 +294,16 @@ public interface RenderContext {
 
     default void text(RichText text, float x, float y, float width, float height,
                       Paint paint, Transform transform, boolean textPixelSnap) {
-        submit(new DrawCommand(DrawCommandType.TEXT)
+        submitOwned(drawList().obtain(DrawCommandType.TEXT)
                 .richText(text)
-                .bounds(new MutableRect(x, y, width, height))
-                .paint(effectivePaint(paint))
+                .bounds(x, y, width, height)
+                .paintOwned(effectivePaint(paint))
                 .transform(transform)
                 .textPixelSnap(textPixelSnap && textPixelSnapEnabled()));
     }
 
     default void custom(CustomDraw customDraw) {
-        submit(DrawCommand.custom(customDraw));
+        submitOwned(drawList().obtain(DrawCommandType.CUSTOM).customDraw(customDraw));
     }
 
     default void addDrawCmd(DrawCommand command) {
@@ -437,13 +487,12 @@ public interface RenderContext {
     default void addEllipse(float centerX, float centerY, float radiusX, float radiusY,
                             ColorView color, int segments, float thickness, Transform transform) {
         int count = normalizedSegments(Math.max(Math.abs(radiusX), Math.abs(radiusY)), segments);
-        List<DrawPoint> points = new ObjectArrayList<>(count);
-        for (int i = 0; i < count; i++) {
-            float angle = TAU * i / count;
-            points.add(new DrawPoint(centerX + (float) Math.cos(angle) * radiusX,
-                    centerY + (float) Math.sin(angle) * radiusY));
-        }
-        addPolyline(points, color, true, thickness, transform);
+        DrawCommand command = drawList().obtain(DrawCommandType.CIRCLE)
+                .bounds(centerX - radiusX, centerY - radiusY, radiusX * 2.0f, radiusY * 2.0f)
+                .segments(count)
+                .paintOwned(effectivePaint(Paint.stroke(color, thickness)));
+        if (transform != null) command.transform(transform);
+        submitOwned(command);
     }
 
     default void addEllipseFilled(float centerX, float centerY, float radiusX, float radiusY,
@@ -454,13 +503,12 @@ public interface RenderContext {
     default void addEllipseFilled(float centerX, float centerY, float radiusX, float radiusY,
                                   ColorView color, int segments, Transform transform) {
         int count = normalizedSegments(Math.max(Math.abs(radiusX), Math.abs(radiusY)), segments);
-        List<DrawPoint> points = new ObjectArrayList<>(count);
-        for (int i = 0; i < count; i++) {
-            float angle = TAU * i / count;
-            points.add(new DrawPoint(centerX + (float) Math.cos(angle) * radiusX,
-                    centerY + (float) Math.sin(angle) * radiusY));
-        }
-        addConvexPolyFilled(points, color, transform);
+        DrawCommand command = drawList().obtain(DrawCommandType.CIRCLE)
+                .bounds(centerX - radiusX, centerY - radiusY, radiusX * 2.0f, radiusY * 2.0f)
+                .segments(count)
+                .paintOwned(effectivePaint(Paint.fill(color)));
+        if (transform != null) command.transform(transform);
+        submitOwned(command);
     }
 
     default void addText(String text, float x, float y, float width, float height, ColorView color) {
@@ -576,10 +624,42 @@ public interface RenderContext {
                               DrawPoint p1, DrawPoint p2, DrawPoint p3, DrawPoint p4,
                               DrawPoint uv1, DrawPoint uv2, DrawPoint uv3, DrawPoint uv4,
                               ColorView tint, Transform transform) {
-        addMesh(DrawMesh.triangles(List.of(
-                vertex(p1, uv1, tint), vertex(p2, uv2, tint), vertex(p3, uv3, tint),
-                vertex(p1, uv1, tint), vertex(p3, uv3, tint), vertex(p4, uv4, tint)
-        )), texture, transform);
+        addTexturedQuad(texture,
+                pointX(p1), pointY(p1), pointX(p2), pointY(p2),
+                pointX(p3), pointY(p3), pointX(p4), pointY(p4),
+                pointX(uv1), pointY(uv1), pointX(uv2), pointY(uv2),
+                pointX(uv3), pointY(uv3), pointX(uv4), pointY(uv4),
+                tint, transform);
+    }
+
+    default void addTexturedQuad(TextureHandle texture,
+                                 float x1, float y1, float x2, float y2,
+                                 float x3, float y3, float x4, float y4,
+                                 float u1, float v1, float u2, float v2,
+                                 float u3, float v3, float u4, float v4,
+                                 ColorView tint) {
+        addTexturedQuad(texture, x1, y1, x2, y2, x3, y3, x4, y4,
+                u1, v1, u2, v2, u3, v3, u4, v4, tint, null);
+    }
+
+    default void addTexturedQuad(TextureHandle texture,
+                                 float x1, float y1, float x2, float y2,
+                                 float x3, float y3, float x4, float y4,
+                                 float u1, float v1, float u2, float v2,
+                                 float u3, float v3, float u4, float v4,
+                                 ColorView tint, Transform transform) {
+        float minX = Math.min(Math.min(x1, x2), Math.min(x3, x4));
+        float minY = Math.min(Math.min(y1, y2), Math.min(y3, y4));
+        float maxX = Math.max(Math.max(x1, x2), Math.max(x3, x4));
+        float maxY = Math.max(Math.max(y1, y2), Math.max(y3, y4));
+        DrawCommand command = drawList().obtain(DrawCommandType.TEXTURED_QUAD)
+                .texture(texture)
+                .bounds(minX, minY, maxX - minX, maxY - minY)
+                .texturedQuad(x1, y1, x2, y2, x3, y3, x4, y4,
+                        u1, v1, u2, v2, u3, v3, u4, v4)
+                .paintColorOwned(tint, opacityMultiplier());
+        if (transform != null) command.transform(transform);
+        submitOwned(command);
     }
 
     default void addImageRounded(TextureHandle texture, float x, float y, float width, float height,
@@ -604,11 +684,14 @@ public interface RenderContext {
 
     default void addMesh(DrawMesh mesh, TextureHandle texture, Transform transform) {
         if (mesh == null || mesh.isEmpty()) return;
-        DrawCommand command = DrawCommand.mesh(mesh, texture).bounds(meshBounds(mesh));
+        DrawCommand command = drawList().obtain(DrawCommandType.MESH)
+                .meshOwned(mesh)
+                .texture(texture)
+                .bounds(meshBounds(mesh));
         if (transform != null) {
             command.transform(transform);
         }
-        submit(command);
+        submitOwned(command);
     }
 
     default void channelsSplit(int count) {
@@ -774,28 +857,34 @@ public interface RenderContext {
      * @param height высота clip bounds
      */
     default void pushClip(float x, float y, float width, float height) {
-        submit(DrawCommand.pushClip(new MutableRect(x, y, width, height)));
+        submitOwned(drawList().obtain(DrawCommandType.PUSH_CLIP)
+                .bounds(x, y, width, height));
     }
 
     default void pushClip(float x, float y, float width, float height, Transform transform) {
-        DrawCommand command = DrawCommand.pushClip(new MutableRect(x, y, width, height));
+        DrawCommand command = drawList().obtain(DrawCommandType.PUSH_CLIP)
+                .bounds(x, y, width, height);
         if (transform != null) {
             command.transform(transform);
         }
-        submit(command);
+        submitOwned(command);
     }
 
     default void popClip() {
-        submit(DrawCommand.popClip());
+        submitOwned(drawList().obtain(DrawCommandType.POP_CLIP));
     }
 
     default Paint effectivePaint(Paint paint) {
-        Paint copy = paint == null ? new Paint() : paint.copy();
         float opacity = clamp01(opacityMultiplier());
-        if (opacity < 0.999f) {
-            copy.color().set(copy.color().r(), copy.color().g(), copy.color().b(), copy.color().a() * opacity);
+        if (paint == null) {
+            return new Paint();
         }
-        return copy;
+        if (opacity < 0.999f) {
+            Paint copy = paint.copy();
+            copy.color().set(copy.color().r(), copy.color().g(), copy.color().b(), copy.color().a() * opacity);
+            return copy;
+        }
+        return paint;
     }
 
     default ColorView effectiveColor(ColorView color) {
@@ -814,9 +903,11 @@ public interface RenderContext {
         float pattern = dash + gap;
         if (dash <= 0.0f || gap <= 0.0f || pattern <= 0.0f) {
             Paint solid = paint.copy().clearDash();
-            DrawCommand command = DrawCommand.line(new MutableRect(x1, y1, dx, dy), solid);
+            DrawCommand command = drawList().obtain(DrawCommandType.LINE)
+                    .bounds(x1, y1, dx, dy)
+                    .paintOwned(solid);
             if (transform != null) command.transform(transform);
-            submit(command);
+            submitOwned(command);
             return;
         }
 
@@ -831,9 +922,11 @@ public interface RenderContext {
                 float sy = y1 + dy * start * invLength;
                 float ex = x1 + dx * end * invLength;
                 float ey = y1 + dy * end * invLength;
-                DrawCommand command = DrawCommand.line(new MutableRect(sx, sy, ex - sx, ey - sy), solid);
+                DrawCommand command = drawList().obtain(DrawCommandType.LINE)
+                        .bounds(sx, sy, ex - sx, ey - sy)
+                        .paintOwned(solid);
                 if (transform != null) command.transform(transform);
-                submit(command);
+                submitOwned(command);
             }
             cursor += pattern;
         }
@@ -848,11 +941,22 @@ public interface RenderContext {
         if (source == null || source.isEmpty()) return;
         MutableRect bounds = pathBounds(source);
         VectorPath relative = relativePath(source, bounds);
-        DrawCommand command = DrawCommand.path(relative, bounds, effectivePaint(paint));
+        DrawCommand command = drawList().obtain(DrawCommandType.PATH)
+                .pathOwned(relative)
+                .bounds(bounds)
+                .paintOwned(effectivePaint(paint));
         if (transform != null) {
             command.transform(transform);
         }
-        submit(command);
+        submitOwned(command);
+    }
+
+    private static float pointX(DrawPoint point) {
+        return point == null ? 0.0f : point.x();
+    }
+
+    private static float pointY(DrawPoint point) {
+        return point == null ? 0.0f : point.y();
     }
 
     private DrawVertex vertex(DrawPoint point, ColorView color) {

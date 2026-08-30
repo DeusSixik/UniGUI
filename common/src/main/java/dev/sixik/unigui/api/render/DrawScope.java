@@ -266,6 +266,17 @@ public final class DrawScope {
         context.addImageQuad(texture, p1, p2, p3, p4, uv1, uv2, uv3, uv4, tint, transform);
     }
 
+    /** Текстурированный quad с float-позициями без создания DrawPoint/DrawMesh. */
+    public void addTexturedQuad(TextureHandle texture,
+                                float x1, float y1, float x2, float y2,
+                                float x3, float y3, float x4, float y4,
+                                float u1, float v1, float u2, float v2,
+                                float u3, float v3, float u4, float v4,
+                                ColorView tint) {
+        context.addTexturedQuad(texture, x1, y1, x2, y2, x3, y3, x4, y4,
+                u1, v1, u2, v2, u3, v3, u4, v4, tint, transform);
+    }
+
     public void addImageRounded(TextureHandle texture, float x, float y, float width, float height,
                                 DrawPoint uvMin, DrawPoint uvMax, ColorView tint, float radius) {
         context.addImageRounded(texture, x, y, width, height, uvMin, uvMax, tint, radius, transform);

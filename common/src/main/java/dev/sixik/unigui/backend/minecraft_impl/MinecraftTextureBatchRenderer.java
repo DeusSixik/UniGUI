@@ -37,7 +37,7 @@ final class MinecraftTextureBatchRenderer {
         if (texture == null) return false;
         for (int i = 0; i < commandCount; i++) {
             DrawCommand command = (DrawCommand) rawCommands[i];
-            if (command == null || command.type() != DrawCommandType.TEXTURE
+            if (command == null || !isTextureCommand(command.type())
                     || command.texture() == null
                     || !sameTexture(texture, command.texture())) {
                 return false;
@@ -80,6 +80,10 @@ final class MinecraftTextureBatchRenderer {
 
     private static int append(Object buffer, Matrix4f matrix,
                               DrawCommand command, boolean flipY) {
+        if (command.type() == DrawCommandType.TEXTURED_QUAD) {
+            return appendTexturedQuad(buffer, matrix, command, flipY);
+        }
+
         RectView bounds = command.bounds();
         float width = bounds.width();
         float height = bounds.height();
@@ -108,6 +112,33 @@ final class MinecraftTextureBatchRenderer {
             vertex(buffer, matrix, command, flipY, outline.x(next), outline.y(next), tint);
         }
         return count * 3;
+    }
+
+    private static int appendTexturedQuad(Object buffer, Matrix4f matrix,
+                                          DrawCommand command, boolean flipY) {
+        float minV = Math.min(Math.min(command.quadV1(), command.quadV2()),
+                Math.min(command.quadV3(), command.quadV4()));
+        float maxV = Math.max(Math.max(command.quadV1(), command.quadV2()),
+                Math.max(command.quadV3(), command.quadV4()));
+
+        float v1 = flipY ? minV + maxV - command.quadV1() : command.quadV1();
+        float v2 = flipY ? minV + maxV - command.quadV2() : command.quadV2();
+        float v3 = flipY ? minV + maxV - command.quadV3() : command.quadV3();
+        float v4 = flipY ? minV + maxV - command.quadV4() : command.quadV4();
+
+        quadVertex(buffer, matrix, command.quadX1(), command.quadY1(), command.quadU1(), v1, command);
+        quadVertex(buffer, matrix, command.quadX2(), command.quadY2(), command.quadU2(), v2, command);
+        quadVertex(buffer, matrix, command.quadX3(), command.quadY3(), command.quadU3(), v3, command);
+        quadVertex(buffer, matrix, command.quadX1(), command.quadY1(), command.quadU1(), v1, command);
+        quadVertex(buffer, matrix, command.quadX3(), command.quadY3(), command.quadU3(), v3, command);
+        quadVertex(buffer, matrix, command.quadX4(), command.quadY4(), command.quadU4(), v4, command);
+        return 6;
+    }
+
+    private static void quadVertex(Object buffer, Matrix4f matrix, float x, float y,
+                                   float u, float v, DrawCommand command) {
+        MinecraftBufferCompat.textureColorVertex(buffer, matrix, x, y, u, v,
+                argb(command.paint().color()));
     }
 
     private static int quad(Object buffer, Matrix4f matrix, DrawCommand command,
@@ -197,6 +228,10 @@ final class MinecraftTextureBatchRenderer {
         if (left == null || right == null) return false;
         return Objects.equals(left.id(), right.id())
                 && Objects.equals(left.options(), right.options());
+    }
+
+    private static boolean isTextureCommand(DrawCommandType type) {
+        return type == DrawCommandType.TEXTURE || type == DrawCommandType.TEXTURED_QUAD;
     }
 
     private static final class FloatPoints {

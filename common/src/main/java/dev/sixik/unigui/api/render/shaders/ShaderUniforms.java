@@ -27,6 +27,12 @@ public final class ShaderUniforms {
         return new ShaderUniforms();
     }
 
+    /** Очищает uniforms без создания нового контейнера. */
+    public ShaderUniforms clear() {
+        values.clear();
+        return this;
+    }
+
     /**
      * Записывает uniform по имени.
      *

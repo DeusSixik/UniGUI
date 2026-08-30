@@ -702,7 +702,8 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
                 && sdfTextRenderer.render(graphics, batch, graphics.pose(), renderingToPremultipliedTarget, textGuiScale)) {
             return;
         }
-        if (batch.type() == DrawCommandType.TEXTURE
+        if ((batch.type() == DrawCommandType.TEXTURE
+                || batch.type() == DrawCommandType.TEXTURED_QUAD)
                 && textureBatchRenderer.render(graphics, batch, renderingToPremultipliedTarget)) {
             return;
         }
@@ -740,6 +741,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
                 case CIRCLE -> renderCircle(command);
                 case PATH -> renderPath(command);
                 case TEXTURE -> renderTexture(command);
+                case TEXTURED_QUAD -> renderTexturedQuad(command);
                 case SHADER -> renderShader(command);
                 case TEXT -> renderText(command);
                 case PUSH_CLIP -> pushClip(command);
@@ -994,7 +996,9 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         if (rx <= 0.0f || ry <= 0.0f) return;
 
         if (paint.isStroke()) {
-            int segments = segmentsFor(Math.max(rx, ry));
+            int segments = command.segments() > 0
+                    ? command.segments()
+                    : segmentsFor(Math.max(rx, ry));
             float prevX = cx + rx;
             float prevY = cy;
             for (int i = 1; i <= segments; i++) {
@@ -1227,6 +1231,51 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
             addTextureVertex(buffer, matrix, x1, y2, minU, maxV, tint);
             addTextureVertex(buffer, matrix, x2, y2, maxU, maxV, tint);
             addTextureVertex(buffer, matrix, x2, y1, maxU, minV, tint);
+            MinecraftBufferCompat.drawWithShader(buffer);
+        } finally {
+            if (sampler != null) sampler.close();
+            state.restore();
+        }
+    }
+
+    private void renderTexturedQuad(DrawCommand command) {
+        TextureHandle texture = command.texture();
+        if (texture == null) return;
+
+        TextureBinding binding = TextureBinding.resolve(texture);
+        if (binding == null) return;
+
+        graphics.flush();
+        RenderState state = RenderState.capture();
+        MinecraftTextureSamplerState.Scope sampler = null;
+        try {
+            RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
+            binding.bind();
+            sampler = MinecraftTextureSamplerState.apply(binding.options());
+            RenderSystem.enableBlend();
+            MinecraftUiBlend.applyTextureAlpha(binding.premultipliedAlpha(), activeRenderTarget != null);
+            RenderSystem.disableDepthTest();
+            RenderSystem.depthMask(false);
+            RenderSystem.disableCull();
+
+            float minV = Math.min(Math.min(command.quadV1(), command.quadV2()),
+                    Math.min(command.quadV3(), command.quadV4()));
+            float maxV = Math.max(Math.max(command.quadV1(), command.quadV2()),
+                    Math.max(command.quadV3(), command.quadV4()));
+            float v1 = binding.flipY() ? minV + maxV - command.quadV1() : command.quadV1();
+            float v2 = binding.flipY() ? minV + maxV - command.quadV2() : command.quadV2();
+            float v3 = binding.flipY() ? minV + maxV - command.quadV3() : command.quadV3();
+            float v4 = binding.flipY() ? minV + maxV - command.quadV4() : command.quadV4();
+
+            Matrix4f matrix = graphics.pose().last().pose();
+            Object buffer = MinecraftBufferCompat.begin(VertexFormat.Mode.TRIANGLES,
+                    DefaultVertexFormat.POSITION_TEX_COLOR);
+            addTextureVertex(buffer, matrix, command.quadX1(), command.quadY1(), command.quadU1(), v1, command.paint().color());
+            addTextureVertex(buffer, matrix, command.quadX2(), command.quadY2(), command.quadU2(), v2, command.paint().color());
+            addTextureVertex(buffer, matrix, command.quadX3(), command.quadY3(), command.quadU3(), v3, command.paint().color());
+            addTextureVertex(buffer, matrix, command.quadX1(), command.quadY1(), command.quadU1(), v1, command.paint().color());
+            addTextureVertex(buffer, matrix, command.quadX3(), command.quadY3(), command.quadU3(), v3, command.paint().color());
+            addTextureVertex(buffer, matrix, command.quadX4(), command.quadY4(), command.quadU4(), v4, command.paint().color());
             MinecraftBufferCompat.drawWithShader(buffer);
         } finally {
             if (sampler != null) sampler.close();

@@ -33,7 +33,7 @@ public final class SimpleDrawBatcher implements DrawBatcher {
                 batches.add(current);
             }
 
-            current.add(command);
+            current.addOwned(command);
         }
 
         return batches;
@@ -42,13 +42,16 @@ public final class SimpleDrawBatcher implements DrawBatcher {
     private static boolean isBatchable(DrawCommand command) {
         return command != null && (isColorPrimitive(command.type())
                 || command.type() == DrawCommandType.TEXT
-                || command.type() == DrawCommandType.TEXTURE);
+                || isTextureCommand(command.type()));
     }
 
     private static boolean canMerge(DrawBatch batch, DrawCommand command) {
         if (batch.isBarrier()) return false;
         if (!sameBlend(batch.blendMode(), command.paint())) return false;
         if (isColorPrimitive(batch.type()) && isColorPrimitive(command.type())) return true;
+        if (isTextureCommand(batch.type()) && isTextureCommand(command.type())) {
+            return sameTexture(batch.texture(), command.texture());
+        }
         if (batch.type() != command.type()) return false;
         if (command.type() != DrawCommandType.TEXTURE) return true;
         return sameTexture(batch.texture(), command.texture());
@@ -72,5 +75,9 @@ public final class SimpleDrawBatcher implements DrawBatcher {
                 || type == DrawCommandType.LINE
                 || type == DrawCommandType.CIRCLE
                 || type == DrawCommandType.PATH;
+    }
+
+    private static boolean isTextureCommand(DrawCommandType type) {
+        return type == DrawCommandType.TEXTURE || type == DrawCommandType.TEXTURED_QUAD;
     }
 }

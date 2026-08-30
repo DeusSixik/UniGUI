@@ -22,6 +22,8 @@ public enum DrawCommandType {
     TEXT,
     /** Текстура внутри bounds/uv. */
     TEXTURE,
+    /** Произвольный текстурированный quad с четырьмя позициями и UV. */
+    TEXTURED_QUAD,
     /** Начало clip/scissor области. */
     PUSH_CLIP,
     /** Завершение последней clip/scissor области. */
