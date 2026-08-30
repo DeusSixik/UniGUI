@@ -1,6 +1,7 @@
 package dev.sixik.unigui.testmod.client;
 
 import dev.sixik.unigui.testmod.client.ui.DominionScreen;
+import dev.sixik.unigui.testmod.client.ui.ForkInSocketMinigameScreen;
 import dev.sixik.unigui.testmod.client.ui.LevelMapScreen;
 import dev.sixik.unigui.testmod.client.ui.PlugSocketMinigameScreen;
 import dev.sixik.unigui.testmod.client.ui.RetroTerminalScreen;
@@ -12,19 +13,19 @@ import dev.sixik.unigui.testmod.client.ui.WireConnectionMinigameScreen;
 import net.fabricmc.api.ClientModInitializer;
 
 /**
- * Client entrypoint С‚РµСЃС‚РѕРІРѕРіРѕ Fabric-РјРѕРґР°.
+ * Client entrypoint тестового Fabric-мода.
  */
 public final class TestModClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
-        // UI РѕС‚РєСЂС‹РІР°РµС‚СЃСЏ С‡РµСЂРµР· РєРЅРѕРїРєРё, РґРѕР±Р°РІР»РµРЅРЅС‹Рµ mixin'Р°РјРё РЅР° title/pause screen.
+        // UI открывается через кнопки, добавленные mixin'ами на title/pause screen.
     }
 
     /**
-     * РћС‚РєСЂС‹РІР°РµС‚ РѕСЃРЅРѕРІРЅРѕРµ UniGUI demo.
+     * Открывает основное UniGUI demo.
      *
-     * <p>Р’С‹РЅРµСЃРµРЅРѕ РІ РѕС‚РґРµР»СЊРЅС‹Р№ РјРµС‚РѕРґ, С‡С‚РѕР±С‹ mixin'С‹ РЅРµ Р·Р°РІРёСЃРµР»Рё РЅР°РїСЂСЏРјСѓСЋ РѕС‚
-     * РІРЅСѓС‚СЂРµРЅРЅРµР№ СЃС‚СЂСѓРєС‚СѓСЂС‹ demo screen.</p>
+     * <p>Вынесено в отдельный метод, чтобы mixin'ы не зависели напрямую от
+     * внутренней структуры demo screen.</p>
      */
     public static void openDemo() {
         DominionScreen.openGui();
@@ -56,6 +57,10 @@ public final class TestModClient implements ClientModInitializer {
 
     public static void openSpannerRhythmMinigame() {
         SpannerRhythmMinigameScreen.open();
+    }
+
+    public static void openForkInSocketMinigame() {
+        ForkInSocketMinigameScreen.open();
     }
 
     public static void openTutorial() {

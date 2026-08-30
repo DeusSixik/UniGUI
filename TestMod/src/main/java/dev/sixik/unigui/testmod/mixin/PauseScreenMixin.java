@@ -45,8 +45,11 @@ public abstract class PauseScreenMixin extends Screen {
         addRenderableWidget(Button.builder(Component.literal("Spanner Minigame"), button -> TestModClient.openSpannerRhythmMinigame())
                 .bounds(width - 124, 176, 116, 20)
                 .build());
-        addRenderableWidget(Button.builder(Component.literal("Tutorial"), button -> TestModClient.openTutorial())
+        addRenderableWidget(Button.builder(Component.literal("Fork Minigame"), button -> TestModClient.openForkInSocketMinigame())
                 .bounds(width - 124, 200, 116, 20)
+                .build());
+        addRenderableWidget(Button.builder(Component.literal("Tutorial"), button -> TestModClient.openTutorial())
+                .bounds(width - 124, 224, 116, 20)
                 .build());
     }
 }
