@@ -132,3 +132,6 @@ fabric/run/
 fabric/.gradle/
 /common/logs
 /ldlib
+profile-2916-2916___dev.architectury.transformer.Tran.jfr
+*.jfr
+.profileconfig.json

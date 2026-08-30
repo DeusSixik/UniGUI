@@ -566,6 +566,14 @@ public final class UniGuiDemo {
                     RenderSystem.recordRenderCall(AnimationsSampler::openDemoClient);
                     return 0;
                 }))
+                .then(Commands.literal("complex").executes(ctx -> {
+                    ComplexUiDemo.openDemo();
+                    return 0;
+                }))
+                .then(Commands.literal("stress").executes(ctx -> {
+                    ComplexUiDemo.openDemo();
+                    return 0;
+                }))
                 .then(Commands.literal("xmlhot").executes(ctx -> {
                     openXmlHotReloadDemo();
                     return 0;
