@@ -13,7 +13,13 @@ import dev.sixik.unigui.api.render.shaders.ShaderProviders;
 import dev.sixik.unigui.api.render.shaders.ShaderSource;
 import dev.sixik.unigui.api.render.shaders.ShaderUniform;
 import dev.sixik.unigui.api.render.shaders.ShaderUniforms;
-import it.unimi.dsi.fastutil.objects.Object2IntMap;import net.minecraft.client.Minecraft;
+import it.unimi.dsi.fastutil.ints.Int2IntMap;
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
 import org.joml.Matrix4f;
@@ -26,10 +32,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.FloatBuffer;
-import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.Map;
 final class MinecraftShaderQuadRenderer implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(MinecraftShaderQuadRenderer.class);
+    private static final int UNIFORM_NOT_CACHED = Integer.MIN_VALUE;
+    private static final int TEXTURE_BINDING_CACHE_SIZE = 500;
 
     private static final String DEFAULT_VERTEX_SOURCE = """
             #version 150
@@ -52,7 +60,13 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
 
     private static final long START_NANOS = System.nanoTime();
 
-    private final Map<String, Program> programs = new HashMap<>();
+    private final Int2IntMap programs = new Int2IntOpenHashMap();
+    private final Int2ObjectMap<Object2IntMap<String>> uniformLocations = new Int2ObjectOpenHashMap<>();
+    private final TextureBindingCache textureBindings = new TextureBindingCache(TEXTURE_BINDING_CACHE_SIZE);
+
+    MinecraftShaderQuadRenderer() {
+        programs.defaultReturnValue(-1);
+    }
 
     boolean render(GuiGraphics graphics,
                    Minecraft minecraft,
@@ -62,21 +76,21 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
                    float screenHeight,
                    float guiScale) {
         if (graphics == null || minecraft == null || command == null || command.shader() == null) return false;
-        Program program = program(minecraft, command.shader());
-        if (program == null || program.id == 0) return false;
+        int program = program(minecraft, command.shader());
+        if (program == 0) return false;
 
         graphics.flush();
         RenderState state = RenderState.capture();
         int samplerDepth = MinecraftTextureSamplerState.depth();
         try {
-            GL20.glUseProgram(program.id);
-            bindSourceTexture(program.id, command.texture());
-            bindExtraTextures(program.id, command.shaderTextures());
-            uploadBuiltins(program.id, graphics, command,
+            GL20.glUseProgram(program);
+            bindSourceTexture(program, command.texture());
+            bindExtraTextures(program, command.shaderTextures());
+            uploadBuiltins(program, graphics, command,
                     Math.max(1.0f, screenWidth),
                     Math.max(1.0f, screenHeight),
                     sanitizeScale(guiScale));
-            uploadUniforms(program.id, command.shaderUniforms());
+            uploadUniforms(program, command.shaderUniforms());
 
             if (command.shaderOptions().blend()) {
                 RenderSystem.enableBlend();
@@ -107,7 +121,7 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
 
     private void bindSourceTexture(int program, TextureHandle texture) {
         if (texture == null) return;
-        TextureBinding binding = TextureBinding.resolve(texture);
+        TextureBinding binding = textureBindings.resolve(texture);
         if (binding == null) return;
 
         binding.bind(0);
@@ -131,7 +145,7 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
     }
 
     private void bindTexture(int program, String uniformName, TextureHandle texture, int unit) {
-        TextureBinding binding = TextureBinding.resolve(texture);
+        TextureBinding binding = textureBindings.resolve(texture);
         if (binding == null) return;
 
         int activeTexture = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
@@ -140,23 +154,22 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
         RenderSystem.activeTexture(activeTexture);
         uploadInt(program, uniformName, Math.max(0, unit));
     }
-    private Program program(Minecraft minecraft, ShaderHandle shader) {
+    private int program(Minecraft minecraft, ShaderHandle shader) {
         ShaderSource source = ShaderProviders.resolve(shader, new MinecraftResourceShaderProvider(minecraft)).orElse(null);
         if (source == null || source.fragmentSource().isBlank()) {
             LOGGER.warn("UniGUI shader source not found: {}", shader.id());
-            return null;
+            return 0;
         }
 
         String vertexSource = source.hasVertexSource() ? source.vertexSource() : DEFAULT_VERTEX_SOURCE;
         String fragmentSource = source.fragmentSource();
-        String key = source.id() + "\n" + vertexSource.hashCode() + "\n" + fragmentSource.hashCode();
-        Program cached = programs.get(key);
-        if (cached != null) return cached;
+        int key = source.intId();
+        int cached = programs.get(key);
+        if (cached != -1) return cached;
 
         int id = linkProgram(source.id(), vertexSource, fragmentSource);
-        Program program = new Program(id);
-        programs.put(key, program);
-        return program;
+        programs.put(key, id);
+        return id;
     }
 
     private void uploadBuiltins(int program, GuiGraphics graphics, DrawCommand command,
@@ -217,33 +230,57 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
         }
     }
 
+    /**
+     * Возвращает location uniform'а из cache конкретной OpenGL-программы.
+     *
+     * <p>Location действителен до удаления или перелинковки программы, поэтому
+     * встроенные и пользовательские uniform'ы используют один общий cache.</p>
+     */
+    private int uniformLocation(int program, String name) {
+        if (name == null || name.isEmpty()) return -1;
+
+        Object2IntMap<String> locations = uniformLocations.get(program);
+        if (locations == null) {
+            locations = new Object2IntOpenHashMap<>();
+            locations.defaultReturnValue(UNIFORM_NOT_CACHED);
+            uniformLocations.put(program, locations);
+        }
+
+        int location = locations.getInt(name);
+        if (location != UNIFORM_NOT_CACHED) return location;
+
+        location = GL20.glGetUniformLocation(program, name);
+        locations.put(name, location);
+        return location;
+    }
+
     private void uploadFloat(int program, String name, float value) {
-        int location = GL20.glGetUniformLocation(program, name);
+        int location = uniformLocation(program, name);
         if (location >= 0) GL20.glUniform1f(location, value);
     }
 
     private void uploadInt(int program, String name, int value) {
-        int location = GL20.glGetUniformLocation(program, name);
+        int location = uniformLocation(program, name);
         if (location >= 0) GL20.glUniform1i(location, value);
     }
 
     private void uploadVec2(int program, String name, float x, float y) {
-        int location = GL20.glGetUniformLocation(program, name);
+        int location = uniformLocation(program, name);
         if (location >= 0) GL20.glUniform2f(location, x, y);
     }
 
     private void uploadVec3(int program, String name, float x, float y, float z) {
-        int location = GL20.glGetUniformLocation(program, name);
+        int location = uniformLocation(program, name);
         if (location >= 0) GL20.glUniform3f(location, x, y, z);
     }
 
     private void uploadVec4(int program, String name, float x, float y, float z, float w) {
-        int location = GL20.glGetUniformLocation(program, name);
+        int location = uniformLocation(program, name);
         if (location >= 0) GL20.glUniform4f(location, x, y, z, w);
     }
 
     private void uploadMat4(int program, String name, FloatBuffer values) {
-        int location = GL20.glGetUniformLocation(program, name);
+        int location = uniformLocation(program, name);
         if (location >= 0) GL20.glUniformMatrix4fv(location, false, values);
     }
 
@@ -293,17 +330,17 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
 
     @Override
     public void close() {
-        for (Program program : programs.values()) {
-            if (program.id != 0) {
-                GL20.glDeleteProgram(program.id);
+        for (int program : programs.values()) {
+            if (program != 0) {
+                GL20.glDeleteProgram(program);
             }
         }
         programs.clear();
+        uniformLocations.clear();
+        textureBindings.clear();
     }
 
-    private record Program(int id) {
-    }
-    private record TextureBinding(Integer textureId, ResourceLocation location, boolean flipY, TextureOptions options) {
+    private record TextureBinding(int textureId, ResourceLocation location, boolean flipY, TextureOptions options) {
         private static TextureBinding resolve(TextureHandle texture) {
             if (texture == null) return null;
             TextureOptions options = texture.options() == null ? TextureOptions.defaults() : texture.options();
@@ -317,18 +354,135 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
             ResourceLocation location = nativeHandle instanceof ResourceLocation resourceLocation
                     ? resourceLocation
                     : ResourceLocation.tryParse(texture.id());
-            return location == null ? null : new TextureBinding(null, location, false, options);
+            return location == null ? null : new TextureBinding(-1, location, false, options);
+        }
+
+        private boolean matches(TextureHandle texture) {
+            TextureOptions currentOptions = texture.options() == null
+                    ? TextureOptions.defaults()
+                    : texture.options();
+            if (currentOptions.packed() != options.packed()) return false;
+
+            Object nativeHandle = texture.nativeHandle();
+            if (nativeHandle instanceof MinecraftRenderTarget.ColorTextureHandle colorTexture) {
+                return textureId == colorTexture.textureId();
+            }
+            if (nativeHandle instanceof Integer currentTextureId) {
+                return textureId == currentTextureId;
+            }
+            if (location == null) return true;
+            ResourceLocation currentLocation = nativeHandle instanceof ResourceLocation resourceLocation
+                    ? resourceLocation
+                    : ResourceLocation.tryParse(texture.id());
+            return location.equals(currentLocation);
         }
 
         private void bind(int unit) {
             int textureUnit = Math.max(0, unit);
             RenderSystem.activeTexture(GL13.GL_TEXTURE0 + textureUnit);
-            if (textureId != null) {
+            if (textureId >= 0) {
                 RenderSystem.bindTexture(textureId);
                 RenderSystem.setShaderTexture(textureUnit, textureId);
             } else {
                 RenderSystem.setShaderTexture(textureUnit, location);
             }
+        }
+    }
+
+    /**
+     * Ограниченный LRU-кэш разрешённых texture binding'ов.
+     *
+     * <p>Identity-ключи не зависят от реализации {@link TextureHandle}. После
+     * заполнения старые узлы переиспользуются, поэтому вытеснение не создаёт
+     * новый объект узла на каждый cache miss.</p>
+     */
+    private static final class TextureBindingCache {
+        private final IdentityHashMap<TextureHandle, Entry> entries;
+        private final int capacity;
+        private Entry first;
+        private Entry last;
+
+        private TextureBindingCache(int capacity) {
+            this.capacity = Math.max(1, capacity);
+            this.entries = new IdentityHashMap<>(this.capacity * 2);
+        }
+
+        private TextureBinding resolve(TextureHandle texture) {
+            if (texture == null) return null;
+            Entry entry = entries.get(texture);
+            if (entry != null) {
+                if (entry.binding.matches(texture)) {
+                    moveToFront(entry);
+                    return entry.binding;
+                }
+                remove(entry);
+            }
+
+            TextureBinding binding = TextureBinding.resolve(texture);
+            if (binding == null) return null;
+            put(texture, binding);
+            return binding;
+        }
+
+        private void put(TextureHandle texture, TextureBinding binding) {
+            Entry entry = entries.get(texture);
+            if (entry == null) {
+                if (entries.size() >= capacity) {
+                    entry = last;
+                    entries.remove(entry.texture);
+                    unlink(entry);
+                } else {
+                    entry = new Entry();
+                }
+                entries.put(texture, entry);
+            }
+
+            entry.texture = texture;
+            entry.binding = binding;
+            linkFirst(entry);
+        }
+
+        private void clear() {
+            entries.clear();
+            first = null;
+            last = null;
+        }
+
+        private void moveToFront(Entry entry) {
+            if (entry == first) return;
+            unlink(entry);
+            linkFirst(entry);
+        }
+
+        private void remove(Entry entry) {
+            entries.remove(entry.texture);
+            unlink(entry);
+            entry.texture = null;
+            entry.binding = null;
+        }
+
+        private void linkFirst(Entry entry) {
+            entry.previous = null;
+            entry.next = first;
+            if (first != null) first.previous = entry;
+            else last = entry;
+            first = entry;
+        }
+
+        private void unlink(Entry entry) {
+            if (entry.previous == null) first = entry.next;
+            else entry.previous.next = entry.next;
+            if (entry.next == null) last = entry.previous;
+            else entry.next.previous = entry.previous;
+            entry.previous = null;
+            entry.next = null;
+        }
+
+        private static final class Entry {
+            private TextureHandle texture;
+            private TextureBinding binding;
+            private Entry previous;
+            private Entry next;
         }
     }
 
