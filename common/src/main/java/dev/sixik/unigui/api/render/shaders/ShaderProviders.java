@@ -60,31 +60,42 @@ public final class ShaderProviders {
      * @return shader source или empty
      */
     public static Optional<ShaderSource> resolve(ShaderHandle handle, ShaderProvider... preferredProviders) {
-        if (handle == null) return Optional.empty();
+        return Optional.ofNullable(resolveOrNull(handle, preferredProviders));
+    }
 
-        if (handle.hasEmbeddedFragmentSource()) {
-            return Optional.of(ShaderSource.source(handle.id(), handle.vertexSource(), handle.fragmentSource()));
-        }
+    /**
+     * Разрешает shader source без создания {@link Optional}.
+     *
+     * <p>Метод предназначен для backend'ов и других горячих путей рендера.
+     * При отсутствии source возвращается {@code null}.</p>
+     *
+     * @param handle handle шейдера
+     * @param preferredProviders providers с максимальным приоритетом
+     * @return shader source или {@code null}
+     */
+    public static ShaderSource resolveOrNull(ShaderHandle handle, ShaderProvider... preferredProviders) {
+        return resolveOrNullInternal(handle, null, preferredProviders);
+    }
 
-        if (preferredProviders != null) {
-            for (ShaderProvider provider : preferredProviders) {
-                Optional<ShaderSource> resolved = load(provider, handle);
-                if (resolved.isPresent()) return resolved;
-            }
-        }
+    /**
+     * Разрешает shader source через один preferred provider без создания varargs-массива.
+     *
+     * @param handle handle шейдера
+     * @param preferredProvider provider с максимальным приоритетом
+     * @return shader source или {@code null}
+     */
+    public static ShaderSource resolveOrNull(ShaderHandle handle, ShaderProvider preferredProvider) {
+        return resolveOrNullInternal(handle, preferredProvider, null);
+    }
 
-        ensureServicesLoaded();
-
-        for (ShaderProvider provider : REGISTERED) {
-            Optional<ShaderSource> resolved = load(provider, handle);
-            if (resolved.isPresent()) return resolved;
-        }
-        for (ShaderProvider provider : SERVICES) {
-            Optional<ShaderSource> resolved = load(provider, handle);
-            if (resolved.isPresent()) return resolved;
-        }
-
-        return load(CLASSPATH, handle);
+    /**
+     * Разрешает shader source через стандартный provider chain без {@link Optional}.
+     *
+     * @param handle handle шейдера
+     * @return shader source или {@code null}
+     */
+    public static ShaderSource resolveOrNull(ShaderHandle handle) {
+        return resolveOrNullInternal(handle, null, null);
     }
 
     /**
@@ -94,7 +105,7 @@ public final class ShaderProviders {
      * @return shader source или empty
      */
     public static Optional<ShaderSource> resolve(ShaderHandle handle) {
-        return resolve(handle, new ShaderProvider[0]);
+        return Optional.ofNullable(resolveOrNull(handle));
     }
 
     /**
@@ -118,12 +129,46 @@ public final class ShaderProviders {
         ensureServicesLoaded();
     }
 
-    private static Optional<ShaderSource> load(ShaderProvider provider, ShaderHandle handle) {
-        if (provider == null) return Optional.empty();
+    private static ShaderSource resolveOrNullInternal(ShaderHandle handle,
+                                                      ShaderProvider preferredProvider,
+                                                      ShaderProvider[] preferredProviders) {
+        if (handle == null) return null;
+
+        if (handle.hasEmbeddedFragmentSource()) {
+            return ShaderSource.source(handle.id(), handle.vertexSource(), handle.fragmentSource());
+        }
+
+        if (preferredProvider != null) {
+            ShaderSource resolved = loadOrNull(preferredProvider, handle);
+            if (resolved != null) return resolved;
+        }
+        if (preferredProviders != null) {
+            for (ShaderProvider provider : preferredProviders) {
+                ShaderSource resolved = loadOrNull(provider, handle);
+                if (resolved != null) return resolved;
+            }
+        }
+
+        ensureServicesLoaded();
+
+        for (ShaderProvider provider : REGISTERED) {
+            ShaderSource resolved = loadOrNull(provider, handle);
+            if (resolved != null) return resolved;
+        }
+        for (ShaderProvider provider : SERVICES) {
+            ShaderSource resolved = loadOrNull(provider, handle);
+            if (resolved != null) return resolved;
+        }
+
+        return loadOrNull(CLASSPATH, handle);
+    }
+
+    private static ShaderSource loadOrNull(ShaderProvider provider, ShaderHandle handle) {
+        if (provider == null) return null;
         try {
-            return provider.load(handle).map(ShaderSource::copy);
+            return provider.loadOrNull(handle);
         } catch (Throwable ignored) {
-            return Optional.empty();
+            return null;
         }
     }
 

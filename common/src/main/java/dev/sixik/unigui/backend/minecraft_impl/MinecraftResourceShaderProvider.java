@@ -28,13 +28,18 @@ final class MinecraftResourceShaderProvider implements ShaderProvider {
 
     @Override
     public Optional<ShaderSource> load(ShaderHandle handle) {
-        if (handle == null || handle.hasEmbeddedFragmentSource()) return Optional.empty();
+        return Optional.ofNullable(loadOrNull(handle));
+    }
+
+    @Override
+    public ShaderSource loadOrNull(ShaderHandle handle) {
+        if (handle == null || handle.hasEmbeddedFragmentSource()) return null;
 
         String fragment = readFirst(ShaderResourcePaths.namespacedFragmentCandidates(handle.id()));
-        if (fragment == null || fragment.isBlank()) return Optional.empty();
+        if (fragment == null || fragment.isBlank()) return null;
 
         String vertex = readFirst(ShaderResourcePaths.namespacedVertexCandidates(handle.id()));
-        return Optional.of(ShaderSource.source(handle.id(), vertex, fragment));
+        return ShaderSource.source(handle.id(), vertex, fragment);
     }
 
     private String readFirst(Iterable<ShaderResourcePaths.NamespacedPath> candidates) {

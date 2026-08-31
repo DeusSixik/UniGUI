@@ -11,7 +11,7 @@ import dev.sixik.unigui.api.render.DrawCommandType;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.impl.render.DrawBatch;
 import net.minecraft.client.gui.GuiGraphics;
-import org.joml.Matrix4f;
+import org.intellij.lang.annotations.Language;import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
 import org.lwjgl.opengl.GL14;
@@ -38,6 +38,7 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
     private static final int SHAPE_ELLIPSE = 1;
     private static final int SHAPE_LINE = 2;
 
+    @Language("GLSL")
     private static final String VERTEX_SOURCE = """
             #version 150
 
@@ -55,6 +56,7 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
             }
             """;
 
+    @Language("GLSL")
     private static final String FRAGMENT_SOURCE = """
             #version 150
 

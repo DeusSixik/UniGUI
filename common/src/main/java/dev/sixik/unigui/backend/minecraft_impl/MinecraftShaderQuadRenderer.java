@@ -22,6 +22,7 @@ import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
+import org.intellij.lang.annotations.Language;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
@@ -39,6 +40,7 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
     private static final int UNIFORM_NOT_CACHED = Integer.MIN_VALUE;
     private static final int TEXTURE_BINDING_CACHE_SIZE = 500;
 
+    @Language("GLSL")
     private static final String DEFAULT_VERTEX_SOURCE = """
             #version 150
 
@@ -158,7 +160,7 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
         uploadInt(program, uniformName, Math.max(0, unit));
     }
     private int program(Minecraft minecraft, ShaderHandle shader) {
-        ShaderSource source = ShaderProviders.resolve(shader, shaderProvider).orElse(null);
+        ShaderSource source = ShaderProviders.resolveOrNull(shader, shaderProvider);
         if (source == null || source.fragmentSource().isBlank()) {
             LOGGER.warn("UniGUI shader source not found: {}", shader.id());
             return 0;

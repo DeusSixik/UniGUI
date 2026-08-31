@@ -20,6 +20,7 @@ import dev.sixik.unigui.impl.text.DefaultFontRegistry;
 import dev.sixik.unigui.impl.text.SdfGlyph;
 import dev.sixik.unigui.impl.text.SdfGlyphProvider;
 import net.minecraft.client.gui.GuiGraphics;
+import org.intellij.lang.annotations.Language;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
@@ -52,6 +53,7 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
     private static final float MATRIX_EPSILON = 0.0001f;
     private static final Logger LOGGER = LoggerFactory.getLogger(MinecraftSdfTextRenderer.class);
 
+    @Language("GLSL")
     private static final String VERTEX_SHADER = """
             #version 150
             in vec3 Position;
@@ -68,6 +70,7 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
             }
             """;
 
+    @Language("GLSL")
     private static final String FRAGMENT_SHADER = """
             #version 150
             uniform sampler2D GlyphAtlas;

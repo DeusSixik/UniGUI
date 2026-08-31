@@ -198,9 +198,14 @@ public final class UiPostEffects {
 
         @Override
         public Optional<ShaderSource> load(ShaderHandle handle) {
-            if (handle == null) return Optional.empty();
+            return Optional.ofNullable(loadOrNull(handle));
+        }
+
+        @Override
+        public ShaderSource loadOrNull(ShaderHandle handle) {
+            if (handle == null) return null;
             String fragment = SOURCES.get(handle.id());
-            return fragment == null ? Optional.empty() : Optional.of(ShaderSource.fragment(handle.id(), fragment));
+            return fragment == null ? null : ShaderSource.fragment(handle.id(), fragment);
         }
 
         private static String source(String body) {

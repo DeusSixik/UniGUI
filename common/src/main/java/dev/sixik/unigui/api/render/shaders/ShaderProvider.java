@@ -17,4 +17,20 @@ public interface ShaderProvider {
      * @return source или {@link Optional#empty()}, если provider не знает этот shader
      */
     Optional<ShaderSource> load(ShaderHandle handle);
+
+    /**
+     * Загружает source без промежуточного {@link Optional}.
+     *
+     * <p>Метод нужен backend'ам, работающим в горячем render path. Реализации,
+     * которые поддерживают только старый метод {@link #load(ShaderHandle)},
+     * получают совместимый fallback с преобразованием {@code Optional} в
+     * {@code null}.</p>
+     *
+     * @param handle handle шейдера
+     * @return source или {@code null}, если provider не знает этот shader
+     */
+    default ShaderSource loadOrNull(ShaderHandle handle) {
+        Optional<ShaderSource> source = load(handle);
+        return source == null ? null : source.orElse(null);
+    }
 }

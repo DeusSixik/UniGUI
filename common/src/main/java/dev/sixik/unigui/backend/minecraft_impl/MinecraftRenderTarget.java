@@ -1,5 +1,6 @@
 package dev.sixik.unigui.backend.minecraft_impl;
 
+import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import dev.sixik.unigui.api.render.ManagedRenderTarget;
 import dev.sixik.unigui.api.render.RenderTargetOptions;
@@ -11,7 +12,7 @@ import java.util.Objects;
 public final class MinecraftRenderTarget implements ManagedRenderTarget {
     private final RenderTargetOptions options;
     private final ColorTextureHandle colorTexture = new ColorTextureHandle(this);
-    private com.mojang.blaze3d.pipeline.RenderTarget nativeTarget;
+    private RenderTarget nativeTarget;
     private boolean disposed;
 
     public MinecraftRenderTarget(int width, int height, RenderTargetOptions options) {
@@ -60,7 +61,7 @@ public final class MinecraftRenderTarget implements ManagedRenderTarget {
         return options;
     }
 
-    com.mojang.blaze3d.pipeline.RenderTarget nativeTarget() {
+    RenderTarget nativeTarget() {
         ensureAlive();
         return nativeTarget;
     }
