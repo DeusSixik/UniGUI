@@ -30,6 +30,10 @@ import org.lwjgl.opengl.GL15;
 import org.lwjgl.opengl.GL20;
 import org.lwjgl.opengl.GL21;
 import org.lwjgl.opengl.GL30;
+import org.lwjgl.opengl.GL31;
+import org.lwjgl.opengl.GL33;
+import org.lwjgl.opengl.ARBInstancedArrays;
+import org.lwjgl.opengl.GL;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,7 +51,9 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
     private static final int SPREAD = 8;
     private static final int ATLAS_PADDING = 2;
     private static final int ATLAS_SIZE = 1024;
-    private static final int FLOATS_PER_VERTEX = 9;
+    private static final int FLOATS_PER_INSTANCE = 32;
+    private static final int INSTANCE_STRIDE_BYTES = FLOATS_PER_INSTANCE * Float.BYTES;
+    private static final int QUAD_VERTEX_STRIDE_BYTES = 2 * Float.BYTES;
     private static final boolean DEBUG_GL = Boolean.getBoolean("unigui.sdf.debugGl");
     private static final float PIXEL_SNAP_MAX_SIZE = 18.0f;
     private static final float MATRIX_EPSILON = 0.0001f;
@@ -56,17 +62,31 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
     @Language("GLSL")
     private static final String VERTEX_SHADER = """
             #version 150
-            in vec3 Position;
-            in vec2 UV;
-            in vec4 Color;
+            in vec2 Position;
+            in vec3 InstancePosition0;
+            in vec3 InstancePosition1;
+            in vec3 InstancePosition2;
+            in vec3 InstancePosition3;
+            in vec4 InstanceUv;
+            in vec4 InstanceColor0;
+            in vec4 InstanceColor1;
+            in vec4 InstanceColor2;
+            in vec4 InstanceColor3;
             uniform mat4 ModelViewMat;
             uniform mat4 ProjMat;
             out vec2 vertexUV;
             out vec4 vertexColor;
             void main() {
-                gl_Position = ProjMat * ModelViewMat * vec4(Position, 1.0);
-                vertexUV = UV;
-                vertexColor = Color;
+                vec3 left = mix(InstancePosition0, InstancePosition1, Position.y);
+                vec3 right = mix(InstancePosition3, InstancePosition2, Position.y);
+                vec3 position = mix(left, right, Position.x);
+                vertexUV = vec2(
+                        mix(InstanceUv.x, InstanceUv.z, Position.x),
+                        mix(InstanceUv.y, InstanceUv.w, Position.y));
+                vec4 topColor = mix(InstanceColor0, InstanceColor3, Position.x);
+                vec4 bottomColor = mix(InstanceColor1, InstanceColor2, Position.x);
+                vertexColor = mix(topColor, bottomColor, Position.y);
+                gl_Position = ProjMat * ModelViewMat * vec4(position, 1.0);
             }
             """;
 
@@ -90,13 +110,16 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
 
     private final DefaultFontRegistry fonts;
     private final Map<FontFace, FontAtlas> atlases = new IdentityHashMap<>();
+    private final ObjectArrayList<InstanceBatch> batchPool = new ObjectArrayList<>();
+    private final ObjectArrayList<InstanceBatch> frameBatches = new ObjectArrayList<>();
     private FontFace defaultFace;
     private final FloatBuffer matrixBuffer = BufferUtils.createFloatBuffer(16);
-    private FloatBuffer vertexUpload = BufferUtils.createFloatBuffer(FLOATS_PER_VERTEX * 6 * 64);
+    private FloatBuffer instanceUpload = BufferUtils.createFloatBuffer(FLOATS_PER_INSTANCE * 64);
     private ByteBuffer glyphUpload = BufferUtils.createByteBuffer(64 * 64);
     private int program;
     private int vertexArray;
     private int vertexBuffer;
+    private int instanceBuffer;
     private int modelViewLocation;
     private int projectionLocation;
     private int sdfSpreadLocation;
@@ -145,7 +168,7 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
             }
             if (!initialize()) return false;
             float coordinateScale = sanitizeScale(guiScale);
-            List<Batch> batches = layout(commands, pose.last().pose(), coordinateScale);
+            List<InstanceBatch> batches = layout(commands, pose.last().pose(), coordinateScale);
             if (batches.isEmpty()) return true;
 
             GL20.glUseProgram(program);
@@ -153,7 +176,7 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
             uploadMatrix(projectionLocation, RenderSystem.getProjectionMatrix());
             GL20.glUniform1f(sdfSpreadLocation, SPREAD);
             GL30.glBindVertexArray(vertexArray);
-            GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, vertexBuffer);
+            GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, instanceBuffer);
             RenderSystem.activeTexture(GL13.GL_TEXTURE0);
             RenderSystem.enableBlend();
             MinecraftUiBlend.applyStraightAlpha(renderingToPremultipliedTarget);
@@ -161,12 +184,12 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
             RenderSystem.depthMask(false);
             RenderSystem.disableCull();
 
-            for (Batch batch : batches) {
-                if (batch.vertices.size == 0) continue;
+            for (InstanceBatch batch : batches) {
+                if (batch.instances.size == 0) continue;
                 RenderSystem.bindTexture(batch.page.textureId);
-                FloatBuffer vertices = uploadBuffer(batch.vertices);
-                GL15.glBufferData(GL15.GL_ARRAY_BUFFER, vertices, GL15.GL_STREAM_DRAW);
-                GL11.glDrawArrays(GL11.GL_TRIANGLES, 0, batch.vertices.size / FLOATS_PER_VERTEX);
+                FloatBuffer instances = uploadInstanceBuffer(batch.instances);
+                GL15.glBufferData(GL15.GL_ARRAY_BUFFER, instances, GL15.GL_STREAM_DRAW);
+                GL31.glDrawArraysInstanced(GL11.GL_TRIANGLES, 0, 6, batch.instances.size / FLOATS_PER_INSTANCE);
             }
             if (DEBUG_GL) {
                 int error = GL11.glGetError();
@@ -176,10 +199,10 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
                 }
             }
             if (!firstSubmitLogged) {
-                int vertices = 0;
-                for (Batch batch : batches) vertices += batch.vertices.size / FLOATS_PER_VERTEX;
-                LOGGER.info("UniGUI SDF text active: commands={}, batches={}, vertices={}",
-                        commands.size(), batches.size(), vertices);
+                int instances = 0;
+                for (InstanceBatch batch : batches) instances += batch.instances.size / FLOATS_PER_INSTANCE;
+                LOGGER.info("UniGUI SDF text active: commands={}, batches={}, instances={}",
+                        commands.size(), batches.size(), instances);
                 firstSubmitLogged = true;
             }
             return true;
@@ -221,7 +244,7 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
             }
             if (!initialize()) return false;
             float coordinateScale = sanitizeScale(guiScale);
-            ObjectArrayList<Batch> batches = layout(rawCommands, commandCount, pose.last().pose(), coordinateScale);
+            ObjectArrayList<InstanceBatch> batches = layout(rawCommands, commandCount, pose.last().pose(), coordinateScale);
             if (batches.isEmpty()) return true;
 
             GL20.glUseProgram(program);
@@ -229,7 +252,7 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
             uploadMatrix(projectionLocation, RenderSystem.getProjectionMatrix());
             GL20.glUniform1f(sdfSpreadLocation, SPREAD);
             GL30.glBindVertexArray(vertexArray);
-            GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, vertexBuffer);
+            GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, instanceBuffer);
             RenderSystem.activeTexture(GL13.GL_TEXTURE0);
             RenderSystem.enableBlend();
             MinecraftUiBlend.applyStraightAlpha(renderingToPremultipliedTarget);
@@ -239,12 +262,12 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
 
             Object[] rawBatches = batches.elements();
             for (int i = 0, size = batches.size(); i < size; i++) {
-                Batch batch = (Batch) rawBatches[i];
-                if (batch.vertices.size == 0) continue;
+                InstanceBatch batch = (InstanceBatch) rawBatches[i];
+                if (batch.instances.size == 0) continue;
                 RenderSystem.bindTexture(batch.page.textureId);
-                FloatBuffer vertices = uploadBuffer(batch.vertices);
-                GL15.glBufferData(GL15.GL_ARRAY_BUFFER, vertices, GL15.GL_STREAM_DRAW);
-                GL11.glDrawArrays(GL11.GL_TRIANGLES, 0, batch.vertices.size / FLOATS_PER_VERTEX);
+                FloatBuffer instances = uploadInstanceBuffer(batch.instances);
+                GL15.glBufferData(GL15.GL_ARRAY_BUFFER, instances, GL15.GL_STREAM_DRAW);
+                GL31.glDrawArraysInstanced(GL11.GL_TRIANGLES, 0, 6, batch.instances.size / FLOATS_PER_INSTANCE);
             }
             if (DEBUG_GL) {
                 int error = GL11.glGetError();
@@ -254,13 +277,13 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
                 }
             }
             if (!firstSubmitLogged) {
-                int vertices = 0;
+                int instances = 0;
                 for (int i = 0, size = batches.size(); i < size; i++) {
-                    Batch batch = (Batch) rawBatches[i];
-                    vertices += batch.vertices.size / FLOATS_PER_VERTEX;
+                    InstanceBatch batch = (InstanceBatch) rawBatches[i];
+                    instances += batch.instances.size / FLOATS_PER_INSTANCE;
                 }
-                LOGGER.info("UniGUI SDF text active: commands={}, batches={}, vertices={}",
-                        commandCount, batches.size(), vertices);
+                LOGGER.info("UniGUI SDF text active: commands={}, batches={}, instances={}",
+                        commandCount, batches.size(), instances);
                 firstSubmitLogged = true;
             }
             return true;
@@ -293,20 +316,38 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
             return false;
         }
 
+        if (!supportsInstancing()) {
+            LOGGER.warn("Инстансный рендер SDF-текста не поддерживается текущим OpenGL-контекстом");
+            unavailable = true;
+            return false;
+        }
+
         vertexArray = GL30.glGenVertexArrays();
         vertexBuffer = GL15.glGenBuffers();
+        instanceBuffer = GL15.glGenBuffers();
         GL30.glBindVertexArray(vertexArray);
         GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, vertexBuffer);
-        int position = GL20.glGetAttribLocation(program, "Position");
-        int uv = GL20.glGetAttribLocation(program, "UV");
-        int color = GL20.glGetAttribLocation(program, "Color");
-        int stride = FLOATS_PER_VERTEX * Float.BYTES;
-        GL20.glEnableVertexAttribArray(position);
-        GL20.glVertexAttribPointer(position, 3, GL11.GL_FLOAT, false, stride, 0L);
-        GL20.glEnableVertexAttribArray(uv);
-        GL20.glVertexAttribPointer(uv, 2, GL11.GL_FLOAT, false, stride, 3L * Float.BYTES);
-        GL20.glEnableVertexAttribArray(color);
-        GL20.glVertexAttribPointer(color, 4, GL11.GL_FLOAT, false, stride, 5L * Float.BYTES);
+        FloatBuffer quad = BufferUtils.createFloatBuffer(12);
+        quad.put(0.0f).put(0.0f);
+        quad.put(0.0f).put(1.0f);
+        quad.put(1.0f).put(1.0f);
+        quad.put(0.0f).put(0.0f);
+        quad.put(1.0f).put(1.0f);
+        quad.put(1.0f).put(0.0f).flip();
+        GL15.glBufferData(GL15.GL_ARRAY_BUFFER, quad, GL15.GL_STATIC_DRAW);
+        GL20.glEnableVertexAttribArray(0);
+        GL20.glVertexAttribPointer(0, 2, GL11.GL_FLOAT, false, QUAD_VERTEX_STRIDE_BYTES, 0L);
+
+        GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, instanceBuffer);
+        setupInstanceAttribute(3, 3, 0L);
+        setupInstanceAttribute(4, 3, 3L * Float.BYTES);
+        setupInstanceAttribute(5, 3, 6L * Float.BYTES);
+        setupInstanceAttribute(6, 3, 9L * Float.BYTES);
+        setupInstanceAttribute(7, 4, 12L * Float.BYTES);
+        setupInstanceAttribute(8, 4, 16L * Float.BYTES);
+        setupInstanceAttribute(9, 4, 20L * Float.BYTES);
+        setupInstanceAttribute(10, 4, 24L * Float.BYTES);
+        setupInstanceAttribute(11, 4, 28L * Float.BYTES);
 
         modelViewLocation = uniformLocations.get(program, "ModelViewMat");
         projectionLocation = uniformLocations.get(program, "ProjMat");
@@ -319,8 +360,9 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
         return true;
     }
 
-    private ObjectArrayList<Batch> layout(Object[] rawCommands, int commandCount, org.joml.Matrix4f basePose, float guiScale) {
-        ObjectArrayList<Batch> batches = new ObjectArrayList<>();
+    private ObjectArrayList<InstanceBatch> layout(Object[] rawCommands, int commandCount, org.joml.Matrix4f basePose, float guiScale) {
+        ObjectArrayList<InstanceBatch> batches = frameBatches;
+        batches.clear();
         for (int i = 0; i < commandCount; i++) {
             DrawCommand command = (DrawCommand) rawCommands[i];
             if (!hasText(command) || !visibleAlpha(command.paint().color(), null)) continue;
@@ -328,8 +370,9 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
         }
         return batches;
     }
-    private List<Batch> layout(List<DrawCommand> commands, org.joml.Matrix4f basePose, float guiScale) {
-        List<Batch> batches = new ObjectArrayList<>();
+    private List<InstanceBatch> layout(List<DrawCommand> commands, org.joml.Matrix4f basePose, float guiScale) {
+        List<InstanceBatch> batches = frameBatches;
+        batches.clear();
         for (DrawCommand command : commands) {
             if (!hasText(command) || !visibleAlpha(command.paint().color(), null)) continue;
             layoutCommand(batches, command, richText(command), basePose, guiScale);
@@ -337,7 +380,7 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
         return batches;
     }
 
-    private void layoutCommand(List<Batch> batches, DrawCommand command, RichText text,
+    private void layoutCommand(List<InstanceBatch> batches, DrawCommand command, RichText text,
                                org.joml.Matrix4f basePose, float guiScale) {
         RectView bounds = command.bounds();
         List<LineInfo> lines = lineInfo(text);
@@ -397,8 +440,8 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
                         drawLeft += lineSnapOffsetX;
                         drawTop += lineSnapOffsetY;
                     }
-                    Batch batch = nextBatch(batches, placement.page);
-                    addQuad(batch.vertices, drawLeft, drawTop, width, height,
+                    InstanceBatch batch = nextBatch(batches, placement.page);
+                    addQuad(batch.instances, drawLeft, drawTop, width, height,
                             placement.u0, placement.v0, placement.u1, placement.v1,
                             command.paint(), runColor, run.brush(), bounds, transformState);
                 }
@@ -448,31 +491,55 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
         return run.font() == null ? defaultFace : run.font();
     }
 
-    private static Batch nextBatch(List<Batch> batches, AtlasPage page) {
+    private InstanceBatch nextBatch(List<InstanceBatch> batches, AtlasPage page) {
         if (!batches.isEmpty() && batches.get(batches.size() - 1).page == page) {
             return batches.get(batches.size() - 1);
         }
-        Batch batch = new Batch(page);
+        int index = batches.size();
+        InstanceBatch batch;
+        if (index < batchPool.size()) {
+            batch = batchPool.get(index);
+            batch.page = page;
+            batch.instances.clear();
+        } else {
+            batch = new InstanceBatch(page);
+            batchPool.add(batch);
+        }
         batches.add(batch);
         return batch;
     }
 
-    private static void addQuad(FloatArray vertices, float x, float y, float width, float height,
+    private static void addQuad(FloatArray instances, float x, float y, float width, float height,
                                 float u0, float v0, float u1, float v1, Paint paint,
                                 ColorView runColor, TextBrush brush, RectView brushBounds,
-                                TransformState transformState) {
-        addVertex(vertices, x, y, u0, v0, paint, runColor, brush, brushBounds, transformState);
-        addVertex(vertices, x, y + height, u0, v1, paint, runColor, brush, brushBounds, transformState);
-        addVertex(vertices, x + width, y + height, u1, v1, paint, runColor, brush, brushBounds, transformState);
-        addVertex(vertices, x, y, u0, v0, paint, runColor, brush, brushBounds, transformState);
-        addVertex(vertices, x + width, y + height, u1, v1, paint, runColor, brush, brushBounds, transformState);
-        addVertex(vertices, x + width, y, u1, v0, paint, runColor, brush, brushBounds, transformState);
+                                TransformState state) {
+        instances.ensure(instances.size + FLOATS_PER_INSTANCE);
+        int index = instances.size;
+        index = addPosition(instances.values, index, x, y, state);
+        index = addPosition(instances.values, index, x, y + height, state);
+        index = addPosition(instances.values, index, x + width, y + height, state);
+        index = addPosition(instances.values, index, x + width, y, state);
+        instances.values[index++] = u0;
+        instances.values[index++] = v0;
+        instances.values[index++] = u1;
+        instances.values[index++] = v1;
+        index = addColor(instances.values, index, x, y, paint, runColor, brush, brushBounds);
+        index = addColor(instances.values, index, x, y + height, paint, runColor, brush, brushBounds);
+        index = addColor(instances.values, index, x + width, y + height, paint, runColor, brush, brushBounds);
+        index = addColor(instances.values, index, x + width, y, paint, runColor, brush, brushBounds);
+        instances.size = index;
     }
 
-    private static void addVertex(FloatArray vertices, float x, float y, float u, float v,
-                                  Paint paint, ColorView runColor, TextBrush brush, RectView brushBounds,
-                                  TransformState state) {
-        ColorView base = paint.color();
+    private static int addPosition(float[] values, int index, float x, float y, TransformState state) {
+        values[index++] = state.m00 * x + state.m10 * y + state.m30;
+        values[index++] = state.m01 * x + state.m11 * y + state.m31;
+        values[index++] = state.m02 * x + state.m12 * y + state.m32;
+        return index;
+    }
+
+    private static int addColor(float[] values, int index, float x, float y,
+                                Paint paint, ColorView runColor, TextBrush brush, RectView brushBounds) {
+        ColorView base = paint == null ? null : paint.color();
         float baseAlpha = base == null ? 1.0f : clamp01(base.a());
         float runAlpha = runColor == null ? 1.0f : clamp01(runColor.a());
         float r;
@@ -494,14 +561,18 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
             b = lerp(clamp01(start.b()), clamp01(end.b()), t);
             a *= lerp(clamp01(start.a()), clamp01(end.a()), t);
         } else {
-            r = (base == null ? 1.0f : clamp01(base.r())) * (runColor == null ? 1.0f : clamp01(runColor.r()));
-            g = (base == null ? 1.0f : clamp01(base.g())) * (runColor == null ? 1.0f : clamp01(runColor.g()));
-            b = (base == null ? 1.0f : clamp01(base.b())) * (runColor == null ? 1.0f : clamp01(runColor.b()));
+            r = (base == null ? 1.0f : clamp01(base.r()))
+                    * (runColor == null ? 1.0f : clamp01(runColor.r()));
+            g = (base == null ? 1.0f : clamp01(base.g()))
+                    * (runColor == null ? 1.0f : clamp01(runColor.g()));
+            b = (base == null ? 1.0f : clamp01(base.b()))
+                    * (runColor == null ? 1.0f : clamp01(runColor.b()));
         }
-        float poseX = state.m00 * x + state.m10 * y + state.m30;
-        float poseY = state.m01 * x + state.m11 * y + state.m31;
-        float poseZ = state.m02 * x + state.m12 * y + state.m32;
-        vertices.add(poseX, poseY, poseZ, u, v, r, g, b, a);
+        values[index++] = r;
+        values[index++] = g;
+        values[index++] = b;
+        values[index++] = a;
+        return index;
     }
 
     private static float lerp(float from, float to, float t) {
@@ -515,15 +586,15 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
         GL20.glUniformMatrix4fv(location, false, matrixBuffer);
     }
 
-    private FloatBuffer uploadBuffer(FloatArray values) {
-        if (vertexUpload.capacity() < values.size) {
-            int capacity = Math.max(values.size, vertexUpload.capacity() * 2);
-            vertexUpload = BufferUtils.createFloatBuffer(capacity);
+    private FloatBuffer uploadInstanceBuffer(FloatArray values) {
+        if (instanceUpload.capacity() < values.size) {
+            int capacity = Math.max(values.size, instanceUpload.capacity() * 2);
+            instanceUpload = BufferUtils.createFloatBuffer(capacity);
         }
-        vertexUpload.clear();
-        vertexUpload.put(values.values, 0, values.size);
-        vertexUpload.flip();
-        return vertexUpload;
+        instanceUpload.clear();
+        instanceUpload.put(values.values, 0, values.size);
+        instanceUpload.flip();
+        return instanceUpload;
     }
 
     private ByteBuffer uploadGlyphBuffer(byte[] pixels) {
@@ -548,8 +619,15 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
         GL20.glAttachShader(linkedProgram, vertex);
         GL20.glAttachShader(linkedProgram, fragment);
         GL20.glBindAttribLocation(linkedProgram, 0, "Position");
-        GL20.glBindAttribLocation(linkedProgram, 1, "UV");
-        GL20.glBindAttribLocation(linkedProgram, 2, "Color");
+        GL20.glBindAttribLocation(linkedProgram, 3, "InstancePosition0");
+        GL20.glBindAttribLocation(linkedProgram, 4, "InstancePosition1");
+        GL20.glBindAttribLocation(linkedProgram, 5, "InstancePosition2");
+        GL20.glBindAttribLocation(linkedProgram, 6, "InstancePosition3");
+        GL20.glBindAttribLocation(linkedProgram, 7, "InstanceUv");
+        GL20.glBindAttribLocation(linkedProgram, 8, "InstanceColor0");
+        GL20.glBindAttribLocation(linkedProgram, 9, "InstanceColor1");
+        GL20.glBindAttribLocation(linkedProgram, 10, "InstanceColor2");
+        GL20.glBindAttribLocation(linkedProgram, 11, "InstanceColor3");
         GL20.glLinkProgram(linkedProgram);
         GL20.glDeleteShader(vertex);
         GL20.glDeleteShader(fragment);
@@ -559,6 +637,19 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
             return 0;
         }
         return linkedProgram;
+    }
+
+    private static void setupInstanceAttribute(int index, int components, long offset) {
+        GL20.glEnableVertexAttribArray(index);
+        GL20.glVertexAttribPointer(index, components, GL11.GL_FLOAT, false, INSTANCE_STRIDE_BYTES, offset);
+        if (GL.getCapabilities().OpenGL33) GL33.glVertexAttribDivisor(index, 1);
+        else ARBInstancedArrays.glVertexAttribDivisorARB(index, 1);
+    }
+
+    private static boolean supportsInstancing() {
+        if (GL.getCapabilities() == null) return false;
+        return GL.getCapabilities().OpenGL31
+                && (GL.getCapabilities().OpenGL33 || GL.getCapabilities().GL_ARB_instanced_arrays);
     }
 
     private static int compileShader(int type, String source) {
@@ -650,13 +741,17 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
         for (FontAtlas atlas : atlases.values()) atlas.close();
         atlases.clear();
         if (vertexBuffer != 0) GL15.glDeleteBuffers(vertexBuffer);
+        if (instanceBuffer != 0) GL15.glDeleteBuffers(instanceBuffer);
         if (vertexArray != 0) GL30.glDeleteVertexArrays(vertexArray);
         if (program != 0) GL20.glDeleteProgram(program);
         vertexBuffer = 0;
+        instanceBuffer = 0;
         vertexArray = 0;
         program = 0;
         initialized = false;
         uniformLocations.clear();
+        frameBatches.clear();
+        batchPool.clear();
     }
 
     private final class FontAtlas implements AutoCloseable {
@@ -785,31 +880,21 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
         }
     }
 
-    private static final class Batch {
-        private final AtlasPage page;
-        private final FloatArray vertices = new FloatArray();
+    private static final class InstanceBatch {
+        private AtlasPage page;
+        private final FloatArray instances = new FloatArray();
 
-        private Batch(AtlasPage page) {
+        private InstanceBatch(AtlasPage page) {
             this.page = page;
         }
     }
 
     private static final class FloatArray {
-        private float[] values = new float[FLOATS_PER_VERTEX * 6 * 64];
+        private float[] values = new float[FLOATS_PER_INSTANCE * 64];
         private int size;
 
-        private void add(float v0, float v1, float v2, float v3, float v4,
-                         float v5, float v6, float v7, float v8) {
-            ensure(size + FLOATS_PER_VERTEX);
-            values[size++] = v0;
-            values[size++] = v1;
-            values[size++] = v2;
-            values[size++] = v3;
-            values[size++] = v4;
-            values[size++] = v5;
-            values[size++] = v6;
-            values[size++] = v7;
-            values[size++] = v8;
+        private void clear() {
+            size = 0;
         }
 
         private void ensure(int required) {
