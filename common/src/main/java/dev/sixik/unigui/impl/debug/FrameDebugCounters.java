@@ -33,6 +33,12 @@ public final class FrameDebugCounters implements UiDebugCounters {
     private int textureSwitches;
     private int shaderUniforms;
     private int shaderTextures;
+    private long sdfPasses;
+    private long sdfCommands;
+    private long sdfDrawCalls;
+    private long sdfUniformUploads;
+    private long sdfFlushes;
+    private long sdfNanos;
     private int meshVertices;
     private int pathElements;
     private int transformCommands;
@@ -64,6 +70,12 @@ public final class FrameDebugCounters implements UiDebugCounters {
         textureSwitches = 0;
         shaderUniforms = 0;
         shaderTextures = 0;
+        sdfPasses = 0L;
+        sdfCommands = 0L;
+        sdfDrawCalls = 0L;
+        sdfUniformUploads = 0L;
+        sdfFlushes = 0L;
+        sdfNanos = 0L;
         meshVertices = 0;
         pathElements = 0;
         transformCommands = 0;
@@ -125,6 +137,17 @@ public final class FrameDebugCounters implements UiDebugCounters {
     }
 
     @Override
+    public void recordSdfRuntime(long passes, long commands, long drawCalls,
+                                 long uniformUploads, long flushes, long nanos) {
+        sdfPasses += Math.max(0L, passes);
+        sdfCommands += Math.max(0L, commands);
+        sdfDrawCalls += Math.max(0L, drawCalls);
+        sdfUniformUploads += Math.max(0L, uniformUploads);
+        sdfFlushes += Math.max(0L, flushes);
+        sdfNanos += Math.max(0L, nanos);
+    }
+
+    @Override
     public void recordFrameCpuMillis(float millis) { frameCpuMillis = Float.isFinite(millis) ? Math.max(0.0f, millis) : 0.0f; }
     @Override
     public void recordFrameTotalMillis(float millis) { frameTotalMillis = Float.isFinite(millis) ? Math.max(0.0f, millis) : 0.0f; }
@@ -153,6 +176,7 @@ public final class FrameDebugCounters implements UiDebugCounters {
                 estimatedDrawCalls, estimatedVertices, estimatedIndices,
                 textGlyphs, textCommands, textureCommands, textureSwitches,
                 shaderUniforms, shaderTextures,
+                sdfPasses, sdfCommands, sdfDrawCalls, sdfUniformUploads, sdfFlushes, sdfNanos,
                 meshVertices, pathElements, transformCommands, clipCommands,
                 barrierBatches, singletonBatches, maxBatchSize);
     }

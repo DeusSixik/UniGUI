@@ -585,6 +585,14 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         }
     }
 
+    void sdfRuntimeStatsEnabled(boolean enabled) {
+        shapeBatchRenderer.sdfRuntimeStatsEnabled(enabled);
+    }
+
+    MinecraftSdfShapeRenderer.SdfRuntimeStats consumeSdfRuntimeStats() {
+        return shapeBatchRenderer.consumeSdfRuntimeStats();
+    }
+
     private boolean beginGpuTimer() {
         pollGpuTimer();
         TimerQuerySupport support = timerQuerySupport();

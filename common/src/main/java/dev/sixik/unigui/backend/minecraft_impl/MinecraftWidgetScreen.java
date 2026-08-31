@@ -309,11 +309,18 @@ public class MinecraftWidgetScreen extends Screen {
             backend.graphics(graphics);
         }
 
+        boolean profileDetails = DebugFlags.has(uiContext.debugFlags(), DebugFlags.PROFILER_OVERLAY);
+        MinecraftSdfShapeRenderer.SdfRuntimeStats sdfStats = backend.consumeSdfRuntimeStats();
+        if (profileDetails) {
+            uiContext.debugCounters().recordSdfRuntime(
+                    sdfStats.passes(), sdfStats.commands(), sdfStats.drawCalls(),
+                    sdfStats.uniformUploads(), sdfStats.flushes(), sdfStats.nanos());
+        }
+        backend.sdfRuntimeStatsEnabled(profileDetails);
         backend.beginFrame(renderFrame);
         uiContext.debugCounters().recordFrameGpuMillis(backend.lastFrameGpuMillis());
         renderContext.backend(backend);
 
-        boolean profileDetails = DebugFlags.has(uiContext.debugFlags(), DebugFlags.PROFILER_OVERLAY);
         if (profileDetails) {
             try (ProfileScope ignored = uiContext.profiler().scope("drawList.clear")) {
                 drawList.clear();

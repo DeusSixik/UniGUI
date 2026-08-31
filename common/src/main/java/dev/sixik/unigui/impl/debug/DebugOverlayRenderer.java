@@ -152,8 +152,8 @@ public final class DebugOverlayRenderer {
         line(context, shaderDetailLine(render), position, scale, startLine + 11, TEXT);
         line(context, structureLine(render), position, scale, startLine + 12,
                 render.singletonBatches() > 0 || render.barrierBatches() > 0 ? WARN : GOOD);
-        line(context, "Future target: reduce estimated submits, singleton batches and texture switches before changing shaders.",
-                position, scale, startLine + 13, HEADER);
+        line(context, sdfRuntimeLine(render), position, scale, startLine + 13,
+                render.sdfDrawCalls() > 0L ? WARN : TEXT);
     }
 
     private static String commandTypesLine(UiRenderSnapshot render) {
@@ -248,6 +248,15 @@ public final class DebugOverlayRenderer {
         return "SHADERS commands " + render.commandCount(DrawCommandType.SHADER)
                 + " | uniforms " + render.shaderUniforms()
                 + " | extra textures " + render.shaderTextures();
+    }
+
+    private static String sdfRuntimeLine(UiRenderSnapshot render) {
+        return "SDF ACTUAL passes " + render.sdfPasses()
+                + " | commands " + render.sdfCommands()
+                + " | draws " + render.sdfDrawCalls()
+                + " | uniforms " + render.sdfUniformUploads()
+                + " | flushes " + render.sdfFlushes()
+                + " | CPU " + formatMillis(render.sdfMillis()) + " ms";
     }
 
     private static int totalCommands(UiRenderSnapshot render) {

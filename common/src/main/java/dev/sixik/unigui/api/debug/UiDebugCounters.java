@@ -34,6 +34,11 @@ public interface UiDebugCounters {
     default void recordShaderFeatures(int uniformCount, int textureCount) {
     }
 
+    /** Записывает фактическую работу SDF-рендера за завершённый backend-кадр. */
+    default void recordSdfRuntime(long passes, long commands, long drawCalls,
+                                  long uniformUploads, long flushes, long nanos) {
+    }
+
     default void recordFrameCpuMillis(float millis) {
     }
 

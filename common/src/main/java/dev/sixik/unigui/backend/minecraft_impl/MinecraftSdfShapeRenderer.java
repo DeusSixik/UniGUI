@@ -12,10 +12,18 @@ import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.impl.render.DrawBatch;
 import net.minecraft.client.gui.GuiGraphics;
 import org.intellij.lang.annotations.Language;import org.joml.Matrix4f;
+import org.joml.Vector3f;
+import org.lwjgl.BufferUtils;
+import org.lwjgl.opengl.ARBInstancedArrays;
+import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
 import org.lwjgl.opengl.GL14;
+import org.lwjgl.opengl.GL15;
 import org.lwjgl.opengl.GL20;
+import org.lwjgl.opengl.GL30;
+import org.lwjgl.opengl.GL31;
+import org.lwjgl.opengl.GL33;
 import org.lwjgl.system.MemoryStack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -144,9 +152,107 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
             }
             """;
 
+    /**
+     * Версия фрагментного шейдера для instanced-пути. Все параметры фигуры
+     * приходят из атрибутов экземпляра, поэтому здесь меняются только
+     * объявления uniform на входные varyings.
+     */
+    private static final String INSTANCED_FRAGMENT_SOURCE = FRAGMENT_SOURCE
+            .replace("uniform vec4 Color;", "flat in vec4 Color;")
+            .replace("uniform vec2 Size;", "flat in vec2 Size;")
+            .replace("uniform vec2 LineStart;", "flat in vec2 LineStart;")
+            .replace("uniform vec2 LineEnd;", "flat in vec2 LineEnd;")
+            .replace("uniform float Radius;", "flat in float Radius;")
+            .replace("uniform float StrokeWidth;", "flat in float StrokeWidth;")
+            .replace("uniform int ShapeType;", "flat in int ShapeType;")
+            .replace("uniform int IsStroke;", "flat in int IsStroke;");
+
+    @Language("GLSL")
+    private static final String INSTANCED_VERTEX_SOURCE = """
+            #version 150
+
+            in vec2 Position;
+            in vec3 InstancePosition0;
+            in vec3 InstancePosition1;
+            in vec3 InstancePosition2;
+            in vec3 InstancePosition3;
+            in vec4 InstanceLocalBounds;
+            in vec4 InstanceColor;
+            in vec2 InstanceSize;
+            in vec2 InstanceLineStart;
+            in vec2 InstanceLineEnd;
+            in vec2 InstanceShape;
+            in vec2 InstanceFlags;
+
+            uniform mat4 ModelViewMat;
+            uniform mat4 ProjMat;
+
+            out vec2 localPos;
+            flat out vec4 Color;
+            flat out vec2 Size;
+            flat out vec2 LineStart;
+            flat out vec2 LineEnd;
+            flat out float Radius;
+            flat out float StrokeWidth;
+            flat out int ShapeType;
+            flat out int IsStroke;
+
+            void main() {
+                vec3 left = mix(InstancePosition0, InstancePosition1, Position.y);
+                vec3 right = mix(InstancePosition3, InstancePosition2, Position.y);
+                vec3 position = mix(left, right, Position.x);
+                gl_Position = ProjMat * ModelViewMat * vec4(position, 1.0);
+                localPos = mix(InstanceLocalBounds.xy, InstanceLocalBounds.zw, Position);
+                Color = InstanceColor;
+                Size = InstanceSize;
+                LineStart = InstanceLineStart;
+                LineEnd = InstanceLineEnd;
+                Radius = InstanceShape.x;
+                StrokeWidth = InstanceShape.y;
+                ShapeType = int(InstanceFlags.x + 0.5);
+                IsStroke = int(InstanceFlags.y + 0.5);
+            }
+            """;
+
+    private static final int INSTANCE_FLOATS = 30;
+    private static final int INSTANCE_STRIDE_BYTES = INSTANCE_FLOATS * Float.BYTES;
+    private static final int INITIAL_INSTANCE_CAPACITY = 256;
+
     private int program;
+    private int instancedProgram;
+    private int instanceVertexArray;
+    private int instanceVertexBuffer;
+    private int instanceBuffer;
     private boolean unavailable;
+    private boolean instancedUnavailable;
+    private FloatBuffer instanceData = BufferUtils.createFloatBuffer(
+            INITIAL_INSTANCE_CAPACITY * INSTANCE_FLOATS);
+    private final Vector3f transformedPosition = new Vector3f();
+    private boolean runtimeStatsEnabled;
+    private long runtimePasses;
+    private long runtimeCommands;
+    private long runtimeDrawCalls;
+    private long runtimeUniformUploads;
+    private long runtimeFlushes;
+    private long runtimeNanos;
     private final MinecraftUniformLocationCache uniformLocations = new MinecraftUniformLocationCache();
+
+    void runtimeStatsEnabled(boolean enabled) {
+        runtimeStatsEnabled = enabled;
+    }
+
+    SdfRuntimeStats consumeRuntimeStats() {
+        SdfRuntimeStats result = new SdfRuntimeStats(
+                runtimePasses, runtimeCommands, runtimeDrawCalls,
+                runtimeUniformUploads, runtimeFlushes, runtimeNanos);
+        runtimePasses = 0L;
+        runtimeCommands = 0L;
+        runtimeDrawCalls = 0L;
+        runtimeUniformUploads = 0L;
+        runtimeFlushes = 0L;
+        runtimeNanos = 0L;
+        return result;
+    }
 
     boolean shouldRender(DrawBatch batch) {
         if (batch == null || batch.size() == 0) return false;
@@ -170,23 +276,30 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
         int activeProgram = program();
         if (activeProgram == 0) return false;
 
+        long startNanos = runtimeStatsEnabled ? System.nanoTime() : 0L;
+        if (runtimeStatsEnabled) {
+            runtimePasses++;
+            runtimeCommands += batch.size();
+        }
         graphics.flush();
+        if (runtimeStatsEnabled) runtimeFlushes++;
         RenderState state = RenderState.capture();
         try {
-            GL20.glUseProgram(activeProgram);
-            uploadMat4(activeProgram, "ModelViewMat", RenderSystem.getModelViewMatrix());
-            uploadMat4(activeProgram, "ProjMat", RenderSystem.getProjectionMatrix());
-
             RenderSystem.enableBlend();
             MinecraftUiBlend.applyStraightAlpha(renderingToPremultipliedTarget);
             RenderSystem.disableDepthTest();
             RenderSystem.depthMask(false);
             RenderSystem.disableCull();
 
-            Object[] rawCommands = batch.commandElements();
-            for (int i = 0, size = batch.size(); i < size; i++) {
-                DrawCommand command = (DrawCommand) rawCommands[i];
-                renderCommand(graphics, activeProgram, command);
+            if (!renderInstanced(graphics, batch)) {
+                GL20.glUseProgram(activeProgram);
+                uploadMat4(activeProgram, "ModelViewMat", RenderSystem.getModelViewMatrix());
+                uploadMat4(activeProgram, "ProjMat", RenderSystem.getProjectionMatrix());
+                Object[] rawCommands = batch.commandElements();
+                for (int i = 0, size = batch.size(); i < size; i++) {
+                    DrawCommand command = (DrawCommand) rawCommands[i];
+                    renderCommand(graphics, activeProgram, command);
+                }
             }
             return true;
         } catch (Throwable failure) {
@@ -194,6 +307,7 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
             return false;
         } finally {
             state.restore();
+            if (runtimeStatsEnabled) runtimeNanos += Math.max(0L, System.nanoTime() - startNanos);
         }
     }
 
@@ -299,6 +413,7 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
         vertex(buffer, matrix, x2, y2, u2, v2);
         vertex(buffer, matrix, x2, y1, u2, v1);
         MinecraftBufferCompat.draw(buffer);
+        recordDrawCall();
     }
 
     private static void vertex(Object buffer, Matrix4f matrix, float x, float y, float u, float v) {
@@ -335,6 +450,95 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
 
         program = id;
         return program;
+    }
+
+    private boolean initializeInstanced() {
+        if (instancedProgram != 0) return true;
+        if (instancedUnavailable || !supportsInstancing()) return false;
+
+        int vertex = compileShader(GL20.GL_VERTEX_SHADER, INSTANCED_VERTEX_SOURCE);
+        int fragment = compileShader(GL20.GL_FRAGMENT_SHADER, INSTANCED_FRAGMENT_SOURCE);
+        if (vertex == 0 || fragment == 0) {
+            if (vertex != 0) GL20.glDeleteShader(vertex);
+            if (fragment != 0) GL20.glDeleteShader(fragment);
+            instancedUnavailable = true;
+            return false;
+        }
+
+        int id = GL20.glCreateProgram();
+        GL20.glAttachShader(id, vertex);
+        GL20.glAttachShader(id, fragment);
+        GL20.glBindAttribLocation(id, 0, "Position");
+        GL20.glBindAttribLocation(id, 1, "InstancePosition0");
+        GL20.glBindAttribLocation(id, 2, "InstancePosition1");
+        GL20.glBindAttribLocation(id, 3, "InstancePosition2");
+        GL20.glBindAttribLocation(id, 4, "InstancePosition3");
+        GL20.glBindAttribLocation(id, 5, "InstanceLocalBounds");
+        GL20.glBindAttribLocation(id, 6, "InstanceColor");
+        GL20.glBindAttribLocation(id, 7, "InstanceSize");
+        GL20.glBindAttribLocation(id, 8, "InstanceLineStart");
+        GL20.glBindAttribLocation(id, 9, "InstanceLineEnd");
+        GL20.glBindAttribLocation(id, 10, "InstanceShape");
+        GL20.glBindAttribLocation(id, 11, "InstanceFlags");
+        GL20.glLinkProgram(id);
+        GL20.glDeleteShader(vertex);
+        GL20.glDeleteShader(fragment);
+        if (GL20.glGetProgrami(id, GL20.GL_LINK_STATUS) == GL11.GL_FALSE) {
+            LOGGER.error("Не удалось связать instanced SDF-шейдер фигур: {}", GL20.glGetProgramInfoLog(id));
+            GL20.glDeleteProgram(id);
+            instancedUnavailable = true;
+            return false;
+        }
+
+        int vao = GL30.glGenVertexArrays();
+        int vertexBuffer = GL15.glGenBuffers();
+        int buffer = GL15.glGenBuffers();
+        GL30.glBindVertexArray(vao);
+        GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, vertexBuffer);
+        FloatBuffer quad = BufferUtils.createFloatBuffer(8);
+        quad.put(0.0f).put(0.0f);
+        quad.put(0.0f).put(1.0f);
+        quad.put(1.0f).put(0.0f);
+        quad.put(1.0f).put(1.0f).flip();
+        GL15.glBufferData(GL15.GL_ARRAY_BUFFER, quad, GL15.GL_STATIC_DRAW);
+        GL20.glEnableVertexAttribArray(0);
+        GL20.glVertexAttribPointer(0, 2, GL11.GL_FLOAT, false, 2 * Float.BYTES, 0L);
+        GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, buffer);
+        setupInstanceAttribute(1, 3, 0L);
+        setupInstanceAttribute(2, 3, 3L * Float.BYTES);
+        setupInstanceAttribute(3, 3, 6L * Float.BYTES);
+        setupInstanceAttribute(4, 3, 9L * Float.BYTES);
+        setupInstanceAttribute(5, 4, 12L * Float.BYTES);
+        setupInstanceAttribute(6, 4, 16L * Float.BYTES);
+        setupInstanceAttribute(7, 2, 20L * Float.BYTES);
+        setupInstanceAttribute(8, 2, 22L * Float.BYTES);
+        setupInstanceAttribute(9, 2, 24L * Float.BYTES);
+        setupInstanceAttribute(10, 2, 26L * Float.BYTES);
+        setupInstanceAttribute(11, 2, 28L * Float.BYTES);
+
+        GL30.glBindVertexArray(0);
+        GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
+        instancedProgram = id;
+        instanceVertexArray = vao;
+        instanceVertexBuffer = vertexBuffer;
+        instanceBuffer = buffer;
+        return true;
+    }
+
+    private static void setupInstanceAttribute(int index, int components, long offset) {
+        GL20.glEnableVertexAttribArray(index);
+        GL20.glVertexAttribPointer(index, components, GL11.GL_FLOAT, false, INSTANCE_STRIDE_BYTES, offset);
+        if (GL.getCapabilities().OpenGL33) {
+            GL33.glVertexAttribDivisor(index, 1);
+        } else {
+            ARBInstancedArrays.glVertexAttribDivisorARB(index, 1);
+        }
+    }
+
+    private static boolean supportsInstancing() {
+        if (GL.getCapabilities() == null) return false;
+        return GL.getCapabilities().OpenGL31
+                && (GL.getCapabilities().OpenGL33 || GL.getCapabilities().GL_ARB_instanced_arrays);
     }
 
     private int compileShader(int type, String source) {
@@ -405,22 +609,174 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
 
     private void uploadFloat(int activeProgram, String name, float value) {
         int location = uniformLocation(activeProgram, name);
-        if (location >= 0) GL20.glUniform1f(location, value);
+        if (location >= 0) {
+            GL20.glUniform1f(location, value);
+            if (runtimeStatsEnabled) runtimeUniformUploads++;
+        }
+    }
+
+    /**
+     * Рисует весь совместимый batch одним instanced-вызовом. Порядок команд
+     * сохраняется: экземпляры идут в том же порядке, в котором они записаны
+     * в {@link DrawBatch}, а значит прозрачность и перекрытия не меняются.
+     */
+    private boolean renderInstanced(GuiGraphics graphics, DrawBatch batch) {
+        try {
+            return renderInstancedPass(graphics, batch);
+        } catch (Throwable failure) {
+            instancedUnavailable = true;
+            GL30.glBindVertexArray(0);
+            GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
+            LOGGER.warn("Instanced SDF-рендер фигур отключён после ошибки; используется fallback", failure);
+            return false;
+        }
+    }
+
+    private boolean renderInstancedPass(GuiGraphics graphics, DrawBatch batch) {
+        if (!initializeInstanced() || batch.size() == 0) return false;
+
+        ensureInstanceCapacity(batch.size());
+        instanceData.clear();
+        Matrix4f basePose = graphics.pose().last().pose();
+        Object[] rawCommands = batch.commandElements();
+        int instanceCount = 0;
+        for (int i = 0, size = batch.size(); i < size; i++) {
+            if (appendInstance(instanceData, basePose, (DrawCommand) rawCommands[i])) {
+                instanceCount++;
+            }
+        }
+        if (instanceCount == 0) return true;
+
+        instanceData.flip();
+        GL20.glUseProgram(instancedProgram);
+        uploadMat4(instancedProgram, "ModelViewMat", RenderSystem.getModelViewMatrix());
+        uploadMat4(instancedProgram, "ProjMat", RenderSystem.getProjectionMatrix());
+        GL30.glBindVertexArray(instanceVertexArray);
+        GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, instanceBuffer);
+        GL15.glBufferData(GL15.GL_ARRAY_BUFFER, instanceData, GL15.GL_STREAM_DRAW);
+        GL31.glDrawArraysInstanced(GL11.GL_TRIANGLE_STRIP, 0, 4, instanceCount);
+        recordDrawCall();
+        return true;
+    }
+
+    private boolean appendInstance(FloatBuffer target, Matrix4f basePose, DrawCommand command) {
+        RectView bounds = command.bounds();
+        float x1 = Math.min(bounds.x(), bounds.x() + bounds.width());
+        float y1 = Math.min(bounds.y(), bounds.y() + bounds.height());
+        float x2 = Math.max(bounds.x(), bounds.x() + bounds.width());
+        float y2 = Math.max(bounds.y(), bounds.y() + bounds.height());
+        float width = x2 - x1;
+        float height = y2 - y1;
+        if (width <= 0.0f || height <= 0.0f) return false;
+
+        int shapeType;
+        float radius;
+        float lineStartX = 0.0f;
+        float lineStartY = 0.0f;
+        float lineEndX = 0.0f;
+        float lineEndY = 0.0f;
+        float quadX1;
+        float quadY1;
+        float quadX2;
+        float quadY2;
+        float localX1;
+        float localY1;
+        float localX2;
+        float localY2;
+        float strokeWidth;
+        boolean stroke = command.paint().isStroke();
+
+        if (command.type() == DrawCommandType.LINE) {
+            shapeType = SHAPE_LINE;
+            lineEndX = bounds.width();
+            lineEndY = bounds.height();
+            strokeWidth = positiveThickness(command.paint().strokeWidth());
+            float minX = Math.min(0.0f, lineEndX);
+            float minY = Math.min(0.0f, lineEndY);
+            float maxX = Math.max(0.0f, lineEndX);
+            float maxY = Math.max(0.0f, lineEndY);
+            float pad = strokeWidth * 0.5f + AA_PAD;
+            quadX1 = bounds.x() + minX - pad;
+            quadY1 = bounds.y() + minY - pad;
+            quadX2 = bounds.x() + maxX + pad;
+            quadY2 = bounds.y() + maxY + pad;
+            localX1 = minX - pad;
+            localY1 = minY - pad;
+            localX2 = maxX + pad;
+            localY2 = maxY + pad;
+            width = Math.max(1.0f, maxX - minX);
+            height = Math.max(1.0f, maxY - minY);
+            radius = 0.0f;
+            stroke = false;
+        } else {
+            shapeType = command.type() == DrawCommandType.CIRCLE ? SHAPE_ELLIPSE : SHAPE_ROUNDED_RECT;
+            radius = command.type() == DrawCommandType.ROUNDED_RECT
+                    ? clamp(Math.abs(command.radius()), 0.0f, Math.min(width, height) * 0.5f)
+                    : 0.0f;
+            strokeWidth = positiveThickness(command.paint().strokeWidth());
+            float pad = AA_PAD;
+            quadX1 = x1 - pad;
+            quadY1 = y1 - pad;
+            quadX2 = x2 + pad;
+            quadY2 = y2 + pad;
+            localX1 = -pad;
+            localY1 = -pad;
+            localX2 = width + pad;
+            localY2 = height + pad;
+        }
+
+        Matrix4f matrix = MinecraftTransform.commandMatrix(basePose, command);
+        writePosition(target, matrix, quadX1, quadY1);
+        writePosition(target, matrix, quadX1, quadY2);
+        writePosition(target, matrix, quadX2, quadY2);
+        writePosition(target, matrix, quadX2, quadY1);
+        target.put(localX1).put(localY1).put(localX2).put(localY2);
+
+        ColorView color = command.paint().color();
+        target.put(color.r()).put(color.g()).put(color.b()).put(color.a());
+        target.put(width).put(height);
+        target.put(lineStartX).put(lineStartY);
+        target.put(lineEndX).put(lineEndY);
+        target.put(radius).put(strokeWidth);
+        target.put(shapeType).put(stroke ? 1.0f : 0.0f);
+        return true;
+    }
+
+    private void writePosition(FloatBuffer target, Matrix4f matrix, float x, float y) {
+        matrix.transformPosition(x, y, 0.0f, transformedPosition);
+        target.put(transformedPosition.x()).put(transformedPosition.y()).put(transformedPosition.z());
+    }
+
+    private void ensureInstanceCapacity(int commandCount) {
+        int required = commandCount * INSTANCE_FLOATS;
+        if (required <= instanceData.capacity()) return;
+        int capacity = instanceData.capacity();
+        while (capacity < required) capacity *= 2;
+        instanceData = BufferUtils.createFloatBuffer(capacity);
     }
 
     private void uploadInt(int activeProgram, String name, int value) {
         int location = uniformLocation(activeProgram, name);
-        if (location >= 0) GL20.glUniform1i(location, value);
+        if (location >= 0) {
+            GL20.glUniform1i(location, value);
+            if (runtimeStatsEnabled) runtimeUniformUploads++;
+        }
     }
 
     private void uploadVec2(int activeProgram, String name, float x, float y) {
         int location = uniformLocation(activeProgram, name);
-        if (location >= 0) GL20.glUniform2f(location, x, y);
+        if (location >= 0) {
+            GL20.glUniform2f(location, x, y);
+            if (runtimeStatsEnabled) runtimeUniformUploads++;
+        }
     }
 
     private void uploadVec4(int activeProgram, String name, float x, float y, float z, float w) {
         int location = uniformLocation(activeProgram, name);
-        if (location >= 0) GL20.glUniform4f(location, x, y, z, w);
+        if (location >= 0) {
+            GL20.glUniform4f(location, x, y, z, w);
+            if (runtimeStatsEnabled) runtimeUniformUploads++;
+        }
     }
 
     private void uploadMat4(int activeProgram, String name, Matrix4f matrix) {
@@ -430,7 +786,12 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
             FloatBuffer buffer = stack.mallocFloat(16);
             matrix.get(buffer);
             GL20.glUniformMatrix4fv(location, false, buffer);
+            if (runtimeStatsEnabled) runtimeUniformUploads++;
         }
+    }
+
+    void recordDrawCall() {
+        if (runtimeStatsEnabled) runtimeDrawCalls++;
     }
 
     @Override
@@ -439,11 +800,28 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
             GL20.glDeleteProgram(program);
             program = 0;
         }
+        if (instancedProgram != 0) {
+            GL20.glDeleteProgram(instancedProgram);
+            instancedProgram = 0;
+        }
+        if (instanceBuffer != 0) {
+            GL15.glDeleteBuffers(instanceBuffer);
+            instanceBuffer = 0;
+        }
+        if (instanceVertexBuffer != 0) {
+            GL15.glDeleteBuffers(instanceVertexBuffer);
+            instanceVertexBuffer = 0;
+        }
+        if (instanceVertexArray != 0) {
+            GL30.glDeleteVertexArrays(instanceVertexArray);
+            instanceVertexArray = 0;
+        }
         uniformLocations.clear();
         unavailable = false;
+        instancedUnavailable = false;
     }
 
-    private record RenderState(int program,
+    private record RenderState(int program, int vertexArray, int arrayBuffer,
                                int activeTexture,
                                int texture,
                                boolean blend,
@@ -461,6 +839,8 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
             RenderSystem.activeTexture(activeTexture);
             return new RenderState(
                     GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM),
+                    GL11.glGetInteger(GL30.GL_VERTEX_ARRAY_BINDING),
+                    GL11.glGetInteger(GL15.GL_ARRAY_BUFFER_BINDING),
                     activeTexture,
                     texture,
                     GL11.glIsEnabled(GL11.GL_BLEND),
@@ -475,6 +855,8 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
 
         private void restore() {
             GL20.glUseProgram(program);
+            GL30.glBindVertexArray(vertexArray);
+            GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, arrayBuffer);
             RenderSystem.activeTexture(GL13.GL_TEXTURE0);
             RenderSystem.bindTexture(texture);
             RenderSystem.blendFuncSeparate(blendSourceRgb, blendDestinationRgb,
@@ -488,5 +870,9 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
             else RenderSystem.disableCull();
             RenderSystem.activeTexture(activeTexture);
         }
+    }
+
+    record SdfRuntimeStats(long passes, long commands, long drawCalls,
+                           long uniformUploads, long flushes, long nanos) {
     }
 }

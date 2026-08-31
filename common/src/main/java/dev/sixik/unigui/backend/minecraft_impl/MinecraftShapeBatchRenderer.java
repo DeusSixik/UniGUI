@@ -77,6 +77,14 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
         sdfRenderer.close();
     }
 
+    void sdfRuntimeStatsEnabled(boolean enabled) {
+        sdfRenderer.runtimeStatsEnabled(enabled);
+    }
+
+    MinecraftSdfShapeRenderer.SdfRuntimeStats consumeSdfRuntimeStats() {
+        return sdfRenderer.consumeRuntimeStats();
+    }
+
     static boolean supports(DrawCommandType type) {
         return type == DrawCommandType.RECT
                 || type == DrawCommandType.ROUNDED_RECT
