@@ -41,6 +41,7 @@ public final class SimpleDrawBatcher implements DrawBatcher {
 
     private static boolean isBatchable(DrawCommand command) {
         return command != null && (isColorPrimitive(command.type())
+                || command.type() == DrawCommandType.MESH
                 || command.type() == DrawCommandType.TEXT
                 || isTextureCommand(command.type()));
     }
@@ -50,6 +51,9 @@ public final class SimpleDrawBatcher implements DrawBatcher {
         if (!sameBlend(batch.blendMode(), command.paint())) return false;
         if (isColorPrimitive(batch.type()) && isColorPrimitive(command.type())) return true;
         if (isTextureCommand(batch.type()) && isTextureCommand(command.type())) {
+            return sameTexture(batch.texture(), command.texture());
+        }
+        if (batch.type() == DrawCommandType.MESH && command.type() == DrawCommandType.MESH) {
             return sameTexture(batch.texture(), command.texture());
         }
         if (batch.type() != command.type()) return false;

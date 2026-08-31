@@ -1020,42 +1020,13 @@ public class MinecraftWidgetScreen extends Screen {
         if (batch == null || batch.size() == 0) return 0;
         return switch (batch.type()) {
             case PUSH_CLIP, POP_CLIP, DRAW_CMD -> 0;
-            // SDF and custom paths issue one submit per command. The regular
-            // shape/texture/text batchers may collapse the same commands to one.
-            case RECT, ROUNDED_RECT, LINE, CIRCLE -> containsSdfShape(batch) ? batch.size() : 1;
+            // Instanced SDF shapes are submitted once per batch. The fallback
+            // renderer may issue more calls, but this counter describes the
+            // normal optimized path rather than the old legacy estimate.
+            case RECT, ROUNDED_RECT, LINE, CIRCLE -> 1;
             case SHADER, CUSTOM -> batch.size();
             default -> 1;
         };
-    }
-
-    private static boolean containsSdfShape(DrawBatch batch) {
-        Object[] commands = batch.commandElements();
-        for (int i = 0; i < batch.size(); i++) {
-            DrawCommand command = (DrawCommand) commands[i];
-            if (command == null) continue;
-            switch (command.type()) {
-                case ROUNDED_RECT -> {
-                    if (Math.abs(command.radius()) > 0.5f || command.paint().isStroke()) return true;
-                }
-                case LINE, CIRCLE -> {
-                    return true;
-                }
-                case RECT -> {
-                    if (command.paint().isStroke()
-                            || isFractional(command.bounds().x())
-                            || isFractional(command.bounds().y())
-                            || isFractional(command.bounds().width())
-                            || isFractional(command.bounds().height())) return true;
-                }
-                default -> {
-                }
-            }
-        }
-        return false;
-    }
-
-    private static boolean isFractional(float value) {
-        return Math.abs(value - Math.round(value)) > 0.001f;
     }
 
     private static boolean sameTexture(TextureHandle left, TextureHandle right) {

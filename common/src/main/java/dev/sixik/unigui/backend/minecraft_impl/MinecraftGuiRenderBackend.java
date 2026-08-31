@@ -703,6 +703,9 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
                 && shapeBatchRenderer.render(graphics, batch, renderingToPremultipliedTarget)) {
             return;
         }
+        if (batch.type() == DrawCommandType.MESH && renderMeshBatch(batch)) {
+            return;
+        }
         float textGuiScale = shaderGuiScale();
         if (batch.type() == DrawCommandType.TEXT
                 && mixedTextRenderer.render(graphics, batch, graphics.pose(), renderingToPremultipliedTarget, textGuiScale)) {
@@ -720,6 +723,71 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         Object[] rawCommands = batch.commandElements();
         for (int i = 0, size = batch.size(); i < size; i++) {
             renderCommand((DrawCommand) rawCommands[i]);
+        }
+    }
+
+    /**
+     * Рендерит соседние mesh-команды одним буфером. Команды не сортируются:
+     * каждая вершина заранее получает матрицу своей команды, поэтому порядок
+     * прозрачных треугольников остаётся тем же, что и в draw list.
+     */
+    private boolean renderMeshBatch(DrawBatch batch) {
+        if (batch == null || batch.size() == 0) return false;
+
+        TextureBinding binding = batch.texture() == null ? null : TextureBinding.resolve(batch.texture());
+        if (batch.texture() != null && binding == null) return false;
+
+        graphics.flush();
+        RenderState state = RenderState.capture();
+        int samplerDepth = MinecraftTextureSamplerState.depth();
+        try {
+            RenderSystem.enableBlend();
+            RenderSystem.disableDepthTest();
+            RenderSystem.depthMask(false);
+            RenderSystem.disableCull();
+            if (binding == null) {
+                RenderSystem.setShader(GameRenderer::getPositionColorShader);
+                MinecraftUiBlend.applyStraightAlpha(activeRenderTarget != null);
+                Object buffer = MinecraftBufferCompat.begin(VertexFormat.Mode.TRIANGLES,
+                        DefaultVertexFormat.POSITION_COLOR);
+                appendMeshBatchVertices(buffer, batch, graphics.pose().last().pose(), false, null);
+                MinecraftBufferCompat.drawWithShader(buffer);
+            } else {
+                RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
+                binding.bind();
+                MinecraftTextureSamplerState.apply(binding.options());
+                MinecraftUiBlend.applyTextureAlpha(binding.premultipliedAlpha(), activeRenderTarget != null);
+                Object buffer = MinecraftBufferCompat.begin(VertexFormat.Mode.TRIANGLES,
+                        DefaultVertexFormat.POSITION_TEX_COLOR);
+                appendMeshBatchVertices(buffer, batch, graphics.pose().last().pose(), true, binding);
+                MinecraftBufferCompat.drawWithShader(buffer);
+            }
+            return true;
+        } finally {
+            MinecraftTextureSamplerState.restoreTo(samplerDepth);
+            state.restore();
+        }
+    }
+
+    private static void appendMeshBatchVertices(Object buffer, DrawBatch batch, Matrix4f basePose,
+                                                boolean textured, TextureBinding binding) {
+        Object[] rawCommands = batch.commandElements();
+        for (int commandIndex = 0, commandCount = batch.size(); commandIndex < commandCount; commandIndex++) {
+            DrawCommand command = (DrawCommand) rawCommands[commandIndex];
+            if (command == null || command.mesh() == null || command.mesh().isEmpty()) continue;
+
+            Matrix4f matrix = MinecraftTransform.commandMatrix(basePose, command);
+            DrawMesh mesh = command.mesh();
+            Object[] rawVertices = mesh.vertexElements();
+            for (int vertexIndex = 0, vertexCount = mesh.vertexCount(); vertexIndex < vertexCount; vertexIndex++) {
+                DrawVertex vertex = (DrawVertex) rawVertices[vertexIndex];
+                if (textured) {
+                    float v = binding.flipY() ? 1.0f - vertex.v() : vertex.v();
+                    addTextureVertex(buffer, matrix, vertex.x(), vertex.y(), vertex.u(), v, vertex.color());
+                } else {
+                    addColorVertex(buffer, matrix, vertex.x(), vertex.y(), argb(vertex.color()));
+                }
+            }
         }
     }
 
