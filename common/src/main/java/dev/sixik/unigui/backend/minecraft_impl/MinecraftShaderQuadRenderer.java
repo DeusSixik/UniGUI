@@ -15,10 +15,6 @@ import dev.sixik.unigui.api.render.shaders.ShaderUniform;
 import dev.sixik.unigui.api.render.shaders.ShaderUniforms;
 import it.unimi.dsi.fastutil.ints.Int2IntMap;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
-import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.objects.Object2IntMap;
-import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
@@ -37,7 +33,6 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 final class MinecraftShaderQuadRenderer implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(MinecraftShaderQuadRenderer.class);
-    private static final int UNIFORM_NOT_CACHED = Integer.MIN_VALUE;
     private static final int TEXTURE_BINDING_CACHE_SIZE = 500;
 
     @Language("GLSL")
@@ -63,7 +58,7 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
     private static final long START_NANOS = System.nanoTime();
 
     private final Int2IntMap programs = new Int2IntOpenHashMap();
-    private final Int2ObjectMap<Object2IntMap<String>> uniformLocations = new Int2ObjectOpenHashMap<>();
+    private final MinecraftUniformLocationCache uniformLocations = new MinecraftUniformLocationCache();
     private final TextureBindingCache textureBindings = new TextureBindingCache(TEXTURE_BINDING_CACHE_SIZE);
 
     private final MinecraftResourceShaderProvider shaderProvider;
@@ -242,21 +237,7 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
      * встроенные и пользовательские uniform'ы используют один общий cache.</p>
      */
     private int uniformLocation(int program, String name) {
-        if (name == null || name.isEmpty()) return -1;
-
-        Object2IntMap<String> locations = uniformLocations.get(program);
-        if (locations == null) {
-            locations = new Object2IntOpenHashMap<>();
-            locations.defaultReturnValue(UNIFORM_NOT_CACHED);
-            uniformLocations.put(program, locations);
-        }
-
-        int location = locations.getInt(name);
-        if (location != UNIFORM_NOT_CACHED) return location;
-
-        location = GL20.glGetUniformLocation(program, name);
-        locations.put(name, location);
-        return location;
+        return uniformLocations.get(program, name);
     }
 
     private void uploadFloat(int program, String name, float value) {

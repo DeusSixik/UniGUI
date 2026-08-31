@@ -41,7 +41,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** GPU renderer for backend-independent single-channel SDF fonts. */
+/** GPU-рендерер одноканальных SDF-шрифтов, не зависящий от конкретного backend. */
 public final class MinecraftSdfTextRenderer implements AutoCloseable {
     private static final int BASE_PIXEL_SIZE = 48;
     private static final int SPREAD = 8;
@@ -102,6 +102,7 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
     private int sdfSpreadLocation;
     private boolean initialized;
     private boolean unavailable;
+    private final MinecraftUniformLocationCache uniformLocations = new MinecraftUniformLocationCache();
     private boolean firstSubmitLogged;
 
     public MinecraftSdfTextRenderer(DefaultFontRegistry fonts) {
@@ -139,7 +140,7 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
         try {
             if (DEBUG_GL) {
                 while (GL11.glGetError() != GL11.GL_NO_ERROR) {
-                    // Isolate renderer errors from stale errors left by foreign render code.
+                    // Отделяем ошибки этого рендерера от устаревших ошибок чужого кода.
                 }
             }
             if (!initialize()) return false;
@@ -215,7 +216,7 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
         try {
             if (DEBUG_GL) {
                 while (GL11.glGetError() != GL11.GL_NO_ERROR) {
-                    // Isolate renderer errors from stale errors left by foreign render code.
+                    // Отделяем ошибки этого рендерера от устаревших ошибок чужого кода.
                 }
             }
             if (!initialize()) return false;
@@ -307,10 +308,10 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
         GL20.glEnableVertexAttribArray(color);
         GL20.glVertexAttribPointer(color, 4, GL11.GL_FLOAT, false, stride, 5L * Float.BYTES);
 
-        modelViewLocation = GL20.glGetUniformLocation(program, "ModelViewMat");
-        projectionLocation = GL20.glGetUniformLocation(program, "ProjMat");
-        sdfSpreadLocation = GL20.glGetUniformLocation(program, "SdfSpread");
-        int atlasLocation = GL20.glGetUniformLocation(program, "GlyphAtlas");
+        modelViewLocation = uniformLocations.get(program, "ModelViewMat");
+        projectionLocation = uniformLocations.get(program, "ProjMat");
+        sdfSpreadLocation = uniformLocations.get(program, "SdfSpread");
+        int atlasLocation = uniformLocations.get(program, "GlyphAtlas");
         GL20.glUseProgram(program);
         GL20.glUniform1i(atlasLocation, 0);
         GL20.glUniform1f(sdfSpreadLocation, SPREAD);
@@ -655,6 +656,7 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
         vertexArray = 0;
         program = 0;
         initialized = false;
+        uniformLocations.clear();
     }
 
     private final class FontAtlas implements AutoCloseable {

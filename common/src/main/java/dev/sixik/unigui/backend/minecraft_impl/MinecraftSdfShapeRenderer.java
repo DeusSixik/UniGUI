@@ -23,11 +23,12 @@ import org.slf4j.LoggerFactory;
 import java.nio.FloatBuffer;
 
 /**
- * Shader path for common 2D UI primitives.
+ * Шейдерный путь рендера распространённых двумерных UI-примитивов.
  *
- * <p>The legacy Minecraft shape renderer approximates curves with geometry, which is visible as stair-stepped
- * rounded corners/circles at normal GUI scale. This renderer draws a single quad per primitive and lets the
- * fragment shader evaluate the shape as an SDF, so edges are anti-aliased in the same spirit as ImGui/Skia.</p>
+ * <p>Старый Minecraft-рендерер фигур приближает кривые геометрией, из-за чего скруглённые углы
+ * и окружности могут выглядеть ступенчатыми при обычном масштабе GUI. Этот рендерер рисует
+ * один quad для каждого примитива, а fragment shader вычисляет форму через SDF и сглаживает
+ * её границы.</p>
  */
 final class MinecraftSdfShapeRenderer implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(MinecraftSdfShapeRenderer.class);
@@ -145,6 +146,7 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
 
     private int program;
     private boolean unavailable;
+    private final MinecraftUniformLocationCache uniformLocations = new MinecraftUniformLocationCache();
 
     boolean shouldRender(DrawBatch batch) {
         if (batch == null || batch.size() == 0) return false;
@@ -349,6 +351,10 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
         return shader;
     }
 
+    private int uniformLocation(int activeProgram, String name) {
+        return uniformLocations.get(activeProgram, name);
+    }
+
     private static boolean supports(DrawCommandType type) {
         return type == DrawCommandType.RECT
                 || type == DrawCommandType.ROUNDED_RECT
@@ -397,28 +403,28 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
         return Math.max(min, Math.min(max, value));
     }
 
-    private static void uploadFloat(int activeProgram, String name, float value) {
-        int location = GL20.glGetUniformLocation(activeProgram, name);
+    private void uploadFloat(int activeProgram, String name, float value) {
+        int location = uniformLocation(activeProgram, name);
         if (location >= 0) GL20.glUniform1f(location, value);
     }
 
-    private static void uploadInt(int activeProgram, String name, int value) {
-        int location = GL20.glGetUniformLocation(activeProgram, name);
+    private void uploadInt(int activeProgram, String name, int value) {
+        int location = uniformLocation(activeProgram, name);
         if (location >= 0) GL20.glUniform1i(location, value);
     }
 
-    private static void uploadVec2(int activeProgram, String name, float x, float y) {
-        int location = GL20.glGetUniformLocation(activeProgram, name);
+    private void uploadVec2(int activeProgram, String name, float x, float y) {
+        int location = uniformLocation(activeProgram, name);
         if (location >= 0) GL20.glUniform2f(location, x, y);
     }
 
-    private static void uploadVec4(int activeProgram, String name, float x, float y, float z, float w) {
-        int location = GL20.glGetUniformLocation(activeProgram, name);
+    private void uploadVec4(int activeProgram, String name, float x, float y, float z, float w) {
+        int location = uniformLocation(activeProgram, name);
         if (location >= 0) GL20.glUniform4f(location, x, y, z, w);
     }
 
-    private static void uploadMat4(int activeProgram, String name, Matrix4f matrix) {
-        int location = GL20.glGetUniformLocation(activeProgram, name);
+    private void uploadMat4(int activeProgram, String name, Matrix4f matrix) {
+        int location = uniformLocation(activeProgram, name);
         if (location < 0) return;
         try (MemoryStack stack = MemoryStack.stackPush()) {
             FloatBuffer buffer = stack.mallocFloat(16);
@@ -433,6 +439,7 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
             GL20.glDeleteProgram(program);
             program = 0;
         }
+        uniformLocations.clear();
         unavailable = false;
     }
 
