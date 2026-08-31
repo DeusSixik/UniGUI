@@ -64,8 +64,11 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
     private final Int2ObjectMap<Object2IntMap<String>> uniformLocations = new Int2ObjectOpenHashMap<>();
     private final TextureBindingCache textureBindings = new TextureBindingCache(TEXTURE_BINDING_CACHE_SIZE);
 
-    MinecraftShaderQuadRenderer() {
+    private final MinecraftResourceShaderProvider shaderProvider;
+
+    MinecraftShaderQuadRenderer(Minecraft minecraft) {
         programs.defaultReturnValue(-1);
+        shaderProvider = new MinecraftResourceShaderProvider(minecraft);
     }
 
     boolean render(GuiGraphics graphics,
@@ -155,7 +158,7 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
         uploadInt(program, uniformName, Math.max(0, unit));
     }
     private int program(Minecraft minecraft, ShaderHandle shader) {
-        ShaderSource source = ShaderProviders.resolve(shader, new MinecraftResourceShaderProvider(minecraft)).orElse(null);
+        ShaderSource source = ShaderProviders.resolve(shader, shaderProvider).orElse(null);
         if (source == null || source.fragmentSource().isBlank()) {
             LOGGER.warn("UniGUI shader source not found: {}", shader.id());
             return 0;

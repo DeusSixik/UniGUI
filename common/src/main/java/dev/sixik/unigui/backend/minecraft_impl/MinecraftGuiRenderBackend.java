@@ -82,7 +82,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
     private final MinecraftMixedTextRenderer mixedTextRenderer;
     private final MinecraftShapeBatchRenderer shapeBatchRenderer = new MinecraftShapeBatchRenderer();
     private final MinecraftTextureBatchRenderer textureBatchRenderer = new MinecraftTextureBatchRenderer();
-    private final MinecraftShaderQuadRenderer shaderQuadRenderer = new MinecraftShaderQuadRenderer();
+    private final MinecraftShaderQuadRenderer shaderQuadRenderer;
     private final RenderTargetCache postEffectLayerTargets = new RenderTargetCache(this);
     private final RenderTargetCache postEffectPingTargets = new RenderTargetCache(this);
     private final DrawList postEffectDrawList = new DrawList();
@@ -111,6 +111,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         this.sdfTextRenderer.defaultFace(MinecraftFonts.defaultFace());
         this.mixedTextRenderer = new MinecraftMixedTextRenderer(this.minecraft, sdfTextRenderer);
         this.fastItemRenderer = new FastItemRenderer(this.minecraft);
+        this.shaderQuadRenderer = new MinecraftShaderQuadRenderer(this.minecraft);
         UiPostEffects.ensureRegistered();
     }
 
