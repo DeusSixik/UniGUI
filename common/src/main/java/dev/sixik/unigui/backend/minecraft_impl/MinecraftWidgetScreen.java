@@ -30,6 +30,7 @@ import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.Transform;
 import dev.sixik.unigui.api.render.DrawList;
 import dev.sixik.unigui.api.render.DrawCommand;
+import dev.sixik.unigui.api.render.DrawCommandType;
 import dev.sixik.unigui.api.render.DrawMesh;
 import dev.sixik.unigui.api.render.DrawVertex;
 import dev.sixik.unigui.api.render.Paint;
@@ -47,6 +48,7 @@ import dev.sixik.unigui.api.xml.XmlWidgetScreen;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.impl.debug.DebugOverlayRenderer;
 import dev.sixik.unigui.impl.render.DefaultRenderContext;
+import dev.sixik.unigui.impl.render.DrawBatch;
 import dev.sixik.unigui.impl.render.SimpleDrawBatcher;
 import dev.sixik.unigui.impl.render.WidgetTextureRenderer;
 import dev.sixik.unigui.impl.widget.WidgetBase;
@@ -898,10 +900,175 @@ public class MinecraftWidgetScreen extends Screen {
             return;
         }
 
-        uiContext.debugCounters().recordDrawCommands(drawList.size());
-        uiContext.debugCounters().recordBatches(SimpleDrawBatcher.INSTANCE.batch(drawList).size());
+        var counters = uiContext.debugCounters();
+        counters.recordDrawCommands(drawList.size());
+        Object[] rawCommands = drawList.commandElements();
+        int textGlyphs = 0;
+        int textCommands = 0;
+        int textureCommands = 0;
+        int textureSwitches = 0;
+        int shaderUniforms = 0;
+        int shaderTextures = 0;
+        int meshVertices = 0;
+        int pathElements = 0;
+        int transformCommands = 0;
+        int clipCommands = 0;
+        TextureHandle previousTexture = null;
+        boolean hasPreviousTexture = false;
+
+        for (int i = 0, size = drawList.size(); i < size; i++) {
+            DrawCommand command = (DrawCommand) rawCommands[i];
+            if (command == null) continue;
+            counters.recordDrawCommand(command.type());
+            if (command.transform() != null && hasVisualTransform(command)) transformCommands++;
+            switch (command.type()) {
+                case TEXT -> {
+                    textCommands++;
+                    textGlyphs += textGlyphCount(command);
+                }
+                case TEXTURE, TEXTURED_QUAD -> {
+                    textureCommands++;
+                    TextureHandle texture = command.texture();
+                    if (hasPreviousTexture && !sameTexture(previousTexture, texture)) textureSwitches++;
+                    previousTexture = texture;
+                    hasPreviousTexture = true;
+                }
+                case MESH -> {
+                    if (command.mesh() != null) meshVertices += command.mesh().vertexCount();
+                }
+                case SHADER -> {
+                    if (command.shaderUniforms() != null) shaderUniforms += command.shaderUniforms().values().size();
+                    if (command.shaderTextures() != null) shaderTextures += command.shaderTextures().size();
+                }
+                case PATH -> {
+                    if (command.path() != null) pathElements += command.path().size();
+                }
+                case PUSH_CLIP, POP_CLIP -> clipCommands++;
+                default -> {
+                }
+            }
+        }
+
+        List<DrawBatch> batches = SimpleDrawBatcher.INSTANCE.batch(drawList);
+        if (batches instanceof ObjectArrayList<?> objectBatches) {
+            Object[] rawBatches = objectBatches.elements();
+            for (int i = 0, size = objectBatches.size(); i < size; i++) {
+                recordBatchStats(counters, (DrawBatch) rawBatches[i]);
+            }
+        } else {
+            for (DrawBatch batch : batches) recordBatchStats(counters, batch);
+        }
+        counters.recordRenderFeatures(textGlyphs, textCommands, textureCommands, textureSwitches,
+                meshVertices, pathElements, transformCommands, clipCommands);
+        counters.recordShaderFeatures(shaderUniforms, shaderTextures);
     }
 
+    private static void recordBatchStats(dev.sixik.unigui.api.debug.UiDebugCounters counters, DrawBatch batch) {
+        if (batch == null) return;
+        int commandCount = batch.size();
+        int drawCalls = estimatedDrawCalls(batch);
+        int vertices = 0;
+        int indices = 0;
+        switch (batch.type()) {
+            case RECT, ROUNDED_RECT, LINE, CIRCLE -> {
+                vertices = commandCount * 4;
+                indices = commandCount * 6;
+            }
+            case TEXTURE, TEXTURED_QUAD -> {
+                vertices = commandCount * 4;
+                indices = commandCount * 6;
+            }
+            case TEXT -> {
+                Object[] commands = batch.commandElements();
+                for (int i = 0; i < commandCount; i++) {
+                    DrawCommand command = (DrawCommand) commands[i];
+                    if (command == null) continue;
+                    int glyphs = textGlyphCount(command);
+                    vertices += glyphs * 4;
+                    indices += glyphs * 6;
+                }
+            }
+            case SHADER -> {
+                vertices = commandCount * 4;
+                indices = commandCount * 6;
+            }
+            case MESH -> {
+                Object[] commands = batch.commandElements();
+                for (int i = 0; i < commandCount; i++) {
+                    DrawCommand command = (DrawCommand) commands[i];
+                    if (command != null && command.mesh() != null) {
+                        int meshVertices = command.mesh().vertexCount();
+                        vertices += meshVertices;
+                        indices += meshVertices;
+                    }
+                }
+            }
+            default -> {
+            }
+        }
+        counters.recordBatch(batch.type(), commandCount, batch.isBarrier(), drawCalls, vertices, indices);
+    }
+
+    private static int estimatedDrawCalls(DrawBatch batch) {
+        if (batch == null || batch.size() == 0) return 0;
+        return switch (batch.type()) {
+            case PUSH_CLIP, POP_CLIP, DRAW_CMD -> 0;
+            // SDF and custom paths issue one submit per command. The regular
+            // shape/texture/text batchers may collapse the same commands to one.
+            case RECT, ROUNDED_RECT, LINE, CIRCLE -> containsSdfShape(batch) ? batch.size() : 1;
+            case SHADER, CUSTOM -> batch.size();
+            default -> 1;
+        };
+    }
+
+    private static boolean containsSdfShape(DrawBatch batch) {
+        Object[] commands = batch.commandElements();
+        for (int i = 0; i < batch.size(); i++) {
+            DrawCommand command = (DrawCommand) commands[i];
+            if (command == null) continue;
+            switch (command.type()) {
+                case ROUNDED_RECT -> {
+                    if (Math.abs(command.radius()) > 0.5f || command.paint().isStroke()) return true;
+                }
+                case LINE, CIRCLE -> {
+                    return true;
+                }
+                case RECT -> {
+                    if (command.paint().isStroke()
+                            || isFractional(command.bounds().x())
+                            || isFractional(command.bounds().y())
+                            || isFractional(command.bounds().width())
+                            || isFractional(command.bounds().height())) return true;
+                }
+                default -> {
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean isFractional(float value) {
+        return Math.abs(value - Math.round(value)) > 0.001f;
+    }
+
+    private static boolean sameTexture(TextureHandle left, TextureHandle right) {
+        if (left == right) return true;
+        if (left == null || right == null) return false;
+        return Objects.equals(left.id(), right.id()) && Objects.equals(left.options(), right.options());
+    }
+
+    private static int textGlyphCount(DrawCommand command) {
+        String text = command.richText() == null ? command.text() : command.richText().plainText();
+        return text == null ? 0 : text.codePointCount(0, text.length());
+    }
+
+    private static boolean hasVisualTransform(DrawCommand command) {
+        var transform = command.transform();
+        return transform.position().x() != 0.0f || transform.position().y() != 0.0f
+                || transform.rotationDegrees() != 0.0f
+                || transform.scale().x() != 1.0f || transform.scale().y() != 1.0f
+                || command.transformStackSize() > 0;
+    }
     private void attachContext(Widget widget) {
         if (widget instanceof WidgetBase base) {
             base.setUiContextInternal(uiContext);

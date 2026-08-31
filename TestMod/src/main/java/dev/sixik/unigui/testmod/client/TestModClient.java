@@ -5,6 +5,7 @@ import dev.sixik.unigui.testmod.client.ui.ForkInSocketMinigameScreen;
 import dev.sixik.unigui.testmod.client.ui.LevelMapScreen;
 import dev.sixik.unigui.testmod.client.ui.PlugSocketMinigameScreen;
 import dev.sixik.unigui.testmod.client.ui.RetroTerminalScreen;
+import dev.sixik.unigui.testmod.client.ui.SolarNavigationScreen;
 import dev.sixik.unigui.testmod.client.ui.SpannerRhythmMinigameScreen;
 import dev.sixik.unigui.testmod.client.ui.SyncBatteryMinigameScreen;
 import dev.sixik.unigui.testmod.client.ui.TutorialScreen;
@@ -37,6 +38,10 @@ public final class TestModClient implements ClientModInitializer {
 
     public static void openLevelMap() {
         LevelMapScreen.open();
+    }
+
+    public static void openSolarNavigation() {
+        SolarNavigationScreen.open();
     }
 
     public static void openPlugSocketMinigame() {

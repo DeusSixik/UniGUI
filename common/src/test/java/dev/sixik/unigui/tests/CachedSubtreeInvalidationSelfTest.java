@@ -172,7 +172,7 @@ public final class CachedSubtreeInvalidationSelfTest {
         DrawCommand background = overlay.commands().get(0);
         expect(background.transform().scale().x() == 0.5f, "debug overlay should apply configured scale");
         expect(background.transform().position().x() > 700.0f
-                        && background.transform().position().y() > 400.0f,
+                        && background.transform().position().y() > 300.0f,
                 "debug overlay should anchor to the bottom-right viewport corner");
         expect(metricColorDiffers(overlay, "Total ", "CPU Total ")
                         && metricColorDiffers(overlay, "CPU Total ", "GPU Total "),

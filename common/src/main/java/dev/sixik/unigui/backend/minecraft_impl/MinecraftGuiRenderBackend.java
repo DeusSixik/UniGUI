@@ -42,6 +42,7 @@ import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextRun;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.GameRenderer;
@@ -548,7 +549,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
 
     private void renderBatches(DrawList drawList) {
         List<DrawBatch> batches = batcher.batch(drawList);
-        if (batches instanceof it.unimi.dsi.fastutil.objects.ObjectArrayList<?> objectBatches) {
+        if (batches instanceof ObjectArrayList<?> objectBatches) {
             Object[] rawBatches = objectBatches.elements();
             for (int i = 0, size = objectBatches.size(); i < size; i++) {
                 DrawBatch batch = (DrawBatch) rawBatches[i];

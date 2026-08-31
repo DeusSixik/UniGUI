@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.NativeImage;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UnityLikeUIScaleProvider;
+import dev.sixik.unigui.api.debug.DebugFlags;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.input.KeyboardState;
 import dev.sixik.unigui.api.layout.Alignment;
@@ -68,6 +69,19 @@ public final class SolarNavigationScreen {
 //        openGui(seed, terminalPos, shipState, questMarkers, restoredDockedStations, false, false);
 //    }
 
+    /**
+     * Открывает автономный демонстрационный вариант навигации.
+     *
+     * <p>Нулевая позиция терминала отключает проверку расстояния до блока, поэтому этот
+     * вариант удобно запускать из тестового меню. В реальном моде следует использовать
+     * перегруженный {@link #openGui(long, BlockPos, SolarNavigationShipState, List, List, boolean, boolean)}.</p>
+     */
+    public static void open() {
+        openGui(0x5EED_51A7L, BlockPos.ZERO,
+                new SolarNavigationShipState(0.0f, 0.0f, 0.0f, 0.0f, 0.0f),
+                List.of(), List.of(), true, true);
+    }
+
     public static void openGui(long seed, BlockPos terminalPos, SolarNavigationShipState shipState, List<SolarNavigationQuestMarker> questMarkers, List<SolarNavigationDockedStation> restoredDockedStations, boolean hasManeuverability, boolean hasStationLocator) {
         UnityLikeUIScaleProvider scaleProvider = new UnityLikeUIScaleProvider()
                 .referenceResolution(1920.0f, 1080.0f)
@@ -75,6 +89,8 @@ public final class SolarNavigationScreen {
                 .scaleRange(0.60f, 2.50f);
         DefaultUIContext context = new DefaultUIContext(new MinecraftClipboardService())
                 .scaleProvider(scaleProvider);
+        context.debugFlags(DebugFlags.ALL);
+        context.debugOverlaySettings().scale(1.6f);
 
         SolarNavigationCanvas canvas = new SolarNavigationCanvas(seed, terminalPos, shipState, questMarkers, restoredDockedStations, hasManeuverability, hasStationLocator);
         currentCanvas = canvas;
@@ -135,6 +151,11 @@ public final class SolarNavigationScreen {
         private static final float MAX_TURN_SPEED = 2.65f;
         private static final float TURN_ACCELERATION = 7.4f;
         private static final float TURN_DECAY = 0.035f;
+        private static final float FORWARD_ACCELERATION = 260.0f;
+        private static final float REVERSE_ACCELERATION = 150.0f;
+        private static final float MAX_FORWARD_SPEED = 420.0f;
+        private static final float MAX_REVERSE_SPEED = 180.0f;
+        private static final float LINEAR_DRAG = 1.8f;
         private static final float ASTEROID_PUSH_MULTIPLIER = 0.62f;
         private static final float ASTEROID_PUSH_PENETRATION_FORCE = 7.5f;
         private static final float ASTEROID_MAX_PUSH_OFFSET = 280.0f;
@@ -255,6 +276,7 @@ public final class SolarNavigationScreen {
             KeyboardState keyboard = uiContext() == null ? KeyboardState.NONE : uiContext().keyboard();
             int turnAxis = turnAxis(keyboard);
             predictLocalRotation(turnAxis, frameDelta);
+            updateLocalMotion(keyboard, frameDelta);
             updateDockingProgress(keyboard, frameDelta);
             updateImpactInterference(frameDelta);
             syncInput(keyboard, frameDelta);
@@ -313,20 +335,44 @@ public final class SolarNavigationScreen {
         }
 
         private int inputMask(KeyboardState keyboard) {
-//            int mask = 0;
-//            if (keyboard.isDown(KeyCodes.W)) {
-//                mask |= UpdateSolarNavigationInputPacket.FORWARD;
-//            }
-//            if (keyboard.isDown(KeyCodes.S)) {
-//                mask |= UpdateSolarNavigationInputPacket.BACKWARD;
-//            }
-//            if (keyboard.isDown(KeyCodes.A)) {
-//                mask |= UpdateSolarNavigationInputPacket.LEFT;
-//            }
-//            if (keyboard.isDown(KeyCodes.D)) {
-//                mask |= UpdateSolarNavigationInputPacket.RIGHT;
-//            }
-            return 0;
+            int mask = 0;
+            if (keyboard.isDown(KeyCodes.W)) mask |= 1;
+            if (keyboard.isDown(KeyCodes.S)) mask |= 1 << 1;
+            if (keyboard.isDown(KeyCodes.A)) mask |= 1 << 2;
+            if (keyboard.isDown(KeyCodes.D)) mask |= 1 << 3;
+            return mask;
+        }
+
+        /**
+         * Локальная физика используется только в тестовом экране, пока сетевой слой
+         * навигации отключён. Состояние корабля хранится в мировых координатах, поэтому
+         * поворот меняет направление новой тяги, но не разворачивает уже набранную скорость.
+         */
+        private void updateLocalMotion(KeyboardState keyboard, float delta) {
+            int thrustAxis = (keyboard.isDown(KeyCodes.W) ? 1 : 0)
+                    - (keyboard.isDown(KeyCodes.S) ? 1 : 0);
+            if (thrustAxis != 0) {
+                float acceleration = thrustAxis > 0 ? FORWARD_ACCELERATION : REVERSE_ACCELERATION;
+                float directionX = (float) Math.cos(angle);
+                float directionY = (float) Math.sin(angle);
+                velocityX += directionX * acceleration * thrustAxis * delta;
+                velocityY += directionY * acceleration * thrustAxis * delta;
+            } else {
+                float damping = (float) Math.exp(-LINEAR_DRAG * delta);
+                velocityX *= damping;
+                velocityY *= damping;
+            }
+
+            float speed = (float) Math.sqrt(velocityX * velocityX + velocityY * velocityY);
+            float maxSpeed = thrustAxis < 0 ? MAX_REVERSE_SPEED : MAX_FORWARD_SPEED;
+            if (speed > maxSpeed && speed > 0.001f) {
+                float factor = maxSpeed / speed;
+                velocityX *= factor;
+                velocityY *= factor;
+            }
+
+            shipX = clamp(shipX + velocityX * delta, -WORLD_LIMIT, WORLD_LIMIT);
+            shipY = clamp(shipY + velocityY * delta, -WORLD_LIMIT, WORLD_LIMIT);
         }
 
         private float nextFrameDelta() {

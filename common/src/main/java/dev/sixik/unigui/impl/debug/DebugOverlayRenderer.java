@@ -7,6 +7,8 @@ import dev.sixik.unigui.api.debug.DebugOverlaySettings;
 import dev.sixik.unigui.api.debug.ProfileScopeSnapshot;
 import dev.sixik.unigui.api.debug.ProfilerSnapshot;
 import dev.sixik.unigui.api.debug.UiDebugSnapshot;
+import dev.sixik.unigui.api.debug.UiRenderSnapshot;
+import dev.sixik.unigui.api.render.DrawCommandType;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.Transform;
 import dev.sixik.unigui.api.render.Paint;
@@ -24,8 +26,9 @@ public final class DebugOverlayRenderer {
     private static final float LINE_HEIGHT = 10.0f;
     private static final int SUMMARY_LINES = 10;
     private static final int MAX_SCOPE_HISTORY_LINES = 6;
+    private static final int RENDER_DETAIL_LINES = 14;
     private static final int MAX_WORST_FRAME_LINES = 5;
-    private static final int TOTAL_LINES = SUMMARY_LINES + 1 + MAX_SCOPE_HISTORY_LINES + 1 + MAX_WORST_FRAME_LINES;
+    private static final int TOTAL_LINES = SUMMARY_LINES + RENDER_DETAIL_LINES + 1 + MAX_SCOPE_HISTORY_LINES + 1 + MAX_WORST_FRAME_LINES;
     private static final float GRAPH_SPACING = 4.0f;
     private static final float GRAPH_LABEL_HEIGHT = 11.0f;
     private static final float GRAPH_HEIGHT = 90.0f;
@@ -74,6 +77,7 @@ public final class DebugOverlayRenderer {
 
         DebugOverlaySettings settings = uiContext.debugOverlaySettings();
         UiDebugSnapshot debug = uiContext.debugCounters().snapshot();
+        UiRenderSnapshot render = uiContext.debugCounters().renderSnapshot();
         ProfilerSnapshot profiler = uiContext.profiler().snapshot();
         float height = overlayHeight();
         float scale = settings.scale();
@@ -114,9 +118,10 @@ public final class DebugOverlayRenderer {
                 debug.textureCacheMisses() > 0L ? WARN : TEXT);
         line(context, runtimeLine(viewportWidth, viewportHeight), position, scale, 9, TEXT);
 
-        renderScopeHistory(context, position, scale, SUMMARY_LINES, history.scopeHistory());
+        renderRenderDetails(context, position, scale, SUMMARY_LINES, render);
+        renderScopeHistory(context, position, scale, SUMMARY_LINES + RENDER_DETAIL_LINES, history.scopeHistory());
         renderWorstFrames(context, position, scale,
-                SUMMARY_LINES + 1 + MAX_SCOPE_HISTORY_LINES, history.worstFrames(MAX_WORST_FRAME_LINES));
+                SUMMARY_LINES + RENDER_DETAIL_LINES + 1 + MAX_SCOPE_HISTORY_LINES, history.worstFrames(MAX_WORST_FRAME_LINES));
         renderFrameGraph(context, position, scale, history);
     }
 
@@ -130,6 +135,126 @@ public final class DebugOverlayRenderer {
         return PADDING * 2.0f + TOTAL_LINES * LINE_HEIGHT + GRAPH_SPACING + GRAPH_LABEL_HEIGHT + GRAPH_HEIGHT;
     }
 
+    private static void renderRenderDetails(RenderContext context, Position position, float scale,
+                                            int startLine, UiRenderSnapshot render) {
+        line(context, "RENDER WORKLOAD (draw list, estimated submits)", position, scale, startLine, HEADER);
+        line(context, commandTypesLine(render), position, scale, startLine + 1, TEXT);
+        line(context, commandTypesLine2(render), position, scale, startLine + 2, TEXT);
+        line(context, commandTypesLine3(render), position, scale, startLine + 3, TEXT);
+        line(context, batchTypesLine(render), position, scale, startLine + 4, TEXT);
+        line(context, batchTypesLine2(render), position, scale, startLine + 5, TEXT);
+        line(context, batchTypesLine3(render), position, scale, startLine + 6, TEXT);
+        line(context, submitLine(render), position, scale, startLine + 7,
+                render.totalEstimatedDrawCalls() > 0 ? WARN : GOOD);
+        line(context, geometryLine(render), position, scale, startLine + 8, TEXT);
+        line(context, textDetailLine(render), position, scale, startLine + 9, TEXT);
+        line(context, textureDetailLine(render), position, scale, startLine + 10, TEXT);
+        line(context, shaderDetailLine(render), position, scale, startLine + 11, TEXT);
+        line(context, structureLine(render), position, scale, startLine + 12,
+                render.singletonBatches() > 0 || render.barrierBatches() > 0 ? WARN : GOOD);
+        line(context, "Future target: reduce estimated submits, singleton batches and texture switches before changing shaders.",
+                position, scale, startLine + 13, HEADER);
+    }
+
+    private static String commandTypesLine(UiRenderSnapshot render) {
+        return "CMD rect " + render.commandCount(DrawCommandType.RECT)
+                + " | rounded " + render.commandCount(DrawCommandType.ROUNDED_RECT)
+                + " | line " + render.commandCount(DrawCommandType.LINE)
+                + " | circle " + render.commandCount(DrawCommandType.CIRCLE)
+                + " | path " + render.commandCount(DrawCommandType.PATH);
+    }
+
+    private static String commandTypesLine2(UiRenderSnapshot render) {
+        return "CMD text " + render.commandCount(DrawCommandType.TEXT)
+                + " | texture " + render.commandCount(DrawCommandType.TEXTURE)
+                + " | quad " + render.commandCount(DrawCommandType.TEXTURED_QUAD)
+                + " | pushClip " + render.commandCount(DrawCommandType.PUSH_CLIP)
+                + " | popClip " + render.commandCount(DrawCommandType.POP_CLIP);
+    }
+
+    private static String commandTypesLine3(UiRenderSnapshot render) {
+        return "CMD mesh " + render.commandCount(DrawCommandType.MESH)
+                + " | shader " + render.commandCount(DrawCommandType.SHADER)
+                + " | drawCmd " + render.commandCount(DrawCommandType.DRAW_CMD)
+                + " | custom " + render.commandCount(DrawCommandType.CUSTOM);
+    }
+
+    private static String batchTypesLine(UiRenderSnapshot render) {
+        return "BATCH rect " + render.batchCount(DrawCommandType.RECT)
+                + " | rounded " + render.batchCount(DrawCommandType.ROUNDED_RECT)
+                + " | line " + render.batchCount(DrawCommandType.LINE)
+                + " | circle " + render.batchCount(DrawCommandType.CIRCLE)
+                + " | path " + render.batchCount(DrawCommandType.PATH);
+    }
+
+    private static String batchTypesLine2(UiRenderSnapshot render) {
+        return "BATCH text " + render.batchCount(DrawCommandType.TEXT)
+                + " | texture " + render.batchCount(DrawCommandType.TEXTURE)
+                + " | quad " + render.batchCount(DrawCommandType.TEXTURED_QUAD)
+                + " | mesh " + render.batchCount(DrawCommandType.MESH)
+                + " | shader " + render.batchCount(DrawCommandType.SHADER);
+    }
+
+    private static String batchTypesLine3(UiRenderSnapshot render) {
+        return "BATCH pushClip " + render.batchCount(DrawCommandType.PUSH_CLIP)
+                + " | popClip " + render.batchCount(DrawCommandType.POP_CLIP)
+                + " | drawCmd " + render.batchCount(DrawCommandType.DRAW_CMD)
+                + " | custom " + render.batchCount(DrawCommandType.CUSTOM);
+    }
+
+    private static String submitLine(UiRenderSnapshot render) {
+        int batches = 0;
+        for (DrawCommandType type : DrawCommandType.values()) batches += render.batchCount(type);
+        float commandsPerBatch = batches == 0 ? 0.0f : totalCommands(render) / (float) batches;
+        return "EST submit " + render.totalEstimatedDrawCalls()
+                + " | batches " + batches
+                + " | cmd/batch " + formatOneDecimal(commandsPerBatch)
+                + " | vertices " + render.totalEstimatedVertices()
+                + " | indices " + render.totalEstimatedIndices();
+    }
+
+    private static String geometryLine(UiRenderSnapshot render) {
+        return "GEOMETRY mesh vertices " + render.meshVertices()
+                + " | path elements " + render.pathElements()
+                + " | shape vertices " + (render.estimatedVertices(DrawCommandType.RECT)
+                + render.estimatedVertices(DrawCommandType.ROUNDED_RECT)
+                + render.estimatedVertices(DrawCommandType.LINE)
+                + render.estimatedVertices(DrawCommandType.CIRCLE))
+                + " | clip commands " + render.clipCommands();
+    }
+
+    private static String textDetailLine(UiRenderSnapshot render) {
+        return "TEXT commands " + render.textCommands()
+                + " | glyphs " + render.textGlyphs()
+                + " | glyphs/cmd " + formatOneDecimal(render.textCommands() == 0
+                ? 0.0f : render.textGlyphs() / (float) render.textCommands());
+    }
+
+    private static String textureDetailLine(UiRenderSnapshot render) {
+        return "TEXTURES commands " + render.textureCommands()
+                + " | switches " + render.textureSwitches()
+                + " | switch/cmd " + formatOneDecimal(render.textureCommands() == 0
+                ? 0.0f : render.textureSwitches() / (float) render.textureCommands());
+    }
+
+    private static String structureLine(UiRenderSnapshot render) {
+        return "STRUCT singleton batches " + render.singletonBatches()
+                + " | barriers " + render.barrierBatches()
+                + " | max batch " + render.maxBatchSize()
+                + " | transformed commands " + render.transformCommands();
+    }
+
+    private static String shaderDetailLine(UiRenderSnapshot render) {
+        return "SHADERS commands " + render.commandCount(DrawCommandType.SHADER)
+                + " | uniforms " + render.shaderUniforms()
+                + " | extra textures " + render.shaderTextures();
+    }
+
+    private static int totalCommands(UiRenderSnapshot render) {
+        int total = 0;
+        for (DrawCommandType type : DrawCommandType.values()) total += render.commandCount(type);
+        return total;
+    }
     private static void renderScopeHistory(RenderContext context, Position position, float scale,
                                            int startLine, ObjectArrayList<ScopeAggregate> scopes) {
         line(context, "SCOPE HISTORY (max/avg in sample window)", position, scale, startLine, HEADER);

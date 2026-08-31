@@ -30,26 +30,29 @@ public abstract class PauseScreenMixin extends Screen {
         addRenderableWidget(Button.builder(Component.literal("Level Map"), button -> TestModClient.openLevelMap())
                 .bounds(width - 124, 56, 116, 20)
                 .build());
-        addRenderableWidget(Button.builder(Component.literal("Plug Minigame"), button -> TestModClient.openPlugSocketMinigame())
+        addRenderableWidget(Button.builder(Component.literal("Solar Navigation"), button -> TestModClient.openSolarNavigation())
                 .bounds(width - 124, 80, 116, 20)
                 .build());
-        addRenderableWidget(Button.builder(Component.literal("Wrench Minigame"), button -> TestModClient.openWrenchNutMinigame())
+        addRenderableWidget(Button.builder(Component.literal("Plug Minigame"), button -> TestModClient.openPlugSocketMinigame())
                 .bounds(width - 124, 104, 116, 20)
                 .build());
-        addRenderableWidget(Button.builder(Component.literal("Wire Minigame"), button -> TestModClient.openWireConnectionMinigame())
+        addRenderableWidget(Button.builder(Component.literal("Wrench Minigame"), button -> TestModClient.openWrenchNutMinigame())
                 .bounds(width - 124, 128, 116, 20)
                 .build());
-        addRenderableWidget(Button.builder(Component.literal("Sync Minigame"), button -> TestModClient.openSyncBatteryMinigame())
+        addRenderableWidget(Button.builder(Component.literal("Wire Minigame"), button -> TestModClient.openWireConnectionMinigame())
                 .bounds(width - 124, 152, 116, 20)
                 .build());
-        addRenderableWidget(Button.builder(Component.literal("Spanner Minigame"), button -> TestModClient.openSpannerRhythmMinigame())
+        addRenderableWidget(Button.builder(Component.literal("Sync Minigame"), button -> TestModClient.openSyncBatteryMinigame())
                 .bounds(width - 124, 176, 116, 20)
                 .build());
-        addRenderableWidget(Button.builder(Component.literal("Fork Minigame"), button -> TestModClient.openForkInSocketMinigame())
+        addRenderableWidget(Button.builder(Component.literal("Spanner Minigame"), button -> TestModClient.openSpannerRhythmMinigame())
                 .bounds(width - 124, 200, 116, 20)
                 .build());
-        addRenderableWidget(Button.builder(Component.literal("Tutorial"), button -> TestModClient.openTutorial())
+        addRenderableWidget(Button.builder(Component.literal("Fork Minigame"), button -> TestModClient.openForkInSocketMinigame())
                 .bounds(width - 124, 224, 116, 20)
+                .build());
+        addRenderableWidget(Button.builder(Component.literal("Tutorial"), button -> TestModClient.openTutorial())
+                .bounds(width - 124, 248, 116, 20)
                 .build());
     }
 }
