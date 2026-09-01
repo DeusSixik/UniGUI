@@ -272,7 +272,7 @@ public class Checkbox extends ToggleButton {
                 richText(),
                 TEXT_PADDING_X,
                 TextEngine.measureLineWidth(context, richText()),
-                TextEngine.measureTextHeight(richText()),
+                TextEngine.measureTextHeight(context, richText()),
                 textColor().copy(),
                 pressed(),
                 hovered(),

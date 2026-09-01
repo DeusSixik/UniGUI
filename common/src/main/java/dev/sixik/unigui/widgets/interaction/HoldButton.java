@@ -257,7 +257,7 @@ public class HoldButton extends Button {
                 richText(),
                 textPaddingX(),
                 TextEngine.measureLineWidth(context, richText()),
-                TextEngine.measureTextHeight(richText()),
+                TextEngine.measureTextHeight(context, richText()),
                 textColor().copy(),
                 pressed(),
                 hovered(),

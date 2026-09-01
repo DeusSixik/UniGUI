@@ -595,7 +595,7 @@ public class TreeView extends LinearBox {
             float availableWidth = Math.max(0.0f, layoutBounds().width() - TEXT_PADDING_X * 2.0f - indent);
             float availableHeight = Math.max(0.0f, layoutBounds().height());
             float textWidth = TextEngine.measureLineWidth(context, text);
-            float textHeight = Math.min(availableHeight, TextEngine.measureTextHeight(text));
+        float textHeight = Math.min(availableHeight, TextEngine.measureTextHeight(context, text));
             float textX = baseTextX - hoverTextScrollOffset(textWidth, availableWidth);
             float textY = TextEngine.alignedStart(layoutBounds().y(), availableHeight, textHeight,
                     dev.sixik.unigui.api.layout.Alignment.CENTER);

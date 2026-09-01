@@ -685,7 +685,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
                 closeButton.layoutBounds().width(),
                 richTitle,
                 TextEngine.measureLineWidth(context, richTitle),
-                TextEngine.measureTextHeight(richTitle),
+                TextEngine.measureTextHeight(context, richTitle),
                 headerColor.copy(),
                 headerSeparatorColor.copy(),
                 titleColor.copy(),

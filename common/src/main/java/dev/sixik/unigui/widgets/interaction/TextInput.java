@@ -399,7 +399,7 @@ public class TextInput extends Box {
         float viewportY = textViewportY();
         float viewportWidth = textViewportWidth();
         float viewportHeight = textViewportHeight();
-        float textHeight = textLineHeight(visibleText);
+        float textHeight = textLineHeight(context, visibleText);
         float textY = textContentY(textHeight);
         TextInputState state = textInputState(
                 visibleText,
@@ -537,6 +537,13 @@ public class TextInput extends Box {
     protected float textLineHeight(String visibleText) {
         RichText line = richText(visibleText);
         float measured = TextEngine.measureTextHeight(line);
+        return measured > 0.0f ? Math.max(TextEngine.LINE_HEIGHT, measured) : TextEngine.LINE_HEIGHT;
+    }
+
+    /** Возвращает высоту строки по метрикам шрифта текущего render backend. */
+    protected float textLineHeight(RenderContext context, String visibleText) {
+        RichText line = richText(visibleText);
+        float measured = TextEngine.measureTextHeight(context, line);
         return measured > 0.0f ? Math.max(TextEngine.LINE_HEIGHT, measured) : TextEngine.LINE_HEIGHT;
     }
 

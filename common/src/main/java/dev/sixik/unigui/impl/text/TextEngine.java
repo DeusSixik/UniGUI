@@ -94,14 +94,32 @@ public final class TextEngine {
     }
 
     public static float measureTextHeight(RichText text) {
+        return measureTextHeight(text, null);
+    }
+
+    /**
+     * Измеряет высоту текста с учётом default font face текущего backend'а.
+     *
+     * <p>Это важно для run'ов без явно заданного шрифта: fallback-метрика нужна
+     * layout-коду без render context, но при отрисовке высота должна совпадать
+     * с метриками шрифта, который действительно выберет backend.</p>
+     */
+    public static float measureTextHeight(RenderContext context, RichText text) {
+        RenderBackend backend = context == null ? null : context.backend();
+        FontFace defaultFace = backend == null ? null : backend.defaultTextFace();
+        return measureTextHeight(text, defaultFace);
+    }
+
+    private static float measureTextHeight(RichText text, FontFace defaultFace) {
         if (text == null || text.isEmpty()) return 0.0f;
         float total = 0.0f;
         float lineHeight = 0.0f;
         for (RichTextSpan span : text.spans()) {
             if (span instanceof TextRun run) {
-                float runLineHeight = run.font() == null
+                FontFace face = run.font() == null ? defaultFace : run.font();
+                float runLineHeight = face == null
                         ? fallbackLineHeight(run.pixelSize())
-                        : run.font().metrics(run.pixelSize()).lineHeight();
+                        : face.metrics(run.pixelSize()).lineHeight();
                 lineHeight = Math.max(lineHeight, runLineHeight);
                 String value = run.text();
                 for (int index = 0; index < value.length(); ) {
@@ -151,10 +169,23 @@ public final class TextEngine {
                 : Math.max(LINE_HEIGHT, measureTextHeight(line));
     }
 
+    public static float lineHeight(RenderContext context, RichText line) {
+        return line == null || line.isEmpty()
+                ? LINE_HEIGHT
+                : Math.max(LINE_HEIGHT, measureTextHeight(context, line));
+    }
+
     public static float linesHeight(List<RichText> lines) {
         if (lines == null || lines.isEmpty()) return 0.0f;
         float height = 0.0f;
         for (RichText line : lines) height += lineHeight(line);
+        return height;
+    }
+
+    public static float linesHeight(RenderContext context, List<RichText> lines) {
+        if (lines == null || lines.isEmpty()) return 0.0f;
+        float height = 0.0f;
+        for (RichText line : lines) height += lineHeight(context, line);
         return height;
     }
 
@@ -174,7 +205,7 @@ public final class TextEngine {
         if (context == null || text == null || text.isEmpty()) return;
 
         float textWidth = Math.min(Math.max(0.0f, width), measureLineWidth(context, text));
-        float textHeight = Math.min(Math.max(0.0f, height), measureTextHeight(text));
+        float textHeight = Math.min(Math.max(0.0f, height), measureTextHeight(context, text));
         float drawX = alignedStart(x, Math.max(0.0f, width), textWidth, horizontalAlignment);
         float drawY = alignedStart(y, Math.max(0.0f, height), textHeight, verticalAlignment);
         if (text.hasInlineContent()) {
@@ -203,7 +234,8 @@ public final class TextEngine {
             return;
         }
 
-        float lineHeight = Math.max(LINE_HEIGHT, height > 0.0f ? height : measureTextHeight(text));
+        float lineHeight = Math.max(LINE_HEIGHT,
+                height > 0.0f ? height : measureTextHeight(draw.context(), text));
         float cursorX = x;
         float cursorY = y;
         FontFace defaultFace = draw.context().backend() == null ? null : draw.context().backend().defaultTextFace();

@@ -1223,7 +1223,7 @@ public class VirtualTableView extends WidgetBase {
         float availableWidth = Math.max(0.0f, width);
         float availableHeight = Math.max(0.0f, height);
         float textWidth = Math.min(availableWidth, TextEngine.measureLineWidth(context, text));
-        float textHeight = Math.min(availableHeight, TextEngine.measureTextHeight(text));
+        float textHeight = Math.min(availableHeight, TextEngine.measureTextHeight(context, text));
         float drawX = TextEngine.alignedStart(x, availableWidth, textWidth, horizontal);
         float drawY = TextEngine.alignedStart(y, availableHeight, textHeight, vertical);
         return new VirtualTableViewTextSegment(text, drawX, drawY,
@@ -1240,7 +1240,7 @@ public class VirtualTableView extends WidgetBase {
                                                            Alignment vertical) {
         float textWidth = TextEngine.measureLineWidth(context, richText);
         if (textWidth <= 0.0f) return null;
-        float sourceHeight = TextEngine.measureTextHeight(richText);
+        float sourceHeight = TextEngine.measureTextHeight(context, richText);
         float scale = width <= 0.0f ? 1.0f : Math.min(1.0f, width / textWidth);
         float scaledWidth = textWidth * scale;
         float scaledHeight = sourceHeight * scale;

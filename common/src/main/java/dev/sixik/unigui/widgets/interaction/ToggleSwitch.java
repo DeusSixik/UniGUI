@@ -222,7 +222,7 @@ public class ToggleSwitch extends ToggleButton {
                 richText(),
                 trackHeight,
                 TextEngine.measureLineWidth(context, richText()),
-                TextEngine.measureTextHeight(richText()),
+                TextEngine.measureTextHeight(context, richText()),
                 textColor().copy(),
                 pressed(),
                 hovered(),

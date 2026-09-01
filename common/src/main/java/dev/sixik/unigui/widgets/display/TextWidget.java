@@ -358,11 +358,11 @@ public class TextWidget extends WidgetBase {
         List<RichText> lines = cachedWrappedLines(context, availableWidth);
         if (lines.isEmpty()) return List.of();
 
-        float totalHeight = TextEngine.linesHeight(lines);
+        float totalHeight = TextEngine.linesHeight(context, lines);
         float drawY = TextEngine.alignedStart(layoutBounds().y(), availableHeight, totalHeight, textVerticalAlignment());
         List<TextWidgetSegment> segments = new ObjectArrayList<>(lines.size());
         for (RichText line : lines) {
-            float lineHeight = TextEngine.lineHeight(line);
+            float lineHeight = TextEngine.lineHeight(context, line);
             if (drawY >= layoutBounds().y() + availableHeight) break;
             TextWidgetSegment segment = alignedSegment(context, line,
                     layoutBounds().x(), drawY, availableWidth, lineHeight,
@@ -379,7 +379,7 @@ public class TextWidget extends WidgetBase {
         RichText drawText = effectiveRichText();
         float textWidth = TextEngine.measureLineWidth(context, drawText);
         float scale = textWidth <= 0.0f || availableWidth <= 0.0f ? 1.0f : Math.min(1.0f, availableWidth / textWidth);
-        float sourceHeight = TextEngine.measureTextHeight(drawText);
+        float sourceHeight = TextEngine.measureTextHeight(context, drawText);
         float textHeight = Math.min(availableHeight, sourceHeight * scale);
         float scaledTextWidth = textWidth * scale;
         float drawX = TextEngine.alignedStart(layoutBounds().x(), availableWidth, scaledTextWidth, textHorizontalAlignment());
@@ -400,7 +400,7 @@ public class TextWidget extends WidgetBase {
             return visibleState(context);
         }
 
-        float textHeight = Math.min(availableHeight, TextEngine.measureTextHeight(drawText));
+        float textHeight = Math.min(availableHeight, TextEngine.measureTextHeight(context, drawText));
         float drawY = TextEngine.alignedStart(layoutBounds().y(), availableHeight, textHeight, textVerticalAlignment());
         float period = Math.max(1.0f, textWidth + marqueeGap);
         boolean activeMarquee = hovered() || marqueeActive;
@@ -427,7 +427,7 @@ public class TextWidget extends WidgetBase {
         float availableWidth = Math.max(0.0f, width);
         float availableHeight = Math.max(0.0f, height);
         float textWidth = Math.min(availableWidth, TextEngine.measureLineWidth(context, drawText));
-        float textHeight = Math.min(availableHeight, TextEngine.measureTextHeight(drawText));
+        float textHeight = Math.min(availableHeight, TextEngine.measureTextHeight(context, drawText));
         float drawX = TextEngine.alignedStart(x, availableWidth, textWidth, horizontal);
         float drawY = TextEngine.alignedStart(y, availableHeight, textHeight, vertical);
         return new TextWidgetSegment(drawText, drawX, drawY, textWidth, textHeight, transform);
