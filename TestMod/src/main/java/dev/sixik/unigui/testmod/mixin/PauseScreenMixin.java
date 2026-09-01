@@ -54,5 +54,8 @@ public abstract class PauseScreenMixin extends Screen {
         addRenderableWidget(Button.builder(Component.literal("Tutorial"), button -> TestModClient.openTutorial())
                 .bounds(width - 124, 248, 116, 20)
                 .build());
+        addRenderableWidget(Button.builder(Component.literal("Post Effect Test"), button -> TestModClient.openPostProcessingLayerTest())
+                .bounds(width - 244, 8, 116, 20)
+                .build());
     }
 }

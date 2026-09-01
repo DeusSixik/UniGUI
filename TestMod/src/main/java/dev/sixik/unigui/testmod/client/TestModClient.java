@@ -4,6 +4,7 @@ import dev.sixik.unigui.testmod.client.ui.DominionScreen;
 import dev.sixik.unigui.testmod.client.ui.ForkInSocketMinigameScreen;
 import dev.sixik.unigui.testmod.client.ui.LevelMapScreen;
 import dev.sixik.unigui.testmod.client.ui.PlugSocketMinigameScreen;
+import dev.sixik.unigui.testmod.client.ui.PostProcessingLayerTestScreen;
 import dev.sixik.unigui.testmod.client.ui.RetroTerminalScreen;
 import dev.sixik.unigui.testmod.client.ui.SolarNavigationScreen;
 import dev.sixik.unigui.testmod.client.ui.SpannerRhythmMinigameScreen;
@@ -66,6 +67,10 @@ public final class TestModClient implements ClientModInitializer {
 
     public static void openForkInSocketMinigame() {
         ForkInSocketMinigameScreen.open();
+    }
+
+    public static void openPostProcessingLayerTest() {
+        PostProcessingLayerTestScreen.open();
     }
 
     public static void openTutorial() {

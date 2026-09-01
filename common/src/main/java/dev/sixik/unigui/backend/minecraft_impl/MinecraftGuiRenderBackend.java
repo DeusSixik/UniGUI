@@ -58,8 +58,11 @@ import org.lwjgl.opengl.ARBTimerQuery;
 import org.lwjgl.opengl.GL13;
 import org.lwjgl.opengl.GL14;
 import org.lwjgl.opengl.GL15;
+import org.lwjgl.opengl.GL30;
 import org.lwjgl.opengl.GL33;
+import org.lwjgl.system.MemoryStack;
 
+import java.nio.IntBuffer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -77,7 +80,9 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
 
     private final Minecraft minecraft;
     private final DrawBatcher batcher;
-    private final ScissorStack scissorStack = new ScissorStack();
+    private ScissorStack scissorStack = new ScissorStack();
+    private final ObjectArrayList<PostEffectRenderState> postEffectRenderStates = new ObjectArrayList<>();
+    private int postEffectRenderStateDepth;
     private final MinecraftSdfTextRenderer sdfTextRenderer =
             new MinecraftSdfTextRenderer(DefaultFontRegistry.global());
     private final MinecraftMixedTextRenderer mixedTextRenderer;
@@ -407,21 +412,48 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
             return;
         }
 
-        int targetWidth = layerBounds.targetWidth();
-        int targetHeight = layerBounds.targetHeight();
-        RenderTarget layerTarget = postEffectLayerTargets.acquire(targetWidth, targetHeight, POST_EFFECT_LAYER_TARGET);
-        RenderTarget pingTarget = postEffectPingTargets.acquire(targetWidth, targetHeight, POST_EFFECT_PING_TARGET);
-        renderPostEffectLayer(drawList, layerTarget, layerScale);
-        RenderTarget current = layerTarget;
-        for (UiPostEffectPass pass : passes) {
-            RenderTarget destination = current == layerTarget ? pingTarget : layerTarget;
-            if (!renderPostEffectPass(pass, current, destination, layerScale)) {
-                compositePostEffectTexture(current, layerBounds, target, layerScale);
-                return;
+        PostEffectRenderState renderState = pushPostEffectRenderState();
+        try {
+            int targetWidth = layerBounds.targetWidth();
+            int targetHeight = layerBounds.targetHeight();
+            RenderTarget layerTarget = postEffectLayerTargets.acquire(targetWidth, targetHeight, POST_EFFECT_LAYER_TARGET);
+            RenderTarget pingTarget = postEffectPingTargets.acquire(targetWidth, targetHeight, POST_EFFECT_PING_TARGET);
+            renderPostEffectLayer(drawList, layerTarget, layerScale);
+            RenderTarget current = layerTarget;
+            for (UiPostEffectPass pass : passes) {
+                RenderTarget destination = current == layerTarget ? pingTarget : layerTarget;
+                // Fullscreen pass работает в texel/NDC-пространстве target и не должен
+                // наследовать масштаб координат исходного UI-слоя.
+                if (!renderPostEffectPass(pass, current, destination, 1.0f)) {
+                    renderState.prepareComposite(this);
+                    compositePostEffectTexture(current, layerBounds, target, layerScale, renderState);
+                    return;
+                }
+                current = destination;
             }
-            current = destination;
+            renderState.prepareComposite(this);
+            compositePostEffectTexture(current, layerBounds, target, layerScale, renderState);
+        } finally {
+            popPostEffectRenderState(renderState);
         }
-        compositePostEffectTexture(current, layerBounds, target, layerScale);
+    }
+
+    private PostEffectRenderState pushPostEffectRenderState() {
+        int index = postEffectRenderStateDepth++;
+        while (postEffectRenderStates.size() <= index) {
+            postEffectRenderStates.add(new PostEffectRenderState());
+        }
+        PostEffectRenderState state = postEffectRenderStates.get(index);
+        state.capture(this);
+        return state;
+    }
+
+    private void popPostEffectRenderState(PostEffectRenderState state) {
+        try {
+            state.restore(this);
+        } finally {
+            postEffectRenderStateDepth = Math.max(0, postEffectRenderStateDepth - 1);
+        }
     }
 
     private void renderPostEffectLayer(DrawList drawList, RenderTarget target, float coordinateScale) {
@@ -476,12 +508,20 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         }
     }
 
-    private void compositePostEffectTexture(RenderTarget source, UiLayerBounds bounds, RenderTarget target, float coordinateScale) {
+    private void compositePostEffectTexture(RenderTarget source, UiLayerBounds bounds, RenderTarget target,
+                                            float coordinateScale, PostEffectRenderState renderState) {
         postEffectDrawList.clear();
         postEffectDrawList.add(DrawCommand.texture(
                 source.colorTexture(),
                 new MutableRect(bounds.x(), bounds.y(), bounds.safeWidth(), bounds.safeHeight()),
                 Paint.fill(new MutableColor(1.0f, 1.0f, 1.0f, 1.0f))));
+        if (target == null) {
+            renderBatches(postEffectDrawList);
+            graphics.flush();
+            return;
+        }
+
+        renderState.isolateScissor(this);
         render(postEffectDrawList, target, coordinateScale);
     }
 
@@ -691,6 +731,125 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         }
     }
 
+    /**
+     * Переиспользуемый снимок GL/UI-состояния для вложенного post-effect прохода.
+     *
+     * <p>PostProcessingLayer выполняется из CUSTOM-команды уже активного draw list. Поэтому
+     * offscreen-рендер не должен очищать scissor stack родителя, наследовать его pose или
+     * безусловно оставлять main framebuffer активным после завершения.</p>
+     */
+    private static final class PostEffectRenderState {
+        private final ScissorStack isolatedScissorStack = new ScissorStack();
+        private ScissorStack outerScissorStack;
+        private MinecraftRenderTarget activeRenderTarget;
+        private float activeRenderTargetScaleX;
+        private float activeRenderTargetScaleY;
+        private float nestedClipCoordinateScale;
+        private int appliedScissorDepth;
+        private boolean renderTargetScissorEnabled;
+        private int drawFramebuffer;
+        private int readFramebuffer;
+        private int viewportX;
+        private int viewportY;
+        private int viewportWidth;
+        private int viewportHeight;
+        private boolean scissorEnabled;
+        private int scissorX;
+        private int scissorY;
+        private int scissorWidth;
+        private int scissorHeight;
+        private boolean poseIsolated;
+
+        private void capture(MinecraftGuiRenderBackend backend) {
+            backend.graphics.flush();
+            outerScissorStack = backend.scissorStack;
+            activeRenderTarget = backend.activeRenderTarget;
+            activeRenderTargetScaleX = backend.activeRenderTargetScaleX;
+            activeRenderTargetScaleY = backend.activeRenderTargetScaleY;
+            nestedClipCoordinateScale = backend.nestedClipCoordinateScale;
+            appliedScissorDepth = backend.appliedScissorDepth;
+            renderTargetScissorEnabled = backend.renderTargetScissorEnabled;
+            drawFramebuffer = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
+            readFramebuffer = GL11.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING);
+            scissorEnabled = GL11.glIsEnabled(GL11.GL_SCISSOR_TEST);
+
+            try (MemoryStack stack = MemoryStack.stackPush()) {
+                IntBuffer viewport = stack.mallocInt(4);
+                IntBuffer scissor = stack.mallocInt(4);
+                GL11.glGetIntegerv(GL11.GL_VIEWPORT, viewport);
+                GL11.glGetIntegerv(GL11.GL_SCISSOR_BOX, scissor);
+                viewportX = viewport.get(0);
+                viewportY = viewport.get(1);
+                viewportWidth = viewport.get(2);
+                viewportHeight = viewport.get(3);
+                scissorX = scissor.get(0);
+                scissorY = scissor.get(1);
+                scissorWidth = scissor.get(2);
+                scissorHeight = scissor.get(3);
+            }
+
+            backend.graphics.pose().pushPose();
+            backend.graphics.pose().last().pose().identity();
+            poseIsolated = true;
+            isolatedScissorStack.clear();
+            backend.scissorStack = isolatedScissorStack;
+            backend.appliedScissorDepth = 0;
+            backend.renderTargetScissorEnabled = false;
+            backend.activeRenderTarget = null;
+            backend.activeRenderTargetScaleX = 1.0f;
+            backend.activeRenderTargetScaleY = 1.0f;
+            backend.nestedClipCoordinateScale = 1.0f;
+            RenderSystem.disableScissor();
+        }
+
+        private void prepareComposite(MinecraftGuiRenderBackend backend) {
+            backend.graphics.flush();
+            restoreParentState(backend);
+        }
+
+        private void isolateScissor(MinecraftGuiRenderBackend backend) {
+            isolatedScissorStack.clear();
+            backend.scissorStack = isolatedScissorStack;
+            backend.appliedScissorDepth = 0;
+            backend.renderTargetScissorEnabled = false;
+            RenderSystem.disableScissor();
+        }
+
+        private void restore(MinecraftGuiRenderBackend backend) {
+            backend.graphics.flush();
+            restoreParentState(backend);
+        }
+
+        private void restoreParentState(MinecraftGuiRenderBackend backend) {
+            if (backend.scissorStack == isolatedScissorStack) {
+                backend.clearScissorStack();
+            }
+            if (poseIsolated) {
+                backend.graphics.pose().popPose();
+                poseIsolated = false;
+            }
+            backend.scissorStack = outerScissorStack;
+            backend.activeRenderTarget = activeRenderTarget;
+            backend.activeRenderTargetScaleX = activeRenderTargetScaleX;
+            backend.activeRenderTargetScaleY = activeRenderTargetScaleY;
+            backend.nestedClipCoordinateScale = nestedClipCoordinateScale;
+            backend.appliedScissorDepth = appliedScissorDepth;
+            backend.renderTargetScissorEnabled = renderTargetScissorEnabled;
+
+            GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, drawFramebuffer);
+            GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, readFramebuffer);
+            GL11.glViewport(viewportX, viewportY, viewportWidth, viewportHeight);
+            restoreScissor();
+        }
+
+        private void restoreScissor() {
+            if (scissorEnabled) {
+                RenderSystem.enableScissor(scissorX, scissorY, scissorWidth, scissorHeight);
+            } else {
+                RenderSystem.disableScissor();
+            }
+        }
+    }
     private enum TimerQuerySupport {
         NONE,
         OPENGL33,

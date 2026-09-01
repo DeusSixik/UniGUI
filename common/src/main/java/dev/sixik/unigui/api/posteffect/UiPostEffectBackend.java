@@ -30,4 +30,5 @@ public interface UiPostEffectBackend {
         }
         throw new UnsupportedOperationException("Post effects are not supported by this backend");
     }
+
 }
