@@ -667,7 +667,10 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
         float y2 = Math.max(bounds.y(), bounds.y() + bounds.height());
         float width = x2 - x1;
         float height = y2 - y1;
-        if (width <= 0.0f || height <= 0.0f) return false;
+        // Для горизонтальной LINE высота равна нулю, для вертикальной — ширина.
+        // Их геометрия расширяется на толщину ниже, поэтому ранняя проверка
+        // вырожденного прямоугольника к линиям неприменима.
+        if (command.type() != DrawCommandType.LINE && (width <= 0.0f || height <= 0.0f)) return false;
 
         int shapeType;
         float radius;
