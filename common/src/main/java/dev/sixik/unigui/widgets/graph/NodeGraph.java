@@ -1156,6 +1156,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     @Override
     public void dispose() {
         clearItems();
+        super.dispose();
     }
 
     private void attach(NodeGraphItem item) {

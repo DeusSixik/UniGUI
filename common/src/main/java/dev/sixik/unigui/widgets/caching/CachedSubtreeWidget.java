@@ -237,6 +237,7 @@ public final class CachedSubtreeWidget extends WidgetBase {
         detachContent();
         content = null;
         childrenView = Collections.emptyList();
+        super.dispose();
     }
 
     private CachedSubtreeMissReason missReason(int width, int height) {

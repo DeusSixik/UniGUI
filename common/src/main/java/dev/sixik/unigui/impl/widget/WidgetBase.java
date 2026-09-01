@@ -28,6 +28,9 @@ import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.math.Transform;
 import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.DrawCommand;
+import dev.sixik.unigui.api.render.DrawList;
+import dev.sixik.unigui.api.render.RenderBackend;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.render.plan.RenderPlan;
 import dev.sixik.unigui.api.style.Style;
@@ -42,6 +45,7 @@ import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlLayoutAttributes;
 import dev.sixik.unigui.api.xml.XmlStyleAttributes;
 import dev.sixik.unigui.impl.event.FastEventEmitter;
+import dev.sixik.unigui.impl.render.DefaultRenderContext;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -146,6 +150,23 @@ public abstract class WidgetBase implements Widget {
      * Хранит агрегированные флаги инвалидации всего поддерева виджета.
      */
     private int subtreeInvalidationFlags = InvalidationFlags.ALL;
+    /** Ленивый retained-фрагмент draw-команд виджета без дочерних элементов. */
+    private DrawList renderCache;
+    /** Контекст, записывающий draw-команды в retained-фрагмент. */
+    private DefaultRenderContext renderCacheContext;
+    /** Показывает, что retained-фрагмент нужно пересобрать. */
+    private boolean renderCacheDirty = true;
+    /** Позволяет отключить retained-кэш для заведомо динамического виджета. */
+    private boolean renderCachingEnabled = true;
+    /** Защищает от рекурсивного входа во время записи фрагмента. */
+    private boolean renderingCache;
+    /** Backend, для которого последний раз строился фрагмент. */
+    private RenderBackend renderCacheBackend;
+    /** Агрегированная версия theme и локальных style scope последней сборки. */
+    private long renderCacheStyleVersion = Long.MIN_VALUE;
+    /** Счётчики используются тестами и профилированием конкретного виджета. */
+    private long renderCacheHits;
+    private long renderCacheRebuilds;
     /**
      * Хранит ограничения layout, которые влияют на доступный размер виджета.
      */
@@ -223,6 +244,7 @@ public abstract class WidgetBase implements Widget {
      */
     public void setUiContextInternal(UIContext uiContext) {
         this.uiContext = uiContext;
+        renderCacheDirty = true;
     }
 
     /**
@@ -240,6 +262,7 @@ public abstract class WidgetBase implements Widget {
         if (this.parent == parent) return;
         Widget oldParent = this.parent;
         this.parent = parent;
+        renderCacheDirty = true;
 
         recomputeSubtreeInvalidation(oldParent);
         recomputeSubtreeInvalidation(parent);
@@ -1081,6 +1104,7 @@ public abstract class WidgetBase implements Widget {
     public void invalidate(int flags) {
         if (flags == InvalidationFlags.NONE) return;
         invalidationFlags |= flags;
+        renderCacheDirty = true;
         markSubtreeInvalidation(flags);
     }
 
@@ -1117,6 +1141,7 @@ public abstract class WidgetBase implements Widget {
     private void markSubtreeInvalidation(int flags) {
         int previous = subtreeInvalidationFlags;
         subtreeInvalidationFlags |= flags;
+        renderCacheDirty = true;
         if (previous != subtreeInvalidationFlags) {
             if (parent instanceof WidgetBase base) {
                 base.markSubtreeInvalidation(flags);
@@ -1166,11 +1191,147 @@ public abstract class WidgetBase implements Widget {
     }
 
     /**
+     * Включает или отключает retained-кэш draw-команд виджета.
+     *
+     * <p>На первом этапе кэш применяется только к виджетам без дочерних элементов.
+     * Это не дублирует полное поддерево в каждом родителе и сохраняет независимую
+     * инвалидацию соседних элементов. Контейнеры продолжат обычный обход детей.</p>
+     *
+     * @param enabled {@code true}, чтобы переиспользовать стабильный render-фрагмент
+     * @return этот виджет
+     */
+    public WidgetBase renderCachingEnabled(boolean enabled) {
+        if (renderCachingEnabled == enabled) return this;
+        renderCachingEnabled = enabled;
+        renderCacheDirty = true;
+        if (!enabled) releaseRenderCache();
+        return this;
+    }
+
+    /** @return {@code true}, если для виджета разрешён retained-кэш */
+    public boolean renderCachingEnabled() {
+        return renderCachingEnabled;
+    }
+
+    /**
+     * Помечает retained-фрагмент устаревшим без изменения публичных invalidation flags.
+     *
+     * @return этот виджет
+     */
+    public WidgetBase invalidateRenderCache() {
+        renderCacheDirty = true;
+        return this;
+    }
+
+    /** @return количество команд в последнем собранном фрагменте или {@code 0} */
+    public int renderCacheCommandCount() {
+        return renderCache == null ? 0 : renderCache.size();
+    }
+
+    /** @return число воспроизведений фрагмента без вызова {@link #render(RenderContext)} */
+    public long renderCacheHits() {
+        return renderCacheHits;
+    }
+
+    /** @return число полных пересборок retained-фрагмента */
+    public long renderCacheRebuilds() {
+        return renderCacheRebuilds;
+    }
+
+    /** Сбрасывает диагностические счётчики retained-кэша. */
+    public void resetRenderCacheStats() {
+        renderCacheHits = 0L;
+        renderCacheRebuilds = 0L;
+    }
+
+    /**
+     * Рендерит виджет через retained-фрагмент.
+     *
+     * <p>Команды пересобираются после любой invalidation самого виджета. При cache hit
+     * метод {@link #render(RenderContext)} не вызывается, а сохранённые команды
+     * воспроизводятся через кадровый пул целевого {@link DrawList}.</p>
+     */
+    @Override
+    public void renderCached(RenderContext context) {
+        if (context == null) return;
+        if (!renderCachingEnabled || renderingCache) {
+            render(context);
+            return;
+        }
+        if (!children().isEmpty()) {
+            if (renderCache != null) releaseRenderCache();
+            render(context);
+            return;
+        }
+
+        RenderBackend backend = context.backend();
+        long styleVersion = currentRenderStyleVersion();
+        boolean rebuild = renderCacheDirty
+                || renderCache == null
+                || renderCacheBackend != backend
+                || renderCacheStyleVersion != styleVersion;
+        if (rebuild) {
+            if (renderCache == null) {
+                renderCache = new DrawList();
+                renderCacheContext = new DefaultRenderContext(renderCache);
+            }
+            renderCache.clear();
+            renderCacheContext.backend(context.backend());
+            renderingCache = true;
+            try {
+                render(renderCacheContext);
+            } finally {
+                renderingCache = false;
+            }
+            renderCacheDirty = false;
+            renderCacheBackend = backend;
+            renderCacheStyleVersion = styleVersion;
+            renderCacheRebuilds++;
+        } else {
+            renderCacheHits++;
+        }
+
+        Object[] rawCommands = renderCache.commandElements();
+        for (int i = 0, size = renderCache.size(); i < size; i++) {
+            context.replayCached((DrawCommand) rawCommands[i]);
+        }
+    }
+
+    /**
      * Обновляет состояние виджета на каждом кадре.
      */
     @Override
     public void tick(FrameContext frame) {
         tickAnimations(frame);
+    }
+
+    /** Освобождает retained-команды перед удалением виджета из UI-дерева. */
+    @Override
+    public void dispose() {
+        releaseRenderCache();
+    }
+
+    private void releaseRenderCache() {
+        if (renderCache != null) {
+            renderCache.clear();
+            renderCache = null;
+        }
+        renderCacheContext = null;
+        renderCacheBackend = null;
+        renderCacheStyleVersion = Long.MIN_VALUE;
+        renderCacheDirty = true;
+    }
+
+    private long currentRenderStyleVersion() {
+        long version = uiContext == null ? 0L : uiContext.styleVersion();
+        String type = styleType();
+        Widget current = this;
+        while (current != null) {
+            version = version * 31L + current.localStyle(type).version();
+            if (current != this && current.styleScope()) break;
+            current = current.parent();
+        }
+        return version;
     }
 
     /**
@@ -1262,7 +1423,7 @@ public abstract class WidgetBase implements Widget {
         if (context == null || child == null || child.visibility() != Visibility.VISIBLE) return;
         context.pushTransform(layoutBounds(), transform());
         try {
-            child.render(context);
+            child.renderCached(context);
         } finally {
             context.popTransform();
         }

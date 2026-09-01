@@ -1,24 +1,25 @@
 package dev.sixik.unigui.impl.render;
 
 import dev.sixik.unigui.api.render.DrawList;
-import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.math.Transform;
 import dev.sixik.unigui.api.render.RenderBackend;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.render.TransformLayer;
 
-import java.util.ArrayDeque;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
-import java.util.Deque;
 import java.util.List;
 
 public final class DefaultRenderContext implements RenderContext {
+    private static final int INITIAL_STACK_CAPACITY = 8;
     private final DrawList drawList;
-    private final Deque<Float> opacityStack = new ArrayDeque<>();
-    private final Deque<Boolean> textPixelSnapStack = new ArrayDeque<>();
+    private float[] opacityStack = new float[INITIAL_STACK_CAPACITY];
+    private int opacityStackSize;
+    private boolean[] textPixelSnapStack = new boolean[INITIAL_STACK_CAPACITY];
+    private int textPixelSnapStackSize;
     private final List<TransformLayer> transformStack = new ObjectArrayList<>();
+    private final ObjectArrayList<TransformLayer> recycledTransformLayers = new ObjectArrayList<>();
     private final List<TransformLayer> transformStackView = Collections.unmodifiableList(transformStack);
     private RenderBackend backend;
     private float opacityMultiplier = 1.0f;
@@ -45,13 +46,14 @@ public final class DefaultRenderContext implements RenderContext {
 
     @Override
     public void pushOpacity(float opacity) {
-        opacityStack.push(opacityMultiplier);
+        ensureOpacityStackCapacity();
+        opacityStack[opacityStackSize++] = opacityMultiplier;
         opacityMultiplier *= clamp01(opacity);
     }
 
     @Override
     public void popOpacity() {
-        opacityMultiplier = opacityStack.isEmpty() ? 1.0f : opacityStack.pop();
+        opacityMultiplier = opacityStackSize == 0 ? 1.0f : opacityStack[--opacityStackSize];
     }
 
     @Override
@@ -61,13 +63,16 @@ public final class DefaultRenderContext implements RenderContext {
 
     @Override
     public void pushTextPixelSnap(boolean enabled) {
-        textPixelSnapStack.push(textPixelSnapEnabled);
+        ensureTextPixelSnapStackCapacity();
+        textPixelSnapStack[textPixelSnapStackSize++] = textPixelSnapEnabled;
         textPixelSnapEnabled = textPixelSnapEnabled && enabled;
     }
 
     @Override
     public void popTextPixelSnap() {
-        textPixelSnapEnabled = textPixelSnapStack.isEmpty() ? true : textPixelSnapStack.pop();
+        textPixelSnapEnabled = textPixelSnapStackSize == 0
+                ? true
+                : textPixelSnapStack[--textPixelSnapStackSize];
     }
 
     @Override
@@ -77,21 +82,40 @@ public final class DefaultRenderContext implements RenderContext {
 
     @Override
     public void pushTransform(RectView bounds, Transform transform) {
-        transformStack.add(new TransformLayer(
-                bounds == null ? new MutableRect() : bounds,
-                transform == null ? new Transform() : transform));
+        int recycledSize = recycledTransformLayers.size();
+        TransformLayer layer = recycledSize == 0
+                ? new TransformLayer(null, null)
+                : recycledTransformLayers.remove(recycledSize - 1);
+        layer.set(bounds, transform);
+        transformStack.add(layer);
     }
 
     @Override
     public void popTransform() {
         if (!transformStack.isEmpty()) {
-            transformStack.remove(transformStack.size() - 1);
+            recycledTransformLayers.add(transformStack.remove(transformStack.size() - 1));
         }
     }
 
     @Override
     public List<TransformLayer> transformStack() {
         return transformStackView;
+    }
+
+    private void ensureOpacityStackCapacity() {
+        if (opacityStackSize == opacityStack.length) {
+            float[] expanded = new float[opacityStack.length << 1];
+            System.arraycopy(opacityStack, 0, expanded, 0, opacityStack.length);
+            opacityStack = expanded;
+        }
+    }
+
+    private void ensureTextPixelSnapStackCapacity() {
+        if (textPixelSnapStackSize == textPixelSnapStack.length) {
+            boolean[] expanded = new boolean[textPixelSnapStack.length << 1];
+            System.arraycopy(textPixelSnapStack, 0, expanded, 0, textPixelSnapStack.length);
+            textPixelSnapStack = expanded;
+        }
     }
 
     private static float clamp01(float value) {

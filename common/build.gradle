@@ -93,6 +93,14 @@ tasks.register("holdButtonSelfTest", JavaExec) {
     classpath = sourceSets.test.runtimeClasspath
     mainClass = "dev.sixik.unigui.tests.HoldButtonSelfTest"
 }
+
+tasks.register("widgetRenderCacheSelfTest", JavaExec) {
+    group = "verification"
+    description = "Runs widget retained render-cache self-test assertions."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.WidgetRenderCacheSelfTest"
+}
 tasks.register("renderPolishSelfTest", JavaExec) {
     group = "verification"
     description = "Runs render polish API self-test assertions."
@@ -137,6 +145,7 @@ tasks.named("test") {
     dependsOn tasks.named("worldCanvasSelfTest")
     dependsOn tasks.named("mapCanvasSelfTest")
     dependsOn tasks.named("renderPolishSelfTest")
+    dependsOn tasks.named("widgetRenderCacheSelfTest")
     dependsOn tasks.named("textureManagementSelfTest")
     dependsOn tasks.named("xmlWidgetSelfTest")
     dependsOn tasks.named("holdButtonSelfTest")

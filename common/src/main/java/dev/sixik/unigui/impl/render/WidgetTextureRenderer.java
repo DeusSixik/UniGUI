@@ -82,7 +82,7 @@ public final class WidgetTextureRenderer implements AutoCloseable {
         widget.arrange(targetBounds);
 
         drawList.clear();
-        widget.render(renderContext);
+        widget.renderCached(renderContext);
         backend.render(drawList, target);
     }
 
@@ -91,7 +91,7 @@ public final class WidgetTextureRenderer implements AutoCloseable {
         Objects.requireNonNull(target, "target");
 
         drawList.clear();
-        widget.render(renderContext);
+        widget.renderCached(renderContext);
 
         DrawList targetDrawList = drawList;
         if (originX != 0.0f || originY != 0.0f) {

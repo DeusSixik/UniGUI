@@ -342,6 +342,18 @@ public interface Widget extends EventEmitter {
     void render(RenderContext context);
 
     /**
+     * Рендерит виджет через retained-фрагмент, если реализация поддерживает такой кэш.
+     *
+     * <p>Обычная реализация сохраняет прежнее поведение. {@code WidgetBase}
+     * переопределяет метод и переиспользует команды стабильного виджета.</p>
+     *
+     * @param context render context текущего кадра
+     */
+    default void renderCached(RenderContext context) {
+        render(context);
+    }
+
+    /**
      * Обрабатывает входящее событие UI.
      *
      * @param event событие input/runtime pipeline

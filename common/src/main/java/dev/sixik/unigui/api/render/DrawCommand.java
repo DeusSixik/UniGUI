@@ -31,6 +31,8 @@ public final class DrawCommand {
     private final MutableRect uv = new MutableRect(0.0f, 0.0f, 1.0f, 1.0f);
     private final Transform transform = new Transform();
     private final ObjectArrayList<TransformLayer> transformStack = new ObjectArrayList<>();
+    /** Пул слоёв, которые временно не входят в активный стек команды. */
+    private final ObjectArrayList<TransformLayer> recycledTransformLayers = new ObjectArrayList<>();
     private final List<TransformLayer> transformStackView = Collections.unmodifiableList(transformStack);
     private Paint paint = new Paint();
     private VectorPath path;
@@ -257,39 +259,82 @@ public final class DrawCommand {
     }
 
     public DrawCommand transformStack(List<TransformLayer> transformStack) {
-        this.transformStack.clear();
-        copyTransformLayers(this.transformStack, transformStack);
+        copyTransformStackFrom(transformStack);
         return this;
     }
 
     public DrawCommand prependTransformStack(List<TransformLayer> transformStack) {
         if (transformStack == null || transformStack.isEmpty()) return this;
-        ObjectArrayList<TransformLayer> combined = new ObjectArrayList<>(transformStack.size() + this.transformStack.size());
-        copyTransformLayers(combined, transformStack);
-        copyTransformLayers(combined, this.transformStack);
-        this.transformStack.clear();
-        this.transformStack.addAll(combined);
+        if (transformStack == this.transformStack || transformStack == transformStackView) {
+            int oldSize = this.transformStack.size();
+            ensureTransformStackSize(oldSize * 2);
+            for (int i = oldSize - 1; i >= 0; i--) {
+                this.transformStack.get(oldSize + i).copyFrom(this.transformStack.get(i));
+            }
+            return this;
+        }
+
+        int prefixSize = countNonNullLayers(transformStack);
+        if (prefixSize == 0) return this;
+        int oldSize = this.transformStack.size();
+        ensureTransformStackSize(oldSize + prefixSize);
+        for (int i = oldSize - 1; i >= 0; i--) {
+            this.transformStack.set(i + prefixSize, this.transformStack.get(i));
+        }
+
+        int targetIndex = 0;
+        for (int i = 0, size = transformStack.size(); i < size; i++) {
+            TransformLayer layer = transformStack.get(i);
+            if (layer != null) {
+                this.transformStack.get(targetIndex++).copyFrom(layer);
+            }
+        }
         return this;
     }
 
-    private static void copyTransformLayers(ObjectArrayList<TransformLayer> target, List<TransformLayer> source) {
-        if (target == null || source == null || source.isEmpty()) return;
-        if (source instanceof ObjectArrayList<?> objectSource) {
-            Object[] rawLayers = objectSource.elements();
-            for (int i = 0, size = objectSource.size(); i < size; i++) {
-                Object value = rawLayers[i];
-                if (value instanceof TransformLayer layer) {
-                    target.add(layer.copy());
+    private void copyTransformStackFrom(List<TransformLayer> source) {
+        if (source == this.transformStack || source == transformStackView) return;
+        int targetSize = source == null ? 0 : countNonNullLayers(source);
+        ensureTransformStackSize(targetSize);
+
+        int targetIndex = 0;
+        if (source != null) {
+            for (int i = 0, size = source.size(); i < size; i++) {
+                TransformLayer layer = source.get(i);
+                if (layer != null) {
+                    transformStack.get(targetIndex++).copyFrom(layer);
                 }
             }
-            return;
         }
+        trimTransformStack(targetIndex);
+    }
+
+    private void ensureTransformStackSize(int size) {
+        while (transformStack.size() < size) {
+            int recycledSize = recycledTransformLayers.size();
+            TransformLayer layer = recycledSize == 0
+                    ? new TransformLayer(null, null)
+                    : recycledTransformLayers.remove(recycledSize - 1);
+            transformStack.add(layer);
+        }
+    }
+
+    private void trimTransformStack(int size) {
+        while (transformStack.size() > size) {
+            recycledTransformLayers.add(transformStack.remove(transformStack.size() - 1));
+        }
+    }
+
+    private void clearTransformStack() {
+        trimTransformStack(0);
+    }
+
+    private static int countNonNullLayers(List<TransformLayer> source) {
+        int count = 0;
         for (int i = 0, size = source.size(); i < size; i++) {
-            TransformLayer layer = source.get(i);
-            if (layer != null) {
-                target.add(layer.copy());
-            }
+            if (source.get(i) != null) count++;
         }
+        return count;
     }
     public Paint paint() {
         return paint;
@@ -516,7 +561,7 @@ public final class DrawCommand {
         transform.scale().set(1.0f, 1.0f);
         transform.pivot().set(0.0f, 0.0f);
         transform.setRotationDegrees(0.0f);
-        transformStack.clear();
+        clearTransformStack();
         paint.reset();
         path = null;
         mesh = null;
@@ -547,7 +592,7 @@ public final class DrawCommand {
         shader = null;
         shaderUniforms.clear();
         shaderTextures.clear();
-        transformStack.clear();
+        clearTransformStack();
         quadX1 = quadY1 = quadX2 = quadY2 = quadX3 = quadY3 = quadX4 = quadY4 = 0.0f;
         quadU1 = quadV1 = quadU2 = quadV2 = quadU3 = quadV3 = quadU4 = quadV4 = 0.0f;
     }
@@ -580,5 +625,51 @@ public final class DrawCommand {
         copy.texturedQuad(quadX1, quadY1, quadX2, quadY2, quadX3, quadY3, quadX4, quadY4,
                 quadU1, quadV1, quadU2, quadV2, quadU3, quadV3, quadU4, quadV4);
         return copy;
+    }
+
+    /**
+     * Копирует сохранённую команду в объект из кадрового пула.
+     *
+     * <p>Метод используется для воспроизведения retained render-фрагментов без
+     * создания нового {@code DrawCommand}. Снимки path и mesh безопасно
+     * переиспользуются, потому что команда уже владеет их копиями.</p>
+     */
+    void copyForReplayTo(DrawCommand target) {
+        if (target == null) return;
+        target.resetForReuse(type);
+        target.bounds.set(bounds);
+        target.uv.set(uv);
+        target.transform.copyFrom(transform);
+        target.transformStack(transformStack);
+        target.paint.copyFrom(paint);
+        target.path = path;
+        target.mesh = mesh;
+        target.texture = texture;
+        target.text = text;
+        target.richText = richText;
+        target.textPixelSnap = textPixelSnap;
+        target.customDraw = customDraw;
+        target.shader = shader;
+        target.shaderUniforms.copyFrom(shaderUniforms);
+        target.shaderOptions.copyFrom(shaderOptions);
+        target.shaderTextures.putAll(shaderTextures);
+        target.radius = radius;
+        target.segments = segments;
+        target.quadX1 = quadX1;
+        target.quadY1 = quadY1;
+        target.quadX2 = quadX2;
+        target.quadY2 = quadY2;
+        target.quadX3 = quadX3;
+        target.quadY3 = quadY3;
+        target.quadX4 = quadX4;
+        target.quadY4 = quadY4;
+        target.quadU1 = quadU1;
+        target.quadV1 = quadV1;
+        target.quadU2 = quadU2;
+        target.quadV2 = quadV2;
+        target.quadU3 = quadU3;
+        target.quadV3 = quadV3;
+        target.quadU4 = quadU4;
+        target.quadV4 = quadV4;
     }
 }

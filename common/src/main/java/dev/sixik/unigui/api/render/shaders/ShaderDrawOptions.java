@@ -78,4 +78,24 @@ public final class ShaderDrawOptions {
                 .blend(blend)
                 .squareVertexOffset(squareVertexOffset);
     }
+
+    /**
+     * Копирует параметры в уже существующий объект без создания нового options object.
+     * Используется кадровым replay-путём, где объект команды берётся из пула.
+     *
+     * @param source источник параметров; {@code null} восстанавливает значения по умолчанию
+     * @return этот options object
+     */
+    public ShaderDrawOptions copyFrom(ShaderDrawOptions source) {
+        if (source == null) {
+            builtinUniforms = true;
+            blend = true;
+            squareVertexOffset = -0.25f;
+            return this;
+        }
+        builtinUniforms = source.builtinUniforms;
+        blend = source.blend;
+        squareVertexOffset = source.squareVertexOffset;
+        return this;
+    }
 }

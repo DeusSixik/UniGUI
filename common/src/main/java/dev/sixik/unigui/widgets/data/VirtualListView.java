@@ -473,6 +473,7 @@ public class VirtualListView extends WidgetBase {
     @Override
     public void dispose() {
         clearRealized();
+        super.dispose();
     }
 
     private void updateRealizedWindow() {

@@ -129,6 +129,23 @@ public final class ShaderUniforms {
         return copy;
     }
 
+    /**
+     * Копирует значения в уже существующий набор без создания новых
+     * {@link ShaderUniform}. Uniform является неизменяемым, поэтому его
+     * экземпляры можно безопасно переиспользовать во время replay.
+     *
+     * @param source источник значений; {@code null} очищает этот набор
+     * @return этот набор uniforms
+     */
+    public ShaderUniforms copyFrom(ShaderUniforms source) {
+        if (source == this) return this;
+        values.clear();
+        if (source != null && !source.values.isEmpty()) {
+            values.putAll(source.values);
+        }
+        return this;
+    }
+
     private static String normalizeName(String name) {
         String normalized = name == null ? "" : name.trim();
         if (normalized.isEmpty()) {

@@ -92,12 +92,13 @@ public interface RenderContext {
      */
     default void submit(DrawCommand command) {
         if (command == null) return;
+        DrawCommand owned = command.copy();
         List<TransformLayer> stack = transformStack();
         if (stack == null || stack.isEmpty()) {
-            drawList().add(command);
+            drawList().addOwned(owned);
             return;
         }
-        drawList().add(command.copy().prependTransformStack(stack));
+        drawList().addOwned(owned.prependTransformStack(stack));
     }
 
     /** Передаёт команду, созданную через DrawList.obtain(), без промежуточной копии. */
@@ -108,6 +109,30 @@ public interface RenderContext {
             command.prependTransformStack(stack);
         }
         drawList().addOwned(command);
+    }
+
+    /**
+     * Воспроизводит команду retained-фрагмента в текущем контексте.
+     * Исходная команда остаётся во фрагменте и не изменяется.
+     *
+     * @param cachedCommand сохранённая draw-команда
+     */
+    default void replayCached(DrawCommand cachedCommand) {
+        if (cachedCommand == null) return;
+        DrawCommand command = drawList().obtain(cachedCommand.type());
+        cachedCommand.copyForReplayTo(command);
+
+        float opacity = clamp01(opacityMultiplier());
+        if (opacity < 0.999f) {
+            Paint paint = command.paint();
+            paint.color().set(
+                    paint.color().r(),
+                    paint.color().g(),
+                    paint.color().b(),
+                    paint.color().a() * opacity);
+        }
+        command.textPixelSnap(command.textPixelSnap() && textPixelSnapEnabled());
+        submitOwned(command);
     }
 
     default void rect(float x, float y, float width, float height, Paint paint) {

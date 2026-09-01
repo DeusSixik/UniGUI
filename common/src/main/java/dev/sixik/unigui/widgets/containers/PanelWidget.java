@@ -286,6 +286,7 @@ public class PanelWidget extends WidgetBase {
     @Override
     public void dispose() {
         applyClear();
+        super.dispose();
     }
 
     /**

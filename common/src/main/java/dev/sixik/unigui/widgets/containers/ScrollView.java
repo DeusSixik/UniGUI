@@ -601,6 +601,7 @@ public class ScrollView extends WidgetBase {
         horizontalScrollBar.setUiContextInternal(null);
         verticalScrollBar.setParentInternal(null);
         verticalScrollBar.setUiContextInternal(null);
+        super.dispose();
     }
 
     private void arrangeScrolledChildrenNow() {

@@ -333,10 +333,10 @@ public class MinecraftWidgetScreen extends Screen {
             if (renderPolicy.mode() == UiRenderPolicy.Mode.CONTINUOUS) {
                 if (profileDetails) {
                     try (ProfileScope renderScope = uiContext.profiler().scope("buildDrawList.root.render")) {
-                        root.render(renderContext);
+                        root.renderCached(renderContext);
                     }
                 } else {
-                    root.render(renderContext);
+                    root.renderCached(renderContext);
                 }
             } else {
                 CacheRenderDecision decision;
@@ -694,10 +694,10 @@ public class MinecraftWidgetScreen extends Screen {
         cacheRenderContext.backend(backend);
         if (profileDetails) {
             try (ProfileScope ignored = uiContext.profiler().scope("cache.root.render")) {
-                root.render(cacheRenderContext);
+                root.renderCached(cacheRenderContext);
             }
         } else {
-            root.render(cacheRenderContext);
+            root.renderCached(cacheRenderContext);
         }
 
         DrawList textureDrawList;

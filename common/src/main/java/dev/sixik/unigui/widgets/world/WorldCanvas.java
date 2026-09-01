@@ -773,6 +773,7 @@ public class WorldCanvas extends WidgetBase {
     public void dispose() {
         anchorLayer.clear();
         clearWorldLayers();
+        super.dispose();
     }
 
     /**
