@@ -1,8 +1,9 @@
 package dev.sixik.unigui.api.style;
 
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+
 import java.util.Collections;
 import java.util.EnumMap;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -48,7 +49,7 @@ public final class MutableStyle implements Style {
         if (value != null && !key.type().isInstance(value)) {
             throw new IllegalArgumentException("Style value for " + key.id() + " must be " + key.type().getName());
         }
-        values.computeIfAbsent(state, ignored -> new HashMap<>()).put(key, value);
+        values.computeIfAbsent(state, ignored -> new Object2ObjectOpenHashMap<>()).put(key, value);
         version++;
         return this;
     }

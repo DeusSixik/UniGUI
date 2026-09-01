@@ -125,7 +125,7 @@ public final class SolarNavigationScreen {
         };
         screen.renderPolicy(UiRenderPolicy.continuous());
         screen.scaleWithMinecraftGui(false);
-//        screen.postEffect(SolarNavigationPostEffects.retroTerminal(scaleProvider, canvas::impactInterference));
+        screen.postEffect(SolarNavigationPostEffects.retroTerminal(scaleProvider, canvas::impactInterference));
         Minecraft.getInstance().setScreen(screen);
 
     }

@@ -71,9 +71,12 @@ public class MinecraftWidgetScreen extends Screen {
     private final UIContext uiContext;
     private final DrawList drawList = new DrawList();
     private final DrawList scaledDrawList = new DrawList();
+    private final DrawList debugOverlayDrawList = new DrawList();
+    private final DrawList scaledDebugOverlayDrawList = new DrawList();
     private final DrawList cacheDrawList = new DrawList();
     private final DrawList scaledCacheDrawList = new DrawList();
     private final DefaultRenderContext renderContext = new DefaultRenderContext(drawList);
+    private final DefaultRenderContext debugOverlayRenderContext = new DefaultRenderContext(debugOverlayDrawList);
     private final DefaultRenderContext cacheRenderContext = new DefaultRenderContext(cacheDrawList);
     private MinecraftGuiRenderBackend backend;
     private UiPostEffectChain postEffect = UiPostEffectChain.none();
@@ -320,6 +323,7 @@ public class MinecraftWidgetScreen extends Screen {
         backend.beginFrame(renderFrame);
         uiContext.debugCounters().recordFrameGpuMillis(backend.lastFrameGpuMillis());
         renderContext.backend(backend);
+        debugOverlayRenderContext.backend(backend);
 
         if (profileDetails) {
             try (ProfileScope ignored = uiContext.profiler().scope("drawList.clear")) {
@@ -379,12 +383,16 @@ public class MinecraftWidgetScreen extends Screen {
         } else {
             recordDebugDrawStats();
         }
-        DebugOverlayRenderer.render(renderContext, uiContext, logicalWidth, logicalHeight);
+        debugOverlayDrawList.clear();
+        DebugOverlayRenderer.render(debugOverlayRenderContext, uiContext, logicalWidth, logicalHeight);
         lastFrameCpuMillis = (System.nanoTime() - uiCpuStartNanos) / 1_000_000.0f;
 
         try (ProfileScope ignored = uiContext.profiler().scope("renderBackend")) {
             DrawList backendDrawList = scaledDrawList(drawList, uiScale, scaledDrawList);
             UiPostEffectRenderer.render(backend, backendDrawList, screenPostEffectBounds(), postEffect);
+            DrawList backendDebugOverlay = scaledDrawList(
+                    debugOverlayDrawList, uiScale, scaledDebugOverlayDrawList);
+            backend.render(backendDebugOverlay, null);
             backend.endFrame();
         }
         lastFrameTotalMillis = (System.nanoTime() - uiCpuStartNanos) / 1_000_000.0f;
