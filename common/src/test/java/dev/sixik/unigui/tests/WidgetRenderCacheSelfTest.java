@@ -1,12 +1,15 @@
 package dev.sixik.unigui.tests;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.api.event.PointerEnteredEvent;
+import dev.sixik.unigui.api.event.PointerExitedEvent;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawCommand;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.impl.render.DefaultRenderContext;
 import dev.sixik.unigui.impl.widget.WidgetBase;
+import dev.sixik.unigui.widgets.feedback.Tooltip;
 
 /** Проверяет базовый retained-cache листового виджета. */
 public final class WidgetRenderCacheSelfTest {
@@ -61,6 +64,27 @@ public final class WidgetRenderCacheSelfTest {
         widget.renderCached(context);
         assertEquals(3, widget.renderCalls, "disabled cache should render directly");
         assertEquals(2L, widget.renderCacheRebuilds(), "disabled cache should not rebuild retained fragment");
+
+        testTooltipAnchorHoverInvalidatesCache();
+    }
+
+    private void testTooltipAnchorHoverInvalidatesCache() {
+        LeafWidget anchor = new LeafWidget();
+        Tooltip tooltip = new Tooltip(anchor, "Cached tooltip");
+        DefaultRenderContext context = new DefaultRenderContext(new dev.sixik.unigui.api.render.DrawList());
+
+        anchor.handle(new PointerEnteredEvent(anchor, 1.0f, 1.0f, 1.0f, 1.0f, 0));
+        tooltip.renderCached(context);
+        assertEquals(1L, tooltip.renderCacheRebuilds(),
+                "hovered Tooltip should populate its retained cache");
+
+        anchor.handle(new PointerExitedEvent(anchor, 1.0f, 1.0f, 1.0f, 1.0f, 0));
+        context.drawList().clear();
+        tooltip.renderCached(context);
+        assertEquals(2L, tooltip.renderCacheRebuilds(),
+                "anchor hover exit should invalidate Tooltip retained cache");
+        assertEquals(0, context.drawList().size(),
+                "Tooltip cache should not replay stale commands after anchor hover exit");
     }
 
     private static final class LeafWidget extends WidgetBase {

@@ -1,6 +1,9 @@
 package dev.sixik.unigui.widgets.feedback;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.api.event.EventSubscription;
+import dev.sixik.unigui.api.event.PointerEnteredEvent;
+import dev.sixik.unigui.api.event.PointerExitedEvent;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.Overflow;
 import dev.sixik.unigui.api.layout.PositionType;
@@ -36,6 +39,8 @@ public class Tooltip extends Box implements OverlayHostAware {
     private String text = "";
     private RichText richText = RichText.plain("");
     private TooltipRenderer renderer;
+    private EventSubscription anchorEnteredSubscription;
+    private EventSubscription anchorExitedSubscription;
     private float offsetX = 8.0f;
     private float offsetY = 10.0f;
     private float maxWidth = DEFAULT_MAX_WIDTH;
@@ -73,7 +78,9 @@ public class Tooltip extends Box implements OverlayHostAware {
 
     public Tooltip anchor(Widget anchor) {
         if (this.anchor == anchor) return this;
+        unsubscribeFromAnchor();
         this.anchor = anchor;
+        subscribeToAnchor();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
@@ -150,6 +157,12 @@ public class Tooltip extends Box implements OverlayHostAware {
 
     public boolean showing() {
         return visibility() == Visibility.VISIBLE && anchor != null && anchor.hovered() && !text.isEmpty();
+    }
+
+    @Override
+    public void dispose() {
+        unsubscribeFromAnchor();
+        super.dispose();
     }
 
     @Override
@@ -237,6 +250,25 @@ public class Tooltip extends Box implements OverlayHostAware {
 
     private TooltipRenderer effectiveRenderer() {
         return renderer == null ? styleRenderer(TooltipRenderer.class, WidgetsRender.tooltip()) : renderer;
+    }
+
+    private void subscribeToAnchor() {
+        if (anchor == null) return;
+        anchorEnteredSubscription = anchor.on(PointerEnteredEvent.TYPE,
+                event -> invalidate(InvalidationFlags.VISUAL));
+        anchorExitedSubscription = anchor.on(PointerExitedEvent.TYPE,
+                event -> invalidate(InvalidationFlags.VISUAL));
+    }
+
+    private void unsubscribeFromAnchor() {
+        if (anchorEnteredSubscription != null) {
+            anchorEnteredSubscription.unsubscribe();
+            anchorEnteredSubscription = null;
+        }
+        if (anchorExitedSubscription != null) {
+            anchorExitedSubscription.unsubscribe();
+            anchorExitedSubscription = null;
+        }
     }
 
     private List<RichText> wrappedLines(RenderContext context, float textWidthLimit) {
