@@ -85,9 +85,9 @@ public final class OverlayRenderDemo {
      * Регистрирует HUD-слой.
      *
      * <p>Тип контекста регистрации здесь {@code Minecraft}, поэтому predicate получает
-     * текущий клиент. В примере HUD скрывается, когда открыт экран. Это не обязательное
-     * правило: predicate можно заменить на любое условие, например проверку наличия игрока,
-     * мира или конкретного состояния мода.</p>
+     * текущий клиент. HUD вызывается из vanilla HUD-прохода и поэтому остаётся видимым
+     * под открытым Minecraft Screen, например под чатом или инвентарём. Predicate можно
+     * заменить на любое условие, если конкретному HUD нужно скрываться в отдельных состояниях.</p>
      */
     private static void registerHud() {
         Box hudRoot = transparentRoot(createHudBadge());
@@ -95,11 +95,9 @@ public final class OverlayRenderDemo {
 
         hudLayer.postEffect(UiPostEffects.CHROMATIC_ABERRATION);
 
-        hudRegistration = HudRender.register(
-                hudLayer,
-                client -> client.screen == null,
-                0
-        );
+        // HUD вызывается из vanilla HUD-прохода до Minecraft Screen.
+        // Поэтому он продолжает жить под чатом, инвентарём и другими экранами.
+        hudRegistration = HudRender.register(hudLayer);
     }
 
     /**
