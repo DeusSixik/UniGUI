@@ -1,6 +1,7 @@
 package dev.sixik.unigui.api.style;
 
 import dev.sixik.unigui.api.animation.AnimationEasing;
+import dev.sixik.unigui.api.animation.Easing;
 import dev.sixik.unigui.api.animation.TransitionSpec;
 import dev.sixik.unigui.api.xml.XmlWidgetDiagnostic;
 import dev.sixik.unigui.api.xml.XmlWidgetDocument;
@@ -349,7 +350,7 @@ public final class StylePackXml {
             diagnostics.add(diagnostic(element, "Invalid Tween duration: " + exception.getMessage()));
         }
 
-        AnimationEasing easing = TransitionSpec.DEFAULT.easing();
+        Easing easing = TransitionSpec.DEFAULT.easing();
         String easingText = element.attributeOrDefault("easing", "").trim();
         if (!easingText.isEmpty()) {
             AnimationEasing parsed = parseEnum(AnimationEasing.class, easingText);
@@ -385,7 +386,7 @@ public final class StylePackXml {
                     .append("\" from=\"").append(escape(tween.fromValue()))
                     .append("\" to=\"").append(escape(tween.toValue()))
                     .append("\" duration=\"").append(formatFloat(tween.transition().durationSeconds()))
-                    .append("\" easing=\"").append(tween.transition().easing().name()).append("\"");
+                    .append("\" easing=\"").append(builtInEasingName(tween.transition().easing())).append("\"");
             if (tween.transition().repeatCount() != 0) {
                 xml.append(" repeat=\"").append(tween.transition().repeatCount()).append("\"");
             }
@@ -478,6 +479,13 @@ public final class StylePackXml {
         if (value == null) return false;
         String normalized = value.trim().toLowerCase(Locale.ROOT);
         return normalized.equals("true") || normalized.equals("1") || normalized.equals("yes") || normalized.equals("y");
+    }
+
+    private static String builtInEasingName(Easing easing) {
+        if (easing instanceof AnimationEasing builtIn) return builtIn.name();
+        throw new IllegalArgumentException(
+                "StylePack XML supports only built-in AnimationEasing values. "
+                        + "Custom easing requires a named easing registry.");
     }
 
     private static String formatFloat(float value) {

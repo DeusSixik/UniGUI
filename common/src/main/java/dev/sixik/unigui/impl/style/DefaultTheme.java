@@ -1,5 +1,6 @@
 package dev.sixik.unigui.impl.style;
 
+import dev.sixik.unigui.api.animation.AnimationEasing;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.style.MutableStyle;
 import dev.sixik.unigui.api.style.Style;
@@ -92,6 +93,8 @@ public final class DefaultTheme implements Theme {
                 .put(StyleKeys.TEXT_COLOR, TEXT_HI)
                 .put(StyleKeys.TEXT_COLOR, WidgetState.PRESSED, TEXT_ON_ACCENT)
                 .put(StyleKeys.TEXT_COLOR, WidgetState.DISABLED, TEXT_LO)
+                .put(StyleKeys.TRANSITION_DURATION, 0.12f)
+                .put(StyleKeys.TRANSITION_EASING, AnimationEasing.CUBIC_OUT)
                 .put(StyleKeys.RADIUS, RADIUS);
     }
 

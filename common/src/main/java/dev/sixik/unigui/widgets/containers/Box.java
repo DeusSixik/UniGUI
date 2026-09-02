@@ -2,6 +2,9 @@ package dev.sixik.unigui.widgets.containers;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
+import dev.sixik.unigui.api.animation.AnimationEasing;
+import dev.sixik.unigui.api.animation.FloatValueReader;
+import dev.sixik.unigui.api.animation.FloatValueWriter;
 import dev.sixik.unigui.api.animation.TransitionSpec;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
@@ -75,6 +78,8 @@ public class Box extends PanelWidget {
         public static final String BORDER_COLOR = StyleIds.Key.BORDER_COLOR;
         public static final String BORDER_WIDTH = StyleIds.Key.BORDER_WIDTH;
         public static final String RADIUS = StyleIds.Key.RADIUS;
+        public static final String TRANSITION_DURATION = StyleIds.Key.TRANSITION_DURATION;
+        public static final String TRANSITION_EASING = StyleIds.Key.TRANSITION_EASING;
 
         private StyleProperties() {
         }
@@ -111,6 +116,22 @@ public class Box extends PanelWidget {
     private boolean themeEnabled = true;
     private long lastAppliedStyleVersion = Long.MIN_VALUE;
     private long lastAppliedScopeStyleVersion = Long.MIN_VALUE;
+    private long transitionStyleVersion = Long.MIN_VALUE;
+    private long transitionScopeStyleVersion = Long.MIN_VALUE;
+    private WidgetState transitionState;
+    private TransitionSpec styleTransition = TransitionSpec.INSTANT;
+    private final FloatValueReader borderWidthReader = () -> borderWidth;
+    private final FloatValueWriter borderWidthWriter = value -> {
+        if (borderWidth == value) return;
+        borderWidth = value;
+        invalidate(InvalidationFlags.VISUAL);
+    };
+    private final FloatValueReader radiusReader = () -> radius;
+    private final FloatValueWriter radiusWriter = value -> {
+        if (radius == value) return;
+        radius = value;
+        invalidate(InvalidationFlags.VISUAL);
+    };
 
     /**
      * Создаёт пустой box и подписывает live-цвета/rect на visual invalidation.
@@ -570,6 +591,9 @@ public class Box extends PanelWidget {
     public Box themeEnabled(boolean themeEnabled) {
         if (this.themeEnabled == themeEnabled) return this;
         this.themeEnabled = themeEnabled;
+        transitionState = null;
+        transitionStyleVersion = Long.MIN_VALUE;
+        transitionScopeStyleVersion = Long.MIN_VALUE;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
@@ -700,6 +724,8 @@ public class Box extends PanelWidget {
         UIContext context = uiContext();
         long styleVersion = context == null ? Theme.EMPTY.version() : context.styleVersion();
         long scopeStyleVersion = scopeStyleVersion();
+        WidgetState state = styleState();
+        updateStyleTransition(styleVersion, scopeStyleVersion, state);
         if ((lastAppliedStyleVersion != Long.MIN_VALUE && lastAppliedStyleVersion != styleVersion)
                 || (lastAppliedScopeStyleVersion != Long.MIN_VALUE && lastAppliedScopeStyleVersion != scopeStyleVersion)) {
             invalidate(InvalidationFlags.VISUAL);
@@ -707,39 +733,68 @@ public class Box extends PanelWidget {
         lastAppliedStyleVersion = styleVersion;
         lastAppliedScopeStyleVersion = scopeStyleVersion;
 
-        ColorView themedBackground = styleValue(StyleKeys.BACKGROUND_COLOR, background);
-        TextureHandle themedBackgroundTexture = styleValue(StyleKeys.BACKGROUND_TEXTURE, backgroundTexture);
-        ColorView themedBackgroundTextureTint = styleValue(StyleKeys.BACKGROUND_TEXTURE_TINT, backgroundTextureTint);
-        ImageFit themedBackgroundTextureFit = styleValue(StyleKeys.BACKGROUND_TEXTURE_FIT, backgroundTextureFit);
-        ColorView themedBorder = styleValue(StyleKeys.BORDER_COLOR, borderColor);
-        Float themedBorderWidth = styleValue(StyleKeys.BORDER_WIDTH, borderWidth);
-        Float themedRadius = styleValue(StyleKeys.RADIUS, radius);
+        ColorView themedBackground = styleValue(StyleKeys.BACKGROUND_COLOR, state, background);
+        TextureHandle themedBackgroundTexture = styleValue(StyleKeys.BACKGROUND_TEXTURE, state, backgroundTexture);
+        ColorView themedBackgroundTextureTint = styleValue(StyleKeys.BACKGROUND_TEXTURE_TINT, state, backgroundTextureTint);
+        ImageFit themedBackgroundTextureFit = styleValue(StyleKeys.BACKGROUND_TEXTURE_FIT, state, backgroundTextureFit);
+        ColorView themedBorder = styleValue(StyleKeys.BORDER_COLOR, state, borderColor);
+        Float themedBorderWidth = styleValue(StyleKeys.BORDER_WIDTH, state, borderWidth);
+        Float themedRadius = styleValue(StyleKeys.RADIUS, state, radius);
 
         if (themedBackground != null) {
-            background.set(themedBackground);
+            animateColor(background, themedBackground, styleTransition);
         }
         if (backgroundTexture != themedBackgroundTexture) {
             backgroundTexture = themedBackgroundTexture;
             invalidate(InvalidationFlags.VISUAL);
         }
         if (themedBackgroundTextureTint != null) {
-            backgroundTextureTint.set(themedBackgroundTextureTint);
+            animateColor(backgroundTextureTint, themedBackgroundTextureTint, styleTransition);
         }
         if (themedBackgroundTextureFit != null && backgroundTextureFit != themedBackgroundTextureFit) {
             backgroundTextureFit = themedBackgroundTextureFit;
             invalidate(InvalidationFlags.VISUAL);
         }
         if (themedBorder != null) {
-            borderColor.set(themedBorder);
+            animateColor(borderColor, themedBorder, styleTransition);
         }
-        if (themedBorderWidth != null && borderWidth != themedBorderWidth) {
-            borderWidth = themedBorderWidth;
-            invalidate(InvalidationFlags.VISUAL);
+        if (themedBorderWidth != null) {
+            animateParameter(StyleKeys.BORDER_WIDTH, borderWidthReader, borderWidthWriter,
+                    themedBorderWidth, styleTransition);
         }
-        if (themedRadius != null && radius != themedRadius) {
-            radius = themedRadius;
-            invalidate(InvalidationFlags.VISUAL);
+        if (themedRadius != null) {
+            animateParameter(StyleKeys.RADIUS, radiusReader, radiusWriter, themedRadius, styleTransition);
         }
+    }
+
+    /**
+     * Возвращает transition, выбранный для текущего изменения состояния или темы.
+     *
+     * @return transition автоматического применения style-свойств
+     */
+    protected final TransitionSpec styleTransition() {
+        return styleTransition;
+    }
+
+    private void updateStyleTransition(long styleVersion, long scopeStyleVersion, WidgetState state) {
+        if (transitionStyleVersion == styleVersion
+                && transitionScopeStyleVersion == scopeStyleVersion
+                && transitionState == state) {
+            return;
+        }
+
+        boolean firstApplication = transitionState == null;
+        Float duration = styleValue(StyleKeys.TRANSITION_DURATION, state, 0.0f);
+        AnimationEasing easing = styleValue(StyleKeys.TRANSITION_EASING, state, AnimationEasing.EASE_OUT);
+        float normalizedDuration = duration == null || !Float.isFinite(duration)
+                ? 0.0f
+                : Math.max(0.0f, duration);
+        styleTransition = firstApplication || normalizedDuration <= 0.0f
+                ? TransitionSpec.INSTANT
+                : new TransitionSpec(normalizedDuration, easing == null ? AnimationEasing.EASE_OUT : easing);
+        transitionStyleVersion = styleVersion;
+        transitionScopeStyleVersion = scopeStyleVersion;
+        transitionState = state;
     }
 
     /**

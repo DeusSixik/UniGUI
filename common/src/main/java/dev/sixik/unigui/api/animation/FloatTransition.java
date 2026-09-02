@@ -25,13 +25,15 @@ package dev.sixik.unigui.api.animation;
  * @see TransitionSpec
  * @see ColorTransition
  */
-public final class FloatTransition {
+public final class FloatTransition implements PlayableAnimation {
     private static final int INFINITE_COMPACT_CYCLES = 4096;
 
-    private final float start;
-    private final float end;
+    private float start;
+    private float end;
     private final TransitionSpec spec;
+    private final FloatInterpolator interpolator;
     private float elapsedSeconds;
+    private boolean cancelled;
 
     /**
      * Создаёт transition между двумя float-значениями.
@@ -41,9 +43,15 @@ public final class FloatTransition {
      * @param spec тайминг transition'а; {@code null} заменяется на {@link TransitionSpec#DEFAULT}
      */
     public FloatTransition(float start, float end, TransitionSpec spec) {
+        this(start, end, spec, FloatInterpolator.LINEAR);
+    }
+
+    /** Создаёт transition с primitive-интерполятором. */
+    public FloatTransition(float start, float end, TransitionSpec spec, FloatInterpolator interpolator) {
         this.start = sanitize(start);
         this.end = sanitize(end);
         this.spec = spec == null ? TransitionSpec.DEFAULT : spec;
+        this.interpolator = interpolator == null ? FloatInterpolator.LINEAR : interpolator;
     }
 
     /** @return начальное значение transition'а */
@@ -67,6 +75,20 @@ public final class FloatTransition {
     }
 
     /**
+     * Проверяет, можно ли переиспользовать transition с указанными настройками.
+     *
+     * @param requestedSpec требуемый spec
+     * @param requestedInterpolator требуемый интерполятор
+     * @return {@code true}, если transition можно retarget'ить без создания объекта
+     */
+    public boolean matches(TransitionSpec requestedSpec, FloatInterpolator requestedInterpolator) {
+        TransitionSpec normalizedSpec = requestedSpec == null ? TransitionSpec.DEFAULT : requestedSpec;
+        FloatInterpolator normalizedInterpolator = requestedInterpolator == null
+                ? FloatInterpolator.LINEAR : requestedInterpolator;
+        return spec.equals(normalizedSpec) && interpolator == normalizedInterpolator;
+    }
+
+    /**
      * Проверяет, завершился ли transition.
      *
      * <p>Бесконечный transition никогда не считается завершённым, пока его явно не остановит владелец.</p>
@@ -85,6 +107,20 @@ public final class FloatTransition {
      */
     public float value() {
         return valueAt(elapsedSeconds);
+    }
+
+    /** Синоним {@link #value()} для унифицированного API transition'ов. */
+    public float currentValue() {
+        return value();
+    }
+
+    /** Перестраивает transition от текущего значения без скачка. */
+    public FloatTransition retarget(float newEnd) {
+        this.start = value();
+        this.end = sanitize(newEnd);
+        this.elapsedSeconds = 0.0f;
+        this.cancelled = false;
+        return this;
     }
 
     /**
@@ -108,10 +144,11 @@ public final class FloatTransition {
      * @return значение после продвижения времени
      */
     public float tick(float deltaSeconds) {
+        if (cancelled) return value();
         float duration = spec.durationSeconds();
         if (duration <= 0.0f) return end;
 
-        elapsedSeconds += sanitizeDelta(deltaSeconds);
+        elapsedSeconds += AnimationClock.sanitizeDelta(deltaSeconds);
         if (spec.infinite()) {
             compactInfiniteElapsed(duration);
         } else {
@@ -120,6 +157,16 @@ public final class FloatTransition {
         return value();
     }
 
+    @Override
+    public void update(float deltaSeconds) { tick(deltaSeconds); }
+
+    @Override
+    public boolean isFinished() { return cancelled || finished(); }
+
+    /** Отменяет transition. */
+    @Override
+    public void cancel() { cancelled = true; }
+
     private float valueAt(float elapsed) {
         float duration = spec.durationSeconds();
         if (duration <= 0.0f) return end;
@@ -127,13 +174,13 @@ public final class FloatTransition {
 
         int cycleIndex = Math.max(0, (int) Math.floor(elapsed / duration));
         float cycleElapsed = elapsed - cycleIndex * duration;
-        float t = AnimationEasing.clamp01(cycleElapsed / duration);
+        float t = Easing.clamp01(cycleElapsed / duration);
         if (spec.autoReverse() && cycleIndex % 2 == 1) {
             t = 1.0f - t;
         }
 
         float eased = spec.easing().apply(t);
-        return start + (end - start) * eased;
+        return interpolator.interpolate(start, end, eased);
     }
 
     private void compactInfiniteElapsed(float duration) {
@@ -158,7 +205,4 @@ public final class FloatTransition {
         return Float.isFinite(value) ? value : 0.0f;
     }
 
-    private static float sanitizeDelta(float value) {
-        return Float.isFinite(value) ? Math.max(0.0f, value) : 0.0f;
-    }
 }

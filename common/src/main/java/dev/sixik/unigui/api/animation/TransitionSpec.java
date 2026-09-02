@@ -6,7 +6,8 @@ package dev.sixik.unigui.api.animation;
  * <p>{@code TransitionSpec} не хранит текущее время и не знает, какое свойство анимируется.
  * Он задаёт только правила движения: длительность, easing, количество повторов и auto-reverse
  * режим. Runtime состояние хранится в {@link FloatTransition} или более высокоуровневой обёртке
- * виджета.</p>
+ * виджета. Для произвольных типов те же правила применяет {@link Tween}, а для целых значений без
+ * boxing — {@link IntTransition}.</p>
  *
  * <p>{@link #repeatCount()} — это число дополнительных циклов после первого прохода. Например,
  * {@code repeat(2)} даст три прохода: первый + два повтора. Для бесконечной анимации используется
@@ -22,9 +23,11 @@ package dev.sixik.unigui.api.animation;
  * @param repeatCount число дополнительных повторов или {@link #REPEAT_FOREVER}
  * @param autoReverse если {@code true}, каждый второй цикл идёт от end к start
  * @see FloatTransition
+ * @see IntTransition
+ * @see Tween
  */
 public record TransitionSpec(float durationSeconds,
-                             AnimationEasing easing,
+                             Easing easing,
                              int repeatCount,
                              boolean autoReverse) {
     /** Специальное значение для бесконечного количества повторов. */
@@ -40,7 +43,7 @@ public record TransitionSpec(float durationSeconds,
      * @param durationSeconds длительность в секундах
      * @param easing easing-функция
      */
-    public TransitionSpec(float durationSeconds, AnimationEasing easing) {
+    public TransitionSpec(float durationSeconds, Easing easing) {
         this(durationSeconds, easing, 0, false);
     }
 
@@ -68,7 +71,7 @@ public record TransitionSpec(float durationSeconds,
      * @param easing easing-функция
      * @return новый {@code TransitionSpec}
      */
-    public static TransitionSpec of(float durationSeconds, AnimationEasing easing) {
+    public static TransitionSpec of(float durationSeconds, Easing easing) {
         return new TransitionSpec(durationSeconds, easing);
     }
 

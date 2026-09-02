@@ -1,10 +1,22 @@
 package dev.sixik.unigui.impl.widget;
 
 import dev.sixik.unigui.api.animation.AnimatedProperty;
+import dev.sixik.unigui.api.animation.AnimationClock;
+import dev.sixik.unigui.api.animation.AnimationEasing;
+import dev.sixik.unigui.api.animation.Easing;
+import dev.sixik.unigui.api.animation.FloatInterpolator;
 import dev.sixik.unigui.api.animation.ColorTransition;
 import dev.sixik.unigui.api.animation.FloatValueReader;
 import dev.sixik.unigui.api.animation.FloatValueWriter;
 import dev.sixik.unigui.api.animation.FloatTransition;
+import dev.sixik.unigui.api.animation.AnimationController;
+import dev.sixik.unigui.api.animation.LayoutTransitionAnimation;
+import dev.sixik.unigui.api.animation.SpringAnimation;
+import dev.sixik.unigui.api.animation.ShakeAnimation;
+import dev.sixik.unigui.api.animation.NamedWidgetRegistry;
+import dev.sixik.unigui.api.animation.PropertyPathResolver;
+import dev.sixik.unigui.api.animation.Storyboard;
+import dev.sixik.unigui.api.animation.StoryboardPlayer;
 import dev.sixik.unigui.api.animation.TransitionSpec;
 import dev.sixik.unigui.api.animation.TransformOrigin;
 import dev.sixik.unigui.api.core.FrameContext;
@@ -49,12 +61,10 @@ import dev.sixik.unigui.impl.render.DefaultRenderContext;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectIterator;
 import java.util.Collections;
-import java.util.EnumMap;
-import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.HashMap;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -96,28 +106,26 @@ public abstract class WidgetBase implements Widget {
      * Хранит подписки и отправку событий, связанных с жизненным циклом и вводом виджета.
      */
     private final FastEventEmitter events = new FastEventEmitter();
-    /**
-     * Хранит числовой параметр {@code EnumMap<AnimatedProperty}, влияющий на layout, ввод или отрисовку.
-     */
-    private final EnumMap<AnimatedProperty, FloatTransition> transitions = new EnumMap<>(AnimatedProperty.class);
-    /**
-     * Widget-specific scalar transitions, keyed by the property owner/name supplied by a widget.
-     */
-    private final Map<Object, ParameterTransition> parameterTransitions = new HashMap<>();
-    /**
-     * Color transitions are identity-keyed because MutableColor values are intentionally mutable.
-     */
-    private final IdentityHashMap<MutableColor, ColorTransition> colorTransitions = new IdentityHashMap<>();
-    /**
-     * Timed additive transform effects such as shake. These are layered over the base transition values.
-     */
-    private final ObjectArrayList<ShakeEffect> shakeEffects = new ObjectArrayList<>();
+    /** Единый реестр всех активных анимаций виджета. */
+    private final AnimationController animations = new AnimationController();
+
+    private static final int SCOPE_PROPERTY = 1;
+    private static final int SCOPE_PARAMETER = 2;
+    private static final int SCOPE_COLOR = 3;
+    private static final int SCOPE_SPRING_PROPERTY = 4;
+    private static final int SCOPE_SPRING_PARAMETER = 5;
+    private static final Object LAYOUT_TRANSITION_KEY = new Object();
     /**
      * Named transform origin. CUSTOM keeps the raw pivot untouched for manual/custom pivot animations.
      */
     private TransformOrigin transformOrigin = TransformOrigin.CUSTOM;
     private float appliedEffectOffsetX;
     private float appliedEffectOffsetY;
+    private boolean layoutTransitionsEnabled;
+    private TransitionSpec layoutTransitionSpec = TransitionSpec.DEFAULT;
+    private boolean layoutBoundsObserved;
+    private float previousLayoutX;
+    private float previousLayoutY;
     /**
      * Хранит рассчитанные границы виджета после прохода компоновки.
      */
@@ -226,7 +234,7 @@ public abstract class WidgetBase implements Widget {
      * Создаёт экземпляр {@code WidgetBase} и подготавливает начальное состояние виджета.
      */
     protected WidgetBase() {
-        layoutBounds.onChanged(() -> invalidate(InvalidationFlags.LAYOUT));
+        layoutBounds.onChanged(this::layoutBoundsChanged);
         transform.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         syncLayoutStyleFromConstraints();
     }
@@ -244,6 +252,7 @@ public abstract class WidgetBase implements Widget {
      */
     public void setUiContextInternal(UIContext uiContext) {
         this.uiContext = uiContext;
+        animations.dispatcher(uiContext == null ? null : uiContext.dispatcher());
         renderCacheDirty = true;
     }
 
@@ -386,6 +395,83 @@ public abstract class WidgetBase implements Widget {
     }
 
     /**
+     * Возвращает, включены ли FLIP-переходы перемещения после изменения layout.
+     *
+     * <p>Переходы выключены по умолчанию. Размер виджета не анимируется: FLIP
+     * применяется только когда меняются координаты {@code x} или {@code y}.</p>
+     */
+    public boolean layoutTransitionsEnabled() {
+        return layoutTransitionsEnabled;
+    }
+
+    /**
+     * Включает или выключает FLIP-переходы перемещения для этого виджета.
+     *
+     * @param enabled {@code true}, чтобы анимировать последующие перемещения
+     * @return этот виджет
+     */
+    @XmlAttribute(value = "layoutTransitionsEnabled", category = "Animation", defaultValue = "false",
+            description = "Включает FLIP-переходы при перемещении виджета layout-системой.")
+    public WidgetBase layoutTransitionsEnabled(boolean enabled) {
+        if (layoutTransitionsEnabled == enabled) return this;
+        layoutTransitionsEnabled = enabled;
+        if (!enabled) {
+            restoreTransformEffectOffset();
+            animations.stop(LAYOUT_TRANSITION_KEY);
+            invalidate(InvalidationFlags.VISUAL);
+        }
+        return this;
+    }
+
+    /** @return параметры следующего FLIP-перехода */
+    public TransitionSpec layoutTransitionSpec() {
+        return layoutTransitionSpec;
+    }
+
+    /**
+     * Устанавливает параметры FLIP-перехода.
+     *
+     * @param spec параметры перехода; {@code null} заменяется на {@link TransitionSpec#DEFAULT}
+     * @return этот виджет
+     */
+    public WidgetBase layoutTransitionSpec(TransitionSpec spec) {
+        layoutTransitionSpec = spec == null ? TransitionSpec.DEFAULT : spec;
+        return this;
+    }
+
+    /**
+     * Включает FLIP-переход с указанной длительностью и стандартным easing.
+     *
+     * @param durationSeconds длительность перехода в секундах
+     * @return этот виджет
+     */
+    public WidgetBase layoutTransition(float durationSeconds) {
+        return layoutTransition(durationSeconds, AnimationEasing.EASE_OUT);
+    }
+
+    /**
+     * Включает FLIP-переход с указанными параметрами.
+     *
+     * @param durationSeconds длительность перехода в секундах
+     * @param easing функция плавности; {@code null} означает линейный easing
+     * @return этот виджет
+     */
+    public WidgetBase layoutTransition(float durationSeconds, Easing easing) {
+        layoutTransitionSpec = TransitionSpec.of(durationSeconds, easing);
+        return layoutTransitionsEnabled(true);
+    }
+
+    /**
+     * Возвращает текущую FLIP-анимацию или {@code null}, если переход не выполняется.
+     *
+     * @return активная анимация перемещения
+     */
+    public LayoutTransitionAnimation layoutTransitionAnimation() {
+        return animations.get(LAYOUT_TRANSITION_KEY) instanceof LayoutTransitionAnimation animation
+                ? animation : null;
+    }
+
+    /**
      * Возвращает размер, который виджет запросил на этапе измерения.
      */
     @Override
@@ -438,8 +524,8 @@ public abstract class WidgetBase implements Widget {
         if (transformOrigin == normalized) return this;
         transformOrigin = normalized;
         if (!normalized.custom()) {
-            transitions.remove(AnimatedProperty.PIVOT_X);
-            transitions.remove(AnimatedProperty.PIVOT_Y);
+            animations.stopScoped(SCOPE_PROPERTY, AnimatedProperty.PIVOT_X, false);
+            animations.stopScoped(SCOPE_PROPERTY, AnimatedProperty.PIVOT_Y, false);
         }
         applyTransformOrigin();
         invalidate(InvalidationFlags.VISUAL);
@@ -448,8 +534,10 @@ public abstract class WidgetBase implements Widget {
 
     public WidgetBase transformPivot(float x, float y) {
         transformOrigin = TransformOrigin.CUSTOM;
-        transitions.remove(AnimatedProperty.PIVOT_X);
-        transitions.remove(AnimatedProperty.PIVOT_Y);
+        animations.stopScoped(SCOPE_PROPERTY, AnimatedProperty.PIVOT_X, false);
+        animations.stopScoped(SCOPE_PROPERTY, AnimatedProperty.PIVOT_Y, false);
+        animations.stopScoped(SCOPE_SPRING_PROPERTY, AnimatedProperty.PIVOT_X, false);
+        animations.stopScoped(SCOPE_SPRING_PROPERTY, AnimatedProperty.PIVOT_Y, false);
         setAnimatedValue(AnimatedProperty.PIVOT_X, sanitizeFinite(x));
         setAnimatedValue(AnimatedProperty.PIVOT_Y, sanitizeFinite(y));
         return this;
@@ -468,7 +556,8 @@ public abstract class WidgetBase implements Widget {
 
     @XmlAttribute(value = "rotation", category = "Appearance", defaultValue = "0", description = "Rotation in degrees applied to the widget transform.")
     public WidgetBase rotationDegrees(float degrees) {
-        transitions.remove(AnimatedProperty.ROTATION_DEGREES);
+        animations.stopScoped(SCOPE_PROPERTY, AnimatedProperty.ROTATION_DEGREES, false);
+        animations.stopScoped(SCOPE_SPRING_PROPERTY, AnimatedProperty.ROTATION_DEGREES, false);
         setAnimatedValue(AnimatedProperty.ROTATION_DEGREES, sanitizeFinite(degrees));
         return this;
     }
@@ -493,7 +582,8 @@ public abstract class WidgetBase implements Widget {
      */
     @XmlAttribute(value = "opacity", category = "Appearance", defaultValue = "1", description = "Widget opacity clamped between 0 and 1.")
     public WidgetBase opacity(float opacity) {
-        transitions.remove(AnimatedProperty.OPACITY);
+        animations.stopScoped(SCOPE_PROPERTY, AnimatedProperty.OPACITY, false);
+        animations.stopScoped(SCOPE_SPRING_PROPERTY, AnimatedProperty.OPACITY, false);
         setAnimatedValue(AnimatedProperty.OPACITY, clamp01(opacity));
         return this;
     }
@@ -533,8 +623,10 @@ public abstract class WidgetBase implements Widget {
     }
 
     public WidgetBase animatePositionFrom(float startX, float startY, float endX, float endY, TransitionSpec spec) {
-        transitions.remove(AnimatedProperty.POSITION_X);
-        transitions.remove(AnimatedProperty.POSITION_Y);
+        animations.stopScoped(SCOPE_PROPERTY, AnimatedProperty.POSITION_X, false);
+        animations.stopScoped(SCOPE_PROPERTY, AnimatedProperty.POSITION_Y, false);
+        animations.stopScoped(SCOPE_SPRING_PROPERTY, AnimatedProperty.POSITION_X, false);
+        animations.stopScoped(SCOPE_SPRING_PROPERTY, AnimatedProperty.POSITION_Y, false);
         setAnimatedValue(AnimatedProperty.POSITION_X, sanitizeFinite(startX));
         setAnimatedValue(AnimatedProperty.POSITION_Y, sanitizeFinite(startY));
         return animatePosition(endX, endY, spec);
@@ -564,18 +656,19 @@ public abstract class WidgetBase implements Widget {
         float duration = sanitizeFinite(durationSeconds);
         if (duration <= 0.0f) return this;
         int normalizedCycles = Math.max(1, cycles);
-        shakeEffects.add(new ShakeEffect(
+        ShakeAnimation effect = new ShakeAnimation(
                 sanitizeFinite(amplitudeX),
                 sanitizeFinite(amplitudeY),
                 duration,
-                normalizedCycles));
+                normalizedCycles);
+        animations.play(effect, effect);
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 
     public WidgetBase stopShakeAnimations() {
         restoreTransformEffectOffset();
-        shakeEffects.clear();
+        animations.stopAllOf(ShakeAnimation.class);
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
@@ -617,27 +710,103 @@ public abstract class WidgetBase implements Widget {
         float start = sanitizeFinite(startValue);
         float target = sanitizeFinite(targetValue);
         if (normalizedSpec.durationSeconds() <= 0.0f || start == target) {
-            parameterTransitions.remove(normalizedKey);
-            writer.set(target);
-            invalidate(InvalidationFlags.VISUAL);
+            animations.stopScoped(SCOPE_PARAMETER, normalizedKey, false);
+            if (start != target) {
+                writer.set(target);
+                invalidate(InvalidationFlags.VISUAL);
+            }
             return this;
         }
 
-        writer.set(start);
-        parameterTransitions.put(normalizedKey, new ParameterTransition(new FloatTransition(start, target, normalizedSpec), writer));
+        FloatAnimation current = animations.getScoped(SCOPE_PARAMETER, normalizedKey, false) instanceof FloatAnimation floatAnimation
+                ? floatAnimation : null;
+        if (current != null
+                && current.writer == writer
+                && current.transition.matches(normalizedSpec, FloatInterpolator.LINEAR)
+                && current.transition.end() == target) {
+            return this;
+        }
+        if (current != null && current.writer == writer && current.transition.matches(normalizedSpec, FloatInterpolator.LINEAR)) {
+            current.retarget(target, writer);
+        } else {
+            writer.set(start);
+            animations.playScoped(SCOPE_PARAMETER, normalizedKey, false,
+                    new FloatAnimation(new FloatTransition(start, target, normalizedSpec), writer));
+        }
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 
     public WidgetBase stopParameterAnimation(Object key) {
         if (key != null) {
-            parameterTransitions.remove(key);
+            animations.stopScoped(SCOPE_PARAMETER, key, false);
         }
         return this;
     }
 
     public WidgetBase stopParameterAnimations() {
-        parameterTransitions.clear();
+        animations.stopScope(SCOPE_PARAMETER);
+        return this;
+    }
+
+    /**
+     * Запускает пружинную анимацию кастомного float-параметра.
+     *
+     * @param key ключ параметра; повторный вызов заменяет предыдущую пружину
+     * @param reader источник текущего значения
+     * @param writer получатель результата
+     * @param target целевое значение
+     * @param stiffness жёсткость пружины
+     * @param damping затухание пружины
+     * @return этот виджет
+     */
+    public WidgetBase animateSpringParameter(Object key, FloatValueReader reader, FloatValueWriter writer,
+                                             float target, float stiffness, float damping) {
+        if (writer == null) return this;
+        Object normalizedKey = animationKey(key, writer);
+        SpringAnimation current = animations.getScoped(SCOPE_SPRING_PARAMETER, normalizedKey, false) instanceof SpringAnimation spring
+                ? spring : null;
+        if (current != null && current.matches(stiffness, damping)) {
+            current.retarget(target, writer);
+        } else {
+            animations.playScoped(SCOPE_SPRING_PARAMETER, normalizedKey, false, new SpringAnimation(
+                    reader == null ? 0.0f : reader.get(), target, stiffness, damping, writer));
+        }
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /** Останавливает spring-анимацию кастомного параметра. */
+    public WidgetBase stopSpringParameterAnimation(Object key) {
+        animations.stopScoped(SCOPE_SPRING_PARAMETER, key, false);
+        return this;
+    }
+
+    /**
+     * Запускает пружинную анимацию встроенного свойства виджета.
+     *
+     * @param property анимируемое свойство
+     * @param targetValue целевое значение
+     * @param stiffness жёсткость пружины
+     * @param damping затухание пружины
+     * @return этот виджет
+     */
+    public WidgetBase animateSpring(AnimatedProperty property, float targetValue,
+                                    float stiffness, float damping) {
+        if (property == null) return this;
+        if (usesCustomPivot(property)) transformOrigin = TransformOrigin.CUSTOM;
+        float target = normalizedValue(property, targetValue);
+        animations.stopScoped(SCOPE_PROPERTY, property, false);
+        SpringAnimation current = animations.getScoped(SCOPE_SPRING_PROPERTY, property, false) instanceof SpringAnimation spring
+                ? spring : null;
+        if (current != null && current.matches(stiffness, damping)) {
+            current.retarget(target);
+        } else {
+            animations.playScoped(SCOPE_SPRING_PROPERTY, property, false, new SpringAnimation(
+                    currentAnimatedValue(property), target, stiffness, damping,
+                    value -> setAnimatedValue(property, value)));
+        }
+        invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 
@@ -656,32 +825,43 @@ public abstract class WidgetBase implements Widget {
     public WidgetBase animateColor(MutableColor color, ColorView targetColor, TransitionSpec spec) {
         if (color == null || targetColor == null) return this;
         TransitionSpec normalized = spec == null ? TransitionSpec.DEFAULT : spec;
+        if (normalized.durationSeconds() <= 0.0f || sameColor(color, targetColor)) {
+            animations.stopScoped(SCOPE_COLOR, color, true);
+            if (!sameColor(color, targetColor)) {
+                color.set(
+                        sanitizeFinite(targetColor.r()),
+                        sanitizeFinite(targetColor.g()),
+                        sanitizeFinite(targetColor.b()),
+                        sanitizeFinite(targetColor.a(), 1.0f));
+                invalidate(InvalidationFlags.VISUAL);
+            }
+            return this;
+        }
+
+        ColorAnimation current = animations.getScoped(SCOPE_COLOR, color, true) instanceof ColorAnimation colorAnimation
+                ? colorAnimation : null;
+        if (current != null && current.matches(targetColor, normalized)) return this;
+
         MutableColor target = new MutableColor(
                 sanitizeFinite(targetColor.r()),
                 sanitizeFinite(targetColor.g()),
                 sanitizeFinite(targetColor.b()),
                 sanitizeFinite(targetColor.a(), 1.0f));
-        if (normalized.durationSeconds() <= 0.0f || sameColor(color, target)) {
-            colorTransitions.remove(color);
-            color.set(target);
-            invalidate(InvalidationFlags.VISUAL);
-            return this;
-        }
-
-        colorTransitions.put(color, new ColorTransition(color.copy(), target, normalized));
+        animations.playScoped(SCOPE_COLOR, color, true,
+                new ColorAnimation(new ColorTransition(color.copy(), target, normalized), color, target, normalized));
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 
     public WidgetBase stopColorAnimation(MutableColor color) {
         if (color != null) {
-            colorTransitions.remove(color);
+            animations.stopScoped(SCOPE_COLOR, color, true);
         }
         return this;
     }
 
     public WidgetBase stopColorAnimations() {
-        colorTransitions.clear();
+        animations.stopScope(SCOPE_COLOR);
         return this;
     }
 
@@ -697,18 +877,30 @@ public abstract class WidgetBase implements Widget {
      */
     public WidgetBase animate(AnimatedProperty property, float targetValue, TransitionSpec spec) {
         if (property == null) return this;
+        animations.stopScoped(SCOPE_SPRING_PROPERTY, property, false);
         if (usesCustomPivot(property)) {
             transformOrigin = TransformOrigin.CUSTOM;
         }
         TransitionSpec normalized = spec == null ? TransitionSpec.DEFAULT : spec;
         float target = normalizedValue(property, targetValue);
         if (normalized.durationSeconds() <= 0.0f || currentAnimatedValue(property) == target) {
-            transitions.remove(property);
+            animations.stopScoped(SCOPE_PROPERTY, property, false);
             setAnimatedValue(property, target);
             return this;
         }
 
-        transitions.put(property, new FloatTransition(currentAnimatedValue(property), target, normalized));
+        FloatInterpolator interpolator = property == AnimatedProperty.ROTATION_DEGREES
+                ? dev.sixik.unigui.api.animation.AngleInterpolator.SHORTEST_PATH
+                : FloatInterpolator.LINEAR;
+        FloatAnimation current = animations.getScoped(SCOPE_PROPERTY, property, false) instanceof FloatAnimation floatAnimation
+                ? floatAnimation : null;
+        if (current != null && current.transition.matches(normalized, interpolator)) {
+            current.transition.retarget(target);
+        } else {
+            animations.playScoped(SCOPE_PROPERTY, property, false,
+                    new FloatAnimation(new FloatTransition(currentAnimatedValue(property), target, normalized, interpolator),
+                            value -> setAnimatedValue(property, value)));
+        }
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
@@ -718,7 +910,8 @@ public abstract class WidgetBase implements Widget {
      */
     public WidgetBase stopAnimation(AnimatedProperty property) {
         if (property != null) {
-            transitions.remove(property);
+            animations.stopScoped(SCOPE_PROPERTY, property, false);
+            animations.stopScoped(SCOPE_SPRING_PROPERTY, property, false);
         }
         return this;
     }
@@ -727,10 +920,53 @@ public abstract class WidgetBase implements Widget {
      * Возвращает текущее значение или выполняет операцию {@code stopAnimations} для виджета.
      */
     public WidgetBase stopAnimations() {
-        transitions.clear();
-        stopParameterAnimations();
-        stopColorAnimations();
-        stopShakeAnimations();
+        restoreTransformEffectOffset();
+        animations.clear();
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Компилирует и запускает storyboard на этом виджете как на корне target-registry.
+     *
+     * <p>Метод следует вызывать из UI-потока после построения дерева. Player автоматически
+     * обновляется обычным {@link #tick(FrameContext)} корневого виджета.</p>
+     *
+     * @param storyboard описание анимации
+     * @return запущенный player для pause/seek/restart
+     */
+    public StoryboardPlayer playStoryboard(Storyboard storyboard) {
+        return playStoryboard(null, storyboard, null);
+    }
+
+    /** Запускает storyboard под стабильным ключом, заменяя предыдущую анимацию с тем же ключом. */
+    public StoryboardPlayer playStoryboard(Object key, Storyboard storyboard) {
+        return playStoryboard(key, storyboard, null);
+    }
+
+    /**
+     * Запускает storyboard с пользовательским resolver'ом property path.
+     *
+     * @param key ключ в animation controller; {@code null} использует сам player
+     * @param storyboard описание анимации
+     * @param resolver resolver встроенных и пользовательских свойств; {@code null} использует built-ins
+     * @return запущенный player
+     */
+    public StoryboardPlayer playStoryboard(Object key,
+                                           Storyboard storyboard,
+                                           PropertyPathResolver resolver) {
+        StoryboardPlayer player = new StoryboardPlayer(
+                storyboard,
+                NamedWidgetRegistry.from(this),
+                resolver == null ? PropertyPathResolver.builtIns() : resolver);
+        animations.play(key == null ? player : key, player);
+        invalidate(InvalidationFlags.VISUAL);
+        return player;
+    }
+
+    /** Останавливает storyboard, запущенный с указанным ключом. */
+    public WidgetBase stopStoryboard(Object key) {
+        if (key != null) animations.stop(key);
         return this;
     }
 
@@ -738,17 +974,15 @@ public abstract class WidgetBase implements Widget {
      * Обновляет или выполняет операцию {@code animationRunning}, меняющую состояние виджета.
      */
     public boolean animationRunning(AnimatedProperty property) {
-        return property != null && transitions.containsKey(property);
+        return property != null && (animations.getScoped(SCOPE_PROPERTY, property, false) != null
+                || animations.getScoped(SCOPE_SPRING_PROPERTY, property, false) != null);
     }
 
     /**
      * Возвращает текущее значение или выполняет операцию {@code animationsRunning} для виджета.
      */
     public boolean animationsRunning() {
-        return !transitions.isEmpty()
-                || !parameterTransitions.isEmpty()
-                || !colorTransitions.isEmpty()
-                || !shakeEffects.isEmpty();
+        return animations.hasActiveAnimations();
     }
 
     /**
@@ -1180,6 +1414,11 @@ public abstract class WidgetBase implements Widget {
     @Override
     public void arrange(RectView bounds) {
         layoutBounds.set(bounds);
+        if (!layoutBoundsObserved) {
+            previousLayoutX = layoutBounds.x();
+            previousLayoutY = layoutBounds.y();
+            layoutBoundsObserved = true;
+        }
         applyTransformOrigin();
     }
 
@@ -1308,6 +1547,8 @@ public abstract class WidgetBase implements Widget {
     /** Освобождает retained-команды перед удалением виджета из UI-дерева. */
     @Override
     public void dispose() {
+        restoreTransformEffectOffset();
+        animations.clear();
         releaseRenderCache();
     }
 
@@ -1376,25 +1617,14 @@ public abstract class WidgetBase implements Widget {
      * Продвигает активные анимации и применяет их значения к виджету.
      */
     protected final void tickAnimations(FrameContext frame) {
-        if (transitions.isEmpty() && parameterTransitions.isEmpty() && colorTransitions.isEmpty() && shakeEffects.isEmpty()) return;
+        if (!animations.hasActiveAnimations()) return;
 
-        float deltaSeconds = frame == null || frame.deltaSeconds() <= 0.0f ? 1.0f / 60.0f : frame.deltaSeconds();
+        float deltaSeconds = frame == null ? 1.0f / 60.0f : AnimationClock.sanitizeDelta(frame.deltaSeconds());
+        if (deltaSeconds <= 0.0f) deltaSeconds = 1.0f / 60.0f;
         restoreTransformEffectOffset();
 
-        Iterator<Map.Entry<AnimatedProperty, FloatTransition>> iterator = transitions.entrySet().iterator();
-        while (iterator.hasNext()) {
-            Map.Entry<AnimatedProperty, FloatTransition> entry = iterator.next();
-            FloatTransition transition = entry.getValue();
-            setAnimatedValue(entry.getKey(), transition.tick(deltaSeconds));
-            if (transition.finished()) {
-                setAnimatedValue(entry.getKey(), transition.finalValue());
-                iterator.remove();
-            }
-        }
-
-        tickParameterTransitions(deltaSeconds);
-        tickColorTransitions(deltaSeconds);
-        applyShakeEffects(deltaSeconds);
+        animations.update(deltaSeconds);
+        applyShakeAnimations();
         invalidate(InvalidationFlags.VISUAL);
     }
 
@@ -1485,34 +1715,49 @@ public abstract class WidgetBase implements Widget {
                 layoutBounds.height() * transformOrigin.relativeY());
     }
 
-    private void tickParameterTransitions(float deltaSeconds) {
-        if (parameterTransitions.isEmpty()) return;
+    /**
+     * Обрабатывает изменение bounds после layout-прохода.
+     *
+     * <p>Это реализация FLIP: сначала запоминается First-позиция, затем при
+     * появлении Last-позиции создаётся обратное визуальное смещение. Сам bounds
+     * при этом остаётся новым, поэтому hit-test и последующая компоновка видят
+     * актуальную геометрию.</p>
+     */
+    private void layoutBoundsChanged() {
+        invalidate(InvalidationFlags.LAYOUT);
 
-        Iterator<Map.Entry<Object, ParameterTransition>> iterator = parameterTransitions.entrySet().iterator();
-        while (iterator.hasNext()) {
-            ParameterTransition entry = iterator.next().getValue();
-            FloatTransition transition = entry.transition();
-            entry.writer().set(transition.tick(deltaSeconds));
-            if (transition.finished()) {
-                entry.writer().set(transition.finalValue());
-                iterator.remove();
-            }
+        float newX = layoutBounds.x();
+        float newY = layoutBounds.y();
+        if (!layoutBoundsObserved) {
+            previousLayoutX = newX;
+            previousLayoutY = newY;
+            layoutBoundsObserved = true;
+            return;
         }
-    }
 
-    private void tickColorTransitions(float deltaSeconds) {
-        if (colorTransitions.isEmpty()) return;
+        float deltaX = previousLayoutX - newX;
+        float deltaY = previousLayoutY - newY;
+        previousLayoutX = newX;
+        previousLayoutY = newY;
+        if (!layoutTransitionsEnabled || (deltaX == 0.0f && deltaY == 0.0f)) return;
 
-        Iterator<Map.Entry<MutableColor, ColorTransition>> iterator = colorTransitions.entrySet().iterator();
-        while (iterator.hasNext()) {
-            Map.Entry<MutableColor, ColorTransition> entry = iterator.next();
-            ColorTransition transition = entry.getValue();
-            transition.tick(deltaSeconds, entry.getKey());
-            if (transition.finished()) {
-                transition.finish(entry.getKey());
-                iterator.remove();
-            }
+        LayoutTransitionAnimation current = layoutTransitionAnimation();
+        if (current != null && !current.isFinished()) {
+            deltaX += current.offsetX();
+            deltaY += current.offsetY();
         }
+
+        LayoutTransitionAnimation transition = new LayoutTransitionAnimation(
+                deltaX,
+                deltaY,
+                layoutTransitionSpec.durationSeconds(),
+                layoutTransitionSpec.easing());
+        if (transition.isFinished()) {
+            animations.stop(LAYOUT_TRANSITION_KEY);
+            return;
+        }
+        animations.play(LAYOUT_TRANSITION_KEY, transition);
+        invalidate(InvalidationFlags.VISUAL);
     }
 
     private void restoreTransformEffectOffset() {
@@ -1524,23 +1769,20 @@ public abstract class WidgetBase implements Widget {
         appliedEffectOffsetY = 0.0f;
     }
 
-    private void applyShakeEffects(float deltaSeconds) {
-        if (shakeEffects.isEmpty()) return;
-
+    private void applyTransformEffectOffsets() {
         float offsetX = 0.0f;
         float offsetY = 0.0f;
-        Object[] rawEffects = shakeEffects.elements();
-        for (int i = 0; i < shakeEffects.size(); ) {
-            ShakeEffect effect = (ShakeEffect) rawEffects[i];
-            effect.tick(deltaSeconds);
-            if (effect.finished()) {
-                shakeEffects.remove(i);
-                rawEffects = shakeEffects.elements();
-                continue;
-            }
+        if (animations.get(LAYOUT_TRANSITION_KEY) instanceof LayoutTransitionAnimation layoutAnimation
+                && !layoutAnimation.isFinished()) {
+            offsetX += layoutAnimation.offsetX();
+            offsetY += layoutAnimation.offsetY();
+        }
+
+        ObjectIterator<dev.sixik.unigui.api.animation.PlayableAnimation> iterator = animations.values().iterator();
+        while (iterator.hasNext()) {
+            if (!(iterator.next() instanceof ShakeAnimation effect) || effect.isFinished()) continue;
             offsetX += effect.offsetX();
             offsetY += effect.offsetY();
-            i++;
         }
 
         if (offsetX != 0.0f || offsetY != 0.0f) {
@@ -1548,6 +1790,10 @@ public abstract class WidgetBase implements Widget {
             appliedEffectOffsetX = offsetX;
             appliedEffectOffsetY = offsetY;
         }
+    }
+
+    private void applyShakeAnimations() {
+        applyTransformEffectOffsets();
     }
 
     private static boolean usesCustomPivot(AnimatedProperty property) {
@@ -1565,47 +1811,76 @@ public abstract class WidgetBase implements Widget {
                 && left.a() == right.a();
     }
 
-    private record ParameterTransition(FloatTransition transition, FloatValueWriter writer) {
-    }
+    private static final class FloatAnimation implements dev.sixik.unigui.api.animation.PlayableAnimation {
+        private final FloatTransition transition;
+        private FloatValueWriter writer;
 
-    private static final class ShakeEffect {
-        private final float amplitudeX;
-        private final float amplitudeY;
-        private final float durationSeconds;
-        private final int cycles;
-        private float elapsedSeconds;
-
-        private ShakeEffect(float amplitudeX, float amplitudeY, float durationSeconds, int cycles) {
-            this.amplitudeX = amplitudeX;
-            this.amplitudeY = amplitudeY;
-            this.durationSeconds = Math.max(0.0f, durationSeconds);
-            this.cycles = Math.max(1, cycles);
+        private FloatAnimation(FloatTransition transition, FloatValueWriter writer) {
+            this.transition = transition;
+            this.writer = writer;
+            writer.set(transition.value());
         }
 
-        private void tick(float deltaSeconds) {
-            elapsedSeconds = Math.min(durationSeconds, elapsedSeconds + Math.max(0.0f, deltaSeconds));
+        @Override
+        public void update(float deltaSeconds) {
+            writer.set(transition.tick(deltaSeconds));
+            if (transition.finished()) writer.set(transition.finalValue());
         }
 
-        private boolean finished() {
-            return durationSeconds <= 0.0f || elapsedSeconds >= durationSeconds;
-        }
+        @Override
+        public boolean isFinished() { return transition.finished(); }
 
-        private float offsetX() {
-            return offset(amplitudeX);
-        }
+        @Override
+        public void cancel() { transition.cancel(); }
 
-        private float offsetY() {
-            return offset(amplitudeY);
-        }
-
-        private float offset(float amplitude) {
-            if (amplitude == 0.0f || durationSeconds <= 0.0f) return 0.0f;
-            float progress = Math.max(0.0f, Math.min(1.0f, elapsedSeconds / durationSeconds));
-            float decay = 1.0f - progress;
-            return (float) Math.sin(progress * cycles * Math.PI * 2.0f) * amplitude * decay;
+        private void retarget(float target, FloatValueWriter newWriter) {
+            writer = newWriter;
+            transition.retarget(target);
         }
     }
 
+    private static final class ColorAnimation implements dev.sixik.unigui.api.animation.PlayableAnimation {
+        private final ColorTransition transition;
+        private final MutableColor output;
+        private final float targetR;
+        private final float targetG;
+        private final float targetB;
+        private final float targetA;
+        private final TransitionSpec spec;
+
+        private ColorAnimation(ColorTransition transition,
+                               MutableColor output,
+                               ColorView target,
+                               TransitionSpec spec) {
+            this.transition = transition;
+            this.output = output;
+            this.targetR = target.r();
+            this.targetG = target.g();
+            this.targetB = target.b();
+            this.targetA = target.a();
+            this.spec = spec;
+        }
+
+        private boolean matches(ColorView requestedTarget, TransitionSpec requestedSpec) {
+            return spec.equals(requestedSpec)
+                    && targetR == requestedTarget.r()
+                    && targetG == requestedTarget.g()
+                    && targetB == requestedTarget.b()
+                    && targetA == requestedTarget.a();
+        }
+
+        @Override
+        public void update(float deltaSeconds) {
+            transition.tick(deltaSeconds, output);
+            if (transition.finished()) transition.finish(output);
+        }
+
+        @Override
+        public boolean isFinished() { return transition.finished(); }
+
+        @Override
+        public void cancel() { }
+    }
 
     private static LinkedHashSet<String> parseStyleClasses(String value) {
         LinkedHashSet<String> result = new LinkedHashSet<>();

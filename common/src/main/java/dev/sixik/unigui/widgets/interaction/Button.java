@@ -48,6 +48,8 @@ public class Button extends Box {
         public static final String BORDER_WIDTH = StyleIds.Key.BORDER_WIDTH;
         public static final String RADIUS = StyleIds.Key.RADIUS;
         public static final String TEXT_COLOR = StyleIds.Key.TEXT_COLOR;
+        public static final String TRANSITION_DURATION = StyleIds.Key.TRANSITION_DURATION;
+        public static final String TRANSITION_EASING = StyleIds.Key.TRANSITION_EASING;
 
         private StyleProperties() {
         }
@@ -399,7 +401,10 @@ public class Button extends Box {
     @Override
     protected void applyTheme() {
         super.applyTheme();
-        textColor.set(styleValue(StyleKeys.TEXT_COLOR, textColor));
+        ColorView themedText = styleValue(StyleKeys.TEXT_COLOR, styleState(), textColor);
+        if (themedText != null) {
+            animateColor(textColor, themedText, styleTransition());
+        }
     }
 
     @Override

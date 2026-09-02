@@ -94,6 +94,30 @@ tasks.register("holdButtonSelfTest", JavaExec) {
     mainClass = "dev.sixik.unigui.tests.HoldButtonSelfTest"
 }
 
+tasks.register("animationInterpolationSelfTest", JavaExec) {
+    group = "verification"
+    description = "Runs typed and primitive animation interpolation self-test assertions."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.AnimationInterpolationSelfTest"
+}
+
+tasks.register("storyboardSelfTest", JavaExec) {
+    group = "verification"
+    description = "Runs storyboard model, resolver, player and XML self-test assertions."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.StoryboardSelfTest"
+}
+
+tasks.register("layoutTransitionSelfTest", JavaExec) {
+    group = "verification"
+    description = "Runs FLIP layout transition self-test assertions."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.LayoutTransitionSelfTest"
+}
+
 tasks.register("widgetRenderCacheSelfTest", JavaExec) {
     group = "verification"
     description = "Runs widget retained render-cache self-test assertions."
@@ -149,4 +173,7 @@ tasks.named("test") {
     dependsOn tasks.named("textureManagementSelfTest")
     dependsOn tasks.named("xmlWidgetSelfTest")
     dependsOn tasks.named("holdButtonSelfTest")
+    dependsOn tasks.named("animationInterpolationSelfTest")
+    dependsOn tasks.named("storyboardSelfTest")
+    dependsOn tasks.named("layoutTransitionSelfTest")
 }

@@ -1,11 +1,21 @@
 package dev.sixik.unigui.tests;
 
 import dev.sixik.unigui.api.animation.AnimationEasing;
+import dev.sixik.unigui.api.animation.AnimatedProperty;
+import dev.sixik.unigui.api.animation.FloatTransition;
+import dev.sixik.unigui.api.animation.FloatValueWriter;
+import dev.sixik.unigui.api.animation.PlayableAnimation;
+import dev.sixik.unigui.api.animation.PropertyTrack;
+import dev.sixik.unigui.api.animation.SplineKeyframe;
+import dev.sixik.unigui.api.animation.Storyboard;
+import dev.sixik.unigui.api.animation.Timeline;
 import dev.sixik.unigui.api.animation.TransitionSpec;
 import dev.sixik.unigui.api.animation.TransformOrigin;
+import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.MutableUIScaleProvider;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
+import dev.sixik.unigui.api.layout.Overflow;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.SimpleTextureHandle;
 import dev.sixik.unigui.api.render.UiRenderPolicy;
@@ -22,6 +32,7 @@ import dev.sixik.unigui.backend.minecraft_impl.MinecraftWidgetScreen;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.HBox;
+import dev.sixik.unigui.widgets.containers.ScrollView;
 import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.display.TextureWidget;
@@ -29,6 +40,8 @@ import dev.sixik.unigui.widgets.feedback.ProgressBar;
 import dev.sixik.unigui.widgets.interaction.Button;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
+
+import java.util.List;
 
 /**
  * Небольшой набор примеров, по которому можно смотреть, как запускать анимации UniGUI.
@@ -38,6 +51,7 @@ import net.minecraft.network.chat.Component;
  */
 public final class AnimationsSampler {
     private static final Object PROGRESS_ANIMATION_KEY = new Object();
+    private static final Object STORYBOARD_KEY = new Object();
     private static final String STYLE_BUTTON_BASE = "samplerButton";
     private static final String STYLE_BUTTON_COOL = "samplerButton.cool";
     private static final String STYLE_BUTTON_WARM = "samplerButton.warm";
@@ -53,8 +67,14 @@ public final class AnimationsSampler {
         DefaultUIContext context = new DefaultUIContext(new MinecraftClipboardService())
                 .scaleProvider(SCALE)
                 .theme(animationStylePack());
-        Widget root = animations();
-        openScreen(Component.literal("UniGUI Demo"), root, context);
+        ScrollView viewport = new ScrollView(animations());
+        viewport.scrollStep(28.0f);
+        viewport.layout(style -> style
+                .overflowX(Overflow.HIDDEN)
+                .overflowY(Overflow.AUTO)
+                .flexGrow(1.0f)
+                .flexShrink(1.0f));
+        openScreen(Component.literal("UniGUI Demo"), viewport, context);
     }
 
 
@@ -88,6 +108,11 @@ public final class AnimationsSampler {
         root.addChild(parameterTweenSample());
         root.addChild(loopSample());
         root.addChild(textureCrossfadeSample());
+        root.addChild(springSample());
+        root.addChild(storyboardSample());
+        root.addChild(timelineSample());
+        root.addChild(flipLayoutSample());
+        root.addChild(easingSample());
         return root;
     }
 
@@ -326,6 +351,165 @@ public final class AnimationsSampler {
         return section("Texture", row);
     }
 
+    private static Widget springSample() {
+        HBox row = row();
+        Box card = sampleCard("Spring");
+        card.transformOrigin(TransformOrigin.CENTER);
+
+        Button button = sampleButton("Spring bounce");
+        button.onClick(event -> {
+            card.animateSpring(AnimatedProperty.SCALE_X, 1.18f, 180.0f, 12.0f);
+            card.animateSpring(AnimatedProperty.SCALE_Y, 0.86f, 180.0f, 12.0f);
+            card.animateSpring(AnimatedProperty.ROTATION_DEGREES, 8.0f, 180.0f, 12.0f);
+        });
+
+        Button reset = sampleButton("Spring reset");
+        reset.onClick(event -> {
+            card.animateSpring(AnimatedProperty.SCALE_X, 1.0f, 220.0f, 16.0f);
+            card.animateSpring(AnimatedProperty.SCALE_Y, 1.0f, 220.0f, 16.0f);
+            card.animateSpring(AnimatedProperty.ROTATION_DEGREES, 0.0f, 220.0f, 16.0f);
+        });
+
+        row.addChild(card);
+        row.addChild(button);
+        row.addChild(reset);
+        return section("Spring", row);
+    }
+
+    private static Widget storyboardSample() {
+        HBox row = row();
+        Box card = sampleCard("Storyboard");
+        card.id("storyboardCard");
+        card.transformOrigin(TransformOrigin.CENTER);
+
+        Storyboard storyboard = Storyboard.of(
+                PropertyTrack.floats("storyboardCard", "Opacity", List.of(
+                        SplineKeyframe.linear(0.0f, 0.45f),
+                        SplineKeyframe.cubicBezier(0.45f, 1.0f, 0.2f, 0.8f, 0.2f, 1.0f))),
+                PropertyTrack.floats("storyboardCard", "RenderTransform.ScaleX", List.of(
+                        SplineKeyframe.linear(0.0f, 0.82f),
+                        SplineKeyframe.cubicBezier(0.45f, 1.08f, 0.2f, 0.8f, 0.2f, 1.0f))),
+                PropertyTrack.floats("storyboardCard", "RenderTransform.ScaleY", List.of(
+                        SplineKeyframe.linear(0.0f, 0.82f),
+                        SplineKeyframe.cubicBezier(0.45f, 1.08f, 0.2f, 0.8f, 0.2f, 1.0f))),
+                PropertyTrack.floats("storyboardCard", "RenderTransform.RotationDegrees", List.of(
+                        SplineKeyframe.linear(0.0f, -8.0f),
+                        SplineKeyframe.cubicBezier(0.45f, 0.0f, 0.2f, 0.8f, 0.2f, 1.0f)))
+        );
+
+        Button play = sampleButton("Play storyboard");
+        play.onClick(event -> {
+            card.opacity(0.45f);
+            card.transform().scale().set(0.82f, 0.82f);
+            card.rotationDegrees(-8.0f);
+            card.playStoryboard(STORYBOARD_KEY, storyboard);
+        });
+
+        Button stop = sampleButton("Stop storyboard");
+        stop.onClick(event -> {
+            card.stopStoryboard(STORYBOARD_KEY);
+            card.animateOpacity(1.0f, 0.18f);
+            card.animateScale(1.0f, 1.0f, 0.18f);
+            card.animateRotation(0.0f, 0.18f);
+        });
+
+        row.addChild(card);
+        row.addChild(play);
+        row.addChild(stop);
+        return section("Storyboard / keyframes", row);
+    }
+
+    private static Widget timelineSample() {
+        HBox row = row();
+        TimelineHost host = new TimelineHost(sampleCard("Timeline"));
+
+        Button play = sampleButton("Play sequence");
+        play.onClick(event -> {
+            Box card = host.card;
+            card.opacity(0.55f);
+            card.rotationDegrees(0.0f);
+            host.play(Timeline.sequence(
+                    floatAnimation(card.opacity(), 1.0f, 0.24f, AnimationEasing.QUAD_OUT,
+                            card::opacity),
+                    Timeline.parallel(
+                            floatAnimation(card.transform().rotationDegrees(), 360.0f, 0.55f,
+                                    AnimationEasing.LINEAR, card::rotationDegrees),
+                            floatAnimation(card.transform().scale().x(), 1.12f, 0.28f,
+                                    AnimationEasing.EASE_OUT, value -> card.transform().scale().set(value, value))
+                    )
+            ));
+        });
+
+        Button stop = sampleButton("Stop sequence");
+        stop.onClick(event -> {
+            host.cancelAnimation();
+            host.card.stopAnimations();
+            host.card.animateOpacity(1.0f, 0.16f);
+            host.card.animateScale(1.0f, 1.0f, 0.16f);
+            host.card.animateRotation(0.0f, 0.16f);
+        });
+
+        row.addChild(host);
+        row.addChild(play);
+        row.addChild(stop);
+        return section("Timeline / sequence + parallel", row);
+    }
+
+    private static Widget flipLayoutSample() {
+        HBox row = row();
+        Box card = sampleCard("FLIP layout");
+        card.layoutTransition(0.35f, AnimationEasing.CUBIC_OUT);
+
+        final boolean[] wide = {false};
+        Button move = sampleButton("Change layout");
+        move.onClick(event -> {
+            wide[0] = !wide[0];
+            // FLIP-переход виден только при изменении итоговой позиции в layout.
+            card.layout(style -> style
+                    .size(wide[0] ? 176.0f : 142.0f, 42.0f)
+                    .margin(wide[0] ? 28.0f : 8.0f));
+        });
+
+        row.addChild(card);
+        row.addChild(move);
+        return section("FLIP layout transition", row);
+    }
+
+    private static Widget easingSample() {
+        HBox row = row();
+        Box quad = sampleCard("QUAD");
+        Box cubic = sampleCard("CUBIC");
+        Box expo = sampleCard("EXPO");
+        Button play = sampleButton("Compare easing");
+
+        play.onClick(event -> {
+            animateEasingCard(quad, AnimationEasing.QUAD_OUT);
+            animateEasingCard(cubic, AnimationEasing.CUBIC_OUT);
+            animateEasingCard(expo, AnimationEasing.EXPO_OUT);
+        });
+
+        row.addChild(quad);
+        row.addChild(cubic);
+        row.addChild(expo);
+        row.addChild(play);
+        return section("Easing families", row);
+    }
+
+    private static void animateEasingCard(Box card, dev.sixik.unigui.api.animation.Easing easing) {
+        card.stopAnimations();
+        card.opacity(0.35f);
+        card.animateOpacity(1.0f, TransitionSpec.of(0.75f, easing));
+        card.animateScale(1.10f, 1.10f, TransitionSpec.of(0.75f, easing));
+    }
+
+    private static PlayableAnimation floatAnimation(float start,
+                                                    float end,
+                                                    float duration,
+                                                    dev.sixik.unigui.api.animation.Easing easing,
+                                                    FloatValueWriter writer) {
+        return new FloatAnimation(new FloatTransition(start, end, TransitionSpec.of(duration, easing)), writer);
+    }
+
     private static Box section(String title, Widget content) {
         VBox stack = new VBox();
         stack.spacing(5.0f);
@@ -394,6 +578,75 @@ public final class AnimationsSampler {
         label.color().set(0.62f, 0.70f, 0.78f, 1.0f);
         label.layout(style -> style.size(230.0f, 16.0f).flexGrow(0).flexShrink(0.0f));
         return label;
+    }
+
+    /**
+     * Небольшой widget-host для примера низкоуровневого {@link PlayableAnimation}.
+     *
+     * <p>В прикладном UI такую анимацию обычно хранит экран или отдельный контроллер.
+     * В sampler host находится в UI-дереве, поэтому {@link Timeline} обновляется вместе
+     * с обычным циклом виджетов.</p>
+     */
+    private static final class TimelineHost extends Box {
+        private final Box card;
+        private PlayableAnimation animation;
+
+        private TimelineHost(Box card) {
+            this.card = card;
+            addChild(card);
+            layout(style -> style
+                    .size(LayoutConstraints.AUTO, LayoutConstraints.AUTO)
+                    .flexGrow(0)
+                    .flexShrink(0.0f));
+        }
+
+        private void play(PlayableAnimation animation) {
+            cancelAnimation();
+            this.animation = animation;
+        }
+
+        private void cancelAnimation() {
+            if (animation == null) return;
+            animation.cancel();
+            animation = null;
+        }
+
+        @Override
+        public void tick(FrameContext frame) {
+            super.tick(frame);
+            if (animation == null) return;
+
+            float deltaSeconds = frame == null ? 1.0f / 60.0f : frame.deltaSeconds();
+            animation.update(deltaSeconds);
+            if (animation.isFinished()) animation = null;
+        }
+    }
+
+    /** Связывает float-transition с произвольным свойством виджета. */
+    private static final class FloatAnimation implements PlayableAnimation {
+        private final FloatTransition transition;
+        private final FloatValueWriter writer;
+
+        private FloatAnimation(FloatTransition transition, FloatValueWriter writer) {
+            this.transition = transition;
+            this.writer = writer;
+            writer.set(transition.value());
+        }
+
+        @Override
+        public void update(float deltaSeconds) {
+            writer.set(transition.tick(deltaSeconds));
+        }
+
+        @Override
+        public boolean isFinished() {
+            return transition.isFinished();
+        }
+
+        @Override
+        public void cancel() {
+            transition.cancel();
+        }
     }
 
     private static MutableColor color(float r, float g, float b, float a) {

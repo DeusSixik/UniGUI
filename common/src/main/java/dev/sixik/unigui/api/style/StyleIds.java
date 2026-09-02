@@ -30,6 +30,8 @@ public final class StyleIds {
         public static final String THUMB_COLOR = "thumb.color";
         public static final String BORDER_WIDTH = "border.width";
         public static final String RADIUS = "radius";
+        public static final String TRANSITION_DURATION = "transition.duration";
+        public static final String TRANSITION_EASING = "transition.easing";
 
         private Key() {
         }

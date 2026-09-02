@@ -56,6 +56,13 @@ public final class StyleKeys {
     /** Радиус скругления в UI-пикселях. */
     public static final StyleKey<Float> RADIUS = StyleKey.of(StyleIds.Key.RADIUS, Float.class);
 
+    /** Длительность автоматического перехода style-свойств в секундах. Ноль отключает переходы. */
+    public static final StyleKey<Float> TRANSITION_DURATION = StyleKey.of(StyleIds.Key.TRANSITION_DURATION, Float.class);
+
+    /** Стандартная easing-кривая автоматического перехода style-свойств. */
+    public static final StyleKey<dev.sixik.unigui.api.animation.AnimationEasing> TRANSITION_EASING =
+            StyleKey.of(StyleIds.Key.TRANSITION_EASING, dev.sixik.unigui.api.animation.AnimationEasing.class);
+
     private StyleKeys() {
     }
 }
