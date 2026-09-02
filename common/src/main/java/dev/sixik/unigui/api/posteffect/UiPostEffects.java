@@ -129,9 +129,10 @@ public final class UiPostEffects {
                         uniform float amount;
 
                         vec4 applyEffect(vec2 sourceUv, vec4 base) {
-                            float a = clamp(amount, 0.0, 1.0);
-                            vec4 tinted = vec4(base.rgb * color.rgb, base.a * color.a);
-                            return mix(base, tinted, a);
+                            float overlayAlpha = clamp(amount * color.a, 0.0, 1.0);
+                            vec3 rgb = base.rgb * (1.0 - overlayAlpha) + color.rgb * overlayAlpha;
+                            float alpha = base.a + (1.0 - base.a) * overlayAlpha;
+                            return vec4(rgb, alpha);
                         }
                         """),
                 VIGNETTE, source("""
@@ -144,9 +145,10 @@ public final class UiPostEffects {
                         vec4 applyEffect(vec2 sourceUv, vec4 base) {
                             float dist = distance(sourceUv, center);
                             float edge = smoothstep(max(0.0, radius - softness), max(0.001, radius), dist);
-                            float a = clamp(edge * amount, 0.0, 1.0);
-                            vec3 rgb = mix(base.rgb, color.rgb, a * color.a);
-                            return vec4(rgb, base.a);
+                            float effectAlpha = clamp(edge * amount * color.a, 0.0, 1.0);
+                            vec3 rgb = base.rgb * (1.0 - effectAlpha) + color.rgb * effectAlpha;
+                            float alpha = base.a + (1.0 - base.a) * effectAlpha;
+                            return vec4(rgb, alpha);
                         }
                         """),                BARREL_DISTORTION, source("""
                         uniform vec2 center;
@@ -191,8 +193,11 @@ public final class UiPostEffects {
                         vec4 applyEffect(vec2 sourceUv, vec4 base) {
                             float wave = sin((sourceUv.y + phase * 0.08) * max(1.0, density));
                             float line = 0.5 + 0.5 * wave;
-                            float factor = 1.0 - clamp(amount, 0.0, 1.0) * smoothstep(0.35, 1.0, line);
-                            return vec4(base.rgb * factor, base.a);
+                            float overlayAlpha = clamp(amount, 0.0, 1.0) * smoothstep(0.35, 1.0, line);
+                            return vec4(
+                                    base.rgb * (1.0 - overlayAlpha),
+                                    base.a + (1.0 - base.a) * overlayAlpha
+                            );
                         }
                         """));
 

@@ -53,6 +53,7 @@ import dev.sixik.unigui.impl.render.SimpleDrawBatcher;
 import dev.sixik.unigui.impl.render.WidgetTextureRenderer;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.minecraft.MinecraftScaledCustomDraw;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -226,6 +227,33 @@ public class MinecraftWidgetScreen extends Screen {
 
     public DrawList drawList() {
         return drawList;
+    }
+
+    /**
+     * Выполняет полный UI-проход этого экрана как внешний render-layer.
+     *
+     * <p>Метод нужен HUD и screen-overlay runtime: экран не становится текущим
+     * {@link Screen}, но сохраняет обычные tick, layout, render cache и PostEffect.</p>
+     */
+    void renderLayer(GuiGraphics graphics, int width, int height,
+                     int mouseX, int mouseY, float partialTick) {
+        Minecraft client = Minecraft.getInstance();
+        int safeWidth = Math.max(1, width);
+        int safeHeight = Math.max(1, height);
+        if (minecraft == null) {
+            minecraft = client;
+            font = client.font;
+            this.width = safeWidth;
+            this.height = safeHeight;
+            layoutInitialized = false;
+        } else if (this.width != safeWidth || this.height != safeHeight) {
+            this.width = safeWidth;
+            this.height = safeHeight;
+            layoutInitialized = false;
+            invalidateRenderCache();
+            root.invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        }
+        render(graphics, mouseX, mouseY, partialTick);
     }
 
     public FontFace defaultFont() {

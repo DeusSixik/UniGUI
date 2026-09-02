@@ -3,6 +3,7 @@ package dev.sixik.unigui.testmod.client;
 import dev.sixik.unigui.testmod.client.ui.DominionScreen;
 import dev.sixik.unigui.testmod.client.ui.ForkInSocketMinigameScreen;
 import dev.sixik.unigui.testmod.client.ui.LevelMapScreen;
+import dev.sixik.unigui.testmod.client.ui.OverlayRenderDemo;
 import dev.sixik.unigui.testmod.client.ui.PlugSocketMinigameScreen;
 import dev.sixik.unigui.testmod.client.ui.PostProcessingLayerTestScreen;
 import dev.sixik.unigui.testmod.client.ui.RetroTerminalScreen;
@@ -20,7 +21,7 @@ import net.fabricmc.api.ClientModInitializer;
 public final class TestModClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
-        // UI открывается через кнопки, добавленные mixin'ами на title/pause screen.
+        OverlayRenderDemo.register();
     }
 
     /**

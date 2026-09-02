@@ -5,7 +5,11 @@
   "minVersion": "0.8",
   "mixins": [],
   "client": [
-    "MixinCommands"
+    "MixinCommands",
+    "MixinHudRender",
+    "MixinScreenOverlay",
+    "MixinScreenOverlayInput",
+    "MixinScreenOverlayEvents"
   ],
   "injectors": {
     "defaultRequire": 1
