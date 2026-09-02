@@ -50,6 +50,10 @@ final class MinecraftRenderLayerRegistry<C> {
         }
     }
 
+    boolean hasEntries() {
+        return snapshot.length != 0;
+    }
+
     boolean mouseMoved(C context, double mouseX, double mouseY) {
         Object[] current = snapshot;
         for (int i = current.length - 1; i >= 0; i--) {

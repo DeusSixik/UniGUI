@@ -7,6 +7,8 @@
   "client": [
     "MixinCommands",
     "MixinHudRender",
+    "MixinGameRendererLoading",
+    "MixinLoadingOverlay",
     "MixinScreenOverlay",
     "MixinScreenOverlayInput",
     "MixinScreenOverlayEvents"
