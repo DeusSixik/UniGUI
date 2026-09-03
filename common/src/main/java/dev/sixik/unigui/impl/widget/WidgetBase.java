@@ -51,6 +51,7 @@ import dev.sixik.unigui.api.style.StylePack;
 import dev.sixik.unigui.api.style.Theme;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.widget.render.WidgetRendererRegistry;
+import dev.sixik.unigui.api.widget.render.WidgetRole;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.xml.XmlAttribute;
@@ -1272,6 +1273,18 @@ public abstract class WidgetBase implements Widget {
     }
 
     /**
+     * Разрешает renderer из style с проверкой semantic role.
+     *
+     * <p>Legacy overload без роли сохраняется для существующих виджетов. Новые semantic
+     * widgets должны использовать этот overload, чтобы несовместимый renderer отбрасывался
+     * до render path.</p>
+     */
+    protected <T> T styleRenderer(WidgetRole role, Class<T> rendererType, T fallback) {
+        T override = styleRendererOverride(role, rendererType);
+        return override == null ? fallback : override;
+    }
+
+    /**
      * Resolves only an explicit Java renderer override from style data.
      *
      * <p>This keeps the new declarative path separate from the old default
@@ -1279,6 +1292,14 @@ public abstract class WidgetBase implements Widget {
      * StylePack RenderPlan and only then fall back to {@code WidgetsRender}.</p>
      */
     protected <T> T styleRendererOverride(Class<T> rendererType) {
+        return styleRendererOverride(WidgetRole.UNSPECIFIED, rendererType);
+    }
+
+    /**
+     * Разрешает explicit Java renderer override с проверкой semantic role.
+     */
+    protected <T> T styleRendererOverride(WidgetRole role, Class<T> rendererType) {
+        if (role == null) role = WidgetRole.UNSPECIFIED;
         if (rendererType == null) return null;
         UIContext context = uiContext();
         Theme theme = context == null ? Theme.EMPTY : context.theme();
@@ -1294,7 +1315,7 @@ public abstract class WidgetBase implements Widget {
             Style localStyle = current.localStyle(type);
             value = localStyle.get(StyleKeys.RENDERER, null, value);
         }
-        return WidgetRendererRegistry.global().resolve(rendererType, value, null);
+        return WidgetRendererRegistry.global().resolve(role, rendererType, value, null);
     }
 
     /**

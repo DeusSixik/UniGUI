@@ -110,6 +110,14 @@ tasks.register("storyboardSelfTest", JavaExec) {
     mainClass = "dev.sixik.unigui.tests.StoryboardSelfTest"
 }
 
+tasks.register("widgetRendererContractSelfTest", JavaExec) {
+    group = "verification"
+    description = "Проверяет semantic role и typed renderer-контракт виджетов."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.WidgetRendererContractSelfTest"
+}
+
 tasks.register("layoutTransitionSelfTest", JavaExec) {
     group = "verification"
     description = "Runs FLIP layout transition self-test assertions."
@@ -176,4 +184,5 @@ tasks.named("test") {
     dependsOn tasks.named("animationInterpolationSelfTest")
     dependsOn tasks.named("storyboardSelfTest")
     dependsOn tasks.named("layoutTransitionSelfTest")
+    dependsOn tasks.named("widgetRendererContractSelfTest")
 }

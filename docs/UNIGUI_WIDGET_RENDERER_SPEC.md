@@ -658,7 +658,36 @@ Visual part не должен становиться child widget только �
 
 Оптимизация принимается только при сохранении визуального и input behavior.
 
-## 15. Definition of Done
+## 15. Результат текущего этапа
+
+На переходном этапе в `widgets.render` добавлены переиспользуемые части стандартных контролов:
+
+- `ControlChromePart` отвечает только за фон и рамку;
+- `LabelPart` отвечает за clip, вертикальное выравнивание и вызов текстового renderer-а;
+- `CheckIndicatorPart` отвечает за квадратный indicator checkbox;
+- `RadioIndicatorPart` отвечает за круглый indicator radio button.
+
+Typed renderer-ы используют эти части и сохраняют прежний порядок draw-команд. Это не новый
+renderer-контракт: parts являются небольшими переиспользуемыми building blocks, а владельцем
+полного render path по-прежнему остаётся renderer semantic role.
+
+`HoldButtonRenderer` также объявляет роль `HOLD_BUTTON`. Его состояние пока содержит legacy
+`ButtonState` для совместимости с текущим progress/chrome pipeline; это следующий кандидат на
+разделение состояния и renderer parts после миграции toolbar-контролов.
+
+Для toolbar-контролов добавлен единый typed-контракт `ToolButtonRenderer` и состояние
+`ToolButtonRenderState`. `ToggleToolButton` и `IconButton` используют этот контракт как
+визуальные варианты `ToolButton`: их различия относятся к поведению и составу контента, а не
+к отдельному renderer-контракту. Стандартный `ToolButtonRenderer` переиспользует существующий
+button renderer как visual part, поэтому legacy `ButtonRenderer` и `RenderPlan` продолжают
+работать во время миграции.
+
+`Checkbox` и `ToggleSwitch` временно наследуют API `ToggleButton`. Чтобы inherited method не
+становился silently ignored, старый `toggleButtonRenderer(...)` адаптируется к собственному
+typed renderer-а и помечен `@Deprecated`. Новый код должен использовать соответственно
+`checkboxRenderer(...)` и `toggleSwitchRenderer(...)`.
+
+## 16. Definition of Done
 
 Задача считается выполненной, когда:
 

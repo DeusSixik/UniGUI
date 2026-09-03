@@ -19,6 +19,17 @@ import dev.sixik.unigui.api.render.DrawScope;
 @FunctionalInterface
 public interface WidgetRenderer<S> {
     /**
+     * Возвращает semantic role renderer'а.
+     *
+     * <p>Базовый контракт оставляет роль unspecified для legacy renderer'ов. Специализированные
+     * typed renderer-интерфейсы переопределяют это значение и тем самым защищают registry от
+     * случайного назначения renderer другой роли.</p>
+     */
+    default WidgetRole role() {
+        return WidgetRole.UNSPECIFIED;
+    }
+
+    /**
      * Рисует виджет на основе переданного state.
      *
      * @param draw текущий draw scope кадра

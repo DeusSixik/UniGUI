@@ -11,6 +11,7 @@ import dev.sixik.unigui.api.event.KeyPressedEvent;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
@@ -23,6 +24,10 @@ import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.render.ButtonRenderType;
 import dev.sixik.unigui.widgets.render.ButtonRenderer;
 import dev.sixik.unigui.widgets.render.ButtonState;
+import dev.sixik.unigui.widgets.render.RadioButtonRenderState;
+import dev.sixik.unigui.widgets.render.RadioButtonRenderer;
+import dev.sixik.unigui.widgets.render.RadioButtonRenderers;
+import dev.sixik.unigui.api.widget.render.WidgetRole;
 
 import java.util.Objects;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
@@ -66,6 +71,7 @@ public class RadioButton extends Button {
     private boolean labelLeft;
     private float selectionProgress;
     private TransitionSpec selectionAnimation = TransitionSpec.of(DEFAULT_SELECTION_ANIMATION_SECONDS);
+    private RadioButtonRenderer radioButtonRenderer;
 
     public RadioButton() {
         this("", "");
@@ -95,6 +101,24 @@ public class RadioButton extends Button {
         borderVisible(false);
         checkedColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         onClick(event -> checked(true));
+    }
+
+    /** @return typed renderer radio button или {@code null}, если используется theme/default */
+    public RadioButtonRenderer radioButtonRenderer() {
+        return radioButtonRenderer;
+    }
+
+    /** Устанавливает typed renderer radio button. */
+    public RadioButton radioButtonRenderer(RadioButtonRenderer renderer) {
+        if (this.radioButtonRenderer == renderer) return this;
+        this.radioButtonRenderer = renderer;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /** Возвращает выбор renderer к theme/default пути. */
+    public RadioButton useDefaultRadioButtonRenderer() {
+        return radioButtonRenderer(null);
     }
 
     public String value() {
@@ -259,7 +283,32 @@ public class RadioButton extends Button {
     @Override
     protected void renderContent(RenderContext context) {
         applyTheme();
-        renderButtonVisual(context, snapshot(context));
+        RadioButtonRenderState state = radioButtonSnapshot(context);
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        RadioButtonRenderer typed = radioButtonRenderer;
+        if (typed == null) {
+            typed = styleRendererOverride(WidgetRole.RADIO_BUTTON, RadioButtonRenderer.class);
+        }
+        if (typed != null) {
+            typed.render(draw, state);
+            renderChildren(context);
+            return;
+        }
+
+        ButtonRenderer legacy = renderer();
+        if (legacy == null) {
+            legacy = styleRendererOverride(WidgetRole.RADIO_BUTTON, ButtonRenderer.class);
+        }
+        if (legacy != null) {
+            legacy.render(draw, state.toLegacyButtonState());
+            renderChildren(context);
+            return;
+        }
+        if (renderStylePlan(context, ButtonState.class, state.toLegacyButtonState())) {
+            renderChildren(context);
+            return;
+        }
+        RadioButtonRenderers.DEFAULT.render(draw, state);
         renderChildren(context);
     }
 
@@ -270,13 +319,19 @@ public class RadioButton extends Button {
 
     @Override
     protected ButtonRenderer effectiveRenderer() {
-        return renderer() == null ? styleRenderer(ButtonRenderer.class, defaultRenderer()) : renderer();
+        return renderer() == null
+                ? styleRenderer(WidgetRole.RADIO_BUTTON, ButtonRenderer.class, defaultRenderer())
+                : renderer();
     }
 
     @Override
     protected ButtonState snapshot(RenderContext context) {
-        return new ButtonState(
-                ButtonRenderType.RADIO_BUTTON,
+        return radioButtonSnapshot(context).toLegacyButtonState();
+    }
+
+    /** Собирает typed состояние radio button без зависимости renderer от виджета. */
+    protected RadioButtonRenderState radioButtonSnapshot(RenderContext context) {
+        return new RadioButtonRenderState(
                 layoutBounds().x(),
                 layoutBounds().y(),
                 layoutBounds().width(),
@@ -291,14 +346,19 @@ public class RadioButton extends Button {
                 hovered(),
                 enabled(),
                 checked,
-                false,
                 outerSize,
                 innerSize,
                 textGap,
                 checkedColor.copy(),
                 (checked ? checkedColor : borderColor()).copy(),
                 selectionProgress,
-                labelLeft);
+                labelLeft,
+                backgroundVisible(),
+                background().copy(),
+                radius(),
+                borderVisible(),
+                borderColor().copy(),
+                borderWidth());
     }
 
     void setGroupInternal(RadioGroup group) {

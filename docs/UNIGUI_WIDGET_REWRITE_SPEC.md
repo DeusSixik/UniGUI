@@ -561,6 +561,11 @@ visual child и persistence record.
 
 Сохранить typed renderer API, но сгруппировать типы по единому шаблону:
 
+Для семантически интерактивных контролов дополнительно действует правило one role -> one primary
+renderer contract. `Checkbox`, `RadioButton` и `ToggleSwitch` не должны расширять универсальный
+`ButtonState` только ради общего input behavior. Общие части внешнего вида переиспользуются через
+renderer parts. Подробный контракт находится в `docs/UNIGUI_WIDGET_RENDERER_SPEC.md`.
+
 ```text
 <Widget>State
 <Widget>Renderer

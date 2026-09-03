@@ -8,6 +8,7 @@ import dev.sixik.unigui.api.event.EventSubscription;
 import dev.sixik.unigui.api.event.KeyPressedEvent;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
@@ -19,6 +20,10 @@ import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.render.ButtonRenderType;
 import dev.sixik.unigui.widgets.render.ButtonRenderer;
 import dev.sixik.unigui.widgets.render.ButtonState;
+import dev.sixik.unigui.widgets.render.ToggleButtonRenderState;
+import dev.sixik.unigui.widgets.render.ToggleButtonRenderer;
+import dev.sixik.unigui.widgets.render.ToggleButtonRenderers;
+import dev.sixik.unigui.api.widget.render.WidgetRole;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
 
@@ -46,6 +51,7 @@ public class ToggleButton extends Button {
     private final MutableColor checkedBackground = new MutableColor(0.18f, 0.45f, 0.75f, 1.0f);
     private final MutableColor uncheckedBackground = new MutableColor(0.12f, 0.12f, 0.12f, 1.0f);
     private boolean checked;
+    private ToggleButtonRenderer toggleButtonRenderer;
 
     public ToggleButton() {
         this("");
@@ -62,6 +68,24 @@ public class ToggleButton extends Button {
     public ToggleButton(RichText text) {
         this("");
         richText(text);
+    }
+
+    /** @return typed renderer toggle button или {@code null}, если используется theme/default */
+    public ToggleButtonRenderer toggleButtonRenderer() {
+        return toggleButtonRenderer;
+    }
+
+    /** Устанавливает typed renderer toggle button. */
+    public ToggleButton toggleButtonRenderer(ToggleButtonRenderer renderer) {
+        if (this.toggleButtonRenderer == renderer) return this;
+        this.toggleButtonRenderer = renderer;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /** Возвращает выбор renderer к theme/default пути. */
+    public ToggleButton useDefaultToggleButtonRenderer() {
+        return toggleButtonRenderer(null);
     }
 
     public boolean checked() {
@@ -106,19 +130,57 @@ public class ToggleButton extends Button {
     }
 
     @Override
+    protected void renderContent(RenderContext context) {
+        applyTheme();
+        ToggleButtonRenderState state = toggleButtonSnapshot(context);
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        ToggleButtonRenderer typed = toggleButtonRenderer;
+        if (typed == null) {
+            typed = styleRendererOverride(WidgetRole.TOGGLE_BUTTON, ToggleButtonRenderer.class);
+        }
+        if (typed != null) {
+            typed.render(draw, state);
+            renderChildren(context);
+            return;
+        }
+
+        ButtonRenderer legacy = renderer();
+        if (legacy == null) {
+            legacy = styleRendererOverride(WidgetRole.TOGGLE_BUTTON, ButtonRenderer.class);
+        }
+        if (legacy != null) {
+            legacy.render(draw, state.toLegacyButtonState());
+            renderChildren(context);
+            return;
+        }
+        if (renderStylePlan(context, ButtonState.class, state.toLegacyButtonState())) {
+            renderChildren(context);
+            return;
+        }
+        ToggleButtonRenderers.DEFAULT.render(draw, state);
+        renderChildren(context);
+    }
+
+    @Override
     protected ButtonRenderer defaultRenderer() {
         return WidgetsRender.toggleButton();
     }
 
     @Override
     protected ButtonRenderer effectiveRenderer() {
-        return renderer() == null ? styleRenderer(ButtonRenderer.class, defaultRenderer()) : renderer();
+        return renderer() == null
+                ? styleRenderer(WidgetRole.TOGGLE_BUTTON, ButtonRenderer.class, defaultRenderer())
+                : renderer();
     }
 
     @Override
     protected ButtonState snapshot(RenderContext context) {
-        return new ButtonState(
-                ButtonRenderType.TOGGLE_BUTTON,
+        return toggleButtonSnapshot(context).toLegacyButtonState();
+    }
+
+    /** Собирает typed состояние toggle button без зависимости renderer от виджета. */
+    protected ToggleButtonRenderState toggleButtonSnapshot(RenderContext context) {
+        return new ToggleButtonRenderState(
                 layoutBounds().x(),
                 layoutBounds().y(),
                 layoutBounds().width(),
@@ -133,14 +195,8 @@ public class ToggleButton extends Button {
                 hovered(),
                 enabled(),
                 checked,
-                false,
-                0.0f,
-                0.0f,
-                0.0f,
                 checkedBackground.copy(),
                 uncheckedBackground.copy(),
-                checked ? 1.0f : 0.0f,
-                false,
                 backgroundVisible(),
                 background().copy(),
                 radius(),

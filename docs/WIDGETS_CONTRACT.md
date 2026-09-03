@@ -135,6 +135,13 @@ Layout/container-only виджет, который только размещае
 
 Прямой API `renderer(...)` не является обязательным для каждого нового виджета. Основной путь кастомизации - Style/Theme и declarative `RenderPlan`.
 
+У визуального виджета должен быть один primary renderer-контракт, соответствующий его semantic role.
+Несколько реализаций этого typed-контракта допустимы для разных тем и custom overrides. Нельзя
+представлять checkbox, radio или toggle только как разновидность `ButtonRenderer` ради переиспользования
+клика или hover-состояния. Общее поведение переиспользуется через behavior, а общий background/border,
+label и indicator - через renderer parts. Подробная схема и порядок миграции описаны в
+`docs/UNIGUI_WIDGET_RENDERER_SPEC.md`.
+
 Если низкоуровневая замена renderer действительно нужна:
 
 - renderer регистрируется в `WidgetRendererRegistry`;

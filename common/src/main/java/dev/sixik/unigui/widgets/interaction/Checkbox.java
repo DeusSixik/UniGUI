@@ -12,6 +12,7 @@ import dev.sixik.unigui.api.event.EventSubscription;
 import dev.sixik.unigui.api.event.KeyPressedEvent;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.layout.LayoutContext;
+import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.CheckboxState;
@@ -19,9 +20,14 @@ import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
-import dev.sixik.unigui.widgets.render.ButtonRenderType;
 import dev.sixik.unigui.widgets.render.ButtonRenderer;
 import dev.sixik.unigui.widgets.render.ButtonState;
+import dev.sixik.unigui.widgets.render.CheckboxRenderState;
+import dev.sixik.unigui.widgets.render.CheckboxRenderer;
+import dev.sixik.unigui.widgets.render.CheckboxRenderers;
+import dev.sixik.unigui.widgets.render.ToggleButtonRenderer;
+import dev.sixik.unigui.widgets.render.ToggleButtonRenderState;
+import dev.sixik.unigui.api.widget.render.WidgetRole;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
 
@@ -62,6 +68,8 @@ public class Checkbox extends ToggleButton {
     private boolean labelLeft;
     private float checkProgress;
     private TransitionSpec checkAnimation = TransitionSpec.of(DEFAULT_CHECK_ANIMATION_SECONDS);
+    private CheckboxRenderer checkboxRenderer;
+    private ToggleButtonRenderer legacyToggleButtonRenderer;
 
     public Checkbox() {
         this("");
@@ -77,6 +85,69 @@ public class Checkbox extends ToggleButton {
         super(text);
         backgroundVisible(false);
         borderVisible(false);
+    }
+
+    /** @return typed renderer checkbox или {@code null}, если используется theme/default */
+    public CheckboxRenderer checkboxRenderer() {
+        return checkboxRenderer;
+    }
+
+    /**
+     * Устанавливает typed renderer checkbox.
+     *
+     * <p>Метод добавлен рядом со старым {@link #renderer()} API. Старый renderer сохраняется
+     * как legacy fallback до завершения миграции остальных checkable controls.</p>
+     */
+    public Checkbox checkboxRenderer(CheckboxRenderer renderer) {
+        if (this.checkboxRenderer == renderer && legacyToggleButtonRenderer == null) return this;
+        this.checkboxRenderer = renderer;
+        this.legacyToggleButtonRenderer = null;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /** Возвращает выбор renderer к theme/default пути. */
+    public Checkbox useDefaultCheckboxRenderer() {
+        return checkboxRenderer(null);
+    }
+
+    /**
+     * Совместимый мост для старого API ToggleButton.
+     *
+     * <p>Checkbox имеет собственную semantic role, поэтому renderer автоматически адаптируется
+     * к typed {@link CheckboxRenderer}, а не передаётся в чужой render path.</p>
+     *
+     * @deprecated используйте {@link #checkboxRenderer(CheckboxRenderer)}
+     */
+    @Deprecated
+    @Override
+    public ToggleButtonRenderer toggleButtonRenderer() {
+        return legacyToggleButtonRenderer;
+    }
+
+    /** @deprecated используйте {@link #checkboxRenderer(CheckboxRenderer)} */
+    @Deprecated
+    @Override
+    public Checkbox toggleButtonRenderer(ToggleButtonRenderer renderer) {
+        legacyToggleButtonRenderer = renderer;
+        checkboxRenderer = renderer == null
+                ? null
+                : (draw, state) -> renderer.render(draw, new ToggleButtonRenderState(
+                        state.x(), state.y(), state.width(), state.height(), state.text(), state.richText(),
+                        state.textPaddingX(), state.textWidth(), state.textHeight(), state.textColor(),
+                        state.pressed(), state.hovered(), state.enabled(), state.checked(),
+                        state.indicatorColor(), state.backgroundColor(), state.backgroundVisible(),
+                        state.backgroundColor(), state.radius(), state.borderVisible(),
+                        state.borderColor(), state.borderWidth()));
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /** @deprecated используйте {@link #useDefaultCheckboxRenderer()} */
+    @Deprecated
+    @Override
+    public Checkbox useDefaultToggleButtonRenderer() {
+        return toggleButtonRenderer((ToggleButtonRenderer) null);
     }
 
     public CheckboxState state() {
@@ -246,7 +317,34 @@ public class Checkbox extends ToggleButton {
     @Override
     protected void renderContent(RenderContext context) {
         applyTheme();
-        renderButtonVisual(context, snapshot(context));
+        CheckboxRenderState state = checkboxSnapshot(context);
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+
+        CheckboxRenderer typed = checkboxRenderer;
+        if (typed == null) {
+            typed = styleRendererOverride(WidgetRole.CHECKBOX, CheckboxRenderer.class);
+        }
+        if (typed != null) {
+            typed.render(draw, state);
+            renderChildren(context);
+            return;
+        }
+
+        ButtonRenderer legacy = renderer();
+        if (legacy == null) {
+            legacy = styleRendererOverride(WidgetRole.CHECKBOX, ButtonRenderer.class);
+        }
+        if (legacy != null) {
+            legacy.render(draw, state.toLegacyButtonState());
+            renderChildren(context);
+            return;
+        }
+
+        if (renderStylePlan(context, ButtonState.class, state.toLegacyButtonState())) {
+            renderChildren(context);
+            return;
+        }
+        CheckboxRenderers.DEFAULT.render(draw, state);
         renderChildren(context);
     }
 
@@ -257,13 +355,19 @@ public class Checkbox extends ToggleButton {
 
     @Override
     protected ButtonRenderer effectiveRenderer() {
-        return renderer() == null ? styleRenderer(ButtonRenderer.class, defaultRenderer()) : renderer();
+        return renderer() == null
+                ? styleRenderer(WidgetRole.CHECKBOX, ButtonRenderer.class, defaultRenderer())
+                : renderer();
     }
 
     @Override
     protected ButtonState snapshot(RenderContext context) {
-        return new ButtonState(
-                ButtonRenderType.CHECKBOX,
+        return checkboxSnapshot(context).toLegacyButtonState();
+    }
+
+    /** Собирает typed состояние checkbox без зависимости renderer от самого виджета. */
+    protected CheckboxRenderState checkboxSnapshot(RenderContext context) {
+        return new CheckboxRenderState(
                 layoutBounds().x(),
                 layoutBounds().y(),
                 layoutBounds().width(),
@@ -285,7 +389,13 @@ public class Checkbox extends ToggleButton {
                 checkedBackground().copy(),
                 borderColor().copy(),
                 checkProgress,
-                labelLeft);
+                labelLeft,
+                backgroundVisible(),
+                background().copy(),
+                radius(),
+                borderVisible(),
+                borderColor().copy(),
+                borderWidth());
     }
 
     private void setState(CheckboxState state, boolean emitChange) {

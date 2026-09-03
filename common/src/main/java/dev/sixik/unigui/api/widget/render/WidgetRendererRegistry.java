@@ -70,13 +70,37 @@ public final class WidgetRendererRegistry {
      * @param <T> тип renderer-интерфейса
      */
     public <T> WidgetRendererRegistry register(String id, Class<T> type, T renderer) {
+        return register(id, WidgetRole.UNSPECIFIED, type, renderer);
+    }
+
+    /**
+     * Регистрирует renderer с явной семантической ролью.
+     *
+     * <p>Role не заменяет проверку Java-типа. Она дополнительно запрещает назначить,
+     * например, renderer обычной кнопки checkbox-контролу. Старый overload выше оставлен
+     * для legacy renderer'ов.</p>
+     *
+     * @param id строковый id renderer'а
+     * @param role semantic role, для которой предназначен renderer
+     * @param type интерфейс renderer'а
+     * @param renderer объект renderer'а
+     * @return этот registry для fluent-настройки
+     * @param <T> тип renderer-интерфейса
+     */
+    public <T> WidgetRendererRegistry register(String id, WidgetRole role, Class<T> type, T renderer) {
         String normalized = normalizeRequired(id, "id");
+        Objects.requireNonNull(role, "role");
         Objects.requireNonNull(type, "type");
         Objects.requireNonNull(renderer, "renderer");
         if (!type.isInstance(renderer)) {
             throw new IllegalArgumentException("Renderer '" + normalized + "' must be " + type.getName());
         }
-        renderers.put(normalized, new RegisteredRenderer<>(normalized, type, renderer));
+        if (renderer instanceof WidgetRenderer<?> typedRenderer
+                && !role.accepts(typedRenderer.role())) {
+            throw new IllegalArgumentException("Renderer '" + normalized + "' has role "
+                    + typedRenderer.role() + ", expected " + role);
+        }
+        renderers.put(normalized, new RegisteredRenderer<>(normalized, role, type, renderer));
         return this;
     }
 
@@ -113,9 +137,25 @@ public final class WidgetRendererRegistry {
      * @param <T> тип renderer-интерфейса
      */
     public <T> Optional<T> renderer(String id, Class<T> type) {
+        return renderer(id, WidgetRole.UNSPECIFIED, type);
+    }
+
+    /**
+     * Возвращает renderer только если совпадают Java-тип и semantic role.
+     *
+     * @param id id renderer'а
+     * @param role ожидаемая роль виджета
+     * @param type ожидаемый renderer-интерфейс
+     * @return совместимый renderer или {@link Optional#empty()}
+     * @param <T> тип renderer-интерфейса
+     */
+    public <T> Optional<T> renderer(String id, WidgetRole role, Class<T> type) {
+        Objects.requireNonNull(role, "role");
         Objects.requireNonNull(type, "type");
         RegisteredRenderer<?> descriptor = renderers.get(normalize(id));
-        if (descriptor == null || !type.isAssignableFrom(descriptor.type())) {
+        if (descriptor == null
+                || !role.accepts(descriptor.role())
+                || !type.isAssignableFrom(descriptor.type())) {
             return Optional.empty();
         }
         return Optional.of(type.cast(descriptor.renderer()));
@@ -134,12 +174,27 @@ public final class WidgetRendererRegistry {
      * @param <T> тип renderer-интерфейса
      */
     public <T> T resolve(Class<T> type, Object value, T fallback) {
+        return resolve(WidgetRole.UNSPECIFIED, type, value, fallback);
+    }
+
+    /**
+     * Разрешает renderer с проверкой semantic role.
+     *
+     * @param role ожидаемая роль виджета
+     * @param type ожидаемый renderer-интерфейс
+     * @param value renderer-объект или строковый id
+     * @param fallback fallback-значение
+     * @return совместимый renderer или {@code fallback}
+     * @param <T> тип renderer-интерфейса
+     */
+    public <T> T resolve(WidgetRole role, Class<T> type, Object value, T fallback) {
+        Objects.requireNonNull(role, "role");
         Objects.requireNonNull(type, "type");
         if (type.isInstance(value)) {
             return type.cast(value);
         }
         if (value instanceof String id) {
-            return renderer(id, type).orElse(fallback);
+            return renderer(id, role, type).orElse(fallback);
         }
         return fallback;
     }
@@ -169,14 +224,21 @@ public final class WidgetRendererRegistry {
      * Описание одного renderer'а в registry.
      *
      * @param id строковый id renderer'а
+     * @param role semantic role renderer'а
      * @param type renderer-интерфейс, с которым renderer был зарегистрирован
      * @param renderer renderer-объект
      * @param <T> тип renderer-интерфейса
      */
-    public record RegisteredRenderer<T>(String id, Class<T> type, T renderer) {
+    public record RegisteredRenderer<T>(String id, WidgetRole role, Class<T> type, T renderer) {
+        /** Совместимый конструктор для старого кода без semantic role. */
+        public RegisteredRenderer(String id, Class<T> type, T renderer) {
+            this(id, WidgetRole.UNSPECIFIED, type, renderer);
+        }
+
         /** Нормализует id и проверяет обязательные поля descriptor'а. */
         public RegisteredRenderer {
             id = normalizeRequired(id, "id");
+            role = Objects.requireNonNull(role, "role");
             type = Objects.requireNonNull(type, "type");
             renderer = Objects.requireNonNull(renderer, "renderer");
         }
