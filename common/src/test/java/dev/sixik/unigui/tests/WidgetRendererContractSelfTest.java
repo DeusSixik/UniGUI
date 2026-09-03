@@ -12,6 +12,8 @@ import dev.sixik.unigui.widgets.render.RadioButtonRenderer;
 import dev.sixik.unigui.widgets.render.ToggleButtonRenderer;
 import dev.sixik.unigui.widgets.render.ToggleSwitchRenderer;
 import dev.sixik.unigui.widgets.render.HoldButtonRenderer;
+import dev.sixik.unigui.widgets.render.HoldButtonState;
+import dev.sixik.unigui.widgets.render.ButtonState;
 import dev.sixik.unigui.widgets.render.ToggleSwitchRenderState;
 import dev.sixik.unigui.widgets.render.ToolButtonRenderer;
 import dev.sixik.unigui.widgets.interaction.IconButton;
@@ -71,6 +73,19 @@ public final class WidgetRendererContractSelfTest {
         expect(registry.renderer("test:tool", WidgetRole.TOOL_BUTTON, ToolButtonRenderer.class)
                         .orElse(null) == toolButtonRenderer,
                 "ToolButton renderer should resolve for ToolButton role");
+        expect(registry.resolve(WidgetRole.CHECKBOX, ButtonRenderer.class, buttonRenderer, null) == null,
+                "Direct renderer object with a different role must be rejected");
+
+        HoldButtonState holdState = new HoldButtonState(
+                0.0f, 0.0f, 100.0f, 24.0f, "Hold", null,
+                8.0f, 32.0f, 10.0f, null, false, false, true,
+                true, null, 3.0f, true, null, 1.0f,
+                0.5f, 0.25f, 0.65f, true, false, null);
+        expect(holdState.holdProgress() == 0.5f && holdState.textWidth() == 32.0f,
+                "HoldButton typed state should keep hold and button visual data independently");
+        ButtonState legacyHoldState = holdState.button();
+        expect(legacyHoldState.width() == holdState.width(),
+                "HoldButton legacy adapter should preserve geometry");
 
         registry.register("test:legacy", ButtonRenderer.class, buttonRenderer);
         expect(registry.renderer("test:legacy", WidgetRole.CHECKBOX, ButtonRenderer.class)

@@ -19,19 +19,17 @@ import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
-import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
-import dev.sixik.unigui.widgets.render.ButtonRenderType;
 import dev.sixik.unigui.widgets.render.ButtonRenderer;
-import dev.sixik.unigui.widgets.render.ButtonState;
 import dev.sixik.unigui.widgets.render.HoldButtonRenderer;
 import dev.sixik.unigui.widgets.render.HoldButtonRenderers;
 import dev.sixik.unigui.widgets.render.HoldButtonState;
+import dev.sixik.unigui.api.widget.render.WidgetRole;
 
 /**
  * Button that requires the primary pointer to be held for a configurable duration
@@ -225,30 +223,31 @@ public class HoldButton extends Button {
     protected HoldButtonRenderer effectiveHoldRenderer() {
         if (holdRenderer != null) return holdRenderer;
 
-        HoldButtonRenderer styled = styleRenderer(HoldButtonRenderer.class, null);
         ButtonRenderer buttonRenderer = renderer();
         if (buttonRenderer != null) {
-            return (draw, state) -> {
-                buttonRenderer.render(draw, state.button());
-
-                if (styled == null) {
-                    float progress = Math.max(0.0f, Math.min(1.0f, state.holdProgress()));
-                    if (progress > 0.0f) {
-                        draw.rect(state.x(), state.y(), state.width() * progress, state.height(),
-                                Paint.fill(state.holdColor()));
-                    }
-                } else {
-                    styled.render(draw, state);
-                }
-            };
+            return withHoldProgress(buttonRenderer);
         }
 
-        return styled != null ? styled : HoldButtonRenderers.DEFAULT;
+        HoldButtonRenderer styled = styleRenderer(WidgetRole.HOLD_BUTTON, HoldButtonRenderer.class, null);
+        if (styled != null) return styled;
+
+        ButtonRenderer styledLegacy = styleRenderer(WidgetRole.HOLD_BUTTON, ButtonRenderer.class, null);
+        return styledLegacy == null ? HoldButtonRenderers.DEFAULT : withHoldProgress(styledLegacy);
+    }
+
+    private HoldButtonRenderer withHoldProgress(ButtonRenderer buttonRenderer) {
+        return (draw, state) -> {
+            buttonRenderer.render(draw, state.button());
+            float progress = Math.max(0.0f, Math.min(1.0f, state.holdProgress()));
+            if (progress > 0.0f) {
+                draw.rect(state.x(), state.y(), state.width() * progress, state.height(),
+                        Paint.fill(state.holdColor()));
+            }
+        };
     }
 
     protected HoldButtonState holdSnapshot(RenderContext context) {
-        ButtonState button = new ButtonState(
-                ButtonRenderType.BUTTON,
+        return new HoldButtonState(
                 layoutBounds().x(),
                 layoutBounds().y(),
                 layoutBounds().width(),
@@ -262,24 +261,12 @@ public class HoldButton extends Button {
                 pressed(),
                 hovered(),
                 enabled(),
-                false,
-                false,
-                0.0f,
-                0.0f,
-                0.0f,
-                background().copy(),
-                borderColor().copy(),
-                0.0f,
-                false,
                 backgroundVisible(),
                 background().copy(),
                 radius(),
                 borderVisible(),
                 borderColor().copy(),
-                borderWidth());
-
-        return new HoldButtonState(
-                button,
+                borderWidth(),
                 holdProgress(),
                 holdElapsedSeconds,
                 holdDurationSeconds,
@@ -290,6 +277,10 @@ public class HoldButton extends Button {
 
     private void startHolding(int pointerId) {
         activePointerId = pointerId;
+        UIContext context = uiContext();
+        if (context != null) {
+            context.capturePointer(pointerId, this);
+        }
         holding = true;
         completed = false;
         holdElapsedSeconds = 0.0f;
@@ -299,7 +290,7 @@ public class HoldButton extends Button {
     private void stopHolding(boolean resetProgress) {
         if (!holding && (!resetProgress || holdElapsedSeconds == 0.0f)) return;
         holding = false;
-        activePointerId = -1;
+        releaseActivePointer();
         if (resetProgress) {
             holdElapsedSeconds = 0.0f;
         }
@@ -314,7 +305,7 @@ public class HoldButton extends Button {
         if (completed) return;
         completed = true;
         holding = false;
-        activePointerId = -1;
+        releaseActivePointer();
         holdElapsedSeconds = holdDurationSeconds;
         invalidate(InvalidationFlags.VISUAL);
 
@@ -325,6 +316,15 @@ public class HoldButton extends Button {
 
         holdElapsedSeconds = 0.0f;
         invalidate(InvalidationFlags.VISUAL);
+    }
+
+    private void releaseActivePointer() {
+        if (activePointerId < 0) return;
+        UIContext context = uiContext();
+        if (context != null) {
+            context.releasePointer(activePointerId, this);
+        }
+        activePointerId = -1;
     }
 
     private HoldCompletedEvent dispatchHoldCompleted() {

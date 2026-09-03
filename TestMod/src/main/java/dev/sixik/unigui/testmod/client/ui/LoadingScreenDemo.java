@@ -119,8 +119,8 @@ public final class LoadingScreenDemo {
     private static final class LoadingRoot extends Box {
         private static final long VANILLA_FADE_IN_MILLIS = 1_000L;
         private static final long VANILLA_FADE_HOLD_MILLIS = 1_000L;
-        private static final float FADE_OUT_SECONDS = 5.0f;
-        private static final long FADE_OUT_MILLIS = 5_000L;
+        private static final float FADE_OUT_SECONDS = 2.0f;
+        private static final long FADE_OUT_MILLIS = 2_000L;
         private long firstRenderAt = -1L;
         private long vanillaFadeOutStartedAt = -1L;
         private long fadeOutStartedAt = -1L;

@@ -155,7 +155,7 @@ public final class WidgetRendererRegistry {
         RegisteredRenderer<?> descriptor = renderers.get(normalize(id));
         if (descriptor == null
                 || !role.accepts(descriptor.role())
-                || !type.isAssignableFrom(descriptor.type())) {
+                || !type.isInstance(descriptor.renderer())) {
             return Optional.empty();
         }
         return Optional.of(type.cast(descriptor.renderer()));
@@ -190,13 +190,20 @@ public final class WidgetRendererRegistry {
     public <T> T resolve(WidgetRole role, Class<T> type, Object value, T fallback) {
         Objects.requireNonNull(role, "role");
         Objects.requireNonNull(type, "type");
-        if (type.isInstance(value)) {
+        if (type.isInstance(value) && acceptsRole(role, value)) {
             return type.cast(value);
         }
         if (value instanceof String id) {
             return renderer(id, role, type).orElse(fallback);
         }
         return fallback;
+    }
+
+    private static boolean acceptsRole(WidgetRole expectedRole, Object renderer) {
+        if (expectedRole == WidgetRole.UNSPECIFIED || !(renderer instanceof WidgetRenderer<?> typedRenderer)) {
+            return true;
+        }
+        return expectedRole.accepts(typedRenderer.role());
     }
 
     /**

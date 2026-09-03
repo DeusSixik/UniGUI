@@ -32,8 +32,13 @@ import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
 import dev.sixik.unigui.widgets.render.ButtonRenderer;
+import dev.sixik.unigui.widgets.render.ButtonRenderState;
 import dev.sixik.unigui.widgets.render.ButtonRenderType;
 import dev.sixik.unigui.widgets.render.ButtonState;
+import dev.sixik.unigui.widgets.render.ButtonVisualRenderer;
+import dev.sixik.unigui.widgets.render.ButtonVisualRenderers;
+import dev.sixik.unigui.widgets.render.ButtonRenderers;
+import dev.sixik.unigui.api.widget.render.WidgetRole;
 
 import java.util.Objects;
 import dev.sixik.unigui.widgets.containers.Box;
@@ -335,6 +340,11 @@ public class Button extends Box {
 
     protected void renderButtonVisual(RenderContext context, ButtonState state) {
         DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        ButtonVisualRenderer typed = styleRendererOverride(WidgetRole.BUTTON, ButtonVisualRenderer.class);
+        if (typed != null) {
+            typed.render(draw, ButtonRenderState.fromLegacyButtonState(state));
+            return;
+        }
         if (renderer != null) {
             renderer.render(draw, state);
             return;
@@ -345,7 +355,11 @@ public class Button extends Box {
             return;
         }
         if (renderStylePlan(context, ButtonState.class, state)) return;
-        defaultRenderer().render(draw, state);
+        ButtonRenderer legacyDefault = defaultRenderer();
+        ButtonVisualRenderer defaultVisual = legacyDefault == ButtonRenderers.DEFAULT
+                ? ButtonVisualRenderers.DEFAULT
+                : ButtonVisualRenderers.fromLegacy(legacyDefault);
+        defaultVisual.render(draw, ButtonRenderState.fromLegacyButtonState(state));
     }
 
     protected ButtonRenderer defaultRenderer() {

@@ -671,9 +671,15 @@ Typed renderer-ы используют эти части и сохраняют �
 renderer-контракт: parts являются небольшими переиспользуемыми building blocks, а владельцем
 полного render path по-прежнему остаётся renderer semantic role.
 
-`HoldButtonRenderer` также объявляет роль `HOLD_BUTTON`. Его состояние пока содержит legacy
-`ButtonState` для совместимости с текущим progress/chrome pipeline; это следующий кандидат на
-разделение состояния и renderer parts после миграции toolbar-контролов.
+`HoldButtonRenderer` также объявляет роль `HOLD_BUTTON`. Его основное состояние теперь содержит
+собственные typed visual-поля и данные hold-прогресса. Метод `HoldButtonState.button()` и
+конструктор из `ButtonState` сохранены как `@Deprecated` adapter только для переходной
+совместимости со старыми renderer-ами.
+
+Обычная `Button` теперь имеет основной typed-контракт `ButtonVisualRenderer` и
+`ButtonRenderState`. Legacy `ButtonRenderer` и `ButtonState` остаются выше typed default в
+порядке совместимости и используются для старых instance/style override и `RenderPlan`;
+публичный instance API typed renderer будет добавляться после готовности role-specific bridges.
 
 Для toolbar-контролов добавлен единый typed-контракт `ToolButtonRenderer` и состояние
 `ToolButtonRenderState`. `ToggleToolButton` и `IconButton` используют этот контракт как
