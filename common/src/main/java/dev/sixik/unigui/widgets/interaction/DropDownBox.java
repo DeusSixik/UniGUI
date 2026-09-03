@@ -378,7 +378,7 @@ public class DropDownBox extends LinearBox {
         return opened ? headerArrowOpened : headerArrowClosed;
     }
 
-    private static RichText createHeaderArrow(boolean opened) {
+    protected static RichText createHeaderArrow(boolean opened) {
         return RichText.builder().append(" ").inline(
                 opened ? "dropdown-arrow-opened" : "dropdown-arrow-closed",
                 opened ? "[up]" : "[down]",
