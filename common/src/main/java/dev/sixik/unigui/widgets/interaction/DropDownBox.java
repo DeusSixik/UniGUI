@@ -10,7 +10,9 @@ import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.layout.Overflow;
+import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.RectView;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
@@ -41,11 +43,15 @@ public class DropDownBox extends LinearBox {
     private static final float DEFAULT_DROP_DOWN_ROW_HEIGHT = HEADER_HEIGHT;
     private static final int DEFAULT_MAX_VISIBLE_ROWS = 6;
     private static final float DEFAULT_MAX_CONTENT_HEIGHT = DEFAULT_DROP_DOWN_ROW_HEIGHT * DEFAULT_MAX_VISIBLE_ROWS;
+    private static final Paint HEADER_ARROW_PAINT = Paint.stroke(
+            MutableColor.rgba(0.72f, 0.84f, 0.90f, 1.0f), 1.35f);
 
     private final Button headerButton = new Button();
     private final Box contentHost = new Box();
     private final ScrollView contentScroll = new ScrollView();
     private final Popup dropDownPopup = new Popup();
+    private final RichText headerArrowClosed = createHeaderArrow(false);
+    private final RichText headerArrowOpened = createHeaderArrow(true);
     private Widget content;
     private String headerText = "Open...";
     private RichText richHeaderText = RichText.plain(headerText);
@@ -107,7 +113,7 @@ public class DropDownBox extends LinearBox {
         });
 
         super.addChild(headerButton);
-        updateHeaderText();
+        headerButton.richText(richHeaderText.append(headerArrowClosed));
     }
 
     public Widget content() {
@@ -356,7 +362,42 @@ public class DropDownBox extends LinearBox {
     }
 
     private void updateHeaderText() {
-        headerButton.richText(richHeaderText.append(RichText.plain(" ?")));
+        headerButton.richText(richHeaderText.append(headerArrow()));
+    }
+
+    /**
+     * Возвращает заранее созданную стрелку текущего состояния списка.
+     *
+     * <p>Стрелки создаются один раз, поэтому переключение состояния не создаёт новый
+     * inline-renderer и не собирает повторно описание геометрии стрелки. Метод оставлен
+     * {@code protected}, чтобы наследник мог заменить визуальное представление.</p>
+     *
+     * @return стрелка вниз для закрытого списка или стрелка вверх для открытого
+     */
+    protected RichText headerArrow() {
+        return opened ? headerArrowOpened : headerArrowClosed;
+    }
+
+    private static RichText createHeaderArrow(boolean opened) {
+        return RichText.builder().append(" ").inline(
+                opened ? "dropdown-arrow-opened" : "dropdown-arrow-closed",
+                opened ? "[up]" : "[down]",
+                12.0f,
+                12.0f,
+                (draw, context) -> {
+                    float left = context.x() + 2.0f;
+                    float center = context.x() + context.width() * 0.5f;
+                    float right = context.x() + context.width() - 2.0f;
+                    float top = context.y() + 4.0f;
+                    float bottom = context.y() + 8.0f;
+                    if (opened) {
+                        draw.line(left, bottom, center, top, HEADER_ARROW_PAINT);
+                        draw.line(center, top, right, bottom, HEADER_ARROW_PAINT);
+                    } else {
+                        draw.line(left, top, center, bottom, HEADER_ARROW_PAINT);
+                        draw.line(center, bottom, right, top, HEADER_ARROW_PAINT);
+                    }
+                }).build();
     }
 
     private void syncDropDownAttachment() {
