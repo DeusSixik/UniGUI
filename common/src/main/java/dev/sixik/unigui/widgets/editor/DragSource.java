@@ -39,6 +39,7 @@ public class DragSource extends Box {
     private float currentRootX;
     private float currentRootY;
     private DropTarget.DropResult lastDropResult = DropTarget.DropResult.IGNORED;
+    private DragAndDropManager dragAndDropManager;
 
     public String payloadId() {
         return payloadId;
@@ -112,6 +113,12 @@ public class DragSource extends Box {
         return new DragPayload(payloadId, payloadType, dragPreview);
     }
 
+    /** Подключает этот источник к координатору drag-and-drop. */
+    DragSource dragAndDropManager(DragAndDropManager manager) {
+        this.dragAndDropManager = manager;
+        return this;
+    }
+
     public boolean startDrag(float rootX, float rootY) {
         if (!canDrag()) return false;
         pointerActive = true;
@@ -119,6 +126,7 @@ public class DragSource extends Box {
         currentRootX = rootX;
         currentRootY = rootY;
         lastDropResult = DropTarget.DropResult.IGNORED;
+        if (dragAndDropManager != null) dragAndDropManager.sourceStarted(this, rootX, rootY);
         emit(Action.STARTED, rootX, rootY, lastDropResult);
         invalidate(InvalidationFlags.VISUAL);
         return true;
@@ -128,6 +136,7 @@ public class DragSource extends Box {
         if (!dragging) return false;
         currentRootX = rootX;
         currentRootY = rootY;
+        if (dragAndDropManager != null) dragAndDropManager.sourceMoved(this, rootX, rootY);
         emit(Action.MOVED, rootX, rootY, lastDropResult);
         invalidate(InvalidationFlags.VISUAL);
         return true;
@@ -147,8 +156,12 @@ public class DragSource extends Box {
         DropTarget.DropResult normalized = result == null ? DropTarget.DropResult.IGNORED : result;
         currentRootX = rootX;
         currentRootY = rootY;
+        if (normalized == DropTarget.DropResult.IGNORED && dragAndDropManager != null) {
+            normalized = dragAndDropManager.sourceDropped(this, rootX, rootY);
+        }
         lastDropResult = normalized;
         emit(Action.ENDED, rootX, rootY, normalized);
+        if (dragAndDropManager != null) dragAndDropManager.sourceFinished(this);
         releasePointerCapture();
         resetPointerState(true);
         invalidate(InvalidationFlags.VISUAL);
@@ -158,6 +171,7 @@ public class DragSource extends Box {
     public boolean cancelDrag() {
         if (!pointerActive && !dragging) return false;
         emit(Action.CANCELLED, currentRootX, currentRootY, DropTarget.DropResult.IGNORED);
+        if (dragAndDropManager != null) dragAndDropManager.sourceCancelled(this);
         releasePointerCapture();
         resetPointerState(false);
         invalidate(InvalidationFlags.VISUAL);

@@ -12,6 +12,8 @@ public final class KeyCodes {
     public static final int V = 86;
     public static final int W = 87;
     public static final int X = 88;
+    public static final int Y = 89;
+    public static final int Z = 90;
     public static final int BACKSPACE = 259;
     public static final int DELETE = 261;
     public static final int RIGHT = 262;

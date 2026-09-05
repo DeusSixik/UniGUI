@@ -24,6 +24,22 @@ tasks.register("layoutV3SelfTest", JavaExec) {
     mainClass = "dev.sixik.unigui.tests.LayoutV3SelfTest"
 }
 
+tasks.register("dragAndDropSelfTest", JavaExec) {
+    group = "verification"
+    description = "Runs drag-and-drop manager self-test assertions."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.DragAndDropSelfTest"
+}
+
+tasks.register("elementsInspectorSelfTest", JavaExec) {
+    group = "verification"
+    description = "Runs ElementsInspector live-tree and undo self-test assertions."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.ElementsInspectorSelfTest"
+}
+
 tasks.register("windowManagerSelfTest", JavaExec) {
     group = "verification"
     description = "Runs window manager self-test assertions."

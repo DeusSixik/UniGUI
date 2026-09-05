@@ -75,6 +75,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
     private static final float RESIZE_HANDLE_SIZE = 6.0f;
 
     private final Button closeButton = new Button("x");
+    private final Button collapseButton = new Button("-");
     private final MutableColor headerColor = new MutableColor(0.075f, 0.090f, 0.125f, 0.98f);
     private final MutableColor headerSeparatorColor = new MutableColor(0.22f, 0.24f, 0.30f, 0.95f);
     private final MutableColor titleColor = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -94,6 +95,9 @@ public class WindowWidget extends Box implements OverlayHostAware {
     private boolean resizing;
     private ResizeHandle resizeHandle = ResizeHandle.NONE;
     private boolean closeButtonVisible = true;
+    private boolean collapseButtonVisible;
+    private boolean collapsed;
+    private Visibility contentVisibilityBeforeCollapse = Visibility.VISIBLE;
     private boolean closeOnOutsideClick;
     private boolean constrainToHost = true;
     private float x = 32.0f;
@@ -125,6 +129,11 @@ public class WindowWidget extends Box implements OverlayHostAware {
         closeButton.textPaddingX(0.0f);
         closeButton.layout(style -> style.size(18.0f, 18.0f).flexGrow(0).flexShrink(0.0f));
         closeButton.onClick(event -> close());
+        collapseButton.textPaddingX(0.0f);
+        collapseButton.layout(style -> style.size(18.0f, 18.0f).flexGrow(0).flexShrink(0.0f));
+        collapseButton.visible(false);
+        collapseButton.onClick(event -> toggleCollapsed());
+        addChild(collapseButton);
         addChild(closeButton);
         headerColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         headerSeparatorColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
@@ -189,8 +198,54 @@ public class WindowWidget extends Box implements OverlayHostAware {
         }
         this.content = content;
         if (content != null) {
+            if (collapsed && content instanceof dev.sixik.unigui.impl.widget.WidgetBase base) {
+                base.visibility(Visibility.COLLAPSED);
+            }
             addChild(content);
         }
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /** Возвращает состояние свёрнутого окна: виден только title bar. */
+    public boolean collapsed() {
+        return collapsed;
+    }
+
+    /** Сворачивает или разворачивает содержимое окна, не закрывая само окно. */
+    @XmlAttribute(value = "collapsed", category = "Behavior", defaultValue = "false", description = "Показывать только заголовок окна.")
+    public WindowWidget collapsed(boolean collapsed) {
+        if (this.collapsed == collapsed) return this;
+        this.collapsed = collapsed;
+        collapseButton.text(collapsed ? "+" : "-");
+        if (content instanceof dev.sixik.unigui.impl.widget.WidgetBase base) {
+            if (collapsed) {
+                contentVisibilityBeforeCollapse = base.visibility();
+                base.visibility(Visibility.COLLAPSED);
+            } else {
+                base.visibility(contentVisibilityBeforeCollapse);
+            }
+        }
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /** Меняет состояние сворачивания. */
+    public WindowWidget toggleCollapsed() {
+        return collapsed(!collapsed);
+    }
+
+    /** Возвращает, показывается ли кнопка сворачивания в title bar. */
+    public boolean collapseButtonVisible() {
+        return collapseButtonVisible;
+    }
+
+    /** Включает или отключает кнопку сворачивания в title bar. */
+    @XmlAttribute(value = "collapseButtonVisible", category = "Behavior", defaultValue = "false", description = "Показывать кнопку сворачивания в заголовке.")
+    public WindowWidget collapseButtonVisible(boolean visible) {
+        if (collapseButtonVisible == visible) return this;
+        collapseButtonVisible = visible;
+        collapseButton.visible(visible);
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
@@ -514,21 +569,32 @@ public class WindowWidget extends Box implements OverlayHostAware {
         if (closeButtonVisible) {
             closeButton.measure(new LayoutContext(18.0f, headerHeight));
         }
+        collapseButton.visible(collapseButtonVisible);
+        if (collapseButtonVisible) {
+            collapseButton.measure(new LayoutContext(18.0f, headerHeight));
+        }
 
         float availableContentWidth = context == null ? DEFAULT_WIDTH : Math.max(0.0f, context.availableWidth() - padding.horizontal());
         float availableContentHeight = context == null ? DEFAULT_HEIGHT : Math.max(0.0f, context.availableHeight() - headerHeight - padding.vertical());
         float contentWidth = 0.0f;
         float contentHeight = 0.0f;
-        if (content != null && content.visibility() != Visibility.COLLAPSED) {
+        if (!collapsed && content != null && content.visibility() != Visibility.COLLAPSED) {
             content.measure(new LayoutContext(availableContentWidth, availableContentHeight));
             contentWidth = content.desiredSize().width();
             contentHeight = content.desiredSize().height();
         }
 
         float closeWidth = closeButtonVisible ? closeButton.desiredSize().width() : 0.0f;
-        float titleWidth = TextEngine.measureLineWidth(title) + padding.left() + padding.right() + closeWidth + 8.0f;
+        float collapseWidth = collapseButtonVisible ? collapseButton.desiredSize().width() : 0.0f;
+        float titleWidth = TextEngine.measureLineWidth(title) + padding.left() + padding.right()
+                + closeWidth + collapseWidth + 8.0f;
         float desiredWidth = Math.max(minWindowWidth, Math.max(titleWidth, contentWidth + padding.horizontal()));
-        float desiredHeight = Math.max(minWindowHeight, headerHeight + contentHeight + padding.vertical());
+        // В collapsed-состоянии окно действительно уменьшается до title bar.
+        // minWindowHeight относится к обычному режиму и не должен оставлять
+        // под заголовком пустой полноразмерный фон.
+        float desiredHeight = collapsed
+                ? Math.max(0.0f, headerHeight)
+                : Math.max(minWindowHeight, headerHeight + contentHeight + padding.vertical());
         setDesiredSize(resolveDesiredSize(context, desiredWidth, desiredHeight));
     }
 
@@ -550,6 +616,12 @@ public class WindowWidget extends Box implements OverlayHostAware {
                 this, bounds,
                 desiredSize().width() > 0.0f ? desiredSize().width() : DEFAULT_WIDTH,
                 desiredSize().height() > 0.0f ? desiredSize().height() : DEFAULT_HEIGHT);
+        if (collapsed) {
+            // Явный size(), оставшийся после resize, не должен превращаться в
+            // пустой фон под свернутым title bar. Сам style не меняем, чтобы
+            // после раскрытия вернуть прежний размер окна.
+            requested.set(requested.x(), requested.y(), requested.width(), headerHeight);
+        }
         MutableRect constrained = constrainToHost
                 ? AbsoluteLayoutEngine.constrainToHost(
                 bounds, requested.x(), requested.y(), requested.width(), requested.height())
@@ -578,8 +650,19 @@ public class WindowWidget extends Box implements OverlayHostAware {
         } else {
             closeButton.arrange(new MutableRect(absoluteX, absoluteY, 0.0f, 0.0f));
         }
+        if (collapseButtonVisible) {
+            float buttonWidth = Math.min(18.0f, Math.max(0.0f, width - padding.horizontal()));
+            float buttonHeight = Math.min(18.0f, Math.max(0.0f, headerHeight - 4.0f));
+            float closeOffset = closeButtonVisible ? buttonWidth + 4.0f : 0.0f;
+            collapseButton.arrange(new MutableRect(
+                    absoluteX + Math.max(0.0f, width - padding.right() - buttonWidth - closeOffset),
+                    absoluteY + Math.max(0.0f, (headerHeight - buttonHeight) * 0.5f),
+                    buttonWidth, buttonHeight));
+        } else {
+            collapseButton.arrange(new MutableRect(absoluteX, absoluteY, 0.0f, 0.0f));
+        }
 
-        if (content != null && content.visibility() != Visibility.COLLAPSED) {
+        if (!collapsed && content != null && content.visibility() != Visibility.COLLAPSED) {
             StackPanel.arrangeChild(content,
                     absoluteX + padding.left(),
                     absoluteY + headerHeight + padding.top(),
@@ -683,6 +766,9 @@ public class WindowWidget extends Box implements OverlayHostAware {
                 padding.right(),
                 closeButtonVisible,
                 closeButton.layoutBounds().width(),
+                collapseButtonVisible,
+                collapseButton.layoutBounds().width(),
+                collapsed,
                 richTitle,
                 TextEngine.measureLineWidth(context, richTitle),
                 TextEngine.measureTextHeight(context, richTitle),

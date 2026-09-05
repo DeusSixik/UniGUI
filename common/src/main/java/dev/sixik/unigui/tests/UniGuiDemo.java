@@ -603,6 +603,8 @@ public final class UniGuiDemo {
     private static void openDemoClient() {
         DefaultUIContext context = new DefaultUIContext(new MinecraftClipboardService())
                 .scaleProvider(SCALE);
+        context.debugFlags(DebugFlags.ELEMENTS_INSPECTOR);
+
         Widget root = demoScreenWidget(context);
         openScreen(Component.literal("UniGUI Demo"), root, context);
     }

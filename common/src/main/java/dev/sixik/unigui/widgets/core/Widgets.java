@@ -42,6 +42,7 @@ import dev.sixik.unigui.widgets.editor.DiagnosticsStrip;
 import dev.sixik.unigui.widgets.editor.Dialog;
 import dev.sixik.unigui.widgets.editor.DragSource;
 import dev.sixik.unigui.widgets.editor.DropTarget;
+import dev.sixik.unigui.widgets.editor.ElementsInspector;
 import dev.sixik.unigui.widgets.editor.GridOverlay;
 import dev.sixik.unigui.widgets.editor.PalettePanel;
 import dev.sixik.unigui.widgets.editor.PaneHeader;
@@ -115,6 +116,10 @@ public final class Widgets {
 
     public static FlexBox flexBox() {
         return new FlexBox();
+    }
+
+    public static ElementsInspector elementsInspector() {
+        return new ElementsInspector();
     }
 
     public static Button button(String text) {

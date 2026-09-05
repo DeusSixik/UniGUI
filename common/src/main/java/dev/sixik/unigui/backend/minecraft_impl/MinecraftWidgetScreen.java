@@ -53,6 +53,9 @@ import dev.sixik.unigui.impl.render.SimpleDrawBatcher;
 import dev.sixik.unigui.impl.render.WidgetTextureRenderer;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.minecraft.MinecraftScaledCustomDraw;
+import dev.sixik.unigui.widgets.editor.ElementsInspector;
+import dev.sixik.unigui.widgets.containers.PanelWidget;
+import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -97,6 +100,7 @@ public class MinecraftWidgetScreen extends Screen {
     private final Map<MouseCursor, Long> nativeCursors = new EnumMap<>(MouseCursor.class);
     private MouseCursor activeMouseCursor = MouseCursor.DEFAULT;
     private boolean layoutInitialized;
+    private ElementsInspector elementsInspector;
     private boolean layoutChangedThisFrame;
     private float lastLayoutWidth = -1.0f;
     private float lastLayoutHeight = -1.0f;
@@ -308,6 +312,8 @@ public class MinecraftWidgetScreen extends Screen {
         FrameContext animationFrame = new FrameContext(frameIndex, deltaSeconds, partialTick, FramePhase.ANIMATION);
         FrameContext renderFrame = new FrameContext(frameIndex, 0.0f, partialTick, FramePhase.RENDER);
 
+        syncElementsInspector();
+
         uiContext.profiler().beginFrame(frameIndex);
         uiContext.debugCounters().beginFrame(frameIndex);
         uiContext.debugCounters().recordFrameTotalMillis(lastFrameTotalMillis);
@@ -474,6 +480,10 @@ public class MinecraftWidgetScreen extends Screen {
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         float logicalMouseX = toLogicalPixels(mouseX);
         float logicalMouseY = toLogicalPixels(mouseY);
+        if (elementsInspector != null && elementsInspector.picker()
+                && !elementsInspector.containsPoint(logicalMouseX, logicalMouseY)) {
+            if (elementsInspector.pick(logicalMouseX, logicalMouseY)) return true;
+        }
         return hit(logicalMouseX, logicalMouseY)
                 .map(hit -> {
                     Widget focusTarget = nearestFocusable(hit.widget());
@@ -861,6 +871,32 @@ public class MinecraftWidgetScreen extends Screen {
 
     private Optional<HitTestResult> hit(float mouseX, float mouseY) {
         return uiContext.hitTester().hitTest(root, mouseX, mouseY);
+    }
+
+    private void syncElementsInspector() {
+        boolean enabled = DebugFlags.has(uiContext.debugFlags(), DebugFlags.ELEMENTS_INSPECTOR);
+        if (enabled && elementsInspector == null) {
+            elementsInspector = new ElementsInspector();
+            if (root instanceof OverlayLayer overlays) {
+                Widget inspectedRoot = overlays.content() == null ? root : overlays.content();
+                elementsInspector.attach(overlays, inspectedRoot).open();
+            } else if (root instanceof PanelWidget panel) {
+                elementsInspector.inspect(root).open();
+                panel.addChild(elementsInspector);
+                panel.applyQueuedMutations();
+            } else {
+                elementsInspector = null;
+            }
+        } else if (!enabled && elementsInspector != null) {
+            elementsInspector.close();
+            if (elementsInspector.parent() instanceof OverlayLayer overlays) {
+                overlays.removeOverlay(elementsInspector);
+            } else if (elementsInspector.parent() instanceof PanelWidget panel) {
+                panel.removeChild(elementsInspector);
+                panel.applyQueuedMutations();
+            }
+            elementsInspector = null;
+        }
     }
 
     private HitTestResult localPoint(Widget widget, float rootX, float rootY) {

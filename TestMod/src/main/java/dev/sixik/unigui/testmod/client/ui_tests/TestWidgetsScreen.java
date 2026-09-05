@@ -1,11 +1,14 @@
 package dev.sixik.unigui.testmod.client.ui_tests;
 
 import dev.sixik.unigui.api.core.UnityLikeUIScaleProvider;
+import dev.sixik.unigui.api.debug.DebugFlags;
+import dev.sixik.unigui.api.layout.LayoutStyle;
 import dev.sixik.unigui.api.render.UiRenderPolicy;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftClipboardService;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftWidgetScreen;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
+import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.display.TextWidget;
 import net.minecraft.client.Minecraft;
@@ -20,7 +23,8 @@ public final class TestWidgetsScreen {
                 .scaleRange(0.75f, 2.0f);
 
         DefaultUIContext context = new DefaultUIContext(new MinecraftClipboardService())
-                .scaleProvider(provider);
+                .scaleProvider(provider)
+                .enableDebugFlags(DebugFlags.ELEMENTS_INSPECTOR);
 
         MinecraftWidgetScreen screen = new MinecraftWidgetScreen(Component.empty(), create(), context);
         screen.scaleWithMinecraftGui(false);
@@ -33,15 +37,21 @@ public final class TestWidgetsScreen {
     private static Widget create() {
         // VBox раскладывает детей сверху вниз. Центрирование по двум осям
         // помещает текст в центр всего доступного экрана.
-        VBox root = new VBox();
+        Box root = new Box();
 
         root.layout(style -> style
                 .expand()
                 .center());
 
         TextWidget text = new TextWidget("HEADER: Hello world!");
-        text.layout(style -> style.flexNone());
+        text.layout(LayoutStyle::flexNone);
 
+        root.themeEnabled(false);
+        root.borderVisible(false);
+        root.backgroundVisible(true);
+        root.background().set(0, 0, 0, 255);
+
+//        root.addChild(background());
         root.addChild(text);
 
         return root;

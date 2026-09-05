@@ -10,6 +10,12 @@ public final class DebugFlags {
     public static final int FOCUS_AND_HOVER = 1 << 5;
     public static final int PROFILER_OVERLAY = 1 << 6;
     public static final int CACHED_SUBTREE = 1 << 7;
+    /** Показывает интерактивный runtime ElementsInspector. */
+    public static final int ELEMENTS_INSPECTOR = 1 << 8;
+    /**
+     * Все пассивные debug-визуализации. Интерактивный ElementsInspector
+     * включается отдельно, чтобы {@code DebugFlags.ALL} не менял поведение экранов.
+     */
     public static final int ALL = WIDGET_BOUNDS | DIRTY_FLAGS | DRAW_COMMANDS | BATCHES | OVERDRAW | FOCUS_AND_HOVER | PROFILER_OVERLAY | CACHED_SUBTREE;
 
     private DebugFlags() {

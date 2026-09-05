@@ -20,6 +20,9 @@ public record WindowState(
         float paddingRight,
         boolean closeButtonVisible,
         float closeButtonWidth,
+        boolean collapseButtonVisible,
+        float collapseButtonWidth,
+        boolean collapsed,
         RichText title,
         float titleTextWidth,
         float titleTextHeight,
@@ -42,5 +45,25 @@ public record WindowState(
         radius = Math.max(0.0f, radius);
         borderWidth = Math.max(0.0f, borderWidth);
         resizeHandle = resizeHandle == null ? "" : resizeHandle;
+    }
+
+    /**
+     * Совместимый конструктор старого формата без collapse-кнопки и состояния
+     * сворачивания.
+     */
+    public WindowState(float x, float y, float width, float height,
+                       boolean backgroundVisible, ColorView backgroundColor, float radius,
+                       boolean borderVisible, ColorView borderColor, float borderWidth,
+                       float headerHeight, float paddingLeft, float paddingRight,
+                       boolean closeButtonVisible, float closeButtonWidth,
+                       RichText title, float titleTextWidth, float titleTextHeight,
+                       ColorView headerColor, ColorView headerSeparatorColor, ColorView titleColor,
+                       boolean active, boolean focused, boolean dragging, boolean resizing,
+                       String resizeHandle, boolean modal, boolean resizable) {
+        this(x, y, width, height, backgroundVisible, backgroundColor, radius,
+                borderVisible, borderColor, borderWidth, headerHeight, paddingLeft, paddingRight,
+                closeButtonVisible, closeButtonWidth, false, 0.0f, false,
+                title, titleTextWidth, titleTextHeight, headerColor, headerSeparatorColor,
+                titleColor, active, focused, dragging, resizing, resizeHandle, modal, resizable);
     }
 }

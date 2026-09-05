@@ -7,6 +7,7 @@ import dev.sixik.unigui.widgets.editor.DiagnosticsStrip;
 import dev.sixik.unigui.widgets.editor.Dialog;
 import dev.sixik.unigui.widgets.editor.DragSource;
 import dev.sixik.unigui.widgets.editor.DropTarget;
+import dev.sixik.unigui.widgets.editor.ElementsInspector;
 import dev.sixik.unigui.widgets.editor.GridOverlay;
 import dev.sixik.unigui.widgets.editor.PalettePanel;
 import dev.sixik.unigui.widgets.editor.PaneHeader;
@@ -69,6 +70,8 @@ final class BuiltInEditorXml {
                 .describe("Drag Source", "Editor", "Container helper that emits XML-configurable drag payload metadata.");
         editorBox(registry.register("DropTarget", DropTarget::new), DropTarget.class)
                 .describe("Drop Target", "Editor", "Container helper that validates drag payload types and reports drop results.");
+        BuiltInWidgetXmlSupport.commonWidget(registry.register("ElementsInspector", ElementsInspector::new), ElementsInspector.class)
+                .describe("Elements Inspector", "Debug", "Live runtime widget tree inspector with properties, picker and undo support.");
     }
 
     private static <T extends Box> WidgetXmlType<T> editorBox(WidgetXmlType<T> type, Class<?> widgetType) {
