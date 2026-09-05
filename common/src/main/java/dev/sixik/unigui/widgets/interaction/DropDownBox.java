@@ -12,7 +12,7 @@ import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.layout.Overflow;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.RectView;
-import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.render.DrawPoint;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
@@ -43,8 +43,6 @@ public class DropDownBox extends LinearBox {
     private static final float DEFAULT_DROP_DOWN_ROW_HEIGHT = HEADER_HEIGHT;
     private static final int DEFAULT_MAX_VISIBLE_ROWS = 6;
     private static final float DEFAULT_MAX_CONTENT_HEIGHT = DEFAULT_DROP_DOWN_ROW_HEIGHT * DEFAULT_MAX_VISIBLE_ROWS;
-    private static final Paint HEADER_ARROW_PAINT = Paint.stroke(
-            MutableColor.rgba(0.72f, 0.84f, 0.90f, 1.0f), 1.35f);
 
     private final Button headerButton = new Button();
     private final Box contentHost = new Box();
@@ -382,20 +380,27 @@ public class DropDownBox extends LinearBox {
         return RichText.builder().append(" ").inline(
                 opened ? "dropdown-arrow-opened" : "dropdown-arrow-closed",
                 opened ? "[up]" : "[down]",
-                12.0f,
-                12.0f,
+                14.0f,
+                14.0f,
                 (draw, context) -> {
                     float left = context.x() + 2.0f;
                     float center = context.x() + context.width() * 0.5f;
                     float right = context.x() + context.width() - 2.0f;
-                    float top = context.y() + 4.0f;
-                    float bottom = context.y() + 8.0f;
+                    float top = context.y() + 3.0f;
+                    float bottom = context.y() + context.height() - 3.0f;
+                    var color = context.color() == null
+                            ? MutableColor.rgba(0.72f, 0.84f, 0.90f, 1.0f)
+                            : context.color();
                     if (opened) {
-                        draw.line(left, bottom, center, top, HEADER_ARROW_PAINT);
-                        draw.line(center, top, right, bottom, HEADER_ARROW_PAINT);
+                        draw.addTriangleFilled(
+                                new DrawPoint(center, top),
+                                new DrawPoint(left, bottom),
+                                new DrawPoint(right, bottom), color);
                     } else {
-                        draw.line(left, top, center, bottom, HEADER_ARROW_PAINT);
-                        draw.line(center, bottom, right, top, HEADER_ARROW_PAINT);
+                        draw.addTriangleFilled(
+                                new DrawPoint(left, top),
+                                new DrawPoint(right, top),
+                                new DrawPoint(center, bottom), color);
                     }
                 }).build();
     }

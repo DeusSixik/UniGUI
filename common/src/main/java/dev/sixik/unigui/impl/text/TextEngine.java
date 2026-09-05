@@ -223,11 +223,23 @@ public final class TextEngine {
      * <p>Для plain rich text метод делегирует в {@link DrawScope#text(RichText, float, float, float, float, Paint)}.
      * Для mixed content он последовательно рисует текстовые chunks и вызывает renderer каждого
      * {@link InlineContentSpan}. Переносы внутри text-run'ов поддерживаются, но редактирование inline-span'ов
-     * остаётся задачей будущего editor layout.</p>
+     * остаётся задачей будущего editor layout. Если inline-span выше шрифта, обычные glyph'ы
+     * автоматически центрируются внутри общей line box.</p>
      */
     public static void drawInline(DrawScope draw, RichText text,
                                   float x, float y, float width, float height,
                                   Paint paint) {
+        drawInline(draw, text, x, y, width, height, paint,
+                Float.NaN);
+    }
+
+    /**
+     * Рисует mixed RichText, позволяя сдвинуть только обычные glyph'ы вниз.
+     * Inline-content сохраняет собственное выравнивание по line box.
+     */
+    public static void drawInline(DrawScope draw, RichText text,
+                                  float x, float y, float width, float height,
+                                  Paint paint, float textVisualOffset) {
         if (draw == null || text == null || text.isEmpty()) return;
         if (!text.hasInlineContent()) {
             draw.text(text, x, y, width, height, paint);
@@ -241,9 +253,14 @@ public final class TextEngine {
         FontFace defaultFace = draw.context().backend() == null ? null : draw.context().backend().defaultTextFace();
         for (RichTextSpan span : text.spans()) {
             if (span instanceof TextRun run) {
-                TextRunDrawResult result = drawTextRun(draw, run, cursorX, cursorY, lineHeight, paint, defaultFace, x);
+                float runOffset = Float.isFinite(textVisualOffset)
+                        ? Math.max(0.0f, textVisualOffset)
+                        : centeredRunOffset(run, lineHeight, defaultFace);
+                TextRunDrawResult result = drawTextRun(draw, run, cursorX,
+                        cursorY + runOffset,
+                        lineHeight, paint, defaultFace, x);
                 cursorX = result.cursorX();
-                cursorY = result.cursorY();
+                cursorY = result.cursorY() - runOffset;
             } else if (span instanceof InlineContentSpan inline) {
                 float inlineY = inlineY(cursorY, lineHeight, inline);
                 InlineContentContext context = new InlineContentContext(
@@ -255,6 +272,23 @@ public final class TextEngine {
                 cursorX += inline.width();
             }
         }
+    }
+
+    /**
+     * Вычисляет оптическое смещение текстового run'а внутри line box.
+     *
+     * <p>Inline-контент может быть выше шрифта. В таком случае обычный текст нужно
+     * опустить на половину разницы высот, иначе он визуально оказывается выше центра.
+     * Для явной перегрузки {@code drawInline(..., textVisualOffset)} эта автоматическая
+     * коррекция не используется.</p>
+     */
+    private static float centeredRunOffset(TextRun run, float lineHeight, FontFace defaultFace) {
+        if (run == null) return 0.0f;
+        FontFace face = run.font() == null ? defaultFace : run.font();
+        float runHeight = face == null
+                ? fallbackLineHeight(run.pixelSize())
+                : positiveLineHeight(face.metrics(run.pixelSize()).lineHeight());
+        return Math.max(0.0f, lineHeight - runHeight) * 0.5f;
     }
 
     public static float alignedStart(float start, float available, float size, Alignment alignment) {

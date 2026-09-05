@@ -463,6 +463,7 @@ public class TextInput extends Box {
                 caretColor.copy(),
                 measuredPrefixWidths,
                 clearButtonVisible(),
+                clearButtonHovered(),
                 clearButtonX(),
                 clearButtonY(),
                 clearButtonWidth(),
@@ -482,6 +483,11 @@ public class TextInput extends Box {
     }
 
     protected boolean clearButtonVisible() {
+        return false;
+    }
+
+    /** Возвращает, находится ли указатель над дополнительной clear-зоной. */
+    protected boolean clearButtonHovered() {
         return false;
     }
 

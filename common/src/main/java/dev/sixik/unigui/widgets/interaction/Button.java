@@ -16,6 +16,7 @@ import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.event.PointerReleasedEvent;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.input.MouseCursor;
+import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
@@ -305,6 +306,22 @@ public class Button extends Box {
             applyInteractionTransition();
         }
         if (event instanceof PointerEvent pointerEvent && pointerEvent.phase() == EventPhase.CAPTURE) return;
+
+        // ToggleButton/Checkbox/ToggleSwitch реализуют собственное переключение
+        // в наследниках. Обычная кнопка должна активироваться с клавиатуры так же,
+        // как при клике мышью.
+        if (!(this instanceof ToggleButton)
+                && event instanceof dev.sixik.unigui.api.event.KeyPressedEvent key
+                && key.phase() == EventPhase.TARGET
+                && uiContext() != null
+                && uiContext().focusManager().isFocused(this)
+                && (key.keyCode() == KeyCodes.SPACE
+                || key.keyCode() == KeyCodes.ENTER
+                || key.keyCode() == KeyCodes.KEYPAD_ENTER)) {
+            click();
+            event.cancel();
+            return;
+        }
 
         if (event instanceof PointerReleasedEvent pointer && pointer.button() == PointerButton.PRIMARY && ownsPressedPointer(pointer)) {
             boolean wasPressed = pressed;

@@ -2467,6 +2467,16 @@ public final class BasicControlsSelfTest {
 
         uiContext.routedEvents().dispatch(new PointerPressedEvent(searchField, 114.0f, 8.0f, 114.0f, 8.0f, 0, PointerButton.PRIMARY));
         expect(searchField.text().isEmpty(), "SearchField clear zone should clear query");
+
+        searchField.text("recipe");
+        expect(searchField.mouseCursorAt(116.0f, 8.0f) == MouseCursor.POINTER,
+                "SearchField clear zone should expose a pointer cursor");
+        uiContext.routedEvents().dispatch(new PointerMovedEvent(searchField, 116.0f, 8.0f,
+                116.0f, 8.0f, 0));
+        DrawList hoveredSearchDrawList = new DrawList();
+        searchField.render(new DefaultRenderContext(hoveredSearchDrawList));
+        expect(countCommands(hoveredSearchDrawList, DrawCommandType.ROUNDED_RECT) >= 2,
+                "SearchField clear zone should render a hover background");
     }
 
     private void testDefaultThemeContracts() {

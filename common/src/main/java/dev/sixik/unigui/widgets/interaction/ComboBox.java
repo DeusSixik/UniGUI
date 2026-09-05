@@ -52,7 +52,10 @@ public class ComboBox extends LinearBox {
     private boolean opened;
     private String placeholder = "Select...";
     private RichText richPlaceholder = RichText.plain(placeholder);
-    private RichText headerIndicator = RichText.plain(" ?");
+    private final RichText defaultHeaderIndicatorClosed = DropDownBox.createHeaderArrow(false);
+    private final RichText defaultHeaderIndicatorOpened = DropDownBox.createHeaderArrow(true);
+    private RichText headerIndicator = defaultHeaderIndicatorClosed;
+    private boolean customHeaderIndicator;
     private DropDownMode dropDownMode = DropDownMode.OVERLAY;
     private OverlayLayer explicitOverlayLayer;
     private OverlayLayer attachedOverlayLayer;
@@ -430,6 +433,7 @@ public class ComboBox extends LinearBox {
         RichText normalized = indicator == null ? RichText.plain("") : indicator;
         if (Objects.equals(this.headerIndicator, normalized)) return this;
         this.headerIndicator = normalized;
+        this.customHeaderIndicator = true;
         updateHeaderText();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
@@ -542,7 +546,11 @@ public class ComboBox extends LinearBox {
 
     private void updateHeaderText() {
         RichText value = selectedItem().isEmpty() ? richPlaceholder : selectedRichItem();
-        headerButton.richText(headerIndicator.plainText().isEmpty() ? value : value.append(headerIndicator));
+        RichText indicator = customHeaderIndicator
+                ? headerIndicator
+                : (opened ? defaultHeaderIndicatorOpened : defaultHeaderIndicatorClosed);
+        headerIndicator = indicator;
+        headerButton.richText(indicator.plainText().isEmpty() ? value : value.append(indicator));
     }
 
     private void addItemInternal(RichText item) {

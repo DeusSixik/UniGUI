@@ -7,10 +7,14 @@ import dev.sixik.unigui.api.event.EventPhase;
 import dev.sixik.unigui.api.event.EventSubscription;
 import dev.sixik.unigui.api.event.KeyPressedEvent;
 import dev.sixik.unigui.api.event.PointerEvent;
+import dev.sixik.unigui.api.event.PointerEnteredEvent;
+import dev.sixik.unigui.api.event.PointerExitedEvent;
+import dev.sixik.unigui.api.event.PointerMovedEvent;
 import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.event.SearchChangedEvent;
 import dev.sixik.unigui.api.event.SearchSubmittedEvent;
 import dev.sixik.unigui.api.input.KeyCodes;
+import dev.sixik.unigui.api.input.MouseCursor;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
@@ -42,6 +46,7 @@ public class SearchField extends TextInput {
     private String lastEmittedSearchQuery = "";
     private String pendingSearchQuery = "";
     private boolean searchChangePending;
+    private boolean clearButtonHovered;
 
     public SearchField() {
         enableDefaultTextInputChrome();
@@ -94,7 +99,31 @@ public class SearchField extends TextInput {
     }
 
     @Override
+    protected boolean clearButtonHovered() {
+        return clearButtonHovered;
+    }
+
+    @Override
+    public MouseCursor mouseCursorAt(float localX, float localY) {
+        if (!text().isEmpty() && localX >= Math.max(0.0f, layoutBounds().width() - CLEAR_ZONE_WIDTH)
+                && localY >= 0.0f && localY <= layoutBounds().height()) {
+            return MouseCursor.POINTER;
+        }
+        return super.mouseCursorAt(localX, localY);
+    }
+
+    @Override
     public void handle(Event event) {
+        if (event instanceof PointerEnteredEvent || event instanceof PointerMovedEvent) {
+            if (event instanceof PointerEvent pointer) {
+                updateClearButtonHover(pointer.rootX(), pointer.rootY());
+            }
+        } else if (event instanceof PointerExitedEvent) {
+            if (clearButtonHovered) {
+                clearButtonHovered = false;
+                invalidate(dev.sixik.unigui.api.core.InvalidationFlags.VISUAL);
+            }
+        }
         if (event instanceof PointerEvent pointerEvent && pointerEvent.phase() == EventPhase.CAPTURE) return;
         if (event instanceof PointerPressedEvent pointer
                 && pointer.button() == PointerButton.PRIMARY
@@ -114,6 +143,17 @@ public class SearchField extends TextInput {
         }
 
         super.handle(event);
+    }
+
+    private void updateClearButtonHover(float rootX, float rootY) {
+        boolean next = !text().isEmpty()
+                && rootX >= layoutBounds().x() + Math.max(0.0f, layoutBounds().width() - CLEAR_ZONE_WIDTH)
+                && rootX <= layoutBounds().x() + layoutBounds().width()
+                && rootY >= layoutBounds().y()
+                && rootY <= layoutBounds().y() + layoutBounds().height();
+        if (clearButtonHovered == next) return;
+        clearButtonHovered = next;
+        invalidate(dev.sixik.unigui.api.core.InvalidationFlags.VISUAL);
     }
 
     @Override

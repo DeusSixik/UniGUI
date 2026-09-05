@@ -36,8 +36,37 @@ public final class LabelPart {
 
         draw.pushTextClip(clipX, clipY, clipWidth, clipHeight);
         try {
+            // Без явного offset TextEngine сам выбирает визуальную коррекцию:
+            // для mixed RichText опускаются только glyph'ы, inline-контент остаётся на месте.
             TextEngine.drawInline(draw, text, drawX, drawY,
                     drawWidth, drawHeight, Paint.fill(color));
+        } finally {
+            draw.popClip();
+        }
+    }
+
+    /** Вариант для mixed labels: смещает только glyph-текст, не inline-иконки. */
+    public static void render(DrawScope draw,
+                              RichText text,
+                              float clipX,
+                              float clipY,
+                              float clipWidth,
+                              float clipHeight,
+                              float drawX,
+                              float drawY,
+                              float drawWidth,
+                              float drawHeight,
+                              ColorView color,
+                              float textVisualOffset) {
+        if (draw == null || text == null || text.isEmpty() || color == null
+                || clipWidth <= 0.0f || clipHeight <= 0.0f
+                || drawWidth <= 0.0f || drawHeight <= 0.0f) {
+            return;
+        }
+        draw.pushTextClip(clipX, clipY, clipWidth, clipHeight);
+        try {
+            TextEngine.drawInline(draw, text, drawX, drawY,
+                    drawWidth, drawHeight, Paint.fill(color), textVisualOffset);
         } finally {
             draw.popClip();
         }

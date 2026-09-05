@@ -73,13 +73,22 @@ public final class TextInputRenderPlans {
         if (state == null) return RenderPlan.EMPTY;
         List<RenderPrimitive> primitives = new ArrayList<>(defaultPlan(state).primitives());
         if (state.clearButtonVisible()) {
+            if (state.clearButtonHovered()) {
+                primitives.add(new RenderPrimitive.RoundedRect(
+                        state.clearButtonX() - 2.0f,
+                        state.clearButtonY() - 2.0f,
+                        state.clearButtonWidth() + 4.0f,
+                        state.clearButtonHeight() + 4.0f,
+                        3.0f,
+                        Paint.fill(state.caretColor())));
+            }
             primitives.add(new RenderPrimitive.RichTextBlock(
                     RichText.plain("x"),
                     state.clearButtonX(),
                     state.clearButtonY(),
                     state.clearButtonWidth(),
                     state.clearButtonHeight(),
-                    Paint.fill(state.placeholderColor()),
+                    Paint.fill(state.clearButtonHovered() ? state.textColor() : state.placeholderColor()),
                     0.0f,
                     0.0f,
                     0.0f,
@@ -148,6 +157,7 @@ public final class TextInputRenderPlans {
                 caretColor,
                 state.prefixWidths(),
                 state.clearButtonVisible(),
+                state.clearButtonHovered(),
                 state.clearButtonX(),
                 state.clearButtonY(),
                 state.clearButtonWidth(),

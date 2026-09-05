@@ -33,6 +33,7 @@ public final class ButtonVisualRenderers {
         float drawX = state.textContentX() + Math.max(0.0f, contentWidth - drawWidth) * 0.5f;
         float drawY = LabelPart.centeredY(state.y(), state.height(), drawHeight);
         LabelPart.render(draw, state.richText(), state.textContentX(), state.y(),
-                contentWidth, state.height(), drawX, drawY, drawWidth, drawHeight, state.textColor());
+                contentWidth, state.height(), drawX, drawY, drawWidth, drawHeight,
+                state.textColor());
     }
 }
