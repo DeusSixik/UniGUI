@@ -4,6 +4,7 @@ import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutStyle;
+import dev.sixik.unigui.api.layout.LayoutStyleLegacyAdapter;
 import dev.sixik.unigui.api.layout.PositionType;
 import dev.sixik.unigui.api.layout.SizeValue;
 import dev.sixik.unigui.api.math.MutableRect;
@@ -57,7 +58,7 @@ public final class AbsoluteLayoutEngine {
         if (bounds == null) return new MutableRect();
         LayoutStyle style = host instanceof WidgetBase base
                 ? base.layoutStyle()
-                : new LayoutStyle().applyLegacyConstraints(host == null ? null : host.layoutConstraints());
+                : LayoutStyleLegacyAdapter.fromConstraints(host == null ? null : host.layoutConstraints());
         EdgeInsets padding = style.padding();
         return new MutableRect(
                 bounds.x() + padding.left(),
@@ -70,7 +71,7 @@ public final class AbsoluteLayoutEngine {
         if (context == null) return null;
         LayoutStyle style = host instanceof WidgetBase base
                 ? base.layoutStyle()
-                : new LayoutStyle().applyLegacyConstraints(host == null ? null : host.layoutConstraints());
+                : LayoutStyleLegacyAdapter.fromConstraints(host == null ? null : host.layoutConstraints());
         EdgeInsets padding = style.padding();
         return new LayoutContext(
                 subtractAvailable(context.availableWidth(), padding.horizontal()),
@@ -87,7 +88,7 @@ public final class AbsoluteLayoutEngine {
                                           float fallbackHeight) {
         LayoutStyle style = child instanceof WidgetBase base
                 ? base.layoutStyle()
-                : new LayoutStyle().applyLegacyConstraints(child.layoutConstraints());
+                : LayoutStyleLegacyAdapter.fromConstraints(child.layoutConstraints());
         EdgeInsets margin = style.margin();
         float hostWidth = Math.max(0.0f, hostBounds.width());
         float hostHeight = Math.max(0.0f, hostBounds.height());

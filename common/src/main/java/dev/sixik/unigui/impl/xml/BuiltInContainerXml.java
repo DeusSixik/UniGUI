@@ -3,6 +3,7 @@ package dev.sixik.unigui.impl.xml;
 import dev.sixik.unigui.api.xml.XmlPropertyChildDescriptor;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.containers.Box;
+import dev.sixik.unigui.widgets.containers.FlexBox;
 import dev.sixik.unigui.widgets.containers.GridBox;
 import dev.sixik.unigui.widgets.containers.HBox;
 import dev.sixik.unigui.widgets.containers.PanelWidget;
@@ -23,6 +24,7 @@ final class BuiltInContainerXml {
         panel(BuiltInWidgetXmlSupport.box(registry.register("Box", Box::new)));
         panel(linear(registry.register("VBox", VBox::new)));
         panel(linear(registry.register("HBox", HBox::new)));
+        panel(registry.register("FlexBox", FlexBox::new));
         panel(registry.register("StackPanel", StackPanel::new));
         postProcessingLayer(panel(registry.register("PostProcessingLayer", PostProcessingLayer::new)));
         panel(wrapPanel(registry.register("WrapPanel", WrapPanel::new)));

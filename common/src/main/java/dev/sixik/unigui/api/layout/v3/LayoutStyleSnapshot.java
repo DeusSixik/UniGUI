@@ -7,6 +7,7 @@ import dev.sixik.unigui.api.layout.FlexWrap;
 import dev.sixik.unigui.api.layout.Justify;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.layout.LayoutStyle;
+import dev.sixik.unigui.api.layout.LayoutStyleLegacyAdapter;
 import dev.sixik.unigui.api.layout.Overflow;
 import dev.sixik.unigui.api.layout.PositionType;
 import dev.sixik.unigui.api.layout.SizeValue;
@@ -106,8 +107,7 @@ public record LayoutStyleSnapshot(
     }
 
     public static LayoutStyleSnapshot from(LayoutConstraints constraints) {
-        return from(new LayoutStyle().applyLegacyConstraints(
-                constraints == null ? LayoutConstraints.DEFAULT : constraints));
+        return from(LayoutStyleLegacyAdapter.fromConstraints(constraints));
     }
 
     private static SizeValue normalizeSize(SizeValue value) {

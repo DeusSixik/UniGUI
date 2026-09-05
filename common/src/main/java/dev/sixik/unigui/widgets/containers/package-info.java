@@ -13,6 +13,7 @@
  * <ul>
  *     <li>{@link dev.sixik.unigui.widgets.containers.Box} — фон, рамка и вложенные дети;</li>
  *     <li>{@link dev.sixik.unigui.widgets.containers.HBox}/{@link dev.sixik.unigui.widgets.containers.VBox} — линейный flex без переноса;</li>
+ *     <li>{@link dev.sixik.unigui.widgets.containers.FlexBox} — CSS-подобный flex-контейнер с настройкой направления, переноса, gap и выравнивания через {@link dev.sixik.unigui.api.layout.LayoutStyle};</li>
  *     <li>{@link dev.sixik.unigui.widgets.containers.WrapPanel} — flow-layout с переносом строк;</li>
  *     <li>{@link dev.sixik.unigui.widgets.containers.GridBox} — равномерная сетка по колонкам;</li>
  *     <li>{@link dev.sixik.unigui.widgets.containers.ScrollView} — область просмотра для большого контента;</li>

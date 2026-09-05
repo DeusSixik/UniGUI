@@ -10,6 +10,7 @@ import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.layout.LayoutStyle;
+import dev.sixik.unigui.api.layout.LayoutStyleLegacyAdapter;
 import dev.sixik.unigui.api.layout.SizeValue;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
@@ -349,7 +350,7 @@ public final class FlexLayoutEngine {
         private Item(Widget widget, FlexDirection direction, float availableWidth, float availableHeight) {
             this.widget = widget;
             this.direction = direction;
-            this.style = widget instanceof WidgetBase base ? base.layoutStyle() : new LayoutStyle().applyLegacyConstraints(widget.layoutConstraints());
+            this.style = widget instanceof WidgetBase base ? base.layoutStyle() : LayoutStyleLegacyAdapter.fromConstraints(widget.layoutConstraints());
             this.constraints = widget.layoutConstraints();
             this.margin = style.margin();
             this.availableWidth = availableWidth;

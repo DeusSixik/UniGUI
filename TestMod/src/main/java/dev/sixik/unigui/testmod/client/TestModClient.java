@@ -14,6 +14,7 @@ import dev.sixik.unigui.testmod.client.ui.SyncBatteryMinigameScreen;
 import dev.sixik.unigui.testmod.client.ui.TutorialScreen;
 import dev.sixik.unigui.testmod.client.ui.WrenchNutMinigameScreen;
 import dev.sixik.unigui.testmod.client.ui.WireConnectionMinigameScreen;
+import dev.sixik.unigui.testmod.client.ui_tests.TestWidgetsScreen;
 import net.fabricmc.api.ClientModInitializer;
 
 /**
@@ -22,8 +23,8 @@ import net.fabricmc.api.ClientModInitializer;
 public final class TestModClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
-        LoadingScreenDemo.register();
-        OverlayRenderDemo.register();
+//        LoadingScreenDemo.register();
+//        OverlayRenderDemo.register();
     }
 
     /**
@@ -33,7 +34,7 @@ public final class TestModClient implements ClientModInitializer {
      * внутренней структуры demo screen.</p>
      */
     public static void openDemo() {
-        DominionScreen.openGui();
+        TestWidgetsScreen.openGui();
     }
 
     public static void openRetroTerminal() {

@@ -58,6 +58,7 @@ public final class StyleIds {
         public static final String DOCKING_ROOT = "DockingRoot";
         public static final String DROP_DOWN_BOX = "DropDownBox";
         public static final String EXPANDABLE_PANEL = "ExpandablePanel";
+        public static final String FLEX_BOX = "FlexBox";
         public static final String GRAPH_VIEW = "GraphView";
         public static final String GRID_BOX = "GridBox";
         public static final String HBOX = "HBox";

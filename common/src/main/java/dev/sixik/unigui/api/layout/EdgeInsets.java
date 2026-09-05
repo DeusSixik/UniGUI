@@ -18,6 +18,26 @@ public record EdgeInsets(float left, float top, float right, float bottom) {
         return new EdgeInsets(horizontal, vertical, horizontal, vertical);
     }
 
+    /** CSS-сокращение с одним значением: все четыре стороны. */
+    public static EdgeInsets css(float all) {
+        return all(all);
+    }
+
+    /** CSS-сокращение с двумя значениями: вертикаль, горизонталь. */
+    public static EdgeInsets css(float vertical, float horizontal) {
+        return symmetric(horizontal, vertical);
+    }
+
+    /** CSS-сокращение с тремя значениями: вертикаль, горизонталь, низ. */
+    public static EdgeInsets css(float vertical, float horizontal, float bottom) {
+        return css(vertical, horizontal, bottom, horizontal);
+    }
+
+    /** CSS-сокращение с четырьмя значениями: верх, право, низ, лево. */
+    public static EdgeInsets css(float top, float right, float bottom, float left) {
+        return new EdgeInsets(left, top, right, bottom);
+    }
+
     public float horizontal() {
         return left + right;
     }

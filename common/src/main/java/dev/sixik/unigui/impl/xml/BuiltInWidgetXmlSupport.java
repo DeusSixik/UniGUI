@@ -69,6 +69,7 @@ final class BuiltInWidgetXmlSupport {
                 .attribute("margin", XmlValueParsers.INSETS, (widget, value) -> widget.layout(style -> style.margin(value)), commonAttribute("margin"))
                 .attribute("flexGrow", XmlValueParsers.FLOAT, (widget, value) -> widget.layout(style -> style.flexGrow(value)), commonAttribute("flexGrow"))
                 .attribute("flexShrink", XmlValueParsers.FLOAT, (widget, value) -> widget.layout(style -> style.flexShrink(value)), commonAttribute("flexShrink"))
+                .attribute("flexBasis", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.flexBasis(value)), commonAttribute("flexBasis"))
                 .attribute("flexDirection", XmlValueParsers.enumValue(FlexDirection.class), (widget, value) -> widget.layout(style -> style.flexDirection(value)), commonAttribute("flexDirection"))
                 .attribute("flexWrap", XmlValueParsers.enumValue(FlexWrap.class), (widget, value) -> widget.layout(style -> style.flexWrap(value)), commonAttribute("flexWrap"))
                 .attribute("rowGap", XmlValueParsers.FLOAT, (widget, value) -> widget.layout(style -> style.rowGap(value)), commonAttribute("rowGap"))

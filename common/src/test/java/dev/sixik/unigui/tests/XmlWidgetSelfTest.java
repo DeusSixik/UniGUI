@@ -9,6 +9,9 @@ import dev.sixik.unigui.api.event.PointerMovedEvent;
 import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.event.PointerReleasedEvent;
 import dev.sixik.unigui.api.layout.Align;
+import dev.sixik.unigui.api.layout.FlexDirection;
+import dev.sixik.unigui.api.layout.FlexWrap;
+import dev.sixik.unigui.api.layout.Justify;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.SizeUnit;
 import dev.sixik.unigui.api.input.PointerButton;
@@ -83,6 +86,7 @@ import dev.sixik.unigui.api.xml.editor.XmlEditorMode;
 import dev.sixik.unigui.api.xml.editor.XmlEditorSession;
 import dev.sixik.unigui.api.xml.editor.XmlEditorSessionChange;
 import dev.sixik.unigui.widgets.containers.Box;
+import dev.sixik.unigui.widgets.containers.FlexBox;
 import dev.sixik.unigui.widgets.containers.HBox;
 import dev.sixik.unigui.widgets.containers.ScrollView;
 import dev.sixik.unigui.widgets.containers.VBox;
@@ -2006,6 +2010,33 @@ public final class XmlWidgetSelfTest {
         expect(XMLWidget.getWidget(loaded, "title", Label.class).text().equals("Runtime Title")
                         && near(XMLWidget.getWidget(loaded, "gamma", Slider.class).value(), 4.5f),
                 "Runtime snapshot XML should reload nested text and control state");
+
+        FlexBox flex = new FlexBox();
+        flex.layout(style -> style
+                .flexDirection(FlexDirection.ROW)
+                .flexWrap(FlexWrap.WRAP)
+                .gap(4.0f, 8.0f)
+                .alignItems(Align.CENTER)
+                .justifyContent(Justify.SPACE_BETWEEN));
+        flex.addChild(new Label("Flex child"));
+        flex.applyQueuedMutations();
+        String flexXml = XmlWidgetRuntimeSerializer.snapshot(flex).document()
+                .toXmlString(XmlWidgetSerializationOptions.COMPACT);
+        expect(flexXml.contains("flexDirection=\"row\"")
+                        && flexXml.contains("flexWrap=\"wrap\"")
+                        && flexXml.contains("rowGap=\"4\"")
+                        && flexXml.contains("columnGap=\"8\"")
+                        && flexXml.contains("alignItems=\"center\"")
+                        && flexXml.contains("justifyContent=\"space-between\""),
+                "Runtime-сериализатор должен сохранять CSS-подобные layout-атрибуты FlexBox");
+        FlexBox loadedFlex = XMLWidget.create(flexXml, FlexBox.class);
+        expect(loadedFlex.layoutStyle().flexDirection() == FlexDirection.ROW
+                        && loadedFlex.layoutStyle().flexWrap() == FlexWrap.WRAP
+                        && near(loadedFlex.layoutStyle().rowGap(), 4.0f)
+                        && near(loadedFlex.layoutStyle().columnGap(), 8.0f)
+                        && loadedFlex.layoutStyle().alignItems() == Align.CENTER
+                        && loadedFlex.layoutStyle().justifyContent() == Justify.SPACE_BETWEEN,
+                "Сериализованные layout-атрибуты FlexBox должны восстанавливаться в стиле");
 
         UnsupportedXmlWidget unsupported = new UnsupportedXmlWidget();
         unsupported.id("custom");

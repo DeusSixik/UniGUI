@@ -1,6 +1,10 @@
 package dev.sixik.unigui.api.xml;
 
+import dev.sixik.unigui.api.layout.Align;
 import dev.sixik.unigui.api.layout.EdgeInsets;
+import dev.sixik.unigui.api.layout.FlexDirection;
+import dev.sixik.unigui.api.layout.FlexWrap;
+import dev.sixik.unigui.api.layout.Justify;
 import dev.sixik.unigui.api.layout.LayoutStyle;
 import dev.sixik.unigui.api.layout.SizeValue;
 import dev.sixik.unigui.api.math.ColorView;
@@ -160,6 +164,24 @@ public final class XmlWidgetRuntimeSerializer {
         writeInsets(element, "margin", style.margin());
         writeFloat(element, "flexGrow", style.flexGrow(), 0.0f);
         writeFloat(element, "flexShrink", style.flexShrink(), 1.0f);
+        writeSize(element, "flexBasis", style.flexBasis());
+        if (style.flexDirection() != FlexDirection.COLUMN) {
+            element.attribute("flexDirection", enumValue(style.flexDirection()));
+        }
+        if (style.flexWrap() != FlexWrap.NOWRAP) {
+            element.attribute("flexWrap", enumValue(style.flexWrap()));
+        }
+        writeFloat(element, "rowGap", style.rowGap(), 0.0f);
+        writeFloat(element, "columnGap", style.columnGap(), 0.0f);
+        if (style.alignItems() != Align.STRETCH) {
+            element.attribute("alignItems", enumValue(style.alignItems()));
+        }
+        if (style.alignSelf() != Align.AUTO) {
+            element.attribute("alignSelf", enumValue(style.alignSelf()));
+        }
+        if (style.justifyContent() != Justify.START) {
+            element.attribute("justifyContent", enumValue(style.justifyContent()));
+        }
         if (!style.overflowX().name().equals("VISIBLE")) element.attribute("overflowX", enumValue(style.overflowX()));
         if (!style.overflowY().name().equals("VISIBLE")) element.attribute("overflowY", enumValue(style.overflowY()));
         if (!style.position().name().equals("RELATIVE")) element.attribute("position", enumValue(style.position()));

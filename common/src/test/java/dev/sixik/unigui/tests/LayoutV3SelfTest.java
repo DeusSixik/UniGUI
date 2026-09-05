@@ -9,6 +9,7 @@ import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.layout.LayoutStyle;
+import dev.sixik.unigui.api.layout.LayoutStyleLegacyAdapter;
 import dev.sixik.unigui.api.layout.Overflow;
 import dev.sixik.unigui.api.layout.PositionType;
 import dev.sixik.unigui.api.layout.SizeValue;
@@ -49,6 +50,7 @@ import dev.sixik.unigui.widgets.containers.StackPanel;
 import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.data.VirtualListView;
 import dev.sixik.unigui.widgets.containers.WrapPanel;
+import dev.sixik.unigui.widgets.containers.FlexBox;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import dev.sixik.unigui.widgets.containers.LinearBox;
@@ -62,6 +64,7 @@ public final class LayoutV3SelfTest {
 
     private void run() {
         testLayoutStyleSnapshotMapping();
+        testLayoutStyleHelpers();
         testLegacyConstraintMapping();
         testLayoutCacheKeysAndInvalidation();
         testNodeSnapshotsStyle();
@@ -161,6 +164,49 @@ public final class LayoutV3SelfTest {
                 "V3 mapper should preserve alignment and absolute inset values");
     }
 
+    private void testLayoutStyleHelpers() {
+        LayoutStyle fixed = new LayoutStyle().fixed(100.0f, 20.0f);
+        expect(fixed.width().equals(SizeValue.px(100.0f))
+                        && fixed.height().equals(SizeValue.px(20.0f))
+                        && near(fixed.flexGrow(), 0.0f)
+                        && near(fixed.flexShrink(), 0.0f)
+                        && fixed.flexBasis().isAuto(),
+                "Помощник fixed должен задать размеры и отключить flex-изменения");
+
+        LayoutStyle fill = new LayoutStyle().fill();
+        expect(fill.width().equals(SizeValue.percent(100.0f))
+                        && fill.height().equals(SizeValue.percent(100.0f)),
+                "Помощник fill должен задать 100 процентов для обоих размеров");
+
+        LayoutStyle expand = new LayoutStyle().expand();
+        expect(near(expand.flexGrow(), 1.0f)
+                        && near(expand.flexShrink(), 1.0f)
+                        && expand.flexBasis().equals(SizeValue.px(0.0f)),
+                "Помощник expand должен занимать оставшееся место на главной оси");
+
+        LayoutStyle centered = new LayoutStyle().center();
+        expect(centered.alignItems() == Align.CENTER
+                        && centered.justifyContent() == Justify.CENTER,
+                "Помощник center должен центрировать детей контейнера по обеим осям");
+
+        LayoutStyle centeredSelf = new LayoutStyle().centerSelf();
+        expect(centeredSelf.alignSelf() == Align.CENTER,
+                "Помощник centerSelf должен центрировать flex-элемент на поперечной оси");
+
+        LayoutStyle cssFlex = new LayoutStyle().flex(2.0f);
+        expect(near(cssFlex.flexGrow(), 2.0f)
+                        && near(cssFlex.flexShrink(), 1.0f)
+                        && cssFlex.flexBasis().equals(SizeValue.percent(0.0f)),
+                "Однозначный помощник flex должен следовать семантике числового CSS flex");
+
+        expect(EdgeInsets.css(1.0f, 2.0f, 3.0f, 4.0f).equals(new EdgeInsets(4.0f, 1.0f, 2.0f, 3.0f))
+                        && EdgeInsets.css(1.0f, 2.0f).equals(new EdgeInsets(2.0f, 1.0f, 2.0f, 1.0f)),
+                "Сокращение EdgeInsets.css должно использовать порядок CSS top/right/bottom/left");
+
+        expect(new FlexBox().layoutStyle().flexDirection() == FlexDirection.ROW,
+                "FlexBox по умолчанию должен использовать направление CSS row");
+    }
+
     private void testLegacyConstraintMapping() {
         LayoutConstraints constraints = LayoutConstraints.DEFAULT
                 .preferredSize(120.0f, LayoutConstraints.AUTO)
@@ -175,6 +221,18 @@ public final class LayoutV3SelfTest {
                         && snapshot.minWidth().equals(SizeValue.px(20.0f))
                         && snapshot.maxHeight().equals(SizeValue.px(80.0f)),
                 "V3 mapper should project legacy constraints into snapshot sizes");
+
+        LayoutStyle adapted = LayoutStyleLegacyAdapter.fromConstraints(constraints);
+        expect(adapted.width().equals(SizeValue.px(120.0f))
+                        && adapted.height().isAuto()
+                        && near(adapted.flexGrow(), 2.0f),
+                "Legacy-адаптер должен переносить constraints в текущий стиль");
+
+        LayoutConstraints roundTrip = LayoutStyleLegacyAdapter.toConstraints(adapted, LayoutConstraints.DEFAULT);
+        expect(near(roundTrip.preferredWidth(), 120.0f)
+                        && LayoutConstraints.isAuto(roundTrip.preferredHeight())
+                        && near(roundTrip.grow(), 2.0f),
+                "Legacy-адаптер должен переносить текущий стиль обратно в constraints");
         expect(snapshot.margin().equals(EdgeInsets.symmetric(3.0f, 4.0f))
                         && near(snapshot.flexGrow(), 2.0f)
                         && near(snapshot.flexShrink(), 1.0f),

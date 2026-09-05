@@ -9,6 +9,7 @@ import dev.sixik.unigui.widgets.caching.CachedSubtreeWidget;
 import dev.sixik.unigui.widgets.containers.Border;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.DockPanel;
+import dev.sixik.unigui.widgets.containers.FlexBox;
 import dev.sixik.unigui.widgets.containers.GridBox;
 import dev.sixik.unigui.widgets.containers.HBox;
 import dev.sixik.unigui.widgets.containers.PanelRowWidget;
@@ -110,6 +111,10 @@ public final class Widgets {
 
     public static Box box() {
         return new Box();
+    }
+
+    public static FlexBox flexBox() {
+        return new FlexBox();
     }
 
     public static Button button(String text) {

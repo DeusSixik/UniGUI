@@ -34,6 +34,7 @@ import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.layout.LayoutStyle;
+import dev.sixik.unigui.api.layout.LayoutStyleLegacyAdapter;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
@@ -1039,7 +1040,7 @@ public abstract class WidgetBase implements Widget {
     private void syncLayoutStyleFromConstraints() {
         syncingLayoutStyle = true;
         try {
-            layoutStyle.applyLegacyConstraints(layoutConstraints);
+            layoutStyle.copyFrom(LayoutStyleLegacyAdapter.fromConstraints(layoutConstraints));
         } finally {
             syncingLayoutStyle = false;
         }
@@ -1050,7 +1051,7 @@ public abstract class WidgetBase implements Widget {
      */
     private void onLayoutStyleChanged() {
         if (syncingLayoutStyle) return;
-        layoutConstraints = layoutStyle.toLegacyConstraints(layoutConstraints);
+        layoutConstraints = LayoutStyleLegacyAdapter.toConstraints(layoutStyle, layoutConstraints);
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
     }
 
