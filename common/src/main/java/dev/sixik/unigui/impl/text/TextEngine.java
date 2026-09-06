@@ -251,27 +251,76 @@ public final class TextEngine {
         float cursorX = x;
         float cursorY = y;
         FontFace defaultFace = draw.context().backend() == null ? null : draw.context().backend().defaultTextFace();
-        for (RichTextSpan span : text.spans()) {
-            if (span instanceof TextRun run) {
-                float runOffset = Float.isFinite(textVisualOffset)
-                        ? Math.max(0.0f, textVisualOffset)
-                        : centeredRunOffset(run, lineHeight, defaultFace);
-                TextRunDrawResult result = drawTextRun(draw, run, cursorX,
-                        cursorY + runOffset,
-                        lineHeight, paint, defaultFace, x);
-                cursorX = result.cursorX();
-                cursorY = result.cursorY() - runOffset;
-            } else if (span instanceof InlineContentSpan inline) {
-                float inlineY = inlineY(cursorY, lineHeight, inline);
-                InlineContentContext context = new InlineContentContext(
-                        inline,
-                        new MutableRect(cursorX, inlineY, inline.width(), inline.height()),
-                        lineHeight,
-                        paint == null ? new Paint() : paint.copy());
-                inline.renderer().render(draw, context);
-                cursorX += inline.width();
-            }
+        List<RichTextSpan> spans = text.spans();
+        TrailingInline trailing = trailingInline(spans, defaultFace);
+        boolean pinTrailing = trailing != null
+                && width > 0.0f
+                && measureLineWidth(text, defaultFace) > width;
+        float trailingX = pinTrailing
+                ? x + Math.max(0.0f, width - trailing.inline().width())
+                : 0.0f;
+        float textClipWidth = pinTrailing
+                ? Math.max(0.0f, trailingX - x - trailing.gapWidth())
+                : 0.0f;
+        boolean textClipPushed = false;
+        if (pinTrailing) {
+            draw.pushTextClip(x, y, textClipWidth, lineHeight);
+            textClipPushed = true;
         }
+
+        try {
+            for (int spanIndex = 0; spanIndex < spans.size(); spanIndex++) {
+                RichTextSpan span = spans.get(spanIndex);
+                if (pinTrailing && spanIndex == trailing.gapSpanIndex()) {
+                    continue;
+                }
+                if (pinTrailing && spanIndex == trailing.inlineSpanIndex()) {
+                    if (textClipPushed) {
+                        draw.popClip();
+                        textClipPushed = false;
+                    }
+                    cursorX = trailingX;
+                }
+
+                if (span instanceof TextRun run) {
+                    float runOffset = Float.isFinite(textVisualOffset)
+                            ? Math.max(0.0f, textVisualOffset)
+                            : centeredRunOffset(run, lineHeight, defaultFace);
+                    TextRunDrawResult result = drawTextRun(draw, run, cursorX,
+                            cursorY + runOffset,
+                            lineHeight, paint, defaultFace, x);
+                    cursorX = result.cursorX();
+                    cursorY = result.cursorY() - runOffset;
+                } else if (span instanceof InlineContentSpan inline) {
+                    float inlineY = inlineY(cursorY, lineHeight, inline);
+                    InlineContentContext context = new InlineContentContext(
+                            inline,
+                            new MutableRect(cursorX, inlineY, inline.width(), inline.height()),
+                            lineHeight,
+                            paint == null ? new Paint() : paint.copy());
+                    inline.renderer().render(draw, context);
+                    cursorX += inline.width();
+                }
+            }
+        } finally {
+            if (textClipPushed) draw.popClip();
+        }
+    }
+
+    /** Находит завершающий inline-span и пробел перед ним, который служит отступом. */
+    private static TrailingInline trailingInline(List<RichTextSpan> spans, FontFace defaultFace) {
+        if (spans == null || spans.isEmpty()) return null;
+        int inlineIndex = spans.size() - 1;
+        if (!(spans.get(inlineIndex) instanceof InlineContentSpan inline)) return null;
+
+        int gapIndex = -1;
+        float gapWidth = 0.0f;
+        if (inlineIndex > 0 && spans.get(inlineIndex - 1) instanceof TextRun gap
+                && !gap.text().isEmpty() && gap.text().isBlank()) {
+            gapIndex = inlineIndex - 1;
+            gapWidth = measureRunWidth(gap, defaultFace);
+        }
+        return new TrailingInline(inlineIndex, inline, gapIndex, gapWidth);
     }
 
     /**
@@ -501,6 +550,12 @@ public final class TextEngine {
     }
 
     private record TextRunDrawResult(float cursorX, float cursorY) {
+    }
+
+    private record TrailingInline(int inlineSpanIndex,
+                                  InlineContentSpan inline,
+                                  int gapSpanIndex,
+                                  float gapWidth) {
     }
 
     /**

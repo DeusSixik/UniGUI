@@ -5,6 +5,7 @@ import dev.sixik.unigui.api.render.BlendMode;
 import dev.sixik.unigui.api.render.DrawCommand;
 import dev.sixik.unigui.api.render.DrawCommandType;
 import dev.sixik.unigui.api.render.DrawList;
+import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderBackend;
 import dev.sixik.unigui.api.render.RenderTarget;
@@ -30,6 +31,7 @@ public final class RenderPolishSelfTest {
         dashedLineExpandsToSolidSegments();
         textPixelSnapScopeAffectsTextCommands();
         contextHeightUsesBackendDefaultFont();
+        trailingInlineContentKeepsReservedSpace();
     }
 
     private void paintCopyKeepsDashAndBlend() {
@@ -101,6 +103,38 @@ public final class RenderPolishSelfTest {
                 "context-free height should preserve fallback metrics");
         assertClose(24.0f, TextEngine.measureTextHeight(context, text),
                 "render-time height should use backend default font metrics");
+    }
+
+    private void trailingInlineContentKeepsReservedSpace() {
+        DefaultRenderContext context = new DefaultRenderContext(new DrawList())
+                .backend(new MetricsBackend(new FixedFontFace(10.0f)));
+        float[] indicatorX = {-1.0f};
+        RichText indicator = RichText.builder()
+                .append(" ")
+                .inline("indicator", "[v]", 8.0f, 8.0f,
+                        (draw, inline) -> indicatorX[0] = inline.x())
+                .build();
+        RichText overflowing = RichText.plain("Very long label").append(indicator);
+
+        TextEngine.drawInline(new DrawScope(context, null), overflowing,
+                10.0f, 20.0f, 30.0f, 10.0f,
+                Paint.fill(new MutableColor(1.0f, 1.0f, 1.0f, 1.0f)));
+
+        assertClose(32.0f, indicatorX[0],
+                "overflowing trailing inline content should stay at the right edge");
+        DrawCommand textClip = context.drawList().commands().get(0);
+        assertTrue(textClip.type() == DrawCommandType.PUSH_CLIP,
+                "overflowing text should be clipped before trailing inline content");
+        assertTrue(textClip.bounds().x() + textClip.bounds().width() <= indicatorX[0],
+                "text clip should end before the reserved indicator area");
+
+        indicatorX[0] = -1.0f;
+        RichText fitting = RichText.plain("A").append(indicator);
+        TextEngine.drawInline(new DrawScope(context, null), fitting,
+                10.0f, 40.0f, 30.0f, 10.0f,
+                Paint.fill(new MutableColor(1.0f, 1.0f, 1.0f, 1.0f)));
+        assertClose(20.0f, indicatorX[0],
+                "fitting trailing inline content should keep natural text flow");
     }
 
     private record FixedFontFace(float lineHeight) implements FontFace {
