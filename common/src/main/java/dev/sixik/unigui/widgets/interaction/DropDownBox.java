@@ -376,8 +376,31 @@ public class DropDownBox extends LinearBox {
         return opened ? headerArrowOpened : headerArrowClosed;
     }
 
-    protected static RichText createHeaderArrow(boolean opened) {
-        return RichText.builder().append(" ").inline(
+    /**
+     * Создаёт inline-индикатор состояния раскрытия.
+     *
+     * <p>Индикатор рисуется как filled triangle, а не как текстовый символ, поэтому его
+     * форма не зависит от выбранного шрифта. По умолчанию перед индикатором добавляется
+     * пробел: это сохраняет текущую разметку заголовков DropDownBox и ComboBox.</p>
+     *
+     * @param opened {@code true} для стрелки вверх, {@code false} для стрелки вниз
+     * @return rich-text с inline-индикатором
+     */
+    public static RichText createHeaderArrow(boolean opened) {
+        return createHeaderArrow(opened, true);
+    }
+
+    /**
+     * Создаёт inline-индикатор состояния с управляемым ведущим пробелом.
+     *
+     * @param opened {@code true} для стрелки вверх, {@code false} для стрелки вниз
+     * @param leadingSpace добавлять ли пробел перед индикатором
+     * @return rich-text с inline-индикатором
+     */
+    public static RichText createHeaderArrow(boolean opened, boolean leadingSpace) {
+        RichText.Builder builder = RichText.builder();
+        if (leadingSpace) builder.append(" ");
+        return builder.inline(
                 opened ? "dropdown-arrow-opened" : "dropdown-arrow-closed",
                 opened ? "[up]" : "[down]",
                 14.0f,

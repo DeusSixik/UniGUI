@@ -16,6 +16,7 @@ import dev.sixik.unigui.widgets.containers.LinearBox;
 import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.widgets.interaction.ToggleButton;
+import dev.sixik.unigui.widgets.interaction.DropDownBox;
 
 @XmlWidgetName("ExpandablePanel")
 public class ExpandablePanel extends LinearBox {
@@ -25,6 +26,8 @@ public class ExpandablePanel extends LinearBox {
 
     private final ToggleButton headerButton = new ToggleButton();
     private final VBox contentHost = new VBox();
+    private final RichText expansionArrowClosed = DropDownBox.createHeaderArrow(false, false);
+    private final RichText expansionArrowOpened = DropDownBox.createHeaderArrow(true, false);
     private String title = "";
     private RichText richTitle = RichText.plain("");
     private boolean expanded = true;
@@ -173,7 +176,8 @@ public class ExpandablePanel extends LinearBox {
     }
 
     private void updateHeaderText() {
-        headerButton.richText(RichText.plain(expanded ? "\u25BE " : "\u25B8 ").append(richTitle));
+        RichText arrow = expanded ? expansionArrowOpened : expansionArrowClosed;
+        headerButton.richText(arrow.append(richTitle));
     }
 
     private static String normalize(String title) {
