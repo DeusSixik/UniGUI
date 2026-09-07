@@ -12,9 +12,10 @@ import java.util.function.Predicate;
 /**
  * Регистрирует UniGUI-слои, которые рисуются поверх любого текущего Minecraft Screen.
  *
- * <p>Hook выполняется после {@code Screen.renderWithTooltip}, поэтому слой находится
- * поверх чужого UI и его tooltip'ов. Через {@link MinecraftRenderLayerRegistration#visibleWhen}
- * можно ограничить показ конкретным классом экрана, например экраном рецептов.</p>
+ * <p>Слой находится поверх содержимого чужого UI. Vanilla tooltip текущего экрана
+ * откладываются до завершения overlay-pass и поэтому остаются поверх UniGUI.
+ * Через {@link MinecraftRenderLayerRegistration#visibleWhen} можно ограничить показ
+ * конкретным классом экрана, например экраном рецептов.</p>
  *
  * <pre>{@code
  * MinecraftRenderLayerRegistration<Screen> overlay = ScreenOverlayRender.register(root);
@@ -51,6 +52,11 @@ public final class ScreenOverlayRender {
     /** Удаляет все screen-overlay слои и освобождает принадлежащие им ресурсы. */
     public static void clear() {
         REGISTRY.clear();
+    }
+
+    /** @return {@code true}, если для экрана зарегистрирован хотя бы один видимый слой */
+    public static boolean hasVisibleLayer(Screen screen) {
+        return screen != null && REGISTRY.hasVisibleEntries(screen);
     }
 
     /** Внутренняя точка вызова из Screen hook. */

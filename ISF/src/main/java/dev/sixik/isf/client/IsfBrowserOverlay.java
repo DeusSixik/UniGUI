@@ -31,7 +31,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,14 +39,14 @@ import java.lang.reflect.Field;
 
 /** UniGUI screen-overlay с вертикально перелистываемой сеткой доступных предметов. */
 final class IsfBrowserOverlay {
-    private static final int COLUMNS = 6;
     private static final float CELL = 18.0f;
+    private static final float PANEL_PADDING = 4.0f;
 
     private final BrowserRoot contentRoot = new BrowserRoot();
     private final OverlayLayer overlayRoot = new OverlayLayer(contentRoot);
     private final Box bookmarkPanel = panelShell();
     private final Box browserPanel = panelShell();
-    private final GridBox grid = new GridBox().columns(COLUMNS);
+    private final GridBox grid = new GridBox().columns(1);
     private final ScrollView itemScroll = new ScrollView(grid);
     private final GridBox bookmarkGrid = new GridBox().columns(4);
     private final ScrollView bookmarkScroll = new ScrollView(bookmarkGrid);
@@ -305,8 +304,7 @@ final class IsfBrowserOverlay {
             addTooltip(cell, entry);
         }
 
-        int rows = (entries.size() + COLUMNS - 1) / COLUMNS;
-        itemScroll.contentHeight(rows * CELL);
+        updateItemScrollContentHeight();
 
         syncBookmarks();
 
@@ -352,6 +350,12 @@ final class IsfBrowserOverlay {
         int columns = Math.max(1, bookmarkGrid.columns());
         int rows = (bookmarkCells.size() + columns - 1) / columns;
         bookmarkScroll.contentHeight(rows * CELL);
+    }
+
+    private void updateItemScrollContentHeight() {
+        int columns = Math.max(1, grid.columns());
+        int rows = (catalogEntries.size() + columns - 1) / columns;
+        itemScroll.contentHeight(rows * CELL);
     }
 
     private Button itemCell(ItemEntry entry) {
@@ -464,7 +468,9 @@ final class IsfBrowserOverlay {
 
         List<ItemEntry> entries = new ArrayList<>(indexed.values());
         entries.removeIf(entry -> entry.stack().isEmpty());
-        entries.sort(Comparator.comparing(entry -> entry.id().toString()));
+        entries.sort((left, right) -> Integer.compare(
+                BuiltInRegistries.ITEM.getId(left.stack().getItem()),
+                BuiltInRegistries.ITEM.getId(right.stack().getItem())));
         return entries;
     }
 
@@ -505,6 +511,17 @@ final class IsfBrowserOverlay {
             int panelHeight = Math.max(0, height - margin * 2);
             bookmarkPanel.layout(style -> style.left(margin).top(margin).size(leftWidth, panelHeight));
             browserPanel.layout(style -> style.left(rightX).top(margin).size(rightWidth, panelHeight));
+
+            float itemContentWidth = Math.max(0.0f,
+                    rightWidth - PANEL_PADDING * 2.0f
+                            - dev.sixik.unigui.widgets.interaction.ScrollBar.DEFAULT_SIZE
+                            - itemScroll.scrollbarGap());
+            int itemColumns = Math.max(1, (int) (itemContentWidth / CELL));
+            if (grid.columns() != itemColumns) {
+                grid.columns(itemColumns);
+                updateItemScrollContentHeight();
+            }
+
             int bookmarkContentWidth = Math.max(0, leftWidth - 8);
             int bookmarkColumns = Math.max(1, (int) (bookmarkContentWidth / CELL));
             if (bookmarkGrid.columns() != bookmarkColumns) {

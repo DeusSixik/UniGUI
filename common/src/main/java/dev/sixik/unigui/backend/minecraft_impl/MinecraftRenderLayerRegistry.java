@@ -54,6 +54,17 @@ final class MinecraftRenderLayerRegistry<C> {
         return snapshot.length != 0;
     }
 
+    boolean hasVisibleEntries(C context) {
+        Object[] current = snapshot;
+        for (Object entry : current) {
+            @SuppressWarnings("unchecked")
+            MinecraftRenderLayerRegistration<C> registration =
+                    (MinecraftRenderLayerRegistration<C>) entry;
+            if (registration.shouldRender(context)) return true;
+        }
+        return false;
+    }
+
     boolean mouseMoved(C context, double mouseX, double mouseY) {
         Object[] current = snapshot;
         for (int i = current.length - 1; i >= 0; i--) {

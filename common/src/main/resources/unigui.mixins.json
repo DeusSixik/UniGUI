@@ -9,6 +9,7 @@
     "MixinHudRender",
     "MixinGameRendererLoading",
     "MixinLoadingOverlay",
+    "MixinGuiGraphicsTooltipOrder",
     "MixinScreenOverlay"
   ],
   "injectors": {
