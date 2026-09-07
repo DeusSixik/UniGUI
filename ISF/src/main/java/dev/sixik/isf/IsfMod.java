@@ -3,6 +3,7 @@ package dev.sixik.isf;
 import dev.sixik.isf.command.IsfCommands;
 import dev.sixik.isf.definition.IsfDefinitionReloadListener;
 import dev.sixik.isf.network.IsfNetwork;
+import dev.sixik.isf.importer.VanillaRecipeTypeSupports;
 import dev.sixik.isf.runtime.IsfRuntime;
 import dev.sixik.isf.trigger.IsfTriggerContext;
 import dev.sixik.isf.trigger.IsfTriggerRegistry;
@@ -32,6 +33,7 @@ public final class IsfMod {
     private static final IsfRuntime RUNTIME = new IsfRuntime();
 
     public IsfMod() {
+        VanillaRecipeTypeSupports.registerAll(RUNTIME.recipeTypes());
         IsfNetwork.init();
         MinecraftForge.EVENT_BUS.addListener(this::addReloadListeners);
         MinecraftForge.EVENT_BUS.addListener(this::registerCommands);

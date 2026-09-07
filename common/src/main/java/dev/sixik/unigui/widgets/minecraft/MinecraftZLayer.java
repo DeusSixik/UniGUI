@@ -8,17 +8,21 @@ import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftGuiRenderBackend;
+import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
 import dev.sixik.unigui.impl.render.DefaultRenderContext;
 import dev.sixik.unigui.widgets.feedback.OverlayHostAware;
 import dev.sixik.unigui.widgets.containers.PanelWidget;
 
 /**
- * Overlay helper that raises nested regular draw commands above Minecraft custom preview renders.
+ * Overlay-слой, который поднимает вложенное UniGUI-дерево над Minecraft preview-рендерами.
+ *
+ * <p>Нужен для окон и всплывающих элементов, которые должны целиком находиться выше
+ * {@code renderItem}, {@code renderEntity} и других backend-specific preview-команд.</p>
  */
-final class MinecraftZLayer extends PanelWidget implements OverlayHostAware {
+public final class MinecraftZLayer extends PanelWidget implements OverlayHostAware {
     private final float z;
 
-    MinecraftZLayer(Widget content, float z) {
+    public MinecraftZLayer(Widget content, float z) {
         this.z = Float.isFinite(z) ? z : 0.0f;
         enabled(false);
         addChild(content);
@@ -54,7 +58,7 @@ final class MinecraftZLayer extends PanelWidget implements OverlayHostAware {
             if (child instanceof OverlayHostAware hostAware) {
                 hostAware.arrangeInHost(bounds);
             } else {
-                child.arrange(bounds);
+                AbsoluteLayoutEngine.arrange(child, bounds);
             }
         }
     }
@@ -104,7 +108,7 @@ final class MinecraftZLayer extends PanelWidget implements OverlayHostAware {
             if (child instanceof OverlayHostAware hostAware) {
                 hostAware.arrangeInHost(layoutBounds());
             } else {
-                child.arrange(layoutBounds());
+                AbsoluteLayoutEngine.arrange(child, layoutBounds());
             }
         }
     }

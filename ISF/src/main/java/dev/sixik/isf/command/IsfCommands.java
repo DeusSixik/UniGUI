@@ -34,11 +34,13 @@ public final class IsfCommands {
         }
         IsfRecipeGenerator.Result result = new IsfRecipeGenerator().generate(context.getSource().getServer(), request);
         context.getSource().sendSuccess(() -> Component.literal(
-                "ISF: generated " + result.generated() + " recipes in " + result.outputDirectory()
+                "ISF: generated " + result.generatedTypes() + " recipe types and "
+                        + result.generated() + " recipes in " + result.outputDirectory()
                         + ". Run /reload to apply them."), true);
         if (!result.unsupportedCategories().isEmpty()) {
-            context.getSource().sendFailure(Component.literal(
-                    "Not implemented yet: " + String.join(", ", result.unsupportedCategories())));
+            context.getSource().sendSuccess(() -> Component.literal(
+                    "ISF: skipped unsupported recipe categories: "
+                            + String.join(", ", result.unsupportedCategories())), false);
         }
         return result.generated();
     }

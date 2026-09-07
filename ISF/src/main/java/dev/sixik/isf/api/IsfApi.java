@@ -4,6 +4,7 @@ import com.google.gson.JsonElement;
 import dev.sixik.isf.IsfMod;
 import dev.sixik.isf.trigger.IsfTriggerContext;
 import dev.sixik.isf.trigger.IsfTriggerType;
+import dev.sixik.isf.runtime.IsfFunction;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -17,6 +18,16 @@ public final class IsfApi {
 
     public static void registerTrigger(ResourceLocation id, IsfTriggerType trigger) {
         IsfMod.runtime().triggers().register(id, trigger);
+    }
+
+    /** Регистрирует поддержку игрового recipe type для команды генерации ISF. */
+    public static void registerRecipeType(IsfRecipeTypeSupport support) {
+        IsfMod.runtime().recipeTypes().register(support);
+    }
+
+    /** Регистрирует безопасную функцию для выражений visual-документов. */
+    public static void registerFunction(ResourceLocation id, IsfFunction function) {
+        IsfMod.runtime().functions().register(id, function);
     }
 
     public static List<ResourceLocation> fireTrigger(ServerPlayer player,

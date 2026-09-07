@@ -56,6 +56,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import dev.sixik.unigui.widgets.containers.LinearBox;
 import dev.sixik.unigui.widgets.containers.PanelWidget;
 import dev.sixik.unigui.widgets.interaction.ScrollBar;
+import dev.sixik.unigui.widgets.minecraft.MinecraftZLayer;
 
 public final class LayoutV3SelfTest {
     public static void main(String[] args) {
@@ -104,6 +105,7 @@ public final class LayoutV3SelfTest {
         testGridBoxV2BaselineEqualCellsAndAbsoluteChild();
         testGridBoxOptInMatchesV2EqualCellsAndCollapsedChildren();
         testOverlayLayerV2BaselineIgnoresOverlayDesiredSize();
+        testMinecraftZLayerPreservesAbsoluteContentBounds();
         testOverlayLayerRuntimeOrderKeepsContentBelowOverlays();
         testOverlayLayerCloseOnOutsideClickContract();
         testPopupV2BaselineAnchorsAndFlipsInsideHost();
@@ -929,6 +931,22 @@ public final class LayoutV3SelfTest {
                         && near(overlay.layoutBounds().width(), 200.0f)
                         && near(overlay.layoutBounds().height(), 120.0f),
                 "OverlayLayer V2 baseline should arrange absolute overlays in host coordinates");
+    }
+
+    private void testMinecraftZLayerPreservesAbsoluteContentBounds() {
+        Box dialog = new Box();
+        dialog.layout(style -> style
+                .position(PositionType.ABSOLUTE)
+                .left(30.0f)
+                .top(20.0f)
+                .size(140.0f, 90.0f));
+        MinecraftZLayer zLayer = new MinecraftZLayer(dialog, 300.0f);
+
+        zLayer.measure(new LayoutContext(320.0f, 180.0f));
+        zLayer.arrangeInHost(new MutableRect(0.0f, 0.0f, 320.0f, 180.0f));
+
+        expect(sameBounds(dialog.layoutBounds(), new MutableRect(30.0f, 20.0f, 140.0f, 90.0f)),
+                "MinecraftZLayer should preserve absolute overlay position and size");
     }
 
     private void testOverlayLayerRuntimeOrderKeepsContentBelowOverlays() {

@@ -5,6 +5,8 @@ import dev.sixik.isf.persistence.IsfWorldData;
 import dev.sixik.isf.runtime.IsfResolvedRecipe;
 import dev.sixik.isf.definition.IsfDefinitionJson;
 import dev.sixik.isf.definition.IsfRecipeDefinition;
+import dev.sixik.isf.trigger.IsfTriggerContext;
+import dev.sixik.isf.trigger.IsfTriggerRegistry;
 import com.google.gson.Gson;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
@@ -25,7 +27,7 @@ import java.util.function.Supplier;
 
 /** Синхронизация world-scoped прогресса и закладок ISF. */
 public final class IsfNetwork {
-    private static final String VERSION = "3";
+    private static final String VERSION = "4";
     private static final int MAX_COLLECTION_SIZE = 100_000;
     private static final int MAX_RECIPE_JSON_LENGTH = 1_048_576;
     private static final Gson GSON = new Gson();
@@ -43,6 +45,9 @@ public final class IsfNetwork {
         CHANNEL.registerMessage(packetId++, ToggleBookmark.class,
                 ToggleBookmark::encode, ToggleBookmark::decode, ToggleBookmark::handle,
                 java.util.Optional.of(NetworkDirection.PLAY_TO_SERVER));
+        CHANNEL.registerMessage(packetId++, RequestRecipes.class,
+                RequestRecipes::encode, RequestRecipes::decode, RequestRecipes::handle,
+                java.util.Optional.of(NetworkDirection.PLAY_TO_SERVER));
         CHANNEL.registerMessage(packetId++, LibrarySnapshot.class,
                 LibrarySnapshot::encode, LibrarySnapshot::decode, LibrarySnapshot::handle,
                 java.util.Optional.of(NetworkDirection.PLAY_TO_CLIENT));
@@ -50,6 +55,10 @@ public final class IsfNetwork {
 
     public static void toggleBookmark(ResourceLocation itemId, boolean bookmarked) {
         CHANNEL.sendToServer(new ToggleBookmark(itemId, bookmarked));
+    }
+
+    public static void requestRecipes(ResourceLocation itemId, boolean usages) {
+        if (itemId != null) CHANNEL.sendToServer(new RequestRecipes(itemId, usages));
     }
 
     public static void sendLibrary(ServerPlayer player) {
@@ -62,7 +71,7 @@ public final class IsfNetwork {
             ResourceLocation result = resultItem(recipe);
             if (result != null) resultByRecipe.put(recipe.id(), result);
             documents.add(new IsfRecipeDefinition(recipe.id(), recipe.recipeType(), null,
-                    recipe.parameters(), List.of(), recipe.visual(), recipe.source()));
+                    recipe.parameters(), recipe.triggers(), recipe.visual(), recipe.source()));
         }
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
                 new LibrarySnapshot(unlocked, data.bookmarks(player.getUUID()), resultByRecipe, documents));
@@ -93,6 +102,36 @@ public final class IsfNetwork {
                 ServerPlayer player = context.getSender();
                 if (player == null) return;
                 IsfWorldData.get(player.server).setBookmarked(player.getUUID(), packet.itemId, packet.bookmarked);
+                sendLibrary(player);
+            });
+            context.setPacketHandled(true);
+        }
+    }
+
+    public record RequestRecipes(ResourceLocation itemId, boolean usages) {
+        private static void encode(RequestRecipes packet, FriendlyByteBuf buffer) {
+            buffer.writeResourceLocation(packet.itemId);
+            buffer.writeBoolean(packet.usages);
+        }
+
+        private static RequestRecipes decode(FriendlyByteBuf buffer) {
+            return new RequestRecipes(buffer.readResourceLocation(), buffer.readBoolean());
+        }
+
+        private static void handle(RequestRecipes packet, Supplier<NetworkEvent.Context> supplier) {
+            NetworkEvent.Context context = supplier.get();
+            context.enqueueWork(() -> {
+                ServerPlayer player = context.getSender();
+                if (player == null) return;
+                if (packet.usages) {
+                    dev.sixik.isf.IsfMod.runtime().fire(IsfTriggerRegistry.USE,
+                            new IsfTriggerContext(player, packet.itemId, null, Map.of()));
+                    dev.sixik.isf.IsfMod.runtime().fire(IsfTriggerRegistry.STATION,
+                            new IsfTriggerContext(player, packet.itemId, packet.itemId, Map.of()));
+                } else {
+                    dev.sixik.isf.IsfMod.runtime().fire(IsfTriggerRegistry.CRAFT,
+                            new IsfTriggerContext(player, packet.itemId, null, Map.of()));
+                }
                 sendLibrary(player);
             });
             context.setPacketHandled(true);

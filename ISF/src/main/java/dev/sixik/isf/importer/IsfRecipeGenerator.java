@@ -2,24 +2,16 @@ package dev.sixik.isf.importer;
 
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonPrimitive;
+import dev.sixik.isf.IsfMod;
+import dev.sixik.isf.api.IsfRecipeTypeSupport;
 import dev.sixik.isf.definition.IsfDefinitionJson;
 import dev.sixik.isf.definition.IsfRecipeDefinition;
 import dev.sixik.isf.definition.IsfSourceReference;
-import dev.sixik.isf.definition.IsfTriggerBinding;
-import dev.sixik.isf.definition.IsfVisualNode;
-import dev.sixik.isf.trigger.IsfTriggerRegistry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.world.item.crafting.AbstractCookingRecipe;
 import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.item.crafting.RecipeType;
-import net.minecraft.world.item.crafting.ShapedRecipe;
-import net.minecraft.world.item.crafting.ShapelessRecipe;
-import net.minecraft.world.item.crafting.Ingredient;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -33,43 +25,62 @@ import java.util.Set;
 
 /** Импортирует поддерживаемые Minecraft recipes в независимые ISF JSON-документы. */
 public final class IsfRecipeGenerator {
+    private final IsfRecipeTypeSupportRegistry supports;
+
+    public IsfRecipeGenerator() {
+        this(IsfMod.runtime().recipeTypes());
+    }
+
+    public IsfRecipeGenerator(IsfRecipeTypeSupportRegistry supports) {
+        this.supports = java.util.Objects.requireNonNull(supports, "supports");
+    }
+
     public Result generate(MinecraftServer server, IsfImportRequest request) {
         if (server == null) throw new IllegalArgumentException("Server cannot be null");
         IsfImportRequest safeRequest = request == null ? IsfImportRequest.parse("") : request;
         Path packRoot = server.getWorldPath(net.minecraft.world.level.storage.LevelResource.DATAPACK_DIR)
-                .resolve("isf_generated");
+                .resolve("isf_generated")
+                .toAbsolutePath()
+                .normalize();
         Path output = packRoot.resolve("data").resolve("isf").resolve("isf")
                 .resolve("recipes").resolve("generated");
         int generated = 0;
+        int generatedTypes = 0;
         Set<String> unsupported = new LinkedHashSet<>();
         try {
             Files.createDirectories(output);
             writePackMetadata(packRoot);
             RegistryAccess access = server.registryAccess();
+
+            for (IsfRecipeTypeSupport support : supports.values()) {
+                if (!safeRequest.accepts(support.category())) continue;
+                Path target = definitionPath(packRoot, "recipe_types", support.definition().id());
+                writeJson(target, IsfDefinitionJson.writeType(support.definition()));
+                generatedTypes++;
+            }
+
             for (Recipe<?> recipe : server.getRecipeManager().getRecipes()) {
                 ResourceLocation recipeId = recipe.getId();
-                String category = category(recipe);
-                if (!safeRequest.accepts(category)) continue;
-                if (!isSupported(recipe)) {
-                    unsupported.add(category);
+                IsfRecipeTypeSupport support = supports.find(recipe).orElse(null);
+                if (support == null) {
+                    String category = unsupportedCategory(recipe);
+                    if (safeRequest.accepts(category)) unsupported.add(category);
                     continue;
                 }
-                IsfRecipeDefinition definition = toDefinition(recipeId, recipe, access);
+                if (!safeRequest.accepts(support.category())) continue;
+                IsfRecipeDefinition definition = toDefinition(recipeId, recipe, access, support);
                 Path target = output.resolve(recipeId.getNamespace())
                         .resolve(recipeId.getPath() + ".json").normalize();
                 if (!target.startsWith(output)) {
                     throw new IllegalStateException("Recipe id escapes ISF output directory: " + recipeId);
                 }
-                Files.createDirectories(target.getParent());
-                Files.writeString(target,
-                        new GsonBuilder().setPrettyPrinting().create().toJson(IsfDefinitionJson.writeRecipe(definition)),
-                        StandardCharsets.UTF_8);
+                writeJson(target, IsfDefinitionJson.writeRecipe(definition));
                 generated++;
             }
         } catch (IOException exception) {
             throw new IllegalStateException("Failed to generate ISF recipes in " + output, exception);
         }
-        return new Result(generated, output, List.copyOf(unsupported));
+        return new Result(generated, generatedTypes, output, List.copyOf(unsupported));
     }
 
     private static void writePackMetadata(Path packRoot) throws IOException {
@@ -86,59 +97,50 @@ public final class IsfRecipeGenerator {
                 StandardCharsets.UTF_8);
     }
 
-    private static IsfRecipeDefinition toDefinition(ResourceLocation id, Recipe<?> recipe, RegistryAccess access) {
-        net.minecraft.world.item.ItemStack resultStack = recipe.getResultItem(access);
-        ResourceLocation result = BuiltInRegistries.ITEM.getKey(resultStack.getItem());
-        String category = category(recipe);
-        Map<String, com.google.gson.JsonElement> parameters = new java.util.LinkedHashMap<>();
-        parameters.put("result", new JsonPrimitive(result.toString()));
-        parameters.put("result_count", new JsonPrimitive(resultStack.getCount()));
-        parameters.put("ingredients", ingredients(recipe));
-        if (recipe instanceof ShapedRecipe shaped) {
-            parameters.put("width", new JsonPrimitive(shaped.getWidth()));
-            parameters.put("height", new JsonPrimitive(shaped.getHeight()));
-        }
-        if (recipe instanceof AbstractCookingRecipe cooking) {
-            parameters.put("cooking_time", new JsonPrimitive(cooking.getCookingTime()));
-            parameters.put("experience", new JsonPrimitive(cooking.getExperience()));
-        }
-        IsfTriggerBinding trigger = new IsfTriggerBinding(IsfTriggerRegistry.CRAFT, result, null, Map.of());
+    private static IsfRecipeDefinition toDefinition(ResourceLocation id,
+                                                    Recipe<?> recipe,
+                                                    RegistryAccess access,
+                                                    IsfRecipeTypeSupport support) {
+        Map<String, com.google.gson.JsonElement> extracted = support.extractParameters(recipe, access);
+        Map<String, com.google.gson.JsonElement> parameters = new java.util.LinkedHashMap<>(
+                extracted == null ? Map.of() : extracted);
         return new IsfRecipeDefinition(ResourceLocation.tryBuild("isf",
                 "generated/" + id.getNamespace() + "/" + id.getPath()),
-                ResourceLocation.tryBuild("isf", category), null, parameters, List.of(trigger), null,
-                new IsfSourceReference(category, id));
+                support.definition().id(), null, parameters,
+                support.createTriggers(recipe, access, Map.copyOf(parameters)), null,
+                new IsfSourceReference(support.category(), id));
     }
 
-    private static JsonArray ingredients(Recipe<?> recipe) {
-        JsonArray ingredients = new JsonArray();
-        for (Ingredient ingredient : recipe.getIngredients()) {
-            JsonArray alternatives = new JsonArray();
-            for (net.minecraft.world.item.ItemStack stack : ingredient.getItems()) {
-                alternatives.add(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString());
-            }
-            ingredients.add(alternatives);
+    private static Path definitionPath(Path packRoot, String directory, ResourceLocation id) {
+        Path root = packRoot.resolve("data").resolve(id.getNamespace()).resolve("isf").resolve(directory)
+                .toAbsolutePath().normalize();
+        Path target = root.resolve(id.getPath() + ".json").normalize();
+        if (!target.startsWith(root)) {
+            throw new IllegalStateException("Definition id escapes ISF output directory: " + id);
         }
-        return ingredients;
+        return target;
     }
 
-    private static boolean isSupported(Recipe<?> recipe) {
-        return recipe instanceof ShapedRecipe || recipe instanceof ShapelessRecipe || recipe instanceof AbstractCookingRecipe;
+    private static void writeJson(Path target, JsonObject json) throws IOException {
+        Files.createDirectories(target.getParent());
+        Files.writeString(target,
+                new GsonBuilder().setPrettyPrinting().create().toJson(json),
+                StandardCharsets.UTF_8);
     }
 
-    private static String category(Recipe<?> recipe) {
-        if (recipe instanceof ShapedRecipe) return "crafting_shaped";
-        if (recipe instanceof ShapelessRecipe) return "crafting_shapeless";
-        if (recipe instanceof AbstractCookingRecipe cooking) {
-            RecipeType<?> type = cooking.getType();
-            if (type == RecipeType.SMELTING) return "smelting";
-            if (type == RecipeType.BLASTING) return "blasting";
-            if (type == RecipeType.SMOKING) return "smoking";
-            if (type == RecipeType.CAMPFIRE_COOKING) return "campfire_cooking";
+    private static String unsupportedCategory(Recipe<?> recipe) {
+        if (recipe.getType() == net.minecraft.world.item.crafting.RecipeType.CRAFTING
+                && recipe.isSpecial()) {
+            return "crafting_special";
         }
-        return "unsupported";
+        ResourceLocation type = BuiltInRegistries.RECIPE_TYPE.getKey(recipe.getType());
+        return type == null ? "unknown" : type.toString();
     }
 
-    public record Result(int generated, Path outputDirectory, List<String> unsupportedCategories) {
+    public record Result(int generated,
+                         int generatedTypes,
+                         Path outputDirectory,
+                         List<String> unsupportedCategories) {
     }
 
 }

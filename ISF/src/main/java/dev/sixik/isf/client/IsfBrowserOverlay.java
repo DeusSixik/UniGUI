@@ -2,12 +2,11 @@ package dev.sixik.isf.client;
 
 import dev.sixik.isf.network.IsfNetwork;
 import dev.sixik.isf.definition.IsfRecipeDefinition;
-import com.google.gson.JsonArray;
+import dev.sixik.isf.trigger.IsfTriggerRegistry;
 import com.google.gson.JsonElement;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.event.PointerEnteredEvent;
 import dev.sixik.unigui.api.event.PointerExitedEvent;
-import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.PositionType;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftRenderLayerRegistration;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftWidgetRenderLayer;
@@ -22,6 +21,8 @@ import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 import dev.sixik.unigui.widgets.interaction.Button;
 import dev.sixik.unigui.widgets.minecraft.MinecraftItemTooltip;
+import dev.sixik.unigui.widgets.minecraft.MinecraftZLayer;
+import dev.sixik.unigui.api.widget.Widget;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -51,11 +52,14 @@ final class IsfBrowserOverlay {
     private final GridBox bookmarkGrid = new GridBox().columns(4);
     private final ScrollView bookmarkScroll = new ScrollView(bookmarkGrid);
     private final Box detailPanel = new Box();
+    private final MinecraftZLayer detailLayer = new MinecraftZLayer(detailPanel, 300.0f);
     private final Label detailTitle = new Label();
     private final Label detailSource = new Label();
-    private final IsfItemIconWidget detailIcon = new IsfItemIconWidget(ItemStack.EMPTY);
-    private final GridBox detailIngredients = new GridBox().columns(3);
+    private final Label detailPage = new Label();
+    private final Button detailPrevious = new Button();
+    private final Button detailNext = new Button();
     private final Label detailStats = new Label();
+    private final Box detailVisualHost = new Box();
     private final List<MinecraftItemTooltip> tooltips = new ArrayList<>();
     private final Map<ResourceLocation, Button> bookmarkCells = new LinkedHashMap<>();
     private final Map<ResourceLocation, MinecraftItemTooltip> bookmarkTooltips = new LinkedHashMap<>();
@@ -65,6 +69,8 @@ final class IsfBrowserOverlay {
     private Map<ResourceLocation, ResourceLocation> observedRecipeResults = Map.of();
     private ItemEntry hoveredEntry;
     private ItemEntry selectedEntry;
+    private int selectedRecipeIndex;
+    private PendingRecipeQuery pendingRecipeQuery;
     private long observedStateVersion = Long.MIN_VALUE;
     private float savedScrollY;
     private boolean restoreScroll;
@@ -88,6 +94,8 @@ final class IsfBrowserOverlay {
     void resetPage() {
         hoveredEntry = null;
         selectedEntry = null;
+        selectedRecipeIndex = 0;
+        pendingRecipeQuery = null;
         itemScrollBarDragging = false;
         bookmarkScrollBarDragging = false;
     }
@@ -98,6 +106,35 @@ final class IsfBrowserOverlay {
         boolean bookmarked = !IsfClientState.bookmarks().contains(entry.id());
         IsfNetwork.toggleBookmark(entry.id(), bookmarked);
         return true;
+    }
+
+    ResourceLocation hoveredItemId() {
+        return hoveredEntry == null ? null : hoveredEntry.id();
+    }
+
+    void showRecipes(ResourceLocation itemId, boolean usages) {
+        if (itemId == null) return;
+        pendingRecipeQuery = new PendingRecipeQuery(itemId, usages, IsfClientState.version());
+        showRecipeQuery(pendingRecipeQuery);
+        IsfNetwork.requestRecipes(itemId, usages);
+    }
+
+    private void showRecipeQuery(PendingRecipeQuery query) {
+        List<ResourceLocation> recipeIds = IsfClientState.recipes().values().stream()
+                .filter(recipe -> matchesQuery(recipe, query.itemId(), query.usages()))
+                .map(IsfRecipeDefinition::id)
+                .toList();
+        Item item = BuiltInRegistries.ITEM.get(query.itemId());
+        updateDetail(new ItemEntry(query.itemId(), new ItemStack(item), recipeIds));
+    }
+
+    private static boolean matchesQuery(IsfRecipeDefinition recipe,
+                                        ResourceLocation itemId,
+                                        boolean usages) {
+        return recipe.triggers().stream().anyMatch(binding -> usages
+                ? binding.trigger().equals(IsfTriggerRegistry.USE) && itemId.equals(binding.subject())
+                        || binding.trigger().equals(IsfTriggerRegistry.STATION) && itemId.equals(binding.station())
+                : binding.trigger().equals(IsfTriggerRegistry.CRAFT) && itemId.equals(binding.subject()));
     }
 
     boolean scrollItemsAt(double mouseX, double mouseY, double delta) {
@@ -240,23 +277,29 @@ final class IsfBrowserOverlay {
         content.spacing(2.0f);
         content.layout(style -> style.fill());
         detailTitle.layout(style -> style.size(168.0f, 16.0f).flexNone());
-        detailSource.layout(style -> style.size(168.0f, 14.0f).flexNone());
-        detailIcon.layout(style -> style.size(32.0f, 32.0f).centerSelf().flexNone());
-        detailIcon.enabled(false);
-        detailIngredients.spacing(0.0f);
-        detailIngredients.layout(style -> style.size(54.0f, 54.0f).centerSelf().flexNone());
+        detailPage.layout(style -> style.width(40.0f).height(14.0f).flexNone());
+        detailPrevious.text("<").textPadding(0.0f, 0.0f);
+        detailPrevious.layout(style -> style.size(16.0f, 14.0f).flexNone());
+        detailPrevious.onClick(event -> changeSelectedRecipe(-1));
+        detailNext.text(">").textPadding(0.0f, 0.0f);
+        detailNext.layout(style -> style.size(16.0f, 14.0f).flexNone());
+        detailNext.onClick(event -> changeSelectedRecipe(1));
+        HBox recipeNavigation = new HBox();
+        recipeNavigation.spacing(2.0f);
+        recipeNavigation.layout(style -> style.widthPercent(100.0f).height(14.0f).flexNone());
+        detailSource.layout(style -> style.flexGrow(1.0f).flexShrink(1.0f));
+        recipeNavigation.addChild(detailPrevious);
+        recipeNavigation.addChild(detailSource);
+        recipeNavigation.addChild(detailPage);
+        recipeNavigation.addChild(detailNext);
         detailStats.layout(style -> style.size(168.0f, 14.0f).flexNone());
-        HBox recipeBody = new HBox();
-        recipeBody.spacing(18.0f);
-        recipeBody.layout(style -> style.size(168.0f, 58.0f).center().flexNone());
-        recipeBody.addChild(detailIngredients);
-        recipeBody.addChild(detailIcon);
+        detailVisualHost.layout(style -> style.widthPercent(100.0f).height(92.0f).flexNone());
         content.addChild(detailTitle);
-        content.addChild(detailSource);
-        content.addChild(recipeBody);
+        content.addChild(recipeNavigation);
+        content.addChild(detailVisualHost);
         content.addChild(detailStats);
         detailPanel.addChild(content);
-        contentRoot.addChild(detailPanel);
+        overlayRoot.addOverlay(detailLayer);
         updateDetail(null);
     }
 
@@ -393,6 +436,9 @@ final class IsfBrowserOverlay {
     }
 
     private void updateDetail(ItemEntry entry) {
+        if (selectedEntry == null || entry == null || !selectedEntry.id().equals(entry.id())) {
+            selectedRecipeIndex = 0;
+        }
         selectedEntry = entry;
         if (entry == null) {
             detailPanel.visibility(dev.sixik.unigui.api.widget.Visibility.COLLAPSED);
@@ -400,40 +446,35 @@ final class IsfBrowserOverlay {
         }
         detailPanel.visibility(dev.sixik.unigui.api.widget.Visibility.VISIBLE);
         detailTitle.text(entry.stack().getHoverName().getString());
-        detailIcon.stack(entry.stack());
-        IsfRecipeDefinition recipe = entry.recipeId() == null
-                ? null : IsfClientState.recipes().get(entry.recipeId());
-        detailSource.text(recipe == null ? "Bookmark" : recipe.recipeType().toString());
-        populateIngredients(recipe);
+        if (!entry.recipeIds().isEmpty()) {
+            selectedRecipeIndex = Math.max(0, Math.min(selectedRecipeIndex, entry.recipeIds().size() - 1));
+        } else {
+            selectedRecipeIndex = 0;
+        }
+        ResourceLocation recipeId = entry.recipeIds().isEmpty()
+                ? null : entry.recipeIds().get(selectedRecipeIndex);
+        IsfRecipeDefinition recipe = recipeId == null ? null : IsfClientState.recipes().get(recipeId);
+        detailSource.text(recipe == null ? "No available recipes" : recipe.recipeType().toString());
+        detailPage.text(entry.recipeIds().isEmpty()
+                ? "0 / 0" : (selectedRecipeIndex + 1) + " / " + entry.recipeIds().size());
+        boolean multipleRecipes = entry.recipeIds().size() > 1;
+        detailPrevious.enabled(multipleRecipes);
+        detailNext.enabled(multipleRecipes);
+        detailVisualHost.clearChildren();
+        if (recipe != null && recipe.visual() != null) {
+            Widget visual = IsfVisualWidgetFactory.create(recipe.visual(), recipe.parameters());
+            if (visual != null) detailVisualHost.addChild(visual);
+        } else {
+            detailVisualHost.addChild(new Label("No visual recipe"));
+        }
         detailStats.text(recipeStats(recipe));
     }
 
-    private void populateIngredients(IsfRecipeDefinition recipe) {
-        detailIngredients.clearChildren();
-        if (recipe == null) return;
-        JsonElement value = recipe.parameters().get("ingredients");
-        if (value == null || !value.isJsonArray()) return;
-        for (JsonElement ingredient : value.getAsJsonArray()) {
-            ItemStack stack = firstIngredient(ingredient);
-            IsfItemIconWidget icon = new IsfItemIconWidget(stack);
-            icon.layout(style -> style.size(16.0f, 16.0f).centerSelf().flexNone());
-            detailIngredients.addChild(icon);
-        }
-    }
-
-    private static ItemStack firstIngredient(JsonElement ingredient) {
-        if (ingredient == null) return ItemStack.EMPTY;
-        JsonElement idValue = ingredient;
-        if (ingredient.isJsonArray()) {
-            JsonArray alternatives = ingredient.getAsJsonArray();
-            if (alternatives.isEmpty()) return ItemStack.EMPTY;
-            idValue = alternatives.get(0);
-        }
-        if (!idValue.isJsonPrimitive()) return ItemStack.EMPTY;
-        ResourceLocation id = ResourceLocation.tryParse(idValue.getAsString());
-        if (id == null) return ItemStack.EMPTY;
-        Item item = BuiltInRegistries.ITEM.get(id);
-        return item == Items.AIR ? ItemStack.EMPTY : new ItemStack(item);
+    private void changeSelectedRecipe(int direction) {
+        if (selectedEntry == null || selectedEntry.recipeIds().size() < 2) return;
+        int count = selectedEntry.recipeIds().size();
+        selectedRecipeIndex = Math.floorMod(selectedRecipeIndex + direction, count);
+        updateDetail(selectedEntry);
     }
 
     private static String recipeStats(IsfRecipeDefinition recipe) {
@@ -459,21 +500,22 @@ final class IsfBrowserOverlay {
         for (Item item : BuiltInRegistries.ITEM) {
             ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(item);
             if (item == Items.AIR || itemId == null) continue;
-            indexed.put(itemId, new ItemEntry(itemId, new ItemStack(item), null));
+            indexed.put(itemId, new ItemEntry(itemId, new ItemStack(item), List.of()));
         }
 
         IsfClientState.recipeResults().forEach((recipeId, itemId) -> {
             Item item = BuiltInRegistries.ITEM.get(itemId);
             if (item == Items.AIR) return;
             ItemEntry current = indexed.get(itemId);
-            if (current == null || current.recipeId() == null) {
-                indexed.put(itemId, new ItemEntry(itemId, new ItemStack(item), recipeId));
-            }
+            List<ResourceLocation> recipes = current == null
+                    ? new ArrayList<>() : new ArrayList<>(current.recipeIds());
+            if (!recipes.contains(recipeId)) recipes.add(recipeId);
+            indexed.put(itemId, new ItemEntry(itemId, new ItemStack(item), List.copyOf(recipes)));
         });
         for (ResourceLocation bookmark : bookmarks) {
             Item item = BuiltInRegistries.ITEM.get(bookmark);
             if (item != Items.AIR) indexed.putIfAbsent(bookmark,
-                    new ItemEntry(bookmark, new ItemStack(item), null));
+                    new ItemEntry(bookmark, new ItemStack(item), List.of()));
         }
 
         List<ItemEntry> entries = new ArrayList<>(indexed.values());
@@ -484,7 +526,7 @@ final class IsfBrowserOverlay {
         return entries;
     }
 
-    private record ItemEntry(ResourceLocation id, ItemStack stack, ResourceLocation recipeId) {
+    private record ItemEntry(ResourceLocation id, ItemStack stack, List<ResourceLocation> recipeIds) {
     }
 
     private final class BrowserRoot extends Box {
@@ -499,6 +541,12 @@ final class IsfBrowserOverlay {
                     syncBookmarks();
                     if (selectedEntry != null) updateDetail(selectedEntry);
                     observedStateVersion = IsfClientState.version();
+                }
+                if (pendingRecipeQuery != null
+                        && IsfClientState.version() > pendingRecipeQuery.stateVersion()) {
+                    PendingRecipeQuery query = pendingRecipeQuery;
+                    pendingRecipeQuery = null;
+                    showRecipeQuery(query);
                 }
             }
             if (restoreScroll) {
@@ -556,6 +604,9 @@ final class IsfBrowserOverlay {
                 return 176;
             }
         }
+    }
+
+    private record PendingRecipeQuery(ResourceLocation itemId, boolean usages, long stateVersion) {
     }
 
     private static boolean contains(dev.sixik.unigui.api.math.RectView bounds, float x, float y) {

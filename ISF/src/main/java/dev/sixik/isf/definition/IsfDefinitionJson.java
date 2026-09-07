@@ -134,6 +134,24 @@ public final class IsfDefinitionJson {
         return json;
     }
 
+    public static JsonObject writeType(IsfRecipeTypeDefinition type) {
+        JsonObject json = new JsonObject();
+        if (type.parent() != null) json.addProperty("parent", type.parent().toString());
+        JsonObject parameters = new JsonObject();
+        type.parameters().forEach((name, definition) -> {
+            JsonObject value = new JsonObject();
+            value.addProperty("type", definition.type().name().toLowerCase(Locale.ROOT));
+            value.add("default", definition.defaultValue().deepCopy());
+            if (!definition.description().isBlank()) {
+                value.addProperty("description", definition.description());
+            }
+            parameters.add(name, value);
+        });
+        json.add("parameters", parameters);
+        if (type.visual() != null) json.add("visual", writeVisual(type.visual()));
+        return json;
+    }
+
     public static JsonObject writeVisual(IsfVisualNode node) {
         JsonObject json = new JsonObject();
         json.addProperty("id", node.id());

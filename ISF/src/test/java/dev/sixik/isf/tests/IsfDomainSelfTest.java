@@ -8,6 +8,8 @@ import dev.sixik.isf.definition.IsfParameterType;
 import dev.sixik.isf.definition.IsfRecipeDefinition;
 import dev.sixik.isf.definition.IsfRecipeTypeDefinition;
 import dev.sixik.isf.definition.IsfVisualNode;
+import dev.sixik.isf.definition.IsfDefinitionJson;
+import dev.sixik.isf.importer.IsfRecipeTypeSupportRegistry;
 import dev.sixik.isf.runtime.IsfDefinitionRegistry;
 import dev.sixik.isf.runtime.IsfEvaluationContext;
 import dev.sixik.isf.runtime.IsfExpressionEvaluator;
@@ -79,6 +81,43 @@ public final class IsfDomainSelfTest {
         check(rejected, "cyclic recipe inheritance should be rejected");
         check(registry.recipe(childRecipe).isPresent(),
                 "failed replacement should preserve the previous working registry");
+
+        IsfRecipeTypeDefinition serializedType = new IsfRecipeTypeDefinition(
+                id("serialized_type"), null,
+                Map.of("energy", new IsfParameterDefinition("energy", IsfParameterType.NUMBER,
+                        new JsonPrimitive(10), "Energy value")), baseVisual);
+        JsonObject serializedJson = IsfDefinitionJson.writeType(serializedType);
+        check(serializedJson.getAsJsonObject("parameters").getAsJsonObject("energy")
+                        .get("default").getAsInt() == 10,
+                "recipe type writer should preserve parameter defaults");
+
+        IsfRecipeTypeSupportRegistry supports = new IsfRecipeTypeSupportRegistry();
+        supports.register(new dev.sixik.isf.api.IsfRecipeTypeSupport() {
+            @Override
+            public String category() {
+                return "test";
+            }
+
+            @Override
+            public IsfRecipeTypeDefinition definition() {
+                return serializedType;
+            }
+
+            @Override
+            public boolean matches(net.minecraft.world.item.crafting.Recipe<?> recipe) {
+                return false;
+            }
+
+            @Override
+            public Map<String, com.google.gson.JsonElement> extractParameters(
+                    net.minecraft.world.item.crafting.Recipe<?> recipe,
+                    net.minecraft.core.RegistryAccess registries) {
+                return Map.of();
+            }
+        });
+        check(supports.values().size() == 1,
+                "recipe type support registry should expose registered integrations");
+
     }
 
     private static IsfVisualNode node(String nodeId, String widget,
