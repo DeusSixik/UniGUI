@@ -1,0 +1,13 @@
+{
+  "parent": "isf:crafting",
+  "parameters": {
+    "cooking_time": {
+      "type": "number",
+      "default": 200
+    },
+    "experience": {
+      "type": "number",
+      "default": 0
+    }
+  }
+}

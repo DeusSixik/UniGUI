@@ -1,0 +1,37 @@
+{
+  "parameters": {
+    "result": {
+      "type": "item",
+      "default": "minecraft:air",
+      "description": "Result item"
+    },
+    "result_count": {
+      "type": "number",
+      "default": 1
+    },
+    "ingredients": {
+      "type": "json",
+      "default": []
+    }
+  },
+  "visual": {
+    "id": "root",
+    "widget": "unigui:box",
+    "properties": {
+      "width": 176,
+      "height": 92,
+      "background": "#11151DEB"
+    },
+    "children": [
+      {
+        "id": "result",
+        "widget": "unigui:item",
+        "properties": {
+          "item": {
+            "$parameter": "result"
+          }
+        }
+      }
+    ]
+  }
+}

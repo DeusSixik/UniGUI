@@ -28,7 +28,7 @@ stonecutter {
 }
 
 def modulesByMinecraftVersion = [
-        '1.20.1': ['common', 'fabric', 'forge', 'TestMod'],
+        '1.20.1': ['common', 'fabric', 'forge', 'TestMod', 'ISF'],
         '1.21.1': ['common', 'fabric', 'forge', 'neoforge', 'TestMod']
 ]
 

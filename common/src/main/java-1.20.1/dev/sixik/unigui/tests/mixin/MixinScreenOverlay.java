@@ -15,6 +15,7 @@ public abstract class MixinScreenOverlay {
     @Inject(method = "renderWithTooltip(Lnet/minecraft/client/gui/GuiGraphics;IIF)V", at = @At("TAIL"))
     private void unigui$renderScreenOverlay(GuiGraphics graphics, int mouseX, int mouseY,
                                             float partialTick, CallbackInfo callback) {
+        ScreenOverlayRender.mouseMoved((Screen) (Object) this, mouseX, mouseY);
         ScreenOverlayRender.render((Screen) (Object) this, graphics, mouseX, mouseY, partialTick);
     }
 
@@ -25,4 +26,5 @@ public abstract class MixinScreenOverlay {
             callback.setReturnValue(true);
         }
     }
+
 }

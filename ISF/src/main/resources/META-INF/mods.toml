@@ -1,0 +1,31 @@
+modLoader = "javafml"
+loaderVersion = "${forge_loader_range}"
+license = "All Rights Reserved"
+
+[[mods]]
+modId = "isf"
+version = "${version}"
+displayName = "ISF"
+authors = "Sixik"
+description = '''Independent visual recipe framework and recipe browser.'''
+
+[[dependencies.isf]]
+modId = "forge"
+mandatory = true
+versionRange = "${forge_loader_range}"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.isf]]
+modId = "minecraft"
+mandatory = true
+versionRange = "${minecraft_range}"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.isf]]
+modId = "unigui"
+mandatory = true
+versionRange = "[1.2.1.2,)"
+ordering = "AFTER"
+side = "BOTH"

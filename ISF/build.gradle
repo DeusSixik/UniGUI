@@ -1,0 +1,56 @@
+loom {
+    forge {
+    }
+}
+
+architectury {
+    platformSetupLoomIde()
+    forge()
+}
+
+base {
+    archivesName = "isf-forge-${versionProject.minecraft_version}"
+}
+
+version = versionProject.findProperty('isf_version') ?: '0.1.0'
+
+configurations {
+    uniguiCommon {
+        canBeResolved = true
+        canBeConsumed = false
+    }
+    compileClasspath.extendsFrom uniguiCommon
+    runtimeClasspath.extendsFrom uniguiCommon
+    developmentForge.extendsFrom uniguiCommon
+}
+
+dependencies {
+    forge "net.minecraftforge:forge:${versionProject.forge_version}"
+
+    uniguiCommon(project(path: "${versionProject.path}:common", configuration: 'namedElements')) {
+        transitive false
+    }
+    modImplementation(project(path: "${versionProject.path}:forge", configuration: 'namedElements')) {
+        transitive false
+    }
+}
+
+processResources {
+    inputs.property 'version', project.version
+    inputs.property 'forge_loader_range', versionProject.forge_loader_version_range
+    inputs.property 'minecraft_range', versionProject.forge_minecraft_version_range
+
+    filesMatching('META-INF/mods.toml') {
+        expand version: project.version,
+                forge_loader_range: versionProject.forge_loader_version_range,
+                minecraft_range: versionProject.forge_minecraft_version_range
+    }
+}
+
+tasks.register('isfDomainSelfTest', JavaExec) {
+    group = 'verification'
+    description = 'Проверяет наследование, выражения и триггеры ISF.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.sixik.isf.tests.IsfDomainSelfTest'
+}

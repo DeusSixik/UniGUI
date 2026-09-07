@@ -9,9 +9,7 @@
     "MixinHudRender",
     "MixinGameRendererLoading",
     "MixinLoadingOverlay",
-    "MixinScreenOverlay",
-    "MixinScreenOverlayInput",
-    "MixinScreenOverlayEvents"
+    "MixinScreenOverlay"
   ],
   "injectors": {
     "defaultRequire": 1
