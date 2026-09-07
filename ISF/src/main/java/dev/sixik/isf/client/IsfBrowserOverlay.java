@@ -347,8 +347,18 @@ final class IsfBrowserOverlay {
             }
             bookmarkIndex++;
         }
+        updateBookmarkScrollContentHeight();
+    }
+
+    private void updateBookmarkScrollContentHeight() {
+        if (bookmarkCells.isEmpty()) {
+            bookmarkScroll.contentHeight(0.0f);
+            bookmarkScroll.disableScrolling();
+            return;
+        }
         int columns = Math.max(1, bookmarkGrid.columns());
         int rows = (bookmarkCells.size() + columns - 1) / columns;
+        bookmarkScroll.enableScrolling();
         bookmarkScroll.contentHeight(rows * CELL);
     }
 
@@ -526,8 +536,7 @@ final class IsfBrowserOverlay {
             int bookmarkColumns = Math.max(1, (int) (bookmarkContentWidth / CELL));
             if (bookmarkGrid.columns() != bookmarkColumns) {
                 bookmarkGrid.columns(bookmarkColumns);
-                int rows = (bookmarkCells.size() + bookmarkColumns - 1) / bookmarkColumns;
-                bookmarkScroll.contentHeight(rows * CELL);
+                updateBookmarkScrollContentHeight();
             }
             if (selectedEntry != null) {
                 int detailWidth = Math.min(220, Math.max(140, width - margin * 2));
