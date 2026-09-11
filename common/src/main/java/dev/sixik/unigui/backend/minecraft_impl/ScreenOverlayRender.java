@@ -7,6 +7,9 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 
+import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Predicate;
 
 /**
@@ -26,8 +29,32 @@ import java.util.function.Predicate;
 public final class ScreenOverlayRender {
     private static final MinecraftRenderLayerRegistry<Screen> REGISTRY =
             new MinecraftRenderLayerRegistry<>();
+    private static final List<PointerBlocker> POINTER_BLOCKERS = new CopyOnWriteArrayList<>();
+
+    /**
+     * Колбэк, сообщающий, что overlay перекрывает курсор и ванильный экран
+     * под ним не должен реагировать на мышь (hover, tooltip, клики по слотам).
+     */
+    public interface PointerBlocker {
+        boolean blocksPointer(Screen screen, double mouseX, double mouseY);
+    }
 
     private ScreenOverlayRender() {
+    }
+
+    /** Регистрирует блокировщик курсора. @return handle для отмены регистрации */
+    public static AutoCloseable addPointerBlocker(PointerBlocker blocker) {
+        POINTER_BLOCKERS.add(Objects.requireNonNull(blocker, "blocker"));
+        return () -> POINTER_BLOCKERS.remove(blocker);
+    }
+
+    /** @return {@code true}, если overlay-слои перекрывают курсор над ванильным экраном */
+    public static boolean blocksPointer(Screen screen, double mouseX, double mouseY) {
+        if (screen == null) return false;
+        for (PointerBlocker blocker : POINTER_BLOCKERS) {
+            if (blocker.blocksPointer(screen, mouseX, mouseY)) return true;
+        }
+        return false;
     }
 
     public static MinecraftRenderLayerRegistration<Screen> register(Widget root) {

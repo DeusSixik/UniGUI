@@ -940,6 +940,13 @@ public final class LayoutV3SelfTest {
                 .left(30.0f)
                 .top(20.0f)
                 .size(140.0f, 90.0f));
+        Button navigation = new Button(">");
+        navigation.layout(style -> style
+                .position(PositionType.ABSOLUTE)
+                .left(6.0f)
+                .top(8.0f)
+                .size(20.0f, 16.0f));
+        dialog.addChild(navigation);
         MinecraftZLayer zLayer = new MinecraftZLayer(dialog, 300.0f);
 
         zLayer.measure(new LayoutContext(320.0f, 180.0f));
@@ -947,6 +954,13 @@ public final class LayoutV3SelfTest {
 
         expect(sameBounds(dialog.layoutBounds(), new MutableRect(30.0f, 20.0f, 140.0f, 90.0f)),
                 "MinecraftZLayer should preserve absolute overlay position and size");
+        Widget hit = new dev.sixik.unigui.impl.input.TransformHitTester()
+                .hitTest(zLayer, 37.0f, 29.0f).orElseThrow().widget();
+        expect(hit == navigation,
+                "MinecraftZLayer should keep nested navigation buttons in hit-test");
+        expect(new dev.sixik.unigui.impl.input.TransformHitTester()
+                        .hitTest(zLayer, 250.0f, 140.0f).isEmpty(),
+                "MinecraftZLayer should be hit-test transparent outside its children");
     }
 
     private void testOverlayLayerRuntimeOrderKeepsContentBelowOverlays() {

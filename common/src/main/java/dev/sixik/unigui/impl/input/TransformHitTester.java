@@ -1,6 +1,7 @@
 package dev.sixik.unigui.impl.input;
 
 import dev.sixik.unigui.api.input.HitTestCoordinateMapper;
+import dev.sixik.unigui.api.input.HitTestChildrenOnly;
 import dev.sixik.unigui.api.input.HitTestResult;
 import dev.sixik.unigui.api.input.HitTester;
 import dev.sixik.unigui.api.math.RectView;
@@ -61,6 +62,12 @@ public final class TransformHitTester implements HitTester {
             if (childHit.isPresent()) {
                 return childHit;
             }
+        }
+
+        // Полноэкранные overlay-host (например MinecraftZLayer) служат только
+        // системой координат для своих детей и не блокируют нижние виджеты.
+        if (widget instanceof HitTestChildrenOnly) {
+            return Optional.empty();
         }
 
         return Optional.of(new HitTestResult(widget, rootX, rootY, untransformed.x() - bounds.x(), untransformed.y() - bounds.y()));

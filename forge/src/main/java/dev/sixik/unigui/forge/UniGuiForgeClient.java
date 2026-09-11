@@ -22,6 +22,7 @@ public final class UniGuiForgeClient {
         MinecraftForge.EVENT_BUS.addListener(UniGuiForgeClient::mouseReleased);
         MinecraftForge.EVENT_BUS.addListener(UniGuiForgeClient::mouseDragged);
         MinecraftForge.EVENT_BUS.addListener(UniGuiForgeClient::mouseScrolled);
+        MinecraftForge.EVENT_BUS.addListener(UniGuiForgeClient::keyPressed);
         MinecraftForge.EVENT_BUS.addListener(UniGuiForgeClient::keyReleased);
         MinecraftForge.EVENT_BUS.addListener(UniGuiForgeClient::characterTyped);
     }
@@ -48,6 +49,11 @@ public final class UniGuiForgeClient {
 
     private static void keyReleased(ScreenEvent.KeyReleased.Pre event) {
         if (ScreenOverlayRender.keyReleased(screen(event), event.getKeyCode(), event.getScanCode(),
+                event.getModifiers())) event.setCanceled(true);
+    }
+
+    private static void keyPressed(ScreenEvent.KeyPressed.Pre event) {
+        if (ScreenOverlayRender.keyPressed(screen(event), event.getKeyCode(), event.getScanCode(),
                 event.getModifiers())) event.setCanceled(true);
     }
 

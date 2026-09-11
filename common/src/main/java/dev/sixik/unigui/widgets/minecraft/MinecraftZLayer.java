@@ -3,6 +3,7 @@ package dev.sixik.unigui.widgets.minecraft;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.math.RectView;
+import dev.sixik.unigui.api.input.HitTestChildrenOnly;
 import dev.sixik.unigui.api.render.DrawList;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.widget.Visibility;
@@ -19,12 +20,14 @@ import dev.sixik.unigui.widgets.containers.PanelWidget;
  * <p>Нужен для окон и всплывающих элементов, которые должны целиком находиться выше
  * {@code renderItem}, {@code renderEntity} и других backend-specific preview-команд.</p>
  */
-public final class MinecraftZLayer extends PanelWidget implements OverlayHostAware {
+public final class MinecraftZLayer extends PanelWidget implements OverlayHostAware, HitTestChildrenOnly {
     private final float z;
 
     public MinecraftZLayer(Widget content, float z) {
         this.z = Float.isFinite(z) ? z : 0.0f;
-        enabled(false);
+        // Слой должен участвовать в hit-test: отключать нужно только собственную
+        // логику слоя, а не вложенные кнопки и поля ввода.
+        enabled(true);
         addChild(content);
     }
 

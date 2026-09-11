@@ -2,7 +2,7 @@ package dev.sixik.isf.client;
 
 import dev.sixik.isf.network.IsfNetwork;
 import dev.sixik.isf.definition.IsfRecipeDefinition;
-import dev.sixik.isf.trigger.IsfTriggerRegistry;
+import dev.sixik.isf.runtime.IsfRecipeQueryMatcher;
 import com.google.gson.JsonElement;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.event.PointerEnteredEvent;
@@ -20,6 +20,7 @@ import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 import dev.sixik.unigui.widgets.interaction.Button;
+import dev.sixik.unigui.widgets.interaction.ToggleButton;
 import dev.sixik.unigui.widgets.minecraft.MinecraftItemTooltip;
 import dev.sixik.unigui.widgets.minecraft.MinecraftZLayer;
 import dev.sixik.unigui.api.widget.Widget;
@@ -54,6 +55,8 @@ final class IsfBrowserOverlay {
     private final Box detailPanel = new Box();
     private final MinecraftZLayer detailLayer = new MinecraftZLayer(detailPanel, 300.0f);
     private final Label detailTitle = new Label();
+    private final ToggleButton detailPin = new ToggleButton();
+    private final Button detailClose = new Button();
     private final Label detailSource = new Label();
     private final Label detailPage = new Label();
     private final Button detailPrevious = new Button();
@@ -65,6 +68,7 @@ final class IsfBrowserOverlay {
     private final Map<ResourceLocation, MinecraftItemTooltip> bookmarkTooltips = new LinkedHashMap<>();
 
     private MinecraftRenderLayerRegistration<Screen> registration;
+    private AutoCloseable pointerBlocker;
     private List<ItemEntry> catalogEntries = List.of();
     private Map<ResourceLocation, ResourceLocation> observedRecipeResults = Map.of();
     private ItemEntry hoveredEntry;
@@ -76,6 +80,13 @@ final class IsfBrowserOverlay {
     private boolean restoreScroll;
     private boolean itemScrollBarDragging;
     private boolean bookmarkScrollBarDragging;
+    private boolean detailPinned;
+    private boolean detailPositionSet;
+    private boolean detailDragging;
+    private float detailLeft;
+    private float detailTop;
+    private float detailDragOffsetX;
+    private float detailDragOffsetY;
 
     IsfBrowserOverlay() {
         configureTree();
@@ -89,15 +100,34 @@ final class IsfBrowserOverlay {
                 screen -> screen instanceof AbstractContainerScreen<?>
                         && !(screen instanceof MinecraftWidgetScreen),
                 100);
+        if (pointerBlocker == null) {
+            pointerBlocker = ScreenOverlayRender.addPointerBlocker(this::blocksVanillaPointer);
+        }
+    }
+
+    /**
+     * Пока окно рецептов открыто, ванильные слоты под ним не должны реагировать
+     * на курсор: не подсвечиваться, не показывать tooltip и не принимать клики.
+     */
+    private boolean blocksVanillaPointer(Screen ignoredScreen, double mouseX, double mouseY) {
+        return detailPanel.visibility() == dev.sixik.unigui.api.widget.Visibility.VISIBLE
+                && contains(detailPanel.layoutBounds(), (float) mouseX, (float) mouseY);
     }
 
     void resetPage() {
         hoveredEntry = null;
-        selectedEntry = null;
-        selectedRecipeIndex = 0;
         pendingRecipeQuery = null;
         itemScrollBarDragging = false;
         bookmarkScrollBarDragging = false;
+        detailDragging = false;
+        if (!detailPinned) {
+            selectedEntry = null;
+            selectedRecipeIndex = 0;
+            detailPositionSet = false;
+            detailPanel.visibility(dev.sixik.unigui.api.widget.Visibility.COLLAPSED);
+        } else if (selectedEntry != null) {
+            detailPanel.visibility(dev.sixik.unigui.api.widget.Visibility.VISIBLE);
+        }
     }
 
     boolean toggleHoveredBookmark() {
@@ -119,6 +149,112 @@ final class IsfBrowserOverlay {
         IsfNetwork.requestRecipes(itemId, usages);
     }
 
+    /**
+     * Обрабатывает навигацию как совместимый резервный путь для Minecraft screen hooks.
+     * Панель рецепта рисуется в отдельном Z-слое, а Forge одновременно передаёт координаты
+     * мыши базовому экрану. Проверка на границе overlay не зависит от его маршрутизации ввода.
+     */
+    boolean clickRecipeNavigation(double mouseX, double mouseY, int button) {
+        if (button != 0 || selectedEntry == null || selectedEntry.recipeIds().size() < 2
+                || detailPanel.visibility() != dev.sixik.unigui.api.widget.Visibility.VISIBLE) {
+            return false;
+        }
+        float x = (float) mouseX;
+        float y = (float) mouseY;
+        if (contains(detailPrevious.layoutBounds(), x, y)) {
+            changeSelectedRecipe(-1);
+            return true;
+        }
+        if (contains(detailNext.layoutBounds(), x, y)) {
+            changeSelectedRecipe(1);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Резервная обработка кликов по кнопкам закрепления и закрытия.
+     * Кнопки живут в Z-слое, куда маршрут ввода Minecraft-хуков доходит не всегда,
+     * поэтому состояние проверяем прямо по layout-границам кнопок.
+     */
+    boolean clickDetailControls(double mouseX, double mouseY, int button) {
+        if (button != 0 || selectedEntry == null
+                || detailPanel.visibility() != dev.sixik.unigui.api.widget.Visibility.VISIBLE) {
+            return false;
+        }
+        float x = (float) mouseX;
+        float y = (float) mouseY;
+        if (contains(detailClose.layoutBounds(), x, y)) {
+            closeDetail();
+            return true;
+        }
+        if (contains(detailPin.layoutBounds(), x, y)) {
+            setDetailPinned(!detailPinned);
+            return true;
+        }
+        return false;
+    }
+
+    private void setDetailPinned(boolean pinned) {
+        detailPinned = pinned;
+        detailPin.silentChecked(pinned);
+    }
+
+    boolean beginDetailDrag(double mouseX, double mouseY, int button) {
+        if (button != 0 || selectedEntry == null
+                || detailPanel.visibility() != dev.sixik.unigui.api.widget.Visibility.VISIBLE
+                || !contains(detailTitle.parent() == null ? detailTitle.layoutBounds()
+                : detailTitle.parent().layoutBounds(), (float) mouseX, (float) mouseY)
+                || contains(detailPin.layoutBounds(), (float) mouseX, (float) mouseY)
+                || contains(detailClose.layoutBounds(), (float) mouseX, (float) mouseY)) {
+            return false;
+        }
+        detailDragging = true;
+        detailDragOffsetX = (float) mouseX - detailPanel.layoutBounds().x();
+        detailDragOffsetY = (float) mouseY - detailPanel.layoutBounds().y();
+        return true;
+    }
+
+    boolean dragDetail(double mouseX, double mouseY, int button) {
+        if (button != 0 || !detailDragging) return false;
+        moveDetailPanel((float) mouseX - detailDragOffsetX,
+                (float) mouseY - detailDragOffsetY);
+        return true;
+    }
+
+    boolean endDetailDrag(int button) {
+        if (button != 0 || !detailDragging) return false;
+        detailDragging = false;
+        return true;
+    }
+
+    private void closeDetail() {
+        setDetailPinned(false);
+        detailDragging = false;
+        pendingRecipeQuery = null;
+        selectedEntry = null;
+        selectedRecipeIndex = 0;
+        detailPositionSet = false;
+        detailPanel.visibility(dev.sixik.unigui.api.widget.Visibility.COLLAPSED);
+    }
+
+    private void moveDetailPanel(float left, float top) {
+        Screen screen = net.minecraft.client.Minecraft.getInstance().screen;
+        float width = screen == null ? detailPanel.layoutBounds().width() : screen.width;
+        float height = screen == null ? detailPanel.layoutBounds().height() : screen.height;
+        float panelWidth = detailPanel.layoutBounds().width();
+        float panelHeight = detailPanel.layoutBounds().height();
+        float margin = 4.0f;
+        float maxLeft = Math.max(margin, width - panelWidth - margin);
+        float maxTop = Math.max(margin, height - panelHeight - margin);
+        detailPositionSet = true;
+        detailLeft = Math.max(margin, Math.min(maxLeft, left));
+        detailTop = Math.max(margin, Math.min(maxTop, top));
+        detailPanel.layout(style -> style
+                .left(detailLeft)
+                .top(detailTop));
+    }
+
     private void showRecipeQuery(PendingRecipeQuery query) {
         List<ResourceLocation> recipeIds = IsfClientState.recipes().values().stream()
                 .filter(recipe -> matchesQuery(recipe, query.itemId(), query.usages()))
@@ -131,10 +267,7 @@ final class IsfBrowserOverlay {
     private static boolean matchesQuery(IsfRecipeDefinition recipe,
                                         ResourceLocation itemId,
                                         boolean usages) {
-        return recipe.triggers().stream().anyMatch(binding -> usages
-                ? binding.trigger().equals(IsfTriggerRegistry.USE) && itemId.equals(binding.subject())
-                        || binding.trigger().equals(IsfTriggerRegistry.STATION) && itemId.equals(binding.station())
-                : binding.trigger().equals(IsfTriggerRegistry.CRAFT) && itemId.equals(binding.subject()));
+        return IsfRecipeQueryMatcher.matches(recipe.parameters(), recipe.triggers(), itemId, usages);
     }
 
     boolean scrollItemsAt(double mouseX, double mouseY, double delta) {
@@ -276,7 +409,19 @@ final class IsfBrowserOverlay {
         VBox content = new VBox();
         content.spacing(2.0f);
         content.layout(style -> style.fill());
-        detailTitle.layout(style -> style.size(168.0f, 16.0f).flexNone());
+        HBox detailHeader = new HBox();
+        detailHeader.spacing(2.0f);
+        detailHeader.layout(style -> style.widthPercent(100.0f).height(16.0f).flexNone());
+        detailTitle.layout(style -> style.flexGrow(1.0f).flexShrink(1.0f));
+        detailPin.text("P").textPadding(0.0f, 0.0f);
+        detailPin.layout(style -> style.size(16.0f, 16.0f).flexNone());
+        detailPin.onCheckedChanged(event -> setDetailPinned(event.newValue()));
+        detailClose.text("X").textPadding(0.0f, 0.0f);
+        detailClose.layout(style -> style.size(16.0f, 16.0f).flexNone());
+        detailClose.onClick(event -> closeDetail());
+        detailHeader.addChild(detailTitle);
+        detailHeader.addChild(detailPin);
+        detailHeader.addChild(detailClose);
         detailPage.layout(style -> style.width(40.0f).height(14.0f).flexNone());
         detailPrevious.text("<").textPadding(0.0f, 0.0f);
         detailPrevious.layout(style -> style.size(16.0f, 14.0f).flexNone());
@@ -294,7 +439,7 @@ final class IsfBrowserOverlay {
         recipeNavigation.addChild(detailNext);
         detailStats.layout(style -> style.size(168.0f, 14.0f).flexNone());
         detailVisualHost.layout(style -> style.widthPercent(100.0f).height(92.0f).flexNone());
-        content.addChild(detailTitle);
+        content.addChild(detailHeader);
         content.addChild(recipeNavigation);
         content.addChild(detailVisualHost);
         content.addChild(detailStats);
@@ -445,6 +590,7 @@ final class IsfBrowserOverlay {
             return;
         }
         detailPanel.visibility(dev.sixik.unigui.api.widget.Visibility.VISIBLE);
+        detailPin.silentChecked(detailPinned);
         detailTitle.text(entry.stack().getHoverName().getString());
         if (!entry.recipeIds().isEmpty()) {
             selectedRecipeIndex = Math.max(0, Math.min(selectedRecipeIndex, entry.recipeIds().size() - 1));
@@ -589,9 +735,17 @@ final class IsfBrowserOverlay {
             if (selectedEntry != null) {
                 int detailWidth = Math.min(220, Math.max(140, width - margin * 2));
                 int detailHeight = 150;
-                detailPanel.layout(style -> style.left((width - detailWidth) * 0.5f)
-                        .top((height - detailHeight) * 0.5f)
-                        .size(detailWidth, detailHeight));
+                if (!detailPositionSet) {
+                    detailLeft = (width - detailWidth) * 0.5f;
+                    detailTop = (height - detailHeight) * 0.5f;
+                    detailPositionSet = true;
+                    detailPanel.layout(style -> style.left(detailLeft)
+                            .top(detailTop)
+                            .size(detailWidth, detailHeight));
+                } else {
+                    detailPanel.layout(style -> style.size(detailWidth, detailHeight));
+                    moveDetailPanel(detailLeft, detailTop);
+                }
             }
         }
 

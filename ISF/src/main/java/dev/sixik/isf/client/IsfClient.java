@@ -68,6 +68,18 @@ public final class IsfClient {
 
     private static void mousePressed(ScreenEvent.MouseButtonPressed.Pre event) {
         if (event.isCanceled() || !(event.getScreen() instanceof AbstractContainerScreen<?>)) return;
+        if (OVERLAY.clickDetailControls(event.getMouseX(), event.getMouseY(), event.getButton())) {
+            event.setCanceled(true);
+            return;
+        }
+        if (OVERLAY.clickRecipeNavigation(event.getMouseX(), event.getMouseY(), event.getButton())) {
+            event.setCanceled(true);
+            return;
+        }
+        if (OVERLAY.beginDetailDrag(event.getMouseX(), event.getMouseY(), event.getButton())) {
+            event.setCanceled(true);
+            return;
+        }
         if (OVERLAY.beginItemScrollBarDrag(event.getMouseX(), event.getMouseY(), event.getButton())) {
             event.setCanceled(true);
         }
@@ -75,6 +87,10 @@ public final class IsfClient {
 
     private static void mouseDragged(ScreenEvent.MouseDragged.Pre event) {
         if (event.isCanceled() || !(event.getScreen() instanceof AbstractContainerScreen<?>)) return;
+        if (OVERLAY.dragDetail(event.getMouseX(), event.getMouseY(), event.getMouseButton())) {
+            event.setCanceled(true);
+            return;
+        }
         if (OVERLAY.dragItemScrollBar(event.getMouseY(), event.getMouseButton())) {
             event.setCanceled(true);
         }
@@ -82,6 +98,10 @@ public final class IsfClient {
 
     private static void mouseReleased(ScreenEvent.MouseButtonReleased.Pre event) {
         if (event.isCanceled() || !(event.getScreen() instanceof AbstractContainerScreen<?>)) return;
+        if (OVERLAY.endDetailDrag(event.getButton())) {
+            event.setCanceled(true);
+            return;
+        }
         if (OVERLAY.endItemScrollBarDrag(event.getMouseY(), event.getButton())) {
             event.setCanceled(true);
         }

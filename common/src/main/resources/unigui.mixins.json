@@ -10,7 +10,8 @@
     "MixinGameRendererLoading",
     "MixinLoadingOverlay",
     "MixinGuiGraphicsTooltipOrder",
-    "MixinScreenOverlay"
+    "MixinScreenOverlay",
+    "MixinScreenOverlayHover"
   ],
   "injectors": {
     "defaultRequire": 1

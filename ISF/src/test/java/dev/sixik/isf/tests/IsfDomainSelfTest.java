@@ -14,6 +14,7 @@ import dev.sixik.isf.runtime.IsfDefinitionRegistry;
 import dev.sixik.isf.runtime.IsfEvaluationContext;
 import dev.sixik.isf.runtime.IsfExpressionEvaluator;
 import dev.sixik.isf.runtime.IsfFunctionRegistry;
+import dev.sixik.isf.runtime.IsfRecipeQueryMatcher;
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.List;
@@ -117,6 +118,18 @@ public final class IsfDomainSelfTest {
         });
         check(supports.values().size() == 1,
                 "recipe type support registry should expose registered integrations");
+
+        ResourceLocation iron = ResourceLocation.tryParse("minecraft:iron_ingot");
+        com.google.gson.JsonArray ironAlternatives = new com.google.gson.JsonArray();
+        ironAlternatives.add(iron.toString());
+        com.google.gson.JsonArray ingredients = new com.google.gson.JsonArray();
+        ingredients.add(ironAlternatives);
+        check(IsfRecipeQueryMatcher.matches(
+                        Map.of("ingredients", ingredients), List.of(), iron, true),
+                "legacy recipe queries should match ingredient parameters without use triggers");
+        check(IsfRecipeQueryMatcher.matches(
+                        Map.of("result", new JsonPrimitive(iron.toString())), List.of(), iron, false),
+                "legacy recipe queries should match result parameters without craft triggers");
 
     }
 

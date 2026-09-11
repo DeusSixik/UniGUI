@@ -3,10 +3,9 @@ package dev.sixik.isf.network;
 import dev.sixik.isf.client.IsfClientState;
 import dev.sixik.isf.persistence.IsfWorldData;
 import dev.sixik.isf.runtime.IsfResolvedRecipe;
+import dev.sixik.isf.runtime.IsfRecipeQueryMatcher;
 import dev.sixik.isf.definition.IsfDefinitionJson;
 import dev.sixik.isf.definition.IsfRecipeDefinition;
-import dev.sixik.isf.trigger.IsfTriggerContext;
-import dev.sixik.isf.trigger.IsfTriggerRegistry;
 import com.google.gson.Gson;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
@@ -123,14 +122,12 @@ public final class IsfNetwork {
             context.enqueueWork(() -> {
                 ServerPlayer player = context.getSender();
                 if (player == null) return;
-                if (packet.usages) {
-                    dev.sixik.isf.IsfMod.runtime().fire(IsfTriggerRegistry.USE,
-                            new IsfTriggerContext(player, packet.itemId, null, Map.of()));
-                    dev.sixik.isf.IsfMod.runtime().fire(IsfTriggerRegistry.STATION,
-                            new IsfTriggerContext(player, packet.itemId, packet.itemId, Map.of()));
-                } else {
-                    dev.sixik.isf.IsfMod.runtime().fire(IsfTriggerRegistry.CRAFT,
-                            new IsfTriggerContext(player, packet.itemId, null, Map.of()));
+                IsfWorldData data = IsfWorldData.get(player.server);
+                for (IsfResolvedRecipe recipe : dev.sixik.isf.IsfMod.runtime().definitions().recipes()) {
+                    if (IsfRecipeQueryMatcher.matches(
+                            recipe.parameters(), recipe.triggers(), packet.itemId, packet.usages)) {
+                        data.unlock(player.getUUID(), recipe.id());
+                    }
                 }
                 sendLibrary(player);
             });
