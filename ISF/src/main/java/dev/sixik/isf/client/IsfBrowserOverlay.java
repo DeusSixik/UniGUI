@@ -60,7 +60,6 @@ final class IsfBrowserOverlay {
     private final MinecraftZLayer detailLayer = new MinecraftZLayer(detailPanel, 300.0f);
     private final Label detailTitle = new Label();
     private final ToggleButton detailPin = new ToggleButton();
-    private final Button detailBookmark = new Button();
     private final Button detailClose = new Button();
     private final HBox tabRow = new HBox();
     private final Button tabNext = new Button();
@@ -261,10 +260,6 @@ final class IsfBrowserOverlay {
             setDetailPinned(!detailPinned);
             return true;
         }
-        if (contains(detailBookmark.layoutBounds(), x, y)) {
-            toggleSelectedBookmark();
-            return true;
-        }
         if (tabNext.visibility() == dev.sixik.unigui.api.widget.Visibility.VISIBLE
                 && contains(tabNext.layoutBounds(), x, y)) {
             shiftTabWindow();
@@ -305,25 +300,6 @@ final class IsfBrowserOverlay {
     private void setDetailPinned(boolean pinned) {
         detailPinned = pinned;
         detailPin.silentChecked(pinned);
-    }
-
-    /** Кнопка A и клавиша A: добавить/убрать открытый предмет из закладок. */
-    private void toggleSelectedBookmark() {
-        if (selectedEntry == null) return;
-        boolean bookmarked = !IsfClientState.bookmarks().contains(selectedEntry.id());
-        IsfNetwork.toggleBookmark(selectedEntry.id(), bookmarked);
-        applyBookmarkHighlight();
-    }
-
-    private void applyBookmarkHighlight() {
-        boolean bookmarked = selectedEntry != null
-                && IsfClientState.bookmarks().contains(selectedEntry.id());
-        detailBookmark.background().set(bookmarked
-                ? new dev.sixik.unigui.api.math.MutableColor(0.259f, 0.463f, 0.608f, 0.95f)
-                : new dev.sixik.unigui.api.math.MutableColor(0.063f, 0.078f, 0.106f, 0.90f));
-        detailBookmark.borderColor().set(bookmarked
-                ? new dev.sixik.unigui.api.math.MutableColor(0.85f, 0.92f, 1.0f, 1.0f)
-                : new dev.sixik.unigui.api.math.MutableColor(0.416f, 0.561f, 0.682f, 1.0f));
     }
 
     boolean beginDetailDrag(double mouseX, double mouseY, int button) {
@@ -565,17 +541,10 @@ final class IsfBrowserOverlay {
         detailPin.text("P").textPadding(0.0f, 0.0f);
         detailPin.layout(style -> style.size(16.0f, 16.0f).flexNone());
         detailPin.onCheckedChanged(event -> setDetailPinned(event.newValue()));
-        detailBookmark.text("A").textPadding(0.0f, 0.0f);
-        detailBookmark.themeEnabled(false);
-        detailBookmark.backgroundVisible(true);
-        detailBookmark.borderVisible(true);
-        detailBookmark.radius(2.0f);
-        detailBookmark.layout(style -> style.size(16.0f, 16.0f).flexNone());
         detailClose.text("X").textPadding(0.0f, 0.0f);
         detailClose.layout(style -> style.size(16.0f, 16.0f).flexNone());
         detailClose.onClick(event -> closeDetail());
         detailHeader.addChild(detailTitle);
-        detailHeader.addChild(detailBookmark);
         detailHeader.addChild(detailPin);
         detailHeader.addChild(detailClose);
 
@@ -680,6 +649,36 @@ final class IsfBrowserOverlay {
         observedStateVersion = IsfClientState.version();
     }
 
+    /**
+     * Инкрементальное обновление каталога после ответа сервера.
+     * Набор клеток не меняется (каталог содержит все предметы игры), поэтому
+     * клетки и тултипы не пересоздаются — панели не мерцают, как с закладками.
+     */
+    private void syncCatalog() {
+        catalogEntries = entries();
+        syncBookmarks();
+        refreshSelectedDetail();
+        observedRecipeResults = IsfClientState.recipeResults();
+        observedStateVersion = IsfClientState.version();
+    }
+
+    /** Обновляет окно рецептов только если набор рецептов предмета изменился. */
+    private void refreshSelectedDetail() {
+        if (selectedEntry == null) return;
+        List<ResourceLocation> freshIds = currentRecipeIds(selectedEntry.id());
+        if (selectedEntry.recipeIds().equals(freshIds)) return;
+        updateDetail(new ItemEntry(selectedEntry.id(), selectedEntry.stack(), freshIds));
+    }
+
+    /** Актуальный список рецептов предмета прямо из состояния клиента. */
+    private List<ResourceLocation> currentRecipeIds(ResourceLocation itemId) {
+        List<ResourceLocation> recipeIds = new ArrayList<>();
+        IsfClientState.recipeResults().forEach((recipeId, resultId) -> {
+            if (itemId.equals(resultId)) recipeIds.add(recipeId);
+        });
+        return List.copyOf(recipeIds);
+    }
+
     private void syncBookmarks() {
         Set<ResourceLocation> desired = IsfClientState.bookmarks();
 
@@ -738,9 +737,12 @@ final class IsfBrowserOverlay {
         cell.on(PointerExitedEvent.TYPE, event -> {
             if (hoveredEntry == entry) hoveredEntry = null;
         });
-        // Предмет без рецептов не открывает окно.
+        // Предмет без рецептов не открывает окно. Список рецептов берём свежим:
+        // клетки каталога больше не пересоздаются при разблокировке рецептов.
         cell.onClick(event -> {
-            if (!entry.recipeIds().isEmpty()) updateDetail(entry);
+            List<ResourceLocation> recipeIds = currentRecipeIds(entry.id());
+            if (recipeIds.isEmpty()) return;
+            updateDetail(new ItemEntry(entry.id(), entry.stack(), recipeIds));
         });
 
         IsfItemIconWidget icon = new IsfItemIconWidget(entry.stack());
@@ -772,7 +774,6 @@ final class IsfBrowserOverlay {
         }
         detailPanel.visibility(dev.sixik.unigui.api.widget.Visibility.VISIBLE);
         detailPin.silentChecked(detailPinned);
-        applyBookmarkHighlight();
         detailTitle.text(entry.stack().getHoverName().getString());
         List<IsfRecipeDefinition> recipes = new ArrayList<>();
         for (ResourceLocation recipeId : entry.recipeIds()) {
@@ -999,6 +1000,10 @@ final class IsfBrowserOverlay {
                 recipeArea.addChild(visual);
                 pageVisuals.add(visual);
             }
+            // Дети добавлены отложенными мутациями: применяем их сразу, чтобы
+            // тултипы предметов работали с первого кадра, а не после первого клика.
+            for (Widget root : pageVisuals) flushWidgetTree(root);
+            ensureRecipeItemButtons();
         }
         detailPage.text((recipePage + 1) + " / " + Math.max(1, recipePages.size()));
         boolean multiple = recipePages.size() > 1;
@@ -1023,6 +1028,14 @@ final class IsfBrowserOverlay {
     private static void collectItemButtons(Widget widget, List<IsfItemButton> out) {
         if (widget instanceof IsfItemButton button) out.add(button);
         for (Widget child : widget.children()) collectItemButtons(child, out);
+    }
+
+    /** Применяет отложенные addChild-мутации по всему поддереву. */
+    private static void flushWidgetTree(Widget widget) {
+        if (widget instanceof dev.sixik.unigui.widgets.containers.PanelWidget panel) {
+            panel.applyQueuedMutations();
+            for (Widget child : panel.children()) flushWidgetTree(child);
+        }
     }
 
     private void clearRecipeItemTooltips() {
@@ -1130,10 +1143,10 @@ final class IsfBrowserOverlay {
             syncPanelBounds();
             if (observedStateVersion != IsfClientState.version()) {
                 if (!observedRecipeResults.equals(IsfClientState.recipeResults())) {
-                    rebuild(false, 0.0f);
+                    syncCatalog();
                 } else {
                     syncBookmarks();
-                    if (selectedEntry != null) updateDetail(selectedEntry);
+                    refreshSelectedDetail();
                     observedStateVersion = IsfClientState.version();
                 }
                 if (pendingRecipeQuery != null
