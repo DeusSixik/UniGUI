@@ -1,6 +1,7 @@
 package dev.sixik.isf.runtime;
 
 import com.google.gson.JsonElement;
+import dev.sixik.isf.definition.IsfCatalystDefinition;
 import dev.sixik.isf.definition.IsfParameterDefinition;
 import dev.sixik.isf.definition.IsfRecipeDefinition;
 import dev.sixik.isf.definition.IsfRecipeTypeDefinition;
@@ -23,18 +24,24 @@ public final class IsfDefinitionRegistry {
     private final Map<ResourceLocation, IsfRecipeTypeDefinition> types = new LinkedHashMap<>();
     private final Map<ResourceLocation, IsfRecipeDefinition> recipes = new LinkedHashMap<>();
     private final Map<ResourceLocation, IsfResolvedRecipe> resolved = new LinkedHashMap<>();
+    private final Map<ResourceLocation, List<IsfCatalystDefinition>> typeCatalysts = new LinkedHashMap<>();
 
     public synchronized void replace(Collection<IsfRecipeTypeDefinition> newTypes,
                                      Collection<IsfRecipeDefinition> newRecipes) {
         Map<ResourceLocation, IsfRecipeTypeDefinition> previousTypes = new LinkedHashMap<>(types);
         Map<ResourceLocation, IsfRecipeDefinition> previousRecipes = new LinkedHashMap<>(recipes);
         Map<ResourceLocation, IsfResolvedRecipe> previousResolved = new LinkedHashMap<>(resolved);
+        Map<ResourceLocation, List<IsfCatalystDefinition>> previousCatalysts = new LinkedHashMap<>(typeCatalysts);
         types.clear();
         recipes.clear();
         resolved.clear();
+        typeCatalysts.clear();
         if (newTypes != null) newTypes.forEach(type -> types.put(type.id(), type));
         if (newRecipes != null) newRecipes.forEach(recipe -> recipes.put(recipe.id(), recipe));
         try {
+            for (ResourceLocation id : types.keySet()) {
+                typeCatalysts.put(id, resolveTypeCatalysts(id, new ArrayDeque<>()));
+            }
             for (ResourceLocation id : recipes.keySet()) resolveRecipe(id, new ArrayDeque<>());
         } catch (RuntimeException exception) {
             types.clear();
@@ -43,8 +50,15 @@ public final class IsfDefinitionRegistry {
             recipes.putAll(previousRecipes);
             resolved.clear();
             resolved.putAll(previousResolved);
+            typeCatalysts.clear();
+            typeCatalysts.putAll(previousCatalysts);
             throw exception;
         }
+    }
+
+    /** Катализаторы по id recipe type (учитывает наследование). */
+    public synchronized Map<ResourceLocation, List<IsfCatalystDefinition>> typeCatalysts() {
+        return Map.copyOf(typeCatalysts);
     }
 
     public synchronized Optional<IsfResolvedRecipe> recipe(ResourceLocation id) {
@@ -98,6 +112,26 @@ public final class IsfDefinitionRegistry {
         resolved.put(id, result);
         stack.removeLast();
         return result;
+    }
+
+    /**
+     * Катализаторы типа с учётом наследования: побеждает ближайшее по цепочке
+     * родителей определение с непустым списком катализаторов.
+     */
+    private List<IsfCatalystDefinition> resolveTypeCatalysts(ResourceLocation id,
+                                                             ArrayDeque<ResourceLocation> stack) {
+        IsfRecipeTypeDefinition type = types.get(id);
+        if (type == null) throw new IllegalStateException("Unknown ISF recipe type: " + id);
+        if (stack.contains(id)) throw cycle("recipe type", stack, id);
+        stack.addLast(id);
+        List<IsfCatalystDefinition> catalysts;
+        if (type.parent() != null && type.catalysts().isEmpty()) {
+            catalysts = resolveTypeCatalysts(type.parent(), stack);
+        } else {
+            catalysts = type.catalysts();
+        }
+        stack.removeLast();
+        return catalysts;
     }
 
     private ResolvedType resolveType(ResourceLocation id, ArrayDeque<ResourceLocation> stack) {

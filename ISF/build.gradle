@@ -24,6 +24,13 @@ configurations {
     developmentForge.extendsFrom uniguiCommon
 }
 
+sourceSets {
+    test {
+        compileClasspath += sourceSets.main.output + configurations.uniguiCommon
+        runtimeClasspath += sourceSets.main.output + configurations.uniguiCommon
+    }
+}
+
 dependencies {
     forge "net.minecraftforge:forge:${versionProject.forge_version}"
 
@@ -49,8 +56,16 @@ processResources {
 
 tasks.register('isfDomainSelfTest', JavaExec) {
     group = 'verification'
-    description = 'Проверяет наследование, выражения и триггеры ISF.'
+    description = 'Проверяет вычисления, представления и поведение ISF.'
     dependsOn tasks.named('testClasses')
     classpath = sourceSets.test.runtimeClasspath
     mainClass = 'dev.sixik.isf.tests.IsfDomainSelfTest'
+}
+
+tasks.register('isfPageFlipSelfTest', JavaExec) {
+    group = 'verification'
+    description = 'Проверяет переключение страниц рецептов в окне ISF.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.sixik.isf.tests.IsfPageFlipSelfTest'
 }

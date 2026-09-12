@@ -44,6 +44,15 @@ public final class IsfRecipeQueryMatcher {
         return false;
     }
 
+    /** @return {@code true}, если рецепт привязан к крафтовой станции-катализатору. */
+    public static boolean usesStation(List<IsfTriggerBinding> triggers, ResourceLocation station) {
+        if (station == null) return false;
+        List<IsfTriggerBinding> safeTriggers = triggers == null ? List.of() : triggers;
+        return safeTriggers.stream().anyMatch(binding ->
+                binding.trigger().equals(IsfTriggerRegistry.STATION)
+                        && station.equals(binding.station()));
+    }
+
     private static ResourceLocation readItemId(JsonElement value) {
         if (value == null || !value.isJsonPrimitive()) return null;
         try {

@@ -1,4 +1,9 @@
-{
-  "parent": "isf:cooking",
-  "parameters": {}
+﻿{
+    "parent":  "isf:cooking",
+    "parameters":  {
+
+                   },
+    "catalysts":  [
+                      "minecraft:campfire"
+                  ]
 }

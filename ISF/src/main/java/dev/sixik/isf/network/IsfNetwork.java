@@ -1,6 +1,7 @@
 package dev.sixik.isf.network;
 
 import dev.sixik.isf.client.IsfClientState;
+import dev.sixik.isf.definition.IsfCatalystDefinition;
 import dev.sixik.isf.persistence.IsfWorldData;
 import dev.sixik.isf.runtime.IsfResolvedRecipe;
 import dev.sixik.isf.runtime.IsfRecipeQueryMatcher;
@@ -26,7 +27,7 @@ import java.util.function.Supplier;
 
 /** Синхронизация world-scoped прогресса и закладок ISF. */
 public final class IsfNetwork {
-    private static final String VERSION = "4";
+    private static final String VERSION = "5";
     private static final int MAX_COLLECTION_SIZE = 100_000;
     private static final int MAX_RECIPE_JSON_LENGTH = 1_048_576;
     private static final Gson GSON = new Gson();
@@ -72,8 +73,10 @@ public final class IsfNetwork {
             documents.add(new IsfRecipeDefinition(recipe.id(), recipe.recipeType(), null,
                     recipe.parameters(), recipe.triggers(), recipe.visual(), recipe.source()));
         }
+        Map<ResourceLocation, List<IsfCatalystDefinition>> catalysts =
+                dev.sixik.isf.IsfMod.runtime().definitions().typeCatalysts();
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
-                new LibrarySnapshot(unlocked, data.bookmarks(player.getUUID()), resultByRecipe, documents));
+                new LibrarySnapshot(unlocked, data.bookmarks(player.getUUID()), resultByRecipe, documents, catalysts));
     }
 
     private static ResourceLocation resultItem(IsfResolvedRecipe recipe) {
@@ -138,9 +141,10 @@ public final class IsfNetwork {
     public record LibrarySnapshot(Set<ResourceLocation> unlocked,
                                   Set<ResourceLocation> bookmarks,
                                   Map<ResourceLocation, ResourceLocation> recipeResults,
-                                  List<IsfRecipeDefinition> recipes) {
+                                  List<IsfRecipeDefinition> recipes,
+                                  Map<ResourceLocation, List<IsfCatalystDefinition>> typeCatalysts) {
         public LibrarySnapshot(Set<ResourceLocation> unlocked, Set<ResourceLocation> bookmarks) {
-            this(unlocked, bookmarks, Map.of(), List.of());
+            this(unlocked, bookmarks, Map.of(), List.of(), Map.of());
         }
 
         public LibrarySnapshot {
@@ -148,6 +152,15 @@ public final class IsfNetwork {
             bookmarks = Set.copyOf(bookmarks == null ? Set.of() : bookmarks);
             recipeResults = Map.copyOf(recipeResults == null ? Map.of() : recipeResults);
             recipes = List.copyOf(recipes == null ? List.of() : recipes);
+            Map<ResourceLocation, List<IsfCatalystDefinition>> safeCatalysts = new LinkedHashMap<>();
+            if (typeCatalysts != null) {
+                typeCatalysts.forEach((id, values) -> {
+                    if (id != null && values != null && !values.isEmpty()) {
+                        safeCatalysts.put(id, List.copyOf(values));
+                    }
+                });
+            }
+            typeCatalysts = Map.copyOf(safeCatalysts);
         }
 
         private static void encode(LibrarySnapshot packet, FriendlyByteBuf buffer) {
@@ -165,6 +178,16 @@ public final class IsfNetwork {
                 buffer.writeResourceLocation(recipe.id());
                 buffer.writeUtf(GSON.toJson(IsfDefinitionJson.writeRecipe(recipe)), MAX_RECIPE_JSON_LENGTH);
             }
+            requireValidSize(packet.typeCatalysts.size(), "type catalysts");
+            buffer.writeVarInt(packet.typeCatalysts.size());
+            packet.typeCatalysts.forEach((typeId, values) -> {
+                buffer.writeResourceLocation(typeId);
+                buffer.writeVarInt(values.size());
+                for (IsfCatalystDefinition catalyst : values) {
+                    buffer.writeResourceLocation(catalyst.item());
+                    buffer.writeVarInt(catalyst.count());
+                }
+            });
         }
 
         private static LibrarySnapshot decode(FriendlyByteBuf buffer) {
@@ -182,13 +205,25 @@ public final class IsfNetwork {
                 recipes.add(IsfDefinitionJson.parseRecipe(id,
                         GSON.fromJson(buffer.readUtf(MAX_RECIPE_JSON_LENGTH), com.google.gson.JsonObject.class)));
             }
-            return new LibrarySnapshot(unlocked, bookmarks, resultByRecipe, recipes);
+            int catalystTypeCount = readSize(buffer, "type catalysts");
+            Map<ResourceLocation, List<IsfCatalystDefinition>> typeCatalysts = new LinkedHashMap<>();
+            for (int index = 0; index < catalystTypeCount; index++) {
+                ResourceLocation typeId = buffer.readResourceLocation();
+                int catalystCount = readSize(buffer, "catalysts");
+                List<IsfCatalystDefinition> catalysts = new ArrayList<>(catalystCount);
+                for (int catalystIndex = 0; catalystIndex < catalystCount; catalystIndex++) {
+                    catalysts.add(new IsfCatalystDefinition(buffer.readResourceLocation(), buffer.readVarInt()));
+                }
+                typeCatalysts.put(typeId, catalysts);
+            }
+            return new LibrarySnapshot(unlocked, bookmarks, resultByRecipe, recipes, typeCatalysts);
         }
 
         private static void handle(LibrarySnapshot packet, Supplier<NetworkEvent.Context> supplier) {
             NetworkEvent.Context context = supplier.get();
             context.enqueueWork(() -> IsfClientState.replace(
-                    packet.unlocked, packet.bookmarks, packet.recipeResults, packet.recipes));
+                    packet.unlocked, packet.bookmarks, packet.recipeResults, packet.recipes,
+                    packet.typeCatalysts));
             context.setPacketHandled(true);
         }
     }

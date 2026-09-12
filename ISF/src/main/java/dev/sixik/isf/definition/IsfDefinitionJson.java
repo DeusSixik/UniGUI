@@ -31,7 +31,38 @@ public final class IsfDefinitionJson {
             });
         }
         IsfVisualNode visual = json.has("visual") ? parseVisual(object(json.get("visual"), "visual")) : null;
-        return new IsfRecipeTypeDefinition(id, parent, parameters, visual);
+        List<IsfCatalystDefinition> catalysts = parseCatalysts(json);
+        return new IsfRecipeTypeDefinition(id, parent, parameters, catalysts, visual);
+    }
+
+    private static List<IsfCatalystDefinition> parseCatalysts(JsonObject json) {
+        if (!json.has("catalysts") || json.get("catalysts").isJsonNull()) return List.of();
+        List<IsfCatalystDefinition> catalysts = new ArrayList<>();
+        for (JsonElement element : array(json.get("catalysts"), "catalysts")) {
+            if (element.isJsonObject()) {
+                JsonObject catalyst = object(element, "catalyst");
+                catalysts.add(new IsfCatalystDefinition(requiredId(catalyst, "item"),
+                        intOr(catalyst, "count", 1)));
+            } else {
+                catalysts.add(new IsfCatalystDefinition(requiredIdFrom(element, "catalyst"), 1));
+            }
+        }
+        return catalysts;
+    }
+
+    private static ResourceLocation requiredIdFrom(JsonElement element, String name) {
+        if (element == null || element.isJsonNull()) {
+            throw new JsonParseException("Missing or invalid ResourceLocation '" + name + "'");
+        }
+        ResourceLocation id = ResourceLocation.tryParse(element.getAsString());
+        if (id == null) throw new JsonParseException("Missing or invalid ResourceLocation '" + name + "'");
+        return id;
+    }
+
+    private static int intOr(JsonObject json, String name, int fallback) {
+        return json != null && json.has(name) && !json.get(name).isJsonNull()
+                ? json.get(name).getAsInt()
+                : fallback;
     }
 
     public static IsfRecipeDefinition parseRecipe(ResourceLocation id, JsonObject json) {
@@ -137,6 +168,20 @@ public final class IsfDefinitionJson {
     public static JsonObject writeType(IsfRecipeTypeDefinition type) {
         JsonObject json = new JsonObject();
         if (type.parent() != null) json.addProperty("parent", type.parent().toString());
+        if (!type.catalysts().isEmpty()) {
+            JsonArray catalysts = new JsonArray();
+            for (IsfCatalystDefinition catalyst : type.catalysts()) {
+                if (catalyst.count() == 1) {
+                    catalysts.add(catalyst.item().toString());
+                } else {
+                    JsonObject value = new JsonObject();
+                    value.addProperty("item", catalyst.item().toString());
+                    value.addProperty("count", catalyst.count());
+                    catalysts.add(value);
+                }
+            }
+            json.add("catalysts", catalysts);
+        }
         JsonObject parameters = new JsonObject();
         type.parameters().forEach((name, definition) -> {
             JsonObject value = new JsonObject();

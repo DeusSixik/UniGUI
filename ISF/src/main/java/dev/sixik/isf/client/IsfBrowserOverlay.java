@@ -1,12 +1,16 @@
 package dev.sixik.isf.client;
 
 import dev.sixik.isf.network.IsfNetwork;
+import dev.sixik.isf.definition.IsfCatalystDefinition;
 import dev.sixik.isf.definition.IsfRecipeDefinition;
+import dev.sixik.isf.runtime.IsfRecipePaging;
 import dev.sixik.isf.runtime.IsfRecipeQueryMatcher;
 import com.google.gson.JsonElement;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.event.PointerEnteredEvent;
 import dev.sixik.unigui.api.event.PointerExitedEvent;
+import dev.sixik.unigui.api.layout.Justify;
+import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.PositionType;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftRenderLayerRegistration;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftWidgetRenderLayer;
@@ -57,13 +61,17 @@ final class IsfBrowserOverlay {
     private final Label detailTitle = new Label();
     private final ToggleButton detailPin = new ToggleButton();
     private final Button detailClose = new Button();
-    private final Label detailSource = new Label();
+    private final HBox tabRow = new HBox();
+    private final Button tabNext = new Button();
     private final Label detailPage = new Label();
     private final Button detailPrevious = new Button();
     private final Button detailNext = new Button();
-    private final Label detailStats = new Label();
-    private final Box detailVisualHost = new Box();
+    private final HBox pagerRow = new HBox();
+    private final VBox catalystColumn = new VBox();
+    private final VBox recipeArea = new VBox();
     private final List<MinecraftItemTooltip> tooltips = new ArrayList<>();
+    private final List<MinecraftItemTooltip> tabTooltips = new ArrayList<>();
+    private final List<MinecraftItemTooltip> catalystTooltips = new ArrayList<>();
     private final Map<ResourceLocation, Button> bookmarkCells = new LinkedHashMap<>();
     private final Map<ResourceLocation, MinecraftItemTooltip> bookmarkTooltips = new LinkedHashMap<>();
 
@@ -73,7 +81,6 @@ final class IsfBrowserOverlay {
     private Map<ResourceLocation, ResourceLocation> observedRecipeResults = Map.of();
     private ItemEntry hoveredEntry;
     private ItemEntry selectedEntry;
-    private int selectedRecipeIndex;
     private PendingRecipeQuery pendingRecipeQuery;
     private long observedStateVersion = Long.MIN_VALUE;
     private float savedScrollY;
@@ -87,6 +94,23 @@ final class IsfBrowserOverlay {
     private float detailTop;
     private float detailDragOffsetX;
     private float detailDragOffsetY;
+    private ResourceLocation selectedTypeId;
+    private ResourceLocation selectedCatalyst;
+    private int recipePage;
+    private int tabFirstIndex;
+    private List<TypeTab> typeTabs = List.of();
+    private List<CatalystCell> catalystCells = List.of();
+    private List<RecipeView> builtRecipes = List.of();
+    private List<List<Integer>> recipePages = List.of();
+    private float pageAreaHeight = -1.0f;
+
+    private static final float RECIPE_GAP = 2.0f;
+    private static final float CATALYST_CELL = 18.0f;
+    private static final float TAB_CELL = 20.0f;
+    private static final float FALLBACK_AREA_HEIGHT = 224.0f;
+    private static final float FALLBACK_RECIPE_HEIGHT = 92.0f;
+    /** padding(4)*2 + заголовок 16 + вкладки 20 + пагинация 14 + три отступа VBox. */
+    private static final float DETAIL_FIXED_HEIGHT = 8.0f + 16.0f + TAB_CELL + 14.0f + 3 * RECIPE_GAP;
 
     IsfBrowserOverlay() {
         configureTree();
@@ -122,7 +146,6 @@ final class IsfBrowserOverlay {
         detailDragging = false;
         if (!detailPinned) {
             selectedEntry = null;
-            selectedRecipeIndex = 0;
             detailPositionSet = false;
             detailPanel.visibility(dev.sixik.unigui.api.widget.Visibility.COLLAPSED);
         } else if (selectedEntry != null) {
@@ -155,25 +178,26 @@ final class IsfBrowserOverlay {
      * мыши базовому экрану. Проверка на границе overlay не зависит от его маршрутизации ввода.
      */
     boolean clickRecipeNavigation(double mouseX, double mouseY, int button) {
-        if (button != 0 || selectedEntry == null || selectedEntry.recipeIds().size() < 2
+        if (button != 0 || selectedEntry == null || recipePages.size() < 2
                 || detailPanel.visibility() != dev.sixik.unigui.api.widget.Visibility.VISIBLE) {
             return false;
         }
         float x = (float) mouseX;
         float y = (float) mouseY;
         if (contains(detailPrevious.layoutBounds(), x, y)) {
-            changeSelectedRecipe(-1);
+            changeRecipePage(-1);
             return true;
         }
         if (contains(detailNext.layoutBounds(), x, y)) {
-            changeSelectedRecipe(1);
+            changeRecipePage(1);
             return true;
         }
         return false;
     }
 
     /**
-     * Резервная обработка кликов по кнопкам закрепления и закрытия.
+     * Резервная обработка кликов по элементам окна рецептов: закрепление, закрытие,
+     * вкладки RecipeType, стрелка прокрутки вкладок, пагинация и катализаторы.
      * Кнопки живут в Z-слое, куда маршрут ввода Minecraft-хуков доходит не всегда,
      * поэтому состояние проверяем прямо по layout-границам кнопок.
      */
@@ -191,6 +215,32 @@ final class IsfBrowserOverlay {
         if (contains(detailPin.layoutBounds(), x, y)) {
             setDetailPinned(!detailPinned);
             return true;
+        }
+        if (tabNext.visibility() == dev.sixik.unigui.api.widget.Visibility.VISIBLE
+                && contains(tabNext.layoutBounds(), x, y)) {
+            shiftTabWindow();
+            return true;
+        }
+        for (TypeTab tab : typeTabs) {
+            if (tab.button().visibility() == dev.sixik.unigui.api.widget.Visibility.VISIBLE
+                    && contains(tab.button().layoutBounds(), x, y)) {
+                selectType(tab.typeId());
+                return true;
+            }
+        }
+        if (recipePages.size() > 1 && contains(detailPrevious.layoutBounds(), x, y)) {
+            changeRecipePage(-1);
+            return true;
+        }
+        if (recipePages.size() > 1 && contains(detailNext.layoutBounds(), x, y)) {
+            changeRecipePage(1);
+            return true;
+        }
+        for (CatalystCell cell : catalystCells) {
+            if (contains(cell.button().layoutBounds(), x, y)) {
+                toggleCatalyst(cell.itemId());
+                return true;
+            }
         }
         return false;
     }
@@ -233,8 +283,19 @@ final class IsfBrowserOverlay {
         detailDragging = false;
         pendingRecipeQuery = null;
         selectedEntry = null;
-        selectedRecipeIndex = 0;
         detailPositionSet = false;
+        selectedTypeId = null;
+        selectedCatalyst = null;
+        recipePage = 0;
+        tabFirstIndex = 0;
+        typeTabs = List.of();
+        catalystCells = List.of();
+        builtRecipes = List.of();
+        recipePages = List.of();
+        tabRow.clearChildren();
+        catalystColumn.clearChildren();
+        recipeArea.clearChildren();
+        clearDetailTooltips();
         detailPanel.visibility(dev.sixik.unigui.api.widget.Visibility.COLLAPSED);
     }
 
@@ -403,12 +464,13 @@ final class IsfBrowserOverlay {
                 .position(PositionType.ABSOLUTE)
                 .left(104.0f)
                 .top(4.0f)
-                .size(116.0f, 112.0f)
+                .size(206.0f, 150.0f)
                 .padding(4.0f));
 
         VBox content = new VBox();
         content.spacing(2.0f);
         content.layout(style -> style.fill());
+
         HBox detailHeader = new HBox();
         detailHeader.spacing(2.0f);
         detailHeader.layout(style -> style.widthPercent(100.0f).height(16.0f).flexNone());
@@ -422,27 +484,45 @@ final class IsfBrowserOverlay {
         detailHeader.addChild(detailTitle);
         detailHeader.addChild(detailPin);
         detailHeader.addChild(detailClose);
-        detailPage.layout(style -> style.width(40.0f).height(14.0f).flexNone());
+
+        // Зелёная зона: вкладки доступных RecipeType + стрелка прокрутки при переполнении.
+        tabRow.spacing(2.0f);
+        tabRow.layout(style -> style.widthPercent(100.0f).height(TAB_CELL).flexNone());
+        tabNext.text(">").textPadding(0.0f, 0.0f);
+        tabNext.layout(style -> style.size(16.0f, TAB_CELL).flexNone());
+        tabNext.visibility(dev.sixik.unigui.api.widget.Visibility.COLLAPSED);
+        tabRow.addChild(tabNext);
+
+        // Кнопки страниц находятся под вкладками RecipeType, как в оригинальном JEI.
+        pagerRow.spacing(4.0f);
+        pagerRow.layout(style -> style.widthPercent(100.0f).height(14.0f).flexNone()
+                .justifyContent(Justify.CENTER));
+        detailPage.layout(style -> style.width(48.0f).height(14.0f).flexNone());
         detailPrevious.text("<").textPadding(0.0f, 0.0f);
         detailPrevious.layout(style -> style.size(16.0f, 14.0f).flexNone());
-        detailPrevious.onClick(event -> changeSelectedRecipe(-1));
+        detailPrevious.onClick(event -> changeRecipePage(-1));
         detailNext.text(">").textPadding(0.0f, 0.0f);
         detailNext.layout(style -> style.size(16.0f, 14.0f).flexNone());
-        detailNext.onClick(event -> changeSelectedRecipe(1));
-        HBox recipeNavigation = new HBox();
-        recipeNavigation.spacing(2.0f);
-        recipeNavigation.layout(style -> style.widthPercent(100.0f).height(14.0f).flexNone());
-        detailSource.layout(style -> style.flexGrow(1.0f).flexShrink(1.0f));
-        recipeNavigation.addChild(detailPrevious);
-        recipeNavigation.addChild(detailSource);
-        recipeNavigation.addChild(detailPage);
-        recipeNavigation.addChild(detailNext);
-        detailStats.layout(style -> style.size(168.0f, 14.0f).flexNone());
-        detailVisualHost.layout(style -> style.widthPercent(100.0f).height(92.0f).flexNone());
+        detailNext.onClick(event -> changeRecipePage(1));
+        pagerRow.addChild(detailPrevious);
+        pagerRow.addChild(detailPage);
+        pagerRow.addChild(detailNext);
+
+        // Тело: красная колонка катализаторов + синяя зона рецептов (страницами).
+        HBox body = new HBox();
+        body.spacing(2.0f);
+        body.layout(style -> style.widthPercent(100.0f).flexGrow(1.0f).flexShrink(1.0f));
+        catalystColumn.spacing(RECIPE_GAP);
+        catalystColumn.layout(style -> style.width(CATALYST_CELL).flexNone());
+        recipeArea.spacing(RECIPE_GAP);
+        recipeArea.layout(style -> style.widthPercent(100.0f).flexGrow(1.0f).flexShrink(1.0f));
+        body.addChild(catalystColumn);
+        body.addChild(recipeArea);
+
         content.addChild(detailHeader);
-        content.addChild(recipeNavigation);
-        content.addChild(detailVisualHost);
-        content.addChild(detailStats);
+        content.addChild(tabRow);
+        content.addChild(pagerRow);
+        content.addChild(body);
         detailPanel.addChild(content);
         overlayRoot.addOverlay(detailLayer);
         updateDetail(null);
@@ -581,8 +661,12 @@ final class IsfBrowserOverlay {
     }
 
     private void updateDetail(ItemEntry entry) {
-        if (selectedEntry == null || entry == null || !selectedEntry.id().equals(entry.id())) {
-            selectedRecipeIndex = 0;
+        boolean newItem = selectedEntry == null || entry == null
+                || !selectedEntry.id().equals(entry.id());
+        if (newItem) {
+            recipePage = 0;
+            selectedCatalyst = null;
+            selectedTypeId = null;
         }
         selectedEntry = entry;
         if (entry == null) {
@@ -592,49 +676,271 @@ final class IsfBrowserOverlay {
         detailPanel.visibility(dev.sixik.unigui.api.widget.Visibility.VISIBLE);
         detailPin.silentChecked(detailPinned);
         detailTitle.text(entry.stack().getHoverName().getString());
-        if (!entry.recipeIds().isEmpty()) {
-            selectedRecipeIndex = Math.max(0, Math.min(selectedRecipeIndex, entry.recipeIds().size() - 1));
-        } else {
-            selectedRecipeIndex = 0;
+        List<IsfRecipeDefinition> recipes = new ArrayList<>();
+        for (ResourceLocation recipeId : entry.recipeIds()) {
+            IsfRecipeDefinition recipe = IsfClientState.recipes().get(recipeId);
+            if (recipe != null) recipes.add(recipe);
         }
-        ResourceLocation recipeId = entry.recipeIds().isEmpty()
-                ? null : entry.recipeIds().get(selectedRecipeIndex);
-        IsfRecipeDefinition recipe = recipeId == null ? null : IsfClientState.recipes().get(recipeId);
-        detailSource.text(recipe == null ? "No available recipes" : recipe.recipeType().toString());
-        detailPage.text(entry.recipeIds().isEmpty()
-                ? "0 / 0" : (selectedRecipeIndex + 1) + " / " + entry.recipeIds().size());
-        boolean multipleRecipes = entry.recipeIds().size() > 1;
-        detailPrevious.enabled(multipleRecipes);
-        detailNext.enabled(multipleRecipes);
-        detailVisualHost.clearChildren();
-        if (recipe != null && recipe.visual() != null) {
-            Widget visual = IsfVisualWidgetFactory.create(recipe.visual(), recipe.parameters());
-            if (visual != null) detailVisualHost.addChild(visual);
-        } else {
-            detailVisualHost.addChild(new Label("No visual recipe"));
-        }
-        detailStats.text(recipeStats(recipe));
+        rebuildTypeTabs(recipes);
+        rebuildCatalysts();
+        rebuildRecipePages();
     }
 
-    private void changeSelectedRecipe(int direction) {
-        if (selectedEntry == null || selectedEntry.recipeIds().size() < 2) return;
-        int count = selectedEntry.recipeIds().size();
-        selectedRecipeIndex = Math.floorMod(selectedRecipeIndex + direction, count);
-        updateDetail(selectedEntry);
+    /** Зелёная зона: вкладки всех RecipeType, у которых есть рецепты по запросу. */
+    private void rebuildTypeTabs(List<IsfRecipeDefinition> recipes) {
+        List<ResourceLocation> order = new ArrayList<>();
+        for (IsfRecipeDefinition recipe : recipes) {
+            if (!order.contains(recipe.recipeType())) order.add(recipe.recipeType());
+        }
+        List<ResourceLocation> current = new ArrayList<>();
+        for (TypeTab tab : typeTabs) current.add(tab.typeId());
+        if (!current.equals(order)) {
+            clearTabTooltips();
+            tabFirstIndex = 0;
+            selectedCatalyst = null;
+            selectedTypeId = order.isEmpty() ? null : order.get(0);
+            tabRow.clearChildren();
+            List<TypeTab> tabs = new ArrayList<>();
+            for (ResourceLocation typeId : order) {
+                Button tab = new Button();
+                tab.themeEnabled(false);
+                tab.backgroundVisible(true);
+                tab.borderVisible(true);
+                tab.radius(2.0f);
+                tab.layout(style -> style.size(TAB_CELL, TAB_CELL).flexNone());
+                ItemStack icon = tabIcon(typeId);
+                if (icon.isEmpty()) {
+                    Label unknown = new Label("?");
+                    unknown.layout(style -> style.size(16.0f, 16.0f).centerSelf().flexNone());
+                    tab.addChild(unknown);
+                } else {
+                    IsfItemIconWidget iconWidget = new IsfItemIconWidget(icon);
+                    iconWidget.enabled(false);
+                    iconWidget.layout(style -> style.size(16.0f, 16.0f).centerSelf().flexNone());
+                    tab.addChild(iconWidget);
+                    MinecraftItemTooltip tooltip = new MinecraftItemTooltip(tab, icon);
+                    tabTooltips.add(tooltip);
+                    overlayRoot.addOverlay(tooltip);
+                }
+                tabRow.addChild(tab);
+                tabs.add(new TypeTab(typeId, tab));
+            }
+            tabRow.addChild(tabNext);
+            typeTabs = List.copyOf(tabs);
+        }
+        if (selectedTypeId == null && !typeTabs.isEmpty()) {
+            selectedTypeId = typeTabs.get(0).typeId();
+        }
+        applyTabHighlights();
+        updateTabVisibility();
     }
 
-    private static String recipeStats(IsfRecipeDefinition recipe) {
-        if (recipe == null) return "";
-        JsonElement time = recipe.parameters().get("cooking_time");
-        JsonElement experience = recipe.parameters().get("experience");
-        if (time == null && experience == null) return recipe.id().toString();
-        StringBuilder text = new StringBuilder();
-        if (time != null) text.append("Time: ").append(time.getAsInt()).append(" t");
-        if (experience != null) {
-            if (!text.isEmpty()) text.append("  ");
-            text.append("XP: ").append(experience.getAsFloat());
+    private ItemStack tabIcon(ResourceLocation typeId) {
+        List<IsfCatalystDefinition> catalysts = IsfClientState.typeCatalysts().get(typeId);
+        if (catalysts == null || catalysts.isEmpty()) return ItemStack.EMPTY;
+        Item item = BuiltInRegistries.ITEM.get(catalysts.get(0).item());
+        return item == Items.AIR ? ItemStack.EMPTY : new ItemStack(item);
+    }
+
+    /** Показывает окно вкладок [tabFirstIndex, tabFirstIndex + visible); стрелка видна при переполнении. */
+    private void updateTabVisibility() {
+        float rowWidth = tabRow.layoutBounds().width();
+        if (rowWidth <= 0.0f) rowWidth = typeTabs.size() * (TAB_CELL + 2.0f);
+        int visible = Math.max(1, (int) ((rowWidth - 16.0f - 2.0f) / (TAB_CELL + 2.0f)));
+        boolean overflow = typeTabs.size() > visible;
+        if (tabFirstIndex >= typeTabs.size()) tabFirstIndex = 0;
+        for (int index = 0; index < typeTabs.size(); index++) {
+            Button button = typeTabs.get(index).button();
+            boolean inWindow = index >= tabFirstIndex && index < tabFirstIndex + visible;
+            button.visibility(inWindow
+                    ? dev.sixik.unigui.api.widget.Visibility.VISIBLE
+                    : dev.sixik.unigui.api.widget.Visibility.COLLAPSED);
         }
-        return text.toString();
+        tabNext.visibility(overflow
+                ? dev.sixik.unigui.api.widget.Visibility.VISIBLE
+                : dev.sixik.unigui.api.widget.Visibility.COLLAPSED);
+    }
+
+    private void applyTabHighlights() {
+        for (TypeTab tab : typeTabs) {
+            boolean active = tab.typeId().equals(selectedTypeId);
+            tab.button().background().set(active
+                    ? new dev.sixik.unigui.api.math.MutableColor(0.259f, 0.463f, 0.608f, 0.95f)
+                    : new dev.sixik.unigui.api.math.MutableColor(0.063f, 0.078f, 0.106f, 0.90f));
+            tab.button().borderColor().set(active
+                    ? new dev.sixik.unigui.api.math.MutableColor(0.85f, 0.92f, 1.0f, 1.0f)
+                    : new dev.sixik.unigui.api.math.MutableColor(0.416f, 0.561f, 0.682f, 1.0f));
+        }
+    }
+
+    private void shiftTabWindow() {
+        if (typeTabs.isEmpty()) return;
+        tabFirstIndex = Math.floorMod(tabFirstIndex + 1, typeTabs.size());
+        updateTabVisibility();
+        applyTabHighlights();
+    }
+
+    private void selectType(ResourceLocation typeId) {
+        if (typeId == null || typeId.equals(selectedTypeId)) return;
+        selectedTypeId = typeId;
+        selectedCatalyst = null;
+        recipePage = 0;
+        tabFirstIndex = 0;
+        applyTabHighlights();
+        updateTabVisibility();
+        rebuildCatalysts();
+        rebuildRecipePages();
+    }
+
+    /** Красная зона: катализаторы (блоки/предметы, на которых выполняется крафт). */
+    private void rebuildCatalysts() {
+        catalystColumn.clearChildren();
+        clearCatalystTooltips();
+        List<IsfCatalystDefinition> catalysts = selectedTypeId == null
+                ? List.of()
+                : IsfClientState.typeCatalysts().getOrDefault(selectedTypeId, List.of());
+        List<CatalystCell> cells = new ArrayList<>();
+        for (IsfCatalystDefinition catalyst : catalysts) {
+            Item item = BuiltInRegistries.ITEM.get(catalyst.item());
+            if (item == Items.AIR) continue;
+            ItemStack stack = new ItemStack(item, Math.max(1, catalyst.count()));
+            Button cell = new Button();
+            cell.themeEnabled(false);
+            cell.backgroundVisible(true);
+            cell.borderVisible(true);
+            cell.radius(2.0f);
+            cell.layout(style -> style.size(CATALYST_CELL, CATALYST_CELL).flexNone());
+            IsfItemIconWidget icon = new IsfItemIconWidget(stack);
+            icon.enabled(false);
+            icon.layout(style -> style.size(16.0f, 16.0f).centerSelf().flexNone());
+            cell.addChild(icon);
+            MinecraftItemTooltip tooltip = new MinecraftItemTooltip(cell, stack);
+            catalystTooltips.add(tooltip);
+            overlayRoot.addOverlay(tooltip);
+            catalystColumn.addChild(cell);
+            cells.add(new CatalystCell(catalyst.item(), cell));
+        }
+        catalystCells = List.copyOf(cells);
+        applyCatalystHighlights();
+    }
+
+    private void applyCatalystHighlights() {
+        for (CatalystCell cell : catalystCells) {
+            boolean active = cell.itemId().equals(selectedCatalyst);
+            cell.button().background().set(active
+                    ? new dev.sixik.unigui.api.math.MutableColor(0.259f, 0.463f, 0.608f, 0.95f)
+                    : new dev.sixik.unigui.api.math.MutableColor(0.063f, 0.078f, 0.106f, 0.90f));
+            cell.button().borderColor().set(active
+                    ? new dev.sixik.unigui.api.math.MutableColor(0.85f, 0.92f, 1.0f, 1.0f)
+                    : new dev.sixik.unigui.api.math.MutableColor(0.416f, 0.561f, 0.682f, 1.0f));
+        }
+    }
+
+    private void toggleCatalyst(ResourceLocation itemId) {
+        selectedCatalyst = itemId.equals(selectedCatalyst) ? null : itemId;
+        recipePage = 0;
+        applyCatalystHighlights();
+        rebuildRecipePages();
+    }
+
+    /** Рецепты активного типа с учётом фильтра по катализатору. */
+    private List<IsfRecipeDefinition> currentTypeRecipes() {
+        if (selectedEntry == null || selectedTypeId == null) return List.of();
+        List<IsfRecipeDefinition> result = new ArrayList<>();
+        for (ResourceLocation recipeId : selectedEntry.recipeIds()) {
+            IsfRecipeDefinition recipe = IsfClientState.recipes().get(recipeId);
+            if (recipe == null || !selectedTypeId.equals(recipe.recipeType())) continue;
+            if (selectedCatalyst != null
+                    && !IsfRecipeQueryMatcher.usesStation(recipe.triggers(), selectedCatalyst)) {
+                continue;
+            }
+            result.add(recipe);
+        }
+        return result;
+    }
+
+    /** Синяя зона: строит страницы рецептов по высоте области просмотра. */
+    private void rebuildRecipePages() {
+        rebuildRecipePages(currentAreaHeight());
+    }
+
+    private void rebuildRecipePages(float areaHeight) {
+        builtRecipes = List.of();
+        recipePages = List.of();
+        recipeArea.clearChildren();
+        List<RecipeView> views = new ArrayList<>();
+        for (IsfRecipeDefinition recipe : currentTypeRecipes()) {
+            views.add(new RecipeView(recipe, measureHeight(recipe)));
+        }
+        builtRecipes = List.copyOf(views);
+        pageAreaHeight = areaHeight;
+        recipePages = IsfRecipePaging.partitionByHeight(
+                views.stream().map(RecipeView::height).toList(), pageAreaHeight, RECIPE_GAP);
+        recipePage = Math.max(0, Math.min(recipePage, Math.max(0, recipePages.size() - 1)));
+        renderRecipePage();
+    }
+
+    private void renderRecipePage() {
+        recipeArea.clearChildren();
+        List<Integer> page = recipePage < recipePages.size()
+                ? recipePages.get(recipePage) : List.of();
+        if (page.isEmpty()) {
+            Label empty = new Label("No available recipes");
+            empty.layout(style -> style.widthPercent(100.0f).height(14.0f).flexNone());
+            recipeArea.addChild(empty);
+        } else {
+            // Визуалы создаются заново при каждом показе: clearChildren утилизирует
+            // старые виджеты, и повторное использование их экземпляров недопустимо.
+            for (int index : page) {
+                IsfRecipeDefinition recipe = builtRecipes.get(index).recipe();
+                Widget visual = IsfVisualWidgetFactory.create(recipe.visual(), recipe.parameters());
+                if (visual != null) recipeArea.addChild(visual);
+            }
+        }
+        detailPage.text((recipePage + 1) + " / " + Math.max(1, recipePages.size()));
+        boolean multiple = recipePages.size() > 1;
+        detailPrevious.enabled(multiple);
+        detailNext.enabled(multiple);
+    }
+
+    private void changeRecipePage(int direction) {
+        if (recipePages.size() < 2) return;
+        recipePage = Math.floorMod(recipePage + direction, recipePages.size());
+        renderRecipePage();
+    }
+
+    /** Высота зоны рецептов: размер панели минус фиксированные строки заголовка. */
+    private float currentAreaHeight() {
+        float panelHeight = detailPanel.layoutBounds().height();
+        float height = panelHeight - DETAIL_FIXED_HEIGHT;
+        return height > 0.0f ? height : FALLBACK_AREA_HEIGHT;
+    }
+
+    private static float measureHeight(IsfRecipeDefinition recipe) {
+        Widget visual = IsfVisualWidgetFactory.create(recipe.visual(), recipe.parameters());
+        if (visual == null) return 14.0f;
+        try {
+            visual.measure(new LayoutContext(176.0f, 4096.0f));
+            float height = visual.desiredSize().height();
+            return height > 0.0f ? height : FALLBACK_RECIPE_HEIGHT;
+        } catch (RuntimeException ignored) {
+            return FALLBACK_RECIPE_HEIGHT;
+        }
+    }
+
+    private void clearTabTooltips() {
+        for (MinecraftItemTooltip tooltip : tabTooltips) overlayRoot.removeOverlay(tooltip);
+        tabTooltips.clear();
+    }
+
+    private void clearCatalystTooltips() {
+        for (MinecraftItemTooltip tooltip : catalystTooltips) overlayRoot.removeOverlay(tooltip);
+        catalystTooltips.clear();
+    }
+
+    private void clearDetailTooltips() {
+        clearTabTooltips();
+        clearCatalystTooltips();
     }
 
     private List<ItemEntry> entries() {
@@ -673,6 +979,18 @@ final class IsfBrowserOverlay {
     }
 
     private record ItemEntry(ResourceLocation id, ItemStack stack, List<ResourceLocation> recipeIds) {
+    }
+
+    /** Вкладка RecipeType в шапке окна рецептов. */
+    private record TypeTab(ResourceLocation typeId, Button button) {
+    }
+
+    /** Катализатор в левой колонке окна рецептов. */
+    private record CatalystCell(ResourceLocation itemId, Button button) {
+    }
+
+    /** Рецепт с измеренной высотой визуала для пагинации. */
+    private record RecipeView(IsfRecipeDefinition recipe, float height) {
     }
 
     private final class BrowserRoot extends Box {
@@ -733,8 +1051,8 @@ final class IsfBrowserOverlay {
                 updateBookmarkScrollContentHeight();
             }
             if (selectedEntry != null) {
-                int detailWidth = Math.min(220, Math.max(140, width - margin * 2));
-                int detailHeight = 150;
+                int detailWidth = Math.min(240, Math.max(206, width - margin * 2));
+                int detailHeight = Math.min(290, Math.max(150, height - margin * 2));
                 if (!detailPositionSet) {
                     detailLeft = (width - detailWidth) * 0.5f;
                     detailTop = (height - detailHeight) * 0.5f;
@@ -745,6 +1063,12 @@ final class IsfBrowserOverlay {
                 } else {
                     detailPanel.layout(style -> style.size(detailWidth, detailHeight));
                     moveDetailPanel(detailLeft, detailTop);
+                }
+                // Пересобираем страницы только когда реально изменился размер окна,
+                // а не по высоте контента — иначе возникает feedback-цикл пересборок.
+                float areaHeight = detailHeight - DETAIL_FIXED_HEIGHT;
+                if (Math.abs(areaHeight - pageAreaHeight) > 0.5f) {
+                    rebuildRecipePages(areaHeight);
                 }
             }
         }
