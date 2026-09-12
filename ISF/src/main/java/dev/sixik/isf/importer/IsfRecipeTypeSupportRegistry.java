@@ -1,7 +1,6 @@
 package dev.sixik.isf.importer;
 
 import dev.sixik.isf.api.IsfRecipeTypeSupport;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.crafting.Recipe;
 
 import java.util.LinkedHashMap;
@@ -12,18 +11,23 @@ import java.util.Optional;
 
 /** Реестр подключаемых импортёров игровых recipe type. */
 public final class IsfRecipeTypeSupportRegistry {
-    private final Map<ResourceLocation, IsfRecipeTypeSupport> supports = new LinkedHashMap<>();
+    /**
+     * Ключ — category: несколько support'ов могут разделять один recipe type
+     * (например, shaped и shapeless крафты живут в общем {@code isf:crafting}).
+     */
+    private final Map<String, IsfRecipeTypeSupport> supports = new LinkedHashMap<>();
 
     public synchronized void register(IsfRecipeTypeSupport support) {
         IsfRecipeTypeSupport value = Objects.requireNonNull(support, "support");
-        ResourceLocation id = Objects.requireNonNull(value.definition(), "support.definition()").id();
-        if (supports.containsKey(id)) {
-            throw new IllegalArgumentException("ISF recipe type support is already registered: " + id);
-        }
         if (value.category() == null || value.category().isBlank()) {
-            throw new IllegalArgumentException("ISF recipe type category cannot be empty: " + id);
+            throw new IllegalArgumentException("ISF recipe type support category cannot be empty");
         }
-        supports.put(id, value);
+        Objects.requireNonNull(value.definition(), "support.definition()");
+        String key = value.category();
+        if (supports.containsKey(key)) {
+            throw new IllegalArgumentException("ISF recipe type support is already registered: " + key);
+        }
+        supports.put(key, value);
     }
 
     public synchronized Optional<IsfRecipeTypeSupport> find(Recipe<?> recipe) {

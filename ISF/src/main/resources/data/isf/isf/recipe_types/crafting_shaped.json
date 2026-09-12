@@ -1,33 +1,4 @@
 {
   "parent": "isf:crafting",
-  "parameters": {
-    "width": {
-      "type": "number",
-      "default": 3
-    },
-    "height": {
-      "type": "number",
-      "default": 3
-    }
-  },
-  "visual": {
-    "id": "root",
-    "widget": "unigui:box",
-    "properties": {
-      "width": 176,
-      "height": 92,
-      "background": "#11151DEB"
-    },
-    "children": [
-      {
-        "id": "result",
-        "widget": "unigui:item",
-        "properties": {
-          "item": {
-            "$parameter": "result"
-          }
-        }
-      }
-    ]
-  }
+  "parameters": {}
 }

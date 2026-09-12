@@ -21,16 +21,30 @@ public final class IsfClient {
         OVERLAY.register();
         MinecraftForge.EVENT_BUS.addListener(IsfClient::keyPressed);
         MinecraftForge.EVENT_BUS.addListener(IsfClient::screenClosed);
+        MinecraftForge.EVENT_BUS.addListener(IsfClient::render);
         MinecraftForge.EVENT_BUS.addListener(EventPriority.LOWEST, IsfClient::mouseScrolled);
         MinecraftForge.EVENT_BUS.addListener(EventPriority.LOWEST, IsfClient::mousePressed);
         MinecraftForge.EVENT_BUS.addListener(EventPriority.LOWEST, IsfClient::mouseDragged);
         MinecraftForge.EVENT_BUS.addListener(EventPriority.LOWEST, IsfClient::mouseReleased);
     }
 
+    private static void render(ScreenEvent.Render.Pre event) {
+        if (!(event.getScreen() instanceof AbstractContainerScreen<?>)) return;
+        OVERLAY.updatePointerPosition(event.getMouseX(), event.getMouseY());
+    }
+
     private static void keyPressed(ScreenEvent.KeyPressed.Pre event) {
         if (!(event.getScreen() instanceof AbstractContainerScreen<?> container)) return;
         if (event.getScreen().getFocused() instanceof EditBox) return;
         if (event.getKeyCode() == org.lwjgl.glfw.GLFW.GLFW_KEY_A) {
+            // A над предметом в сетке крафта — закладка на него; иначе — на клетку списка.
+            ResourceLocation recipeItem = OVERLAY.recipeItemAt();
+            if (recipeItem != null) {
+                boolean bookmarked = !dev.sixik.isf.client.IsfClientState.bookmarks().contains(recipeItem);
+                dev.sixik.isf.network.IsfNetwork.toggleBookmark(recipeItem, bookmarked);
+                event.setCanceled(true);
+                return;
+            }
             if (OVERLAY.toggleHoveredBookmark()) event.setCanceled(true);
             return;
         }
@@ -39,7 +53,10 @@ public final class IsfClient {
             return;
         }
 
-        ResourceLocation itemId = OVERLAY.hoveredItemId();
+        // Координаты курсора уже трекаются в render-событии — они в тех же
+        // GUI-координатах, что и работающие клики, независимо от guiScale.
+        ResourceLocation itemId = OVERLAY.recipeItemAt();
+        if (itemId == null) itemId = OVERLAY.hoveredItemId();
         if (itemId == null) {
             Slot slot = container.getSlotUnderMouse();
             ItemStack stack = slot == null ? ItemStack.EMPTY : slot.getItem();
@@ -61,6 +78,7 @@ public final class IsfClient {
 
     private static void mouseScrolled(ScreenEvent.MouseScrolled.Pre event) {
         if (event.isCanceled() || !(event.getScreen() instanceof AbstractContainerScreen<?>)) return;
+        OVERLAY.updatePointerPosition(event.getMouseX(), event.getMouseY());
         if (OVERLAY.scrollItemsAt(event.getMouseX(), event.getMouseY(), event.getScrollDelta())) {
             event.setCanceled(true);
         }
@@ -68,6 +86,7 @@ public final class IsfClient {
 
     private static void mousePressed(ScreenEvent.MouseButtonPressed.Pre event) {
         if (event.isCanceled() || !(event.getScreen() instanceof AbstractContainerScreen<?>)) return;
+        OVERLAY.updatePointerPosition(event.getMouseX(), event.getMouseY());
         if (OVERLAY.clickDetailControls(event.getMouseX(), event.getMouseY(), event.getButton())) {
             event.setCanceled(true);
             return;

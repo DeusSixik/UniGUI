@@ -10,6 +10,7 @@ import dev.sixik.isf.definition.IsfParameterType;
 import dev.sixik.isf.definition.IsfRecipeTypeDefinition;
 import dev.sixik.isf.definition.IsfTriggerBinding;
 import dev.sixik.isf.definition.IsfVisualNode;
+import dev.sixik.isf.runtime.IsfCraftingPattern;
 import dev.sixik.isf.trigger.IsfTriggerRegistry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -31,25 +32,35 @@ import java.util.function.Predicate;
 
 /** Встроенные адаптеры vanilla crafting и cooking recipes. */
 public final class VanillaRecipeTypeSupports {
+    /**
+     * Shaped и shapeless крафты живут в одном recipe type {@code isf:crafting},
+     * поэтому в окне рецептов они показываются одной категорией. Различие
+     * только в данных: shaped пишет pattern с реальными позициями предметов.
+     */
+    private static final IsfRecipeTypeDefinition CRAFTING_DEFINITION = new IsfRecipeTypeDefinition(
+            id("isf:crafting"), null, craftingSchema(), craftingVisual());
+
     private VanillaRecipeTypeSupports() {
     }
 
     public static void registerAll(IsfRecipeTypeSupportRegistry registry) {
         registry.register(standardSupport("crafting_shaped", recipe -> recipe instanceof ShapedRecipe,
-                VanillaRecipeTypeSupports::craftingParameters, craftingSchema(true), craftingVisual(3),
+                VanillaRecipeTypeSupports::craftingParameters, CRAFTING_DEFINITION,
                 id("minecraft:crafting_table")));
         registry.register(standardSupport("crafting_shapeless", recipe -> recipe instanceof ShapelessRecipe,
-                VanillaRecipeTypeSupports::craftingParameters, craftingSchema(false), craftingVisual(3),
+                VanillaRecipeTypeSupports::craftingParameters, CRAFTING_DEFINITION,
                 id("minecraft:crafting_table")));
         registry.register(cookingSupport("smelting", RecipeType.SMELTING));
         registry.register(cookingSupport("blasting", RecipeType.BLASTING));
         registry.register(cookingSupport("smoking", RecipeType.SMOKING));
         registry.register(cookingSupport("campfire_cooking", RecipeType.CAMPFIRE_COOKING));
         registry.register(standardSupport("stonecutting", recipe -> recipe.getType() == RecipeType.STONECUTTING,
-                VanillaRecipeTypeSupports::commonParameters, commonSchema(), singleInputVisual(),
+                VanillaRecipeTypeSupports::commonParameters,
+                definition("isf:stonecutting", commonSchema(), singleInputVisual()),
                 id("minecraft:stonecutter")));
         registry.register(support("smithing", recipe -> recipe.getType() == RecipeType.SMITHING,
-                VanillaRecipeTypeSupports::smithingParameters, commonSchema(), smithingVisual(),
+                VanillaRecipeTypeSupports::smithingParameters,
+                definition("isf:smithing", commonSchema(), smithingVisual()),
                 VanillaRecipeTypeSupports::smithingTriggers));
     }
 
@@ -63,43 +74,36 @@ public final class VanillaRecipeTypeSupports {
         return standardSupport(category,
                 recipe -> recipe instanceof AbstractCookingRecipe cooking && cooking.getType() == type,
                 VanillaRecipeTypeSupports::cookingParameters,
-                cookingSchema(), cookingVisual(), station);
+                definition("isf:" + category, cookingSchema(), cookingVisual()), station);
     }
 
     private static IsfRecipeTypeSupport standardSupport(String category,
-                                                        Predicate<Recipe<?>> matcher,
-                                                        ParameterExtractor extractor,
-                                                        Map<String, IsfParameterDefinition> parameters,
-                                                        IsfVisualNode visual,
-                                                        ResourceLocation... stations) {
-        return support(category, matcher, extractor, parameters, visual,
+                                                         Predicate<Recipe<?>> matcher,
+                                                         ParameterExtractor extractor,
+                                                         IsfRecipeTypeDefinition definition,
+                                                         ResourceLocation... stations) {
+        return support(category, matcher, extractor, definition,
                 (recipe, registries, values) -> standardTriggers(recipe, values, stations));
     }
 
     private static IsfRecipeTypeSupport support(String category,
-                                                Predicate<Recipe<?>> matcher,
-                                                ParameterExtractor extractor,
-                                                Map<String, IsfParameterDefinition> parameters,
-                                                IsfVisualNode visual) {
-        return support(category, matcher, extractor, parameters, visual, null);
-    }
-
-    private static IsfRecipeTypeSupport support(String category,
-                                                Predicate<Recipe<?>> matcher,
-                                                ParameterExtractor extractor,
-                                                Map<String, IsfParameterDefinition> parameters,
-                                                IsfVisualNode visual,
-                                                TriggerExtractor triggerExtractor) {
-        IsfRecipeTypeDefinition definition = new IsfRecipeTypeDefinition(
-                ResourceLocation.tryBuild("isf", category), null, parameters, visual);
+                                                 Predicate<Recipe<?>> matcher,
+                                                 ParameterExtractor extractor,
+                                                 IsfRecipeTypeDefinition definition,
+                                                 TriggerExtractor triggerExtractor) {
         return new SimpleSupport(category, definition, matcher, extractor, triggerExtractor);
     }
 
     private static Map<String, JsonElement> craftingParameters(Recipe<?> recipe, RegistryAccess registries) {
         Map<String, JsonElement> values = commonParameters(recipe, registries);
+        JsonArray flatCells = ingredients(recipe);
         if (recipe instanceof ShapedRecipe shaped) {
             values.put("width", new JsonPrimitive(shaped.getWidth()));
             values.put("height", new JsonPrimitive(shaped.getHeight()));
+            // Позиции предметов соответствуют реальной форме крафта.
+            values.put("pattern", IsfCraftingPattern.reshape(flatCells, shaped.getWidth()));
+        } else {
+            values.put("pattern", IsfCraftingPattern.reshape(flatCells, 3));
         }
         return values;
     }
@@ -198,12 +202,17 @@ public final class VanillaRecipeTypeSupports {
         return ingredients;
     }
 
-    private static Map<String, IsfParameterDefinition> craftingSchema(boolean shaped) {
+    private static IsfRecipeTypeDefinition definition(String id,
+                                                      Map<String, IsfParameterDefinition> schema,
+                                                      IsfVisualNode visual) {
+        return new IsfRecipeTypeDefinition(ResourceLocation.tryParse(id), null, schema, visual);
+    }
+
+    private static Map<String, IsfParameterDefinition> craftingSchema() {
         Map<String, IsfParameterDefinition> schema = commonSchema();
-        if (shaped) {
-            schema.put("width", parameter("width", IsfParameterType.NUMBER, new JsonPrimitive(3)));
-            schema.put("height", parameter("height", IsfParameterType.NUMBER, new JsonPrimitive(3)));
-        }
+        schema.put("width", parameter("width", IsfParameterType.NUMBER, new JsonPrimitive(3)));
+        schema.put("height", parameter("height", IsfParameterType.NUMBER, new JsonPrimitive(3)));
+        schema.put("pattern", parameter("pattern", IsfParameterType.JSON, new JsonArray()));
         return schema;
     }
 
@@ -226,16 +235,15 @@ public final class VanillaRecipeTypeSupports {
         return new IsfParameterDefinition(name, type, value, "");
     }
 
-    private static IsfVisualNode craftingVisual(int columns) {
+    private static IsfVisualNode craftingVisual() {
         return rootVisual(new IsfVisualNode("body", id("unigui:hbox"), Map.of(
                 "padding", literal(12),
                 "spacing", literal(10),
                 "alignItems", literal("center")), List.of(
+                // Без "columns": ширина сетки выводится из pattern рецепта,
+                // иначе свойства узла перезаписывают форму крафта тройкой колонок.
                 new IsfVisualNode("ingredients", id("isf:ingredient_grid"), Map.of(
-                        "items", parameter("ingredients"),
-                        "columns", literal(columns),
-                        "width", literal(54),
-                        "height", literal(54)), List.of()),
+                        "items", parameter("pattern")), List.of()),
                 arrow(),
                 resultItem())));
     }
@@ -252,8 +260,8 @@ public final class VanillaRecipeTypeSupports {
                 new IsfVisualNode("ingredient", id("isf:ingredient_grid"), Map.of(
                         "items", parameter("ingredients"),
                         "columns", literal(1),
-                        "width", literal(24),
-                        "height", literal(24)), List.of()),
+                        "width", literal(18),
+                        "height", literal(18)), List.of()),
                 arrow(),
                 resultItem())));
     }

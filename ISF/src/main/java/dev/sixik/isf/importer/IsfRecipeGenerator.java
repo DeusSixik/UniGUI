@@ -52,8 +52,11 @@ public final class IsfRecipeGenerator {
             writePackMetadata(packRoot);
             RegistryAccess access = server.registryAccess();
 
+            java.util.Set<ResourceLocation> writtenTypes = new LinkedHashSet<>();
             for (IsfRecipeTypeSupport support : supports.values()) {
                 if (!safeRequest.accepts(support.category())) continue;
+                // Несколько support'ов могут разделять один recipe type — файл пишем один раз.
+                if (!writtenTypes.add(support.definition().id())) continue;
                 Path target = definitionPath(packRoot, "recipe_types", support.definition().id());
                 writeJson(target, IsfDefinitionJson.writeType(support.definition()));
                 generatedTypes++;

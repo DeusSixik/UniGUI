@@ -26,11 +26,15 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
+import java.util.ArrayList;
 import java.util.Locale;
+import java.util.List;
 import java.util.Map;
 
 /** Создаёт UniGUI-дерево из декларативного visual ISF-рецепта. */
 final class IsfVisualWidgetFactory {
+    private static final float CELL = 18.0f;
+
     private final IsfExpressionEvaluator evaluator = new IsfExpressionEvaluator(IsfMod.runtime().functions());
     private final IsfEvaluationContext context;
 
@@ -74,29 +78,90 @@ final class IsfVisualWidgetFactory {
     }
 
     private WidgetBase itemWidget(IsfVisualNode node) {
-        ItemStack stack = item(value(node, "item"));
+        JsonElement raw = value(node, "item");
+        ItemStack stack = item(raw);
         int count = integer(value(node, "count"), 1);
         if (!stack.isEmpty() && count > 0) stack.setCount(Math.min(count, stack.getMaxStackSize()));
-        IsfItemIconWidget icon = new IsfItemIconWidget(stack);
-        icon.enabled(false);
-        return icon;
+        if (stack.isEmpty()) {
+            IsfItemIconWidget icon = new IsfItemIconWidget(stack);
+            icon.enabled(false);
+            return icon;
+        }
+        IsfItemButton button = new IsfItemButton(itemId(raw), stack);
+        attachClickHandler(button);
+        return button;
     }
 
+    /**
+     * Сетка крафта. Поддерживает два формата "items":
+     * pattern (строки → клетки → альтернативы) — рендерит реальную форму крафта,
+     * и плоский список клеток (альтернативы → id) — колонки из свойства "columns".
+     */
     private WidgetBase ingredientGrid(IsfVisualNode node) {
         GridBox grid = new GridBox();
         JsonElement raw = value(node, "items");
         int columns = Math.max(1, integer(value(node, "columns"), 3));
-        grid.columns(columns).spacing(integer(value(node, "spacing"), 0));
-        if (raw != null && raw.isJsonArray()) {
-            for (JsonElement ingredient : raw.getAsJsonArray()) {
-                ItemStack stack = item(firstAlternative(ingredient));
-                IsfItemIconWidget icon = new IsfItemIconWidget(stack);
-                icon.enabled(false);
-                icon.layout(style -> style.size(16.0f, 16.0f).centerSelf().flexNone());
-                grid.addChild(icon);
+        List<List<JsonArray>> rows = readCells(raw);
+        if (!rows.isEmpty()) {
+            columns = rows.stream().mapToInt(List::size).max().orElse(columns);
+        }
+        grid.columns(columns).spacing(0);
+        if (rows.isEmpty()) return grid;
+        for (List<JsonArray> row : rows) {
+            for (int column = 0; column < columns; column++) {
+                JsonArray cell = column < row.size() ? row.get(column) : new JsonArray();
+                grid.addChild(cellWidget(cell));
             }
         }
         return grid;
+    }
+
+    /** @return клетки крафта: pattern даёт строки, плоский список — одну строку. */
+    private static List<List<JsonArray>> readCells(JsonElement raw) {
+        List<List<JsonArray>> rows = new ArrayList<>();
+        if (raw == null || !raw.isJsonArray()) return rows;
+        List<JsonArray> flat = new ArrayList<>();
+        boolean flatMode = true;
+        for (JsonElement element : raw.getAsJsonArray()) {
+            if (!element.isJsonArray()) continue;
+            JsonArray outer = element.getAsJsonArray();
+            if (!outer.isEmpty() && outer.get(0).isJsonArray()) {
+                flatMode = false;
+                List<JsonArray> row = new ArrayList<>();
+                for (JsonElement cell : outer) {
+                    row.add(cell.isJsonArray() ? cell.getAsJsonArray() : new JsonArray());
+                }
+                rows.add(row);
+            } else {
+                flat.add(outer);
+            }
+        }
+        if (flatMode && !flat.isEmpty()) rows.add(flat);
+        return rows;
+    }
+
+    private WidgetBase cellWidget(JsonArray alternatives) {
+        JsonElement first = firstAlternative(alternatives);
+        ItemStack stack = item(first);
+        if (stack.isEmpty()) {
+            Box empty = new Box();
+            empty.layout(style -> style.size(CELL, CELL).flexNone());
+            return empty;
+        }
+        IsfItemButton button = new IsfItemButton(itemId(first), stack);
+        button.layout(style -> style.size(CELL, CELL).flexNone());
+        attachClickHandler(button);
+        return button;
+    }
+
+    private static void attachClickHandler(IsfItemButton ignoredButton) {
+        // Клик обрабатывается вручную в IsfBrowserOverlay.clickDetailControls:
+        // IsfItemButton намеренно не потребляет pointer-события.
+    }
+
+    private static ResourceLocation itemId(JsonElement value) {
+        return value == null || !value.isJsonPrimitive()
+                ? null : ResourceLocation.tryParse(value.getAsString());
     }
 
     private boolean isIngredientGrid(IsfVisualNode node) {

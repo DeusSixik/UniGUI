@@ -1,16 +1,68 @@
 ﻿{
-    "parent":  "isf:crafting",
-    "parameters":  {
-                       "cooking_time":  {
-                                            "type":  "number",
-                                            "default":  200
-                                        },
-                       "experience":  {
-                                          "type":  "number",
-                                          "default":  0
-                                      }
-                   },
-    "catalysts":  [
-                      "minecraft:furnace"
-                  ]
+  "parent": "isf:crafting",
+  "parameters": {
+    "cooking_time": {
+      "type": "number",
+      "default": 200
+    },
+    "experience": {
+      "type": "number",
+      "default": 0
+    }
+  },
+  "visual": {
+    "id": "cooking_root",
+    "widget": "unigui:box",
+    "properties": {
+      "width": 176,
+      "height": 92,
+      "background": "#11151DEB",
+      "border": "#6A8FAEFF",
+      "radius": 3
+    },
+    "children": [
+      {
+        "id": "cooking_body",
+        "widget": "unigui:hbox",
+        "properties": {
+          "padding": 12,
+          "spacing": 12,
+          "alignItems": "center"
+        },
+        "children": [
+          {
+            "id": "ingredient",
+            "widget": "isf:ingredient_grid",
+            "properties": {
+              "items": { "$parameter": "ingredients" },
+              "columns": 1,
+              "width": 18,
+              "height": 18
+            }
+          },
+          {
+            "id": "arrow",
+            "widget": "unigui:label",
+            "properties": {
+              "text": ">",
+              "width": 18,
+              "height": 24,
+              "alignSelf": "center"
+            }
+          },
+          {
+            "id": "result",
+            "widget": "unigui:item",
+            "properties": {
+              "item": { "$parameter": "result" },
+              "count": { "$parameter": "result_count" },
+              "width": 24,
+              "height": 24,
+              "alignSelf": "center"
+            }
+          }
+        ]
+      }
+    ]
+  }
 }

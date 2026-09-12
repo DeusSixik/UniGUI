@@ -182,6 +182,24 @@ public final class IsfDomainSelfTest {
         check(tallPages.size() == 2 && tallPages.get(0).equals(List.of(0)) && tallPages.get(1).equals(List.of(1)),
                 "recipes taller than the view area should receive their own page");
 
+        com.google.gson.JsonArray flatCells = new com.google.gson.JsonArray();
+        for (int index = 0; index < 5; index++) {
+            com.google.gson.JsonArray alternatives = new com.google.gson.JsonArray();
+            alternatives.add("minecraft:item_" + index);
+            flatCells.add(alternatives);
+        }
+        com.google.gson.JsonArray pattern = dev.sixik.isf.runtime.IsfCraftingPattern.reshape(flatCells, 3);
+        check(pattern.size() == 2, "pattern should build rows of the requested width");
+        check(pattern.get(0).getAsJsonArray().size() == 3 && pattern.get(1).getAsJsonArray().size() == 3,
+                "pattern rows should be padded to a rectangle");
+        check(pattern.get(1).getAsJsonArray().get(2).getAsJsonArray().size() == 0,
+                "missing pattern cells should become empty slots");
+        check(pattern.get(0).getAsJsonArray().get(0).getAsJsonArray().get(0).getAsString()
+                        .equals("minecraft:item_0"),
+                "pattern cells should preserve ingredient alternatives");
+        check(dev.sixik.isf.runtime.IsfCraftingPattern.reshape(new com.google.gson.JsonArray(), 3).size() == 0,
+                "empty ingredients should produce an empty pattern");
+
     }
 
     private static IsfVisualNode node(String nodeId, String widget,

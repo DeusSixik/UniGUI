@@ -60,6 +60,7 @@ final class IsfBrowserOverlay {
     private final MinecraftZLayer detailLayer = new MinecraftZLayer(detailPanel, 300.0f);
     private final Label detailTitle = new Label();
     private final ToggleButton detailPin = new ToggleButton();
+    private final Button detailBookmark = new Button();
     private final Button detailClose = new Button();
     private final HBox tabRow = new HBox();
     private final Button tabNext = new Button();
@@ -72,6 +73,10 @@ final class IsfBrowserOverlay {
     private final List<MinecraftItemTooltip> tooltips = new ArrayList<>();
     private final List<MinecraftItemTooltip> tabTooltips = new ArrayList<>();
     private final List<MinecraftItemTooltip> catalystTooltips = new ArrayList<>();
+    private final List<MinecraftItemTooltip> recipeItemTooltips = new ArrayList<>();
+    private final List<IsfItemButton> recipeItemButtons = new ArrayList<>();
+    private final List<Widget> pageVisuals = new ArrayList<>();
+    private boolean recipeItemButtonsPopulated;
     private final Map<ResourceLocation, Button> bookmarkCells = new LinkedHashMap<>();
     private final Map<ResourceLocation, MinecraftItemTooltip> bookmarkTooltips = new LinkedHashMap<>();
 
@@ -103,6 +108,8 @@ final class IsfBrowserOverlay {
     private List<RecipeView> builtRecipes = List.of();
     private List<List<Integer>> recipePages = List.of();
     private float pageAreaHeight = -1.0f;
+    private double pointerX = -1.0;
+    private double pointerY = -1.0;
 
     private static final float RECIPE_GAP = 2.0f;
     private static final float CATALYST_CELL = 18.0f;
@@ -165,6 +172,33 @@ final class IsfBrowserOverlay {
         return hoveredEntry == null ? null : hoveredEntry.id();
     }
 
+    /**
+     * Предмет из сетки крафта под курсором: позволяет смотреть рецепты R/U
+     * прямо из визуала рецепта, не выходя из окна.
+     */
+    ResourceLocation recipeItemAt() {
+        if (pointerX < 0.0 || pointerY < 0.0) return null;
+        return recipeItemAt(pointerX, pointerY);
+    }
+
+    ResourceLocation recipeItemAt(double mouseX, double mouseY) {
+        ensureRecipeItemButtons();
+        float x = (float) mouseX;
+        float y = (float) mouseY;
+        for (IsfItemButton itemButton : recipeItemButtons) {
+            if (contains(itemButton.layoutBounds(), x, y)) {
+                return itemButton.itemId();
+            }
+        }
+        return null;
+    }
+
+    /** Запоминает координаты курсора из Forge mouse-событий для R/U по сетке. */
+    void updatePointerPosition(double mouseX, double mouseY) {
+        pointerX = mouseX;
+        pointerY = mouseY;
+    }
+
     void showRecipes(ResourceLocation itemId, boolean usages) {
         if (itemId == null) return;
         pendingRecipeQuery = new PendingRecipeQuery(itemId, usages, IsfClientState.version());
@@ -202,18 +236,33 @@ final class IsfBrowserOverlay {
      * поэтому состояние проверяем прямо по layout-границам кнопок.
      */
     boolean clickDetailControls(double mouseX, double mouseY, int button) {
-        if (button != 0 || selectedEntry == null
+        if ((button != 0 && button != 1) || selectedEntry == null
                 || detailPanel.visibility() != dev.sixik.unigui.api.widget.Visibility.VISIBLE) {
             return false;
         }
         float x = (float) mouseX;
         float y = (float) mouseY;
+        // ПКМ по предмету в крафте — применения (U). Остальные элементы окна — только ЛКМ.
+        if (button == 1) {
+            ensureRecipeItemButtons();
+            for (IsfItemButton itemButton : recipeItemButtons) {
+                if (contains(itemButton.layoutBounds(), x, y)) {
+                    showRecipes(itemButton.itemId(), true);
+                    return true;
+                }
+            }
+            return false;
+        }
         if (contains(detailClose.layoutBounds(), x, y)) {
             closeDetail();
             return true;
         }
         if (contains(detailPin.layoutBounds(), x, y)) {
             setDetailPinned(!detailPinned);
+            return true;
+        }
+        if (contains(detailBookmark.layoutBounds(), x, y)) {
+            toggleSelectedBookmark();
             return true;
         }
         if (tabNext.visibility() == dev.sixik.unigui.api.widget.Visibility.VISIBLE
@@ -242,12 +291,39 @@ final class IsfBrowserOverlay {
                 return true;
             }
         }
+        // Предметы в крафтах: ЛКМ — крафты (R).
+        ensureRecipeItemButtons();
+        for (IsfItemButton itemButton : recipeItemButtons) {
+            if (contains(itemButton.layoutBounds(), x, y)) {
+                showRecipes(itemButton.itemId(), false);
+                return true;
+            }
+        }
         return false;
     }
 
     private void setDetailPinned(boolean pinned) {
         detailPinned = pinned;
         detailPin.silentChecked(pinned);
+    }
+
+    /** Кнопка A и клавиша A: добавить/убрать открытый предмет из закладок. */
+    private void toggleSelectedBookmark() {
+        if (selectedEntry == null) return;
+        boolean bookmarked = !IsfClientState.bookmarks().contains(selectedEntry.id());
+        IsfNetwork.toggleBookmark(selectedEntry.id(), bookmarked);
+        applyBookmarkHighlight();
+    }
+
+    private void applyBookmarkHighlight() {
+        boolean bookmarked = selectedEntry != null
+                && IsfClientState.bookmarks().contains(selectedEntry.id());
+        detailBookmark.background().set(bookmarked
+                ? new dev.sixik.unigui.api.math.MutableColor(0.259f, 0.463f, 0.608f, 0.95f)
+                : new dev.sixik.unigui.api.math.MutableColor(0.063f, 0.078f, 0.106f, 0.90f));
+        detailBookmark.borderColor().set(bookmarked
+                ? new dev.sixik.unigui.api.math.MutableColor(0.85f, 0.92f, 1.0f, 1.0f)
+                : new dev.sixik.unigui.api.math.MutableColor(0.416f, 0.561f, 0.682f, 1.0f));
     }
 
     boolean beginDetailDrag(double mouseX, double mouseY, int button) {
@@ -296,6 +372,7 @@ final class IsfBrowserOverlay {
         catalystColumn.clearChildren();
         recipeArea.clearChildren();
         clearDetailTooltips();
+        clearRecipeItemTooltips();
         detailPanel.visibility(dev.sixik.unigui.api.widget.Visibility.COLLAPSED);
     }
 
@@ -321,6 +398,8 @@ final class IsfBrowserOverlay {
                 .filter(recipe -> matchesQuery(recipe, query.itemId(), query.usages()))
                 .map(IsfRecipeDefinition::id)
                 .toList();
+        // Если у предмета нет доступных рецептов — окно вообще не открываем.
+        if (recipeIds.isEmpty()) return;
         Item item = BuiltInRegistries.ITEM.get(query.itemId());
         updateDetail(new ItemEntry(query.itemId(), new ItemStack(item), recipeIds));
     }
@@ -334,6 +413,14 @@ final class IsfBrowserOverlay {
     boolean scrollItemsAt(double mouseX, double mouseY, double delta) {
         if (delta == 0.0) {
             return false;
+        }
+        // Над окном рецептов колесо листает страницы: вверх — назад, вниз — вперёд.
+        if (detailPanel.visibility() == dev.sixik.unigui.api.widget.Visibility.VISIBLE
+                && contains(detailPanel.layoutBounds(), (float) mouseX, (float) mouseY)) {
+            if (recipePages.size() > 1) {
+                changeRecipePage(delta > 0.0 ? -1 : 1);
+            }
+            return true;
         }
         if (contains(browserPanel.layoutBounds(), (float) mouseX, (float) mouseY)) {
             return scrollViewAt(itemScroll, delta);
@@ -478,10 +565,17 @@ final class IsfBrowserOverlay {
         detailPin.text("P").textPadding(0.0f, 0.0f);
         detailPin.layout(style -> style.size(16.0f, 16.0f).flexNone());
         detailPin.onCheckedChanged(event -> setDetailPinned(event.newValue()));
+        detailBookmark.text("A").textPadding(0.0f, 0.0f);
+        detailBookmark.themeEnabled(false);
+        detailBookmark.backgroundVisible(true);
+        detailBookmark.borderVisible(true);
+        detailBookmark.radius(2.0f);
+        detailBookmark.layout(style -> style.size(16.0f, 16.0f).flexNone());
         detailClose.text("X").textPadding(0.0f, 0.0f);
         detailClose.layout(style -> style.size(16.0f, 16.0f).flexNone());
         detailClose.onClick(event -> closeDetail());
         detailHeader.addChild(detailTitle);
+        detailHeader.addChild(detailBookmark);
         detailHeader.addChild(detailPin);
         detailHeader.addChild(detailClose);
 
@@ -644,7 +738,10 @@ final class IsfBrowserOverlay {
         cell.on(PointerExitedEvent.TYPE, event -> {
             if (hoveredEntry == entry) hoveredEntry = null;
         });
-        cell.onClick(event -> updateDetail(entry));
+        // Предмет без рецептов не открывает окно.
+        cell.onClick(event -> {
+            if (!entry.recipeIds().isEmpty()) updateDetail(entry);
+        });
 
         IsfItemIconWidget icon = new IsfItemIconWidget(entry.stack());
         // Иконка только рисуется. Hit-box и все pointer-события принадлежат Button-клетке.
@@ -675,6 +772,7 @@ final class IsfBrowserOverlay {
         }
         detailPanel.visibility(dev.sixik.unigui.api.widget.Visibility.VISIBLE);
         detailPin.silentChecked(detailPinned);
+        applyBookmarkHighlight();
         detailTitle.text(entry.stack().getHoverName().getString());
         List<IsfRecipeDefinition> recipes = new ArrayList<>();
         for (ResourceLocation recipeId : entry.recipeIds()) {
@@ -882,6 +980,7 @@ final class IsfBrowserOverlay {
 
     private void renderRecipePage() {
         recipeArea.clearChildren();
+        clearRecipeItemTooltips();
         List<Integer> page = recipePage < recipePages.size()
                 ? recipePages.get(recipePage) : List.of();
         if (page.isEmpty()) {
@@ -891,16 +990,47 @@ final class IsfBrowserOverlay {
         } else {
             // Визуалы создаются заново при каждом показе: clearChildren утилизирует
             // старые виджеты, и повторное использование их экземпляров недопустимо.
+            // Кнопки предметов собираем лениво: дети добавляются отложенными
+            // мутациями и появляются в дереве только после layout-прохода.
             for (int index : page) {
                 IsfRecipeDefinition recipe = builtRecipes.get(index).recipe();
                 Widget visual = IsfVisualWidgetFactory.create(recipe.visual(), recipe.parameters());
-                if (visual != null) recipeArea.addChild(visual);
+                if (visual == null) continue;
+                recipeArea.addChild(visual);
+                pageVisuals.add(visual);
             }
         }
         detailPage.text((recipePage + 1) + " / " + Math.max(1, recipePages.size()));
         boolean multiple = recipePages.size() > 1;
         detailPrevious.enabled(multiple);
         detailNext.enabled(multiple);
+    }
+
+    /** Заполняет recipeItemButtons один раз после того, как дерево применено. */
+    private void ensureRecipeItemButtons() {
+        if (recipeItemButtonsPopulated) return;
+        recipeItemButtonsPopulated = true;
+        List<IsfItemButton> collected = new ArrayList<>();
+        for (Widget root : pageVisuals) collectItemButtons(root, collected);
+        for (IsfItemButton button : collected) {
+            recipeItemButtons.add(button);
+            MinecraftItemTooltip tooltip = new MinecraftItemTooltip(button, button.stack());
+            recipeItemTooltips.add(tooltip);
+            overlayRoot.addOverlay(tooltip);
+        }
+    }
+
+    private static void collectItemButtons(Widget widget, List<IsfItemButton> out) {
+        if (widget instanceof IsfItemButton button) out.add(button);
+        for (Widget child : widget.children()) collectItemButtons(child, out);
+    }
+
+    private void clearRecipeItemTooltips() {
+        for (MinecraftItemTooltip tooltip : recipeItemTooltips) overlayRoot.removeOverlay(tooltip);
+        recipeItemTooltips.clear();
+        recipeItemButtons.clear();
+        pageVisuals.clear();
+        recipeItemButtonsPopulated = false;
     }
 
     private void changeRecipePage(int direction) {
