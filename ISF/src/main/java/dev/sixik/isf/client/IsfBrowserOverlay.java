@@ -693,8 +693,9 @@ final class IsfBrowserOverlay {
     }
 
     /**
-     * ПКМ по клетке в списке предметов или закладках — применения (U).
-     * ЛКМ обрабатывает сама клетка (крафты через updateDetail).
+     * ПКМ по клетке в списке предметов или закладках — применения (U),
+     * а если предмет является катализатором (печь, верстак...) — окно станции
+     * со всеми категориями этого блока.
      */
     boolean clickItemList(double mouseX, double mouseY, int button) {
         if (button != 1) return false;
@@ -703,8 +704,22 @@ final class IsfBrowserOverlay {
         ResourceLocation itemId = cellIdAt(itemCells, x, y);
         if (itemId == null) itemId = cellIdAt(bookmarkCells, x, y);
         if (itemId == null) return false;
+        if (isCatalystItem(itemId)) {
+            showStationRecipes(itemId);
+            return true;
+        }
         showRecipes(itemId, true);
         return true;
+    }
+
+    /** @return {@code true}, если предмет выступает катализатором хотя бы одного типа. */
+    private boolean isCatalystItem(ResourceLocation itemId) {
+        for (List<IsfCatalystDefinition> catalysts : IsfClientState.typeCatalysts().values()) {
+            for (IsfCatalystDefinition catalyst : catalysts) {
+                if (catalyst.item().equals(itemId)) return true;
+            }
+        }
+        return false;
     }
 
     private ResourceLocation cellIdAt(Map<ResourceLocation, Button> cells, float x, float y) {
@@ -813,7 +828,33 @@ final class IsfBrowserOverlay {
         }
         rebuildTypeTabs(recipes);
         rebuildCatalysts();
+        updateDetailTitle();
         rebuildRecipePages();
+    }
+
+    /** Заголовок окна — локализованное имя активного RecipeType, а не имя предмета. */
+    private void updateDetailTitle() {
+        detailTitle.text(selectedTypeId == null
+                ? selectedEntry.stack().getHoverName().getString()
+                : typeDisplayName(selectedTypeId).getString());
+    }
+
+    /** Ключ локализации {@code isf.recipe_type.<namespace>.<path>} с фолбэком по пути типа. */
+    private static net.minecraft.network.chat.Component typeDisplayName(ResourceLocation typeId) {
+        String key = "isf.recipe_type." + typeId.getNamespace() + "." + typeId.getPath();
+        String fallback = prettifyPath(typeId.getPath());
+        return net.minecraft.network.chat.Component.translatableWithFallback(key, fallback);
+    }
+
+    private static String prettifyPath(String path) {
+        String[] words = path.replace('_', ' ').split(" ");
+        StringBuilder text = new StringBuilder();
+        for (String word : words) {
+            if (word.isEmpty()) continue;
+            if (!text.isEmpty()) text.append(' ');
+            text.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
+        }
+        return text.toString();
     }
 
     /** Зелёная зона: вкладки всех RecipeType, у которых есть рецепты по запросу. */
@@ -865,11 +906,50 @@ final class IsfBrowserOverlay {
         updateTabVisibility();
     }
 
+    /** Иконка вкладки: явная иконка типа, иначе первый катализатор. */
     private ItemStack tabIcon(ResourceLocation typeId) {
-        List<IsfCatalystDefinition> catalysts = IsfClientState.typeCatalysts().get(typeId);
-        if (catalysts == null || catalysts.isEmpty()) return ItemStack.EMPTY;
-        Item item = BuiltInRegistries.ITEM.get(catalysts.get(0).item());
+        ResourceLocation iconId = IsfClientState.typeIcons().get(typeId);
+        if (iconId == null) {
+            List<IsfCatalystDefinition> catalysts = IsfClientState.typeCatalysts().get(typeId);
+            if (catalysts == null || catalysts.isEmpty()) return ItemStack.EMPTY;
+            iconId = catalysts.get(0).item();
+        }
+        Item item = BuiltInRegistries.ITEM.get(iconId);
         return item == Items.AIR ? ItemStack.EMPTY : new ItemStack(item);
+    }
+
+    /**
+     * ПКМ по блоку-катализатору: открывает окно со всеми категориями,
+     * где этот блок является станцией крафта, и их разблокированными рецептами.
+     */
+    void showStationRecipes(ResourceLocation catalystItemId) {
+        if (catalystItemId == null) return;
+        List<ResourceLocation> typeIds = new ArrayList<>();
+        IsfClientState.typeCatalysts().forEach((typeId, catalysts) -> {
+            for (IsfCatalystDefinition catalyst : catalysts) {
+                if (catalyst.item().equals(catalystItemId)) {
+                    typeIds.add(typeId);
+                    return;
+                }
+            }
+        });
+        if (typeIds.isEmpty()) return;
+        List<ResourceLocation> recipeIds = new ArrayList<>();
+        for (IsfRecipeDefinition recipe : IsfClientState.recipes().values()) {
+            if (typeIds.contains(recipe.recipeType())) recipeIds.add(recipe.id());
+        }
+        if (recipeIds.isEmpty()) return;
+        selectedQuery = null;
+        Item item = BuiltInRegistries.ITEM.get(catalystItemId);
+        updateDetail(new ItemEntry(catalystItemId, new ItemStack(item), List.copyOf(recipeIds)));
+        // Гарантированно открываем вкладку станции, даже если порядок вкладок другой.
+        if (!typeIds.contains(selectedTypeId)) {
+            selectedTypeId = typeIds.get(0);
+            applyTabHighlights();
+            updateTabVisibility();
+            rebuildCatalysts();
+            rebuildRecipePages();
+        }
     }
 
     /** Показывает окно вкладок [tabFirstIndex, tabFirstIndex + visible); стрелка видна при переполнении. */
@@ -918,6 +998,7 @@ final class IsfBrowserOverlay {
         tabFirstIndex = 0;
         applyTabHighlights();
         updateTabVisibility();
+        updateDetailTitle();
         rebuildCatalysts();
         rebuildRecipePages();
     }

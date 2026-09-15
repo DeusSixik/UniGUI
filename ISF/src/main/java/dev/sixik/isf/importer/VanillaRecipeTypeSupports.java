@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonPrimitive;
 import dev.sixik.isf.api.IsfRecipeTypeSupport;
+import dev.sixik.isf.definition.IsfCatalystDefinition;
 import dev.sixik.isf.definition.IsfExpression;
 import dev.sixik.isf.definition.IsfParameterDefinition;
 import dev.sixik.isf.definition.IsfParameterType;
@@ -38,7 +39,9 @@ public final class VanillaRecipeTypeSupports {
      * только в данных: shaped пишет pattern с реальными позициями предметов.
      */
     private static final IsfRecipeTypeDefinition CRAFTING_DEFINITION = new IsfRecipeTypeDefinition(
-            id("isf:crafting"), null, craftingSchema(), craftingVisual());
+            id("isf:crafting"), null, craftingSchema(),
+            List.of(new IsfCatalystDefinition(id("minecraft:crafting_table"), 1)),
+            null, craftingVisual());
 
     private VanillaRecipeTypeSupports() {
     }
@@ -56,11 +59,11 @@ public final class VanillaRecipeTypeSupports {
         registry.register(cookingSupport("campfire_cooking", RecipeType.CAMPFIRE_COOKING));
         registry.register(standardSupport("stonecutting", recipe -> recipe.getType() == RecipeType.STONECUTTING,
                 VanillaRecipeTypeSupports::commonParameters,
-                definition("isf:stonecutting", commonSchema(), singleInputVisual()),
+                definition("isf:stonecutting", commonSchema(), id("minecraft:stonecutter"), null, singleInputVisual()),
                 id("minecraft:stonecutter")));
         registry.register(support("smithing", recipe -> recipe.getType() == RecipeType.SMITHING,
                 VanillaRecipeTypeSupports::smithingParameters,
-                definition("isf:smithing", commonSchema(), smithingVisual()),
+                definition("isf:smithing", commonSchema(), id("minecraft:smithing_table"), null, smithingVisual()),
                 VanillaRecipeTypeSupports::smithingTriggers));
     }
 
@@ -74,7 +77,7 @@ public final class VanillaRecipeTypeSupports {
         return standardSupport(category,
                 recipe -> recipe instanceof AbstractCookingRecipe cooking && cooking.getType() == type,
                 VanillaRecipeTypeSupports::cookingParameters,
-                definition("isf:" + category, cookingSchema(), cookingVisual()), station);
+                definition("isf:" + category, cookingSchema(), station, null, cookingVisual()));
     }
 
     private static IsfRecipeTypeSupport standardSupport(String category,
@@ -205,7 +208,25 @@ public final class VanillaRecipeTypeSupports {
     private static IsfRecipeTypeDefinition definition(String id,
                                                       Map<String, IsfParameterDefinition> schema,
                                                       IsfVisualNode visual) {
-        return new IsfRecipeTypeDefinition(ResourceLocation.tryParse(id), null, schema, visual);
+        return definition(id, schema, null, null, visual);
+    }
+
+    private static IsfRecipeTypeDefinition definition(String id,
+                                                      Map<String, IsfParameterDefinition> schema,
+                                                      ResourceLocation catalyst,
+                                                      ResourceLocation icon,
+                                                      IsfVisualNode visual) {
+        List<IsfCatalystDefinition> catalysts = catalyst == null
+                ? List.of()
+                : List.of(new IsfCatalystDefinition(catalyst, 1));
+        return new IsfRecipeTypeDefinition(ResourceLocation.tryParse(id), null, schema, catalysts, icon, visual);
+    }
+
+    private static IsfRecipeTypeDefinition definition(String id,
+                                                      Map<String, IsfParameterDefinition> schema,
+                                                      ResourceLocation icon,
+                                                      IsfVisualNode visual) {
+        return new IsfRecipeTypeDefinition(ResourceLocation.tryParse(id), null, schema, List.of(), icon, visual);
     }
 
     private static Map<String, IsfParameterDefinition> craftingSchema() {

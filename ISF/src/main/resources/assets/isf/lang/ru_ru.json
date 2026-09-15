@@ -4,5 +4,13 @@
   "isf.sort.name": "Название",
   "isf.sort.registry": "Реестр",
   "isf.sort.tag": "Тег",
-  "isf.tooltip.accepts": "Принимает:"
+  "isf.tooltip.accepts": "Принимает:",
+  "isf.recipe_type.isf.crafting": "Верстак",
+  "isf.recipe_type.isf.cooking": "Печь",
+  "isf.recipe_type.isf.smelting": "Печь",
+  "isf.recipe_type.isf.blasting": "Плавильная печь",
+  "isf.recipe_type.isf.smoking": "Коптильня",
+  "isf.recipe_type.isf.campfire_cooking": "Костёр",
+  "isf.recipe_type.isf.stonecutting": "Камнерез",
+  "isf.recipe_type.isf.smithing": "Кузнечный стол"
 }

@@ -1,8 +1,16 @@
 ﻿{
-    "isf.title":  "ISF Recipes",
-    "isf.sort.mod":  "Mod",
-    "isf.sort.name":  "Name",
-    "isf.sort.registry":  "Registry",
-    "isf.sort.tag":  "Tag",
-    "isf.tooltip.accepts":  "Accepts:"
+  "isf.title": "ISF Recipes",
+  "isf.sort.mod": "Mod",
+  "isf.sort.name": "Name",
+  "isf.sort.registry": "Registry",
+  "isf.sort.tag": "Tag",
+  "isf.tooltip.accepts": "Accepts:",
+  "isf.recipe_type.isf.crafting": "Crafting Table",
+  "isf.recipe_type.isf.cooking": "Furnace",
+  "isf.recipe_type.isf.smelting": "Furnace",
+  "isf.recipe_type.isf.blasting": "Blast Furnace",
+  "isf.recipe_type.isf.smoking": "Smoker",
+  "isf.recipe_type.isf.campfire_cooking": "Campfire",
+  "isf.recipe_type.isf.stonecutting": "Stonecutter",
+  "isf.recipe_type.isf.smithing": "Smithing Table"
 }

@@ -32,7 +32,8 @@ public final class IsfDefinitionJson {
         }
         IsfVisualNode visual = json.has("visual") ? parseVisual(object(json.get("visual"), "visual")) : null;
         List<IsfCatalystDefinition> catalysts = parseCatalysts(json);
-        return new IsfRecipeTypeDefinition(id, parent, parameters, catalysts, visual);
+        ResourceLocation icon = optionalId(json, "icon");
+        return new IsfRecipeTypeDefinition(id, parent, parameters, catalysts, icon, visual);
     }
 
     private static List<IsfCatalystDefinition> parseCatalysts(JsonObject json) {
@@ -182,6 +183,7 @@ public final class IsfDefinitionJson {
             }
             json.add("catalysts", catalysts);
         }
+        if (type.icon() != null) json.addProperty("icon", type.icon().toString());
         JsonObject parameters = new JsonObject();
         type.parameters().forEach((name, definition) -> {
             JsonObject value = new JsonObject();

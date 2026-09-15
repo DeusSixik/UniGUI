@@ -25,6 +25,7 @@ public final class IsfDefinitionRegistry {
     private final Map<ResourceLocation, IsfRecipeDefinition> recipes = new LinkedHashMap<>();
     private final Map<ResourceLocation, IsfResolvedRecipe> resolved = new LinkedHashMap<>();
     private final Map<ResourceLocation, List<IsfCatalystDefinition>> typeCatalysts = new LinkedHashMap<>();
+    private final Map<ResourceLocation, ResourceLocation> typeIcons = new LinkedHashMap<>();
 
     public synchronized void replace(Collection<IsfRecipeTypeDefinition> newTypes,
                                      Collection<IsfRecipeDefinition> newRecipes) {
@@ -32,15 +33,19 @@ public final class IsfDefinitionRegistry {
         Map<ResourceLocation, IsfRecipeDefinition> previousRecipes = new LinkedHashMap<>(recipes);
         Map<ResourceLocation, IsfResolvedRecipe> previousResolved = new LinkedHashMap<>(resolved);
         Map<ResourceLocation, List<IsfCatalystDefinition>> previousCatalysts = new LinkedHashMap<>(typeCatalysts);
+        Map<ResourceLocation, ResourceLocation> previousIcons = new LinkedHashMap<>(typeIcons);
         types.clear();
         recipes.clear();
         resolved.clear();
         typeCatalysts.clear();
+        typeIcons.clear();
         if (newTypes != null) newTypes.forEach(type -> types.put(type.id(), type));
         if (newRecipes != null) newRecipes.forEach(recipe -> recipes.put(recipe.id(), recipe));
         try {
             for (ResourceLocation id : types.keySet()) {
                 typeCatalysts.put(id, resolveTypeCatalysts(id, new ArrayDeque<>()));
+                ResourceLocation icon = resolveTypeIcon(id, new ArrayDeque<>());
+                if (icon != null) typeIcons.put(id, icon);
             }
             for (ResourceLocation id : recipes.keySet()) resolveRecipe(id, new ArrayDeque<>());
         } catch (RuntimeException exception) {
@@ -52,6 +57,8 @@ public final class IsfDefinitionRegistry {
             resolved.putAll(previousResolved);
             typeCatalysts.clear();
             typeCatalysts.putAll(previousCatalysts);
+            typeIcons.clear();
+            typeIcons.putAll(previousIcons);
             throw exception;
         }
     }
@@ -59,6 +66,11 @@ public final class IsfDefinitionRegistry {
     /** Катализаторы по id recipe type (учитывает наследование). */
     public synchronized Map<ResourceLocation, List<IsfCatalystDefinition>> typeCatalysts() {
         return Map.copyOf(typeCatalysts);
+    }
+
+    /** Иконка вкладки по id recipe type (учитывает наследование). */
+    public synchronized Map<ResourceLocation, ResourceLocation> typeIcons() {
+        return Map.copyOf(typeIcons);
     }
 
     public synchronized Optional<IsfResolvedRecipe> recipe(ResourceLocation id) {
@@ -132,6 +144,22 @@ public final class IsfDefinitionRegistry {
         }
         stack.removeLast();
         return catalysts;
+    }
+
+    /** Иконка типа с учётом наследования: ближайшая явная иконка по цепочке родителей. */
+    private ResourceLocation resolveTypeIcon(ResourceLocation id, ArrayDeque<ResourceLocation> stack) {
+        IsfRecipeTypeDefinition type = types.get(id);
+        if (type == null) throw new IllegalStateException("Unknown ISF recipe type: " + id);
+        if (stack.contains(id)) throw cycle("recipe type", stack, id);
+        stack.addLast(id);
+        ResourceLocation icon;
+        if (type.parent() != null && type.icon() == null) {
+            icon = resolveTypeIcon(type.parent(), stack);
+        } else {
+            icon = type.icon();
+        }
+        stack.removeLast();
+        return icon;
     }
 
     private ResolvedType resolveType(ResourceLocation id, ArrayDeque<ResourceLocation> stack) {
