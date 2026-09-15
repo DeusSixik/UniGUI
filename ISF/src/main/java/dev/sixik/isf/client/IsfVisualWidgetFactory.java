@@ -140,15 +140,24 @@ final class IsfVisualWidgetFactory {
         return rows;
     }
 
+    /** Клетка крафта: одна альтернатива или все варианты тега/ingredient'а сразу. */
     private WidgetBase cellWidget(JsonArray alternatives) {
-        JsonElement first = firstAlternative(alternatives);
-        ItemStack stack = item(first);
-        if (stack.isEmpty()) {
+        List<ResourceLocation> ids = new ArrayList<>();
+        List<ItemStack> stacks = new ArrayList<>();
+        for (JsonElement alternative : alternatives) {
+            ResourceLocation id = itemId(alternative);
+            if (id == null) continue;
+            ItemStack stack = item(alternative);
+            if (stack.isEmpty()) continue;
+            ids.add(id);
+            stacks.add(stack);
+        }
+        if (stacks.isEmpty()) {
             Box empty = new Box();
             empty.layout(style -> style.size(CELL, CELL).flexNone());
             return empty;
         }
-        IsfItemButton button = new IsfItemButton(itemId(first), stack);
+        IsfItemButton button = new IsfItemButton(ids, stacks);
         button.layout(style -> style.size(CELL, CELL).flexNone());
         attachClickHandler(button);
         return button;

@@ -78,6 +78,7 @@ final class IsfBrowserOverlay {
     private boolean recipeItemButtonsPopulated;
     private final Map<ResourceLocation, Button> bookmarkCells = new LinkedHashMap<>();
     private final Map<ResourceLocation, MinecraftItemTooltip> bookmarkTooltips = new LinkedHashMap<>();
+    private final Map<ResourceLocation, Button> itemCells = new LinkedHashMap<>();
 
     private MinecraftRenderLayerRegistration<Screen> registration;
     private AutoCloseable pointerBlocker;
@@ -109,6 +110,8 @@ final class IsfBrowserOverlay {
     private float pageAreaHeight = -1.0f;
     private double pointerX = -1.0;
     private double pointerY = -1.0;
+    /** Запрос (R/U), которым открыто текущее окно; null — окно открыто кликом по каталогу. */
+    private PendingRecipeQuery selectedQuery;
 
     private static final float RECIPE_GAP = 2.0f;
     private static final float CATALYST_CELL = 18.0f;
@@ -334,6 +337,7 @@ final class IsfBrowserOverlay {
         setDetailPinned(false);
         detailDragging = false;
         pendingRecipeQuery = null;
+        selectedQuery = null;
         selectedEntry = null;
         detailPositionSet = false;
         selectedTypeId = null;
@@ -370,14 +374,20 @@ final class IsfBrowserOverlay {
     }
 
     private void showRecipeQuery(PendingRecipeQuery query) {
-        List<ResourceLocation> recipeIds = IsfClientState.recipes().values().stream()
-                .filter(recipe -> matchesQuery(recipe, query.itemId(), query.usages()))
-                .map(IsfRecipeDefinition::id)
-                .toList();
+        List<ResourceLocation> recipeIds = queryRecipeIds(query.itemId(), query.usages());
         // Если у предмета нет доступных рецептов — окно вообще не открываем.
         if (recipeIds.isEmpty()) return;
+        // Запоминаем запрос: refreshSelectedDetail обновляет окно строго им.
+        selectedQuery = query;
         Item item = BuiltInRegistries.ITEM.get(query.itemId());
         updateDetail(new ItemEntry(query.itemId(), new ItemStack(item), recipeIds));
+    }
+
+    private List<ResourceLocation> queryRecipeIds(ResourceLocation itemId, boolean usages) {
+        return IsfClientState.recipes().values().stream()
+                .filter(recipe -> matchesQuery(recipe, itemId, usages))
+                .map(IsfRecipeDefinition::id)
+                .toList();
     }
 
     private static boolean matchesQuery(IsfRecipeDefinition recipe,
@@ -626,11 +636,13 @@ final class IsfBrowserOverlay {
         tooltips.clear();
         bookmarkCells.clear();
         bookmarkTooltips.clear();
+        itemCells.clear();
         grid.clearChildren();
         bookmarkGrid.clearChildren();
 
         for (ItemEntry entry : entries) {
             Button cell = itemCell(entry);
+            itemCells.put(entry.id(), cell);
             grid.addChild(cell);
             addTooltip(cell, entry);
         }
@@ -662,21 +674,44 @@ final class IsfBrowserOverlay {
         observedStateVersion = IsfClientState.version();
     }
 
-    /** Обновляет окно рецептов только если набор рецептов предмета изменился. */
+    /** Обновляет окно только по тому запросу, которым оно было открыто. */
     private void refreshSelectedDetail() {
-        if (selectedEntry == null) return;
-        List<ResourceLocation> freshIds = currentRecipeIds(selectedEntry.id());
+        if (selectedEntry == null || selectedQuery == null) return;
+        List<ResourceLocation> freshIds = queryRecipeIds(
+                selectedQuery.itemId(), selectedQuery.usages());
         if (selectedEntry.recipeIds().equals(freshIds)) return;
-        updateDetail(new ItemEntry(selectedEntry.id(), selectedEntry.stack(), freshIds));
+        updateDetail(new ItemEntry(selectedQuery.itemId(), selectedEntry.stack(), freshIds));
     }
 
-    /** Актуальный список рецептов предмета прямо из состояния клиента. */
+    /** Актуальный список result-рецептов предмета (для клеток каталога). */
     private List<ResourceLocation> currentRecipeIds(ResourceLocation itemId) {
         List<ResourceLocation> recipeIds = new ArrayList<>();
         IsfClientState.recipeResults().forEach((recipeId, resultId) -> {
             if (itemId.equals(resultId)) recipeIds.add(recipeId);
         });
         return List.copyOf(recipeIds);
+    }
+
+    /**
+     * ПКМ по клетке в списке предметов или закладках — применения (U).
+     * ЛКМ обрабатывает сама клетка (крафты через updateDetail).
+     */
+    boolean clickItemList(double mouseX, double mouseY, int button) {
+        if (button != 1) return false;
+        float x = (float) mouseX;
+        float y = (float) mouseY;
+        ResourceLocation itemId = cellIdAt(itemCells, x, y);
+        if (itemId == null) itemId = cellIdAt(bookmarkCells, x, y);
+        if (itemId == null) return false;
+        showRecipes(itemId, true);
+        return true;
+    }
+
+    private ResourceLocation cellIdAt(Map<ResourceLocation, Button> cells, float x, float y) {
+        for (Map.Entry<ResourceLocation, Button> entry : cells.entrySet()) {
+            if (contains(entry.getValue().layoutBounds(), x, y)) return entry.getKey();
+        }
+        return null;
     }
 
     private void syncBookmarks() {
@@ -737,13 +772,9 @@ final class IsfBrowserOverlay {
         cell.on(PointerExitedEvent.TYPE, event -> {
             if (hoveredEntry == entry) hoveredEntry = null;
         });
-        // Предмет без рецептов не открывает окно. Список рецептов берём свежим:
-        // клетки каталога больше не пересоздаются при разблокировке рецептов.
-        cell.onClick(event -> {
-            List<ResourceLocation> recipeIds = currentRecipeIds(entry.id());
-            if (recipeIds.isEmpty()) return;
-            updateDetail(new ItemEntry(entry.id(), entry.stack(), recipeIds));
-        });
+        // ЛКМ по клетке = R: открываем из кэша и запрашиваем разблокировку на сервере,
+        // иначе предметы, которые ещё ни разу не открывали, выглядели бы «без рецептов».
+        cell.onClick(event -> showRecipes(entry.id(), false));
 
         IsfItemIconWidget icon = new IsfItemIconWidget(entry.stack());
         // Иконка только рисуется. Hit-box и все pointer-события принадлежат Button-клетке.
@@ -1020,6 +1051,10 @@ final class IsfBrowserOverlay {
         for (IsfItemButton button : collected) {
             recipeItemButtons.add(button);
             MinecraftItemTooltip tooltip = new MinecraftItemTooltip(button, button.stack());
+            if (button.tooltipLines() != null) {
+                tooltip.renderer(dev.sixik.unigui.widgets.minecraft.MinecraftTooltipRenderers
+                        .vanilla(button.tooltipLines()));
+            }
             recipeItemTooltips.add(tooltip);
             overlayRoot.addOverlay(tooltip);
         }

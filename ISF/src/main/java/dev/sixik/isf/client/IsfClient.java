@@ -91,6 +91,10 @@ public final class IsfClient {
             event.setCanceled(true);
             return;
         }
+        if (OVERLAY.clickItemList(event.getMouseX(), event.getMouseY(), event.getButton())) {
+            event.setCanceled(true);
+            return;
+        }
         if (OVERLAY.clickRecipeNavigation(event.getMouseX(), event.getMouseY(), event.getButton())) {
             event.setCanceled(true);
             return;
