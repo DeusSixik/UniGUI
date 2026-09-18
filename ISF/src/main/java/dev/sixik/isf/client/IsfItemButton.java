@@ -36,10 +36,19 @@ final class IsfItemButton extends Button {
     private long nextCycleMillis;
 
     IsfItemButton(ResourceLocation itemId, ItemStack stack) {
-        this(List.of(itemId), List.of(stack));
+        this(List.of(itemId), List.of(stack), null, 18.0f);
+    }
+
+    IsfItemButton(ResourceLocation itemId, ItemStack stack, String backgroundTexture, float backgroundSize) {
+        this(List.of(itemId), List.of(stack), backgroundTexture, backgroundSize);
     }
 
     IsfItemButton(List<ResourceLocation> itemIds, List<ItemStack> stacks) {
+        this(itemIds, stacks, null, 18.0f);
+    }
+
+    IsfItemButton(List<ResourceLocation> itemIds, List<ItemStack> stacks,
+                  String backgroundTexture, float backgroundSize) {
         this.itemIds = List.copyOf(itemIds);
         this.stacks = List.copyOf(stacks);
         this.icon = new IsfItemIconWidget(this.stacks.get(0));
@@ -48,6 +57,17 @@ final class IsfItemButton extends Button {
         this.nextCycleMillis = System.currentTimeMillis()
                 + phaseOffset(itemIds.get(0));
         textPadding(0.0f, 0.0f);
+        if (backgroundTexture != null) {
+            dev.sixik.unigui.widgets.display.TextureWidget background =
+                    new dev.sixik.unigui.widgets.display.TextureWidget(
+                            new dev.sixik.unigui.api.render.SimpleTextureHandle(
+                                    backgroundTexture, Math.round(backgroundSize), Math.round(backgroundSize)));
+            // Фон только рисуется: hover и hit-box должны доставаться кнопке,
+            // иначе tooltip-якорь считает кнопку не наведённой.
+            background.enabled(false);
+            background.layout(style -> style.size(backgroundSize, backgroundSize).flexNone());
+            addChild(background);
+        }
         icon.enabled(false);
         icon.layout(style -> style.size(16.0f, 16.0f).centerSelf().flexNone());
         addChild(icon);

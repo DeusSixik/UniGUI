@@ -34,4 +34,41 @@ public final class IsfCraftingPattern {
         }
         return rows;
     }
+
+    /**
+     * Центрирует reshaped-паттерн в сетке {@code columns}×{@code rowCount}
+     * (как в JEI: предметы стоят на своих местах ванильной формы, а пустые
+     * клетки вокруг остаются под текстуру слота).
+     */
+    public static JsonArray center(JsonArray rows, int columns, int rowCount) {
+        int patternHeight = rows == null ? 0 : rows.size();
+        int patternWidth = 0;
+        if (rows != null) {
+            for (JsonElement row : rows) {
+                if (row.isJsonArray()) {
+                    patternWidth = Math.max(patternWidth, row.getAsJsonArray().size());
+                }
+            }
+        }
+        int offsetX = Math.max(0, (columns - patternWidth) / 2);
+        int offsetY = Math.max(0, (rowCount - patternHeight) / 2);
+        JsonArray grid = new JsonArray();
+        for (int row = 0; row < rowCount; row++) {
+            JsonArray rowCells = new JsonArray();
+            for (int column = 0; column < columns; column++) {
+                int sourceRow = row - offsetY;
+                int sourceColumn = column - offsetX;
+                JsonElement cell = null;
+                if (sourceRow >= 0 && sourceRow < patternHeight && sourceColumn >= 0) {
+                    JsonArray source = rows.get(sourceRow).getAsJsonArray();
+                    if (sourceColumn < source.size()) cell = source.get(sourceColumn);
+                }
+                rowCells.add(cell != null && cell.isJsonArray()
+                        ? cell.getAsJsonArray().deepCopy()
+                        : new JsonArray());
+            }
+            grid.add(rowCells);
+        }
+        return grid;
+    }
 }

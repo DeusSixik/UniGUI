@@ -103,10 +103,13 @@ public final class VanillaRecipeTypeSupports {
         if (recipe instanceof ShapedRecipe shaped) {
             values.put("width", new JsonPrimitive(shaped.getWidth()));
             values.put("height", new JsonPrimitive(shaped.getHeight()));
-            // Позиции предметов соответствуют реальной форме крафта.
-            values.put("pattern", IsfCraftingPattern.reshape(flatCells, shaped.getWidth()));
+            // Позиции предметов соответствуют реальной форме крафта,
+            // центрированной в сетке 3x3, как в JEI.
+            values.put("pattern", IsfCraftingPattern.center(
+                    IsfCraftingPattern.reshape(flatCells, shaped.getWidth()), 3, 3));
         } else {
-            values.put("pattern", IsfCraftingPattern.reshape(flatCells, 3));
+            values.put("pattern", IsfCraftingPattern.center(
+                    IsfCraftingPattern.reshape(flatCells, 3), 3, 3));
         }
         return values;
     }
@@ -311,10 +314,10 @@ public final class VanillaRecipeTypeSupports {
     }
 
     private static IsfVisualNode arrow() {
-        return new IsfVisualNode("arrow", id("unigui:label"), Map.of(
-                "text", literal(">"),
-                "width", literal(18),
-                "height", literal(24),
+        return new IsfVisualNode("arrow", id("isf:texture"), Map.of(
+                "texture", literal("isf:textures/jei/atlas/gui/recipe_arrow.png"),
+                "width", literal(22),
+                "height", literal(16),
                 "alignSelf", literal("center")), List.of());
     }
 
@@ -322,8 +325,9 @@ public final class VanillaRecipeTypeSupports {
         return new IsfVisualNode("result", id("unigui:item"), Map.of(
                 "item", parameter("result"),
                 "count", parameter("result_count"),
-                "width", literal(24),
-                "height", literal(24),
+                "slot", literal("isf:textures/jei/atlas/gui/slot.png"),
+                "width", literal(18),
+                "height", literal(18),
                 "alignSelf", literal("center")), List.of());
     }
 

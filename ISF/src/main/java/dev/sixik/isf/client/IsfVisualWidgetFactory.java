@@ -34,6 +34,8 @@ import java.util.Map;
 /** Создаёт UniGUI-дерево из декларативного visual ISF-рецепта. */
 final class IsfVisualWidgetFactory {
     private static final float CELL = 18.0f;
+    static final String SLOT_TEXTURE = "isf:textures/jei/atlas/gui/slot.png";
+    static final String ARROW_TEXTURE = "isf:textures/jei/atlas/gui/recipe_arrow.png";
 
     private final IsfExpressionEvaluator evaluator = new IsfExpressionEvaluator(IsfMod.runtime().functions());
     private final IsfEvaluationContext context;
@@ -56,6 +58,7 @@ final class IsfVisualWidgetFactory {
             case "unigui:grid", "unigui:gridbox", "grid", "gridbox" -> new GridBox();
             case "unigui:label", "unigui:text", "label", "text" -> new Label();
             case "unigui:item", "unigui:item_preview", "item" -> itemWidget(node);
+            case "unigui:texture", "isf:texture", "texture" -> textureWidget(node);
             case "unigui:progress_bar", "unigui:progressbar", "progress_bar" -> new ProgressBar();
             case "isf:ingredient_grid", "ingredient_grid" -> ingredientGrid(node);
             default -> {
@@ -87,9 +90,47 @@ final class IsfVisualWidgetFactory {
             icon.enabled(false);
             return icon;
         }
-        IsfItemButton button = new IsfItemButton(itemId(raw), stack);
+        IsfItemButton button = new IsfItemButton(itemId(raw), stack,
+                slotTexture(value(node, "slot")),
+                Math.max(CELL, integer(value(node, "width"), (int) CELL)));
         attachClickHandler(button);
         return button;
+    }
+
+    /** Свойство "slot": true — обычный слот, строка — конкретная текстура, absent — без слота. */
+    private static String slotTexture(JsonElement raw) {
+        if (raw == null || raw.isJsonNull()) return null;
+        if (raw.isJsonPrimitive()) {
+            String value = raw.getAsString();
+            if (value.isBlank()) return null;
+            return value.equalsIgnoreCase("true") ? SLOT_TEXTURE : value;
+        }
+        return null;
+    }
+
+    /** Виджет текстуры: свойство "texture" — ResourceLocation, width/height — размер. */
+    private WidgetBase textureWidget(IsfVisualNode node) {
+        String id = string(value(node, "texture"), SLOT_TEXTURE);
+        int width = Math.max(1, integer(value(node, "width"), 16));
+        int height = Math.max(1, integer(value(node, "height"), 16));
+        dev.sixik.unigui.widgets.display.TextureWidget texture =
+                new dev.sixik.unigui.widgets.display.TextureWidget(
+                        new dev.sixik.unigui.api.render.SimpleTextureHandle(id, width, height));
+        texture.layout(style -> style.size(width, height).flexNone());
+        return texture;
+    }
+
+    private static WidgetBase slotBackground(float size, String textureId) {
+        Box background = new Box();
+        background.layout(style -> style.size(size, size).flexNone());
+        dev.sixik.unigui.widgets.display.TextureWidget texture =
+                new dev.sixik.unigui.widgets.display.TextureWidget(
+                        new dev.sixik.unigui.api.render.SimpleTextureHandle(textureId, 18, 18));
+        // Текстура не участвует в hit-test — она декорация.
+        texture.enabled(false);
+        texture.layout(style -> style.sizePercent(100.0f, 100.0f).flexNone());
+        background.addChild(texture);
+        return background;
     }
 
     /**
@@ -152,12 +193,8 @@ final class IsfVisualWidgetFactory {
             ids.add(id);
             stacks.add(stack);
         }
-        if (stacks.isEmpty()) {
-            Box empty = new Box();
-            empty.layout(style -> style.size(CELL, CELL).flexNone());
-            return empty;
-        }
-        IsfItemButton button = new IsfItemButton(ids, stacks);
+        if (stacks.isEmpty()) return slotBackground(CELL, SLOT_TEXTURE);
+        IsfItemButton button = new IsfItemButton(ids, stacks, SLOT_TEXTURE, CELL);
         button.layout(style -> style.size(CELL, CELL).flexNone());
         attachClickHandler(button);
         return button;
