@@ -2,14 +2,12 @@ package dev.sixik.isf.client;
 
 import dev.sixik.isf.IsfMod;
 import dev.sixik.isf.client.widgets.IconButton;
-import dev.sixik.isf.client.widgets.NineSliceHBox;
 import dev.sixik.isf.client.widgets.NineSliceVBox;
 import dev.sixik.isf.network.IsfNetwork;
 import dev.sixik.isf.definition.IsfCatalystDefinition;
 import dev.sixik.isf.definition.IsfRecipeDefinition;
 import dev.sixik.isf.runtime.IsfRecipePaging;
 import dev.sixik.isf.runtime.IsfRecipeQueryMatcher;
-import com.google.gson.JsonElement;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.event.PointerEnteredEvent;
 import dev.sixik.unigui.api.event.PointerExitedEvent;
@@ -482,6 +480,7 @@ final class IsfBrowserOverlay {
         scroll.scrollTo(0.0f, normalized * maxScroll);
     }
 
+    //Правая панель(список всех Items)
     private void configureTree() {
         overlayRoot.layout(style -> style.fill());
         contentRoot.themeEnabled(false);
@@ -516,6 +515,7 @@ final class IsfBrowserOverlay {
         rebuild(false, 0.0f);
     }
 
+    //Левая панель(Избранные рецепты)
     private void configureBookmarksPanel() {
         Box panel = bookmarkPanel;
         panel.layout(style -> style.position(PositionType.ABSOLUTE)
@@ -534,6 +534,7 @@ final class IsfBrowserOverlay {
         contentRoot.addChild(panel);
     }
 
+    //Панель содержащая рецепты выбранного предмета
     private void configureDetailPanel() {
         detailPanel.themeEnabled(false);
         detailPanel.backgroundVisible(false);
@@ -558,6 +559,8 @@ final class IsfBrowserOverlay {
         detailHeader.spacing(2.0f);
         detailHeader.layout(style -> style.widthPercent(100.0f).height(16.0f).flexNone());
         detailTitle.layout(style -> style.flexGrow(1.0f).flexShrink(1.0f));
+        detailTitle.background(0.5f,0.5f,0.5f,0.5f);
+        detailTitle.color().set(0,0,0,1);
         detailPin.text("P").textPadding(0.0f, 0.0f);
         detailPin.layout(style -> style.size(16.0f, 16.0f).flexNone());
         detailPin.onCheckedChanged(event -> setDetailPinned(event.newValue()));
@@ -580,10 +583,21 @@ final class IsfBrowserOverlay {
         pagerRow.spacing(4.0f);
         pagerRow.layout(style -> style.widthPercent(100.0f).height(14.0f).flexNone()
                 .justifyContent(Justify.CENTER));
-        detailPage.layout(style -> style.width(48.0f).height(14.0f).flexNone());
+        detailPage.layout(style -> style.width(48.0f).height(14.0f).flexNone().horizontalAlignment(Alignment.CENTER));
+        detailPage.background(0.5f,0.5f,0.5f,0.5f);
+        detailPrevious.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/button_enabled_v2.png"),
+                20, 20, TextureOptions.nearest()),
+                4.0f));
+        detailPrevious.themeEnabled(false);
+        detailPrevious.textColor(1.0f, 1.0f, 1.0f, 1.0f);
         detailPrevious.text("<").textPadding(0.0f, 0.0f);
         detailPrevious.layout(style -> style.size(16.0f, 14.0f).flexNone());
         detailPrevious.onClick(event -> changeRecipePage(-1));
+        detailNext.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/button_enabled_v2.png"),
+                20, 20, TextureOptions.nearest()),
+                4.0f));
+        detailNext.themeEnabled(false);
+        detailNext.textColor(1.0f, 1.0f, 1.0f, 1.0f);
         detailNext.text(">").textPadding(0.0f, 0.0f);
         detailNext.layout(style -> style.size(16.0f, 14.0f).flexNone());
         detailNext.onClick(event -> changeRecipePage(1));
@@ -609,6 +623,7 @@ final class IsfBrowserOverlay {
                 4.0f));
         recipeArea.spacing(RECIPE_GAP);
         recipeArea.layout(style -> style.widthPercent(100.0f).flexGrow(1.0f).flexShrink(1.0f).alignItems(Align.CENTER));
+
         body.addChild(catalystColumn);
         body.addChild(recipeArea);
 

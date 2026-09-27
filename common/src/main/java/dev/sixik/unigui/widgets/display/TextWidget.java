@@ -1,23 +1,35 @@
 package dev.sixik.unigui.widgets.display;
 
+import dev.sixik.unigui.api.animation.TransitionSpec;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.layout.Alignment;
+import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.Transform;
 import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.ImageFit;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.render.TextureFilter;
+import dev.sixik.unigui.api.render.TextureHandle;
+import dev.sixik.unigui.api.render.TexturePlacement;
+import dev.sixik.unigui.api.render.TextureWrap;
 import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextBrush;
 import dev.sixik.unigui.api.text.TextOverflowMode;
+import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlTextureAttributes;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.impl.widget.WidgetBase;
+import dev.sixik.unigui.widgets.render.BoxRenderer;
+import dev.sixik.unigui.widgets.render.BoxState;
 import dev.sixik.unigui.widgets.render.TextWidgetRenderer;
 import dev.sixik.unigui.widgets.render.TextWidgetSegment;
 import dev.sixik.unigui.widgets.render.TextWidgetState;
@@ -48,8 +60,26 @@ public class TextWidget extends WidgetBase {
     private float wrappedCacheWidth = Float.NaN;
     private List<RichText> wrappedCacheLines = List.of();
 
+    private final MutableColor background = new MutableColor(0.0f, 0.0f, 0.0f, 0.0f);
+    private boolean backgroundVisible;
+    private boolean boxVisualEnabled = true;
+    private BoxRenderer boxRenderer;
+    private TextureHandle backgroundTexture;
+    private final MutableColor backgroundTextureTint = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
+    private final MutableRect backgroundTextureSource = new MutableRect(0.0f, 0.0f, 1.0f, 1.0f);
+    private ImageFit backgroundTextureFit = ImageFit.STRETCH;
+
+    private final MutableColor borderColor = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
+    private boolean borderVisible;
+    private float borderWidth = 1.0f;
+    private float radius;
+
     public TextWidget() {
         color.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
+        background.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
+        backgroundTextureTint.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
+        backgroundTextureSource.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
+        borderColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
     }
 
     public TextWidget(String text) {
@@ -136,6 +166,16 @@ public class TextWidget extends WidgetBase {
      */
     public TextWidget clearTextBrush() {
         return textBrush(null);
+    }
+
+    public Alignment textAlignment() {
+        return textHorizontalAlignment();
+    }
+
+    public TextWidget textAlignment(Alignment alignment) {
+        layoutStyle().horizontalAlignment(alignment);
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
     }
 
     public MutableColor color() {
@@ -258,21 +298,335 @@ public class TextWidget extends WidgetBase {
         return this;
     }
 
+    public MutableColor background() {
+        return background;
+    }
+
+    @XmlAttribute(value = "background", category = "Appearance", defaultValue = "#00000000", description = "Background color; setting it also enables background rendering.")
+    public TextWidget background(ColorView color) {
+        background.set(color == null ? new MutableColor(0.0f, 0.0f, 0.0f, 0.0f) : color);
+        backgroundVisible(true);
+        return this;
+    }
+
+    public TextWidget background(float r, float g, float b, float a) {
+        background.set(r, g, b, a);
+        backgroundVisible(true);
+        return this;
+    }
+
+    public TextWidget animateBackgroundColor(ColorView color, float durationSeconds) {
+        animateColor(background, color, durationSeconds);
+        return this;
+    }
+
+    public TextWidget animateBackgroundColor(ColorView color, TransitionSpec spec) {
+        animateColor(background, color, spec);
+        return this;
+    }
+
+    @XmlAttribute(value = "backgroundVisible", category = "Appearance", defaultValue = "false", description = "Whether background is rendered.")
+    public TextWidget backgroundVisible(boolean backgroundVisible) {
+        if (this.backgroundVisible == backgroundVisible) return this;
+        this.backgroundVisible = backgroundVisible;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public boolean backgroundVisible() {
+        return backgroundVisible;
+    }
+
+    public boolean boxVisualEnabled() {
+        return boxVisualEnabled;
+    }
+
+    @XmlAttribute(value = "boxVisualEnabled", category = "Appearance", defaultValue = "true", description = "Whether background/border visual rendering is enabled.")
+    public TextWidget boxVisualEnabled(boolean boxVisualEnabled) {
+        if (this.boxVisualEnabled == boxVisualEnabled) return this;
+        this.boxVisualEnabled = boxVisualEnabled;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public BoxRenderer boxRenderer() {
+        return boxRenderer;
+    }
+
+    public TextWidget boxRenderer(BoxRenderer boxRenderer) {
+        if (this.boxRenderer == boxRenderer) return this;
+        this.boxRenderer = boxRenderer;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public TextWidget backgroundRenderer(BoxRenderer boxRenderer) {
+        return boxRenderer(boxRenderer);
+    }
+
+    public TextWidget useDefaultBoxRenderer() {
+        return boxRenderer(null);
+    }
+
+    public TextureHandle backgroundTexture() {
+        return backgroundTexture;
+    }
+
+    @XmlAttribute(value = "backgroundTexture", displayName = "Background Texture", category = "Assets", defaultValue = "", description = "Background texture.")
+    public TextWidget backgroundTexture(TextureHandle backgroundTexture) {
+        if (this.backgroundTexture == backgroundTexture) return this;
+        this.backgroundTexture = backgroundTexture;
+        if (backgroundTexture != null) {
+            backgroundVisible(true);
+        }
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    @XmlAttribute(value = "backgroundTextureWidth", displayName = "Background Texture Width", category = "Assets", defaultValue = "16", description = "Source texture width.")
+    public TextWidget backgroundTextureWidth(int width) {
+        return backgroundTexture(XmlTextureAttributes.resize(backgroundTexture, width, null));
+    }
+
+    @XmlAttribute(value = "backgroundTextureHeight", displayName = "Background Texture Height", category = "Assets", defaultValue = "16", description = "Source texture height.")
+    public TextWidget backgroundTextureHeight(int height) {
+        return backgroundTexture(XmlTextureAttributes.resize(backgroundTexture, null, height));
+    }
+
+    @XmlAttribute(value = "backgroundTextureSampling", displayName = "Background Texture Sampling", category = "Assets", defaultValue = "nearest", description = "Texture filtering mode.")
+    public TextWidget backgroundTextureSampling(TextureFilter filter) {
+        return backgroundTexture(XmlTextureAttributes.options(backgroundTexture, options -> options.sampling(filter)));
+    }
+
+    @XmlAttribute(value = "backgroundTextureWrap", displayName = "Background Texture Wrap", category = "Assets", defaultValue = "clamp-to-edge", description = "Texture wrap mode.")
+    public TextWidget backgroundTextureWrap(TextureWrap wrap) {
+        return backgroundTexture(XmlTextureAttributes.options(backgroundTexture, options -> options.wrap(wrap)));
+    }
+
+    @XmlAttribute(value = "backgroundTextureMipmaps", displayName = "Background Texture Mipmaps", category = "Assets", defaultValue = "false", description = "Whether texture uses mipmaps.")
+    public TextWidget backgroundTextureMipmaps(boolean mipmaps) {
+        return backgroundTexture(XmlTextureAttributes.options(backgroundTexture, options -> options.mipmaps(mipmaps)));
+    }
+
+    @XmlAttribute(value = "backgroundTexturePremultipliedAlpha", displayName = "Background Texture Premultiplied Alpha", category = "Assets", defaultValue = "false", description = "Premultiplied alpha flag.")
+    public TextWidget backgroundTexturePremultipliedAlpha(boolean premultipliedAlpha) {
+        return backgroundTexture(XmlTextureAttributes.options(backgroundTexture, options -> options.premultipliedAlpha(premultipliedAlpha)));
+    }
+
+    public MutableColor backgroundTextureTint() {
+        return backgroundTextureTint;
+    }
+
+    @XmlAttribute(value = "backgroundTextureTint", displayName = "Background Texture Tint", category = "Assets", defaultValue = "#FFFFFFFF", description = "Background texture tint color.")
+    public TextWidget backgroundTextureTint(ColorView color) {
+        if (color != null) backgroundTextureTint.set(color);
+        return this;
+    }
+
+    public TextWidget animateBackgroundTextureTint(ColorView color, float durationSeconds) {
+        animateColor(backgroundTextureTint, color, durationSeconds);
+        return this;
+    }
+
+    public TextWidget animateBackgroundTextureTint(ColorView color, TransitionSpec spec) {
+        animateColor(backgroundTextureTint, color, spec);
+        return this;
+    }
+
+    public MutableRect backgroundTextureSource() {
+        return backgroundTextureSource;
+    }
+
+    @XmlAttribute(value = "backgroundTextureSource", displayName = "Background Texture Source", category = "Assets", defaultValue = "0 0 1 1", description = "UV source rectangle.")
+    public TextWidget backgroundTextureSource(MutableRect source) {
+        backgroundTextureSource.set(source == null ? new MutableRect(0.0f, 0.0f, 1.0f, 1.0f) : source);
+        return this;
+    }
+
+    public TextWidget backgroundTextureSource(float u, float v, float width, float height) {
+        backgroundTextureSource.set(u, v, width, height);
+        return this;
+    }
+
+    public ImageFit backgroundTextureFit() {
+        return backgroundTextureFit;
+    }
+
+    @XmlAttribute(value = "backgroundTextureFit", displayName = "Background Texture Fit", category = "Assets", defaultValue = "stretch", description = "Placement mode for the background texture.")
+    public TextWidget backgroundTextureFit(ImageFit fit) {
+        ImageFit effectiveFit = fit == null ? ImageFit.STRETCH : fit;
+        if (backgroundTextureFit == effectiveFit) return this;
+        backgroundTextureFit = effectiveFit;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public MutableColor borderColor() {
+        return borderColor;
+    }
+
+    @XmlAttribute(value = "border", category = "Appearance", defaultValue = "#FFFFFFFF", description = "Border color; setting it also enables border rendering.")
+    public TextWidget border(ColorView color) {
+        borderColor(color);
+        borderVisible(true);
+        return this;
+    }
+
+    public TextWidget border(ColorView color, float width) {
+        borderColor(color);
+        borderWidth(width);
+        borderVisible(true);
+        return this;
+    }
+
+    public TextWidget border(float r, float g, float b, float a) {
+        borderColor.set(r, g, b, a);
+        borderVisible(true);
+        return this;
+    }
+
+    public TextWidget border(float r, float g, float b, float a, float width) {
+        borderColor.set(r, g, b, a);
+        borderWidth(width);
+        borderVisible(true);
+        return this;
+    }
+
+    @XmlAttribute(value = "borderColor", category = "Appearance", defaultValue = "#FFFFFFFF", description = "Border color used when border rendering is enabled.")
+    public TextWidget borderColor(ColorView color) {
+        if (color != null) borderColor.set(color);
+        return this;
+    }
+
+    public TextWidget animateBorderColor(ColorView color, float durationSeconds) {
+        animateColor(borderColor, color, durationSeconds);
+        return this;
+    }
+
+    public TextWidget animateBorderColor(ColorView color, TransitionSpec spec) {
+        animateColor(borderColor, color, spec);
+        return this;
+    }
+
+    @XmlAttribute(value = "borderVisible", category = "Appearance", defaultValue = "false", description = "Whether the border is rendered.")
+    public TextWidget borderVisible(boolean borderVisible) {
+        if (this.borderVisible == borderVisible) return this;
+        this.borderVisible = borderVisible;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public boolean borderVisible() {
+        return borderVisible;
+    }
+
+    public float borderWidth() {
+        return borderWidth;
+    }
+
+    @XmlAttribute(value = "borderWidth", category = "Appearance", defaultValue = "1", description = "Border thickness in UI pixels.")
+    public TextWidget borderWidth(float borderWidth) {
+        if (this.borderWidth == borderWidth) return this;
+        this.borderWidth = borderWidth;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public TextWidget animateBorderWidth(float borderWidth, float durationSeconds) {
+        return animateBorderWidth(borderWidth, TransitionSpec.of(durationSeconds));
+    }
+
+    public TextWidget animateBorderWidth(float borderWidth, TransitionSpec spec) {
+        animateParameter("TextWidget.borderWidth", this::borderWidth, this::borderWidth, borderWidth, spec);
+        return this;
+    }
+
+    public float radius() {
+        return radius;
+    }
+
+    @XmlAttribute(value = "radius", category = "Appearance", defaultValue = "0", description = "Corner radius in UI pixels.")
+    public TextWidget radius(float radius) {
+        if (this.radius == radius) return this;
+        this.radius = radius;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public TextWidget animateRadius(float radius, float durationSeconds) {
+        return animateRadius(radius, TransitionSpec.of(durationSeconds));
+    }
+
+    public TextWidget animateRadius(float radius, TransitionSpec spec) {
+        animateParameter("TextWidget.radius", this::radius, this::radius, radius, spec);
+        return this;
+    }
+
+    public BoxState boxState() {
+        TexturePlacement placement = backgroundTexture == null
+                ? null
+                : TexturePlacement.fit(backgroundTexture, backgroundTextureSource, layoutBounds(), backgroundTextureFit);
+        return new BoxState(
+                layoutBounds().x(),
+                layoutBounds().y(),
+                layoutBounds().width(),
+                layoutBounds().height(),
+                backgroundVisible,
+                background.copy(),
+                backgroundTexture,
+                backgroundTextureTint.copy(),
+                placement,
+                backgroundTextureFit,
+                radius,
+                borderVisible,
+                borderColor.copy(),
+                borderWidth);
+    }
+
+    protected void renderBox(RenderContext context) {
+        if (!boxVisualEnabled || (!backgroundVisible && !borderVisible && boxRenderer == null)) return;
+        BoxState state = boxState();
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        if (boxRenderer != null) {
+            boxRenderer.render(draw, state);
+            return;
+        }
+        BoxRenderer styled = styleRendererOverride(BoxRenderer.class);
+        if (styled != null) {
+            styled.render(draw, state);
+            return;
+        }
+        if (renderStylePlan(context, BoxState.class, state)) return;
+        WidgetsRender.box().render(draw, state);
+    }
+
     @Override
     public void measure(LayoutContext context) {
         if (visibility() == dev.sixik.unigui.api.widget.Visibility.COLLAPSED) {
             setDesiredSize(0.0f, 0.0f);
             return;
         }
-        setDesiredSize(resolveDesiredSize(context, measuredTextWidth(context), measuredTextHeight(context)));
+        EdgeInsets padding = layoutStyle().padding();
+        float contentW = measuredTextWidth(context) + padding.horizontal();
+        float contentH = measuredTextHeight(context) + padding.vertical();
+        setDesiredSize(resolveDesiredSize(context, contentW, contentH));
     }
 
     @Override
     public void render(RenderContext context) {
-        if (text.isEmpty()) return;
+        if (visibility() == Visibility.COLLAPSED || visibility() == Visibility.HIDDEN) return;
+        boolean hasText = !text.isEmpty();
+        boolean hasBox = boxVisualEnabled && (backgroundVisible || borderVisible || boxRenderer != null);
+        if (!hasText && !hasBox) return;
+
         pushOpacity(context);
         try {
-            effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot(context));
+            if (hasBox) {
+                renderBox(context);
+            }
+            if (hasText) {
+                effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot(context));
+            }
         } finally {
             popOpacity(context);
         }
@@ -341,31 +695,36 @@ public class TextWidget extends WidgetBase {
     }
 
     private List<TextWidgetSegment> visibleSegments(RenderContext context) {
+        EdgeInsets padding = layoutStyle().padding();
+        float x = layoutBounds().x() + padding.left();
+        float y = layoutBounds().y() + padding.top();
+        float w = Math.max(0.0f, layoutBounds().width() - padding.horizontal());
+        float h = Math.max(0.0f, layoutBounds().height() - padding.vertical());
         if (wrap) {
-            return wrappedSegments(context);
+            return wrappedSegments(context, x, y, w, h);
         }
         TextWidgetSegment segment = alignedSegment(context, effectiveRichText(),
-                layoutBounds().x(), layoutBounds().y(), layoutBounds().width(), layoutBounds().height(),
+                x, y, w, h,
                 textHorizontalAlignment(), textVerticalAlignment(), null);
         return segment == null ? List.of() : List.of(segment);
     }
 
-    private List<TextWidgetSegment> wrappedSegments(RenderContext context) {
-        float availableWidth = scaledAvailableWidth();
-        float availableHeight = scaledAvailableHeight();
-        if (availableWidth <= 0.0f || availableHeight <= 0.0f) return List.of();
+    private List<TextWidgetSegment> wrappedSegments(RenderContext context, float x, float y, float availableWidth, float availableHeight) {
+        float effectiveW = availableWidth / effectiveScale(transform().scale().x());
+        float effectiveH = availableHeight / effectiveScale(transform().scale().y());
+        if (effectiveW <= 0.0f || effectiveH <= 0.0f) return List.of();
 
-        List<RichText> lines = cachedWrappedLines(context, availableWidth);
+        List<RichText> lines = cachedWrappedLines(context, effectiveW);
         if (lines.isEmpty()) return List.of();
 
         float totalHeight = TextEngine.linesHeight(context, lines);
-        float drawY = TextEngine.alignedStart(layoutBounds().y(), availableHeight, totalHeight, textVerticalAlignment());
+        float drawY = TextEngine.alignedStart(y, effectiveH, totalHeight, textVerticalAlignment());
         List<TextWidgetSegment> segments = new ObjectArrayList<>(lines.size());
         for (RichText line : lines) {
             float lineHeight = TextEngine.lineHeight(context, line);
-            if (drawY >= layoutBounds().y() + availableHeight) break;
+            if (drawY >= y + effectiveH) break;
             TextWidgetSegment segment = alignedSegment(context, line,
-                    layoutBounds().x(), drawY, availableWidth, lineHeight,
+                    x, drawY, effectiveW, lineHeight,
                     textHorizontalAlignment(), Alignment.CENTER, null);
             if (segment != null) segments.add(segment);
             drawY += lineHeight;
@@ -374,26 +733,32 @@ public class TextWidget extends WidgetBase {
     }
 
     private TextWidgetState shrinkToFitState(RenderContext context) {
-        float availableWidth = Math.max(0.0f, layoutBounds().width());
-        float availableHeight = Math.max(0.0f, layoutBounds().height());
+        EdgeInsets padding = layoutStyle().padding();
+        float contentX = layoutBounds().x() + padding.left();
+        float contentY = layoutBounds().y() + padding.top();
+        float availableWidth = Math.max(0.0f, layoutBounds().width() - padding.horizontal());
+        float availableHeight = Math.max(0.0f, layoutBounds().height() - padding.vertical());
         RichText drawText = effectiveRichText();
         float textWidth = TextEngine.measureLineWidth(context, drawText);
         float scale = textWidth <= 0.0f || availableWidth <= 0.0f ? 1.0f : Math.min(1.0f, availableWidth / textWidth);
         float sourceHeight = TextEngine.measureTextHeight(context, drawText);
         float textHeight = Math.min(availableHeight, sourceHeight * scale);
         float scaledTextWidth = textWidth * scale;
-        float drawX = TextEngine.alignedStart(layoutBounds().x(), availableWidth, scaledTextWidth, textHorizontalAlignment());
-        float drawY = TextEngine.alignedStart(layoutBounds().y(), availableHeight, textHeight, textVerticalAlignment());
+        float drawX = TextEngine.alignedStart(contentX, availableWidth, scaledTextWidth, textHorizontalAlignment());
+        float drawY = TextEngine.alignedStart(contentY, availableHeight, textHeight, textVerticalAlignment());
         Transform scaled = scaledTransform(scale);
         TextWidgetSegment segment = new TextWidgetSegment(drawText, drawX, drawY,
                 textWidth, sourceHeight, scaled);
         return textState(List.of(segment), true,
-                layoutBounds().x(), layoutBounds().y(), availableWidth, availableHeight);
+                contentX, contentY, availableWidth, availableHeight);
     }
 
     private TextWidgetState marqueeState(RenderContext context) {
-        float availableWidth = Math.max(0.0f, layoutBounds().width());
-        float availableHeight = Math.max(0.0f, layoutBounds().height());
+        EdgeInsets padding = layoutStyle().padding();
+        float contentX = layoutBounds().x() + padding.left();
+        float contentY = layoutBounds().y() + padding.top();
+        float availableWidth = Math.max(0.0f, layoutBounds().width() - padding.horizontal());
+        float availableHeight = Math.max(0.0f, layoutBounds().height() - padding.vertical());
         RichText drawText = effectiveRichText();
         float textWidth = TextEngine.measureLineWidth(context, drawText);
         if (textWidth <= availableWidth) {
@@ -401,11 +766,11 @@ public class TextWidget extends WidgetBase {
         }
 
         float textHeight = Math.min(availableHeight, TextEngine.measureTextHeight(context, drawText));
-        float drawY = TextEngine.alignedStart(layoutBounds().y(), availableHeight, textHeight, textVerticalAlignment());
+        float drawY = TextEngine.alignedStart(contentY, availableHeight, textHeight, textVerticalAlignment());
         float period = Math.max(1.0f, textWidth + marqueeGap);
         boolean activeMarquee = hovered() || marqueeActive;
         float offset = activeMarquee ? marqueeOffset % period : 0.0f;
-        float firstX = layoutBounds().x() - offset;
+        float firstX = contentX - offset;
 
         List<TextWidgetSegment> segments;
         if (activeMarquee) {
@@ -416,7 +781,7 @@ public class TextWidget extends WidgetBase {
             segments = List.of(new TextWidgetSegment(drawText, firstX, drawY, textWidth, textHeight, null));
         }
         return textState(segments, true,
-                layoutBounds().x(), layoutBounds().y(), availableWidth, availableHeight);
+                contentX, contentY, availableWidth, availableHeight);
     }
 
     private TextWidgetSegment alignedSegment(RenderContext context, RichText drawText,

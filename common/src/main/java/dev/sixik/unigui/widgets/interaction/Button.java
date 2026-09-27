@@ -113,6 +113,8 @@ public class Button extends Box {
     private float normalOpacity = 1.0f;
     private float pressedOpacity = 0.88f;
     private float disabledOpacity = 0.55f;
+    private boolean customTextColor;
+    private boolean updatingTheme;
 
     public Button() {
         mouseCursor(MouseCursor.POINTER);
@@ -120,7 +122,12 @@ public class Button extends Box {
         backgroundVisible(true);
         borderVisible(true);
         focusable(true);
-        textColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
+        textColor.onChanged(() -> {
+            if (!updatingTheme) {
+                customTextColor = true;
+            }
+            invalidate(InvalidationFlags.VISUAL);
+        });
     }
 
     public Button(String text) {
@@ -163,6 +170,29 @@ public class Button extends Box {
 
     public MutableColor textColor() {
         return textColor;
+    }
+
+    @XmlAttribute(value = "textColor", category = "Appearance", defaultValue = "#FFFFFFFF", description = "Button text color parsed from XML color syntax.")
+    public Button textColor(ColorView color) {
+        if (color != null) {
+            textColor.set(color);
+        }
+        return this;
+    }
+
+    public Button textColor(float r, float g, float b, float a) {
+        textColor.set(r, g, b, a);
+        return this;
+    }
+
+    public boolean hasCustomTextColor() {
+        return customTextColor;
+    }
+
+    public Button clearCustomTextColor() {
+        this.customTextColor = false;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
     }
 
     public Button animateTextColor(ColorView color, float durationSeconds) {
@@ -432,9 +462,15 @@ public class Button extends Box {
     @Override
     protected void applyTheme() {
         super.applyTheme();
+        if (customTextColor) return;
         ColorView themedText = styleValue(StyleKeys.TEXT_COLOR, styleState(), textColor);
         if (themedText != null) {
-            animateColor(textColor, themedText, styleTransition());
+            updatingTheme = true;
+            try {
+                animateColor(textColor, themedText, styleTransition());
+            } finally {
+                updatingTheme = false;
+            }
         }
     }
 

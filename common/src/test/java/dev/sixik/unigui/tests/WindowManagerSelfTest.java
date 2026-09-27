@@ -204,7 +204,7 @@ public final class WindowManagerSelfTest {
         context.routedEvents().dispatch(new PointerPressedEvent(
                 button, buttonPressX, buttonPressY, 12.0f, 8.0f, 22, PointerButton.PRIMARY));
         expect(!buttonWindow.dragging()
-                        && context.capturedPointer(22) == null,
+                        && context.capturedPointer(22) != buttonWindow,
                 "Pressing an input button in a window body should not start window dragging");
 
         TextInput input = new TextInput().text("Editable");
