@@ -42,6 +42,8 @@ import java.util.Map;
 
 /** Создаёт UniGUI-дерево из декларативного visual ISF-рецепта. */
 final class IsfVisualWidgetFactory {
+    private static final org.slf4j.Logger LOGGER =
+            org.slf4j.LoggerFactory.getLogger(IsfVisualWidgetFactory.class);
     private static final float CELL = 18.0f;
     static final String SLOT_TEXTURE = "isf:textures/jei/atlas/gui/slot.png";
     static final String ARROW_TEXTURE = "isf:textures/jei/atlas/gui/recipe_arrow.png";
@@ -337,21 +339,25 @@ final class IsfVisualWidgetFactory {
      * Z-слоёв, в отличие от прямого InventoryScreen-рендера), иначе предмет.
      */
     private WidgetBase entityOrItem(IsfVisualNode node) {
-        float size = Math.max(CELL, integer(value(node, "width"), (int) CELL));
+        // Размер иконки моба задаётся отдельным свойством: ячейка предмета (width)
+        // остаётся 18, а моделька рисуется крупнее.
+        float size = Math.max(CELL, integer(value(node, "entity_size"),
+                integer(value(node, "width"), (int) CELL)));
         JsonElement entityRaw = value(node, "entity");
         if (entityRaw != null && entityRaw.isJsonPrimitive() && !entityRaw.getAsString().isBlank()) {
             ResourceLocation entityId = ResourceLocation.tryParse(entityRaw.getAsString());
             net.minecraft.world.entity.EntityType<?> type = entityId == null ? null
                     : net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.get(entityId);
-            if (type != null && net.minecraft.world.entity.LivingEntity.class
-                    .isAssignableFrom(type.getBaseClass())) {
-                @SuppressWarnings({"unchecked", "rawtypes"})
-                IsfEntityIconWidget icon = new IsfEntityIconWidget(
-                        (net.minecraft.world.entity.EntityType) type, size);
+            // «Живость» типа проверяет сама запечка (instanceof на созданной сущности):
+            // EntityType.getBaseClass() для этого не подходит — в 1.20.1 он всегда
+            // возвращает Entity.class.
+            if (type != null) {
+                IsfEntityIconWidget icon = new IsfEntityIconWidget(type, size);
                 icon.enabled(false);
                 icon.layout(style -> style.size(size, size).centerSelf().flexNone());
                 return icon;
             }
+            LOGGER.debug("entityOrItem: unknown entity '{}', fallback to item", entityRaw.getAsString());
         }
         return itemWidget(node);
     }
@@ -433,10 +439,22 @@ final class IsfVisualWidgetFactory {
         Map<String, JsonElement> properties = evaluatedProperties(node.properties());
         float width = number(properties.get("width"), Float.NaN);
         float height = number(properties.get("height"), Float.NaN);
+        // Иконка моба крупнее ячейки предмета: entity_size перекрывает width/height.
+        float iconWidth = width;
+        float iconHeight = height;
+        if (widget instanceof IsfEntityIconWidget && properties.containsKey("entity_size")) {
+            float entitySize = number(properties.get("entity_size"), Float.NaN);
+            if (Float.isFinite(entitySize) && entitySize > 0.0f) {
+                iconWidth = entitySize;
+                iconHeight = entitySize;
+            }
+        }
+        final float layoutWidth = iconWidth;
+        final float layoutHeight = iconHeight;
         widget.layout(style -> {
             style.position(PositionType.RELATIVE);
-            if (Float.isFinite(width)) style.width(width);
-            if (Float.isFinite(height)) style.height(height);
+            if (Float.isFinite(layoutWidth)) style.width(layoutWidth);
+            if (Float.isFinite(layoutHeight)) style.height(layoutHeight);
             if (properties.containsKey("padding")) style.padding(edgeInsets(properties.get("padding")));
             if (properties.containsKey("alignItems")) style.alignItems(align(properties.get("alignItems")));
             if (properties.containsKey("justifyContent")) style.justifyContent(justify(properties.get("justifyContent")));

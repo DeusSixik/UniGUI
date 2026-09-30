@@ -12,22 +12,32 @@ import net.minecraft.world.entity.LivingEntity;
 import org.joml.Matrix4f;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.IntBuffer;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Version-specific пекер иконок живых сущностей.
  *
  * <p>Рендерит модель моба в offscreen render target (по образцу
- * {@code InventoryScreen.renderEntityInInventoryFollowsMouse}, но без привязки
+ * {@code InventoryScreen.renderEntityInInventory}, но без привязки
  * к текущему фреймбуферу), после чего иконку можно рисовать обычной
  * texture-командой, уважающей transform/clip Z-слоёв UniGUI.</p>
  */
 public final class MinecraftEntityBakeCompat {
+    private static final Logger LOGGER = LoggerFactory.getLogger(MinecraftEntityBakeCompat.class);
     private static final int ICON_PIXELS = 64;
     private static final int CACHE_CAPACITY = 64;
+    /** Доля иконки, которую занимает модель по большей стороне (остальное — поля). */
+    private static final float MODEL_FILL = 0.78f;
+    /** Фиксированный лёгкий поворот модели: классический вид «куклы» из инвентаря. */
+    private static final float LOOK_X = 12.0f;
+    private static final float LOOK_Y = 6.0f;
 
     private static final Map<EntityType<?>, MinecraftRenderTarget> CACHE =
             new LinkedHashMap<>(CACHE_CAPACITY, 0.75f, true) {
@@ -38,6 +48,17 @@ public final class MinecraftEntityBakeCompat {
                     return true;
                 }
             };
+    /**
+     * Типы, которые точно не являются живыми сущностями (запечка невозможна).
+     * Запоминаем отрицательный результат, чтобы не создавать сущность каждый кадр.
+     */
+    private static final Set<EntityType<?>> UNSUPPORTED =
+            Collections.newSetFromMap(new LinkedHashMap<>(CACHE_CAPACITY, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<EntityType<?>, Boolean> eldest) {
+                    return size() > CACHE_CAPACITY;
+                }
+            });
 
     private MinecraftEntityBakeCompat() {
     }
@@ -45,23 +66,44 @@ public final class MinecraftEntityBakeCompat {
     /**
      * Запечённая иконка живой сущности (кэшируется по типу).
      *
-     * @return handle текстуры или {@code null}, если сущность не удалось создать.
+     * <p>Проверка «живости» делается через {@code instanceof} на созданной сущности:
+     * {@code EntityType.getBaseClass()} для этого не подходит — в 1.20.1 он всегда
+     * возвращает {@code Entity.class} (это базовый класс для {@code EntityTypeTest}).</p>
+     *
+     * @return handle текстуры или {@code null}, если сущность не удалось создать/запечь.
      */
-    public static TextureHandle bakePreview(EntityType<? extends LivingEntity> type, int pixels) {
-        if (type == null) return null;
+    public static TextureHandle bakePreview(EntityType<?> type, int pixels) {
+        if (type == null || UNSUPPORTED.contains(type)) return null;
         MinecraftRenderTarget cached = CACHE.get(type);
         if (cached != null) return cached.colorTexture();
         Minecraft minecraft = Minecraft.getInstance();
-        LivingEntity entity;
-        try {
-            entity = type.create(minecraft.level);
-        } catch (RuntimeException ignored) {
+        // EntityType.create обращается к level.enabledFeatures(): без клиентского мира
+        // будет NPE, поэтому вне мира сразу возвращаем null (не кэшируем — попробуем позже).
+        if (minecraft.level == null) {
             return null;
         }
-        if (entity == null) return null;
-        entity.discard();
+        LivingEntity entity;
+        try {
+            if (!(type.create(minecraft.level) instanceof LivingEntity living)) {
+                UNSUPPORTED.add(type);
+                LOGGER.debug("Entity type {} is not a living entity, preview skipped", type);
+                return null;
+            }
+            entity = living;
+        } catch (RuntimeException e) {
+            LOGGER.warn("Failed to create entity preview for {}", type, e);
+            return null;
+        }
+        // Сущность никуда не спавним (живёт только на время запечки), поэтому discard()
+        // не вызываем: он помечает её удалённой безо всякой пользы.
         int clampedPixels = Math.max(16, Math.min(256, pixels));
-        MinecraftRenderTarget target = bake(entity, clampedPixels);
+        MinecraftRenderTarget target;
+        try {
+            target = bake(entity, clampedPixels);
+        } catch (RuntimeException e) {
+            LOGGER.warn("Failed to bake entity preview for {}", type, e);
+            return null;
+        }
         CACHE.put(type, target);
         return target.colorTexture();
     }
@@ -98,11 +140,17 @@ public final class MinecraftEntityBakeCompat {
 
             GuiGraphics graphics = new GuiGraphics(minecraft, MinecraftBufferCompat.immediate(256));
             // Геометрия как в ванильном inventory-превью: центр по X, ноги у нижней кромки.
+            // Масштаб подбирается под габариты сущности: фиксированный 0.72 подходил только
+            // мобам ростом ~1 блок, а высокие (эндермен, гаст, голем) целиком уходили за
+            // пределы текстуры и иконка оставалась пустой.
             int centerX = pixels / 2;
             int bottomY = Math.round(pixels * 0.92f);
-            int entityScale = Math.max(1, Math.round(pixels * 0.72f));
+            float bounds = Math.max(entity.getBbHeight(), entity.getBbWidth());
+            int entityScale = bounds <= 0.0f
+                    ? Math.max(1, Math.round(pixels * 0.72f))
+                    : Math.max(1, Math.round(pixels * MODEL_FILL / bounds));
             MinecraftEntityPreviewCompat.render(graphics, centerX, bottomY, entityScale,
-                    pixels, pixels * 0.35f, pixels * 0.18f, entity);
+                    pixels, LOOK_X, LOOK_Y, entity);
             graphics.flush();
         } finally {
             com.mojang.blaze3d.platform.Lighting.setupFor3DItems();

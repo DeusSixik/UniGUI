@@ -385,6 +385,7 @@ public final class LootTableSupports {
                 "slot", literal("isf:textures/jei/atlas/gui/slot.png"),
                 "width", literal(18),
                 "height", literal(18),
+                "entity_size", literal(36),
                 "alignSelf", literal("center")), List.of());
         IsfVisualNode title = new IsfVisualNode("title", id("unigui:label"), Map.of(
                 "text", new IsfExpression.Call("isf:loot_title",
