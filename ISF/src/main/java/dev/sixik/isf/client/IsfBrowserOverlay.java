@@ -180,10 +180,42 @@ final class IsfBrowserOverlay {
 
     boolean toggleHoveredBookmark() {
         ItemEntry entry = hoveredEntry;
-        if (entry == null) return false;
-        boolean bookmarked = !IsfClientState.bookmarks().contains(entry.id());
-        IsfNetwork.toggleBookmark(entry.id(), bookmarked);
-        return true;
+        return entry != null && IsfItemTriggerUtils.toggleBookmark(entry.id());
+    }
+
+    /** Закладка по id: используется триггерами R/U/A (клавиша A). */
+    boolean toggleBookmark(ResourceLocation itemId) {
+        return IsfItemTriggerUtils.toggleBookmark(itemId);
+    }
+
+    /**
+     * Предмет под курсором для R/U/A-триггеров.
+     * Порядок: визуалы рецептов → катализаторы окна → hovered-клетка каталога →
+     * клетки каталога/закладок (только внутри viewport'ов скролла).
+     * Слоты инвентаря добавляет {@link IsfItemTriggerUtils#resolveItemAt}.
+     */
+    ResourceLocation triggerItemAt(double mouseX, double mouseY) {
+        if (mouseX < 0.0 || mouseY < 0.0) return null;
+        float x = (float) mouseX;
+        float y = (float) mouseY;
+        ResourceLocation itemId = recipeItemAt(mouseX, mouseY);
+        if (itemId == null
+                && detailPanel.visibility() == dev.sixik.unigui.api.widget.Visibility.VISIBLE) {
+            for (CatalystCell cell : catalystCells) {
+                if (contains(cell.button().layoutBounds(), x, y)) {
+                    itemId = cell.itemId();
+                    break;
+                }
+            }
+        }
+        if (itemId == null) itemId = hoveredItemId();
+        if (itemId == null && contains(itemScroll.layoutBounds(), x, y)) {
+            itemId = cellIdAt(itemCells, x, y);
+        }
+        if (itemId == null && contains(bookmarkScroll.layoutBounds(), x, y)) {
+            itemId = cellIdAt(bookmarkCells, x, y);
+        }
+        return itemId;
     }
 
     ResourceLocation hoveredItemId() {
@@ -215,6 +247,16 @@ final class IsfBrowserOverlay {
     void updatePointerPosition(double mouseX, double mouseY) {
         pointerX = mouseX;
         pointerY = mouseY;
+    }
+
+    /** Трекаемая X-координата курсора (GUI-пространство); -1 — ещё не известна. */
+    double pointerX() {
+        return pointerX;
+    }
+
+    /** Трекаемая Y-координата курсора (GUI-пространство); -1 — ещё не известна. */
+    double pointerY() {
+        return pointerY;
     }
 
     void showRecipes(ResourceLocation itemId, boolean usages) {
@@ -260,12 +302,19 @@ final class IsfBrowserOverlay {
         }
         float x = (float) mouseX;
         float y = (float) mouseY;
-        // ПКМ по предмету в крафте — применения (U). Остальные элементы окна — только ЛКМ.
+        // ПКМ по предмету в крафте — применения (U). Катализаторы — тоже:
+        // ЛКМ остаётся переключением фильтра станции, ПКМ показывает usages.
         if (button == 1) {
             ensureRecipeItemButtons();
             for (IsfItemButton itemButton : recipeItemButtons) {
                 if (contains(itemButton.layoutBounds(), x, y)) {
                     showRecipes(itemButton.itemId(), true);
+                    return true;
+                }
+            }
+            for (CatalystCell cell : catalystCells) {
+                if (contains(cell.button().layoutBounds(), x, y)) {
+                    showRecipes(cell.itemId(), true);
                     return true;
                 }
             }
