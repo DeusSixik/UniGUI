@@ -1495,6 +1495,21 @@ public final class LayoutStyle {
     }
 
     /**
+     * Задаёт выравнивание по горизонтали.
+     *
+     * @param horizontal горизонтальное выравнивание
+     * @return этот стиль для fluent-настройки
+     */
+    public LayoutStyle horizontalAlignment(Alignment horizontal) {
+        Alignment normalized = horizontal == null ? Alignment.STRETCH : horizontal;
+        if (horizontalAlignment == normalized) return this;
+        horizontalAlignment = normalized;
+        alignSelf = commonAlignment(normalized, verticalAlignment);
+        changed();
+        return this;
+    }
+
+    /**
      * Возвращает legacy-выравнивание по вертикали.
      *
      * @return вертикальное выравнивание
@@ -1504,6 +1519,21 @@ public final class LayoutStyle {
     @Deprecated(forRemoval = false)
     public Alignment verticalAlignment() {
         return verticalAlignment;
+    }
+
+    /**
+     * Задаёт выравнивание по вертикали.
+     *
+     * @param vertical вертикальное выравнивание
+     * @return этот стиль для fluent-настройки
+     */
+    public LayoutStyle verticalAlignment(Alignment vertical) {
+        Alignment normalized = vertical == null ? Alignment.STRETCH : vertical;
+        if (verticalAlignment == normalized) return this;
+        verticalAlignment = normalized;
+        alignSelf = commonAlignment(horizontalAlignment, normalized);
+        changed();
+        return this;
     }
 
     /**

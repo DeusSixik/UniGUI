@@ -1,21 +1,20 @@
 package dev.sixik.isf.client;
 
+import dev.sixik.isf.IsfMod;
+import dev.sixik.isf.client.widgets.IconButton;
+import dev.sixik.isf.client.widgets.NineSliceHBox;
+import dev.sixik.isf.client.widgets.NineSliceVBox;
 import dev.sixik.isf.network.IsfNetwork;
 import dev.sixik.isf.definition.IsfCatalystDefinition;
 import dev.sixik.isf.definition.IsfRecipeDefinition;
 import dev.sixik.isf.runtime.IsfRecipePaging;
 import dev.sixik.isf.runtime.IsfRecipeQueryMatcher;
-import com.google.gson.JsonElement;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.event.PointerEnteredEvent;
 import dev.sixik.unigui.api.event.PointerExitedEvent;
-import dev.sixik.unigui.api.layout.Justify;
-import dev.sixik.unigui.api.layout.LayoutContext;
-import dev.sixik.unigui.api.layout.PositionType;
-import dev.sixik.unigui.backend.minecraft_impl.MinecraftRenderLayerRegistration;
-import dev.sixik.unigui.backend.minecraft_impl.MinecraftWidgetRenderLayer;
-import dev.sixik.unigui.backend.minecraft_impl.MinecraftWidgetScreen;
-import dev.sixik.unigui.backend.minecraft_impl.ScreenOverlayRender;
+import dev.sixik.unigui.api.layout.*;
+import dev.sixik.unigui.api.render.TextureOptions;
+import dev.sixik.unigui.backend.minecraft_impl.*;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.GridBox;
 import dev.sixik.unigui.widgets.containers.HBox;
@@ -24,6 +23,7 @@ import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 import dev.sixik.unigui.widgets.interaction.Button;
+import dev.sixik.unigui.widgets.interaction.TextField;
 import dev.sixik.unigui.widgets.interaction.ToggleButton;
 import dev.sixik.unigui.widgets.minecraft.MinecraftItemTooltip;
 import dev.sixik.unigui.widgets.minecraft.MinecraftZLayer;
@@ -61,14 +61,15 @@ final class IsfBrowserOverlay {
     private final Label detailTitle = new Label();
     private final ToggleButton detailPin = new ToggleButton();
     private final Button detailClose = new Button();
-    private final HBox tabRow = new HBox();
+    private final NineSliceHBox tabRow = new NineSliceHBox();
     private final Button tabNext = new Button();
     private final Label detailPage = new Label();
     private final Button detailPrevious = new Button();
     private final Button detailNext = new Button();
+    private final TextField search = new TextField();
     private final HBox pagerRow = new HBox();
-    private final VBox catalystColumn = new VBox();
-    private final VBox recipeArea = new VBox();
+    private final NineSliceVBox catalystColumn = new NineSliceVBox();
+    private final NineSliceVBox recipeArea = new NineSliceVBox();
     private final List<MinecraftItemTooltip> tooltips = new ArrayList<>();
     private final List<MinecraftItemTooltip> tabTooltips = new ArrayList<>();
     private final List<MinecraftItemTooltip> catalystTooltips = new ArrayList<>();
@@ -116,7 +117,6 @@ final class IsfBrowserOverlay {
     private static final float RECIPE_GAP = 2.0f;
     private static final float CATALYST_CELL = 18.0f;
     private static final float TAB_CELL = 20.0f;
-    private static final float FALLBACK_AREA_HEIGHT = 224.0f;
     private static final float FALLBACK_RECIPE_HEIGHT = 92.0f;
     /** padding(4)*2 + заголовок 16 + вкладки 20 + пагинация 14 + три отступа VBox. */
     private static final float DETAIL_FIXED_HEIGHT = 8.0f + 16.0f + TAB_CELL + 14.0f + 3 * RECIPE_GAP;
@@ -143,8 +143,12 @@ final class IsfBrowserOverlay {
      * на курсор: не подсвечиваться, не показывать tooltip и не принимать клики.
      */
     private boolean blocksVanillaPointer(Screen ignoredScreen, double mouseX, double mouseY) {
-        return detailPanel.visibility() == dev.sixik.unigui.api.widget.Visibility.VISIBLE
-                && contains(detailPanel.layoutBounds(), (float) mouseX, (float) mouseY);
+        return (detailPanel.visibility() == dev.sixik.unigui.api.widget.Visibility.VISIBLE
+                && contains(detailPanel.layoutBounds(), (float) mouseX, (float) mouseY))
+                || (browserPanel.visibility() == dev.sixik.unigui.api.widget.Visibility.VISIBLE
+                && contains(browserPanel.layoutBounds(), (float) mouseX, (float) mouseY))
+                || (bookmarkPanel.visibility() == dev.sixik.unigui.api.widget.Visibility.VISIBLE
+                && contains(bookmarkPanel.layoutBounds(), (float) mouseX, (float) mouseY));
     }
 
     void resetPage() {
@@ -357,11 +361,19 @@ final class IsfBrowserOverlay {
     }
 
     private void moveDetailPanel(float left, float top) {
+        float panelWidth = detailPanel.layoutStyle().width().value();
+        float panelHeight = detailPanel.layoutStyle().height().value();
+        if (panelWidth <= 0.0f) panelWidth = detailPanel.layoutBounds().width();
+        if (panelHeight <= 0.0f) panelHeight = detailPanel.layoutBounds().height();
+        if (panelWidth <= 0.0f) panelWidth = 206.0f;
+        if (panelHeight <= 0.0f) panelHeight = 140.0f;
+        moveDetailPanel(left, top, panelWidth, panelHeight);
+    }
+
+    private void moveDetailPanel(float left, float top, float panelWidth, float panelHeight) {
         Screen screen = net.minecraft.client.Minecraft.getInstance().screen;
-        float width = screen == null ? detailPanel.layoutBounds().width() : screen.width;
-        float height = screen == null ? detailPanel.layoutBounds().height() : screen.height;
-        float panelWidth = detailPanel.layoutBounds().width();
-        float panelHeight = detailPanel.layoutBounds().height();
+        float width = screen == null ? panelWidth : screen.width;
+        float height = screen == null ? panelHeight : screen.height;
         float margin = 4.0f;
         float maxLeft = Math.max(margin, width - panelWidth - margin);
         float maxTop = Math.max(margin, height - panelHeight - margin);
@@ -474,6 +486,7 @@ final class IsfBrowserOverlay {
         scroll.scrollTo(0.0f, normalized * maxScroll);
     }
 
+    //Правая панель(список всех Items)
     private void configureTree() {
         overlayRoot.layout(style -> style.fill());
         contentRoot.themeEnabled(false);
@@ -484,21 +497,41 @@ final class IsfBrowserOverlay {
         Box panel = browserPanel;
         panel.layout(style -> style
                 .position(PositionType.ABSOLUTE)
-                .right(8.0f)
-                .top(8.0f)
-                .size(176.0f, 200.0f)
-                .padding(4.0f));
-
+                .right(2.0f)
+                .padding(PANEL_PADDING)
+                .overflow(Overflow.HIDDEN)
+        );
         VBox column = new VBox();
         column.spacing(2.0f);
         column.layout(style -> style.fill());
-
         grid.spacing(0.0f);
         grid.layout(style -> style.widthPercent(100.0f).flexNone());
+
         itemScroll.scrollStep(18.0f);
+        itemScroll.scrollbarGap(1);
         itemScroll.layout(style -> style.widthPercent(100.0f).flexGrow(1.0f).flexShrink(1.0f));
 
+        search.themeEnabled(false);
+        search.boxVisualEnabled(true);
+        search.backgroundVisible(false);
+        search.borderVisible(false);
+        search.boxRenderer(new NineSliceBoxRenderer(
+                new MinecraftTextureHandle(
+                        ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/search_background_v2.png"),
+                        20, 20, TextureOptions.nearest()),
+                6.0f));
+        search.layout(style -> style
+                .widthPercent(100.0f)
+                .maxWidthPercent(100.0f)
+                .height(20.0f)
+                .padding(6.0f, 0.0f)
+                .flexShrink(0.0f)
+        );
+
         column.addChild(itemScroll);
+        column.addChild(search);
+        panel.borderVisible(false);
+        panel.backgroundVisible(false);
         panel.addChild(column);
         contentRoot.addChild(panel);
 
@@ -507,12 +540,13 @@ final class IsfBrowserOverlay {
         rebuild(false, 0.0f);
     }
 
+    //Левая панель(Избранные рецепты)
     private void configureBookmarksPanel() {
         Box panel = bookmarkPanel;
         panel.layout(style -> style.position(PositionType.ABSOLUTE)
                 .left(8.0f).top(8.0f).size(96.0f, 200.0f).padding(4.0f));
-        Label title = new Label("BOOKMARKS");
-        title.layout(style -> style.size(88.0f, 14.0f).flexNone());
+        panel.backgroundVisible(false);
+        panel.borderVisible(false);
         bookmarkGrid.spacing(0.0f);
         bookmarkGrid.layout(style -> style.widthPercent(100.0f).flexNone());
         bookmarkScroll.scrollStep(CELL);
@@ -520,24 +554,26 @@ final class IsfBrowserOverlay {
         VBox column = new VBox();
         column.spacing(2.0f);
         column.layout(style -> style.fill());
-        column.addChild(title);
         column.addChild(bookmarkScroll);
         panel.addChild(column);
         contentRoot.addChild(panel);
     }
 
+    //Панель содержащая рецепты выбранного предмета
     private void configureDetailPanel() {
         detailPanel.themeEnabled(false);
-        detailPanel.backgroundVisible(true);
-        detailPanel.borderVisible(true);
-        detailPanel.radius(3.0f);
-        detailPanel.background().set(0.063f, 0.078f, 0.106f, 0.94f);
-        detailPanel.borderColor().set(0.416f, 0.561f, 0.682f, 1.0f);
+        detailPanel.backgroundVisible(false);
+        detailPanel.borderVisible(false);
+        detailPanel.boxRenderer(new NineSliceBoxRenderer(
+                new MinecraftTextureHandle(
+                        ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/recipe_preview_background_v2.png"),
+                        64, 64, TextureOptions.nearest()),
+                4.0f));
         detailPanel.layout(style -> style
                 .position(PositionType.ABSOLUTE)
                 .left(104.0f)
                 .top(4.0f)
-                .size(206.0f, 150.0f)
+                .size(206.0f, 140.0f)
                 .padding(4.0f));
 
         VBox content = new VBox();
@@ -548,9 +584,18 @@ final class IsfBrowserOverlay {
         detailHeader.spacing(2.0f);
         detailHeader.layout(style -> style.widthPercent(100.0f).height(16.0f).flexNone());
         detailTitle.layout(style -> style.flexGrow(1.0f).flexShrink(1.0f));
+        detailTitle.background(0.5f,0.5f,0.5f,0.5f);
+        detailTitle.color().set(0,0,0,1);
+        detailPin.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/button_enabled_v2.png"),
+                20, 20, TextureOptions.nearest()),
+                4.0f));
         detailPin.text("P").textPadding(0.0f, 0.0f);
         detailPin.layout(style -> style.size(16.0f, 16.0f).flexNone());
         detailPin.onCheckedChanged(event -> setDetailPinned(event.newValue()));
+        detailClose.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/button_enabled_v2.png"),
+                20, 20, TextureOptions.nearest()),
+                4.0f));
+        detailClose.themeEnabled(false);
         detailClose.text("X").textPadding(0.0f, 0.0f);
         detailClose.layout(style -> style.size(16.0f, 16.0f).flexNone());
         detailClose.onClick(event -> closeDetail());
@@ -559,21 +604,38 @@ final class IsfBrowserOverlay {
         detailHeader.addChild(detailClose);
 
         // Зелёная зона: вкладки доступных RecipeType + стрелка прокрутки при переполнении.
-        tabRow.spacing(2.0f);
-        tabRow.layout(style -> style.widthPercent(100.0f).height(TAB_CELL).flexNone());
+        tabRow.backgroundRenderer(new NineSliceBoxRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/scrollbar_background_v2.png"),
+                20, 20, TextureOptions.nearest()),
+                4.0f));
+        tabRow.layout(style -> style
+                .width(SizeValue.auto())
+                .flexNone()
+                .padding(1)
+                .alignSelf(Align.START)
+        );
         tabNext.text(">").textPadding(0.0f, 0.0f);
         tabNext.layout(style -> style.size(16.0f, TAB_CELL).flexNone());
         tabNext.visibility(dev.sixik.unigui.api.widget.Visibility.COLLAPSED);
         tabRow.addChild(tabNext);
 
         // Кнопки страниц находятся под вкладками RecipeType, как в оригинальном JEI.
-        pagerRow.spacing(4.0f);
         pagerRow.layout(style -> style.widthPercent(100.0f).height(14.0f).flexNone()
                 .justifyContent(Justify.CENTER));
-        detailPage.layout(style -> style.width(48.0f).height(14.0f).flexNone());
+        detailPage.layout(style -> style.width(48.0f).height(14.0f).flexNone().horizontalAlignment(Alignment.CENTER));
+        detailPage.background(0.5f,0.5f,0.5f,0.5f);
+        detailPrevious.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/button_enabled_v2.png"),
+                20, 20, TextureOptions.nearest()),
+                4.0f));
+        detailPrevious.themeEnabled(false);
+        detailPrevious.textColor(1.0f, 1.0f, 1.0f, 1.0f);
         detailPrevious.text("<").textPadding(0.0f, 0.0f);
         detailPrevious.layout(style -> style.size(16.0f, 14.0f).flexNone());
         detailPrevious.onClick(event -> changeRecipePage(-1));
+        detailNext.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/button_enabled_v2.png"),
+                20, 20, TextureOptions.nearest()),
+                4.0f));
+        detailNext.themeEnabled(false);
+        detailNext.textColor(1.0f, 1.0f, 1.0f, 1.0f);
         detailNext.text(">").textPadding(0.0f, 0.0f);
         detailNext.layout(style -> style.size(16.0f, 14.0f).flexNone());
         detailNext.onClick(event -> changeRecipePage(1));
@@ -586,9 +648,20 @@ final class IsfBrowserOverlay {
         body.spacing(2.0f);
         body.layout(style -> style.widthPercent(100.0f).flexGrow(1.0f).flexShrink(1.0f));
         catalystColumn.spacing(RECIPE_GAP);
-        catalystColumn.layout(style -> style.width(CATALYST_CELL).flexNone());
+        catalystColumn.layout(style -> style
+                .width(SizeValue.auto())
+                .flexNone()
+                .padding(2)
+                .alignSelf(Align.START)
+        );
+        catalystColumn.backgroundRenderer(new NineSliceBoxRenderer(
+                new MinecraftTextureHandle(
+                        ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/scrollbar_background_v2.png"),
+                        14, 50, TextureOptions.nearest()),
+                4.0f));
         recipeArea.spacing(RECIPE_GAP);
-        recipeArea.layout(style -> style.widthPercent(100.0f).flexGrow(1.0f).flexShrink(1.0f));
+        recipeArea.layout(style -> style.widthPercent(100.0f).flexGrow(1.0f).flexShrink(1.0f).alignItems(Align.CENTER));
+
         body.addChild(catalystColumn);
         body.addChild(recipeArea);
 
@@ -780,13 +853,14 @@ final class IsfBrowserOverlay {
     }
 
     private Button itemCell(ItemEntry entry) {
-        Button cell = new Button();
+        Button cell = new IconButton();
         cell.textPadding(0.0f, 0.0f);
         cell.layout(style -> style.size(CELL, CELL).flexNone());
         cell.on(PointerEnteredEvent.TYPE, event -> hoveredEntry = entry);
         cell.on(PointerExitedEvent.TYPE, event -> {
             if (hoveredEntry == entry) hoveredEntry = null;
         });
+
         // ЛКМ по клетке = R: открываем из кэша и запрашиваем разблокировку на сервере,
         // иначе предметы, которые ещё ни разу не открывали, выглядели бы «без рецептов».
         cell.onClick(event -> showRecipes(entry.id(), false));
@@ -873,7 +947,7 @@ final class IsfBrowserOverlay {
             tabRow.clearChildren();
             List<TypeTab> tabs = new ArrayList<>();
             for (ResourceLocation typeId : order) {
-                Button tab = new Button();
+                IconButton tab = new IconButton();
                 tab.themeEnabled(false);
                 tab.backgroundVisible(true);
                 tab.borderVisible(true);
@@ -1015,7 +1089,7 @@ final class IsfBrowserOverlay {
             Item item = BuiltInRegistries.ITEM.get(catalyst.item());
             if (item == Items.AIR) continue;
             ItemStack stack = new ItemStack(item, Math.max(1, catalyst.count()));
-            Button cell = new Button();
+            IconButton cell = new IconButton();
             cell.themeEnabled(false);
             cell.backgroundVisible(true);
             cell.borderVisible(true);
@@ -1070,9 +1144,9 @@ final class IsfBrowserOverlay {
         return result;
     }
 
-    /** Синяя зона: строит страницы рецептов по высоте области просмотра. */
+    /** Синяя зона: строит страницы рецептов по высоте области просмотра (до 3 элементов). */
     private void rebuildRecipePages() {
-        rebuildRecipePages(currentAreaHeight());
+        rebuildRecipePages(maxRecipeAreaHeight());
     }
 
     private void rebuildRecipePages(float areaHeight) {
@@ -1086,9 +1160,10 @@ final class IsfBrowserOverlay {
         builtRecipes = List.copyOf(views);
         pageAreaHeight = areaHeight;
         recipePages = IsfRecipePaging.partitionByHeight(
-                views.stream().map(RecipeView::height).toList(), pageAreaHeight, RECIPE_GAP);
+                views.stream().map(RecipeView::height).toList(), pageAreaHeight, RECIPE_GAP, 3);
         recipePage = Math.max(0, Math.min(recipePage, Math.max(0, recipePages.size() - 1)));
         renderRecipePage();
+        updateDetailPanelHeight();
     }
 
     private void renderRecipePage() {
@@ -1166,21 +1241,54 @@ final class IsfBrowserOverlay {
         if (recipePages.size() < 2) return;
         recipePage = Math.floorMod(recipePage + direction, recipePages.size());
         renderRecipePage();
+        updateDetailPanelHeight();
     }
 
-    /** Высота зоны рецептов: размер панели минус фиксированные строки заголовка. */
-    private float currentAreaHeight() {
-        float panelHeight = detailPanel.layoutBounds().height();
-        float height = panelHeight - DETAIL_FIXED_HEIGHT;
-        return height > 0.0f ? height : FALLBACK_AREA_HEIGHT;
+    /** Суммарная высота рецептов на текущей странице (максимум до 3 рецептов). */
+    private float currentRecipePageHeight() {
+        if (recipePages.isEmpty() || recipePage >= recipePages.size()) return 20.0f;
+        List<Integer> page = recipePages.get(recipePage);
+        if (page.isEmpty()) return 20.0f;
+        float h = 0.0f;
+        for (int i = 0; i < page.size(); i++) {
+            int index = page.get(i);
+            if (index >= 0 && index < builtRecipes.size()) {
+                if (i > 0) h += RECIPE_GAP;
+                h += builtRecipes.get(index).height();
+            }
+        }
+        return Math.max(20.0f, h);
+    }
+
+    /** Максимальная высота области рецептов, доступная на экране. */
+    private float maxRecipeAreaHeight() {
+        Screen screen = net.minecraft.client.Minecraft.getInstance().screen;
+        float screenHeight = screen == null ? 240.0f : screen.height;
+        float margin = 4.0f;
+        float available = screenHeight - margin * 2.0f - DETAIL_FIXED_HEIGHT;
+        return Math.max(50.0f, available);
+    }
+
+    private void updateDetailPanelHeight() {
+        Screen screen = net.minecraft.client.Minecraft.getInstance().screen;
+        if (screen == null) return;
+        float pageContentHeight = currentRecipePageHeight();
+        int maxDetailHeight = Math.max(120, screen.height - 8);
+        int detailHeight = Math.min(maxDetailHeight, Math.round(DETAIL_FIXED_HEIGHT + pageContentHeight));
+        detailPanel.layout(style -> style.height(detailHeight));
+        if (detailPositionSet) {
+            float width = detailPanel.layoutStyle().width().value();
+            if (width <= 0.0f) width = detailPanel.layoutBounds().width();
+            if (width <= 0.0f) width = 206.0f;
+            moveDetailPanel(detailLeft, detailTop, width, detailHeight);
+        }
     }
 
     private static float measureHeight(IsfRecipeDefinition recipe) {
         Widget visual = IsfVisualWidgetFactory.create(recipe.visual(), recipe.parameters());
         if (visual == null) return 14.0f;
         try {
-            visual.measure(new LayoutContext(176.0f, 4096.0f));
-            float height = visual.desiredSize().height();
+            float height = IsfVisualWidgetFactory.adaptHeightToChildren(visual);
             return height > 0.0f ? height : FALLBACK_RECIPE_HEIGHT;
         } catch (RuntimeException ignored) {
             return FALLBACK_RECIPE_HEIGHT;
@@ -1283,15 +1391,27 @@ final class IsfBrowserOverlay {
             if (!(screen instanceof AbstractContainerScreen<?> container)) return;
             int width = screen.width;
             int height = screen.height;
-            int margin = 8;
+            int margin = 4;
             int guiLeft = container.getGuiLeft();
             int guiRight = Math.min(width - margin, guiLeft + imageWidth(container));
             int leftWidth = Math.max(0, guiLeft - margin * 2);
             int rightX = Math.min(width - margin, guiRight + margin);
             int rightWidth = Math.max(0, width - rightX - margin);
             int panelHeight = Math.max(0, height - margin * 2);
-            bookmarkPanel.layout(style -> style.left(margin).top(margin).size(leftWidth, panelHeight));
-            browserPanel.layout(style -> style.left(rightX).top(margin).size(rightWidth, panelHeight));
+            bookmarkPanel.layout(style -> style
+                    .position(PositionType.ABSOLUTE)
+                    .left(margin)
+                    .top(margin)
+                    .size(leftWidth, panelHeight));
+            browserPanel.layout(style -> style
+                    .position(PositionType.ABSOLUTE)
+                    .left(rightX)
+                    .top(margin)
+                    .right((SizeValue) null)
+                    .bottom((SizeValue) null)
+                    .size(rightWidth, panelHeight)
+                    .padding(PANEL_PADDING)
+                    .overflow(Overflow.HIDDEN));
 
             float itemContentWidth = Math.max(0.0f,
                     rightWidth - PANEL_PADDING * 2.0f
@@ -1311,23 +1431,26 @@ final class IsfBrowserOverlay {
             }
             if (selectedEntry != null) {
                 int detailWidth = Math.min(240, Math.max(206, width - margin * 2));
-                int detailHeight = Math.min(290, Math.max(150, height - margin * 2));
+                int maxAvailableHeight = Math.max(120, height - margin * 2);
+                float maxAreaHeight = Math.max(50.0f, maxAvailableHeight - DETAIL_FIXED_HEIGHT);
+
+                if (Math.abs(maxAreaHeight - pageAreaHeight) > 0.5f) {
+                    rebuildRecipePages(maxAreaHeight);
+                }
+
+                float pageContentHeight = currentRecipePageHeight();
+                int detailHeight = Math.min(maxAvailableHeight, Math.round(DETAIL_FIXED_HEIGHT + pageContentHeight));
+
                 if (!detailPositionSet) {
-                    detailLeft = (width - detailWidth) * 0.5f;
-                    detailTop = (height - detailHeight) * 0.5f;
+                    detailLeft = Math.max(margin, Math.min(width - detailWidth - margin, (width - detailWidth) * 0.5f));
+                    detailTop = Math.max(margin, Math.min(height - detailHeight - margin, (height - detailHeight) * 0.5f));
                     detailPositionSet = true;
                     detailPanel.layout(style -> style.left(detailLeft)
                             .top(detailTop)
                             .size(detailWidth, detailHeight));
                 } else {
                     detailPanel.layout(style -> style.size(detailWidth, detailHeight));
-                    moveDetailPanel(detailLeft, detailTop);
-                }
-                // Пересобираем страницы только когда реально изменился размер окна,
-                // а не по высоте контента — иначе возникает feedback-цикл пересборок.
-                float areaHeight = detailHeight - DETAIL_FIXED_HEIGHT;
-                if (Math.abs(areaHeight - pageAreaHeight) > 0.5f) {
-                    rebuildRecipePages(areaHeight);
+                    moveDetailPanel(detailLeft, detailTop, detailWidth, detailHeight);
                 }
             }
         }

@@ -250,6 +250,9 @@ public class Box extends PanelWidget {
     public Box boxRenderer(BoxRenderer boxRenderer) {
         if (this.boxRenderer == boxRenderer) return this;
         this.boxRenderer = boxRenderer;
+        if (boxRenderer != null) {
+            this.boxVisualEnabled = true;
+        }
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }

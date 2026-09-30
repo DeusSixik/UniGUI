@@ -1,5 +1,9 @@
 package dev.sixik.unigui.backend.minecraft_impl;
 
+import dev.sixik.unigui.api.core.UIContext;
+import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.widgets.interaction.TextArea;
+import dev.sixik.unigui.widgets.interaction.TextInput;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.client.gui.GuiGraphics;
 
@@ -172,6 +176,25 @@ final class MinecraftRenderLayerRegistry<C> {
             if (registration.shouldRender(context)
                     && registration.layer().charTyped(codePoint, modifiers)) {
                 return true;
+            }
+        }
+        return false;
+    }
+
+    boolean isInputFocused(C context) {
+        Object[] current = snapshot;
+        for (int i = current.length - 1; i >= 0; i--) {
+            @SuppressWarnings("unchecked")
+            MinecraftRenderLayerRegistration<C> registration =
+                    (MinecraftRenderLayerRegistration<C>) current[i];
+            if (registration.shouldRender(context)) {
+                UIContext uiContext = registration.layer().uiContext();
+                if (uiContext != null) {
+                    Widget focused = uiContext.focusManager().focusedWidget();
+                    if (focused instanceof TextInput || focused instanceof TextArea) {
+                        return true;
+                    }
+                }
             }
         }
         return false;

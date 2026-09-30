@@ -956,7 +956,7 @@ public class TextArea extends Box {
                 }
                 yield true;
             }
-            default -> false;
+            default -> !KeyCodes.isFunctionKey(keyCode);
         };
     }
 
@@ -991,7 +991,7 @@ public class TextArea extends Box {
                 moveCursor(text().length(), extendSelection);
                 yield true;
             }
-            default -> false;
+            default -> !KeyCodes.isFunctionKey(keyCode);
         };
     }
 

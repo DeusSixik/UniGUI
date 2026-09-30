@@ -516,11 +516,11 @@ public class TextInput extends Box {
     }
 
     protected float leftTextPadding() {
-        return TEXT_PADDING;
+        return Math.max(TEXT_PADDING, layoutStyle().padding().left());
     }
 
     protected float rightTextPadding() {
-        return TEXT_PADDING;
+        return Math.max(TEXT_PADDING, layoutStyle().padding().right());
     }
 
     protected float textViewportX() {
@@ -649,7 +649,7 @@ public class TextInput extends Box {
 
     private boolean handleKey(int keyCode, int modifiers) {
         if (KeyModifiers.has(modifiers, KeyModifiers.CONTROL)) {
-            return handleControlKey(keyCode);
+            return handleControlKey(keyCode, modifiers);
         }
 
         boolean extendSelection = KeyModifiers.has(modifiers, KeyModifiers.SHIFT);
@@ -687,14 +687,36 @@ public class TextInput extends Box {
                 }
                 yield true;
             }
-            default -> false;
+            case KeyCodes.TAB -> false;
+            default -> !KeyCodes.isFunctionKey(keyCode);
         };
     }
 
-    private boolean handleControlKey(int keyCode) {
+    private boolean handleControlKey(int keyCode, int modifiers) {
+        boolean extendSelection = KeyModifiers.has(modifiers, KeyModifiers.SHIFT);
         return switch (keyCode) {
             case KeyCodes.BACKSPACE -> {
                 backspaceWord();
+                yield true;
+            }
+            case KeyCodes.DELETE -> {
+                deleteWord();
+                yield true;
+            }
+            case KeyCodes.LEFT -> {
+                moveCursor(editor.previousWordBoundary(cursorIndex()), extendSelection);
+                yield true;
+            }
+            case KeyCodes.RIGHT -> {
+                moveCursor(editor.nextWordBoundary(cursorIndex()), extendSelection);
+                yield true;
+            }
+            case KeyCodes.HOME -> {
+                moveCursor(0, extendSelection);
+                yield true;
+            }
+            case KeyCodes.END -> {
+                moveCursor(text().length(), extendSelection);
                 yield true;
             }
             case KeyCodes.A -> {
@@ -713,7 +735,7 @@ public class TextInput extends Box {
                 pasteClipboard();
                 yield true;
             }
-            default -> false;
+            default -> !KeyCodes.isFunctionKey(keyCode);
         };
     }
 
@@ -737,6 +759,12 @@ public class TextInput extends Box {
 
     private void delete() {
         if (editor.delete()) {
+            invalidate(InvalidationFlags.VISUAL);
+        }
+    }
+
+    private void deleteWord() {
+        if (editor.deleteWord()) {
             invalidate(InvalidationFlags.VISUAL);
         }
     }

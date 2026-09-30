@@ -168,7 +168,7 @@ public final class XmlWidgetAnnotations {
                 .thenComparing(method -> method.getDeclaringClass().getName())
                 .thenComparing(method -> Integer.toString(method.getParameterCount())));
         for (Method method : methods) {
-            XmlAttribute annotation = method.getAnnotation(XmlAttribute.class);
+            XmlAttribute annotation = findXmlAttribute(method);
             if (annotation == null || annotation.value().isBlank()) continue;
             if (Modifier.isStatic(method.getModifiers()) || method.getParameterCount() != 1) continue;
             String name = annotation.value().trim();
@@ -388,7 +388,7 @@ public final class XmlWidgetAnnotations {
     }
 
     private static <T extends Widget> void registerAnnotatedAttribute(XmlWidgetType<T> registered, Method method) {
-        XmlAttribute annotation = method.getAnnotation(XmlAttribute.class);
+        XmlAttribute annotation = findXmlAttribute(method);
         if (annotation == null || annotation.value().isBlank()) return;
         if (Modifier.isStatic(method.getModifiers()) || method.getParameterCount() != 1) return;
 
@@ -402,7 +402,7 @@ public final class XmlWidgetAnnotations {
     private static <T extends Widget> void registerImplAnnotatedAttribute(
             WidgetXmlType<T> registered,
             Method method) {
-        XmlAttribute annotation = method.getAnnotation(XmlAttribute.class);
+        XmlAttribute annotation = findXmlAttribute(method);
         if (annotation == null || annotation.value().isBlank()) return;
         if (Modifier.isStatic(method.getModifiers()) || method.getParameterCount() != 1) return;
 
@@ -518,13 +518,36 @@ public final class XmlWidgetAnnotations {
                 .thenComparing(method -> Integer.toString(method.getParameterCount())));
         Map<String, Method> setters = new LinkedHashMap<>();
         for (Method method : methods) {
-            XmlAttribute annotation = method.getAnnotation(XmlAttribute.class);
+            XmlAttribute annotation = findXmlAttribute(method);
             if (annotation == null || annotation.value().isBlank()) continue;
             if (Modifier.isStatic(method.getModifiers()) || method.getParameterCount() != 1) continue;
             if (!supportsParser(method.getParameterTypes()[0])) continue;
             setters.putIfAbsent(annotation.value().trim(), method);
         }
         return List.copyOf(setters.values());
+    }
+
+    private static XmlAttribute findXmlAttribute(Method method) {
+        XmlAttribute annotation = method.getAnnotation(XmlAttribute.class);
+        if (annotation != null) return annotation;
+        Class<?> declaring = method.getDeclaringClass();
+        for (Class<?> current = declaring.getSuperclass(); current != null; current = current.getSuperclass()) {
+            try {
+                Method superMethod = current.getMethod(method.getName(), method.getParameterTypes());
+                annotation = superMethod.getAnnotation(XmlAttribute.class);
+                if (annotation != null) return annotation;
+            } catch (NoSuchMethodException ignored) {
+            }
+        }
+        for (Class<?> iface : declaring.getInterfaces()) {
+            try {
+                Method ifaceMethod = iface.getMethod(method.getName(), method.getParameterTypes());
+                annotation = ifaceMethod.getAnnotation(XmlAttribute.class);
+                if (annotation != null) return annotation;
+            } catch (NoSuchMethodException ignored) {
+            }
+        }
+        return null;
     }
 
     private static XmlValueParser<?> parserFor(Class<?> type) {

@@ -22,6 +22,15 @@ configurations {
     compileClasspath.extendsFrom uniguiCommon
     runtimeClasspath.extendsFrom uniguiCommon
     developmentForge.extendsFrom uniguiCommon
+
+    uniguiForge {
+        canBeResolved = true
+        canBeConsumed = false
+    }
+    compileClasspath.extendsFrom uniguiForge
+    runtimeClasspath.extendsFrom uniguiForge
+    // NOTE: do NOT extend developmentForge — Architectury Transformer already injects
+    // unigui-forge-dev.jar at runtime; adding it again causes split package in JPMS
 }
 
 sourceSets {
@@ -37,7 +46,7 @@ dependencies {
     uniguiCommon(project(path: "${versionProject.path}:common", configuration: 'namedElements')) {
         transitive false
     }
-    modImplementation(project(path: "${versionProject.path}:forge", configuration: 'namedElements')) {
+    uniguiForge(project(path: "${versionProject.path}:forge", configuration: 'namedElements')) {
         transitive false
     }
 }

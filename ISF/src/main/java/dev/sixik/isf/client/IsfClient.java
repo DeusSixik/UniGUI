@@ -1,5 +1,6 @@
 package dev.sixik.isf.client;
 
+import dev.sixik.unigui.backend.minecraft_impl.ScreenOverlayRender;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -34,8 +35,10 @@ public final class IsfClient {
     }
 
     private static void keyPressed(ScreenEvent.KeyPressed.Pre event) {
+        if (event.isCanceled()) return;
         if (!(event.getScreen() instanceof AbstractContainerScreen<?> container)) return;
         if (event.getScreen().getFocused() instanceof EditBox) return;
+        if (ScreenOverlayRender.isTextInputActive(container)) return;
         if (event.getKeyCode() == org.lwjgl.glfw.GLFW.GLFW_KEY_A) {
             // A над предметом в сетке крафта — закладка на него; иначе — на клетку списка.
             ResourceLocation recipeItem = OVERLAY.recipeItemAt();
