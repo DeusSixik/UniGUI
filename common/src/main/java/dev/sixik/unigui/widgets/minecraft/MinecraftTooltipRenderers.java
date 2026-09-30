@@ -8,6 +8,7 @@ import dev.sixik.unigui.widgets.feedback.Tooltip;
 import dev.sixik.unigui.widgets.render.TooltipRenderer;
 import dev.sixik.unigui.widgets.render.TooltipState;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.item.ItemStack;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -77,6 +78,32 @@ public final class MinecraftTooltipRenderers {
             draw.addCallback(backend -> {
                 if (backend instanceof MinecraftGuiRenderBackend minecraftBackend) {
                     minecraftBackend.renderVanillaTooltip(tooltipStack, mouseX, mouseY);
+                }
+            });
+        };
+    }
+
+    /**
+     * Ванильный тултип «Принимает:» со сеткой предметных моделей: заголовок и под
+     * ним модели стеков по {@code columns} в ряд. Имена предметов не выводятся —
+     * только модели. Модели рисует компонент, переданный через
+     * {@code componentSupplier} (маркер
+     * {@link TooltipComponent}, который
+     * конвертируется клиентской фабрикой мода).
+     */
+    public static TooltipRenderer acceptsGrid(List<ItemStack> stacks,
+                                              Supplier<TooltipComponent> componentSupplier) {
+        List<ItemStack> fixed = stacks == null ? List.of() : List.copyOf(stacks);
+        return (draw, state) -> {
+            if (fixed.isEmpty()) return;
+            List<Component> lines = new ObjectArrayList<>();
+            lines.add(Component.translatable("isf.tooltip.accepts"));
+            TooltipComponent component = componentSupplier.get();
+            int mouseX = vanillaMouseX(state);
+            int mouseY = vanillaMouseY(state);
+            draw.addCallback(backend -> {
+                if (backend instanceof MinecraftGuiRenderBackend minecraftBackend) {
+                    minecraftBackend.renderVanillaTooltipWithComponent(lines, component, mouseX, mouseY);
                 }
             });
         };

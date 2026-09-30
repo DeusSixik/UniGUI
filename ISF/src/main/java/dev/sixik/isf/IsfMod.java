@@ -41,8 +41,11 @@ public final class IsfMod {
         MinecraftForge.EVENT_BUS.addListener(this::onUseItem);
         MinecraftForge.EVENT_BUS.addListener(this::onUseBlock);
         MinecraftForge.EVENT_BUS.addListener(this::onPlayerLogin);
-        DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () ->
-                dev.sixik.isf.client.IsfClient.init());
+        DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> {
+            dev.sixik.isf.client.IsfClient.init(
+                    net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext.get()
+                            .getModEventBus());
+        });
     }
 
     public static IsfRuntime runtime() {

@@ -32,6 +32,8 @@ final class IsfItemButton extends Button {
     private final List<ItemStack> stacks;
     private final IsfItemIconWidget icon;
     private final List<Component> tooltipLines;
+    /** {@code true} — тег-ингредиент: тултип рисуется сеткой моделей («Принимает:»). */
+    private final boolean acceptsGrid;
     private int shownIndex;
     private long nextCycleMillis;
 
@@ -52,7 +54,10 @@ final class IsfItemButton extends Button {
         this.itemIds = List.copyOf(itemIds);
         this.stacks = List.copyOf(stacks);
         this.icon = new IsfItemIconWidget(this.stacks.get(0));
-        this.tooltipLines = stacks.size() > 1 ? buildLines(stacks) : null;
+        // Тег (несколько альтернатив) рисуется как «Принимает:» + сетка моделей,
+        // одиночный предмет — обычный ванильный item tooltip.
+        this.tooltipLines = null;
+        this.acceptsGrid = stacks.size() > 1;
         // Сдвиг фазы, чтобы соседние клетки переключались не синхронно.
         this.nextCycleMillis = System.currentTimeMillis()
                 + phaseOffset(itemIds.get(0));
@@ -75,15 +80,6 @@ final class IsfItemButton extends Button {
 
     private static long phaseOffset(ResourceLocation id) {
         return Math.floorMod(id.hashCode(), (int) CYCLE_MILLIS);
-    }
-
-    private static List<Component> buildLines(List<ItemStack> stacks) {
-        List<Component> lines = new ArrayList<>();
-        lines.add(Component.translatable("isf.tooltip.accepts"));
-        for (ItemStack stack : stacks) {
-            lines.add(stack.getHoverName());
-        }
-        return List.copyOf(lines);
     }
 
     @Override
@@ -121,5 +117,15 @@ final class IsfItemButton extends Button {
     /** Строки тултипа для клеток с несколькими альтернативами; {@code null} — обычный item tooltip. */
     List<Component> tooltipLines() {
         return tooltipLines;
+    }
+
+    /** {@code true}, если тултип клетки нужно рисовать сеткой моделей («Принимает:»). */
+    boolean acceptsGrid() {
+        return acceptsGrid;
+    }
+
+    /** Все варианты тега-ингредиента для сетки тултипа. */
+    List<ItemStack> acceptsStacks() {
+        return stacks;
     }
 }

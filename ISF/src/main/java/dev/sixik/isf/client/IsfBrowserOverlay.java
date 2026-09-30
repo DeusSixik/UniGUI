@@ -1379,7 +1379,12 @@ final class IsfBrowserOverlay {
         for (IsfItemButton button : collected) {
             recipeItemButtons.add(button);
             MinecraftItemTooltip tooltip = new MinecraftItemTooltip(button, button.stack());
-            if (button.tooltipLines() != null) {
+            if (button.acceptsGrid()) {
+                // Тег-ингредиент: «Принимает:» + сетка моделей вариантов.
+                tooltip.renderer(dev.sixik.unigui.widgets.minecraft.MinecraftTooltipRenderers
+                        .acceptsGrid(button.acceptsStacks(),
+                                () -> new IsfAcceptsTooltipData(button.acceptsStacks())));
+            } else if (button.tooltipLines() != null) {
                 tooltip.renderer(dev.sixik.unigui.widgets.minecraft.MinecraftTooltipRenderers
                         .vanilla(button.tooltipLines()));
             }

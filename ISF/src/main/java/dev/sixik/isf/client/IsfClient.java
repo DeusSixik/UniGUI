@@ -15,7 +15,12 @@ public final class IsfClient {
     private IsfClient() {
     }
 
-    public static void init() {
+    public static void init(net.minecraftforge.eventbus.api.IEventBus modEventBus) {
+        if (modEventBus != null) {
+            // Клиентская фабрика tooltip-компонентов — IModBusEvent, регистрируется
+            // до первого тултипа с нашей сеткой моделей.
+            modEventBus.addListener(IsfClient::onRegisterTooltipComponents);
+        }
         OVERLAY.register();
         MinecraftForge.EVENT_BUS.addListener(IsfClient::keyPressed);
         MinecraftForge.EVENT_BUS.addListener(IsfClient::screenClosed);
@@ -31,7 +36,17 @@ public final class IsfClient {
         OVERLAY.updatePointerPosition(event.getMouseX(), event.getMouseY());
     }
 
-    private static void keyPressed(ScreenEvent.KeyPressed.Pre event) {
+    /**
+     * Регистрирует клиентскую фабрику tooltip-компонентов: маркер
+     * {@link IsfAcceptsTooltipData} конвертируется в рисующий
+     * {@code ClientTooltipComponent} (сетка моделей вариантов тега).
+     */
+    private static void onRegisterTooltipComponents(
+            net.minecraftforge.client.event.RegisterClientTooltipComponentFactoriesEvent event) {
+        event.register(IsfAcceptsTooltipData.class, data ->
+                new IsfAcceptsTooltipData.GridComponent(data,
+                        net.minecraft.client.Minecraft.getInstance().font));
+    }    private static void keyPressed(ScreenEvent.KeyPressed.Pre event) {
         if (event.isCanceled()) return;
         if (!(event.getScreen() instanceof AbstractContainerScreen<?> container)) return;
         if (event.getScreen().getFocused() instanceof EditBox) return;

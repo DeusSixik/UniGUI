@@ -247,6 +247,38 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         renderVanillaTooltip(stack, x, y);
     }
 
+    /**
+     * Рисует ванильный тултип с прикреплённым image-компонентом: текстовые строки
+     * сверху, под ними произвольный визуал (например, сетка предметных моделей).
+     * Компонент должен быть зарегистрирован в
+     * {@code RegisterClientTooltipComponentFactoriesEvent} на стороне мода.
+     */
+    public void renderVanillaTooltipWithComponent(List<Component> lines,
+                                                  net.minecraft.world.inventory.tooltip.TooltipComponent component,
+                                                  float x, float y) {
+        if (component == null) {
+            renderVanillaTooltip(lines, x, y);
+            return;
+        }
+        graphics.flush();
+        RenderState state = RenderState.capture();
+        try {
+            RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+            RenderSystem.enableBlend();
+            MinecraftUiBlend.applyStraightAlpha(activeRenderTarget != null);
+            RenderSystem.disableDepthTest();
+            RenderSystem.depthMask(false);
+            graphics.renderTooltip(minecraft.font,
+                    lines == null ? java.util.List.of() : lines,
+                    java.util.Optional.of(component),
+                    round(x), round(y));
+            graphics.flush();
+        } finally {
+            RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+            state.restore();
+        }
+    }
+
     public void renderVanillaTooltip(ItemStack stack, float x, float y) {
         if (stack == null || stack.isEmpty()) return;
 
