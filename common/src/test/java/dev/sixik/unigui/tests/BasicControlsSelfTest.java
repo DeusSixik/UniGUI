@@ -1055,6 +1055,11 @@ public final class BasicControlsSelfTest {
         uiContext.routedEvents().dispatch(new KeyPressedEvent(field, KeyCodes.BACKSPACE, 0, 0));
         expect(field.text().equals("Ab"), "TextField should backspace before cursor");
 
+        boolean consumedTypingKey = uiContext.routedEvents().dispatch(new KeyPressedEvent(field, KeyCodes.W, 0, 0));
+        expect(consumedTypingKey, "TextField should consume typing/control keys while focused");
+        boolean consumedFunctionKey = uiContext.routedEvents().dispatch(new KeyPressedEvent(field, KeyCodes.F2, 0, 0));
+        expect(!consumedFunctionKey, "TextField should not consume function keys while focused");
+
         uiContext.routedEvents().dispatch(new KeyPressedEvent(field, KeyCodes.ESCAPE, 0, 0));
         expect(!field.focused(), "TextField should blur on Escape");
         expect(uiContext.focusManager().focusedWidget() == null, "FocusManager should clear after Escape");

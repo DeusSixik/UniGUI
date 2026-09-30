@@ -6,9 +6,13 @@ public final class KeyCodes {
     public static final int ESCAPE = 256;
     public static final int SPACE = 32;
     public static final int A = 65;
-    public static final int S = 83;
     public static final int C = 67;
     public static final int D = 68;
+    public static final int E = 69;
+    public static final int Q = 81;
+    public static final int R = 82;
+    public static final int S = 83;
+    public static final int U = 85;
     public static final int V = 86;
     public static final int W = 87;
     public static final int X = 88;
@@ -24,8 +28,23 @@ public final class KeyCodes {
     public static final int PAGE_DOWN = 267;
     public static final int HOME = 268;
     public static final int END = 269;
+    public static final int F1 = 290;
     public static final int F2 = 291;
+    public static final int F3 = 292;
+    public static final int F4 = 293;
+    public static final int F5 = 294;
+    public static final int F6 = 295;
+    public static final int F7 = 296;
+    public static final int F8 = 297;
+    public static final int F9 = 298;
+    public static final int F10 = 299;
+    public static final int F11 = 300;
+    public static final int F12 = 301;
     public static final int KEYPAD_ENTER = 335;
+
+    public static boolean isFunctionKey(int keyCode) {
+        return keyCode >= 290 && keyCode <= 314;
+    }
 
     private KeyCodes() {
     }

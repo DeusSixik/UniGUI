@@ -86,6 +86,11 @@ public final class ScreenOverlayRender {
         return screen != null && REGISTRY.hasVisibleEntries(screen);
     }
 
+    /** @return {@code true}, если в overlay-слоях для экрана есть виджет с фокусом ввода текста */
+    public static boolean isTextInputActive(Screen screen) {
+        return screen != null && REGISTRY.isInputFocused(screen);
+    }
+
     /** Внутренняя точка вызова из Screen hook. */
     public static void render(Screen screen, GuiGraphics graphics,
                               int mouseX, int mouseY, float partialTick) {

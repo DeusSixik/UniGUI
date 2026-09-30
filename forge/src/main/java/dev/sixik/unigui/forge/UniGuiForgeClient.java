@@ -6,6 +6,7 @@ import dev.sixik.unigui.forge.custom_renders.ForgeMinecraftRendererPlatformHook;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraftforge.client.event.ScreenEvent;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.eventbus.api.EventPriority;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -22,9 +23,9 @@ public final class UniGuiForgeClient {
         MinecraftForge.EVENT_BUS.addListener(UniGuiForgeClient::mouseReleased);
         MinecraftForge.EVENT_BUS.addListener(UniGuiForgeClient::mouseDragged);
         MinecraftForge.EVENT_BUS.addListener(UniGuiForgeClient::mouseScrolled);
-        MinecraftForge.EVENT_BUS.addListener(UniGuiForgeClient::keyPressed);
+        MinecraftForge.EVENT_BUS.addListener(EventPriority.HIGHEST, UniGuiForgeClient::keyPressed);
         MinecraftForge.EVENT_BUS.addListener(UniGuiForgeClient::keyReleased);
-        MinecraftForge.EVENT_BUS.addListener(UniGuiForgeClient::characterTyped);
+        MinecraftForge.EVENT_BUS.addListener(EventPriority.HIGHEST, UniGuiForgeClient::characterTyped);
     }
 
     private static void mousePressed(ScreenEvent.MouseButtonPressed.Pre event) {

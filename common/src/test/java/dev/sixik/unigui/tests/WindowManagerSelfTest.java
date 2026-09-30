@@ -1,9 +1,11 @@
 package dev.sixik.unigui.tests;
 
 import dev.sixik.unigui.api.event.EventPhase;
+import dev.sixik.unigui.api.event.KeyPressedEvent;
 import dev.sixik.unigui.api.event.ModalOpenedEvent;
 import dev.sixik.unigui.api.event.WindowOpenedEvent;
 import dev.sixik.unigui.api.event.WindowResizedEvent;
+import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableRect;
@@ -222,6 +224,11 @@ public final class WindowManagerSelfTest {
         expect(!inputWindow.dragging()
                         && context.capturedPointer(23) != inputWindow,
                 "Pressing a TextInput in a window body should not start window dragging");
+        expect(input.focused(), "TextInput should be focused after click");
+        boolean consumedE = context.routedEvents().dispatch(new KeyPressedEvent(input, KeyCodes.E, 0, 0));
+        expect(consumedE, "TextInput should consume control/gameplay keys while focused");
+        boolean consumedF2 = context.routedEvents().dispatch(new KeyPressedEvent(input, KeyCodes.F2, 0, 0));
+        expect(!consumedF2, "TextInput should not consume function keys while focused");
     }
 
     private void testFixedModalBlocksDraggingAndResizing() {

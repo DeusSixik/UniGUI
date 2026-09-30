@@ -160,6 +160,15 @@ public final class TextEditorModel {
         return setText(text.substring(0, cursorIndex) + text.substring(next), true);
     }
 
+    public boolean deleteWord() {
+        if (deleteSelectionIfNeeded()) return true;
+        if (cursorIndex >= text.length() || text.isEmpty()) return false;
+        int end = nextWordBoundary(cursorIndex);
+        if (end == cursorIndex) return false;
+        String nextText = text.substring(0, cursorIndex) + text.substring(end);
+        return setText(nextText, true);
+    }
+
     public boolean deleteSelectionIfNeeded() {
         if (!hasSelection()) return false;
         return insertText("");
@@ -214,7 +223,7 @@ public final class TextEditorModel {
         return true;
     }
 
-    private int previousWordBoundary(int index) {
+    public int previousWordBoundary(int index) {
         int position = clampToCodePointBoundary(text, index);
         while (position > 0) {
             int previous = text.offsetByCodePoints(position, -1);
@@ -232,6 +241,26 @@ public final class TextEditorModel {
             if (Character.isWhitespace(codePoint)) break;
             if (isWordCodePoint(codePoint) != word) break;
             position = previous;
+        }
+        return position;
+    }
+
+    public int nextWordBoundary(int index) {
+        int position = clampToCodePointBoundary(text, index);
+        int length = text.length();
+        while (position < length) {
+            int codePoint = text.codePointAt(position);
+            if (!Character.isWhitespace(codePoint)) break;
+            position = text.offsetByCodePoints(position, 1);
+        }
+        if (position >= length) return length;
+
+        int codePoint = text.codePointAt(position);
+        boolean word = isWordCodePoint(codePoint);
+        while (position < length) {
+            int cp = text.codePointAt(position);
+            if (Character.isWhitespace(cp) || isWordCodePoint(cp) != word) break;
+            position = text.offsetByCodePoints(position, 1);
         }
         return position;
     }
