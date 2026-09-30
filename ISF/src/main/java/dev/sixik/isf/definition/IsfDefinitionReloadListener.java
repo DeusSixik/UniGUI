@@ -55,6 +55,10 @@ public final class IsfDefinitionReloadListener extends SimpleJsonResourceReloadL
                 .comparing(IsfRecipeDefinition::resultItemId,
                         java.util.Comparator.nullsLast(java.util.Comparator.comparing(ResourceLocation::toString)))
                 .thenComparing(recipe -> recipe.id().toString()));
+        // Loot tables генерируются на этапе релоада: тот же ResourceManager, что и
+        // у датапак-определений, поэтому таблицы модов тоже попадают в индекс.
+        types.add(dev.sixik.isf.importer.LootTableSupports.lootTypeDefinition());
+        recipes.addAll(dev.sixik.isf.importer.LootTableSupports.generate(resourceManager));
         registry.replace(types, recipes);
         LOGGER.info("Loaded {} ISF recipe types and {} visual recipes", types.size(), recipes.size());
     }

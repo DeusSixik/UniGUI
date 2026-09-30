@@ -1249,10 +1249,21 @@ final class IsfBrowserOverlay {
         rebuildRecipePages();
     }
 
-    /** Красная зона: катализаторы (блоки/предметы, на которых выполняется крафт). */
+    /** Красная зона: катализаторы. Для LootTable-типа колонка скрыта целиком. */
     private void rebuildCatalysts() {
         catalystColumn.clearChildren();
         clearCatalystTooltips();
+        // У таблиц добычи нет станции: красная колонка не нужна — схлопываем её,
+        // чтобы рецепты занимали всю ширину окна.
+        boolean hideCatalysts = dev.sixik.isf.importer.LootTableSupports.LOOT_TYPE_ID
+                .equals(selectedTypeId);
+        catalystColumn.visibility(hideCatalysts
+                ? dev.sixik.unigui.api.widget.Visibility.COLLAPSED
+                : dev.sixik.unigui.api.widget.Visibility.VISIBLE);
+        if (hideCatalysts) {
+            catalystCells = List.of();
+            return;
+        }
         List<IsfCatalystDefinition> catalysts = selectedTypeId == null
                 ? List.of()
                 : IsfClientState.typeCatalysts().getOrDefault(selectedTypeId, List.of());
@@ -1384,6 +1395,13 @@ final class IsfBrowserOverlay {
                 tooltip.renderer(dev.sixik.unigui.widgets.minecraft.MinecraftTooltipRenderers
                         .acceptsGrid(button.acceptsStacks(),
                                 () -> new IsfAcceptsTooltipData(button.acceptsStacks())));
+            } else if (button.extraTooltipLines() != null && !button.extraTooltipLines().isEmpty()) {
+                // Условие выпадения лута: vanilla-тултип предмета + строки условий.
+                List<net.minecraft.network.chat.Component> lines = new ArrayList<>();
+                lines.add(button.stack().getHoverName());
+                lines.addAll(button.extraTooltipLines());
+                tooltip.renderer(dev.sixik.unigui.widgets.minecraft.MinecraftTooltipRenderers
+                        .vanilla(lines));
             } else if (button.tooltipLines() != null) {
                 tooltip.renderer(dev.sixik.unigui.widgets.minecraft.MinecraftTooltipRenderers
                         .vanilla(button.tooltipLines()));

@@ -8,6 +8,7 @@ import dev.sixik.isf.definition.IsfVisualNode;
 import dev.sixik.isf.runtime.IsfEvaluationContext;
 import dev.sixik.isf.runtime.IsfExpressionEvaluator;
 import dev.sixik.unigui.api.layout.Align;
+import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.Justify;
 import dev.sixik.unigui.api.layout.PositionType;
@@ -79,6 +80,9 @@ final class IsfVisualWidgetFactory {
             case "unigui:texture", "isf:texture", "texture" -> textureWidget(node);
             case "unigui:progress_bar", "unigui:progressbar", "progress_bar" -> new ProgressBar();
             case "isf:ingredient_grid", "ingredient_grid" -> ingredientGrid(node);
+            case "isf:loot_grid", "loot_grid" -> lootGrid(node);
+            case "isf:loot_scroll", "loot_scroll" -> lootScroll(node);
+            case "isf:entity_or_item", "entity_or_item" -> entityOrItem(node);
             default -> {
                 Label unsupported = new Label("Unknown visual widget: " + node.widget());
                 unsupported.color(MutableColor.fromHex("#FF6B6BFF"));
@@ -184,9 +188,193 @@ final class IsfVisualWidgetFactory {
         return grid;
     }
 
+    /**
+     * Тело окна добычи: сетка дропа (5 колонок, шанс под моделью) в вертикальном
+     * скролле. Высота скролла подстраивается под контент: показывается максимум
+     * 3 строки, при меньшем числе дропов высота меньше — «пустой» прокрутки нет.
+     * Полоса невидима, пока контент влезает, и тонкая при переполнении.
+     */
+    private WidgetBase lootScroll(IsfVisualNode node) {
+        GridBox grid = lootGrid(node);
+        // Grid уже имеет точную высоту rows * CELL_ROW, поэтому ScrollView не
+        // растягивает строки и не создаёт пустые промежуточные линии.
+        grid.applyQueuedMutations();
+        grid.measure(new dev.sixik.unigui.api.layout.LayoutContext(140.0f, 4096.0f));
+        float contentHeight = Math.max(28.0f, grid.desiredSize().height());
+        float scrollHeight = Math.min(84.0f, contentHeight);
+        dev.sixik.unigui.widgets.containers.ScrollView scroll =
+                new dev.sixik.unigui.widgets.containers.ScrollView(grid);
+        scroll.scrollStep(CELL + 10.0f);
+        scroll.scrollbarGap(1);
+        scroll.scrollbarSize(4.0f);
+        scroll.scrollingEnabled(contentHeight > scrollHeight + 0.01f);
+        scroll.layout(style -> style
+                .widthPercent(100.0f)
+                .height(scrollHeight)
+                .flexNone()
+                .overflowX(dev.sixik.unigui.api.layout.Overflow.HIDDEN)
+                .overflowY(dev.sixik.unigui.api.layout.Overflow.AUTO));
+        return scroll;
+    }
+
+    /**
+     * Сетка дропа loot table: ячейка {@code {ids: [...], chance, count_min, count_max}}.
+     * В каждой ячейке — модель первого предмета (с числом max-количества) и подпись
+     * шанса под ней. Условия (Silk Touch, Fortune, убийство игроком...) уходят в
+     * тултип; тег-варианты показываются сеткой «Принимает:».
+     */
+    private GridBox lootGrid(IsfVisualNode node) {
+        GridBox grid = new GridBox();
+        // Ячейка шире слота (22px): «12.5%» не налезает на соседнюю колонку.
+        float cellColumn = 22.0f;
+        grid.columns(5).spacing(0);
+        JsonElement raw = value(node, "drops");
+        if (raw == null || !raw.isJsonArray()) return grid;
+        for (JsonElement element : raw.getAsJsonArray()) {
+            if (!element.isJsonObject()) continue;
+            com.google.gson.JsonObject cell = element.getAsJsonObject();
+            List<ResourceLocation> ids = new ArrayList<>();
+            List<ItemStack> stacks = new ArrayList<>();
+            double chance = number(cell.get("chance"), 1.0f);
+            int countMax = Math.max(1, (int) Math.ceil(number(cell.get("count_max"), 1.0f)));
+            List<net.minecraft.network.chat.Component> conditions = conditionLines(cell);
+            if (cell.has("ids") && cell.get("ids").isJsonArray()) {
+                for (JsonElement id : cell.getAsJsonArray("ids")) {
+                    ResourceLocation itemId = itemId(id);
+                    if (itemId == null) continue;
+                    ItemStack stack = item(id);
+                    if (stack.isEmpty()) continue;
+                    ids.add(itemId);
+                    stacks.add(stack);
+                }
+            }
+            float rowHeight = CELL + 10.0f;
+            if (stacks.isEmpty()) {
+                // Пустая ячейка сохраняет позицию в сетке: без placeholder'а индексы
+                // смещаются, и ряды «пропадают» (village temple и т.п.).
+                Box empty = new Box();
+                empty.layout(style -> style.size(cellColumn, rowHeight).flexNone());
+                grid.addChild(empty);
+                continue;
+            }
+            IsfItemButton button = new IsfItemButton(ids, stacks, SLOT_TEXTURE, CELL);
+            // Количество показываем по максимуму диапазона (min-max нельзя отобразить одним числом).
+            ItemStack main = stacks.get(0).copy();
+            main.setCount(Math.min(countMax, main.getMaxStackSize()));
+            button.icon().stack(main);
+            button.extraTooltipLines(conditions);
+            button.layout(style -> style.size(CELL, CELL).centerSelf().flexNone());
+            attachClickHandler(button);
+
+            VBox slot = new VBox();
+            slot.spacing(0);
+            slot.layout(style -> style.size(cellColumn, rowHeight).flexNone());
+            slot.addChild(button);
+            // 100% не подписываем: вероятность по умолчанию очевидна без текста.
+            if (chance < 0.999) {
+                Label chanceLabel = new Label(formatChance(chance));
+                chanceLabel.layout(style -> style.width(cellColumn).height(10.0f).flexNone());
+                chanceLabel.textAlignment(Alignment.CENTER);
+                // Такой же тёмный цвет, как у ID таблицы добычи.
+                chanceLabel.color(MutableColor.fromHex("#5A5A5AFF"));
+                slot.addChild(chanceLabel);
+            }
+            grid.addChild(slot);
+        }
+        // Grid лежит внутри ScrollView: применяем queued addChild сразу.
+        grid.applyQueuedMutations();
+        int rows = Math.max(1, (grid.children().size() + 4) / 5);
+        // Фиксируем геометрию content: иначе ScrollView передаёт GridBox viewport
+        // целиком, и GridBox распределяет строки с пустыми промежутками.
+        grid.layout(style -> style.width(5.0f * cellColumn)
+                .height(rows * (CELL + 10.0f)).flexNone());
+        return grid;
+    }
+
+    /**
+     * Строки тултипа с условием выпадения: данные пишутся импортёром в ячейку
+     * {@code conditions: ["silk_touch", "killed_by_player", ...]} — человекочитаемо
+     * раскрываем каждое (например, красная руда без Silk Touch даёт пыль, а не руду).
+     */
+    private static List<net.minecraft.network.chat.Component> conditionLines(
+            com.google.gson.JsonObject cell) {
+        if (!cell.has("conditions") || !cell.get("conditions").isJsonArray()) return List.of();
+        List<net.minecraft.network.chat.Component> lines = new ArrayList<>();
+        for (JsonElement element : cell.getAsJsonArray("conditions")) {
+            if (!element.isJsonPrimitive()) continue;
+            String id = element.getAsString();
+            int colon = id.indexOf(':');
+            String path = colon >= 0 ? id.substring(colon + 1) : id;
+            String key = "isf.loot_condition." + path;
+            lines.add(net.minecraft.network.chat.Component.translatableWithFallback(
+                    key, prettifyWords(path)));
+        }
+        return List.copyOf(lines);
+    }
+
+    /** «killed_by_player_or_tamed» → «Killed By Player Or Tamed». */
+    private static String prettifyWords(String value) {
+        String[] words = value.replace('_', ' ').split(" ");
+        StringBuilder text = new StringBuilder();
+        for (String word : words) {
+            if (word.isEmpty()) continue;
+            if (!text.isEmpty()) text.append(' ');
+            text.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
+        }
+        return text.toString();
+    }
+
+    /** @return шанс как «25%» или «12.5%». */
+    private static String formatChance(double chance) {
+        double percent = Math.max(0.0, Math.min(1.0, chance)) * 100.0;
+        if (percent == Math.floor(percent)) return (int) percent + "%";
+        return String.format(java.util.Locale.ROOT, "%.1f%%", percent);
+    }
+
+    /**
+     * Источник окна добычи: если задан параметр {@code entity} (id живой сущности) —
+     * рисует запечённую иконку модели моба (texture-путь уважает transform/clip
+     * Z-слоёв, в отличие от прямого InventoryScreen-рендера), иначе предмет.
+     * Фолбэк на кадр, пока текстура печётся, — spawn egg сущности.
+     */
+    private WidgetBase entityOrItem(IsfVisualNode node) {
+        float size = Math.max(CELL, integer(value(node, "width"), (int) CELL));
+        JsonElement entityRaw = value(node, "entity");
+        if (entityRaw != null && entityRaw.isJsonPrimitive() && !entityRaw.getAsString().isBlank()) {
+            ResourceLocation entityId = ResourceLocation.tryParse(entityRaw.getAsString());
+            net.minecraft.world.entity.EntityType<?> type = entityId == null ? null
+                    : net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.get(entityId);
+            if (type != null && net.minecraft.world.entity.LivingEntity.class
+                    .isAssignableFrom(type.getBaseClass())) {
+                return entityIconWidget((net.minecraft.world.entity.EntityType) type, node, size);
+            }
+        }
+        return itemWidget(node);
+    }
+
+    /**
+     * Иконка сущности через bake-кэш бекенда: иконка рисуется обычной
+     * texture-командой внутри transform'а окна. Пока текстура не готова
+     * (бюджет запечёк на кадр), рисуется spawn egg; пустое значение
+     * {@code entity} или нет egg — обычный item-путь.
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private WidgetBase entityIconWidget(net.minecraft.world.entity.EntityType type,
+                                        IsfVisualNode node, float size) {
+        dev.sixik.isf.client.IsfEntityIconWidget icon =
+                new dev.sixik.isf.client.IsfEntityIconWidget(type, size);
+        icon.enabled(false);
+        icon.layout(style -> style.size(size, size).centerSelf().flexNone());
+        // На случай исчерпания бюджета пекарни подкладываем egg как fallback-предмет.
+        JsonElement fallback = value(node, "item");
+        if (fallback != null && fallback.isJsonPrimitive()) {
+            icon.fallbackItem(item(fallback));
+        }
+        return icon;
+    }
+
     /** @return клетки крафта: pattern даёт строки, плоский список — одну строку. */
-    private static List<List<JsonArray>> readCells(JsonElement raw) {
-        List<List<JsonArray>> rows = new ArrayList<>();
+    private static List<List<JsonArray>> readCells(JsonElement raw) {        List<List<JsonArray>> rows = new ArrayList<>();
         if (raw == null || !raw.isJsonArray()) return rows;
         List<JsonArray> flat = new ArrayList<>();
         boolean flatMode = true;

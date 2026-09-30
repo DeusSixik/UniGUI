@@ -1,4 +1,4 @@
-﻿{
+{
   "isf.title": "ISF Recipes",
   "isf.sort.mod": "Mod",
   "isf.sort.name": "Name",
@@ -12,5 +12,10 @@
   "isf.recipe_type.isf.smoking": "Smoker",
   "isf.recipe_type.isf.campfire_cooking": "Campfire",
   "isf.recipe_type.isf.stonecutting": "Stonecutter",
-  "isf.recipe_type.isf.smithing": "Smithing Table"
+  "isf.recipe_type.isf.smithing": "Smithing Table",
+  "isf.recipe_type.isf.loot_table": "Loot Table",
+  "isf.loot_condition.silk_touch": "Requires Silk Touch",
+  "isf.loot_condition.shears": "Requires Shears",
+  "isf.loot_condition.killed_by_player": "Killed by player",
+  "isf.loot_condition.match_tool": "Depends on tool"
 }

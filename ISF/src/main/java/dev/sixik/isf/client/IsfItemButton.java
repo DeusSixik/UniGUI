@@ -34,6 +34,8 @@ final class IsfItemButton extends Button {
     private final List<Component> tooltipLines;
     /** {@code true} — тег-ингредиент: тултип рисуется сеткой моделей («Принимает:»). */
     private final boolean acceptsGrid;
+    /** Дополнительные строки тултипа (например, условие выпадения лута). */
+    private List<Component> extraLines = List.of();
     private int shownIndex;
     private long nextCycleMillis;
 
@@ -119,6 +121,11 @@ final class IsfItemButton extends Button {
         return tooltipLines;
     }
 
+    /** Иконка клетки: используется лоот-гридом для показа количества диапазона. */
+    IsfItemIconWidget icon() {
+        return icon;
+    }
+
     /** {@code true}, если тултип клетки нужно рисовать сеткой моделей («Принимает:»). */
     boolean acceptsGrid() {
         return acceptsGrid;
@@ -127,5 +134,15 @@ final class IsfItemButton extends Button {
     /** Все варианты тега-ингредиента для сетки тултипа. */
     List<ItemStack> acceptsStacks() {
         return stacks;
+    }
+
+    /** Дополнительные строки тултипа (условие выпадения лута и т.п.). */
+    List<Component> extraTooltipLines() {
+        return extraLines;
+    }
+
+    IsfItemButton extraTooltipLines(List<Component> lines) {
+        this.extraLines = lines == null || lines.isEmpty() ? List.of() : List.copyOf(lines);
+        return this;
     }
 }

@@ -1,4 +1,4 @@
-﻿{
+{
   "isf.title": "ISF Recipes",
   "isf.sort.mod": "Мод",
   "isf.sort.name": "Название",
@@ -12,5 +12,10 @@
   "isf.recipe_type.isf.smoking": "Коптильня",
   "isf.recipe_type.isf.campfire_cooking": "Костёр",
   "isf.recipe_type.isf.stonecutting": "Камнерез",
-  "isf.recipe_type.isf.smithing": "Кузнечный стол"
+  "isf.recipe_type.isf.smithing": "Кузнечный стол",
+  "isf.recipe_type.isf.loot_table": "Добыча",
+  "isf.loot_condition.silk_touch": "Только с шёлковым касанием",
+  "isf.loot_condition.shears": "Только ножницами",
+  "isf.loot_condition.killed_by_player": "Только при убийстве игроком",
+  "isf.loot_condition.match_tool": "Зависит от инструмента"
 }
