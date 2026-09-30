@@ -41,6 +41,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Locale;
 import java.lang.reflect.Field;
 
 /** UniGUI screen-overlay с вертикально перелистываемой сеткой доступных предметов. */
@@ -80,6 +81,7 @@ final class IsfBrowserOverlay {
     private final Map<ResourceLocation, Button> bookmarkCells = new LinkedHashMap<>();
     private final Map<ResourceLocation, MinecraftItemTooltip> bookmarkTooltips = new LinkedHashMap<>();
     private final Map<ResourceLocation, Button> itemCells = new LinkedHashMap<>();
+    private String browserFilter = "";
 
     private MinecraftRenderLayerRegistration<Screen> registration;
     private AutoCloseable pointerBlocker;
@@ -527,6 +529,10 @@ final class IsfBrowserOverlay {
                 .padding(6.0f, 0.0f)
                 .flexShrink(0.0f)
         );
+        search.onTextChanged(event -> {
+            browserFilter = event.newText() == null ? "" : event.newText().trim();
+            applyBrowserFilter();
+        });
 
         column.addChild(itemScroll);
         column.addChild(search);
@@ -720,7 +726,7 @@ final class IsfBrowserOverlay {
             addTooltip(cell, entry);
         }
 
-        updateItemScrollContentHeight();
+        refreshBrowserFilter();
 
         syncBookmarks();
 
@@ -741,6 +747,7 @@ final class IsfBrowserOverlay {
      */
     private void syncCatalog() {
         catalogEntries = entries();
+        refreshBrowserFilter();
         syncBookmarks();
         refreshSelectedDetail();
         observedRecipeResults = IsfClientState.recipeResults();
@@ -797,6 +804,7 @@ final class IsfBrowserOverlay {
 
     private ResourceLocation cellIdAt(Map<ResourceLocation, Button> cells, float x, float y) {
         for (Map.Entry<ResourceLocation, Button> entry : cells.entrySet()) {
+            if (entry.getValue().visibility() == dev.sixik.unigui.api.widget.Visibility.COLLAPSED) continue;
             if (contains(entry.getValue().layoutBounds(), x, y)) return entry.getKey();
         }
         return null;
@@ -848,8 +856,90 @@ final class IsfBrowserOverlay {
 
     private void updateItemScrollContentHeight() {
         int columns = Math.max(1, grid.columns());
-        int rows = (catalogEntries.size() + columns - 1) / columns;
+        int visible = 0;
+        for (ItemEntry entry : catalogEntries) {
+            Button cell = itemCells.get(entry.id());
+            if (cell != null
+                    && cell.visibility() != dev.sixik.unigui.api.widget.Visibility.COLLAPSED) {
+                visible++;
+            }
+        }
+        if (visible == 0) {
+            itemScroll.contentHeight(0.0f);
+            itemScroll.scrollTo(0.0f, 0.0f);
+            return;
+        }
+        int rows = (visible + columns - 1) / columns;
         itemScroll.contentHeight(rows * CELL);
+        float maxScroll = itemScroll.maxScrollY();
+        if (itemScroll.scrollY() > maxScroll) itemScroll.scrollTo(0.0f, maxScroll);
+    }
+
+    /**
+     * Фильтрует правую панель (browserPanel) по текущему тексту из поля поиска.
+     *
+     * <ul>
+     *   <li>Обычный текст — подстрока в DisplayName предмета, в его RegistryID
+     *   (namespace или path, регистр не важен) или в полном {@code namespace:path}.</li>
+     *   <li>{@code @Text} — то же сравнение, но только по Mod ID (namespace предмета).</li>
+     * </ul>
+     * Клетки не пересоздаются: фильтр только переключает видимость существующих
+     * клеток и тултипы следуют за ними (тултип виден только при наведении на якорь).
+     */
+    private void applyBrowserFilter() {
+        refreshBrowserFilter();
+        itemScroll.scrollTo(0.0f, 0.0f);
+        updateItemScrollContentHeight();
+    }
+
+    /**
+     * Применяет текущий фильтр без сброса скролла: используется после rebuild/sync,
+     * где позиция скролла восстанавливается отдельно.
+     */
+    private void refreshBrowserFilter() {
+        String query = browserFilter == null ? "" : browserFilter.trim();
+        boolean modOnly = query.startsWith("@");
+        String needle = (modOnly ? query.substring(1) : query)
+                .trim()
+                .toLowerCase(Locale.ROOT);
+
+        if (hoveredEntry != null && !matchesBrowserQuery(hoveredEntry, needle, modOnly)) {
+            hoveredEntry = null;
+        }
+        for (ItemEntry entry : catalogEntries) {
+            Button cell = itemCells.get(entry.id());
+            if (cell == null) continue;
+            boolean visible = matchesBrowserQuery(entry, needle, modOnly);
+            cell.visibility(visible
+                    ? dev.sixik.unigui.api.widget.Visibility.VISIBLE
+                    : dev.sixik.unigui.api.widget.Visibility.COLLAPSED);
+        }
+
+        itemScroll.scrollTo(0.0f, 0.0f);
+        updateItemScrollContentHeight();
+    }
+
+    /**
+     * Проверяет одну запись каталога против поискового запроса.
+     *
+     * @param entry запись каталога (id + ItemStack)
+     * @param needle поисковый запрос без {@code @}, уже в нижнем регистре; пустой — совпадает всё
+     * @param modOnly {@code true} — сверять только по Mod ID (namespace)
+     * @return {@code true}, если запись подходит под фильтр
+     */
+    private static boolean matchesBrowserQuery(ItemEntry entry, String needle, boolean modOnly) {
+        if (needle == null || needle.isEmpty()) return true;
+        ResourceLocation id = entry.id();
+        if (id == null) return false;
+        String namespace = id.getNamespace().toLowerCase(Locale.ROOT);
+        if (modOnly) return namespace.contains(needle);
+        String displayName = entry.stack().getHoverName().getString().toLowerCase(Locale.ROOT);
+        String path = id.getPath().toLowerCase(Locale.ROOT);
+        String fullId = namespace + ":" + path;
+        return displayName.contains(needle)
+                || namespace.contains(needle)
+                || path.contains(needle)
+                || fullId.contains(needle);
     }
 
     private Button itemCell(ItemEntry entry) {
@@ -1420,7 +1510,7 @@ final class IsfBrowserOverlay {
             int itemColumns = Math.max(1, (int) (itemContentWidth / CELL));
             if (grid.columns() != itemColumns) {
                 grid.columns(itemColumns);
-                updateItemScrollContentHeight();
+                refreshBrowserFilter();
             }
 
             int bookmarkContentWidth = Math.max(0, leftWidth - 8);
