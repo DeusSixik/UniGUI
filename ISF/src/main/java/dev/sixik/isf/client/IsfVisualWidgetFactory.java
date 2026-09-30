@@ -108,8 +108,10 @@ final class IsfVisualWidgetFactory {
     private WidgetBase itemWidget(IsfVisualNode node) {
         JsonElement raw = value(node, "item");
         ItemStack stack = item(raw);
+        // Свойство "count" перекрывает суффикс "#count" в id, но только когда оно > 1:
+        // fallback 1 не должен затирать количество, уже заданное в записи предмета.
         int count = integer(value(node, "count"), 1);
-        if (!stack.isEmpty() && count > 0) stack.setCount(Math.min(count, stack.getMaxStackSize()));
+        if (!stack.isEmpty() && count > 1) stack.setCount(Math.min(count, stack.getMaxStackSize()));
         if (stack.isEmpty()) {
             IsfItemIconWidget icon = new IsfItemIconWidget(stack);
             icon.enabled(false);
@@ -230,9 +232,26 @@ final class IsfVisualWidgetFactory {
         // IsfItemButton намеренно не потребляет pointer-события.
     }
 
+    /** @return id из записи {@code "minecraft:iron_ingot#9"} (суффикс {@code #count} отбрасывается). */
     private static ResourceLocation itemId(JsonElement value) {
-        return value == null || !value.isJsonPrimitive()
-                ? null : ResourceLocation.tryParse(value.getAsString());
+        if (value == null || !value.isJsonPrimitive()) return null;
+        String raw = value.getAsString();
+        int hash = raw.lastIndexOf('#');
+        String id = hash < 0 ? raw : raw.substring(0, hash);
+        return ResourceLocation.tryParse(id);
+    }
+
+    /** @return количество из суффикса {@code #count} записи или {@code 1}. */
+    private static int entryCount(JsonElement value) {
+        if (value == null || !value.isJsonPrimitive()) return 1;
+        String raw = value.getAsString();
+        int hash = raw.lastIndexOf('#');
+        if (hash < 0) return 1;
+        try {
+            return Math.max(1, Integer.parseInt(raw.substring(hash + 1).trim()));
+        } catch (NumberFormatException ignored) {
+            return 1;
+        }
     }
 
     private boolean isIngredientGrid(IsfVisualNode node) {
@@ -303,11 +322,14 @@ final class IsfVisualWidgetFactory {
     }
 
     private static ItemStack item(JsonElement value) {
-        if (value == null || !value.isJsonPrimitive()) return ItemStack.EMPTY;
-        ResourceLocation id = ResourceLocation.tryParse(value.getAsString());
+        ResourceLocation id = itemId(value);
         if (id == null) return ItemStack.EMPTY;
         Item item = BuiltInRegistries.ITEM.get(id);
-        return item == null || item == net.minecraft.world.item.Items.AIR ? ItemStack.EMPTY : new ItemStack(item);
+        if (item == null || item == net.minecraft.world.item.Items.AIR) return ItemStack.EMPTY;
+        ItemStack stack = new ItemStack(item);
+        int count = entryCount(value);
+        if (count > 1) stack.setCount(Math.min(count, stack.getMaxStackSize()));
+        return stack;
     }
 
     private static int integer(JsonElement value, int fallback) {

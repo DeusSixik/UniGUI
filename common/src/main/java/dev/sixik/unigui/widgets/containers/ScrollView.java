@@ -57,8 +57,6 @@ import java.util.List;
 public class ScrollView extends WidgetBase {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.SCROLL_VIEW;
 
-    private static final float SCROLLBAR_SIZE = ScrollBar.DEFAULT_SIZE;
-
     private final MutableColor scrollbarTrackColor = new MutableColor(0.0f, 0.0f, 0.0f, 0.28f);
     private final MutableColor scrollbarThumbColor = new MutableColor(0.25f, 0.78f, 1.0f, 0.75f);
     private final ScrollBar horizontalScrollBar = new ScrollBar().orientation(Orientation.HORIZONTAL);
@@ -72,6 +70,7 @@ public class ScrollView extends WidgetBase {
     private float scrollY;
     private float scrollStep = 16.0f;
     private float scrollbarGap = ScrollBar.DEFAULT_GAP;
+    private float scrollbarSize = ScrollBar.DEFAULT_SIZE;
     private boolean scrollingEnabled = true;
     private boolean consumeWheelAtScrollBounds = true;
     private boolean horizontalScrollBarVisible;
@@ -334,6 +333,34 @@ public class ScrollView extends WidgetBase {
         float normalized = Float.isFinite(scrollbarGap) ? Math.max(0.0f, scrollbarGap) : ScrollBar.DEFAULT_GAP;
         if (this.scrollbarGap == normalized) return this;
         this.scrollbarGap = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Возвращает толщину scrollbar'ов этого scroll view.
+     *
+     * @return толщина полосы поперёк оси прокрутки в пикселях UI-пространства
+     */
+    public float scrollbarSize() {
+        return scrollbarSize;
+    }
+
+    /**
+     * Задаёт толщину scrollbar'ов этого scroll view.
+     *
+     * <p>По умолчанию используется {@link ScrollBar#DEFAULT_SIZE}. Значение влияет
+     * на резерв места под полосу: viewport сжимается на
+     * {@code scrollbarSize + scrollbarGap} вдоль активной оси.</p>
+     *
+     * @param scrollbarSize толщина полосы в пикселях UI-пространства; минимум {@code 1}
+     * @return этот scroll view для fluent-настройки
+     */
+    @XmlAttribute(value = "scrollbarSize", category = "Layout", defaultValue = "6", description = "Thickness of the horizontal/vertical scrollbar tracks.")
+    public ScrollView scrollbarSize(float scrollbarSize) {
+        float normalized = Float.isFinite(scrollbarSize) ? Math.max(1.0f, scrollbarSize) : ScrollBar.DEFAULT_SIZE;
+        if (this.scrollbarSize == normalized) return this;
+        this.scrollbarSize = normalized;
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
@@ -626,13 +653,13 @@ public class ScrollView extends WidgetBase {
                     layoutBounds().x() + horizontalInset,
                     layoutBounds().y() + viewportHeight() + scrollbarGap,
                     viewportWidth(),
-                    SCROLLBAR_SIZE));
+                    scrollbarSize));
         }
         if (showsVerticalScrollBar()) {
             verticalScrollBar.arrange(new MutableRect(
                     layoutBounds().x() + viewportWidth() + scrollbarGap,
                     layoutBounds().y(),
-                    SCROLLBAR_SIZE,
+                    scrollbarSize,
                     viewportHeight()));
         }
         syncScrollBars();
@@ -697,7 +724,7 @@ public class ScrollView extends WidgetBase {
     }
 
     private float scrollbarReservation() {
-        return SCROLLBAR_SIZE + scrollbarGap;
+        return scrollbarSize + scrollbarGap;
     }
 
     private float effectiveContentWidth() {

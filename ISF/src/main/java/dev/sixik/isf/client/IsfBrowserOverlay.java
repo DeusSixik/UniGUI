@@ -23,6 +23,7 @@ import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 import dev.sixik.unigui.widgets.interaction.Button;
+import dev.sixik.unigui.widgets.interaction.ScrollBar;
 import dev.sixik.unigui.widgets.interaction.TextField;
 import dev.sixik.unigui.widgets.interaction.ToggleButton;
 import dev.sixik.unigui.widgets.minecraft.MinecraftItemTooltip;
@@ -63,7 +64,8 @@ final class IsfBrowserOverlay {
     private final ToggleButton detailPin = new ToggleButton();
     private final Button detailClose = new Button();
     private final NineSliceHBox tabRow = new NineSliceHBox();
-    private final Button tabNext = new Button();
+    /** Горизонтальный скролл вкладок RecipeType: заменяет стрелку-кнопку. */
+    private final ScrollView tabScroll = new ScrollView(tabRow);
     private final Label detailPage = new Label();
     private final Button detailPrevious = new Button();
     private final Button detailNext = new Button();
@@ -82,6 +84,8 @@ final class IsfBrowserOverlay {
     private final Map<ResourceLocation, MinecraftItemTooltip> bookmarkTooltips = new LinkedHashMap<>();
     private final Map<ResourceLocation, Button> itemCells = new LinkedHashMap<>();
     private String browserFilter = "";
+    /** Последняя применённая высота tabScroll; -1 — ещё не применялась. */
+    private float appliedTabScrollHeight = -1.0f;
 
     private MinecraftRenderLayerRegistration<Screen> registration;
     private AutoCloseable pointerBlocker;
@@ -105,7 +109,6 @@ final class IsfBrowserOverlay {
     private ResourceLocation selectedTypeId;
     private ResourceLocation selectedCatalyst;
     private int recipePage;
-    private int tabFirstIndex;
     private List<TypeTab> typeTabs = List.of();
     private List<CatalystCell> catalystCells = List.of();
     private List<RecipeView> builtRecipes = List.of();
@@ -119,9 +122,16 @@ final class IsfBrowserOverlay {
     private static final float RECIPE_GAP = 2.0f;
     private static final float CATALYST_CELL = 18.0f;
     private static final float TAB_CELL = 20.0f;
+    /** Высота строки вкладок: padding 1 сверху и снизу + вкладка 20. */
+    private static final float TAB_ROW_CONTENT = TAB_CELL + 2.0f;
+    /** Толщина горизонтального scrollbar вкладок: ~1.5x уже дефолтной полосы. */
+    private static final float TAB_SCROLLBAR_SIZE = 4.0f;
+    /** Резерв под scrollbar вкладок: толщина полосы + gap. */
+    private static final float TAB_ROW_RESERVED = TAB_SCROLLBAR_SIZE + 1.0f;
     private static final float FALLBACK_RECIPE_HEIGHT = 92.0f;
-    /** padding(4)*2 + заголовок 16 + вкладки 20 + пагинация 14 + три отступа VBox. */
-    private static final float DETAIL_FIXED_HEIGHT = 8.0f + 16.0f + TAB_CELL + 14.0f + 3 * RECIPE_GAP;
+    /** padding(4)*2 + заголовок 16 + вкладки 20+2 + пагинация 14 + три отступа VBox (без scrollbar). */
+    private static final float DETAIL_FIXED_HEIGHT =
+            8.0f + 16.0f + TAB_ROW_CONTENT + 14.0f + 3 * RECIPE_GAP;
 
     IsfBrowserOverlay() {
         configureTree();
@@ -269,11 +279,6 @@ final class IsfBrowserOverlay {
             setDetailPinned(!detailPinned);
             return true;
         }
-        if (tabNext.visibility() == dev.sixik.unigui.api.widget.Visibility.VISIBLE
-                && contains(tabNext.layoutBounds(), x, y)) {
-            shiftTabWindow();
-            return true;
-        }
         for (TypeTab tab : typeTabs) {
             if (tab.button().visibility() == dev.sixik.unigui.api.widget.Visibility.VISIBLE
                     && contains(tab.button().layoutBounds(), x, y)) {
@@ -349,12 +354,12 @@ final class IsfBrowserOverlay {
         selectedTypeId = null;
         selectedCatalyst = null;
         recipePage = 0;
-        tabFirstIndex = 0;
         typeTabs = List.of();
         catalystCells = List.of();
         builtRecipes = List.of();
         recipePages = List.of();
         tabRow.clearChildren();
+        tabScroll.scrollTo(0.0f, 0.0f);
         catalystColumn.clearChildren();
         recipeArea.clearChildren();
         clearDetailTooltips();
@@ -413,6 +418,12 @@ final class IsfBrowserOverlay {
     boolean scrollItemsAt(double mouseX, double mouseY, double delta) {
         if (delta == 0.0) {
             return false;
+        }
+        // Над вкладками RecipeType колесо листает сами вкладки по горизонтали,
+        // если они не помещаются в ширину окна.
+        if (contains(tabScroll.layoutBounds(), (float) mouseX, (float) mouseY)
+                && tabScroll.maxScrollX() > 0.0f) {
+            return scrollViewX(tabScroll, delta);
         }
         // Над окном рецептов колесо листает страницы: вверх — назад, вниз — вперёд.
         if (detailPanel.visibility() == dev.sixik.unigui.api.widget.Visibility.VISIBLE
@@ -474,6 +485,38 @@ final class IsfBrowserOverlay {
         float before = scroll.scrollY();
         scroll.scrollBy(0.0f, (float) (-delta * scroll.scrollStep()));
         return before != scroll.scrollY();
+    }
+
+    /** Горизонтальный аналог {@link #scrollViewAt}: колесо вверх — влево, вниз — вправо. */
+    private boolean scrollViewX(ScrollView scroll, double delta) {
+        float before = scroll.scrollX();
+        scroll.scrollBy((float) (-delta * scroll.scrollStep()), 0.0f);
+        return before != scroll.scrollX();
+    }
+
+    /** {@code true}, если вкладки не помещаются по ширине и scrollbar показан. */
+    private boolean tabScrollBarVisible() {
+        return tabScroll.maxScrollX() > 0.0f;
+    }
+
+    /**
+     * Фиксированная высота окна рецептов: базовая часть плюс резерв под
+     * scrollbar вкладок, но только когда он реально показан.
+     */
+    private float detailFixedHeight() {
+        return DETAIL_FIXED_HEIGHT + (tabScrollBarVisible() ? TAB_ROW_RESERVED : 0.0f);
+    }
+
+    /**
+     * Держит высоту строки вкладок точной: без scrollbar — только вкладки,
+     * с scrollbar — вкладки + резерв под полосу. Вызывается каждый тик,
+     * применяется только при реальном изменении.
+     */
+    private void syncTabScrollHeight() {
+        float desired = TAB_ROW_CONTENT + (tabScrollBarVisible() ? TAB_ROW_RESERVED : 0.0f);
+        if (Math.abs(desired - appliedTabScrollHeight) < 0.01f) return;
+        appliedTabScrollHeight = desired;
+        tabScroll.layout(style -> style.height(desired));
     }
 
     private void updateScrollFromPointer(ScrollView scroll, float mouseY) {
@@ -609,7 +652,8 @@ final class IsfBrowserOverlay {
         detailHeader.addChild(detailPin);
         detailHeader.addChild(detailClose);
 
-        // Зелёная зона: вкладки доступных RecipeType + стрелка прокрутки при переполнении.
+        // Зелёная зона: вкладки доступных RecipeType. Все вкладки строятся целиком,
+        // а переполнение по ширине обслуживает горизонтальный scrollbar (без стрелки).
         tabRow.backgroundRenderer(new NineSliceBoxRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/scrollbar_background_v2.png"),
                 20, 20, TextureOptions.nearest()),
                 4.0f));
@@ -619,10 +663,16 @@ final class IsfBrowserOverlay {
                 .padding(1)
                 .alignSelf(Align.START)
         );
-        tabNext.text(">").textPadding(0.0f, 0.0f);
-        tabNext.layout(style -> style.size(16.0f, TAB_CELL).flexNone());
-        tabNext.visibility(dev.sixik.unigui.api.widget.Visibility.COLLAPSED);
-        tabRow.addChild(tabNext);
+        tabScroll.scrollStep(TAB_CELL + 2.0f);
+        tabScroll.scrollbarGap(1);
+        tabScroll.scrollbarSize(TAB_SCROLLBAR_SIZE);
+        tabScroll.layout(style -> style
+                .widthPercent(100.0f)
+                .height(TAB_ROW_CONTENT)
+                .flexNone()
+                .overflowX(Overflow.AUTO)
+                .overflowY(Overflow.HIDDEN)
+        );
 
         // Кнопки страниц находятся под вкладками RecipeType, как в оригинальном JEI.
         pagerRow.layout(style -> style.widthPercent(100.0f).height(14.0f).flexNone()
@@ -672,7 +722,7 @@ final class IsfBrowserOverlay {
         body.addChild(recipeArea);
 
         content.addChild(detailHeader);
-        content.addChild(tabRow);
+        content.addChild(tabScroll);
         content.addChild(pagerRow);
         content.addChild(body);
         detailPanel.addChild(content);
@@ -1041,7 +1091,6 @@ final class IsfBrowserOverlay {
         for (TypeTab tab : typeTabs) current.add(tab.typeId());
         if (!current.equals(order)) {
             clearTabTooltips();
-            tabFirstIndex = 0;
             selectedCatalyst = null;
             selectedTypeId = order.isEmpty() ? null : order.get(0);
             tabRow.clearChildren();
@@ -1067,17 +1116,20 @@ final class IsfBrowserOverlay {
                     tabTooltips.add(tooltip);
                     overlayRoot.addOverlay(tooltip);
                 }
+                // Кнопка вкладки обязана обрабатывать клик сама: Button поглощает
+                // ЛКМ в widget-маршруте, и Forge-хук с bounds-проверкой уже не
+                // вызывается (как у detailClose/detailPin/пагинации).
+                tab.onClick(event -> selectType(typeId));
                 tabRow.addChild(tab);
                 tabs.add(new TypeTab(typeId, tab));
             }
-            tabRow.addChild(tabNext);
+            tabScroll.scrollTo(0.0f, 0.0f);
             typeTabs = List.copyOf(tabs);
         }
         if (selectedTypeId == null && !typeTabs.isEmpty()) {
             selectedTypeId = typeTabs.get(0).typeId();
         }
         applyTabHighlights();
-        updateTabVisibility();
     }
 
     /** Иконка вкладки: явная иконка типа, иначе первый катализатор. */
@@ -1120,29 +1172,9 @@ final class IsfBrowserOverlay {
         if (!typeIds.contains(selectedTypeId)) {
             selectedTypeId = typeIds.get(0);
             applyTabHighlights();
-            updateTabVisibility();
             rebuildCatalysts();
             rebuildRecipePages();
         }
-    }
-
-    /** Показывает окно вкладок [tabFirstIndex, tabFirstIndex + visible); стрелка видна при переполнении. */
-    private void updateTabVisibility() {
-        float rowWidth = tabRow.layoutBounds().width();
-        if (rowWidth <= 0.0f) rowWidth = typeTabs.size() * (TAB_CELL + 2.0f);
-        int visible = Math.max(1, (int) ((rowWidth - 16.0f - 2.0f) / (TAB_CELL + 2.0f)));
-        boolean overflow = typeTabs.size() > visible;
-        if (tabFirstIndex >= typeTabs.size()) tabFirstIndex = 0;
-        for (int index = 0; index < typeTabs.size(); index++) {
-            Button button = typeTabs.get(index).button();
-            boolean inWindow = index >= tabFirstIndex && index < tabFirstIndex + visible;
-            button.visibility(inWindow
-                    ? dev.sixik.unigui.api.widget.Visibility.VISIBLE
-                    : dev.sixik.unigui.api.widget.Visibility.COLLAPSED);
-        }
-        tabNext.visibility(overflow
-                ? dev.sixik.unigui.api.widget.Visibility.VISIBLE
-                : dev.sixik.unigui.api.widget.Visibility.COLLAPSED);
     }
 
     private void applyTabHighlights() {
@@ -1157,21 +1189,12 @@ final class IsfBrowserOverlay {
         }
     }
 
-    private void shiftTabWindow() {
-        if (typeTabs.isEmpty()) return;
-        tabFirstIndex = Math.floorMod(tabFirstIndex + 1, typeTabs.size());
-        updateTabVisibility();
-        applyTabHighlights();
-    }
-
     private void selectType(ResourceLocation typeId) {
         if (typeId == null || typeId.equals(selectedTypeId)) return;
         selectedTypeId = typeId;
         selectedCatalyst = null;
         recipePage = 0;
-        tabFirstIndex = 0;
         applyTabHighlights();
-        updateTabVisibility();
         updateDetailTitle();
         rebuildCatalysts();
         rebuildRecipePages();
@@ -1365,7 +1388,7 @@ final class IsfBrowserOverlay {
         Screen screen = net.minecraft.client.Minecraft.getInstance().screen;
         float screenHeight = screen == null ? 240.0f : screen.height;
         float margin = 4.0f;
-        float available = screenHeight - margin * 2.0f - DETAIL_FIXED_HEIGHT;
+        float available = screenHeight - margin * 2.0f - detailFixedHeight();
         return Math.max(50.0f, available);
     }
 
@@ -1374,7 +1397,7 @@ final class IsfBrowserOverlay {
         if (screen == null) return;
         float pageContentHeight = currentRecipePageHeight();
         int maxDetailHeight = Math.max(120, screen.height - 8);
-        int detailHeight = Math.min(maxDetailHeight, Math.round(DETAIL_FIXED_HEIGHT + pageContentHeight));
+        int detailHeight = Math.min(maxDetailHeight, Math.round(detailFixedHeight() + pageContentHeight));
         detailPanel.layout(style -> style.height(detailHeight));
         if (detailPositionSet) {
             float width = detailPanel.layoutStyle().width().value();
@@ -1465,6 +1488,7 @@ final class IsfBrowserOverlay {
         public void tick(FrameContext frame) {
             super.tick(frame);
             syncPanelBounds();
+            syncTabScrollHeight();
             if (observedStateVersion != IsfClientState.version()) {
                 if (!observedRecipeResults.equals(IsfClientState.recipeResults())) {
                     syncCatalog();
@@ -1515,7 +1539,7 @@ final class IsfBrowserOverlay {
 
             float itemContentWidth = Math.max(0.0f,
                     rightWidth - PANEL_PADDING * 2.0f
-                            - dev.sixik.unigui.widgets.interaction.ScrollBar.DEFAULT_SIZE
+                            - ScrollBar.DEFAULT_SIZE
                             - itemScroll.scrollbarGap());
             int itemColumns = Math.max(1, (int) (itemContentWidth / CELL));
             if (grid.columns() != itemColumns) {
@@ -1532,14 +1556,14 @@ final class IsfBrowserOverlay {
             if (selectedEntry != null) {
                 int detailWidth = Math.min(240, Math.max(206, width - margin * 2));
                 int maxAvailableHeight = Math.max(120, height - margin * 2);
-                float maxAreaHeight = Math.max(50.0f, maxAvailableHeight - DETAIL_FIXED_HEIGHT);
+                float maxAreaHeight = Math.max(50.0f, maxAvailableHeight - detailFixedHeight());
 
                 if (Math.abs(maxAreaHeight - pageAreaHeight) > 0.5f) {
                     rebuildRecipePages(maxAreaHeight);
                 }
 
                 float pageContentHeight = currentRecipePageHeight();
-                int detailHeight = Math.min(maxAvailableHeight, Math.round(DETAIL_FIXED_HEIGHT + pageContentHeight));
+                int detailHeight = Math.min(maxAvailableHeight, Math.round(detailFixedHeight() + pageContentHeight));
 
                 if (!detailPositionSet) {
                     detailLeft = Math.max(margin, Math.min(width - detailWidth - margin, (width - detailWidth) * 0.5f));

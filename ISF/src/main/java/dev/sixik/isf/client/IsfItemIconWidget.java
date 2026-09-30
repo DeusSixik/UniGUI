@@ -33,9 +33,15 @@ final class IsfItemIconWidget extends WidgetBase {
         float y = layoutBounds().y();
         float size = Math.min(layoutBounds().width(), layoutBounds().height());
         float opacity = context.opacityMultiplier();
+        // Fast-путь кэширует только иконку предмета, поэтому число (count) и прочие
+        // ванильные декорации видны только через renderItemPreview(..., decorations=true).
+        // Для стэков с count > 1 идём по полному vanilla-пути, иначе — по кэшированному.
+        boolean decorations = stack.getCount() > 1;
         context.custom(backend -> {
-            if (backend instanceof MinecraftGuiRenderBackend minecraftBackend
-                    && !minecraftBackend.renderItemPreviewLazy(stack, x, y, size, opacity)) {
+            if (!(backend instanceof MinecraftGuiRenderBackend minecraftBackend)) return;
+            if (decorations) {
+                minecraftBackend.renderItemPreview(stack, x, y, size, opacity, true);
+            } else if (!minecraftBackend.renderItemPreviewLazy(stack, x, y, size, opacity)) {
                 minecraftBackend.renderItemPreview(stack, x, y, size, opacity, true);
             }
         });

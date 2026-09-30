@@ -201,7 +201,12 @@ public final class VanillaRecipeTypeSupports {
             JsonArray alternatives = new JsonArray();
             for (ItemStack stack : ingredient.getItems()) {
                 ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack.getItem());
-                if (id != null) alternatives.add(id.toString());
+                if (id == null) continue;
+                // "id" или "id#count": количество на входе сохраняется явно,
+                // чтобы визуал рецепта рисовал число в углу клетки.
+                alternatives.add(stack.getCount() > 1
+                        ? id + "#" + stack.getCount()
+                        : id.toString());
             }
             ingredients.add(alternatives);
         }
