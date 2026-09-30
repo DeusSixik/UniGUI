@@ -74,10 +74,14 @@ public final class VanillaRecipeTypeSupports {
             case "campfire_cooking" -> id("minecraft:campfire");
             default -> id("minecraft:furnace");
         };
+        // Станция передаётся явно: без неё standardTriggers не добавит STATION-binding,
+        // и U-триггер по блоку печи не найдёт ни одного рецепта (matcher для usages
+        // ищет USE по ингредиентам или STATION по блоку-катализатору).
         return standardSupport(category,
                 recipe -> recipe instanceof AbstractCookingRecipe cooking && cooking.getType() == type,
                 VanillaRecipeTypeSupports::cookingParameters,
-                definition("isf:" + category, cookingSchema(), station, null, cookingVisual()));
+                definition("isf:" + category, cookingSchema(), station, null, cookingVisual()),
+                station);
     }
 
     private static IsfRecipeTypeSupport standardSupport(String category,

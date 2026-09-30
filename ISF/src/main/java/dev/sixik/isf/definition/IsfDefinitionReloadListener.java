@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -46,6 +47,14 @@ public final class IsfDefinitionReloadListener extends SimpleJsonResourceReloadL
                         entry.getValue().getAsJsonObject()));
             }
         }
+        // Группировка по выходному предмету: рецепты с одним результатом
+        // (например, все рецепты железного слитка) идут в реестре, а значит
+        // и в синхронизированной библиотеке/окне рецептов, друг за другом.
+        // Сортировка стабильная: рецепты без "result" сохраняют свой порядок в конце.
+        recipes.sort(Comparator
+                .comparing(IsfRecipeDefinition::resultItemId,
+                        java.util.Comparator.nullsLast(java.util.Comparator.comparing(ResourceLocation::toString)))
+                .thenComparing(recipe -> recipe.id().toString()));
         registry.replace(types, recipes);
         LOGGER.info("Loaded {} ISF recipe types and {} visual recipes", types.size(), recipes.size());
     }

@@ -62,6 +62,9 @@ public final class IsfRecipeGenerator {
                 generatedTypes++;
             }
 
+            // Сначала собираем и сортируем по выходному предмету: рецепты с одним
+            // результатом (например, железный слиток) пишутся файлами подряд.
+            List<IsfRecipeDefinition> definitions = new ArrayList<>();
             for (Recipe<?> recipe : server.getRecipeManager().getRecipes()) {
                 ResourceLocation recipeId = recipe.getId();
                 IsfRecipeTypeSupport support = supports.find(recipe).orElse(null);
@@ -71,11 +74,19 @@ public final class IsfRecipeGenerator {
                     continue;
                 }
                 if (!safeRequest.accepts(support.category())) continue;
-                IsfRecipeDefinition definition = toDefinition(recipeId, recipe, access, support);
-                Path target = output.resolve(recipeId.getNamespace())
-                        .resolve(recipeId.getPath() + ".json").normalize();
+                definitions.add(toDefinition(recipeId, recipe, access, support));
+            }
+            definitions.sort(java.util.Comparator
+                    .comparing(IsfRecipeDefinition::resultItemId,
+                            java.util.Comparator.nullsLast(java.util.Comparator.comparing(ResourceLocation::toString)))
+                    .thenComparing(recipe -> recipe.id().toString()));
+            for (IsfRecipeDefinition definition : definitions) {
+                ResourceLocation source = definition.source() == null ? null : definition.source().sourceId();
+                if (source == null) continue;
+                Path target = output.resolve(source.getNamespace())
+                        .resolve(source.getPath() + ".json").normalize();
                 if (!target.startsWith(output)) {
-                    throw new IllegalStateException("Recipe id escapes ISF output directory: " + recipeId);
+                    throw new IllegalStateException("Recipe id escapes ISF output directory: " + source);
                 }
                 writeJson(target, IsfDefinitionJson.writeRecipe(definition));
                 generated++;
