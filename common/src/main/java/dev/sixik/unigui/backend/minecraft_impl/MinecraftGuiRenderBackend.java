@@ -93,7 +93,6 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
     private final RenderTargetCache postEffectPingTargets = new RenderTargetCache(this);
     private final DrawList postEffectDrawList = new DrawList();
     private final FastItemRenderer fastItemRenderer;
-    private final EntityPreviewCache entityPreviewCache;
     private GuiGraphics graphics;
     private int appliedScissorDepth;
     private MinecraftRenderTarget activeRenderTarget;
@@ -118,7 +117,6 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         this.sdfTextRenderer.defaultFace(MinecraftFonts.defaultFace());
         this.mixedTextRenderer = new MinecraftMixedTextRenderer(this.minecraft, sdfTextRenderer);
         this.fastItemRenderer = new FastItemRenderer(this.minecraft);
-        this.entityPreviewCache = new EntityPreviewCache();
         this.shaderQuadRenderer = new MinecraftShaderQuadRenderer(this.minecraft);
         UiPostEffects.ensureRegistered();    }
 
@@ -132,7 +130,6 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         clearScissorStack();
         pollGpuTimer();
         fastItemRenderer.beginFrame();
-        entityPreviewCache.beginFrame();
     }
 
     public float lastFrameGpuMillis() {
@@ -217,31 +214,8 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         return fastItemRenderer.cachedTexture(stack, size);
     }
 
-    /**
-     * Запечённая иконка живой сущности: offscreen-рендер в текстуру (по образцу
-     * кэша предметов), которую можно рисовать обычной texture-командой с
-     * корректным transform/clip внутри Z-слоёв. Возвращает {@code null}, если
-     * сущность нельзя создать или бюджет пекарни на кадр исчерпан — в этом случае
-     * вызывающий рисует fallback-иконку.
-     */
-    public TextureHandle entityPreviewTexture(EntityType<? extends LivingEntity> entityType) {
-        if (entityType == null || minecraft.level == null) return null;
-        return entityPreviewCache.texture(entityType, type -> {
-            try {
-                return type.create(minecraft.level);
-            } catch (RuntimeException ignored) {
-                return null;
-            }
-        });
-    }
-
-    public void clearEntityPreviewCache() {
-        entityPreviewCache.clear();
-    }
-
     public void clearItemPreviewCache() {
         fastItemRenderer.clear();
-        entityPreviewCache.clear();
     }
 
     public void renderVanillaTooltip(Component line, float x, float y) {

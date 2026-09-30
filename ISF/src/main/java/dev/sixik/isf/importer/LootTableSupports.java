@@ -263,7 +263,6 @@ public final class LootTableSupports {
     private static IsfRecipeDefinition buildRecipe(ResourceLocation tableId, List<Drop> drops) {
         String source = sourceItem(tableId);
         String entityType = entityTypeId(tableId);
-        String spawnEgg = entityType != null ? spawnEggFor(tableId) : null;
         JsonArray dropsJson = new JsonArray();
         Set<IsfTriggerBinding> triggers = new LinkedHashSet<>();
         for (Drop drop : drops) {
@@ -294,8 +293,7 @@ public final class LootTableSupports {
         }
 
         Map<String, JsonElement> parameters = new LinkedHashMap<>();
-        parameters.put("source_item", new com.google.gson.JsonPrimitive(
-                entityType != null && spawnEgg != null ? spawnEgg : source));
+        parameters.put("source_item", new com.google.gson.JsonPrimitive(source));
         parameters.put("table_id", new com.google.gson.JsonPrimitive(tableId.toString()));
         if (entityType != null) {
             parameters.put("entity_type", new com.google.gson.JsonPrimitive(entityType));
@@ -333,23 +331,7 @@ public final class LootTableSupports {
         return BuiltInRegistries.ENTITY_TYPE.containsKey(entityId) ? entityId.toString() : null;
     }
 
-    /** @return spawn egg сущности или {@code null} — fallback-иконка на время запечки. */
-    private static String spawnEggFor(ResourceLocation tableId) {
-        String path = tableId.getPath();
-        if (!path.startsWith("entities/")) return null;
-        ResourceLocation entityId = ResourceLocation.tryBuild(tableId.getNamespace(),
-                path.substring("entities/".length()));
-        if (entityId == null) return null;
-        net.minecraft.world.entity.EntityType<?> type =
-                BuiltInRegistries.ENTITY_TYPE.get(entityId);
-        net.minecraft.world.item.SpawnEggItem egg = net.minecraft.world.item.SpawnEggItem.byId(type);
-        if (egg == null) return null;
-        ResourceLocation eggId = BuiltInRegistries.ITEM.getKey(egg);
-        return eggId == null ? null : eggId.toString();
-    }
-
-    private static boolean isBlockTable(ResourceLocation tableId) {
-        return tableId.getPath().startsWith("blocks/");
+    private static boolean isBlockTable(ResourceLocation tableId) {        return tableId.getPath().startsWith("blocks/");
     }
 
     private static boolean isSupportedTable(ResourceLocation tableId) {

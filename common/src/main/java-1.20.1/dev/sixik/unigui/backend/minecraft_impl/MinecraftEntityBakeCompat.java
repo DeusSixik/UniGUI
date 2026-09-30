@@ -4,14 +4,18 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexSorting;
 import dev.sixik.unigui.api.render.RenderTargetOptions;
+import dev.sixik.unigui.api.render.TextureHandle;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import org.joml.Matrix4f;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 
 import java.nio.IntBuffer;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * Version-specific пекер иконок живых сущностей.
@@ -21,12 +25,49 @@ import java.nio.IntBuffer;
  * к текущему фреймбуферу), после чего иконку можно рисовать обычной
  * texture-командой, уважающей transform/clip Z-слоёв UniGUI.</p>
  */
-final class MinecraftEntityBakeCompat {
+public final class MinecraftEntityBakeCompat {
+    private static final int ICON_PIXELS = 64;
+    private static final int CACHE_CAPACITY = 64;
+
+    private static final Map<EntityType<?>, MinecraftRenderTarget> CACHE =
+            new LinkedHashMap<>(CACHE_CAPACITY, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<EntityType<?>, MinecraftRenderTarget> eldest) {
+                    if (size() <= CACHE_CAPACITY) return false;
+                    eldest.getValue().close();
+                    return true;
+                }
+            };
+
     private MinecraftEntityBakeCompat() {
     }
 
+    /**
+     * Запечённая иконка живой сущности (кэшируется по типу).
+     *
+     * @return handle текстуры или {@code null}, если сущность не удалось создать.
+     */
+    public static TextureHandle bakePreview(EntityType<? extends LivingEntity> type, int pixels) {
+        if (type == null) return null;
+        MinecraftRenderTarget cached = CACHE.get(type);
+        if (cached != null) return cached.colorTexture();
+        Minecraft minecraft = Minecraft.getInstance();
+        LivingEntity entity;
+        try {
+            entity = type.create(minecraft.level);
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+        if (entity == null) return null;
+        entity.discard();
+        int clampedPixels = Math.max(16, Math.min(256, pixels));
+        MinecraftRenderTarget target = bake(entity, clampedPixels);
+        CACHE.put(type, target);
+        return target.colorTexture();
+    }
+
     /** Рендерит сущность в новый offscreen-таргет {@code pixels x pixels}. */
-    static MinecraftRenderTarget bake(LivingEntity entity, int pixels) {
+    private static MinecraftRenderTarget bake(LivingEntity entity, int pixels) {
         Minecraft minecraft = Minecraft.getInstance();
         MinecraftRenderTarget target = new MinecraftRenderTarget(
                 pixels, pixels, new RenderTargetOptions(true, true, "entity_preview_" + pixels));

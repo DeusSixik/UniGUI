@@ -335,7 +335,6 @@ final class IsfVisualWidgetFactory {
      * Источник окна добычи: если задан параметр {@code entity} (id живой сущности) —
      * рисует запечённую иконку модели моба (texture-путь уважает transform/clip
      * Z-слоёв, в отличие от прямого InventoryScreen-рендера), иначе предмет.
-     * Фолбэк на кадр, пока текстура печётся, — spawn egg сущности.
      */
     private WidgetBase entityOrItem(IsfVisualNode node) {
         float size = Math.max(CELL, integer(value(node, "width"), (int) CELL));
@@ -346,31 +345,15 @@ final class IsfVisualWidgetFactory {
                     : net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.get(entityId);
             if (type != null && net.minecraft.world.entity.LivingEntity.class
                     .isAssignableFrom(type.getBaseClass())) {
-                return entityIconWidget((net.minecraft.world.entity.EntityType) type, node, size);
+                @SuppressWarnings({"unchecked", "rawtypes"})
+                IsfEntityIconWidget icon = new IsfEntityIconWidget(
+                        (net.minecraft.world.entity.EntityType) type, size);
+                icon.enabled(false);
+                icon.layout(style -> style.size(size, size).centerSelf().flexNone());
+                return icon;
             }
         }
         return itemWidget(node);
-    }
-
-    /**
-     * Иконка сущности через bake-кэш бекенда: иконка рисуется обычной
-     * texture-командой внутри transform'а окна. Пока текстура не готова
-     * (бюджет запечёк на кадр), рисуется spawn egg; пустое значение
-     * {@code entity} или нет egg — обычный item-путь.
-     */
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    private WidgetBase entityIconWidget(net.minecraft.world.entity.EntityType type,
-                                        IsfVisualNode node, float size) {
-        dev.sixik.isf.client.IsfEntityIconWidget icon =
-                new dev.sixik.isf.client.IsfEntityIconWidget(type, size);
-        icon.enabled(false);
-        icon.layout(style -> style.size(size, size).centerSelf().flexNone());
-        // На случай исчерпания бюджета пекарни подкладываем egg как fallback-предмет.
-        JsonElement fallback = value(node, "item");
-        if (fallback != null && fallback.isJsonPrimitive()) {
-            icon.fallbackItem(item(fallback));
-        }
-        return icon;
     }
 
     /** @return клетки крафта: pattern даёт строки, плоский список — одну строку. */
