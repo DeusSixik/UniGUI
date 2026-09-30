@@ -776,13 +776,23 @@ final class IsfBrowserOverlay {
      * ПКМ по клетке в списке предметов или закладках — применения (U),
      * а если предмет является катализатором (печь, верстак...) — окно станции
      * со всеми категориями этого блока.
+     *
+     * <p>Hit-проверка ограничена viewport'ом соответствующего ScrollView: клетки
+     * за пределами видимой области прокрутки остаются в layout-дереве со своими
+     * layout-границами (выше/ниже viewport'а), и без этой проверки клик по
+     * «пустой» зоне над/под списком попадал в обрезанную клетку.</p>
      */
     boolean clickItemList(double mouseX, double mouseY, int button) {
         if (button != 1) return false;
         float x = (float) mouseX;
         float y = (float) mouseY;
-        ResourceLocation itemId = cellIdAt(itemCells, x, y);
-        if (itemId == null) itemId = cellIdAt(bookmarkCells, x, y);
+        ResourceLocation itemId = null;
+        if (contains(itemScroll.layoutBounds(), x, y)) {
+            itemId = cellIdAt(itemCells, x, y);
+        }
+        if (itemId == null && contains(bookmarkScroll.layoutBounds(), x, y)) {
+            itemId = cellIdAt(bookmarkCells, x, y);
+        }
         if (itemId == null) return false;
         if (isCatalystItem(itemId)) {
             showStationRecipes(itemId);
