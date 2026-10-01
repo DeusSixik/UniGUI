@@ -78,3 +78,19 @@ tasks.register('isfPageFlipSelfTest', JavaExec) {
     classpath = sourceSets.test.runtimeClasspath
     mainClass = 'dev.sixik.isf.tests.IsfPageFlipSelfTest'
 }
+
+tasks.register('isfLootChanceSelfTest', JavaExec) {
+    group = 'verification'
+    description = 'Проверяет математику шансов лут-таблиц ISF без запуска Minecraft.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.sixik.isf.importer.LootChanceSelfTest'
+}
+
+tasks.register('isfLootNbtClientSelfTest', JavaExec) {
+    group = 'verification'
+    description = 'Проверяет клиентское чтение NBT ячеек дропа ISF без запуска Minecraft.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.sixik.isf.client.LootNbtClientSelfTest'
+}

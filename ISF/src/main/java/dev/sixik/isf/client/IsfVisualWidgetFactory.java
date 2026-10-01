@@ -14,6 +14,7 @@ import dev.sixik.unigui.api.layout.Justify;
 import dev.sixik.unigui.api.layout.PositionType;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.TextureOptions;
+import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftTextureHandle;
 import dev.sixik.unigui.impl.widget.WidgetBase;
@@ -45,6 +46,8 @@ final class IsfVisualWidgetFactory {
     private static final org.slf4j.Logger LOGGER =
             org.slf4j.LoggerFactory.getLogger(IsfVisualWidgetFactory.class);
     private static final float CELL = 18.0f;
+    /** Кегль подписи шанса: дефолтные 10px распирают колонку 22px («12.5%» налезает). */
+    private static final float CHANCE_TEXT_SIZE = 7.0f;
     static final String SLOT_TEXTURE = "isf:textures/jei/atlas/gui/slot.png";
     static final String ARROW_TEXTURE = "isf:textures/jei/atlas/gui/recipe_arrow.png";
 
@@ -251,6 +254,12 @@ final class IsfVisualWidgetFactory {
                 }
             }
             float rowHeight = CELL + 10.0f;
+            // NBT ячейки (зелья, чары из set_nbt/set_potion/...): один тег на всех
+            // альтернатив, применяется до копирования главного стака.
+            net.minecraft.nbt.CompoundTag cellTag = readCellTag(cell.get("nbt"));
+            if (cellTag != null) {
+                for (ItemStack stack : stacks) stack.getOrCreateTag().merge(cellTag);
+            }
             if (stacks.isEmpty()) {
                 // Пустая ячейка сохраняет позицию в сетке: без placeholder'а индексы
                 // смещаются, и ряды «пропадают» (village temple и т.п.).
@@ -274,7 +283,8 @@ final class IsfVisualWidgetFactory {
             slot.addChild(button);
             // 100% не подписываем: вероятность по умолчанию очевидна без текста.
             if (chance < 0.999) {
-                Label chanceLabel = new Label(formatChance(chance));
+                Label chanceLabel = new Label(
+                        RichText.of(formatChance(chance), null, CHANCE_TEXT_SIZE));
                 chanceLabel.layout(style -> style.width(cellColumn).height(10.0f).flexNone());
                 chanceLabel.textAlignment(Alignment.CENTER);
                 // Такой же тёмный цвет, как у ID таблицы добычи.
@@ -519,6 +529,19 @@ final class IsfVisualWidgetFactory {
         int count = entryCount(value);
         if (count > 1) stack.setCount(Math.min(count, stack.getMaxStackSize()));
         return stack;
+    }
+
+    /**
+     * NBT-тег ячейки дропа (SNBT из импортёра): битый/пустой даёт {@code null}.
+     * Применяется через merge поверх стака (как ванильный {@code set_nbt}).
+     */
+    static net.minecraft.nbt.CompoundTag readCellTag(JsonElement value) {
+        if (value == null || !value.isJsonPrimitive()) return null;
+        try {
+            return net.minecraft.nbt.TagParser.parseTag(value.getAsString());
+        } catch (com.mojang.brigadier.exceptions.CommandSyntaxException | RuntimeException ignored) {
+            return null;
+        }
     }
 
     private static int integer(JsonElement value, int fallback) {
