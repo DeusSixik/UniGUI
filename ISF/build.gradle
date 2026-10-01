@@ -119,6 +119,14 @@ tasks.register('isfCraftTransferSelfTest', JavaExec) {
     mainClass = 'dev.sixik.isf.client.IsfCraftTransferSelfTest'
 }
 
+tasks.register('isfButtonRendererSelfTest', JavaExec) {
+    group = 'verification'
+    description = 'Проверяет выбор подложки кнопок ISF по состоянию.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.sixik.isf.client.IsfButtonRendererSelfTest'
+}
+
 tasks.register('isfGeneratePathsSelfTest', JavaExec) {
     group = 'verification'
     description = 'Проверяет раскладку сгенерированных рецептов ISF по папкам типов.'

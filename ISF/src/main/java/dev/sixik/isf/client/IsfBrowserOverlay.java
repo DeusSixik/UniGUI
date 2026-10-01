@@ -689,15 +689,11 @@ final class IsfBrowserOverlay {
         detailTitle.layout(style -> style.flexGrow(1.0f).flexShrink(1.0f));
         detailTitle.background(0.5f,0.5f,0.5f,0.5f);
         detailTitle.color().set(0,0,0,1);
-        detailPin.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/button_enabled_v2.png"),
-                20, 20, TextureOptions.nearest()),
-                4.0f));
+        detailPin.renderer(detailButtonRenderer());
         detailPin.text("P").textPadding(0.0f, 0.0f);
         detailPin.layout(style -> style.size(16.0f, 16.0f).flexNone());
         detailPin.onCheckedChanged(event -> setDetailPinned(event.newValue()));
-        detailClose.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/button_enabled_v2.png"),
-                20, 20, TextureOptions.nearest()),
-                4.0f));
+        detailClose.renderer(detailButtonRenderer());
         detailClose.themeEnabled(false);
         detailClose.text("X").textPadding(0.0f, 0.0f);
         detailClose.layout(style -> style.size(16.0f, 16.0f).flexNone());
@@ -733,17 +729,13 @@ final class IsfBrowserOverlay {
                 .justifyContent(Justify.CENTER));
         detailPage.layout(style -> style.width(48.0f).height(14.0f).flexNone().horizontalAlignment(Alignment.CENTER));
         detailPage.background(0.5f,0.5f,0.5f,0.5f);
-        detailPrevious.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/button_enabled_v2.png"),
-                20, 20, TextureOptions.nearest()),
-                4.0f));
+        detailPrevious.renderer(detailButtonRenderer());
         detailPrevious.themeEnabled(false);
         detailPrevious.textColor(1.0f, 1.0f, 1.0f, 1.0f);
         detailPrevious.text("<").textPadding(0.0f, 0.0f);
         detailPrevious.layout(style -> style.size(16.0f, 14.0f).flexNone());
         detailPrevious.onClick(event -> changeRecipePage(-1));
-        detailNext.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/button_enabled_v2.png"),
-                20, 20, TextureOptions.nearest()),
-                4.0f));
+        detailNext.renderer(detailButtonRenderer());
         detailNext.themeEnabled(false);
         detailNext.textColor(1.0f, 1.0f, 1.0f, 1.0f);
         detailNext.text(">").textPadding(0.0f, 0.0f);
@@ -806,6 +798,22 @@ final class IsfBrowserOverlay {
         panel.background().set(0.063f, 0.078f, 0.106f, 0.90f);
         panel.borderColor().set(0.416f, 0.561f, 0.682f, 1.0f);
         return panel;
+    }
+
+    /** Кнопка окна рецептов с текстурами под состояния (hover/press/disabled). */
+    private static IsfStateButtonRenderer detailButtonRenderer() {
+        return new IsfStateButtonRenderer(
+                nineSlice("textures/jei/atlas/gui/button_enabled_v2.png"),
+                nineSlice("textures/jei/atlas/gui/button_highlight_v2.png"),
+                nineSlice("textures/jei/atlas/gui/button_pressed_v2.png"),
+                nineSlice("textures/jei/atlas/gui/button_pressed_highlight_v2.png"),
+                nineSlice("textures/jei/atlas/gui/button_disabled_v2.png"));
+    }
+
+    private static NineSliceButtonRenderer nineSlice(String path) {
+        return new NineSliceButtonRenderer(new MinecraftTextureHandle(
+                ResourceLocation.tryBuild(IsfMod.MOD_ID, path),
+                20, 20, TextureOptions.nearest()), 4.0f);
     }
 
     private void rebuild(boolean ignored, float ignoredOffset) {
