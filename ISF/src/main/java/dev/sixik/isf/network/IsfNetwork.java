@@ -27,7 +27,7 @@ import java.util.function.Supplier;
 
 /** Синхронизация world-scoped прогресса и закладок ISF. */
 public final class IsfNetwork {
-    private static final String VERSION = "7";
+    private static final String VERSION = "8";
     private static final int MAX_COLLECTION_SIZE = 100_000;
     private static final int MAX_RECIPE_JSON_LENGTH = 1_048_576;
     /** Бюджет символов JSON на один chunk: лимит payload'а — 1 МБ. */
@@ -91,7 +91,8 @@ public final class IsfNetwork {
                 dev.sixik.isf.IsfMod.runtime().definitions().typeIcons();
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
                 new LibrarySnapshot(transferId, unlocked, data.bookmarks(player.getUUID()),
-                        resultByRecipe, catalysts, icons));
+                        resultByRecipe, catalysts, icons,
+                        dev.sixik.isf.IsfMod.runtime().definitions().typeOrder()));
     }
 
     private static List<List<IsfRecipeDefinition>> batchRecipes(List<IsfRecipeDefinition> documents) {
@@ -213,13 +214,14 @@ public final class IsfNetwork {
     }
 
     public record LibrarySnapshot(long transferId,
-                                  Set<ResourceLocation> unlocked,
-                                  Set<ResourceLocation> bookmarks,
-                                  Map<ResourceLocation, ResourceLocation> recipeResults,
-                                  Map<ResourceLocation, List<IsfCatalystDefinition>> typeCatalysts,
-                                  Map<ResourceLocation, ResourceLocation> typeIcons) {
+                                   Set<ResourceLocation> unlocked,
+                                   Set<ResourceLocation> bookmarks,
+                                   Map<ResourceLocation, ResourceLocation> recipeResults,
+                                   Map<ResourceLocation, List<IsfCatalystDefinition>> typeCatalysts,
+                                   Map<ResourceLocation, ResourceLocation> typeIcons,
+                                   List<ResourceLocation> typeOrder) {
         public LibrarySnapshot(Set<ResourceLocation> unlocked, Set<ResourceLocation> bookmarks) {
-            this(0L, unlocked, bookmarks, Map.of(), Map.of(), Map.of());
+            this(0L, unlocked, bookmarks, Map.of(), Map.of(), Map.of(), List.of());
         }
 
         public LibrarySnapshot {
@@ -242,6 +244,13 @@ public final class IsfNetwork {
                 });
             }
             typeIcons = Map.copyOf(safeIcons);
+            List<ResourceLocation> safeOrder = new ArrayList<>();
+            if (typeOrder != null) {
+                typeOrder.forEach(id -> {
+                    if (id != null) safeOrder.add(id);
+                });
+            }
+            typeOrder = List.copyOf(safeOrder);
         }
 
         private static void encode(LibrarySnapshot packet, FriendlyByteBuf buffer) {
@@ -270,6 +279,9 @@ public final class IsfNetwork {
                 buffer.writeResourceLocation(typeId);
                 buffer.writeResourceLocation(icon);
             });
+            requireValidSize(packet.typeOrder.size(), "type order");
+            buffer.writeVarInt(packet.typeOrder.size());
+            packet.typeOrder.forEach(buffer::writeResourceLocation);
         }
 
         private static LibrarySnapshot decode(FriendlyByteBuf buffer) {
@@ -297,14 +309,20 @@ public final class IsfNetwork {
             for (int index = 0; index < iconTypeCount; index++) {
                 typeIcons.put(buffer.readResourceLocation(), buffer.readResourceLocation());
             }
-            return new LibrarySnapshot(transferId, unlocked, bookmarks, resultByRecipe, typeCatalysts, typeIcons);
+            int typeOrderCount = readSize(buffer, "type order");
+            List<ResourceLocation> typeOrder = new ArrayList<>(typeOrderCount);
+            for (int index = 0; index < typeOrderCount; index++) {
+                typeOrder.add(buffer.readResourceLocation());
+            }
+            return new LibrarySnapshot(transferId, unlocked, bookmarks, resultByRecipe, typeCatalysts, typeIcons,
+                    typeOrder);
         }
 
         private static void handle(LibrarySnapshot packet, Supplier<NetworkEvent.Context> supplier) {
             NetworkEvent.Context context = supplier.get();
             context.enqueueWork(() -> IsfClientState.applyLibrarySnapshot(
                     packet.transferId, packet.unlocked, packet.bookmarks, packet.recipeResults,
-                    packet.typeCatalysts, packet.typeIcons));
+                    packet.typeCatalysts, packet.typeIcons, packet.typeOrder));
             context.setPacketHandled(true);
         }
     }

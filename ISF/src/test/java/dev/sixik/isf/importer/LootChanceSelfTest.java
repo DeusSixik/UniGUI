@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.List;
 
@@ -96,6 +97,174 @@ public final class LootChanceSelfTest {
         checkDouble(LootTableSupports.conditionChance(chanceCond(0.3)), 0.3, "conditionChance");
 
         runNbt();
+        runMatchTool();
+    }
+
+    private void runMatchTool() {
+        // Шёлк в предикате чар — точное условие.
+        check(LootTableSupports.matchToolNames(matchTool(silkPredicate(1))).equals(List.of("silk_touch")),
+                "match_tool silk levels number");
+        JsonObject silkRange = new JsonObject();
+        silkRange.addProperty("enchantment", "minecraft:silk_touch");
+        JsonObject levels = new JsonObject();
+        levels.addProperty("min", 1);
+        levels.addProperty("max", 1);
+        silkRange.add("levels", levels);
+        check(LootTableSupports.matchToolNames(matchTool(silkPredicate(silkRange)))
+                        .equals(List.of("silk_touch")),
+                "match_tool silk levels range");
+
+        // Ножницы предметом — точное условие (строкой и массивом).
+        check(LootTableSupports.matchToolNames(matchTool(itemsPredicate("minecraft:shears")))
+                        .equals(List.of("shears")),
+                "match_tool shears string");
+        check(LootTableSupports.matchToolNames(matchTool(itemsPredicate(
+                        "minecraft:stone_pickaxe", "minecraft:shears")))
+                        .equals(List.of("shears")),
+                "match_tool shears array");
+
+        // Чужой предикат и отсутствие предиката — общее условие.
+        check(LootTableSupports.matchToolNames(matchTool(fortunePredicate()))
+                        .equals(List.of("match_tool")),
+                "match_tool other enchantment");
+        JsonObject bare = new JsonObject();
+        bare.addProperty("condition", "minecraft:match_tool");
+        check(LootTableSupports.matchToolNames(bare).equals(List.of("match_tool")),
+                "match_tool without predicate");
+
+        // Сквозной кейс железной руды: руда только с шёлком, сырое железо всегда.
+        JsonObject orePool = poolWithCondition(1, matchTool(silkPredicate(1)), entry("minecraft:iron_ore", 1));
+        JsonObject rawPool = pool(1, entry("minecraft:raw_iron", 1));
+        JsonObject root = new JsonObject();
+        JsonArray pools = new JsonArray();
+        pools.add(orePool);
+        pools.add(rawPool);
+        root.add("pools", pools);
+        List<LootTableSupports.Drop> drops = LootTableSupports.parsePools(root);
+        checkDouble(dropChance(drops, "minecraft:iron_ore"), 1.0, "ore pool chance");
+        checkDouble(dropChance(drops, "minecraft:raw_iron"), 1.0, "raw pool chance");
+        check(dropConditions(drops, "minecraft:iron_ore").contains("silk_touch"),
+                "ore gated by silk_touch");
+        check(!dropConditions(drops, "minecraft:raw_iron").contains("silk_touch"),
+                "raw iron unconditional");
+
+        // Настоящая структура руды: один пул, alternatives [шёлк-руда, сырьё].
+        // Boolean-гейт НЕ должен гасить вторую ветку (сырьё пропадало вообще).
+        JsonObject silkOre = entry("minecraft:iron_ore", 1);
+        JsonArray silkConds = new JsonArray();
+        silkConds.add(matchTool(silkPredicate(1)));
+        silkOre.add("conditions", silkConds);
+        JsonObject oreAlternatives = composite("minecraft:alternatives",
+                silkOre, entry("minecraft:raw_iron", 1));
+        List<LootTableSupports.Drop> altDrops = LootTableSupports.parsePools(
+                table(singleEntryPool(1, oreAlternatives)));
+        checkDouble(dropChance(altDrops, "minecraft:iron_ore"), 1.0, "alternatives ore branch");
+        checkDouble(dropChance(altDrops, "minecraft:raw_iron"), 1.0, "alternatives raw branch kept");
+        check(dropConditions(altDrops, "minecraft:iron_ore").contains("silk_touch"),
+                "alternatives ore silk tooltip");
+
+        // Смешанный гейт (шёлк + случайность): вторая ветка режется только роллом.
+        JsonObject mixedFirst = chanceEntry("minecraft:gold_ore", 1, 0.5);
+        JsonArray mixedConds = mixedFirst.getAsJsonArray("conditions");
+        mixedConds.add(matchTool(silkPredicate(1)));
+        JsonObject goldAlternatives = composite("minecraft:alternatives",
+                mixedFirst, entry("minecraft:raw_gold", 1));
+        List<LootTableSupports.Drop> mixedDrops = LootTableSupports.parsePools(
+                table(singleEntryPool(1, goldAlternatives)));
+        checkDouble(dropChance(mixedDrops, "minecraft:raw_gold"), 0.5, "mixed gate discount");
+
+        runGenerationControl();
+    }
+
+    private void runGenerationControl() {
+        // Id рецепта зеркалит таблицу.
+        check(LootTableSupports.lootRecipeId(id("minecraft:entities/zombie")).toString()
+                        .equals("isf:loot/minecraft/entities/zombie"),
+                "loot recipe id mirrors table");
+
+        // Разбор loot_disabled.json: валидный, пустой, битый.
+        JsonObject disabledFile = new JsonObject();
+        JsonArray disabledList = new JsonArray();
+        disabledList.add("minecraft:entities/zombie");
+        disabledList.add("not an id!!!");
+        disabledList.add(new JsonObject());
+        disabledFile.add("disabled", disabledList);
+        check(LootTableSupports.parseDisabledTables(disabledFile)
+                        .equals(java.util.Set.of(id("minecraft:entities/zombie"))),
+                "disabled tables parsed, garbage skipped");
+        check(LootTableSupports.parseDisabledTables(new JsonObject()).isEmpty(),
+                "missing disabled key means empty");
+        check(LootTableSupports.parseDisabledTables(null).isEmpty(), "null json means empty");
+        check(LootTableSupports.parseDisabledTables(new JsonPrimitive("nope")).isEmpty(),
+                "non-object json means empty");
+
+        // lootTableId вытаскивает таблицу из source рецепта (для фильтра disabled).
+        dev.sixik.isf.definition.IsfRecipeDefinition zombie = new dev.sixik.isf.definition.IsfRecipeDefinition(
+                LootTableSupports.lootRecipeId(id("minecraft:entities/zombie")),
+                LootTableSupports.LOOT_TYPE_ID,
+                null,
+                java.util.Map.of(),
+                java.util.List.of(),
+                null,
+                new dev.sixik.isf.definition.IsfSourceReference("loot_table",
+                        id("minecraft:entities/zombie")));
+        check(id("minecraft:entities/zombie").equals(LootTableSupports.lootTableId(zombie)),
+                "loot table id from recipe source");
+        check(LootTableSupports.lootTableId(null) == null, "loot table id null-safe");
+    }
+
+    private static ResourceLocation id(String value) {
+        ResourceLocation parsed = ResourceLocation.tryParse(value);
+        if (parsed == null) throw new AssertionError("Bad test id: " + value);
+        return parsed;
+    }
+
+    private static JsonObject matchTool(JsonObject predicate) {
+        JsonObject condition = new JsonObject();
+        condition.addProperty("condition", "minecraft:match_tool");
+        if (predicate != null) condition.add("predicate", predicate);
+        return condition;
+    }
+
+    private static JsonObject silkPredicate(int levels) {
+        JsonObject enchant = new JsonObject();
+        enchant.addProperty("enchantment", "minecraft:silk_touch");
+        enchant.addProperty("levels", levels);
+        return enchantmentsPredicate(enchant);
+    }
+
+    private static JsonObject silkPredicate(JsonObject levels) {
+        JsonObject enchant = new JsonObject();
+        enchant.addProperty("enchantment", "minecraft:silk_touch");
+        enchant.add("levels", levels);
+        return enchantmentsPredicate(enchant);
+    }
+
+    private static JsonObject fortunePredicate() {
+        JsonObject enchant = new JsonObject();
+        enchant.addProperty("enchantment", "minecraft:fortune");
+        enchant.addProperty("levels", 3);
+        return enchantmentsPredicate(enchant);
+    }
+
+    private static JsonObject enchantmentsPredicate(JsonObject... enchants) {
+        JsonObject predicate = new JsonObject();
+        JsonArray array = new JsonArray();
+        for (JsonObject enchant : enchants) array.add(enchant);
+        predicate.add("enchantments", array);
+        return predicate;
+    }
+
+    private static JsonObject itemsPredicate(String... ids) {
+        JsonObject predicate = new JsonObject();
+        if (ids.length == 1) {
+            predicate.addProperty("items", ids[0]);
+        } else {
+            JsonArray array = new JsonArray();
+            for (String id : ids) array.add(id);
+            predicate.add("items", array);
+        }
+        return predicate;
     }
 
     private void runNbt() {

@@ -12,6 +12,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.level.storage.LevelResource;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -38,10 +39,7 @@ public final class IsfRecipeGenerator {
     public Result generate(MinecraftServer server, IsfImportRequest request) {
         if (server == null) throw new IllegalArgumentException("Server cannot be null");
         IsfImportRequest safeRequest = request == null ? IsfImportRequest.parse("") : request;
-        Path packRoot = server.getWorldPath(net.minecraft.world.level.storage.LevelResource.DATAPACK_DIR)
-                .resolve("isf_generated")
-                .toAbsolutePath()
-                .normalize();
+        Path packRoot = generatedPackRoot(server);
         Path output = packRoot.resolve("data").resolve("isf").resolve("isf")
                 .resolve("recipes").resolve("generated");
         int generated = 0;
@@ -82,19 +80,74 @@ public final class IsfRecipeGenerator {
                     .thenComparing(recipe -> recipe.id().toString()));
             for (IsfRecipeDefinition definition : definitions) {
                 ResourceLocation source = definition.source() == null ? null : definition.source().sourceId();
-                if (source == null) continue;
-                Path target = output.resolve(source.getNamespace())
-                        .resolve(source.getPath() + ".json").normalize();
-                if (!target.startsWith(output)) {
-                    throw new IllegalStateException("Recipe id escapes ISF output directory: " + source);
-                }
+                if (source == null || definition.recipeType() == null) continue;
+                Path target = generatedRecipePath(output, definition.recipeType(), source);
                 writeJson(target, IsfDefinitionJson.writeRecipe(definition));
                 generated++;
+            }
+            if (safeRequest.accepts("loot")) {
+                Path typeTarget = definitionPath(packRoot, "recipe_types",
+                        LootTableSupports.LOOT_TYPE_ID);
+                // Существующие файлы не трогаем: админ мог их править; обновление —
+                // удалить файл и сдампить заново. Отключённые не дампим вообще.
+                if (java.nio.file.Files.notExists(typeTarget)) {
+                    writeJson(typeTarget, IsfDefinitionJson.writeType(LootTableSupports.lootTypeDefinition()));
+                    generatedTypes++;
+                }
+                generated += writeLootRecipes(packRoot, server);
             }
         } catch (IOException exception) {
             throw new IllegalStateException("Failed to generate ISF recipes in " + output, exception);
         }
         return new Result(generated, generatedTypes, output, List.copyOf(unsupported));
+    }
+
+    /** Корень генерируемого пакета {@code datapacks/isf_generated}. */
+    public static Path generatedPackRoot(MinecraftServer server) {
+        if (server == null) throw new IllegalArgumentException("Server cannot be null");
+        return server.getWorldPath(LevelResource.DATAPACK_DIR)
+                .resolve("isf_generated")
+                .toAbsolutePath()
+                .normalize();
+    }
+
+    /** Файл отключённых лут-таблиц: {@code data/isf/isf/loot_disabled.json} пакета. */
+    public static Path lootDisabledFile(MinecraftServer server) {
+        return generatedPackRoot(server).resolve("data").resolve("isf").resolve("isf")
+                .resolve("loot_disabled.json");
+    }
+
+    /**
+     * Дампит лут-таблицы в JSON-файлы (категория {@code loot}).
+     * Путь файла зеркалит id рецепта ({@code recipes/loot/<ns>/<path>.json}),
+     * релоад грузит только файлы — автогенерации в памяти нет.
+     * Существующие файлы не перезаписываются (правки админа), отключённые через
+     * {@code loot_disabled.json} таблицы пропускаются.
+     *
+     * @return число записанных рецептов
+     */
+    private static int writeLootRecipes(Path packRoot, MinecraftServer server) throws IOException {
+        Path lootRoot = packRoot.resolve("data").resolve("isf").resolve("isf")
+                .resolve("recipes").resolve("loot").toAbsolutePath().normalize();
+        java.util.Set<ResourceLocation> disabled =
+                LootTableSupports.loadDisabledTables(server.getResourceManager());
+        List<IsfRecipeDefinition> loot =
+                new ArrayList<>(LootTableSupports.generate(server.getResourceManager()));
+        loot.sort(java.util.Comparator.comparing(recipe -> recipe.id().toString()));
+        int count = 0;
+        for (IsfRecipeDefinition definition : loot) {
+            ResourceLocation tableId = LootTableSupports.lootTableId(definition);
+            if (tableId == null || disabled.contains(tableId)) continue;
+            Path target = lootRoot.resolve(tableId.getNamespace())
+                    .resolve(tableId.getPath() + ".json").normalize();
+            if (!target.startsWith(lootRoot)) {
+                throw new IllegalStateException("Loot table id escapes ISF output directory: " + tableId);
+            }
+            if (java.nio.file.Files.exists(target)) continue;
+            writeJson(target, IsfDefinitionJson.writeRecipe(definition));
+            count++;
+        }
+        return count;
     }
 
     private static void writePackMetadata(Path packRoot) throws IOException {
@@ -131,6 +184,24 @@ public final class IsfRecipeGenerator {
         Path target = root.resolve(id.getPath() + ".json").normalize();
         if (!target.startsWith(root)) {
             throw new IllegalStateException("Definition id escapes ISF output directory: " + id);
+        }
+        return target;
+    }
+
+    /**
+     * Путь сгенерированного рецепта: {@code <root>/<typeNs>/<typePath>/<srcNs>/<srcPath>.json}.
+     * Раскладка по типам — только для удобства разработчиков: при парсинге папки
+     * не важны (id берётся из пути целиком, тип — из содержимого JSON).
+     */
+    static Path generatedRecipePath(Path outputRoot, ResourceLocation typeId, ResourceLocation sourceId) {
+        java.util.Objects.requireNonNull(outputRoot, "outputRoot");
+        java.util.Objects.requireNonNull(typeId, "typeId");
+        java.util.Objects.requireNonNull(sourceId, "sourceId");
+        Path root = outputRoot.toAbsolutePath().normalize();
+        Path target = root.resolve(typeId.getNamespace()).resolve(typeId.getPath())
+                .resolve(sourceId.getNamespace()).resolve(sourceId.getPath() + ".json").normalize();
+        if (!target.startsWith(root)) {
+            throw new IllegalStateException("Recipe id escapes ISF output directory: " + sourceId);
         }
         return target;
     }

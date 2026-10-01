@@ -55,10 +55,27 @@ public final class IsfDefinitionReloadListener extends SimpleJsonResourceReloadL
                 .comparing(IsfRecipeDefinition::resultItemId,
                         java.util.Comparator.nullsLast(java.util.Comparator.comparing(ResourceLocation::toString)))
                 .thenComparing(recipe -> recipe.id().toString()));
-        // Loot tables генерируются на этапе релоада: тот же ResourceManager, что и
-        // у датапак-определений, поэтому таблицы модов тоже попадают в индекс.
-        types.add(dev.sixik.isf.importer.LootTableSupports.lootTypeDefinition());
-        recipes.addAll(dev.sixik.isf.importer.LootTableSupports.generate(resourceManager));
+        // Порядок типов детерминирован (по id): от него зависит порядок вкладок
+        // в окне рецептов, а порядок обхода ресурсов датапаков не гарантирован.
+        types.sort(Comparator.comparing(type -> type.id().toString()));
+        // Loot tables живут ТОЛЬКО в файлах (см. /isf generateRecipes loot):
+        // автогенерации в памяти нет — ненужное вырезается удалением файла.
+        // Таблицы из loot_disabled.json выкидываются, даже если файл рецепта есть
+        // (команда /isf loot disable).
+        java.util.Set<ResourceLocation> disabledTables = new java.util.LinkedHashSet<>();
+        for (Map.Entry<ResourceLocation, JsonElement> entry : resources.entrySet()) {
+            if (entry.getKey().getPath().equals("isf/loot_disabled.json")) {
+                disabledTables.addAll(
+                        dev.sixik.isf.importer.LootTableSupports.parseDisabledTables(entry.getValue()));
+            }
+        }
+        if (!disabledTables.isEmpty()) {
+            recipes.removeIf(recipe -> {
+                ResourceLocation tableId =
+                        dev.sixik.isf.importer.LootTableSupports.lootTableId(recipe);
+                return tableId != null && disabledTables.contains(tableId);
+            });
+        }
         registry.replace(types, recipes);
         LOGGER.info("Loaded {} ISF recipe types and {} visual recipes", types.size(), recipes.size());
     }

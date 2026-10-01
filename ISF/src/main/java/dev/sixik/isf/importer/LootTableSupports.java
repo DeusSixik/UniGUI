@@ -187,14 +187,20 @@ public final class LootTableSupports {
         if (type.endsWith("alternatives")) {
             // Первый проходящий ребёнок забирает ролл:
             // P(child_i) = base * q_i * Π_{j<i}(1 - q_j).
+            // Важно: вероятность предыдущих детей съедают ТОЛЬКО случайные условия.
+            // Boolean геймплейные (шёлк, кирка, убийство игроком) зависят от игры,
+            // в модели считаются проходящими — иначе ветка руды с шёлком (q=1)
+            // полностью гасила бы сырое железо/золото/медь.
             double skip = 1.0;
             if (entry.has("children") && entry.get("children").isJsonArray()) {
                 for (JsonElement child : entry.getAsJsonArray("children")) {
                     if (child.isJsonObject()) {
                         resolveEntry(child.getAsJsonObject(), base * skip, rolls,
                                 inheritedConditions, merged);
+                        if (containsRandomCondition(child.getAsJsonObject())) {
+                            skip *= 1.0 - childPassChance(child);
+                        }
                     }
-                    skip *= 1.0 - childPassChance(child);
                 }
             }
             return;
@@ -258,6 +264,39 @@ public final class LootTableSupports {
     /** Шанс прохождения ребёнка alternatives (для фактора «предыдущие не прошли»). */
     private static double childPassChance(JsonElement child) {
         return child != null && child.isJsonObject() ? allConditionsChance(child.getAsJsonObject()) : 0.0;
+    }
+
+    /**
+     * Есть ли в собственных условиях держателя случайные (не boolean).
+     * Внуки-композиты не проверяются: на выбор ветки alternatives влияют только
+     * собственные условия ребёнка.
+     */
+    static boolean containsRandomCondition(JsonObject holder) {
+        if (holder == null || !holder.has("conditions") || !holder.get("conditions").isJsonArray()) {
+            return false;
+        }
+        for (JsonElement element : holder.getAsJsonArray("conditions")) {
+            if (element.isJsonObject() && conditionContainsRandom(element.getAsJsonObject())) return true;
+        }
+        return false;
+    }
+
+    private static boolean conditionContainsRandom(JsonObject condition) {
+        String name = condition.has("condition") && condition.get("condition").isJsonPrimitive()
+                ? condition.get("condition").getAsString() : "";
+        if (name.endsWith("random_chance") || name.endsWith("random_chance_with_looting")) return true;
+        if (name.endsWith("alternative") || name.endsWith("any_of") || name.endsWith("all_of")) {
+            for (JsonElement term : conditionTerms(condition)) {
+                if (term.isJsonObject() && conditionContainsRandom(term.getAsJsonObject())) return true;
+            }
+            return false;
+        }
+        if (name.endsWith("inverted")) {
+            JsonElement term = condition.get("term");
+            return term != null && term.isJsonObject()
+                    && conditionContainsRandom(term.getAsJsonObject());
+        }
+        return false;
     }
 
     /**
@@ -435,9 +474,88 @@ public final class LootTableSupports {
                     || name.endsWith("random_chance_with_looting")) {
                 continue;
             }
+            if (name.endsWith("match_tool")) {
+                // match_tool сам по себе ни о чём не говорит: смотрим предикат.
+                // Шёлк/ножницы получают точные строки (есть lang), остальное — общее.
+                out.addAll(matchToolNames(condition));
+                continue;
+            }
             int slash = name.lastIndexOf('/');
             out.add(slash >= 0 ? name.substring(slash + 1) : name);
         }
+    }
+
+    /**
+     * Точные имена для {@code match_tool} по предикату: {@code silk_touch} (чары silk_touch
+     * в предикате), {@code shears} (предмет — ножницы), иначе общее {@code match_tool}.
+     * Поддерживаются предикаты в виде объекта ({@code predicate: {...}}).
+     */
+    static List<String> matchToolNames(JsonObject condition) {
+        JsonElement predicate = condition.get("predicate");
+        if (predicate != null && predicate.isJsonObject()) {
+            List<String> names = new ArrayList<>();
+            JsonObject rules = predicate.getAsJsonObject();
+            if (hasSilkTouchRequirement(rules)) names.add("silk_touch");
+            if (hasShearsRequirement(rules)) names.add("shears");
+            if (!names.isEmpty()) return List.copyOf(names);
+        }
+        return List.of("match_tool");
+    }
+
+    /** Предикат требует чары шёлкового касания (уровень не ниже 1). */
+    private static boolean hasSilkTouchRequirement(JsonObject predicate) {
+        if (!predicate.has("enchantments") || !predicate.get("enchantments").isJsonArray()) return false;
+        for (JsonElement element : predicate.getAsJsonArray("enchantments")) {
+            if (!element.isJsonObject()) continue;
+            JsonObject enchant = element.getAsJsonObject();
+            JsonElement id = enchant.get("enchantment");
+            if (id == null || !id.isJsonPrimitive() || !id.getAsString().endsWith("silk_touch")) continue;
+            // Без levels — любой уровень (у шёлка он один); иначе нужен минимум 1.
+            if (!enchant.has("levels")) return true;
+            if (predicateMinLevel(enchant.get("levels")) >= 1) return true;
+        }
+        return false;
+    }
+
+    /** Предикат требует именно ножницы (предмет). */
+    private static boolean hasShearsRequirement(JsonObject predicate) {
+        JsonElement items = predicate.get("items");
+        if (items == null) return false;
+        if (items.isJsonPrimitive()) return items.getAsString().endsWith("shears");
+        if (items.isJsonArray()) {
+            for (JsonElement element : items.getAsJsonArray()) {
+                if (element.isJsonPrimitive() && element.getAsString().endsWith("shears")) return true;
+            }
+        }
+        return false;
+    }
+
+    /** Минимальный уровень из провайдера уровней (число | {min,max} | {value}). */
+    private static int predicateMinLevel(JsonElement levels) {
+        if (levels == null || levels.isJsonNull()) return 1;
+        if (levels.isJsonPrimitive()) {
+            try {
+                return levels.getAsInt();
+            } catch (RuntimeException ignored) {
+                return 1;
+            }
+        }
+        if (levels.isJsonObject()) {
+            JsonObject range = levels.getAsJsonObject();
+            if (range.has("min")) {
+                try {
+                    return range.get("min").getAsInt();
+                } catch (RuntimeException ignored) {
+                }
+            }
+            if (range.has("value")) {
+                try {
+                    return range.get("value").getAsInt();
+                } catch (RuntimeException ignored) {
+                }
+            }
+        }
+        return 1;
     }
 
         /**
@@ -719,11 +837,68 @@ public final class LootTableSupports {
             parameters.put("entity_type", new com.google.gson.JsonPrimitive(entityType));
         }
         parameters.put("drops", dropsJson);
-        ResourceLocation recipeId = ResourceLocation.tryBuild("isf",
-                "loot/" + tableId.getNamespace() + "/" + tableId.getPath());
+        ResourceLocation recipeId = lootRecipeId(tableId);
         return new IsfRecipeDefinition(recipeId, LOOT_TYPE_ID, null,
                 Map.copyOf(parameters), List.copyOf(triggers), null,
                 new dev.sixik.isf.definition.IsfSourceReference("loot_table", tableId));
+    }
+
+    // ------------------------------------------------------------------
+    // Управление генерацией: дамп в файлы и отключение таблиц
+    // ------------------------------------------------------------------
+
+    /** Id ISF-рецепта для таблицы добычи: {@code isf:loot/<ns>/<path>}. */
+    public static ResourceLocation lootRecipeId(ResourceLocation tableId) {
+        return ResourceLocation.tryBuild("isf",
+                "loot/" + tableId.getNamespace() + "/" + tableId.getPath());
+    }
+
+    /** Id таблицы добычи из ISF-рецепта (поле source) или {@code null}. */
+    public static ResourceLocation lootTableId(dev.sixik.isf.definition.IsfRecipeDefinition recipe) {
+        if (recipe == null || recipe.source() == null) return null;
+        if (!"loot_table".equals(recipe.source().category())) return null;
+        return recipe.source().sourceId();
+    }
+
+    /**
+     * Отключённые таблицы из {@code isf/loot_disabled.json} датапака:
+     * {@code {"disabled": ["minecraft:entities/zombie", ...]}}.
+     * Битые записи пропускаются, отсутствие файла — пустой набор.
+     */
+    public static Set<ResourceLocation> parseDisabledTables(JsonElement json) {
+        Set<ResourceLocation> disabled = new LinkedHashSet<>();
+        if (json == null || !json.isJsonObject()) return Set.copyOf(disabled);
+        JsonObject root = json.getAsJsonObject();
+        if (!root.has("disabled") || !root.get("disabled").isJsonArray()) return Set.copyOf(disabled);
+        for (JsonElement element : root.getAsJsonArray("disabled")) {
+            if (!element.isJsonPrimitive()) continue;
+            try {
+                ResourceLocation id = ResourceLocation.tryParse(element.getAsString());
+                if (id != null) disabled.add(id);
+            } catch (RuntimeException ignored) {
+            }
+        }
+        return Set.copyOf(disabled);
+    }
+
+    /**
+     * Отключённые таблицы из всех датапаков (объединение).
+     * Путь файла: {@code data/<ns>/isf/loot_disabled.json}.
+     */
+    public static Set<ResourceLocation> loadDisabledTables(
+            net.minecraft.server.packs.resources.ResourceManager resources) {
+        Set<ResourceLocation> disabled = new LinkedHashSet<>();
+        if (resources == null) return Set.copyOf(disabled);
+        for (net.minecraft.server.packs.resources.Resource resource : resources
+                .getResourceStack(ResourceLocation.tryBuild("isf", "isf/loot_disabled.json"))) {
+            try (java.io.InputStreamReader reader = new java.io.InputStreamReader(resource.open(),
+                    java.nio.charset.StandardCharsets.UTF_8)) {
+                disabled.addAll(parseDisabledTables(
+                        com.google.gson.JsonParser.parseReader(reader)));
+            } catch (Exception ignored) {
+            }
+        }
+        return Set.copyOf(disabled);
     }
 
     /**

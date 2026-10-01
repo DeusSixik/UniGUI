@@ -63,6 +63,11 @@ public final class IsfDefinitionRegistry {
         }
     }
 
+    /** Id recipe types в порядке реестра (детерминирован сортировкой при релоаде). */
+    public synchronized List<ResourceLocation> typeOrder() {
+        return List.copyOf(types.keySet());
+    }
+
     /** Катализаторы по id recipe type (учитывает наследование). */
     public synchronized Map<ResourceLocation, List<IsfCatalystDefinition>> typeCatalysts() {
         return Map.copyOf(typeCatalysts);

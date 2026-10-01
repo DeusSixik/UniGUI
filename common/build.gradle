@@ -149,6 +149,14 @@ tasks.register("widgetRenderCacheSelfTest", JavaExec) {
     classpath = sourceSets.test.runtimeClasspath
     mainClass = "dev.sixik.unigui.tests.WidgetRenderCacheSelfTest"
 }
+
+tasks.register("tooltipVisibilitySelfTest", JavaExec) {
+    group = "verification"
+    description = "Runs tooltip anchor-visibility self-test assertions."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.TooltipVisibilitySelfTest"
+}
 tasks.register("renderPolishSelfTest", JavaExec) {
     group = "verification"
     description = "Runs render polish API self-test assertions."
@@ -199,6 +207,7 @@ tasks.named("test") {
     dependsOn tasks.named("holdButtonSelfTest")
     dependsOn tasks.named("animationInterpolationSelfTest")
     dependsOn tasks.named("storyboardSelfTest")
-    dependsOn tasks.named("layoutTransitionSelfTest")
-    dependsOn tasks.named("widgetRendererContractSelfTest")
-}
+      dependsOn tasks.named("layoutTransitionSelfTest")
+      dependsOn tasks.named("widgetRendererContractSelfTest")
+      dependsOn tasks.named("tooltipVisibilitySelfTest")
+  }

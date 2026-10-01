@@ -156,7 +156,22 @@ public class Tooltip extends Box implements OverlayHostAware {
     }
 
     public boolean showing() {
-        return visibility() == Visibility.VISIBLE && anchor != null && anchor.hovered() && !text.isEmpty();
+        return visibility() == Visibility.VISIBLE && anchor != null && anchor.hovered()
+                && isEffectivelyVisible(anchor) && !text.isEmpty();
+    }
+
+    /**
+     * Якорь и все его предки должны быть VISIBLE. Без этого тултип зависает:
+     * при сворачивании якоря (фильтр поиска, скрытие панели) PointerExited
+     * не прилетает, флаг hovered остаётся, и тултип висит над пустым местом.
+     */
+    private static boolean isEffectivelyVisible(Widget widget) {
+        Widget current = widget;
+        while (current != null) {
+            if (current.visibility() != Visibility.VISIBLE) return false;
+            current = current.parent();
+        }
+        return true;
     }
 
     @Override

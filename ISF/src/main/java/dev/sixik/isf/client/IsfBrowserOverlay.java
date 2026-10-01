@@ -1,5 +1,6 @@
 package dev.sixik.isf.client;
 
+import com.google.gson.JsonElement;
 import dev.sixik.isf.IsfMod;
 import dev.sixik.isf.client.widgets.IconButton;
 import dev.sixik.isf.client.widgets.NineSliceHBox;
@@ -84,6 +85,9 @@ final class IsfBrowserOverlay {
     private final Map<ResourceLocation, MinecraftItemTooltip> bookmarkTooltips = new LinkedHashMap<>();
     private final Map<ResourceLocation, Button> itemCells = new LinkedHashMap<>();
     private String browserFilter = "";
+    /** Предметы, у которых есть рецепты/применения/станция: остальные в каталоге скрыты. */
+    private Set<ResourceLocation> itemsWithContent = Set.of();
+    private long contentIndexVersion = Long.MIN_VALUE;
     /** Последняя применённая высота tabScroll; -1 — ещё не применялась. */
     private float appliedTabScrollHeight = -1.0f;
 
@@ -1004,21 +1008,39 @@ final class IsfBrowserOverlay {
     /**
      * Применяет текущий фильтр без сброса скролла: используется после rebuild/sync,
      * где позиция скролла восстанавливается отдельно.
+     *
+     * <p>Клетка видна, только если предмет подходит под поиск И у него есть контент
+     * (рецепты, применения или станция): предметы-ни-о-чём в каталоге скрыты.</p>
      */
     private void refreshBrowserFilter() {
+        if (contentIndexVersion != IsfClientState.version()) {
+            contentIndexVersion = IsfClientState.version();
+            refreshContentIndex();
+        }
         String query = browserFilter == null ? "" : browserFilter.trim();
         boolean modOnly = query.startsWith("@");
         String needle = (modOnly ? query.substring(1) : query)
                 .trim()
                 .toLowerCase(Locale.ROOT);
 
-        if (hoveredEntry != null && !matchesBrowserQuery(hoveredEntry, needle, modOnly)) {
+        if (hoveredEntry != null) {
+            // Поиск перестраивает сетку (скролл в 0, видимость клеток): прежний hover
+            // геометрии больше не соответствует. Гасим флаг клетки синтетическим exit
+            // (иначе тултип/подсветка зависают: exit по скрытию не прилетает)
+            // и саму запись — мышь доедет заново при движении.
+            Button cell = itemCells.get(hoveredEntry.id());
+            if (cell != null) {
+                cell.handle(new PointerExitedEvent(cell, cell,
+                        dev.sixik.unigui.api.event.EventPhase.TARGET,
+                        0.0f, 0.0f, 0.0f, 0.0f, 0));
+            }
             hoveredEntry = null;
         }
         for (ItemEntry entry : catalogEntries) {
             Button cell = itemCells.get(entry.id());
             if (cell == null) continue;
-            boolean visible = matchesBrowserQuery(entry, needle, modOnly);
+            boolean visible = matchesBrowserQuery(entry, needle, modOnly)
+                    && itemsWithContent.contains(entry.id());
             cell.visibility(visible
                     ? dev.sixik.unigui.api.widget.Visibility.VISIBLE
                     : dev.sixik.unigui.api.widget.Visibility.COLLAPSED);
@@ -1026,6 +1048,59 @@ final class IsfBrowserOverlay {
 
         itemScroll.scrollTo(0.0f, 0.0f);
         updateItemScrollContentHeight();
+    }
+
+    /**
+     * Перестраивает индекс предметов с контентом: результаты разблокированных
+     * рецептов, катализаторы станций и все id предметов, упомянутые в параметрах
+     * рецептов (ингредиенты, дроп — поиск ведётся по строкам, годным в id
+     * предметов из реестра).
+     */
+    private void refreshContentIndex() {
+        Set<ResourceLocation> visible = new java.util.HashSet<>();
+        visible.addAll(IsfClientState.recipeResults().values());
+        for (List<IsfCatalystDefinition> catalysts : IsfClientState.typeCatalysts().values()) {
+            for (IsfCatalystDefinition catalyst : catalysts) {
+                if (catalyst.item() != null) visible.add(catalyst.item());
+            }
+        }
+        Set<String> mentioned = new java.util.HashSet<>();
+        for (IsfRecipeDefinition recipe : IsfClientState.recipes().values()) {
+            if (recipe.parameters() != null) {
+                for (JsonElement value : recipe.parameters().values()) {
+                    collectMentionedIds(value, mentioned);
+                }
+            }
+        }
+        for (String raw : mentioned) {
+            // Записи вида "minecraft:iron_ingot#9": суффикс количества отбрасываем.
+            int hash = raw.lastIndexOf('#');
+            ResourceLocation id = ResourceLocation.tryParse(hash < 0 ? raw : raw.substring(0, hash));
+            if (id != null && BuiltInRegistries.ITEM.containsKey(id)) visible.add(id);
+        }
+        visible.removeIf(id -> !BuiltInRegistries.ITEM.containsKey(id));
+        itemsWithContent = Set.copyOf(visible);
+    }
+
+    /**
+     * Собирает все строковые id из JSON-значения (объекты/массивы рекурсивно).
+     * Чистая функция без реестра — для тестов; годность строк проверяет вызыватель.
+     */
+    static void collectMentionedIds(JsonElement element, Set<String> out) {
+        if (element == null || element.isJsonNull() || out == null) return;
+        if (element.isJsonPrimitive()) {
+            out.add(element.getAsString());
+            return;
+        }
+        if (element.isJsonArray()) {
+            for (JsonElement child : element.getAsJsonArray()) collectMentionedIds(child, out);
+            return;
+        }
+        if (element.isJsonObject()) {
+            for (Map.Entry<String, JsonElement> member : element.getAsJsonObject().entrySet()) {
+                collectMentionedIds(member.getValue(), out);
+            }
+        }
     }
 
     /**
@@ -1136,6 +1211,8 @@ final class IsfBrowserOverlay {
         for (IsfRecipeDefinition recipe : recipes) {
             if (!order.contains(recipe.recipeType())) order.add(recipe.recipeType());
         }
+        // Порядок вкладок — из реестра сервера, а не из порядка сетевых чанков.
+        order = IsfClientState.sortByTypeOrder(order);
         List<ResourceLocation> current = new ArrayList<>();
         for (TypeTab tab : typeTabs) current.add(tab.typeId());
         if (!current.equals(order)) {
@@ -1509,8 +1586,8 @@ final class IsfBrowserOverlay {
         Set<ResourceLocation> bookmarks = IsfClientState.bookmarks();
         Map<ResourceLocation, ItemEntry> indexed = new LinkedHashMap<>();
 
-        // Правая панель является полным каталогом предметов Minecraft и всех модов.
-        // Поэтому её содержимое не зависит от того, открыты ли у игрока ISF-рецепты.
+        // Правая панель строится по всем предметам, но видимость клеток решает
+        // refreshBrowserFilter: без рецептов/применений/станции предмет скрыт.
         for (Item item : BuiltInRegistries.ITEM) {
             ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(item);
             if (item == Items.AIR || itemId == null) continue;

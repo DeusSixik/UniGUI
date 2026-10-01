@@ -94,3 +94,27 @@ tasks.register('isfLootNbtClientSelfTest', JavaExec) {
     classpath = sourceSets.test.runtimeClasspath
     mainClass = 'dev.sixik.isf.client.LootNbtClientSelfTest'
 }
+
+tasks.register('isfClientOrderSelfTest', JavaExec) {
+    group = 'verification'
+    description = 'Проверяет детерминированный порядок вкладок и рецептов ISF без запуска Minecraft.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.sixik.isf.client.IsfClientOrderSelfTest'
+}
+
+tasks.register('isfCatalogVisibilitySelfTest', JavaExec) {
+    group = 'verification'
+    description = 'Проверяет сбор id предметов для скрытия пустых клеток каталога ISF.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.sixik.isf.client.IsfCatalogVisibilitySelfTest'
+}
+
+tasks.register('isfGeneratePathsSelfTest', JavaExec) {
+    group = 'verification'
+    description = 'Проверяет раскладку сгенерированных рецептов ISF по папкам типов.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.sixik.isf.importer.IsfGeneratePathsSelfTest'
+}
