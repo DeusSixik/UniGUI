@@ -79,6 +79,7 @@ final class IsfBrowserOverlay {
     private final List<MinecraftItemTooltip> catalystTooltips = new ArrayList<>();
     private final List<MinecraftItemTooltip> recipeItemTooltips = new ArrayList<>();
     private final List<IsfItemButton> recipeItemButtons = new ArrayList<>();
+    private final List<IsfTransferButton> transferButtons = new ArrayList<>();
     private final List<Widget> pageVisuals = new ArrayList<>();
     private boolean recipeItemButtonsPopulated;
     private final Map<ResourceLocation, Button> bookmarkCells = new LinkedHashMap<>();
@@ -1463,8 +1464,7 @@ final class IsfBrowserOverlay {
         if (recipeItemButtonsPopulated) return;
         recipeItemButtonsPopulated = true;
         List<IsfItemButton> collected = new ArrayList<>();
-        for (Widget root : pageVisuals) collectItemButtons(root, collected);
-        for (IsfItemButton button : collected) {
+        for (Widget root : pageVisuals) collectItemButtons(root, collected);        for (IsfItemButton button : collected) {
             recipeItemButtons.add(button);
             MinecraftItemTooltip tooltip = new MinecraftItemTooltip(button, button.stack());
             if (button.acceptsGrid()) {
@@ -1486,6 +1486,14 @@ final class IsfBrowserOverlay {
             recipeItemTooltips.add(tooltip);
             overlayRoot.addOverlay(tooltip);
         }
+        // Кнопки переноса закрывают окно рецептов после выкладки.
+        for (Widget root : pageVisuals) collectTransferButtons(root, transferButtons);
+        for (IsfTransferButton button : transferButtons) button.onTransferred(this::closeDetail);
+    }
+
+    private static void collectTransferButtons(Widget widget, List<IsfTransferButton> out) {
+        if (widget instanceof IsfTransferButton button) out.add(button);
+        for (Widget child : widget.children()) collectTransferButtons(child, out);
     }
 
     private static void collectItemButtons(Widget widget, List<IsfItemButton> out) {
@@ -1505,6 +1513,7 @@ final class IsfBrowserOverlay {
         for (MinecraftItemTooltip tooltip : recipeItemTooltips) overlayRoot.removeOverlay(tooltip);
         recipeItemTooltips.clear();
         recipeItemButtons.clear();
+        transferButtons.clear();
         pageVisuals.clear();
         recipeItemButtonsPopulated = false;
     }

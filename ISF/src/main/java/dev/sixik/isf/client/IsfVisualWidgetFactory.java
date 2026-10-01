@@ -13,10 +13,8 @@ import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.Justify;
 import dev.sixik.unigui.api.layout.PositionType;
 import dev.sixik.unigui.api.math.MutableColor;
-import dev.sixik.unigui.api.render.TextureOptions;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.backend.minecraft_impl.MinecraftTextureHandle;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.GridBox;
@@ -25,7 +23,6 @@ import dev.sixik.unigui.widgets.containers.PanelWidget;
 import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.feedback.ProgressBar;
-import dev.sixik.unigui.widgets.interaction.Button;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
@@ -53,7 +50,9 @@ final class IsfVisualWidgetFactory {
 
     private final IsfExpressionEvaluator evaluator = new IsfExpressionEvaluator(IsfMod.runtime().functions());
     private final IsfEvaluationContext context;
-    private final Button recipePlus = new Button();
+    /** Клетки сетки ингредиентов в порядке строк (для подсветки нехватки). */
+    private final List<IsfItemButton> ingredientCells = new ArrayList<>();
+    private final List<IsfTransferButton> transferButtons = new ArrayList<>();
 
     private IsfVisualWidgetFactory(Map<String, JsonElement> parameters) {
         context = new IsfEvaluationContext(parameters);
@@ -61,7 +60,12 @@ final class IsfVisualWidgetFactory {
 
     static Widget create(IsfVisualNode visual, Map<String, JsonElement> parameters) {
         if (visual == null) return null;
-        Widget widget = new IsfVisualWidgetFactory(parameters).createNode(visual);
+        IsfVisualWidgetFactory factory = new IsfVisualWidgetFactory(parameters);
+        Widget widget = factory.createNode(visual);
+        // Кнопки переноса привязываем к клеткам после сборки всего дерева.
+        for (IsfTransferButton button : factory.transferButtons) {
+            button.bindCells(factory.ingredientCells);
+        }
         if (widget != null) {
             adaptHeightToChildren(widget);
         }
@@ -88,6 +92,7 @@ final class IsfVisualWidgetFactory {
             case "isf:loot_grid", "loot_grid" -> lootGrid(node);
             case "isf:loot_scroll", "loot_scroll" -> lootScroll(node);
             case "isf:entity_or_item", "entity_or_item" -> entityOrItem(node);
+            case "isf:transfer_button", "transfer_button" -> transferButton(node);
             default -> {
                 Label unsupported = new Label("Unknown visual widget: " + node.widget());
                 unsupported.color(MutableColor.fromHex("#FF6B6BFF"));
@@ -101,17 +106,24 @@ final class IsfVisualWidgetFactory {
                 for (IsfVisualNode child : node.children()) {
                     Widget childWidget = createNode(child);
                     if (childWidget != null) {
-                        recipePlus.layout(style -> style.size(8,8).alignSelf(Align.END));
-                        recipePlus.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/disabled_plus_button.png"),
-                                8, 8, TextureOptions.nearest()),
-                                4.0f));
                         panel.addChild(childWidget);
-                        panel.addChild(recipePlus);
                     }
                 }
             }
         }
         return widget;
+    }
+
+    /**
+     * Кнопка переноса в сетку крафта (объявляется в визуале типа).
+     * Ингредиенты берёт из того же параметра, что и сетка.
+     */
+    private WidgetBase transferButton(IsfVisualNode node) {
+        IsfTransferButton button = new IsfTransferButton(
+                string(value(node, "kind"), IsfTransferButton.KIND_CRAFTING_GRID),
+                value(node, "items"));
+        transferButtons.add(button);
+        return button;
     }
 
     private WidgetBase itemWidget(IsfVisualNode node) {
@@ -187,7 +199,9 @@ final class IsfVisualWidgetFactory {
         for (List<JsonArray> row : rows) {
             for (int column = 0; column < columns; column++) {
                 JsonArray cell = column < row.size() ? row.get(column) : new JsonArray();
-                grid.addChild(cellWidget(cell));
+                WidgetBase cellWidget = cellWidget(cell);
+                if (cellWidget instanceof IsfItemButton button) ingredientCells.add(button);
+                grid.addChild(cellWidget);
             }
         }
         return grid;

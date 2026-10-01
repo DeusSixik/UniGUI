@@ -111,6 +111,14 @@ tasks.register('isfCatalogVisibilitySelfTest', JavaExec) {
     mainClass = 'dev.sixik.isf.client.IsfCatalogVisibilitySelfTest'
 }
 
+tasks.register('isfCraftTransferSelfTest', JavaExec) {
+    group = 'verification'
+    description = 'Проверяет планирование переноса ингредиентов в сетку крафта ISF.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.sixik.isf.client.IsfCraftTransferSelfTest'
+}
+
 tasks.register('isfGeneratePathsSelfTest', JavaExec) {
     group = 'verification'
     description = 'Проверяет раскладку сгенерированных рецептов ISF по папкам типов.'

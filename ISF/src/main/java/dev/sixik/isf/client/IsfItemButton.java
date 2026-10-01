@@ -1,11 +1,15 @@
 package dev.sixik.isf.client;
 
 import dev.sixik.unigui.api.core.FrameContext;
+import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.event.Event;
 import dev.sixik.unigui.api.event.EventPhase;
 import dev.sixik.unigui.api.event.PointerEvent;
 import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.event.PointerReleasedEvent;
+import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.render.DrawPoint;
+import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.widgets.interaction.Button;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -38,6 +42,8 @@ final class IsfItemButton extends Button {
     private List<Component> extraLines = List.of();
     private int shownIndex;
     private long nextCycleMillis;
+    /** Красная заливка нехватки для переноса в сетку крафта (см. IsfTransferButton). */
+    private boolean transferMissing;
 
     IsfItemButton(ResourceLocation itemId, ItemStack stack) {
         this(List.of(itemId), List.of(stack), null, 18.0f);
@@ -144,5 +150,25 @@ final class IsfItemButton extends Button {
     IsfItemButton extraTooltipLines(List<Component> lines) {
         this.extraLines = lines == null || lines.isEmpty() ? List.of() : List.copyOf(lines);
         return this;
+    }
+
+    /** Подсветить клетку как недостающую для переноса (красный квадрат поверх). */
+    void setTransferMissing(boolean missing) {
+        if (this.transferMissing == missing) return;
+        this.transferMissing = missing;
+        invalidate(InvalidationFlags.VISUAL);
+    }
+
+    @Override
+    protected void renderContent(RenderContext context) {
+        super.renderContent(context);
+        if (!transferMissing) return;
+        var snapshot = snapshot(context);
+        context.addQuadFilled(
+                new DrawPoint(snapshot.x(), snapshot.y()),
+                new DrawPoint(snapshot.x() + snapshot.width(), snapshot.y()),
+                new DrawPoint(snapshot.x() + snapshot.width(), snapshot.y() + snapshot.height()),
+                new DrawPoint(snapshot.x(), snapshot.y() + snapshot.height()),
+                new MutableColor(1.0f, 0.12f, 0.12f, 0.45f));
     }
 }
