@@ -106,6 +106,23 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
     private boolean gpuTimerUsesArb;
     private float lastFrameGpuMillis = -1.0f;
 
+    /**
+     * Откат к захвату GL-состояния на каждую команду ({@code -Dunigui.legacyGlState=true}).
+     * Диагностика визуальных артефактов: по умолчанию текстуры/меши/текст состояние
+     * не сохраняют (каждый метод выставляет полное, см. ниже), а сохраняется оно
+     * только вокруг произвольных CUSTOM-команд.
+     */
+    private static final boolean LEGACY_GL_STATE =
+            Boolean.getBoolean("unigui.legacyGlState");
+
+    private static RenderState captureState() {
+        return LEGACY_GL_STATE ? RenderState.capture() : null;
+    }
+
+    private static void restoreState(RenderState state) {
+        if (state != null) state.restore();
+    }
+
     public MinecraftGuiRenderBackend(GuiGraphics graphics) {
         this(graphics, Minecraft.getInstance(), SimpleDrawBatcher.INSTANCE);
     }
@@ -227,7 +244,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         if (lines == null || lines.isEmpty()) return;
 
         graphics.flush();
-        RenderState state = RenderState.capture();
+        RenderState state = captureState();
         try {
             RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
             RenderSystem.enableBlend();
@@ -237,8 +254,8 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
             graphics.renderComponentTooltip(minecraft.font, lines, round(x), round(y));
             graphics.flush();
         } finally {
-            RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
-            state.restore();
+              RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+            restoreState(state);
         }
     }
 
@@ -260,7 +277,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
             return;
         }
         graphics.flush();
-        RenderState state = RenderState.capture();
+        RenderState state = captureState();
         try {
             RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
             RenderSystem.enableBlend();
@@ -273,8 +290,8 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
                     round(x), round(y));
             graphics.flush();
         } finally {
-            RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
-            state.restore();
+              RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+            restoreState(state);
         }
     }
 
@@ -282,7 +299,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         if (stack == null || stack.isEmpty()) return;
 
         graphics.flush();
-        RenderState state = RenderState.capture();
+        RenderState state = captureState();
         try {
             RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
             RenderSystem.enableBlend();
@@ -292,8 +309,8 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
             graphics.renderTooltip(minecraft.font, stack, round(x), round(y));
             graphics.flush();
         } finally {
-            RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
-            state.restore();
+              RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+            restoreState(state);
         }
     }
 
@@ -310,6 +327,12 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         PoseStack pose = graphics.pose();
         pose.pushPose();
         try {
+            // Ванильный рендер самодостаточен, кроме бленда/глубины: выставляем явно,
+            // т.к. предыдущие команды больше не восстанавливают состояние.
+            RenderSystem.enableBlend();
+            MinecraftUiBlend.applyStraightAlpha(activeRenderTarget != null);
+            RenderSystem.enableDepthTest();
+            RenderSystem.depthMask(true);
             RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, clamp01(opacity));
             pose.translate(x, y, 160.0f);
             pose.scale(scale, scale, 1.0f);
@@ -330,11 +353,15 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         LivingEntity entity = entityType.create(minecraft.level);
         if (entity == null) return false;
 
+        // Как в renderVanillaItemPreview: бленд и глубина явно (см. LEGACY_GL_STATE).
+        RenderSystem.enableBlend();
+        MinecraftUiBlend.applyStraightAlpha(activeRenderTarget != null);
+        RenderSystem.enableDepthTest();
+        RenderSystem.depthMask(true);
         RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, clamp01(opacity));
         try {
             int centerX = Math.round(x + size * 0.5f);
-            int bottomY = Math.round(y + size * 0.92f);
-            int entityScale = Math.max(1, Math.round(size * 0.72f));
+            int bottomY = Math.round(y + size * 0.92f);            int entityScale = Math.max(1, Math.round(size * 0.72f));
             renderEntityInInventory(centerX, bottomY, entityScale, size, x + mouseX, y + mouseY, entity);
             clearPreviewDepthBuffer();
             return true;
@@ -928,7 +955,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         if (batch.texture() != null && binding == null) return false;
 
         graphics.flush();
-        RenderState state = RenderState.capture();
+        RenderState state = captureState();
         int samplerDepth = MinecraftTextureSamplerState.depth();
         try {
             RenderSystem.enableBlend();
@@ -955,7 +982,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
             return true;
         } finally {
             MinecraftTextureSamplerState.restoreTo(samplerDepth);
-            state.restore();
+            restoreState(state);
         }
     }
 
@@ -1018,7 +1045,14 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
                 }
                 case CUSTOM -> {
                     if (command.customDraw() != null) {
-                        command.customDraw().draw(this);
+                        // Произвольный код: единственное место, где состояние
+                        // сохраняется безусловно (см. LEGACY_GL_STATE).
+                        RenderState state = RenderState.capture();
+                        try {
+                            command.customDraw().draw(this);
+                        } finally {
+                            state.restore();
+                        }
                     }
                 }
                 case MESH -> renderMesh(command);
@@ -1482,7 +1516,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         int y2 = round(bounds.y() + bounds.height());
 
         graphics.flush();
-        RenderState state = RenderState.capture();
+        RenderState state = captureState();
         int samplerDepth = MinecraftTextureSamplerState.depth();
         try {
             binding.bind();
@@ -1502,7 +1536,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
             MinecraftBufferCompat.drawWithShader(buffer);
         } finally {
             MinecraftTextureSamplerState.restoreTo(samplerDepth);
-            state.restore();
+            restoreState(state);
         }
     }
 
@@ -1514,7 +1548,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         if (binding == null) return;
 
         graphics.flush();
-        RenderState state = RenderState.capture();
+        RenderState state = captureState();
         int samplerDepth = MinecraftTextureSamplerState.depth();
         try {
             RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
@@ -1547,7 +1581,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
             MinecraftBufferCompat.drawWithShader(buffer);
         } finally {
             MinecraftTextureSamplerState.restoreTo(samplerDepth);
-            state.restore();
+            restoreState(state);
         }
     }
 
@@ -1566,7 +1600,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
 
     private void renderColoredMesh(DrawMesh mesh) {
         graphics.flush();
-        RenderState state = RenderState.capture();
+        RenderState state = captureState();
         try {
             RenderSystem.setShader(GameRenderer::getPositionColorShader);
             RenderSystem.enableBlend();
@@ -1584,13 +1618,13 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
             }
             MinecraftBufferCompat.drawWithShader(buffer);
         } finally {
-            state.restore();
+            restoreState(state);
         }
     }
 
     private void renderTexturedMesh(DrawMesh mesh, TextureBinding binding) {
         graphics.flush();
-        RenderState state = RenderState.capture();
+        RenderState state = captureState();
         int samplerDepth = MinecraftTextureSamplerState.depth();
         try {
             RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
@@ -1613,7 +1647,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
             MinecraftBufferCompat.drawWithShader(buffer);
         } finally {
             MinecraftTextureSamplerState.restoreTo(samplerDepth);
-            state.restore();
+            restoreState(state);
         }
     }
 
@@ -1625,14 +1659,14 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         if (alphaChannel(command.paint().color()) < MIN_VANILLA_TEXT_ALPHA_CHANNEL) return;
         RectView bounds = command.bounds();
         graphics.flush();
-        RenderState state = RenderState.capture();
+        RenderState state = captureState();
         try {
             RenderSystem.disableDepthTest();
             RenderSystem.depthMask(false);
             graphics.drawString(minecraft.font, text, round(bounds.x()), round(bounds.y()), argb(command.paint().color()), false);
             graphics.flush();
         } finally {
-            state.restore();
+            restoreState(state);
         }
     }
 

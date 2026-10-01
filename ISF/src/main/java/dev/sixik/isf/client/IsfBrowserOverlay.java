@@ -75,6 +75,8 @@ final class IsfBrowserOverlay {
     private final NineSliceVBox catalystColumn = new NineSliceVBox();
     private final NineSliceVBox recipeArea = new NineSliceVBox();
     private final List<MinecraftItemTooltip> tooltips = new ArrayList<>();
+    /** Ленивые тултипы клеток каталога: создаются при первом наведении, а не все сразу. */
+    private final Map<Button, MinecraftItemTooltip> catalogTooltips = new LinkedHashMap<>();
     private final List<MinecraftItemTooltip> tabTooltips = new ArrayList<>();
     private final List<MinecraftItemTooltip> catalystTooltips = new ArrayList<>();
     private final List<MinecraftItemTooltip> recipeItemTooltips = new ArrayList<>();
@@ -866,6 +868,7 @@ final class IsfBrowserOverlay {
 
         for (MinecraftItemTooltip tooltip : tooltips) overlayRoot.removeOverlay(tooltip);
         tooltips.clear();
+        catalogTooltips.clear();
         bookmarkCells.clear();
         bookmarkTooltips.clear();
         itemCells.clear();
@@ -876,7 +879,6 @@ final class IsfBrowserOverlay {
             Button cell = itemCell(entry);
             itemCells.put(entry.id(), cell);
             grid.addChild(cell);
-            addTooltip(cell, entry);
         }
 
         refreshBrowserFilter();
@@ -1180,7 +1182,10 @@ final class IsfBrowserOverlay {
         Button cell = new IconButton();
         cell.textPadding(0.0f, 0.0f);
         cell.layout(style -> style.size(CELL, CELL).flexNone());
-        cell.on(PointerEnteredEvent.TYPE, event -> hoveredEntry = entry);
+        cell.on(PointerEnteredEvent.TYPE, event -> {
+            hoveredEntry = entry;
+            ensureCatalogTooltip(cell, entry);
+        });
         cell.on(PointerExitedEvent.TYPE, event -> {
             if (hoveredEntry == entry) hoveredEntry = null;
         });
@@ -1197,8 +1202,15 @@ final class IsfBrowserOverlay {
         return cell;
     }
 
-    private void addTooltip(Button cell, ItemEntry entry) {
+    /**
+     * Тултип клетки каталога по первому наведению: тысячи eager-тултипов —
+     * это тысячи виджетов в дереве на каждый кадр (тик/measure/arrange/render)
+     * и фриз первого открытия, а показывают из них единицы.
+     */
+    private void ensureCatalogTooltip(Button cell, ItemEntry entry) {
+        if (cell == null || entry == null || catalogTooltips.containsKey(cell)) return;
         MinecraftItemTooltip tooltip = new MinecraftItemTooltip(cell, entry.stack());
+        catalogTooltips.put(cell, tooltip);
         tooltips.add(tooltip);
         overlayRoot.addOverlay(tooltip);
     }

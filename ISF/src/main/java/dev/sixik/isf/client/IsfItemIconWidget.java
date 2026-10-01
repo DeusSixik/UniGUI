@@ -2,7 +2,10 @@ package dev.sixik.isf.client;
 
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftGuiRenderBackend;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import net.minecraft.world.item.ItemStack;
@@ -33,6 +36,21 @@ final class IsfItemIconWidget extends WidgetBase {
         float y = layoutBounds().y();
         float size = Math.min(layoutBounds().width(), layoutBounds().height());
         float opacity = context.opacityMultiplier();
+        // Горячий путь: запечённая иконка рисуется обычной texture-командой
+        // вместо custom-колбэка (минус pose-циклы, двойной resolve и повторный
+        // вход в бекенд на каждую иконку каждый кадр). Тяжёлый custom-путь —
+        // только пока иконки нет в кэше (первые кадры), она некэшируема
+        // (фойл, анимация) или на ней нужно число (count > 1 рисует только
+        // ванильный путь с декорациями).
+        if (stack.getCount() <= 1
+                && context.backend() instanceof MinecraftGuiRenderBackend minecraftBackend) {
+            TextureHandle cached = minecraftBackend.cachedItemPreviewTexture(stack, size);
+            if (cached != null) {
+                context.texture(cached, x, y, size, size, Paint.fill(
+                        MutableColor.rgba(1.0f, 1.0f, 1.0f, opacity)));
+                return;
+            }
+        }
         // Fast-путь кэширует только иконку предмета, поэтому число (count) и прочие
         // ванильные декорации видны только через renderItemPreview(..., decorations=true).
         // Для стэков с count > 1 идём по полному vanilla-пути, иначе — по кэшированному.
