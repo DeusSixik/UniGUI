@@ -81,6 +81,11 @@ public final class IsfClient {
         OVERLAY.resetPage();
     }
 
+    /** Открыть окно с конкретными рецептами (пуш с сервера, вне R/U-запроса). */
+    public static void openRecipes(java.util.List<ResourceLocation> recipeIds) {
+        OVERLAY.showExplicitRecipes(recipeIds);
+    }
+
     private static void mouseScrolled(ScreenEvent.MouseScrolled.Pre event) {
         if (event.isCanceled() || !(event.getScreen() instanceof AbstractContainerScreen<?>)) return;
         OVERLAY.updatePointerPosition(event.getMouseX(), event.getMouseY());

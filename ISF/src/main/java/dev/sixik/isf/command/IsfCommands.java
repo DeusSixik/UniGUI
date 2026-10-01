@@ -3,6 +3,10 @@ package dev.sixik.isf.command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
+import dev.sixik.isf.IsfMod;
+import dev.sixik.isf.api.IsfRecipeTypeSupport;
 import dev.sixik.isf.importer.IsfImportRequest;
 import dev.sixik.isf.importer.IsfRecipeGenerator;
 import dev.sixik.isf.importer.LootTableSupports;
@@ -29,6 +33,7 @@ public final class IsfCommands {
                 .then(Commands.literal("generateRecipes")
                         .executes(context -> generate(context, ""))
                         .then(Commands.argument("selectors", StringArgumentType.greedyString())
+                                .suggests(IsfCommands::suggestCategories)
                                 .executes(context -> generate(context,
                                         StringArgumentType.getString(context, "selectors")))))
                 .then(Commands.literal("loot")
@@ -66,6 +71,71 @@ public final class IsfCommands {
                             + String.join(", ", result.unsupportedCategories())), false);
         }
         return result.generated();
+    }
+
+    private static java.util.concurrent.CompletableFuture<Suggestions> suggestCategories(
+            CommandContext<CommandSourceStack> context,
+            SuggestionsBuilder builder) {
+        try {
+            java.util.Set<String> categories = new java.util.TreeSet<>();
+            for (IsfRecipeTypeSupport support : IsfMod.runtime().recipeTypes().values()) {
+                if (support.category() != null && !support.category().isBlank()) {
+                    categories.add(support.category());
+                }
+            }
+            categories.add("loot");
+            for (String suggestion : suggestCategoryTokens(builder.getRemaining(), categories)) {
+                builder.suggest(suggestion);
+            }
+        } catch (RuntimeException ignored) {
+            // Саджесты никогда не роняют команду.
+        }
+        return builder.buildFuture();
+    }
+
+    /**
+     * Варианты добивки селекторов: категории из реестра (+ {@code loot}),
+     * с учётом уже введённого (после последней запятой) и {@code -} для исключения.
+     * Чистая функция — для тестов.
+     *
+     * @param remaining введённый текст аргумента (может быть {@code null})
+     * @param categories известные категории
+     * @return полные подстановки от начала аргумента
+     */
+    static List<String> suggestCategoryTokens(String remaining,
+                                              java.util.Collection<String> categories) {
+        String input = remaining == null ? "" : remaining;
+        int comma = input.lastIndexOf(',');
+        String head = comma < 0 ? "" : input.substring(0, comma + 1);
+        String partial = (comma < 0 ? input : input.substring(comma + 1))
+                .trim().toLowerCase(java.util.Locale.ROOT);
+        java.util.Set<String> usedPlain = new java.util.HashSet<>();
+        java.util.Set<String> usedNegated = new java.util.HashSet<>();
+        try {
+            IsfImportRequest parsed = IsfImportRequest.parse(input);
+            usedPlain.addAll(parsed.include());
+            usedPlain.addAll(parsed.exclude());
+            usedNegated.addAll(parsed.exclude());
+        } catch (IllegalArgumentException ignored) {
+        }
+        java.util.Set<String> sorted = new java.util.TreeSet<>();
+        if (categories != null) {
+            for (String category : categories) {
+                if (category != null && !category.isBlank()) {
+                    sorted.add(category.trim().toLowerCase(java.util.Locale.ROOT));
+                }
+            }
+        }
+        List<String> suggestions = new ArrayList<>();
+        for (String category : sorted) {
+            if (!usedPlain.contains(category) && category.startsWith(partial)) {
+                suggestions.add(head + category);
+            }
+            if (!usedNegated.contains(category) && ("-" + category).startsWith(partial)) {
+                suggestions.add(head + "-" + category);
+            }
+        }
+        return List.copyOf(suggestions);
     }
 
     private static int listLoot(CommandContext<CommandSourceStack> context, String filter) {

@@ -1,5 +1,6 @@
 package dev.sixik.isf;
 
+import dev.sixik.isf.api.IsfApi;
 import dev.sixik.isf.command.IsfCommands;
 import dev.sixik.isf.definition.IsfDefinitionReloadListener;
 import dev.sixik.isf.network.IsfNetwork;
@@ -23,7 +24,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
-import java.util.List;
 
 /** Forge entrypoint ISF для Minecraft 1.20.1. */
 @Mod(IsfMod.MOD_ID)
@@ -91,8 +91,8 @@ public final class IsfMod {
     }
 
     private static void fireAndSync(ResourceLocation trigger, IsfTriggerContext context) {
-        List<ResourceLocation> unlocked = RUNTIME.fire(trigger, context);
-        if (!unlocked.isEmpty()) IsfNetwork.sendLibrary(context.player());
+        IsfApi.fireTrigger(context.player(), trigger, context.subject(), context.station(),
+                context.attributes());
     }
 
     private static ServerPlayer serverPlayer(Player player) {

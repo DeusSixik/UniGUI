@@ -99,6 +99,47 @@ public final class IsfDefinitionJson {
         return new IsfRecipeDefinition(id, type, parent, parameters, triggers, visual, source);
     }
 
+    /**
+     * Привязка триггера к рецептам:
+     * {@code {"trigger": "id", "recipes": [...], "subject": id|null,
+     * "station": id|null, "conditions": {...}, "open": bool}}.
+     */
+    public static IsfTriggerDocument parseTriggerDocument(JsonObject json) {
+        ResourceLocation trigger = requiredId(json, "trigger");
+        List<ResourceLocation> recipes = new ArrayList<>();
+        if (json.has("recipes")) {
+            for (JsonElement element : array(json.get("recipes"), "trigger recipes")) {
+                recipes.add(requiredIdFrom(element, "trigger recipe"));
+            }
+        }
+        Map<String, JsonElement> conditions = new LinkedHashMap<>();
+        if (json.has("conditions")) {
+            object(json.get("conditions"), "trigger conditions").entrySet()
+                    .forEach(entry -> conditions.put(entry.getKey(), entry.getValue().deepCopy()));
+        }
+        boolean open = json.has("open") && !json.get("open").isJsonNull()
+                && json.get("open").getAsBoolean();
+        return new IsfTriggerDocument(trigger, recipes,
+                optionalId(json, "subject"), optionalId(json, "station"), conditions, open);
+    }
+
+    public static JsonObject writeTriggerDocument(IsfTriggerDocument document) {
+        JsonObject json = new JsonObject();
+        json.addProperty("trigger", document.trigger().toString());
+        JsonArray recipes = new JsonArray();
+        document.recipes().forEach(id -> recipes.add(id.toString()));
+        json.add("recipes", recipes);
+        if (document.subject() != null) json.addProperty("subject", document.subject().toString());
+        if (document.station() != null) json.addProperty("station", document.station().toString());
+        if (!document.conditions().isEmpty()) {
+            JsonObject conditions = new JsonObject();
+            document.conditions().forEach(conditions::add);
+            json.add("conditions", conditions);
+        }
+        json.addProperty("open", document.open());
+        return json;
+    }
+
     public static IsfVisualNode parseVisual(JsonObject json) {
         String id = string(json, "id", "");
         ResourceLocation widget = requiredId(json, "widget");

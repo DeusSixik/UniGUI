@@ -6,6 +6,7 @@ import dev.sixik.isf.definition.IsfParameterDefinition;
 import dev.sixik.isf.definition.IsfRecipeDefinition;
 import dev.sixik.isf.definition.IsfRecipeTypeDefinition;
 import dev.sixik.isf.definition.IsfTriggerBinding;
+import dev.sixik.isf.definition.IsfTriggerDocument;
 import dev.sixik.isf.definition.IsfVisualNode;
 import net.minecraft.resources.ResourceLocation;
 
@@ -21,22 +22,33 @@ import java.util.Set;
 
 /** Реестр исходных и разрешённых ISF-документов. */
 public final class IsfDefinitionRegistry {
+    private static final org.slf4j.Logger LOGGER =
+            org.slf4j.LoggerFactory.getLogger(IsfDefinitionRegistry.class);
     private final Map<ResourceLocation, IsfRecipeTypeDefinition> types = new LinkedHashMap<>();
     private final Map<ResourceLocation, IsfRecipeDefinition> recipes = new LinkedHashMap<>();
     private final Map<ResourceLocation, IsfResolvedRecipe> resolved = new LinkedHashMap<>();
+    private final List<IsfTriggerDocument> triggerDocuments = new ArrayList<>();
     private final Map<ResourceLocation, List<IsfCatalystDefinition>> typeCatalysts = new LinkedHashMap<>();
     private final Map<ResourceLocation, ResourceLocation> typeIcons = new LinkedHashMap<>();
 
     public synchronized void replace(Collection<IsfRecipeTypeDefinition> newTypes,
                                      Collection<IsfRecipeDefinition> newRecipes) {
+        replace(newTypes, newRecipes, List.of());
+    }
+
+    public synchronized void replace(Collection<IsfRecipeTypeDefinition> newTypes,
+                                      Collection<IsfRecipeDefinition> newRecipes,
+                                      Collection<IsfTriggerDocument> newTriggerDocuments) {
         Map<ResourceLocation, IsfRecipeTypeDefinition> previousTypes = new LinkedHashMap<>(types);
         Map<ResourceLocation, IsfRecipeDefinition> previousRecipes = new LinkedHashMap<>(recipes);
         Map<ResourceLocation, IsfResolvedRecipe> previousResolved = new LinkedHashMap<>(resolved);
+        List<IsfTriggerDocument> previousDocuments = new ArrayList<>(triggerDocuments);
         Map<ResourceLocation, List<IsfCatalystDefinition>> previousCatalysts = new LinkedHashMap<>(typeCatalysts);
         Map<ResourceLocation, ResourceLocation> previousIcons = new LinkedHashMap<>(typeIcons);
         types.clear();
         recipes.clear();
         resolved.clear();
+        triggerDocuments.clear();
         typeCatalysts.clear();
         typeIcons.clear();
         if (newTypes != null) newTypes.forEach(type -> types.put(type.id(), type));
@@ -48,6 +60,7 @@ public final class IsfDefinitionRegistry {
                 if (icon != null) typeIcons.put(id, icon);
             }
             for (ResourceLocation id : recipes.keySet()) resolveRecipe(id, new ArrayDeque<>());
+            resolveTriggerDocuments(newTriggerDocuments);
         } catch (RuntimeException exception) {
             types.clear();
             types.putAll(previousTypes);
@@ -55,12 +68,42 @@ public final class IsfDefinitionRegistry {
             recipes.putAll(previousRecipes);
             resolved.clear();
             resolved.putAll(previousResolved);
+            triggerDocuments.clear();
+            triggerDocuments.addAll(previousDocuments);
             typeCatalysts.clear();
             typeCatalysts.putAll(previousCatalysts);
             typeIcons.clear();
             typeIcons.putAll(previousIcons);
             throw exception;
         }
+    }
+
+    /**
+     * Привязки триггеров к рецептам. Документы с неизвестными рецептами отбрасываются
+     * целиком (опечатка в одном файле не должна ронять весь релоад).
+     */
+    private void resolveTriggerDocuments(Collection<IsfTriggerDocument> documents) {
+        if (documents == null) return;
+        for (IsfTriggerDocument document : documents) {
+            if (document == null || document.trigger() == null) continue;
+            List<ResourceLocation> known = new ArrayList<>();
+            for (ResourceLocation recipeId : document.recipes()) {
+                if (recipeId != null && recipes.containsKey(recipeId)) {
+                    known.add(recipeId);
+                } else {
+                    LOGGER.warn("ISF trigger document for {} references unknown recipe {}",
+                            document.trigger(), recipeId);
+                }
+            }
+            if (known.isEmpty()) continue;
+            triggerDocuments.add(new IsfTriggerDocument(document.trigger(), known,
+                    document.subject(), document.station(), document.conditions(), document.open()));
+        }
+    }
+
+    /** Привязки триггеров к рецептам (порядок загрузки файлов). */
+    public synchronized List<IsfTriggerDocument> triggerDocuments() {
+        return List.copyOf(triggerDocuments);
     }
 
     /** Id recipe types в порядке реестра (детерминирован сортировкой при релоаде). */

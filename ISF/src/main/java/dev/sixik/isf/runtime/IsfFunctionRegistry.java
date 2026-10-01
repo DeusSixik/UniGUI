@@ -48,32 +48,34 @@ public final class IsfFunctionRegistry {
             double maximum = number(arguments, 1);
             return number(maximum == 0.0 ? 0.0 : number(arguments, 0) / maximum * 100.0);
         });
-        // «Локализуемое» имя таблицы добычи: ключ isf.loot.<ns>.<path>,
-        // фолбэк — «Prettified path» (blocks/nether_fortress/chest → Nether Fortress Chest).
+        // Имя таблицы добычи: ключ isf.loot.<ns>.<path>, иначе — последний
+        // сегмент пути («entities/zombie» → «Zombie», «path/my_table» → «My Table»).
+        // I18n.get(key, fallback) фолбэк НЕ умеет (вернёт сам ключ), поэтому
+        // отсутствие ключа определяем сравнением.
         register(LOOT_TITLE, arguments -> {
             String raw = arguments == null || arguments.isEmpty() || arguments.get(0) == null
                     ? "" : arguments.get(0).getAsString();
             ResourceLocation tableId = ResourceLocation.tryParse(raw);
             if (tableId == null) return new JsonPrimitive(raw);
             String key = "isf.loot." + tableId.getNamespace() + "." + tableId.getPath();
-            String fallback = prettifyPath(tableId.getPath());
+            String localized = net.minecraft.client.resources.language.I18n.get(key);
             return new JsonPrimitive(
-                    net.minecraft.client.resources.language.I18n.get(key, fallback));
+                    localized.equals(key) ? prettifyLastSegment(tableId.getPath()) : localized);
         });
     }
 
-    /** «blocks/nether_fortress/chest» → «Nether Fortress Chest». */
-    private static String prettifyPath(String path) {
-        String[] segments = path.split("/");
+    /** «path/my_table» → «My Table», «entities/zombie» → «Zombie». */
+    static String prettifyLastSegment(String path) {
+        if (path == null || path.isEmpty()) return "";
+        int slash = path.lastIndexOf('/');
+        String last = slash < 0 ? path : path.substring(slash + 1);
         StringBuilder text = new StringBuilder();
-        for (String segment : segments) {
-            for (String word : segment.replace('_', ' ').split(" ")) {
-                if (word.isEmpty()) continue;
-                if (!text.isEmpty()) text.append(' ');
-                text.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
-            }
+        for (String word : last.replace('_', ' ').split(" ")) {
+            if (word.isEmpty()) continue;
+            if (!text.isEmpty()) text.append(' ');
+            text.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
         }
-        return text.toString();
+        return text.isEmpty() ? path : text.toString();
     }
 
     private static double number(List<JsonElement> arguments, int index) {

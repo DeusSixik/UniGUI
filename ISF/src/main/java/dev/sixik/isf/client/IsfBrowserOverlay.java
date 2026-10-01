@@ -469,6 +469,47 @@ final class IsfBrowserOverlay {
         return IsfRecipeQueryMatcher.matches(recipe.parameters(), recipe.triggers(), itemId, usages);
     }
 
+    /**
+     * Открывает окно с конкретными рецептами (пуш с сервера, вне R/U-запроса).
+     * Неизвестные клиенту id молча пропускаются (библиотека едет тем же каналом).
+     */
+    void showExplicitRecipes(List<ResourceLocation> recipeIds) {
+        if (recipeIds == null || recipeIds.isEmpty()) return;
+        List<ResourceLocation> known = new ArrayList<>();
+        for (ResourceLocation recipeId : recipeIds) {
+            if (recipeId != null && IsfClientState.recipes().containsKey(recipeId)
+                    && !known.contains(recipeId)) {
+                known.add(recipeId);
+            }
+        }
+        if (known.isEmpty()) return;
+        // Явный показ не привязан к запросу предмета: обновление идёт только им.
+        selectedQuery = null;
+        updateDetail(new ItemEntry(known.get(0), titleStackFor(
+                IsfClientState.recipes().get(known.get(0))), known));
+    }
+
+    /** Стак для заголовка окна: результат, иначе source_item, иначе пусто. */
+    private static ItemStack titleStackFor(IsfRecipeDefinition recipe) {
+        if (recipe != null) {
+            ResourceLocation result = recipe.resultItemId();
+            ItemStack stack = stackFor(result);
+            if (!stack.isEmpty()) return stack;
+            com.google.gson.JsonElement source = recipe.parameters().get("source_item");
+            if (source != null && source.isJsonPrimitive()) {
+                stack = stackFor(ResourceLocation.tryParse(source.getAsString()));
+                if (!stack.isEmpty()) return stack;
+            }
+        }
+        return ItemStack.EMPTY;
+    }
+
+    private static ItemStack stackFor(ResourceLocation itemId) {
+        if (itemId == null) return ItemStack.EMPTY;
+        Item item = BuiltInRegistries.ITEM.get(itemId);
+        return item == null || item == Items.AIR ? ItemStack.EMPTY : new ItemStack(item);
+    }
+
     boolean scrollItemsAt(double mouseX, double mouseY, double delta) {
         if (delta == 0.0) {
             return false;

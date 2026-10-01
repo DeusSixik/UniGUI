@@ -7,8 +7,6 @@ import dev.sixik.isf.trigger.IsfTriggerEngine;
 import dev.sixik.isf.trigger.IsfTriggerRegistry;
 import net.minecraft.resources.ResourceLocation;
 
-import java.util.List;
-
 /** Владельческий объект runtime-сервисов одного процесса Minecraft. */
 public final class IsfRuntime {
     private final IsfDefinitionRegistry definitions = new IsfDefinitionRegistry();
@@ -32,7 +30,7 @@ public final class IsfRuntime {
         return recipeTypes;
     }
 
-    public List<ResourceLocation> fire(ResourceLocation trigger, IsfTriggerContext context) {
+    public IsfTriggerEngine.FireResult fire(ResourceLocation trigger, IsfTriggerContext context) {
         return new IsfTriggerEngine(definitions, triggers, IsfWorldData.get(context.player().server))
                 .fire(trigger, context);
     }

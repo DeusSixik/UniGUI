@@ -14,6 +14,12 @@ base {
 
 version = versionProject.findProperty('isf_version') ?: '0.1.0'
 
+// Исходники в UTF-8 (кириллица в JavaDoc): без этого javadoc падает
+// с unmappable character на дефолтной windows-1251.
+tasks.withType(Javadoc).configureEach {
+    options.encoding = 'UTF-8'
+}
+
 configurations {
     uniguiCommon {
         canBeResolved = true
@@ -119,12 +125,36 @@ tasks.register('isfCraftTransferSelfTest', JavaExec) {
     mainClass = 'dev.sixik.isf.client.IsfCraftTransferSelfTest'
 }
 
+tasks.register('isfCommandsSuggestSelfTest', JavaExec) {
+    group = 'verification'
+    description = 'Проверяет автодополнение селекторов команды generateRecipes ISF.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.sixik.isf.command.IsfCommandsSuggestSelfTest'
+}
+
+tasks.register('isfLootTitleSelfTest', JavaExec) {
+    group = 'verification'
+    description = 'Проверяет заголовок лут-таблиц ISF по умолчанию.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.sixik.isf.runtime.LootTitleSelfTest'
+}
+
 tasks.register('isfButtonRendererSelfTest', JavaExec) {
     group = 'verification'
     description = 'Проверяет выбор подложки кнопок ISF по состоянию.'
     dependsOn tasks.named('testClasses')
     classpath = sourceSets.test.runtimeClasspath
     mainClass = 'dev.sixik.isf.client.IsfButtonRendererSelfTest'
+}
+
+tasks.register('isfTriggerSelfTest', JavaExec) {
+    group = 'verification'
+    description = 'Проверяет привязки триггеров ISF к рецептам без запуска Minecraft.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.sixik.isf.trigger.IsfTriggerSelfTest'
 }
 
 tasks.register('isfGeneratePathsSelfTest', JavaExec) {

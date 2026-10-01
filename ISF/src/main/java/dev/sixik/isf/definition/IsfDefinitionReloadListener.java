@@ -22,6 +22,7 @@ public final class IsfDefinitionReloadListener extends SimpleJsonResourceReloadL
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final String TYPE_PREFIX = "recipe_types/";
     private static final String RECIPE_PREFIX = "recipes/";
+    private static final String TRIGGER_PREFIX = "trigger_bindings/";
 
     private final IsfDefinitionRegistry registry;
 
@@ -36,6 +37,7 @@ public final class IsfDefinitionReloadListener extends SimpleJsonResourceReloadL
                          ProfilerFiller profiler) {
         List<IsfRecipeTypeDefinition> types = new ArrayList<>();
         List<IsfRecipeDefinition> recipes = new ArrayList<>();
+        List<IsfTriggerDocument> triggerDocuments = new ArrayList<>();
         for (Map.Entry<ResourceLocation, JsonElement> entry : resources.entrySet()) {
             ResourceLocation resource = entry.getKey();
             String path = resource.getPath();
@@ -44,6 +46,9 @@ public final class IsfDefinitionReloadListener extends SimpleJsonResourceReloadL
                         entry.getValue().getAsJsonObject()));
             } else if (path.startsWith(RECIPE_PREFIX)) {
                 recipes.add(IsfDefinitionJson.parseRecipe(definitionId(resource, RECIPE_PREFIX),
+                        entry.getValue().getAsJsonObject()));
+            } else if (path.startsWith(TRIGGER_PREFIX)) {
+                triggerDocuments.add(IsfDefinitionJson.parseTriggerDocument(
                         entry.getValue().getAsJsonObject()));
             }
         }
@@ -76,8 +81,9 @@ public final class IsfDefinitionReloadListener extends SimpleJsonResourceReloadL
                 return tableId != null && disabledTables.contains(tableId);
             });
         }
-        registry.replace(types, recipes);
-        LOGGER.info("Loaded {} ISF recipe types and {} visual recipes", types.size(), recipes.size());
+        registry.replace(types, recipes, triggerDocuments);
+        LOGGER.info("Loaded {} ISF recipe types, {} visual recipes and {} trigger bindings",
+                types.size(), recipes.size(), triggerDocuments.size());
     }
 
     private static ResourceLocation definitionId(ResourceLocation resource, String prefix) {
