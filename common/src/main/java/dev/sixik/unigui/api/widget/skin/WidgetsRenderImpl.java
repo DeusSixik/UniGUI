@@ -1,37 +1,6 @@
 package dev.sixik.unigui.api.widget.skin;
 
-import dev.sixik.unigui.widgets.render.LoadingIndicatorRenderer;
-import dev.sixik.unigui.widgets.render.ChartRenderer;
-import dev.sixik.unigui.widgets.render.ColorPickerRenderer;
-import dev.sixik.unigui.widgets.render.DatePickerRenderer;
-import dev.sixik.unigui.widgets.render.DockDropPreviewRenderer;
-import dev.sixik.unigui.widgets.render.DockPaneRenderer;
-import dev.sixik.unigui.widgets.render.DockSplitHandleRenderer;
-import dev.sixik.unigui.widgets.render.DockingRootRenderer;
-import dev.sixik.unigui.widgets.render.GraphViewRenderer;
-import dev.sixik.unigui.widgets.render.NodeGraphRenderer;
-import dev.sixik.unigui.widgets.render.ModalScrimRenderer;
-import dev.sixik.unigui.widgets.render.ProgressBarRenderer;
-import dev.sixik.unigui.widgets.render.ScrollBarRenderer;
-import dev.sixik.unigui.widgets.render.SliderRenderer;
-import dev.sixik.unigui.widgets.render.SparklineRenderer;
-import dev.sixik.unigui.widgets.render.ButtonRenderer;
-import dev.sixik.unigui.widgets.render.TextAreaRenderer;
-import dev.sixik.unigui.widgets.render.TextInputRenderer;
-import dev.sixik.unigui.widgets.render.ShapeRenderer;
-import dev.sixik.unigui.widgets.render.SeparatorRenderer;
-import dev.sixik.unigui.widgets.render.BorderRenderer;
-import dev.sixik.unigui.widgets.render.TooltipRenderer;
-import dev.sixik.unigui.widgets.render.TextureWidgetRenderer;
-import dev.sixik.unigui.widgets.render.PathRenderer;
-import dev.sixik.unigui.widgets.render.CachedSubtreeRenderer;
-import dev.sixik.unigui.widgets.render.BoxRenderer;
-import dev.sixik.unigui.widgets.render.WindowRenderer;
-import dev.sixik.unigui.widgets.render.SplitterRenderer;
-import dev.sixik.unigui.widgets.render.TextWidgetRenderer;
-import dev.sixik.unigui.widgets.render.VirtualListViewRenderer;
-import dev.sixik.unigui.widgets.render.TreeViewRenderer;
-import dev.sixik.unigui.widgets.render.VirtualTableViewRenderer;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 
 /**
  * Частичная реализация процедурных renderer'ов для набора виджетов.
@@ -49,7 +18,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default LoadingIndicatorRenderer loadingDefault() {
+    default WidgetRender loadingDefault() {
         return null;
     }
 
@@ -58,7 +27,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default LoadingIndicatorRenderer loadingSpinner() {
+    default WidgetRender loadingSpinner() {
         return null;
     }
 
@@ -67,7 +36,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default LoadingIndicatorRenderer loadingDots() {
+    default WidgetRender loadingDots() {
         return null;
     }
 
@@ -76,7 +45,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default LoadingIndicatorRenderer loadingBar() {
+    default WidgetRender loadingBar() {
         return null;
     }
 
@@ -85,7 +54,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default ProgressBarRenderer progressBar() {
+    default WidgetRender progressBar() {
         return null;
     }
 
@@ -94,7 +63,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default SliderRenderer slider() {
+    default WidgetRender slider() {
         return null;
     }
 
@@ -103,7 +72,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default SparklineRenderer sparkline() {
+    default WidgetRender sparkline() {
         return null;
     }
 
@@ -112,7 +81,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default ChartRenderer chart() {
+    default WidgetRender chart() {
         return null;
     }
 
@@ -121,7 +90,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default GraphViewRenderer graphView() {
+    default WidgetRender graphView() {
         return null;
     }
 
@@ -130,7 +99,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default NodeGraphRenderer nodeGraph() {
+    default WidgetRender nodeGraph() {
         return null;
     }
 
@@ -139,7 +108,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default ColorPickerRenderer colorPicker() {
+    default WidgetRender colorPicker() {
         return null;
     }
 
@@ -148,7 +117,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default DatePickerRenderer datePicker() {
+    default WidgetRender datePicker() {
         return null;
     }
 
@@ -157,7 +126,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default ScrollBarRenderer scrollBar() {
+    default WidgetRender scrollBar() {
         return null;
     }
 
@@ -166,7 +135,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default ButtonRenderer button() {
+    default WidgetRender button() {
         return null;
     }
 
@@ -175,7 +144,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default ButtonRenderer toggleButton() {
+    default WidgetRender toggleButton() {
         return null;
     }
 
@@ -184,7 +153,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default ButtonRenderer toggleSwitch() {
+    default WidgetRender toggleSwitch() {
         return null;
     }
 
@@ -193,7 +162,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default ButtonRenderer checkbox() {
+    default WidgetRender checkbox() {
         return null;
     }
 
@@ -202,7 +171,25 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default ButtonRenderer radioButton() {
+    default WidgetRender radioButton() {
+        return null;
+    }
+
+    /**
+     * Возвращает override renderer для toolbar button.
+     *
+     * @return renderer или {@code null}, чтобы оставить дефолтный renderer
+     */
+    default WidgetRender toolButton() {
+        return null;
+    }
+
+    /**
+     * Возвращает override renderer для hold button.
+     *
+     * @return renderer или {@code null}, чтобы оставить дефолтный renderer
+     */
+    default WidgetRender holdButton() {
         return null;
     }
 
@@ -211,7 +198,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default TextInputRenderer textInput() {
+    default WidgetRender textInput() {
         return null;
     }
 
@@ -220,7 +207,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default TextInputRenderer textField() {
+    default WidgetRender textField() {
         return null;
     }
 
@@ -229,7 +216,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default TextInputRenderer searchField() {
+    default WidgetRender searchField() {
         return null;
     }
 
@@ -238,7 +225,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default TextInputRenderer passwordField() {
+    default WidgetRender passwordField() {
         return null;
     }
 
@@ -247,7 +234,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default TextInputRenderer numberField() {
+    default WidgetRender numberField() {
         return null;
     }
 
@@ -256,7 +243,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default TextAreaRenderer textArea() {
+    default WidgetRender textArea() {
         return null;
     }
 
@@ -265,7 +252,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default ShapeRenderer shape() {
+    default WidgetRender shape() {
         return null;
     }
 
@@ -274,7 +261,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default SeparatorRenderer separator() {
+    default WidgetRender separator() {
         return null;
     }
 
@@ -283,7 +270,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default BorderRenderer border() {
+    default WidgetRender border() {
         return null;
     }
 
@@ -292,7 +279,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default TooltipRenderer tooltip() {
+    default WidgetRender tooltip() {
         return null;
     }
 
@@ -301,7 +288,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default TextureWidgetRenderer textureWidget() {
+    default WidgetRender textureWidget() {
         return null;
     }
 
@@ -310,7 +297,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default TextureWidgetRenderer imageView() {
+    default WidgetRender imageView() {
         return null;
     }
 
@@ -319,7 +306,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default PathRenderer path() {
+    default WidgetRender path() {
         return null;
     }
 
@@ -328,7 +315,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default CachedSubtreeRenderer cachedSubtree() {
+    default WidgetRender cachedSubtree() {
         return null;
     }
 
@@ -337,7 +324,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default BoxRenderer box() {
+    default WidgetRender box() {
         return null;
     }
 
@@ -346,7 +333,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default WindowRenderer window() {
+    default WidgetRender window() {
         return null;
     }
 
@@ -355,7 +342,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default ModalScrimRenderer modalScrim() {
+    default WidgetRender modalScrim() {
         return null;
     }
 
@@ -364,7 +351,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default DockingRootRenderer dockingRoot() {
+    default WidgetRender dockingRoot() {
         return null;
     }
 
@@ -373,7 +360,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default DockPaneRenderer dockPane() {
+    default WidgetRender dockPane() {
         return null;
     }
 
@@ -382,7 +369,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default DockSplitHandleRenderer dockSplitHandle() {
+    default WidgetRender dockSplitHandle() {
         return null;
     }
 
@@ -391,7 +378,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default DockDropPreviewRenderer dockDropPreview() {
+    default WidgetRender dockDropPreview() {
         return null;
     }
 
@@ -400,7 +387,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default SplitterRenderer splitter() {
+    default WidgetRender splitter() {
         return null;
     }
 
@@ -409,7 +396,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default TextWidgetRenderer textWidget() {
+    default WidgetRender textWidget() {
         return null;
     }
 
@@ -418,7 +405,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default VirtualListViewRenderer virtualListView() {
+    default WidgetRender virtualListView() {
         return null;
     }
 
@@ -427,7 +414,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default TreeViewRenderer treeView() {
+    default WidgetRender treeView() {
         return null;
     }
 
@@ -436,7 +423,7 @@ public interface WidgetsRenderImpl {
      *
      * @return renderer или {@code null}, чтобы оставить дефолтный renderer
      */
-    default VirtualTableViewRenderer virtualTableView() {
+    default WidgetRender virtualTableView() {
         return null;
     }
 }

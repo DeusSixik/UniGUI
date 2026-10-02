@@ -1,8 +1,11 @@
 package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.widgets.docking.DockSplitOrientation;
+import dev.sixik.unigui.widgets.docking.DockingRoot;
 
 public final class DockSplitHandleRenderers {
     // DEFAULT renderer (block with a centre line)
@@ -13,7 +16,13 @@ public final class DockSplitHandleRenderers {
     private static final MutableColor LINE_HOVER   = new MutableColor(0.35f,  0.88f,  1.0f,   0.75f);
     private static final MutableColor LINE_PRESS   = new MutableColor(0.45f,  0.95f,  1.0f,   1.00f);
 
-    public static final DockSplitHandleRenderer DEFAULT = (draw, state) -> {
+    public static final WidgetRender DEFAULT = WidgetRender.of(DockingRoot.class, (draw, root) -> {
+        for (DockSplitHandleState state : root.splitSnapshots()) {
+            renderDefault(draw, state);
+        }
+    });
+
+    private static void renderDefault(DrawScope draw, DockSplitHandleState state) {
         if (state.width() <= 0.0f || state.height() <= 0.0f) return;
         MutableColor track = state.pressed() ? TRACK_PRESS : state.hovered() ? TRACK_HOVER : TRACK;
         MutableColor line  = state.pressed() ? LINE_PRESS  : state.hovered() ? LINE_HOVER  : LINE;
@@ -27,7 +36,7 @@ public final class DockSplitHandleRenderers {
             draw.line(state.x() + 4.0f, cy, state.x() + Math.max(4.0f, state.width() - 4.0f), cy,
                     Paint.stroke(line, state.pressed() ? 2.0f : 1.0f));
         }
-    };
+    }
 
     // IMGUI_STYLE renderer
     // Panels touch each other — the handle is just a shared border line.
@@ -46,7 +55,13 @@ public final class DockSplitHandleRenderers {
      * On hover a translucent highlight band is drawn over the handle area.
      * During drag the seam turns into a bright 2 px accent line.
      */
-    public static final DockSplitHandleRenderer IMGUI_STYLE = (draw, state) -> {
+    public static final WidgetRender IMGUI_STYLE = WidgetRender.of(DockingRoot.class, (draw, root) -> {
+        for (DockSplitHandleState state : root.splitSnapshots()) {
+            renderImguiStyle(draw, state);
+        }
+    });
+
+    private static void renderImguiStyle(DrawScope draw, DockSplitHandleState state) {
         if (state.width() <= 0.0f || state.height() <= 0.0f) return;
 
         boolean h = state.orientation() == DockSplitOrientation.HORIZONTAL;
@@ -67,7 +82,7 @@ public final class DockSplitHandleRenderers {
             float cy = state.y() + state.height() * 0.5f;
             draw.line(state.x(), cy, state.x() + state.width(), cy, Paint.stroke(seam, strokeW));
         }
-    };
+    }
 
     private DockSplitHandleRenderers() {
     }

@@ -12,6 +12,7 @@ import dev.sixik.unigui.api.xml.XmlAttributeDescriptor;
 import dev.sixik.unigui.api.xml.XmlWidgetAnnotations;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.containers.Box;
+import dev.sixik.unigui.widgets.containers.SurfaceWidget;
 import dev.sixik.unigui.widgets.display.TextWidget;
 import dev.sixik.unigui.widgets.display.TextureWidget;
 
@@ -19,11 +20,11 @@ final class BuiltInWidgetXmlSupport {
     private BuiltInWidgetXmlSupport() {
     }
 
-    static <T extends Box> WidgetXmlType<T> box(WidgetXmlType<T> type) {
+    static <T extends SurfaceWidget<?>> WidgetXmlType<T> box(WidgetXmlType<T> type) {
         return box(type, Box.class);
     }
 
-    static <T extends Box> WidgetXmlType<T> box(WidgetXmlType<T> type, Class<?> widgetType) {
+    static <T extends SurfaceWidget<?>> WidgetXmlType<T> box(WidgetXmlType<T> type, Class<?> widgetType) {
         return annotated(commonWidget(type), widgetType);
     }
 

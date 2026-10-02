@@ -13,12 +13,13 @@ import dev.sixik.unigui.api.render.TextureFilter;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.TexturePlacement;
 import dev.sixik.unigui.api.render.TextureWrap;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlTextureAttributes;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
-import dev.sixik.unigui.widgets.render.TextureWidgetRenderer;
+import dev.sixik.unigui.widgets.render.TextureWidgetRenderPlans;
 import dev.sixik.unigui.widgets.render.TextureWidgetState;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
@@ -57,7 +58,6 @@ public class TextureWidget extends WidgetBase {
     private final MutableColor tint = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private final MutableRect source = new MutableRect(0.0f, 0.0f, 1.0f, 1.0f);
     private final MutableRect previousSource = new MutableRect(0.0f, 0.0f, 1.0f, 1.0f);
-    private TextureWidgetRenderer renderer;
     private ImageFit fit = ImageFit.STRETCH;
     private ImageFit previousFit = ImageFit.STRETCH;
     private final MutableColor previousTint = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -165,21 +165,6 @@ public class TextureWidget extends WidgetBase {
         return source;
     }
 
-    public TextureWidgetRenderer renderer() {
-        return renderer;
-    }
-
-    public TextureWidget renderer(TextureWidgetRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public TextureWidget useDefaultRenderer() {
-        return renderer(null);
-    }
-
     public TextureWidget source(float u, float v, float width, float height) {
         source.set(u, v, width, height);
         return this;
@@ -232,51 +217,50 @@ public class TextureWidget extends WidgetBase {
         pushOpacity(context);
         try {
             DrawScope draw = new DrawScope(context, transform(), layoutBounds());
-            if (previousTexture != null && textureCrossfadeProgress < 1.0f) {
-                renderTextureState(context, draw, snapshot(
-                        previousTexture,
-                        previousSource,
-                        previousFit,
-                        multipliedAlpha(previousTint, 1.0f - textureCrossfadeProgress)));
+            if (renderCustomVisual(draw)) {
+                return;
             }
-            if (texture != null) {
-                ColorView effectiveTint = previousTexture == null
-                        ? tint.copy()
-                        : multipliedAlpha(tint, textureCrossfadeProgress);
-                renderTextureState(context, draw, snapshot(texture, source, fit, effectiveTint));
-            }
+            renderTextureState(context, draw, snapshot());
         } finally {
             popOpacity(context);
         }
     }
 
     protected void renderTextureState(RenderContext context, DrawScope draw, TextureWidgetState state) {
-        if (renderer != null) {
-            renderer.render(draw, state);
-            return;
-        }
-        TextureWidgetRenderer styled = styleRendererOverride(TextureWidgetRenderer.class);
-        if (styled != null) {
-            styled.render(draw, state);
-            return;
-        }
         if (renderStylePlan(context, TextureWidgetState.class, state)) return;
-        defaultRenderer().render(draw, state);
+        skinRenderer().render(draw, this);
     }
 
-    protected TextureWidgetRenderer defaultRenderer() {
+    protected WidgetRender skinRenderer() {
         return WidgetsRender.textureWidget();
     }
 
-    protected TextureWidgetRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(TextureWidgetRenderer.class, defaultRenderer()) : renderer;
+    /**
+     * Рисует стандартный визуал виджета, включая crossfade предыдущей текстуры.
+     *
+     * @param draw draw scope виджета
+     */
+    public void renderDefaultVisual(DrawScope draw) {
+        if (previousTexture != null && textureCrossfadeProgress < 1.0f) {
+            TextureWidgetRenderPlans.defaultPlan(snapshot(
+                    previousTexture,
+                    previousSource,
+                    previousFit,
+                    multipliedAlpha(previousTint, 1.0f - textureCrossfadeProgress))).render(draw);
+        }
+        if (texture != null) {
+            ColorView effectiveTint = previousTexture == null
+                    ? tint.copy()
+                    : multipliedAlpha(tint, textureCrossfadeProgress);
+            TextureWidgetRenderPlans.defaultPlan(snapshot(texture, source, fit, effectiveTint)).render(draw);
+        }
     }
 
-    protected TextureWidgetState snapshot() {
+    public TextureWidgetState snapshot() {
         return snapshot(texture, source, fit, tint.copy());
     }
 
-    protected TextureWidgetState snapshot(TextureHandle texture, RectView source, ImageFit fit, ColorView tint) {
+    public TextureWidgetState snapshot(TextureHandle texture, RectView source, ImageFit fit, ColorView tint) {
         TexturePlacement placement = texture == null ? null : TexturePlacement.fit(texture, source, layoutBounds(), fit);
         return new TextureWidgetState(
                 layoutBounds().x(),

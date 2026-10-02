@@ -4,6 +4,9 @@ import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.TexturePlacement;
+import dev.sixik.unigui.api.render.shaders.ShaderDrawOptions;
+import dev.sixik.unigui.api.render.shaders.ShaderHandle;
+import dev.sixik.unigui.api.render.shaders.ShaderUniforms;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.impl.text.TextEngine;
 
@@ -17,7 +20,7 @@ import java.util.List;
  * координаты, paint, texture placement, clip children и text block. Это делает StylePack-рендер
  * редактируемым и предсказуемым для tooling.</p>
  */
-public sealed interface RenderPrimitive permits RenderPrimitive.Rect, RenderPrimitive.RoundedRect, RenderPrimitive.Circle, RenderPrimitive.Line, RenderPrimitive.Texture, RenderPrimitive.RichTextBlock, RenderPrimitive.Clip {
+public sealed interface RenderPrimitive permits RenderPrimitive.Rect, RenderPrimitive.RoundedRect, RenderPrimitive.Circle, RenderPrimitive.Line, RenderPrimitive.Texture, RenderPrimitive.Shader, RenderPrimitive.RichTextBlock, RenderPrimitive.Clip {
     /**
      * Записывает primitive в draw scope.
      *
@@ -82,6 +85,20 @@ public sealed interface RenderPrimitive permits RenderPrimitive.Rect, RenderPrim
         public void render(DrawScope draw) {
             if (draw == null || texture == null || placement == null || paint == null) return;
             draw.texture(texture, placement, radius, paint);
+        }
+    }
+
+    record Shader(ShaderHandle shader,
+                  float x,
+                  float y,
+                  float width,
+                  float height,
+                  ShaderUniforms uniforms,
+                  ShaderDrawOptions options) implements RenderPrimitive {
+        @Override
+        public void render(DrawScope draw) {
+            if (draw == null || shader == null) return;
+            draw.shader(shader, x, y, width, height, uniforms, options);
         }
     }
 

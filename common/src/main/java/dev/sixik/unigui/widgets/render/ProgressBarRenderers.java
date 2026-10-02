@@ -1,7 +1,11 @@
 package dev.sixik.unigui.widgets.render;
 
+import dev.sixik.unigui.api.widget.render.WidgetRender;
+import dev.sixik.unigui.widgets.feedback.ProgressBar;
+
 public final class ProgressBarRenderers {
-    public static final ProgressBarRenderer DEFAULT = (draw, state) -> ProgressBarRenderPlans.defaultPlan(state).render(draw);
+    public static final WidgetRender DEFAULT = WidgetRender.of(ProgressBar.class,
+            (draw, bar) -> ProgressBarRenderPlans.defaultPlan(bar.snapshot()).render(draw));
 
     private ProgressBarRenderers() {
     }

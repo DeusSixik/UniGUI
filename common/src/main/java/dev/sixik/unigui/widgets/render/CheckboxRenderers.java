@@ -1,39 +1,26 @@
 package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
+import dev.sixik.unigui.widgets.interaction.Checkbox;
 
 /**
- * Стандартные renderer'ы checkbox.
- *
- * <p>DEFAULT уже работает с typed {@link CheckboxRenderState}. Legacy adapter оставлен
- * отдельно, чтобы зависимость от {@link ButtonState} была видна и постепенно удалялась.</p>
+ * Стандартные полные визуалы checkbox: поверхность плюс indicator и label.
  */
 public final class CheckboxRenderers {
     private static final float LABEL_VISUAL_CENTER_OFFSET = 1.0f;
 
-    /** Стандартный renderer с квадратом indicator и label. */
-    public static final CheckboxRenderer DEFAULT = CheckboxRenderers::renderDefault;
+    /** Полный визуал checkbox: поверхность плюс квадрат indicator и label. */
+    public static final WidgetRender DEFAULT = WidgetRender.of(Checkbox.class, (draw, checkbox) -> {
+        SurfacePlans.renderWidgetSurface(draw, checkbox);
+        renderDefault(draw, checkbox.checkboxSnapshot(draw.context()));
+    });
 
     private CheckboxRenderers() {
     }
 
-    /**
-     * Создаёт переходник для старого ButtonRenderer.
-     *
-     * @param renderer legacy renderer
-     * @return typed checkbox renderer
-     */
-    public static CheckboxRenderer legacy(ButtonRenderer renderer) {
-        if (renderer == null) return null;
-        return (draw, state) -> renderer.render(draw, state.toLegacyButtonState());
-    }
-
     private static void renderDefault(DrawScope draw, CheckboxRenderState state) {
         if (state == null) return;
-
-        ControlChromePart.render(draw, state.x(), state.y(), state.width(), state.height(),
-                state.radius(), state.backgroundVisible(), state.backgroundColor(),
-                state.borderVisible(), state.borderColor(), state.borderWidth());
 
         float labelGap = state.hasText() ? Math.max(0.0f, state.indicatorGap()) : 0.0f;
         float labelWidth = state.hasText()

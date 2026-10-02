@@ -8,7 +8,6 @@ import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
-import dev.sixik.unigui.widgets.render.SeparatorRenderer;
 import dev.sixik.unigui.widgets.render.SeparatorState;
 import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
@@ -41,7 +40,6 @@ public final class Separator extends WidgetBase {
     }
 
     private final MutableColor color = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
-    private SeparatorRenderer renderer;
     private Orientation orientation = Orientation.HORIZONTAL;
     private float thickness = 1.0f;
 
@@ -51,21 +49,6 @@ public final class Separator extends WidgetBase {
 
     public MutableColor color() {
         return color;
-    }
-
-    public SeparatorRenderer renderer() {
-        return renderer;
-    }
-
-    public Separator renderer(SeparatorRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public Separator useDefaultRenderer() {
-        return renderer(null);
     }
 
     public Orientation orientation() {
@@ -97,29 +80,19 @@ public final class Separator extends WidgetBase {
     public void render(RenderContext context) {
         pushOpacity(context);
         try {
-            SeparatorState state = snapshot();
             DrawScope draw = new DrawScope(context, transform(), layoutBounds());
-            if (renderer != null) {
-                renderer.render(draw, state);
+            if (renderCustomVisual(draw)) {
                 return;
             }
-            SeparatorRenderer styled = styleRendererOverride(SeparatorRenderer.class);
-            if (styled != null) {
-                styled.render(draw, state);
-                return;
-            }
+            SeparatorState state = snapshot();
             if (renderStylePlan(context, SeparatorState.class, state)) return;
-            WidgetsRender.separator().render(draw, state);
+            WidgetsRender.separator().render(draw, this);
         } finally {
             popOpacity(context);
         }
     }
 
-    private SeparatorRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(SeparatorRenderer.class, WidgetsRender.separator()) : renderer;
-    }
-
-    private SeparatorState snapshot() {
+    public SeparatorState snapshot() {
         return new SeparatorState(
                 layoutBounds().x(),
                 layoutBounds().y(),

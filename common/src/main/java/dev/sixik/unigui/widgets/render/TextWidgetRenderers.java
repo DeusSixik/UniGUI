@@ -2,10 +2,13 @@ package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.impl.text.TextEngine;
+import dev.sixik.unigui.widgets.display.TextWidget;
 
 public final class TextWidgetRenderers {
-    public static final TextWidgetRenderer DEFAULT = (draw, state) -> {
+    public static final WidgetRender DEFAULT = WidgetRender.of(TextWidget.class, (draw, w) -> {
+        TextWidgetState state = w.snapshot(draw.context());
         if (state.clipped()) {
             draw.pushTextClip(state.clipX(), state.clipY(), state.clipWidth(), state.clipHeight());
         }
@@ -21,7 +24,7 @@ public final class TextWidgetRenderers {
                 draw.popClip();
             }
         }
-    };
+    });
 
     private TextWidgetRenderers() {
     }

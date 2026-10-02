@@ -9,10 +9,10 @@ import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
-import dev.sixik.unigui.widgets.render.LoadingIndicatorRenderer;
 import dev.sixik.unigui.widgets.render.LoadingIndicatorState;
 import dev.sixik.unigui.widgets.containers.Box;
 
@@ -36,7 +36,6 @@ public class LoadingIndicator extends Box {
     private final MutableColor trackColor = new MutableColor(0.16f, 0.17f, 0.19f, 0.75f);
     private Mode mode = Mode.SPINNER;
     private Spinner.Style spinnerStyle = Spinner.Style.DEFAULT;
-    private LoadingIndicatorRenderer renderer;
     private boolean running = true;
     private float phase;
     private float elapsedSeconds;
@@ -71,21 +70,6 @@ public class LoadingIndicator extends Box {
         this.mode = normalized;
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
-    }
-
-    public LoadingIndicatorRenderer renderer() {
-        return renderer;
-    }
-
-    public LoadingIndicator renderer(LoadingIndicatorRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public LoadingIndicator useDefaultRenderer() {
-        return renderer(null);
     }
 
     public boolean running() {
@@ -324,20 +308,21 @@ public class LoadingIndicator extends Box {
     @Override
     protected void renderContent(RenderContext context) {
         applyTheme();
-        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot());
-        super.renderContent(context);
-    }
-
-    private LoadingIndicatorRenderer effectiveRenderer() {
-        if (renderer != null) return renderer;
-        LoadingIndicatorRenderer fallback = switch (mode) {
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        if (renderCustomVisual(draw)) {
+            super.renderContent(context);
+            return;
+        }
+        WidgetRender fallback = switch (mode) {
             case SPINNER -> WidgetsRender.loadingSpinner();
             case DOTS -> WidgetsRender.loadingDots();
             case BAR -> WidgetsRender.loadingBar();
         };
-        return styleRenderer(LoadingIndicatorRenderer.class, fallback);
+        fallback.render(draw, this);
+        super.renderContent(context);
     }
-    private LoadingIndicatorState snapshot() {
+
+    public LoadingIndicatorState snapshot() {
         return new LoadingIndicatorState(
                 layoutBounds().x(),
                 layoutBounds().y(),

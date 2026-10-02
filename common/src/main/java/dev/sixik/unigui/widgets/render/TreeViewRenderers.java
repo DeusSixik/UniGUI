@@ -1,10 +1,13 @@
 package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.impl.text.TextEngine;
+import dev.sixik.unigui.widgets.navigation.TreeView;
 
 public final class TreeViewRenderers {
-    public static final TreeViewRenderer DEFAULT = (draw, state) -> {
+    public static final WidgetRender DEFAULT = WidgetRender.of(TreeView.TreeRowButton.class, (draw, row) -> {
+        TreeViewRowState state = row.rowSnapshot(draw.context());
         if (state.text() == null || state.text().isEmpty()) return;
         float clipX = state.x() + state.textPaddingX() + state.depth() * state.indentWidth();
         float clipWidth = Math.max(0.0f, state.width() - state.textPaddingX() * 2.0f - state.depth() * state.indentWidth());
@@ -15,7 +18,7 @@ public final class TreeViewRenderers {
         } finally {
             draw.popClip();
         }
-    };
+    });
 
     private TreeViewRenderers() {
     }

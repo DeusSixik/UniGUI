@@ -51,7 +51,8 @@ import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.StylePack;
 import dev.sixik.unigui.api.style.Theme;
 import dev.sixik.unigui.api.style.WidgetState;
-import dev.sixik.unigui.api.widget.render.WidgetRendererRegistry;
+import dev.sixik.unigui.api.widget.render.WidgetRenderRegistry;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.api.widget.render.WidgetRole;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
@@ -110,6 +111,11 @@ public abstract class WidgetBase implements Widget {
     private final FastEventEmitter events = new FastEventEmitter();
     /** Единый реестр всех активных анимаций виджета. */
     private final AnimationController animations = new AnimationController();
+    /**
+     * Единственный custom renderer виджета. {@code null} означает стандартный визуал.
+     * Custom renderer полностью заменяет стандартный визуал (фон плюс контент).
+     */
+    private WidgetRender renderer;
 
     private static final int SCOPE_PROPERTY = 1;
     private static final int SCOPE_PARAMETER = 2;
@@ -1261,47 +1267,88 @@ public abstract class WidgetBase implements Widget {
     }
 
     /**
-     * Resolves a style renderer override for this widget type.
+     * Returns the semantic role used to resolve style renderer overrides.
      *
-     * <p>Per-instance renderer setters should call this only when their local
-     * renderer field is {@code null}. The lookup order is theme style, inherited
-     * local styles, then {@code fallback}. Values with the wrong renderer type
-     * are ignored.</p>
+     * <p>Widgets with role-specific visuals (buttons, sliders, text inputs) override
+     * this to their {@link WidgetRole}. The role guards style-declared renderers from
+     * being applied to incompatible widgets.</p>
+     *
+     * @return render role of this widget
      */
-    protected <T> T styleRenderer(Class<T> rendererType, T fallback) {
-        T override = styleRendererOverride(rendererType);
-        return override == null ? fallback : override;
+    protected WidgetRole renderRole() {
+        return WidgetRole.UNSPECIFIED;
     }
 
     /**
-     * Разрешает renderer из style с проверкой semantic role.
+     * Returns the per-instance custom renderer.
      *
-     * <p>Legacy overload без роли сохраняется для существующих виджетов. Новые semantic
-     * widgets должны использовать этот overload, чтобы несовместимый renderer отбрасывался
-     * до render path.</p>
+     * <p>Each widget has exactly one renderer slot. A custom {@link WidgetRender}
+     * fully replaces the standard visual of the widget (background plus content).
+     * Children are still rendered by the framework afterwards.</p>
+     *
+     * @return custom renderer or {@code null} for the standard visual
      */
-    protected <T> T styleRenderer(WidgetRole role, Class<T> rendererType, T fallback) {
-        T override = styleRendererOverride(role, rendererType);
-        return override == null ? fallback : override;
+    public WidgetRender renderer() {
+        return renderer;
     }
 
     /**
-     * Resolves only an explicit Java renderer override from style data.
+     * Sets the per-instance custom renderer.
      *
-     * <p>This keeps the new declarative path separate from the old default
-     * renderer fallback: widgets can try instance renderer, style renderer,
-     * StylePack RenderPlan and only then fall back to {@code WidgetsRender}.</p>
+     * @param renderer custom renderer or {@code null} for the standard visual
+     * @return this widget
      */
-    protected <T> T styleRendererOverride(Class<T> rendererType) {
-        return styleRendererOverride(WidgetRole.UNSPECIFIED, rendererType);
+    public WidgetBase renderer(WidgetRender renderer) {
+        if (this.renderer == renderer) return this;
+        this.renderer = renderer;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
     }
 
     /**
-     * Разрешает explicit Java renderer override с проверкой semantic role.
+     * Resolves the effective custom renderer: instance slot first, then style override.
+     *
+     * @return custom renderer or {@code null} if the standard visual applies
      */
-    protected <T> T styleRendererOverride(WidgetRole role, Class<T> rendererType) {
+    protected final WidgetRender customRender() {
+        if (renderer != null) return renderer;
+        return styleRenderOverride();
+    }
+
+    /**
+     * Renders the widget through the effective custom renderer, if present.
+     *
+     * @param draw draw scope of the widget
+     * @return {@code true} if a custom renderer handled the visual
+     */
+    protected final boolean renderCustomVisual(DrawScope draw) {
+        WidgetRender custom = customRender();
+        if (custom == null) return false;
+        custom.render(draw, this);
+        return true;
+    }
+
+    /**
+     * Resolves only an explicit renderer override from style data.
+     *
+     * <p>This keeps the declarative path separate from the default renderer fallback:
+     * widgets try the instance renderer, then the style renderer, then the StylePack
+     * RenderPlan and only then fall back to {@code WidgetsRender}.</p>
+     *
+     * @return style-declared renderer or {@code null}
+     */
+    protected WidgetRender styleRenderOverride() {
+        return styleRenderOverride(renderRole());
+    }
+
+    /**
+     * Resolves an explicit renderer override from style data with role check.
+     *
+     * @param role expected widget role
+     * @return compatible style renderer or {@code null}
+     */
+    protected WidgetRender styleRenderOverride(WidgetRole role) {
         if (role == null) role = WidgetRole.UNSPECIFIED;
-        if (rendererType == null) return null;
         UIContext context = uiContext();
         Theme theme = context == null ? Theme.EMPTY : context.theme();
         String type = styleType();
@@ -1316,7 +1363,7 @@ public abstract class WidgetBase implements Widget {
             Style localStyle = current.localStyle(type);
             value = localStyle.get(StyleKeys.RENDERER, null, value);
         }
-        return WidgetRendererRegistry.global().resolve(role, rendererType, value, null);
+        return WidgetRenderRegistry.global().resolve(role, value, null);
     }
 
     /**

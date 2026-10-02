@@ -2,19 +2,18 @@ package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
+import dev.sixik.unigui.widgets.interaction.ToggleSwitch;
 
-/** Стандартные renderer'ы toggle switch. */
+/** Стандартные полные визуалы toggle switch: поверхность плюс track, thumb и label. */
 public final class ToggleSwitchRenderers {
-    /** Стандартный renderer с track, thumb и label. */
-    public static final ToggleSwitchRenderer DEFAULT = ToggleSwitchRenderers::renderDefault;
+    /** Полный визуал toggle switch: поверхность плюс track, thumb и label. */
+    public static final WidgetRender DEFAULT = WidgetRender.of(ToggleSwitch.class, (draw, toggle) -> {
+        SurfacePlans.renderWidgetSurface(draw, toggle);
+        renderDefault(draw, toggle.toggleSwitchSnapshot(draw.context()));
+    });
 
     private ToggleSwitchRenderers() {
-    }
-
-    /** Создаёт переходник для старого ButtonRenderer. */
-    public static ToggleSwitchRenderer legacy(ButtonRenderer renderer) {
-        if (renderer == null) return null;
-        return (draw, state) -> renderer.render(draw, state.toLegacyButtonState());
     }
 
     private static void renderDefault(DrawScope draw, ToggleSwitchRenderState state) {

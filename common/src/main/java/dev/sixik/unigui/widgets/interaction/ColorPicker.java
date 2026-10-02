@@ -23,11 +23,11 @@ import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
-import dev.sixik.unigui.widgets.render.ColorPickerRenderer;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
+import dev.sixik.unigui.widgets.render.ColorPickerRenderers;
 import dev.sixik.unigui.widgets.render.ColorPickerState;
 import dev.sixik.unigui.widgets.containers.HBox;
 import dev.sixik.unigui.widgets.containers.LinearBox;
@@ -71,7 +71,6 @@ public final class ColorPicker extends LinearBox {
     private final Slider blueSlider = channelSlider();
     private OverlayLayer explicitOverlayLayer;
     private OverlayLayer attachedOverlayLayer;
-    private ColorPickerRenderer renderer;
     private Type type = Type.HSV;
     private boolean syncing;
     private float hue;
@@ -189,20 +188,11 @@ public final class ColorPicker extends LinearBox {
         return popup;
     }
 
-    public ColorPickerRenderer renderer() {
-        return renderer;
-    }
-
-    public ColorPicker renderer(ColorPickerRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
+    @Override
+    public ColorPicker renderer(WidgetRender renderer) {
+        super.renderer(renderer);
         colorPlane.invalidate(InvalidationFlags.VISUAL);
-        invalidate(InvalidationFlags.VISUAL);
         return this;
-    }
-
-    public ColorPicker useDefaultRenderer() {
-        return renderer(null);
     }
 
     public EventSubscription onColorChanged(EventListener<? super ColorChangedEvent> listener) {
@@ -368,8 +358,15 @@ public final class ColorPicker extends LinearBox {
         return event;
     }
 
-    private ColorPickerRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(ColorPickerRenderer.class, WidgetsRender.colorPicker()) : renderer;
+    public ColorPickerState planeSnapshot() {
+        return colorPlane.snapshot();
+    }
+
+    private boolean renderPlaneCustom(DrawScope draw) {
+        WidgetRender custom = customRender();
+        if (custom == null) return false;
+        custom.render(draw, this);
+        return true;
     }
 
     private void syncFieldsAndSliders() {
@@ -628,7 +625,14 @@ public final class ColorPicker extends LinearBox {
             float height = layoutBounds().height();
             if (width <= 0.0f || height <= 0.0f) return;
 
-            effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot());
+            DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+            if (renderCustomVisual(draw)) {
+                return;
+            }
+            if (ColorPicker.this.renderPlaneCustom(draw)) {
+                return;
+            }
+            ColorPickerRenderers.renderDefault(draw, snapshot());
         }
 
         private ColorPickerState snapshot() {

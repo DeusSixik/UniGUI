@@ -96,7 +96,7 @@ import dev.sixik.unigui.api.text.TextRun;
 import dev.sixik.unigui.api.widget.CheckboxState;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.Visibility;
-import dev.sixik.unigui.api.widget.render.WidgetRendererRegistry;
+import dev.sixik.unigui.api.widget.render.WidgetRenderRegistry;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttributeDescriptor;
 import dev.sixik.unigui.api.xml.XmlWidgetAsset;
@@ -240,11 +240,12 @@ import dev.sixik.unigui.widgets.render.ScrollBarState;
 import dev.sixik.unigui.widgets.render.TextureWidgetRenderPlans;
 import dev.sixik.unigui.widgets.render.TextureWidgetState;
 import dev.sixik.unigui.widgets.render.BoxState;
-import dev.sixik.unigui.widgets.render.ButtonRenderer;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
+import dev.sixik.unigui.api.widget.render.WidgetRenderRegistry;
 import dev.sixik.unigui.widgets.render.ButtonRenderPlans;
 import dev.sixik.unigui.widgets.render.ButtonRenderType;
 import dev.sixik.unigui.widgets.render.ButtonState;
-import dev.sixik.unigui.widgets.render.ButtonRenderers;
+import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.widgets.render.ProgressBarRenderPlans;
 import dev.sixik.unigui.widgets.render.ProgressBarState;
 import dev.sixik.unigui.widgets.render.SeparatorRenderPlans;
@@ -2523,19 +2524,19 @@ public final class BasicControlsSelfTest {
                 .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.4f, 0.2f, 0.8f, 1.0f))
                 .put(StyleKeys.TEXT_COLOR, MutableColor.rgba(0.9f, 0.9f, 0.2f, 1.0f));
         final int[] themeRendererCalls = {0};
-        ButtonRenderer themeButtonRenderer = (draw, state) -> {
+        WidgetRender themeButtonRenderer = (draw, widget) -> {
             themeRendererCalls[0]++;
-            ButtonRenderers.DEFAULT.render(draw, state);
+            WidgetsRender.button().render(draw, widget);
         };
         final int[] localRendererCalls = {0};
-        ButtonRenderer localButtonRenderer = (draw, state) -> {
+        WidgetRender localButtonRenderer = (draw, widget) -> {
             localRendererCalls[0]++;
-            ButtonRenderers.DEFAULT.render(draw, state);
+            WidgetsRender.button().render(draw, widget);
         };
         final int[] instanceRendererCalls = {0};
-        ButtonRenderer instanceButtonRenderer = (draw, state) -> {
+        WidgetRender instanceButtonRenderer = (draw, widget) -> {
             instanceRendererCalls[0]++;
-            ButtonRenderers.DEFAULT.render(draw, state);
+            WidgetsRender.button().render(draw, widget);
         };
 
         MutableStyle customRendererStyle = new MutableStyle()
@@ -2829,11 +2830,11 @@ public final class BasicControlsSelfTest {
                         && pack.animation("button.press").orElseThrow().tweens().size() == 2,
                 "StylePack XML should parse event animation links and tweens");
         WidgetsRender.registerDefaults();
-        expect(WidgetRendererRegistry.global().renderer("unigui:button/default", ButtonRenderer.class).orElseThrow() == WidgetsRender.button(),
+        expect(WidgetRenderRegistry.global().renderer("unigui:button/default").orElseThrow() == WidgetsRender.button(),
                 "WidgetsRender should register stable ids for built-in default renderers");
         Counter rendererCounter = new Counter();
-        ButtonRenderer countingRenderer = (draw, state) -> rendererCounter.count++;
-        WidgetRendererRegistry.global().register("demo:primary_button", ButtonRenderer.class, countingRenderer);
+        WidgetRender countingRenderer = (draw, widget) -> rendererCounter.count++;
+        WidgetRenderRegistry.global().register("demo:primary_button", countingRenderer);
         try {
             DefaultUIContext uiContext = new DefaultUIContext();
             Button styledButton = new Button("Registry");
@@ -2842,9 +2843,9 @@ public final class BasicControlsSelfTest {
             uiContext.theme(pack, styledButton);
             styledButton.render(new DefaultRenderContext(new DrawList()));
             expect(rendererCounter.count == 1,
-                    "StylePack XML renderer ids should resolve through WidgetRendererRegistry at render time");
+                    "StylePack XML renderer ids should resolve through WidgetRenderRegistry at render time");
         } finally {
-            WidgetRendererRegistry.global().unregister("demo:primary_button");
+            WidgetRenderRegistry.global().unregister("demo:primary_button");
         }
 
         StylePack reparsed = StylePackXml.parse(StylePackXml.toXmlString(pack), StyleKeyRegistry.builtIns());
@@ -5012,7 +5013,11 @@ public final class BasicControlsSelfTest {
 
         DockingRoot overflowRoot = new DockingRoot();
         final dev.sixik.unigui.widgets.render.DockPaneState[] capturedPaneState = new dev.sixik.unigui.widgets.render.DockPaneState[1];
-        overflowRoot.paneRenderer((draw, state) -> capturedPaneState[0] = state);
+        overflowRoot.paneRenderer((draw, widget) -> {
+            java.util.List<dev.sixik.unigui.widgets.render.DockPaneState> snapshots =
+                    ((DockingRoot) widget).paneSnapshots();
+            capturedPaneState[0] = snapshots.isEmpty() ? null : snapshots.get(0);
+        });
         for (int i = 0; i < 6; i++) {
             overflowRoot.addDocument("doc" + i, "Doc " + i, testDockContent("Doc body " + i));
         }
@@ -5084,8 +5089,12 @@ public final class BasicControlsSelfTest {
         uxRoot.setUiContextInternal(uxContext);
         final dev.sixik.unigui.widgets.render.DockPaneState[] uxPaneState = new dev.sixik.unigui.widgets.render.DockPaneState[1];
         final dev.sixik.unigui.widgets.render.DockingRootState[] uxRootState = new dev.sixik.unigui.widgets.render.DockingRootState[1];
-        uxRoot.paneRenderer((draw, state) -> uxPaneState[0] = state);
-        uxRoot.rootRenderer((draw, state) -> uxRootState[0] = state);
+        uxRoot.paneRenderer((draw, widget) -> {
+            java.util.List<dev.sixik.unigui.widgets.render.DockPaneState> snapshots =
+                    ((DockingRoot) widget).paneSnapshots();
+            uxPaneState[0] = snapshots.isEmpty() ? null : snapshots.get(0);
+        });
+        uxRoot.renderer((draw, widget) -> uxRootState[0] = ((DockingRoot) widget).rootState());
         uxRoot.addDocument("ux-a", "UX A", testDockContent("UX A body"))
                 .addDocument("ux-b", "UX B", testDockContent("UX B body"))
                 .selectPane("ux-a");
@@ -5233,11 +5242,13 @@ public final class BasicControlsSelfTest {
 
         final dev.sixik.unigui.widgets.render.NodeGraphState[] backgroundState = new dev.sixik.unigui.widgets.render.NodeGraphState[1];
         final dev.sixik.unigui.widgets.render.NodeGraphState[] foregroundState = new dev.sixik.unigui.widgets.render.NodeGraphState[1];
-        graph.renderer((draw, state) -> {
-            if (state.phase() == dev.sixik.unigui.widgets.render.NodeGraphRenderPhase.BACKGROUND) {
-                backgroundState[0] = state;
+        final int[] nodeGraphRenderCalls = {0};
+        graph.renderer((draw, widget) -> {
+            dev.sixik.unigui.widgets.graph.NodeGraph nodeGraph = (dev.sixik.unigui.widgets.graph.NodeGraph) widget;
+            if (nodeGraphRenderCalls[0]++ % 2 == 0) {
+                backgroundState[0] = nodeGraph.snapshot(dev.sixik.unigui.widgets.render.NodeGraphRenderPhase.BACKGROUND);
             } else {
-                foregroundState[0] = state;
+                foregroundState[0] = nodeGraph.snapshot(dev.sixik.unigui.widgets.render.NodeGraphRenderPhase.FOREGROUND);
             }
         });
         graph.render(new DefaultRenderContext(new DrawList()));
@@ -5307,11 +5318,9 @@ public final class BasicControlsSelfTest {
                 "NodeGraph should create a valid connection on release over a compatible input port");
 
         final dev.sixik.unigui.widgets.render.NodeGraphState[] foregroundState = new dev.sixik.unigui.widgets.render.NodeGraphState[1];
-        graph.renderer((draw, state) -> {
-            if (state.phase() == dev.sixik.unigui.widgets.render.NodeGraphRenderPhase.FOREGROUND) {
-                foregroundState[0] = state;
-            }
-        });
+        graph.renderer((draw, widget) -> foregroundState[0] =
+                ((dev.sixik.unigui.widgets.graph.NodeGraph) widget)
+                        .snapshot(dev.sixik.unigui.widgets.render.NodeGraphRenderPhase.FOREGROUND));
         graph.render(new DefaultRenderContext(new DrawList()));
         expect(foregroundState[0] != null
                         && foregroundState[0].ports().size() == 3
@@ -5332,7 +5341,7 @@ public final class BasicControlsSelfTest {
                 "NodeGraph ports should scale with zoom so their size stays stable relative to the node");
         graph.viewport(0.0f, 0.0f, 1.0f);
         graph.arrange(new MutableRect(0.0f, 0.0f, 320.0f, 180.0f));
-        graph.useDefaultRenderer();
+        graph.renderer(null);
 
         uiContext.routedEvents().dispatch(new PointerPressedEvent(graph,
                 100.0f, 40.0f, 100.0f, 40.0f, 11, PointerButton.PRIMARY));
@@ -5471,15 +5480,13 @@ public final class BasicControlsSelfTest {
                 "NodeGraph lasso should select intersecting selectable items");
 
         final dev.sixik.unigui.widgets.render.NodeGraphState[] lassoState = new dev.sixik.unigui.widgets.render.NodeGraphState[1];
-        graph.renderer((draw, state) -> {
-            if (state.phase() == dev.sixik.unigui.widgets.render.NodeGraphRenderPhase.FOREGROUND) {
-                lassoState[0] = state;
-            }
-        });
+        graph.renderer((draw, widget) -> lassoState[0] =
+                ((dev.sixik.unigui.widgets.graph.NodeGraph) widget)
+                        .snapshot(dev.sixik.unigui.widgets.render.NodeGraphRenderPhase.FOREGROUND));
         graph.render(new DefaultRenderContext(new DrawList()));
         expect(lassoState[0] != null && lassoState[0].selectionBox().visible(),
                 "NodeGraph renderer state should expose active lasso selection box");
-        graph.useDefaultRenderer();
+        graph.renderer(null);
 
         uiContext.routedEvents().dispatch(new PointerReleasedEvent(graph,
                 180.0f, 80.0f, 180.0f, 80.0f, 20, PointerButton.PRIMARY));

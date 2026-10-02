@@ -17,10 +17,10 @@ import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.input.MouseCursor;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
-import dev.sixik.unigui.widgets.render.TextInputRenderer;
 import dev.sixik.unigui.widgets.render.TextInputRenderType;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
@@ -168,13 +168,8 @@ public class SearchField extends TextInput {
     }
 
     @Override
-    protected TextInputRenderer defaultRenderer() {
+    protected WidgetRender skinRenderer() {
         return WidgetsRender.searchField();
-    }
-
-    @Override
-    protected TextInputRenderer effectiveRenderer() {
-        return renderer() == null ? styleRenderer(TextInputRenderer.class, defaultRenderer()) : renderer();
     }
 
     @Override

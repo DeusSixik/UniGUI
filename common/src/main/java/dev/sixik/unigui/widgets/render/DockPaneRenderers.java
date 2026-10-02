@@ -1,8 +1,11 @@
 package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.widgets.docking.DockPaneKind;
+import dev.sixik.unigui.widgets.docking.DockingRoot;
 import dev.sixik.unigui.impl.text.TextEngine;
 
 public final class DockPaneRenderers {
@@ -20,7 +23,13 @@ public final class DockPaneRenderers {
     private static final MutableColor TAB_PRESSED = new MutableColor(0.08f, 0.11f, 0.17f, 0.98f);
     private static final MutableColor TAB_DRAGGING = new MutableColor(0.25f, 0.78f, 1.0f, 0.92f);
 
-    public static final DockPaneRenderer DEFAULT = (draw, state) -> {
+    public static final WidgetRender DEFAULT = WidgetRender.of(DockingRoot.class, (draw, root) -> {
+        for (DockPaneState state : root.paneSnapshots()) {
+            renderDefault(draw, state);
+        }
+    });
+
+    private static void renderDefault(DrawScope draw, DockPaneState state) {
         if (state.width() <= 0.0f || state.height() <= 0.0f) return;
         float tabHeight = Math.min(state.tabHeight(), state.height());
         draw.rect(state.x(), state.y(), state.width(), state.height(), Paint.stroke(PANE_BORDER, 1.0f));
@@ -75,7 +84,7 @@ public final class DockPaneRenderers {
             draw.circle(cx, cy, 1.6f, 1.6f, Paint.fill(OVERFLOW));
             draw.circle(cx + 5.0f, cy, 1.6f, 1.6f, Paint.fill(OVERFLOW));
         }
-    };
+    }
 
     private DockPaneRenderers() {
     }

@@ -657,7 +657,7 @@ final class IsfBrowserOverlay {
         search.boxVisualEnabled(true);
         search.backgroundVisible(false);
         search.borderVisible(false);
-        search.boxRenderer(new NineSliceBoxRenderer(
+        search.renderer(new NineSliceBoxRenderer(
                 new MinecraftTextureHandle(
                         ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/search_background_v2.png"),
                         20, 20, TextureOptions.nearest()),
@@ -710,7 +710,7 @@ final class IsfBrowserOverlay {
         detailPanel.themeEnabled(false);
         detailPanel.backgroundVisible(false);
         detailPanel.borderVisible(false);
-        detailPanel.boxRenderer(new NineSliceBoxRenderer(
+        detailPanel.renderer(new NineSliceBoxRenderer(
                 new MinecraftTextureHandle(
                         ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/recipe_preview_background_v2.png"),
                         64, 64, TextureOptions.nearest()),

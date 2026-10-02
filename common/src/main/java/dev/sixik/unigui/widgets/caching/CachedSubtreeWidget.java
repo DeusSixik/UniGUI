@@ -15,11 +15,11 @@ import dev.sixik.unigui.api.render.RenderTargetOptions;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.render.WidgetTextureRenderer;
 import dev.sixik.unigui.impl.widget.WidgetBase;
-import dev.sixik.unigui.widgets.render.CachedSubtreeRenderer;
 import dev.sixik.unigui.widgets.render.CachedSubtreeState;
 
 import java.util.Collections;
@@ -36,7 +36,6 @@ public final class CachedSubtreeWidget extends WidgetBase {
     private static final MutableColor DEBUG_BACKGROUND_COLOR = new MutableColor(0.0f, 0.0f, 0.0f, 0.55f);
 
     private final MutableColor tint = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
-    private CachedSubtreeRenderer renderer;
     private Widget content;
     private List<Widget> childrenView = Collections.emptyList();
     private WidgetTextureRenderer textureRenderer;
@@ -53,6 +52,7 @@ public final class CachedSubtreeWidget extends WidgetBase {
     private long cacheMisses;
     private long textureRenders;
     private CachedSubtreeMissReason lastMissReason = CachedSubtreeMissReason.NONE;
+    private CachedSubtreeMissReason frameMissReason = CachedSubtreeMissReason.NONE;
 
     public CachedSubtreeWidget() {
         tint.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
@@ -82,21 +82,6 @@ public final class CachedSubtreeWidget extends WidgetBase {
 
     public MutableColor tint() {
         return tint;
-    }
-
-    public CachedSubtreeRenderer renderer() {
-        return renderer;
-    }
-
-    public CachedSubtreeWidget renderer(CachedSubtreeRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public CachedSubtreeWidget useDefaultRenderer() {
-        return renderer(null);
     }
 
     public RenderTargetOptions targetOptions() {
@@ -225,7 +210,11 @@ public final class CachedSubtreeWidget extends WidgetBase {
             recordCacheHit();
         }
 
-        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), cachedSubtreeState(missReason));
+        frameMissReason = missReason;
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        if (!renderCustomVisual(draw)) {
+            WidgetsRender.cachedSubtree().render(draw, this);
+        }
     }
 
     @Override
@@ -301,8 +290,8 @@ public final class CachedSubtreeWidget extends WidgetBase {
         widget.clearInvalidation(InvalidationFlags.ALL);
     }
 
-    private CachedSubtreeRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(CachedSubtreeRenderer.class, WidgetsRender.cachedSubtree()) : renderer;
+    public CachedSubtreeState cachedSubtreeState() {
+        return cachedSubtreeState(frameMissReason);
     }
 
     private CachedSubtreeState cachedSubtreeState(CachedSubtreeMissReason missReason) {

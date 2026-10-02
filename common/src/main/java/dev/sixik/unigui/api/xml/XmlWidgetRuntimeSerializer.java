@@ -17,6 +17,7 @@ import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.HBox;
 import dev.sixik.unigui.widgets.containers.ScrollView;
 import dev.sixik.unigui.widgets.containers.StackPanel;
+import dev.sixik.unigui.widgets.containers.SurfaceWidget;
 import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.containers.WrapPanel;
 import dev.sixik.unigui.widgets.display.ImageView;
@@ -223,18 +224,24 @@ public final class XmlWidgetRuntimeSerializer {
             writeRect(element, "source", textureWidget.source(), 0.0f, 0.0f, 1.0f, 1.0f);
         }
 
-        if (widget instanceof Box box) {
-            if (box.backgroundVisible()) element.attribute("background", color(box.background()));
-            if (box.borderVisible()) {
-                element.attribute("border", color(box.borderColor()));
-                writeFloat(element, "borderWidth", box.borderWidth(), 1.0f);
+        if (widget instanceof SurfaceWidget<?> surface) {
+            if (surface.backgroundKind() != null) {
+                element.attribute("backgroundKind", enumValue(surface.backgroundKind()));
             }
-            writeFloat(element, "radius", box.radius(), 0.0f);
-            writeTexture(element, "backgroundTexture", "backgroundTextureWidth", "backgroundTextureHeight", box.backgroundTexture());
-            if (box.backgroundTextureFit() != dev.sixik.unigui.api.render.ImageFit.STRETCH) {
-                element.attribute("backgroundTextureFit", enumValue(box.backgroundTextureFit()));
+            if (surface.backgroundVisible()) element.attribute("background", color(surface.background()));
+            if (surface.borderVisible()) {
+                element.attribute("border", color(surface.borderColor()));
+                writeFloat(element, "borderWidth", surface.borderWidth(), 1.0f);
             }
-            writeRect(element, "backgroundTextureSource", box.backgroundTextureSource(), 0.0f, 0.0f, 1.0f, 1.0f);
+            writeFloat(element, "radius", surface.radius(), 0.0f);
+            writeTexture(element, "backgroundTexture", "backgroundTextureWidth", "backgroundTextureHeight", surface.backgroundTexture());
+            if (surface.backgroundTextureFit() != dev.sixik.unigui.api.render.ImageFit.STRETCH) {
+                element.attribute("backgroundTextureFit", enumValue(surface.backgroundTextureFit()));
+            }
+            writeRect(element, "backgroundTextureSource", surface.backgroundTextureSource(), 0.0f, 0.0f, 1.0f, 1.0f);
+            if (surface.backgroundShader() != null) {
+                element.attribute("backgroundShader", surface.backgroundShader().id());
+            }
         }
 
         if (widget instanceof dev.sixik.unigui.widgets.containers.LinearBox linearBox) {

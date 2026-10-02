@@ -9,7 +9,6 @@ import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
-import dev.sixik.unigui.widgets.render.PathRenderer;
 import dev.sixik.unigui.widgets.render.PathState;
 
 @XmlWidgetName("Path")
@@ -18,7 +17,6 @@ public final class Path extends WidgetBase {
 
     private final VectorPath path = new VectorPath();
     private final MutableColor color = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
-    private PathRenderer renderer;
     private boolean stroke = true;
     private float strokeWidth = 1.0f;
 
@@ -33,21 +31,6 @@ public final class Path extends WidgetBase {
 
     public MutableColor color() {
         return color;
-    }
-
-    public PathRenderer renderer() {
-        return renderer;
-    }
-
-    public Path renderer(PathRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public Path useDefaultRenderer() {
-        return renderer(null);
     }
 
     public boolean stroke() {
@@ -79,17 +62,17 @@ public final class Path extends WidgetBase {
         if (path.isEmpty()) return;
         pushOpacity(context);
         try {
-            effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot());
+            DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+            if (renderCustomVisual(draw)) {
+                return;
+            }
+            WidgetsRender.path().render(draw, this);
         } finally {
             popOpacity(context);
         }
     }
 
-    private PathRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(PathRenderer.class, WidgetsRender.path()) : renderer;
-    }
-
-    private PathState snapshot() {
+    public PathState snapshot() {
         return new PathState(
                 layoutBounds().x(),
                 layoutBounds().y(),

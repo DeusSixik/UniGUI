@@ -1,10 +1,8 @@
 package dev.sixik.isf.client;
 
-import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.SimpleTextureHandle;
-import dev.sixik.unigui.api.text.RichText;
-import dev.sixik.unigui.widgets.render.ButtonRenderType;
-import dev.sixik.unigui.widgets.render.ButtonState;
+import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.widgets.interaction.ToggleButton;
 
 /**
  * Проверка выбора подложки кнопки по состоянию (без запуска Minecraft).
@@ -46,14 +44,28 @@ public final class IsfButtonRendererSelfTest {
         return new NineSliceButtonRenderer(new SimpleTextureHandle(id, 20, 20), 4.0f);
     }
 
-    private static ButtonState state(boolean pressed, boolean hovered, boolean enabled, boolean checked) {
-        MutableColor white = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
-        return new ButtonState(ButtonRenderType.BUTTON,
-                0.0f, 0.0f, 16.0f, 14.0f,
-                "", RichText.plain(""), 0.0f, 0.0f, 0.0f, white,
-                pressed, hovered, enabled, checked, false,
-                0.0f, 0.0f, 0.0f, white, white, 0.0f,
-                false, false, white, 0.0f, false, white, 1.0f);
+    private static Widget state(boolean pressed, boolean hovered, boolean enabled, boolean checked) {
+        return new ToggleButton() {
+            @Override
+            public boolean pressed() {
+                return pressed;
+            }
+
+            @Override
+            public boolean hovered() {
+                return hovered;
+            }
+
+            @Override
+            public boolean enabled() {
+                return enabled;
+            }
+
+            @Override
+            public boolean checked() {
+                return checked;
+            }
+        };
     }
 
     private static void check(boolean condition, String message) {

@@ -23,7 +23,6 @@ import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
-import dev.sixik.unigui.widgets.render.ScrollBarRenderer;
 import dev.sixik.unigui.widgets.render.ScrollBarState;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.core.Orientation;
@@ -78,7 +77,6 @@ public class ScrollBar extends Box {
     private final MutableColor trackColor = new MutableColor(0.0f, 0.0f, 0.0f, 0.28f);
     private final MutableColor thumbColor = new MutableColor(0.25f, 0.78f, 1.0f, 0.75f);
     private Orientation orientation = Orientation.VERTICAL;
-    private ScrollBarRenderer renderer;
     private float preferredLength = DEFAULT_PREFERRED_LENGTH;
     private float preferredThickness = DEFAULT_PREFERRED_THICKNESS;
     private float min;
@@ -192,21 +190,6 @@ public class ScrollBar extends Box {
         return thumbColor;
     }
 
-    public ScrollBarRenderer renderer() {
-        return renderer;
-    }
-
-    public ScrollBar renderer(ScrollBarRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public ScrollBar useDefaultRenderer() {
-        return renderer(null);
-    }
-
     public float preferredLength() {
         return preferredLength;
     }
@@ -304,24 +287,19 @@ public class ScrollBar extends Box {
         applyTheme();
         ScrollBarState state = snapshot();
         DrawScope draw = new DrawScope(context, transform(), layoutBounds());
-        if (renderer != null) {
-            renderer.render(draw, state);
-        } else {
-            ScrollBarRenderer styled = styleRendererOverride(ScrollBarRenderer.class);
-            if (styled != null) {
-                styled.render(draw, state);
-            } else if (!renderStylePlan(context, ScrollBarState.class, state)) {
-                WidgetsRender.scrollBar().render(draw, state);
-            }
+        if (renderCustomVisual(draw)) {
+            super.renderContent(context);
+            return;
         }
+        if (renderStylePlan(context, ScrollBarState.class, state)) {
+            super.renderContent(context);
+            return;
+        }
+        WidgetsRender.scrollBar().render(draw, this);
         super.renderContent(context);
     }
 
-    private ScrollBarRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(ScrollBarRenderer.class, WidgetsRender.scrollBar()) : renderer;
-    }
-
-    private ScrollBarState snapshot() {
+    public ScrollBarState snapshot() {
         return new ScrollBarState(
                 layoutBounds().x(),
                 layoutBounds().y(),

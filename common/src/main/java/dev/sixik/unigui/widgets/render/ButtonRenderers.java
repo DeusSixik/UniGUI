@@ -1,10 +1,17 @@
 package dev.sixik.unigui.widgets.render;
 
+import dev.sixik.unigui.api.widget.render.WidgetRender;
+import dev.sixik.unigui.widgets.interaction.Button;
+
+/**
+ * Стандартные полные визуалы кнопки: поверхность плюс текст.
+ */
 public final class ButtonRenderers {
-    public static final ButtonRenderer DEFAULT = (draw, state) -> ButtonRenderPlans.defaultPlan(state).render(draw);
-    public static final ButtonRenderer CHECKBOX = (draw, state) -> ButtonRenderPlans.checkboxPlan(state).render(draw);
-    public static final ButtonRenderer RADIO_BUTTON = (draw, state) -> ButtonRenderPlans.radioButtonPlan(state).render(draw);
-    public static final ButtonRenderer TOGGLE_SWITCH = (draw, state) -> ButtonRenderPlans.toggleSwitchPlan(state).render(draw);
+    /** Полный визуал обычной кнопки: поверхность (цвет/текстура/шейдер) плюс текст. */
+    public static final WidgetRender DEFAULT = WidgetRender.of(Button.class, (draw, button) -> {
+        SurfacePlans.renderWidgetSurface(draw, button);
+        ButtonRenderPlans.textPlan(button.snapshot(draw.context())).render(draw);
+    });
 
     private ButtonRenderers() {
     }

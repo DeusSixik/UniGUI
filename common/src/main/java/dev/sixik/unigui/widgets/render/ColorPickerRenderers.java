@@ -1,10 +1,16 @@
 package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
+import dev.sixik.unigui.widgets.interaction.ColorPicker;
 
 public final class ColorPickerRenderers {
-    public static final ColorPickerRenderer DEFAULT = (draw, state) -> {
+    public static final WidgetRender DEFAULT = WidgetRender.of(ColorPicker.class, (draw, picker) ->
+            renderDefault(draw, picker.planeSnapshot()));
+
+    public static void renderDefault(DrawScope draw, ColorPickerState state) {
         if (state.width() <= 0.0f || state.height() <= 0.0f) return;
 
         int steps = 32;
@@ -28,7 +34,7 @@ public final class ColorPickerRenderers {
         float radius = state.dragging() || state.hovered() ? 4.5f : 4.0f;
         draw.addCircle(cx, cy, radius, MutableColor.rgba(0.0f, 0.0f, 0.0f, state.enabled() ? 0.90f : 0.45f), 16, 2.0f);
         draw.addCircle(cx, cy, Math.max(1.0f, radius - 1.0f), MutableColor.rgba(1.0f, 1.0f, 1.0f, state.enabled() ? 0.95f : 0.45f), 16, 1.0f);
-    };
+    }
 
     private ColorPickerRenderers() {
     }

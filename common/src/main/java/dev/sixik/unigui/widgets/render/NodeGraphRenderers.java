@@ -3,24 +3,33 @@ package dev.sixik.unigui.widgets.render;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
+import dev.sixik.unigui.widgets.graph.NodeGraph;
 
 public final class NodeGraphRenderers {
-    public static final NodeGraphRenderer DEFAULT = (draw, state) -> {
-        if (state.width() <= 0.0f || state.height() <= 0.0f) return;
-        if (state.phase() == NodeGraphRenderPhase.BACKGROUND) {
-            draw.rect(state.x(), state.y(), state.width(), state.height(), Paint.fill(state.backgroundColor()));
-            drawGrid(draw, state);
-            for (NodeGraphConnectionState connection : state.connections()) {
-                if (!connection.enabled()) continue;
-                ColorView color = connection.selected() || connection.hovered()
-                        ? state.selectedConnectionColor()
-                        : state.connectionColor();
-                float thickness = connection.selected() || connection.hovered() ? 2.0f : 1.0f;
-                draw.addLine(connection.startX(), connection.startY(), connection.endX(), connection.endY(), color, thickness);
-            }
-            return;
-        }
+    public static final WidgetRender DEFAULT = WidgetRender.of(NodeGraph.class, (draw, graph) -> {
+        renderBackground(draw, graph.snapshot(NodeGraphRenderPhase.BACKGROUND));
+        renderForeground(draw, graph.snapshot(NodeGraphRenderPhase.FOREGROUND));
+    });
 
+    public static void renderBackground(DrawScope draw, NodeGraphState state) {
+        if (state.width() <= 0.0f || state.height() <= 0.0f) return;
+        if (state.phase() != NodeGraphRenderPhase.BACKGROUND) return;
+        draw.rect(state.x(), state.y(), state.width(), state.height(), Paint.fill(state.backgroundColor()));
+        drawGrid(draw, state);
+        for (NodeGraphConnectionState connection : state.connections()) {
+            if (!connection.enabled()) continue;
+            ColorView color = connection.selected() || connection.hovered()
+                    ? state.selectedConnectionColor()
+                    : state.connectionColor();
+            float thickness = connection.selected() || connection.hovered() ? 2.0f : 1.0f;
+            draw.addLine(connection.startX(), connection.startY(), connection.endX(), connection.endY(), color, thickness);
+        }
+    }
+
+    public static void renderForeground(DrawScope draw, NodeGraphState state) {
+        if (state.width() <= 0.0f || state.height() <= 0.0f) return;
+        if (state.phase() != NodeGraphRenderPhase.FOREGROUND) return;
         for (NodeGraphItemState item : state.items()) {
             ColorView color = item.selected()
                     ? state.selectedItemBorderColor()
@@ -56,7 +65,7 @@ public final class NodeGraphRenderers {
             draw.rect(selectionBox.x(), selectionBox.y(), selectionBox.width(), selectionBox.height(),
                     Paint.stroke(state.selectionBoxBorderColor(), 1.0f));
         }
-    };
+    }
 
     private NodeGraphRenderers() {
     }

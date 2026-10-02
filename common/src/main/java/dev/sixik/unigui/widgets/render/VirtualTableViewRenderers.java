@@ -2,16 +2,19 @@ package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.impl.text.TextEngine;
+import dev.sixik.unigui.widgets.data.VirtualTableView;
 
 public final class VirtualTableViewRenderers {
-    public static final VirtualTableViewRenderer DEFAULT = (draw, state) -> {
+    public static final WidgetRender DEFAULT = WidgetRender.of(VirtualTableView.class, (draw, table) -> {
+        VirtualTableViewState state = table.snapshot(draw.context(), table.renderPhase());
         if (state.phase() == VirtualTableViewRenderPhase.HEADER) {
             drawHeader(draw, state);
         } else {
             drawRows(draw, state);
         }
-    };
+    });
 
     private VirtualTableViewRenderers() {
     }

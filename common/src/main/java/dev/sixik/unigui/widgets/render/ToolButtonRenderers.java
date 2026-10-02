@@ -1,12 +1,15 @@
 package dev.sixik.unigui.widgets.render;
 
-/** Стандартные renderer-ы toolbar-кнопок. */
+import dev.sixik.unigui.api.widget.render.WidgetRender;
+import dev.sixik.unigui.widgets.interaction.ToolButton;
+
+/** Стандартные полные визуалы toolbar-кнопок: поверхность плюс текст. */
 public final class ToolButtonRenderers {
-    /** Стандартный toolbar renderer, использующий общий button renderer как visual part. */
-    public static final ToolButtonRenderer DEFAULT = (draw, state) -> {
-        if (state == null || state.button() == null) return;
-        ButtonRenderers.DEFAULT.render(draw, state.button());
-    };
+    /** Полный визуал toolbar-кнопки: поверхность плюс текстовый контент. */
+    public static final WidgetRender DEFAULT = WidgetRender.of(ToolButton.class, (draw, button) -> {
+        SurfacePlans.renderWidgetSurface(draw, button);
+        ButtonRenderPlans.textPlan(button.snapshot(draw.context())).render(draw);
+    });
 
     private ToolButtonRenderers() {
     }

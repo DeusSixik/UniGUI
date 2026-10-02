@@ -15,11 +15,11 @@ import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
-import dev.sixik.unigui.widgets.render.TreeViewRenderer;
 import dev.sixik.unigui.widgets.render.TreeViewRowState;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -42,7 +42,6 @@ public class TreeView extends LinearBox {
     private final VBox rowsHost = new VBox();
     private final List<TreeViewNode> roots = new ObjectArrayList<>();
     private final List<TreeViewNode> visibleNodes = new ObjectArrayList<>();
-    private TreeViewRenderer renderer;
     private TreeViewNode selectedNode;
     private float rowTextHoverScrollSpeed = ROW_TEXT_HOVER_SCROLL_SPEED;
     private int batchDepth;
@@ -166,21 +165,6 @@ public class TreeView extends LinearBox {
 
     public VBox rowsHost() {
         return rowsHost;
-    }
-
-    public TreeViewRenderer renderer() {
-        return renderer;
-    }
-
-    public TreeView renderer(TreeViewRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public TreeView useDefaultRenderer() {
-        return renderer(null);
     }
 
     public float rowTextHoverScrollSpeed() {
@@ -521,11 +505,23 @@ public class TreeView extends LinearBox {
     private record VisibleEntry(TreeViewNode node, int depth) {
     }
 
-    protected TreeViewRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(TreeViewRenderer.class, WidgetsRender.treeView()) : renderer;
+    /**
+     * Рисует одну строку дерева: custom renderer дерева или skin-default.
+     *
+     * <p>Метод объявлен в {@code TreeView}, а не в строке, потому что protected
+     * {@code customRender()} недоступен строке напрямую: строка является другим
+     * наследником {@code WidgetBase}.</p>
+     */
+    private void renderRow(DrawScope draw, TreeRowButton row) {
+        WidgetRender custom = customRender();
+        if (custom != null) {
+            custom.render(draw, row);
+        } else {
+            WidgetsRender.treeView().render(draw, row);
+        }
     }
 
-    private static final class TreeRowButton extends Button {
+    public static final class TreeRowButton extends Button {
         private final TreeView tree;
         private final TreeViewNode node;
         private final int depth;
@@ -585,10 +581,10 @@ public class TreeView extends LinearBox {
 
         @Override
         protected void renderContent(RenderContext context) {
-            tree.effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), rowSnapshot(context));
+            tree.renderRow(new DrawScope(context, transform(), layoutBounds()), this);
         }
 
-        private TreeViewRowState rowSnapshot(RenderContext context) {
+        public TreeViewRowState rowSnapshot(RenderContext context) {
             RichText text = rowText();
             float indent = depth * INDENT_WIDTH;
             float baseTextX = layoutBounds().x() + TEXT_PADDING_X + indent;

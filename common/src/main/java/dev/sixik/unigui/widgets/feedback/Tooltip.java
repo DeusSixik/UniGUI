@@ -19,7 +19,6 @@ import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
-import dev.sixik.unigui.widgets.render.TooltipRenderer;
 import dev.sixik.unigui.widgets.render.TooltipState;
 
 import java.util.List;
@@ -38,7 +37,6 @@ public class Tooltip extends Box implements OverlayHostAware {
     private Widget anchor;
     private String text = "";
     private RichText richText = RichText.plain("");
-    private TooltipRenderer renderer;
     private EventSubscription anchorEnteredSubscription;
     private EventSubscription anchorExitedSubscription;
     private float offsetX = 8.0f;
@@ -140,21 +138,6 @@ public class Tooltip extends Box implements OverlayHostAware {
         return textColor;
     }
 
-    public TooltipRenderer renderer() {
-        return renderer;
-    }
-
-    public Tooltip renderer(TooltipRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public Tooltip useDefaultRenderer() {
-        return renderer(null);
-    }
-
     public boolean showing() {
         return visibility() == Visibility.VISIBLE && anchor != null && anchor.hovered()
                 && isEffectivelyVisible(anchor) && !text.isEmpty();
@@ -234,6 +217,12 @@ public class Tooltip extends Box implements OverlayHostAware {
     @Override
     protected void renderContent(RenderContext context) {
         applyTheme();
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        if (renderCustomVisual(draw)) return;
+        WidgetsRender.tooltip().render(draw, this);
+    }
+
+    public TooltipState snapshot(RenderContext context) {
         float textX = layoutBounds().x() + HORIZONTAL_PADDING;
         float textY = layoutBounds().y() + VERTICAL_PADDING;
         float textWidth = Math.max(0.0f, layoutBounds().width() - HORIZONTAL_PADDING * 2.0f);
@@ -243,7 +232,7 @@ public class Tooltip extends Box implements OverlayHostAware {
         for (int i = 0; i < lines.size(); i++) {
             lineHeights[i] = TextEngine.lineHeight(lines.get(i));
         }
-        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), new TooltipState(
+        return new TooltipState(
                 layoutBounds().x(),
                 layoutBounds().y(),
                 layoutBounds().width(),
@@ -260,11 +249,7 @@ public class Tooltip extends Box implements OverlayHostAware {
                 textHeight,
                 lines,
                 lineHeights,
-                textColor.copy()));
-    }
-
-    private TooltipRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(TooltipRenderer.class, WidgetsRender.tooltip()) : renderer;
+                textColor.copy());
     }
 
     private void subscribeToAnchor() {

@@ -15,7 +15,6 @@ import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.widgets.core.Orientation;
-import dev.sixik.unigui.widgets.render.SplitterRenderer;
 import dev.sixik.unigui.widgets.render.SplitterState;
 
 /**
@@ -27,14 +26,12 @@ import dev.sixik.unigui.widgets.render.SplitterState;
  * владельцу.</p>
  *
  * @see SplitPanel
- * @see SplitterRenderer
  */
 public final class Splitter extends Box {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.SPLITTER;
 
     private final SplitPanel owner;
     private final MutableColor handleColor = new MutableColor(0.25f, 0.78f, 1.0f, 0.55f);
-    private SplitterRenderer renderer;
     private boolean dragging;
 
     Splitter(SplitPanel owner) {
@@ -63,37 +60,6 @@ public final class Splitter extends Box {
      */
     public MutableColor handleColor() {
         return handleColor;
-    }
-
-    /**
-     * Возвращает renderer, заданный напрямую для splitter'а.
-     *
-     * @return кастомный renderer или {@code null}, если используется тема/default
-     */
-    public SplitterRenderer renderer() {
-        return renderer;
-    }
-
-    /**
-     * Задаёт renderer разделителя.
-     *
-     * @param renderer renderer splitter'а или {@code null} для theme/default renderer'а
-     * @return этот splitter для fluent-настройки
-     */
-    public Splitter renderer(SplitterRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    /**
-     * Сбрасывает кастомный renderer и возвращает renderer из темы/default.
-     *
-     * @return этот splitter для fluent-настройки
-     */
-    public Splitter useDefaultRenderer() {
-        return renderer(null);
     }
 
     @Override
@@ -141,16 +107,11 @@ public final class Splitter extends Box {
     protected void renderContent(RenderContext context) {
         applyTheme();
         super.renderContent(context);
-        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot());
-    }
-
-    /**
-     * Возвращает renderer, который будет использован на текущем render-проходе.
-     *
-     * @return локальный, theme или default renderer
-     */
-    protected SplitterRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(SplitterRenderer.class, WidgetsRender.splitter()) : renderer;
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        if (renderCustomVisual(draw)) {
+            return;
+        }
+        WidgetsRender.splitter().render(draw, this);
     }
 
     /**
@@ -158,7 +119,7 @@ public final class Splitter extends Box {
      *
      * @return состояние splitter'а на текущий кадр
      */
-    protected SplitterState snapshot() {
+    public SplitterState snapshot() {
         return new SplitterState(
                 layoutBounds().x(),
                 layoutBounds().y(),

@@ -17,11 +17,11 @@ import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
-import dev.sixik.unigui.widgets.render.SparklineRenderer;
 import dev.sixik.unigui.widgets.render.SparklineState;
 import it.unimi.dsi.fastutil.floats.FloatArrayList;
 
@@ -53,7 +53,6 @@ public class Sparkline extends WidgetBase {
     private SparkPointRenderer pointRenderer;
     private SparkPointLabelRenderer pointLabelRenderer;
     private SparkPointTooltipRenderer pointTooltipRenderer;
-    private SparklineRenderer renderer;
     private int hoveredPointIndex = -1;
     private float preferredWidth;
     private float preferredHeight;
@@ -169,21 +168,6 @@ public class Sparkline extends WidgetBase {
         return this;
     }
 
-    public SparklineRenderer renderer() {
-        return renderer;
-    }
-
-    public Sparkline renderer(SparklineRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public Sparkline useDefaultRenderer() {
-        return renderer(null);
-    }
-
     public float preferredWidth() {
         return preferredWidth;
     }
@@ -256,10 +240,18 @@ public class Sparkline extends WidgetBase {
     @Override
     public void render(RenderContext context) {
         if (visibility() != Visibility.VISIBLE || values.size() < 2) return;
-        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot());
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        if (renderCustomVisual(draw)) {
+            return;
+        }
+        skinRenderer().render(draw, this);
     }
 
-    protected SparklineState snapshot() {
+    protected WidgetRender skinRenderer() {
+        return WidgetsRender.sparkline();
+    }
+
+    public SparklineState snapshot() {
         return new SparklineState(
                 layoutBounds().x(),
                 layoutBounds().y(),
@@ -279,10 +271,6 @@ public class Sparkline extends WidgetBase {
                 pointRenderer,
                 pointLabelRenderer,
                 pointTooltipRenderer);
-    }
-
-    protected SparklineRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(SparklineRenderer.class, WidgetsRender.sparkline()) : renderer;
     }
 
     protected List<SparkPoint> computePoints() {

@@ -3,13 +3,15 @@ package dev.sixik.unigui.widgets.render;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.display.Chart;
 
 import java.util.Locale;
 
 public final class ChartRenderers {
-    public static final ChartRenderer DEFAULT = (draw, state) -> {
+    public static final WidgetRender DEFAULT = WidgetRender.of(Chart.class, (draw, w) -> {
+        SparklineState state = w.snapshot();
         if (state.width() <= 0.0f || state.height() <= 0.0f) return;
 
         draw.rect(state.x(), state.y(), state.width(), state.height(), Paint.stroke(state.axisColor(), 1.0f));
@@ -22,9 +24,9 @@ public final class ChartRenderers {
             draw.addLine(state.x() + 10.0f, state.y() + 4.0f,
                     state.x() + 10.0f, state.y() + state.height() - 4.0f,
                     state.axisColor(), 1.0f);
-            SparklineRenderers.DEFAULT.render(draw, state);
+            SparklineRenderers.DEFAULT.render(draw, w);
         }
-    };
+    });
 
     private ChartRenderers() {
     }
@@ -135,4 +137,3 @@ public final class ChartRenderers {
         }
     }
 }
-

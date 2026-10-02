@@ -16,13 +16,8 @@ import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.render.ButtonRenderType;
-import dev.sixik.unigui.widgets.render.ButtonRenderer;
 import dev.sixik.unigui.widgets.render.ButtonState;
 import dev.sixik.unigui.widgets.render.ToggleSwitchRenderState;
-import dev.sixik.unigui.widgets.render.ToggleSwitchRenderer;
-import dev.sixik.unigui.widgets.render.ToggleSwitchRenderers;
-import dev.sixik.unigui.widgets.render.ToggleButtonRenderer;
-import dev.sixik.unigui.widgets.render.ToggleButtonRenderState;
 import dev.sixik.unigui.api.widget.render.WidgetRole;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 
@@ -63,8 +58,6 @@ public class ToggleSwitch extends ToggleButton {
     private boolean labelLeft;
     private float switchProgress;
     private TransitionSpec switchAnimation = TransitionSpec.of(DEFAULT_SWITCH_ANIMATION_SECONDS);
-    private ToggleSwitchRenderer toggleSwitchRenderer;
-    private ToggleButtonRenderer legacyToggleButtonRenderer;
 
     public ToggleSwitch() {
         this("");
@@ -82,63 +75,6 @@ public class ToggleSwitch extends ToggleButton {
     public ToggleSwitch(RichText text) {
         this("");
         richText(text);
-    }
-
-    /** @return typed renderer toggle switch или {@code null}, если используется theme/default */
-    public ToggleSwitchRenderer toggleSwitchRenderer() {
-        return toggleSwitchRenderer;
-    }
-
-    /** Устанавливает typed renderer toggle switch. */
-    public ToggleSwitch toggleSwitchRenderer(ToggleSwitchRenderer renderer) {
-        if (this.toggleSwitchRenderer == renderer && legacyToggleButtonRenderer == null) return this;
-        this.toggleSwitchRenderer = renderer;
-        this.legacyToggleButtonRenderer = null;
-        invalidate(dev.sixik.unigui.api.core.InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    /** Возвращает выбор renderer к theme/default пути. */
-    public ToggleSwitch useDefaultToggleSwitchRenderer() {
-        return toggleSwitchRenderer(null);
-    }
-
-    /**
-     * Совместимый мост для старого API ToggleButton.
-     *
-     * <p>ToggleSwitch имеет собственную semantic role, поэтому renderer адаптируется к
-     * typed {@link ToggleSwitchRenderer} и не используется родительским render path.</p>
-     *
-     * @deprecated используйте {@link #toggleSwitchRenderer(ToggleSwitchRenderer)}
-     */
-    @Deprecated
-    @Override
-    public ToggleButtonRenderer toggleButtonRenderer() {
-        return legacyToggleButtonRenderer;
-    }
-
-    /** @deprecated используйте {@link #toggleSwitchRenderer(ToggleSwitchRenderer)} */
-    @Deprecated
-    @Override
-    public ToggleSwitch toggleButtonRenderer(ToggleButtonRenderer renderer) {
-        legacyToggleButtonRenderer = renderer;
-        toggleSwitchRenderer = renderer == null
-                ? null
-                : (draw, state) -> renderer.render(draw, new ToggleButtonRenderState(
-                        state.x(), state.y(), state.width(), state.height(), state.text(), state.richText(),
-                        state.trackHeight(), state.textWidth(), state.textHeight(), state.textColor(),
-                        state.pressed(), state.hovered(), state.enabled(), state.checked(),
-                        state.trackColor(), state.trackColor(), false, state.trackColor(),
-                        state.trackHeight() * 0.5f, false, state.trackColor(), 0.0f));
-        invalidate(dev.sixik.unigui.api.core.InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    /** @deprecated используйте {@link #useDefaultToggleSwitchRenderer()} */
-    @Deprecated
-    @Override
-    public ToggleSwitch useDefaultToggleButtonRenderer() {
-        return toggleButtonRenderer((ToggleButtonRenderer) null);
     }
 
     @Override
@@ -269,54 +205,32 @@ public class ToggleSwitch extends ToggleButton {
     @Override
     protected void renderContent(RenderContext context) {
         applyTheme();
-        ToggleSwitchRenderState state = toggleSwitchSnapshot(context);
         DrawScope draw = new DrawScope(context, transform(), layoutBounds());
-        ToggleSwitchRenderer typed = toggleSwitchRenderer;
-        if (typed == null) {
-            typed = styleRendererOverride(WidgetRole.TOGGLE_SWITCH, ToggleSwitchRenderer.class);
-        }
-        if (typed != null) {
-            typed.render(draw, state);
+        if (renderCustomVisual(draw)) {
             renderChildren(context);
             return;
         }
-
-        ButtonRenderer legacy = renderer();
-        if (legacy == null) {
-            legacy = styleRendererOverride(WidgetRole.TOGGLE_SWITCH, ButtonRenderer.class);
-        }
-        if (legacy != null) {
-            legacy.render(draw, state.toLegacyButtonState());
-            renderChildren(context);
-            return;
-        }
+        ToggleSwitchRenderState state = toggleSwitchSnapshot(context);
         if (renderStylePlan(context, ButtonState.class, state.toLegacyButtonState())) {
             renderChildren(context);
             return;
         }
-        ToggleSwitchRenderers.DEFAULT.render(draw, state);
+        WidgetsRender.toggleSwitch().render(draw, this);
         renderChildren(context);
     }
 
     @Override
-    protected ButtonRenderer defaultRenderer() {
-        return WidgetsRender.toggleSwitch();
+    protected WidgetRole renderRole() {
+        return WidgetRole.TOGGLE_SWITCH;
     }
 
     @Override
-    protected ButtonRenderer effectiveRenderer() {
-        return renderer() == null
-                ? styleRenderer(WidgetRole.TOGGLE_SWITCH, ButtonRenderer.class, defaultRenderer())
-                : renderer();
-    }
-
-    @Override
-    protected ButtonState snapshot(RenderContext context) {
+    public ButtonState snapshot(RenderContext context) {
         return toggleSwitchSnapshot(context).toLegacyButtonState();
     }
 
-    /** Собирает typed состояние toggle switch без зависимости renderer от виджета. */
-    protected ToggleSwitchRenderState toggleSwitchSnapshot(RenderContext context) {
+    /** Собирает состояние toggle switch для skin-default и RenderPlan. */
+    public ToggleSwitchRenderState toggleSwitchSnapshot(RenderContext context) {
         return new ToggleSwitchRenderState(
                 layoutBounds().x(),
                 layoutBounds().y(),

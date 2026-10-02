@@ -28,9 +28,8 @@ import dev.sixik.unigui.api.xml.XmlTextureAttributes;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.impl.widget.WidgetBase;
-import dev.sixik.unigui.widgets.render.BoxRenderer;
+import dev.sixik.unigui.widgets.render.BoxRenderPlans;
 import dev.sixik.unigui.widgets.render.BoxState;
-import dev.sixik.unigui.widgets.render.TextWidgetRenderer;
 import dev.sixik.unigui.widgets.render.TextWidgetSegment;
 import dev.sixik.unigui.widgets.render.TextWidgetState;
 
@@ -48,7 +47,6 @@ public class TextWidget extends WidgetBase {
     private String text = "";
     private RichText richText;
     private final MutableColor color = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
-    private TextWidgetRenderer renderer;
     private boolean wrap = true;
     private TextOverflowMode overflowMode = TextOverflowMode.VISIBLE;
     private float marqueeSpeed = 24.0f;
@@ -63,7 +61,6 @@ public class TextWidget extends WidgetBase {
     private final MutableColor background = new MutableColor(0.0f, 0.0f, 0.0f, 0.0f);
     private boolean backgroundVisible;
     private boolean boxVisualEnabled = true;
-    private BoxRenderer boxRenderer;
     private TextureHandle backgroundTexture;
     private final MutableColor backgroundTextureTint = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private final MutableRect backgroundTextureSource = new MutableRect(0.0f, 0.0f, 1.0f, 1.0f);
@@ -186,21 +183,6 @@ public class TextWidget extends WidgetBase {
     public TextWidget color(ColorView color) {
         if (color != null) this.color.set(color);
         return this;
-    }
-
-    public TextWidgetRenderer renderer() {
-        return renderer;
-    }
-
-    public TextWidget renderer(TextWidgetRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public TextWidget useDefaultRenderer() {
-        return renderer(null);
     }
 
     public boolean wrap() {
@@ -347,25 +329,6 @@ public class TextWidget extends WidgetBase {
         this.boxVisualEnabled = boxVisualEnabled;
         invalidate(InvalidationFlags.VISUAL);
         return this;
-    }
-
-    public BoxRenderer boxRenderer() {
-        return boxRenderer;
-    }
-
-    public TextWidget boxRenderer(BoxRenderer boxRenderer) {
-        if (this.boxRenderer == boxRenderer) return this;
-        this.boxRenderer = boxRenderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public TextWidget backgroundRenderer(BoxRenderer boxRenderer) {
-        return boxRenderer(boxRenderer);
-    }
-
-    public TextWidget useDefaultBoxRenderer() {
-        return boxRenderer(null);
     }
 
     public TextureHandle backgroundTexture() {
@@ -584,20 +547,11 @@ public class TextWidget extends WidgetBase {
     }
 
     protected void renderBox(RenderContext context) {
-        if (!boxVisualEnabled || (!backgroundVisible && !borderVisible && boxRenderer == null)) return;
+        if (!boxVisualEnabled || (!backgroundVisible && !borderVisible)) return;
         BoxState state = boxState();
         DrawScope draw = new DrawScope(context, transform(), layoutBounds());
-        if (boxRenderer != null) {
-            boxRenderer.render(draw, state);
-            return;
-        }
-        BoxRenderer styled = styleRendererOverride(BoxRenderer.class);
-        if (styled != null) {
-            styled.render(draw, state);
-            return;
-        }
         if (renderStylePlan(context, BoxState.class, state)) return;
-        WidgetsRender.box().render(draw, state);
+        BoxRenderPlans.defaultPlan(state).render(draw);
     }
 
     @Override
@@ -616,16 +570,22 @@ public class TextWidget extends WidgetBase {
     public void render(RenderContext context) {
         if (visibility() == Visibility.COLLAPSED || visibility() == Visibility.HIDDEN) return;
         boolean hasText = !text.isEmpty();
-        boolean hasBox = boxVisualEnabled && (backgroundVisible || borderVisible || boxRenderer != null);
+        boolean hasBox = boxVisualEnabled && (backgroundVisible || borderVisible);
         if (!hasText && !hasBox) return;
 
         pushOpacity(context);
         try {
+            DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+            if (renderCustomVisual(draw)) {
+                return;
+            }
             if (hasBox) {
                 renderBox(context);
             }
             if (hasText) {
-                effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot(context));
+                TextWidgetState state = snapshot(context);
+                if (renderStylePlan(context, TextWidgetState.class, state)) return;
+                WidgetsRender.textWidget().render(draw, this);
             }
         } finally {
             popOpacity(context);
@@ -671,11 +631,7 @@ public class TextWidget extends WidgetBase {
         return alignment == Alignment.STRETCH ? Alignment.START : alignment;
     }
 
-    protected TextWidgetRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(TextWidgetRenderer.class, WidgetsRender.textWidget()) : renderer;
-    }
-
-    protected TextWidgetState snapshot(RenderContext context) {
+    public TextWidgetState snapshot(RenderContext context) {
         return switch (overflowMode) {
             case CLIP -> clippedState(context);
             case SHRINK_TO_FIT -> shrinkToFitState(context);

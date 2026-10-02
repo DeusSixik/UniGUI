@@ -3,6 +3,9 @@ package dev.sixik.unigui.api.render;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.math.Transform;
+import dev.sixik.unigui.api.render.shaders.ShaderDrawOptions;
+import dev.sixik.unigui.api.render.shaders.ShaderHandle;
+import dev.sixik.unigui.api.render.shaders.ShaderUniforms;
 import dev.sixik.unigui.api.text.RichText;
 
 import java.util.List;
@@ -126,6 +129,15 @@ public final class DrawScope {
             context.texture(texture, placement, radius, paint);
         } else {
             context.texture(texture, placement, radius, paint, transformFor(placement.x(), placement.y()));
+        }
+    }
+
+    public void shader(ShaderHandle shader, float x, float y, float width, float height,
+                       ShaderUniforms uniforms, ShaderDrawOptions options) {
+        if (transform == null) {
+            context.shader(shader, x, y, width, height, uniforms, options);
+        } else {
+            context.shader(shader, x, y, width, height, uniforms, options, transformFor(x, y));
         }
     }
 

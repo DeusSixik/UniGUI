@@ -38,14 +38,11 @@ import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.impl.text.TextEngine;
-import dev.sixik.unigui.widgets.render.DockDropPreviewRenderer;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.widgets.render.DockDropPreviewState;
-import dev.sixik.unigui.widgets.render.DockPaneRenderer;
 import dev.sixik.unigui.widgets.render.DockPaneState;
-import dev.sixik.unigui.widgets.render.DockSplitHandleRenderer;
 import dev.sixik.unigui.widgets.render.DockSplitHandleState;
 import dev.sixik.unigui.widgets.render.DockTabState;
-import dev.sixik.unigui.widgets.render.DockingRootRenderer;
 import dev.sixik.unigui.widgets.render.DockingRootState;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -98,10 +95,9 @@ public final class DockingRoot extends Box {
     private final DockingManager manager = new DockingManager(this);
     private final DockDragController dragController = new DockDragController(this);
     private final Set<Widget> registeredContents = Collections.newSetFromMap(new IdentityHashMap<>());
-    private DockingRootRenderer rootRenderer;
-    private DockPaneRenderer paneRenderer;
-    private DockSplitHandleRenderer splitHandleRenderer;
-    private DockDropPreviewRenderer dropPreviewRenderer;
+    private WidgetRender paneRenderer;
+    private WidgetRender splitHandleRenderer;
+    private WidgetRender dropPreviewRenderer;
     private WindowWidget lastFloatingWindow;
     private final List<WindowWidget> floatingDockWindows = new ObjectArrayList<>();
     private String hoveredPaneId = "";
@@ -282,44 +278,33 @@ public final class DockingRoot extends Box {
         return this;
     }
 
-    public DockingRootRenderer rootRenderer() {
-        return rootRenderer;
-    }
-
-    public DockingRoot rootRenderer(DockingRootRenderer rootRenderer) {
-        if (this.rootRenderer == rootRenderer) return this;
-        this.rootRenderer = rootRenderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public DockPaneRenderer paneRenderer() {
+    public WidgetRender paneRenderer() {
         return paneRenderer;
     }
 
-    public DockingRoot paneRenderer(DockPaneRenderer paneRenderer) {
+    public DockingRoot paneRenderer(WidgetRender paneRenderer) {
         if (this.paneRenderer == paneRenderer) return this;
         this.paneRenderer = paneRenderer;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 
-    public DockSplitHandleRenderer splitHandleRenderer() {
+    public WidgetRender splitHandleRenderer() {
         return splitHandleRenderer;
     }
 
-    public DockingRoot splitHandleRenderer(DockSplitHandleRenderer splitHandleRenderer) {
+    public DockingRoot splitHandleRenderer(WidgetRender splitHandleRenderer) {
         if (this.splitHandleRenderer == splitHandleRenderer) return this;
         this.splitHandleRenderer = splitHandleRenderer;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 
-    public DockDropPreviewRenderer dropPreviewRenderer() {
+    public WidgetRender dropPreviewRenderer() {
         return dropPreviewRenderer;
     }
 
-    public DockingRoot dropPreviewRenderer(DockDropPreviewRenderer dropPreviewRenderer) {
+    public DockingRoot dropPreviewRenderer(WidgetRender dropPreviewRenderer) {
         if (this.dropPreviewRenderer == dropPreviewRenderer) return this;
         this.dropPreviewRenderer = dropPreviewRenderer;
         invalidate(InvalidationFlags.VISUAL);
@@ -327,7 +312,7 @@ public final class DockingRoot extends Box {
     }
 
     public DockingRoot useDefaultDockingRenderers() {
-        rootRenderer = null;
+        renderer(null);
         paneRenderer = null;
         splitHandleRenderer = null;
         dropPreviewRenderer = null;
@@ -397,7 +382,10 @@ public final class DockingRoot extends Box {
         applyQueuedMutations();
         pushOpacity(context);
         try {
-            effectiveRootRenderer().render(new DrawScope(context, transform(), layoutBounds()), rootState());
+            DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+            if (!renderCustomVisual(draw)) {
+                WidgetsRender.dockingRoot().render(draw, this);
+            }
             renderSelectedContents(context, rootNode(), layoutBounds());
             renderChrome(context);
             renderOverflowMenu(context);
@@ -1086,25 +1074,12 @@ public final class DockingRoot extends Box {
 
     private void renderChrome(RenderContext context) {
         DrawScope draw = new DrawScope(context, transform(), layoutBounds());
-        for (DockPaneState pane : paneStates(rootNode(), layoutBounds())) {
-            effectivePaneRenderer().render(draw, pane);
-        }
-        for (DockSplitHandleState handle : splitStates(rootNode(), layoutBounds())) {
-            effectiveSplitHandleRenderer().render(draw, handle);
-        }
-        DockDropIntent preview = dragController.previewIntent().valid()
-                ? dragController.previewIntent()
-                : floatingDropPreviewIntent;
-        if (preview.valid()) {
-            effectiveDropPreviewRenderer().render(draw, new DockDropPreviewState(
-                    true,
-                    preview.sourcePaneId(),
-                    preview.targetPaneId(),
-                    preview.area(),
-                    preview.x(),
-                    preview.y(),
-                    preview.width(),
-                    preview.height()));
+        effectivePaneRenderer().render(draw, this);
+        effectiveSplitHandleRenderer().render(draw, this);
+        // Custom preview renderers are only invoked for a valid preview,
+        // matching the old conditional call contract.
+        if (dropPreviewSnapshot().visible()) {
+            effectiveDropPreviewRenderer().render(draw, this);
         }
     }
 
@@ -1501,7 +1476,7 @@ public final class DockingRoot extends Box {
                 new MutableRect(bounds.x(), bounds.y() + firstSize + thickness, bounds.width(), secondSize));
     }
 
-    private DockingRootState rootState() {
+    public DockingRootState rootState() {
         return new DockingRootState(
                 layoutBounds().x(), layoutBounds().y(), layoutBounds().width(), layoutBounds().height(),
                 manager.empty(),
@@ -1510,20 +1485,39 @@ public final class DockingRoot extends Box {
                 dragController.dragging(), dragController.previewIntent().valid());
     }
 
-    private DockingRootRenderer effectiveRootRenderer() {
-        return rootRenderer == null ? styleRenderer(DockingRootRenderer.class, WidgetsRender.dockingRoot()) : rootRenderer;
+    public List<DockPaneState> paneSnapshots() {
+        return paneStates(rootNode(), layoutBounds());
     }
 
-    private DockPaneRenderer effectivePaneRenderer() {
-        return paneRenderer == null ? WidgetsRender.dockPane() : paneRenderer;
+    public List<DockSplitHandleState> splitSnapshots() {
+        return splitStates(rootNode(), layoutBounds());
     }
 
-    private DockSplitHandleRenderer effectiveSplitHandleRenderer() {
-        return splitHandleRenderer == null ? WidgetsRender.dockSplitHandle() : splitHandleRenderer;
+    public DockDropPreviewState dropPreviewSnapshot() {
+        DockDropIntent preview = dragController.previewIntent().valid()
+                ? dragController.previewIntent()
+                : floatingDropPreviewIntent;
+        return new DockDropPreviewState(
+                preview.valid(),
+                preview.sourcePaneId(),
+                preview.targetPaneId(),
+                preview.area(),
+                preview.x(),
+                preview.y(),
+                preview.width(),
+                preview.height());
     }
 
-    private DockDropPreviewRenderer effectiveDropPreviewRenderer() {
-        return dropPreviewRenderer == null ? WidgetsRender.dockDropPreview() : dropPreviewRenderer;
+    private WidgetRender effectivePaneRenderer() {
+        return paneRenderer != null ? paneRenderer : WidgetsRender.dockPane();
+    }
+
+    private WidgetRender effectiveSplitHandleRenderer() {
+        return splitHandleRenderer != null ? splitHandleRenderer : WidgetsRender.dockSplitHandle();
+    }
+
+    private WidgetRender effectiveDropPreviewRenderer() {
+        return dropPreviewRenderer != null ? dropPreviewRenderer : WidgetsRender.dockDropPreview();
     }
 
     private String activePaneId() {

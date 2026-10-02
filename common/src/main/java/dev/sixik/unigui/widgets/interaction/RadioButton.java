@@ -22,11 +22,8 @@ import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.render.ButtonRenderType;
-import dev.sixik.unigui.widgets.render.ButtonRenderer;
 import dev.sixik.unigui.widgets.render.ButtonState;
 import dev.sixik.unigui.widgets.render.RadioButtonRenderState;
-import dev.sixik.unigui.widgets.render.RadioButtonRenderer;
-import dev.sixik.unigui.widgets.render.RadioButtonRenderers;
 import dev.sixik.unigui.api.widget.render.WidgetRole;
 
 import java.util.Objects;
@@ -71,7 +68,6 @@ public class RadioButton extends Button {
     private boolean labelLeft;
     private float selectionProgress;
     private TransitionSpec selectionAnimation = TransitionSpec.of(DEFAULT_SELECTION_ANIMATION_SECONDS);
-    private RadioButtonRenderer radioButtonRenderer;
 
     public RadioButton() {
         this("", "");
@@ -101,24 +97,6 @@ public class RadioButton extends Button {
         borderVisible(false);
         checkedColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         onClick(event -> checked(true));
-    }
-
-    /** @return typed renderer radio button или {@code null}, если используется theme/default */
-    public RadioButtonRenderer radioButtonRenderer() {
-        return radioButtonRenderer;
-    }
-
-    /** Устанавливает typed renderer radio button. */
-    public RadioButton radioButtonRenderer(RadioButtonRenderer renderer) {
-        if (this.radioButtonRenderer == renderer) return this;
-        this.radioButtonRenderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    /** Возвращает выбор renderer к theme/default пути. */
-    public RadioButton useDefaultRadioButtonRenderer() {
-        return radioButtonRenderer(null);
     }
 
     public String value() {
@@ -283,54 +261,32 @@ public class RadioButton extends Button {
     @Override
     protected void renderContent(RenderContext context) {
         applyTheme();
-        RadioButtonRenderState state = radioButtonSnapshot(context);
         DrawScope draw = new DrawScope(context, transform(), layoutBounds());
-        RadioButtonRenderer typed = radioButtonRenderer;
-        if (typed == null) {
-            typed = styleRendererOverride(WidgetRole.RADIO_BUTTON, RadioButtonRenderer.class);
-        }
-        if (typed != null) {
-            typed.render(draw, state);
+        if (renderCustomVisual(draw)) {
             renderChildren(context);
             return;
         }
-
-        ButtonRenderer legacy = renderer();
-        if (legacy == null) {
-            legacy = styleRendererOverride(WidgetRole.RADIO_BUTTON, ButtonRenderer.class);
-        }
-        if (legacy != null) {
-            legacy.render(draw, state.toLegacyButtonState());
-            renderChildren(context);
-            return;
-        }
+        RadioButtonRenderState state = radioButtonSnapshot(context);
         if (renderStylePlan(context, ButtonState.class, state.toLegacyButtonState())) {
             renderChildren(context);
             return;
         }
-        RadioButtonRenderers.DEFAULT.render(draw, state);
+        WidgetsRender.radioButton().render(draw, this);
         renderChildren(context);
     }
 
     @Override
-    protected ButtonRenderer defaultRenderer() {
-        return WidgetsRender.radioButton();
+    protected WidgetRole renderRole() {
+        return WidgetRole.RADIO_BUTTON;
     }
 
     @Override
-    protected ButtonRenderer effectiveRenderer() {
-        return renderer() == null
-                ? styleRenderer(WidgetRole.RADIO_BUTTON, ButtonRenderer.class, defaultRenderer())
-                : renderer();
-    }
-
-    @Override
-    protected ButtonState snapshot(RenderContext context) {
+    public ButtonState snapshot(RenderContext context) {
         return radioButtonSnapshot(context).toLegacyButtonState();
     }
 
-    /** Собирает typed состояние radio button без зависимости renderer от виджета. */
-    protected RadioButtonRenderState radioButtonSnapshot(RenderContext context) {
+    /** Собирает состояние radio button для skin-default и RenderPlan. */
+    public RadioButtonRenderState radioButtonSnapshot(RenderContext context) {
         return new RadioButtonRenderState(
                 layoutBounds().x(),
                 layoutBounds().y(),

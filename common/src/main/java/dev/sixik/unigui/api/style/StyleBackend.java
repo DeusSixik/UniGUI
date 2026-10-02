@@ -26,7 +26,7 @@ public sealed interface StyleBackend permits StyleBackend.Declarative, StyleBack
     /**
      * Создаёт backend со ссылкой на custom renderer.
      *
-     * @param rendererId id renderer'а в WidgetRendererRegistry
+     * @param rendererId id renderer'а в WidgetRenderRegistry
      * @param style свойства стиля
      * @return backend с custom renderer path
      */

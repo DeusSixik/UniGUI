@@ -1,40 +1,9 @@
 package dev.sixik.unigui.api.widget.skin;
 
-import dev.sixik.unigui.api.widget.render.WidgetRendererRegistry;
+import dev.sixik.unigui.api.widget.render.WidgetRenderRegistry;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.api.render.plan.StyleRenderPlanRegistry;
 import dev.sixik.unigui.api.style.StyleIds;
-import dev.sixik.unigui.widgets.render.LoadingIndicatorRenderer;
-import dev.sixik.unigui.widgets.render.ChartRenderer;
-import dev.sixik.unigui.widgets.render.ColorPickerRenderer;
-import dev.sixik.unigui.widgets.render.DatePickerRenderer;
-import dev.sixik.unigui.widgets.render.DockDropPreviewRenderer;
-import dev.sixik.unigui.widgets.render.DockPaneRenderer;
-import dev.sixik.unigui.widgets.render.DockSplitHandleRenderer;
-import dev.sixik.unigui.widgets.render.DockingRootRenderer;
-import dev.sixik.unigui.widgets.render.GraphViewRenderer;
-import dev.sixik.unigui.widgets.render.NodeGraphRenderer;
-import dev.sixik.unigui.widgets.render.ModalScrimRenderer;
-import dev.sixik.unigui.widgets.render.ButtonRenderer;
-import dev.sixik.unigui.widgets.render.ProgressBarRenderer;
-import dev.sixik.unigui.widgets.render.ScrollBarRenderer;
-import dev.sixik.unigui.widgets.render.SliderRenderer;
-import dev.sixik.unigui.widgets.render.SparklineRenderer;
-import dev.sixik.unigui.widgets.render.TextAreaRenderer;
-import dev.sixik.unigui.widgets.render.TextInputRenderer;
-import dev.sixik.unigui.widgets.render.ShapeRenderer;
-import dev.sixik.unigui.widgets.render.SeparatorRenderer;
-import dev.sixik.unigui.widgets.render.BorderRenderer;
-import dev.sixik.unigui.widgets.render.TooltipRenderer;
-import dev.sixik.unigui.widgets.render.TextureWidgetRenderer;
-import dev.sixik.unigui.widgets.render.PathRenderer;
-import dev.sixik.unigui.widgets.render.CachedSubtreeRenderer;
-import dev.sixik.unigui.widgets.render.BoxRenderer;
-import dev.sixik.unigui.widgets.render.WindowRenderer;
-import dev.sixik.unigui.widgets.render.SplitterRenderer;
-import dev.sixik.unigui.widgets.render.TextWidgetRenderer;
-import dev.sixik.unigui.widgets.render.VirtualListViewRenderer;
-import dev.sixik.unigui.widgets.render.TreeViewRenderer;
-import dev.sixik.unigui.widgets.render.VirtualTableViewRenderer;
 import dev.sixik.unigui.widgets.render.BorderRenderPlans;
 import dev.sixik.unigui.widgets.render.BorderState;
 import dev.sixik.unigui.widgets.render.BoxRenderPlans;
@@ -64,19 +33,19 @@ import dev.sixik.unigui.widgets.render.TextureWidgetState;
  * автоматически использует {@link DefaultWidgetsRenderImpl}. Это позволяет модам и темам
  * переопределять только нужные renderers, не копируя весь набор дефолтов.</p>
  *
- * <p>Facade также регистрирует дефолтные Java-renderer id в {@link WidgetRendererRegistry}
+ * <p>Facade также регистрирует дефолтные Java-renderer id в {@link WidgetRenderRegistry}
  * и декларативные RenderPlan builders в {@link StyleRenderPlanRegistry}. Поэтому StylePack
  * может ссылаться на стандартные id, а виджеты получают единый fallback path.</p>
  *
  * @see WidgetsRenderImpl
  * @see DefaultWidgetsRenderImpl
- * @see WidgetRendererRegistry
+ * @see WidgetRenderRegistry
  */
 public final class WidgetsRender {
     private static volatile WidgetsRenderImpl impl = DefaultWidgetsRenderImpl.INSTANCE;
 
     static {
-        registerDefaults(WidgetRendererRegistry.global());
+        registerDefaults(WidgetRenderRegistry.global());
     }
 
     private WidgetsRender() {
@@ -102,15 +71,15 @@ public final class WidgetsRender {
      */
     public static void use(WidgetsRenderImpl customImpl) {
         impl = customImpl == null ? DefaultWidgetsRenderImpl.INSTANCE : customImpl;
-        registerDefaults(WidgetRendererRegistry.global());
+        registerDefaults(WidgetRenderRegistry.global());
     }
 
 
     /**
-     * Регистрирует стандартные renderer id в глобальном {@link WidgetRendererRegistry}.
+     * Регистрирует стандартные renderer id в глобальном {@link WidgetRenderRegistry}.
      */
     public static void registerDefaults() {
-        registerDefaults(WidgetRendererRegistry.global());
+        registerDefaults(WidgetRenderRegistry.global());
     }
 
     /**
@@ -118,52 +87,54 @@ public final class WidgetsRender {
      *
      * @param registry registry, куда нужно записать renderer id; {@code null} игнорируется
      */
-    public static void registerDefaults(WidgetRendererRegistry registry) {
+    public static void registerDefaults(WidgetRenderRegistry registry) {
         if (registry == null) return;
-        registry.register("unigui:loading/default", LoadingIndicatorRenderer.class, loadingDefault());
-        registry.register("unigui:loading/spinner", LoadingIndicatorRenderer.class, loadingSpinner());
-        registry.register("unigui:loading/dots", LoadingIndicatorRenderer.class, loadingDots());
-        registry.register("unigui:loading/bar", LoadingIndicatorRenderer.class, loadingBar());
-        registry.register("unigui:progress-bar/default", ProgressBarRenderer.class, progressBar());
-        registry.register("unigui:slider/default", SliderRenderer.class, slider());
-        registry.register("unigui:sparkline/default", SparklineRenderer.class, sparkline());
-        registry.register("unigui:chart/default", ChartRenderer.class, chart());
-        registry.register("unigui:graph-view/default", GraphViewRenderer.class, graphView());
-        registry.register("unigui:node-graph/default", NodeGraphRenderer.class, nodeGraph());
-        registry.register("unigui:color-picker/default", ColorPickerRenderer.class, colorPicker());
-        registry.register("unigui:date-picker/default", DatePickerRenderer.class, datePicker());
-        registry.register("unigui:scroll-bar/default", ScrollBarRenderer.class, scrollBar());
-        registry.register("unigui:button/default", ButtonRenderer.class, button());
-        registry.register("unigui:toggle-button/default", ButtonRenderer.class, toggleButton());
-        registry.register("unigui:toggle-switch/default", ButtonRenderer.class, toggleSwitch());
-        registry.register("unigui:checkbox/default", ButtonRenderer.class, checkbox());
-        registry.register("unigui:radio-button/default", ButtonRenderer.class, radioButton());
-        registry.register("unigui:text-input/default", TextInputRenderer.class, textInput());
-        registry.register("unigui:text-field/default", TextInputRenderer.class, textField());
-        registry.register("unigui:search-field/default", TextInputRenderer.class, searchField());
-        registry.register("unigui:password-field/default", TextInputRenderer.class, passwordField());
-        registry.register("unigui:number-field/default", TextInputRenderer.class, numberField());
-        registry.register("unigui:text-area/default", TextAreaRenderer.class, textArea());
-        registry.register("unigui:shape/default", ShapeRenderer.class, shape());
-        registry.register("unigui:separator/default", SeparatorRenderer.class, separator());
-        registry.register("unigui:border/default", BorderRenderer.class, border());
-        registry.register("unigui:tooltip/default", TooltipRenderer.class, tooltip());
-        registry.register("unigui:texture-widget/default", TextureWidgetRenderer.class, textureWidget());
-        registry.register("unigui:image-view/default", TextureWidgetRenderer.class, imageView());
-        registry.register("unigui:path/default", PathRenderer.class, path());
-        registry.register("unigui:cached-subtree/default", CachedSubtreeRenderer.class, cachedSubtree());
-        registry.register("unigui:box/default", BoxRenderer.class, box());
-        registry.register("unigui:window/default", WindowRenderer.class, window());
-        registry.register("unigui:modal-scrim/default", ModalScrimRenderer.class, modalScrim());
-        registry.register("unigui:docking-root/default", DockingRootRenderer.class, dockingRoot());
-        registry.register("unigui:dock-pane/default", DockPaneRenderer.class, dockPane());
-        registry.register("unigui:dock-split-handle/default", DockSplitHandleRenderer.class, dockSplitHandle());
-        registry.register("unigui:dock-drop-preview/default", DockDropPreviewRenderer.class, dockDropPreview());
-        registry.register("unigui:splitter/default", SplitterRenderer.class, splitter());
-        registry.register("unigui:text-widget/default", TextWidgetRenderer.class, textWidget());
-        registry.register("unigui:virtual-list-view/default", VirtualListViewRenderer.class, virtualListView());
-        registry.register("unigui:tree-view/default", TreeViewRenderer.class, treeView());
-        registry.register("unigui:virtual-table-view/default", VirtualTableViewRenderer.class, virtualTableView());
+        registry.register("unigui:loading/default", loadingDefault());
+        registry.register("unigui:loading/spinner", loadingSpinner());
+        registry.register("unigui:loading/dots", loadingDots());
+        registry.register("unigui:loading/bar", loadingBar());
+        registry.register("unigui:progress-bar/default", progressBar());
+        registry.register("unigui:slider/default", slider());
+        registry.register("unigui:sparkline/default", sparkline());
+        registry.register("unigui:chart/default", chart());
+        registry.register("unigui:graph-view/default", graphView());
+        registry.register("unigui:node-graph/default", nodeGraph());
+        registry.register("unigui:color-picker/default", colorPicker());
+        registry.register("unigui:date-picker/default", datePicker());
+        registry.register("unigui:scroll-bar/default", scrollBar());
+        registry.register("unigui:button/default", button());
+        registry.register("unigui:toggle-button/default", toggleButton());
+        registry.register("unigui:toggle-switch/default", toggleSwitch());
+        registry.register("unigui:checkbox/default", checkbox());
+        registry.register("unigui:radio-button/default", radioButton());
+        registry.register("unigui:tool-button/default", toolButton());
+        registry.register("unigui:hold-button/default", holdButton());
+        registry.register("unigui:text-input/default", textInput());
+        registry.register("unigui:text-field/default", textField());
+        registry.register("unigui:search-field/default", searchField());
+        registry.register("unigui:password-field/default", passwordField());
+        registry.register("unigui:number-field/default", numberField());
+        registry.register("unigui:text-area/default", textArea());
+        registry.register("unigui:shape/default", shape());
+        registry.register("unigui:separator/default", separator());
+        registry.register("unigui:border/default", border());
+        registry.register("unigui:tooltip/default", tooltip());
+        registry.register("unigui:texture-widget/default", textureWidget());
+        registry.register("unigui:image-view/default", imageView());
+        registry.register("unigui:path/default", path());
+        registry.register("unigui:cached-subtree/default", cachedSubtree());
+        registry.register("unigui:box/default", box());
+        registry.register("unigui:window/default", window());
+        registry.register("unigui:modal-scrim/default", modalScrim());
+        registry.register("unigui:docking-root/default", dockingRoot());
+        registry.register("unigui:dock-pane/default", dockPane());
+        registry.register("unigui:dock-split-handle/default", dockSplitHandle());
+        registry.register("unigui:dock-drop-preview/default", dockDropPreview());
+        registry.register("unigui:splitter/default", splitter());
+        registry.register("unigui:text-widget/default", textWidget());
+        registry.register("unigui:virtual-list-view/default", virtualListView());
+        registry.register("unigui:tree-view/default", treeView());
+        registry.register("unigui:virtual-table-view/default", virtualTableView());
         registerDefaultRenderPlans(StyleRenderPlanRegistry.global());
     }
 
@@ -204,8 +175,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static LoadingIndicatorRenderer loadingDefault() {
-        LoadingIndicatorRenderer renderer = impl.loadingDefault();
+    public static WidgetRender loadingDefault() {
+        WidgetRender renderer = impl.loadingDefault();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.loadingDefault() : renderer;
     }
 
@@ -214,8 +185,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static LoadingIndicatorRenderer loadingSpinner() {
-        LoadingIndicatorRenderer renderer = impl.loadingSpinner();
+    public static WidgetRender loadingSpinner() {
+        WidgetRender renderer = impl.loadingSpinner();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.loadingSpinner() : renderer;
     }
 
@@ -224,8 +195,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static LoadingIndicatorRenderer loadingDots() {
-        LoadingIndicatorRenderer renderer = impl.loadingDots();
+    public static WidgetRender loadingDots() {
+        WidgetRender renderer = impl.loadingDots();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.loadingDots() : renderer;
     }
 
@@ -234,8 +205,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static LoadingIndicatorRenderer loadingBar() {
-        LoadingIndicatorRenderer renderer = impl.loadingBar();
+    public static WidgetRender loadingBar() {
+        WidgetRender renderer = impl.loadingBar();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.loadingBar() : renderer;
     }
 
@@ -244,8 +215,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static ProgressBarRenderer progressBar() {
-        ProgressBarRenderer renderer = impl.progressBar();
+    public static WidgetRender progressBar() {
+        WidgetRender renderer = impl.progressBar();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.progressBar() : renderer;
     }
 
@@ -254,8 +225,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static SliderRenderer slider() {
-        SliderRenderer renderer = impl.slider();
+    public static WidgetRender slider() {
+        WidgetRender renderer = impl.slider();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.slider() : renderer;
     }
 
@@ -264,8 +235,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static SparklineRenderer sparkline() {
-        SparklineRenderer renderer = impl.sparkline();
+    public static WidgetRender sparkline() {
+        WidgetRender renderer = impl.sparkline();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.sparkline() : renderer;
     }
 
@@ -274,8 +245,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static ChartRenderer chart() {
-        ChartRenderer renderer = impl.chart();
+    public static WidgetRender chart() {
+        WidgetRender renderer = impl.chart();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.chart() : renderer;
     }
 
@@ -284,8 +255,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static GraphViewRenderer graphView() {
-        GraphViewRenderer renderer = impl.graphView();
+    public static WidgetRender graphView() {
+        WidgetRender renderer = impl.graphView();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.graphView() : renderer;
     }
 
@@ -294,8 +265,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static NodeGraphRenderer nodeGraph() {
-        NodeGraphRenderer renderer = impl.nodeGraph();
+    public static WidgetRender nodeGraph() {
+        WidgetRender renderer = impl.nodeGraph();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.nodeGraph() : renderer;
     }
 
@@ -304,8 +275,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static ColorPickerRenderer colorPicker() {
-        ColorPickerRenderer renderer = impl.colorPicker();
+    public static WidgetRender colorPicker() {
+        WidgetRender renderer = impl.colorPicker();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.colorPicker() : renderer;
     }
 
@@ -314,8 +285,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static DatePickerRenderer datePicker() {
-        DatePickerRenderer renderer = impl.datePicker();
+    public static WidgetRender datePicker() {
+        WidgetRender renderer = impl.datePicker();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.datePicker() : renderer;
     }
 
@@ -324,8 +295,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static ScrollBarRenderer scrollBar() {
-        ScrollBarRenderer renderer = impl.scrollBar();
+    public static WidgetRender scrollBar() {
+        WidgetRender renderer = impl.scrollBar();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.scrollBar() : renderer;
     }
 
@@ -334,8 +305,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static ButtonRenderer button() {
-        ButtonRenderer renderer = impl.button();
+    public static WidgetRender button() {
+        WidgetRender renderer = impl.button();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.button() : renderer;
     }
 
@@ -344,8 +315,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static ButtonRenderer toggleButton() {
-        ButtonRenderer renderer = impl.toggleButton();
+    public static WidgetRender toggleButton() {
+        WidgetRender renderer = impl.toggleButton();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.toggleButton() : renderer;
     }
 
@@ -354,8 +325,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static ButtonRenderer toggleSwitch() {
-        ButtonRenderer renderer = impl.toggleSwitch();
+    public static WidgetRender toggleSwitch() {
+        WidgetRender renderer = impl.toggleSwitch();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.toggleSwitch() : renderer;
     }
 
@@ -364,8 +335,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static ButtonRenderer checkbox() {
-        ButtonRenderer renderer = impl.checkbox();
+    public static WidgetRender checkbox() {
+        WidgetRender renderer = impl.checkbox();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.checkbox() : renderer;
     }
 
@@ -374,9 +345,29 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static ButtonRenderer radioButton() {
-        ButtonRenderer renderer = impl.radioButton();
+    public static WidgetRender radioButton() {
+        WidgetRender renderer = impl.radioButton();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.radioButton() : renderer;
+    }
+
+    /**
+     * Возвращает renderer для toolbar button.
+     *
+     * @return активный renderer с fallback на дефолтную реализацию
+     */
+    public static WidgetRender toolButton() {
+        WidgetRender renderer = impl.toolButton();
+        return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.toolButton() : renderer;
+    }
+
+    /**
+     * Возвращает renderer для hold button.
+     *
+     * @return активный renderer с fallback на дефолтную реализацию
+     */
+    public static WidgetRender holdButton() {
+        WidgetRender renderer = impl.holdButton();
+        return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.holdButton() : renderer;
     }
 
     /**
@@ -384,8 +375,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static TextInputRenderer textInput() {
-        TextInputRenderer renderer = impl.textInput();
+    public static WidgetRender textInput() {
+        WidgetRender renderer = impl.textInput();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.textInput() : renderer;
     }
 
@@ -394,8 +385,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static TextInputRenderer textField() {
-        TextInputRenderer renderer = impl.textField();
+    public static WidgetRender textField() {
+        WidgetRender renderer = impl.textField();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.textField() : renderer;
     }
 
@@ -404,8 +395,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static TextInputRenderer searchField() {
-        TextInputRenderer renderer = impl.searchField();
+    public static WidgetRender searchField() {
+        WidgetRender renderer = impl.searchField();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.searchField() : renderer;
     }
 
@@ -414,8 +405,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static TextInputRenderer passwordField() {
-        TextInputRenderer renderer = impl.passwordField();
+    public static WidgetRender passwordField() {
+        WidgetRender renderer = impl.passwordField();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.passwordField() : renderer;
     }
 
@@ -424,8 +415,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static TextInputRenderer numberField() {
-        TextInputRenderer renderer = impl.numberField();
+    public static WidgetRender numberField() {
+        WidgetRender renderer = impl.numberField();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.numberField() : renderer;
     }
 
@@ -434,8 +425,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static TextAreaRenderer textArea() {
-        TextAreaRenderer renderer = impl.textArea();
+    public static WidgetRender textArea() {
+        WidgetRender renderer = impl.textArea();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.textArea() : renderer;
     }
 
@@ -444,8 +435,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static ShapeRenderer shape() {
-        ShapeRenderer renderer = impl.shape();
+    public static WidgetRender shape() {
+        WidgetRender renderer = impl.shape();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.shape() : renderer;
     }
 
@@ -454,8 +445,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static SeparatorRenderer separator() {
-        SeparatorRenderer renderer = impl.separator();
+    public static WidgetRender separator() {
+        WidgetRender renderer = impl.separator();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.separator() : renderer;
     }
 
@@ -464,8 +455,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static BorderRenderer border() {
-        BorderRenderer renderer = impl.border();
+    public static WidgetRender border() {
+        WidgetRender renderer = impl.border();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.border() : renderer;
     }
 
@@ -474,8 +465,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static TooltipRenderer tooltip() {
-        TooltipRenderer renderer = impl.tooltip();
+    public static WidgetRender tooltip() {
+        WidgetRender renderer = impl.tooltip();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.tooltip() : renderer;
     }
 
@@ -484,8 +475,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static TextureWidgetRenderer textureWidget() {
-        TextureWidgetRenderer renderer = impl.textureWidget();
+    public static WidgetRender textureWidget() {
+        WidgetRender renderer = impl.textureWidget();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.textureWidget() : renderer;
     }
 
@@ -494,8 +485,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static TextureWidgetRenderer imageView() {
-        TextureWidgetRenderer renderer = impl.imageView();
+    public static WidgetRender imageView() {
+        WidgetRender renderer = impl.imageView();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.imageView() : renderer;
     }
 
@@ -504,8 +495,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static PathRenderer path() {
-        PathRenderer renderer = impl.path();
+    public static WidgetRender path() {
+        WidgetRender renderer = impl.path();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.path() : renderer;
     }
 
@@ -514,8 +505,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static CachedSubtreeRenderer cachedSubtree() {
-        CachedSubtreeRenderer renderer = impl.cachedSubtree();
+    public static WidgetRender cachedSubtree() {
+        WidgetRender renderer = impl.cachedSubtree();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.cachedSubtree() : renderer;
     }
 
@@ -524,8 +515,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static BoxRenderer box() {
-        BoxRenderer renderer = impl.box();
+    public static WidgetRender box() {
+        WidgetRender renderer = impl.box();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.box() : renderer;
     }
 
@@ -534,8 +525,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static WindowRenderer window() {
-        WindowRenderer renderer = impl.window();
+    public static WidgetRender window() {
+        WidgetRender renderer = impl.window();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.window() : renderer;
     }
 
@@ -544,8 +535,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static ModalScrimRenderer modalScrim() {
-        ModalScrimRenderer renderer = impl.modalScrim();
+    public static WidgetRender modalScrim() {
+        WidgetRender renderer = impl.modalScrim();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.modalScrim() : renderer;
     }
 
@@ -554,8 +545,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static DockingRootRenderer dockingRoot() {
-        DockingRootRenderer renderer = impl.dockingRoot();
+    public static WidgetRender dockingRoot() {
+        WidgetRender renderer = impl.dockingRoot();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.dockingRoot() : renderer;
     }
 
@@ -564,8 +555,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static DockPaneRenderer dockPane() {
-        DockPaneRenderer renderer = impl.dockPane();
+    public static WidgetRender dockPane() {
+        WidgetRender renderer = impl.dockPane();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.dockPane() : renderer;
     }
 
@@ -574,8 +565,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static DockSplitHandleRenderer dockSplitHandle() {
-        DockSplitHandleRenderer renderer = impl.dockSplitHandle();
+    public static WidgetRender dockSplitHandle() {
+        WidgetRender renderer = impl.dockSplitHandle();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.dockSplitHandle() : renderer;
     }
 
@@ -584,8 +575,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static DockDropPreviewRenderer dockDropPreview() {
-        DockDropPreviewRenderer renderer = impl.dockDropPreview();
+    public static WidgetRender dockDropPreview() {
+        WidgetRender renderer = impl.dockDropPreview();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.dockDropPreview() : renderer;
     }
 
@@ -594,8 +585,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static SplitterRenderer splitter() {
-        SplitterRenderer renderer = impl.splitter();
+    public static WidgetRender splitter() {
+        WidgetRender renderer = impl.splitter();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.splitter() : renderer;
     }
 
@@ -604,8 +595,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static TextWidgetRenderer textWidget() {
-        TextWidgetRenderer renderer = impl.textWidget();
+    public static WidgetRender textWidget() {
+        WidgetRender renderer = impl.textWidget();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.textWidget() : renderer;
     }
 
@@ -614,8 +605,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static VirtualListViewRenderer virtualListView() {
-        VirtualListViewRenderer renderer = impl.virtualListView();
+    public static WidgetRender virtualListView() {
+        WidgetRender renderer = impl.virtualListView();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.virtualListView() : renderer;
     }
 
@@ -624,8 +615,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static TreeViewRenderer treeView() {
-        TreeViewRenderer renderer = impl.treeView();
+    public static WidgetRender treeView() {
+        WidgetRender renderer = impl.treeView();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.treeView() : renderer;
     }
 
@@ -634,8 +625,8 @@ public final class WidgetsRender {
      *
      * @return активный renderer с fallback на дефолтную реализацию
      */
-    public static VirtualTableViewRenderer virtualTableView() {
-        VirtualTableViewRenderer renderer = impl.virtualTableView();
+    public static WidgetRender virtualTableView() {
+        WidgetRender renderer = impl.virtualTableView();
         return renderer == null ? DefaultWidgetsRenderImpl.INSTANCE.virtualTableView() : renderer;
     }
 }

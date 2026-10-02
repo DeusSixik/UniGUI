@@ -42,7 +42,6 @@ import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
-import dev.sixik.unigui.widgets.render.WindowRenderer;
 import dev.sixik.unigui.widgets.render.WindowState;
 
 import java.util.Objects;
@@ -79,7 +78,6 @@ public class WindowWidget extends Box implements OverlayHostAware {
     private final MutableColor headerColor = new MutableColor(0.075f, 0.090f, 0.125f, 0.98f);
     private final MutableColor headerSeparatorColor = new MutableColor(0.22f, 0.24f, 0.30f, 0.95f);
     private final MutableColor titleColor = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
-    private WindowRenderer renderer;
     private String title = "";
     private RichText richTitle = RichText.plain("");
     private Widget content;
@@ -494,21 +492,6 @@ public class WindowWidget extends Box implements OverlayHostAware {
         return titleColor;
     }
 
-    public WindowRenderer renderer() {
-        return renderer;
-    }
-
-    public WindowWidget renderer(WindowRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public WindowWidget useDefaultRenderer() {
-        return renderer(null);
-    }
-
     public EventSubscription onOpened(EventListener<? super WindowOpenedEvent> listener) {
         return on(WindowOpenedEvent.TYPE, listener);
     }
@@ -741,15 +724,16 @@ public class WindowWidget extends Box implements OverlayHostAware {
     @Override
     protected void renderContent(RenderContext context) {
         applyTheme();
-        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot(context));
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        if (renderCustomVisual(draw)) {
+            super.renderContent(context);
+            return;
+        }
+        WidgetsRender.window().render(draw, this);
         super.renderContent(context);
     }
 
-    private WindowRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(WindowRenderer.class, WidgetsRender.window()) : renderer;
-    }
-
-    private WindowState snapshot(RenderContext context) {
+    public WindowState snapshot(RenderContext context) {
         return new WindowState(
                 layoutBounds().x(),
                 layoutBounds().y(),

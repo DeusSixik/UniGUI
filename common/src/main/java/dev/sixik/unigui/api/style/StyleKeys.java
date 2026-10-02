@@ -3,6 +3,8 @@ package dev.sixik.unigui.api.style;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.render.ImageFit;
 import dev.sixik.unigui.api.render.TextureHandle;
+import dev.sixik.unigui.api.render.shaders.ShaderHandle;
+import dev.sixik.unigui.api.widget.visual.BackgroundKind;
 
 /**
  * Стандартные типизированные ключи style-системы.
@@ -20,6 +22,9 @@ public final class StyleKeys {
      */
     public static final StyleKey<Object> RENDERER = StyleKey.of(StyleIds.Key.RENDERER, Object.class);
 
+    /** Источник фона поверхности: цвет, текстура или шейдер. */
+    public static final StyleKey<BackgroundKind> BACKGROUND_KIND = StyleKey.of(StyleIds.Key.BACKGROUND_KIND, BackgroundKind.class);
+
     /** Цвет заливки фона базового прямоугольника виджета. */
     public static final StyleKey<ColorView> BACKGROUND_COLOR = StyleKey.of(StyleIds.Key.BACKGROUND_COLOR, ColorView.class);
 
@@ -31,6 +36,9 @@ public final class StyleKeys {
 
     /** Режим подгонки фоновой текстуры в bounds виджета. */
     public static final StyleKey<ImageFit> BACKGROUND_TEXTURE_FIT = StyleKey.of(StyleIds.Key.BACKGROUND_TEXTURE_FIT, ImageFit.class);
+
+    /** Шейдер фона виджета. */
+    public static final StyleKey<ShaderHandle> BACKGROUND_SHADER = StyleKey.of(StyleIds.Key.BACKGROUND_SHADER, ShaderHandle.class);
 
     /** Цвет рамки виджета. */
     public static final StyleKey<ColorView> BORDER_COLOR = StyleKey.of(StyleIds.Key.BORDER_COLOR, ColorView.class);

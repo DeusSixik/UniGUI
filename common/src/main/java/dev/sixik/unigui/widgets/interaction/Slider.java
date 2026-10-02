@@ -21,9 +21,9 @@ import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.widget.render.WidgetRole;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
-import dev.sixik.unigui.widgets.render.SliderRenderer;
 import dev.sixik.unigui.widgets.render.SliderState;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
@@ -77,7 +77,6 @@ public class Slider extends Box {
     private final MutableColor trackColor = new MutableColor(0.25f, 0.25f, 0.25f, 1.0f);
     private final MutableColor fillColor = new MutableColor(0.25f, 0.78f, 1.0f, 1.0f);
     private final MutableColor knobColor = new MutableColor(0.95f, 0.95f, 0.95f, 1.0f);
-    private SliderRenderer renderer;
     private float preferredWidth = DEFAULT_PREFERRED_WIDTH;
     private float preferredHeight = DEFAULT_PREFERRED_HEIGHT;
     private float min;
@@ -162,21 +161,6 @@ public class Slider extends Box {
 
     public MutableColor knobColor() {
         return knobColor;
-    }
-
-    public SliderRenderer renderer() {
-        return renderer;
-    }
-
-    public Slider renderer(SliderRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public Slider useDefaultRenderer() {
-        return renderer(null);
     }
 
     public float preferredWidth() {
@@ -273,24 +257,24 @@ public class Slider extends Box {
         applyTheme();
         SliderState state = snapshot();
         DrawScope draw = new DrawScope(context, transform(), layoutBounds());
-        if (renderer != null) {
-            renderer.render(draw, state);
-        } else {
-            SliderRenderer styled = styleRendererOverride(SliderRenderer.class);
-            if (styled != null) {
-                styled.render(draw, state);
-            } else if (!renderStylePlan(context, SliderState.class, state)) {
-                WidgetsRender.slider().render(draw, state);
-            }
+        if (renderCustomVisual(draw)) {
+            super.renderContent(context);
+            return;
         }
+        if (renderStylePlan(context, SliderState.class, state)) {
+            super.renderContent(context);
+            return;
+        }
+        WidgetsRender.slider().render(draw, this);
         super.renderContent(context);
     }
 
-    private SliderRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(SliderRenderer.class, WidgetsRender.slider()) : renderer;
+    @Override
+    protected WidgetRole renderRole() {
+        return WidgetRole.SLIDER;
     }
 
-    private SliderState snapshot() {
+    public SliderState snapshot() {
         return new SliderState(
                 layoutBounds().x(),
                 layoutBounds().y(),

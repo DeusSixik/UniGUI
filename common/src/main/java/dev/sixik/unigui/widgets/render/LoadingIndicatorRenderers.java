@@ -4,13 +4,16 @@ import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
+import dev.sixik.unigui.widgets.feedback.LoadingIndicator;
 import dev.sixik.unigui.widgets.feedback.Spinner;
 
 public final class LoadingIndicatorRenderers {
     private static final float TAU = (float) (Math.PI * 2.0);
     private static final float PI = (float) Math.PI;
 
-    public static final LoadingIndicatorRenderer SPINNER = (draw, state) -> {
+    public static final WidgetRender SPINNER = WidgetRender.of(LoadingIndicator.class, (draw, indicator) -> {
+        LoadingIndicatorState state = indicator.snapshot();
         if (state.spinnerStyle() != Spinner.Style.DEFAULT) {
             renderStyledSpinner(draw, state);
             return;
@@ -33,9 +36,10 @@ public final class LoadingIndicatorRenderers {
                     dotSize,
                     Paint.fill(color));
         }
-    };
+    });
 
-    public static final LoadingIndicatorRenderer DOTS = (draw, state) -> {
+    public static final WidgetRender DOTS = WidgetRender.of(LoadingIndicator.class, (draw, indicator) -> {
+        LoadingIndicatorState state = indicator.snapshot();
         float width = Math.max(1.0f, state.width());
         float height = Math.max(1.0f, state.height());
         float dotSize = Math.max(2.0f, Math.min(height, width / 5.0f));
@@ -56,9 +60,10 @@ public final class LoadingIndicatorRenderers {
                     actualSize,
                     Paint.fill(colorWithAlpha(state.accentColor(), alpha)));
         }
-    };
+    });
 
-    public static final LoadingIndicatorRenderer BAR = (draw, state) -> {
+    public static final WidgetRender BAR = WidgetRender.of(LoadingIndicator.class, (draw, indicator) -> {
+        LoadingIndicatorState state = indicator.snapshot();
         float x = state.x();
         float y = state.y();
         float width = Math.max(1.0f, state.width());
@@ -71,7 +76,7 @@ public final class LoadingIndicatorRenderers {
         draw.roundedRect(x, y, width, height, radius, Paint.fill(state.trackColor()));
         draw.roundedRect(x + travel * pingPong, y, thumbWidth, height, radius,
                 Paint.fill(state.accentColor()));
-    };
+    });
 
     private LoadingIndicatorRenderers() {
     }

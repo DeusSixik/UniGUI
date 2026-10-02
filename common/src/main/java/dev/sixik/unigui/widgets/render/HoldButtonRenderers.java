@@ -3,12 +3,15 @@ package dev.sixik.unigui.widgets.render;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
+import dev.sixik.unigui.widgets.interaction.HoldButton;
 
+/** Стандартные полные визуалы hold button: поверхность плюс прогресс и текст. */
 public final class HoldButtonRenderers {
-    public static final HoldButtonRenderer DEFAULT = (draw, state) -> {
-        ControlChromePart.render(draw, state.x(), state.y(), state.width(), state.height(),
-                state.radius(), state.backgroundVisible(), state.backgroundColor(),
-                state.borderVisible(), state.borderColor(), state.borderWidth());
+    /** Полный визуал hold button: поверхность плюс полоса прогресса и label. */
+    public static final WidgetRender DEFAULT = WidgetRender.of(HoldButton.class, (draw, button) -> {
+        SurfacePlans.renderWidgetSurface(draw, button);
+        HoldButtonState state = button.holdSnapshot(draw.context());
         float progress = Math.max(0.0f, Math.min(1.0f, state.holdProgress()));
         if (progress > 0.0f) {
             draw.rect(state.x(), state.y(), state.width() * progress, state.height(),
@@ -23,7 +26,7 @@ public final class HoldButtonRenderers {
         float drawY = state.y() + Math.max(0.0f, state.height() - drawHeight) * 0.5f;
         LabelPart.render(draw, state.richText(), state.textContentX(), state.y(),
                 contentWidth, state.height(), drawX, drawY, drawWidth, drawHeight, state.textColor());
-    };
+    });
 
     private HoldButtonRenderers() {
     }

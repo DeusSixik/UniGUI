@@ -1,9 +1,12 @@
 package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
+import dev.sixik.unigui.widgets.caching.CachedSubtreeWidget;
 
 public final class CachedSubtreeRenderers {
-    public static final CachedSubtreeRenderer DEFAULT = (draw, state) -> {
+    public static final WidgetRender DEFAULT = WidgetRender.of(CachedSubtreeWidget.class, (draw, subtree) -> {
+        CachedSubtreeState state = subtree.cachedSubtreeState();
         if (state.texture() != null) {
             draw.texture(state.texture(), state.x(), state.y(), state.width(), state.height(), Paint.fill(state.tint()));
         }
@@ -17,7 +20,7 @@ public final class CachedSubtreeRenderers {
                 state.overlayWidth() - 6.0f, 9.0f, Paint.fill(debugColor));
         draw.text(state.statsText(), state.x() + 3.0f, state.y() + 13.0f,
                 state.overlayWidth() - 6.0f, 9.0f, Paint.fill(state.debugTextColor()));
-    };
+    });
 
     private CachedSubtreeRenderers() {
     }

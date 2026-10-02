@@ -2,10 +2,13 @@ package dev.sixik.unigui.testmod.client.ui.renders;
 
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.text.Fonts;
 import dev.sixik.unigui.api.text.RichText;
-import dev.sixik.unigui.widgets.render.ButtonRenderer;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
+import dev.sixik.unigui.impl.text.TextEngine;
+import dev.sixik.unigui.widgets.interaction.RadioButton;
 
 public final class DestinyLikeRadioButtonRenders {
     private static final float DOMINION_RADIO_BORDER_WIDTH = 0.16f;
@@ -20,23 +23,26 @@ public final class DestinyLikeRadioButtonRenders {
     private static final ColorView DOMINION_RADIO_BORDER_HOVER = MutableColor.rgba255(255, 255, 255, 255);
     private static final ColorView DOMINION_RADIO_INNER = MutableColor.rgba255(90, 165, 106, 255);
 
-    public static final ButtonRenderer DOMINION_RADIO_BUTTON_RENDERER = (draw, state) -> {
-        float outerSize = Math.max(0.0f, state.indicatorSize());
-        float innerMaxSize = Math.max(0.0f, state.indicatorInnerSize());
+    public static final WidgetRender DOMINION_RADIO_BUTTON_RENDERER = WidgetRender.of(RadioButton.class, (draw, radioButton) -> {
+        RectView bounds = radioButton.layoutBounds();
+        float outerSize = Math.max(0.0f, radioButton.outerSize());
+        float innerMaxSize = Math.max(0.0f, radioButton.innerSize());
         if (outerSize <= 0.0f || innerMaxSize <= 0.0f) return;
 
-        float progress = clamp01(state.indicatorProgress());
-        float labelGap = state.hasText() ? Math.max(0.0f, state.indicatorGap()) : 0.0f;
-        float labelWidth = state.hasText()
-                ? Math.min(Math.max(0.0f, state.textWidth()), Math.max(0.0f, state.width() - outerSize - labelGap))
+        RichText richText = radioButton.richText();
+        boolean hasText = richText != null && !richText.isEmpty();
+        float progress = clamp01(radioButton.selectionProgress());
+        float labelGap = hasText ? Math.max(0.0f, radioButton.textGap()) : 0.0f;
+        float labelWidth = hasText
+                ? Math.min(Math.max(0.0f, TextEngine.measureLineWidth(draw.context(), richText)), Math.max(0.0f, bounds.width() - outerSize - labelGap))
                 : 0.0f;
-        float outerX = state.labelLeft() ? state.x() + labelWidth + labelGap : state.x();
-        float outerY = state.y() + Math.max(0.0f, state.height() - outerSize) * 0.5f;
+        float outerX = radioButton.labelLeft() ? bounds.x() + labelWidth + labelGap : bounds.x();
+        float outerY = bounds.y() + Math.max(0.0f, bounds.height() - outerSize) * 0.5f;
 
         draw.circle(outerX, outerY, outerSize, outerSize,
                 Paint.fill(mix(DOMINION_RADIO_OUTER_OFF, DOMINION_RADIO_OUTER_ON, progress)));
         draw.circle(outerX, outerY, outerSize, outerSize,
-                Paint.stroke(state.hovered() && state.enabled()
+                Paint.stroke(radioButton.hovered() && radioButton.enabled()
                         ? DOMINION_RADIO_BORDER_HOVER
                         : mix(DOMINION_RADIO_BORDER_OFF, DOMINION_RADIO_BORDER_ON, progress), DOMINION_RADIO_BORDER_WIDTH));
 
@@ -47,12 +53,12 @@ public final class DestinyLikeRadioButtonRenders {
             draw.circle(innerX, innerY, innerSize, innerSize, Paint.fill(DOMINION_RADIO_INNER));
         }
 
-        if (state.labelLeft()) {
-            drawDominionRadioLabel(draw, state, state.x(), labelWidth);
+        if (radioButton.labelLeft()) {
+            drawDominionRadioLabel(draw, radioButton, bounds.x(), labelWidth);
         } else {
-            drawDominionRadioLabel(draw, state, outerX + outerSize + labelGap);
+            drawDominionRadioLabel(draw, radioButton, outerX + outerSize + labelGap);
         }
-    };
+    });
 
     public static RichText dominionRadioText(String text) {
         return RichText.builder()
@@ -66,24 +72,28 @@ public final class DestinyLikeRadioButtonRenders {
     }
 
     private static void drawDominionRadioLabel(dev.sixik.unigui.api.render.DrawScope draw,
-                                               dev.sixik.unigui.widgets.render.ButtonState state,
+                                               RadioButton radioButton,
                                                float contentX,
                                                float contentWidth) {
-        if (!state.hasText()) return;
+        RichText richText = radioButton.richText();
+        if (richText == null || richText.isEmpty()) return;
         if (contentWidth <= 0.0f) return;
 
-        float drawHeight = Math.min(Math.max(0.0f, state.height()), Math.max(0.0f, state.textHeight()));
-        float drawY = state.y() + Math.max(0.0f, state.height() - drawHeight) * 0.5f;
-        draw.text(state.richText(), contentX, drawY + 0.2f, contentWidth, drawHeight, Paint.fill(state.textColor()));
+        RectView bounds = radioButton.layoutBounds();
+        float drawHeight = Math.min(Math.max(0.0f, bounds.height()), Math.max(0.0f, TextEngine.measureTextHeight(draw.context(), richText)));
+        float drawY = bounds.y() + Math.max(0.0f, bounds.height() - drawHeight) * 0.5f;
+        draw.text(richText, contentX, drawY + 0.2f, contentWidth, drawHeight, Paint.fill(radioButton.textColor()));
     }
 
     private static void drawDominionRadioLabel(dev.sixik.unigui.api.render.DrawScope draw,
-                                               dev.sixik.unigui.widgets.render.ButtonState state,
+                                               RadioButton radioButton,
                                                float contentX) {
-        if (!state.hasText()) return;
+        RichText richText = radioButton.richText();
+        if (richText == null || richText.isEmpty()) return;
 
-        float contentWidth = Math.max(0.0f, state.width() - (contentX - state.x()));
-        drawDominionRadioLabel(draw, state, contentX, contentWidth);
+        RectView bounds = radioButton.layoutBounds();
+        float contentWidth = Math.max(0.0f, bounds.width() - (contentX - bounds.x()));
+        drawDominionRadioLabel(draw, radioButton, contentX, contentWidth);
     }
 
     private static ColorView mix(ColorView from, ColorView to, float amount) {

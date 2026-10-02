@@ -3,9 +3,9 @@ package dev.sixik.unigui.widgets.minecraft;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftGuiRenderBackend;
 import dev.sixik.unigui.widgets.feedback.Tooltip;
-import dev.sixik.unigui.widgets.render.TooltipRenderer;
 import dev.sixik.unigui.widgets.render.TooltipState;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;
@@ -34,32 +34,37 @@ public final class MinecraftTooltipRenderers {
     /**
      * Renders the current UniGUI tooltip text using Minecraft's vanilla tooltip renderer.
      */
-    public static TooltipRenderer vanilla() {
-        return (draw, state) -> renderComponents(draw, state, stateComponents(state));
+    public static WidgetRender vanilla() {
+        return WidgetRender.of(Tooltip.class, (draw, tooltip) -> {
+            TooltipState state = tooltip.snapshot(draw.context());
+            renderComponents(draw, state, stateComponents(state));
+        });
     }
 
-    public static TooltipRenderer vanilla(Component line) {
+    public static WidgetRender vanilla(Component line) {
         return vanilla(line == null ? List.of() : List.of(line));
     }
 
-    public static TooltipRenderer vanilla(Component... lines) {
+    public static WidgetRender vanilla(Component... lines) {
         return vanilla(lines == null ? List.of() : Arrays.asList(lines));
     }
 
-    public static TooltipRenderer vanilla(List<Component> lines) {
+    public static WidgetRender vanilla(List<Component> lines) {
         List<Component> fixedLines = sanitizeComponents(lines);
-        return (draw, state) -> renderComponents(draw, state, fixedLines);
+        return WidgetRender.of(Tooltip.class, (draw, tooltip) ->
+                renderComponents(draw, tooltip.snapshot(draw.context()), fixedLines));
     }
 
-    public static TooltipRenderer vanilla(Supplier<List<Component>> linesSupplier) {
+    public static WidgetRender vanilla(Supplier<List<Component>> linesSupplier) {
         Objects.requireNonNull(linesSupplier, "linesSupplier");
-        return (draw, state) -> renderComponents(draw, state, sanitizeComponents(linesSupplier.get()));
+        return WidgetRender.of(Tooltip.class, (draw, tooltip) ->
+                renderComponents(draw, tooltip.snapshot(draw.context()), sanitizeComponents(linesSupplier.get())));
     }
 
     /**
      * Renders an ItemStack tooltip through vanilla, preserving modded tooltip components/images where Minecraft exposes them.
      */
-    public static TooltipRenderer item(ItemStack stack) {
+    public static WidgetRender item(ItemStack stack) {
         ItemStack fixedStack = stack == null ? ItemStack.EMPTY : stack.copy();
         return item(() -> fixedStack);
     }
@@ -67,12 +72,13 @@ public final class MinecraftTooltipRenderers {
     /**
      * Renders a dynamic ItemStack tooltip through vanilla.
      */
-    public static TooltipRenderer item(Supplier<ItemStack> stackSupplier) {
+    public static WidgetRender item(Supplier<ItemStack> stackSupplier) {
         Objects.requireNonNull(stackSupplier, "stackSupplier");
-        return (draw, state) -> {
+        return WidgetRender.of(Tooltip.class, (draw, tooltip) -> {
             ItemStack stack = stackSupplier.get();
             if (stack == null || stack.isEmpty()) return;
             ItemStack tooltipStack = stack.copy();
+            TooltipState state = tooltip.snapshot(draw.context());
             int mouseX = vanillaMouseX(state);
             int mouseY = vanillaMouseY(state);
             draw.addCallback(backend -> {
@@ -80,7 +86,7 @@ public final class MinecraftTooltipRenderers {
                     minecraftBackend.renderVanillaTooltip(tooltipStack, mouseX, mouseY);
                 }
             });
-        };
+        });
     }
 
     /**
@@ -91,14 +97,15 @@ public final class MinecraftTooltipRenderers {
      * {@link TooltipComponent}, который
      * конвертируется клиентской фабрикой мода).
      */
-    public static TooltipRenderer acceptsGrid(List<ItemStack> stacks,
+    public static WidgetRender acceptsGrid(List<ItemStack> stacks,
                                               Supplier<TooltipComponent> componentSupplier) {
         List<ItemStack> fixed = stacks == null ? List.of() : List.copyOf(stacks);
-        return (draw, state) -> {
+        return WidgetRender.of(Tooltip.class, (draw, tooltip) -> {
             if (fixed.isEmpty()) return;
             List<Component> lines = new ObjectArrayList<>();
             lines.add(Component.translatable("isf.tooltip.accepts"));
             TooltipComponent component = componentSupplier.get();
+            TooltipState state = tooltip.snapshot(draw.context());
             int mouseX = vanillaMouseX(state);
             int mouseY = vanillaMouseY(state);
             draw.addCallback(backend -> {
@@ -106,7 +113,7 @@ public final class MinecraftTooltipRenderers {
                     minecraftBackend.renderVanillaTooltipWithComponent(lines, component, mouseX, mouseY);
                 }
             });
-        };
+        });
     }
 
     /**
@@ -119,7 +126,7 @@ public final class MinecraftTooltipRenderers {
     /**
      * Applies a Minecraft tooltip renderer to an existing Tooltip and disables UniGUI's own tooltip chrome.
      */
-    public static Tooltip useVanilla(Tooltip tooltip, TooltipRenderer renderer) {
+    public static Tooltip useVanilla(Tooltip tooltip, WidgetRender renderer) {
         Objects.requireNonNull(tooltip, "tooltip");
         tooltip.backgroundVisible(false);
         tooltip.borderVisible(false);

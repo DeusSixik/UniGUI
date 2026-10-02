@@ -154,7 +154,8 @@ public final class DockingInteractionSelfTest {
         DefaultUIContext context = new DefaultUIContext();
         DockingRoot root = new DockingRoot();
         final DockDropPreviewState[] floatingPreview = new DockDropPreviewState[1];
-        root.dropPreviewRenderer((draw, state) -> floatingPreview[0] = state);
+        root.dropPreviewRenderer((draw, widget) -> floatingPreview[0] =
+                ((DockingRoot) widget).dropPreviewSnapshot());
         root.floatingWindowsRedockLocked(true);
         root.layout(style -> style.size(180.0f, 110.0f).flexGrow(0).flexShrink(0.0f));
         root.addDocument("floatable", "Floatable", content("Floatable body"))
@@ -228,7 +229,11 @@ public final class DockingInteractionSelfTest {
         DockingRoot root = new DockingRoot();
         root.setUiContextInternal(context);
         final DockPaneState[] captured = new DockPaneState[1];
-        root.paneRenderer((draw, state) -> captured[0] = state);
+        root.paneRenderer((draw, widget) -> {
+            java.util.List<dev.sixik.unigui.widgets.render.DockPaneState> snapshots =
+                    ((DockingRoot) widget).paneSnapshots();
+            captured[0] = snapshots.isEmpty() ? null : snapshots.get(0);
+        });
         for (int i = 0; i < 12; i++) {
             root.addDocument("doc-" + i, "Doc " + i, content("Doc " + i + " body"));
         }

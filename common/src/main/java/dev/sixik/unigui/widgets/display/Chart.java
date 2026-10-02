@@ -16,10 +16,10 @@ import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
-import dev.sixik.unigui.widgets.render.SparklineRenderer;
 import dev.sixik.unigui.widgets.render.SparklineState;
 import it.unimi.dsi.fastutil.floats.FloatArrayList;
 
@@ -149,14 +149,9 @@ public final class Chart extends Sparkline {
     }
 
     @Override
-    public Chart renderer(SparklineRenderer renderer) {
+    public Chart renderer(WidgetRender renderer) {
         super.renderer(renderer);
         return this;
-    }
-
-    @Override
-    public Chart useDefaultRenderer() {
-        return renderer(null);
     }
 
     @Override
@@ -213,16 +208,20 @@ public final class Chart extends Sparkline {
     public void render(RenderContext context) {
         if (visibility() != Visibility.VISIBLE) return;
         if (layoutBounds().width() <= 0.0f || layoutBounds().height() <= 0.0f) return;
-        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot());
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        if (renderCustomVisual(draw)) {
+            return;
+        }
+        skinRenderer().render(draw, this);
     }
 
     @Override
-    protected SparklineRenderer effectiveRenderer() {
-        return renderer() == null ? styleRenderer(SparklineRenderer.class, WidgetsRender.chart()) : renderer();
+    protected WidgetRender skinRenderer() {
+        return WidgetsRender.chart();
     }
 
     @Override
-    protected SparklineState snapshot() {
+    public SparklineState snapshot() {
         SparklineState base = super.snapshot();
         return new SparklineState(
                 base.x(),

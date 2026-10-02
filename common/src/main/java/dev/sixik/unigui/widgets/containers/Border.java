@@ -6,7 +6,6 @@ import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.impl.widget.WidgetBase;
-import dev.sixik.unigui.widgets.render.BorderRenderer;
 import dev.sixik.unigui.widgets.render.BorderState;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
@@ -22,7 +21,6 @@ import dev.sixik.unigui.api.style.StyleIds;
  * <p>Цвет хранится как live {@link MutableColor}: изменение компонентов цвета
  * автоматически инвалидирует визуальное состояние.</p>
  *
- * @see BorderRenderer
  * @see Box
  */
 public final class Border extends WidgetBase {
@@ -49,7 +47,6 @@ public final class Border extends WidgetBase {
     }
 
     private final MutableColor color = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
-    private BorderRenderer renderer;
     private float thickness = 1.0f;
     private float radius;
 
@@ -67,40 +64,6 @@ public final class Border extends WidgetBase {
      */
     public MutableColor color() {
         return color;
-    }
-
-    /**
-     * Возвращает renderer, заданный напрямую для этой рамки.
-     *
-     * @return кастомный renderer или {@code null}, если используется theme/default renderer
-     */
-    public BorderRenderer renderer() {
-        return renderer;
-    }
-
-    /**
-     * Задаёт renderer рамки.
-     *
-     * <p>{@code null} возвращает поведение к renderer'у из темы или стандартному
-     * {@link WidgetsRender#border()}.</p>
-     *
-     * @param renderer renderer рамки или {@code null}
-     * @return эта рамка для fluent-настройки
-     */
-    public Border renderer(BorderRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    /**
-     * Сбрасывает кастомный renderer и снова использует renderer из темы/default.
-     *
-     * @return эта рамка для fluent-настройки
-     */
-    public Border useDefaultRenderer() {
-        return renderer(null);
     }
 
     /**
@@ -151,29 +114,19 @@ public final class Border extends WidgetBase {
     public void render(RenderContext context) {
         pushOpacity(context);
         try {
-            BorderState state = snapshot();
             DrawScope draw = new DrawScope(context, transform(), layoutBounds());
-            if (renderer != null) {
-                renderer.render(draw, state);
+            if (renderCustomVisual(draw)) {
                 return;
             }
-            BorderRenderer styled = styleRendererOverride(BorderRenderer.class);
-            if (styled != null) {
-                styled.render(draw, state);
-                return;
-            }
+            BorderState state = snapshot();
             if (renderStylePlan(context, BorderState.class, state)) return;
-            WidgetsRender.border().render(draw, state);
+            WidgetsRender.border().render(draw, this);
         } finally {
             popOpacity(context);
         }
     }
 
-    private BorderRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(BorderRenderer.class, WidgetsRender.border()) : renderer;
-    }
-
-    private BorderState snapshot() {
+    public BorderState snapshot() {
         return new BorderState(
                 layoutBounds().x(),
                 layoutBounds().y(),

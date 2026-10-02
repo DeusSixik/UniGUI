@@ -6,6 +6,7 @@ import dev.sixik.unigui.api.render.DrawPoint;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.display.Sparkline;
 
@@ -16,7 +17,8 @@ import java.util.Locale;
 public final class SparklineRenderers {
     private static final float DEFAULT_POINT_RADIUS = 3.5f;
 
-    public static final SparklineRenderer DEFAULT = (draw, state) -> {
+    public static final WidgetRender DEFAULT = WidgetRender.of(Sparkline.class, (draw, w) -> {
+        SparklineState state = w.snapshot();
         if (state.points().size() < 2) return;
 
         List<DrawPoint> line = new ObjectArrayList<>(state.points().size());
@@ -40,7 +42,7 @@ public final class SparklineRenderers {
 
         draw.addPolyline(line, state.lineColor(), false, 1.5f);
         renderInteractivePoints(draw, state);
-    };
+    });
 
     private SparklineRenderers() {
     }
@@ -117,4 +119,3 @@ public final class SparklineRenderers {
         return Math.max(min, Math.min(max, value));
     }
 }
-

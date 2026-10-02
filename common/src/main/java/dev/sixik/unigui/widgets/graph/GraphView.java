@@ -25,7 +25,6 @@ import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.impl.widget.WidgetBase;
-import dev.sixik.unigui.widgets.render.GraphViewRenderer;
 import dev.sixik.unigui.widgets.render.GraphViewState;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -55,7 +54,6 @@ public final class GraphView extends WidgetBase {
     private GraphNodeRenderer nodeRenderer;
     private GraphNodeLabelRenderer nodeLabelRenderer;
     private GraphNodeTooltipRenderer nodeTooltipRenderer;
-    private GraphViewRenderer renderer;
     private Function<NodePoint, String> nodeLabelProvider = NodePoint::id;
     private Function<NodePoint, String> nodeTooltipProvider = node -> node.id();
     private int hoveredNodeIndex = -1;
@@ -160,21 +158,6 @@ public final class GraphView extends WidgetBase {
         return this;
     }
 
-    public GraphViewRenderer renderer() {
-        return renderer;
-    }
-
-    public GraphView renderer(GraphViewRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public GraphView useDefaultRenderer() {
-        return renderer(null);
-    }
-
     public float preferredWidth() {
         return preferredWidth;
     }
@@ -248,14 +231,14 @@ public final class GraphView extends WidgetBase {
     public void render(RenderContext context) {
         if (visibility() != Visibility.VISIBLE) return;
         if (layoutBounds().width() <= 0.0f || layoutBounds().height() <= 0.0f) return;
-        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot());
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        if (renderCustomVisual(draw)) {
+            return;
+        }
+        WidgetsRender.graphView().render(draw, this);
     }
 
-    private GraphViewRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(GraphViewRenderer.class, WidgetsRender.graphView()) : renderer;
-    }
-
-    private GraphViewState snapshot() {
+    public GraphViewState snapshot() {
         return new GraphViewState(
                 layoutBounds().x(),
                 layoutBounds().y(),

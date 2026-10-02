@@ -42,6 +42,7 @@ import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.virtualization.FixedRowVirtualizer;
 import dev.sixik.unigui.api.virtualization.VirtualRange;
@@ -51,7 +52,6 @@ import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.render.VirtualTableViewCellState;
 import dev.sixik.unigui.widgets.render.VirtualTableViewColumnState;
-import dev.sixik.unigui.widgets.render.VirtualTableViewRenderer;
 import dev.sixik.unigui.widgets.render.VirtualTableViewRenderPhase;
 import dev.sixik.unigui.widgets.render.VirtualTableViewRowState;
 import dev.sixik.unigui.widgets.render.VirtualTableViewState;
@@ -98,7 +98,7 @@ public class VirtualTableView extends WidgetBase {
     private BiFunction<Integer, Integer, String> cellTextProvider = (row, column) -> "";
     private BiFunction<Integer, Integer, RichText> cellRichTextProvider;
     private BiFunction<Integer, Integer, ? extends Comparable<?>> sortKeyProvider = (row, column) -> cellText(row, column);
-    private VirtualTableViewRenderer renderer;
+    private VirtualTableViewRenderPhase renderPhase = VirtualTableViewRenderPhase.HEADER;
     private final Int2ObjectOpenHashMap<Comparator<Integer>> columnComparators = new Int2ObjectOpenHashMap<>();
     private int sortColumnIndex = -1;
     private SortDirection sortDirection = SortDirection.NONE;
@@ -633,19 +633,15 @@ public class VirtualTableView extends WidgetBase {
         return verticalScrollBar;
     }
 
-    public VirtualTableViewRenderer renderer() {
-        return renderer;
-    }
-
-    public VirtualTableView renderer(VirtualTableViewRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public VirtualTableView useDefaultRenderer() {
-        return renderer(null);
+    /**
+     * Возвращает фазу текущего render-прохода.
+     *
+     * <p>Поле обновляется самим виджетом перед каждым обращением к renderer'у и
+     * позволяет единому {@code WidgetRender} рисовать фазо-зависимый контент
+     * ({@code HEADER} шапки, {@code ROWS} строк с их clip-областью).</p>
+     */
+    public VirtualTableViewRenderPhase renderPhase() {
+        return renderPhase;
     }
 
     public VirtualTableView scrollTo(float y) {
@@ -712,12 +708,13 @@ public class VirtualTableView extends WidgetBase {
         if (visibility() != Visibility.VISIBLE) return;
         pushOpacity(context);
         try {
+            WidgetRender custom = customRender();
             DrawScope draw = new DrawScope(context, transform(), layoutBounds());
-            renderHeader(context);
+            renderHeader(context, custom);
             draw.pushClip(layoutBounds().x(), rowViewportY(), viewportWidth(), rowViewportHeight());
             context.pushTextPixelSnap(false);
             try {
-                renderRows(context);
+                renderRows(context, custom);
                 if (editing()) {
                     renderChildWithInheritedTransform(context, cellEditor);
                 }
@@ -802,19 +799,27 @@ public class VirtualTableView extends WidgetBase {
         updateVirtualizerViewport();
     }
 
-    private void renderHeader(RenderContext context) {
-        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot(context, VirtualTableViewRenderPhase.HEADER));
+    private void renderHeader(RenderContext context, WidgetRender custom) {
+        renderPhase = VirtualTableViewRenderPhase.HEADER;
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        if (custom != null) {
+            custom.render(draw, this);
+        } else {
+            WidgetsRender.virtualTableView().render(draw, this);
+        }
     }
 
-    private void renderRows(RenderContext context) {
-        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot(context, VirtualTableViewRenderPhase.ROWS));
+    private void renderRows(RenderContext context, WidgetRender custom) {
+        renderPhase = VirtualTableViewRenderPhase.ROWS;
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        if (custom != null) {
+            custom.render(draw, this);
+        } else {
+            WidgetsRender.virtualTableView().render(draw, this);
+        }
     }
 
-    protected VirtualTableViewRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(VirtualTableViewRenderer.class, WidgetsRender.virtualTableView()) : renderer;
-    }
-
-    protected VirtualTableViewState snapshot(RenderContext context, VirtualTableViewRenderPhase phase) {
+    public VirtualTableViewState snapshot(RenderContext context, VirtualTableViewRenderPhase phase) {
         return new VirtualTableViewState(
                 layoutBounds().x(),
                 layoutBounds().y(),

@@ -1,28 +1,24 @@
 package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
+import dev.sixik.unigui.widgets.interaction.RadioButton;
 
-/** Стандартные renderer'ы radio button. */
+/** Стандартные полные визуалы radio button: поверхность плюс indicator и label. */
 public final class RadioButtonRenderers {
     private static final float LABEL_VISUAL_CENTER_OFFSET = 1.0f;
 
-    /** Стандартный renderer с круглым indicator и label. */
-    public static final RadioButtonRenderer DEFAULT = RadioButtonRenderers::renderDefault;
+    /** Полный визуал radio button: поверхность плюс круглый indicator и label. */
+    public static final WidgetRender DEFAULT = WidgetRender.of(RadioButton.class, (draw, radio) -> {
+        SurfacePlans.renderWidgetSurface(draw, radio);
+        renderDefault(draw, radio.radioButtonSnapshot(draw.context()));
+    });
 
     private RadioButtonRenderers() {
     }
 
-    /** Создаёт переходник для старого ButtonRenderer. */
-    public static RadioButtonRenderer legacy(ButtonRenderer renderer) {
-        if (renderer == null) return null;
-        return (draw, state) -> renderer.render(draw, state.toLegacyButtonState());
-    }
-
     private static void renderDefault(DrawScope draw, RadioButtonRenderState state) {
         if (state == null) return;
-        ControlChromePart.render(draw, state.x(), state.y(), state.width(), state.height(),
-                state.radius(), state.backgroundVisible(), state.backgroundColor(),
-                state.borderVisible(), state.borderColor(), state.borderWidth());
 
         float labelGap = state.hasText() ? Math.max(0.0f, state.textGap()) : 0.0f;
         float labelWidth = state.hasText()

@@ -1,13 +1,19 @@
 package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.widgets.docking.DockPane;
+import dev.sixik.unigui.widgets.docking.DockingRoot;
 
 public final class DockingRootRenderers {
     private static final MutableColor EMPTY_TEXT = new MutableColor(0.62f, 0.68f, 0.78f, 0.8f);
 
-    public static final DockingRootRenderer DEFAULT = (draw, state) -> {
+    public static final WidgetRender DEFAULT = WidgetRender.of(DockingRoot.class, (draw, root) ->
+            renderDefault(draw, root.rootState()));
+
+    private static void renderDefault(DrawScope draw, DockingRootState state) {
         if (state.width() <= 0.0f || state.height() <= 0.0f) return;
         if (state.backgroundVisible()) {
             draw.roundedRect(state.x(), state.y(), state.width(), state.height(), state.radius(),
@@ -26,7 +32,7 @@ public final class DockingRootRenderers {
             draw.text("Drop or add a DockPane", state.x() + 8.0f, state.y() + 8.0f,
                     Math.max(0.0f, state.width() - 16.0f), 14.0f, Paint.fill(EMPTY_TEXT));
         }
-    };
+    }
 
     private DockingRootRenderers() {
     }

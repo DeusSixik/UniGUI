@@ -1,68 +1,43 @@
 package dev.sixik.unigui.api.widget.skin;
 
-import dev.sixik.unigui.widgets.render.LoadingIndicatorRenderer;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.widgets.render.LoadingIndicatorRenderers;
-import dev.sixik.unigui.widgets.render.ChartRenderer;
 import dev.sixik.unigui.widgets.render.ChartRenderers;
-import dev.sixik.unigui.widgets.render.ColorPickerRenderer;
 import dev.sixik.unigui.widgets.render.ColorPickerRenderers;
-import dev.sixik.unigui.widgets.render.DatePickerRenderer;
 import dev.sixik.unigui.widgets.render.DatePickerRenderers;
-import dev.sixik.unigui.widgets.render.DockDropPreviewRenderer;
 import dev.sixik.unigui.widgets.render.DockDropPreviewRenderers;
-import dev.sixik.unigui.widgets.render.DockPaneRenderer;
 import dev.sixik.unigui.widgets.render.DockPaneRenderers;
-import dev.sixik.unigui.widgets.render.DockSplitHandleRenderer;
 import dev.sixik.unigui.widgets.render.DockSplitHandleRenderers;
-import dev.sixik.unigui.widgets.render.DockingRootRenderer;
 import dev.sixik.unigui.widgets.render.DockingRootRenderers;
-import dev.sixik.unigui.widgets.render.GraphViewRenderer;
 import dev.sixik.unigui.widgets.render.GraphViewRenderers;
-import dev.sixik.unigui.widgets.render.NodeGraphRenderer;
 import dev.sixik.unigui.widgets.render.NodeGraphRenderers;
-import dev.sixik.unigui.widgets.render.ModalScrimRenderer;
 import dev.sixik.unigui.widgets.render.ModalScrimRenderers;
-import dev.sixik.unigui.widgets.render.ButtonRenderer;
 import dev.sixik.unigui.widgets.render.ButtonRenderers;
-import dev.sixik.unigui.widgets.render.ProgressBarRenderer;
+import dev.sixik.unigui.widgets.render.CheckboxRenderers;
+import dev.sixik.unigui.widgets.render.HoldButtonRenderers;
+import dev.sixik.unigui.widgets.render.RadioButtonRenderers;
+import dev.sixik.unigui.widgets.render.ToggleButtonRenderers;
+import dev.sixik.unigui.widgets.render.ToggleSwitchRenderers;
+import dev.sixik.unigui.widgets.render.ToolButtonRenderers;
 import dev.sixik.unigui.widgets.render.ProgressBarRenderers;
-import dev.sixik.unigui.widgets.render.ScrollBarRenderer;
 import dev.sixik.unigui.widgets.render.ScrollBarRenderers;
-import dev.sixik.unigui.widgets.render.SliderRenderer;
 import dev.sixik.unigui.widgets.render.SliderRenderers;
-import dev.sixik.unigui.widgets.render.SparklineRenderer;
 import dev.sixik.unigui.widgets.render.SparklineRenderers;
-import dev.sixik.unigui.widgets.render.TextAreaRenderer;
 import dev.sixik.unigui.widgets.render.TextAreaRenderers;
-import dev.sixik.unigui.widgets.render.TextInputRenderer;
 import dev.sixik.unigui.widgets.render.TextInputRenderers;
-import dev.sixik.unigui.widgets.render.ShapeRenderer;
 import dev.sixik.unigui.widgets.render.ShapeRenderers;
-import dev.sixik.unigui.widgets.render.SeparatorRenderer;
 import dev.sixik.unigui.widgets.render.SeparatorRenderers;
-import dev.sixik.unigui.widgets.render.BorderRenderer;
 import dev.sixik.unigui.widgets.render.BorderRenderers;
-import dev.sixik.unigui.widgets.render.TooltipRenderer;
 import dev.sixik.unigui.widgets.render.TooltipRenderers;
-import dev.sixik.unigui.widgets.render.TextureWidgetRenderer;
 import dev.sixik.unigui.widgets.render.TextureWidgetRenderers;
-import dev.sixik.unigui.widgets.render.PathRenderer;
 import dev.sixik.unigui.widgets.render.PathRenderers;
-import dev.sixik.unigui.widgets.render.CachedSubtreeRenderer;
 import dev.sixik.unigui.widgets.render.CachedSubtreeRenderers;
-import dev.sixik.unigui.widgets.render.BoxRenderer;
 import dev.sixik.unigui.widgets.render.BoxRenderers;
-import dev.sixik.unigui.widgets.render.WindowRenderer;
 import dev.sixik.unigui.widgets.render.WindowRenderers;
-import dev.sixik.unigui.widgets.render.SplitterRenderer;
 import dev.sixik.unigui.widgets.render.SplitterRenderers;
-import dev.sixik.unigui.widgets.render.TextWidgetRenderer;
 import dev.sixik.unigui.widgets.render.TextWidgetRenderers;
-import dev.sixik.unigui.widgets.render.VirtualListViewRenderer;
 import dev.sixik.unigui.widgets.render.VirtualListViewRenderers;
-import dev.sixik.unigui.widgets.render.TreeViewRenderer;
 import dev.sixik.unigui.widgets.render.TreeViewRenderers;
-import dev.sixik.unigui.widgets.render.VirtualTableViewRenderer;
 import dev.sixik.unigui.widgets.render.VirtualTableViewRenderers;
 
 /**
@@ -81,222 +56,232 @@ public final class DefaultWidgetsRenderImpl implements WidgetsRenderImpl {
     }
 
     @Override
-    public LoadingIndicatorRenderer loadingDefault() {
+    public WidgetRender loadingDefault() {
         return loadingSpinner();
     }
 
     @Override
-    public LoadingIndicatorRenderer loadingSpinner() {
+    public WidgetRender loadingSpinner() {
         return LoadingIndicatorRenderers.SPINNER;
     }
 
     @Override
-    public LoadingIndicatorRenderer loadingDots() {
+    public WidgetRender loadingDots() {
         return LoadingIndicatorRenderers.DOTS;
     }
 
     @Override
-    public LoadingIndicatorRenderer loadingBar() {
+    public WidgetRender loadingBar() {
         return LoadingIndicatorRenderers.BAR;
     }
 
     @Override
-    public ProgressBarRenderer progressBar() {
+    public WidgetRender progressBar() {
         return ProgressBarRenderers.DEFAULT;
     }
 
     @Override
-    public SliderRenderer slider() {
+    public WidgetRender slider() {
         return SliderRenderers.DEFAULT;
     }
 
     @Override
-    public SparklineRenderer sparkline() {
+    public WidgetRender sparkline() {
         return SparklineRenderers.DEFAULT;
     }
 
     @Override
-    public ChartRenderer chart() {
+    public WidgetRender chart() {
         return ChartRenderers.DEFAULT;
     }
 
     @Override
-    public GraphViewRenderer graphView() {
+    public WidgetRender graphView() {
         return GraphViewRenderers.DEFAULT;
     }
 
     @Override
-    public NodeGraphRenderer nodeGraph() {
+    public WidgetRender nodeGraph() {
         return NodeGraphRenderers.DEFAULT;
     }
 
     @Override
-    public ColorPickerRenderer colorPicker() {
+    public WidgetRender colorPicker() {
         return ColorPickerRenderers.DEFAULT;
     }
 
     @Override
-    public DatePickerRenderer datePicker() {
+    public WidgetRender datePicker() {
         return DatePickerRenderers.DEFAULT;
     }
 
     @Override
-    public ScrollBarRenderer scrollBar() {
+    public WidgetRender scrollBar() {
         return ScrollBarRenderers.DEFAULT;
     }
 
     @Override
-    public ButtonRenderer button() {
+    public WidgetRender button() {
         return ButtonRenderers.DEFAULT;
     }
 
     @Override
-    public ButtonRenderer toggleButton() {
-        return ButtonRenderers.DEFAULT;
+    public WidgetRender toggleButton() {
+        return ToggleButtonRenderers.DEFAULT;
     }
 
     @Override
-    public ButtonRenderer toggleSwitch() {
-        return ButtonRenderers.TOGGLE_SWITCH;
+    public WidgetRender toggleSwitch() {
+        return ToggleSwitchRenderers.DEFAULT;
     }
 
     @Override
-    public ButtonRenderer checkbox() {
-        return ButtonRenderers.CHECKBOX;
+    public WidgetRender checkbox() {
+        return CheckboxRenderers.DEFAULT;
     }
 
     @Override
-    public ButtonRenderer radioButton() {
-        return ButtonRenderers.RADIO_BUTTON;
+    public WidgetRender radioButton() {
+        return RadioButtonRenderers.DEFAULT;
     }
 
     @Override
-    public TextInputRenderer textInput() {
+    public WidgetRender toolButton() {
+        return ToolButtonRenderers.DEFAULT;
+    }
+
+    @Override
+    public WidgetRender holdButton() {
+        return HoldButtonRenderers.DEFAULT;
+    }
+
+    @Override
+    public WidgetRender textInput() {
         return TextInputRenderers.DEFAULT;
     }
 
     @Override
-    public TextInputRenderer textField() {
+    public WidgetRender textField() {
         return TextInputRenderers.DEFAULT;
     }
 
     @Override
-    public TextInputRenderer searchField() {
+    public WidgetRender searchField() {
         return TextInputRenderers.SEARCH_FIELD;
     }
 
     @Override
-    public TextInputRenderer passwordField() {
+    public WidgetRender passwordField() {
         return TextInputRenderers.DEFAULT;
     }
 
     @Override
-    public TextInputRenderer numberField() {
+    public WidgetRender numberField() {
         return TextInputRenderers.DEFAULT;
     }
 
     @Override
-    public TextAreaRenderer textArea() {
+    public WidgetRender textArea() {
         return TextAreaRenderers.DEFAULT;
     }
 
     @Override
-    public ShapeRenderer shape() {
+    public WidgetRender shape() {
         return ShapeRenderers.DEFAULT;
     }
 
     @Override
-    public SeparatorRenderer separator() {
+    public WidgetRender separator() {
         return SeparatorRenderers.DEFAULT;
     }
 
     @Override
-    public BorderRenderer border() {
+    public WidgetRender border() {
         return BorderRenderers.DEFAULT;
     }
 
     @Override
-    public TooltipRenderer tooltip() {
+    public WidgetRender tooltip() {
         return TooltipRenderers.DEFAULT;
     }
 
     @Override
-    public TextureWidgetRenderer textureWidget() {
+    public WidgetRender textureWidget() {
         return TextureWidgetRenderers.DEFAULT;
     }
 
     @Override
-    public TextureWidgetRenderer imageView() {
+    public WidgetRender imageView() {
         return TextureWidgetRenderers.DEFAULT;
     }
 
     @Override
-    public PathRenderer path() {
+    public WidgetRender path() {
         return PathRenderers.DEFAULT;
     }
 
     @Override
-    public CachedSubtreeRenderer cachedSubtree() {
+    public WidgetRender cachedSubtree() {
         return CachedSubtreeRenderers.DEFAULT;
     }
 
     @Override
-    public BoxRenderer box() {
+    public WidgetRender box() {
         return BoxRenderers.DEFAULT;
     }
 
     @Override
-    public WindowRenderer window() {
+    public WidgetRender window() {
         return WindowRenderers.DEFAULT;
     }
 
     @Override
-    public ModalScrimRenderer modalScrim() {
+    public WidgetRender modalScrim() {
         return ModalScrimRenderers.DEFAULT;
     }
 
     @Override
-    public DockingRootRenderer dockingRoot() {
+    public WidgetRender dockingRoot() {
         return DockingRootRenderers.DEFAULT;
     }
 
     @Override
-    public DockPaneRenderer dockPane() {
+    public WidgetRender dockPane() {
         return DockPaneRenderers.DEFAULT;
     }
 
     @Override
-    public DockSplitHandleRenderer dockSplitHandle() {
+    public WidgetRender dockSplitHandle() {
         return DockSplitHandleRenderers.DEFAULT;
     }
 
     @Override
-    public DockDropPreviewRenderer dockDropPreview() {
+    public WidgetRender dockDropPreview() {
         return DockDropPreviewRenderers.DEFAULT;
     }
 
     @Override
-    public SplitterRenderer splitter() {
+    public WidgetRender splitter() {
         return SplitterRenderers.DEFAULT;
     }
 
     @Override
-    public TextWidgetRenderer textWidget() {
+    public WidgetRender textWidget() {
         return TextWidgetRenderers.DEFAULT;
     }
 
     @Override
-    public VirtualListViewRenderer virtualListView() {
+    public WidgetRender virtualListView() {
         return VirtualListViewRenderers.DEFAULT;
     }
 
     @Override
-    public TreeViewRenderer treeView() {
+    public WidgetRender treeView() {
         return TreeViewRenderers.DEFAULT;
     }
 
     @Override
-    public VirtualTableViewRenderer virtualTableView() {
+    public WidgetRender virtualTableView() {
         return VirtualTableViewRenderers.DEFAULT;
     }
 }

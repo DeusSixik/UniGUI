@@ -24,13 +24,13 @@ import dev.sixik.unigui.api.selection.IndexSelectionModel;
 import dev.sixik.unigui.api.selection.SelectionMode;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.virtualization.FixedRowVirtualizer;
 import dev.sixik.unigui.api.virtualization.VirtualRange;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
-import dev.sixik.unigui.widgets.render.VirtualListViewRenderer;
 import dev.sixik.unigui.widgets.render.VirtualListViewRenderPhase;
 import dev.sixik.unigui.widgets.render.VirtualListViewRowState;
 import dev.sixik.unigui.widgets.render.VirtualListViewState;
@@ -71,7 +71,7 @@ public class VirtualListView extends WidgetBase {
     private boolean childrenViewDirty = true;
     private boolean childrenViewIncludesVerticalScrollBar;
     private IntFunction<? extends Widget> itemFactory = index -> new Label(String.valueOf(index));
-    private VirtualListViewRenderer renderer;
+    private VirtualListViewRenderPhase renderPhase = VirtualListViewRenderPhase.BACKGROUND;
     private float scrollStep = 16.0f;
     private int offscreenCacheSize;
     private boolean consumeWheelAtScrollBounds = true;
@@ -276,19 +276,15 @@ public class VirtualListView extends WidgetBase {
         return verticalScrollBar;
     }
 
-    public VirtualListViewRenderer renderer() {
-        return renderer;
-    }
-
-    public VirtualListView renderer(VirtualListViewRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public VirtualListView useDefaultRenderer() {
-        return renderer(null);
+    /**
+     * Возвращает фазу текущего render-прохода.
+     *
+     * <p>Поле обновляется самим виджетом перед каждым обращением к renderer'у и
+     * позволяет единому {@code WidgetRender} рисовать фазо-зависимый контент
+     * ({@code BACKGROUND} под дочерними виджетами, {@code FOREGROUND} над ними).</p>
+     */
+    public VirtualListViewRenderPhase renderPhase() {
+        return renderPhase;
     }
 
     public VirtualListView scrollTo(float y) {
@@ -381,10 +377,15 @@ public class VirtualListView extends WidgetBase {
         if (visibility() != Visibility.VISIBLE) return;
         pushOpacity(context);
         try {
-            VirtualListViewRenderer activeRenderer = effectiveRenderer();
+            WidgetRender custom = customRender();
             DrawScope draw = new DrawScope(context, transform(), layoutBounds());
             draw.pushClip(layoutBounds().x(), layoutBounds().y(), viewportWidth(), layoutBounds().height());
-            activeRenderer.render(draw, snapshot(VirtualListViewRenderPhase.BACKGROUND));
+            renderPhase = VirtualListViewRenderPhase.BACKGROUND;
+            if (custom != null) {
+                custom.render(draw, this);
+            } else {
+                WidgetsRender.virtualListView().render(draw, this);
+            }
             context.pushTextPixelSnap(false);
             try {
                 for (Widget item : realizedWidgetSnapshot()) {
@@ -393,7 +394,12 @@ public class VirtualListView extends WidgetBase {
             } finally {
                 context.popTextPixelSnap();
             }
-            activeRenderer.render(draw, snapshot(VirtualListViewRenderPhase.FOREGROUND));
+            renderPhase = VirtualListViewRenderPhase.FOREGROUND;
+            if (custom != null) {
+                custom.render(draw, this);
+            } else {
+                WidgetsRender.virtualListView().render(draw, this);
+            }
             draw.popClip();
             if (hasVerticalScrollBar()) {
                 renderChildWithInheritedTransform(context, verticalScrollBar);
@@ -403,11 +409,7 @@ public class VirtualListView extends WidgetBase {
         }
     }
 
-    protected VirtualListViewRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(VirtualListViewRenderer.class, WidgetsRender.virtualListView()) : renderer;
-    }
-
-    protected VirtualListViewState snapshot(VirtualListViewRenderPhase phase) {
+    public VirtualListViewState snapshot(VirtualListViewRenderPhase phase) {
         ensureRealizedSnapshot();
         List<VirtualListViewRowState> rows = new ObjectArrayList<>(realizedWidgetSnapshot.length);
         for (int i = 0; i < realizedWidgetSnapshot.length; i++) {

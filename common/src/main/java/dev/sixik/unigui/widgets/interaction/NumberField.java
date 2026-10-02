@@ -9,9 +9,9 @@ import dev.sixik.unigui.api.event.NumberValueChangedEvent;
 import dev.sixik.unigui.api.event.TextInputEvent;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
-import dev.sixik.unigui.widgets.render.TextInputRenderer;
 import dev.sixik.unigui.widgets.render.TextInputRenderType;
 
 import java.util.Locale;
@@ -174,13 +174,8 @@ public class NumberField extends TextInput {
     }
 
     @Override
-    protected TextInputRenderer defaultRenderer() {
+    protected WidgetRender skinRenderer() {
         return WidgetsRender.numberField();
-    }
-
-    @Override
-    protected TextInputRenderer effectiveRenderer() {
-        return renderer() == null ? styleRenderer(TextInputRenderer.class, defaultRenderer()) : renderer();
     }
 
     @Override

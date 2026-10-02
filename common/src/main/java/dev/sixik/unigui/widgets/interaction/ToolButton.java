@@ -1,19 +1,17 @@
 package dev.sixik.unigui.widgets.interaction;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.render.ButtonRenderType;
-import dev.sixik.unigui.widgets.render.ButtonRenderer;
 import dev.sixik.unigui.widgets.render.ButtonState;
 import dev.sixik.unigui.widgets.render.ToolButtonRenderState;
-import dev.sixik.unigui.widgets.render.ToolButtonRenderer;
-import dev.sixik.unigui.widgets.render.ToolButtonRenderers;
-import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.widget.render.WidgetRole;
 
 /** Compact toolbar-friendly button with optional icon, text and command metadata. */
@@ -27,7 +25,6 @@ public class ToolButton extends Button {
     private String commandId = "";
     private DisplayMode displayMode = DisplayMode.ICON_AND_TEXT;
     private boolean checked;
-    private ToolButtonRenderer toolButtonRenderer;
 
     public ToolButton() {
         textPadding(6.0f, 2.0f);
@@ -38,24 +35,6 @@ public class ToolButton extends Button {
     public ToolButton(String label) {
         this();
         label(label);
-    }
-
-    /** Возвращает typed renderer toolbar-кнопки или {@code null} для theme/default пути. */
-    public ToolButtonRenderer toolButtonRenderer() {
-        return toolButtonRenderer;
-    }
-
-    /** Устанавливает typed renderer общего toolbar-контракта. */
-    public ToolButton toolButtonRenderer(ToolButtonRenderer renderer) {
-        if (toolButtonRenderer == renderer) return this;
-        toolButtonRenderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    /** Возвращает выбор renderer к theme/default пути. */
-    public ToolButton useDefaultToolButtonRenderer() {
-        return toolButtonRenderer(null);
     }
 
     public String icon() {
@@ -149,7 +128,7 @@ public class ToolButton extends Button {
     }
 
     @Override
-    protected ButtonState snapshot(RenderContext context) {
+    public ButtonState snapshot(RenderContext context) {
         return new ButtonState(
                 ButtonRenderType.BUTTON,
                 layoutBounds().x(),
@@ -177,34 +156,26 @@ public class ToolButton extends Button {
     @Override
     protected void renderContent(RenderContext context) {
         applyTheme();
-        ToolButtonRenderState state = toolButtonSnapshot(context);
         DrawScope draw = new DrawScope(context, transform(), layoutBounds());
-
-        ToolButtonRenderer typed = toolButtonRenderer;
-        if (typed == null) {
-            typed = styleRendererOverride(WidgetRole.TOOL_BUTTON, ToolButtonRenderer.class);
-        }
-        if (typed != null) {
-            typed.render(draw, state);
+        if (renderCustomVisual(draw)) {
             renderChildren(context);
             return;
         }
-
-        ButtonRenderer legacy = renderer();
-        if (legacy != null) {
-            legacy.render(draw, state.button());
-            renderChildren(context);
-            return;
-        }
+        ToolButtonRenderState state = toolButtonSnapshot(context);
         if (renderStylePlan(context, ButtonState.class, state.button())) {
             renderChildren(context);
             return;
         }
-        ToolButtonRenderers.DEFAULT.render(draw, state);
+        WidgetsRender.toolButton().render(draw, this);
         renderChildren(context);
     }
 
-    protected ToolButtonRenderState toolButtonSnapshot(RenderContext context) {
+    @Override
+    protected WidgetRole renderRole() {
+        return WidgetRole.TOOL_BUTTON;
+    }
+
+    public ToolButtonRenderState toolButtonSnapshot(RenderContext context) {
         return new ToolButtonRenderState(snapshot(context), icon, label, tooltip, commandId, displayMode, checked);
     }
 

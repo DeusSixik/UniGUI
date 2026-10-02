@@ -34,7 +34,8 @@ import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
-import dev.sixik.unigui.widgets.render.TextInputRenderer;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
+import dev.sixik.unigui.api.widget.render.WidgetRole;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
 import dev.sixik.unigui.widgets.render.TextInputRenderType;
@@ -108,7 +109,6 @@ public class TextInput extends Box {
     private final MutableColor textColor = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private final MutableColor placeholderColor = new MutableColor(0.65f, 0.65f, 0.65f, 0.9f);
     private final MutableColor caretColor = new MutableColor(0.25f, 0.78f, 1.0f, 1.0f);
-    private TextInputRenderer renderer;
     private String placeholder = "";
     private FontFace font;
     private float pixelSize = TextRun.DEFAULT_PIXEL_SIZE;
@@ -258,21 +258,6 @@ public class TextInput extends Box {
         return caretColor;
     }
 
-    public TextInputRenderer renderer() {
-        return renderer;
-    }
-
-    public TextInput renderer(TextInputRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public TextInput useDefaultRenderer() {
-        return renderer(null);
-    }
-
     public boolean visualOnlyTextChanges() {
         return visualOnlyTextChanges;
     }
@@ -391,6 +376,18 @@ public class TextInput extends Box {
     }
 
     protected void renderTextInput(RenderContext context) {
+        TextInputState state = snapshot(context);
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        if (renderCustomVisual(draw)) {
+            return;
+        }
+        if (renderStylePlan(context, TextInputState.class, state)) {
+            return;
+        }
+        skinRenderer().render(draw, this);
+    }
+
+    public TextInputState snapshot(RenderContext context) {
         String visibleText = displayText();
         updateMeasuredPrefixWidths(context, visibleText);
         ensureCursorVisible(context, visibleText);
@@ -401,7 +398,7 @@ public class TextInput extends Box {
         float viewportHeight = textViewportHeight();
         float textHeight = textLineHeight(context, visibleText);
         float textY = textContentY(textHeight);
-        TextInputState state = textInputState(
+        return textInputState(
                 visibleText,
                 viewportX,
                 viewportY,
@@ -409,18 +406,6 @@ public class TextInput extends Box {
                 viewportHeight,
                 textY,
                 textHeight);
-        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
-        if (renderer != null) {
-            renderer.render(draw, state);
-            return;
-        }
-        TextInputRenderer styled = styleRendererOverride(TextInputRenderer.class);
-        if (styled != null) {
-            styled.render(draw, state);
-            return;
-        }
-        if (renderStylePlan(context, TextInputState.class, state)) return;
-        defaultRenderer().render(draw, state);
     }
 
     protected TextInputState textInputState(String visibleText,
@@ -470,12 +455,13 @@ public class TextInput extends Box {
                 clearButtonHeight());
     }
 
-    protected TextInputRenderer defaultRenderer() {
+    protected WidgetRender skinRenderer() {
         return WidgetsRender.textInput();
     }
 
-    protected TextInputRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(TextInputRenderer.class, defaultRenderer()) : renderer;
+    @Override
+    protected WidgetRole renderRole() {
+        return WidgetRole.TEXT_INPUT;
     }
 
     protected TextInputRenderType renderType() {

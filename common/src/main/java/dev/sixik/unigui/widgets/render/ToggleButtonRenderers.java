@@ -1,26 +1,22 @@
 package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
+import dev.sixik.unigui.widgets.interaction.ToggleButton;
 
-/** Стандартные renderer'ы toggle button. */
+/** Стандартные полные визуалы toggle button: поверхность плюс центрированный label. */
 public final class ToggleButtonRenderers {
-    /** Стандартный renderer с состоянием фона и центрированным label. */
-    public static final ToggleButtonRenderer DEFAULT = ToggleButtonRenderers::renderDefault;
+    /** Полный визуал toggle button: поверхность плюс центрированный label. */
+    public static final WidgetRender DEFAULT = WidgetRender.of(ToggleButton.class, (draw, toggle) -> {
+        SurfacePlans.renderWidgetSurface(draw, toggle);
+        renderDefault(draw, toggle.toggleButtonSnapshot(draw.context()));
+    });
 
     private ToggleButtonRenderers() {
     }
 
-    /** Создаёт переходник для старого ButtonRenderer. */
-    public static ToggleButtonRenderer legacy(ButtonRenderer renderer) {
-        if (renderer == null) return null;
-        return (draw, state) -> renderer.render(draw, state.toLegacyButtonState());
-    }
-
     private static void renderDefault(DrawScope draw, ToggleButtonRenderState state) {
         if (state == null) return;
-        ControlChromePart.render(draw, state.x(), state.y(), state.width(), state.height(),
-                state.radius(), state.backgroundVisible(), state.backgroundColor(),
-                state.borderVisible(), state.borderColor(), state.borderWidth());
         if (!state.hasText()) return;
 
         float contentWidth = Math.max(0.0f, state.width() - state.textPaddingX() * 2.0f);

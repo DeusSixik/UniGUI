@@ -79,7 +79,7 @@ public record HoldButtonState(
         borderWidth = Math.max(0.0f, borderWidth);
     }
 
-    /** Переходный adapter к старому состоянию ButtonRenderer/RenderPlan. */
+    /** Adapter состояния для Button RenderPlan. */
     @Deprecated
     public ButtonState button() {
         return new ButtonState(

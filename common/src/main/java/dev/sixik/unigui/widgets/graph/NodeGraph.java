@@ -47,7 +47,6 @@ import dev.sixik.unigui.api.widget.RenderedBoundsMapper;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.viewport.Viewport2D;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
@@ -56,7 +55,8 @@ import dev.sixik.unigui.widgets.render.NodeGraphConnectionPreviewState;
 import dev.sixik.unigui.widgets.render.NodeGraphConnectionState;
 import dev.sixik.unigui.widgets.render.NodeGraphPortState;
 import dev.sixik.unigui.widgets.render.NodeGraphRenderPhase;
-import dev.sixik.unigui.widgets.render.NodeGraphRenderer;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
+import dev.sixik.unigui.widgets.render.NodeGraphRenderers;
 import dev.sixik.unigui.widgets.render.NodeGraphSelectionBoxState;
 import dev.sixik.unigui.widgets.render.NodeGraphState;
 
@@ -110,7 +110,6 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     private final MutableColor selectionBoxBorderColor = new MutableColor(0.25f, 0.78f, 1.0f, 0.80f);
     private final MutableColor resizeHandleColor = new MutableColor(0.25f, 0.78f, 1.0f, 0.95f);
 
-    private NodeGraphRenderer renderer;
     private NodeGraphConnectionPolicy connectionPolicy = NodeGraphConnectionPolicy.DEFAULT;
     private NodeGraphSelectionMode selectionMode = NodeGraphSelectionMode.SINGLE;
     private final Viewport2D viewport = new Viewport2D();
@@ -605,21 +604,6 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return resizeHandleColor;
     }
 
-    public NodeGraphRenderer renderer() {
-        return renderer;
-    }
-
-    public NodeGraph renderer(NodeGraphRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public NodeGraph useDefaultRenderer() {
-        return renderer(null);
-    }
-
     public float preferredWidth() {
         return preferredWidth;
     }
@@ -1075,8 +1059,12 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
                 draw.pushClip(layoutBounds().x(), layoutBounds().y(), layoutBounds().width(), layoutBounds().height());
                 pushedClip = true;
             }
-            NodeGraphRenderer activeRenderer = effectiveRenderer();
-            activeRenderer.render(draw, snapshot(NodeGraphRenderPhase.BACKGROUND));
+            WidgetRender custom = customRender();
+            if (custom != null) {
+                custom.render(draw, this);
+            } else {
+                NodeGraphRenderers.renderBackground(draw, snapshot(NodeGraphRenderPhase.BACKGROUND));
+            }
             for (NodeGraphItem item : itemSnapshot()) {
                 Widget content = item.content();
                 if (!item.visible() || content.visibility() != Visibility.VISIBLE) continue;
@@ -1092,7 +1080,11 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
                     renderChildWithInheritedTransform(context, content);
                 }
             }
-            activeRenderer.render(draw, snapshot(NodeGraphRenderPhase.FOREGROUND));
+            if (custom != null) {
+                custom.render(draw, this);
+            } else {
+                NodeGraphRenderers.renderForeground(draw, snapshot(NodeGraphRenderPhase.FOREGROUND));
+            }
         } finally {
             if (pushedClip) {
                 context.popClip();
@@ -1788,11 +1780,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         dispatch(new NodeGraphConnectionSelectionChangedEvent(this, oldSelection, next));
     }
 
-    private NodeGraphRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(NodeGraphRenderer.class, WidgetsRender.nodeGraph()) : renderer;
-    }
-
-    private NodeGraphState snapshot(NodeGraphRenderPhase phase) {
+    public NodeGraphState snapshot(NodeGraphRenderPhase phase) {
         List<NodeGraphItemState> itemStates = new ObjectArrayList<>(items.size());
         List<NodeGraphPortState> portStates = new ObjectArrayList<>();
         for (NodeGraphItem item : items) {

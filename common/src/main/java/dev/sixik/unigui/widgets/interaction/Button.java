@@ -27,25 +27,35 @@ import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.widget.visual.BackgroundKind;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
-import dev.sixik.unigui.widgets.render.ButtonRenderer;
-import dev.sixik.unigui.widgets.render.ButtonRenderState;
 import dev.sixik.unigui.widgets.render.ButtonRenderType;
 import dev.sixik.unigui.widgets.render.ButtonState;
-import dev.sixik.unigui.widgets.render.ButtonVisualRenderer;
-import dev.sixik.unigui.widgets.render.ButtonVisualRenderers;
-import dev.sixik.unigui.widgets.render.ButtonRenderers;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.api.widget.render.WidgetRole;
 
 import java.util.Objects;
-import dev.sixik.unigui.widgets.containers.Box;
+import dev.sixik.unigui.widgets.containers.SurfaceWidget;
 
+/**
+ * Интерактивная кнопка с композируемой поверхностью и текстовым контентом.
+ *
+ * <p>Кнопка больше не наследуется от {@code Box}: поверхность (фон, рамка,
+ * радиус) содержится в {@link SurfaceWidget}, а стандартный визуал рисует
+ * поверхность плюс текстовый foreground. Источник фона выбирается через
+ * {@link BackgroundKind} — цвет, текстура или шейдер переключаются стилем
+ * без смены renderer-класса.</p>
+ *
+ * <p>Порядок отрисовки: custom {@link WidgetRender} (заменяет весь визуал),
+ * затем StylePack RenderPlan, затем skin-default ({@code WidgetsRender.button()}:
+ * поверхность + текст), затем дети.</p>
+ */
 @XmlWidgetName("Button")
-public class Button extends Box {
+public class Button extends SurfaceWidget<Button> {
     public static final String STYLE_TYPE = StyleIds.Widget.BUTTON;
 
     public static final class StyleProperties {
@@ -100,7 +110,6 @@ public class Button extends Box {
     private String text = "";
     private RichText richText = RichText.plain("");
     private final MutableColor textColor = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
-    private ButtonRenderer renderer;
     private int pressedPointerId = -1;
     private float textPaddingX = DEFAULT_TEXT_PADDING_X;
     private float textPaddingY = DEFAULT_TEXT_PADDING_Y;
@@ -118,7 +127,6 @@ public class Button extends Box {
 
     public Button() {
         mouseCursor(MouseCursor.POINTER);
-        boxVisualEnabled(false);
         backgroundVisible(true);
         borderVisible(true);
         focusable(true);
@@ -233,21 +241,6 @@ public class Button extends Box {
         this.textPaddingY = normalized;
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
-    }
-
-    public ButtonRenderer renderer() {
-        return renderer;
-    }
-
-    public Button renderer(ButtonRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public Button useDefaultRenderer() {
-        return renderer(null);
     }
 
     public boolean pressed() {
@@ -379,45 +372,40 @@ public class Button extends Box {
     }
 
     @Override
+    public void render(RenderContext context) {
+        if (visibility() != Visibility.VISIBLE) return;
+        pushOpacity(context);
+        try {
+            DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+            if (renderCustomVisual(draw)) {
+                renderChildren(context);
+                return;
+            }
+            renderContent(context);
+        } finally {
+            popOpacity(context);
+        }
+    }
+
+    @Override
     protected void renderContent(RenderContext context) {
         applyTheme();
-        renderButtonVisual(context, snapshot(context));
+        ButtonState state = snapshot(context);
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        if (renderStylePlan(context, ButtonState.class, state)) {
+            super.renderContent(context);
+            return;
+        }
+        WidgetsRender.button().render(draw, this);
         super.renderContent(context);
     }
 
-    protected void renderButtonVisual(RenderContext context, ButtonState state) {
-        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
-        ButtonVisualRenderer typed = styleRendererOverride(WidgetRole.BUTTON, ButtonVisualRenderer.class);
-        if (typed != null) {
-            typed.render(draw, ButtonRenderState.fromLegacyButtonState(state));
-            return;
-        }
-        if (renderer != null) {
-            renderer.render(draw, state);
-            return;
-        }
-        ButtonRenderer styled = styleRendererOverride(ButtonRenderer.class);
-        if (styled != null) {
-            styled.render(draw, state);
-            return;
-        }
-        if (renderStylePlan(context, ButtonState.class, state)) return;
-        ButtonRenderer legacyDefault = defaultRenderer();
-        ButtonVisualRenderer defaultVisual = legacyDefault == ButtonRenderers.DEFAULT
-                ? ButtonVisualRenderers.DEFAULT
-                : ButtonVisualRenderers.fromLegacy(legacyDefault);
-        defaultVisual.render(draw, ButtonRenderState.fromLegacyButtonState(state));
+    @Override
+    protected WidgetRole renderRole() {
+        return WidgetRole.BUTTON;
     }
 
-    protected ButtonRenderer defaultRenderer() {
-        return WidgetsRender.button();
-    }
-
-    protected ButtonRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(ButtonRenderer.class, defaultRenderer()) : renderer;
-    }
-
-    protected ButtonState snapshot(RenderContext context) {
+    public ButtonState snapshot(RenderContext context) {
         return new ButtonState(
                 ButtonRenderType.BUTTON,
                 layoutBounds().x(),

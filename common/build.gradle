@@ -181,6 +181,14 @@ tasks.register("xmlWidgetSelfTest", JavaExec) {
     mainClass = "dev.sixik.unigui.tests.XmlWidgetSelfTest"
 }
 
+tasks.register("surfaceVisualSelfTest", JavaExec) {
+    group = "verification"
+    description = "Runs composable surface visual self-test assertions."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.SurfaceVisualSelfTest"
+}
+
 tasks.register("dumpXmlWidgetReference", JavaExec) {
     group = "documentation"
     description = "Generates XML widget reference markdown from registry descriptors."
@@ -210,4 +218,5 @@ tasks.named("test") {
       dependsOn tasks.named("layoutTransitionSelfTest")
       dependsOn tasks.named("widgetRendererContractSelfTest")
       dependsOn tasks.named("tooltipVisibilitySelfTest")
+      dependsOn tasks.named("surfaceVisualSelfTest")
   }

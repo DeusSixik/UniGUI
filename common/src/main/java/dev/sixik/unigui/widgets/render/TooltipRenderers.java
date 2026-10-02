@@ -1,11 +1,14 @@
 package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.impl.text.TextEngine;
+import dev.sixik.unigui.widgets.feedback.Tooltip;
 
 public final class TooltipRenderers {
-    public static final TooltipRenderer DEFAULT = (draw, state) -> {
-        renderChrome(draw, state);
+    public static final WidgetRender DEFAULT = WidgetRender.of(Tooltip.class, (draw, tooltip) -> {
+        SurfacePlans.renderWidgetSurface(draw, tooltip);
+        TooltipState state = tooltip.snapshot(draw.context());
         draw.pushTextClip(state.textX(), state.textY(), state.textWidth(), state.textHeight());
         try {
             float lineY = state.textY();
@@ -25,19 +28,8 @@ public final class TooltipRenderers {
         } finally {
             draw.popClip();
         }
-    };
+    });
 
     private TooltipRenderers() {
-    }
-
-    private static void renderChrome(dev.sixik.unigui.api.render.DrawScope draw, TooltipState state) {
-        if (state.backgroundVisible()) {
-            draw.roundedRect(state.x(), state.y(), state.width(), state.height(), state.radius(),
-                    Paint.fill(state.backgroundColor()));
-        }
-        if (state.borderVisible() && state.borderWidth() > 0.0f) {
-            draw.roundedRect(state.x(), state.y(), state.width(), state.height(), state.radius(),
-                    Paint.stroke(state.borderColor(), state.borderWidth()));
-        }
     }
 }

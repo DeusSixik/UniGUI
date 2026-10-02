@@ -1,14 +1,17 @@
 package dev.sixik.unigui.widgets.render;
 
 import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.impl.text.TextEngine;
+import dev.sixik.unigui.widgets.feedback.WindowWidget;
 
 public final class WindowRenderers {
-    public static final WindowRenderer DEFAULT = (draw, state) -> {
+    public static final WidgetRender DEFAULT = WidgetRender.of(WindowWidget.class, (draw, window) -> {
+        WindowState state = window.snapshot(draw.context());
         if (state.width() <= 0.0f || state.height() <= 0.0f) return;
 
         float headerHeight = Math.min(state.headerHeight(), state.height());
-        renderChrome(draw, state);
+        SurfacePlans.renderWidgetSurface(draw, window);
         draw.rect(state.x(), state.y(), state.width(), headerHeight, Paint.fill(state.headerColor()));
         draw.line(state.x(), state.y() + state.headerHeight(),
                 state.x() + state.width(), state.y() + state.headerHeight(),
@@ -43,19 +46,8 @@ public final class WindowRenderers {
         } finally {
             draw.popClip();
         }
-    };
+    });
 
     private WindowRenderers() {
-    }
-
-    private static void renderChrome(dev.sixik.unigui.api.render.DrawScope draw, WindowState state) {
-        if (state.backgroundVisible()) {
-            draw.roundedRect(state.x(), state.y(), state.width(), state.height(), state.radius(),
-                    Paint.fill(state.backgroundColor()));
-        }
-        if (state.borderVisible() && state.borderWidth() > 0.0f) {
-            draw.roundedRect(state.x(), state.y(), state.width(), state.height(), state.radius(),
-                    Paint.stroke(state.borderColor(), state.borderWidth()));
-        }
     }
 }

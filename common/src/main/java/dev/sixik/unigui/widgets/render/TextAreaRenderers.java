@@ -3,7 +3,9 @@ package dev.sixik.unigui.widgets.render;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.impl.text.TextEngine;
+import dev.sixik.unigui.widgets.interaction.TextArea;
 
 public final class TextAreaRenderers {
     private static final float SCROLLBAR_SIZE = 3.0f;
@@ -11,7 +13,8 @@ public final class TextAreaRenderers {
     private static final MutableColor SCROLLBAR_TRACK = new MutableColor(0.0f, 0.0f, 0.0f, 0.24f);
     private static final MutableColor SCROLLBAR_THUMB = new MutableColor(0.55f, 0.62f, 0.72f, 0.72f);
 
-    public static final TextAreaRenderer DEFAULT = (draw, state) -> {
+    public static final WidgetRender DEFAULT = WidgetRender.of(TextArea.class, (draw, area) -> {
+        TextAreaState state = area.textAreaState();
         renderChrome(draw, state);
         draw.pushTextClip(state.viewportX(), state.viewportY(), state.viewportWidth(), state.viewportHeight());
         try {
@@ -48,7 +51,7 @@ public final class TextAreaRenderers {
             draw.popClip();
         }
         renderScrollbars(draw, state);
-    };
+    });
 
     private TextAreaRenderers() {
     }

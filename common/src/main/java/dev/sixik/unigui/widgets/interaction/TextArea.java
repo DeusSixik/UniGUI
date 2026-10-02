@@ -37,7 +37,6 @@ import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.render.TextAreaLineState;
-import dev.sixik.unigui.widgets.render.TextAreaRenderer;
 import dev.sixik.unigui.widgets.render.TextAreaState;
 
 import java.util.ArrayList;
@@ -60,7 +59,6 @@ public class TextArea extends Box {
     private final MutableColor textColor = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private final MutableColor placeholderColor = new MutableColor(0.65f, 0.65f, 0.65f, 0.9f);
     private final MutableColor caretColor = new MutableColor(0.25f, 0.78f, 1.0f, 1.0f);
-    private TextAreaRenderer renderer;
     private String placeholder = "";
     private FontFace font;
     private float pixelSize = TextRun.DEFAULT_PIXEL_SIZE;
@@ -337,21 +335,6 @@ public class TextArea extends Box {
         return caretColor;
     }
 
-    public TextAreaRenderer renderer() {
-        return renderer;
-    }
-
-    public TextArea renderer(TextAreaRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public TextArea useDefaultRenderer() {
-        return renderer(null);
-    }
-
     public boolean visualOnlyTextChanges() {
         return visualOnlyTextChanges;
     }
@@ -513,10 +496,14 @@ public class TextArea extends Box {
             ensureCursorVisible();
             followCaretRequested = false;
         }
-        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), textAreaState());
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        if (renderCustomVisual(draw)) {
+            return;
+        }
+        WidgetsRender.textArea().render(draw, this);
     }
 
-    protected TextAreaState textAreaState() {
+    public TextAreaState textAreaState() {
         float lineHeight = effectiveLineHeight();
         List<TextAreaLineState> states = new ArrayList<>(lineMetrics.size());
         for (LineMetrics line : lineMetrics) {
@@ -564,10 +551,6 @@ public class TextArea extends Box {
                 placeholderColor.copy(),
                 caretColor.copy(),
                 APPROX_CHAR_WIDTH);
-    }
-
-    protected TextAreaRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(TextAreaRenderer.class, WidgetsRender.textArea()) : renderer;
     }
 
     protected String displayText() {
