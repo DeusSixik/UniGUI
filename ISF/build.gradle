@@ -8,11 +8,30 @@ architectury {
     forge()
 }
 
+// Имя файла: Название_Лоадер_ВерсияМайна_vВерсияМода, например ISF_Forge_1.20.1_v0.1.0.
+def isfModVersion = versionProject.findProperty('isf_version') ?: '0.1.0'
+def isfMinecraftVersion = versionProject.minecraft_version
+
 base {
-    archivesName = "isf-forge-${versionProject.minecraft_version}"
+    archivesName = "ISF_Forge_${isfMinecraftVersion}_v${isfModVersion}"
 }
 
-version = versionProject.findProperty('isf_version') ?: '0.1.0'
+version = isfModVersion
+
+// Версия уже вшита в archivesName, чтобы не дублировалась в имени файла:
+// ISF_Forge_1.20.1_v0.1.0.jar, а не ISF_Forge_1.20.1_v0.1.0-0.1.0.jar.
+tasks.withType(Jar).configureEach {
+    archiveVersion = ''
+}
+
+// Ремапнутый артефакт Loom версию дописывает сам — задаём имя файла явно.
+afterEvaluate {
+    def targetName = "ISF_Forge_${isfMinecraftVersion}_v${isfModVersion}.jar"
+    def remap = tasks.findByName('remapJar')
+    if (remap != null) remap.archiveFileName = targetName
+    def remapSources = tasks.findByName('remapSourcesJar')
+    if (remapSources != null) remapSources.archiveFileName = targetName.replace('.jar', '-sources.jar')
+}
 
 // Исходники в UTF-8 (кириллица в JavaDoc): без этого javadoc падает
 // с unmappable character на дефолтной windows-1251.
