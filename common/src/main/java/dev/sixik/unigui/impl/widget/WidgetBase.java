@@ -83,7 +83,7 @@ public abstract class WidgetBase implements Widget {
         public static final String SCALE_Y = StyleAnimationIds.Property.SCALE_Y;
         public static final String ROTATION_DEGREES = StyleAnimationIds.Property.ROTATION_DEGREES;
         public static final String OPACITY = StyleAnimationIds.Property.OPACITY;
-        public static final java.util.List<String> ALL = StyleAnimationIds.Property.COMMON_WIDGET;
+        public static final List<String> ALL = StyleAnimationIds.Property.COMMON_WIDGET;
 
         private AnimationProperties() {
         }
@@ -98,7 +98,7 @@ public abstract class WidgetBase implements Widget {
         public static final String ON_HOVER_EXIT = StyleAnimationIds.Event.ON_HOVER_EXIT;
         public static final String ON_PRESS = StyleAnimationIds.Event.ON_PRESS;
         public static final String ON_RELEASE = StyleAnimationIds.Event.ON_RELEASE;
-        public static final java.util.List<String> ALL = StyleAnimationIds.Event.COMMON_WIDGET;
+        public static final List<String> ALL = StyleAnimationIds.Event.COMMON_WIDGET;
 
         private AnimationEvents() {
         }
