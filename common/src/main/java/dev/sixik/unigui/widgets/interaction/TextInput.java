@@ -23,6 +23,7 @@ import dev.sixik.unigui.api.input.TextEditorModel;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.RichText;
@@ -30,16 +31,13 @@ import dev.sixik.unigui.api.text.TextRun;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.widget.Visibility;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
-import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.api.widget.render.WidgetRole;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
-import dev.sixik.unigui.widgets.render.TextInputRenderType;
-import dev.sixik.unigui.widgets.render.TextInputState;
+import dev.sixik.unigui.widgets.containers.Box;
 
 import java.util.Objects;
 import dev.sixik.unigui.widgets.containers.Box;
@@ -376,96 +374,90 @@ public class TextInput extends Box {
     }
 
     protected void renderTextInput(RenderContext context) {
-        TextInputState state = snapshot(context);
-        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
-        if (renderCustomVisual(draw)) {
-            return;
-        }
-        if (renderStylePlan(context, TextInputState.class, state)) {
-            return;
-        }
-        skinRenderer().render(draw, this);
-    }
-
-    public TextInputState snapshot(RenderContext context) {
         String visibleText = displayText();
         updateMeasuredPrefixWidths(context, visibleText);
         ensureCursorVisible(context, visibleText);
-
         float viewportX = textViewportX();
         float viewportY = textViewportY();
         float viewportWidth = textViewportWidth();
         float viewportHeight = textViewportHeight();
         float textHeight = textLineHeight(context, visibleText);
         float textY = textContentY(textHeight);
-        return textInputState(
-                visibleText,
-                viewportX,
-                viewportY,
-                viewportWidth,
-                viewportHeight,
-                textY,
-                textHeight);
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        if (renderCustomVisual(draw)) {
+            return;
+        }
+        if (backgroundVisible()) {
+            draw.roundedRect(layoutBounds().x(), layoutBounds().y(),
+                    layoutBounds().width(), layoutBounds().height(), radius(),
+                    Paint.fill(background()));
+        }
+        if (borderVisible() && borderWidth() > 0.0f) {
+            draw.roundedRect(layoutBounds().x(), layoutBounds().y(),
+                    layoutBounds().width(), layoutBounds().height(), radius(),
+                    Paint.stroke(borderColor(), borderWidth()));
+        }
+        renderTextContent(draw, viewportX, viewportY, viewportWidth, viewportHeight, textY, textHeight);
     }
 
-    protected TextInputState textInputState(String visibleText,
-                                            float viewportX,
-                                            float viewportY,
-                                            float viewportWidth,
-                                            float viewportHeight,
-                                            float textY,
-                                            float textHeight) {
-        return new TextInputState(
-                renderType(),
-                layoutBounds().x(),
-                layoutBounds().y(),
-                layoutBounds().width(),
-                layoutBounds().height(),
-                backgroundVisible(),
-                background().copy(),
-                radius(),
-                borderVisible(),
-                borderColor().copy(),
-                borderWidth(),
-                viewportX,
-                viewportY,
-                viewportWidth,
-                viewportHeight,
-                textY,
-                textHeight,
-                horizontalScrollPixels,
-                measuredTextWidth(),
-                visibleText,
-                richText(visibleText),
-                focused,
-                isShowingPlaceholder(),
-                hasSelection(),
-                selectionStart(),
-                selectionEnd(),
-                cursorIndex(),
-                textColor.copy(),
-                placeholderColor.copy(),
-                caretColor.copy(),
-                measuredPrefixWidths,
-                clearButtonVisible(),
-                clearButtonHovered(),
-                clearButtonX(),
-                clearButtonY(),
-                clearButtonWidth(),
-                clearButtonHeight());
-    }
-
-    protected WidgetRender skinRenderer() {
-        return WidgetsRender.textInput();
+    protected void renderTextContent(DrawScope draw,
+                                     float viewportX,
+                                     float viewportY,
+                                     float viewportWidth,
+                                     float viewportHeight,
+                                     float textY,
+                                     float textHeight) {
+        String visibleText = displayText();
+        RichText line = richText(visibleText);
+        boolean showingPlaceholder = isShowingPlaceholder();
+        boolean drawSelection = focused && hasSelection() && !showingPlaceholder;
+        boolean drawText = line != null && !line.isEmpty();
+        boolean drawCaret = focused;
+        if (!drawSelection && !drawText && !drawCaret) {
+            return;
+        }
+        boolean clipped = viewportWidth > 0.0f && viewportHeight > 0.0f;
+        if (clipped) {
+            draw.pushTextClip(viewportX, viewportY, viewportWidth, viewportHeight);
+        }
+        try {
+            if (drawSelection) {
+                float selectionX = viewportX + prefixWidth(selectionStart()) - horizontalScrollPixels;
+                float selectionWidth = Math.max(1.0f,
+                        prefixWidth(selectionEnd()) - prefixWidth(selectionStart()));
+                draw.rect(selectionX,
+                        viewportY,
+                        selectionWidth,
+                        viewportHeight,
+                        Paint.fill(caretColor));
+            }
+            if (drawText) {
+                TextEngine.drawInline(draw,
+                        line,
+                        viewportX - horizontalScrollPixels,
+                        textY,
+                        Math.max(viewportWidth, measuredTextWidth()),
+                        textHeight,
+                        Paint.fill(showingPlaceholder ? placeholderColor : textColor));
+            }
+            if (drawCaret) {
+                float caretX = viewportX + prefixWidth(cursorIndex()) - horizontalScrollPixels;
+                draw.rect(caretX,
+                        viewportY,
+                        1.0f,
+                        viewportHeight,
+                        Paint.fill(caretColor));
+            }
+        } finally {
+            if (clipped) {
+                draw.popClip();
+            }
+        }
     }
 
     @Override
     protected WidgetRole renderRole() {
         return WidgetRole.TEXT_INPUT;
-    }
-
-    protected TextInputRenderType renderType() {
-        return TextInputRenderType.TEXT_INPUT;
     }
 
     protected boolean clearButtonVisible() {
@@ -585,13 +577,17 @@ public class TextInput extends Box {
         horizontalScrollPixels = clamp(horizontalScrollPixels, 0.0f, Math.max(0.0f, textWidth - viewportWidth));
     }
 
-    private float measuredTextWidth() {
+    protected float measuredTextWidth() {
         return measuredPrefixWidths.length == 0 ? 0.0f : measuredPrefixWidths[measuredPrefixWidths.length - 1];
     }
 
-    private float prefixWidth(int index) {
+    protected float prefixWidth(int index) {
         int clamped = Math.max(0, Math.min(index, measuredPrefixWidths.length - 1));
         return measuredPrefixWidths[clamped];
+    }
+
+    protected float horizontalScrollPixels() {
+        return horizontalScrollPixels;
     }
 
     private int indexAtLocalX(float localX) {
@@ -784,7 +780,7 @@ public class TextInput extends Box {
         return TextEditorModel.sanitizePrintable(text);
     }
 
-    private RichText richText(String text) {
+    protected RichText richText(String text) {
         return RichText.of(text, font, pixelSize);
     }
 

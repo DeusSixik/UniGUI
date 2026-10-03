@@ -12,10 +12,9 @@ import dev.sixik.unigui.api.input.MouseCursor;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.widgets.core.Orientation;
-import dev.sixik.unigui.widgets.render.SplitterState;
 
 /**
  * Интерактивный разделитель, встроенный в {@link SplitPanel}.
@@ -111,28 +110,36 @@ public final class Splitter extends Box {
         if (renderCustomVisual(draw)) {
             return;
         }
-        WidgetsRender.splitter().render(draw, this);
-    }
-
-    /**
-     * Создаёт immutable snapshot visual/interaction-состояния splitter'а.
-     *
-     * @return состояние splitter'а на текущий кадр
-     */
-    public SplitterState snapshot() {
-        return new SplitterState(
-                layoutBounds().x(),
-                layoutBounds().y(),
-                layoutBounds().width(),
-                layoutBounds().height(),
-                owner.orientation(),
-                backgroundVisible(),
-                background().copy(),
-                radius(),
-                borderVisible(),
-                borderColor().copy(),
-                borderWidth(),
-                dragging,
-                handleColor.copy());
+        float x = layoutBounds().x();
+        float y = layoutBounds().y();
+        float width = layoutBounds().width();
+        float height = layoutBounds().height();
+        if (backgroundVisible()) {
+            draw.roundedRect(x, y, width, height, radius(),
+                    Paint.fill(background()));
+        }
+        if (borderVisible() && borderWidth() > 0.0f) {
+            draw.roundedRect(x, y, width, height, radius(),
+                    Paint.stroke(borderColor(), borderWidth()));
+        }
+        if (owner.orientation() == Orientation.HORIZONTAL) {
+            float handleWidth = Math.max(1.0f, Math.min(2.0f, width));
+            draw.roundedRect(
+                    x + (width - handleWidth) * 0.5f,
+                    y + 3.0f,
+                    handleWidth,
+                    Math.max(1.0f, height - 6.0f),
+                    handleWidth * 0.5f,
+                    Paint.fill(handleColor));
+        } else {
+            float handleHeight = Math.max(1.0f, Math.min(2.0f, height));
+            draw.roundedRect(
+                    x + 3.0f,
+                    y + (height - handleHeight) * 0.5f,
+                    Math.max(1.0f, width - 6.0f),
+                    handleHeight,
+                    handleHeight * 0.5f,
+                    Paint.fill(handleColor));
+        }
     }
 }

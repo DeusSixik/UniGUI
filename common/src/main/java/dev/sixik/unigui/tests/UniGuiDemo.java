@@ -56,7 +56,6 @@ import dev.sixik.unigui.widgets.minecraft.MinecraftTexturePickerWidget;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftWidgetScreen;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.widgets.map.*;
-import dev.sixik.unigui.widgets.render.DockSplitHandleRenderers;
 import net.minecraft.client.Minecraft;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -2498,7 +2497,7 @@ public final class UniGuiDemo {
         if (recipe != null) recipe.dirty(true);
         DockPane assets = docking.manager().findPane("assets");
         if (assets != null) assets.pinned(false);
-        docking.splitHandleRenderer(DockSplitHandleRenderers.IMGUI_STYLE);
+        docking.splitHandleStyle(DockingRoot.SplitHandleStyle.SEAM);
         return docking;
     }
 

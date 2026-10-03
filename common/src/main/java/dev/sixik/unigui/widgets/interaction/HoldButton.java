@@ -17,17 +17,14 @@ import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
-import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.api.widget.render.WidgetRole;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
-import dev.sixik.unigui.widgets.render.ButtonState;
-import dev.sixik.unigui.widgets.render.HoldButtonState;
 
 /**
  * Button that requires the primary pointer to be held for a configurable duration
@@ -193,16 +190,13 @@ public class HoldButton extends Button {
     protected void renderContent(RenderContext context) {
         applyTheme();
         DrawScope draw = new DrawScope(context, transform(), layoutBounds());
-        if (renderCustomVisual(draw)) {
-            renderChildren(context);
-            return;
+        float progress = holdProgress();
+        if (progress > 0.0f) {
+            draw.rect(layoutBounds().x(), layoutBounds().y(),
+                    layoutBounds().width() * progress, layoutBounds().height(),
+                    Paint.fill(holdColor));
         }
-        HoldButtonState state = holdSnapshot(context);
-        if (renderStylePlan(context, ButtonState.class, state.button())) {
-            renderChildren(context);
-            return;
-        }
-        WidgetsRender.holdButton().render(draw, this);
+        renderButtonText(draw);
         renderChildren(context);
     }
 
@@ -215,35 +209,6 @@ public class HoldButton extends Button {
     @Override
     protected WidgetRole renderRole() {
         return WidgetRole.HOLD_BUTTON;
-    }
-
-    public HoldButtonState holdSnapshot(RenderContext context) {
-        return new HoldButtonState(
-                layoutBounds().x(),
-                layoutBounds().y(),
-                layoutBounds().width(),
-                layoutBounds().height(),
-                text(),
-                richText(),
-                textPaddingX(),
-                TextEngine.measureLineWidth(context, richText()),
-                TextEngine.measureTextHeight(context, richText()),
-                textColor().copy(),
-                pressed(),
-                hovered(),
-                enabled(),
-                backgroundVisible(),
-                background().copy(),
-                radius(),
-                borderVisible(),
-                borderColor().copy(),
-                borderWidth(),
-                holdProgress(),
-                holdElapsedSeconds,
-                holdDurationSeconds,
-                holding,
-                completed,
-                holdColor.copy());
     }
 
     private void startHolding(int pointerId) {

@@ -18,8 +18,6 @@ import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 import dev.sixik.unigui.widgets.containers.StackPanel;
 import dev.sixik.unigui.widgets.feedback.WindowWidget;
-import dev.sixik.unigui.widgets.render.DockDropPreviewState;
-import dev.sixik.unigui.widgets.render.DockPaneState;
 import dev.sixik.unigui.api.render.DrawCommand;
 import dev.sixik.unigui.api.render.DrawCommandType;
 import dev.sixik.unigui.api.render.DrawList;
@@ -153,9 +151,6 @@ public final class DockingInteractionSelfTest {
     private void testFloatingDropInsideOverlayCreatesNonCloseableRedockableWindow() {
         DefaultUIContext context = new DefaultUIContext();
         DockingRoot root = new DockingRoot();
-        final DockDropPreviewState[] floatingPreview = new DockDropPreviewState[1];
-        root.dropPreviewRenderer((draw, widget) -> floatingPreview[0] =
-                ((DockingRoot) widget).dropPreviewSnapshot());
         root.floatingWindowsRedockLocked(true);
         root.layout(style -> style.size(180.0f, 110.0f).flexGrow(0).flexShrink(0.0f));
         root.addDocument("floatable", "Floatable", content("Floatable body"))
@@ -189,10 +184,10 @@ public final class DockingInteractionSelfTest {
 
         layout(layer, 360.0f, 220.0f);
         floating.position(10.0f, 10.0f);
-        floatingPreview[0] = null;
         context.routedEvents().dispatch(new WindowMovedEvent(floating, 200.0f, 54.0f, 10.0f, 10.0f));
-        root.render(new dev.sixik.unigui.impl.render.DefaultRenderContext(new DrawList()));
-        expect(floatingPreview[0] == null,
+        DrawList suppressedDrawList = new DrawList();
+        root.render(new dev.sixik.unigui.impl.render.DefaultRenderContext(suppressedDrawList));
+        expect(!hasFloatingPreview(suppressedDrawList),
                 "dockRedockLocked(true) should suppress floating dock drop previews");
 
         context.routedEvents().dispatch(new WindowMoveEndedEvent(floating, 10.0f, 10.0f));
@@ -205,22 +200,20 @@ public final class DockingInteractionSelfTest {
         root.floatingWindowsRedockLocked(false);
         expect(!floating.dockRedockLocked(),
                 "floatingWindowsRedockLocked(false) should update already-created floating dock windows");
-        floatingPreview[0] = null;
         context.routedEvents().dispatch(new WindowMovedEvent(floating, 200.0f, 54.0f, 10.0f, 10.0f));
-        root.render(new dev.sixik.unigui.impl.render.DefaultRenderContext(new DrawList()));
-        expect(floatingPreview[0] != null
-                        && floatingPreview[0].visible()
-                        && floatingPreview[0].sourcePaneId().equals("floatable"),
+        DrawList previewDrawList = new DrawList();
+        root.render(new dev.sixik.unigui.impl.render.DefaultRenderContext(previewDrawList));
+        expect(hasFloatingPreview(previewDrawList),
                 "Moving a floating dock window over a DockingRoot should show a live dock drop preview");
 
         context.routedEvents().dispatch(new WindowMoveEndedEvent(floating, 10.0f, 10.0f));
         layer.applyQueuedMutations();
-        floatingPreview[0] = null;
-        root.render(new dev.sixik.unigui.impl.render.DefaultRenderContext(new DrawList()));
+        DrawList redockedDrawList = new DrawList();
+        root.render(new dev.sixik.unigui.impl.render.DefaultRenderContext(redockedDrawList));
 
         expect(root.manager().containsPane("floatable")
                         && !floating.opened()
-                        && floatingPreview[0] == null,
+                        && !hasFloatingPreview(redockedDrawList),
                 "Moving the floating dock window back over a DockingRoot should redock the original pane and clear preview");
     }
 
@@ -228,54 +221,42 @@ public final class DockingInteractionSelfTest {
         DefaultUIContext context = new DefaultUIContext();
         DockingRoot root = new DockingRoot();
         root.setUiContextInternal(context);
-        final DockPaneState[] captured = new DockPaneState[1];
-        root.paneRenderer((draw, widget) -> {
-            java.util.List<dev.sixik.unigui.widgets.render.DockPaneState> snapshots =
-                    ((DockingRoot) widget).paneSnapshots();
-            captured[0] = snapshots.isEmpty() ? null : snapshots.get(0);
-        });
         for (int i = 0; i < 12; i++) {
             root.addDocument("doc-" + i, "Doc " + i, content("Doc " + i + " body"));
         }
         root.selectPane("doc-0");
         layout(root, 124.0f, 180.0f);
-        root.render(new dev.sixik.unigui.impl.render.DefaultRenderContext(new dev.sixik.unigui.api.render.DrawList()));
+        float tabHeight = root.tabHeight();
+        float buttonX = root.layoutBounds().x() + root.layoutBounds().width() - 24.0f + 12.0f;
+        float buttonY = root.layoutBounds().y() + Math.min(tabHeight, root.layoutBounds().height()) * 0.5f;
+        float menuX = Math.min(buttonX - 12.0f, root.layoutBounds().x()
+                + Math.max(0.0f, root.layoutBounds().width() - 168.0f)) + 8.0f;
+        float menuTop = Math.min(buttonY - 11.0f + 22.0f,
+                root.layoutBounds().y() + Math.max(0.0f, root.layoutBounds().height() - 20.0f * 8.0f));
+        float menuDoc0Y = menuTop + 10.0f;
 
-        expect(captured[0] != null
-                        && captured[0].overflow()
-                        && captured[0].overflowButtonWidth() > 0.0f
-                        && captured[0].lastVisibleTab() - captured[0].firstVisibleTab() + 1 < captured[0].tabs().size(),
-                "Overflowing dock tabs should expose a dedicated overflow button and clipped visible range");
-        for (int i = captured[0].firstVisibleTab(); i <= captured[0].lastVisibleTab(); i++) {
-            expect(captured[0].tabs().get(i).x() + captured[0].tabs().get(i).width() <= captured[0].overflowButtonX() + 0.01f,
-                    "Visible tabs should not draw underneath the overflow button");
-        }
+        DrawList initialDrawList = renderRoot(root);
+        expect(hasOverflowDots(initialDrawList)
+                        && docTitles(initialDrawList).contains("Doc 0")
+                        && !docTitles(initialDrawList).contains("Doc 11"),
+                "Overflowing dock tabs should render an overflow button and a clipped visible range");
 
         for (int i = 0; i < 16; i++) {
             context.routedEvents().dispatch(new ScrollEvent(root, 8.0f, 6.0f, 8.0f, 6.0f, 0.0f, 1.0f));
         }
-        root.render(new dev.sixik.unigui.impl.render.DefaultRenderContext(new dev.sixik.unigui.api.render.DrawList()));
-        expect(captured[0].firstVisibleTab() == 0,
+        expect(docTitles(renderRoot(root)).contains("Doc 0"),
                 "Mouse wheel over an overflowing tab strip should be able to scroll back to the first tab");
 
-        int firstBeforeScroll = captured[0].firstVisibleTab();
         context.routedEvents().dispatch(new ScrollEvent(root, 8.0f, 6.0f, 8.0f, 6.0f, 0.0f, -1.0f));
-        root.render(new dev.sixik.unigui.impl.render.DefaultRenderContext(new dev.sixik.unigui.api.render.DrawList()));
-        expect(captured[0].firstVisibleTab() > firstBeforeScroll,
+        java.util.Set<String> scrolledTitles = docTitles(renderRoot(root));
+        expect(!scrolledTitles.contains("Doc 0"),
                 "Mouse wheel over an overflowing tab strip should scroll the visible tab range");
 
-        float buttonX = captured[0].overflowButtonX() + captured[0].overflowButtonWidth() * 0.5f;
-        float buttonY = captured[0].overflowButtonY() + captured[0].overflowButtonHeight() * 0.5f;
+        java.util.Set<String> titlesBeforeMenuSelection = docTitles(renderRoot(root));
         context.routedEvents().dispatch(new PointerPressedEvent(root, buttonX, buttonY, buttonX, buttonY, 3, PointerButton.PRIMARY));
-        root.render(new dev.sixik.unigui.impl.render.DefaultRenderContext(new dev.sixik.unigui.api.render.DrawList()));
-        expect(captured[0].overflowMenuOpen(),
+        expect(hasOverflowMenu(renderRoot(root)),
                 "Clicking the overflow button should open the tab selection menu");
-        int tabScrollBeforeMenuSelection = captured[0].firstVisibleTab();
 
-        float menuX = Math.min(captured[0].overflowButtonX(), root.layoutBounds().x() + Math.max(0.0f, root.layoutBounds().width() - 168.0f)) + 8.0f;
-        float menuTop = Math.min(captured[0].overflowButtonY() + captured[0].overflowButtonHeight(),
-                root.layoutBounds().y() + Math.max(0.0f, root.layoutBounds().height() - 20.0f * 8.0f));
-        float menuDoc0Y = menuTop + 10.0f;
         DockPane selectedBeforeMenuInteraction = root.manager().selectedPane();
         context.routedEvents().dispatch(new PointerMovedEvent(
                 selectedBeforeMenuInteraction.content(), menuX, menuDoc0Y, menuX, menuDoc0Y, 7));
@@ -289,29 +270,103 @@ public final class DockingInteractionSelfTest {
         context.routedEvents().dispatch(new PointerPressedEvent(selectedBeforeMenuInteraction.content(), menuX, menuDoc0Y, menuX, menuDoc0Y, 4, PointerButton.PRIMARY));
         root.render(new dev.sixik.unigui.impl.render.DefaultRenderContext(new dev.sixik.unigui.api.render.DrawList()));
         expect(root.manager().selectedPane().id().equals("doc-2")
-                        && !captured[0].overflowMenuOpen()
-                        && captured[0].firstVisibleTab() == tabScrollBeforeMenuSelection,
+                        && !hasOverflowMenu(renderRoot(root))
+                        && docTitles(renderRoot(root)).equals(titlesBeforeMenuSelection),
                 "Selecting a scrolled tab from the overflow menu should activate it, close the menu and preserve tab strip scroll");
 
         context.routedEvents().dispatch(new PointerPressedEvent(root, buttonX, buttonY, buttonX, buttonY, 8, PointerButton.PRIMARY));
-        root.render(new dev.sixik.unigui.impl.render.DefaultRenderContext(new dev.sixik.unigui.api.render.DrawList()));
-        expect(captured[0].overflowMenuOpen(), "Overflow menu should reopen from the overflow button");
+        expect(hasOverflowMenu(renderRoot(root)), "Overflow menu should reopen from the overflow button");
         context.routedEvents().dispatch(new PointerPressedEvent(root, 4.0f, root.layoutBounds().height() - 4.0f,
                 4.0f, root.layoutBounds().height() - 4.0f, 9, PointerButton.PRIMARY));
-        root.render(new dev.sixik.unigui.impl.render.DefaultRenderContext(new dev.sixik.unigui.api.render.DrawList()));
-        expect(!captured[0].overflowMenuOpen(),
+        expect(!hasOverflowMenu(renderRoot(root)),
                 "Clicking anywhere outside the overflow menu should close it");
 
-        int firstBeforeVisibleTabClick = captured[0].firstVisibleTab();
-        DockPaneState stateBeforeVisibleTabClick = captured[0];
-        int visibleIndex = stateBeforeVisibleTabClick.firstVisibleTab();
-        float visibleTabX = stateBeforeVisibleTabClick.tabs().get(visibleIndex).x() + 4.0f;
-        float visibleTabY = stateBeforeVisibleTabClick.tabs().get(visibleIndex).y() + 6.0f;
-        context.routedEvents().dispatch(new PointerPressedEvent(root, visibleTabX, visibleTabY, visibleTabX, visibleTabY, 10, PointerButton.PRIMARY));
-        context.routedEvents().dispatch(new PointerReleasedEvent(root, visibleTabX, visibleTabY, visibleTabX, visibleTabY, 10, PointerButton.PRIMARY));
+        java.util.Set<String> titlesBeforeClick = docTitles(renderRoot(root));
+        String firstTitle = titlesBeforeClick.iterator().next();
+        float[] titleCenter = textCenter(renderRoot(root), firstTitle);
+        context.routedEvents().dispatch(new PointerPressedEvent(root, titleCenter[0], titleCenter[1], titleCenter[0], titleCenter[1], 10, PointerButton.PRIMARY));
+        context.routedEvents().dispatch(new PointerReleasedEvent(root, titleCenter[0], titleCenter[1], titleCenter[0], titleCenter[1], 10, PointerButton.PRIMARY));
         root.render(new dev.sixik.unigui.impl.render.DefaultRenderContext(new dev.sixik.unigui.api.render.DrawList()));
-        expect(captured[0].firstVisibleTab() == firstBeforeVisibleTabClick,
-                "Selecting a visible overflow tab should not reset the tab strip scroll offset");
+        expect(root.manager().selectedPane().id().equals("doc-" + firstTitle.substring(4))
+                        && docTitles(renderRoot(root)).equals(titlesBeforeClick),
+                "Selecting a visible overflow tab should activate it without resetting the tab strip scroll offset");
+    }
+
+    private static DrawList renderRoot(DockingRoot root) {
+        DrawList drawList = new DrawList();
+        root.render(new dev.sixik.unigui.impl.render.DefaultRenderContext(drawList));
+        return drawList;
+    }
+
+    private static boolean hasOverflowDots(DrawList drawList) {
+        return countFillColor(drawList, 0.28f, 0.78f, 1.0f, 0.85f) >= 3;
+    }
+
+    private static boolean hasOverflowMenu(DrawList drawList) {
+        return countFillColor(drawList, 0.045f, 0.052f, 0.070f, 0.98f) >= 1;
+    }
+
+    private static boolean hasFloatingPreview(DrawList drawList) {
+        return hasDropFill(drawList);
+    }
+
+    private static boolean hasDropFill(DrawList drawList) {
+        for (DrawCommand command : drawList.commands()) {
+            if ((command.type() == DrawCommandType.ROUNDED_RECT || command.type() == DrawCommandType.RECT)
+                    && command.paint() != null
+                    && !command.paint().isStroke()
+                    && almostEqual(command.paint().color().r(), 0.18f)
+                    && almostEqual(command.paint().color().g(), 0.56f)
+                    && almostEqual(command.paint().color().b(), 1.0f)
+                    && almostEqual(command.paint().color().a(), 0.22f)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static int countFillColor(DrawList drawList, float r, float g, float b, float a) {
+        int count = 0;
+        for (DrawCommand command : drawList.commands()) {
+            if (command.paint() != null
+                    && !command.paint().isStroke()
+                    && almostEqual(command.paint().color().r(), r)
+                    && almostEqual(command.paint().color().g(), g)
+                    && almostEqual(command.paint().color().b(), b)
+                    && almostEqual(command.paint().color().a(), a)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private static java.util.Set<String> docTitles(DrawList drawList) {
+        java.util.Set<String> titles = new java.util.LinkedHashSet<>();
+        for (DrawCommand command : drawList.commands()) {
+            if (command.type() != DrawCommandType.TEXT) continue;
+            String text = command.richText() != null ? command.richText().plainText() : command.text();
+            if (text != null && text.matches("Doc \\d+")) {
+                titles.add(text);
+            }
+        }
+        return titles;
+    }
+
+    private static boolean textPresent(DrawList drawList, String text) {
+        return docTitles(drawList).contains(text);
+    }
+
+    private static float[] textCenter(DrawList drawList, String text) {
+        for (DrawCommand command : drawList.commands()) {
+            if (command.type() != DrawCommandType.TEXT) continue;
+            String rendered = command.richText() != null ? command.richText().plainText() : command.text();
+            if (text.equals(rendered)) {
+                return new float[]{
+                        command.bounds().x() + command.bounds().width() * 0.5f,
+                        command.bounds().y() + command.bounds().height() * 0.5f};
+            }
+        }
+        throw new AssertionError("Text '" + text + "' not found in draw list");
     }
 
     private void testTinySplitLayoutDoesNotProduceNegativeBounds() {

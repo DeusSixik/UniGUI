@@ -17,13 +17,12 @@ import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.widget.Visibility;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
-import dev.sixik.unigui.widgets.render.ScrollBarState;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
@@ -285,36 +284,29 @@ public class ScrollBar extends Box {
     @Override
     protected void renderContent(RenderContext context) {
         applyTheme();
-        ScrollBarState state = snapshot();
         DrawScope draw = new DrawScope(context, transform(), layoutBounds());
         if (renderCustomVisual(draw)) {
             super.renderContent(context);
             return;
         }
-        if (renderStylePlan(context, ScrollBarState.class, state)) {
-            super.renderContent(context);
-            return;
+        float x = layoutBounds().x();
+        float y = layoutBounds().y();
+        float width = layoutBounds().width();
+        float height = layoutBounds().height();
+        draw.roundedRect(x, y, width, height, Math.min(width, height) * 0.5f,
+                Paint.fill(trackColor));
+        if (orientation == Orientation.VERTICAL) {
+            float thumbHeight = thumbLength(height);
+            float thumbY = y + (height - thumbHeight) * normalizedValue();
+            draw.roundedRect(x, thumbY, width, thumbHeight, width * 0.5f,
+                    Paint.fill(thumbColor));
+        } else {
+            float thumbWidth = thumbLength(width);
+            float thumbX = x + (width - thumbWidth) * normalizedValue();
+            draw.roundedRect(thumbX, y, thumbWidth, height, height * 0.5f,
+                    Paint.fill(thumbColor));
         }
-        WidgetsRender.scrollBar().render(draw, this);
         super.renderContent(context);
-    }
-
-    public ScrollBarState snapshot() {
-        return new ScrollBarState(
-                layoutBounds().x(),
-                layoutBounds().y(),
-                layoutBounds().width(),
-                layoutBounds().height(),
-                orientation,
-                min,
-                max,
-                value,
-                pageSize,
-                step,
-                normalizedValue(),
-                dragging,
-                trackColor.copy(),
-                thumbColor.copy());
     }
 
     private boolean isFocused() {

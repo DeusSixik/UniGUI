@@ -3,7 +3,6 @@ package dev.sixik.isf.client;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.*;
-import dev.sixik.unigui.api.render.plan.RenderPrimitive;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.render.WidgetRender;
@@ -108,31 +107,30 @@ public final class NineSliceButtonRenderer implements WidgetRender {
         float drawHeight = Math.min(Math.max(0.0f, bounds.height()), Math.max(0.0f, TextEngine.measureTextHeight(draw.context(), richText)));
         float drawX = contentX + Math.max(0.0f, contentWidth - drawWidth) * 0.5f;
         float drawY = bounds.y() + Math.max(0.0f, bounds.height() - drawHeight) * 0.5f;
-        richText(button, drawX, drawY, drawWidth, drawHeight,
-                contentX, bounds.y(), contentWidth, bounds.height()).render(draw);
+        drawClippedText(draw, button, drawX, drawY, drawWidth, drawHeight,
+                contentX, bounds.y(), contentWidth, bounds.height());
     }
 
-    private static RenderPrimitive.RichTextBlock richText(Button button,
-                                                          float x,
-                                                          float y,
-                                                          float width,
-                                                          float height,
-                                                          float clipX,
-                                                          float clipY,
-                                                          float clipWidth,
-                                                           float clipHeight) {
-        return new RenderPrimitive.RichTextBlock(
-                button.richText(),
-                x,
-                y,
-                width,
-                height,
-                Paint.fill(button.textColor()),
-                clipX,
-                clipY,
-                clipWidth,
-                clipHeight,
-                true);
+    private static void drawClippedText(DrawScope draw, Button button,
+                                        float x,
+                                        float y,
+                                        float width,
+                                        float height,
+                                        float clipX,
+                                        float clipY,
+                                        float clipWidth,
+                                        float clipHeight) {
+        RichText text = button.richText();
+        if (text == null || text.isEmpty()) return;
+        boolean clipped = clipWidth > 0.0f && clipHeight > 0.0f;
+        if (clipped) {
+            draw.pushTextClip(clipX, clipY, clipWidth, clipHeight);
+        }
+        try {
+            TextEngine.drawInline(draw, text, x, y, width, height, Paint.fill(button.textColor()));
+        } finally {
+            if (clipped) draw.popClip();
+        }
     }
     /**
      * Рендерит 9-slice подложку напрямую для любого виджета (например, HBox или VBox).

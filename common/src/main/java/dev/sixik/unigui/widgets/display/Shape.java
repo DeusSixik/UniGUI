@@ -4,12 +4,11 @@ import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
-import dev.sixik.unigui.widgets.render.ShapeState;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
 
@@ -116,25 +115,22 @@ public class Shape extends WidgetBase {
             if (renderCustomVisual(draw)) {
                 return;
             }
-            ShapeState state = snapshot();
-            if (renderStylePlan(context, ShapeState.class, state)) return;
-            WidgetsRender.shape().render(draw, this);
+            float x = layoutBounds().x();
+            float y = layoutBounds().y();
+            float width = layoutBounds().width();
+            float height = layoutBounds().height();
+            Paint paint = stroke
+                    ? Paint.stroke(color, strokeWidth)
+                    : Paint.fill(color);
+            switch (type == null ? Type.RECT : type) {
+                case RECT -> draw.rect(x, y, width, height, paint);
+                case ROUNDED_RECT -> draw.roundedRect(x, y, width, height, radius, paint);
+                case CIRCLE -> draw.circle(x, y, width, height, paint);
+                case LINE -> draw.line(x, y, x + width, y + height, paint);
+            }
         } finally {
             popOpacity(context);
         }
-    }
-
-    public ShapeState snapshot() {
-        return new ShapeState(
-                layoutBounds().x(),
-                layoutBounds().y(),
-                layoutBounds().width(),
-                layoutBounds().height(),
-                type,
-                color.copy(),
-                stroke,
-                strokeWidth,
-                radius);
     }
 
     public enum Type {

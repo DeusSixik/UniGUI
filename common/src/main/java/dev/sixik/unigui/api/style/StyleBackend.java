@@ -5,7 +5,7 @@ package dev.sixik.unigui.api.style;
  *
  * <p>Декларативный backend хранит только {@link Style}-свойства и может быть полностью отредактирован
  * как данные. Custom backend хранит те же свойства, но дополнительно ссылается на Java renderer по id.
- * Такой escape hatch нужен для эффектов, которые пока нельзя выразить через RenderPlan/StylePack.</p>
+ * Такой escape hatch нужен для эффектов, которые нельзя выразить style-свойствами.</p>
  */
 public sealed interface StyleBackend permits StyleBackend.Declarative, StyleBackend.Custom {
     /**

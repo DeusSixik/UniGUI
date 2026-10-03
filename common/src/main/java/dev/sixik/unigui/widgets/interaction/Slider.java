@@ -17,14 +17,13 @@ import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.widget.Visibility;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.widget.render.WidgetRole;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
-import dev.sixik.unigui.widgets.render.SliderState;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
@@ -255,41 +254,31 @@ public class Slider extends Box {
     @Override
     protected void renderContent(RenderContext context) {
         applyTheme();
-        SliderState state = snapshot();
         DrawScope draw = new DrawScope(context, transform(), layoutBounds());
         if (renderCustomVisual(draw)) {
             super.renderContent(context);
             return;
         }
-        if (renderStylePlan(context, SliderState.class, state)) {
-            super.renderContent(context);
-            return;
-        }
-        WidgetsRender.slider().render(draw, this);
+        float x = layoutBounds().x();
+        float y = layoutBounds().y();
+        float width = layoutBounds().width();
+        float height = Math.max(1.0f, layoutBounds().height());
+        float trackHeight = Math.max(2.0f, Math.min(4.0f, height * 0.25f));
+        float trackY = y + (height - trackHeight) * 0.5f;
+        float fillWidth = width * normalizedValue();
+        float knobX = x + fillWidth - KNOB_WIDTH * 0.5f;
+        draw.roundedRect(x, trackY, width, trackHeight, trackHeight * 0.5f,
+                Paint.fill(trackColor));
+        draw.roundedRect(x, trackY, fillWidth, trackHeight, trackHeight * 0.5f,
+                Paint.fill(fillColor));
+        draw.roundedRect(knobX, y + 2.0f, KNOB_WIDTH, Math.max(1.0f, height - 4.0f), 2.0f,
+                Paint.fill(knobColor));
         super.renderContent(context);
     }
 
     @Override
     protected WidgetRole renderRole() {
         return WidgetRole.SLIDER;
-    }
-
-    public SliderState snapshot() {
-        return new SliderState(
-                layoutBounds().x(),
-                layoutBounds().y(),
-                layoutBounds().width(),
-                layoutBounds().height(),
-                min,
-                max,
-                value,
-                step,
-                normalizedValue(),
-                KNOB_WIDTH,
-                dragging,
-                trackColor.copy(),
-                fillColor.copy(),
-                knobColor.copy());
     }
 
     private boolean isFocused() {

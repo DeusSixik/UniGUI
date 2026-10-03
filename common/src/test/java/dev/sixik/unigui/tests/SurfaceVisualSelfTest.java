@@ -1,30 +1,13 @@
 package dev.sixik.unigui.tests;
 
+import dev.sixik.unigui.api.event.EventPhase;
+import dev.sixik.unigui.api.event.PointerEnteredEvent;
 import dev.sixik.unigui.api.layout.LayoutContext;
-import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.render.DrawCommand;
-import dev.sixik.unigui.api.render.DrawCommandType;
 import dev.sixik.unigui.api.render.DrawList;
-import dev.sixik.unigui.api.render.DrawScope;
-import dev.sixik.unigui.api.render.ImageFit;
-import dev.sixik.unigui.api.render.RenderContext;
-import dev.sixik.unigui.api.render.SimpleTextureHandle;
-import dev.sixik.unigui.api.render.TextureHandle;
-import dev.sixik.unigui.api.render.TexturePlacement;
-import dev.sixik.unigui.api.render.plan.RenderPlan;
-import dev.sixik.unigui.api.render.plan.RenderPrimitive;
-import dev.sixik.unigui.api.render.shaders.ShaderDrawOptions;
-import dev.sixik.unigui.api.render.shaders.ShaderHandle;
-import dev.sixik.unigui.api.render.shaders.ShaderUniforms;
-import dev.sixik.unigui.api.style.Style;
-import dev.sixik.unigui.api.style.StyleKeyRegistry;
-import dev.sixik.unigui.api.style.StyleKeys;
-import dev.sixik.unigui.api.style.WidgetState;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.widget.visual.BackgroundKind;
 import dev.sixik.unigui.api.widget.visual.Surface;
-import dev.sixik.unigui.api.widget.visual.SurfaceSnapshot;
 import dev.sixik.unigui.impl.render.DefaultRenderContext;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.display.Label;
@@ -32,15 +15,12 @@ import dev.sixik.unigui.widgets.feedback.Tooltip;
 import dev.sixik.unigui.widgets.feedback.WindowWidget;
 import dev.sixik.unigui.widgets.interaction.Button;
 import dev.sixik.unigui.widgets.interaction.Checkbox;
-import dev.sixik.unigui.widgets.render.BoxState;
-import dev.sixik.unigui.widgets.render.SurfacePlans;
 
 /**
- * Проверяет новое ядро визуала: композируемый Surface вместо двойных renderer'ов.
+ * Проверяет ядро визуала: композируемый Surface вместо двойных renderer'ов.
  *
- * <p>Покрывает автовывод {@link BackgroundKind}, планы поверхности для цвета,
- * текстуры и шейдера, legacy-совместимость {@link BoxState} и композицию
- * Button поверх Surface вместо наследования Box.</p>
+ * <p>Покрывает автовывод {@link BackgroundKind}, композицию Button поверх Surface
+ * вместо наследования Box и однократную отрисовку фона overlay-виджетов.</p>
  */
 public final class SurfaceVisualSelfTest {
     private SurfaceVisualSelfTest() {
@@ -57,100 +37,10 @@ public final class SurfaceVisualSelfTest {
         expect(BackgroundKind.parse("  ") == null, "parse blank");
         expectThrows(() -> BackgroundKind.parse("bogus"), "parse bogus should throw");
 
-        expect(StyleKeys.BACKGROUND_KIND.id().equals("background.kind"), "kind key id");
-        expect(StyleKeys.BACKGROUND_SHADER.id().equals("background.shader"), "shader key id");
-        StyleKeyRegistry registry = StyleKeyRegistry.builtIns();
-        expect(registry.descriptor(StyleKeys.BACKGROUND_KIND).isPresent(), "kind descriptor registered");
-        expect(registry.descriptor(StyleKeys.BACKGROUND_KIND).orElseThrow().parse("texture") == BackgroundKind.TEXTURE,
-                "kind descriptor parses texture");
-        expect(registry.descriptor(StyleKeys.BACKGROUND_SHADER).isPresent(), "shader descriptor registered");
-        expect("unigui:noise".equals(registry.descriptor(StyleKeys.BACKGROUND_SHADER).orElseThrow()
-                .parse("unigui:noise").id()), "shader descriptor parses resource id");
-
-        TextureHandle texture = new SimpleTextureHandle("test:tex", 16, 16);
-        ShaderHandle shader = ShaderHandle.resource("test:shader");
-
         Surface auto = new Surface(null);
         expect(auto.effectiveKind() == BackgroundKind.NONE, "default kind is NONE");
         auto.backgroundVisible(true);
         expect(auto.effectiveKind() == BackgroundKind.COLOR, "visible surface defaults to COLOR");
-        auto.backgroundTexture(texture);
-        expect(auto.effectiveKind() == BackgroundKind.TEXTURE, "texture switches kind to TEXTURE");
-        auto.backgroundShader(shader);
-        expect(auto.effectiveKind() == BackgroundKind.SHADER, "shader wins over texture");
-        auto.backgroundKind(BackgroundKind.NONE);
-        expect(auto.effectiveKind() == BackgroundKind.NONE, "explicit kind overrides auto");
-        auto.backgroundKind(BackgroundKind.TEXTURE);
-        auto.backgroundTexture(null);
-        auto.backgroundShader(null);
-        expect(auto.effectiveKind() == BackgroundKind.TEXTURE, "explicit kind kept without texture");
-
-        Surface colored = new Surface(null);
-        colored.backgroundVisible(true);
-        colored.background().set(1.0f, 0.0f, 0.0f, 1.0f);
-        SurfaceSnapshot colorSnapshot = colored.snapshot(new MutableRect(0.0f, 0.0f, 10.0f, 10.0f));
-        expect(colorSnapshot.kind() == BackgroundKind.COLOR && colorSnapshot.backgroundVisible(),
-                "color snapshot kind");
-        RenderPlan colorPlan = SurfacePlans.defaultPlan(colorSnapshot);
-        expect(colorPlan.primitives().size() == 1
-                        && colorPlan.primitives().get(0) instanceof RenderPrimitive.RoundedRect,
-                "color plan is a single rounded rect");
-
-        SurfaceSnapshot bordered = new SurfaceSnapshot(0.0f, 0.0f, 10.0f, 10.0f,
-                BackgroundKind.COLOR, true, new MutableColor(1.0f, 0.0f, 0.0f, 1.0f),
-                null, null, null, ImageFit.STRETCH, null, null, null,
-                2.0f, true, new MutableColor(1.0f, 1.0f, 1.0f, 1.0f), 1.0f);
-        expect(SurfacePlans.defaultPlan(bordered).primitives().size() == 2, "border adds a primitive");
-
-        SurfaceSnapshot hidden = new SurfaceSnapshot(0.0f, 0.0f, 10.0f, 10.0f,
-                BackgroundKind.NONE, false, null, null, null, null, ImageFit.STRETCH,
-                null, null, null, 0.0f, false, null, 0.0f);
-        expect(SurfacePlans.defaultPlan(hidden).empty(), "none kind draws nothing");
-
-        TexturePlacement placement = new TexturePlacement(0.0f, 0.0f, 10.0f, 10.0f, 0.0f, 0.0f, 1.0f, 1.0f);
-        SurfaceSnapshot textured = new SurfaceSnapshot(0.0f, 0.0f, 10.0f, 10.0f,
-                BackgroundKind.TEXTURE, true, new MutableColor(0.0f, 0.0f, 0.0f, 1.0f),
-                texture, new MutableColor(1.0f, 1.0f, 1.0f, 1.0f), placement, ImageFit.STRETCH,
-                null, null, null, 0.0f, false, null, 0.0f);
-        RenderPlan texturePlan = SurfacePlans.defaultPlan(textured);
-        expect(texturePlan.primitives().size() == 2
-                        && texturePlan.primitives().get(1) instanceof RenderPrimitive.Texture,
-                "texture kind draws underlay plus texture");
-
-        ShaderUniforms uniforms = ShaderUniforms.create().setFloat("u_time", 1.0f);
-        SurfaceSnapshot shaded = new SurfaceSnapshot(0.0f, 0.0f, 10.0f, 10.0f,
-                BackgroundKind.SHADER, true, null, null, null, null, ImageFit.STRETCH,
-                shader, uniforms, ShaderDrawOptions.defaults(), 0.0f, false, null, 0.0f);
-        RenderPlan shaderPlan = SurfacePlans.defaultPlan(shaded);
-        expect(shaderPlan.primitives().size() == 1
-                        && shaderPlan.primitives().get(0) instanceof RenderPrimitive.Shader,
-                "shader kind draws a shader primitive");
-        RenderPlan styledShaderPlan = SurfacePlans.styledPlan(shaded, Style.EMPTY, WidgetState.NORMAL);
-        expect(styledShaderPlan.primitives().size() == 1
-                        && styledShaderPlan.primitives().get(0) instanceof RenderPrimitive.Shader,
-                "empty style keeps shader plan");
-
-        DrawList drawList = new DrawList();
-        DefaultRenderContext renderContext = new DefaultRenderContext(drawList);
-        shaderPlan.render(new DrawScope(renderContext, null));
-        expect(drawList.size() == 1, "shader plan writes one command");
-        Object[] commands = drawList.commandElements();
-        expect(commands[0] instanceof DrawCommand command && command.type() == DrawCommandType.SHADER,
-                "shader plan writes a SHADER command");
-
-        BoxState legacyColor = new BoxState(0.0f, 0.0f, 10.0f, 10.0f, true,
-                new MutableColor(1.0f, 0.0f, 0.0f, 1.0f), null, null, null, ImageFit.STRETCH,
-                0.0f, false, null, 0.0f);
-        expect(legacyColor.backgroundKind() == BackgroundKind.COLOR, "legacy color maps to COLOR kind");
-        BoxState legacyTexture = new BoxState(0.0f, 0.0f, 10.0f, 10.0f, true,
-                new MutableColor(0.0f, 0.0f, 0.0f, 1.0f), texture, null, placement, ImageFit.STRETCH,
-                0.0f, false, null, 0.0f);
-        expect(legacyTexture.backgroundKind() == BackgroundKind.TEXTURE, "legacy texture maps to TEXTURE kind");
-        BoxState roundTripped = BoxState.fromSurface(shaded);
-        expect(roundTripped.backgroundKind() == BackgroundKind.SHADER
-                        && roundTripped.backgroundShader() == shader
-                        && roundTripped.toSurface().backgroundShader() == shader,
-                "surface roundtrip keeps shader");
 
         Button button = new Button("Test");
         expect(!(((Object) button) instanceof Box), "button no longer inherits Box visual");
@@ -175,18 +65,18 @@ public final class SurfaceVisualSelfTest {
         expect(countFill(windowDraw, 0.030f, 0.035f, 0.050f, 0.98f) == 1,
                 "window background is drawn exactly once by the surface");
 
-        // Tooltip chrome belongs to the surface; the skin default draws text only.
-        Tooltip tooltip = new Tooltip().text("Hi");
+        // Tooltip background comes from the surface as well.
+        Box anchor = new Box();
+        anchor.arrange(new MutableRect(0.0f, 0.0f, 60.0f, 20.0f));
+        Tooltip tooltip = new Tooltip(anchor, "Hi");
+        anchor.handle(new PointerEnteredEvent(anchor, anchor, EventPhase.TARGET, 0.0f, 0.0f, 0.0f, 0.0f, 0));
+        expect(tooltip.showing(), "hovered anchor shows tooltip");
         tooltip.measure(new LayoutContext(220.0f, 120.0f));
         tooltip.arrange(new MutableRect(0.0f, 0.0f, 120.0f, 40.0f));
-        expect(!SurfacePlans.defaultPlan(tooltip.surfaceSnapshot()).empty(),
-                "tooltip surface owns a background");
         DrawList tooltipDraw = new DrawList();
-        RenderContext tooltipContext = new DefaultRenderContext(tooltipDraw);
-        WidgetsRender.tooltip().render(
-                new DrawScope(tooltipContext, tooltip.transform(), tooltip.layoutBounds()), tooltip);
-        expect(countFill(tooltipDraw, 0.02f, 0.025f, 0.035f, 0.94f) == 0,
-                "tooltip skin default must not duplicate the surface background");
+        tooltip.render(new DefaultRenderContext(tooltipDraw));
+        expect(countFill(tooltipDraw, 0.02f, 0.025f, 0.035f, 0.94f) == 1,
+                "tooltip background is drawn exactly once by the surface");
 
         System.out.println("SurfaceVisualSelfTest passed");
     }

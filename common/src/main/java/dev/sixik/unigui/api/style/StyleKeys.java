@@ -9,16 +9,16 @@ import dev.sixik.unigui.api.widget.visual.BackgroundKind;
 /**
  * Стандартные типизированные ключи style-системы.
  *
- * <p>Ключи используются Java builders, StylePack XML, RenderPlan builders и editor inspector'ом.
+ * <p>Ключи используются Java builders, StylePack XML и editor inspector'ом.
  * Строковые id лежат отдельно в {@link StyleIds.Key}, а этот класс добавляет Java-тип значения.</p>
  */
 public final class StyleKeys {
     /**
      * Опциональный renderer override для типа виджета, которому принадлежит стиль.
      *
-     * <p>Значение намеренно имеет тип {@link Object}: каждый виджет приводит его к своему
-     * конкретному renderer-интерфейсу. Renderer, назначенный прямо на instance виджета,
-     * остаётся приоритетнее этого ключа; ключ заменяет только дефолтный renderer из WidgetsRender.</p>
+     * <p>Значение — {@link dev.sixik.unigui.api.widget.render.WidgetRender} или его
+     * строковый id из registry. Renderer, назначенный прямо на instance виджета,
+     * остаётся приоритетнее этого ключа.</p>
      */
     public static final StyleKey<Object> RENDERER = StyleKey.of(StyleIds.Key.RENDERER, Object.class);
 

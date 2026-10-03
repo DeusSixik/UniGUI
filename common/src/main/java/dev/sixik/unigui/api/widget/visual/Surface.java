@@ -1,12 +1,9 @@
 package dev.sixik.unigui.api.widget.visual;
 
-import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
-import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.ImageFit;
 import dev.sixik.unigui.api.render.TextureHandle;
-import dev.sixik.unigui.api.render.TexturePlacement;
 import dev.sixik.unigui.api.render.shaders.ShaderDrawOptions;
 import dev.sixik.unigui.api.render.shaders.ShaderHandle;
 import dev.sixik.unigui.api.render.shaders.ShaderUniforms;
@@ -217,38 +214,5 @@ public final class Surface {
         if (backgroundShader != null) return BackgroundKind.SHADER;
         if (backgroundTexture != null) return BackgroundKind.TEXTURE;
         return BackgroundKind.COLOR;
-    }
-
-    /**
-     * Строит immutable snapshot для рендера.
-     *
-     * @param bounds границы виджета
-     * @return snapshot поверхности
-     */
-    public SurfaceSnapshot snapshot(RectView bounds) {
-        float x = bounds == null ? 0.0f : bounds.x();
-        float y = bounds == null ? 0.0f : bounds.y();
-        float w = bounds == null ? 0.0f : bounds.width();
-        float h = bounds == null ? 0.0f : bounds.height();
-        BackgroundKind kind = effectiveKind();
-        TexturePlacement placement = null;
-        if ((kind == BackgroundKind.TEXTURE || backgroundTexture != null) && backgroundTexture != null) {
-            placement = TexturePlacement.fit(backgroundTexture, backgroundTextureSource,
-                    new MutableRect(x, y, w, h), backgroundTextureFit);
-        }
-        return new SurfaceSnapshot(x, y, w, h,
-                kind, backgroundVisible,
-                background.copy(),
-                backgroundTexture,
-                backgroundTextureTint.copy(),
-                placement,
-                backgroundTextureFit,
-                backgroundShader,
-                shaderUniforms,
-                shaderOptions,
-                radius,
-                borderVisible,
-                borderColor.copy(),
-                borderWidth);
     }
 }

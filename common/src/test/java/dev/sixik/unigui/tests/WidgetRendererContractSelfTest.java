@@ -1,12 +1,13 @@
 package dev.sixik.unigui.tests;
 
+import dev.sixik.unigui.api.layout.LayoutContext;
+import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.render.DrawList;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.api.widget.render.WidgetRenderRegistry;
 import dev.sixik.unigui.api.widget.render.WidgetRole;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.impl.render.DefaultRenderContext;
 import dev.sixik.unigui.widgets.interaction.Button;
 import dev.sixik.unigui.widgets.interaction.Checkbox;
@@ -15,8 +16,6 @@ import dev.sixik.unigui.widgets.interaction.RadioButton;
 import dev.sixik.unigui.widgets.interaction.ToggleButton;
 import dev.sixik.unigui.widgets.interaction.ToggleSwitch;
 import dev.sixik.unigui.widgets.interaction.ToolButton;
-import dev.sixik.unigui.widgets.render.HoldButtonState;
-import dev.sixik.unigui.widgets.render.ToggleSwitchRenderState;
 
 /** Проверяет инварианты единого renderer-контракта: один интерфейс, роль, слот. */
 public final class WidgetRendererContractSelfTest {
@@ -118,34 +117,30 @@ public final class WidgetRendererContractSelfTest {
         toggleSwitch.renderer(switchRenderer);
         expect(toggleSwitch.renderer() == switchRenderer,
                 "ToggleSwitch should retain its renderer override");
-        ToggleSwitchRenderState switchState = new ToggleSwitchRenderState(
-                0.0f, 0.0f, 100.0f, 24.0f, "Switch", null,
-                34.0f, 18.0f, 14.0f, 6.0f, 42.0f, 10.0f,
-                null, false, false, true, false, null, null, 0.0f, false);
-        expect(switchState.thumbSize() == 14.0f && switchState.textWidth() == 42.0f,
-                "ToggleSwitch render state must keep thumb and text dimensions in their declared order");
 
         ToolButton toolButton = new ToolButton("Tool");
         toolButton.renderer(toolRenderer);
         expect(toolButton.renderer() == toolRenderer,
                 "ToolButton should retain its renderer override");
 
-        HoldButtonState holdState = new HoldButtonState(
-                0.0f, 0.0f, 100.0f, 24.0f, "Hold", null,
-                8.0f, 32.0f, 10.0f, null, false, false, true,
-                true, null, 3.0f, true, null, 1.0f,
-                0.5f, 0.25f, 0.65f, true, false, null);
-        expect(holdState.holdProgress() == 0.5f && holdState.textWidth() == 32.0f,
-                "HoldButton state should keep hold and button visual data independently");
+        HoldButton holdButton = new HoldButton("Hold");
+        holdButton.renderer(holdRenderer);
+        expect(holdButton.renderer() == holdRenderer,
+                "HoldButton should retain its renderer override");
 
-        // Skin defaults resolve through the unified facade.
-        expect(WidgetsRender.button() != null, "Button skin default must resolve");
-        expect(WidgetsRender.checkbox() != null, "Checkbox skin default must resolve");
-        expect(WidgetsRender.radioButton() != null, "RadioButton skin default must resolve");
-        expect(WidgetsRender.toggleButton() != null, "ToggleButton skin default must resolve");
-        expect(WidgetsRender.toggleSwitch() != null, "ToggleSwitch skin default must resolve");
-        expect(WidgetsRender.toolButton() != null, "ToolButton skin default must resolve");
-        expect(WidgetsRender.holdButton() != null, "HoldButton skin default must resolve");
+        // Custom renderers replace the whole hardcoded visual.
+        DrawList customDrawList = new DrawList();
+        DefaultRenderContext customContext = new DefaultRenderContext(customDrawList);
+        Button customButton = new Button("Custom");
+        customButton.measure(new LayoutContext(80.0f, 18.0f));
+        customButton.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 18.0f));
+        int[] customCalls = {0};
+        customButton.renderer((customDraw, customWidget) -> customCalls[0]++);
+        customButton.render(customContext);
+        expect(customCalls[0] == 1, "Custom renderer should replace the hardcoded visual");
+        customButton.renderer(null);
+        customButton.render(new DefaultRenderContext(new DrawList()));
+        expect(customCalls[0] == 1, "Reset renderer should restore the hardcoded visual");
 
         System.out.println("WidgetRendererContractSelfTest passed");
     }

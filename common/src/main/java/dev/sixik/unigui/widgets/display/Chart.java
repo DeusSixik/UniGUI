@@ -12,15 +12,17 @@ import dev.sixik.unigui.api.event.PointerExitedEvent;
 import dev.sixik.unigui.api.event.PointerMovedEvent;
 import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.input.PointerButton;
+import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.render.WidgetRender;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
-import dev.sixik.unigui.widgets.render.SparklineState;
+import dev.sixik.unigui.impl.text.TextEngine;
 import it.unimi.dsi.fastutil.floats.FloatArrayList;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -212,47 +214,94 @@ public final class Chart extends Sparkline {
         if (renderCustomVisual(draw)) {
             return;
         }
-        skinRenderer().render(draw, this);
+        float x = layoutBounds().x();
+        float y = layoutBounds().y();
+        float width = layoutBounds().width();
+        float height = layoutBounds().height();
+        draw.rect(x, y, width, height, Paint.stroke(axisColor, 1.0f));
+        if (type == Type.BAR) {
+            renderBarChart(draw);
+        } else {
+            draw.addLine(x + 4.0f, y + height - 10.0f,
+                    x + width - 4.0f, y + height - 10.0f,
+                    axisColor, 1.0f);
+            draw.addLine(x + 10.0f, y + 4.0f,
+                    x + 10.0f, y + height - 4.0f,
+                    axisColor, 1.0f);
+            renderSparklineVisual(draw);
+        }
     }
 
-    @Override
-    protected WidgetRender skinRenderer() {
-        return WidgetsRender.chart();
+    private void renderBarChart(DrawScope draw) {
+        PlotArea plot = plotArea();
+        draw.addLine(plot.x(), plot.baseline(), plot.x() + plot.width(), plot.baseline(), axisColor, 1.0f);
+        draw.addLine(plot.x() - 4.0f, plot.y(), plot.x() - 4.0f, plot.y() + plot.height(), axisColor, 1.0f);
+        List<Bar> bars = computeBars();
+        if (bars.isEmpty()) return;
+
+        Bar hovered = null;
+        for (Bar bar : bars) {
+            if (bar.hovered()) hovered = bar;
+            renderBar(draw, bar);
+            if (barValuesVisible && barValuePlacement != BarValuePlacement.NONE) {
+                renderBarValue(draw, bar);
+            }
+        }
+        if (hovered != null) {
+            renderBarTooltip(draw, hovered);
+        }
     }
 
-    @Override
-    public SparklineState snapshot() {
-        SparklineState base = super.snapshot();
-        return new SparklineState(
-                base.x(),
-                base.y(),
-                base.width(),
-                base.height(),
-                base.points(),
-                base.fillVisible(),
-                base.pointLabelsVisible(),
-                base.pointLabelPlacement(),
-                base.lineColor(),
-                base.fillColor(),
-                base.pointColor(),
-                base.hoveredPointColor(),
-                base.labelColor(),
-                tooltipBackground.copy(),
-                tooltipBorder.copy(),
-                base.pointRenderer(),
-                base.pointLabelRenderer(),
-                base.pointTooltipRenderer(),
-                type,
-                computeBars(),
-                barValuesVisible,
-                barValuePlacement,
-                axisColor.copy(),
-                barColor.copy(),
-                hoveredBarColor.copy(),
-                valueColor.copy(),
-                barRenderer,
-                barValueRenderer,
-                barTooltipRenderer);
+    private void renderBar(DrawScope draw, Bar bar) {
+        if (barRenderer != null) {
+            barRenderer.render(draw, bar);
+            return;
+        }
+        draw.addRectFilled(bar.x(), bar.y(), bar.width(), bar.height(), bar.hovered() ? hoveredBarColor : barColor);
+        if (bar.value() == 0.0f) {
+            draw.addLine(bar.x(), bar.baseline(), bar.x() + bar.width(), bar.baseline(), hoveredBarColor, 1.25f);
+        }
+    }
+
+    private void renderBarValue(DrawScope draw, Bar bar) {
+        if (barValueRenderer != null) {
+            barValueRenderer.render(draw, bar);
+            return;
+        }
+        String text = Sparkline.formatValue(bar.value());
+        float textWidth = Math.max(bar.width() + 8.0f, text.length() * 6.0f);
+        float textHeight = 10.0f;
+        float tx = bar.centerX() - textWidth * 0.5f;
+        float ty = switch (barValuePlacement) {
+            case CENTER -> bar.y() + Math.max(0.0f, bar.height() - textHeight) * 0.5f;
+            case BASE -> bar.value() >= 0.0f ? bar.baseline() - textHeight - 2.0f : bar.baseline() + 2.0f;
+            case BELOW -> bar.baseline() + 2.0f;
+            case HEAD, NONE -> bar.value() >= 0.0f ? bar.y() - textHeight - 2.0f : bar.y() + bar.height() + 2.0f;
+        };
+        ty = clamp(ty, layoutBounds().y() + 1.0f, layoutBounds().y() + layoutBounds().height() - textHeight - 1.0f);
+        TextEngine.draw(draw.context(), RichText.plain(text), tx, ty, textWidth, textHeight,
+                Paint.fill(valueColor), draw.transform(), Alignment.CENTER, Alignment.CENTER);
+    }
+
+    private void renderBarTooltip(DrawScope draw, Bar bar) {
+        if (barTooltipRenderer != null) {
+            barTooltipRenderer.render(draw, bar);
+            return;
+        }
+        String text = "#" + bar.index() + ": " + Sparkline.formatValue(bar.value());
+        float tooltipWidth = Math.max(48.0f, text.length() * 6.0f + 10.0f);
+        float tooltipHeight = 16.0f;
+        float tx = clamp(bar.centerX() - tooltipWidth * 0.5f,
+                layoutBounds().x(), layoutBounds().x() + layoutBounds().width() - tooltipWidth);
+        float ty = Math.max(layoutBounds().y(), bar.y() - tooltipHeight - 8.0f);
+        draw.roundedRect(tx, ty, tooltipWidth, tooltipHeight, 3.0f, Paint.fill(tooltipBackground));
+        draw.roundedRect(tx, ty, tooltipWidth, tooltipHeight, 3.0f, Paint.stroke(tooltipBorder, 1.0f));
+        draw.addText(text, tx + 5.0f, ty + 3.0f, tooltipWidth - 10.0f, tooltipHeight - 4.0f, valueColor);
+    }
+
+    private static float clamp(float value, float min, float max) {
+        if (max < min) return min;
+        return Math.max(min, Math.min(max, value));
     }
 
     private List<Bar> computeBars() {

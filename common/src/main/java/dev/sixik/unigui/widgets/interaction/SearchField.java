@@ -16,12 +16,12 @@ import dev.sixik.unigui.api.event.SearchSubmittedEvent;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.input.MouseCursor;
 import dev.sixik.unigui.api.input.PointerButton;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
-import dev.sixik.unigui.api.widget.render.WidgetRender;
+import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
-import dev.sixik.unigui.widgets.render.TextInputRenderType;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
 
@@ -168,13 +168,37 @@ public class SearchField extends TextInput {
     }
 
     @Override
-    protected WidgetRender skinRenderer() {
-        return WidgetsRender.searchField();
-    }
-
-    @Override
-    protected TextInputRenderType renderType() {
-        return TextInputRenderType.SEARCH_FIELD;
+    protected void renderTextContent(DrawScope draw,
+                                     float viewportX,
+                                     float viewportY,
+                                     float viewportWidth,
+                                     float viewportHeight,
+                                     float textY,
+                                     float textHeight) {
+        super.renderTextContent(draw, viewportX, viewportY, viewportWidth, viewportHeight, textY, textHeight);
+        if (!clearButtonVisible()) {
+            return;
+        }
+        float clearX = clearButtonX();
+        float clearY = clearButtonY();
+        float clearWidth = clearButtonWidth();
+        float clearHeight = clearButtonHeight();
+        if (clearButtonHovered()) {
+            draw.roundedRect(
+                    clearX - 2.0f,
+                    clearY - 2.0f,
+                    clearWidth + 4.0f,
+                    clearHeight + 4.0f,
+                    3.0f,
+                    Paint.fill(caretColor()));
+        }
+        TextEngine.drawInline(draw,
+                RichText.plain("x"),
+                clearX,
+                clearY,
+                clearWidth,
+                clearHeight,
+                Paint.fill(clearButtonHovered() ? textColor() : placeholderColor()));
     }
 
     @Override

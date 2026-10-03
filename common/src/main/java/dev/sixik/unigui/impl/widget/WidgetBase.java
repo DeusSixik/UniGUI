@@ -45,7 +45,6 @@ import dev.sixik.unigui.api.render.DrawCommand;
 import dev.sixik.unigui.api.render.DrawList;
 import dev.sixik.unigui.api.render.RenderBackend;
 import dev.sixik.unigui.api.render.RenderContext;
-import dev.sixik.unigui.api.render.plan.RenderPlan;
 import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.StylePack;
@@ -1331,9 +1330,8 @@ public abstract class WidgetBase implements Widget {
     /**
      * Resolves only an explicit renderer override from style data.
      *
-     * <p>This keeps the declarative path separate from the default renderer fallback:
-     * widgets try the instance renderer, then the style renderer, then the StylePack
-     * RenderPlan and only then fall back to {@code WidgetsRender}.</p>
+     * <p>Widgets try the instance renderer first, then the style renderer, and only
+     * then draw their own hardcoded visual.</p>
      *
      * @return style-declared renderer or {@code null}
      */
@@ -1364,30 +1362,6 @@ public abstract class WidgetBase implements Widget {
             value = localStyle.get(StyleKeys.RENDERER, null, value);
         }
         return WidgetRenderRegistry.global().resolve(role, value, null);
-    }
-
-    /**
-     * Tries to render the current widget through the active StylePack RenderPlan.
-     *
-     * @return {@code true}, if a non-empty declarative plan was rendered
-     */
-    protected <S> boolean renderStylePlan(RenderContext context, Class<S> stateType, S state) {
-        if (!stylePlansEnabled() || context == null || stateType == null || state == null) return false;
-        UIContext ui = uiContext();
-        Theme theme = ui == null ? Theme.EMPTY : ui.theme();
-        if (!(theme instanceof StylePack stylePack)) return false;
-        RenderPlan plan = stylePack.renderPlanFor(styleType(), styleId(), styleClasses(), stateType, state, styleState())
-                .orElse(RenderPlan.EMPTY);
-        if (plan.empty()) return false;
-        plan.render(new DrawScope(context, transform(), layoutBounds()));
-        return true;
-    }
-
-    /**
-     * Allows widgets with a local theme toggle to suppress StylePack RenderPlans.
-     */
-    protected boolean stylePlansEnabled() {
-        return true;
     }
 
     private List<Widget> styleLookupChain() {

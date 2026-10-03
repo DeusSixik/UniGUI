@@ -14,12 +14,8 @@ import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.render.WidgetRole;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
-import dev.sixik.unigui.impl.text.TextEngine;
-import dev.sixik.unigui.widgets.render.ButtonState;
-import dev.sixik.unigui.widgets.render.ToggleButtonRenderState;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
 
@@ -107,57 +103,8 @@ public class ToggleButton extends Button {
     }
 
     @Override
-    protected void renderContent(RenderContext context) {
-        applyTheme();
-        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
-        if (renderCustomVisual(draw)) {
-            renderChildren(context);
-            return;
-        }
-        ToggleButtonRenderState state = toggleButtonSnapshot(context);
-        if (renderStylePlan(context, ButtonState.class, state.toLegacyButtonState())) {
-            renderChildren(context);
-            return;
-        }
-        WidgetsRender.toggleButton().render(draw, this);
-        renderChildren(context);
-    }
-
-    @Override
     protected WidgetRole renderRole() {
         return WidgetRole.TOGGLE_BUTTON;
-    }
-
-    @Override
-    public ButtonState snapshot(RenderContext context) {
-        return toggleButtonSnapshot(context).toLegacyButtonState();
-    }
-
-    /** Собирает typed состояние toggle button для skin-default и RenderPlan. */
-    public ToggleButtonRenderState toggleButtonSnapshot(RenderContext context) {
-        return new ToggleButtonRenderState(
-                layoutBounds().x(),
-                layoutBounds().y(),
-                layoutBounds().width(),
-                layoutBounds().height(),
-                text(),
-                richText(),
-                textPaddingX(),
-                TextEngine.measureLineWidth(context, richText()),
-                TextEngine.measureTextHeight(context, richText()),
-                textColor().copy(),
-                pressed(),
-                hovered(),
-                enabled(),
-                checked,
-                checkedBackground.copy(),
-                uncheckedBackground.copy(),
-                backgroundVisible(),
-                background().copy(),
-                radius(),
-                borderVisible(),
-                borderColor().copy(),
-                borderWidth());
     }
 
     @Override

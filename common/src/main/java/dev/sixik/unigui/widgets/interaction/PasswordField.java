@@ -1,11 +1,8 @@
 package dev.sixik.unigui.widgets.interaction;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
-import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
-import dev.sixik.unigui.widgets.render.TextInputRenderType;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
 
@@ -59,15 +56,5 @@ public class PasswordField extends TextInput {
         if (editorModel().deleteSelectionIfNeeded()) {
             invalidate(InvalidationFlags.VISUAL);
         }
-    }
-
-    @Override
-    protected WidgetRender skinRenderer() {
-        return WidgetsRender.passwordField();
-    }
-
-    @Override
-    protected TextInputRenderType renderType() {
-        return TextInputRenderType.PASSWORD_FIELD;
     }
 }

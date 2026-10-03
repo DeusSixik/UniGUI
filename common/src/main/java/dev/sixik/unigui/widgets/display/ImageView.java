@@ -1,8 +1,6 @@
 package dev.sixik.unigui.widgets.display;
 
 import dev.sixik.unigui.api.render.TextureHandle;
-import dev.sixik.unigui.api.widget.render.WidgetRender;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.api.style.StyleIds;
 
@@ -15,10 +13,5 @@ public final class ImageView extends TextureWidget {
 
     public ImageView(TextureHandle texture) {
         super(texture);
-    }
-
-    @Override
-    protected WidgetRender skinRenderer() {
-        return WidgetsRender.imageView();
     }
 }

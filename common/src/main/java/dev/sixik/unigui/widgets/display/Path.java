@@ -3,13 +3,12 @@ package dev.sixik.unigui.widgets.display;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.render.VectorPath;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
-import dev.sixik.unigui.widgets.render.PathState;
 
 @XmlWidgetName("Path")
 public final class Path extends WidgetBase {
@@ -66,21 +65,13 @@ public final class Path extends WidgetBase {
             if (renderCustomVisual(draw)) {
                 return;
             }
-            WidgetsRender.path().render(draw, this);
+            Paint paint = stroke
+                    ? Paint.stroke(color, strokeWidth)
+                    : Paint.fill(color);
+            draw.path(path, layoutBounds().x(), layoutBounds().y(),
+                    layoutBounds().width(), layoutBounds().height(), paint);
         } finally {
             popOpacity(context);
         }
-    }
-
-    public PathState snapshot() {
-        return new PathState(
-                layoutBounds().x(),
-                layoutBounds().y(),
-                layoutBounds().width(),
-                layoutBounds().height(),
-                path.copy(),
-                color.copy(),
-                stroke,
-                strokeWidth);
     }
 }

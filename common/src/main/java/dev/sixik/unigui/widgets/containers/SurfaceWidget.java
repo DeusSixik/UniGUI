@@ -9,11 +9,14 @@ import dev.sixik.unigui.api.animation.TransitionSpec;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
+import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.ImageFit;
 import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.render.TextureFilter;
 import dev.sixik.unigui.api.render.TextureHandle;
+import dev.sixik.unigui.api.render.TexturePlacement;
 import dev.sixik.unigui.api.render.TextureWrap;
 import dev.sixik.unigui.api.render.shaders.ShaderDrawOptions;
 import dev.sixik.unigui.api.render.shaders.ShaderHandle;
@@ -28,13 +31,10 @@ import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.visual.BackgroundKind;
 import dev.sixik.unigui.api.widget.visual.Surface;
-import dev.sixik.unigui.api.widget.visual.SurfaceSnapshot;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlTextureAttributes;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.api.widget.render.WidgetRender;
-import dev.sixik.unigui.widgets.render.BoxState;
-import dev.sixik.unigui.widgets.render.SurfaceRenderers;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
@@ -573,7 +573,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
     /**
      * Включает или выключает отрисовку собственной поверхности.
      *
-     * @param boxVisualEnabled {@code true}, чтобы рисовать surface renderer/RenderPlan/fallback
+     * @param boxVisualEnabled {@code true}, чтобы рисовать поверхность виджета
      * @return этот виджет для fluent-настройки
      */
     @XmlAttribute(value = "boxVisualEnabled", category = "Appearance", defaultValue = "true", description = "Whether surface rendering is enabled.")
@@ -643,49 +643,72 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
     /**
      * Рендерит поверхность виджета перед контентом.
      *
-     * <p>Движок хрома: theme/style значения, затем StylePack RenderPlan и только
-     * потом default. Custom {@link WidgetRender} обрабатывается раньше в
-     * {@link #render(RenderContext)} и полностью заменяет поверхность.</p>
+     * <p>Хром рисуется напрямую из полей поверхности: цвет, текстура или шейдер
+     * по active {@link BackgroundKind} плюс рамка. Custom {@link WidgetRender}
+     * обрабатывается раньше в {@link #render(RenderContext)} и полностью
+     * заменяет поверхность.</p>
      *
      * @param context текущий render context
      */
     protected void renderSurface(RenderContext context) {
         applyTheme();
-        BoxState legacyState = boxState();
-        if (renderStylePlan(context, BoxState.class, legacyState)) return;
-        SurfaceRenderers.DEFAULT.render(
-                new DrawScope(context, transform(), layoutBounds()), this);
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        RectView bounds = layoutBounds();
+        float x = bounds.x();
+        float y = bounds.y();
+        float width = bounds.width();
+        float height = bounds.height();
+        float radius = surface.radius();
+        if (surface.backgroundVisible()) {
+            switch (surface.effectiveKind()) {
+                case COLOR -> draw.roundedRect(x, y, width, height, radius,
+                        Paint.fill(surface.background()));
+                case TEXTURE -> {
+                    if (surface.background().a() > 0.0f) {
+                        draw.roundedRect(x, y, width, height, radius,
+                                Paint.fill(surface.background()));
+                    }
+                    TextureHandle texture = surface.backgroundTexture();
+                    if (texture != null) {
+                        TexturePlacement placement = TexturePlacement.fit(texture,
+                                surface.backgroundTextureSource(),
+                                new MutableRect(x, y, width, height),
+                                surface.backgroundTextureFit());
+                        draw.texture(texture, placement, radius,
+                                Paint.fill(surface.backgroundTextureTint()));
+                    }
+                }
+                case SHADER -> {
+                    ShaderHandle shader = surface.backgroundShader();
+                    if (shader != null) {
+                        draw.shader(shader, x, y, width, height,
+                                surface.shaderUniforms(), surface.shaderOptions());
+                    } else {
+                        draw.roundedRect(x, y, width, height, radius,
+                                Paint.fill(surface.background()));
+                    }
+                }
+                case NONE -> {
+                }
+            }
+        }
+        if (surface.borderVisible()) {
+            draw.roundedRect(x, y, width, height, radius,
+                    Paint.stroke(surface.borderColor(), surface.borderWidth()));
+        }
     }
 
     /**
      * Рендерит контент виджета после поверхности.
      *
-     * <p>Базовая реализация рисует только детей. Контентные виджеты (кнопки,
-     * чекбоксы, слайдеры) переопределяют метод и рисуют свой foreground —
-     * без дублирования фона, который уже отрисован {@link #renderSurface}.</p>
+     * <p>Базовая реализация рисует только детей. Контентные виджеты переопределяют
+     * метод и рисуют свой foreground напрямую — без дублирования фона, который
+     * уже отрисован {@link #renderSurface}.</p>
      *
      * @param context текущий render context
      */
     protected void renderContent(RenderContext context) {
         renderChildren(context);
-    }
-
-    /**
-     * Создаёт immutable snapshot поверхности для renderer'а.
-     *
-     * @return snapshot поверхности на текущий кадр
-     */
-    public SurfaceSnapshot surfaceSnapshot() {
-        return surface.snapshot(layoutBounds());
-    }
-
-    /**
-     * Создаёт legacy snapshot поверхности для совместимости.
-     *
-     * @return состояние поверхности на текущий кадр
-     */
-    protected BoxState boxState() {
-        return BoxState.fromSurface(surface.snapshot(layoutBounds()));
     }
 
     /**
@@ -800,11 +823,6 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
     @Override
     protected WidgetRender styleRenderOverride() {
         return themeEnabled ? super.styleRenderOverride() : null;
-    }
-
-    @Override
-    protected boolean stylePlansEnabled() {
-        return themeEnabled;
     }
 
     /**

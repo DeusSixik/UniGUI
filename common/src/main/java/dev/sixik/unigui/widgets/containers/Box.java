@@ -39,7 +39,7 @@ public class Box extends SurfaceWidget<Box> {
     /** Style type id для StylePack selector/binding. */
     public static final String STYLE_TYPE = StyleIds.Widget.BOX;
 
-    /** Style property id, которые понимает стандартный Box RenderPlan. */
+    /** Style property id, используемые поверхностью Box. */
     public static final class StyleProperties {
         public static final String BACKGROUND_KIND = StyleIds.Key.BACKGROUND_KIND;
         public static final String BACKGROUND_COLOR = StyleIds.Key.BACKGROUND_COLOR;

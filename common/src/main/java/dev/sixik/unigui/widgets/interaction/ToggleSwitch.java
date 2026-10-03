@@ -11,13 +11,10 @@ import dev.sixik.unigui.api.style.StyleIds;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
-import dev.sixik.unigui.widgets.render.ButtonRenderType;
-import dev.sixik.unigui.widgets.render.ButtonState;
-import dev.sixik.unigui.widgets.render.ToggleSwitchRenderState;
 import dev.sixik.unigui.api.widget.render.WidgetRole;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 
@@ -206,53 +203,53 @@ public class ToggleSwitch extends ToggleButton {
     protected void renderContent(RenderContext context) {
         applyTheme();
         DrawScope draw = new DrawScope(context, transform(), layoutBounds());
-        if (renderCustomVisual(draw)) {
-            renderChildren(context);
-            return;
+        float x = layoutBounds().x();
+        float y = layoutBounds().y();
+        float width = layoutBounds().width();
+        float height = layoutBounds().height();
+        boolean hasText = hasLabel();
+        if (trackWidth > 0.0f && trackHeight > 0.0f && thumbSize > 0.0f) {
+            float gap = hasText ? Math.max(0.0f, labelGap) : 0.0f;
+            float textWidth = hasText ? TextEngine.measureLineWidth(draw.context(), richText()) : 0.0f;
+            float textHeight = hasText ? TextEngine.measureTextHeight(draw.context(), richText()) : 0.0f;
+            float labelWidth = hasText
+                    ? Math.min(Math.max(0.0f, textWidth), Math.max(0.0f, width - trackWidth - gap))
+                    : 0.0f;
+            float trackX = labelLeft ? x + labelWidth + gap : x;
+            float trackY = y + Math.max(0.0f, height - trackHeight) * 0.5f;
+            draw.roundedRect(trackX, trackY, trackWidth, trackHeight, trackHeight * 0.5f,
+                    Paint.fill(switchTrackColor()));
+
+            float thumbPadding = Math.max(1.0f, (trackHeight - thumbSize) * 0.5f);
+            float thumbTravel = Math.max(0.0f, trackWidth - thumbSize - thumbPadding * 2.0f);
+            float thumbX = trackX + thumbPadding + (checked() ? thumbTravel : 0.0f);
+            float thumbY = trackY + Math.max(0.0f, trackHeight - thumbSize) * 0.5f;
+            draw.circle(thumbX, thumbY, thumbSize, thumbSize, Paint.fill(thumbColor));
+
+            if (hasText) {
+                float contentX;
+                float contentWidth;
+                if (labelLeft) {
+                    contentX = x;
+                    contentWidth = labelWidth;
+                } else {
+                    contentX = trackX + trackWidth + gap;
+                    contentWidth = Math.max(0.0f, width - (contentX - x));
+                }
+                float drawHeight = Math.min(Math.max(0.0f, height), Math.max(0.0f, textHeight));
+                if (contentWidth > 0.0f && drawHeight > 0.0f) {
+                    float drawY = y + Math.max(0.0f, height - drawHeight) * 0.5f;
+                    renderLabel(draw, richText(), contentX, y, contentWidth, height,
+                            contentX, drawY, contentWidth, drawHeight, textColor());
+                }
+            }
         }
-        ToggleSwitchRenderState state = toggleSwitchSnapshot(context);
-        if (renderStylePlan(context, ButtonState.class, state.toLegacyButtonState())) {
-            renderChildren(context);
-            return;
-        }
-        WidgetsRender.toggleSwitch().render(draw, this);
         renderChildren(context);
     }
 
     @Override
     protected WidgetRole renderRole() {
         return WidgetRole.TOGGLE_SWITCH;
-    }
-
-    @Override
-    public ButtonState snapshot(RenderContext context) {
-        return toggleSwitchSnapshot(context).toLegacyButtonState();
-    }
-
-    /** Собирает состояние toggle switch для skin-default и RenderPlan. */
-    public ToggleSwitchRenderState toggleSwitchSnapshot(RenderContext context) {
-        return new ToggleSwitchRenderState(
-                layoutBounds().x(),
-                layoutBounds().y(),
-                layoutBounds().width(),
-                layoutBounds().height(),
-                text(),
-                richText(),
-                trackWidth,
-                trackHeight,
-                thumbSize,
-                hasLabel() ? labelGap : 0.0f,
-                TextEngine.measureLineWidth(context, richText()),
-                TextEngine.measureTextHeight(context, richText()),
-                textColor().copy(),
-                pressed(),
-                hovered(),
-                enabled(),
-                checked(),
-                switchTrackColor(),
-                thumbColor.copy(),
-                switchProgress,
-                labelLeft);
     }
 
     @Override

@@ -13,17 +13,16 @@ import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.render.WidgetRender;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.containers.PanelWidget;
 import dev.sixik.unigui.widgets.containers.StackPanel;
-import dev.sixik.unigui.widgets.render.ModalScrimState;
 
 import java.util.IdentityHashMap;
 import java.util.Map;
@@ -271,18 +270,11 @@ public final class OverlayLayer extends PanelWidget {
             styled.render(draw, this);
             return;
         }
-        WidgetsRender.modalScrim().render(draw, this);
-    }
-
-    public ModalScrimState modalScrimState() {
-        return new ModalScrimState(
-                layoutBounds().x(),
-                layoutBounds().y(),
-                layoutBounds().width(),
-                layoutBounds().height(),
-                windowManager.topModalWindow() != null,
-                windowManager.modalStackDepth(),
-                modalScrimColor.copy());
+        if (windowManager.topModalWindow() == null) return;
+        float width = layoutBounds().width();
+        float height = layoutBounds().height();
+        if (width <= 0.0f || height <= 0.0f) return;
+        draw.rect(layoutBounds().x(), layoutBounds().y(), width, height, Paint.fill(modalScrimColor));
     }
 
     void bringOverlayToFront(Widget overlay) {

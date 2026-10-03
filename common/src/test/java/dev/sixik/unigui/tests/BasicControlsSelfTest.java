@@ -58,8 +58,6 @@ import dev.sixik.unigui.api.render.DrawCommandType;
 import dev.sixik.unigui.api.render.DrawList;
 import dev.sixik.unigui.api.render.ImageFit;
 import dev.sixik.unigui.api.render.Paint;
-import dev.sixik.unigui.api.render.plan.RenderPrimitive;
-import dev.sixik.unigui.api.render.plan.RenderPlan;
 import dev.sixik.unigui.api.render.RenderBackend;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.render.RenderTarget;
@@ -97,7 +95,6 @@ import dev.sixik.unigui.api.widget.CheckboxState;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.render.WidgetRenderRegistry;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttributeDescriptor;
 import dev.sixik.unigui.api.xml.XmlWidgetAsset;
 import dev.sixik.unigui.api.xml.XmlWidgetAssetCatalog;
@@ -161,6 +158,7 @@ import dev.sixik.unigui.widgets.containers.GridBox;
 import dev.sixik.unigui.widgets.containers.HBox;
 import dev.sixik.unigui.widgets.display.Chart;
 import dev.sixik.unigui.widgets.display.Label;
+import dev.sixik.unigui.widgets.display.Separator;
 import dev.sixik.unigui.widgets.feedback.LoadingIndicator;
 import dev.sixik.unigui.widgets.graph.GraphView;
 import dev.sixik.unigui.widgets.graph.NodeGraph;
@@ -230,28 +228,8 @@ import dev.sixik.unigui.widgets.data.VirtualTableView;
 import dev.sixik.unigui.widgets.core.Widgets;
 import dev.sixik.unigui.widgets.feedback.WindowWidget;
 import dev.sixik.unigui.widgets.containers.WrapPanel;
-import dev.sixik.unigui.widgets.render.BoxRenderPlans;
-import dev.sixik.unigui.widgets.render.BorderRenderPlans;
-import dev.sixik.unigui.widgets.render.BorderState;
-import dev.sixik.unigui.widgets.render.ShapeRenderPlans;
-import dev.sixik.unigui.widgets.render.ShapeState;
-import dev.sixik.unigui.widgets.render.ScrollBarRenderPlans;
-import dev.sixik.unigui.widgets.render.ScrollBarState;
-import dev.sixik.unigui.widgets.render.TextureWidgetRenderPlans;
-import dev.sixik.unigui.widgets.render.TextureWidgetState;
-import dev.sixik.unigui.widgets.render.BoxState;
 import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.api.widget.render.WidgetRenderRegistry;
-import dev.sixik.unigui.widgets.render.ButtonRenderPlans;
-import dev.sixik.unigui.widgets.render.ButtonRenderType;
-import dev.sixik.unigui.widgets.render.ButtonState;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
-import dev.sixik.unigui.widgets.render.ProgressBarRenderPlans;
-import dev.sixik.unigui.widgets.render.ProgressBarState;
-import dev.sixik.unigui.widgets.render.SeparatorRenderPlans;
-import dev.sixik.unigui.widgets.render.SeparatorState;
-import dev.sixik.unigui.widgets.render.SliderRenderPlans;
-import dev.sixik.unigui.widgets.render.SliderState;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
@@ -438,44 +416,6 @@ public final class BasicControlsSelfTest {
         expect(new PasswordField() instanceof TextInput, "PasswordField should reuse TextInput shell directly");
         expect(new NumberField() instanceof TextInput, "NumberField should reuse TextInput shell directly");
         expect(new SearchField() instanceof TextInput, "SearchField should reuse TextInput shell directly");
-
-//        TextInputState textInputPlanState = new TextInputState(
-//                TextInputRenderType.TEXT_INPUT,
-//                0.0f,
-//                0.0f,
-//                100.0f,
-//                18.0f,
-//                4.0f,
-//                2.0f,
-//                80.0f,
-//                14.0f,
-//                4.0f,
-//                10.0f,
-//                0.0f,
-//                30.0f,
-//                "abc",
-//                RichText.plain("abc"),
-//                true,
-//                false,
-//                true,
-//                0,
-//                2,
-//                3,
-//                MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f),
-//                MutableColor.rgba(0.6f, 0.6f, 0.6f, 1.0f),
-//                MutableColor.rgba(0.2f, 0.6f, 1.0f, 1.0f),
-//                new float[]{0.0f, 6.0f, 12.0f, 18.0f},
-//                true,
-//                90.0f,
-//                3.0f,
-//                8.0f,
-//                10.0f);
-//        RenderPrimitive textInputPrimitive = TextInputRenderPlans.defaultPlan(textInputPlanState).primitives().get(0);
-//        expect(textInputPrimitive instanceof RenderPrimitive.Clip
-//                        && ((RenderPrimitive.Clip) textInputPrimitive).children().size() == 3,
-//                "TextInput render plan should clip selection, rich text and caret together");
-//        expect(TextInputRenderPlans.searchFieldPlan(textInputPlanState).primitives().size() == 2,
-//                "SearchField render plan should add clear-button text outside the text viewport clip");
     }
 
     private void testTextOverflowModes() {
@@ -823,120 +763,6 @@ public final class BasicControlsSelfTest {
         box.radius(6.0f);
         box.arrange(destination);
 
-        BoxState planState = new BoxState(
-                destination.x(), destination.y(), destination.width(), destination.height(),
-                true,
-                MutableColor.rgba(0.1f, 0.2f, 0.3f, 1.0f),
-                texture,
-                MutableColor.rgba(0.8f, 0.7f, 0.6f, 0.5f),
-                cover,
-                ImageFit.COVER,
-                6.0f,
-                true,
-                MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f),
-                1.0f);
-        expect(BoxRenderPlans.defaultPlan(planState).primitives().size() == 3,
-                "Box default render plan should expose background, texture and border primitives");
-        ButtonState buttonPlanState = new ButtonState(
-                ButtonRenderType.BUTTON,
-                4.0f,
-                5.0f,
-                80.0f,
-                18.0f,
-                "Render Plan",
-                RichText.plain("Render Plan"),
-                8.0f,
-                44.0f,
-                10.0f,
-                MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f),
-                false,
-                false,
-                true,
-                false,
-                false,
-                0.0f,
-                0.0f,
-                0.0f,
-                MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f),
-                MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f));
-        expect(ButtonRenderPlans.defaultPlan(buttonPlanState).primitives().size() == 1,
-                "Button default render plan should expose a rich-text primitive");
-        ButtonState indicatorButtonPlanState = new ButtonState(
-                ButtonRenderType.CHECKBOX,
-                4.0f,
-                5.0f,
-                80.0f,
-                18.0f,
-                "Render Plan",
-                RichText.plain("Render Plan"),
-                8.0f,
-                44.0f,
-                10.0f,
-                MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f),
-                false,
-                false,
-                true,
-                true,
-                false,
-                12.0f,
-                6.0f,
-                4.0f,
-                MutableColor.rgba(0.2f, 0.6f, 1.0f, 1.0f),
-                MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f));
-        expect(ButtonRenderPlans.checkboxPlan(indicatorButtonPlanState).primitives().size() == 3,
-                "Checkbox render plan should expose border, mark and label primitives");
-        expect(ButtonRenderPlans.radioButtonPlan(indicatorButtonPlanState).primitives().size() == 3,
-                "Radio button render plan should expose ring, fill and label primitives");
-        expect(ButtonRenderPlans.toggleSwitchPlan(indicatorButtonPlanState).primitives().size() == 3,
-                "Toggle switch render plan should expose track, thumb and label primitives");
-        expect(BorderRenderPlans.defaultPlan(new BorderState(
-                        1.0f,
-                        2.0f,
-                        30.0f,
-                        12.0f,
-                        MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f),
-                        2.0f,
-                        4.0f)).primitives().get(0) instanceof RenderPrimitive.RoundedRect,
-                "Border render plan should expose a rounded stroke primitive");
-        expect(ShapeRenderPlans.defaultPlan(new ShapeState(
-                        0.0f,
-                        0.0f,
-                        10.0f,
-                        8.0f,
-                        dev.sixik.unigui.widgets.display.Shape.Type.LINE,
-                        MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f),
-                        true,
-                        1.0f,
-                        0.0f)).primitives().get(0) instanceof RenderPrimitive.Line,
-                "Shape render plan should expose line primitives for LINE shapes");
-        expect(ScrollBarRenderPlans.defaultPlan(new ScrollBarState(
-                        0.0f,
-                        0.0f,
-                        6.0f,
-                        100.0f,
-                        Orientation.VERTICAL,
-                        0.0f,
-                        100.0f,
-                        50.0f,
-                        20.0f,
-                        5.0f,
-                        0.5f,
-                        false,
-                        MutableColor.rgba(0.1f, 0.1f, 0.1f, 1.0f),
-                        MutableColor.rgba(0.8f, 0.8f, 0.8f, 1.0f))).primitives().size() == 2,
-                "ScrollBar render plan should expose track and thumb primitives");
-        expect(TextureWidgetRenderPlans.defaultPlan(new TextureWidgetState(
-                        destination.x(),
-                        destination.y(),
-                        destination.width(),
-                        destination.height(),
-                        texture,
-                        destination,
-                        ImageFit.COVER,
-                        6.0f,
-                        MutableColor.rgba(0.8f, 0.7f, 0.6f, 0.5f),
-                        cover)).primitives().get(0) instanceof RenderPrimitive.Texture,
-                "TextureWidget render plan should expose a texture primitive");
         DrawList drawList = new DrawList();
         box.render(new DefaultRenderContext(drawList));
         expect(drawList.size() == 3, "Textured Box should emit color, texture and border commands");
@@ -2524,20 +2350,11 @@ public final class BasicControlsSelfTest {
                 .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.4f, 0.2f, 0.8f, 1.0f))
                 .put(StyleKeys.TEXT_COLOR, MutableColor.rgba(0.9f, 0.9f, 0.2f, 1.0f));
         final int[] themeRendererCalls = {0};
-        WidgetRender themeButtonRenderer = (draw, widget) -> {
-            themeRendererCalls[0]++;
-            WidgetsRender.button().render(draw, widget);
-        };
+        WidgetRender themeButtonRenderer = (draw, widget) -> themeRendererCalls[0]++;
         final int[] localRendererCalls = {0};
-        WidgetRender localButtonRenderer = (draw, widget) -> {
-            localRendererCalls[0]++;
-            WidgetsRender.button().render(draw, widget);
-        };
+        WidgetRender localButtonRenderer = (draw, widget) -> localRendererCalls[0]++;
         final int[] instanceRendererCalls = {0};
-        WidgetRender instanceButtonRenderer = (draw, widget) -> {
-            instanceRendererCalls[0]++;
-            WidgetsRender.button().render(draw, widget);
-        };
+        WidgetRender instanceButtonRenderer = (draw, widget) -> instanceRendererCalls[0]++;
 
         MutableStyle customRendererStyle = new MutableStyle()
                 .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.4f, 0.2f, 0.8f, 1.0f))
@@ -2654,75 +2471,6 @@ public final class BasicControlsSelfTest {
         expect(pack.eventAnimation("primaryButton", Button.AnimationEvents.ON_CLICK).equals("pulse")
                         && pack.animation("pulse").orElseThrow().tweens().size() == 2,
                 "StylePack should keep event animation links as editable data");
-        WidgetsRender.registerDefaults();
-        ButtonState stylePlanButtonState = new ButtonState(
-                ButtonRenderType.BUTTON,
-                0.0f,
-                0.0f,
-                80.0f,
-                18.0f,
-                "Styled",
-                RichText.plain("Styled"),
-                8.0f,
-                36.0f,
-                10.0f,
-                MutableColor.rgba(0.0f, 0.0f, 0.0f, 1.0f),
-                false,
-                false,
-                true,
-                false,
-                false,
-                0.0f,
-                0.0f,
-                0.0f,
-                MutableColor.rgba(0.0f, 0.0f, 0.0f, 1.0f),
-                MutableColor.rgba(0.0f, 0.0f, 0.0f, 1.0f));
-        RenderPlan buttonStylePlan = pack.renderPlanFor(
-                StyleIds.Widget.BUTTON,
-                ButtonState.class,
-                stylePlanButtonState,
-                WidgetState.NORMAL).orElseThrow();
-        expect(buttonStylePlan.primitives().get(0) instanceof RenderPrimitive.RichTextBlock,
-                "StylePack should resolve Button to the registered rich-text render plan");
-        RenderPrimitive.RichTextBlock styledText = (RenderPrimitive.RichTextBlock) buttonStylePlan.primitives().get(0);
-        expect(near(styledText.paint().color().r(), 0.92f) && near(styledText.paint().color().g(), 0.96f),
-                "StylePack render plan should apply resolved Button text color before rendering");
-
-        StylePack boxPack = StylePack.create("box-plan")
-                .putStyle("boxCard", new MutableStyle()
-                        .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.25f, 0.35f, 0.45f, 1.0f))
-                        .put(StyleKeys.BORDER_COLOR, MutableColor.rgba(0.75f, 0.85f, 0.95f, 1.0f))
-                        .put(StyleKeys.BORDER_WIDTH, 3.0f)
-                        .put(StyleKeys.RADIUS, 9.0f))
-                .bind(StyleIds.Widget.BOX, "boxCard");
-        BoxState stylePlanBoxState = new BoxState(
-                2.0f,
-                3.0f,
-                50.0f,
-                20.0f,
-                true,
-                MutableColor.rgba(0.0f, 0.0f, 0.0f, 1.0f),
-                null,
-                MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f),
-                null,
-                ImageFit.STRETCH,
-                0.0f,
-                true,
-                MutableColor.rgba(0.0f, 0.0f, 0.0f, 1.0f),
-                1.0f);
-        RenderPlan boxStylePlan = boxPack.renderPlanFor(
-                StyleIds.Widget.BOX,
-                BoxState.class,
-                stylePlanBoxState,
-                WidgetState.NORMAL).orElseThrow();
-        RenderPrimitive.RoundedRect styledBoxBackground = (RenderPrimitive.RoundedRect) boxStylePlan.primitives().get(0);
-        RenderPrimitive.RoundedRect styledBoxBorder = (RenderPrimitive.RoundedRect) boxStylePlan.primitives().get(1);
-        expect(near(styledBoxBackground.paint().color().r(), 0.25f)
-                        && near(styledBoxBackground.radius(), 9.0f)
-                        && near(styledBoxBorder.paint().strokeWidth(), 3.0f),
-                "StylePack render plan should apply Box color, radius and border keys to primitives");
-        expect(boxPack.renderPlanFor(StyleIds.Widget.BOX, ButtonState.class, stylePlanButtonState, WidgetState.NORMAL).isEmpty(),
-                "StylePack render plan registry should reject mismatched render-state types");
         expect(pack.styleDefinition("neonButton").orElseThrow().customRenderer()
                         && pack.styleDefinition("neonButton").orElseThrow().rendererId().equals("demo:neon_button"),
                 "StyleDefinition should preserve custom renderer ids as an escape hatch");
@@ -2736,33 +2484,6 @@ public final class BasicControlsSelfTest {
         button.render(new DefaultRenderContext(drawList));
         expect(hasFillColor(drawList, 0.05f, 0.18f, 0.32f, 1.0f),
                 "StylePack should be usable directly as a UIContext theme");
-        class RuntimeStyleButton extends Button {
-            private int planHits;
-
-            RuntimeStyleButton(String text) {
-                super(text);
-            }
-
-            @Override
-            protected String styleType() {
-                return StyleIds.Widget.BUTTON;
-            }
-
-            @Override
-            protected <S> boolean renderStylePlan(RenderContext context, Class<S> stateType, S state) {
-                boolean rendered = super.renderStylePlan(context, stateType, state);
-                if (rendered) planHits++;
-                return rendered;
-            }
-        }
-        DefaultUIContext runtimePlanContext = new DefaultUIContext();
-        RuntimeStyleButton runtimePlanButton = new RuntimeStyleButton("Plan");
-        runtimePlanButton.setUiContextInternal(runtimePlanContext);
-        runtimePlanButton.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 18.0f));
-        runtimePlanContext.theme(pack, runtimePlanButton);
-        runtimePlanButton.render(new DefaultRenderContext(new DrawList()));
-        expect(runtimePlanButton.planHits == 1,
-                "Button runtime rendering should use StylePack RenderPlan before default renderer fallback");
 
         long versionBefore = pack.version();
         pack.putStyle("Button", new MutableStyle().put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.2f, 0.3f, 0.4f, 1.0f)))
@@ -2829,12 +2550,11 @@ public final class BasicControlsSelfTest {
         expect(pack.eventAnimation("PrimaryButton", Button.AnimationEvents.ON_CLICK).equals("button.press")
                         && pack.animation("button.press").orElseThrow().tweens().size() == 2,
                 "StylePack XML should parse event animation links and tweens");
-        WidgetsRender.registerDefaults();
-        expect(WidgetRenderRegistry.global().renderer("unigui:button/default").orElseThrow() == WidgetsRender.button(),
-                "WidgetsRender should register stable ids for built-in default renderers");
         Counter rendererCounter = new Counter();
         WidgetRender countingRenderer = (draw, widget) -> rendererCounter.count++;
         WidgetRenderRegistry.global().register("demo:primary_button", countingRenderer);
+        expect(WidgetRenderRegistry.global().renderer("demo:primary_button").orElseThrow() == countingRenderer,
+                "WidgetRenderRegistry should resolve registered renderer ids");
         try {
             DefaultUIContext uiContext = new DefaultUIContext();
             Button styledButton = new Button("Registry");
@@ -3816,23 +3536,11 @@ public final class BasicControlsSelfTest {
         uiContext.routedEvents().dispatch(new KeyPressedEvent(slider, KeyCodes.LEFT, 0, 0));
         expect(slider.value() == 95.0f, "Focused Slider should nudge left by step");
         expect(changes.count >= 3 && changes.lastValue == 95.0f, "Slider should emit value changed events");
-        SliderState sliderPlanState = new SliderState(
-                0.0f,
-                0.0f,
-                200.0f,
-                20.0f,
-                0.0f,
-                100.0f,
-                95.0f,
-                5.0f,
-                0.95f,
-                10.0f,
-                false,
-                MutableColor.rgba(0.2f, 0.2f, 0.2f, 1.0f),
-                MutableColor.rgba(0.2f, 0.6f, 1.0f, 1.0f),
-                MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f));
-        expect(SliderRenderPlans.defaultPlan(sliderPlanState).primitives().size() == 3,
-                "Slider render plan should expose track, fill and knob primitives");
+        slider.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 20.0f));
+        DrawList sliderDrawList = new DrawList();
+        slider.render(new DefaultRenderContext(sliderDrawList));
+        expect(sliderDrawList.size() >= 3,
+                "Slider should emit track, fill and knob commands when rendered");
     }
 
     private void testScrollViewBubbledWheelInput() {
@@ -5012,23 +4720,15 @@ public final class BasicControlsSelfTest {
                 "DockingRoot Ctrl+W shortcut should close the active tab without breaking the dock tree");
 
         DockingRoot overflowRoot = new DockingRoot();
-        final dev.sixik.unigui.widgets.render.DockPaneState[] capturedPaneState = new dev.sixik.unigui.widgets.render.DockPaneState[1];
-        overflowRoot.paneRenderer((draw, widget) -> {
-            java.util.List<dev.sixik.unigui.widgets.render.DockPaneState> snapshots =
-                    ((DockingRoot) widget).paneSnapshots();
-            capturedPaneState[0] = snapshots.isEmpty() ? null : snapshots.get(0);
-        });
         for (int i = 0; i < 6; i++) {
             overflowRoot.addDocument("doc" + i, "Doc " + i, testDockContent("Doc body " + i));
         }
         overflowRoot.measure(new LayoutContext(120.0f, 80.0f));
         overflowRoot.arrange(new MutableRect(0.0f, 0.0f, 120.0f, 80.0f));
-        overflowRoot.render(new DefaultRenderContext(new DrawList()));
-        expect(capturedPaneState[0] != null
-                        && capturedPaneState[0].overflow()
-                        && capturedPaneState[0].firstVisibleTab() == 0
-                        && capturedPaneState[0].lastVisibleTab() < capturedPaneState[0].tabs().size() - 1,
-                "DockingRoot tab overflow strategy should expose a clipped visible range in renderer state");
+        DrawList overflowDrawList = new DrawList();
+        overflowRoot.render(new DefaultRenderContext(overflowDrawList));
+        expect(countFillColor(overflowDrawList, 0.28f, 0.78f, 1.0f, 0.85f) >= 3,
+                "DockingRoot tab overflow strategy should render an overflow button with indicator dots");
 
         DockLayoutSnapshot workspaceSnapshot = workspace.manager().snapshot();
         String encodedSnapshot = DockLayoutSnapshotCodec.encode(workspaceSnapshot);
@@ -5087,33 +4787,28 @@ public final class BasicControlsSelfTest {
         DefaultUIContext uxContext = new DefaultUIContext();
         DockingRoot uxRoot = new DockingRoot();
         uxRoot.setUiContextInternal(uxContext);
-        final dev.sixik.unigui.widgets.render.DockPaneState[] uxPaneState = new dev.sixik.unigui.widgets.render.DockPaneState[1];
-        final dev.sixik.unigui.widgets.render.DockingRootState[] uxRootState = new dev.sixik.unigui.widgets.render.DockingRootState[1];
-        uxRoot.paneRenderer((draw, widget) -> {
-            java.util.List<dev.sixik.unigui.widgets.render.DockPaneState> snapshots =
-                    ((DockingRoot) widget).paneSnapshots();
-            uxPaneState[0] = snapshots.isEmpty() ? null : snapshots.get(0);
-        });
-        uxRoot.renderer((draw, widget) -> uxRootState[0] = ((DockingRoot) widget).rootState());
         uxRoot.addDocument("ux-a", "UX A", testDockContent("UX A body"))
                 .addDocument("ux-b", "UX B", testDockContent("UX B body"))
                 .selectPane("ux-a");
         uxRoot.measure(new LayoutContext(240.0f, 100.0f));
         uxRoot.arrange(new MutableRect(0.0f, 0.0f, 240.0f, 100.0f));
         uxContext.routedEvents().dispatch(new PointerMovedEvent(uxRoot, 8.0f, 6.0f, 8.0f, 6.0f, 0));
-        uxRoot.render(new DefaultRenderContext(new DrawList()));
-        expect(uxPaneState[0].tabs().get(0).hovered() && uxPaneState[0].tabs().get(0).active(),
-                "DockingRoot renderer state should expose hovered and active tab flags");
+        DrawList hoveredDrawList = new DrawList();
+        uxRoot.render(new DefaultRenderContext(hoveredDrawList));
+        expect(countFillColor(hoveredDrawList, 0.18f, 0.24f, 0.34f, 0.96f) >= 1,
+                "DockingRoot should highlight the hovered active tab");
         uxContext.routedEvents().dispatch(new PointerPressedEvent(uxRoot, 8.0f, 6.0f, 8.0f, 6.0f, 0, PointerButton.PRIMARY));
-        uxRoot.render(new DefaultRenderContext(new DrawList()));
-        expect(uxPaneState[0].tabs().get(0).pressed(),
-                "DockingRoot renderer state should expose pressed tab flag");
+        DrawList pressedDrawList = new DrawList();
+        uxRoot.render(new DefaultRenderContext(pressedDrawList));
+        expect(countFillColor(pressedDrawList, 0.08f, 0.11f, 0.17f, 0.98f) >= 1,
+                "DockingRoot should mark the pressed tab");
         uxContext.routedEvents().dispatch(new PointerMovedEvent(uxRoot, 160.0f, 40.0f, 160.0f, 40.0f, 0));
-        uxRoot.render(new DefaultRenderContext(new DrawList()));
-        expect(uxPaneState[0].tabs().get(0).dragging()
-                        && uxRootState[0].dockDragging()
-                        && uxRootState[0].dropPreviewVisible(),
-                "DockingRoot renderer state should expose dragging tab and root preview flags");
+        DrawList draggingDrawList = new DrawList();
+        uxRoot.render(new DefaultRenderContext(draggingDrawList));
+        expect(countStrokeColor(draggingDrawList, 0.25f, 0.78f, 1.0f, 0.92f) >= 1
+                        && uxRoot.dockDropPreview().valid()
+                        && uxRoot.dockDropPreview().sourcePaneId().equals("ux-a"),
+                "DockingRoot should underline the dragged tab and expose a live drop preview");
         uxContext.routedEvents().dispatch(new PointerReleasedEvent(uxRoot, 160.0f, 40.0f, 160.0f, 40.0f, 0, PointerButton.PRIMARY));
     }
 
@@ -5240,23 +4935,12 @@ public final class BasicControlsSelfTest {
         uiContext.routedEvents().dispatch(new PointerReleasedEvent(graph,
                 22.0f, 32.0f, 22.0f, 32.0f, 2, PointerButton.MIDDLE));
 
-        final dev.sixik.unigui.widgets.render.NodeGraphState[] backgroundState = new dev.sixik.unigui.widgets.render.NodeGraphState[1];
-        final dev.sixik.unigui.widgets.render.NodeGraphState[] foregroundState = new dev.sixik.unigui.widgets.render.NodeGraphState[1];
-        final int[] nodeGraphRenderCalls = {0};
-        graph.renderer((draw, widget) -> {
-            dev.sixik.unigui.widgets.graph.NodeGraph nodeGraph = (dev.sixik.unigui.widgets.graph.NodeGraph) widget;
-            if (nodeGraphRenderCalls[0]++ % 2 == 0) {
-                backgroundState[0] = nodeGraph.snapshot(dev.sixik.unigui.widgets.render.NodeGraphRenderPhase.BACKGROUND);
-            } else {
-                foregroundState[0] = nodeGraph.snapshot(dev.sixik.unigui.widgets.render.NodeGraphRenderPhase.FOREGROUND);
-            }
-        });
-        graph.render(new DefaultRenderContext(new DrawList()));
-        expect(backgroundState[0] != null
-                        && foregroundState[0] != null
-                        && foregroundState[0].items().size() == 2
-                        && foregroundState[0].items().stream().anyMatch(item -> item.id().equals("label") && item.selected()),
-                "NodeGraph renderer should receive immutable background and foreground snapshots");
+        DrawList nodeGraphDrawList = new DrawList();
+        graph.render(new DefaultRenderContext(nodeGraphDrawList));
+        expect(!nodeGraphDrawList.commands().isEmpty()
+                        && graph.items().size() == 2
+                        && graph.items().stream().anyMatch(item -> item.id().equals("label") && item.selected()),
+                "NodeGraph should render background and foreground layers for model items");
     }
 
     private void testNodeGraphPhaseTwoConnectionContracts() {
@@ -5317,27 +5001,25 @@ public final class BasicControlsSelfTest {
                         && lastTo.get().equals(new NodeGraphPortRef("sink", "in")),
                 "NodeGraph should create a valid connection on release over a compatible input port");
 
-        final dev.sixik.unigui.widgets.render.NodeGraphState[] foregroundState = new dev.sixik.unigui.widgets.render.NodeGraphState[1];
-        graph.renderer((draw, widget) -> foregroundState[0] =
-                ((dev.sixik.unigui.widgets.graph.NodeGraph) widget)
-                        .snapshot(dev.sixik.unigui.widgets.render.NodeGraphRenderPhase.FOREGROUND));
-        graph.render(new DefaultRenderContext(new DrawList()));
-        expect(foregroundState[0] != null
-                        && foregroundState[0].ports().size() == 3
-                        && foregroundState[0].connections().size() == 1
-                        && !foregroundState[0].connectionPreview().visible(),
-                "NodeGraph renderer state should expose ports, connections and hidden preview when idle");
-        float idlePortRadius = foregroundState[0].ports().get(0).radius();
+        DrawList portDrawList = new DrawList();
+        graph.render(new DefaultRenderContext(portDrawList));
+        expect(graph.items().stream().mapToInt(item -> item.ports().size()).sum() == 3
+                        && graph.connections().size() == 1
+                        && !graph.connectionDragging(),
+                "NodeGraph model should expose ports, connections and idle preview state");
+        float idlePortWidth = maxCircleWidth(portDrawList);
         graph.viewport(0.0f, 0.0f, 2.0f);
         graph.arrange(new MutableRect(0.0f, 0.0f, 320.0f, 180.0f));
-        graph.render(new DefaultRenderContext(new DrawList()));
-        float zoomedInPortRadius = foregroundState[0].ports().get(0).radius();
+        DrawList zoomedInDrawList = new DrawList();
+        graph.render(new DefaultRenderContext(zoomedInDrawList));
+        float zoomedInPortWidth = maxCircleWidth(zoomedInDrawList);
         graph.viewport(0.0f, 0.0f, 0.5f);
         graph.arrange(new MutableRect(0.0f, 0.0f, 320.0f, 180.0f));
-        graph.render(new DefaultRenderContext(new DrawList()));
-        float zoomedOutPortRadius = foregroundState[0].ports().get(0).radius();
-        expect(near(zoomedInPortRadius, idlePortRadius * 2.0f)
-                        && near(zoomedOutPortRadius, idlePortRadius * 0.5f),
+        DrawList zoomedOutDrawList = new DrawList();
+        graph.render(new DefaultRenderContext(zoomedOutDrawList));
+        float zoomedOutPortWidth = maxCircleWidth(zoomedOutDrawList);
+        expect(near(zoomedInPortWidth, idlePortWidth * 2.0f)
+                        && near(zoomedOutPortWidth, idlePortWidth * 0.5f),
                 "NodeGraph ports should scale with zoom so their size stays stable relative to the node");
         graph.viewport(0.0f, 0.0f, 1.0f);
         graph.arrange(new MutableRect(0.0f, 0.0f, 320.0f, 180.0f));
@@ -5479,14 +5161,10 @@ public final class BasicControlsSelfTest {
         expect(graph.selectedItemIds().equals(java.util.List.of("a", "b")),
                 "NodeGraph lasso should select intersecting selectable items");
 
-        final dev.sixik.unigui.widgets.render.NodeGraphState[] lassoState = new dev.sixik.unigui.widgets.render.NodeGraphState[1];
-        graph.renderer((draw, widget) -> lassoState[0] =
-                ((dev.sixik.unigui.widgets.graph.NodeGraph) widget)
-                        .snapshot(dev.sixik.unigui.widgets.render.NodeGraphRenderPhase.FOREGROUND));
-        graph.render(new DefaultRenderContext(new DrawList()));
-        expect(lassoState[0] != null && lassoState[0].selectionBox().visible(),
-                "NodeGraph renderer state should expose active lasso selection box");
-        graph.renderer(null);
+        DrawList lassoDrawList = new DrawList();
+        graph.render(new DefaultRenderContext(lassoDrawList));
+        expect(graph.lassoSelecting() && !lassoDrawList.commands().isEmpty(),
+                "NodeGraph should keep rendering the active lasso selection box");
 
         uiContext.routedEvents().dispatch(new PointerReleasedEvent(graph,
                 180.0f, 80.0f, 180.0f, 80.0f, 20, PointerButton.PRIMARY));
@@ -6996,21 +6674,6 @@ public final class BasicControlsSelfTest {
         DrawList progressDrawList = new DrawList();
         progressBar.render(new DefaultRenderContext(progressDrawList));
         expect(progressDrawList.size() >= 2, "ProgressBar should render track and fill commands");
-        ProgressBarState progressPlanState = new ProgressBarState(
-                0.0f,
-                0.0f,
-                100.0f,
-                12.0f,
-                0.0f,
-                200.0f,
-                50.0f,
-                0.25f,
-                false,
-                0.0f,
-                MutableColor.rgba(0.1f, 0.1f, 0.1f, 1.0f),
-                MutableColor.rgba(0.2f, 0.6f, 1.0f, 1.0f));
-        expect(ProgressBarRenderPlans.defaultPlan(progressPlanState).primitives().size() == 2,
-                "ProgressBar render plan should expose track and fill primitives");
 
         ProgressBar indeterminateProgress = new ProgressBar().indeterminate(true);
         indeterminateProgress.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 12.0f));
@@ -7019,38 +6682,18 @@ public final class BasicControlsSelfTest {
         indeterminateProgress.render(new DefaultRenderContext(indeterminateProgressDrawList));
         expect(indeterminateProgress.indeterminate()
                         && indeterminateProgress.indeterminateOffset() > 0.0f
-                        && indeterminateProgressDrawList.size() >= 2,
-                "Indeterminate ProgressBar should animate and render a moving fill segment");
-        ProgressBarState indeterminateProgressPlanState = new ProgressBarState(
-                0.0f,
-                0.0f,
-                100.0f,
-                12.0f,
-                0.0f,
-                1.0f,
-                0.0f,
-                0.0f,
-                true,
-                0.5f,
-                MutableColor.rgba(0.1f, 0.1f, 0.1f, 1.0f),
-                MutableColor.rgba(0.2f, 0.6f, 1.0f, 1.0f));
-        RenderPrimitive indeterminatePrimitive = ProgressBarRenderPlans.defaultPlan(indeterminateProgressPlanState).primitives().get(1);
-        expect(indeterminatePrimitive instanceof RenderPrimitive.Clip
-                        && ((RenderPrimitive.Clip) indeterminatePrimitive).children().size() == 1,
-                "Indeterminate ProgressBar render plan should clip the moving fill segment");
-        SeparatorState separatorPlanState = new SeparatorState(
-                2.0f,
-                3.0f,
-                40.0f,
-                20.0f,
-                Orientation.VERTICAL,
-                2.0f,
-                MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f));
-        RenderPrimitive separatorPrimitive = SeparatorRenderPlans.defaultPlan(separatorPlanState).primitives().get(0);
-        expect(separatorPrimitive instanceof RenderPrimitive.Rect
-                        && near(((RenderPrimitive.Rect) separatorPrimitive).width(), 2.0f)
-                        && near(((RenderPrimitive.Rect) separatorPrimitive).height(), 20.0f),
-                "Separator render plan should respect vertical thickness geometry");
+                        && indeterminateProgressDrawList.size() >= 2
+                        && hasCommand(indeterminateProgressDrawList, DrawCommandType.PUSH_CLIP),
+                "Indeterminate ProgressBar should animate and render a clipped moving fill segment");
+        Separator separator = new Separator().orientation(Orientation.VERTICAL).thickness(2.0f);
+        separator.arrange(new MutableRect(2.0f, 3.0f, 40.0f, 20.0f));
+        DrawList separatorDrawList = new DrawList();
+        separator.render(new DefaultRenderContext(separatorDrawList));
+        DrawCommand separatorCommand = separatorDrawList.commands().get(0);
+        expect(separatorCommand.type() == DrawCommandType.RECT
+                        && near(separatorCommand.bounds().width(), 2.0f)
+                        && near(separatorCommand.bounds().height(), 20.0f),
+                "Separator should respect vertical thickness geometry when rendered");
 
         ProgressBar lowProgressBar = new ProgressBar().range(0.0f, 100.0f);
         lowProgressBar.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 12.0f));
@@ -7161,10 +6804,57 @@ public final class BasicControlsSelfTest {
     }
 
     private static boolean hasFillColor(DrawList drawList, float r, float g, float b, float a) {
-        return drawList.commands().stream()
-                .filter(command -> command.paint() != null && !command.paint().isStroke())
-                .map(command -> command.paint().color())
-                .anyMatch(color -> near(color.r(), r) && near(color.g(), g) && near(color.b(), b) && near(color.a(), a));
+        return countFillColor(drawList, r, g, b, a) > 0;
+    }
+
+    private static int countFillColor(DrawList drawList, float r, float g, float b, float a) {
+        int count = 0;
+        for (DrawCommand command : drawList.commands()) {
+            if (command.paint() != null && !command.paint().isStroke()
+                    && near(command.paint().color().r(), r)
+                    && near(command.paint().color().g(), g)
+                    && near(command.paint().color().b(), b)
+                    && near(command.paint().color().a(), a)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private static int countStrokeColor(DrawList drawList, float r, float g, float b, float a) {
+        int count = 0;
+        for (DrawCommand command : drawList.commands()) {
+            if (command.paint() != null && command.paint().isStroke()
+                    && near(command.paint().color().r(), r)
+                    && near(command.paint().color().g(), g)
+                    && near(command.paint().color().b(), b)
+                    && near(command.paint().color().a(), a)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private static java.util.Set<String> docTitles(DrawList drawList) {
+        java.util.Set<String> titles = new java.util.LinkedHashSet<>();
+        for (DrawCommand command : drawList.commands()) {
+            if (command.type() != DrawCommandType.TEXT) continue;
+            String text = command.richText() != null ? command.richText().plainText() : command.text();
+            if (text != null && text.matches("Doc \\d+")) {
+                titles.add(text);
+            }
+        }
+        return titles;
+    }
+
+    private static float maxCircleWidth(DrawList drawList) {
+        float max = 0.0f;
+        for (DrawCommand command : drawList.commands()) {
+            if (command.type() == DrawCommandType.CIRCLE) {
+                max = Math.max(max, command.bounds().width());
+            }
+        }
+        return max;
     }
 
     private static boolean hasTokenText(String text, List<CodeToken> tokens, String value) {

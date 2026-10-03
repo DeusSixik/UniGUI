@@ -5,13 +5,8 @@ import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.text.RichText;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
-import dev.sixik.unigui.impl.text.TextEngine;
-import dev.sixik.unigui.widgets.render.ButtonRenderType;
-import dev.sixik.unigui.widgets.render.ButtonState;
-import dev.sixik.unigui.widgets.render.ToolButtonRenderState;
 import dev.sixik.unigui.api.widget.render.WidgetRole;
 
 /** Compact toolbar-friendly button with optional icon, text and command metadata. */
@@ -128,55 +123,8 @@ public class ToolButton extends Button {
     }
 
     @Override
-    public ButtonState snapshot(RenderContext context) {
-        return new ButtonState(
-                ButtonRenderType.BUTTON,
-                layoutBounds().x(),
-                layoutBounds().y(),
-                layoutBounds().width(),
-                layoutBounds().height(),
-                text(),
-                richText(),
-                textPaddingX(),
-                TextEngine.measureLineWidth(context, richText()),
-                TextEngine.measureTextHeight(context, richText()),
-                textColor().copy(),
-                pressed(),
-                hovered(),
-                enabled(),
-                checked,
-                false,
-                0.0f,
-                0.0f,
-                0.0f,
-                background().copy(),
-                borderColor().copy());
-    }
-
-    @Override
-    protected void renderContent(RenderContext context) {
-        applyTheme();
-        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
-        if (renderCustomVisual(draw)) {
-            renderChildren(context);
-            return;
-        }
-        ToolButtonRenderState state = toolButtonSnapshot(context);
-        if (renderStylePlan(context, ButtonState.class, state.button())) {
-            renderChildren(context);
-            return;
-        }
-        WidgetsRender.toolButton().render(draw, this);
-        renderChildren(context);
-    }
-
-    @Override
     protected WidgetRole renderRole() {
         return WidgetRole.TOOL_BUTTON;
-    }
-
-    public ToolButtonRenderState toolButtonSnapshot(RenderContext context) {
-        return new ToolButtonRenderState(snapshot(context), icon, label, tooltip, commandId, displayMode, checked);
     }
 
     protected void refreshText() {

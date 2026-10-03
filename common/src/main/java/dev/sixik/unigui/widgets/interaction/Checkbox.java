@@ -16,12 +16,9 @@ import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.CheckboxState;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
-import dev.sixik.unigui.widgets.render.ButtonState;
-import dev.sixik.unigui.widgets.render.CheckboxRenderState;
 import dev.sixik.unigui.api.widget.render.WidgetRole;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
@@ -248,60 +245,50 @@ public class Checkbox extends ToggleButton {
     protected void renderContent(RenderContext context) {
         applyTheme();
         DrawScope draw = new DrawScope(context, transform(), layoutBounds());
-        if (renderCustomVisual(draw)) {
-            renderChildren(context);
-            return;
+        float x = layoutBounds().x();
+        float y = layoutBounds().y();
+        float width = layoutBounds().width();
+        float height = layoutBounds().height();
+        boolean hasText = richText() != null && !richText().isEmpty();
+
+        float labelGap = hasText ? Math.max(0.0f, textGap) : 0.0f;
+        float textWidth = hasText ? TextEngine.measureLineWidth(draw.context(), richText()) : 0.0f;
+        float textHeight = hasText ? TextEngine.measureTextHeight(draw.context(), richText()) : 0.0f;
+        float labelWidth = hasText
+                ? Math.min(Math.max(0.0f, textWidth), Math.max(0.0f, width - boxSize - labelGap))
+                : 0.0f;
+        float indicatorX = labelLeft ? x + labelWidth + labelGap : x;
+        float indicatorY = y + Math.max(0.0f, height - boxSize) * 0.5f;
+
+        renderCheckIndicator(draw, indicatorX, indicatorY, boxSize, checkSize,
+                checked(), indeterminate(), borderColor(), checkedBackground());
+
+        if (hasText) {
+            float contentX;
+            float contentWidth;
+            float drawY;
+            float drawHeight = Math.min(Math.max(0.0f, height), Math.max(0.0f, textHeight));
+            if (labelLeft) {
+                contentX = x;
+                contentWidth = labelWidth;
+                drawY = y + Math.max(0.0f, height - drawHeight) * 0.5f;
+            } else {
+                contentX = x + boxSize + textGap;
+                contentWidth = Math.max(0.0f, width - boxSize - textGap);
+                float indicatorCenterY = indicatorY + boxSize * 0.5f;
+                drawY = indicatorCenterY - drawHeight * 0.5f + 1.0f;
+            }
+            if (contentWidth > 0.0f && drawHeight > 0.0f) {
+                renderLabel(draw, richText(), contentX, y, contentWidth, height,
+                        contentX, drawY, contentWidth, drawHeight, textColor());
+            }
         }
-        CheckboxRenderState state = checkboxSnapshot(context);
-        if (renderStylePlan(context, ButtonState.class, state.toLegacyButtonState())) {
-            renderChildren(context);
-            return;
-        }
-        WidgetsRender.checkbox().render(draw, this);
         renderChildren(context);
     }
 
     @Override
     protected WidgetRole renderRole() {
         return WidgetRole.CHECKBOX;
-    }
-
-    @Override
-    public ButtonState snapshot(RenderContext context) {
-        return checkboxSnapshot(context).toLegacyButtonState();
-    }
-
-    /** Собирает состояние checkbox для skin-default и RenderPlan. */
-    public CheckboxRenderState checkboxSnapshot(RenderContext context) {
-        return new CheckboxRenderState(
-                layoutBounds().x(),
-                layoutBounds().y(),
-                layoutBounds().width(),
-                layoutBounds().height(),
-                text(),
-                richText(),
-                TEXT_PADDING_X,
-                TextEngine.measureLineWidth(context, richText()),
-                TextEngine.measureTextHeight(context, richText()),
-                textColor().copy(),
-                pressed(),
-                hovered(),
-                enabled(),
-                state == CheckboxState.CHECKED,
-                state == CheckboxState.INDETERMINATE,
-                boxSize,
-                checkSize,
-                textGap,
-                checkedBackground().copy(),
-                borderColor().copy(),
-                checkProgress,
-                labelLeft,
-                backgroundVisible(),
-                background().copy(),
-                radius(),
-                borderVisible(),
-                borderColor().copy(),
-                borderWidth());
     }
 
     private void setState(CheckboxState state, boolean emitChange) {

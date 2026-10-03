@@ -20,12 +20,10 @@ import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.impl.widget.WidgetBase;
-import dev.sixik.unigui.widgets.render.GraphViewState;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.List;
@@ -235,31 +233,34 @@ public final class GraphView extends WidgetBase {
         if (renderCustomVisual(draw)) {
             return;
         }
-        WidgetsRender.graphView().render(draw, this);
+        draw.rect(layoutBounds().x(), layoutBounds().y(),
+                layoutBounds().width(), layoutBounds().height(), Paint.stroke(edgeColor, 1.0f));
+        List<NodePoint> points = computeNodePoints();
+        for (Edge edge : edges) {
+            NodePoint from = findNode(points, edge.from());
+            NodePoint to = findNode(points, edge.to());
+            if (from != null && to != null) {
+                draw.addLine(from.x(), from.y(), to.x(), to.y(), edgeColor, 1.0f);
+            }
+        }
+        NodePoint hovered = null;
+        for (NodePoint point : points) {
+            if (point.hovered()) hovered = point;
+            renderNode(draw, point);
+            if (nodeLabelsVisible && nodeLabelPlacement != NodeLabelPlacement.NONE) {
+                renderNodeLabel(draw, point);
+            }
+        }
+        if (hovered != null) {
+            renderNodeTooltip(draw, hovered);
+        }
     }
 
-    public GraphViewState snapshot() {
-        return new GraphViewState(
-                layoutBounds().x(),
-                layoutBounds().y(),
-                layoutBounds().width(),
-                layoutBounds().height(),
-                computeNodePoints(),
-                edges,
-                nodeLabelsVisible,
-                nodeLabelPlacement,
-                DEFAULT_NODE_RADIUS,
-                nodeColor.copy(),
-                hoveredNodeColor.copy(),
-                edgeColor.copy(),
-                labelColor.copy(),
-                tooltipBackground.copy(),
-                tooltipBorder.copy(),
-                nodeRenderer,
-                nodeLabelRenderer,
-                nodeTooltipRenderer,
-                nodeLabelProvider,
-                nodeTooltipProvider);
+    private static NodePoint findNode(List<NodePoint> points, String id) {
+        for (NodePoint point : points) {
+            if (point.id().equals(id)) return point;
+        }
+        return null;
     }
 
     private void renderNode(DrawScope draw, NodePoint node) {

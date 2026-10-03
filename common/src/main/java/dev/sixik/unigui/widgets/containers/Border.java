@@ -3,10 +3,9 @@ package dev.sixik.unigui.widgets.containers;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.impl.widget.WidgetBase;
-import dev.sixik.unigui.widgets.render.BorderState;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
 
@@ -118,22 +117,11 @@ public final class Border extends WidgetBase {
             if (renderCustomVisual(draw)) {
                 return;
             }
-            BorderState state = snapshot();
-            if (renderStylePlan(context, BorderState.class, state)) return;
-            WidgetsRender.border().render(draw, this);
+            draw.roundedRect(layoutBounds().x(), layoutBounds().y(),
+                    layoutBounds().width(), layoutBounds().height(), radius,
+                    Paint.stroke(color, thickness));
         } finally {
             popOpacity(context);
         }
-    }
-
-    public BorderState snapshot() {
-        return new BorderState(
-                layoutBounds().x(),
-                layoutBounds().y(),
-                layoutBounds().width(),
-                layoutBounds().height(),
-                color.copy(),
-                thickness,
-                radius);
     }
 }

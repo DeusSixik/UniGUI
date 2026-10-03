@@ -3,12 +3,11 @@ package dev.sixik.unigui.widgets.display;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
-import dev.sixik.unigui.widgets.render.SeparatorState;
 import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
@@ -84,22 +83,12 @@ public final class Separator extends WidgetBase {
             if (renderCustomVisual(draw)) {
                 return;
             }
-            SeparatorState state = snapshot();
-            if (renderStylePlan(context, SeparatorState.class, state)) return;
-            WidgetsRender.separator().render(draw, this);
+            boolean horizontal = orientation != Orientation.VERTICAL;
+            float width = horizontal ? layoutBounds().width() : thickness;
+            float height = horizontal ? thickness : layoutBounds().height();
+            draw.rect(layoutBounds().x(), layoutBounds().y(), width, height, Paint.fill(color));
         } finally {
             popOpacity(context);
         }
-    }
-
-    public SeparatorState snapshot() {
-        return new SeparatorState(
-                layoutBounds().x(),
-                layoutBounds().y(),
-                layoutBounds().width(),
-                layoutBounds().height(),
-                orientation,
-                thickness,
-                color.copy());
     }
 }
