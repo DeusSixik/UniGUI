@@ -32,7 +32,7 @@ public final class DrawScope {
     /**
      * Создаёт scope без anchor bounds для transform pivot.
      *
-     * @param context render context, куда будут попадать команды
+     * @param context   render context, куда будут попадать команды
      * @param transform transform виджета или {@code null}
      */
     public DrawScope(RenderContext context, Transform transform) {
@@ -42,8 +42,8 @@ public final class DrawScope {
     /**
      * Создаёт scope с bounds, относительно которых нужно удерживать transform pivot.
      *
-     * @param context render context, куда будут попадать команды
-     * @param transform transform виджета или {@code null}
+     * @param context         render context, куда будут попадать команды
+     * @param transform       transform виджета или {@code null}
      * @param transformBounds исходные bounds виджета для привязки pivot
      */
     public DrawScope(RenderContext context, Transform transform, RectView transformBounds) {
@@ -54,12 +54,16 @@ public final class DrawScope {
         this.transformBoundsY = transformBounds == null ? 0.0f : transformBounds.y();
     }
 
-    /** @return render context, в который пишет scope */
+    /**
+     * @return render context, в который пишет scope
+     */
     public RenderContext context() {
         return context;
     }
 
-    /** @return transform, применяемый scope'ом к командам */
+    /**
+     * @return transform, применяемый scope'ом к командам
+     */
     public Transform transform() {
         return transform;
     }
@@ -140,12 +144,12 @@ public final class DrawScope {
      * клампятся к половине размера. Нулевые области пропускаются, backend получает
      * обычные texture-команды и работает везде без нового типа команд.</p>
      *
-     * @param slice nine-slice источник; {@code null} игнорируется
-     * @param x X-граница назначения
-     * @param y Y-граница назначения
-     * @param width ширина назначения
+     * @param slice  nine-slice источник; {@code null} игнорируется
+     * @param x      X-граница назначения
+     * @param y      Y-граница назначения
+     * @param width  ширина назначения
      * @param height высота назначения
-     * @param paint tint paint
+     * @param paint  tint paint
      */
     public void nineSlice(NineSlice slice, float x, float y, float width, float height, Paint paint) {
         nineSlice(slice, x, y, width, height, paint, true);
@@ -154,16 +158,16 @@ public final class DrawScope {
     /**
      * Рисует nine-slice текстуру с выбором заливки центра.
      *
-     * @param slice nine-slice источник; {@code null} игнорируется
-     * @param x X-граница назначения
-     * @param y Y-граница назначения
-     * @param width ширина назначения
-     * @param height высота назначения
-     * @param paint tint paint
+     * @param slice      nine-slice источник; {@code null} игнорируется
+     * @param x          X-граница назначения
+     * @param y          Y-граница назначения
+     * @param width      ширина назначения
+     * @param height     высота назначения
+     * @param paint      tint paint
      * @param fillCenter {@code false}, чтобы оставить прозрачную середину (рамка)
      */
     public void nineSlice(NineSlice slice, float x, float y, float width, float height,
-                           Paint paint, boolean fillCenter) {
+                          Paint paint, boolean fillCenter) {
         if (slice == null || slice.texture() == null || width <= 0.0f || height <= 0.0f) return;
         TextureHandle texture = slice.texture();
         float textureWidth = Math.max(1.0f, texture.width());
@@ -373,7 +377,9 @@ public final class DrawScope {
         context.addImageQuad(texture, p1, p2, p3, p4, uv1, uv2, uv3, uv4, tint, transform);
     }
 
-    /** Текстурированный quad с float-позициями без создания DrawPoint/DrawMesh. */
+    /**
+     * Текстурированный quad с float-позициями без создания DrawPoint/DrawMesh.
+     */
     public void addTexturedQuad(TextureHandle texture,
                                 float x1, float y1, float x2, float y2,
                                 float x3, float y3, float x4, float y4,
