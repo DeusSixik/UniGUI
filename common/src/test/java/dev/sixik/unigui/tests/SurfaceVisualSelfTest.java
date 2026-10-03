@@ -1,5 +1,6 @@
 package dev.sixik.unigui.tests;
 
+import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.render.DrawCommand;
@@ -7,6 +8,7 @@ import dev.sixik.unigui.api.render.DrawCommandType;
 import dev.sixik.unigui.api.render.DrawList;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.ImageFit;
+import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.render.SimpleTextureHandle;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.TexturePlacement;
@@ -19,11 +21,15 @@ import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.style.StyleKeyRegistry;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
+import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.widget.visual.BackgroundKind;
 import dev.sixik.unigui.api.widget.visual.Surface;
 import dev.sixik.unigui.api.widget.visual.SurfaceSnapshot;
 import dev.sixik.unigui.impl.render.DefaultRenderContext;
 import dev.sixik.unigui.widgets.containers.Box;
+import dev.sixik.unigui.widgets.display.Label;
+import dev.sixik.unigui.widgets.feedback.Tooltip;
+import dev.sixik.unigui.widgets.feedback.WindowWidget;
 import dev.sixik.unigui.widgets.interaction.Button;
 import dev.sixik.unigui.widgets.interaction.Checkbox;
 import dev.sixik.unigui.widgets.render.BoxState;
@@ -159,7 +165,51 @@ public final class SurfaceVisualSelfTest {
         expect(new Checkbox("Check") instanceof Button, "checkbox still is a button");
         expect(!(((Object) new Checkbox("Check")) instanceof Box), "checkbox no longer inherits Box visual");
 
+        // Overlay windows draw their background exactly once through the surface.
+        WindowWidget window = new WindowWidget("Title", new Label("Body"));
+        window.open();
+        window.measure(new LayoutContext(220.0f, 120.0f));
+        window.arrange(new MutableRect(0.0f, 0.0f, 220.0f, 120.0f));
+        DrawList windowDraw = new DrawList();
+        window.render(new DefaultRenderContext(windowDraw));
+        expect(countFill(windowDraw, 0.030f, 0.035f, 0.050f, 0.98f) == 1,
+                "window background is drawn exactly once by the surface");
+
+        // Tooltip chrome belongs to the surface; the skin default draws text only.
+        Tooltip tooltip = new Tooltip().text("Hi");
+        tooltip.measure(new LayoutContext(220.0f, 120.0f));
+        tooltip.arrange(new MutableRect(0.0f, 0.0f, 120.0f, 40.0f));
+        expect(!SurfacePlans.defaultPlan(tooltip.surfaceSnapshot()).empty(),
+                "tooltip surface owns a background");
+        DrawList tooltipDraw = new DrawList();
+        RenderContext tooltipContext = new DefaultRenderContext(tooltipDraw);
+        WidgetsRender.tooltip().render(
+                new DrawScope(tooltipContext, tooltip.transform(), tooltip.layoutBounds()), tooltip);
+        expect(countFill(tooltipDraw, 0.02f, 0.025f, 0.035f, 0.94f) == 0,
+                "tooltip skin default must not duplicate the surface background");
+
         System.out.println("SurfaceVisualSelfTest passed");
+    }
+
+    private static int countFill(DrawList drawList, float r, float g, float b, float a) {
+        int count = 0;
+        Object[] commands = drawList.commandElements();
+        for (int i = 0, size = drawList.size(); i < size; i++) {
+            if (commands[i] instanceof DrawCommand command
+                    && command.paint() != null
+                    && !command.paint().isStroke()
+                    && near(command.paint().color().r(), r)
+                    && near(command.paint().color().g(), g)
+                    && near(command.paint().color().b(), b)
+                    && near(command.paint().color().a(), a)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private static boolean near(float actual, float expected) {
+        return Math.abs(actual - expected) <= 0.01f;
     }
 
     private static void expect(boolean condition, String message) {

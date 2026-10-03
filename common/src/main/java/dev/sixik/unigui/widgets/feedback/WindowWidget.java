@@ -117,7 +117,6 @@ public class WindowWidget extends Box implements OverlayHostAware {
     private final MutableRect hostBounds = new MutableRect();
 
     public WindowWidget() {
-        boxVisualEnabled(false);
         backgroundVisible(true);
         borderVisible(true);
         focusable(true);

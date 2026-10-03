@@ -44,7 +44,6 @@ public class Tooltip extends Box implements OverlayHostAware {
     private float maxWidth = DEFAULT_MAX_WIDTH;
 
     public Tooltip() {
-        boxVisualEnabled(false);
         backgroundVisible(true);
         borderVisible(true);
         radius(3.0f);

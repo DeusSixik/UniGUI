@@ -11,7 +11,7 @@ public final class WindowRenderers {
         if (state.width() <= 0.0f || state.height() <= 0.0f) return;
 
         float headerHeight = Math.min(state.headerHeight(), state.height());
-        SurfacePlans.renderWidgetSurface(draw, window);
+        // Фон и рамку рисует поверхность в SurfaceWidget.render; здесь шапка и хром.
         draw.rect(state.x(), state.y(), state.width(), headerHeight, Paint.fill(state.headerColor()));
         draw.line(state.x(), state.y() + state.headerHeight(),
                 state.x() + state.width(), state.y() + state.headerHeight(),

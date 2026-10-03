@@ -7,7 +7,7 @@ import dev.sixik.unigui.widgets.feedback.Tooltip;
 
 public final class TooltipRenderers {
     public static final WidgetRender DEFAULT = WidgetRender.of(Tooltip.class, (draw, tooltip) -> {
-        SurfacePlans.renderWidgetSurface(draw, tooltip);
+        // Фон и рамку рисует поверхность в SurfaceWidget.render; здесь только текст.
         TooltipState state = tooltip.snapshot(draw.context());
         draw.pushTextClip(state.textX(), state.textY(), state.textWidth(), state.textHeight());
         try {
