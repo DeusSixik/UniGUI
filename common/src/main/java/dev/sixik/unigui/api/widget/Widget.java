@@ -175,6 +175,48 @@ public interface Widget extends EventEmitter {
     }
 
     /**
+     * Измеряет минимальный контентный размер (схлопнутый до предела, но без потерь).
+     *
+     * <p>Дефолт измеряет виджет в нулевом доступном пространстве по главной оси.
+     * Виджеты с нетривиальным контентом (текст) переопределяют точнее.
+     * Вызов перезаписывает {@link #desiredSize()}, после него нужен повторный
+     * обычный {@code measure}.</p>
+     *
+     * @return минимальный контентный размер
+     */
+    default LayoutSize minContentSize() {
+        measure(new LayoutContext(0.0f, Float.POSITIVE_INFINITY));
+        return desiredSize();
+    }
+
+    /**
+     * Измеряет максимальный контентный размер (без переносов и ужатий).
+     *
+     * <p>Вызов перезаписывает {@link #desiredSize()}, после него нужен повторный
+     * обычный {@code measure}.</p>
+     *
+     * @return максимальный контентный размер
+     */
+    default LayoutSize maxContentSize() {
+        measure(new LayoutContext(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY));
+        return desiredSize();
+    }
+
+    /**
+     * Возвращает baseline контента для baseline-выравнивания.
+     *
+     * <p>Расстояние от cross-start края border box до baseline первой строки.
+     * {@code NaN} означает отсутствие baseline (не участвует в выравнивании).
+     * В текущей версии учитывается только row-направлениями, где cross-ось
+     * вертикальна.</p>
+     *
+     * @return baseline в пикселях или {@code NaN}
+     */
+    default float contentBaseline() {
+        return Float.NaN;
+    }
+
+    /**
      * Возвращает transform, применяемый при render и hit-testing.
      *
      * @return текущий transform виджета

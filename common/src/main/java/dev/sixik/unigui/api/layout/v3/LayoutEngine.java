@@ -9,7 +9,7 @@ package dev.sixik.unigui.api.layout.v3;
  */
 public interface LayoutEngine {
     /**
-     * Вычисляет значение, необходимое для дальнейшей работы объекта.
+     * Вычисляет компоновку всего дерева от корневого узла.
      */
     LayoutOutput compute(LayoutNode root, LayoutInput input);
 }

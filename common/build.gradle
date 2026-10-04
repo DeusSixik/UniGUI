@@ -24,6 +24,22 @@ tasks.register("layoutV3SelfTest", JavaExec) {
     mainClass = "dev.sixik.unigui.tests.LayoutV3SelfTest"
 }
 
+tasks.register("flexSolverParitySelfTest", JavaExec) {
+    group = "verification"
+    description = "Runs live-vs-snapshot flex solver parity assertions."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.FlexSolverParitySelfTest"
+}
+
+tasks.register("flexConformanceSelfTest", JavaExec) {
+    group = "verification"
+    description = "Runs data-driven web flexbox conformance assertions."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.FlexConformanceSelfTest"
+}
+
 tasks.register("dragAndDropSelfTest", JavaExec) {
     group = "verification"
     description = "Runs drag-and-drop manager self-test assertions."
@@ -200,6 +216,8 @@ tasks.register("dumpXmlWidgetReference", JavaExec) {
 
 tasks.named("test") {
     dependsOn tasks.named("layoutV3SelfTest")
+    dependsOn tasks.named("flexSolverParitySelfTest")
+    dependsOn tasks.named("flexConformanceSelfTest")
     dependsOn tasks.named("windowManagerSelfTest")
     dependsOn tasks.named("dockingModelSelfTest")
     dependsOn tasks.named("dockingInteractionSelfTest")

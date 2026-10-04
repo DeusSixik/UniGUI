@@ -687,19 +687,19 @@ public class ScrollView extends WidgetBase {
             verticalScrollBarVisible = false;
             return;
         }
-        boolean horizontal = layoutStyle().overflowX() == Overflow.SCROLL;
-        boolean vertical = layoutStyle().overflowY() == Overflow.SCROLL;
+        boolean horizontal = effectiveOverflowX() == Overflow.SCROLL;
+        boolean vertical = effectiveOverflowY() == Overflow.SCROLL;
         float width = Math.max(0.0f, layoutBounds().width());
         float height = Math.max(0.0f, layoutBounds().height());
 
         for (int pass = 0; pass < 4; pass++) {
             float candidateWidth = Math.max(0.0f, width - (vertical ? scrollbarReservation() : 0.0f));
             float candidateHeight = Math.max(0.0f, height - (horizontal ? scrollbarReservation() : 0.0f));
-            boolean nextHorizontal = layoutStyle().overflowX() == Overflow.SCROLL
-                    || (layoutStyle().overflowX() == Overflow.AUTO
+            boolean nextHorizontal = effectiveOverflowX() == Overflow.SCROLL
+                    || (effectiveOverflowX() == Overflow.AUTO
                     && rawContentWidth() > candidateWidth);
-            boolean nextVertical = layoutStyle().overflowY() == Overflow.SCROLL
-                    || (layoutStyle().overflowY() == Overflow.AUTO
+            boolean nextVertical = effectiveOverflowY() == Overflow.SCROLL
+                    || (effectiveOverflowY() == Overflow.AUTO
                     && rawContentHeight() > candidateHeight);
             if (horizontal == nextHorizontal && vertical == nextVertical) break;
             horizontal = nextHorizontal;
@@ -757,13 +757,13 @@ public class ScrollView extends WidgetBase {
 
     private boolean horizontalScrollingEnabled() {
         if (!scrollingEnabled) return false;
-        Overflow overflow = layoutStyle().overflowX();
+        Overflow overflow = effectiveOverflowX();
         return overflow == Overflow.AUTO || overflow == Overflow.SCROLL;
     }
 
     private boolean verticalScrollingEnabled() {
         if (!scrollingEnabled) return false;
-        Overflow overflow = layoutStyle().overflowY();
+        Overflow overflow = effectiveOverflowY();
         return overflow == Overflow.AUTO || overflow == Overflow.SCROLL;
     }
 
@@ -776,13 +776,21 @@ public class ScrollView extends WidgetBase {
     }
 
     private boolean showsHorizontalScrollBar() {
-        return layoutStyle().overflowX() == Overflow.SCROLL
-                || (layoutStyle().overflowX() == Overflow.AUTO && horizontalScrollBarVisible);
+        return effectiveOverflowX() == Overflow.SCROLL
+                || (effectiveOverflowX() == Overflow.AUTO && horizontalScrollBarVisible);
     }
 
     private boolean showsVerticalScrollBar() {
-        return layoutStyle().overflowY() == Overflow.SCROLL
-                || (layoutStyle().overflowY() == Overflow.AUTO && verticalScrollBarVisible);
+        return effectiveOverflowY() == Overflow.SCROLL
+                || (effectiveOverflowY() == Overflow.AUTO && verticalScrollBarVisible);
+    }
+
+    private Overflow effectiveOverflowX() {
+        return Overflow.effectiveHorizontal(layoutStyle().overflowX(), layoutStyle().overflowY());
+    }
+
+    private Overflow effectiveOverflowY() {
+        return Overflow.effectiveVertical(layoutStyle().overflowX(), layoutStyle().overflowY());
     }
 
     private boolean clipsContent() {

@@ -20,6 +20,7 @@ import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 
 import java.util.Objects;
+import dev.sixik.unigui.impl.layout.SlotLayout;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.LinearBox;
 import dev.sixik.unigui.widgets.containers.ScrollView;
@@ -536,7 +537,7 @@ public class DropDownBox extends LinearBox {
         if (maxContentHeight <= 0.0f || content == null) {
             return false;
         }
-        float contentHeight = content.desiredSize().height() + content.layoutConstraints().margin().vertical();
+        float contentHeight = content.desiredSize().height() + SlotLayout.marginOf(content).vertical();
         return contentHeight > maxContentHeight + 0.5f;
     }
 

@@ -6,6 +6,7 @@ import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.LayoutContext;
+import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
@@ -20,7 +21,10 @@ import dev.sixik.unigui.api.render.TexturePlacement;
 import dev.sixik.unigui.api.render.TextureWrap;
 import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.text.RichTextSpan;
+import dev.sixik.unigui.api.text.RichTextSpan;
 import dev.sixik.unigui.api.text.TextBrush;
+import dev.sixik.unigui.api.text.TextRun;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.xml.XmlAttribute;
@@ -557,6 +561,32 @@ public class TextWidget extends WidgetBase {
         float contentW = measuredTextWidth(context) + padding.horizontal();
         float contentH = measuredTextHeight(context) + padding.vertical();
         setDesiredSize(resolveDesiredSize(context, contentW, contentH));
+    }
+
+    @Override
+    public LayoutSize minContentSize() {
+        if (visibility() == Visibility.COLLAPSED || text.isEmpty()) {
+            return LayoutSize.ZERO;
+        }
+        EdgeInsets padding = layoutStyle().padding();
+        float minWidth = TextEngine.minContentWidth(effectiveRichText()) + padding.horizontal();
+        float height = measuredTextHeight(new LayoutContext(minWidth, Float.POSITIVE_INFINITY))
+                + padding.vertical();
+        return LayoutSize.of(minWidth, height);
+    }
+
+    @Override
+    public float contentBaseline() {
+        RichText text = effectiveRichText();
+        if (text == null || text.isEmpty()) {
+            return Float.NaN;
+        }
+        for (RichTextSpan span : text.spans()) {
+            if (span instanceof TextRun run && run.font() != null && run.pixelSize() > 0.0f) {
+                return layoutStyle().padding().top() + run.font().metrics(run.pixelSize()).ascent();
+            }
+        }
+        return Float.NaN;
     }
 
     @Override

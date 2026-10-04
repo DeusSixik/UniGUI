@@ -88,7 +88,7 @@ dev.sixik.unigui.api.layout / api.layout.v3 / impl.layout.v3
   LayoutStyle
   LayoutResult
   LayoutEngine
-  TaffyLayoutEngine
+  WebLayoutEngine
   LayoutStyleMapper
   OverlayLayoutResolver
   custom layout interfaces
@@ -593,7 +593,8 @@ apply mutation
 
 ## Layout V3
 
-Layout V3 — это Java-owned layout abstraction с Yoga/Taffy-like semantics, но без прямой публичной привязки UniGUI widgets к конкретному Yoga/Taffy binding.
+Layout V3 — это собственная Java-абстракция компоновки с семантикой в духе Yoga/Taffy,
+но без прямой публичной привязки виджетов UniGUI к конкретному Yoga/Taffy-биндингу.
 
 Текущий pipeline:
 
@@ -621,7 +622,28 @@ public interface LayoutEngine {
 }
 ```
 
-Текущий internal backend — `TaffyLayoutEngine`. Он покрывает flex row/column, wrap, gap, margin, padding, min/max, percent, grow/shrink, absolute children, content/overflow size и per-pass measure cache. External Yoga/Taffy остаются возможной будущей заменой backend-а, но не должны протекать в публичный widget API.
+Текущий internal backend — `WebLayoutEngine` (snapshot-путь) поверх общего ядра `FlexSolver`,
+которое также обслуживает live-путь виджетов (`FlexLayoutEngine`). Паритет покрыт
+`FlexSolverParitySelfTest` (включая детерминированный фазз на 200 сидов) и
+`FlexConformanceSelfTest` (таблица веб-канонических кейсов с ручными числами).
+
+Ядро покрывает: flex row/column/reverse, wrap/wrap-reverse, gap, margin + `margin: auto`,
+padding, min/max (включая `auto` как контентный минимум), percent, `min/max/fit-content`,
+`flex-basis: content`, grow/shrink по spec (freeze + scaled shrink), `order`, `align-content`,
+baseline, `aspect-ratio`, absolute/fixed детей, relative-сдвиги, content/overflow size
+и per-pass measure cache. External Yoga/Taffy остаются возможной будущей заменой
+backend-а, но не должны протекать в публичный widget API.
+
+Осознанные отличия от веба: дефолт `flex-shrink` — `0`, а не `1` (игровые UI задают
+размеры явно); `fixed` в layout ведёт себя как `absolute` относительно ближайшего
+хоста (настоящая привязка к вьюпорту — через overlay-хосты); `min/max/fit-content`
+в snapshot-пути без overrides равны measured; spanning-элементы не участвуют
+в `auto`-sizing треков грида.
+
+Рядом с ядром: `SlotLayout` (единая slot-математика для stack/dock/grid/split/panel),
+`ZOrder` (z-index в рендере и хит-тесте), настоящий CSS Grid в `LayoutV3GridAdapter`
+(`GridTrack`: px/%/fr/auto/minmax/repeat, placement, auto-flow dense/sparse,
+выравнивание треков), `Overflow.effectiveHorizontal/Vertical` (комбинационное правило).
 
 Миграция контейнеров теперь default-on для уже перенесённых slices; flags остаются для rollback и точечного отключения:
 
@@ -2502,7 +2524,7 @@ try (ProfileScope ignored = profiler.scope("layout")) {
 - primitive widgets: `Text`, `Label`, `TextBlock`, `TextureWidget`, `ImageView`, `Shape`, `Border`, `Separator`, `CanvasWidget`, `Path`;
 - basic widgets/layout shells: `Box`, `Button`, `ToggleButton`, `Checkbox`, `TextInput`, `TextField`, `NumberField`, `PasswordField`, `SearchField`, `Slider`, `ProgressBar`, `ScrollBar`, `ScrollView`, `VirtualListView` с fixed-row virtualization для больших списков, `VirtualTableView`/`VirtualTableColumn` для fixed-row virtualized data-grid prototype, axis-aligned clip/scissor и встроенной scrollbar binding, `CachedSubtreeWidget` с cache hit/miss counters, общими frame counters и `DebugFlags.CACHED_SUBTREE` overlay, `VBox`, `HBox`, `GridBox`, `StackPanel`, `DockPanel`, `WrapPanel`, `Widgets` factory;
 - layout/measurement: `LayoutContext`, `LayoutSize`, `Widget.desiredSize()`, `LayoutConstraints`, `EdgeInsets`, `Alignment`, `Widget.layoutConstraints()`, mutable `WidgetBase` helpers for preferred/min/max size, margins, alignment and grow weight, text/TextInput/Button intrinsic desired-size measurement, plus `LinearBox`/`GridBox` slot sizing and richer `StackPanel`/`DockPanel`/`WrapPanel` containers that aggregate desired sizes and respect collapsed children;
-- Layout V3 migration layer: `api.layout.v3` backend-neutral model, `TaffyLayoutEngine`, `LayoutV3FlexAdapter`, `LayoutV3StackAdapter`, `LayoutV3ScrollAdapter`, `LayoutV3SplitAdapter`, `LayoutV3DockAdapter`, `LayoutV3GridAdapter`, `LayoutCache`, `LayoutDebugDumper`, `OverlayLayoutResolver`, default-on `direct V3 default path` compatibility/reference code, and `LayoutV3SelfTest` coverage wired into `:common:test`;
+- Layout V3 migration layer: `api.layout.v3` backend-neutral model, `WebLayoutEngine` (`TaffyLayoutEngine` остался deprecated-алиасом), `FlexSolver`, `LayoutV3FlexAdapter`, `LayoutV3StackAdapter`, `LayoutV3ScrollAdapter`, `LayoutV3SplitAdapter`, `LayoutV3DockAdapter`, `LayoutV3GridAdapter`, `LayoutCache`, `LayoutDebugDumper`, `OverlayLayoutResolver`, default-on `direct V3 default path` compatibility/reference code, and `LayoutV3SelfTest` coverage wired into `:common:test`;
 - virtualization core: `VirtualRange` and `FixedRowVirtualizer` hold shared fixed-row content extent, max scroll, overscan window and viewport-relative item offset logic used by both `VirtualListView` and `VirtualTableView`;
 - selection contracts: `SelectionMode`, `IndexSelectionModel` and `SelectionChangedEvent` provide shared single/multiple index selection for virtualized list/table rows, including selected row highlight, change events and pruning when item/row count shrinks;
 - table sorting contracts: `SortDirection` and `TableSortChangedEvent` expose `VirtualTableView` column sort state, sort-key provider, per-column row comparator hooks, header click cycle and header sort markers;

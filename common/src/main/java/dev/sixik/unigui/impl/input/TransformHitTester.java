@@ -8,6 +8,7 @@ import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.math.TransformGeometry;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.impl.layout.ZOrder;
 
 import java.util.List;
 import java.util.Optional;
@@ -54,7 +55,7 @@ public final class TransformHitTester implements HitTester {
             return Optional.empty();
         }
 
-        List<Widget> children = widget.children();
+        List<Widget> children = ZOrder.paintOrder(widget.children());
         for (int index = children.size() - 1; index >= 0; index--) {
             Widget child = children.get(index);
             TransformGeometry.Point childPoint = mapPointForChild(widget, child, untransformed.x(), untransformed.y());

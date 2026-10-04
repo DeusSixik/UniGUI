@@ -1,12 +1,18 @@
 package dev.sixik.unigui.api.xml;
 
 import dev.sixik.unigui.api.layout.Align;
+import dev.sixik.unigui.api.layout.AlignContent;
+import dev.sixik.unigui.api.layout.AutoMargins;
 import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.FlexDirection;
 import dev.sixik.unigui.api.layout.FlexWrap;
+import dev.sixik.unigui.api.layout.GridAutoFlow;
+import dev.sixik.unigui.api.layout.GridTrack;
 import dev.sixik.unigui.api.layout.Justify;
 import dev.sixik.unigui.api.layout.LayoutStyle;
 import dev.sixik.unigui.api.layout.SizeValue;
+import dev.sixik.unigui.widgets.containers.FlexBox;
+import dev.sixik.unigui.widgets.containers.GridBox;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.TextureHandle;
@@ -94,6 +100,8 @@ public final class XmlWidgetRuntimeSerializer {
     private static String xmlName(Widget widget) {
         if (widget instanceof VBox) return "VBox";
         if (widget instanceof HBox) return "HBox";
+        if (widget instanceof FlexBox) return "FlexBox";
+        if (widget instanceof GridBox) return "GridBox";
         if (widget instanceof WrapPanel) return "WrapPanel";
         if (widget instanceof ScrollView) return "ScrollView";
         if (widget instanceof StackPanel) return "StackPanel";
@@ -112,6 +120,8 @@ public final class XmlWidgetRuntimeSerializer {
     private static boolean supported(Widget widget) {
         return widget instanceof VBox
                 || widget instanceof HBox
+                || widget instanceof FlexBox
+                || widget instanceof GridBox
                 || widget instanceof WrapPanel
                 || widget instanceof ScrollView
                 || widget instanceof StackPanel
@@ -163,9 +173,40 @@ public final class XmlWidgetRuntimeSerializer {
         writeSize(element, "maxHeight", style.maxHeight());
         writeInsets(element, "padding", style.padding());
         writeInsets(element, "margin", style.margin());
+        if (!style.marginAuto().equals(AutoMargins.NONE)) {
+            element.attribute("marginAuto", marginAutoValue(style.marginAuto()));
+        }
         writeFloat(element, "flexGrow", style.flexGrow(), 0.0f);
-        writeFloat(element, "flexShrink", style.flexShrink(), 1.0f);
+        writeFloat(element, "flexShrink", style.flexShrink(), 0.0f);
         writeSize(element, "flexBasis", style.flexBasis());
+        if (style.order() != 0) {
+            element.attribute("order", String.valueOf(style.order()));
+        }
+        if (Float.isFinite(style.aspectRatio()) && style.aspectRatio() > 0.0f) {
+            element.attribute("aspectRatio", String.valueOf(style.aspectRatio()));
+        }
+        writeGridTracks(element, "gridTemplateColumns", style.gridTemplateColumns());
+        writeGridTracks(element, "gridTemplateRows", style.gridTemplateRows());
+        if (style.gridAutoFlow() != GridAutoFlow.ROW) {
+            element.attribute("gridAutoFlow", enumValue(style.gridAutoFlow()));
+        }
+        writeGridTracks(element, "gridAutoColumns", style.gridAutoColumns());
+        writeGridTracks(element, "gridAutoRows", style.gridAutoRows());
+        if (style.gridColumnStart() > 0) {
+            element.attribute("gridColumn", String.valueOf(style.gridColumnStart()));
+        }
+        if (style.gridColumnSpan() != 1) {
+            element.attribute("gridColumnSpan", String.valueOf(style.gridColumnSpan()));
+        }
+        if (style.gridRowStart() > 0) {
+            element.attribute("gridRow", String.valueOf(style.gridRowStart()));
+        }
+        if (style.gridRowSpan() != 1) {
+            element.attribute("gridRowSpan", String.valueOf(style.gridRowSpan()));
+        }
+        if (style.zIndex() != 0) {
+            element.attribute("zIndex", String.valueOf(style.zIndex()));
+        }
         if (style.flexDirection() != FlexDirection.COLUMN) {
             element.attribute("flexDirection", enumValue(style.flexDirection()));
         }
@@ -179,6 +220,9 @@ public final class XmlWidgetRuntimeSerializer {
         }
         if (style.alignSelf() != Align.AUTO) {
             element.attribute("alignSelf", enumValue(style.alignSelf()));
+        }
+        if (style.alignContent() != AlignContent.STRETCH) {
+            element.attribute("alignContent", enumValue(style.alignContent()));
         }
         if (style.justifyContent() != Justify.START) {
             element.attribute("justifyContent", enumValue(style.justifyContent()));
@@ -249,6 +293,12 @@ public final class XmlWidgetRuntimeSerializer {
         } else if (widget instanceof WrapPanel wrapPanel) {
             writeFloat(element, "spacing", wrapPanel.spacing(), 0.0f);
             writeFloat(element, "lineSpacing", wrapPanel.lineSpacing(), 0.0f);
+        } else if (widget instanceof dev.sixik.unigui.widgets.containers.GridBox gridBox) {
+            if (gridBox.columns() != 1) {
+                element.attribute("columns", String.valueOf(gridBox.columns()));
+            }
+            writeFloat(element, "horizontalSpacing", gridBox.horizontalSpacing(), 0.0f);
+            writeFloat(element, "verticalSpacing", gridBox.verticalSpacing(), 0.0f);
         } else if (widget instanceof ScrollView scrollView) {
             writeFloat(element, "scrollStep", scrollView.scrollStep(), 16.0f);
             writeFloat(element, "scrollbarGap", scrollView.scrollbarGap(), dev.sixik.unigui.widgets.interaction.ScrollBar.DEFAULT_GAP);
@@ -279,6 +329,22 @@ public final class XmlWidgetRuntimeSerializer {
         SizeValue normalized = value == null ? SizeValue.auto() : value;
         SizeValue defaulted = defaultValue == null ? SizeValue.auto() : defaultValue;
         if (normalized.equals(defaulted) || normalized.isAuto()) return;
+        if (normalized.isContent()) {
+            element.attribute(name, "content");
+            return;
+        }
+        if (normalized.isMinContent()) {
+            element.attribute(name, "min-content");
+            return;
+        }
+        if (normalized.isMaxContent()) {
+            element.attribute(name, "max-content");
+            return;
+        }
+        if (normalized.isFitContent()) {
+            element.attribute(name, "fit-content(" + format(normalized.value()) + "px)");
+            return;
+        }
         element.attribute(name, normalized.isPercent() ? format(normalized.value()) + "%" : format(normalized.value()));
     }
 
@@ -297,6 +363,53 @@ public final class XmlWidgetRuntimeSerializer {
 
     private static String enumValue(Enum<?> value) {
         return value.name().toLowerCase(Locale.ROOT).replace('_', '-');
+    }
+
+    private static void writeGridTracks(XmlWidgetElement element, String name, java.util.List<GridTrack> tracks) {
+        if (tracks == null || tracks.isEmpty()) {
+            return;
+        }
+        StringBuilder builder = new StringBuilder();
+        for (GridTrack track : tracks) {
+            if (track == null) {
+                continue;
+            }
+            if (builder.length() > 0) {
+                builder.append(' ');
+            }
+            builder.append(formatTrack(track));
+        }
+        if (builder.length() > 0) {
+            element.attribute(name, builder.toString());
+        }
+    }
+
+    private static String formatTrack(GridTrack track) {
+        if (track instanceof GridTrack.Fixed fixed) {
+            return format(fixed.pixels());
+        }
+        if (track instanceof GridTrack.Percent percent) {
+            return format(percent.percent()) + "%";
+        }
+        if (track instanceof GridTrack.Flex flex) {
+            return format(flex.weight()) + "fr";
+        }
+        if (track instanceof GridTrack.MinMax minmax) {
+            return "minmax(" + formatTrack(minmax.min()) + ", " + formatTrack(minmax.max()) + ")";
+        }
+        return "auto";
+    }
+
+    private static String marginAutoValue(AutoMargins margins) {
+        if (margins.equals(AutoMargins.ALL)) return "all";
+        if (margins.equals(AutoMargins.HORIZONTAL)) return "horizontal";
+        if (margins.equals(AutoMargins.VERTICAL)) return "vertical";
+        StringBuilder builder = new StringBuilder();
+        if (margins.left()) builder.append("left ");
+        if (margins.top()) builder.append("top ");
+        if (margins.right()) builder.append("right ");
+        if (margins.bottom()) builder.append("bottom ");
+        return builder.toString().trim();
     }
 
     private static String color(ColorView color) {

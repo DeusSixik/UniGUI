@@ -446,14 +446,36 @@ maxWidth
 maxHeight
 flexGrow
 flexShrink
+flexBasis
+order
+aspectRatio
 align
 alignItems
+alignSelf
+alignContent
 justifyContent
+marginAuto
+zIndex
 padding
 margin
 overflowX
 overflowY
+position
+gridTemplateColumns
+gridTemplateRows
+gridAutoColumns
+gridAutoRows
+gridAutoFlow
+gridColumn
+gridColumnSpan
+gridRow
+gridRowSpan
 ```
+
+Sizes accept `auto`, plain numbers, `px`, `%`, `content`, `min-content`,
+`max-content` and `fit-content(30px)`. Tracks accept `100px`, `50%`, `1fr`,
+`auto`, `minmax(100px, 1fr)` and `repeat(2, 1fr)`. `marginAuto` accepts sides,
+`horizontal`, `vertical`, `all` or `none`.
 
 Parsing may support compact syntax later:
 

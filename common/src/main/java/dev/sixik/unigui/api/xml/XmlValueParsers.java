@@ -1,6 +1,8 @@
 package dev.sixik.unigui.api.xml;
 
+import dev.sixik.unigui.api.layout.AutoMargins;
 import dev.sixik.unigui.api.layout.EdgeInsets;
+import dev.sixik.unigui.api.layout.GridTrack;
 import dev.sixik.unigui.api.layout.SizeValue;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
@@ -41,6 +43,10 @@ public final class XmlValueParsers {
     public static final XmlValueParser<SizeValue> SIZE = value -> dev.sixik.unigui.impl.xml.XmlValueParsers.SIZE.parse(value);
     /** Parser edge insets: одно значение, вертикаль/горизонталь или четыре стороны. */
     public static final XmlValueParser<EdgeInsets> INSETS = value -> dev.sixik.unigui.impl.xml.XmlValueParsers.INSETS.parse(value);
+    /** Parser marginAuto: стороны {@code left/top/right/bottom}, {@code horizontal}, {@code vertical}, {@code all} или {@code none}. */
+    public static final XmlValueParser<AutoMargins> AUTO_MARGINS = value -> dev.sixik.unigui.impl.xml.XmlValueParsers.AUTO_MARGINS.parse(value);
+    /** Parser grid template: треки через пробел, {@code repeat(n, track)} разворачивается. */
+    public static final XmlValueParser<java.util.List<GridTrack>> GRID_TRACKS = value -> dev.sixik.unigui.impl.xml.XmlValueParsers.GRID_TRACKS.parse(value);
 
     private XmlValueParsers() {
     }
