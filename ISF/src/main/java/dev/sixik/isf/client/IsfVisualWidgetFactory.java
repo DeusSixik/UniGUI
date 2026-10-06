@@ -238,9 +238,10 @@ final class IsfVisualWidgetFactory {
 
     /**
      * Сетка дропа loot table: ячейка {@code {ids: [...], chance, count_min, count_max}}.
-     * В каждой ячейке — модель первого предмета (с числом max-количества) и подпись
-     * шанса под ней. Условия (Silk Touch, Fortune, убийство игроком...) уходят в
-     * тултип; тег-варианты показываются сеткой «Принимает:».
+     * В каждой ячейке — модель первого предмета (число — max диапазона) и подписи
+     * под ней: диапазон количества ({@code min-max}, если min != max) и шанс.
+     * Условия (Silk Touch, Fortune, убийство игроком...) и точный диапазон уходят
+     * в тултип; тег-варианты показываются сеткой «Принимает:».
      */
     private GridBox lootGrid(IsfVisualNode node) {
         GridBox grid = new GridBox();
@@ -249,13 +250,34 @@ final class IsfVisualWidgetFactory {
         grid.columns(5).spacing(0);
         JsonElement raw = value(node, "drops");
         if (raw == null || !raw.isJsonArray()) return grid;
-        for (JsonElement element : raw.getAsJsonArray()) {
+        JsonArray drops = raw.getAsJsonArray();
+        // Предпроход: высота всех строк сетки одинакова, поэтому заранее выясняем,
+        // нужны ли подписи диапазона количества и шанса хоть одной ячейке.
+        boolean needCount = false;
+        boolean needChance = false;
+        for (JsonElement element : drops) {
+            if (!element.isJsonObject()) continue;
+            com.google.gson.JsonObject cell = element.getAsJsonObject();
+            double min = number(cell.get("count_min"), 1.0f);
+            double max = number(cell.get("count_max"), (float) min);
+            if (min - 1e-9 > max) min = max;
+            if (max - min > 1e-9) needCount = true;
+            if (number(cell.get("chance"), 1.0f) < 0.999) needChance = true;
+        }
+        float rowHeight = CELL + (needCount ? 10.0f : 0.0f) + (needChance ? 10.0f : 0.0f);
+        if (rowHeight <= 0.0f) rowHeight = CELL;
+        final float slotHeight = rowHeight;
+        for (JsonElement element : drops) {
             if (!element.isJsonObject()) continue;
             com.google.gson.JsonObject cell = element.getAsJsonObject();
             List<ResourceLocation> ids = new ArrayList<>();
             List<ItemStack> stacks = new ArrayList<>();
             double chance = number(cell.get("chance"), 1.0f);
-            int countMax = Math.max(1, (int) Math.ceil(number(cell.get("count_max"), 1.0f)));
+            double countMin = number(cell.get("count_min"), 1.0f);
+            double countMax = number(cell.get("count_max"), (float) countMin);
+            if (countMin - 1e-9 > countMax) countMin = countMax;
+            boolean ranged = countMax - countMin > 1e-9;
+            int countMaxInt = Math.max(1, (int) Math.ceil(countMax - 1e-9));
             List<net.minecraft.network.chat.Component> conditions = conditionLines(cell);
             if (cell.has("ids") && cell.get("ids").isJsonArray()) {
                 for (JsonElement id : cell.getAsJsonArray("ids")) {
@@ -267,7 +289,6 @@ final class IsfVisualWidgetFactory {
                     stacks.add(stack);
                 }
             }
-            float rowHeight = CELL + 10.0f;
             // NBT ячейки (зелья, чары из set_nbt/set_potion/...): один тег на всех
             // альтернатив, применяется до копирования главного стака.
             net.minecraft.nbt.CompoundTag cellTag = readCellTag(cell.get("nbt"));
@@ -278,27 +299,46 @@ final class IsfVisualWidgetFactory {
                 // Пустая ячейка сохраняет позицию в сетке: без placeholder'а индексы
                 // смещаются, и ряды «пропадают» (village temple и т.п.).
                 Box empty = new Box();
-                empty.layout(style -> style.size(cellColumn, rowHeight).flexNone());
+                empty.layout(style -> style.size(cellColumn, slotHeight).flexNone());
                 grid.addChild(empty);
                 continue;
             }
             IsfItemButton button = new IsfItemButton(ids, stacks, SLOT_TEXTURE, CELL);
-            // Количество показываем по максимуму диапазона (min-max нельзя отобразить одним числом).
+            // Число на иконке — max диапазона; сам диапазон виден подписью под
+            // слотом (одним числом min-max не отобразить) и дублируется в тултипе.
             ItemStack main = stacks.get(0).copy();
-            main.setCount(Math.min(countMax, main.getMaxStackSize()));
+            main.setCount(Math.min(countMaxInt, main.getMaxStackSize()));
             button.icon().stack(main);
-            button.extraTooltipLines(conditions);
+            List<net.minecraft.network.chat.Component> extra = new ArrayList<>(conditions);
+            if (ranged) {
+                extra.add(net.minecraft.network.chat.Component.literal(
+                        "Count: " + formatCount(countMin) + "-" + formatCount(countMax)));
+            }
+            button.extraTooltipLines(extra);
             button.layout(style -> style.size(CELL, CELL).centerSelf().flexNone());
             attachClickHandler(button);
 
             VBox slot = new VBox();
             slot.spacing(0);
-            slot.layout(style -> style.size(cellColumn, rowHeight).flexNone());
+            slot.layout(style -> style.size(cellColumn, slotHeight).flexNone());
             slot.addChild(button);
+            // Подпись диапазона: «1-3». У одиночного количества её нет — число
+            // уже нарисовано на иконке; пустая строка держит выравнивание колонок.
+            if (needCount) {
+                String countText = ranged
+                        ? formatCount(countMin) + "-" + formatCount(countMax) : "";
+                Label countLabel = new Label(
+                        RichText.of(countText, null, CHANCE_TEXT_SIZE));
+                countLabel.layout(style -> style.width(cellColumn).height(10.0f).flexNone());
+                countLabel.textAlignment(Alignment.CENTER);
+                countLabel.color(MutableColor.fromHex("#5A5A5AFF"));
+                slot.addChild(countLabel);
+            }
             // 100% не подписываем: вероятность по умолчанию очевидна без текста.
-            if (chance < 0.999) {
+            if (needChance) {
                 Label chanceLabel = new Label(
-                        RichText.of(formatChance(chance), null, CHANCE_TEXT_SIZE));
+                        RichText.of(chance < 0.999 ? formatChance(chance) : "",
+                                null, CHANCE_TEXT_SIZE));
                 chanceLabel.layout(style -> style.width(cellColumn).height(10.0f).flexNone());
                 chanceLabel.textAlignment(Alignment.CENTER);
                 // Такой же тёмный цвет, как у ID таблицы добычи.
@@ -313,7 +353,7 @@ final class IsfVisualWidgetFactory {
         // Фиксируем геометрию content: иначе ScrollView передаёт GridBox viewport
         // целиком, и GridBox распределяет строки с пустыми промежутками.
         grid.layout(style -> style.width(5.0f * cellColumn)
-                .height(rows * (CELL + 10.0f)).flexNone());
+                .height(rows * slotHeight).flexNone());
         return grid;
     }
 
@@ -355,6 +395,15 @@ final class IsfVisualWidgetFactory {
         double percent = Math.max(0.0, Math.min(1.0, chance)) * 100.0;
         if (percent == Math.floor(percent)) return (int) percent + "%";
         return String.format(java.util.Locale.ROOT, "%.1f%%", percent);
+    }
+
+    /**
+     * @return количество диапазона как «3» или «1.5» (импортёр округляет до 0.1).
+     */
+    private static String formatCount(double count) {
+        double value = Math.max(0.0, count);
+        if (Math.abs(value - Math.rint(value)) < 1e-9) return Long.toString(Math.round(value));
+        return String.format(java.util.Locale.ROOT, "%.1f", value);
     }
 
     /**

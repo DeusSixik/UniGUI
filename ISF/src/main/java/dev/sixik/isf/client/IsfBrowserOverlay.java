@@ -1047,6 +1047,8 @@ final class IsfBrowserOverlay {
      *   <li>Обычный текст — подстрока в DisplayName предмета, в его RegistryID
      *   (namespace или path, регистр не важен) или в полном {@code namespace:path}.</li>
      *   <li>{@code @Text} — то же сравнение, но только по Mod ID (namespace предмета).</li>
+     *   <li>{@code #Text} — подстрока в id тегов предмета
+     *   (namespace, path или полный {@code namespace:path} тега).</li>
      * </ul>
      * Клетки не пересоздаются: фильтр только переключает видимость существующих
      * клеток и тултипы следуют за ними (тултип виден только при наведении на якорь).
@@ -1062,7 +1064,7 @@ final class IsfBrowserOverlay {
      * где позиция скролла восстанавливается отдельно.
      *
      * <p>Клетка видна, только если предмет подходит под поиск И у него есть контент
-     * (рецепты, применения или станция): предметы-ни-о-чём в каталоге скрыты.</p>
+     * (рецепты, применения или станция): предметы без рецептов в каталоге скрыты.</p>
      */
     private void refreshBrowserFilter() {
         if (contentIndexVersion != IsfClientState.version()) {
@@ -1071,7 +1073,8 @@ final class IsfBrowserOverlay {
         }
         String query = browserFilter == null ? "" : browserFilter.trim();
         boolean modOnly = query.startsWith("@");
-        String needle = (modOnly ? query.substring(1) : query)
+        boolean tagOnly = !modOnly && query.startsWith("#");
+        String needle = ((modOnly || tagOnly) ? query.substring(1) : query)
                 .trim()
                 .toLowerCase(Locale.ROOT);
 
@@ -1091,7 +1094,7 @@ final class IsfBrowserOverlay {
         for (ItemEntry entry : catalogEntries) {
             Button cell = itemCells.get(entry.id());
             if (cell == null) continue;
-            boolean visible = matchesBrowserQuery(entry, needle, modOnly)
+            boolean visible = matchesBrowserQuery(entry, needle, modOnly, tagOnly)
                     && itemsWithContent.contains(entry.id());
             cell.visibility(visible
                     ? dev.sixik.unigui.api.widget.Visibility.VISIBLE
@@ -1104,9 +1107,10 @@ final class IsfBrowserOverlay {
 
     /**
      * Перестраивает индекс предметов с контентом: результаты разблокированных
-     * рецептов, катализаторы станций и все id предметов, упомянутые в параметрах
-     * рецептов (ингредиенты, дроп — поиск ведётся по строкам, годным в id
-     * предметов из реестра).
+     * рецептов, катализаторы станций, предметы/станции из триггеров рецептов
+     * и все id предметов, упомянутые в параметрах рецептов (ингредиенты, дроп —
+     * поиск ведётся по строкам, годным в id предметов из реестра; ссылки вида
+     * {@code #namespace:path} раскрываются через теги предметов).
      */
     private void refreshContentIndex() {
         Set<ResourceLocation> visible = new java.util.HashSet<>();
@@ -1117,21 +1121,75 @@ final class IsfBrowserOverlay {
             }
         }
         Set<String> mentioned = new java.util.HashSet<>();
+        Set<ResourceLocation> triggered = new java.util.HashSet<>();
         for (IsfRecipeDefinition recipe : IsfClientState.recipes().values()) {
             if (recipe.parameters() != null) {
                 for (JsonElement value : recipe.parameters().values()) {
                     collectMentionedIds(value, mentioned);
                 }
             }
+            collectTriggerItems(recipe, triggered);
+        }
+        for (ResourceLocation id : triggered) {
+            if (id != null && BuiltInRegistries.ITEM.containsKey(id)) visible.add(id);
         }
         for (String raw : mentioned) {
+            if (raw == null) continue;
+            String text = raw.trim();
+            if (text.startsWith("#")) {
+                // Ссылка на тег ("#forge:ingots/iron"): видимы все предметы тега.
+                ResourceLocation tagId = ResourceLocation.tryParse(text.substring(1));
+                for (ResourceLocation id : expandItemTag(tagId)) {
+                    if (BuiltInRegistries.ITEM.containsKey(id)) visible.add(id);
+                }
+                continue;
+            }
             // Записи вида "minecraft:iron_ingot#9": суффикс количества отбрасываем.
-            int hash = raw.lastIndexOf('#');
-            ResourceLocation id = ResourceLocation.tryParse(hash < 0 ? raw : raw.substring(0, hash));
+            int hash = text.lastIndexOf('#');
+            ResourceLocation id = ResourceLocation.tryParse(hash < 0 ? text : text.substring(0, hash));
             if (id != null && BuiltInRegistries.ITEM.containsKey(id)) visible.add(id);
         }
         visible.removeIf(id -> !BuiltInRegistries.ITEM.containsKey(id));
         itemsWithContent = Set.copyOf(visible);
+    }
+
+    /**
+     * Раскрывает тег предметов в id из реестра клиента.
+     * Битый id или отсутствие тега дают пустой список.
+     */
+    private static List<ResourceLocation> expandItemTag(ResourceLocation tagId) {
+        if (tagId == null) return List.of();
+        try {
+            return BuiltInRegistries.ITEM
+                    .getTag(net.minecraft.tags.TagKey.create(
+                            net.minecraft.core.registries.Registries.ITEM, tagId))
+                    .map(holders -> {
+                        List<ResourceLocation> ids = new ArrayList<>();
+                        holders.forEach(holder -> {
+                            ResourceLocation id = BuiltInRegistries.ITEM.getKey(holder.value());
+                            if (id != null) ids.add(id);
+                        });
+                        return List.copyOf(ids);
+                    })
+                    .orElseGet(List::of);
+        } catch (RuntimeException ignored) {
+            return List.of();
+        }
+    }
+
+    /**
+     * Собирает предметы/станции из триггеров рецепта (subject + station).
+     * Чистая функция без реестра — для тестов; годность id проверяет вызыватель.
+     */
+    static void collectTriggerItems(IsfRecipeDefinition recipe, Set<ResourceLocation> out) {
+        if (recipe == null || out == null) return;
+        List<dev.sixik.isf.definition.IsfTriggerBinding> triggers = recipe.triggers();
+        if (triggers == null) return;
+        for (dev.sixik.isf.definition.IsfTriggerBinding binding : triggers) {
+            if (binding == null) continue;
+            if (binding.subject() != null) out.add(binding.subject());
+            if (binding.station() != null) out.add(binding.station());
+        }
     }
 
     /**
@@ -1159,16 +1217,19 @@ final class IsfBrowserOverlay {
      * Проверяет одну запись каталога против поискового запроса.
      *
      * @param entry запись каталога (id + ItemStack)
-     * @param needle поисковый запрос без {@code @}, уже в нижнем регистре; пустой — совпадает всё
+     * @param needle поисковый запрос без {@code @}/{@code #}, уже в нижнем регистре; пустой — совпадает всё
      * @param modOnly {@code true} — сверять только по Mod ID (namespace)
+     * @param tagOnly {@code true} — сверять только по тегам предмета
      * @return {@code true}, если запись подходит под фильтр
      */
-    private static boolean matchesBrowserQuery(ItemEntry entry, String needle, boolean modOnly) {
+    private static boolean matchesBrowserQuery(ItemEntry entry, String needle,
+                                               boolean modOnly, boolean tagOnly) {
         if (needle == null || needle.isEmpty()) return true;
         ResourceLocation id = entry.id();
         if (id == null) return false;
         String namespace = id.getNamespace().toLowerCase(Locale.ROOT);
         if (modOnly) return namespace.contains(needle);
+        if (tagOnly) return matchesTag(entry, needle);
         String displayName = entry.stack().getHoverName().getString().toLowerCase(Locale.ROOT);
         String path = id.getPath().toLowerCase(Locale.ROOT);
         String fullId = namespace + ":" + path;
@@ -1176,6 +1237,29 @@ final class IsfBrowserOverlay {
                 || namespace.contains(needle)
                 || path.contains(needle)
                 || fullId.contains(needle);
+    }
+
+    /**
+     * Проверяет теги предмета против поискового запроса (режим {@code #}).
+     *
+     * @param entry запись каталога (id + ItemStack)
+     * @param needle запрос без {@code #}, уже в нижнем регистре
+     * @return {@code true}, если id хотя бы одного тега предмета содержит запрос
+     */
+    private static boolean matchesTag(ItemEntry entry, String needle) {
+        try {
+            return entry.stack().getTags().anyMatch(tag -> {
+                ResourceLocation location = tag.location();
+                if (location == null) return false;
+                String tagNamespace = location.getNamespace().toLowerCase(Locale.ROOT);
+                String tagPath = location.getPath().toLowerCase(Locale.ROOT);
+                return tagNamespace.contains(needle)
+                        || tagPath.contains(needle)
+                        || (tagNamespace + ":" + tagPath).contains(needle);
+            });
+        } catch (RuntimeException ignored) {
+            return false;
+        }
     }
 
     private Button itemCell(ItemEntry entry) {
