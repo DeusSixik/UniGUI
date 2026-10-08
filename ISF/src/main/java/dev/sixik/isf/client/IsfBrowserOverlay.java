@@ -1746,12 +1746,19 @@ final class IsfBrowserOverlay {
             properties.put("slot", new IsfExpression.Literal(
                     new JsonPrimitive(IsfVisualWidgetFactory.SLOT_TEXTURE)));
             properties.put("width", new IsfExpression.Literal(new JsonPrimitive(18)));
+            properties.put("height", new IsfExpression.Literal(new JsonPrimitive(18)));
+            properties.put("alignSelf", new IsfExpression.Literal(new JsonPrimitive("center")));
             icons.add(new IsfVisualNode("msrc" + index,
                     ResourceLocation.tryParse("unigui:item"), properties, List.of()));
         }
+        // Фиксированная геометрия (5 колонок по 22px, как сетка дропа): без неё
+        // сетка делит всю ширину шапки на колонки и кнопки ужимаются под ячейку.
+        int rows = Math.max(1, (sources.size() + 4) / 5);
         Map<String, IsfExpression> gridProperties = new LinkedHashMap<>();
         gridProperties.put("columns", new IsfExpression.Literal(new JsonPrimitive(5)));
         gridProperties.put("spacing", new IsfExpression.Literal(new JsonPrimitive(0)));
+        gridProperties.put("width", new IsfExpression.Literal(new JsonPrimitive(5 * 22)));
+        gridProperties.put("height", new IsfExpression.Literal(new JsonPrimitive(rows * 18)));
         IsfVisualNode grid = new IsfVisualNode("msources",
                 ResourceLocation.tryParse("unigui:grid"), gridProperties, icons);
         Map<String, IsfExpression> titleProperties = new LinkedHashMap<>();
@@ -2123,14 +2130,51 @@ final class IsfBrowserOverlay {
             }
         }
 
+        private Field imageWidthField;
+        private boolean imageWidthResolved;
+
+        /**
+         * Ширина GUI без геттера — читаем поле рефлексией. Строковые имена полей
+         * сборка не ремаппит (в отличие от вызовов методов), поэтому пробуем оба
+         * окружения: {@code "imageWidth"} в dev (mojmap) и {@code "f_97726_"}
+         * в проде (SRG). Без этого в релизе всегда падает в фолбэк 176: для
+         * выживания он случайно верен, а креативный экран шире (195) —
+         * панели наезжают на инвентарь.
+         */
         private int imageWidth(AbstractContainerScreen<?> screen) {
-            try {
-                Field field = AbstractContainerScreen.class.getDeclaredField("imageWidth");
-                field.setAccessible(true);
-                return Math.max(0, field.getInt(screen));
-            } catch (ReflectiveOperationException ignored) {
-                return 176;
+            if (!imageWidthResolved) {
+                imageWidthResolved = true;
+                imageWidthField = resolveImageWidthField();
+                if (imageWidthField != null) {
+                    LOGGER.info("[ISF] inventory width field: {}", imageWidthField.getName());
+                } else {
+                    LOGGER.warn("[ISF] inventory width field not found, fallback width");
+                }
             }
+            if (imageWidthField != null) {
+                try {
+                    return Math.max(0, imageWidthField.getInt(screen));
+                } catch (ReflectiveOperationException ignored) {
+                }
+            }
+            // Крайний случай: ширина креатива известна точно (195x136).
+            if (screen instanceof net.minecraft.client.gui.screens.inventory
+                    .CreativeModeInventoryScreen) {
+                return 195;
+            }
+            return 176;
+        }
+
+        private static Field resolveImageWidthField() {
+            for (String name : new String[]{"imageWidth", "f_97726_"}) {
+                try {
+                    Field field = AbstractContainerScreen.class.getDeclaredField(name);
+                    field.setAccessible(true);
+                    return field;
+                } catch (ReflectiveOperationException ignored) {
+                }
+            }
+            return null;
         }
     }
 
