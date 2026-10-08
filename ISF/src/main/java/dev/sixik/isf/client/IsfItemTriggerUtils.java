@@ -73,9 +73,14 @@ public final class IsfItemTriggerUtils {
         };
     }
 
-    /** Переключает закладку предмета через серверный канал. */
+    /** Переключает закладку предмета через серверный канал. Воздух (барьер AIR-дропа) игнорируется. */
     public static boolean toggleBookmark(ResourceLocation itemId) {
         if (itemId == null) return false;
+        try {
+            if (BuiltInRegistries.ITEM.get(itemId) == net.minecraft.world.item.Items.AIR) return false;
+        } catch (RuntimeException ignored) {
+            return false;
+        }
         boolean bookmarked = !IsfClientState.bookmarks().contains(itemId);
         IsfNetwork.toggleBookmark(itemId, bookmarked);
         return true;

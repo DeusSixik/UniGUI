@@ -5,6 +5,7 @@
   "isf.sort.registry": "Реестр",
   "isf.sort.tag": "Тег",
   "isf.tooltip.accepts": "Принимает:",
+  "isf.tooltip.accepts_tag": "Принимает любые:",
   "isf.recipe_type.isf.crafting": "Верстак",
   "isf.recipe_type.isf.cooking": "Печь",
   "isf.recipe_type.isf.smelting": "Печь",
@@ -19,5 +20,7 @@
   "isf.loot_condition.killed_by_player": "Только при убийстве игроком",
   "isf.loot_condition.match_tool": "Зависит от инструмента",
   "isf.loot_condition.random_enchant": "Случайно зачаровано",
-  "isf.loot_condition.survives_explosion": "Выживает при взрыве"
+  "isf.loot_condition.survives_explosion": "Выживает при взрыве",
+  "isf.loot.empty": "Пусто",
+  "isf.loot.chance": "Шанс: %s"
 }

@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.List;
 import java.util.Set;
 
-/** Последний подтверждённый сервером снимок библиотеки локального игрока. */
+/** Снимок библиотеки от сервера: ВСЕ документы рецептов + прогресс локального игрока. */
 public final class IsfClientState {
     private static volatile Set<ResourceLocation> unlocked = Set.of();
     private static volatile Set<ResourceLocation> bookmarks = Set.of();

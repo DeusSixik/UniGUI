@@ -3,8 +3,13 @@ package dev.sixik.isf.client;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+import dev.sixik.isf.definition.IsfRecipeDefinition;
+import dev.sixik.isf.definition.IsfTriggerBinding;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -41,6 +46,35 @@ public final class IsfCatalogVisibilitySelfTest {
         int size = ids.size();
         IsfBrowserOverlay.collectMentionedIds(root, null);
         check(ids.size() == size, "null out safe");
+
+        // Предметы/станции из триггеров рецепта попадают в индекс контента:
+        // иначе предмет, упомянутый только в биндинге (а не в параметрах),
+        // скрыт из каталога, хотя рецепт у него есть.
+        IsfRecipeDefinition recipe = new IsfRecipeDefinition(
+                ResourceLocation.tryParse("isf:loot/mymod/gizmo"),
+                ResourceLocation.tryParse("isf:loot_table"),
+                null,
+                Map.of(),
+                List.of(new IsfTriggerBinding(
+                        ResourceLocation.tryParse("isf:craft"),
+                        ResourceLocation.tryParse("mymod:gizmo"),
+                        null,
+                        Map.of()),
+                        new IsfTriggerBinding(
+                                ResourceLocation.tryParse("isf:station"),
+                                null,
+                                ResourceLocation.tryParse("mymod:workbench"),
+                                Map.of())),
+                null,
+                null);
+        Set<ResourceLocation> triggered = new HashSet<>();
+        IsfBrowserOverlay.collectTriggerItems(recipe, triggered);
+        check(triggered.contains(ResourceLocation.tryParse("mymod:gizmo")), "trigger subject collected");
+        check(triggered.contains(ResourceLocation.tryParse("mymod:workbench")), "trigger station collected");
+        int triggeredSize = triggered.size();
+        IsfBrowserOverlay.collectTriggerItems(null, triggered);
+        IsfBrowserOverlay.collectTriggerItems(recipe, null);
+        check(triggered.size() == triggeredSize, "null recipe/out safe");
 
         System.out.println("IsfCatalogVisibilitySelfTest passed");
     }

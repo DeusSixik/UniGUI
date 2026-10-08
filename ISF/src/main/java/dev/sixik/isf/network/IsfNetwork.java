@@ -75,13 +75,20 @@ public final class IsfNetwork {
         if (itemId != null) CHANNEL.sendToServer(new RequestRecipes(itemId, usages));
     }
 
+    /**
+     * Отправляет игроку полную библиотеку: ВСЕ документы рецептов, а не только
+     * открытые. Видимость в каталоге решает клиент (предметы без рецептов
+     * скрыты индексом контента), поэтому разблокировка через R/U больше не
+     * «протекает» неоткрытыми предметами в правое меню. Набор {@code unlocked}
+     * продолжает синхронизироваться отдельно (прогресс/стейджи) и на состав
+     * отправляемых документов не влияет.
+     */
     public static void sendLibrary(ServerPlayer player) {
         IsfWorldData data = IsfWorldData.get(player.server);
         Set<ResourceLocation> unlocked = data.unlocked(player.getUUID());
         Map<ResourceLocation, ResourceLocation> resultByRecipe = new LinkedHashMap<>();
         List<IsfRecipeDefinition> documents = new ArrayList<>();
         for (IsfResolvedRecipe recipe : dev.sixik.isf.IsfMod.runtime().definitions().recipes()) {
-            if (!unlocked.contains(recipe.id())) continue;
             ResourceLocation result = resultItem(recipe);
             if (result != null) resultByRecipe.put(recipe.id(), result);
             documents.add(new IsfRecipeDefinition(recipe.id(), recipe.recipeType(), null,

@@ -203,6 +203,16 @@ public final class VanillaRecipeTypeSupports {
         JsonArray ingredients = new JsonArray();
         for (Ingredient ingredient : recipe.getIngredients()) {
             JsonArray alternatives = new JsonArray();
+            // Маркер тега ("#namespace:path") первым элементом: клиент показывает
+            // его в тултипе «Принимает» (как JEI). На разбор id не влияет
+            // (такие строки не парсятся в id и везде пропускаются), индекс
+            // контента раскрывает маркер через теги реестра.
+            String tag = null;
+            try {
+                tag = singleTag(ingredient.toJson());
+            } catch (RuntimeException ignored) {
+            }
+            if (tag != null) alternatives.add("#" + tag);
             for (ItemStack stack : ingredient.getItems()) {
                 ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack.getItem());
                 if (id == null) continue;
@@ -215,6 +225,18 @@ public final class VanillaRecipeTypeSupports {
             ingredients.add(alternatives);
         }
         return ingredients;
+    }
+
+    /**
+     * Тег одиночного tag-ингредиента из его JSON ({@code {"tag": "..."}})
+     * или {@code null} (предмет, выбор, пусто). Чистая функция от JSON.
+     */
+    static String singleTag(JsonElement ingredientJson) {
+        if (ingredientJson == null || !ingredientJson.isJsonObject()) return null;
+        JsonElement tag = ingredientJson.getAsJsonObject().get("tag");
+        if (tag == null || !tag.isJsonPrimitive() || !tag.getAsJsonPrimitive().isString()) return null;
+        String id = tag.getAsString();
+        return id == null || id.isBlank() ? null : id;
     }
 
     private static IsfRecipeTypeDefinition definition(String id,

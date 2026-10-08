@@ -6,11 +6,13 @@ import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftGuiRenderBackend;
 import dev.sixik.unigui.widgets.feedback.Tooltip;
+import dev.sixik.unigui.widgets.render.TooltipRenderer;
+import dev.sixik.unigui.widgets.render.TooltipState;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.item.ItemStack;
 
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -94,13 +96,32 @@ public final class MinecraftTooltipRenderers {
      * {@link TooltipComponent}, который
      * конвертируется клиентской фабрикой мода).
      */
-    public static WidgetRender acceptsGrid(List<ItemStack> stacks,
-                                              Supplier<TooltipComponent> componentSupplier) {
+    public static TooltipRenderer acceptsGrid(List<ItemStack> stacks,
+                                               Supplier<TooltipComponent> componentSupplier) {
+        return acceptsGrid(stacks, null, componentSupplier);
+    }
+
+    /**
+     * Ванильный тултип «Принимает:» со сеткой предметных моделей (см. {@link #acceptsGrid(List, Supplier)}).
+     *
+     * @param tag id тега ингредиента без {@code #} ({@code null} — тег неизвестен):
+     *            заголовок становится «Принимает любые:», а строка
+     *            {@code #namespace:path} рисуется серым сразу под ним, над сеткой
+     *            (как в JEI; строку кладёт сам компонент сетки, т.к. ваниль ставит
+     *            image-блок строго после первой текстовой строки)
+     */
+    public static TooltipRenderer acceptsGrid(List<ItemStack> stacks, String tag,
+                                               Supplier<TooltipComponent> componentSupplier) {
         List<ItemStack> fixed = stacks == null ? List.of() : List.copyOf(stacks);
         return WidgetRender.of(Tooltip.class, (draw, tooltip) -> {
             if (fixed.isEmpty()) return;
             List<Component> lines = new ObjectArrayList<>();
-            lines.add(Component.translatable("isf.tooltip.accepts"));
+            if (tag == null || tag.isBlank()) {
+                lines.add(Component.translatable("isf.tooltip.accepts"));
+            } else {
+                lines.add(Component.translatableWithFallback(
+                        "isf.tooltip.accepts_tag", "Accepts any:"));
+            }
             TooltipComponent component = componentSupplier.get();
             int mouseX = vanillaMouseX(tooltip);
             int mouseY = vanillaMouseY(tooltip);

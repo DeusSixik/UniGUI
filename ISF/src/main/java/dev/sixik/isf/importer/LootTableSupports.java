@@ -92,7 +92,7 @@ public final class LootTableSupports {
 
     /** Ячейка дропа: варианты предмета (тег), шанс, диапазон количества, условия и NBT (SNBT). */
     record Drop(List<String> ids, double chance, double countMin, double countMax,
-                List<String> conditions, String nbt) {
+                List<String> conditions, String nbt, String tag) {
     }
 
     private static final class DropBuilder {
@@ -104,6 +104,8 @@ public final class LootTableSupports {
         double countMax = 1.0;
         /** SNBT-тег предмета (зелья, чары, имена): "" — обычный предмет без NBT. */
         String nbt = "";
+        /** Id предметного тега без "#" (ветка tag-entry) или {@code null}. */
+        String tag;
 
         double chance() {
             return Math.max(0.0, Math.min(1.0, 1.0 - miss));
@@ -140,7 +142,8 @@ public final class LootTableSupports {
         for (DropBuilder builder : merged.values()) {
             double countMin = Double.isFinite(builder.countMin) ? builder.countMin : builder.countMax;
             drops.add(new Drop(List.copyOf(builder.ids), builder.chance(),
-                    countMin, builder.countMax, List.copyOf(builder.conditions), builder.nbt));
+                    countMin, builder.countMax, List.copyOf(builder.conditions), builder.nbt,
+                    builder.tag));
             if (drops.size() >= MAX_DROPS) break;
         }
         return List.copyOf(drops);
@@ -238,8 +241,9 @@ public final class LootTableSupports {
             List<String> tagItems = expandTag(name);
             if (tagItems.isEmpty()) return;
             // Один и тот же id с разным NBT (два зелья) — разные ячейки.
-            builder = merged.computeIfAbsent("tag:" + name + "\u0000" + nbt, key -> new DropBuilder());
+            builder = merged.computeIfAbsent("tag:" + name + " " + nbt, key -> new DropBuilder());
             builder.ids.addAll(tagItems);
+            builder.tag = name;
         } else {
             builder = merged.computeIfAbsent(displayName + "\u0000" + nbt, key -> new DropBuilder());
             builder.ids.add(displayName);
@@ -797,26 +801,36 @@ public final class LootTableSupports {
     // Сборка рецепта
     // ------------------------------------------------------------------
 
+    /**
+     * JSON ячейки дропа для параметра {@code drops} (и файл рецепта, и тесты).
+     * Ветка tag-entry пишет свой id в поле {@code "tag"} — клиент показывает
+     * его в тултипе «Принимает» (как в JEI).
+     */
+    static JsonObject dropCell(Drop drop) {
+        JsonObject cell = new JsonObject();
+        JsonArray ids = new JsonArray();
+        drop.ids().forEach(ids::add);
+        cell.add("ids", ids);
+        cell.addProperty("chance", drop.chance());
+        cell.addProperty("count_min", Math.round(drop.countMin() * 10.0) / 10.0);
+        cell.addProperty("count_max", Math.round(drop.countMax() * 10.0) / 10.0);
+        if (drop.tag() != null && !drop.tag().isBlank()) cell.addProperty("tag", drop.tag());
+        if (!drop.nbt().isEmpty()) cell.addProperty("nbt", drop.nbt());
+        if (!drop.conditions().isEmpty()) {
+            JsonArray conditions = new JsonArray();
+            drop.conditions().forEach(conditions::add);
+            cell.add("conditions", conditions);
+        }
+        return cell;
+    }
+
     private static IsfRecipeDefinition buildRecipe(ResourceLocation tableId, List<Drop> drops) {
         String source = sourceItem(tableId);
         String entityType = entityTypeId(tableId);
         JsonArray dropsJson = new JsonArray();
         Set<IsfTriggerBinding> triggers = new LinkedHashSet<>();
         for (Drop drop : drops) {
-            JsonObject cell = new JsonObject();
-            JsonArray ids = new JsonArray();
-            drop.ids().forEach(ids::add);
-            cell.add("ids", ids);
-            cell.addProperty("chance", drop.chance());
-            cell.addProperty("count_min", Math.round(drop.countMin() * 10.0) / 10.0);
-            cell.addProperty("count_max", Math.round(drop.countMax() * 10.0) / 10.0);
-            if (!drop.nbt().isEmpty()) cell.addProperty("nbt", drop.nbt());
-            if (!drop.conditions().isEmpty()) {
-                JsonArray conditions = new JsonArray();
-                drop.conditions().forEach(conditions::add);
-                cell.add("conditions", conditions);
-            }
-            dropsJson.add(cell);
+            dropsJson.add(dropCell(drop));
             for (String id : drop.ids()) {
                 ResourceLocation itemId = ResourceLocation.tryParse(id);
                 if (itemId != null) {
