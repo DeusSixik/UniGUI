@@ -41,6 +41,8 @@ final class IsfItemButton extends Button {
     private final boolean acceptsGrid;
     /** Дополнительные строки тултипа (например, условие выпадения лута). */
     private List<Component> extraLines = List.of();
+    /** Id тега ингредиента без {@code #} ({@code null} — обычный предмет или набор без тега). */
+    private String tag;
     private int shownIndex;
     private long nextCycleMillis;
     /** Красная заливка нехватки для переноса в сетку крафта (см. IsfTransferButton). */
@@ -156,6 +158,16 @@ final class IsfItemButton extends Button {
 
     IsfItemButton extraTooltipLines(List<Component> lines) {
         this.extraLines = lines == null || lines.isEmpty() ? List.of() : List.copyOf(lines);
+        return this;
+    }
+
+    /** Id тега ингредиента без {@code #} (для строки в тултипе «Принимает»). */
+    String tag() {
+        return tag;
+    }
+
+    IsfItemButton tag(String tag) {
+        this.tag = tag == null || tag.isBlank() ? null : tag;
         return this;
     }
 

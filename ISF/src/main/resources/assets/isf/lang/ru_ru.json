@@ -5,6 +5,7 @@
   "isf.sort.registry": "Реестр",
   "isf.sort.tag": "Тег",
   "isf.tooltip.accepts": "Принимает:",
+  "isf.tooltip.accepts_tag": "Принимает любые:",
   "isf.recipe_type.isf.crafting": "Верстак",
   "isf.recipe_type.isf.cooking": "Печь",
   "isf.recipe_type.isf.smelting": "Печь",

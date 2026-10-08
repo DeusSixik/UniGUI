@@ -1854,10 +1854,10 @@ final class IsfBrowserOverlay {
             recipeItemButtons.add(button);
             MinecraftItemTooltip tooltip = new MinecraftItemTooltip(button, button.stack());
             if (button.acceptsGrid()) {
-                // Тег-ингредиент: «Принимает:» + сетка моделей вариантов.
+                // Тег-ингредиент: «Принимает [любые:]» + строка тега + сетка моделей вариантов.
                 tooltip.renderer(dev.sixik.unigui.widgets.minecraft.MinecraftTooltipRenderers
-                        .acceptsGrid(button.acceptsStacks(),
-                                () -> new IsfAcceptsTooltipData(button.acceptsStacks())));
+                        .acceptsGrid(button.acceptsStacks(), button.tag(),
+                                () -> new IsfAcceptsTooltipData(button.acceptsStacks(), button.tag())));
             } else if (button.extraTooltipLines() != null && !button.extraTooltipLines().isEmpty()) {
                 // Условие выпадения лута: vanilla-тултип предмета + строки условий.
                 List<net.minecraft.network.chat.Component> lines = new ArrayList<>();

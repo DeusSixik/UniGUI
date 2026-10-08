@@ -5,6 +5,7 @@
   "isf.sort.registry": "Registry",
   "isf.sort.tag": "Tag",
   "isf.tooltip.accepts": "Accepts:",
+  "isf.tooltip.accepts_tag": "Accepts any:",
   "isf.recipe_type.isf.crafting": "Crafting Table",
   "isf.recipe_type.isf.cooking": "Furnace",
   "isf.recipe_type.isf.smelting": "Furnace",

@@ -26,13 +26,24 @@ public final class IsfAcceptsTooltipData implements TooltipComponent {
     public static final int GRID_COLUMNS = 5;
 
     private final List<ItemStack> stacks;
+    /** Id тега ингредиента без {@code #} ({@code null} — рисуется только сетка). */
+    private final String tag;
 
     public IsfAcceptsTooltipData(List<ItemStack> stacks) {
+        this(stacks, null);
+    }
+
+    public IsfAcceptsTooltipData(List<ItemStack> stacks, String tag) {
         this.stacks = List.copyOf(stacks);
+        this.tag = tag == null || tag.isBlank() ? null : tag;
     }
 
     public List<ItemStack> stacks() {
         return stacks;
+    }
+
+    public String tag() {
+        return tag;
     }
 
     /** Только заголовок «Принимает:»: имена предметов не выводим, только модели. */
@@ -49,8 +60,12 @@ public final class IsfAcceptsTooltipData implements TooltipComponent {
         private final List<ItemStack> stacks;
 
         public GridComponent(IsfAcceptsTooltipData data, Font font) {
-//            this.textLines = data.textLines(font);
-            this.textLines = new ObjectArrayList<>();
+            // Строка тега ("#namespace:path") рисуется серым над сеткой, внутри
+            // image-блока: ваниль вставляет блок строго после первой текстовой
+            // строки, поэтому итог — «Принимает любые: / #тег / сетка».
+            this.textLines = data.tag() == null ? new ObjectArrayList<>()
+                    : new ObjectArrayList<>(font.split(
+                    Component.literal("#" + data.tag()), 220));
             this.stacks = data.stacks();
         }
 

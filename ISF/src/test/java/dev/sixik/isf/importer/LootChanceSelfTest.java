@@ -89,6 +89,17 @@ public final class LootChanceSelfTest {
         check(dropConditions(drops, "eye").contains("minecraft:killed_by_player"),
                 "killed_by_player recorded for tooltip");
 
+        // Ветка tag-entry пишет свой id в поле "tag" ячейки (тултип «Принимает»).
+        JsonObject tagCell = LootTableSupports.dropCell(new LootTableSupports.Drop(
+                List.of("minecraft:oak_planks", "minecraft:spruce_planks"), 0.5, 1.0, 2.0,
+                List.of(), "", "minecraft:planks"));
+        check(tagCell.has("tag")
+                        && tagCell.get("tag").getAsString().equals("minecraft:planks"),
+                "tag recorded in drop cell");
+        JsonObject plainCell = LootTableSupports.dropCell(new LootTableSupports.Drop(
+                List.of("minecraft:stick"), 1.0, 1.0, 1.0, List.of(), "", null));
+        check(!plainCell.has("tag"), "plain drop has no tag");
+
         // Низкоуровневые единицы.
         checkDouble(LootTableSupports.rollProbability(
                 LootTableSupports.parseRolls(rangeObject(0, 2), 1.0), 1.0), 2.0 / 3.0,

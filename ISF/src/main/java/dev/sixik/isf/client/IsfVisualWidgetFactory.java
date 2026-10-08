@@ -37,6 +37,7 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /** Создаёт UniGUI-дерево из декларативного visual ISF-рецепта. */
 final class IsfVisualWidgetFactory {
@@ -321,6 +322,18 @@ final class IsfVisualWidgetFactory {
             ItemStack main = stacks.get(0).copy();
             main.setCount(Math.min(countMaxInt, main.getMaxStackSize()));
             button.icon().stack(main);
+            // Тег ветки tag-entry ("#namespace:path"): тултип «Принимает» покажет
+            // его над сеткой (как в JEI); у одиночного дропа тег не показывается.
+            // Без явного тега (старые файлы, явный список) — точным совпадением набора.
+            String lootTag = null;
+            JsonElement tagElement = cell.get("tag");
+            if (tagElement != null && tagElement.isJsonPrimitive()
+                    && tagElement.getAsJsonPrimitive().isString()
+                    && !tagElement.getAsString().isBlank()) {
+                lootTag = tagElement.getAsString();
+            }
+            if (lootTag == null && stacks.size() > 1) lootTag = findMatchingTag(ids);
+            if (lootTag != null && stacks.size() > 1) button.tag(lootTag);
             List<net.minecraft.network.chat.Component> extra = new ArrayList<>(conditions);
             if (ranged) {
                 extra.add(net.minecraft.network.chat.Component.literal(
@@ -526,7 +539,9 @@ final class IsfVisualWidgetFactory {
     private WidgetBase cellWidget(JsonArray alternatives) {
         List<ResourceLocation> ids = new ArrayList<>();
         List<ItemStack> stacks = new ArrayList<>();
+        String tag = cellTag(alternatives);
         for (JsonElement alternative : alternatives) {
+            if (isTagMarker(alternative)) continue;
             ResourceLocation id = itemId(alternative);
             if (id == null) continue;
             ItemStack stack = item(alternative);
@@ -536,9 +551,76 @@ final class IsfVisualWidgetFactory {
         }
         if (stacks.isEmpty()) return slotBackground(CELL, SLOT_TEXTURE);
         IsfItemButton button = new IsfItemButton(ids, stacks, SLOT_TEXTURE, CELL);
+        // Тег показываем только для набора из нескольких предметов: у одиночного
+        // ингредиента тултип — обычный тултип предмета, без строки тега.
+        // Маркера может не быть (старые файлы, составной ингредиент, лут) —
+        // тогда тег ищем точным совпадением набора с тегами реестра.
+        if (stacks.size() > 1) button.tag(tag != null ? tag : findMatchingTag(ids));
         button.layout(style -> style.size(CELL, CELL).flexNone());
         attachClickHandler(button);
         return button;
+    }
+
+    /**
+     * Ищет тег реестра, чей состав ТОЧНО равен набору id (для ячеек без маркера:
+     * составные ингредиенты, старые файлы, лут). Совпадение частичное —
+     * не тег (иначе припишем чужое имя). Без реестра — {@code null}.
+     */
+    private static String findMatchingTag(List<ResourceLocation> ids) {
+        if (ids == null || ids.size() < 2) return null;
+        Set<String> wanted = new java.util.HashSet<>();
+        for (ResourceLocation id : ids) {
+            if (id == null) return null;
+            wanted.add(id.toString());
+        }
+        Map<String, Set<String>> index = new java.util.LinkedHashMap<>();
+        try {
+            for (net.minecraft.tags.TagKey<net.minecraft.world.item.Item> key
+                    : BuiltInRegistries.ITEM.getTagNames().toList()) {
+                var holders = BuiltInRegistries.ITEM.getTag(key);
+                if (holders.isEmpty() || holders.get().size() != wanted.size()) continue;
+                Set<String> members = new java.util.HashSet<>();
+                for (net.minecraft.core.Holder<net.minecraft.world.item.Item> holder : holders.get()) {
+                    ResourceLocation id = BuiltInRegistries.ITEM.getKey(holder.value());
+                    if (id != null) members.add(id.toString());
+                }
+                index.put(key.location().toString(), members);
+            }
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+        return matchTagIn(index, wanted);
+    }
+
+    /**
+     * Правило совпадения набора с тегом: точное равенство множеств, минимум два
+     * предмета; при нескольких совпавших — первый по порядку индекса.
+     * Чистая функция — для тестов.
+     */
+    static String matchTagIn(Map<String, Set<String>> index, Set<String> wanted) {
+        if (index == null || wanted == null || wanted.size() < 2) return null;
+        for (Map.Entry<String, Set<String>> entry : index.entrySet()) {
+            if (wanted.equals(entry.getValue())) return entry.getKey();
+        }
+        return null;
+    }
+
+    /**
+     * Маркер тега ячейки (первая запись вида {@code "#namespace:path"})
+     * или {@code null}. Чистая функция от JSON.
+     */
+    static String cellTag(JsonArray alternatives) {
+        if (alternatives == null) return null;
+        for (JsonElement alternative : alternatives) {
+            if (isTagMarker(alternative)) return alternative.getAsString().substring(1);
+        }
+        return null;
+    }
+
+    /** Запись-маркер тега (начинается с {@code #}, в отличие от {@code id#count}). */
+    private static boolean isTagMarker(JsonElement alternative) {
+        return alternative != null && alternative.isJsonPrimitive()
+                && alternative.getAsString().startsWith("#");
     }
 
     private static void attachClickHandler(IsfItemButton ignoredButton) {

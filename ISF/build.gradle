@@ -168,6 +168,22 @@ tasks.register('isfLootMergeSelfTest', JavaExec) {
     mainClass = 'dev.sixik.isf.client.IsfLootMergeSelfTest'
 }
 
+tasks.register('isfIngredientTagSelfTest', JavaExec) {
+    group = 'verification'
+    description = 'Проверяет извлечение тега tag-ингредиента ISF.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.sixik.isf.importer.IngredientTagSelfTest'
+}
+
+tasks.register('isfCellTagSelfTest', JavaExec) {
+    group = 'verification'
+    description = 'Проверяет чтение маркера тега ячейки ингредиентов ISF.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.sixik.isf.client.IsfCellTagSelfTest'
+}
+
 tasks.register('isfButtonRendererSelfTest', JavaExec) {
     group = 'verification'
     description = 'Проверяет выбор подложки кнопок ISF по состоянию.'
