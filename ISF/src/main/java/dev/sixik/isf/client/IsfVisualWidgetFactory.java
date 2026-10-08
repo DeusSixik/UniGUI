@@ -279,10 +279,17 @@ final class IsfVisualWidgetFactory {
             boolean ranged = countMax - countMin > 1e-9;
             int countMaxInt = Math.max(1, (int) Math.ceil(countMax - 1e-9));
             List<net.minecraft.network.chat.Component> conditions = conditionLines(cell);
+            boolean hasIds = false;
+            boolean hasAir = false;
             if (cell.has("ids") && cell.get("ids").isJsonArray()) {
                 for (JsonElement id : cell.getAsJsonArray("ids")) {
                     ResourceLocation itemId = itemId(id);
                     if (itemId == null) continue;
+                    hasIds = true;
+                    if (isAirId(itemId)) {
+                        hasAir = true;
+                        continue;
+                    }
                     ItemStack stack = item(id);
                     if (stack.isEmpty()) continue;
                     ids.add(itemId);
@@ -296,6 +303,11 @@ final class IsfVisualWidgetFactory {
                 for (ItemStack stack : stacks) stack.getOrCreateTag().merge(cellTag);
             }
             if (stacks.isEmpty()) {
+                if (hasIds && hasAir) {
+                    buildAirSlot(grid, cellColumn, slotHeight, chance,
+                            conditions, needCount, needChance);
+                    continue;
+                }
                 // Пустая ячейка сохраняет позицию в сетке: без placeholder'а индексы
                 // смещаются, и ряды «пропадают» (village temple и т.п.).
                 Box empty = new Box();
@@ -355,6 +367,58 @@ final class IsfVisualWidgetFactory {
         grid.layout(style -> style.width(5.0f * cellColumn)
                 .height(rows * slotHeight).flexNone());
         return grid;
+    }
+
+    /** Id «пустого» дропа: рисуется барьером, а не пропуском слота. */
+    private static final ResourceLocation AIR_ID = ResourceLocation.tryParse("minecraft:air");
+
+    private static boolean isAirId(ResourceLocation id) {
+        return AIR_ID != null && AIR_ID.equals(id);
+    }
+
+    /**
+     * Ячейка AIR-дропа («ничего не выпало»): иконка барьера в слоте, подпись
+     * шанса под ней и тултип без имени предмета («Пусто», шанс, условия).
+     * Пустым слотом не пропускаем — иначе в сетке остаются дыры.
+     */
+    private void buildAirSlot(GridBox grid, float cellColumn, float slotHeight, double chance,
+                              List<net.minecraft.network.chat.Component> conditions,
+                              boolean needCount, boolean needChance) {
+        ItemStack barrier = new ItemStack(net.minecraft.world.item.Items.BARRIER);
+        IsfItemButton button = new IsfItemButton(List.of(AIR_ID), List.of(barrier),
+                SLOT_TEXTURE, CELL);
+        List<net.minecraft.network.chat.Component> lines = new ArrayList<>();
+        lines.add(net.minecraft.network.chat.Component.translatableWithFallback(
+                "isf.loot.empty", "Empty").copy()
+                .withStyle(net.minecraft.ChatFormatting.GRAY));
+        lines.add(net.minecraft.network.chat.Component.translatableWithFallback(
+                "isf.loot.chance", "Chance: %s", formatChance(chance)));
+        lines.addAll(conditions);
+        button.tooltipLines(lines);
+        button.layout(style -> style.size(CELL, CELL).centerSelf().flexNone());
+        attachClickHandler(button);
+
+        VBox slot = new VBox();
+        slot.spacing(0);
+        slot.layout(style -> style.size(cellColumn, slotHeight).flexNone());
+        slot.addChild(button);
+        if (needCount) {
+            Label countLabel = new Label(RichText.of("", null, CHANCE_TEXT_SIZE));
+            countLabel.layout(style -> style.width(cellColumn).height(10.0f).flexNone());
+            countLabel.textAlignment(Alignment.CENTER);
+            countLabel.color(MutableColor.fromHex("#5A5A5AFF"));
+            slot.addChild(countLabel);
+        }
+        if (needChance) {
+            Label chanceLabel = new Label(
+                    RichText.of(chance < 0.999 ? formatChance(chance) : "",
+                            null, CHANCE_TEXT_SIZE));
+            chanceLabel.layout(style -> style.width(cellColumn).height(10.0f).flexNone());
+            chanceLabel.textAlignment(Alignment.CENTER);
+            chanceLabel.color(MutableColor.fromHex("#5A5A5AFF"));
+            slot.addChild(chanceLabel);
+        }
+        grid.addChild(slot);
     }
 
     /**

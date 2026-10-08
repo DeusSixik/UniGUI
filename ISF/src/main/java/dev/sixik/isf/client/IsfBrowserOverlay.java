@@ -1,13 +1,18 @@
 package dev.sixik.isf.client;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonPrimitive;
 import dev.sixik.isf.IsfMod;
 import dev.sixik.isf.client.widgets.IconButton;
 import dev.sixik.isf.client.widgets.NineSliceHBox;
 import dev.sixik.isf.client.widgets.NineSliceVBox;
 import dev.sixik.isf.network.IsfNetwork;
 import dev.sixik.isf.definition.IsfCatalystDefinition;
+import dev.sixik.isf.definition.IsfExpression;
 import dev.sixik.isf.definition.IsfRecipeDefinition;
+import dev.sixik.isf.definition.IsfTriggerBinding;
+import dev.sixik.isf.definition.IsfVisualNode;
 import dev.sixik.isf.runtime.IsfRecipePaging;
 import dev.sixik.isf.runtime.IsfRecipeQueryMatcher;
 import dev.sixik.unigui.api.core.FrameContext;
@@ -48,6 +53,8 @@ import java.lang.reflect.Field;
 
 /** UniGUI screen-overlay с вертикально перелистываемой сеткой доступных предметов. */
 final class IsfBrowserOverlay {
+    private static final org.slf4j.Logger LOGGER =
+            org.slf4j.LoggerFactory.getLogger(IsfBrowserOverlay.class);
     private static final float CELL = 18.0f;
     private static final float PANEL_PADDING = 4.0f;
 
@@ -267,10 +274,21 @@ final class IsfBrowserOverlay {
     }
 
     void showRecipes(ResourceLocation itemId, boolean usages) {
-        if (itemId == null) return;
+        if (itemId == null || isAirId(itemId)) return;
         pendingRecipeQuery = new PendingRecipeQuery(itemId, usages, IsfClientState.version());
         showRecipeQuery(pendingRecipeQuery);
         IsfNetwork.requestRecipes(itemId, usages);
+    }
+
+    /** {@code true} для воздуха: у AIR-дропа (барьер в лут-сетке) нет рецептов и закладок. */
+    private static boolean isAirId(ResourceLocation itemId) {
+        if (itemId == null) return false;
+        try {
+            Item item = BuiltInRegistries.ITEM.get(itemId);
+            return item == null || item == Items.AIR;
+        } catch (RuntimeException ignored) {
+            return false;
+        }
     }
 
     /**
@@ -897,8 +915,9 @@ final class IsfBrowserOverlay {
 
     /**
      * Инкрементальное обновление каталога после ответа сервера.
-     * Набор клеток не меняется (каталог содержит все предметы игры), поэтому
-     * клетки и тултипы не пересоздаются — панели не мерцают, как с закладками.
+     * Недостающие клетки (предметы модов, зарегистрированные после создания
+     * overlay) достраивает {@link #ensureItemCells} — панели не мерцают,
+     * как с закладками.
      */
     private void syncCatalog() {
         catalogEntries = entries();
@@ -1071,6 +1090,7 @@ final class IsfBrowserOverlay {
             contentIndexVersion = IsfClientState.version();
             refreshContentIndex();
         }
+        ensureItemCells();
         String query = browserFilter == null ? "" : browserFilter.trim();
         boolean modOnly = query.startsWith("@");
         boolean tagOnly = !modOnly && query.startsWith("#");
@@ -1103,6 +1123,41 @@ final class IsfBrowserOverlay {
 
         itemScroll.scrollTo(0.0f, 0.0f);
         updateItemScrollContentHeight();
+    }
+
+    /**
+     * Достраивает клетки каталога, если набор предметов изменился после их
+     * создания. Клетки строятся один раз в {@link #rebuild}, а реестр предметов
+     * на клиенте дополняется модами позже инициализации overlay: без этого
+     * модовые предметы есть в индексе контента, но клеток для них нет и они
+     * не отображаются (видны только ванильные).
+     */
+    private void ensureItemCells() {
+        boolean missing = itemCells.size() != catalogEntries.size();
+        if (!missing) {
+            for (ItemEntry entry : catalogEntries) {
+                if (!itemCells.containsKey(entry.id())) {
+                    missing = true;
+                    break;
+                }
+            }
+        }
+        if (!missing) return;
+        for (MinecraftItemTooltip tooltip : catalogTooltips.values()) {
+            overlayRoot.removeOverlay(tooltip);
+            tooltips.remove(tooltip);
+        }
+        catalogTooltips.clear();
+        hoveredEntry = null;
+        itemCells.clear();
+        grid.clearChildren();
+        for (ItemEntry entry : catalogEntries) {
+            Button cell = itemCell(entry);
+            itemCells.put(entry.id(), cell);
+            grid.addChild(cell);
+        }
+        LOGGER.info("[ISF] catalog cells rebuilt: cells={} entries={}",
+                itemCells.size(), catalogEntries.size());
     }
 
     /**
@@ -1151,6 +1206,42 @@ final class IsfBrowserOverlay {
         }
         visible.removeIf(id -> !BuiltInRegistries.ITEM.containsKey(id));
         itemsWithContent = Set.copyOf(visible);
+        logCatalogDebug(visible, IsfClientState.recipes().size(), mentioned.size(), triggered.size());
+    }
+
+    /**
+     * Диагностика каталога: сколько рецептов знает клиент и сколько предметов
+     * каждого мода видно. Моды, у которых в реестре есть предметы, но ни один
+     * не попал в индекс, логируются отдельно — по ним видно, проблема в
+     * генерации/синке рецептов или в самом индексе.
+     */
+    private static void logCatalogDebug(Set<ResourceLocation> visible, int recipeCount,
+                                        int mentionedCount, int triggeredCount) {
+        try {
+            Map<String, Integer> registryByNs = new java.util.TreeMap<>();
+            int registryTotal = 0;
+            for (Item item : BuiltInRegistries.ITEM) {
+                if (item == Items.AIR) continue;
+                ResourceLocation id = BuiltInRegistries.ITEM.getKey(item);
+                if (id == null) continue;
+                registryTotal++;
+                registryByNs.merge(id.getNamespace(), 1, Integer::sum);
+            }
+            Map<String, Integer> visibleByNs = new java.util.TreeMap<>();
+            for (ResourceLocation id : visible) {
+                if (id != null) visibleByNs.merge(id.getNamespace(), 1, Integer::sum);
+            }
+            LOGGER.info("[ISF] catalog index: recipes={} mentioned={} triggered={} visible={} registryItems={}",
+                    recipeCount, mentionedCount, triggeredCount, visible.size(), registryTotal);
+            for (Map.Entry<String, Integer> entry : registryByNs.entrySet()) {
+                int shown = visibleByNs.getOrDefault(entry.getKey(), 0);
+                if (shown < entry.getValue()) {
+                    LOGGER.info("[ISF] catalog ns '{}': registry={} visible={}",
+                            entry.getKey(), entry.getValue(), shown);
+                }
+            }
+        } catch (RuntimeException ignored) {
+        }
     }
 
     /**
@@ -1547,7 +1638,157 @@ final class IsfBrowserOverlay {
             }
             result.add(recipe);
         }
+        // Одинаковые лут-таблицы — одним экраном с рядом источников (после
+        // фильтра станции: под фильтром мержатся только прошедшие его таблицы).
+        if (dev.sixik.isf.importer.LootTableSupports.LOOT_TYPE_ID.equals(selectedTypeId)) {
+            return mergeLootRecipes(result);
+        }
         return result;
+    }
+
+    /**
+     * Группирует лут-рецепты с идентичным дропом: вместо N одинаковых страниц —
+     * одна с рядом блоков-источников сверху. Мержится только дроп с предметными
+     * источниками (блоки/сундуки); таблицы сущностей (source_item — воздух) и
+     * рецепты без параметра {@code drops} остаются отдельными страницами.
+     * Порядок первых появлений сохраняется. Чистая функция без реестра.
+     */
+    static List<IsfRecipeDefinition> mergeLootRecipes(List<IsfRecipeDefinition> recipes) {
+        if (recipes == null) return List.of();
+        if (recipes.size() < 2) return List.copyOf(recipes);
+        Map<String, LootGroup> groups = new LinkedHashMap<>();
+        List<Object> sequence = new ArrayList<>();
+        for (IsfRecipeDefinition recipe : recipes) {
+            if (recipe == null) continue;
+            String key = lootMergeKey(recipe);
+            if (key == null) {
+                sequence.add(recipe);
+                continue;
+            }
+            LootGroup group = groups.get(key);
+            if (group == null) {
+                group = new LootGroup();
+                groups.put(key, group);
+                sequence.add(group);
+            }
+            group.members.add(recipe);
+        }
+        List<IsfRecipeDefinition> merged = new ArrayList<>();
+        for (Object slot : sequence) {
+            if (slot instanceof IsfRecipeDefinition single) {
+                merged.add(single);
+            } else if (slot instanceof LootGroup group) {
+                merged.add(group.members.size() > 1
+                        ? mergedLootRecipe(group.members) : group.members.get(0));
+            }
+        }
+        return List.copyOf(merged);
+    }
+
+    /** Ключ группировки: канонический дроп; {@code null} — не мержить. */
+    private static String lootMergeKey(IsfRecipeDefinition recipe) {
+        Map<String, JsonElement> parameters = recipe.parameters();
+        if (parameters == null) return null;
+        JsonElement drops = parameters.get("drops");
+        if (drops == null || !drops.isJsonArray()) return null;
+        JsonElement source = parameters.get("source_item");
+        if (source == null || !source.isJsonPrimitive()) return null;
+        String sourceId = source.getAsString();
+        if (sourceId == null || sourceId.isBlank()
+                || sourceId.equals("minecraft:air") || sourceId.equals("air")) {
+            return null;
+        }
+        return drops.toString();
+    }
+
+    /**
+     * Синтетический рецепт группы: дроп общий, источники — все таблицы группы
+     * (первый — в {@code source_item} для совместимости, все — в
+     * {@code source_items}), триггеры — объединение, визуал — шапка с рядом
+     * источников и та же сетка дропа.
+     */
+    private static IsfRecipeDefinition mergedLootRecipe(List<IsfRecipeDefinition> members) {
+        IsfRecipeDefinition first = members.get(0);
+        List<String> sources = new ArrayList<>();
+        for (IsfRecipeDefinition member : members) {
+            JsonElement source = member.parameters().get("source_item");
+            if (source == null || !source.isJsonPrimitive()) continue;
+            String id = source.getAsString();
+            if (id != null && !id.isBlank() && !sources.contains(id)) sources.add(id);
+        }
+        Map<String, JsonElement> parameters = new LinkedHashMap<>(first.parameters());
+        JsonArray items = new JsonArray();
+        sources.forEach(items::add);
+        parameters.put("source_items", items);
+        ResourceLocation mergedId =
+                ResourceLocation.tryBuild("isf", first.id().getPath() + "/merged");
+        if (mergedId == null) mergedId = first.id();
+        Set<IsfTriggerBinding> triggers = new java.util.LinkedHashSet<>();
+        for (IsfRecipeDefinition member : members) {
+            if (member.triggers() != null) triggers.addAll(member.triggers());
+        }
+        return new IsfRecipeDefinition(mergedId, first.recipeType(), null,
+                Map.copyOf(parameters), List.copyOf(triggers),
+                mergedLootVisual(sources), first.source());
+    }
+
+    /**
+     * Визуал merged-страницы: повторяет шапку/тело типа лут-таблицы, но вместо
+     * одного источника — сетка иконок всех источников группы (5 в ряд) и тот же
+     * заголовок первой таблицы. Строится клиентом на лету: старые сгенерированные
+     * type-файлы не затрагиваются.
+     */
+    private static IsfVisualNode mergedLootVisual(List<String> sources) {
+        List<IsfVisualNode> icons = new ArrayList<>();
+        for (int index = 0; index < sources.size(); index++) {
+            Map<String, IsfExpression> properties = new LinkedHashMap<>();
+            properties.put("item", new IsfExpression.Literal(new JsonPrimitive(sources.get(index))));
+            properties.put("slot", new IsfExpression.Literal(
+                    new JsonPrimitive(IsfVisualWidgetFactory.SLOT_TEXTURE)));
+            properties.put("width", new IsfExpression.Literal(new JsonPrimitive(18)));
+            icons.add(new IsfVisualNode("msrc" + index,
+                    ResourceLocation.tryParse("unigui:item"), properties, List.of()));
+        }
+        Map<String, IsfExpression> gridProperties = new LinkedHashMap<>();
+        gridProperties.put("columns", new IsfExpression.Literal(new JsonPrimitive(5)));
+        gridProperties.put("spacing", new IsfExpression.Literal(new JsonPrimitive(0)));
+        IsfVisualNode grid = new IsfVisualNode("msources",
+                ResourceLocation.tryParse("unigui:grid"), gridProperties, icons);
+        Map<String, IsfExpression> titleProperties = new LinkedHashMap<>();
+        titleProperties.put("text", new IsfExpression.Call("isf:loot_title",
+                List.of(new IsfExpression.Parameter("table_id"))));
+        titleProperties.put("color", new IsfExpression.Literal(new JsonPrimitive("#5A5A5AFF")));
+        titleProperties.put("alignSelf", new IsfExpression.Literal(new JsonPrimitive("center")));
+        IsfVisualNode title = new IsfVisualNode("mtitle",
+                ResourceLocation.tryParse("unigui:label"), titleProperties, List.of());
+        Map<String, IsfExpression> headerProperties = new LinkedHashMap<>();
+        headerProperties.put("padding", new IsfExpression.Literal(new JsonPrimitive(2)));
+        headerProperties.put("spacing", new IsfExpression.Literal(new JsonPrimitive(2)));
+        headerProperties.put("alignItems", new IsfExpression.Literal(new JsonPrimitive("center")));
+        IsfVisualNode header = new IsfVisualNode("mheader",
+                ResourceLocation.tryParse("unigui:vbox"), headerProperties, List.of(title, grid));
+        Map<String, IsfExpression> scrollProperties = new LinkedHashMap<>();
+        scrollProperties.put("drops", new IsfExpression.Parameter("drops"));
+        IsfVisualNode scroll = new IsfVisualNode("mscroll",
+                ResourceLocation.tryParse("isf:loot_scroll"), scrollProperties, List.of());
+        Map<String, IsfExpression> bodyProperties = new LinkedHashMap<>();
+        bodyProperties.put("padding", new IsfExpression.Literal(new JsonPrimitive(4)));
+        bodyProperties.put("spacing", new IsfExpression.Literal(new JsonPrimitive(4)));
+        IsfVisualNode body = new IsfVisualNode("mbody",
+                ResourceLocation.tryParse("unigui:vbox"), bodyProperties, List.of(header, scroll));
+        Map<String, IsfExpression> rootProperties = new LinkedHashMap<>();
+        rootProperties.put("width", new IsfExpression.Literal(new JsonPrimitive(150)));
+        rootProperties.put("height", new IsfExpression.Literal(new JsonPrimitive(110)));
+        rootProperties.put("background", new IsfExpression.Literal(new JsonPrimitive("#11151DEB")));
+        rootProperties.put("border", new IsfExpression.Literal(new JsonPrimitive("#6A8FAEFF")));
+        rootProperties.put("radius", new IsfExpression.Literal(new JsonPrimitive(3)));
+        return new IsfVisualNode("mroot",
+                ResourceLocation.tryParse("unigui:box"), rootProperties, List.of(body));
+    }
+
+    /** Группа одинакового дропа при мерже лут-таблиц. */
+    private static final class LootGroup {
+        final List<IsfRecipeDefinition> members = new ArrayList<>();
     }
 
     /** Синяя зона: строит страницы рецептов по высоте области просмотра (до 3 элементов). */

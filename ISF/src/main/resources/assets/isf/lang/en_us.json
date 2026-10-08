@@ -19,5 +19,7 @@
   "isf.loot_condition.killed_by_player": "Killed by player",
   "isf.loot_condition.match_tool": "Depends on tool",
   "isf.loot_condition.random_enchant": "Randomly enchanted",
-  "isf.loot_condition.survives_explosion": "Survives explosion"
+  "isf.loot_condition.survives_explosion": "Survives explosion",
+  "isf.loot.empty": "Empty",
+  "isf.loot.chance": "Chance: %s"
 }

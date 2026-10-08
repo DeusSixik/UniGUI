@@ -19,5 +19,7 @@
   "isf.loot_condition.killed_by_player": "Только при убийстве игроком",
   "isf.loot_condition.match_tool": "Зависит от инструмента",
   "isf.loot_condition.random_enchant": "Случайно зачаровано",
-  "isf.loot_condition.survives_explosion": "Выживает при взрыве"
+  "isf.loot_condition.survives_explosion": "Выживает при взрыве",
+  "isf.loot.empty": "Пусто",
+  "isf.loot.chance": "Шанс: %s"
 }
