@@ -37,28 +37,22 @@ import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
+import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.render.DrawCommand;
 import dev.sixik.unigui.api.render.DrawCommandType;
 import dev.sixik.unigui.api.render.DrawList;
 import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.math.Transform;
 import dev.sixik.unigui.api.widget.RenderedBoundsMapper;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.viewport.Viewport2D;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
-import dev.sixik.unigui.widgets.render.NodeGraphItemState;
-import dev.sixik.unigui.widgets.render.NodeGraphConnectionPreviewState;
-import dev.sixik.unigui.widgets.render.NodeGraphConnectionState;
-import dev.sixik.unigui.widgets.render.NodeGraphPortState;
-import dev.sixik.unigui.widgets.render.NodeGraphRenderPhase;
-import dev.sixik.unigui.widgets.render.NodeGraphRenderer;
-import dev.sixik.unigui.widgets.render.NodeGraphSelectionBoxState;
-import dev.sixik.unigui.widgets.render.NodeGraphState;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
@@ -110,7 +104,6 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     private final MutableColor selectionBoxBorderColor = new MutableColor(0.25f, 0.78f, 1.0f, 0.80f);
     private final MutableColor resizeHandleColor = new MutableColor(0.25f, 0.78f, 1.0f, 0.95f);
 
-    private NodeGraphRenderer renderer;
     private NodeGraphConnectionPolicy connectionPolicy = NodeGraphConnectionPolicy.DEFAULT;
     private NodeGraphSelectionMode selectionMode = NodeGraphSelectionMode.SINGLE;
     private final Viewport2D viewport = new Viewport2D();
@@ -605,21 +598,6 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return resizeHandleColor;
     }
 
-    public NodeGraphRenderer renderer() {
-        return renderer;
-    }
-
-    public NodeGraph renderer(NodeGraphRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public NodeGraph useDefaultRenderer() {
-        return renderer(null);
-    }
-
     public float preferredWidth() {
         return preferredWidth;
     }
@@ -1075,8 +1053,12 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
                 draw.pushClip(layoutBounds().x(), layoutBounds().y(), layoutBounds().width(), layoutBounds().height());
                 pushedClip = true;
             }
-            NodeGraphRenderer activeRenderer = effectiveRenderer();
-            activeRenderer.render(draw, snapshot(NodeGraphRenderPhase.BACKGROUND));
+            WidgetRender custom = customRender();
+            if (custom != null) {
+                custom.render(draw, this);
+            } else {
+                renderBackground(draw);
+            }
             for (NodeGraphItem item : itemSnapshot()) {
                 Widget content = item.content();
                 if (!item.visible() || content.visibility() != Visibility.VISIBLE) continue;
@@ -1092,7 +1074,11 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
                     renderChildWithInheritedTransform(context, content);
                 }
             }
-            activeRenderer.render(draw, snapshot(NodeGraphRenderPhase.FOREGROUND));
+            if (custom != null) {
+                custom.render(draw, this);
+            } else {
+                renderForeground(draw);
+            }
         } finally {
             if (pushedClip) {
                 context.popClip();
@@ -1788,124 +1774,110 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         dispatch(new NodeGraphConnectionSelectionChangedEvent(this, oldSelection, next));
     }
 
-    private NodeGraphRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(NodeGraphRenderer.class, WidgetsRender.nodeGraph()) : renderer;
+    private void renderBackground(DrawScope draw) {
+        float x = layoutBounds().x();
+        float y = layoutBounds().y();
+        float width = layoutBounds().width();
+        float height = layoutBounds().height();
+        if (width <= 0.0f || height <= 0.0f) return;
+        draw.rect(x, y, width, height, Paint.fill(backgroundColor));
+        drawGraphGrid(draw, x, y, width, height);
+        for (NodeGraphConnection connection : connections) {
+            if (!connection.enabled()) continue;
+            ConnectionPoints points = connectionPoints(connection);
+            if (points == null) continue;
+            boolean highlighted = connection.selected() || Objects.equals(hoveredConnectionId, connection.id());
+            ColorView color = highlighted ? selectedConnectionColor : connectionColor;
+            draw.addLine(points.startX(), points.startY(), points.endX(), points.endY(),
+                    color, highlighted ? 2.0f : 1.0f);
+        }
     }
 
-    private NodeGraphState snapshot(NodeGraphRenderPhase phase) {
-        List<NodeGraphItemState> itemStates = new ObjectArrayList<>(items.size());
-        List<NodeGraphPortState> portStates = new ObjectArrayList<>();
+    private void renderForeground(DrawScope draw) {
+        float width = layoutBounds().width();
+        float height = layoutBounds().height();
+        if (width <= 0.0f || height <= 0.0f) return;
         for (NodeGraphItem item : items) {
             if (!item.visible()) continue;
-            itemStates.add(new NodeGraphItemState(
-                    item.id(),
-                    item.x(),
-                    item.y(),
-                    worldToRootX(item.x()),
-                    worldToRootY(item.y()),
-                    itemScreenWidth(item),
-                    itemScreenHeight(item),
-                    item.selected(),
-                    Objects.equals(hoveredItemId, item.id()),
-                    dragState != null && dragState.kind == DragKind.ITEM && dragState.item == item,
-                    item.movable(),
-                    item.resizable()));
+            float itemX = worldToRootX(item.x());
+            float itemY = worldToRootY(item.y());
+            float itemWidth = itemScreenWidth(item);
+            float itemHeight = itemScreenHeight(item);
+            boolean draggingItem = dragState != null && dragState.kind == DragKind.ITEM && dragState.item == item;
+            boolean hoveredItem = Objects.equals(hoveredItemId, item.id());
+            ColorView color = item.selected()
+                    ? selectedItemBorderColor
+                    : hoveredItem || draggingItem
+                    ? hoveredItemBorderColor
+                    : itemBorderColor;
+            draw.roundedRect(itemX, itemY, itemWidth, itemHeight, 4.0f,
+                    Paint.stroke(color, item.selected() || draggingItem ? 2.0f : 1.0f));
+            if (item.selected() && item.resizable()) {
+                float handle = 8.0f;
+                draw.rect(itemX + itemWidth - handle, itemY + itemHeight - handle,
+                        handle, handle, Paint.fill(resizeHandleColor));
+            }
+        }
+        if (connectionDragState != null) {
+            draw.addLine(connectionDragState.startRootX, connectionDragState.startRootY,
+                    connectionDragState.endRootX, connectionDragState.endRootY,
+                    connectionDragState.valid ? connectionPreviewColor : invalidConnectionPreviewColor,
+                    connectionDragState.valid ? 2.0f : 1.5f);
+        }
+        float portRadius = screenPortRadius();
+        for (NodeGraphItem item : items) {
+            if (!item.visible()) continue;
             ObjectArrayList<NodeGraphPort> ports = item.rawPorts();
             Object[] rawPorts = ports.elements();
             for (int portIndex = 0, portSize = ports.size(); portIndex < portSize; portIndex++) {
                 NodeGraphPort port = (NodeGraphPort) rawPorts[portIndex];
                 if (!port.visible()) continue;
                 PortPoint point = portPoint(item, port);
-                NodeGraphPortRef ref = new NodeGraphPortRef(item.id(), port.id());
-                portStates.add(new NodeGraphPortState(
-                        item.id(),
-                        port.id(),
-                        port.kind(),
-                        port.side(),
-                        port.type(),
-                        point.x(),
-                        point.y(),
-                        screenPortRadius(),
-                        port.enabled(),
-                        hoveredPort.equals(ref),
-                        canStartConnection(port) || canEndConnection(port)));
+                boolean hoveredPort = hoveredPort().equals(new NodeGraphPortRef(item.id(), port.id()));
+                ColorView color = hoveredPort ? hoveredPortColor : portColor;
+                draw.addCircleFilled(point.x(), point.y(), portRadius, color, 12);
+                draw.addCircle(point.x(), point.y(), portRadius + 1.0f,
+                        canStartConnection(port) || canEndConnection(port) ? connectionPreviewColor : itemBorderColor,
+                        12,
+                        hoveredPort ? 1.5f : 1.0f);
             }
         }
-        List<NodeGraphConnectionState> connectionStates = new ObjectArrayList<>(connections.size());
-        for (NodeGraphConnection connection : connections) {
-            ConnectionPoints points = connectionPoints(connection);
-            if (points == null) continue;
-            connectionStates.add(new NodeGraphConnectionState(
-                    connection.id(),
-                    connection.fromItemId(),
-                    connection.fromPortId(),
-                    connection.toItemId(),
-                    connection.toPortId(),
-                    points.startX(),
-                    points.startY(),
-                    points.endX(),
-                    points.endY(),
-                    connection.selected(),
-                    Objects.equals(hoveredConnectionId, connection.id()),
-                    connection.enabled(),
-                    connection.type()));
+        if (lassoState != null) {
+            Rect rect = lassoRect();
+            draw.rect(rect.x(), rect.y(), rect.width(), rect.height(),
+                    Paint.fill(selectionBoxFillColor));
+            draw.rect(rect.x(), rect.y(), rect.width(), rect.height(),
+                    Paint.stroke(selectionBoxBorderColor, 1.0f));
         }
-        return new NodeGraphState(
-                layoutBounds().x(),
-                layoutBounds().y(),
-                layoutBounds().width(),
-                layoutBounds().height(),
-                viewportX(),
-                viewportY(),
-                zoom(),
-                gridSize,
-                phase,
-                itemStates,
-                portStates,
-                connectionStates,
-                previewState(),
-                selectionBoxState(),
-                backgroundColor.copy(),
-                gridColor.copy(),
-                majorGridColor.copy(),
-                itemBorderColor.copy(),
-                hoveredItemBorderColor.copy(),
-                selectedItemBorderColor.copy(),
-                portColor.copy(),
-                hoveredPortColor.copy(),
-                connectionColor.copy(),
-                selectedConnectionColor.copy(),
-                connectionPreviewColor.copy(),
-                invalidConnectionPreviewColor.copy(),
-                selectionBoxFillColor.copy(),
-                selectionBoxBorderColor.copy(),
-                resizeHandleColor.copy());
     }
 
-    private NodeGraphConnectionPreviewState previewState() {
-        if (connectionDragState == null) {
-            return NodeGraphConnectionPreviewState.HIDDEN;
+    private void drawGraphGrid(DrawScope draw, float x, float y, float width, float height) {
+        float step = Math.max(2.0f, gridSize * zoom());
+        float majorStep = step * 4.0f;
+        float startX = x + positiveModulo(viewportX(), step);
+        float startY = y + positiveModulo(viewportY(), step);
+
+        for (float gx = startX; gx <= x + width; gx += step) {
+            draw.line(gx, y, gx, y + height, Paint.stroke(gridColor, 1.0f));
         }
-        return new NodeGraphConnectionPreviewState(
-                true,
-                connectionDragState.fromItemId,
-                connectionDragState.fromPortId,
-                connectionDragState.target.itemId(),
-                connectionDragState.target.portId(),
-                connectionDragState.startRootX,
-                connectionDragState.startRootY,
-                connectionDragState.endRootX,
-                connectionDragState.endRootY,
-                connectionDragState.valid,
-                connectionDragState.reason);
+        for (float gy = startY; gy <= y + height; gy += step) {
+            draw.line(x, gy, x + width, gy, Paint.stroke(gridColor, 1.0f));
+        }
+
+        float majorStartX = x + positiveModulo(viewportX(), majorStep);
+        float majorStartY = y + positiveModulo(viewportY(), majorStep);
+        for (float gx = majorStartX; gx <= x + width; gx += majorStep) {
+            draw.line(gx, y, gx, y + height, Paint.stroke(majorGridColor, 1.0f));
+        }
+        for (float gy = majorStartY; gy <= y + height; gy += majorStep) {
+            draw.line(x, gy, x + width, gy, Paint.stroke(majorGridColor, 1.0f));
+        }
     }
 
-    private NodeGraphSelectionBoxState selectionBoxState() {
-        if (lassoState == null) {
-            return NodeGraphSelectionBoxState.HIDDEN;
-        }
-        Rect rect = lassoRect();
-        return new NodeGraphSelectionBoxState(true, rect.x(), rect.y(), rect.width(), rect.height());
+    private static float positiveModulo(float value, float modulo) {
+        if (modulo <= 0.0f) return 0.0f;
+        float result = value % modulo;
+        return result < 0.0f ? result + modulo : result;
     }
 
     private <T extends Event> T dispatch(T event) {

@@ -42,6 +42,23 @@ public final class TextEngine {
         return text.codePointCount(0, text.length()) * APPROX_CHAR_WIDTH;
     }
 
+    /**
+     * Измеряет минимальную контентную ширину: самое длинное слово без переносов.
+     *
+     * @param text rich text или {@code null}
+     * @return ширина самого длинного слова
+     */
+    public static float minContentWidth(RichText text) {
+        if (text == null || text.isEmpty()) return 0.0f;
+        float longest = 0.0f;
+        for (String word : text.plainText().split("\\s+")) {
+            if (!word.isEmpty()) {
+                longest = Math.max(longest, measureLineWidth(word));
+            }
+        }
+        return longest;
+    }
+
     public static float measureLineWidth(RenderContext context, String text) {
         if (text == null || text.isEmpty()) return 0.0f;
         RenderBackend backend = context == null ? null : context.backend();
@@ -344,7 +361,7 @@ public final class TextEngine {
         return switch (alignment == null ? Alignment.START : alignment) {
             case CENTER -> start + Math.max(0.0f, available - size) * 0.5f;
             case END -> start + Math.max(0.0f, available - size);
-            case START, STRETCH -> start;
+            case START, STRETCH, BASELINE -> start;
         };
     }
 

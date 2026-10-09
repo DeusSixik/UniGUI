@@ -8,27 +8,27 @@ import dev.sixik.unigui.api.layout.LayoutStyle;
  */
 public final class LayoutStyleMapper {
     /**
-     * Создаёт экземпляр {@code LayoutStyleMapper} и подготавливает его начальное состояние.
+     * Запрещает создание экземпляров; только статические преобразования.
      */
     private LayoutStyleMapper() {
     }
 
     /**
-     * Создаёт или восстанавливает объект через операцию {@code from}.
+     * Преобразует изменяемый стиль в неизменяемый снимок V3.
      */
     public static LayoutStyleSnapshot from(LayoutStyle style) {
         return LayoutStyleSnapshot.from(style);
     }
 
     /**
-     * Создаёт или восстанавливает объект через операцию {@code from}.
+     * Преобразует ограничения старого формата в неизменяемый снимок V3.
      */
     public static LayoutStyleSnapshot from(LayoutConstraints constraints) {
         return LayoutStyleSnapshot.from(constraints);
     }
 
     /**
-     * Создаёт или восстанавливает объект через операцию {@code from}.
+     * Преобразует стиль в снимок V3; при {@code null}-стиле использует запасные ограничения.
      */
     public static LayoutStyleSnapshot from(LayoutStyle style, LayoutConstraints fallbackConstraints) {
         if (style != null) {

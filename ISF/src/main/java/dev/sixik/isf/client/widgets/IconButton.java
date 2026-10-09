@@ -8,14 +8,17 @@ import dev.sixik.unigui.widgets.interaction.Button;
 public class IconButton extends Button {
     @Override
     protected void renderContent(RenderContext context) {
-        var snapshot = snapshot(context);
+        float x = layoutBounds().x();
+        float y = layoutBounds().y();
+        float width = layoutBounds().width();
+        float height = layoutBounds().height();
         renderChildren(context);
-        if(snapshot.hovered())context.addQuadFilled(
-                new DrawPoint(snapshot.x(),snapshot.y()),
-                new DrawPoint(snapshot.x()+snapshot.width(), snapshot.y()),
-                new DrawPoint(snapshot.x()+snapshot.width(),snapshot.y()+snapshot.height()),
-                new DrawPoint(snapshot.x(),snapshot.y()+snapshot.height()),
-                new MutableColor(1f,1f,1f,0.3f)
+        if (hovered()) context.addQuadFilled(
+                new DrawPoint(x, y),
+                new DrawPoint(x + width, y),
+                new DrawPoint(x + width, y + height),
+                new DrawPoint(x, y + height),
+                new MutableColor(1f, 1f, 1f, 0.3f)
         );
     }
 }

@@ -33,20 +33,11 @@ import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.impl.text.TextEngine;
-import dev.sixik.unigui.widgets.render.DockDropPreviewRenderer;
-import dev.sixik.unigui.widgets.render.DockDropPreviewState;
-import dev.sixik.unigui.widgets.render.DockPaneRenderer;
-import dev.sixik.unigui.widgets.render.DockPaneState;
-import dev.sixik.unigui.widgets.render.DockSplitHandleRenderer;
-import dev.sixik.unigui.widgets.render.DockSplitHandleState;
-import dev.sixik.unigui.widgets.render.DockTabState;
-import dev.sixik.unigui.widgets.render.DockingRootRenderer;
-import dev.sixik.unigui.widgets.render.DockingRootState;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
@@ -94,14 +85,49 @@ public final class DockingRoot extends Box {
             new MutableColor(0.18f, 0.24f, 0.34f, 0.96f);
     private static final MutableColor OVERFLOW_MENU_TEXT =
             new MutableColor(0.88f, 0.93f, 1.0f, 1.0f);
+    private static final MutableColor PANE_BORDER = new MutableColor(0.24f, 0.28f, 0.36f, 0.95f);
+    private static final MutableColor TAB_BACKGROUND = new MutableColor(0.075f, 0.085f, 0.115f, 0.96f);
+    private static final MutableColor TAB_SELECTED = new MutableColor(0.12f, 0.16f, 0.23f, 0.98f);
+    private static final MutableColor TAB_DOCUMENT = new MutableColor(0.10f, 0.14f, 0.21f, 0.98f);
+    private static final MutableColor TAB_TOOL = new MutableColor(0.085f, 0.095f, 0.120f, 0.98f);
+    private static final MutableColor TAB_BORDER = new MutableColor(0.26f, 0.32f, 0.42f, 0.95f);
+    private static final MutableColor TAB_TEXT = new MutableColor(0.88f, 0.93f, 1.0f, 1.0f);
+    private static final MutableColor TAB_TEXT_MUTED = new MutableColor(0.62f, 0.68f, 0.78f, 0.88f);
+    private static final MutableColor TAB_DIRTY = new MutableColor(1.0f, 0.66f, 0.24f, 1.0f);
+    private static final MutableColor TAB_OVERFLOW = new MutableColor(0.28f, 0.78f, 1.0f, 0.85f);
+    private static final MutableColor TAB_HOVER = new MutableColor(0.18f, 0.24f, 0.34f, 0.96f);
+    private static final MutableColor TAB_PRESSED = new MutableColor(0.08f, 0.11f, 0.17f, 0.98f);
+    private static final MutableColor TAB_DRAGGING = new MutableColor(0.25f, 0.78f, 1.0f, 0.92f);
+    private static final MutableColor SPLIT_TRACK = new MutableColor(0.055f, 0.062f, 0.080f, 0.98f);
+    private static final MutableColor SPLIT_TRACK_HOVER = new MutableColor(0.10f, 0.13f, 0.18f, 0.98f);
+    private static final MutableColor SPLIT_TRACK_PRESS = new MutableColor(0.14f, 0.18f, 0.26f, 0.98f);
+    private static final MutableColor SPLIT_LINE = new MutableColor(0.25f, 0.78f, 1.0f, 0.42f);
+    private static final MutableColor SPLIT_LINE_HOVER = new MutableColor(0.35f, 0.88f, 1.0f, 0.75f);
+    private static final MutableColor SPLIT_LINE_PRESS = new MutableColor(0.45f, 0.95f, 1.0f, 1.00f);
+    private static final MutableColor DROP_FILL = new MutableColor(0.18f, 0.56f, 1.0f, 0.22f);
+    private static final MutableColor DROP_STROKE = new MutableColor(0.28f, 0.78f, 1.0f, 0.92f);
+    private static final MutableColor EMPTY_TEXT = new MutableColor(0.62f, 0.68f, 0.78f, 0.8f);
+    private static final MutableColor SEAM = new MutableColor(0.22f, 0.26f, 0.36f, 0.70f);
+    private static final MutableColor SEAM_HOVER = new MutableColor(0.35f, 0.88f, 1.0f, 0.90f);
+    private static final MutableColor SEAM_PRESS = new MutableColor(0.50f, 0.98f, 1.0f, 1.00f);
+    private static final MutableColor SEAM_GLOW = new MutableColor(0.25f, 0.78f, 1.0f, 0.18f);
+    private static final MutableColor SEAM_GLOW_PRESS = new MutableColor(0.30f, 0.85f, 1.0f, 0.30f);
+
+    /** Визуальный стиль разделителя панелей. */
+    public enum SplitHandleStyle {
+        /** Блок с центральной линией. */
+        BLOCK,
+        /** Общая кромка панелей: тонкий шов без фонового блока. */
+        SEAM
+    }
 
     private final DockingManager manager = new DockingManager(this);
     private final DockDragController dragController = new DockDragController(this);
     private final Set<Widget> registeredContents = Collections.newSetFromMap(new IdentityHashMap<>());
-    private DockingRootRenderer rootRenderer;
-    private DockPaneRenderer paneRenderer;
-    private DockSplitHandleRenderer splitHandleRenderer;
-    private DockDropPreviewRenderer dropPreviewRenderer;
+    private WidgetRender paneRenderer;
+    private WidgetRender splitHandleRenderer;
+    private WidgetRender dropPreviewRenderer;
+    private SplitHandleStyle splitHandleStyle = SplitHandleStyle.BLOCK;
     private WindowWidget lastFloatingWindow;
     private final List<WindowWidget> floatingDockWindows = new ObjectArrayList<>();
     private String hoveredPaneId = "";
@@ -282,44 +308,46 @@ public final class DockingRoot extends Box {
         return this;
     }
 
-    public DockingRootRenderer rootRenderer() {
-        return rootRenderer;
+    public SplitHandleStyle splitHandleStyle() {
+        return splitHandleStyle;
     }
 
-    public DockingRoot rootRenderer(DockingRootRenderer rootRenderer) {
-        if (this.rootRenderer == rootRenderer) return this;
-        this.rootRenderer = rootRenderer;
+    @XmlAttribute(value = "splitHandleStyle", category = "Appearance", defaultValue = "block", description = "Split handle visual style: block with a centre line or shared seam line.")
+    public DockingRoot splitHandleStyle(SplitHandleStyle splitHandleStyle) {
+        SplitHandleStyle normalized = splitHandleStyle == null ? SplitHandleStyle.BLOCK : splitHandleStyle;
+        if (this.splitHandleStyle == normalized) return this;
+        this.splitHandleStyle = normalized;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 
-    public DockPaneRenderer paneRenderer() {
+    public WidgetRender paneRenderer() {
         return paneRenderer;
     }
 
-    public DockingRoot paneRenderer(DockPaneRenderer paneRenderer) {
+    public DockingRoot paneRenderer(WidgetRender paneRenderer) {
         if (this.paneRenderer == paneRenderer) return this;
         this.paneRenderer = paneRenderer;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 
-    public DockSplitHandleRenderer splitHandleRenderer() {
+    public WidgetRender splitHandleRenderer() {
         return splitHandleRenderer;
     }
 
-    public DockingRoot splitHandleRenderer(DockSplitHandleRenderer splitHandleRenderer) {
+    public DockingRoot splitHandleRenderer(WidgetRender splitHandleRenderer) {
         if (this.splitHandleRenderer == splitHandleRenderer) return this;
         this.splitHandleRenderer = splitHandleRenderer;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 
-    public DockDropPreviewRenderer dropPreviewRenderer() {
+    public WidgetRender dropPreviewRenderer() {
         return dropPreviewRenderer;
     }
 
-    public DockingRoot dropPreviewRenderer(DockDropPreviewRenderer dropPreviewRenderer) {
+    public DockingRoot dropPreviewRenderer(WidgetRender dropPreviewRenderer) {
         if (this.dropPreviewRenderer == dropPreviewRenderer) return this;
         this.dropPreviewRenderer = dropPreviewRenderer;
         invalidate(InvalidationFlags.VISUAL);
@@ -327,7 +355,7 @@ public final class DockingRoot extends Box {
     }
 
     public DockingRoot useDefaultDockingRenderers() {
-        rootRenderer = null;
+        renderer(null);
         paneRenderer = null;
         splitHandleRenderer = null;
         dropPreviewRenderer = null;
@@ -397,7 +425,10 @@ public final class DockingRoot extends Box {
         applyQueuedMutations();
         pushOpacity(context);
         try {
-            effectiveRootRenderer().render(new DrawScope(context, transform(), layoutBounds()), rootState());
+            DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+            if (!renderCustomVisual(draw)) {
+                renderDefaultRoot(draw);
+            }
             renderSelectedContents(context, rootNode(), layoutBounds());
             renderChrome(context);
             renderOverflowMenu(context);
@@ -1086,26 +1117,202 @@ public final class DockingRoot extends Box {
 
     private void renderChrome(RenderContext context) {
         DrawScope draw = new DrawScope(context, transform(), layoutBounds());
-        for (DockPaneState pane : paneStates(rootNode(), layoutBounds())) {
-            effectivePaneRenderer().render(draw, pane);
+        WidgetRender pane = effectivePaneRenderer();
+        if (pane != null) {
+            pane.render(draw, this);
+        } else {
+            renderDefaultPanes(draw, rootNode(), layoutBounds());
         }
-        for (DockSplitHandleState handle : splitStates(rootNode(), layoutBounds())) {
-            effectiveSplitHandleRenderer().render(draw, handle);
+        WidgetRender split = effectiveSplitHandleRenderer();
+        if (split != null) {
+            split.render(draw, this);
+        } else {
+            renderDefaultSplits(draw, rootNode(), layoutBounds());
         }
+        // Custom preview renderers are only invoked for a valid preview,
+        // matching the old conditional call contract.
+        DockDropIntent preview = dropPreviewIntent();
+        if (preview.valid()) {
+            WidgetRender drop = effectiveDropPreviewRenderer();
+            if (drop != null) {
+                drop.render(draw, this);
+            } else {
+                renderDefaultDropPreview(draw, preview);
+            }
+        }
+    }
+
+    private void renderDefaultRoot(DrawScope draw) {
+        float x = layoutBounds().x();
+        float y = layoutBounds().y();
+        float width = layoutBounds().width();
+        float height = layoutBounds().height();
+        if (width <= 0.0f || height <= 0.0f) return;
+        if (backgroundVisible()) {
+            draw.roundedRect(x, y, width, height, radius(),
+                    Paint.fill(background()));
+        }
+        if (borderVisible() && borderWidth() > 0.0f) {
+            draw.roundedRect(x, y, width, height, radius(),
+                    Paint.stroke(borderColor(), borderWidth()));
+        }
+        if (dragController.dragging() || dropPreviewIntent().valid()) {
+            draw.roundedRect(x + 1.0f, y + 1.0f,
+                    Math.max(0.0f, width - 2.0f), Math.max(0.0f, height - 2.0f),
+                    Math.max(0.0f, radius() - 1.0f), Paint.stroke(EMPTY_TEXT, 1.0f));
+        }
+        if (manager.empty()) {
+            draw.text("Drop or add a DockPane", x + 8.0f, y + 8.0f,
+                    Math.max(0.0f, width - 16.0f), 14.0f, Paint.fill(EMPTY_TEXT));
+        }
+    }
+
+    private void renderDefaultPanes(DrawScope draw, DockNode node, RectView bounds) {
+        if (node == null || bounds == null) return;
+        if (node.isLeaf()) {
+            renderDefaultPane(draw, node, bounds);
+            return;
+        }
+        SplitRects split = splitRects(bounds, node.orientation(), node.splitRatio());
+        renderDefaultPanes(draw, node.first(), split.first());
+        renderDefaultPanes(draw, node.second(), split.second());
+    }
+
+    private void renderDefaultPane(DrawScope draw, DockNode node, RectView bounds) {
+        float width = bounds.width();
+        float height = bounds.height();
+        if (width <= 0.0f || height <= 0.0f) return;
+        float stripHeight = Math.min(tabHeight, height);
+        draw.rect(bounds.x(), bounds.y(), width, height, Paint.stroke(PANE_BORDER, 1.0f));
+        draw.rect(bounds.x(), bounds.y(), width, stripHeight, Paint.fill(TAB_BACKGROUND));
+
+        int selectedIndex = node.selectedIndex();
+        String activeId = activePaneId();
+        for (TabLayout tab : tabLayouts(node, bounds)) {
+            if (tab.width() <= 0.0f || tab.height() <= 0.0f) continue;
+            DockPane pane = tab.pane();
+            boolean selected = tab.index() == selectedIndex;
+            boolean hovered = pane.id().equals(hoveredPaneId);
+            boolean pressed = pane.id().equals(pressedPaneId);
+            boolean dragging = pane.id().equals(dragController.paneId()) && dragController.dragging();
+            boolean active = pane.id().equals(activeId);
+            MutableColor base = pressed
+                    ? TAB_PRESSED
+                    : hovered
+                    ? TAB_HOVER
+                    : selected
+                    ? TAB_SELECTED
+                    : pane.kind() == DockPaneKind.DOCUMENT ? TAB_DOCUMENT : TAB_TOOL;
+            draw.roundedRect(tab.x(), tab.y(), tab.width(), tab.height() + 2.0f, 3.0f,
+                    Paint.fill(base));
+            draw.line(tab.x(), tab.y() + tab.height(),
+                    tab.x() + tab.width(), tab.y() + tab.height(),
+                    Paint.stroke(dragging ? TAB_DRAGGING : active ? TAB_TEXT : TAB_BORDER,
+                            dragging ? 2.0f : active ? 1.5f : 1.0f));
+            if (pane.dirty()) {
+                draw.circle(tab.x() + Math.max(7.0f, tab.width() - 12.0f),
+                        tab.y() + Math.max(6.0f, tab.height() * 0.5f - 2.0f),
+                        4.0f, 4.0f, Paint.fill(TAB_DIRTY));
+            }
+            if (pane.autoHide()) {
+                draw.line(tab.x() + 4.0f, tab.y() + 3.0f,
+                        tab.x() + 4.0f, tab.y() + Math.max(4.0f, tab.height() - 4.0f),
+                        Paint.stroke(TAB_OVERFLOW, 1.0f));
+            }
+            draw.pushTextClip(tab.x() + 6.0f, tab.y(), Math.max(0.0f, tab.width() - 12.0f), tab.height());
+            try {
+                TextEngine.drawInline(draw, pane.richTitle(), tab.x() + 6.0f, tab.y() + 4.0f,
+                        Math.max(0.0f, tab.width() - 12.0f), Math.max(0.0f, tab.height() - 6.0f),
+                        Paint.fill(selected ? TAB_TEXT : TAB_TEXT_MUTED));
+            } finally {
+                draw.popClip();
+            }
+        }
+        if (tabsOverflow(node, bounds)) {
+            MutableRect button = overflowButtonBounds(bounds);
+            float bx = button.x();
+            float by = button.y();
+            float bw = button.width();
+            float bh = button.height();
+            boolean menuOpen = node.id().equals(openOverflowNodeId);
+            draw.roundedRect(bx + 2.0f, by + 2.0f, Math.max(0.0f, bw - 4.0f), Math.max(0.0f, bh - 4.0f), 3.0f,
+                    Paint.fill(menuOpen ? TAB_HOVER : TAB_BACKGROUND));
+            draw.rect(bx + 2.0f, by + 2.0f, Math.max(0.0f, bw - 4.0f), Math.max(0.0f, bh - 4.0f),
+                    Paint.stroke(TAB_OVERFLOW, 1.0f));
+            float cx = bx + bw * 0.5f;
+            float cy = by + bh * 0.5f;
+            draw.circle(cx - 5.0f, cy, 1.6f, 1.6f, Paint.fill(TAB_OVERFLOW));
+            draw.circle(cx, cy, 1.6f, 1.6f, Paint.fill(TAB_OVERFLOW));
+            draw.circle(cx + 5.0f, cy, 1.6f, 1.6f, Paint.fill(TAB_OVERFLOW));
+        }
+    }
+
+    private void renderDefaultSplits(DrawScope draw, DockNode node, RectView bounds) {
+        if (node == null || node.isLeaf() || bounds == null) return;
+        SplitRects split = splitRects(bounds, node.orientation(), node.splitRatio());
+        renderDefaultSplitHandle(draw,
+                split.handle().x(), split.handle().y(), split.handle().width(), split.handle().height(),
+                node.orientation(),
+                node.id().equals(hoveredSplitNodeId),
+                node.id().equals(pressedSplitNodeId));
+        renderDefaultSplits(draw, node.first(), split.first());
+        renderDefaultSplits(draw, node.second(), split.second());
+    }
+
+    private void renderDefaultSplitHandle(DrawScope draw, float x, float y, float width, float height,
+                                                DockSplitOrientation orientation, boolean hovered, boolean pressed) {
+        if (width <= 0.0f || height <= 0.0f) return;
+        if (splitHandleStyle == SplitHandleStyle.SEAM) {
+            renderSeamSplitHandle(draw, x, y, width, height, orientation, hovered, pressed);
+            return;
+        }
+        MutableColor track = pressed ? SPLIT_TRACK_PRESS : hovered ? SPLIT_TRACK_HOVER : SPLIT_TRACK;
+        MutableColor line = pressed ? SPLIT_LINE_PRESS : hovered ? SPLIT_LINE_HOVER : SPLIT_LINE;
+        draw.rect(x, y, width, height, Paint.fill(track));
+        if (orientation == DockSplitOrientation.HORIZONTAL) {
+            float cx = x + width * 0.5f;
+            draw.line(cx, y + 4.0f, cx, y + Math.max(4.0f, height - 4.0f),
+                    Paint.stroke(line, pressed ? 2.0f : 1.0f));
+        } else {
+            float cy = y + height * 0.5f;
+            draw.line(x + 4.0f, cy, x + Math.max(4.0f, width - 4.0f), cy,
+                    Paint.stroke(line, pressed ? 2.0f : 1.0f));
+        }
+    }
+
+    /**
+     * Рисует разделитель общей кромкой: тонкий шов без фонового блока.
+     *
+     * <p>При наведении поверх зоны handle рисуется полупрозрачная подсветка,
+     * во время drag шов превращается в яркую линию.</p>
+     */
+    private static void renderSeamSplitHandle(DrawScope draw, float x, float y, float width, float height,
+                                              DockSplitOrientation orientation, boolean hovered, boolean pressed) {
+        if (hovered || pressed) {
+            draw.rect(x, y, width, height, Paint.fill(pressed ? SEAM_GLOW_PRESS : SEAM_GLOW));
+        }
+        MutableColor seam = pressed ? SEAM_PRESS : hovered ? SEAM_HOVER : SEAM;
+        float strokeWidth = pressed ? 2.0f : 1.0f;
+        if (orientation == DockSplitOrientation.HORIZONTAL) {
+            float cx = x + width * 0.5f;
+            draw.line(cx, y, cx, y + height, Paint.stroke(seam, strokeWidth));
+        } else {
+            float cy = y + height * 0.5f;
+            draw.line(x, cy, x + width, cy, Paint.stroke(seam, strokeWidth));
+        }
+    }
+
+    private static void renderDefaultDropPreview(DrawScope draw, DockDropIntent preview) {
+        if (preview == null || !preview.valid() || preview.width() <= 0.0f || preview.height() <= 0.0f) return;
+        draw.roundedRect(preview.x(), preview.y(), preview.width(), preview.height(), 4.0f, Paint.fill(DROP_FILL));
+        draw.roundedRect(preview.x(), preview.y(), preview.width(), preview.height(), 4.0f, Paint.stroke(DROP_STROKE, 1.5f));
+    }
+
+    private DockDropIntent dropPreviewIntent() {
         DockDropIntent preview = dragController.previewIntent().valid()
                 ? dragController.previewIntent()
                 : floatingDropPreviewIntent;
-        if (preview.valid()) {
-            effectiveDropPreviewRenderer().render(draw, new DockDropPreviewState(
-                    true,
-                    preview.sourcePaneId(),
-                    preview.targetPaneId(),
-                    preview.area(),
-                    preview.x(),
-                    preview.y(),
-                    preview.width(),
-                    preview.height()));
-        }
+        return preview == null ? DockDropIntent.none() : preview;
     }
 
     private void floatingDropPreview(DockDropIntent intent) {
@@ -1172,12 +1379,10 @@ public final class DockingRoot extends Box {
         if (node == null) return null;
         if (node.isLeaf()) {
             if (rootY < bounds.y() || rootY > bounds.y() + Math.min(tabHeight, bounds.height())) return null;
-            List<DockTabState> tabs = tabStates(node, bounds);
-            for (int i = 0; i < tabs.size(); i++) {
-                DockTabState tab = tabs.get(i);
+            for (TabLayout tab : tabLayouts(node, bounds)) {
                 if (rootX >= tab.x() && rootX <= tab.x() + tab.width()
                         && rootY >= tab.y() && rootY <= tab.y() + tab.height()) {
-                    return node.panes().get(i);
+                    return tab.pane();
                 }
             }
             return null;
@@ -1187,49 +1392,8 @@ public final class DockingRoot extends Box {
         return first != null ? first : tabAt(node.second(), split.second(), rootX, rootY);
     }
 
-    private List<DockPaneState> paneStates(DockNode node, RectView bounds) {
-        List<DockPaneState> result = new ObjectArrayList<>();
-        collectPaneStates(node, bounds, result);
-        return result;
-    }
-
-    private void collectPaneStates(DockNode node, RectView bounds, List<DockPaneState> result) {
-        if (node == null) return;
-        if (node.isLeaf()) {
-            result.add(new DockPaneState(
-                    bounds.x(), bounds.y(), bounds.width(), bounds.height(),
-                    Math.min(tabHeight, bounds.height()), tabStates(node, bounds), node.selectedIndex(),
-                    firstVisibleTab(node, bounds), lastVisibleTab(node, bounds), tabsOverflow(node, bounds),
-                    overflowButtonBounds(bounds).x(), overflowButtonBounds(bounds).y(),
-                    overflowButtonBounds(bounds).width(), overflowButtonBounds(bounds).height(),
-                    node.id().equals(openOverflowNodeId)));
-            return;
-        }
-        SplitRects split = splitRects(bounds, node.orientation(), node.splitRatio());
-        collectPaneStates(node.first(), split.first(), result);
-        collectPaneStates(node.second(), split.second(), result);
-    }
-
-    private List<DockSplitHandleState> splitStates(DockNode node, RectView bounds) {
-        List<DockSplitHandleState> result = new ObjectArrayList<>();
-        collectSplitStates(node, bounds, result);
-        return result;
-    }
-
-    private void collectSplitStates(DockNode node, RectView bounds, List<DockSplitHandleState> result) {
-        if (node == null || node.isLeaf()) return;
-        SplitRects split = splitRects(bounds, node.orientation(), node.splitRatio());
-        boolean hovered = node.id().equals(hoveredSplitNodeId);
-        boolean pressed = node.id().equals(pressedSplitNodeId);
-        result.add(new DockSplitHandleState(
-                split.handle().x(), split.handle().y(), split.handle().width(), split.handle().height(),
-                node.orientation(), hovered, pressed));
-        collectSplitStates(node.first(), split.first(), result);
-        collectSplitStates(node.second(), split.second(), result);
-    }
-
-    private List<DockTabState> tabStates(DockNode node, RectView bounds) {
-        List<DockTabState> tabs = new ObjectArrayList<>();
+    private List<TabLayout> tabLayouts(DockNode node, RectView bounds) {
+        List<TabLayout> tabs = new ObjectArrayList<>();
         if (node == null || !node.isLeaf() || node.panes().isEmpty()) return tabs;
         float y = bounds.y();
         float height = Math.min(tabHeight, bounds.height());
@@ -1250,29 +1414,13 @@ public final class DockingRoot extends Box {
             if (!visible || remaining <= 0.0f || width < 12.0f) {
                 width = 0.0f;
             }
-            tabs.add(new DockTabState(
-                    pane.id(), pane.richTitle(),
-                    x, y, Math.max(0.0f, width), height,
-                    i == node.selectedIndex(), pane.closable(),
-                    pane.kind(), pane.dirty(), pane.pinned(), pane.autoHide(),
-                    pane.id().equals(activePaneId()),
-                    pane.id().equals(hoveredPaneId),
-                    pane.id().equals(pressedPaneId),
-                    pane.id().equals(dragController.paneId()) && dragController.dragging()));
+            tabs.add(new TabLayout(i, pane, x, y, Math.max(0.0f, width), height));
             if (visible) x += width;
         }
         return tabs;
     }
 
-    private int firstVisibleTab(DockNode node, RectView bounds) {
-        if (node == null || !node.isLeaf() || node.panes().isEmpty()) return 0;
-        return tabsOverflow(node, bounds) ? normalizedTabScrollOffset(node, bounds) : 0;
-    }
-
-    private int lastVisibleTab(DockNode node, RectView bounds) {
-        if (node == null || !node.isLeaf() || node.panes().isEmpty()) return -1;
-        if (!tabsOverflow(node, bounds)) return node.panes().size() - 1;
-        return Math.min(node.panes().size() - 1, normalizedTabScrollOffset(node, bounds) + visibleTabCapacity(node, bounds) - 1);
+    private record TabLayout(int index, DockPane pane, float x, float y, float width, float height) {
     }
 
     private boolean tabsOverflow(DockNode node, RectView bounds) {
@@ -1501,29 +1649,16 @@ public final class DockingRoot extends Box {
                 new MutableRect(bounds.x(), bounds.y() + firstSize + thickness, bounds.width(), secondSize));
     }
 
-    private DockingRootState rootState() {
-        return new DockingRootState(
-                layoutBounds().x(), layoutBounds().y(), layoutBounds().width(), layoutBounds().height(),
-                manager.empty(),
-                backgroundVisible(), background().copy(), radius(),
-                borderVisible(), borderColor().copy(), borderWidth(),
-                dragController.dragging(), dragController.previewIntent().valid());
+    private WidgetRender effectivePaneRenderer() {
+        return paneRenderer;
     }
 
-    private DockingRootRenderer effectiveRootRenderer() {
-        return rootRenderer == null ? styleRenderer(DockingRootRenderer.class, WidgetsRender.dockingRoot()) : rootRenderer;
+    private WidgetRender effectiveSplitHandleRenderer() {
+        return splitHandleRenderer;
     }
 
-    private DockPaneRenderer effectivePaneRenderer() {
-        return paneRenderer == null ? WidgetsRender.dockPane() : paneRenderer;
-    }
-
-    private DockSplitHandleRenderer effectiveSplitHandleRenderer() {
-        return splitHandleRenderer == null ? WidgetsRender.dockSplitHandle() : splitHandleRenderer;
-    }
-
-    private DockDropPreviewRenderer effectiveDropPreviewRenderer() {
-        return dropPreviewRenderer == null ? WidgetsRender.dockDropPreview() : dropPreviewRenderer;
+    private WidgetRender effectiveDropPreviewRenderer() {
+        return dropPreviewRenderer;
     }
 
     private String activePaneId() {

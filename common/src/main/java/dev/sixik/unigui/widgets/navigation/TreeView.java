@@ -9,18 +9,18 @@ import dev.sixik.unigui.api.event.EventSubscription;
 import dev.sixik.unigui.api.event.KeyPressedEvent;
 import dev.sixik.unigui.api.event.SelectionChangedEvent;
 import dev.sixik.unigui.api.input.KeyCodes;
+import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.text.RichText;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
-import dev.sixik.unigui.widgets.render.TreeViewRenderer;
-import dev.sixik.unigui.widgets.render.TreeViewRowState;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
@@ -42,7 +42,6 @@ public class TreeView extends LinearBox {
     private final VBox rowsHost = new VBox();
     private final List<TreeViewNode> roots = new ObjectArrayList<>();
     private final List<TreeViewNode> visibleNodes = new ObjectArrayList<>();
-    private TreeViewRenderer renderer;
     private TreeViewNode selectedNode;
     private float rowTextHoverScrollSpeed = ROW_TEXT_HOVER_SCROLL_SPEED;
     private int batchDepth;
@@ -166,21 +165,6 @@ public class TreeView extends LinearBox {
 
     public VBox rowsHost() {
         return rowsHost;
-    }
-
-    public TreeViewRenderer renderer() {
-        return renderer;
-    }
-
-    public TreeView renderer(TreeViewRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public TreeView useDefaultRenderer() {
-        return renderer(null);
     }
 
     public float rowTextHoverScrollSpeed() {
@@ -521,11 +505,23 @@ public class TreeView extends LinearBox {
     private record VisibleEntry(TreeViewNode node, int depth) {
     }
 
-    protected TreeViewRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(TreeViewRenderer.class, WidgetsRender.treeView()) : renderer;
+    /**
+     * Рисует одну строку дерева: custom renderer дерева или skin-default.
+     *
+     * <p>Метод объявлен в {@code TreeView}, а не в строке, потому что protected
+     * {@code customRender()} недоступен строке напрямую: строка является другим
+     * наследником {@code WidgetBase}.</p>
+     */
+    private void renderRow(DrawScope draw, TreeRowButton row) {
+        WidgetRender custom = customRender();
+        if (custom != null) {
+            custom.render(draw, row);
+        } else {
+            row.renderRowVisual(draw);
+        }
     }
 
-    private static final class TreeRowButton extends Button {
+    public static final class TreeRowButton extends Button {
         private final TreeView tree;
         private final TreeViewNode node;
         private final int depth;
@@ -585,41 +581,33 @@ public class TreeView extends LinearBox {
 
         @Override
         protected void renderContent(RenderContext context) {
-            tree.effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), rowSnapshot(context));
+            tree.renderRow(new DrawScope(context, transform(), layoutBounds()), this);
         }
 
-        private TreeViewRowState rowSnapshot(RenderContext context) {
+        private void renderRowVisual(DrawScope draw) {
             RichText text = rowText();
+            if (text == null || text.isEmpty()) return;
+            float x = layoutBounds().x();
+            float y = layoutBounds().y();
+            float width = layoutBounds().width();
+            float height = layoutBounds().height();
             float indent = depth * INDENT_WIDTH;
-            float baseTextX = layoutBounds().x() + TEXT_PADDING_X + indent;
-            float availableWidth = Math.max(0.0f, layoutBounds().width() - TEXT_PADDING_X * 2.0f - indent);
-            float availableHeight = Math.max(0.0f, layoutBounds().height());
-            float textWidth = TextEngine.measureLineWidth(context, text);
-        float textHeight = Math.min(availableHeight, TextEngine.measureTextHeight(context, text));
+            float baseTextX = x + TEXT_PADDING_X + indent;
+            float availableWidth = Math.max(0.0f, width - TEXT_PADDING_X * 2.0f - indent);
+            float availableHeight = Math.max(0.0f, height);
+            float textWidth = TextEngine.measureLineWidth(draw.context(), text);
+            float textHeight = Math.min(availableHeight, TextEngine.measureTextHeight(draw.context(), text));
             float textX = baseTextX - hoverTextScrollOffset(textWidth, availableWidth);
-            float textY = TextEngine.alignedStart(layoutBounds().y(), availableHeight, textHeight,
-                    dev.sixik.unigui.api.layout.Alignment.CENTER);
-            return new TreeViewRowState(
-                    layoutBounds().x(),
-                    layoutBounds().y(),
-                    layoutBounds().width(),
-                    layoutBounds().height(),
-                    depth,
-                    INDENT_WIDTH,
-                    TEXT_PADDING_X,
-                    text,
-                    textX,
-                    textY,
-                    textWidth,
-                    textHeight,
-                    textColor().copy(),
-                    tree.selectedNode() == node,
-                    node.selectable(),
-                    node.hasChildren(),
-                    node.expanded(),
-                    hovered(),
-                    pressed(),
-                    enabled());
+            float textY = TextEngine.alignedStart(y, availableHeight, textHeight, Alignment.CENTER);
+            float clipX = x + TEXT_PADDING_X + depth * INDENT_WIDTH;
+            float clipWidth = Math.max(0.0f, width - TEXT_PADDING_X * 2.0f - depth * INDENT_WIDTH);
+            draw.pushTextClip(clipX, y, clipWidth, height);
+            try {
+                TextEngine.drawInline(draw, text, textX, textY, Math.max(0.0f, textWidth), textHeight,
+                        Paint.fill(textColor()));
+            } finally {
+                draw.popClip();
+            }
         }
 
         private RichText rowText() {

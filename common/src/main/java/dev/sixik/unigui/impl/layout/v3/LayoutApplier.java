@@ -9,7 +9,7 @@ import dev.sixik.unigui.api.widget.Widget;
 
 import java.util.Map;
 
-/** Applies backend-neutral Layout V3 results back to live widgets. */
+/** Применяет нейтральные к бэкенду результаты Layout V3 обратно к живым виджетам. */
 public final class LayoutApplier {
     private LayoutApplier() {
     }

@@ -8,11 +8,8 @@ import dev.sixik.unigui.api.event.KeyPressedEvent;
 import dev.sixik.unigui.api.event.NumberValueChangedEvent;
 import dev.sixik.unigui.api.event.TextInputEvent;
 import dev.sixik.unigui.api.input.KeyCodes;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
-import dev.sixik.unigui.widgets.render.TextInputRenderer;
-import dev.sixik.unigui.widgets.render.TextInputRenderType;
 
 import java.util.Locale;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
@@ -171,20 +168,5 @@ public class NumberField extends TextInput {
 
     private static double clamp(double value, double min, double max) {
         return Math.max(min, Math.min(max, value));
-    }
-
-    @Override
-    protected TextInputRenderer defaultRenderer() {
-        return WidgetsRender.numberField();
-    }
-
-    @Override
-    protected TextInputRenderer effectiveRenderer() {
-        return renderer() == null ? styleRenderer(TextInputRenderer.class, defaultRenderer()) : renderer();
-    }
-
-    @Override
-    protected TextInputRenderType renderType() {
-        return TextInputRenderType.NUMBER_FIELD;
     }
 }

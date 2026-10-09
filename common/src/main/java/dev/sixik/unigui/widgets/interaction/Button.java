@@ -21,31 +21,36 @@ import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.widget.Visibility;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
-import dev.sixik.unigui.widgets.render.ButtonRenderer;
-import dev.sixik.unigui.widgets.render.ButtonRenderState;
-import dev.sixik.unigui.widgets.render.ButtonRenderType;
-import dev.sixik.unigui.widgets.render.ButtonState;
-import dev.sixik.unigui.widgets.render.ButtonVisualRenderer;
-import dev.sixik.unigui.widgets.render.ButtonVisualRenderers;
-import dev.sixik.unigui.widgets.render.ButtonRenderers;
 import dev.sixik.unigui.api.widget.render.WidgetRole;
 
 import java.util.Objects;
-import dev.sixik.unigui.widgets.containers.Box;
+import dev.sixik.unigui.widgets.containers.SurfaceWidget;
 
+/**
+ * Интерактивная кнопка с композируемой поверхностью и текстовым контентом.
+ *
+ * <p>Кнопка больше не наследуется от {@code Box}: поверхность (фон, рамка,
+ * радиус) содержится в {@link SurfaceWidget}, а стандартный визуал рисует
+ * поверхность плюс текстовый foreground. Источник фона выбирается через
+ * {@link BackgroundKind} — цвет, текстура или шейдер переключаются стилем
+ * без смены renderer-класса.</p>
+ *
+ * <p>Порядок отрисовки: custom {@link dev.sixik.unigui.api.widget.render.WidgetRender}
+ * (заменяет весь визуал), затем поверхность, затем текст, затем дети.</p>
+ */
 @XmlWidgetName("Button")
-public class Button extends Box {
+public class Button extends SurfaceWidget<Button> {
     public static final String STYLE_TYPE = StyleIds.Widget.BUTTON;
 
     public static final class StyleProperties {
@@ -100,7 +105,6 @@ public class Button extends Box {
     private String text = "";
     private RichText richText = RichText.plain("");
     private final MutableColor textColor = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
-    private ButtonRenderer renderer;
     private int pressedPointerId = -1;
     private float textPaddingX = DEFAULT_TEXT_PADDING_X;
     private float textPaddingY = DEFAULT_TEXT_PADDING_Y;
@@ -118,7 +122,6 @@ public class Button extends Box {
 
     public Button() {
         mouseCursor(MouseCursor.POINTER);
-        boxVisualEnabled(false);
         backgroundVisible(true);
         borderVisible(true);
         focusable(true);
@@ -233,21 +236,6 @@ public class Button extends Box {
         this.textPaddingY = normalized;
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
-    }
-
-    public ButtonRenderer renderer() {
-        return renderer;
-    }
-
-    public Button renderer(ButtonRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public Button useDefaultRenderer() {
-        return renderer(null);
     }
 
     public boolean pressed() {
@@ -381,73 +369,130 @@ public class Button extends Box {
     @Override
     protected void renderContent(RenderContext context) {
         applyTheme();
-        renderButtonVisual(context, snapshot(context));
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        renderButtonText(draw);
         super.renderContent(context);
     }
 
-    protected void renderButtonVisual(RenderContext context, ButtonState state) {
-        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
-        ButtonVisualRenderer typed = styleRendererOverride(WidgetRole.BUTTON, ButtonVisualRenderer.class);
-        if (typed != null) {
-            typed.render(draw, ButtonRenderState.fromLegacyButtonState(state));
-            return;
-        }
-        if (renderer != null) {
-            renderer.render(draw, state);
-            return;
-        }
-        ButtonRenderer styled = styleRendererOverride(ButtonRenderer.class);
-        if (styled != null) {
-            styled.render(draw, state);
-            return;
-        }
-        if (renderStylePlan(context, ButtonState.class, state)) return;
-        ButtonRenderer legacyDefault = defaultRenderer();
-        ButtonVisualRenderer defaultVisual = legacyDefault == ButtonRenderers.DEFAULT
-                ? ButtonVisualRenderers.DEFAULT
-                : ButtonVisualRenderers.fromLegacy(legacyDefault);
-        defaultVisual.render(draw, ButtonRenderState.fromLegacyButtonState(state));
+    /**
+     * Рисует центрированный текст кнопки.
+     *
+     * <p>Используется кнопкой и наследниками с тем же текстовым layout
+     * (toggle button, tool button).</p>
+     *
+     * @param draw draw scope виджета
+     */
+    protected void renderButtonText(DrawScope draw) {
+        if (richText == null || richText.isEmpty()) return;
+        float x = layoutBounds().x();
+        float y = layoutBounds().y();
+        float width = layoutBounds().width();
+        float height = layoutBounds().height();
+        float contentX = x + textPaddingX;
+        float contentWidth = Math.max(0.0f, width - textPaddingX * 2.0f);
+        if (contentWidth <= 0.0f) return;
+        float textWidth = TextEngine.measureLineWidth(draw.context(), richText);
+        float textHeight = TextEngine.measureTextHeight(draw.context(), richText);
+        float drawWidth = Math.min(contentWidth, Math.max(0.0f, textWidth));
+        float drawHeight = Math.min(Math.max(0.0f, height), Math.max(0.0f, textHeight));
+        if (drawWidth <= 0.0f || drawHeight <= 0.0f) return;
+        float drawX = contentX + Math.max(0.0f, contentWidth - drawWidth) * 0.5f;
+        float drawY = y + Math.max(0.0f, height - drawHeight) * 0.5f;
+        renderLabel(draw, richText, contentX, y, contentWidth, height,
+                drawX, drawY, drawWidth, drawHeight, textColor);
     }
 
-    protected ButtonRenderer defaultRenderer() {
-        return WidgetsRender.button();
+    /**
+     * Рисует текст с обрезкой по области контента.
+     *
+     * @param draw draw scope
+     * @param text текст
+     * @param clipX X области обрезки
+     * @param clipY Y области обрезки
+     * @param clipWidth ширина области обрезки
+     * @param clipHeight высота области обрезки
+     * @param drawX X отрисовки текста
+     * @param drawY Y отрисовки текста
+     * @param drawWidth ширина отрисовки текста
+     * @param drawHeight высота отрисовки текста
+     * @param color цвет текста
+     */
+    protected static void renderLabel(DrawScope draw, RichText text,
+                                      float clipX, float clipY, float clipWidth, float clipHeight,
+                                      float drawX, float drawY, float drawWidth, float drawHeight,
+                                      ColorView color) {
+        if (draw == null || text == null || text.isEmpty() || color == null
+                || clipWidth <= 0.0f || clipHeight <= 0.0f
+                || drawWidth <= 0.0f || drawHeight <= 0.0f) {
+            return;
+        }
+        draw.pushTextClip(clipX, clipY, clipWidth, clipHeight);
+        try {
+            TextEngine.drawInline(draw, text, drawX, drawY, drawWidth, drawHeight, Paint.fill(color));
+        } finally {
+            draw.popClip();
+        }
     }
 
-    protected ButtonRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(ButtonRenderer.class, defaultRenderer()) : renderer;
+    /**
+     * Рисует квадратный indicator checkbox.
+     *
+     * @param draw draw scope
+     * @param x X индикатора
+     * @param y Y индикатора
+     * @param size размер индикатора
+     * @param innerSize размер внутренней метки
+     * @param checked отмечен ли
+     * @param indeterminate неопределённое ли состояние
+     * @param borderColor цвет рамки
+     * @param indicatorColor цвет метки
+     */
+    protected static void renderCheckIndicator(DrawScope draw, float x, float y, float size, float innerSize,
+                                               boolean checked, boolean indeterminate,
+                                               ColorView borderColor, ColorView indicatorColor) {
+        if (draw == null || size <= 0.0f) return;
+        draw.roundedRect(x, y, size, size, 2.0f, Paint.stroke(borderColor, 1.0f));
+        if (indeterminate) {
+            float dashWidth = Math.max(1.0f, innerSize);
+            float dashHeight = Math.max(1.0f, innerSize * 0.28f);
+            float offsetX = Math.max(0.0f, (size - dashWidth) * 0.5f);
+            float offsetY = Math.max(0.0f, (size - dashHeight) * 0.5f);
+            draw.rect(x + offsetX, y + offsetY, dashWidth, dashHeight, Paint.fill(indicatorColor));
+        } else if (checked) {
+            float inner = Math.max(0.0f, innerSize);
+            float offset = Math.max(0.0f, (size - inner) * 0.5f);
+            if (inner > 0.0f) {
+                draw.rect(x + offset, y + offset, inner, inner, Paint.fill(indicatorColor));
+            }
+        }
     }
 
-    protected ButtonState snapshot(RenderContext context) {
-        return new ButtonState(
-                ButtonRenderType.BUTTON,
-                layoutBounds().x(),
-                layoutBounds().y(),
-                layoutBounds().width(),
-                layoutBounds().height(),
-                text,
-                richText,
-                textPaddingX,
-                TextEngine.measureLineWidth(context, richText),
-                TextEngine.measureTextHeight(context, richText),
-                textColor.copy(),
-                pressed,
-                hovered(),
-                enabled(),
-                false,
-                false,
-                0.0f,
-                0.0f,
-                0.0f,
-                background().copy(),
-                borderColor().copy(),
-                0.0f,
-                false,
-                backgroundVisible(),
-                background().copy(),
-                radius(),
-                borderVisible(),
-                borderColor().copy(),
-                borderWidth());
+    /**
+     * Рисует круглый indicator radio button.
+     *
+     * @param draw draw scope
+     * @param x X индикатора
+     * @param y Y индикатора
+     * @param size размер индикатора
+     * @param innerSize размер внутренней точки
+     * @param progress прогресс выбора от 0 до 1
+     * @param borderColor цвет кольца
+     * @param indicatorColor цвет точки
+     */
+    protected static void renderRadioIndicator(DrawScope draw, float x, float y, float size, float innerSize,
+                                               float progress, ColorView borderColor, ColorView indicatorColor) {
+        if (draw == null || size <= 0.0f) return;
+        draw.circle(x, y, size, size, Paint.stroke(borderColor, 1.0f));
+        float normalizedProgress = Math.max(0.0f, Math.min(1.0f, progress));
+        if (normalizedProgress <= 0.0f || innerSize <= 0.0f) return;
+        float inner = innerSize * normalizedProgress;
+        float offset = Math.max(0.0f, (size - inner) * 0.5f);
+        draw.circle(x + offset, y + offset, inner, inner, Paint.fill(indicatorColor));
+    }
+
+    @Override
+    protected WidgetRole renderRole() {
+        return WidgetRole.BUTTON;
     }
 
     private static String normalize(String text) {

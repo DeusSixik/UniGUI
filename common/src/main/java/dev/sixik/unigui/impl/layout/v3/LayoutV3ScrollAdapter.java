@@ -11,7 +11,7 @@ import dev.sixik.unigui.api.layout.v3.LayoutOutput;
 import dev.sixik.unigui.api.layout.v3.LayoutResult;
 import dev.sixik.unigui.api.widget.Widget;
 
-/** V3 migration adapter for ScrollView viewport/content extent measurement. */
+/** V3-адаптер миграции для измерения вьюпорта/экстента контента ScrollView. */
 public final class LayoutV3ScrollAdapter {
     private LayoutV3ScrollAdapter() {
     }
@@ -55,7 +55,7 @@ public final class LayoutV3ScrollAdapter {
                         .measure(ignored -> measured)
                         .build())
                 .build();
-        LayoutOutput output = TaffyLayoutEngine.INSTANCE.compute(
+        LayoutOutput output = WebLayoutEngine.INSTANCE.compute(
                 root,
                 LayoutInput.of(availableWidth, availableHeight));
         LayoutResult rootResult = output.rootResult();

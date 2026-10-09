@@ -8,6 +8,7 @@ import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.UiRenderPolicy;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftClipboardService;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftWidgetScreen;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
@@ -16,8 +17,6 @@ import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeCheckboxRenders;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeProgressBarRenders;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeRadioButtonRenders;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeToggleSwitchRenders;
-import dev.sixik.unigui.widgets.render.ButtonRenderer;
-import dev.sixik.unigui.widgets.render.ProgressBarRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import dev.sixik.unigui.widgets.containers.Box;
@@ -231,7 +230,7 @@ public class DominionScreen {
         return screen;
     }
 
-    private static ProgressBar progressBar(ProgressBarRenderer renderer) {
+    private static ProgressBar progressBar(WidgetRender renderer) {
         ProgressBar bar = new ProgressBar();
         bar.range(0, 20);
         bar.value(12);
@@ -245,7 +244,7 @@ public class DominionScreen {
         return bar;
     }
 
-    private static Button button(String text, ButtonRenderer renderer, boolean animText,
+    private static Button button(String text, WidgetRender renderer, boolean animText,
                                  MutableColor... onHoverColor) {
         Button button = new Button();
         button.richText(DestinyLikeButtonRenders.dominionButtonText(text, onHoverColor[0]));
@@ -281,7 +280,7 @@ public class DominionScreen {
         return button;
     }
 
-    private static HoldButton holdButton(String text, ButtonRenderer renderer) {
+    private static HoldButton holdButton(String text, WidgetRender renderer) {
         HoldButton button = new HoldButton(text);
         button.richText(DestinyLikeButtonRenders.dominionButtonText(text, MutableColor.rgba255(255, 255, 255, 255)));
         button.textPadding(

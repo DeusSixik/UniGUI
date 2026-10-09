@@ -28,22 +28,20 @@ import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.layout.Overflow;
+import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
 import dev.sixik.unigui.api.layout.PositionType;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
-import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
-import dev.sixik.unigui.widgets.render.WindowRenderer;
-import dev.sixik.unigui.widgets.render.WindowState;
 
 import java.util.Objects;
 import dev.sixik.unigui.widgets.containers.Box;
@@ -79,7 +77,6 @@ public class WindowWidget extends Box implements OverlayHostAware {
     private final MutableColor headerColor = new MutableColor(0.075f, 0.090f, 0.125f, 0.98f);
     private final MutableColor headerSeparatorColor = new MutableColor(0.22f, 0.24f, 0.30f, 0.95f);
     private final MutableColor titleColor = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
-    private WindowRenderer renderer;
     private String title = "";
     private RichText richTitle = RichText.plain("");
     private Widget content;
@@ -119,7 +116,6 @@ public class WindowWidget extends Box implements OverlayHostAware {
     private final MutableRect hostBounds = new MutableRect();
 
     public WindowWidget() {
-        boxVisualEnabled(false);
         backgroundVisible(true);
         borderVisible(true);
         focusable(true);
@@ -494,21 +490,6 @@ public class WindowWidget extends Box implements OverlayHostAware {
         return titleColor;
     }
 
-    public WindowRenderer renderer() {
-        return renderer;
-    }
-
-    public WindowWidget renderer(WindowRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public WindowWidget useDefaultRenderer() {
-        return renderer(null);
-    }
-
     public EventSubscription onOpened(EventListener<? super WindowOpenedEvent> listener) {
         return on(WindowOpenedEvent.TYPE, listener);
     }
@@ -741,47 +722,55 @@ public class WindowWidget extends Box implements OverlayHostAware {
     @Override
     protected void renderContent(RenderContext context) {
         applyTheme();
-        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot(context));
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        if (renderCustomVisual(draw)) {
+            super.renderContent(context);
+            return;
+        }
+        float x = layoutBounds().x();
+        float y = layoutBounds().y();
+        float width = layoutBounds().width();
+        float height = layoutBounds().height();
+        if (width <= 0.0f || height <= 0.0f) {
+            super.renderContent(context);
+            return;
+        }
+        float headerHeight = Math.min(this.headerHeight, height);
+        draw.rect(x, y, width, headerHeight, Paint.fill(headerColor));
+        draw.line(x, y + this.headerHeight,
+                x + width, y + this.headerHeight,
+                Paint.stroke(headerSeparatorColor, 1.0f));
+        if (active || dragging) {
+            draw.line(x, y,
+                    x + width, y,
+                    Paint.stroke(titleColor, dragging ? 2.0f : 1.25f));
+        }
+        if (resizing) {
+            float marker = 7.0f;
+            draw.line(x + width - marker, y + height,
+                    x + width, y + height - marker,
+                    Paint.stroke(titleColor, 1.5f));
+            draw.line(x + width - marker * 1.8f, y + height,
+                    x + width, y + height - marker * 1.8f,
+                    Paint.stroke(titleColor, 1.0f));
+        }
+
+        float closeReserved = closeButtonVisible ? closeButton.layoutBounds().width() + 6.0f : 0.0f;
+        float collapseReserved = collapseButtonVisible ? collapseButton.layoutBounds().width() + 6.0f : 0.0f;
+        float titleX = x + padding.left();
+        float titleWidth = Math.max(0.0f, width - padding.left() - padding.right()
+                - closeReserved - collapseReserved);
+        draw.pushTextClip(titleX, y, titleWidth, headerHeight);
+        try {
+            if (richTitle != null && !richTitle.isEmpty()) {
+                float drawHeight = Math.min(headerHeight, Math.max(0.0f, TextEngine.measureTextHeight(draw.context(), richTitle)));
+                float drawY = y + Math.max(0.0f, headerHeight - drawHeight) * 0.5f;
+                TextEngine.drawInline(draw, richTitle, titleX, drawY, titleWidth, drawHeight, Paint.fill(titleColor));
+            }
+        } finally {
+            draw.popClip();
+        }
         super.renderContent(context);
-    }
-
-    private WindowRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(WindowRenderer.class, WidgetsRender.window()) : renderer;
-    }
-
-    private WindowState snapshot(RenderContext context) {
-        return new WindowState(
-                layoutBounds().x(),
-                layoutBounds().y(),
-                layoutBounds().width(),
-                layoutBounds().height(),
-                backgroundVisible(),
-                background().copy(),
-                radius(),
-                borderVisible(),
-                borderColor().copy(),
-                borderWidth(),
-                headerHeight,
-                padding.left(),
-                padding.right(),
-                closeButtonVisible,
-                closeButton.layoutBounds().width(),
-                collapseButtonVisible,
-                collapseButton.layoutBounds().width(),
-                collapsed,
-                richTitle,
-                TextEngine.measureLineWidth(context, richTitle),
-                TextEngine.measureTextHeight(context, richTitle),
-                headerColor.copy(),
-                headerSeparatorColor.copy(),
-                titleColor.copy(),
-                active,
-                focused(),
-                dragging,
-                resizing,
-                resizeHandle.publicName(),
-                modal,
-                effectiveResizable());
     }
 
     private boolean focused() {

@@ -4,13 +4,11 @@ import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
-import dev.sixik.unigui.widgets.render.ShapeRenderer;
-import dev.sixik.unigui.widgets.render.ShapeState;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
 
@@ -42,7 +40,6 @@ public class Shape extends WidgetBase {
 
     private Type type = Type.RECT;
     private final MutableColor color = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
-    private ShapeRenderer renderer;
     private boolean stroke;
     private float strokeWidth = 1.0f;
     private float radius;
@@ -72,21 +69,6 @@ public class Shape extends WidgetBase {
     public Shape color(ColorView color) {
         if (color != null) this.color.set(color);
         return this;
-    }
-
-    public ShapeRenderer renderer() {
-        return renderer;
-    }
-
-    public Shape renderer(ShapeRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public Shape useDefaultRenderer() {
-        return renderer(null);
     }
 
     public boolean stroke() {
@@ -129,39 +111,26 @@ public class Shape extends WidgetBase {
     public void render(RenderContext context) {
         pushOpacity(context);
         try {
-            ShapeState state = snapshot();
             DrawScope draw = new DrawScope(context, transform(), layoutBounds());
-            if (renderer != null) {
-                renderer.render(draw, state);
+            if (renderCustomVisual(draw)) {
                 return;
             }
-            ShapeRenderer styled = styleRendererOverride(ShapeRenderer.class);
-            if (styled != null) {
-                styled.render(draw, state);
-                return;
+            float x = layoutBounds().x();
+            float y = layoutBounds().y();
+            float width = layoutBounds().width();
+            float height = layoutBounds().height();
+            Paint paint = stroke
+                    ? Paint.stroke(color, strokeWidth)
+                    : Paint.fill(color);
+            switch (type == null ? Type.RECT : type) {
+                case RECT -> draw.rect(x, y, width, height, paint);
+                case ROUNDED_RECT -> draw.roundedRect(x, y, width, height, radius, paint);
+                case CIRCLE -> draw.circle(x, y, width, height, paint);
+                case LINE -> draw.line(x, y, x + width, y + height, paint);
             }
-            if (renderStylePlan(context, ShapeState.class, state)) return;
-            WidgetsRender.shape().render(draw, state);
         } finally {
             popOpacity(context);
         }
-    }
-
-    protected ShapeRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(ShapeRenderer.class, WidgetsRender.shape()) : renderer;
-    }
-
-    protected ShapeState snapshot() {
-        return new ShapeState(
-                layoutBounds().x(),
-                layoutBounds().y(),
-                layoutBounds().width(),
-                layoutBounds().height(),
-                type,
-                color.copy(),
-                stroke,
-                strokeWidth,
-                radius);
     }
 
     public enum Type {

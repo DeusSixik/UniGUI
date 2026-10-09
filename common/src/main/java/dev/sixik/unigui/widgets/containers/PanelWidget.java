@@ -4,7 +4,6 @@ import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
 import dev.sixik.unigui.api.layout.EdgeInsets;
-import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.layout.Overflow;
@@ -15,6 +14,8 @@ import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
+import dev.sixik.unigui.impl.layout.SlotLayout;
+import dev.sixik.unigui.impl.layout.ZOrder;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -163,7 +164,7 @@ public class PanelWidget extends WidgetBase {
             if (child.visibility() != Visibility.COLLAPSED) {
                 child.measure(childContext);
                 if (AbsoluteLayoutEngine.isAbsolute(child)) continue;
-                EdgeInsets margin = child.layoutConstraints().margin();
+                EdgeInsets margin = SlotLayout.marginOf(child);
                 desiredWidth = Math.max(desiredWidth, child.desiredSize().width() + margin.horizontal());
                 desiredHeight = Math.max(desiredHeight, child.desiredSize().height() + margin.vertical());
             }
@@ -221,7 +222,7 @@ public class PanelWidget extends WidgetBase {
         }
         try {
             RectView cullBounds = RENDER_CULL_BOUNDS.get();
-            for (Widget child : childSnapshot()) {
+            for (Widget child : ZOrder.paintOrder(childSnapshot())) {
                 if (cullBounds != null && !intersects(child.layoutBounds(), cullBounds)) continue;
                 renderChildWithInheritedTransform(context, child);
             }

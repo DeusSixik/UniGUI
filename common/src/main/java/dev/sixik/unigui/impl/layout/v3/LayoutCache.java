@@ -9,11 +9,11 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Small bounded cache for complete Layout V3 compute outputs.
+ * Небольшой ограниченный кэш для полных результатов вычисления Layout V3.
  *
- * <p>The cache is deliberately version-keyed instead of observing widgets
- * directly. Widget integration code must provide monotonically changing
- * versions for style, visibility, content measurement and child-list changes.</p>
+ * <p>Кэш намеренно ключуется версиями, а не наблюдает виджеты
+ * напрямую. Код интеграции виджетов должен предоставлять монотонно меняющиеся
+ * версии для изменений стиля, видимости, измерения контента и списка дочерних элементов.</p>
  */
 public final class LayoutCache {
     public static final int DEFAULT_MAX_ENTRIES = 128;

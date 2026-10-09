@@ -16,15 +16,18 @@ import dev.sixik.unigui.impl.widget.WidgetBase;
 import java.util.List;
 
 /**
- * Shared resolver for out-of-flow children and host-constrained overlay placement.
+ * Общий резолвер для детей вне потока и размещения оверлея в границах хоста.
  */
 public final class AbsoluteLayoutEngine {
     private AbsoluteLayoutEngine() {
     }
 
     public static boolean isAbsolute(Widget widget) {
-        return widget instanceof WidgetBase base
-                && base.layoutStyle().position() == PositionType.ABSOLUTE;
+        if (!(widget instanceof WidgetBase base)) {
+            return false;
+        }
+        PositionType position = base.layoutStyle().position();
+        return position == PositionType.ABSOLUTE || position == PositionType.FIXED;
     }
 
     public static void measureChildren(List<Widget> children, LayoutContext context) {
@@ -89,7 +92,7 @@ public final class AbsoluteLayoutEngine {
         LayoutStyle style = child instanceof WidgetBase base
                 ? base.layoutStyle()
                 : LayoutStyleLegacyAdapter.fromConstraints(child.layoutConstraints());
-        EdgeInsets margin = style.margin();
+        EdgeInsets margin = SlotLayout.fixedMargins(style);
         float hostWidth = Math.max(0.0f, hostBounds.width());
         float hostHeight = Math.max(0.0f, hostBounds.height());
         float left = resolveInset(style.left(), hostWidth);
@@ -109,11 +112,11 @@ public final class AbsoluteLayoutEngine {
         float x = resolveAxisPosition(
                 hostBounds.x(), hostWidth, width,
                 left, right, margin.left(), margin.right(),
-                child.layoutConstraints().horizontalAlignment());
+                style.horizontalAlignment());
         float y = resolveAxisPosition(
                 hostBounds.y(), hostHeight, height,
                 top, bottom, margin.top(), margin.bottom(),
-                child.layoutConstraints().verticalAlignment());
+                style.verticalAlignment());
         return new MutableRect(x, y, width, height);
     }
 
@@ -213,7 +216,7 @@ public final class AbsoluteLayoutEngine {
         return switch (alignment == null ? Alignment.START : alignment) {
             case CENTER -> innerStart + (innerAvailable - size) * 0.5f;
             case END -> innerStart + innerAvailable - size;
-            case START, STRETCH -> innerStart;
+            case START, STRETCH, BASELINE -> innerStart;
         };
     }
 

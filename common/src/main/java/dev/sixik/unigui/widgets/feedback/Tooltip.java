@@ -10,17 +10,15 @@ import dev.sixik.unigui.api.layout.PositionType;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
-import dev.sixik.unigui.widgets.render.TooltipRenderer;
-import dev.sixik.unigui.widgets.render.TooltipState;
 
 import java.util.List;
 import java.util.Objects;
@@ -38,7 +36,6 @@ public class Tooltip extends Box implements OverlayHostAware {
     private Widget anchor;
     private String text = "";
     private RichText richText = RichText.plain("");
-    private TooltipRenderer renderer;
     private EventSubscription anchorEnteredSubscription;
     private EventSubscription anchorExitedSubscription;
     private float offsetX = 8.0f;
@@ -46,7 +43,6 @@ public class Tooltip extends Box implements OverlayHostAware {
     private float maxWidth = DEFAULT_MAX_WIDTH;
 
     public Tooltip() {
-        boxVisualEnabled(false);
         backgroundVisible(true);
         borderVisible(true);
         radius(3.0f);
@@ -140,21 +136,6 @@ public class Tooltip extends Box implements OverlayHostAware {
         return textColor;
     }
 
-    public TooltipRenderer renderer() {
-        return renderer;
-    }
-
-    public Tooltip renderer(TooltipRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public Tooltip useDefaultRenderer() {
-        return renderer(null);
-    }
-
     public boolean showing() {
         return visibility() == Visibility.VISIBLE && anchor != null && anchor.hovered()
                 && isEffectivelyVisible(anchor) && !text.isEmpty();
@@ -234,37 +215,68 @@ public class Tooltip extends Box implements OverlayHostAware {
     @Override
     protected void renderContent(RenderContext context) {
         applyTheme();
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        if (renderCustomVisual(draw)) return;
         float textX = layoutBounds().x() + HORIZONTAL_PADDING;
         float textY = layoutBounds().y() + VERTICAL_PADDING;
         float textWidth = Math.max(0.0f, layoutBounds().width() - HORIZONTAL_PADDING * 2.0f);
         float textHeight = Math.max(0.0f, layoutBounds().height() - VERTICAL_PADDING * 2.0f);
-        List<RichText> lines = wrappedLines(context, textWidth);
-        float[] lineHeights = new float[lines.size()];
-        for (int i = 0; i < lines.size(); i++) {
-            lineHeights[i] = TextEngine.lineHeight(lines.get(i));
+        List<RichText> lines = wrappedLines(draw.context(), textWidth);
+        draw.pushTextClip(textX, textY, textWidth, textHeight);
+        try {
+            float lineY = textY;
+            float limitY = textY + textHeight;
+            for (int i = 0; i < lines.size(); i++) {
+                float lineHeight = TextEngine.lineHeight(lines.get(i));
+                if (lineY >= limitY) break;
+                TextEngine.drawInline(draw,
+                        lines.get(i),
+                        textX,
+                        lineY,
+                        textWidth,
+                        lineHeight,
+                        Paint.fill(textColor));
+                lineY += lineHeight;
+            }
+        } finally {
+            draw.popClip();
         }
-        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), new TooltipState(
-                layoutBounds().x(),
-                layoutBounds().y(),
-                layoutBounds().width(),
-                layoutBounds().height(),
-                backgroundVisible(),
-                background().copy(),
-                radius(),
-                borderVisible(),
-                borderColor().copy(),
-                borderWidth(),
-                textX,
-                textY,
-                textWidth,
-                textHeight,
-                lines,
-                lineHeights,
-                textColor.copy()));
     }
 
-    private TooltipRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(TooltipRenderer.class, WidgetsRender.tooltip()) : renderer;
+    /**
+     * Возвращает wrapped-строки тултипа для текущей ширины виджета.
+     *
+     * @param context render context для backend-зависимых замеров
+     * @return wrapped-строки rich text
+     */
+    public List<RichText> wrappedLines(RenderContext context) {
+        float textWidth = Math.max(0.0f, layoutBounds().width() - HORIZONTAL_PADDING * 2.0f);
+        return wrappedLines(context, textWidth);
+    }
+
+    /**
+     * Возвращает высоту одной wrapped-строки.
+     *
+     * @param line строка rich text
+     * @return высота строки
+     */
+    public float lineHeight(RichText line) {
+        return TextEngine.lineHeight(line);
+    }
+
+    /**
+     * Возвращает высоты wrapped-строк.
+     *
+     * @param lines строки rich text
+     * @return высоты строк в том же порядке
+     */
+    public float[] lineHeights(List<RichText> lines) {
+        if (lines == null || lines.isEmpty()) return new float[0];
+        float[] heights = new float[lines.size()];
+        for (int i = 0; i < lines.size(); i++) {
+            heights[i] = TextEngine.lineHeight(lines.get(i));
+        }
+        return heights;
     }
 
     private void subscribeToAnchor() {

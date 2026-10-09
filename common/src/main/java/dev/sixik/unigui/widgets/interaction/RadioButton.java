@@ -17,16 +17,9 @@ import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
-import dev.sixik.unigui.widgets.render.ButtonRenderType;
-import dev.sixik.unigui.widgets.render.ButtonRenderer;
-import dev.sixik.unigui.widgets.render.ButtonState;
-import dev.sixik.unigui.widgets.render.RadioButtonRenderState;
-import dev.sixik.unigui.widgets.render.RadioButtonRenderer;
-import dev.sixik.unigui.widgets.render.RadioButtonRenderers;
 import dev.sixik.unigui.api.widget.render.WidgetRole;
 
 import java.util.Objects;
@@ -71,7 +64,6 @@ public class RadioButton extends Button {
     private boolean labelLeft;
     private float selectionProgress;
     private TransitionSpec selectionAnimation = TransitionSpec.of(DEFAULT_SELECTION_ANIMATION_SECONDS);
-    private RadioButtonRenderer radioButtonRenderer;
 
     public RadioButton() {
         this("", "");
@@ -101,24 +93,6 @@ public class RadioButton extends Button {
         borderVisible(false);
         checkedColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         onClick(event -> checked(true));
-    }
-
-    /** @return typed renderer radio button или {@code null}, если используется theme/default */
-    public RadioButtonRenderer radioButtonRenderer() {
-        return radioButtonRenderer;
-    }
-
-    /** Устанавливает typed renderer radio button. */
-    public RadioButton radioButtonRenderer(RadioButtonRenderer renderer) {
-        if (this.radioButtonRenderer == renderer) return this;
-        this.radioButtonRenderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    /** Возвращает выбор renderer к theme/default пути. */
-    public RadioButton useDefaultRadioButtonRenderer() {
-        return radioButtonRenderer(null);
     }
 
     public String value() {
@@ -283,82 +257,51 @@ public class RadioButton extends Button {
     @Override
     protected void renderContent(RenderContext context) {
         applyTheme();
-        RadioButtonRenderState state = radioButtonSnapshot(context);
         DrawScope draw = new DrawScope(context, transform(), layoutBounds());
-        RadioButtonRenderer typed = radioButtonRenderer;
-        if (typed == null) {
-            typed = styleRendererOverride(WidgetRole.RADIO_BUTTON, RadioButtonRenderer.class);
-        }
-        if (typed != null) {
-            typed.render(draw, state);
-            renderChildren(context);
-            return;
-        }
+        float x = layoutBounds().x();
+        float y = layoutBounds().y();
+        float width = layoutBounds().width();
+        float height = layoutBounds().height();
+        boolean hasText = richText() != null && !richText().isEmpty();
 
-        ButtonRenderer legacy = renderer();
-        if (legacy == null) {
-            legacy = styleRendererOverride(WidgetRole.RADIO_BUTTON, ButtonRenderer.class);
+        float labelGap = hasText ? Math.max(0.0f, textGap) : 0.0f;
+        float textWidth = hasText ? TextEngine.measureLineWidth(draw.context(), richText()) : 0.0f;
+        float textHeight = hasText ? TextEngine.measureTextHeight(draw.context(), richText()) : 0.0f;
+        float labelWidth = hasText
+                ? Math.min(Math.max(0.0f, textWidth), Math.max(0.0f, width - outerSize - labelGap))
+                : 0.0f;
+        float indicatorX = labelLeft ? x + labelWidth + labelGap : x;
+        float indicatorY = y + Math.max(0.0f, height - outerSize) * 0.5f;
+
+        renderRadioIndicator(draw, indicatorX, indicatorY, outerSize, innerSize, selectionProgress,
+                (checked ? checkedColor : borderColor()).copy(), checkedColor);
+
+        if (hasText) {
+            float contentX;
+            float contentWidth;
+            float drawHeight = Math.min(Math.max(0.0f, height), Math.max(0.0f, textHeight));
+            float drawY;
+            if (labelLeft) {
+                contentX = x;
+                contentWidth = labelWidth;
+                drawY = y + Math.max(0.0f, height - drawHeight) * 0.5f;
+            } else {
+                contentX = x + outerSize + textGap;
+                contentWidth = Math.max(0.0f, width - outerSize - textGap);
+                float indicatorCenterY = indicatorY + outerSize * 0.5f;
+                drawY = indicatorCenterY - drawHeight * 0.5f + 1.0f;
+            }
+            if (contentWidth > 0.0f && drawHeight > 0.0f) {
+                renderLabel(draw, richText(), contentX, y, contentWidth, height,
+                        contentX, drawY, contentWidth, drawHeight, textColor());
+            }
         }
-        if (legacy != null) {
-            legacy.render(draw, state.toLegacyButtonState());
-            renderChildren(context);
-            return;
-        }
-        if (renderStylePlan(context, ButtonState.class, state.toLegacyButtonState())) {
-            renderChildren(context);
-            return;
-        }
-        RadioButtonRenderers.DEFAULT.render(draw, state);
         renderChildren(context);
     }
 
     @Override
-    protected ButtonRenderer defaultRenderer() {
-        return WidgetsRender.radioButton();
-    }
-
-    @Override
-    protected ButtonRenderer effectiveRenderer() {
-        return renderer() == null
-                ? styleRenderer(WidgetRole.RADIO_BUTTON, ButtonRenderer.class, defaultRenderer())
-                : renderer();
-    }
-
-    @Override
-    protected ButtonState snapshot(RenderContext context) {
-        return radioButtonSnapshot(context).toLegacyButtonState();
-    }
-
-    /** Собирает typed состояние radio button без зависимости renderer от виджета. */
-    protected RadioButtonRenderState radioButtonSnapshot(RenderContext context) {
-        return new RadioButtonRenderState(
-                layoutBounds().x(),
-                layoutBounds().y(),
-                layoutBounds().width(),
-                layoutBounds().height(),
-                text(),
-                richText(),
-                TEXT_PADDING_X,
-                TextEngine.measureLineWidth(context, richText()),
-                TextEngine.measureTextHeight(context, richText()),
-                textColor().copy(),
-                pressed(),
-                hovered(),
-                enabled(),
-                checked,
-                outerSize,
-                innerSize,
-                textGap,
-                checkedColor.copy(),
-                (checked ? checkedColor : borderColor()).copy(),
-                selectionProgress,
-                labelLeft,
-                backgroundVisible(),
-                background().copy(),
-                radius(),
-                borderVisible(),
-                borderColor().copy(),
-                borderWidth());
+    protected WidgetRole renderRole() {
+        return WidgetRole.RADIO_BUTTON;
     }
 
     void setGroupInternal(RadioGroup group) {

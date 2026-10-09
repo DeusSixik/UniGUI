@@ -5,6 +5,7 @@ import dev.sixik.unigui.api.layout.FlexDirection;
 import dev.sixik.unigui.api.layout.FlexWrap;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
+import dev.sixik.unigui.api.layout.LayoutStyle;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.xml.XmlAttribute;
@@ -105,12 +106,10 @@ public class LinearBox extends PanelWidget {
             return;
         }
         applyQueuedMutations();
-        FlexDirection direction = orientation == Orientation.HORIZONTAL
-                ? FlexDirection.ROW
-                : FlexDirection.COLUMN;
+        LayoutStyle style = layoutStyle();
         LayoutSize measured = LayoutV3FlexAdapter.measure(
-                children(), context, direction, FlexWrap.NOWRAP,
-                layoutStyle().rowGap(), layoutStyle().columnGap(), layoutStyle());
+                children(), context, style.flexDirection(), style.flexWrap(),
+                style.rowGap(), style.columnGap(), style);
         setDesiredSize(resolveDesiredSize(context, measured.width(), measured.height()));
     }
 
@@ -119,12 +118,10 @@ public class LinearBox extends PanelWidget {
         mutableLayoutBounds().set(bounds);
         if (visibility() == Visibility.COLLAPSED) return;
         applyQueuedMutations();
-        FlexDirection direction = orientation == Orientation.HORIZONTAL
-                ? FlexDirection.ROW
-                : FlexDirection.COLUMN;
+        LayoutStyle style = layoutStyle();
         LayoutV3FlexAdapter.arrange(
-                children(), bounds, direction, FlexWrap.NOWRAP,
-                layoutStyle().rowGap(), layoutStyle().columnGap(), layoutStyle());
+                children(), bounds, style.flexDirection(), style.flexWrap(),
+                style.rowGap(), style.columnGap(), style);
     }
 
     private void syncLayoutStyle() {

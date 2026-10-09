@@ -9,18 +9,16 @@ import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderBackend;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.render.RenderTargetOptions;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.render.WidgetTextureRenderer;
 import dev.sixik.unigui.impl.widget.WidgetBase;
-import dev.sixik.unigui.widgets.render.CachedSubtreeRenderer;
-import dev.sixik.unigui.widgets.render.CachedSubtreeState;
 
 import java.util.Collections;
 import java.util.List;
@@ -36,7 +34,6 @@ public final class CachedSubtreeWidget extends WidgetBase {
     private static final MutableColor DEBUG_BACKGROUND_COLOR = new MutableColor(0.0f, 0.0f, 0.0f, 0.55f);
 
     private final MutableColor tint = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
-    private CachedSubtreeRenderer renderer;
     private Widget content;
     private List<Widget> childrenView = Collections.emptyList();
     private WidgetTextureRenderer textureRenderer;
@@ -53,6 +50,7 @@ public final class CachedSubtreeWidget extends WidgetBase {
     private long cacheMisses;
     private long textureRenders;
     private CachedSubtreeMissReason lastMissReason = CachedSubtreeMissReason.NONE;
+    private CachedSubtreeMissReason frameMissReason = CachedSubtreeMissReason.NONE;
 
     public CachedSubtreeWidget() {
         tint.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
@@ -82,21 +80,6 @@ public final class CachedSubtreeWidget extends WidgetBase {
 
     public MutableColor tint() {
         return tint;
-    }
-
-    public CachedSubtreeRenderer renderer() {
-        return renderer;
-    }
-
-    public CachedSubtreeWidget renderer(CachedSubtreeRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public CachedSubtreeWidget useDefaultRenderer() {
-        return renderer(null);
     }
 
     public RenderTargetOptions targetOptions() {
@@ -225,7 +208,33 @@ public final class CachedSubtreeWidget extends WidgetBase {
             recordCacheHit();
         }
 
-        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), cachedSubtreeState(missReason));
+        frameMissReason = missReason;
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        if (!renderCustomVisual(draw)) {
+            float x = layoutBounds().x();
+            float y = layoutBounds().y();
+            float w = layoutBounds().width();
+            float h = layoutBounds().height();
+            if (cachedTexture != null) {
+                draw.texture(cachedTexture, x, y, w, h, Paint.fill(tint));
+            }
+
+            UIContext ui = uiContext();
+            boolean debugVisible = ui != null && DebugFlags.has(ui.debugFlags(), DebugFlags.CACHED_SUBTREE);
+            if (debugVisible) {
+                boolean hit = missReason == CachedSubtreeMissReason.NONE && cachedTexture != null;
+                var debugColor = hit ? DEBUG_HIT_COLOR : DEBUG_MISS_COLOR;
+                float overlayWidth = Math.min(Math.max(96.0f, Math.abs(w)), 220.0f);
+                String stateText = hit ? "HIT" : "MISS " + lastMissReason;
+                String statsText = "rt=" + textureRenders + " hit=" + cacheHits + " miss=" + cacheMisses + " " + cachedWidth + "x" + cachedHeight;
+                draw.rect(x, y, overlayWidth, 22.0f, Paint.fill(DEBUG_BACKGROUND_COLOR));
+                draw.rect(x, y, w, h, Paint.stroke(debugColor, 1.0f));
+                draw.text("cache " + stateText, x + 3.0f, y + 3.0f,
+                        overlayWidth - 6.0f, 9.0f, Paint.fill(debugColor));
+                draw.text(statsText, x + 3.0f, y + 13.0f,
+                        overlayWidth - 6.0f, 9.0f, Paint.fill(DEBUG_TEXT_COLOR));
+            }
+        }
     }
 
     @Override
@@ -299,39 +308,6 @@ public final class CachedSubtreeWidget extends WidgetBase {
             clearSubtreeInvalidation(child);
         }
         widget.clearInvalidation(InvalidationFlags.ALL);
-    }
-
-    private CachedSubtreeRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(CachedSubtreeRenderer.class, WidgetsRender.cachedSubtree()) : renderer;
-    }
-
-    private CachedSubtreeState cachedSubtreeState(CachedSubtreeMissReason missReason) {
-        UIContext uiContext = uiContext();
-        boolean debugVisible = uiContext != null && DebugFlags.has(uiContext.debugFlags(), DebugFlags.CACHED_SUBTREE);
-        boolean hit = missReason == CachedSubtreeMissReason.NONE && cachedTexture != null;
-        float x = layoutBounds().x();
-        float y = layoutBounds().y();
-        float width = layoutBounds().width();
-        float overlayWidth = Math.min(Math.max(96.0f, Math.abs(width)), 220.0f);
-        String state = hit ? "HIT" : "MISS " + lastMissReason;
-        String stats = "rt=" + textureRenders + " hit=" + cacheHits + " miss=" + cacheMisses + " " + cachedWidth + "x" + cachedHeight;
-        return new CachedSubtreeState(
-                x,
-                y,
-                width,
-                layoutBounds().height(),
-                cachedTexture,
-                tint.copy(),
-                debugVisible,
-                hit,
-                missReason,
-                state,
-                stats,
-                overlayWidth,
-                DEBUG_HIT_COLOR.copy(),
-                DEBUG_MISS_COLOR.copy(),
-                DEBUG_TEXT_COLOR.copy(),
-                DEBUG_BACKGROUND_COLOR.copy());
     }
 
     private void recordCacheHit() {

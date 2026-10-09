@@ -6,12 +6,14 @@ import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.LayoutContext;
+import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.Transform;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.ImageFit;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.render.TextureFilter;
 import dev.sixik.unigui.api.render.TextureHandle;
@@ -19,20 +21,17 @@ import dev.sixik.unigui.api.render.TexturePlacement;
 import dev.sixik.unigui.api.render.TextureWrap;
 import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.text.RichTextSpan;
+import dev.sixik.unigui.api.text.RichTextSpan;
 import dev.sixik.unigui.api.text.TextBrush;
+import dev.sixik.unigui.api.text.TextRun;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.widget.Visibility;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlTextureAttributes;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.impl.widget.WidgetBase;
-import dev.sixik.unigui.widgets.render.BoxRenderer;
-import dev.sixik.unigui.widgets.render.BoxState;
-import dev.sixik.unigui.widgets.render.TextWidgetRenderer;
-import dev.sixik.unigui.widgets.render.TextWidgetSegment;
-import dev.sixik.unigui.widgets.render.TextWidgetState;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.List;
@@ -48,7 +47,6 @@ public class TextWidget extends WidgetBase {
     private String text = "";
     private RichText richText;
     private final MutableColor color = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
-    private TextWidgetRenderer renderer;
     private boolean wrap = true;
     private TextOverflowMode overflowMode = TextOverflowMode.VISIBLE;
     private float marqueeSpeed = 24.0f;
@@ -63,7 +61,6 @@ public class TextWidget extends WidgetBase {
     private final MutableColor background = new MutableColor(0.0f, 0.0f, 0.0f, 0.0f);
     private boolean backgroundVisible;
     private boolean boxVisualEnabled = true;
-    private BoxRenderer boxRenderer;
     private TextureHandle backgroundTexture;
     private final MutableColor backgroundTextureTint = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private final MutableRect backgroundTextureSource = new MutableRect(0.0f, 0.0f, 1.0f, 1.0f);
@@ -186,21 +183,6 @@ public class TextWidget extends WidgetBase {
     public TextWidget color(ColorView color) {
         if (color != null) this.color.set(color);
         return this;
-    }
-
-    public TextWidgetRenderer renderer() {
-        return renderer;
-    }
-
-    public TextWidget renderer(TextWidgetRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public TextWidget useDefaultRenderer() {
-        return renderer(null);
     }
 
     public boolean wrap() {
@@ -347,25 +329,6 @@ public class TextWidget extends WidgetBase {
         this.boxVisualEnabled = boxVisualEnabled;
         invalidate(InvalidationFlags.VISUAL);
         return this;
-    }
-
-    public BoxRenderer boxRenderer() {
-        return boxRenderer;
-    }
-
-    public TextWidget boxRenderer(BoxRenderer boxRenderer) {
-        if (this.boxRenderer == boxRenderer) return this;
-        this.boxRenderer = boxRenderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public TextWidget backgroundRenderer(BoxRenderer boxRenderer) {
-        return boxRenderer(boxRenderer);
-    }
-
-    public TextWidget useDefaultBoxRenderer() {
-        return boxRenderer(null);
     }
 
     public TextureHandle backgroundTexture() {
@@ -562,42 +525,30 @@ public class TextWidget extends WidgetBase {
         return this;
     }
 
-    public BoxState boxState() {
-        TexturePlacement placement = backgroundTexture == null
-                ? null
-                : TexturePlacement.fit(backgroundTexture, backgroundTextureSource, layoutBounds(), backgroundTextureFit);
-        return new BoxState(
-                layoutBounds().x(),
-                layoutBounds().y(),
-                layoutBounds().width(),
-                layoutBounds().height(),
-                backgroundVisible,
-                background.copy(),
-                backgroundTexture,
-                backgroundTextureTint.copy(),
-                placement,
-                backgroundTextureFit,
-                radius,
-                borderVisible,
-                borderColor.copy(),
-                borderWidth);
-    }
-
     protected void renderBox(RenderContext context) {
-        if (!boxVisualEnabled || (!backgroundVisible && !borderVisible && boxRenderer == null)) return;
-        BoxState state = boxState();
+        if (!boxVisualEnabled || (!backgroundVisible && !borderVisible)) return;
         DrawScope draw = new DrawScope(context, transform(), layoutBounds());
-        if (boxRenderer != null) {
-            boxRenderer.render(draw, state);
-            return;
+        float x = layoutBounds().x();
+        float y = layoutBounds().y();
+        float width = layoutBounds().width();
+        float height = layoutBounds().height();
+        if (backgroundVisible) {
+            if (backgroundTexture != null) {
+                if (background.a() > 0.0f) {
+                    draw.roundedRect(x, y, width, height, radius, Paint.fill(background));
+                }
+                TexturePlacement placement = TexturePlacement.fit(backgroundTexture,
+                        backgroundTextureSource, layoutBounds(), backgroundTextureFit);
+                if (placement != null) {
+                    draw.texture(backgroundTexture, placement, radius, Paint.fill(backgroundTextureTint));
+                }
+            } else {
+                draw.roundedRect(x, y, width, height, radius, Paint.fill(background));
+            }
         }
-        BoxRenderer styled = styleRendererOverride(BoxRenderer.class);
-        if (styled != null) {
-            styled.render(draw, state);
-            return;
+        if (borderVisible) {
+            draw.roundedRect(x, y, width, height, radius, Paint.stroke(borderColor, borderWidth));
         }
-        if (renderStylePlan(context, BoxState.class, state)) return;
-        WidgetsRender.box().render(draw, state);
     }
 
     @Override
@@ -613,22 +564,153 @@ public class TextWidget extends WidgetBase {
     }
 
     @Override
+    public LayoutSize minContentSize() {
+        if (visibility() == Visibility.COLLAPSED || text.isEmpty()) {
+            return LayoutSize.ZERO;
+        }
+        EdgeInsets padding = layoutStyle().padding();
+        float minWidth = TextEngine.minContentWidth(effectiveRichText()) + padding.horizontal();
+        float height = measuredTextHeight(new LayoutContext(minWidth, Float.POSITIVE_INFINITY))
+                + padding.vertical();
+        return LayoutSize.of(minWidth, height);
+    }
+
+    @Override
+    public float contentBaseline() {
+        RichText text = effectiveRichText();
+        if (text == null || text.isEmpty()) {
+            return Float.NaN;
+        }
+        for (RichTextSpan span : text.spans()) {
+            if (span instanceof TextRun run && run.font() != null && run.pixelSize() > 0.0f) {
+                return layoutStyle().padding().top() + run.font().metrics(run.pixelSize()).ascent();
+            }
+        }
+        return Float.NaN;
+    }
+
+    @Override
     public void render(RenderContext context) {
         if (visibility() == Visibility.COLLAPSED || visibility() == Visibility.HIDDEN) return;
         boolean hasText = !text.isEmpty();
-        boolean hasBox = boxVisualEnabled && (backgroundVisible || borderVisible || boxRenderer != null);
+        boolean hasBox = boxVisualEnabled && (backgroundVisible || borderVisible);
         if (!hasText && !hasBox) return;
 
         pushOpacity(context);
         try {
+            DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+            if (renderCustomVisual(draw)) {
+                return;
+            }
             if (hasBox) {
                 renderBox(context);
             }
             if (hasText) {
-                effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot(context));
+                renderText(draw);
             }
         } finally {
             popOpacity(context);
+        }
+    }
+
+    private void renderText(DrawScope draw) {
+        RenderContext context = draw.context();
+        List<Segment> segments;
+        boolean clipped;
+        float clipX;
+        float clipY;
+        float clipWidth;
+        float clipHeight;
+        switch (overflowMode) {
+            case CLIP -> {
+                segments = visibleSegments(context);
+                clipped = true;
+                clipX = layoutBounds().x();
+                clipY = layoutBounds().y();
+                clipWidth = layoutBounds().width();
+                clipHeight = layoutBounds().height();
+            }
+            case SHRINK_TO_FIT -> {
+                EdgeInsets padding = layoutStyle().padding();
+                float contentX = layoutBounds().x() + padding.left();
+                float contentY = layoutBounds().y() + padding.top();
+                float availableWidth = Math.max(0.0f, layoutBounds().width() - padding.horizontal());
+                float availableHeight = Math.max(0.0f, layoutBounds().height() - padding.vertical());
+                RichText drawText = effectiveRichText();
+                float textWidth = TextEngine.measureLineWidth(context, drawText);
+                float scale = textWidth <= 0.0f || availableWidth <= 0.0f ? 1.0f : Math.min(1.0f, availableWidth / textWidth);
+                float sourceHeight = TextEngine.measureTextHeight(context, drawText);
+                float textHeight = Math.min(availableHeight, sourceHeight * scale);
+                float scaledTextWidth = textWidth * scale;
+                float drawX = TextEngine.alignedStart(contentX, availableWidth, scaledTextWidth, textHorizontalAlignment());
+                float drawY = TextEngine.alignedStart(contentY, availableHeight, textHeight, textVerticalAlignment());
+                Transform scaled = scaledTransform(scale);
+                segments = List.of(new Segment(drawText, drawX, drawY, textWidth, sourceHeight, scaled));
+                clipped = true;
+                clipX = contentX;
+                clipY = contentY;
+                clipWidth = availableWidth;
+                clipHeight = availableHeight;
+            }
+            case MARQUEE_ON_HOVER -> {
+                EdgeInsets padding = layoutStyle().padding();
+                float contentX = layoutBounds().x() + padding.left();
+                float contentY = layoutBounds().y() + padding.top();
+                float availableWidth = Math.max(0.0f, layoutBounds().width() - padding.horizontal());
+                float availableHeight = Math.max(0.0f, layoutBounds().height() - padding.vertical());
+                RichText drawText = effectiveRichText();
+                float textWidth = TextEngine.measureLineWidth(context, drawText);
+                if (textWidth <= availableWidth) {
+                    segments = visibleSegments(context);
+                    clipped = false;
+                    clipX = layoutBounds().x();
+                    clipY = layoutBounds().y();
+                    clipWidth = layoutBounds().width();
+                    clipHeight = layoutBounds().height();
+                } else {
+                    float textHeight = Math.min(availableHeight, TextEngine.measureTextHeight(context, drawText));
+                    float drawY = TextEngine.alignedStart(contentY, availableHeight, textHeight, textVerticalAlignment());
+                    float period = Math.max(1.0f, textWidth + marqueeGap);
+                    boolean activeMarquee = hovered() || marqueeActive;
+                    float offset = activeMarquee ? marqueeOffset % period : 0.0f;
+                    float firstX = contentX - offset;
+                    if (activeMarquee) {
+                        segments = List.of(
+                                new Segment(drawText, firstX, drawY, textWidth, textHeight, null),
+                                new Segment(drawText, firstX + textWidth + marqueeGap, drawY, textWidth, textHeight, null));
+                    } else {
+                        segments = List.of(new Segment(drawText, firstX, drawY, textWidth, textHeight, null));
+                    }
+                    clipped = true;
+                    clipX = contentX;
+                    clipY = contentY;
+                    clipWidth = availableWidth;
+                    clipHeight = availableHeight;
+                }
+            }
+            default -> {
+                segments = visibleSegments(context);
+                clipped = false;
+                clipX = layoutBounds().x();
+                clipY = layoutBounds().y();
+                clipWidth = layoutBounds().width();
+                clipHeight = layoutBounds().height();
+            }
+        }
+        if (clipped) {
+            draw.pushTextClip(clipX, clipY, clipWidth, clipHeight);
+        }
+        try {
+            for (Segment segment : segments) {
+                if (segment.text() == null || segment.text().isEmpty()) continue;
+                DrawScope segmentDraw = segment.transform() == null ? draw : draw.withTransform(segment.transform());
+                TextEngine.drawInline(segmentDraw, segment.text(), segment.x(), segment.y(), segment.width(), segment.height(),
+                        Paint.fill(color));
+            }
+        } finally {
+            if (clipped) {
+                draw.popClip();
+            }
         }
     }
 
@@ -671,30 +753,7 @@ public class TextWidget extends WidgetBase {
         return alignment == Alignment.STRETCH ? Alignment.START : alignment;
     }
 
-    protected TextWidgetRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(TextWidgetRenderer.class, WidgetsRender.textWidget()) : renderer;
-    }
-
-    protected TextWidgetState snapshot(RenderContext context) {
-        return switch (overflowMode) {
-            case CLIP -> clippedState(context);
-            case SHRINK_TO_FIT -> shrinkToFitState(context);
-            case MARQUEE_ON_HOVER -> marqueeState(context);
-            case VISIBLE -> visibleState(context);
-        };
-    }
-
-    private TextWidgetState visibleState(RenderContext context) {
-        return textState(visibleSegments(context), false,
-                layoutBounds().x(), layoutBounds().y(), layoutBounds().width(), layoutBounds().height());
-    }
-
-    private TextWidgetState clippedState(RenderContext context) {
-        return textState(visibleSegments(context), true,
-                layoutBounds().x(), layoutBounds().y(), layoutBounds().width(), layoutBounds().height());
-    }
-
-    private List<TextWidgetSegment> visibleSegments(RenderContext context) {
+    private List<Segment> visibleSegments(RenderContext context) {
         EdgeInsets padding = layoutStyle().padding();
         float x = layoutBounds().x() + padding.left();
         float y = layoutBounds().y() + padding.top();
@@ -703,13 +762,13 @@ public class TextWidget extends WidgetBase {
         if (wrap) {
             return wrappedSegments(context, x, y, w, h);
         }
-        TextWidgetSegment segment = alignedSegment(context, effectiveRichText(),
+        Segment segment = alignedSegment(context, effectiveRichText(),
                 x, y, w, h,
                 textHorizontalAlignment(), textVerticalAlignment(), null);
         return segment == null ? List.of() : List.of(segment);
     }
 
-    private List<TextWidgetSegment> wrappedSegments(RenderContext context, float x, float y, float availableWidth, float availableHeight) {
+    private List<Segment> wrappedSegments(RenderContext context, float x, float y, float availableWidth, float availableHeight) {
         float effectiveW = availableWidth / effectiveScale(transform().scale().x());
         float effectiveH = availableHeight / effectiveScale(transform().scale().y());
         if (effectiveW <= 0.0f || effectiveH <= 0.0f) return List.of();
@@ -719,11 +778,11 @@ public class TextWidget extends WidgetBase {
 
         float totalHeight = TextEngine.linesHeight(context, lines);
         float drawY = TextEngine.alignedStart(y, effectiveH, totalHeight, textVerticalAlignment());
-        List<TextWidgetSegment> segments = new ObjectArrayList<>(lines.size());
+        List<Segment> segments = new ObjectArrayList<>(lines.size());
         for (RichText line : lines) {
             float lineHeight = TextEngine.lineHeight(context, line);
             if (drawY >= y + effectiveH) break;
-            TextWidgetSegment segment = alignedSegment(context, line,
+            Segment segment = alignedSegment(context, line,
                     x, drawY, effectiveW, lineHeight,
                     textHorizontalAlignment(), Alignment.CENTER, null);
             if (segment != null) segments.add(segment);
@@ -732,59 +791,7 @@ public class TextWidget extends WidgetBase {
         return segments;
     }
 
-    private TextWidgetState shrinkToFitState(RenderContext context) {
-        EdgeInsets padding = layoutStyle().padding();
-        float contentX = layoutBounds().x() + padding.left();
-        float contentY = layoutBounds().y() + padding.top();
-        float availableWidth = Math.max(0.0f, layoutBounds().width() - padding.horizontal());
-        float availableHeight = Math.max(0.0f, layoutBounds().height() - padding.vertical());
-        RichText drawText = effectiveRichText();
-        float textWidth = TextEngine.measureLineWidth(context, drawText);
-        float scale = textWidth <= 0.0f || availableWidth <= 0.0f ? 1.0f : Math.min(1.0f, availableWidth / textWidth);
-        float sourceHeight = TextEngine.measureTextHeight(context, drawText);
-        float textHeight = Math.min(availableHeight, sourceHeight * scale);
-        float scaledTextWidth = textWidth * scale;
-        float drawX = TextEngine.alignedStart(contentX, availableWidth, scaledTextWidth, textHorizontalAlignment());
-        float drawY = TextEngine.alignedStart(contentY, availableHeight, textHeight, textVerticalAlignment());
-        Transform scaled = scaledTransform(scale);
-        TextWidgetSegment segment = new TextWidgetSegment(drawText, drawX, drawY,
-                textWidth, sourceHeight, scaled);
-        return textState(List.of(segment), true,
-                contentX, contentY, availableWidth, availableHeight);
-    }
-
-    private TextWidgetState marqueeState(RenderContext context) {
-        EdgeInsets padding = layoutStyle().padding();
-        float contentX = layoutBounds().x() + padding.left();
-        float contentY = layoutBounds().y() + padding.top();
-        float availableWidth = Math.max(0.0f, layoutBounds().width() - padding.horizontal());
-        float availableHeight = Math.max(0.0f, layoutBounds().height() - padding.vertical());
-        RichText drawText = effectiveRichText();
-        float textWidth = TextEngine.measureLineWidth(context, drawText);
-        if (textWidth <= availableWidth) {
-            return visibleState(context);
-        }
-
-        float textHeight = Math.min(availableHeight, TextEngine.measureTextHeight(context, drawText));
-        float drawY = TextEngine.alignedStart(contentY, availableHeight, textHeight, textVerticalAlignment());
-        float period = Math.max(1.0f, textWidth + marqueeGap);
-        boolean activeMarquee = hovered() || marqueeActive;
-        float offset = activeMarquee ? marqueeOffset % period : 0.0f;
-        float firstX = contentX - offset;
-
-        List<TextWidgetSegment> segments;
-        if (activeMarquee) {
-            segments = List.of(
-                    new TextWidgetSegment(drawText, firstX, drawY, textWidth, textHeight, null),
-                    new TextWidgetSegment(drawText, firstX + textWidth + marqueeGap, drawY, textWidth, textHeight, null));
-        } else {
-            segments = List.of(new TextWidgetSegment(drawText, firstX, drawY, textWidth, textHeight, null));
-        }
-        return textState(segments, true,
-                contentX, contentY, availableWidth, availableHeight);
-    }
-
-    private TextWidgetSegment alignedSegment(RenderContext context, RichText drawText,
+    private Segment alignedSegment(RenderContext context, RichText drawText,
                                              float x, float y, float width, float height,
                                              Alignment horizontal, Alignment vertical,
                                              Transform transform) {
@@ -795,28 +802,7 @@ public class TextWidget extends WidgetBase {
         float textHeight = Math.min(availableHeight, TextEngine.measureTextHeight(context, drawText));
         float drawX = TextEngine.alignedStart(x, availableWidth, textWidth, horizontal);
         float drawY = TextEngine.alignedStart(y, availableHeight, textHeight, vertical);
-        return new TextWidgetSegment(drawText, drawX, drawY, textWidth, textHeight, transform);
-    }
-
-    private TextWidgetState textState(List<TextWidgetSegment> segments, boolean clipped,
-                                      float clipX, float clipY, float clipWidth, float clipHeight) {
-        return new TextWidgetState(
-                layoutBounds().x(),
-                layoutBounds().y(),
-                layoutBounds().width(),
-                layoutBounds().height(),
-                effectiveRichText(),
-                color.copy(),
-                wrap,
-                overflowMode,
-                hovered(),
-                textVerticalAlignment(),
-                clipped,
-                clipX,
-                clipY,
-                clipWidth,
-                clipHeight,
-                segments);
+        return new Segment(drawText, drawX, drawY, textWidth, textHeight, transform);
     }
 
     private Transform scaledTransform(float scale) {
@@ -892,5 +878,15 @@ public class TextWidget extends WidgetBase {
 
     private static float effectiveScale(float scale) {
         return Float.isFinite(scale) && Math.abs(scale) > 0.0001f ? Math.abs(scale) : 1.0f;
+    }
+
+    record Segment(
+            RichText text,
+            float x,
+            float y,
+            float width,
+            float height,
+            Transform transform
+    ) {
     }
 }

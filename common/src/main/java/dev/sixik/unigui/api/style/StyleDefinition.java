@@ -21,7 +21,7 @@ import java.util.Map;
  * {@link StyleKeys}. Если нужен сложный Java-render, который нельзя выразить набором свойств,
  * используется {@link #custom(String, String, Style)} или {@link #rendererId(String)}. В этом случае
  * стиль всё ещё может хранить обычные свойства, но отрисовку выполняет renderer из
- * {@link dev.sixik.unigui.api.widget.render.WidgetRendererRegistry}.</p>
+ * {@link dev.sixik.unigui.api.widget.render.WidgetRenderRegistry}.</p>
  *
  * <p>Пример: применить стиль ко всем кнопкам с class {@code primary}.</p>
  *
@@ -97,8 +97,7 @@ public record StyleDefinition(String id,
      * Создаёт стиль с custom renderer'ом.
      *
      * <p>{@code rendererId} должен быть зарегистрирован в
-     * {@link dev.sixik.unigui.api.widget.render.WidgetRendererRegistry} с renderer-интерфейсом,
-     * который ожидает конкретный виджет. Например, для {@code Button} это {@code ButtonRenderer}.</p>
+     * {@link dev.sixik.unigui.api.widget.render.WidgetRenderRegistry}.</p>
      *
      * @param id имя стиля
      * @param rendererId id renderer'а в registry
@@ -202,7 +201,7 @@ public record StyleDefinition(String id,
     /**
      * Переводит definition на custom renderer, сохраняя текущие style-свойства.
      *
-     * @param rendererId id renderer'а в {@link dev.sixik.unigui.api.widget.render.WidgetRendererRegistry}
+     * @param rendererId id renderer'а в {@link dev.sixik.unigui.api.widget.render.WidgetRenderRegistry}
      * @return новый {@code StyleDefinition}
      */
     public StyleDefinition rendererId(String rendererId) {

@@ -12,11 +12,11 @@ import dev.sixik.unigui.impl.layout.FlexLayoutEngine;
 import java.util.List;
 
 /**
- * Production adapter for migrated flex containers.
+ * Производственный адаптер для мигрированных flex-контейнеров.
  *
- * <p>The backend-neutral LayoutNode/Taffy path remains covered by LayoutV3SelfTest, but the live
- * widget path uses the specialized flex solver to avoid rebuilding node trees, maps and output
- * objects on every Minecraft frame.</p>
+ * <p>Нейтральный к бэкенду путь LayoutNode/Taffy по-прежнему покрыт LayoutV3SelfTest, но живой
+ * путь виджетов использует специализированный flex-решатель, чтобы не перестраивать деревья узлов, карты и объекты
+ * вывода на каждый кадр Minecraft.</p>
  */
 public final class LayoutV3FlexAdapter {
     private LayoutV3FlexAdapter() {

@@ -24,6 +24,7 @@ import dev.sixik.unigui.api.input.TextEditorModel;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.RichText;
@@ -31,14 +32,10 @@ import dev.sixik.unigui.api.text.TextRun;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.widget.Visibility;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.containers.Box;
-import dev.sixik.unigui.widgets.render.TextAreaLineState;
-import dev.sixik.unigui.widgets.render.TextAreaRenderer;
-import dev.sixik.unigui.widgets.render.TextAreaState;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -55,12 +52,13 @@ public class TextArea extends Box {
     protected static final float APPROX_CHAR_WIDTH = TextEngine.APPROX_CHAR_WIDTH;
     private static final float SCROLLBAR_SIZE = 3.0f;
     private static final float SCROLLBAR_MIN_THUMB = 8.0f;
+    private static final MutableColor SCROLLBAR_TRACK = new MutableColor(0.0f, 0.0f, 0.0f, 0.24f);
+    private static final MutableColor SCROLLBAR_THUMB = new MutableColor(0.55f, 0.62f, 0.72f, 0.72f);
 
     private final TextEditorModel editor = new TextEditorModel();
     private final MutableColor textColor = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private final MutableColor placeholderColor = new MutableColor(0.65f, 0.65f, 0.65f, 0.9f);
     private final MutableColor caretColor = new MutableColor(0.25f, 0.78f, 1.0f, 1.0f);
-    private TextAreaRenderer renderer;
     private String placeholder = "";
     private FontFace font;
     private float pixelSize = TextRun.DEFAULT_PIXEL_SIZE;
@@ -337,21 +335,6 @@ public class TextArea extends Box {
         return caretColor;
     }
 
-    public TextAreaRenderer renderer() {
-        return renderer;
-    }
-
-    public TextArea renderer(TextAreaRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public TextArea useDefaultRenderer() {
-        return renderer(null);
-    }
-
     public boolean visualOnlyTextChanges() {
         return visualOnlyTextChanges;
     }
@@ -513,61 +496,126 @@ public class TextArea extends Box {
             ensureCursorVisible();
             followCaretRequested = false;
         }
-        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), textAreaState());
-    }
-
-    protected TextAreaState textAreaState() {
-        float lineHeight = effectiveLineHeight();
-        List<TextAreaLineState> states = new ArrayList<>(lineMetrics.size());
-        for (LineMetrics line : lineMetrics) {
-            float lineY = textViewportY() + line.lineIndex * lineHeight - verticalScrollPixels;
-            states.add(new TextAreaLineState(
-                    line.lineIndex,
-                    line.start,
-                    line.end,
-                    lineY,
-                    lineHeight,
-                    line.measuredWidth,
-                    line.text,
-                    line.richText,
-                    line.prefixWidths));
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        if (renderCustomVisual(draw)) {
+            return;
         }
-        return new TextAreaState(
-                layoutBounds().x(),
-                layoutBounds().y(),
-                layoutBounds().width(),
-                layoutBounds().height(),
-                backgroundVisible(),
-                background().copy(),
-                radius(),
-                borderVisible(),
-                borderColor().copy(),
-                borderWidth(),
-                textViewportX(),
-                textViewportY(),
-                textViewportWidth(),
-                textViewportHeight(),
-                horizontalScrollPixels,
-                verticalScrollPixels,
-                lineHeight,
-                Math.max(1.0f, lineHeight - 2.0f),
-                measuredTextWidth,
-                lineMetrics.size(),
-                states,
-                focused,
-                isShowingPlaceholder(),
-                hasSelection(),
-                selectionStart(),
-                selectionEnd(),
-                cursorIndex(),
-                textColor.copy(),
-                placeholderColor.copy(),
-                caretColor.copy(),
-                APPROX_CHAR_WIDTH);
+        if (backgroundVisible()) {
+            draw.roundedRect(layoutBounds().x(), layoutBounds().y(),
+                    layoutBounds().width(), layoutBounds().height(), radius(),
+                    Paint.fill(background()));
+        }
+        if (borderVisible() && borderWidth() > 0.0f) {
+            draw.roundedRect(layoutBounds().x(), layoutBounds().y(),
+                    layoutBounds().width(), layoutBounds().height(), radius(),
+                    Paint.stroke(borderColor(), borderWidth()));
+        }
+        float viewportX = textViewportX();
+        float viewportY = textViewportY();
+        float viewportWidth = textViewportWidth();
+        float viewportHeight = textViewportHeight();
+        float lineHeight = effectiveLineHeight();
+        float textHeight = Math.max(1.0f, lineHeight - 2.0f);
+        boolean showingPlaceholder = isShowingPlaceholder();
+        draw.pushTextClip(viewportX, viewportY, viewportWidth, viewportHeight);
+        try {
+            if (focused && hasSelection() && !showingPlaceholder) {
+                renderTextSelection(draw, viewportX, viewportY, viewportHeight, lineHeight);
+            }
+            for (LineMetrics line : lineMetrics) {
+                float lineY = viewportY + line.lineIndex * lineHeight - verticalScrollPixels;
+                if (!intersectsTextViewport(lineY, lineHeight, viewportY, viewportHeight)) continue;
+                if (line.richText != null && !line.richText.isEmpty()) {
+                    TextEngine.drawInline(draw,
+                            line.richText,
+                            viewportX - horizontalScrollPixels,
+                            lineY,
+                            Math.max(viewportWidth, line.measuredWidth),
+                            textHeight,
+                            Paint.fill(showingPlaceholder ? placeholderColor : textColor));
+                }
+            }
+            if (focused) {
+                LineMetrics caretLine = lineForIndex(cursorIndex());
+                if (caretLine != null) {
+                    int localCursor = Math.max(0, Math.min(caretLine.length(), cursorIndex() - caretLine.start));
+                    float caretX = viewportX + caretLine.prefixWidth(localCursor) - horizontalScrollPixels;
+                    float caretY = viewportY + caretLine.lineIndex * lineHeight - verticalScrollPixels;
+                    draw.rect(caretX,
+                            caretY,
+                            1.0f,
+                            lineHeight,
+                            Paint.fill(caretColor));
+                }
+            }
+        } finally {
+            draw.popClip();
+        }
+        renderTextScrollbars(draw, viewportX, viewportY, viewportWidth, viewportHeight, lineHeight);
     }
 
-    protected TextAreaRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(TextAreaRenderer.class, WidgetsRender.textArea()) : renderer;
+    private void renderTextSelection(DrawScope draw, float viewportX, float viewportY, float viewportHeight, float lineHeight) {
+        int selectionStart = Math.min(selectionStart(), selectionEnd());
+        int selectionEnd = Math.max(selectionStart(), selectionEnd());
+        for (LineMetrics line : lineMetrics) {
+            float lineY = viewportY + line.lineIndex * lineHeight - verticalScrollPixels;
+            if (!intersectsTextViewport(lineY, lineHeight, viewportY, viewportHeight)) continue;
+
+            boolean intersectsText = selectionStart < line.end && selectionEnd > line.start;
+            boolean selectsLineBreak = line.lineIndex < lineMetrics.size() - 1
+                    && selectionStart <= line.end
+                    && selectionEnd > line.end;
+            boolean selectsEmptyLine = line.start == line.end
+                    && selectionStart <= line.start
+                    && selectionEnd > line.start;
+            if (!intersectsText && !selectsLineBreak && !selectsEmptyLine) continue;
+
+            int localStart = clamp(selectionStart - line.start, 0, line.length());
+            int localEnd = intersectsText ? clamp(selectionEnd - line.start, 0, line.length()) : localStart;
+            float selectionX = line.prefixWidth(localStart);
+            float selectionEndX = line.prefixWidth(localEnd);
+            if (selectsLineBreak) {
+                selectionEndX = Math.max(selectionEndX, line.measuredWidth + APPROX_CHAR_WIDTH);
+            }
+            if (selectsEmptyLine || selectionEndX <= selectionX) {
+                selectionEndX = selectionX + APPROX_CHAR_WIDTH;
+            }
+            draw.rect(viewportX + selectionX - horizontalScrollPixels,
+                    lineY,
+                    Math.max(1.0f, selectionEndX - selectionX),
+                    lineHeight,
+                    Paint.fill(caretColor));
+        }
+    }
+
+    private void renderTextScrollbars(DrawScope draw, float viewportX, float viewportY,
+                                      float viewportWidth, float viewportHeight, float lineHeight) {
+        float contentHeight = lineMetrics.size() * lineHeight;
+        float maxY = Math.max(0.0f, contentHeight - viewportHeight);
+        float maxX = Math.max(0.0f, measuredTextWidth - viewportWidth);
+        if (maxY > 0.0f && viewportHeight > 0.0f) {
+            float trackX = viewportX + Math.max(0.0f, viewportWidth - SCROLLBAR_SIZE);
+            float thumbHeight = Math.max(SCROLLBAR_MIN_THUMB,
+                    viewportHeight * Math.min(1.0f, viewportHeight / Math.max(viewportHeight, contentHeight)));
+            float thumbTravel = Math.max(1.0f, viewportHeight - thumbHeight);
+            float thumbY = viewportY + thumbTravel * Math.min(1.0f, verticalScrollPixels / maxY);
+            draw.rect(trackX, viewportY, SCROLLBAR_SIZE, viewportHeight, Paint.fill(SCROLLBAR_TRACK));
+            draw.rect(trackX, thumbY, SCROLLBAR_SIZE, thumbHeight, Paint.fill(SCROLLBAR_THUMB));
+        }
+        if (maxX > 0.0f && viewportWidth > 0.0f) {
+            float trackY = viewportY + Math.max(0.0f, viewportHeight - SCROLLBAR_SIZE);
+            float thumbWidth = Math.max(SCROLLBAR_MIN_THUMB,
+                    viewportWidth * Math.min(1.0f, viewportWidth / Math.max(viewportWidth, measuredTextWidth)));
+            float thumbTravel = Math.max(1.0f, viewportWidth - thumbWidth);
+            float thumbX = viewportX + thumbTravel * Math.min(1.0f, horizontalScrollPixels / maxX);
+            draw.rect(viewportX, trackY, viewportWidth, SCROLLBAR_SIZE, Paint.fill(SCROLLBAR_TRACK));
+            draw.rect(thumbX, trackY, thumbWidth, SCROLLBAR_SIZE, Paint.fill(SCROLLBAR_THUMB));
+        }
+    }
+
+    private static boolean intersectsTextViewport(float lineY, float lineHeight, float viewportY, float viewportHeight) {
+        return lineY + lineHeight >= viewportY
+                && lineY <= viewportY + viewportHeight;
     }
 
     protected String displayText() {

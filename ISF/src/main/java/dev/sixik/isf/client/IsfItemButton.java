@@ -182,12 +182,15 @@ final class IsfItemButton extends Button {
     protected void renderContent(RenderContext context) {
         super.renderContent(context);
         if (!transferMissing) return;
-        var snapshot = snapshot(context);
+        float x = layoutBounds().x();
+        float y = layoutBounds().y();
+        float width = layoutBounds().width();
+        float height = layoutBounds().height();
         context.addQuadFilled(
-                new DrawPoint(snapshot.x(), snapshot.y()),
-                new DrawPoint(snapshot.x() + snapshot.width(), snapshot.y()),
-                new DrawPoint(snapshot.x() + snapshot.width(), snapshot.y() + snapshot.height()),
-                new DrawPoint(snapshot.x(), snapshot.y() + snapshot.height()),
+                new DrawPoint(x, y),
+                new DrawPoint(x + width, y),
+                new DrawPoint(x + width, y + height),
+                new DrawPoint(x, y + height),
                 new MutableColor(1.0f, 0.12f, 0.12f, 0.45f));
     }
 }

@@ -11,18 +11,10 @@ import dev.sixik.unigui.api.style.StyleIds;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
-import dev.sixik.unigui.widgets.render.ButtonRenderType;
-import dev.sixik.unigui.widgets.render.ButtonRenderer;
-import dev.sixik.unigui.widgets.render.ButtonState;
-import dev.sixik.unigui.widgets.render.ToggleSwitchRenderState;
-import dev.sixik.unigui.widgets.render.ToggleSwitchRenderer;
-import dev.sixik.unigui.widgets.render.ToggleSwitchRenderers;
-import dev.sixik.unigui.widgets.render.ToggleButtonRenderer;
-import dev.sixik.unigui.widgets.render.ToggleButtonRenderState;
 import dev.sixik.unigui.api.widget.render.WidgetRole;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 
@@ -63,8 +55,6 @@ public class ToggleSwitch extends ToggleButton {
     private boolean labelLeft;
     private float switchProgress;
     private TransitionSpec switchAnimation = TransitionSpec.of(DEFAULT_SWITCH_ANIMATION_SECONDS);
-    private ToggleSwitchRenderer toggleSwitchRenderer;
-    private ToggleButtonRenderer legacyToggleButtonRenderer;
 
     public ToggleSwitch() {
         this("");
@@ -82,63 +72,6 @@ public class ToggleSwitch extends ToggleButton {
     public ToggleSwitch(RichText text) {
         this("");
         richText(text);
-    }
-
-    /** @return typed renderer toggle switch или {@code null}, если используется theme/default */
-    public ToggleSwitchRenderer toggleSwitchRenderer() {
-        return toggleSwitchRenderer;
-    }
-
-    /** Устанавливает typed renderer toggle switch. */
-    public ToggleSwitch toggleSwitchRenderer(ToggleSwitchRenderer renderer) {
-        if (this.toggleSwitchRenderer == renderer && legacyToggleButtonRenderer == null) return this;
-        this.toggleSwitchRenderer = renderer;
-        this.legacyToggleButtonRenderer = null;
-        invalidate(dev.sixik.unigui.api.core.InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    /** Возвращает выбор renderer к theme/default пути. */
-    public ToggleSwitch useDefaultToggleSwitchRenderer() {
-        return toggleSwitchRenderer(null);
-    }
-
-    /**
-     * Совместимый мост для старого API ToggleButton.
-     *
-     * <p>ToggleSwitch имеет собственную semantic role, поэтому renderer адаптируется к
-     * typed {@link ToggleSwitchRenderer} и не используется родительским render path.</p>
-     *
-     * @deprecated используйте {@link #toggleSwitchRenderer(ToggleSwitchRenderer)}
-     */
-    @Deprecated
-    @Override
-    public ToggleButtonRenderer toggleButtonRenderer() {
-        return legacyToggleButtonRenderer;
-    }
-
-    /** @deprecated используйте {@link #toggleSwitchRenderer(ToggleSwitchRenderer)} */
-    @Deprecated
-    @Override
-    public ToggleSwitch toggleButtonRenderer(ToggleButtonRenderer renderer) {
-        legacyToggleButtonRenderer = renderer;
-        toggleSwitchRenderer = renderer == null
-                ? null
-                : (draw, state) -> renderer.render(draw, new ToggleButtonRenderState(
-                        state.x(), state.y(), state.width(), state.height(), state.text(), state.richText(),
-                        state.trackHeight(), state.textWidth(), state.textHeight(), state.textColor(),
-                        state.pressed(), state.hovered(), state.enabled(), state.checked(),
-                        state.trackColor(), state.trackColor(), false, state.trackColor(),
-                        state.trackHeight() * 0.5f, false, state.trackColor(), 0.0f));
-        invalidate(dev.sixik.unigui.api.core.InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    /** @deprecated используйте {@link #useDefaultToggleSwitchRenderer()} */
-    @Deprecated
-    @Override
-    public ToggleSwitch useDefaultToggleButtonRenderer() {
-        return toggleButtonRenderer((ToggleButtonRenderer) null);
     }
 
     @Override
@@ -269,76 +202,54 @@ public class ToggleSwitch extends ToggleButton {
     @Override
     protected void renderContent(RenderContext context) {
         applyTheme();
-        ToggleSwitchRenderState state = toggleSwitchSnapshot(context);
         DrawScope draw = new DrawScope(context, transform(), layoutBounds());
-        ToggleSwitchRenderer typed = toggleSwitchRenderer;
-        if (typed == null) {
-            typed = styleRendererOverride(WidgetRole.TOGGLE_SWITCH, ToggleSwitchRenderer.class);
-        }
-        if (typed != null) {
-            typed.render(draw, state);
-            renderChildren(context);
-            return;
-        }
+        float x = layoutBounds().x();
+        float y = layoutBounds().y();
+        float width = layoutBounds().width();
+        float height = layoutBounds().height();
+        boolean hasText = hasLabel();
+        if (trackWidth > 0.0f && trackHeight > 0.0f && thumbSize > 0.0f) {
+            float gap = hasText ? Math.max(0.0f, labelGap) : 0.0f;
+            float textWidth = hasText ? TextEngine.measureLineWidth(draw.context(), richText()) : 0.0f;
+            float textHeight = hasText ? TextEngine.measureTextHeight(draw.context(), richText()) : 0.0f;
+            float labelWidth = hasText
+                    ? Math.min(Math.max(0.0f, textWidth), Math.max(0.0f, width - trackWidth - gap))
+                    : 0.0f;
+            float trackX = labelLeft ? x + labelWidth + gap : x;
+            float trackY = y + Math.max(0.0f, height - trackHeight) * 0.5f;
+            draw.roundedRect(trackX, trackY, trackWidth, trackHeight, trackHeight * 0.5f,
+                    Paint.fill(switchTrackColor()));
 
-        ButtonRenderer legacy = renderer();
-        if (legacy == null) {
-            legacy = styleRendererOverride(WidgetRole.TOGGLE_SWITCH, ButtonRenderer.class);
+            float thumbPadding = Math.max(1.0f, (trackHeight - thumbSize) * 0.5f);
+            float thumbTravel = Math.max(0.0f, trackWidth - thumbSize - thumbPadding * 2.0f);
+            float thumbX = trackX + thumbPadding + (checked() ? thumbTravel : 0.0f);
+            float thumbY = trackY + Math.max(0.0f, trackHeight - thumbSize) * 0.5f;
+            draw.circle(thumbX, thumbY, thumbSize, thumbSize, Paint.fill(thumbColor));
+
+            if (hasText) {
+                float contentX;
+                float contentWidth;
+                if (labelLeft) {
+                    contentX = x;
+                    contentWidth = labelWidth;
+                } else {
+                    contentX = trackX + trackWidth + gap;
+                    contentWidth = Math.max(0.0f, width - (contentX - x));
+                }
+                float drawHeight = Math.min(Math.max(0.0f, height), Math.max(0.0f, textHeight));
+                if (contentWidth > 0.0f && drawHeight > 0.0f) {
+                    float drawY = y + Math.max(0.0f, height - drawHeight) * 0.5f;
+                    renderLabel(draw, richText(), contentX, y, contentWidth, height,
+                            contentX, drawY, contentWidth, drawHeight, textColor());
+                }
+            }
         }
-        if (legacy != null) {
-            legacy.render(draw, state.toLegacyButtonState());
-            renderChildren(context);
-            return;
-        }
-        if (renderStylePlan(context, ButtonState.class, state.toLegacyButtonState())) {
-            renderChildren(context);
-            return;
-        }
-        ToggleSwitchRenderers.DEFAULT.render(draw, state);
         renderChildren(context);
     }
 
     @Override
-    protected ButtonRenderer defaultRenderer() {
-        return WidgetsRender.toggleSwitch();
-    }
-
-    @Override
-    protected ButtonRenderer effectiveRenderer() {
-        return renderer() == null
-                ? styleRenderer(WidgetRole.TOGGLE_SWITCH, ButtonRenderer.class, defaultRenderer())
-                : renderer();
-    }
-
-    @Override
-    protected ButtonState snapshot(RenderContext context) {
-        return toggleSwitchSnapshot(context).toLegacyButtonState();
-    }
-
-    /** Собирает typed состояние toggle switch без зависимости renderer от виджета. */
-    protected ToggleSwitchRenderState toggleSwitchSnapshot(RenderContext context) {
-        return new ToggleSwitchRenderState(
-                layoutBounds().x(),
-                layoutBounds().y(),
-                layoutBounds().width(),
-                layoutBounds().height(),
-                text(),
-                richText(),
-                trackWidth,
-                trackHeight,
-                thumbSize,
-                hasLabel() ? labelGap : 0.0f,
-                TextEngine.measureLineWidth(context, richText()),
-                TextEngine.measureTextHeight(context, richText()),
-                textColor().copy(),
-                pressed(),
-                hovered(),
-                enabled(),
-                checked(),
-                switchTrackColor(),
-                thumbColor.copy(),
-                switchProgress,
-                labelLeft);
+    protected WidgetRole renderRole() {
+        return WidgetRole.TOGGLE_SWITCH;
     }
 
     @Override

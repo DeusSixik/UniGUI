@@ -1,145 +1,148 @@
 package dev.sixik.unigui.tests;
 
-import dev.sixik.unigui.api.widget.render.WidgetRendererRegistry;
+import dev.sixik.unigui.api.layout.LayoutContext;
+import dev.sixik.unigui.api.math.MutableRect;
+import dev.sixik.unigui.api.render.DrawList;
+import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
+import dev.sixik.unigui.api.widget.render.WidgetRenderRegistry;
 import dev.sixik.unigui.api.widget.render.WidgetRole;
+import dev.sixik.unigui.impl.render.DefaultRenderContext;
+import dev.sixik.unigui.widgets.interaction.Button;
 import dev.sixik.unigui.widgets.interaction.Checkbox;
+import dev.sixik.unigui.widgets.interaction.HoldButton;
 import dev.sixik.unigui.widgets.interaction.RadioButton;
 import dev.sixik.unigui.widgets.interaction.ToggleButton;
 import dev.sixik.unigui.widgets.interaction.ToggleSwitch;
-import dev.sixik.unigui.widgets.render.ButtonRenderer;
-import dev.sixik.unigui.widgets.render.CheckboxRenderer;
-import dev.sixik.unigui.widgets.render.RadioButtonRenderer;
-import dev.sixik.unigui.widgets.render.ToggleButtonRenderer;
-import dev.sixik.unigui.widgets.render.ToggleSwitchRenderer;
-import dev.sixik.unigui.widgets.render.HoldButtonRenderer;
-import dev.sixik.unigui.widgets.render.HoldButtonState;
-import dev.sixik.unigui.widgets.render.ButtonState;
-import dev.sixik.unigui.widgets.render.ToggleSwitchRenderState;
-import dev.sixik.unigui.widgets.render.ToolButtonRenderer;
-import dev.sixik.unigui.widgets.interaction.IconButton;
-import dev.sixik.unigui.widgets.interaction.ToggleToolButton;
 import dev.sixik.unigui.widgets.interaction.ToolButton;
 
-/** Проверяет базовые инварианты renderer API с semantic role. */
+/** Проверяет инварианты единого renderer-контракта: один интерфейс, роль, слот. */
 public final class WidgetRendererContractSelfTest {
     private WidgetRendererContractSelfTest() {
     }
 
     public static void main(String[] args) {
-        WidgetRendererRegistry registry = new WidgetRendererRegistry();
-        CheckboxRenderer checkboxRenderer = (draw, state) -> {
+        WidgetRenderRegistry registry = new WidgetRenderRegistry();
+        WidgetRender checkboxRenderer = WidgetRender.of(Checkbox.class, (draw, checkbox) -> {
+        });
+        WidgetRender buttonRenderer = (draw, widget) -> {
         };
-        ButtonRenderer buttonRenderer = (draw, state) -> {
-        };
-        RadioButtonRenderer radioButtonRenderer = (draw, state) -> {
-        };
-        ToggleButtonRenderer toggleButtonRenderer = (draw, state) -> {
-        };
-        ToggleSwitchRenderer toggleSwitchRenderer = (draw, state) -> {
-        };
-        HoldButtonRenderer holdButtonRenderer = (draw, state) -> {
-        };
-        ToolButtonRenderer toolButtonRenderer = (draw, state) -> {
+        WidgetRender radioRenderer = WidgetRender.of(RadioButton.class, (draw, radio) -> {
+        });
+        WidgetRender toggleRenderer = WidgetRender.of(ToggleButton.class, (draw, toggle) -> {
+        });
+        WidgetRender switchRenderer = WidgetRender.of(ToggleSwitch.class, (draw, toggle) -> {
+        });
+        WidgetRender holdRenderer = WidgetRender.of(HoldButton.class, (draw, button) -> {
+        });
+        WidgetRender toolRenderer = WidgetRender.of(ToolButton.class, (draw, button) -> {
+        });
+        WidgetRender roleRenderer = new WidgetRender() {
+            @Override
+            public void render(DrawScope draw, Widget widget) {
+            }
+
+            @Override
+            public WidgetRole role() {
+                return WidgetRole.BUTTON;
+            }
         };
 
-        registry.register("test:checkbox", WidgetRole.CHECKBOX, CheckboxRenderer.class, checkboxRenderer);
-        registry.register("test:button", WidgetRole.BUTTON, ButtonRenderer.class, buttonRenderer);
-        registry.register("test:radio", WidgetRole.RADIO_BUTTON, RadioButtonRenderer.class, radioButtonRenderer);
-        registry.register("test:toggle", WidgetRole.TOGGLE_BUTTON, ToggleButtonRenderer.class, toggleButtonRenderer);
-        registry.register("test:switch", WidgetRole.TOGGLE_SWITCH, ToggleSwitchRenderer.class, toggleSwitchRenderer);
-        registry.register("test:hold", WidgetRole.HOLD_BUTTON, HoldButtonRenderer.class, holdButtonRenderer);
-        registry.register("test:tool", WidgetRole.TOOL_BUTTON, ToolButtonRenderer.class, toolButtonRenderer);
+        registry.register("test:checkbox", WidgetRole.CHECKBOX, checkboxRenderer);
+        registry.register("test:button", WidgetRole.BUTTON, buttonRenderer);
+        registry.register("test:radio", WidgetRole.RADIO_BUTTON, radioRenderer);
+        registry.register("test:toggle", WidgetRole.TOGGLE_BUTTON, toggleRenderer);
+        registry.register("test:switch", WidgetRole.TOGGLE_SWITCH, switchRenderer);
+        registry.register("test:hold", WidgetRole.HOLD_BUTTON, holdRenderer);
+        registry.register("test:tool", WidgetRole.TOOL_BUTTON, toolRenderer);
+        registry.register("test:role", WidgetRole.BUTTON, roleRenderer);
 
-        expectThrows(() -> registry.register(
-                        "test:wrong-role", WidgetRole.CHECKBOX, ButtonRenderer.class, buttonRenderer),
+        expectThrows(() -> registry.register("test:wrong-role", WidgetRole.CHECKBOX, roleRenderer),
                 "Registry should reject a renderer with a different declared role");
 
-        expect(registry.renderer("test:checkbox", WidgetRole.CHECKBOX, CheckboxRenderer.class)
-                        .orElse(null) == checkboxRenderer,
+        expect(registry.renderer("test:checkbox", WidgetRole.CHECKBOX).orElse(null) == checkboxRenderer,
                 "Checkbox renderer should resolve for Checkbox role");
-        expect(registry.renderer("test:checkbox", WidgetRole.BUTTON, CheckboxRenderer.class).isEmpty(),
+        expect(registry.renderer("test:checkbox", WidgetRole.BUTTON).isEmpty(),
                 "Checkbox renderer must not resolve for Button role");
-        expect(registry.renderer("test:button", WidgetRole.CHECKBOX, ButtonRenderer.class).isEmpty(),
+        expect(registry.renderer("test:button", WidgetRole.CHECKBOX).isEmpty(),
                 "Button renderer must not resolve for Checkbox role");
-        expect(registry.renderer("test:radio", WidgetRole.BUTTON, RadioButtonRenderer.class).isEmpty(),
+        expect(registry.renderer("test:radio", WidgetRole.BUTTON).isEmpty(),
                 "Radio renderer must not resolve for Button role");
-        expect(registry.renderer("test:toggle", WidgetRole.CHECKBOX, ToggleButtonRenderer.class).isEmpty(),
+        expect(registry.renderer("test:toggle", WidgetRole.CHECKBOX).isEmpty(),
                 "Toggle renderer must not resolve for Checkbox role");
-        expect(registry.renderer("test:switch", WidgetRole.TOGGLE_BUTTON, ToggleSwitchRenderer.class).isEmpty(),
+        expect(registry.renderer("test:switch", WidgetRole.TOGGLE_BUTTON).isEmpty(),
                 "Switch renderer must not resolve for ToggleButton role");
-        expect(registry.renderer("test:hold", WidgetRole.HOLD_BUTTON, HoldButtonRenderer.class)
-                        .orElse(null) == holdButtonRenderer,
+        expect(registry.renderer("test:hold", WidgetRole.HOLD_BUTTON).orElse(null) == holdRenderer,
                 "HoldButton renderer should resolve for HoldButton role");
-        expect(registry.renderer("test:tool", WidgetRole.TOOL_BUTTON, ToolButtonRenderer.class)
-                        .orElse(null) == toolButtonRenderer,
+        expect(registry.renderer("test:tool", WidgetRole.TOOL_BUTTON).orElse(null) == toolRenderer,
                 "ToolButton renderer should resolve for ToolButton role");
-        expect(registry.resolve(WidgetRole.CHECKBOX, ButtonRenderer.class, buttonRenderer, null) == null,
+        expect(registry.resolve(WidgetRole.CHECKBOX, roleRenderer, null) == null,
                 "Direct renderer object with a different role must be rejected");
+        expect(registry.resolve(WidgetRole.BUTTON, roleRenderer, null) == roleRenderer,
+                "Direct renderer object with a matching role must be accepted");
 
-        HoldButtonState holdState = new HoldButtonState(
-                0.0f, 0.0f, 100.0f, 24.0f, "Hold", null,
-                8.0f, 32.0f, 10.0f, null, false, false, true,
-                true, null, 3.0f, true, null, 1.0f,
-                0.5f, 0.25f, 0.65f, true, false, null);
-        expect(holdState.holdProgress() == 0.5f && holdState.textWidth() == 32.0f,
-                "HoldButton typed state should keep hold and button visual data independently");
-        ButtonState legacyHoldState = holdState.button();
-        expect(legacyHoldState.width() == holdState.width(),
-                "HoldButton legacy adapter should preserve geometry");
+        // WidgetRender.of guards the widget type instead of throwing.
+        DrawList drawList = new DrawList();
+        DefaultRenderContext context = new DefaultRenderContext(drawList);
+        DrawScope draw = new DrawScope(context, null);
+        Button button = new Button("Guard");
+        int[] calls = new int[1];
+        WidgetRender guarded = WidgetRender.of(Checkbox.class, (scope, checkbox) -> calls[0]++);
+        guarded.render(draw, button);
+        expect(calls[0] == 0, "Type-guarded renderer must ignore foreign widgets");
+        guarded.render(draw, new Checkbox("Check"));
+        expect(calls[0] == 1, "Type-guarded renderer must render matching widgets");
 
-        registry.register("test:legacy", ButtonRenderer.class, buttonRenderer);
-        expect(registry.renderer("test:legacy", WidgetRole.CHECKBOX, ButtonRenderer.class)
-                        .orElse(null) == buttonRenderer,
-                "Legacy renderer should remain available during migration");
-
-        Checkbox checkbox = new Checkbox("Typed renderer").checkboxRenderer(checkboxRenderer);
-        expect(checkbox.checkboxRenderer() == checkboxRenderer,
-                "Checkbox should retain its typed renderer override");
-        checkbox.useDefaultCheckboxRenderer();
-        expect(checkbox.checkboxRenderer() == null,
+        // Single renderer slot on every widget.
+        Checkbox checkbox = new Checkbox("Single slot");
+        checkbox.renderer(checkboxRenderer);
+        expect(checkbox.renderer() == checkboxRenderer,
+                "Checkbox should retain its renderer override");
+        checkbox.renderer(null);
+        expect(checkbox.renderer() == null,
                 "Checkbox should be able to return to theme/default renderer");
-        checkbox.toggleButtonRenderer(toggleButtonRenderer);
-        expect(checkbox.toggleButtonRenderer() == toggleButtonRenderer,
-                "Checkbox legacy ToggleButton renderer should be exposed through the compatibility bridge");
-        expect(checkbox.checkboxRenderer() != null,
-                "Checkbox legacy ToggleButton renderer should be adapted to its own typed renderer");
-        checkbox.useDefaultToggleButtonRenderer();
-        expect(checkbox.checkboxRenderer() == null,
-                "Checkbox legacy reset should return to theme/default renderer");
 
-        RadioButton radioButton = new RadioButton("Typed renderer").radioButtonRenderer(radioButtonRenderer);
-        expect(radioButton.radioButtonRenderer() == radioButtonRenderer,
-                "RadioButton should retain its typed renderer override");
+        RadioButton radioButton = new RadioButton("Single slot");
+        radioButton.renderer(radioRenderer);
+        expect(radioButton.renderer() == radioRenderer,
+                "RadioButton should retain its renderer override");
 
-        ToggleButton toggleButton = new ToggleButton("Typed renderer").toggleButtonRenderer(toggleButtonRenderer);
-        expect(toggleButton.toggleButtonRenderer() == toggleButtonRenderer,
-                "ToggleButton should retain its typed renderer override");
+        ToggleButton toggleButton = new ToggleButton("Single slot");
+        toggleButton.renderer(toggleRenderer);
+        expect(toggleButton.renderer() == toggleRenderer,
+                "ToggleButton should retain its renderer override");
 
-        ToggleSwitch toggleSwitch = new ToggleSwitch("Typed renderer").toggleSwitchRenderer(toggleSwitchRenderer);
-        expect(toggleSwitch.toggleSwitchRenderer() == toggleSwitchRenderer,
-                "ToggleSwitch should retain its typed renderer override");
-        ToggleSwitchRenderState switchState = new ToggleSwitchRenderState(
-                0.0f, 0.0f, 100.0f, 24.0f, "Switch", null,
-                34.0f, 18.0f, 14.0f, 6.0f, 42.0f, 10.0f,
-                null, false, false, true, false, null, null, 0.0f, false);
-        expect(switchState.thumbSize() == 14.0f && switchState.textWidth() == 42.0f,
-                "ToggleSwitch render state must keep thumb and text dimensions in their declared order");
-        toggleSwitch.toggleButtonRenderer(toggleButtonRenderer);
-        expect(toggleSwitch.toggleButtonRenderer() == toggleButtonRenderer,
-                "ToggleSwitch legacy ToggleButton renderer should be exposed through the compatibility bridge");
-        expect(toggleSwitch.toggleSwitchRenderer() != null,
-                "ToggleSwitch legacy ToggleButton renderer should be adapted to its own typed renderer");
-        toggleSwitch.useDefaultToggleButtonRenderer();
-        expect(toggleSwitch.toggleSwitchRenderer() == null,
-                "ToggleSwitch legacy reset should return to theme/default renderer");
+        ToggleSwitch toggleSwitch = new ToggleSwitch("Single slot");
+        toggleSwitch.renderer(switchRenderer);
+        expect(toggleSwitch.renderer() == switchRenderer,
+                "ToggleSwitch should retain its renderer override");
 
-        ToolButton toolButton = new ToolButton("Tool").toolButtonRenderer(toolButtonRenderer);
-        expect(toolButton.toolButtonRenderer() == toolButtonRenderer,
-                "ToolButton should retain its typed renderer override");
-        expect(new ToggleToolButton("Toggle tool").toolButtonRenderer() == null,
-                "ToggleToolButton should reuse ToolButton renderer contract");
-        expect(new IconButton("icon").toolButtonRenderer() == null,
-                "IconButton should reuse ToolButton renderer contract");
+        ToolButton toolButton = new ToolButton("Tool");
+        toolButton.renderer(toolRenderer);
+        expect(toolButton.renderer() == toolRenderer,
+                "ToolButton should retain its renderer override");
+
+        HoldButton holdButton = new HoldButton("Hold");
+        holdButton.renderer(holdRenderer);
+        expect(holdButton.renderer() == holdRenderer,
+                "HoldButton should retain its renderer override");
+
+        // Custom renderers replace the whole hardcoded visual.
+        DrawList customDrawList = new DrawList();
+        DefaultRenderContext customContext = new DefaultRenderContext(customDrawList);
+        Button customButton = new Button("Custom");
+        customButton.measure(new LayoutContext(80.0f, 18.0f));
+        customButton.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 18.0f));
+        int[] customCalls = {0};
+        customButton.renderer((customDraw, customWidget) -> customCalls[0]++);
+        customButton.render(customContext);
+        expect(customCalls[0] == 1, "Custom renderer should replace the hardcoded visual");
+        customButton.renderer(null);
+        customButton.render(new DefaultRenderContext(new DrawList()));
+        expect(customCalls[0] == 1, "Reset renderer should restore the hardcoded visual");
+
+        System.out.println("WidgetRendererContractSelfTest passed");
     }
 
     private static void expect(boolean condition, String message) {
