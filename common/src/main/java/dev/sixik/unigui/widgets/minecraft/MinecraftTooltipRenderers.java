@@ -6,8 +6,6 @@ import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftGuiRenderBackend;
 import dev.sixik.unigui.widgets.feedback.Tooltip;
-import dev.sixik.unigui.widgets.render.TooltipRenderer;
-import dev.sixik.unigui.widgets.render.TooltipState;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;
@@ -96,7 +94,7 @@ public final class MinecraftTooltipRenderers {
      * {@link TooltipComponent}, который
      * конвертируется клиентской фабрикой мода).
      */
-    public static TooltipRenderer acceptsGrid(List<ItemStack> stacks,
+    public static WidgetRender acceptsGrid(List<ItemStack> stacks,
                                                Supplier<TooltipComponent> componentSupplier) {
         return acceptsGrid(stacks, null, componentSupplier);
     }
@@ -110,7 +108,7 @@ public final class MinecraftTooltipRenderers {
      *            (как в JEI; строку кладёт сам компонент сетки, т.к. ваниль ставит
      *            image-блок строго после первой текстовой строки)
      */
-    public static TooltipRenderer acceptsGrid(List<ItemStack> stacks, String tag,
+    public static WidgetRender acceptsGrid(List<ItemStack> stacks, String tag,
                                                Supplier<TooltipComponent> componentSupplier) {
         List<ItemStack> fixed = stacks == null ? List.of() : List.copyOf(stacks);
         return WidgetRender.of(Tooltip.class, (draw, tooltip) -> {
