@@ -10,3 +10,6 @@ gradlew.bat text eol=crlf
 
 # Never mangle jars (line-ending conversion would corrupt them)
 *.jar binary
+
+# Shell scripts must stay LF (CRLF breaks /bin/sh on Linux CI)
+*.sh text eol=lf

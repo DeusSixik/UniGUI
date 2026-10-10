@@ -3,21 +3,8 @@ jdk:
 
 before_install:
   - chmod +x gradlew
-  # Early diagnostics: a truncated/missing gradle-wrapper.jar in the JitPack
-  # checkout (seen on the "latest" build image) fails later with the cryptic
-  # "Could not find or load main class org.gradle.wrapper.GradleWrapperMain".
-  - $JAVA_HOME/bin/jar -tf gradle/wrapper/gradle-wrapper.jar | grep -q GradleWrapperMain && echo "gradle-wrapper.jar OK" || echo "WARNING: gradle-wrapper.jar is missing or corrupt in this checkout"
+  - chmod +x jitpack-build.sh
+  - sh jitpack-build.sh verify
 
 install:
-  # Primary path: the Gradle wrapper.
-  # Fallback: if the wrapper jar did not survive the JitPack checkout, download
-  # the same Gradle version as gradle-wrapper.properties and run it directly.
-  - |
-    if $JAVA_HOME/bin/jar -tf gradle/wrapper/gradle-wrapper.jar 2>/dev/null | grep -q GradleWrapperMain; then
-      ./gradlew -Dorg.gradle.java.home=$JAVA_HOME publishToMavenLocal -x test --no-daemon
-    else
-      echo "FALLBACK: gradle-wrapper.jar unusable - downloading Gradle 8.12.1 directly"
-      curl -fsSL -o /tmp/gradle.zip "https://services.gradle.org/distributions/gradle-8.12.1-bin.zip"
-      unzip -qo /tmp/gradle.zip -d /tmp
-      sh /tmp/gradle-8.12.1/bin/gradle -Dorg.gradle.java.home=$JAVA_HOME publishToMavenLocal -x test --no-daemon
-    fi
+  - sh jitpack-build.sh build
