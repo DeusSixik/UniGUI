@@ -1,0 +1,12 @@
+# Enforce LF for the Gradle wrapper shell script.
+# CRLF in gradlew appends a trailing CR to CLASSPATH on Linux,
+# which breaks JitPack builds with:
+# "Could not find or load main class org.gradle.wrapper.GradleWrapperMain"
+gradlew text eol=lf
+gradle/wrapper/gradle-wrapper.properties text eol=lf
+
+# Windows batch wrapper keeps CRLF
+gradlew.bat text eol=crlf
+
+# Never mangle jars (line-ending conversion would corrupt them)
+*.jar binary
