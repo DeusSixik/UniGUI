@@ -38,7 +38,17 @@ case "$1" in
             unzip -qo /tmp/gradle.zip -d /tmp
             GRADLE_CMD="sh /tmp/gradle-$GRADLE_VERSION/bin/gradle"
         fi
-        $GRADLE_CMD -Dorg.gradle.java.home=$JAVA_HOME publishToMavenLocal -x test --no-daemon
+        # Memory limits: the cold JitPack build runs many tasks in parallel and
+        # the Architectury Transformer needs more than the 2G heap from
+        # gradle.properties (:1.20.1:common:transformProductionForge died with
+        # "Java heap space"). Cap workers and raise the heap for the Gradle
+        # daemon (org.gradle.jvmargs) and every forked JVM (_JAVA_OPTIONS).
+        echo "JitPack build memory tuning: heap=3G, max-workers=2"
+        export _JAVA_OPTIONS="-Xmx3G"
+        $GRADLE_CMD -Dorg.gradle.java.home=$JAVA_HOME \
+                    -Dorg.gradle.jvmargs=-Xmx3G \
+                    --max-workers=2 \
+                    publishToMavenLocal -x test --no-daemon
         ;;
     *)
         echo "usage: $0 verify|build" >&2
