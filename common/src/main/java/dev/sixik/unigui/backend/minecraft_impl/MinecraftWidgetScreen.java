@@ -58,6 +58,7 @@ public class MinecraftWidgetScreen extends Screen {
     private FontFace defaultFont = MinecraftFonts.defaultFace();
     private Float screenScale;
     private boolean scaleWithMinecraftGui = true;
+    private boolean debugHotkeysEnabled = true;
     private long frameIndex;
     private float lastFrameCpuMillis;
     private float lastFrameTotalMillis;
@@ -187,6 +188,32 @@ public class MinecraftWidgetScreen extends Screen {
         layoutInitialized = false;
         invalidateRenderCache();
         root.invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Проверяет, перехватывает ли экран отладочные хоткеи.
+     *
+     * @return {@code true}, если {@code Ctrl+Shift+P/Plus/Minus} обрабатываются экраном
+     * @see MinecraftDebugHotkeys
+     */
+    public boolean debugHotkeysEnabled() {
+        return debugHotkeysEnabled;
+    }
+
+    /**
+     * Включает или выключает отладочные хоткеи экрана.
+     *
+     * <p>Выключено по умолчанию: комбинации {@code Ctrl+Shift+P} (тоггл профайлера)
+     * и {@code Ctrl+Shift+Plus/Minus} (scale дебаг-оверлея) могут конфликтовать
+     * с вводом в текстовых полях модов.</p>
+     *
+     * @param debugHotkeysEnabled {@code true}, чтобы перехватывать отладочные хоткеи
+     * @return этот экран для fluent-настройки
+     * @see MinecraftDebugHotkeys
+     */
+    public MinecraftWidgetScreen debugHotkeysEnabled(boolean debugHotkeysEnabled) {
+        this.debugHotkeysEnabled = debugHotkeysEnabled;
         return this;
     }
 
@@ -581,6 +608,7 @@ public class MinecraftWidgetScreen extends Screen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (debugHotkeysEnabled && handleDebugHotkey(keyCode, modifiers)) return true;
         uiContext.keyboard().press(keyCode);
         if (keyCode == KeyCodes.TAB) {
             Widget focused = uiContext.focusManager().focusedWidget();
@@ -611,6 +639,19 @@ public class MinecraftWidgetScreen extends Screen {
 
     protected boolean vanillaKeyPressed(int keyCode, int scanCode, int modifiers) {
         return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    /**
+     * Перехватывает отладочные хоткеи до фокуса, виджетов и ваниллы.
+     *
+     * <p>GLFW auto-repeat приходит сюда же: повторные нажатия удерживаемой
+     * клавиши поглощаются, но действие не повторяется.</p>
+     */
+    private boolean handleDebugHotkey(int keyCode, int modifiers) {
+        if (!MinecraftDebugHotkeys.matches(keyCode, modifiers)) return false;
+        boolean firstPress = !uiContext.keyboard().isDown(keyCode);
+        uiContext.keyboard().press(keyCode);
+        return MinecraftDebugHotkeys.handle(uiContext, keyCode, modifiers, firstPress);
     }
 
     @Override
