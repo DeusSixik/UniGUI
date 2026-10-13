@@ -25,6 +25,7 @@ public final class WorldCanvasSelfTest {
         projectionUsesCanvasOriginAndViewportOffset();
         anchorsArrangeAsFixedSizeScreenWidgets();
         anchorCullingSetsZeroBoundsOffscreen();
+        zoomScalingClampsToMinMaxSize();
         steadyStateMeasureSkipsCleanAnchors();
         tickAndRenderSkipCulledAnchors();
         scrollZoomDispatchesViewportChangedEvent();
@@ -74,6 +75,46 @@ public final class WorldCanvasSelfTest {
         assertTrue(!anchor.arrangedVisible(), "offscreen anchor should be culled");
         assertClose(0.0f, marker.layoutBounds().width(), "culled marker width");
         assertClose(0.0f, marker.layoutBounds().height(), "culled marker height");
+    }
+
+    private void zoomScalingClampsToMinMaxSize() {
+        // base 40x20 при referenceZoom 1: zoom 2 -> 80x40, в клампе [20x10, 60x30] -> 60x30.
+        WorldCanvas canvas = new WorldCanvas().viewport(0.0f, 0.0f, 2.0f);
+        TestWidget marker = new TestWidget(12.0f, 8.0f);
+        AnchorWidget anchor = canvas.anchorLayer().add("poi", 50.0f, 50.0f, marker)
+                .screenSize(40.0f, 20.0f)
+                .pivot(0.5f, 0.5f)
+                .minScreenSize(20.0f, 10.0f)
+                .maxScreenSize(60.0f, 30.0f)
+                .zoomScaling(true, 1.0f);
+
+        canvas.measure(new LayoutContext(400.0f, 300.0f));
+        canvas.arrange(new MutableRect(0.0f, 0.0f, 400.0f, 300.0f));
+
+        assertTrue(anchor.arrangedVisible(), "scaled anchor should be visible");
+        assertClose(60.0f, marker.layoutBounds().width(), "scaled width clamped to max");
+        assertClose(30.0f, marker.layoutBounds().height(), "scaled height clamped to max");
+        // pivot применяется к зажатому размеру: центр в projected (100, 100).
+        assertClose(100.0f - 30.0f, marker.layoutBounds().x(), "scaled marker x");
+        assertClose(100.0f - 15.0f, marker.layoutBounds().y(), "scaled marker y");
+
+        // zoom 0.25 -> 10x5, ниже пола -> 20x10.
+        canvas.viewport(0.0f, 0.0f, 0.25f);
+        canvas.measure(new LayoutContext(400.0f, 300.0f));
+        canvas.arrange(new MutableRect(0.0f, 0.0f, 400.0f, 300.0f));
+
+        assertClose(20.0f, marker.layoutBounds().width(), "scaled width clamped to min");
+        assertClose(10.0f, marker.layoutBounds().height(), "scaled height clamped to min");
+
+        // Без zoom-scaling min/max — жёсткие границы базового размера:
+        // база 40x20 с полом 100x100 поднимается до 100x100.
+        AnchorWidget bounded = canvas.anchorLayer().add("bounded", 50.0f, 50.0f, new TestWidget(12.0f, 8.0f))
+                .screenSize(40.0f, 20.0f)
+                .minScreenSize(100.0f, 100.0f);
+        canvas.measure(new LayoutContext(400.0f, 300.0f));
+        canvas.arrange(new MutableRect(0.0f, 0.0f, 400.0f, 300.0f));
+        assertClose(100.0f, bounded.widget().layoutBounds().width(), "min bound applies without zoom scaling");
+        assertClose(100.0f, bounded.widget().layoutBounds().height(), "min bound applies without zoom scaling");
     }
 
     private void steadyStateMeasureSkipsCleanAnchors() {
