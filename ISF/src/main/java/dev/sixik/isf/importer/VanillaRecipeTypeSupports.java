@@ -297,16 +297,28 @@ public final class VanillaRecipeTypeSupports {
                 "alignItems", literal("center")), List.of(
                 // Без "columns": ширина сетки выводится из pattern рецепта,
                 // иначе свойства узла перезаписывают форму крафта тройкой колонок.
-                  new IsfVisualNode("ingredients", id("isf:ingredient_grid"), Map.of(
-                          "items", parameter("pattern")), List.of()),
-                  arrow(),
-                  resultItem(),
-                  // Кнопка переноса в сетку верстака: поддержка объявлена здесь,
-                  // при регистрации типа; логика — в IsfTransferButton/IsfCraftTransfer.
-                  new IsfVisualNode("transfer", id("isf:transfer_button"), Map.of(
-                          "kind", literal("crafting_grid"),
-                          "items", parameter("pattern"),
-                          "alignSelf", literal("center")), List.of()))));
+                new IsfVisualNode("ingredients", id("isf:ingredient_grid"), Map.of(
+                        "items", parameter("pattern")), List.of()),
+                arrow(),
+                new IsfVisualNode("result_column", id("unigui:vbox"), Map.of(
+                        "spacing", literal(2),
+                        "alignItems", literal("center"),
+                        "alignSelf", literal("center")), List.of(
+                        resultItem(),
+                        // Контейнер кнопок действий под слотом результата.
+                        // Кнопки центруются горизонтально; при добавлении второй кнопки
+                        // того же размера они останутся отцентрованными под слотом.
+                        new IsfVisualNode("action_buttons", id("unigui:hbox"), Map.of(
+                                "spacing", literal(2),
+                                "alignItems", literal("center"),
+                                "justifyContent", literal("center")), List.of(
+                                new IsfVisualNode("transfer", id("isf:transfer_button"), Map.of(
+                                        "kind", literal("crafting_grid"),
+                                        "items", parameter("pattern"),
+                                        "alignSelf", literal("center")), List.of())
+                        ))
+                ))
+        )));
     }
 
     private static IsfVisualNode cookingVisual() {
