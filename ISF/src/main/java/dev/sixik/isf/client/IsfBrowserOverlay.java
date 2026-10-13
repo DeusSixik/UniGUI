@@ -787,9 +787,10 @@ final class IsfBrowserOverlay {
 
         VBox content = new VBox();
         content.spacing(2.0f);
-//        content.backgroundTexture(new MinecraftTextureHandle(
-//                        ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/gui_background.png"),
-//                        64, 64, TextureOptions.nearest()));
+        content.backgroundVisible(true);
+        content.backgroundTexture(new MinecraftTextureHandle(
+                        ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/gui_background.png"),
+                        64, 64, TextureOptions.nearest()));
         content.layout(style -> style
                 .widthPercent(100.0f)
                 .flexGrow(1.0f)

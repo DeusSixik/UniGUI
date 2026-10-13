@@ -13,10 +13,8 @@ import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.Justify;
 import dev.sixik.unigui.api.layout.PositionType;
 import dev.sixik.unigui.api.math.MutableColor;
-import dev.sixik.unigui.api.render.TextureOptions;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.backend.minecraft_impl.MinecraftTextureHandle;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.GridBox;
@@ -112,10 +110,6 @@ final class IsfVisualWidgetFactory {
                 for (IsfVisualNode child : node.children()) {
                     Widget childWidget = createNode(child);
                     if (childWidget != null) {
-                        recipePlus.layout(style -> style.size(8,8).alignSelf(Align.END));
-                        recipePlus.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/setup_grid.png"),
-                                8, 8, TextureOptions.nearest()),
-                                4.0f));
                         panel.addChild(childWidget);
                     }
                 }

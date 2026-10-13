@@ -64,8 +64,8 @@ final class IsfTransferButton extends Button {
 
     private ResourceLocation supportedTexture() {
         return ResourceLocation.tryBuild(IsfMod.MOD_ID, supportedMenu()
-                ? "textures/jei/atlas/gui/enabled_plus_button.png"
-                : "textures/jei/atlas/gui/disabled_plus_button.png");
+                ? "textures/jei/atlas/gui/setup_grid_hovered.png"
+                : "textures/jei/atlas/gui/setup_grid.png");
     }
 
     private static boolean supportedMenu() {
