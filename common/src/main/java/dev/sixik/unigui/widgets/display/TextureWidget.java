@@ -10,6 +10,7 @@ import dev.sixik.unigui.api.render.ImageFit;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.render.SliceBorders;
 import dev.sixik.unigui.api.render.TextureFilter;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.TexturePlacement;
@@ -57,6 +58,8 @@ public class TextureWidget extends WidgetBase {
     private final MutableRect previousSource = new MutableRect(0.0f, 0.0f, 1.0f, 1.0f);
     private ImageFit fit = ImageFit.STRETCH;
     private ImageFit previousFit = ImageFit.STRETCH;
+    private SliceBorders sliceBorders = SliceBorders.ZERO;
+    private SliceBorders previousSliceBorders = SliceBorders.ZERO;
     private final MutableColor previousTint = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private float radius;
     private float textureCrossfadeProgress = 1.0f;
@@ -130,6 +133,7 @@ public class TextureWidget extends WidgetBase {
         previousTexture = this.texture;
         previousSource.set(source);
         previousFit = fit;
+        previousSliceBorders = sliceBorders;
         previousTint.set(tint);
         this.texture = texture;
         textureCrossfadeProgress = 0.0f;
@@ -186,6 +190,27 @@ public class TextureWidget extends WidgetBase {
         return this;
     }
 
+    public SliceBorders sliceBorders() {
+        return sliceBorders;
+    }
+
+    @XmlAttribute(value = "sliceBorders", displayName = "Slice Borders", category = "Assets", defaultValue = "0 0 0 0", description = "Nine-slice borders in texture pixels: left top right bottom.")
+    public TextureWidget sliceBorders(SliceBorders borders) {
+        SliceBorders effective = borders == null ? SliceBorders.ZERO : borders;
+        if (sliceBorders.equals(effective)) return this;
+        sliceBorders = effective;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public TextureWidget sliceBorders(float border) {
+        return sliceBorders(SliceBorders.all(border));
+    }
+
+    public TextureWidget sliceBorders(float left, float top, float right, float bottom) {
+        return sliceBorders(new SliceBorders(left, top, right, bottom));
+    }
+
     public float radius() {
         return radius;
     }
@@ -230,21 +255,28 @@ public class TextureWidget extends WidgetBase {
      */
     public void renderDefaultVisual(DrawScope draw) {
         if (previousTexture != null && textureCrossfadeProgress < 1.0f) {
-            TexturePlacement previousPlacement = TexturePlacement.fit(previousTexture,
-                    previousSource, layoutBounds(), previousFit);
-            if (previousPlacement != null) {
-                draw.texture(previousTexture, previousPlacement, radius,
-                        Paint.fill(multipliedAlpha(previousTint, 1.0f - textureCrossfadeProgress)));
-            }
+            renderSliced(draw, previousTexture, previousSource, previousFit, previousSliceBorders,
+                    Paint.fill(multipliedAlpha(previousTint, 1.0f - textureCrossfadeProgress)));
         }
         if (texture != null) {
             ColorView effectiveTint = previousTexture == null
                     ? tint
                     : multipliedAlpha(tint, textureCrossfadeProgress);
-            TexturePlacement placement = TexturePlacement.fit(texture, source, layoutBounds(), fit);
-            if (placement != null) {
-                draw.texture(texture, placement, radius, Paint.fill(effectiveTint));
-            }
+            renderSliced(draw, texture, source, fit, sliceBorders, Paint.fill(effectiveTint));
+        }
+    }
+
+    private void renderSliced(DrawScope draw, TextureHandle handle, MutableRect uvSource,
+                              ImageFit placementFit, SliceBorders borders, Paint paint) {
+        if (placementFit == ImageFit.NINE_SLICE) {
+            RectView bounds = layoutBounds();
+            draw.nineSlice(borders.slice(handle),
+                    bounds.x(), bounds.y(), bounds.width(), bounds.height(), paint);
+            return;
+        }
+        TexturePlacement placement = TexturePlacement.fit(handle, uvSource, layoutBounds(), placementFit);
+        if (placement != null) {
+            draw.texture(handle, placement, radius, paint);
         }
     }
 

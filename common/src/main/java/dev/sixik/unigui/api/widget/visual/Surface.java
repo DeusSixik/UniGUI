@@ -3,6 +3,7 @@ package dev.sixik.unigui.api.widget.visual;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.render.ImageFit;
+import dev.sixik.unigui.api.render.SliceBorders;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.shaders.ShaderDrawOptions;
 import dev.sixik.unigui.api.render.shaders.ShaderHandle;
@@ -25,6 +26,7 @@ public final class Surface {
     private final MutableColor borderColor = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private TextureHandle backgroundTexture;
     private ImageFit backgroundTextureFit = ImageFit.STRETCH;
+    private SliceBorders sliceBorders = SliceBorders.ZERO;
     private ShaderHandle backgroundShader;
     private ShaderUniforms shaderUniforms;
     private ShaderDrawOptions shaderOptions;
@@ -95,6 +97,20 @@ public final class Surface {
         ImageFit effective = fit == null ? ImageFit.STRETCH : fit;
         if (backgroundTextureFit == effective) return this;
         backgroundTextureFit = effective;
+        fireChanged();
+        return this;
+    }
+
+    /** @return рамки nine-slice в пикселях текстуры */
+    public SliceBorders sliceBorders() {
+        return sliceBorders;
+    }
+
+    /** Задаёт рамки nine-slice; {@code null} сбрасывает к {@link SliceBorders#ZERO}. */
+    public Surface sliceBorders(SliceBorders borders) {
+        SliceBorders effective = borders == null ? SliceBorders.ZERO : borders;
+        if (sliceBorders.equals(effective)) return this;
+        sliceBorders = effective;
         fireChanged();
         return this;
     }

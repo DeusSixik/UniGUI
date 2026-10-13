@@ -104,6 +104,20 @@ public final class SurfaceVisualSelfTest {
         expect(countFill(tooltipDraw, 0.02f, 0.025f, 0.035f, 0.94f) == 1,
                 "tooltip background is drawn exactly once by the surface");
 
+        // Nine-slice background emits 9 texture cells through the surface.
+        Box sliced = new Box();
+        sliced.themeEnabled(false);
+        sliced.backgroundTexture(new dev.sixik.unigui.api.render.SimpleTextureHandle("test:panel", 20, 20));
+        sliced.backgroundVisible(true);
+        sliced.backgroundTextureFit(dev.sixik.unigui.api.render.ImageFit.NINE_SLICE);
+        sliced.sliceBorders(6.0f);
+        sliced.measure(new LayoutContext(120.0f, 60.0f));
+        sliced.arrange(new MutableRect(0.0f, 0.0f, 120.0f, 60.0f));
+        DrawList slicedDraw = new DrawList();
+        sliced.render(new DefaultRenderContext(slicedDraw));
+        expect(countType(slicedDraw, dev.sixik.unigui.api.render.DrawCommandType.TEXTURE) == 9,
+                "nine-slice background should emit 9 texture cells");
+
         System.out.println("SurfaceVisualSelfTest passed");
     }
 
@@ -126,6 +140,17 @@ public final class SurfaceVisualSelfTest {
 
     private static boolean near(float actual, float expected) {
         return Math.abs(actual - expected) <= 0.01f;
+    }
+
+    private static int countType(DrawList drawList, dev.sixik.unigui.api.render.DrawCommandType type) {
+        int count = 0;
+        Object[] commands = drawList.commandElements();
+        for (int i = 0, size = drawList.size(); i < size; i++) {
+            if (commands[i] instanceof DrawCommand command && command.type() == type) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private static void expect(boolean condition, String message) {

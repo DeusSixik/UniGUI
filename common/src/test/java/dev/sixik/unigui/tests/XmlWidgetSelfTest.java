@@ -29,6 +29,7 @@ import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.render.ImageFit;
 import dev.sixik.unigui.api.render.RenderTargetOptions;
 import dev.sixik.unigui.api.render.SimpleTextureHandle;
+import dev.sixik.unigui.api.render.SliceBorders;
 import dev.sixik.unigui.api.render.TextureFilter;
 import dev.sixik.unigui.api.selection.SelectionMode;
 import dev.sixik.unigui.api.text.InlineContentSpan;
@@ -1787,6 +1788,28 @@ public final class XmlWidgetSelfTest {
         expect(near(texturedBox.backgroundTextureSource().x(), 0.25f)
                         && near(texturedBox.backgroundTextureSource().width(), 0.5f),
                 "Box backgroundTextureSource should parse UV rect values");
+
+        Box slicedBox = XMLWidget.create("""
+                <Box id="sliced"
+                     backgroundTexture="test_mod:panel"
+                     backgroundTextureWidth="20"
+                     backgroundTextureHeight="20"
+                     backgroundTextureFit="nine-slice"
+                     sliceBorders="6" />
+                """, Box.class);
+        expect(slicedBox.backgroundTextureFit() == ImageFit.NINE_SLICE,
+                "Box backgroundTextureFit should parse nine-slice");
+        expect(slicedBox.sliceBorders().equals(new SliceBorders(6.0f, 6.0f, 6.0f, 6.0f)),
+                "Box sliceBorders should parse a single uniform value");
+
+        ImageView slicedImage = XMLWidget.create("""
+                <Image texture="test_mod:frame"
+                       fit="nine-slice"
+                       sliceBorders="4 5 6 7" />
+                """, ImageView.class);
+        expect(slicedImage.fit() == ImageFit.NINE_SLICE, "TextureWidget fit should parse nine-slice");
+        expect(slicedImage.sliceBorders().equals(new SliceBorders(4.0f, 5.0f, 6.0f, 7.0f)),
+                "TextureWidget sliceBorders should parse left top right bottom");
 
         ImageView image = XMLWidget.create("""
                 <Image id="preview"
