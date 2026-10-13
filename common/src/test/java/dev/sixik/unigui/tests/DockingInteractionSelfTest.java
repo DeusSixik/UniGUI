@@ -32,6 +32,7 @@ public final class DockingInteractionSelfTest {
         testFloatingDropDetachesPaneAndClearsPreview();
         testFloatingDropOutsideHostIsIgnoredByDefault();
         testFloatingDropInsideOverlayCreatesNonCloseableRedockableWindow();
+        testDockableWindowDragDocksIntoRoot();
         testOverflowTabsScrollAndMenuSelection();
         testDockPaneContentIsClippedToLeafContentBounds();
         testTinySplitLayoutDoesNotProduceNegativeBounds();
@@ -215,6 +216,119 @@ public final class DockingInteractionSelfTest {
                         && !floating.opened()
                         && !hasFloatingPreview(redockedDrawList),
                 "Moving the floating dock window back over a DockingRoot should redock the original pane and clear preview");
+    }
+
+    private void testDockableWindowDragDocksIntoRoot() {
+        DefaultUIContext context = new DefaultUIContext();
+        DockingRoot root = new DockingRoot();
+        root.layout(style -> style.size(180.0f, 110.0f).flexGrow(0).flexShrink(0.0f));
+        root.addDocument("anchor", "Anchor", content("Anchor body"));
+        StackPanel host = new StackPanel();
+        host.addChild(root);
+        OverlayLayer layer = new OverlayLayer(host);
+        layer.setUiContextInternal(context);
+        layout(layer, 360.0f, 220.0f);
+
+        // Флаг выключен по умолчанию: окно остаётся свободным.
+        WindowWidget plain = new WindowWidget("Plain", content("Plain body"))
+                .position(10.0f, 10.0f)
+                .open();
+        plain.layout(style -> style.size(120.0f, 60.0f).flexGrow(0).flexShrink(0.0f));
+        layer.addOverlay(plain);
+        layout(layer, 360.0f, 220.0f);
+        expect(!plain.dockable() && plain.dockPaneId().isEmpty(),
+                "WindowWidget should be non-dockable by default");
+        DockingRoot.previewForeignWindowDrop(plain, 60.0f, 60.0f);
+        DrawList noPreview = new DrawList();
+        root.render(new dev.sixik.unigui.impl.render.DefaultRenderContext(noPreview));
+        expect(!hasFloatingPreview(noPreview),
+                "Non-dockable window drag should not publish a dock drop preview");
+        expect(!DockingRoot.finishForeignWindowDrop(plain, 60.0f, 60.0f)
+                        && root.manager().paneCount() == 1
+                        && plain.opened()
+                        && plain.content() != null,
+                "Non-dockable window release should keep the window floating");
+        layer.removeOverlay(plain);
+
+        // Включаем флаг: preview над root и докинг на release.
+        WindowWidget dockable = new WindowWidget("Palette", content("Palette body"))
+                .position(200.0f, 120.0f)
+                .dockable(true)
+                .dockPaneId("palette")
+                .open();
+        dockable.layout(style -> style.size(120.0f, 60.0f).flexGrow(0).flexShrink(0.0f));
+        layer.addOverlay(dockable);
+        layout(layer, 360.0f, 220.0f);
+        expect(dockable.dockable()
+                        && dockable.dockPaneId().equals("palette")
+                        && dockable.dockKind() == dev.sixik.unigui.widgets.docking.DockPaneKind.TOOL,
+                "dockable(true) should expose pane id and default tool kind");
+
+        float dropX = root.layoutBounds().x() + root.layoutBounds().width() * 0.5f;
+        float dropY = root.layoutBounds().y() + root.layoutBounds().height() * 0.5f;
+        DockingRoot.previewForeignWindowDrop(dockable, dropX, dropY);
+        DrawList previewDrawList = new DrawList();
+        root.render(new dev.sixik.unigui.impl.render.DefaultRenderContext(previewDrawList));
+        expect(hasFloatingPreview(previewDrawList),
+                "Dragging a dockable window over a DockingRoot should show a dock drop preview");
+        expect(DockingRoot.finishForeignWindowDrop(dockable, dropX, dropY),
+                "Releasing a dockable window over a DockingRoot should dock it");
+        layer.applyQueuedMutations();
+        layout(layer, 360.0f, 220.0f);
+
+        expect(root.manager().containsPane("palette")
+                        && !dockable.opened()
+                        && dockable.content() == null,
+                "Docked window content should become a pane and the window should close");
+
+        // Залоченное окно не докируется даже с включённым флагом.
+        WindowWidget locked = new WindowWidget("Locked", content("Locked body"))
+                .position(200.0f, 120.0f)
+                .dockable(true)
+                .dockPaneId("locked-pane")
+                .dockRedockLocked(true)
+                .open();
+        locked.layout(style -> style.size(120.0f, 60.0f).flexGrow(0).flexShrink(0.0f));
+        layer.addOverlay(locked);
+        layout(layer, 360.0f, 220.0f);
+        DockingRoot.previewForeignWindowDrop(locked, dropX, dropY);
+        DrawList lockedDrawList = new DrawList();
+        root.render(new dev.sixik.unigui.impl.render.DefaultRenderContext(lockedDrawList));
+        expect(!hasFloatingPreview(lockedDrawList),
+                "dockRedockLocked(true) should suppress dockable window drop previews");
+        expect(!DockingRoot.finishForeignWindowDrop(locked, dropX, dropY)
+                        && !root.manager().containsPane("locked-pane")
+                        && locked.opened()
+                        && locked.content() != null,
+                "dockRedockLocked(true) should keep a dockable window floating on release");
+
+        // Полный цикл через routed drag: press в header, move над root, release.
+        WindowWidget dragged = new WindowWidget("Dragged", content("Dragged body"))
+                .position(220.0f, 130.0f)
+                .dockable(true)
+                .dockPaneId("dragged-pane")
+                .open();
+        dragged.layout(style -> style.size(120.0f, 60.0f).flexGrow(0).flexShrink(0.0f));
+        layer.addOverlay(dragged);
+        layout(layer, 360.0f, 220.0f);
+        context.routedEvents().dispatch(new PointerPressedEvent(
+                dragged,
+                dragged.layoutBounds().x() + 12.0f,
+                dragged.layoutBounds().y() + 6.0f,
+                12.0f, 6.0f, 31, PointerButton.PRIMARY));
+        expect(dragged.dragging(), "Header press should start window dragging");
+        context.routedEvents().dispatch(new PointerMovedEvent(dragged, dropX, dropY, dropX, dropY, 31));
+        DrawList dragPreview = new DrawList();
+        root.render(new dev.sixik.unigui.impl.render.DefaultRenderContext(dragPreview));
+        expect(hasFloatingPreview(dragPreview),
+                "Routed drag of a dockable window over a DockingRoot should show a preview");
+        context.routedEvents().dispatch(new PointerReleasedEvent(
+                dragged, dropX, dropY, dropX, dropY, 31, PointerButton.PRIMARY));
+        layer.applyQueuedMutations();
+        layout(layer, 360.0f, 220.0f);
+        expect(root.manager().containsPane("dragged-pane")
+                        && !dragged.opened(),
+                "Routed drag release over a DockingRoot should dock the window");
     }
 
     private void testOverflowTabsScrollAndMenuSelection() {

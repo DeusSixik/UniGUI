@@ -994,6 +994,9 @@ public final class XmlWidgetSelfTest {
         expect(windowWidget.category().equals("Feedback")
                         && descriptor(windowWidget.attributes(), "title").category().equals("Content")
                         && descriptor(windowWidget.attributes(), "windowX").category().equals("Layout")
+                        && descriptor(windowWidget.attributes(), "dockable").category().equals("Behavior")
+                        && descriptor(windowWidget.attributes(), "dockPaneId").category().equals("Behavior")
+                        && descriptor(windowWidget.attributes(), "dockKind").category().equals("Behavior")
                         && propertyChild(windowWidget.propertyChildren(), "Content").singleChild(),
                 "WindowWidget descriptor should expose window content and placement metadata");
         OverlayLayer xmlOverlayLayer = XMLWidget.create("""
@@ -1003,7 +1006,8 @@ public final class XmlWidgetSelfTest {
                     </OverlayLayer.Content>
                     <OverlayLayer.Overlays>
                         <WindowWidget id="inspectorWindow" title="Inspector" open="true" modal="true"
-                                      closeButtonVisible="false" windowX="12" windowY="18">
+                                      closeButtonVisible="false" windowX="12" windowY="18"
+                                      dockable="true" dockPaneId="inspector-pane" dockKind="document">
                             <WindowWidget.Content>
                                 <Label id="windowBody" text="Properties" />
                             </WindowWidget.Content>
@@ -1030,6 +1034,10 @@ public final class XmlWidgetSelfTest {
                         && near(xmlWindow.windowY(), 18.0f)
                         && xmlWindow.content() instanceof Label windowBody
                         && windowBody.text().equals("Properties")
+                        && xmlWindow.dockable()
+                        && xmlWindow.dockPaneId().equals("inspector-pane")
+                        && xmlWindow.dockKind() == dev.sixik.unigui.widgets.docking.DockPaneKind.DOCUMENT
+                        && !xmlWindow.dockRedockLocked()
                         && xmlPopup.opened()
                         && !xmlPopup.closeOnOutsideClick()
                         && xmlPopup.content() instanceof Label popupBody
