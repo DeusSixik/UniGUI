@@ -384,7 +384,10 @@ public class ScrollView extends WidgetBase {
         scrollY = clampedY;
         syncScrollBars();
         arrangeScrolledChildrenNow();
-        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        // Скролл — чистый сдвиг viewport, геометрия контента не меняется:
+        // только VISUAL, без LAYOUT. Иначе каждый тик колеса запускал бы
+        // полный root.measure + root.arrange + clear всего экрана.
+        invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 

@@ -332,6 +332,7 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
             TextureOptions options = texture.options() == null ? TextureOptions.defaults() : texture.options();
             Object nativeHandle = texture.nativeHandle();
             if (nativeHandle instanceof MinecraftRenderTarget.ColorTextureHandle colorTexture) {
+                if (colorTexture.isDisposed()) return null;
                 return new TextureBinding(colorTexture.textureId(), null, colorTexture.flipY(), options);
             }
             if (nativeHandle instanceof Integer textureId) {
@@ -351,6 +352,7 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
 
             Object nativeHandle = texture.nativeHandle();
             if (nativeHandle instanceof MinecraftRenderTarget.ColorTextureHandle colorTexture) {
+                if (colorTexture.isDisposed()) return false;
                 return textureId == colorTexture.textureId();
             }
             if (nativeHandle instanceof Integer currentTextureId) {

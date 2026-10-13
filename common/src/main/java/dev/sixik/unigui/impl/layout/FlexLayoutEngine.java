@@ -134,7 +134,7 @@ public final class FlexLayoutEngine {
                         row ? minContent.height() : minContent.width(),
                         row ? maxContent.height() : maxContent.width());
             }
-            child.measure(childContext);
+            child.measureCached(childContext);
             Alignment legacyCross = row
                     ? style.verticalAlignment()
                     : style.horizontalAlignment();

@@ -158,6 +158,14 @@ tasks.register("layoutTransitionSelfTest", JavaExec) {
     mainClass = "dev.sixik.unigui.tests.LayoutTransitionSelfTest"
 }
 
+tasks.register("layoutInvalidationSelfTest", JavaExec) {
+    group = "verification"
+    description = "Runs layout invalidation and measure-cache regression assertions."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.LayoutInvalidationSelfTest"
+}
+
 tasks.register("widgetRenderCacheSelfTest", JavaExec) {
     group = "verification"
     description = "Runs widget retained render-cache self-test assertions."
@@ -234,6 +242,7 @@ tasks.named("test") {
     dependsOn tasks.named("animationInterpolationSelfTest")
     dependsOn tasks.named("storyboardSelfTest")
       dependsOn tasks.named("layoutTransitionSelfTest")
+      dependsOn tasks.named("layoutInvalidationSelfTest")
       dependsOn tasks.named("widgetRendererContractSelfTest")
       dependsOn tasks.named("tooltipVisibilitySelfTest")
       dependsOn tasks.named("surfaceVisualSelfTest")

@@ -1837,6 +1837,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
             TextureOptions options = texture.options() == null ? TextureOptions.defaults() : texture.options();
             Object nativeHandle = texture.nativeHandle();
             if (nativeHandle instanceof MinecraftRenderTarget.ColorTextureHandle colorTexture) {
+                if (colorTexture.isDisposed()) return null;
                 return new TextureBinding(colorTexture.textureId(), null, colorTexture.flipY(), true, options);
             }
             if (nativeHandle instanceof Integer textureId) {

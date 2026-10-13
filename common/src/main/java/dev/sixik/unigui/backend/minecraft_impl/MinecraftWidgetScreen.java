@@ -831,7 +831,14 @@ public class MinecraftWidgetScreen extends Screen {
     }
 
     private static void clearSubtreeInvalidation(Widget widget, int flags) {
-        widget.clearInvalidation(flags);
+        if (widget instanceof WidgetBase base) {
+            // Прямой сброс без пузырькового recompute: после полного прохода
+            // всё поддерево актуально, это чистый O(N) вместо O(N²).
+            base.clearInvalidationDirect(flags);
+        } else if (widget != null) {
+            widget.clearInvalidation(flags);
+        }
+        if (widget == null) return;
         for (Widget child : widget.children()) clearSubtreeInvalidation(child, flags);
     }
 
