@@ -264,6 +264,7 @@ public final class XmlWidgetRuntimeSerializer {
             if (textureWidget.fit() != dev.sixik.unigui.api.render.ImageFit.STRETCH) {
                 element.attribute("fit", enumValue(textureWidget.fit()));
             }
+            writeSliceBorders(element, "sliceBorders", textureWidget.sliceBorders());
             writeFloat(element, "radius", textureWidget.radius(), 0.0f);
             writeRect(element, "source", textureWidget.source(), 0.0f, 0.0f, 1.0f, 1.0f);
         }
@@ -282,6 +283,7 @@ public final class XmlWidgetRuntimeSerializer {
             if (surface.backgroundTextureFit() != dev.sixik.unigui.api.render.ImageFit.STRETCH) {
                 element.attribute("backgroundTextureFit", enumValue(surface.backgroundTextureFit()));
             }
+            writeSliceBorders(element, "sliceBorders", surface.sliceBorders());
             writeRect(element, "backgroundTextureSource", surface.backgroundTextureSource(), 0.0f, 0.0f, 1.0f, 1.0f);
             if (surface.backgroundShader() != null) {
                 element.attribute("backgroundShader", surface.backgroundShader().id());
@@ -354,6 +356,13 @@ public final class XmlWidgetRuntimeSerializer {
                 && near(insets.bottom(), 0.0f) && near(insets.left(), 0.0f)) return;
         element.attribute(name, format(insets.top()) + " " + format(insets.right()) + " "
                 + format(insets.bottom()) + " " + format(insets.left()));
+    }
+
+    private static void writeSliceBorders(XmlWidgetElement element, String name,
+                                          dev.sixik.unigui.api.render.SliceBorders borders) {
+        if (borders == null || borders.isZero()) return;
+        element.attribute(name, format(borders.left()) + " " + format(borders.top()) + " "
+                + format(borders.right()) + " " + format(borders.bottom()));
     }
 
     private static void writeFloat(XmlWidgetElement element, String name, float value, float defaultValue) {

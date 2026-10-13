@@ -14,6 +14,7 @@ import dev.sixik.unigui.api.render.ImageFit;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.render.SliceBorders;
 import dev.sixik.unigui.api.render.TextureFilter;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.TexturePlacement;
@@ -407,6 +408,56 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
     }
 
     /**
+     * Возвращает рамки nine-slice фоновой текстуры в пикселях текстуры.
+     *
+     * @return immutable рамки слайсинга
+     */
+    public SliceBorders sliceBorders() {
+        return surface.sliceBorders();
+    }
+
+    /**
+     * Задаёт рамки nine-slice фоновой текстуры.
+     *
+     * <p>Используются, когда {@link #backgroundTextureFit(ImageFit)} равен
+     * {@link ImageFit#NINE_SLICE}: углы рисуются без растяжения, края тянутся
+     * вдоль одной оси, центр — по обеим.</p>
+     *
+     * @param borders рамки в пикселях текстуры; {@code null} сбрасывает к нулевым
+     * @return этот виджет для fluent-настройки
+     */
+    @XmlAttribute(value = "sliceBorders", displayName = "Slice Borders", category = "Assets", defaultValue = "0 0 0 0", description = "Nine-slice borders in texture pixels: left top right bottom.")
+    public T sliceBorders(SliceBorders borders) {
+        surface.sliceBorders(borders);
+        return self();
+    }
+
+    /**
+     * Задаёт одинаковые рамки nine-slice со всех сторон.
+     *
+     * @param border ширина рамки в пикселях текстуры
+     * @return этот виджет для fluent-настройки
+     */
+    public T sliceBorders(float border) {
+        surface.sliceBorders(SliceBorders.all(border));
+        return self();
+    }
+
+    /**
+     * Задаёт рамки nine-slice по четырём сторонам.
+     *
+     * @param left левая рамка в пикселях текстуры
+     * @param top верхняя рамка в пикселях текстуры
+     * @param right правая рамка в пикселях текстуры
+     * @param bottom нижняя рамка в пикселях текстуры
+     * @return этот виджет для fluent-настройки
+     */
+    public T sliceBorders(float left, float top, float right, float bottom) {
+        surface.sliceBorders(new SliceBorders(left, top, right, bottom));
+        return self();
+    }
+
+    /**
      * Возвращает live-цвет рамки.
      *
      * @return изменяемый цвет рамки
@@ -673,12 +724,18 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
                     }
                     TextureHandle texture = surface.backgroundTexture();
                     if (texture != null) {
-                        TexturePlacement placement = TexturePlacement.fit(texture,
-                                surface.backgroundTextureSource(),
-                                new MutableRect(x, y, width, height),
-                                surface.backgroundTextureFit());
-                        draw.texture(texture, placement, radius,
-                                Paint.fill(surface.backgroundTextureTint()));
+                        if (surface.backgroundTextureFit() == ImageFit.NINE_SLICE) {
+                            draw.nineSlice(surface.sliceBorders().slice(texture),
+                                    x, y, width, height,
+                                    Paint.fill(surface.backgroundTextureTint()));
+                        } else {
+                            TexturePlacement placement = TexturePlacement.fit(texture,
+                                    surface.backgroundTextureSource(),
+                                    new MutableRect(x, y, width, height),
+                                    surface.backgroundTextureFit());
+                            draw.texture(texture, placement, radius,
+                                    Paint.fill(surface.backgroundTextureTint()));
+                        }
                     }
                 }
                 case SHADER -> {

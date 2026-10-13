@@ -184,14 +184,6 @@ tasks.register('isfCellTagSelfTest', JavaExec) {
     mainClass = 'dev.sixik.isf.client.IsfCellTagSelfTest'
 }
 
-tasks.register('isfButtonRendererSelfTest', JavaExec) {
-    group = 'verification'
-    description = 'Проверяет выбор подложки кнопок ISF по состоянию.'
-    dependsOn tasks.named('testClasses')
-    classpath = sourceSets.test.runtimeClasspath
-    mainClass = 'dev.sixik.isf.client.IsfButtonRendererSelfTest'
-}
-
 tasks.register('isfTriggerSelfTest', JavaExec) {
     group = 'verification'
     description = 'Проверяет привязки триггеров ISF к рецептам без запуска Minecraft.'

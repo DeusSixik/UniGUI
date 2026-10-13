@@ -14,6 +14,7 @@ import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
+import dev.sixik.unigui.api.render.SliceBorders;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.Visibility;
@@ -241,6 +242,7 @@ public final class XmlWidgetAnnotations {
         }
         if (parameterType == SizeValue.class) return XmlAttributeValueType.SIZE_VALUE;
         if (parameterType == EdgeInsets.class) return XmlAttributeValueType.INSETS;
+        if (parameterType == SliceBorders.class) return XmlAttributeValueType.INSETS;
         if (parameterType == MutableColor.class || parameterType == ColorView.class) return XmlAttributeValueType.COLOR;
         if (parameterType == MutableRect.class || parameterType == RectView.class) return XmlAttributeValueType.STRING;
         if (parameterType == TextureHandle.class) return XmlAttributeValueType.RESOURCE_ID;
@@ -610,6 +612,7 @@ public final class XmlWidgetAnnotations {
         if (type == double.class || type == Double.class) return XmlValueParsers.DOUBLE;
         if (type == SizeValue.class) return XmlValueParsers.SIZE;
         if (type == EdgeInsets.class) return XmlValueParsers.INSETS;
+        if (type == SliceBorders.class) return XmlValueParsers.SLICE_BORDERS;
         if (type == MutableColor.class || type == ColorView.class) return XmlValueParsers.COLOR;
         if (type == MutableRect.class || type == RectView.class) return XmlValueParsers.RECT;
         if (type == TextureHandle.class) return XmlValueParsers.TEXTURE;
