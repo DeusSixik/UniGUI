@@ -1,46 +1,21 @@
 package dev.sixik.unigui.backend.minecraft_impl;
 
-import dev.sixik.unigui.api.core.FrameContext;
-import dev.sixik.unigui.api.core.FramePhase;
-import dev.sixik.unigui.api.core.InvalidationFlags;
-import dev.sixik.unigui.api.core.UIContext;
-import dev.sixik.unigui.api.core.UIScaleProvider;
+import dev.sixik.unigui.api.core.*;
 import dev.sixik.unigui.api.debug.DebugFlags;
 import dev.sixik.unigui.api.debug.ProfileScope;
-import dev.sixik.unigui.api.event.KeyPressedEvent;
-import dev.sixik.unigui.api.event.KeyReleasedEvent;
-import dev.sixik.unigui.api.event.PointerMovedEvent;
-import dev.sixik.unigui.api.event.PointerPressedEvent;
-import dev.sixik.unigui.api.event.PointerReleasedEvent;
-import dev.sixik.unigui.api.event.ScrollEvent;
-import dev.sixik.unigui.api.event.TextInputEvent;
-import dev.sixik.unigui.api.input.HitTestResult;
-import dev.sixik.unigui.api.input.FocusDirection;
-import dev.sixik.unigui.api.input.KeyCodes;
-import dev.sixik.unigui.api.input.KeyModifiers;
-import dev.sixik.unigui.api.input.MouseCursor;
-import dev.sixik.unigui.api.input.PointerButton;
+import dev.sixik.unigui.api.event.*;
+import dev.sixik.unigui.api.input.*;
 import dev.sixik.unigui.api.layout.LayoutContext;
+import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.math.MutableRect;
+import dev.sixik.unigui.api.math.Transform;
 import dev.sixik.unigui.api.posteffect.UiLayerBounds;
 import dev.sixik.unigui.api.posteffect.UiPostEffectChain;
 import dev.sixik.unigui.api.posteffect.UiPostEffectRenderer;
 import dev.sixik.unigui.api.posteffect.UiPostEffects;
-import dev.sixik.unigui.api.math.MutableColor;
-import dev.sixik.unigui.api.math.MutableRect;
-import dev.sixik.unigui.api.math.Transform;
-import dev.sixik.unigui.api.render.DrawList;
-import dev.sixik.unigui.api.render.DrawCommand;
-import dev.sixik.unigui.api.render.DrawCommandType;
-import dev.sixik.unigui.api.render.DrawMesh;
-import dev.sixik.unigui.api.render.DrawVertex;
-import dev.sixik.unigui.api.render.Paint;
-import dev.sixik.unigui.api.render.RenderTargetOptions;
-import dev.sixik.unigui.api.render.TextureHandle;
-import dev.sixik.unigui.api.render.TransformLayer;
-import dev.sixik.unigui.api.render.UiRenderPolicy;
-import dev.sixik.unigui.api.render.VectorPath;
-import dev.sixik.unigui.api.text.Fonts;
+import dev.sixik.unigui.api.render.*;
 import dev.sixik.unigui.api.text.FontFace;
+import dev.sixik.unigui.api.text.Fonts;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextRun;
 import dev.sixik.unigui.api.widget.Widget;
@@ -52,22 +27,18 @@ import dev.sixik.unigui.impl.render.DrawBatch;
 import dev.sixik.unigui.impl.render.SimpleDrawBatcher;
 import dev.sixik.unigui.impl.render.WidgetTextureRenderer;
 import dev.sixik.unigui.impl.widget.WidgetBase;
-import dev.sixik.unigui.widgets.minecraft.MinecraftScaledCustomDraw;
-import dev.sixik.unigui.widgets.editor.ElementsInspector;
 import dev.sixik.unigui.widgets.containers.PanelWidget;
+import dev.sixik.unigui.widgets.editor.ElementsInspector;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
+import dev.sixik.unigui.widgets.minecraft.MinecraftScaledCustomDraw;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import java.util.EnumMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 
 public class MinecraftWidgetScreen extends Screen {
     private static final MutableColor CACHE_TINT = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -87,6 +58,7 @@ public class MinecraftWidgetScreen extends Screen {
     private FontFace defaultFont = MinecraftFonts.defaultFace();
     private Float screenScale;
     private boolean scaleWithMinecraftGui = true;
+    private boolean debugHotkeysEnabled = true;
     private long frameIndex;
     private float lastFrameCpuMillis;
     private float lastFrameTotalMillis;
@@ -219,6 +191,32 @@ public class MinecraftWidgetScreen extends Screen {
         return this;
     }
 
+    /**
+     * Проверяет, перехватывает ли экран отладочные хоткеи.
+     *
+     * @return {@code true}, если {@code Ctrl+Shift+P/Plus/Minus} обрабатываются экраном
+     * @see MinecraftDebugHotkeys
+     */
+    public boolean debugHotkeysEnabled() {
+        return debugHotkeysEnabled;
+    }
+
+    /**
+     * Включает или выключает отладочные хоткеи экрана.
+     *
+     * <p>Выключено по умолчанию: комбинации {@code Ctrl+Shift+P} (тоггл профайлера)
+     * и {@code Ctrl+Shift+Plus/Minus} (scale дебаг-оверлея) могут конфликтовать
+     * с вводом в текстовых полях модов.</p>
+     *
+     * @param debugHotkeysEnabled {@code true}, чтобы перехватывать отладочные хоткеи
+     * @return этот экран для fluent-настройки
+     * @see MinecraftDebugHotkeys
+     */
+    public MinecraftWidgetScreen debugHotkeysEnabled(boolean debugHotkeysEnabled) {
+        this.debugHotkeysEnabled = debugHotkeysEnabled;
+        return this;
+    }
+
     public MinecraftWidgetScreen applyXmlScreenConfig(XmlWidgetScreen<?> xmlScreen) {
         if (xmlScreen == null) return this;
         if (uiContext instanceof DefaultUIContext context) {
@@ -328,14 +326,20 @@ public class MinecraftWidgetScreen extends Screen {
         layoutChangedThisFrame = false;
         try (ProfileScope ignored = uiContext.profiler().scope("layout")) {
             if (shouldRunLayout(logicalWidth, logicalHeight, uiScale)) {
-                root.measure(new LayoutContext(logicalWidth, logicalHeight));
-                root.arrange(new MutableRect(0.0f, 0.0f, logicalWidth, logicalHeight));
+                try(ProfileScope _ignored = uiContext.profiler().scope("measureLayout")) {
+                    root.measure(new LayoutContext(logicalWidth, logicalHeight));
+                }
+                try(ProfileScope _ignored = uiContext.profiler().scope("arrangeLayout")) {
+                    root.arrange(new MutableRect(0.0f, 0.0f, logicalWidth, logicalHeight));
+                }
                 layoutInitialized = true;
                 layoutChangedThisFrame = true;
                 lastLayoutWidth = logicalWidth;
                 lastLayoutHeight = logicalHeight;
                 lastLayoutScale = uiScale;
-                clearSubtreeInvalidation(root, InvalidationFlags.LAYOUT);
+                try(ProfileScope _ignored = uiContext.profiler().scope("clearLayout")) {
+                    clearSubtreeInvalidation(root, InvalidationFlags.LAYOUT);
+                }
             }
         }
 
@@ -604,6 +608,7 @@ public class MinecraftWidgetScreen extends Screen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (debugHotkeysEnabled && handleDebugHotkey(keyCode, modifiers)) return true;
         uiContext.keyboard().press(keyCode);
         if (keyCode == KeyCodes.TAB) {
             Widget focused = uiContext.focusManager().focusedWidget();
@@ -634,6 +639,19 @@ public class MinecraftWidgetScreen extends Screen {
 
     protected boolean vanillaKeyPressed(int keyCode, int scanCode, int modifiers) {
         return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    /**
+     * Перехватывает отладочные хоткеи до фокуса, виджетов и ваниллы.
+     *
+     * <p>GLFW auto-repeat приходит сюда же: повторные нажатия удерживаемой
+     * клавиши поглощаются, но действие не повторяется.</p>
+     */
+    private boolean handleDebugHotkey(int keyCode, int modifiers) {
+        if (!MinecraftDebugHotkeys.matches(keyCode, modifiers)) return false;
+        boolean firstPress = !uiContext.keyboard().isDown(keyCode);
+        uiContext.keyboard().press(keyCode);
+        return MinecraftDebugHotkeys.handle(uiContext, keyCode, modifiers, firstPress);
     }
 
     @Override
@@ -854,7 +872,14 @@ public class MinecraftWidgetScreen extends Screen {
     }
 
     private static void clearSubtreeInvalidation(Widget widget, int flags) {
-        widget.clearInvalidation(flags);
+        if (widget instanceof WidgetBase base) {
+            // Прямой сброс без пузырькового recompute: после полного прохода
+            // всё поддерево актуально, это чистый O(N) вместо O(N²).
+            base.clearInvalidationDirect(flags);
+        } else if (widget != null) {
+            widget.clearInvalidation(flags);
+        }
+        if (widget == null) return;
         for (Widget child : widget.children()) clearSubtreeInvalidation(child, flags);
     }
 

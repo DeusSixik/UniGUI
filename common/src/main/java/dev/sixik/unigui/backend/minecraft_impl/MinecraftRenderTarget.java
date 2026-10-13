@@ -119,6 +119,15 @@ public final class MinecraftRenderTarget implements ManagedRenderTarget {
             return owner.nativeTarget().getColorTextureId();
         }
 
+        /**
+         * @return {@code true}, если владеющий target уже освобождён и
+         * текстуру нельзя биндить. Проверяется в TextureBinding.resolve,
+         * чтобы LRU-вытеснение кэшей давало пропуск команды, а не краш.
+         */
+        public boolean isDisposed() {
+            return owner.isDisposed();
+        }
+
         public boolean flipY() {
             return true;
         }

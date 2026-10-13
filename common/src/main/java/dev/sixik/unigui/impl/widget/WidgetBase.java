@@ -141,6 +141,15 @@ public abstract class WidgetBase implements Widget {
      * Хранит желаемый размер, который виджет сообщает layout-системе.
      */
     private LayoutSize desiredSize = LayoutSize.ZERO;
+    /** Показывает, что measure-кэш содержит актуальный desiredSize для ключа ниже. */
+    private boolean measureCacheValid;
+    /** Ключ measure-кэша: availableWidth последнего измерения. */
+    private float measureCacheWidth = Float.NaN;
+    /** Ключ measure-кэша: availableHeight последнего измерения. */
+    private float measureCacheHeight = Float.NaN;
+    /** Счётчики используются тестами и профилированием конкретного виджета. */
+    private long measureCacheHits;
+    private long measureCacheMisses;
     /**
      * Хранит текущую трансформацию виджета для отрисовки и координат.
      */
@@ -1396,6 +1405,24 @@ public abstract class WidgetBase implements Widget {
     }
 
     /**
+     * Снимает флаги без пузырькового пересчёта поддерева.
+     *
+     * <p>Используется только рантаймом после полного прохода layout/render,
+     * когда известно, что всё поддерево актуально. Обычный
+     * {@link #clearInvalidation(int)} на каждом узле обходит всех детей и
+     * поднимается к родителю — при вызове рекурсивно сверху вниз это даёт
+     * O(N²) на контейнер с N детьми (см. LAYOUT_PERF_CHECKLIST, шаг 1).
+     * Прямой сброс обоих полей делает очистку линейной O(N).</p>
+     *
+     * @param flags bitmask, который был обработан runtime'ом
+     */
+    public void clearInvalidationDirect(int flags) {
+        if (flags == InvalidationFlags.NONE) return;
+        invalidationFlags &= ~flags;
+        subtreeInvalidationFlags &= ~flags;
+    }
+
+    /**
      * Пересчитывает агрегированную инвалидацию поддерева виджета.
      */
     protected void recomputeSubtreeInvalidation() {
@@ -1449,6 +1476,78 @@ public abstract class WidgetBase implements Widget {
             return;
         }
         setDesiredSize(resolveDesiredSize(context, 0.0f, 0.0f));
+    }
+
+    /**
+     * Измеряет виджет с пропуском повторных вызовов на чистом поддереве.
+     *
+     * <p>Если поддерево не имеет висящего LAYOUT-флага и контекст совпадает с
+     * последним измерением — {@code desiredSize} уже актуален и повторный
+     * measure (часто рекурсивный по всему поддереву) пропускается. Это убирает
+     * двойное измерение детей во flex-контейнерах: measure-фаза и arrange-фаза
+     * вызывают {@code preparedItems} с одинаковыми контекстами для большинства
+     * детей. При смене контекста (wrap/percent-зависимости) или грязном
+     * поддереве измерение выполняется как обычно через виртуальный
+     * {@code measure}, поэтому работает для всех наследников без их переделки.</p>
+     *
+     * @param context constraints, scale и служебные данные layout pass
+     */
+    @Override
+    public void measureCached(LayoutContext context) {
+        float availableWidth = context == null ? Float.POSITIVE_INFINITY : context.availableWidth();
+        float availableHeight = context == null ? Float.POSITIVE_INFINITY : context.availableHeight();
+        if (measureCacheValid
+                && !InvalidationFlags.has(subtreeInvalidationFlags, InvalidationFlags.LAYOUT)
+                && Float.compare(measureCacheWidth, availableWidth) == 0
+                && Float.compare(measureCacheHeight, availableHeight) == 0) {
+            measureCacheHits++;
+            return;
+        }
+        measureCacheMisses++;
+        measure(context);
+        measureCacheValid = true;
+        measureCacheWidth = availableWidth;
+        measureCacheHeight = availableHeight;
+    }
+
+    /** @return число пропусков повторного measure через {@link #measureCached} */
+    public long measureCacheHits() {
+        return measureCacheHits;
+    }
+
+    /** @return число реальных измерений через {@link #measureCached} */
+    public long measureCacheMisses() {
+        return measureCacheMisses;
+    }
+
+    /** Сбрасывает диагностические счётчики measure-кэша. */
+    public void resetMeasureCacheStats() {
+        measureCacheHits = 0L;
+        measureCacheMisses = 0L;
+    }
+
+    /**
+     * Сбрасывает measure-кэш. Вызывается автоматически при LAYOUT-инвалидации
+     * через флаги; публичный метод нужен виджетам, меняющим размер вне флагов.
+     */
+    public void invalidateMeasureCache() {
+        measureCacheValid = false;
+    }
+
+    @Override
+    public LayoutSize minContentSize() {
+        // Дефолт перезаписывает desiredSize вне кэша — сбрасываем ключ,
+        // чтобы следующий measureCached не вернул stale размер.
+        LayoutSize size = Widget.super.minContentSize();
+        measureCacheValid = false;
+        return size;
+    }
+
+    @Override
+    public LayoutSize maxContentSize() {
+        LayoutSize size = Widget.super.maxContentSize();
+        measureCacheValid = false;
+        return size;
     }
 
     /**
@@ -1767,8 +1866,13 @@ public abstract class WidgetBase implements Widget {
      * актуальную геометрию.</p>
      */
     private void layoutBoundsChanged() {
-        invalidate(InvalidationFlags.LAYOUT);
-
+        // Смена bounds — результат layout-прохода, а не повод для нового:
+        // LAYOUT здесь не ставится, иначе каждый arrange сам требовал бы
+        // следующий layout (скролл, ресайз окна — вечный layout каждый кадр).
+        // VISUAL обязателен: любой invalidate() взводит renderCacheDirty, и без
+        // него сдвинувшийся виджет отдавал бы протухший retained-фрагмент со
+        // старой позиции (окна при drag, маркеры карты при pan).
+        invalidate(InvalidationFlags.VISUAL);
         float newX = layoutBounds.x();
         float newY = layoutBounds.y();
         if (!layoutBoundsObserved) {

@@ -6,14 +6,19 @@ import dev.sixik.unigui.api.render.DrawCommand;
 import dev.sixik.unigui.api.render.DrawCommandType;
 import dev.sixik.unigui.api.render.DrawList;
 import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.ManagedRenderTarget;
 import dev.sixik.unigui.api.render.NineSlice;
 import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.render.RenderBackend;
+import dev.sixik.unigui.api.render.RenderTarget;
+import dev.sixik.unigui.api.render.RenderTargetOptions;
 import dev.sixik.unigui.api.render.SimpleTextureHandle;
 import dev.sixik.unigui.api.render.TextureFilter;
 import dev.sixik.unigui.api.render.TextureOptions;
 import dev.sixik.unigui.api.render.TextureWrap;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftTextureHandle;
 import dev.sixik.unigui.impl.render.DefaultRenderContext;
+import dev.sixik.unigui.impl.render.RenderTargetCache;
 import dev.sixik.unigui.impl.render.SimpleDrawBatcher;
 import net.minecraft.resources.ResourceLocation;
 
@@ -27,6 +32,7 @@ public final class TextureManagementSelfTest {
         testTextureHandleOptionsAreImmutableCopies();
         testBatcherSplitsMatchingIdsWithDifferentOptions();
         testNineSliceCells();
+        testRenderTargetCacheDisposesReplacedTargets();
         System.out.println("TextureManagementSelfTest passed");
     }
 
@@ -146,6 +152,88 @@ public final class TextureManagementSelfTest {
                 && near(command.uv().y(), v)
                 && near(command.uv().width(), uWidth)
                 && near(command.uv().height(), vHeight);
+    }
+
+    private void testRenderTargetCacheDisposesReplacedTargets() {
+        FakeBackend backend = new FakeBackend();
+        RenderTargetCache cache = new RenderTargetCache(backend);
+        RenderTarget first = cache.acquire(64, 64, RenderTargetOptions.COLOR);
+        expect(first == cache.current() && !((FakeTarget) first).disposed,
+                "acquire should create and retain a live target");
+
+        RenderTarget same = cache.acquire(64, 64, RenderTargetOptions.COLOR);
+        expect(same == first && backend.created == 1,
+                "acquire with identical size/options should reuse the target");
+
+        RenderTarget resized = cache.acquire(128, 64, RenderTargetOptions.COLOR);
+        expect(resized != first && ((FakeTarget) first).disposed && !((FakeTarget) resized).disposed,
+                "acquire with new size should dispose the replaced target and return a live one");
+
+        cache.close();
+        expect(((FakeTarget) resized).disposed && cache.current() == null,
+                "close should dispose the retained target");
+    }
+
+    private static final class FakeBackend implements RenderBackend {
+        private int created;
+
+        @Override
+        public RenderTarget createRenderTarget(int width, int height, RenderTargetOptions options) {
+            created++;
+            return new FakeTarget(width, height);
+        }
+
+        @Override
+        public void render(DrawList drawList, RenderTarget target) {
+        }
+
+        @Override
+        public void beginFrame(dev.sixik.unigui.api.core.FrameContext frame) {
+        }
+
+        @Override
+        public void endFrame() {
+        }
+    }
+
+    private static final class FakeTarget implements ManagedRenderTarget {
+        private final int width;
+        private final int height;
+        private boolean disposed;
+
+        private FakeTarget(int width, int height) {
+            this.width = width;
+            this.height = height;
+        }
+
+        @Override
+        public int width() {
+            return width;
+        }
+
+        @Override
+        public int height() {
+            return height;
+        }
+
+        @Override
+        public dev.sixik.unigui.api.render.TextureHandle colorTexture() {
+            return new SimpleTextureHandle("fake:target", width, height);
+        }
+
+        @Override
+        public void resize(int width, int height) {
+        }
+
+        @Override
+        public boolean isDisposed() {
+            return disposed;
+        }
+
+        @Override
+        public void close() {
+            disposed = true;
+        }
     }
 
     private static boolean near(float actual, float expected) {

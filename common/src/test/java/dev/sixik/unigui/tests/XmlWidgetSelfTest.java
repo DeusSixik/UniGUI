@@ -278,6 +278,19 @@ public final class XmlWidgetSelfTest {
         expect(notes.text().equals("Line A\nLine B") && notes.visibleLines() == 3,
                 "TextArea should materialize multiline XML attributes");
         expect(XMLWidget.findWidget(root, "missing").isEmpty(), "findWidget should return empty for unknown ids");
+
+        VBox surfaced = XMLWidget.create("""
+                <VBox background="#11223344" border="#FFEEDDCC" borderWidth="2" radius="3">
+                    <Label id="inner" text="Hi" />
+                </VBox>
+                """, VBox.class);
+        expect(surfaced.boxVisualEnabled() && surfaced.backgroundVisible() && surfaced.borderVisible(),
+                "VBox surface XML attributes should enable surface rendering");
+        expect(near(surfaced.background().r(), 0x11 / 255.0f) && near(surfaced.background().a(), 0x44 / 255.0f),
+                "VBox background XML attribute should apply");
+        expect(near(surfaced.borderWidth(), 2.0f) && near(surfaced.radius(), 3.0f),
+                "VBox border and radius XML attributes should apply");
+        expect(surfaced.children().size() == 1, "VBox surface XML should still attach children");
     }
 
     private void testStreamAndResourceLoading() {
@@ -997,6 +1010,7 @@ public final class XmlWidgetSelfTest {
                         && descriptor(windowWidget.attributes(), "dockable").category().equals("Behavior")
                         && descriptor(windowWidget.attributes(), "dockPaneId").category().equals("Behavior")
                         && descriptor(windowWidget.attributes(), "dockKind").category().equals("Behavior")
+                        && descriptor(windowWidget.attributes(), "dockingEnabled").category().equals("Behavior")
                         && propertyChild(windowWidget.propertyChildren(), "Content").singleChild(),
                 "WindowWidget descriptor should expose window content and placement metadata");
         OverlayLayer xmlOverlayLayer = XMLWidget.create("""

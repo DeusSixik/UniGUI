@@ -107,6 +107,49 @@ public final class MapMarkerHandle<T extends Widget> {
     }
 
     /**
+     * Задает минимальный экранный размер маркера после zoom-scaling.
+     *
+     * <p>При сильном отдалении маркер не сожмётся меньше заданного размера.
+     * Отрицательное/NaN значение убирает пол.</p>
+     */
+    public MapMarkerHandle<T> minScreenSize(float width, float height) {
+        if (anchor != null) {
+            anchor.minScreenSize(width, height);
+        }
+        return this;
+    }
+
+    /**
+     * Задает максимальный экранный размер маркера после zoom-scaling.
+     *
+     * <p>При сильном приближении маркер не раздуется больше заданного размера.
+     * Отрицательное/NaN значение убирает потолок.</p>
+     */
+    public MapMarkerHandle<T> maxScreenSize(float width, float height) {
+        if (anchor != null) {
+            anchor.maxScreenSize(width, height);
+        }
+        return this;
+    }
+
+    /**
+     * Включает масштабирование размера маркера от zoom карты.
+     *
+     * <p>Эффективный размер: {@code baseSize * (zoom / referenceZoom)}, зажатый
+     * в [{@link #minScreenSize(float, float)}, {@link #maxScreenSize(float, float)}].
+     * По умолчанию выключено — размер фиксирован.</p>
+     *
+     * @param zoomScaling {@code true}, чтобы размер следовал за zoom
+     * @param referenceZoom zoom, при котором размер равен базовому
+     */
+    public MapMarkerHandle<T> zoomScaling(boolean zoomScaling, float referenceZoom) {
+        if (anchor != null) {
+            anchor.zoomScaling(zoomScaling, referenceZoom);
+        }
+        return this;
+    }
+
+    /**
      * Задает pivot маркера относительно его прямоугольника.
      */
     public MapMarkerHandle<T> pivot(float x, float y) {

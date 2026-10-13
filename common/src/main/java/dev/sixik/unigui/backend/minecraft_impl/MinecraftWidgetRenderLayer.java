@@ -67,6 +67,33 @@ public final class MinecraftWidgetRenderLayer implements AutoCloseable {
         return this;
     }
 
+    /**
+     * Проверяет, перехватывает ли слой отладочные хоткеи.
+     *
+     * @return {@code true}, если {@code Ctrl+Shift+P/Plus/Minus} обрабатываются слоем
+     * @see MinecraftDebugHotkeys
+     */
+    public boolean debugHotkeysEnabled() {
+        return renderer.debugHotkeysEnabled();
+    }
+
+    /**
+     * Включает или выключает отладочные хоткеи слоя.
+     *
+     * <p>Делегирует во внутренний {@link MinecraftWidgetScreen}: {@code Ctrl+Shift+P}
+     * тогглит профайлер, {@code Ctrl+Shift+Plus/Minus} меняют scale дебаг-оверлея.
+     * Выключено по умолчанию.</p>
+     *
+     * @param debugHotkeysEnabled {@code true}, чтобы перехватывать отладочные хоткеи
+     * @return этот слой для fluent-настройки
+     * @see MinecraftDebugHotkeys
+     */
+    public MinecraftWidgetRenderLayer debugHotkeysEnabled(boolean debugHotkeysEnabled) {
+        ensureOpen();
+        renderer.debugHotkeysEnabled(debugHotkeysEnabled);
+        return this;
+    }
+
     public MinecraftWidgetRenderLayer renderPolicy(UiRenderPolicy policy) {
         ensureOpen();
         renderer.renderPolicy(policy);

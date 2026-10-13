@@ -10,6 +10,8 @@ import dev.sixik.unigui.api.widget.visual.BackgroundKind;
 import dev.sixik.unigui.api.widget.visual.Surface;
 import dev.sixik.unigui.impl.render.DefaultRenderContext;
 import dev.sixik.unigui.widgets.containers.Box;
+import dev.sixik.unigui.widgets.containers.HBox;
+import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.feedback.Tooltip;
 import dev.sixik.unigui.widgets.feedback.WindowWidget;
@@ -54,6 +56,30 @@ public final class SurfaceVisualSelfTest {
         expect(box.renderer() == null, "box has no custom renderer by default");
         expect(new Checkbox("Check") instanceof Button, "checkbox still is a button");
         expect(!(((Object) new Checkbox("Check")) instanceof Box), "checkbox no longer inherits Box visual");
+
+        // LinearBox owns a surface too, but renders transparent by default so
+        // existing mods see no visual change after the SurfaceWidget migration.
+        VBox vbox = new VBox();
+        expect(!vbox.boxVisualEnabled(), "linear box surface is disabled by default");
+        expect(!vbox.themeEnabled(), "linear box theme lookup is disabled by default");
+        expect(!vbox.backgroundVisible() && !vbox.borderVisible(), "linear box chrome is hidden by default");
+        vbox.measure(new LayoutContext(120.0f, 60.0f));
+        vbox.arrange(new MutableRect(0.0f, 0.0f, 120.0f, 60.0f));
+        DrawList vboxDraw = new DrawList();
+        vbox.render(new DefaultRenderContext(vboxDraw));
+        expect(vboxDraw.size() == 0, "linear box draws nothing by default");
+
+        // First explicit background opt-ins into surface rendering automatically.
+        HBox hbox = new HBox();
+        hbox.background(new dev.sixik.unigui.api.math.MutableColor(0.10f, 0.20f, 0.30f, 0.40f));
+        expect(hbox.boxVisualEnabled(), "explicit background enables linear box surface");
+        expect(hbox.backgroundVisible(), "explicit background marks background visible");
+        hbox.measure(new LayoutContext(120.0f, 60.0f));
+        hbox.arrange(new MutableRect(0.0f, 0.0f, 120.0f, 60.0f));
+        DrawList hboxDraw = new DrawList();
+        hbox.render(new DefaultRenderContext(hboxDraw));
+        expect(countFill(hboxDraw, 0.10f, 0.20f, 0.30f, 0.40f) == 1,
+                "explicit background is drawn exactly once by the linear box surface");
 
         // Overlay windows draw their background exactly once through the surface.
         WindowWidget window = new WindowWidget("Title", new Label("Body"));
