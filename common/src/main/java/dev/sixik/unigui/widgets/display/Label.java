@@ -16,7 +16,6 @@ import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
-import dev.sixik.unigui.widgets.render.BoxRenderer;
 
 /**
  * Short caption text, optionally associated with a focusable control.
@@ -122,30 +121,6 @@ public final class Label extends TextWidget {
     @Override
     public Label backgroundVisible(boolean backgroundVisible) {
         super.backgroundVisible(backgroundVisible);
-        return this;
-    }
-
-    @Override
-    public Label boxVisualEnabled(boolean boxVisualEnabled) {
-        super.boxVisualEnabled(boxVisualEnabled);
-        return this;
-    }
-
-    @Override
-    public Label boxRenderer(BoxRenderer boxRenderer) {
-        super.boxRenderer(boxRenderer);
-        return this;
-    }
-
-    @Override
-    public Label backgroundRenderer(BoxRenderer boxRenderer) {
-        super.backgroundRenderer(boxRenderer);
-        return this;
-    }
-
-    @Override
-    public Label useDefaultBoxRenderer() {
-        super.useDefaultBoxRenderer();
         return this;
     }
 

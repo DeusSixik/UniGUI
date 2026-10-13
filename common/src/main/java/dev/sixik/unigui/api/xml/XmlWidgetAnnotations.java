@@ -1,9 +1,11 @@
 package dev.sixik.unigui.api.xml;
 
 import dev.sixik.unigui.api.layout.Align;
+import dev.sixik.unigui.api.layout.AlignContent;
 import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.FlexDirection;
 import dev.sixik.unigui.api.layout.FlexWrap;
+import dev.sixik.unigui.api.layout.GridAutoFlow;
 import dev.sixik.unigui.api.layout.Justify;
 import dev.sixik.unigui.api.layout.Overflow;
 import dev.sixik.unigui.api.layout.PositionType;
@@ -300,8 +302,10 @@ public final class XmlWidgetAnnotations {
                 "Outer layout margin; accepts one, two, three or four inset values."));
         put(attributes, commonDescriptor("flexGrow", "Layout", "0",
                 "Flex grow weight inside flex-capable parent layouts."));
-        put(attributes, commonDescriptor("flexShrink", "Layout", "1",
-                "Flex shrink weight inside flex-capable parent layouts."));
+        put(attributes, commonDescriptor("flexShrink", "Layout", "0",
+                "Flex shrink weight inside flex-capable parent layouts; 0 means no shrinking."));
+        put(attributes, commonDescriptor("flexBasis", "Layout", "auto",
+                "Flex base size; accepts px, percent, content, min/max-content or auto values."));
         put(attributes, commonDescriptor("flexDirection", "Layout", "column",
                 "Primary child layout direction for flex-capable widgets."));
         put(attributes, commonDescriptor("flexWrap", "Layout", "nowrap",
@@ -316,6 +320,16 @@ public final class XmlWidgetAnnotations {
                 "Cross-axis alignment applied to child widgets."));
         put(attributes, commonDescriptor("alignSelf", "Layout", "auto",
                 "Per-widget alignment override inside the parent layout."));
+        put(attributes, commonDescriptor("alignContent", "Layout", "stretch",
+                "Distribution of wrapping flex lines on the cross axis."));
+        put(attributes, commonDescriptor("order", "Layout", "0",
+                "Layout order among siblings; lower values go first."));
+        put(attributes, commonDescriptor("aspectRatio", "Layout", "",
+                "Preferred width-to-height ratio, for example 1.78 for 16:9."));
+        put(attributes, commonDescriptor("marginAuto", "Layout", "none",
+                "Automatic margins: sides, horizontal, vertical, all or none."));
+        put(attributes, commonDescriptor("zIndex", "Layout", "0",
+                "Paint and hit-test order among siblings."));
         put(attributes, commonDescriptor("justifyContent", "Layout", "start",
                 "Main-axis distribution for children in flex-capable layouts."));
         put(attributes, commonDescriptor("overflow", "Layout", "visible",
@@ -325,7 +339,25 @@ public final class XmlWidgetAnnotations {
         put(attributes, commonDescriptor("overflowY", "Layout", "visible",
                 "Vertical overflow mode."));
         put(attributes, commonDescriptor("position", "Layout", "relative",
-                "Layout positioning mode: relative or absolute."));
+                "Layout positioning mode: static, relative, absolute or fixed."));
+        put(attributes, commonDescriptor("gridTemplateColumns", "Layout", "",
+                "Grid column tracks: px, percent, fr, auto, minmax() or repeat()."));
+        put(attributes, commonDescriptor("gridTemplateRows", "Layout", "",
+                "Grid row tracks: px, percent, fr, auto, minmax() or repeat()."));
+        put(attributes, commonDescriptor("gridAutoColumns", "Layout", "",
+                "Sizes for implicit grid columns."));
+        put(attributes, commonDescriptor("gridAutoRows", "Layout", "",
+                "Sizes for implicit grid rows."));
+        put(attributes, commonDescriptor("gridAutoFlow", "Layout", "row",
+                "Grid auto-placement flow: row, column, row-dense or column-dense."));
+        put(attributes, commonDescriptor("gridColumn", "Layout", "0",
+                "Grid column start line (1-based, 0 means auto)."));
+        put(attributes, commonDescriptor("gridColumnSpan", "Layout", "1",
+                "Number of grid columns spanned."));
+        put(attributes, commonDescriptor("gridRow", "Layout", "0",
+                "Grid row start line (1-based, 0 means auto)."));
+        put(attributes, commonDescriptor("gridRowSpan", "Layout", "1",
+                "Number of grid rows spanned."));
         put(attributes, commonDescriptor("left", "Layout", "auto",
                 "Absolute-position left inset; used when position is absolute."));
         put(attributes, commonDescriptor("top", "Layout", "auto",
@@ -474,14 +506,28 @@ public final class XmlWidgetAnnotations {
         attribute(registered, "maxHeight", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.maxHeight(value)), commonAttribute("maxHeight"));
         attribute(registered, "padding", XmlValueParsers.INSETS, (widget, value) -> widget.layout(style -> style.padding(value)), commonAttribute("padding"));
         attribute(registered, "margin", XmlValueParsers.INSETS, (widget, value) -> widget.layout(style -> style.margin(value)), commonAttribute("margin"));
+        attribute(registered, "marginAuto", XmlValueParsers.AUTO_MARGINS, (widget, value) -> widget.layout(style -> style.marginAuto(value)), commonAttribute("marginAuto"));
+        attribute(registered, "gridTemplateColumns", XmlValueParsers.GRID_TRACKS, (widget, value) -> widget.layout(style -> style.gridTemplateColumns(value)), commonAttribute("gridTemplateColumns"));
+        attribute(registered, "gridTemplateRows", XmlValueParsers.GRID_TRACKS, (widget, value) -> widget.layout(style -> style.gridTemplateRows(value)), commonAttribute("gridTemplateRows"));
+        attribute(registered, "gridAutoFlow", XmlValueParsers.enumValue(GridAutoFlow.class), (widget, value) -> widget.layout(style -> style.gridAutoFlow(value)), commonAttribute("gridAutoFlow"));
+        attribute(registered, "gridAutoColumns", XmlValueParsers.GRID_TRACKS, (widget, value) -> widget.layout(style -> style.gridAutoColumns(value)), commonAttribute("gridAutoColumns"));
+        attribute(registered, "gridAutoRows", XmlValueParsers.GRID_TRACKS, (widget, value) -> widget.layout(style -> style.gridAutoRows(value)), commonAttribute("gridAutoRows"));
+        attribute(registered, "gridColumn", XmlValueParsers.INT, (widget, value) -> widget.layout(style -> style.gridColumn(value, widget.layoutStyle().gridColumnSpan())), commonAttribute("gridColumn"));
+        attribute(registered, "gridColumnSpan", XmlValueParsers.INT, (widget, value) -> widget.layout(style -> style.gridColumn(widget.layoutStyle().gridColumnStart(), value)), commonAttribute("gridColumnSpan"));
+        attribute(registered, "gridRow", XmlValueParsers.INT, (widget, value) -> widget.layout(style -> style.gridRow(value, widget.layoutStyle().gridRowSpan())), commonAttribute("gridRow"));
+        attribute(registered, "gridRowSpan", XmlValueParsers.INT, (widget, value) -> widget.layout(style -> style.gridRow(widget.layoutStyle().gridRowStart(), value)), commonAttribute("gridRowSpan"));
+        attribute(registered, "zIndex", XmlValueParsers.INT, (widget, value) -> widget.layout(style -> style.zIndex(value)), commonAttribute("zIndex"));
         attribute(registered, "flexGrow", XmlValueParsers.FLOAT, (widget, value) -> widget.layout(style -> style.flexGrow(value)), commonAttribute("flexGrow"));
         attribute(registered, "flexShrink", XmlValueParsers.FLOAT, (widget, value) -> widget.layout(style -> style.flexShrink(value)), commonAttribute("flexShrink"));
+        attribute(registered, "order", XmlValueParsers.INT, (widget, value) -> widget.layout(style -> style.order(value)), commonAttribute("order"));
+        attribute(registered, "aspectRatio", XmlValueParsers.FLOAT, (widget, value) -> widget.layout(style -> style.aspectRatio(value)), commonAttribute("aspectRatio"));
         attribute(registered, "flexDirection", XmlValueParsers.enumValue(FlexDirection.class), (widget, value) -> widget.layout(style -> style.flexDirection(value)), commonAttribute("flexDirection"));
         attribute(registered, "flexWrap", XmlValueParsers.enumValue(FlexWrap.class), (widget, value) -> widget.layout(style -> style.flexWrap(value)), commonAttribute("flexWrap"));
         attribute(registered, "rowGap", XmlValueParsers.FLOAT, (widget, value) -> widget.layout(style -> style.rowGap(value)), commonAttribute("rowGap"));
         attribute(registered, "columnGap", XmlValueParsers.FLOAT, (widget, value) -> widget.layout(style -> style.columnGap(value)), commonAttribute("columnGap"));
         attribute(registered, "alignItems", XmlValueParsers.enumValue(Align.class), (widget, value) -> widget.layout(style -> style.alignItems(value)), commonAttribute("alignItems"));
         attribute(registered, "alignSelf", XmlValueParsers.enumValue(Align.class), (widget, value) -> widget.layout(style -> style.alignSelf(value)), commonAttribute("alignSelf"));
+        attribute(registered, "alignContent", XmlValueParsers.enumValue(AlignContent.class), (widget, value) -> widget.layout(style -> style.alignContent(value)), commonAttribute("alignContent"));
         attribute(registered, "justifyContent", XmlValueParsers.enumValue(Justify.class), (widget, value) -> widget.layout(style -> style.justifyContent(value)), commonAttribute("justifyContent"));
         attribute(registered, "overflow", XmlValueParsers.enumValue(Overflow.class), (widget, value) -> widget.layout(style -> style.overflow(value)), commonAttribute("overflow"));
         attribute(registered, "overflowX", XmlValueParsers.enumValue(Overflow.class), (widget, value) -> widget.layout(style -> style.overflowX(value)), commonAttribute("overflowX"));

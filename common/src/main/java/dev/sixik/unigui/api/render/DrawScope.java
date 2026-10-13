@@ -3,6 +3,9 @@ package dev.sixik.unigui.api.render;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.math.Transform;
+import dev.sixik.unigui.api.render.shaders.ShaderDrawOptions;
+import dev.sixik.unigui.api.render.shaders.ShaderHandle;
+import dev.sixik.unigui.api.render.shaders.ShaderUniforms;
 import dev.sixik.unigui.api.text.RichText;
 
 import java.util.List;
@@ -29,7 +32,7 @@ public final class DrawScope {
     /**
      * Создаёт scope без anchor bounds для transform pivot.
      *
-     * @param context render context, куда будут попадать команды
+     * @param context   render context, куда будут попадать команды
      * @param transform transform виджета или {@code null}
      */
     public DrawScope(RenderContext context, Transform transform) {
@@ -39,8 +42,8 @@ public final class DrawScope {
     /**
      * Создаёт scope с bounds, относительно которых нужно удерживать transform pivot.
      *
-     * @param context render context, куда будут попадать команды
-     * @param transform transform виджета или {@code null}
+     * @param context         render context, куда будут попадать команды
+     * @param transform       transform виджета или {@code null}
      * @param transformBounds исходные bounds виджета для привязки pivot
      */
     public DrawScope(RenderContext context, Transform transform, RectView transformBounds) {
@@ -51,12 +54,16 @@ public final class DrawScope {
         this.transformBoundsY = transformBounds == null ? 0.0f : transformBounds.y();
     }
 
-    /** @return render context, в который пишет scope */
+    /**
+     * @return render context, в который пишет scope
+     */
     public RenderContext context() {
         return context;
     }
 
-    /** @return transform, применяемый scope'ом к командам */
+    /**
+     * @return transform, применяемый scope'ом к командам
+     */
     public Transform transform() {
         return transform;
     }
@@ -126,6 +133,110 @@ public final class DrawScope {
             context.texture(texture, placement, radius, paint);
         } else {
             context.texture(texture, placement, radius, paint, transformFor(placement.x(), placement.y()));
+        }
+    }
+
+    /**
+     * Рисует nine-slice текстуру: углы без растяжения, края вдоль одной оси, центр по обеим.
+     *
+     * <p>Рамки берутся из {@link NineSlice} в пикселях текстуры. Если сумма рамок превышает
+     * размер текстуры, они пропорционально ужимаются; если виджет уже рамок — края
+     * клампятся к половине размера. Нулевые области пропускаются, backend получает
+     * обычные texture-команды и работает везде без нового типа команд.</p>
+     *
+     * @param slice  nine-slice источник; {@code null} игнорируется
+     * @param x      X-граница назначения
+     * @param y      Y-граница назначения
+     * @param width  ширина назначения
+     * @param height высота назначения
+     * @param paint  tint paint
+     */
+    public void nineSlice(NineSlice slice, float x, float y, float width, float height, Paint paint) {
+        nineSlice(slice, x, y, width, height, paint, true);
+    }
+
+    /**
+     * Рисует nine-slice текстуру с выбором заливки центра.
+     *
+     * @param slice      nine-slice источник; {@code null} игнорируется
+     * @param x          X-граница назначения
+     * @param y          Y-граница назначения
+     * @param width      ширина назначения
+     * @param height     высота назначения
+     * @param paint      tint paint
+     * @param fillCenter {@code false}, чтобы оставить прозрачную середину (рамка)
+     */
+    public void nineSlice(NineSlice slice, float x, float y, float width, float height,
+                          Paint paint, boolean fillCenter) {
+        if (slice == null || slice.texture() == null || width <= 0.0f || height <= 0.0f) return;
+        TextureHandle texture = slice.texture();
+        float textureWidth = Math.max(1.0f, texture.width());
+        float textureHeight = Math.max(1.0f, texture.height());
+
+        float srcLeft = slice.left();
+        float srcRight = slice.right();
+        float srcTop = slice.top();
+        float srcBottom = slice.bottom();
+        float horizontalOverflow = srcLeft + srcRight - textureWidth;
+        if (horizontalOverflow > 0.0f && srcLeft + srcRight > 0.0f) {
+            float scale = textureWidth / (srcLeft + srcRight);
+            srcLeft *= scale;
+            srcRight *= scale;
+        }
+        float verticalOverflow = srcTop + srcBottom - textureHeight;
+        if (verticalOverflow > 0.0f && srcTop + srcBottom > 0.0f) {
+            float scale = textureHeight / (srcTop + srcBottom);
+            srcTop *= scale;
+            srcBottom *= scale;
+        }
+
+        float dstLeft = Math.min(srcLeft, width * 0.5f);
+        float dstRight = Math.min(srcRight, width * 0.5f);
+        float centerWidth = Math.max(0.0f, width - dstLeft - dstRight);
+        float dstTop = Math.min(srcTop, height * 0.5f);
+        float dstBottom = Math.min(srcBottom, height * 0.5f);
+        float centerHeight = Math.max(0.0f, height - dstTop - dstBottom);
+
+        float u0 = 0.0f;
+        float u1 = srcLeft / textureWidth;
+        float u2 = (textureWidth - srcRight) / textureWidth;
+        float u3 = 1.0f;
+        float v0 = 0.0f;
+        float v1 = srcTop / textureHeight;
+        float v2 = (textureHeight - srcBottom) / textureHeight;
+        float v3 = 1.0f;
+
+        float centerX = x + dstLeft;
+        float rightX = x + dstLeft + centerWidth;
+        float centerY = y + dstTop;
+        float bottomY = y + dstTop + centerHeight;
+
+        nineSliceCell(texture, x, y, dstLeft, dstTop, u0, v0, u1 - u0, v1 - v0, paint);
+        nineSliceCell(texture, centerX, y, centerWidth, dstTop, u1, v0, u2 - u1, v1 - v0, paint);
+        nineSliceCell(texture, rightX, y, dstRight, dstTop, u2, v0, u3 - u2, v1 - v0, paint);
+        nineSliceCell(texture, x, centerY, dstLeft, centerHeight, u0, v1, u1 - u0, v2 - v1, paint);
+        if (fillCenter && u2 - u1 > 0.0f && v2 - v1 > 0.0f) {
+            nineSliceCell(texture, centerX, centerY, centerWidth, centerHeight,
+                    u1, v1, u2 - u1, v2 - v1, paint);
+        }
+        nineSliceCell(texture, rightX, centerY, dstRight, centerHeight, u2, v1, u3 - u2, v2 - v1, paint);
+        nineSliceCell(texture, x, bottomY, dstLeft, dstBottom, u0, v2, u1 - u0, v3 - v2, paint);
+        nineSliceCell(texture, centerX, bottomY, centerWidth, dstBottom, u1, v2, u2 - u1, v3 - v2, paint);
+        nineSliceCell(texture, rightX, bottomY, dstRight, dstBottom, u2, v2, u3 - u2, v3 - v2, paint);
+    }
+
+    private void nineSliceCell(TextureHandle texture, float x, float y, float width, float height,
+                               float u, float v, float uWidth, float vHeight, Paint paint) {
+        if (width <= 0.0f || height <= 0.0f) return;
+        texture(texture, new TexturePlacement(x, y, width, height, u, v, uWidth, vHeight), 0.0f, paint);
+    }
+
+    public void shader(ShaderHandle shader, float x, float y, float width, float height,
+                       ShaderUniforms uniforms, ShaderDrawOptions options) {
+        if (transform == null) {
+            context.shader(shader, x, y, width, height, uniforms, options);
+        } else {
+            context.shader(shader, x, y, width, height, uniforms, options, transformFor(x, y));
         }
     }
 
@@ -266,7 +377,9 @@ public final class DrawScope {
         context.addImageQuad(texture, p1, p2, p3, p4, uv1, uv2, uv3, uv4, tint, transform);
     }
 
-    /** Текстурированный quad с float-позициями без создания DrawPoint/DrawMesh. */
+    /**
+     * Текстурированный quad с float-позициями без создания DrawPoint/DrawMesh.
+     */
     public void addTexturedQuad(TextureHandle texture,
                                 float x1, float y1, float x2, float y2,
                                 float x3, float y3, float x4, float y4,

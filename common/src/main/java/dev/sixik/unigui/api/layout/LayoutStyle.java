@@ -1,5 +1,6 @@
 package dev.sixik.unigui.api.layout;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -70,6 +71,7 @@ public final class LayoutStyle {
     private SizeValue maxWidth = SizeValue.auto();
     private SizeValue maxHeight = SizeValue.auto();
     private EdgeInsets margin = EdgeInsets.ZERO;
+    private AutoMargins marginAuto = AutoMargins.NONE;
     private EdgeInsets padding = EdgeInsets.ZERO;
     private Overflow overflowX = Overflow.VISIBLE;
     private Overflow overflowY = Overflow.VISIBLE;
@@ -78,10 +80,23 @@ public final class LayoutStyle {
     private float rowGap;
     private float columnGap;
     private float flexGrow;
-    private float flexShrink = 1.0f;
+    private float flexShrink;
     private SizeValue flexBasis = SizeValue.auto();
+    private int order;
+    private float aspectRatio = Float.NaN;
+    private List<GridTrack> gridTemplateColumns = List.of();
+    private List<GridTrack> gridTemplateRows = List.of();
+    private List<GridTrack> gridAutoColumns = List.of();
+    private List<GridTrack> gridAutoRows = List.of();
+    private GridAutoFlow gridAutoFlow = GridAutoFlow.ROW;
+    private int gridColumnStart;
+    private int gridColumnSpan = 1;
+    private int gridRowStart;
+    private int gridRowSpan = 1;
+    private int zIndex;
     private Align alignItems = Align.STRETCH;
     private Align alignSelf = Align.AUTO;
+    private AlignContent alignContent = AlignContent.STRETCH;
     private Alignment horizontalAlignment = Alignment.STRETCH;
     private Alignment verticalAlignment = Alignment.STRETCH;
     private Justify justifyContent = Justify.START;
@@ -95,7 +110,7 @@ public final class LayoutStyle {
      *
      * <p>Дефолты: {@link PositionType#RELATIVE}, {@code width/height = auto},
      * {@code minSize = 0}, {@code maxSize = auto}, {@code flexDirection = COLUMN},
-     * {@code flexGrow = 0}, {@code flexShrink = 1}, {@code alignItems = STRETCH}.</p>
+     * {@code flexGrow = 0}, {@code flexShrink = 0}, {@code alignItems = STRETCH}.</p>
      */
     public LayoutStyle() {
     }
@@ -178,6 +193,7 @@ public final class LayoutStyle {
             style.maxWidth(source.maxWidth);
             style.maxHeight(source.maxHeight);
             style.margin(source.margin);
+            style.marginAuto(source.marginAuto);
             style.padding(source.padding);
             style.overflowX(source.overflowX);
             style.overflowY(source.overflowY);
@@ -188,8 +204,19 @@ public final class LayoutStyle {
             style.flexGrow(source.flexGrow);
             style.flexShrink(source.flexShrink);
             style.flexBasis(source.flexBasis);
+            style.order(source.order);
+            style.aspectRatio(source.aspectRatio);
+            style.gridTemplateColumns(source.gridTemplateColumns);
+            style.gridTemplateRows(source.gridTemplateRows);
+            style.gridAutoColumns(source.gridAutoColumns);
+            style.gridAutoRows(source.gridAutoRows);
+            style.gridAutoFlow(source.gridAutoFlow);
+            style.gridColumn(source.gridColumnStart, source.gridColumnSpan);
+            style.gridRow(source.gridRowStart, source.gridRowSpan);
+            style.zIndex(source.zIndex);
             style.alignItems(source.alignItems);
             style.alignSelf(source.alignSelf);
+            style.alignContent(source.alignContent);
             style.horizontalAlignment = source.horizontalAlignment;
             style.verticalAlignment = source.verticalAlignment;
             style.justifyContent(source.justifyContent);
@@ -673,6 +700,54 @@ public final class LayoutStyle {
     }
 
     /**
+     * Возвращает флаги автоматических margin.
+     *
+     * @return флаги автоматических margin, никогда {@code null}
+     */
+    public AutoMargins marginAuto() {
+        return marginAuto;
+    }
+
+    /**
+     * Задаёт автоматические margin.
+     *
+     * <p>Автоматический margin поглощает свободное место вместо фиксированного
+     * отступа: на главной оси делит его с другими auto-margin и отменяет
+     * {@code justify-content}, на поперечной центрирует (пара) или прижимает
+     * к противоположной стороне (один). Пиксельные margin из {@link #margin()}
+     * на auto-сторонах игнорируются в layout-математике.</p>
+     *
+     * @param marginAuto флаги; {@code null} нормализуется в {@link AutoMargins#NONE}
+     * @return этот стиль для fluent-настройки
+     */
+    public LayoutStyle marginAuto(AutoMargins marginAuto) {
+        AutoMargins normalized = marginAuto == null ? AutoMargins.NONE : marginAuto;
+        if (this.marginAuto.equals(normalized)) return this;
+        this.marginAuto = normalized;
+        changed();
+        return this;
+    }
+
+    /**
+     * Включает автоматические margin слева и справа (центрирование по горизонтали,
+     * оттеснение по главной оси в row-контейнерах).
+     *
+     * @return этот стиль для fluent-настройки
+     */
+    public LayoutStyle marginAutoHorizontal() {
+        return marginAuto(AutoMargins.of(true, marginAuto.top(), true, marginAuto.bottom()));
+    }
+
+    /**
+     * Включает автоматические margin сверху и снизу.
+     *
+     * @return этот стиль для fluent-настройки
+     */
+    public LayoutStyle marginAutoVertical() {
+        return marginAuto(AutoMargins.of(marginAuto.left(), true, marginAuto.right(), true));
+    }
+
+    /**
      * Возвращает внутренний отступ контейнера.
      *
      * @return padding внутри виджета
@@ -952,6 +1027,10 @@ public final class LayoutStyle {
     /**
      * Возвращает shrink-вес виджета на главной оси родителя.
      *
+     * <p>Дефолт — {@code 0} (не сжиматься): осознанное отличие от CSS, где дефолт
+     * {@code 1}. Игровые UI обычно задают размеры явно, и автосжатие даёт
+     * неожиданные сплющивания. Для веб-поведения задайте {@code 1} явно.</p>
+     *
      * @return shrink-вес; 0 означает "не сжиматься из-за нехватки места"
      */
     public float flexShrink() {
@@ -961,8 +1040,8 @@ public final class LayoutStyle {
     /**
      * Задаёт, как дочерний виджет отдаёт место, когда flex-родителю не хватает размера.
      *
-     * <p>{@code flexShrink = 1} — дефолт: виджет может ужиматься. {@code 0} полезен
-     * для фиксированных header/footer/sidebar, которые не должны сжиматься.</p>
+     * <p>{@code flexShrink = 0} — дефолт: виджет не ужимается. {@code 1} полезен,
+     * когда виджет может отдавать место соседям.</p>
      *
      * @param flexShrink shrink-вес; отрицательные/NaN значения станут 0
      * @return этот стиль для fluent-настройки
@@ -1008,6 +1087,32 @@ public final class LayoutStyle {
     }
 
     /**
+     * Возвращает порядок раскладки виджета среди siblings.
+     *
+     * @return order; по умолчанию 0, меньшие идут раньше
+     */
+    public int order() {
+        return order;
+    }
+
+    /**
+     * Задаёт порядок раскладки виджета среди siblings.
+     *
+     * <p>Аналог CSS {@code order}: дети сортируются по возрастанию перед
+     * раскладкой, равные сохраняют порядок в дереве. Отрицательные значения
+     * разрешены.</p>
+     *
+     * @param order порядок раскладки
+     * @return этот стиль для fluent-настройки
+     */
+    public LayoutStyle order(int order) {
+        if (this.order == order) return this;
+        this.order = order;
+        changed();
+        return this;
+    }
+
+    /**
      * Задаёт {@code flexGrow}, {@code flexShrink} и {@code flexBasis} одной операцией.
      *
      * <p>Аналог CSS shorthand {@code flex: grow shrink basis}.</p>
@@ -1035,6 +1140,288 @@ public final class LayoutStyle {
      */
     public LayoutStyle flex(float grow, float shrink, float basisPixels) {
         return flex(grow, shrink, SizeValue.px(basisPixels));
+    }
+
+    /**
+     * Возвращает предпочитаемое соотношение сторон (ширина / высота).
+     *
+     * @return ratio или {@code NaN}, если не задано
+     */
+    public float aspectRatio() {
+        return aspectRatio;
+    }
+
+    /**
+     * Задаёт предпочитаемое соотношение сторон (ширина / высота).
+     *
+     * <p>Когда ровно одна ось {@code auto}, она выводится из другой через ratio:
+     * {@code width = height × ratio}, {@code height = width ÷ ratio}.
+     * Явные размеры, {@code flex-basis} и {@code min/max} имеют приоритет и могут
+     * нарушить ratio, как в вебе. Невалидные ({@code NaN}, ≤ 0, бесконечные)
+     * значения означают отсутствие ratio.</p>
+     *
+     * @param ratio соотношение ширины к высоте, например {@code 16.0f / 9.0f}
+     * @return этот стиль для fluent-настройки
+     */
+    public LayoutStyle aspectRatio(float ratio) {
+        float normalized = Float.isFinite(ratio) && ratio > 0.0f ? ratio : Float.NaN;
+        if (Float.compare(this.aspectRatio, normalized) == 0) return this;
+        this.aspectRatio = normalized;
+        changed();
+        return this;
+    }
+
+    /**
+     * Возвращает явные треки колонок грида.
+     *
+     * @return немодифицируемый список треков, пустой если не задан
+     */
+    public List<GridTrack> gridTemplateColumns() {
+        return gridTemplateColumns;
+    }
+
+    /**
+     * Задаёт явные треки колонок грида.
+     *
+     * @param tracks треки; {@code null} означает пустой шаблон
+     * @return этот стиль для fluent-настройки
+     */
+    public LayoutStyle gridTemplateColumns(List<GridTrack> tracks) {
+        List<GridTrack> normalized = tracks == null ? List.of() : List.copyOf(tracks);
+        if (this.gridTemplateColumns.equals(normalized)) return this;
+        this.gridTemplateColumns = normalized;
+        changed();
+        return this;
+    }
+
+    /**
+     * Задаёт явные треки колонок грида.
+     *
+     * @param tracks треки
+     * @return этот стиль для fluent-настройки
+     */
+    public LayoutStyle gridTemplateColumns(GridTrack... tracks) {
+        return gridTemplateColumns(tracks == null ? List.of() : List.of(tracks));
+    }
+
+    /**
+     * Возвращает явные треки строк грида.
+     *
+     * @return немодифицируемый список треков, пустой если не задан
+     */
+    public List<GridTrack> gridTemplateRows() {
+        return gridTemplateRows;
+    }
+
+    /**
+     * Задаёт явные треки строк грида.
+     *
+     * @param tracks треки; {@code null} означает пустой шаблон
+     * @return этот стиль для fluent-настройки
+     */
+    public LayoutStyle gridTemplateRows(List<GridTrack> tracks) {
+        List<GridTrack> normalized = tracks == null ? List.of() : List.copyOf(tracks);
+        if (this.gridTemplateRows.equals(normalized)) return this;
+        this.gridTemplateRows = normalized;
+        changed();
+        return this;
+    }
+
+    /**
+     * Задаёт явные треки строк грида.
+     *
+     * @param tracks треки
+     * @return этот стиль для fluent-настройки
+     */
+    public LayoutStyle gridTemplateRows(GridTrack... tracks) {
+        return gridTemplateRows(tracks == null ? List.of() : List.of(tracks));
+    }
+
+    /**
+     * Возвращает размеры неявных колонок грида.
+     *
+     * @return немодифицируемый список треков
+     */
+    public List<GridTrack> gridAutoColumns() {
+        return gridAutoColumns;
+    }
+
+    /**
+     * Задаёт размеры неявных колонок грида.
+     *
+     * @param tracks треки; {@code null} означает пустой список
+     * @return этот стиль для fluent-настройки
+     */
+    public LayoutStyle gridAutoColumns(List<GridTrack> tracks) {
+        List<GridTrack> normalized = tracks == null ? List.of() : List.copyOf(tracks);
+        if (this.gridAutoColumns.equals(normalized)) return this;
+        this.gridAutoColumns = normalized;
+        changed();
+        return this;
+    }
+
+    /**
+     * Возвращает размеры неявных строк грида.
+     *
+     * @return немодифицируемый список треков
+     */
+    public List<GridTrack> gridAutoRows() {
+        return gridAutoRows;
+    }
+
+    /**
+     * Задаёт размеры неявных строк грида.
+     *
+     * @param tracks треки; {@code null} означает пустой список
+     * @return этот стиль для fluent-настройки
+     */
+    public LayoutStyle gridAutoRows(List<GridTrack> tracks) {
+        List<GridTrack> normalized = tracks == null ? List.of() : List.copyOf(tracks);
+        if (this.gridAutoRows.equals(normalized)) return this;
+        this.gridAutoRows = normalized;
+        changed();
+        return this;
+    }
+
+    /**
+     * Возвращает направление автопозиционирования в гриде.
+     *
+     * @return текущий auto-flow
+     */
+    public GridAutoFlow gridAutoFlow() {
+        return gridAutoFlow;
+    }
+
+    /**
+     * Задаёт направление автопозиционирования в гриде.
+     *
+     * @param flow направление; {@code null} нормализуется в {@link GridAutoFlow#ROW}
+     * @return этот стиль для fluent-настройки
+     */
+    public LayoutStyle gridAutoFlow(GridAutoFlow flow) {
+        GridAutoFlow normalized = flow == null ? GridAutoFlow.ROW : flow;
+        if (this.gridAutoFlow == normalized) return this;
+        this.gridAutoFlow = normalized;
+        changed();
+        return this;
+    }
+
+    /**
+     * Возвращает стартовую линию колонки в гриде (1-based, ≤ 0 = auto).
+     *
+     * @return стартовая линия или неположительное для auto
+     */
+    public int gridColumnStart() {
+        return gridColumnStart;
+    }
+
+    /**
+     * Возвращает span колонок в гриде.
+     *
+     * @return span, минимум 1
+     */
+    public int gridColumnSpan() {
+        return gridColumnSpan;
+    }
+
+    /**
+     * Возвращает стартовую линию строки в гриде (1-based, ≤ 0 = auto).
+     *
+     * @return стартовая линия или неположительное для auto
+     */
+    public int gridRowStart() {
+        return gridRowStart;
+    }
+
+    /**
+     * Возвращает span строк в гриде.
+     *
+     * @return span, минимум 1
+     */
+    public int gridRowSpan() {
+        return gridRowSpan;
+    }
+
+    /**
+     * Задаёт позицию и span в колонках грида.
+     *
+     * @param start стартовая линия 1-based, ≤ 0 означает auto
+     * @param span span, значения меньше 1 нормализуются в 1
+     * @return этот стиль для fluent-настройки
+     */
+    public LayoutStyle gridColumn(int start, int span) {
+        return update(style -> {
+            if (style.gridColumnStart != start) {
+                style.gridColumnStart = start;
+                style.changed();
+            }
+            int normalizedSpan = Math.max(1, span);
+            if (style.gridColumnSpan != normalizedSpan) {
+                style.gridColumnSpan = normalizedSpan;
+                style.changed();
+            }
+        });
+    }
+
+    /**
+     * Задаёт позицию и span в строках грида.
+     *
+     * @param start стартовая линия 1-based, ≤ 0 означает auto
+     * @param span span, значения меньше 1 нормализуются в 1
+     * @return этот стиль для fluent-настройки
+     */
+    public LayoutStyle gridRow(int start, int span) {
+        return update(style -> {
+            if (style.gridRowStart != start) {
+                style.gridRowStart = start;
+                style.changed();
+            }
+            int normalizedSpan = Math.max(1, span);
+            if (style.gridRowSpan != normalizedSpan) {
+                style.gridRowSpan = normalizedSpan;
+                style.changed();
+            }
+        });
+    }
+
+    /**
+     * Возвращает z-index виджета среди siblings.
+     *
+     * @return z-index, по умолчанию 0
+     */
+    public int zIndex() {
+        return zIndex;
+    }
+
+    /**
+     * Задаёт z-index виджета среди siblings.
+     *
+     * <p>Дети рисуются по возрастанию z-index (равные — в порядке дерева),
+     * хит-тест идёт в обратном порядке. Отрицательные рисуются раньше
+     * остальных siblings без полноценных stacking contexts.</p>
+     *
+     * @param zIndex z-index
+     * @return этот стиль для fluent-настройки
+     */
+    public LayoutStyle zIndex(int zIndex) {
+        if (this.zIndex == zIndex) return this;
+        this.zIndex = zIndex;
+        changed();
+        return this;
+    }
+
+    /**
+     * CSS-сокращение {@code flex-flow}: направление и перенос одной операцией.
+     *
+     * @param direction направление главной оси
+     * @param wrap режим переноса
+     * @return этот стиль для fluent-настройки
+     */
+    public LayoutStyle flexFlow(FlexDirection direction, FlexWrap wrap) {
+        return update(style -> {
+            style.flexDirection(direction);
+            style.flexWrap(wrap);
+        });
     }
 
     /**
@@ -1149,6 +1536,33 @@ public final class LayoutStyle {
         this.alignSelf = normalized;
         horizontalAlignment = nextHorizontal;
         verticalAlignment = nextVertical;
+        changed();
+        return this;
+    }
+
+    /**
+     * Возвращает распределение wrap-линий контейнера на поперечной оси.
+     *
+     * @return текущий align-content контейнера
+     */
+    public AlignContent alignContent() {
+        return alignContent;
+    }
+
+    /**
+     * Задаёт распределение wrap-линий контейнера на поперечной оси.
+     *
+     * <p>Работает только когда контейнер переносит детей на несколько линий
+     * ({@link FlexWrap#WRAP}). Одиночная линия всегда ведёт себя по
+     * {@link #alignItems()}.</p>
+     *
+     * @param alignContent распределение линий; {@code null} нормализуется в {@link AlignContent#STRETCH}
+     * @return этот стиль для fluent-настройки
+     */
+    public LayoutStyle alignContent(AlignContent alignContent) {
+        AlignContent normalized = alignContent == null ? AlignContent.STRETCH : alignContent;
+        if (this.alignContent == normalized) return this;
+        this.alignContent = normalized;
         changed();
         return this;
     }
@@ -1412,6 +1826,7 @@ public final class LayoutStyle {
             case START -> Align.START;
             case CENTER -> Align.CENTER;
             case END -> Align.END;
+            case BASELINE -> Align.BASELINE;
             case STRETCH -> Align.AUTO;
         };
     }
@@ -1421,6 +1836,7 @@ public final class LayoutStyle {
             case START -> Alignment.START;
             case CENTER -> Alignment.CENTER;
             case END -> Alignment.END;
+            case BASELINE -> Alignment.BASELINE;
             case AUTO, STRETCH -> Alignment.STRETCH;
         };
     }

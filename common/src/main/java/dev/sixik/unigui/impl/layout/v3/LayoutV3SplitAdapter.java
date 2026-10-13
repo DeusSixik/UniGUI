@@ -1,10 +1,7 @@
 package dev.sixik.unigui.impl.layout.v3;
 
 import dev.sixik.unigui.api.layout.Align;
-import dev.sixik.unigui.api.layout.Alignment;
-import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.FlexDirection;
-import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.layout.LayoutStyle;
@@ -19,6 +16,7 @@ import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.impl.layout.SlotLayout;
 import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.widgets.containers.Splitter;
 
@@ -26,7 +24,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import dev.sixik.unigui.widgets.containers.SplitPanel;
 
-/** V3 migration adapter for SplitPanel pane slots and absolute splitter handle. */
+/** V3-адаптер миграции для слотов панелей SplitPanel и абсолютной ручки разделителя. */
 public final class LayoutV3SplitAdapter {
     private static final LayoutNodeId FIRST_ID = LayoutNodeId.of("first");
     private static final LayoutNodeId SECOND_ID = LayoutNodeId.of("second");
@@ -47,7 +45,7 @@ public final class LayoutV3SplitAdapter {
                                float minSecondSize) {
         LayoutBuild build = build(first, second, splitter, width, height,
                 orientation, splitRatio, splitterThickness, minFirstSize, minSecondSize);
-        TaffyLayoutEngine.INSTANCE.compute(build.root(), LayoutInput.of(width, height));
+        WebLayoutEngine.INSTANCE.compute(build.root(), LayoutInput.of(width, height));
     }
 
     public static void arrange(Widget first,
@@ -64,7 +62,7 @@ public final class LayoutV3SplitAdapter {
         }
         LayoutBuild build = build(first, second, splitter, bounds.width(), bounds.height(),
                 orientation, splitRatio, splitterThickness, minFirstSize, minSecondSize);
-        LayoutOutput output = TaffyLayoutEngine.INSTANCE.compute(
+        LayoutOutput output = WebLayoutEngine.INSTANCE.compute(
                 build.root(),
                 LayoutInput.of(bounds.width(), bounds.height()));
         applySlotResults(output, build.widgets(), bounds);
@@ -213,41 +211,7 @@ public final class LayoutV3SplitAdapter {
     }
 
     private static void arrangeInSlot(Widget child, float slotX, float slotY, float slotWidth, float slotHeight) {
-        LayoutConstraints constraints = child.layoutConstraints();
-        EdgeInsets margin = constraints.margin();
-        float innerX = slotX + margin.left();
-        float innerY = slotY + margin.top();
-        float innerWidth = Math.max(0.0f, slotWidth - margin.horizontal());
-        float innerHeight = Math.max(0.0f, slotHeight - margin.vertical());
-        float childWidth = resolveSize(innerWidth, constraints.preferredWidth(), child.desiredSize().width(),
-                constraints.minWidth(), constraints.maxWidth(), constraints.horizontalAlignment());
-        float childHeight = resolveSize(innerHeight, constraints.preferredHeight(), child.desiredSize().height(),
-                constraints.minHeight(), constraints.maxHeight(), constraints.verticalAlignment());
-        child.arrange(new MutableRect(
-                align(innerX, innerWidth, childWidth, constraints.horizontalAlignment()),
-                align(innerY, innerHeight, childHeight, constraints.verticalAlignment()),
-                childWidth,
-                childHeight));
-    }
-
-    private static float resolveSize(float available, float preferred, float measured, float min, float max, Alignment alignment) {
-        if (alignment == Alignment.STRETCH && LayoutConstraints.isAuto(preferred)) {
-            return clamp(available, min, max);
-        }
-        float desired = LayoutConstraints.isAuto(preferred) ? measuredOrFallback(measured, available) : preferred;
-        return Math.min(available, clamp(desired, min, max));
-    }
-
-    private static float measuredOrFallback(float measured, float fallback) {
-        return measured > 0.0f ? measured : fallback;
-    }
-
-    private static float align(float start, float available, float size, Alignment alignment) {
-        return switch (alignment == null ? Alignment.STRETCH : alignment) {
-            case START, STRETCH -> start;
-            case CENTER -> start + (available - size) * 0.5f;
-            case END -> start + available - size;
-        };
+        SlotLayout.arrangeChild(child, slotX, slotY, slotWidth, slotHeight);
     }
 
     private static float clamp01(float value) {

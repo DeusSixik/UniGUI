@@ -2,7 +2,7 @@ package dev.sixik.unigui.api.layout.v3;
 
 import java.util.Objects;
 
-/** Stable identifier used to connect a layout result back to its widget or synthetic node. */
+/** Стабильный идентификатор, связывающий результат компоновки с виджетом или синтетическим узлом. */
 public record LayoutNodeId(String value) {
     public LayoutNodeId {
         value = Objects.requireNonNull(value, "value").trim();

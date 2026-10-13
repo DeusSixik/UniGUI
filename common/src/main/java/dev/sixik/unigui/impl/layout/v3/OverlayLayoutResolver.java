@@ -12,12 +12,12 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Backend-neutral resolver for Layout V3 overlay portals.
+ * Нейтральный к бэкенду резолвер для оверлей-порталов Layout V3.
  *
- * <p>The resolver intentionally does not mutate widgets. It converts a list of
- * anchored overlay requests into synthetic portal layout results with explicit
- * draw and hit-test ordering. Runtime integration can then apply those results
- * to Popup, ComboBox, DropDownBox, Tooltip and similar floating widgets.</p>
+ * <p>Резолвер намеренно не мутирует виджеты. Он преобразует список якорных
+ * запросов оверлея в синтетические результаты раскладки порталов с явным
+ * порядком отрисовки и хит-теста. Интеграция рантайма затем может применить эти результаты
+ * к Popup, ComboBox, DropDownBox, Tooltip и подобным плавающим виджетам.</p>
  */
 public final class OverlayLayoutResolver {
     public static final int DEFAULT_DRAW_ORDER_BASE = 10_000;
@@ -172,11 +172,11 @@ public final class OverlayLayoutResolver {
     }
 
     public enum ClippingPolicy {
-        /** Overlay is constrained to the root overlay host bounds. */
+        /** Оверлей ограничен границами корневого хоста оверлеев. */
         CLIP_TO_ROOT,
-        /** Overlay ignores intermediate parent clipping but is still constrained to the root host. */
+        /** Оверлей игнорирует отсечение промежуточных родителей, но остаётся ограничен корневым хостом. */
         ALLOW_OUTSIDE_PARENT,
-        /** Overlay may overflow root/screen bounds; no final clamp is applied. */
+        /** Оверлей может выходить за границы корня/экрана; финальное ограничение не применяется. */
         ALLOW_OUTSIDE_SCREEN
     }
 

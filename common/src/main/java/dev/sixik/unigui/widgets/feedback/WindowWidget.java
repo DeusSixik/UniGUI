@@ -28,27 +28,27 @@ import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.layout.Overflow;
+import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
 import dev.sixik.unigui.api.layout.PositionType;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
-import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
-import dev.sixik.unigui.widgets.render.WindowRenderer;
-import dev.sixik.unigui.widgets.render.WindowState;
 
 import java.util.Objects;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.ScrollView;
 import dev.sixik.unigui.widgets.containers.StackPanel;
+import dev.sixik.unigui.widgets.docking.DockPaneKind;
+import dev.sixik.unigui.widgets.docking.DockingRoot;
 import dev.sixik.unigui.widgets.data.VirtualTableView;
 import dev.sixik.unigui.widgets.display.TextWidget;
 import dev.sixik.unigui.widgets.interaction.Button;
@@ -79,7 +79,6 @@ public class WindowWidget extends Box implements OverlayHostAware {
     private final MutableColor headerColor = new MutableColor(0.075f, 0.090f, 0.125f, 0.98f);
     private final MutableColor headerSeparatorColor = new MutableColor(0.22f, 0.24f, 0.30f, 0.95f);
     private final MutableColor titleColor = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
-    private WindowRenderer renderer;
     private String title = "";
     private RichText richTitle = RichText.plain("");
     private Widget content;
@@ -89,6 +88,9 @@ public class WindowWidget extends Box implements OverlayHostAware {
     private boolean modal;
     private boolean fixedModal;
     private boolean dockRedockLocked;
+    private boolean dockable;
+    private String dockPaneId = "";
+    private DockPaneKind dockKind = DockPaneKind.TOOL;
     private boolean draggable = true;
     private boolean dragging;
     private boolean resizable = true;
@@ -119,7 +121,6 @@ public class WindowWidget extends Box implements OverlayHostAware {
     private final MutableRect hostBounds = new MutableRect();
 
     public WindowWidget() {
-        boxVisualEnabled(false);
         backgroundVisible(true);
         borderVisible(true);
         focusable(true);
@@ -302,8 +303,94 @@ public class WindowWidget extends Box implements OverlayHostAware {
     public WindowWidget dockRedockLocked(boolean dockRedockLocked) {
         if (this.dockRedockLocked == dockRedockLocked) return this;
         this.dockRedockLocked = dockRedockLocked;
+        if (dockRedockLocked) {
+            DockingRoot.clearForeignWindowDropPreview(this);
+        }
         invalidate(InvalidationFlags.VISUAL);
         return this;
+    }
+
+    /**
+     * Возвращает, может ли окно докироваться drag-to-dock в {@link DockingRoot}.
+     *
+     * <p>По умолчанию {@code false}: окно остаётся свободным floating-окном.
+     * При включении перетаскивание окна за header над {@link DockingRoot}
+     * показывает drop preview, а release докирует контент окна как
+     * {@code DockPane} и закрывает само окно.</p>
+     */
+    public boolean dockable() {
+        return dockable;
+    }
+
+    /**
+     * Включает или выключает drag-to-dock этого окна в {@link DockingRoot}.
+     *
+     * @param dockable {@code true}, чтобы разрешить докирование перетаскиванием
+     * @return это окно для fluent-настройки
+     */
+    @XmlAttribute(value = "dockable", category = "Behavior", defaultValue = "false", description = "Whether dragging this window over a DockingRoot docks it as a pane.")
+    public WindowWidget dockable(boolean dockable) {
+        if (this.dockable == dockable) return this;
+        this.dockable = dockable;
+        if (!dockable) {
+            DockingRoot.clearForeignWindowDropPreview(this);
+        }
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Id, под которым контент окна будет зарегистрирован как {@code DockPane} при докинге.
+     *
+     * <p>Пустая строка означает авто-id: сначала используется widget id окна,
+     * иначе генерируется случайный id панели.</p>
+     */
+    public String dockPaneId() {
+        return dockPaneId;
+    }
+
+    /**
+     * Задаёт id будущей dock-панели.
+     *
+     * @param dockPaneId id панели или пустая строка для авто-id
+     * @return это окно для fluent-настройки
+     */
+    @XmlAttribute(value = "dockPaneId", category = "Behavior", defaultValue = "", description = "Pane id used when this window is docked into a DockingRoot.")
+    public WindowWidget dockPaneId(String dockPaneId) {
+        String normalized = dockPaneId == null ? "" : dockPaneId.trim();
+        if (this.dockPaneId.equals(normalized)) return this;
+        this.dockPaneId = normalized;
+        return this;
+    }
+
+    /**
+     * Роль будущей dock-панели: документ или tool-панель.
+     */
+    public DockPaneKind dockKind() {
+        return dockKind;
+    }
+
+    /**
+     * Задаёт роль будущей dock-панели.
+     *
+     * @param dockKind роль панели; {@code null} нормализуется в {@code TOOL}
+     * @return это окно для fluent-настройки
+     */
+    @XmlAttribute(value = "dockKind", category = "Behavior", defaultValue = "tool", description = "Dock pane kind used when this window is docked: tool or document.")
+    public WindowWidget dockKind(DockPaneKind dockKind) {
+        DockPaneKind normalized = dockKind == null ? DockPaneKind.TOOL : dockKind;
+        if (this.dockKind == normalized) return this;
+        this.dockKind = normalized;
+        return this;
+    }
+
+    /**
+     * Id-источник для drop intent при перетаскивании окна над {@link DockingRoot}.
+     */
+    public String dockSourceId() {
+        if (!dockPaneId.isEmpty()) return dockPaneId;
+        String widgetId = id();
+        return widgetId == null ? "" : widgetId;
     }
 
     public WindowWidget openModal() {
@@ -330,6 +417,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
         if (!open) {
             stopDragging();
             stopResizing();
+            DockingRoot.clearForeignWindowDropPreview(this);
             if (windowManager != null) {
                 windowManager.onWindowClosed(this);
             } else {
@@ -492,21 +580,6 @@ public class WindowWidget extends Box implements OverlayHostAware {
 
     public MutableColor titleColor() {
         return titleColor;
-    }
-
-    public WindowRenderer renderer() {
-        return renderer;
-    }
-
-    public WindowWidget renderer(WindowRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public WindowWidget useDefaultRenderer() {
-        return renderer(null);
     }
 
     public EventSubscription onOpened(EventListener<? super WindowOpenedEvent> listener) {
@@ -712,6 +785,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
                 && dragging
                 && pointer.pointerId() == dragPointerId) {
             updateDrag(pointer.rootX(), pointer.rootY());
+            DockingRoot.previewForeignWindowDrop(this, pointer.rootX(), pointer.rootY());
             event.cancel();
         } else if (event instanceof PointerReleasedEvent pointer
                 && pointer.button() == PointerButton.PRIMARY
@@ -719,6 +793,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
                 && pointer.pointerId() == dragPointerId) {
             updateDrag(pointer.rootX(), pointer.rootY());
             stopDragging();
+            DockingRoot.finishForeignWindowDrop(this, pointer.rootX(), pointer.rootY());
             event.cancel();
         }
     }
@@ -741,47 +816,55 @@ public class WindowWidget extends Box implements OverlayHostAware {
     @Override
     protected void renderContent(RenderContext context) {
         applyTheme();
-        effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot(context));
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        if (renderCustomVisual(draw)) {
+            super.renderContent(context);
+            return;
+        }
+        float x = layoutBounds().x();
+        float y = layoutBounds().y();
+        float width = layoutBounds().width();
+        float height = layoutBounds().height();
+        if (width <= 0.0f || height <= 0.0f) {
+            super.renderContent(context);
+            return;
+        }
+        float headerHeight = Math.min(this.headerHeight, height);
+        draw.rect(x, y, width, headerHeight, Paint.fill(headerColor));
+        draw.line(x, y + this.headerHeight,
+                x + width, y + this.headerHeight,
+                Paint.stroke(headerSeparatorColor, 1.0f));
+        if (active || dragging) {
+            draw.line(x, y,
+                    x + width, y,
+                    Paint.stroke(titleColor, dragging ? 2.0f : 1.25f));
+        }
+        if (resizing) {
+            float marker = 7.0f;
+            draw.line(x + width - marker, y + height,
+                    x + width, y + height - marker,
+                    Paint.stroke(titleColor, 1.5f));
+            draw.line(x + width - marker * 1.8f, y + height,
+                    x + width, y + height - marker * 1.8f,
+                    Paint.stroke(titleColor, 1.0f));
+        }
+
+        float closeReserved = closeButtonVisible ? closeButton.layoutBounds().width() + 6.0f : 0.0f;
+        float collapseReserved = collapseButtonVisible ? collapseButton.layoutBounds().width() + 6.0f : 0.0f;
+        float titleX = x + padding.left();
+        float titleWidth = Math.max(0.0f, width - padding.left() - padding.right()
+                - closeReserved - collapseReserved);
+        draw.pushTextClip(titleX, y, titleWidth, headerHeight);
+        try {
+            if (richTitle != null && !richTitle.isEmpty()) {
+                float drawHeight = Math.min(headerHeight, Math.max(0.0f, TextEngine.measureTextHeight(draw.context(), richTitle)));
+                float drawY = y + Math.max(0.0f, headerHeight - drawHeight) * 0.5f;
+                TextEngine.drawInline(draw, richTitle, titleX, drawY, titleWidth, drawHeight, Paint.fill(titleColor));
+            }
+        } finally {
+            draw.popClip();
+        }
         super.renderContent(context);
-    }
-
-    private WindowRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(WindowRenderer.class, WidgetsRender.window()) : renderer;
-    }
-
-    private WindowState snapshot(RenderContext context) {
-        return new WindowState(
-                layoutBounds().x(),
-                layoutBounds().y(),
-                layoutBounds().width(),
-                layoutBounds().height(),
-                backgroundVisible(),
-                background().copy(),
-                radius(),
-                borderVisible(),
-                borderColor().copy(),
-                borderWidth(),
-                headerHeight,
-                padding.left(),
-                padding.right(),
-                closeButtonVisible,
-                closeButton.layoutBounds().width(),
-                collapseButtonVisible,
-                collapseButton.layoutBounds().width(),
-                collapsed,
-                richTitle,
-                TextEngine.measureLineWidth(context, richTitle),
-                TextEngine.measureTextHeight(context, richTitle),
-                headerColor.copy(),
-                headerSeparatorColor.copy(),
-                titleColor.copy(),
-                active,
-                focused(),
-                dragging,
-                resizing,
-                resizeHandle.publicName(),
-                modal,
-                effectiveResizable());
     }
 
     private boolean focused() {
@@ -827,6 +910,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
         }
         dragging = false;
         dragPointerId = -1;
+        DockingRoot.clearForeignWindowDropPreview(this);
         invalidate(InvalidationFlags.VISUAL);
         dispatchWindowMoveEnded();
     }
@@ -940,6 +1024,12 @@ public class WindowWidget extends Box implements OverlayHostAware {
         if (this.active == active) return;
         this.active = active;
         invalidate(InvalidationFlags.VISUAL);
+    }
+
+    @Override
+    public void dispose() {
+        DockingRoot.clearForeignWindowDropPreview(this);
+        super.dispose();
     }
 
     WindowActivatedEvent dispatchWindowActivated(WindowWidget previousWindow) {

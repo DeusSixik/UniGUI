@@ -27,7 +27,7 @@ import java.util.function.Supplier;
 
 /** Синхронизация world-scoped прогресса и закладок ISF. */
 public final class IsfNetwork {
-    private static final String VERSION = "7";
+    private static final String VERSION = "9";
     private static final int MAX_COLLECTION_SIZE = 100_000;
     private static final int MAX_RECIPE_JSON_LENGTH = 1_048_576;
     /** Бюджет символов JSON на один chunk: лимит payload'а — 1 МБ. */
@@ -56,23 +56,39 @@ public final class IsfNetwork {
         CHANNEL.registerMessage(packetId++, LibrarySnapshot.class,
                 LibrarySnapshot::encode, LibrarySnapshot::decode, LibrarySnapshot::handle,
                 java.util.Optional.of(NetworkDirection.PLAY_TO_CLIENT));
+        CHANNEL.registerMessage(packetId++, OpenRecipes.class,
+                OpenRecipes::encode, OpenRecipes::decode, OpenRecipes::handle,
+                java.util.Optional.of(NetworkDirection.PLAY_TO_CLIENT));
     }
 
     public static void toggleBookmark(ResourceLocation itemId, boolean bookmarked) {
         CHANNEL.sendToServer(new ToggleBookmark(itemId, bookmarked));
     }
 
+    /** Открыть игроку окно с конкретными рецептами (после sendLibrary — порядок важен). */
+    public static void openRecipes(ServerPlayer player, List<ResourceLocation> recipeIds) {
+        if (player == null || recipeIds == null || recipeIds.isEmpty()) return;
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new OpenRecipes(recipeIds));
+    }
+
     public static void requestRecipes(ResourceLocation itemId, boolean usages) {
         if (itemId != null) CHANNEL.sendToServer(new RequestRecipes(itemId, usages));
     }
 
+    /**
+     * Отправляет игроку полную библиотеку: ВСЕ документы рецептов, а не только
+     * открытые. Видимость в каталоге решает клиент (предметы без рецептов
+     * скрыты индексом контента), поэтому разблокировка через R/U больше не
+     * «протекает» неоткрытыми предметами в правое меню. Набор {@code unlocked}
+     * продолжает синхронизироваться отдельно (прогресс/стейджи) и на состав
+     * отправляемых документов не влияет.
+     */
     public static void sendLibrary(ServerPlayer player) {
         IsfWorldData data = IsfWorldData.get(player.server);
         Set<ResourceLocation> unlocked = data.unlocked(player.getUUID());
         Map<ResourceLocation, ResourceLocation> resultByRecipe = new LinkedHashMap<>();
         List<IsfRecipeDefinition> documents = new ArrayList<>();
         for (IsfResolvedRecipe recipe : dev.sixik.isf.IsfMod.runtime().definitions().recipes()) {
-            if (!unlocked.contains(recipe.id())) continue;
             ResourceLocation result = resultItem(recipe);
             if (result != null) resultByRecipe.put(recipe.id(), result);
             documents.add(new IsfRecipeDefinition(recipe.id(), recipe.recipeType(), null,
@@ -91,7 +107,8 @@ public final class IsfNetwork {
                 dev.sixik.isf.IsfMod.runtime().definitions().typeIcons();
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
                 new LibrarySnapshot(transferId, unlocked, data.bookmarks(player.getUUID()),
-                        resultByRecipe, catalysts, icons));
+                        resultByRecipe, catalysts, icons,
+                        dev.sixik.isf.IsfMod.runtime().definitions().typeOrder()));
     }
 
     private static List<List<IsfRecipeDefinition>> batchRecipes(List<IsfRecipeDefinition> documents) {
@@ -213,13 +230,14 @@ public final class IsfNetwork {
     }
 
     public record LibrarySnapshot(long transferId,
-                                  Set<ResourceLocation> unlocked,
-                                  Set<ResourceLocation> bookmarks,
-                                  Map<ResourceLocation, ResourceLocation> recipeResults,
-                                  Map<ResourceLocation, List<IsfCatalystDefinition>> typeCatalysts,
-                                  Map<ResourceLocation, ResourceLocation> typeIcons) {
+                                   Set<ResourceLocation> unlocked,
+                                   Set<ResourceLocation> bookmarks,
+                                   Map<ResourceLocation, ResourceLocation> recipeResults,
+                                   Map<ResourceLocation, List<IsfCatalystDefinition>> typeCatalysts,
+                                   Map<ResourceLocation, ResourceLocation> typeIcons,
+                                   List<ResourceLocation> typeOrder) {
         public LibrarySnapshot(Set<ResourceLocation> unlocked, Set<ResourceLocation> bookmarks) {
-            this(0L, unlocked, bookmarks, Map.of(), Map.of(), Map.of());
+            this(0L, unlocked, bookmarks, Map.of(), Map.of(), Map.of(), List.of());
         }
 
         public LibrarySnapshot {
@@ -242,6 +260,13 @@ public final class IsfNetwork {
                 });
             }
             typeIcons = Map.copyOf(safeIcons);
+            List<ResourceLocation> safeOrder = new ArrayList<>();
+            if (typeOrder != null) {
+                typeOrder.forEach(id -> {
+                    if (id != null) safeOrder.add(id);
+                });
+            }
+            typeOrder = List.copyOf(safeOrder);
         }
 
         private static void encode(LibrarySnapshot packet, FriendlyByteBuf buffer) {
@@ -270,6 +295,9 @@ public final class IsfNetwork {
                 buffer.writeResourceLocation(typeId);
                 buffer.writeResourceLocation(icon);
             });
+            requireValidSize(packet.typeOrder.size(), "type order");
+            buffer.writeVarInt(packet.typeOrder.size());
+            packet.typeOrder.forEach(buffer::writeResourceLocation);
         }
 
         private static LibrarySnapshot decode(FriendlyByteBuf buffer) {
@@ -297,20 +325,62 @@ public final class IsfNetwork {
             for (int index = 0; index < iconTypeCount; index++) {
                 typeIcons.put(buffer.readResourceLocation(), buffer.readResourceLocation());
             }
-            return new LibrarySnapshot(transferId, unlocked, bookmarks, resultByRecipe, typeCatalysts, typeIcons);
+            int typeOrderCount = readSize(buffer, "type order");
+            List<ResourceLocation> typeOrder = new ArrayList<>(typeOrderCount);
+            for (int index = 0; index < typeOrderCount; index++) {
+                typeOrder.add(buffer.readResourceLocation());
+            }
+            return new LibrarySnapshot(transferId, unlocked, bookmarks, resultByRecipe, typeCatalysts, typeIcons,
+                    typeOrder);
         }
 
         private static void handle(LibrarySnapshot packet, Supplier<NetworkEvent.Context> supplier) {
             NetworkEvent.Context context = supplier.get();
             context.enqueueWork(() -> IsfClientState.applyLibrarySnapshot(
                     packet.transferId, packet.unlocked, packet.bookmarks, packet.recipeResults,
-                    packet.typeCatalysts, packet.typeIcons));
+                    packet.typeCatalysts, packet.typeIcons, packet.typeOrder));
             context.setPacketHandled(true);
         }
     }
 
-    private static void writeIds(FriendlyByteBuf buffer, Set<ResourceLocation> ids) {
-        requireValidSize(ids.size(), "resource locations");
+    /**
+     * Сервер просит клиента открыть окно с конкретными рецептами.
+     * Посылается строго после sendLibrary того же тика: клиент уже знает документы.
+     */
+    public record OpenRecipes(List<ResourceLocation> recipes) {
+        public OpenRecipes {
+            List<ResourceLocation> safe = new ArrayList<>();
+            if (recipes != null) {
+                recipes.forEach(id -> {
+                    if (id != null && !safe.contains(id)) safe.add(id);
+                });
+            }
+            recipes = List.copyOf(safe);
+        }
+
+        private static void encode(OpenRecipes packet, FriendlyByteBuf buffer) {
+            requireValidSize(packet.recipes.size(), "open recipes");
+            buffer.writeVarInt(packet.recipes.size());
+            packet.recipes.forEach(buffer::writeResourceLocation);
+        }
+
+        private static OpenRecipes decode(FriendlyByteBuf buffer) {
+            int size = readSize(buffer, "open recipes");
+            List<ResourceLocation> recipes = new ArrayList<>(size);
+            for (int index = 0; index < size; index++) {
+                recipes.add(buffer.readResourceLocation());
+            }
+            return new OpenRecipes(recipes);
+        }
+
+        private static void handle(OpenRecipes packet, Supplier<NetworkEvent.Context> supplier) {
+            NetworkEvent.Context context = supplier.get();
+            context.enqueueWork(() -> dev.sixik.isf.client.IsfClient.openRecipes(packet.recipes));
+            context.setPacketHandled(true);
+        }
+    }
+
+    private static void writeIds(FriendlyByteBuf buffer, Set<ResourceLocation> ids) {        requireValidSize(ids.size(), "resource locations");
         buffer.writeVarInt(ids.size());
         ids.forEach(buffer::writeResourceLocation);
     }

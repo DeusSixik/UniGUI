@@ -2,11 +2,13 @@ package dev.sixik.unigui.testmod.client.ui.renders;
 
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.impl.text.TextEngine;
-import dev.sixik.unigui.widgets.render.ProgressBarRenderer;
+import dev.sixik.unigui.widgets.feedback.ProgressBar;
 
 import java.util.Locale;
 
@@ -61,15 +63,16 @@ public final class DestinyLikeProgressBarRenders {
     private static final float PADDED_FILL_SPACE = 1.2f;
     private static final float PADDED_FILL_SPACE_MUL_2 = PADDED_FILL_SPACE * 2.0f;
 
-    public static final ProgressBarRenderer PROGRESS_BAR_RENDERER = objectiveProgressBar(DEFAULT_OBJECTIVE_TEXT);
-    public static final ProgressBarRenderer SEASON_RANK_PROGRESS_BAR_RENDERER =
+    public static final WidgetRender PROGRESS_BAR_RENDERER = objectiveProgressBar(DEFAULT_OBJECTIVE_TEXT);
+    public static final WidgetRender SEASON_RANK_PROGRESS_BAR_RENDERER =
             seasonRankProgressBar(DEFAULT_SEASON_RANK_TEXT);
 
-    public static final ProgressBarRenderer PADDED_PROGRESS_BAR_RENDERER = (draw, state) -> {
-        float x = state.x();
-        float y = state.y();
-        float width = Math.max(0.0f, state.width());
-        float height = Math.max(0.0f, state.height());
+    public static final WidgetRender PADDED_PROGRESS_BAR_RENDERER = WidgetRender.of(ProgressBar.class, (draw, bar) -> {
+        RectView bounds = bar.layoutBounds();
+        float x = bounds.x();
+        float y = bounds.y();
+        float width = Math.max(0.0f, bounds.width());
+        float height = Math.max(0.0f, bounds.height());
         if (width <= 0.0f || height <= 0.0f) return;
 
         float innerX = x + PADDED_FILL_SPACE;
@@ -84,10 +87,10 @@ public final class DestinyLikeProgressBarRenders {
 
         draw.rect(innerX, innerY, innerWidth, innerHeight, PADDED_FILL_BACKGROUND_PAINT);
 
-        if (state.indeterminate()) {
+        if (bar.indeterminate()) {
             float segmentWidth = Math.max(8.0f, innerWidth * 0.32f);
             float travel = innerWidth + segmentWidth;
-            float offset = state.indeterminateOffset() - (float) Math.floor(state.indeterminateOffset());
+            float offset = bar.indeterminateOffset() - (float) Math.floor(bar.indeterminateOffset());
             float segmentX = innerX + offset * travel - segmentWidth;
             float visibleX = Math.max(innerX, segmentX);
             float visibleRight = Math.min(innerX + innerWidth, segmentX + segmentWidth);
@@ -98,20 +101,21 @@ public final class DestinyLikeProgressBarRenders {
             return;
         }
 
-        float progress = Math.max(0.0f, Math.min(1.0f, state.progress()));
+        float progress = Math.max(0.0f, Math.min(1.0f, bar.progress()));
         float fillWidth = Math.max(0.0f, Math.min(innerWidth, innerWidth * progress));
         if (fillWidth > 0.0f) {
             draw.rect(innerX, innerY, fillWidth, innerHeight, PADDED_FILL_PAINT);
         }
-    };
+    });
 
-    public static ProgressBarRenderer seasonRankProgressBar(String rankText) {
+    public static WidgetRender seasonRankProgressBar(String rankText) {
         String label = rankText == null ? "" : rankText;
-        return (draw, state) -> {
-            float x = state.x();
-            float y = state.y();
-            float width = Math.max(0.0f, state.width());
-            float height = Math.max(0.0f, state.height());
+        return WidgetRender.of(ProgressBar.class, (draw, bar) -> {
+            RectView bounds = bar.layoutBounds();
+            float x = bounds.x();
+            float y = bounds.y();
+            float width = Math.max(0.0f, bounds.width());
+            float height = Math.max(0.0f, bounds.height());
             if (width <= 0.0f || height <= 0.0f) return;
 
             float barHeight = Math.min(SEASON_BAR_HEIGHT, Math.max(0.8f, height * 0.24f));
@@ -128,19 +132,20 @@ public final class DestinyLikeProgressBarRenders {
             }
 
             drawBorder(draw, x, barY, width, barHeight, PADDED_WHITE_COLOR);
-            drawSeasonTexts(draw, label, formatSeasonCounter(state.value(), state.max()), x, textY, width, textHeight, true);
-            drawSeasonBar(draw, state.progress(), x, barY, width, barHeight);
-        };
+            drawSeasonTexts(draw, label, formatSeasonCounter(bar.value(), bar.max()), x, textY, width, textHeight, true);
+            drawSeasonBar(draw, bar.progress(), x, barY, width, barHeight);
+        });
     }
 
-    public static ProgressBarRenderer superProgressBar(String text, ColorView colorFill) {
+    public static WidgetRender superProgressBar(String text, ColorView colorFill) {
         String label = text == null ? "" : text;
         Paint fillPaint = Paint.fill(colorFill == null ? SEASON_FILL_COLOR : colorFill);
-        return (draw, state) -> {
-            float x = state.x();
-            float y = state.y();
-            float width = Math.max(0.0f, state.width());
-            float height = Math.max(0.0f, state.height());
+        return WidgetRender.of(ProgressBar.class, (draw, bar) -> {
+            RectView bounds = bar.layoutBounds();
+            float x = bounds.x();
+            float y = bounds.y();
+            float width = Math.max(0.0f, bounds.width());
+            float height = Math.max(0.0f, bounds.height());
             if (width <= 0.0f || height <= 0.0f) return;
 
             float barHeight = Math.min(SEASON_BAR_HEIGHT, Math.max(0.8f, height * 0.24f));
@@ -157,18 +162,19 @@ public final class DestinyLikeProgressBarRenders {
             }
 
             drawBorder(draw, x, barY, width, barHeight, PADDED_WHITE_COLOR);
-            drawSeasonTexts(draw, label, formatSeasonCounter(state.value(), state.max()), x, textY, width, textHeight, false);
-            drawSeasonBar(draw, state.progress(), x, barY, width, barHeight, fillPaint);
-        };
+            drawSeasonTexts(draw, label, formatSeasonCounter(bar.value(), bar.max()), x, textY, width, textHeight, false);
+            drawSeasonBar(draw, bar.progress(), x, barY, width, barHeight, fillPaint);
+        });
     }
 
-    public static ProgressBarRenderer objectiveProgressBar(String objectiveText) {
+    public static WidgetRender objectiveProgressBar(String objectiveText) {
         String label = objectiveText == null ? "" : objectiveText;
-        return (draw, state) -> {
-            float x = state.x();
-            float y = state.y();
-            float width = Math.max(0.0f, state.width());
-            float height = Math.max(0.0f, state.height());
+        return WidgetRender.of(ProgressBar.class, (draw, bar) -> {
+            RectView bounds = bar.layoutBounds();
+            float x = bounds.x();
+            float y = bounds.y();
+            float width = Math.max(0.0f, bounds.width());
+            float height = Math.max(0.0f, bounds.height());
             if (width <= 0.0f || height <= 0.0f) return;
 
             float contentX = x + BORDER_WIDTH;
@@ -177,15 +183,15 @@ public final class DestinyLikeProgressBarRenders {
             float contentHeight = Math.max(0.0f, height - BORDER_WIDTH * 2.0f);
 
             draw.rect(x, y, width, height, TRACK_PAINT);
-            if (state.indeterminate()) {
-                drawIndeterminateFill(draw, state.indeterminateOffset(), contentX, contentY, contentWidth, contentHeight);
+            if (bar.indeterminate()) {
+                drawIndeterminateFill(draw, bar.indeterminateOffset(), contentX, contentY, contentWidth, contentHeight);
             } else {
-                drawDeterminateFill(draw, state.progress(), contentX, contentY, contentWidth, contentHeight);
+                drawDeterminateFill(draw, bar.progress(), contentX, contentY, contentWidth, contentHeight);
             }
 
             drawBorder(draw, x, y, width, height);
-            drawTexts(draw, label, formatCounter(state.value(), state.max()), x, y, width, height);
-        };
+            drawTexts(draw, label, formatCounter(bar.value(), bar.max()), x, y, width, height);
+        });
     }
 
     private DestinyLikeProgressBarRenders() {

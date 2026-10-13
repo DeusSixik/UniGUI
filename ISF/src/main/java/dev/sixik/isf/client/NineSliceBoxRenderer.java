@@ -8,8 +8,7 @@ import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.widgets.render.BoxRenderer;
-import dev.sixik.unigui.widgets.render.BoxState;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 
 import java.util.Objects;
 
@@ -17,7 +16,7 @@ import java.util.Objects;
  * Рендерер 9-slice (nine-patch) для визуальной подложки виджетов.
  * Позволяет растягивать текстуры интерфейса Minecraft без размытия и деформации границ.
  */
-public final class NineSliceBoxRenderer implements BoxRenderer {
+public final class NineSliceBoxRenderer implements WidgetRender {
     private static final MutableColor WHITE = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
 
     private final TextureHandle texture;
@@ -87,9 +86,10 @@ public final class NineSliceBoxRenderer implements BoxRenderer {
     }
 
     @Override
-    public void render(DrawScope draw, BoxState state) {
-        if (state == null) return;
-        render(draw, state.x(), state.y(), state.width(), state.height());
+    public void render(DrawScope draw, Widget widget) {
+        if (widget == null) return;
+        RectView b = widget.layoutBounds();
+        render(draw, b.x(), b.y(), b.width(), b.height());
     }
 
     /**

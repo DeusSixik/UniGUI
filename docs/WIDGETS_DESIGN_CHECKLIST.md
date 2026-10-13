@@ -847,6 +847,7 @@
 - [x] Поддерживать resize handles.
 - [x] Поддерживать close/open state.
 - [x] Публиковать move/resize/open/close events.
+- [x] Поддерживать opt-in drag-to-dock в DockingRoot через флаг `dockable` (по умолчанию выключен): drag за header над DockingRoot показывает drop preview, release докирует контент как DockPane (`dockPaneId`/`dockKind`) и закрывает окно.
 - [ ] Проверить minimize behavior, если контракт требует именно minimize.
 - [ ] Добавить modal/fixed modal docs.
 

@@ -2,12 +2,14 @@ package dev.sixik.unigui.testmod.client.ui.renders;
 
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.text.Fonts;
 import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.impl.text.TextEngine;
-import dev.sixik.unigui.widgets.render.ButtonRenderer;
+import dev.sixik.unigui.widgets.interaction.Button;
 
 public final class DestinyLikeButtonRenders {
     private static final float BORDER_WIDTH = 0.16f;
@@ -19,27 +21,29 @@ public final class DestinyLikeButtonRenders {
     private static final float TEXT_TRACKING = 0.34f;
     private static final float TEXT_VISUAL_CENTER_OFFSET_Y = 0.2f;
 
-    public static final ButtonRenderer DEFAULT = ((draw, state) -> {
-        float x = state.x();
-        float y = state.y();
-        float w = Math.max(0.0f, state.width());
-        float h = Math.max(0.0f, state.height());
+    public static final WidgetRender DEFAULT = WidgetRender.of(Button.class, (draw, button) -> {
+        RectView bounds = button.layoutBounds();
+        float x = bounds.x();
+        float y = bounds.y();
+        float w = Math.max(0.0f, bounds.width());
+        float h = Math.max(0.0f, bounds.height());
         if (w <= 0.0f || h <= 0.0f) return;
 
-        draw.rect(x, y, w, h, Paint.fill(state.indicatorColor()));
-        drawBorder(draw, x, y, w, h, state.indicatorBorderColor());
+        draw.rect(x, y, w, h, Paint.fill(button.background()));
+        drawBorder(draw, x, y, w, h, button.borderColor());
 
-        if (!state.hasText()) return;
+        RichText richText = button.richText();
+        if (richText == null || richText.isEmpty()) return;
 
         float availableWidth = Math.max(0.0f, w - TEXT_HORIZONTAL_PADDING * 2.0f);
-        RichText text = destinyText(draw, state.text(), state.textColor(), availableWidth);
+        RichText text = destinyText(draw, button.text(), button.textColor(), availableWidth);
         float textWidth = Math.min(availableWidth, TextEngine.measureLineWidth(draw.context(), text));
         float textHeight = Math.min(h, TextEngine.measureTextHeight(text));
 
         float drawX = x + Math.max(0.0f, w - textWidth) * 0.5f;
         float drawY = y + Math.max(0.0f, h - textHeight) * 0.5f + TEXT_VISUAL_CENTER_OFFSET_Y;
 
-        draw.text(text, drawX, drawY, textWidth, textHeight, Paint.fill(state.textColor()));
+        draw.text(text, drawX, drawY, textWidth, textHeight, Paint.fill(button.textColor()));
     });
 
     private DestinyLikeButtonRenders() {

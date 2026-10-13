@@ -2,16 +2,16 @@ package dev.sixik.unigui.api.layout;
 
 public final class LayoutContext {
     /**
-     * Хранит текстовое или идентификационное значение {@code availableWidth}.
+     * Доступная ширина родителя для раскладки; бесконечность означает отсутствие предела.
      */
     private final float availableWidth;
     /**
-     * Хранит числовой параметр {@code availableHeight}, используемый в расчётах, вводе или отрисовке.
+     * Доступная высота родителя для раскладки; бесконечность означает отсутствие предела.
      */
     private final float availableHeight;
 
     /**
-     * Создаёт экземпляр {@code LayoutContext} и подготавливает его начальное состояние.
+     * Создаёт контекст с доступными шириной и высотой родителя.
      */
     public LayoutContext(float availableWidth, float availableHeight) {
         this.availableWidth = sanitizeAvailable(availableWidth);
@@ -19,21 +19,21 @@ public final class LayoutContext {
     }
 
     /**
-     * Возвращает текущее значение или выполняет операцию {@code availableWidth}.
+     * Возвращает доступную ширину.
      */
     public float availableWidth() {
         return availableWidth;
     }
 
     /**
-     * Возвращает текущее значение или выполняет операцию {@code availableHeight}.
+     * Возвращает доступную высоту.
      */
     public float availableHeight() {
         return availableHeight;
     }
 
     /**
-     * Приводит входное значение к безопасному или допустимому диапазону.
+     * Нормализует доступный размер: отрицательные в ноль, бесконечность означает отсутствие предела.
      */
     private static float sanitizeAvailable(float value) {
         if (Float.isNaN(value)) return 0.0f;

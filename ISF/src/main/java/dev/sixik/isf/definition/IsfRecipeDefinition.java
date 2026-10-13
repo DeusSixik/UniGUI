@@ -25,6 +25,20 @@ public record IsfRecipeDefinition(
         triggers = triggers == null ? List.of() : List.copyOf(triggers);
     }
 
+    /**
+     * @return id выходного предмета из параметра {@code "result"}
+     * или {@code null}, если параметра нет/он не предмет.
+     */
+    public ResourceLocation resultItemId() {
+        JsonElement result = parameters.get("result");
+        if (result == null || !result.isJsonPrimitive()) return null;
+        try {
+            return ResourceLocation.tryParse(result.getAsString());
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
     private static Map<String, JsonElement> copyJsonMap(Map<String, JsonElement> source) {
         if (source == null || source.isEmpty()) return Map.of();
         Map<String, JsonElement> copy = new LinkedHashMap<>();

@@ -1,17 +1,16 @@
 package dev.sixik.unigui.widgets.containers;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
-import dev.sixik.unigui.api.layout.Alignment;
-import dev.sixik.unigui.api.layout.EdgeInsets;
-import dev.sixik.unigui.api.layout.LayoutConstraints;
+import dev.sixik.unigui.api.layout.GridAutoFlow;
+import dev.sixik.unigui.api.layout.GridTrack;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
-import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.impl.layout.SlotLayout;
 import dev.sixik.unigui.impl.layout.v3.LayoutV3GridAdapter;
 
 /**
@@ -54,6 +53,46 @@ public final class GridBox extends PanelWidget {
         int normalized = Math.max(1, columns);
         if (this.columns == normalized) return this;
         this.columns = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Задаёт явный шаблон колонок грида.
+     *
+     * <p>Когда шаблон задан, он заменяет равномерное деление по {@link #columns()}:
+     * треки могут быть фиксированными, процентными, {@code fr}, content-based или
+     * {@code minmax}. Строки без шаблона остаются неявными ({@code auto}).</p>
+     *
+     * @param tracks треки колонок
+     * @return эта сетка для fluent-настройки
+     */
+    public GridBox gridColumns(GridTrack... tracks) {
+        layoutStyle().gridTemplateColumns(tracks);
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Задаёт явный шаблон строк грида.
+     *
+     * @param tracks треки строк
+     * @return эта сетка для fluent-настройки
+     */
+    public GridBox gridRows(GridTrack... tracks) {
+        layoutStyle().gridTemplateRows(tracks);
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Задаёт направление автопозиционирования в гриде.
+     *
+     * @param flow направление; {@code null} трактуется как {@link GridAutoFlow#ROW}
+     * @return эта сетка для fluent-настройки
+     */
+    public GridBox gridAutoFlow(GridAutoFlow flow) {
+        layoutStyle().gridAutoFlow(flow);
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
@@ -136,36 +175,6 @@ public final class GridBox extends PanelWidget {
     }
 
     private static void arrangeChild(Widget child, float cellX, float cellY, float cellWidth, float cellHeight) {
-        LayoutConstraints constraints = child.layoutConstraints();
-        EdgeInsets margin = constraints.margin();
-        float innerX = cellX + margin.left();
-        float innerY = cellY + margin.top();
-        float innerWidth = Math.max(0.0f, cellWidth - margin.horizontal());
-        float innerHeight = Math.max(0.0f, cellHeight - margin.vertical());
-        float childWidth = resolveSize(innerWidth, constraints.preferredWidth(), child.desiredSize().width(), constraints.minWidth(), constraints.maxWidth(), constraints.horizontalAlignment());
-        float childHeight = resolveSize(innerHeight, constraints.preferredHeight(), child.desiredSize().height(), constraints.minHeight(), constraints.maxHeight(), constraints.verticalAlignment());
-        float childX = align(innerX, innerWidth, childWidth, constraints.horizontalAlignment());
-        float childY = align(innerY, innerHeight, childHeight, constraints.verticalAlignment());
-        child.arrange(new MutableRect(childX, childY, childWidth, childHeight));
-    }
-
-    private static float resolveSize(float available, float preferred, float measured, float min, float max, Alignment alignment) {
-        if (alignment == Alignment.STRETCH && LayoutConstraints.isAuto(preferred)) {
-            return clamp(available, min, max);
-        }
-        float desired = LayoutConstraints.isAuto(preferred) ? (measured > 0.0f ? measured : available) : preferred;
-        return Math.min(available, clamp(desired, min, max));
-    }
-
-    private static float align(float start, float available, float size, Alignment alignment) {
-        return switch (alignment == null ? Alignment.STRETCH : alignment) {
-            case START, STRETCH -> start;
-            case CENTER -> start + (available - size) * 0.5f;
-            case END -> start + available - size;
-        };
-    }
-
-    private static float clamp(float value, float min, float max) {
-        return Math.max(min, Math.min(max, Math.max(0.0f, value)));
+        SlotLayout.arrangeChild(child, cellX, cellY, cellWidth, cellHeight);
     }
 }

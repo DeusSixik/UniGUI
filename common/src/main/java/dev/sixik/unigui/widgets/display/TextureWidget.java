@@ -8,18 +8,16 @@ import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.ImageFit;
 import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.render.TextureFilter;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.TexturePlacement;
 import dev.sixik.unigui.api.render.TextureWrap;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlTextureAttributes;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
-import dev.sixik.unigui.widgets.render.TextureWidgetRenderer;
-import dev.sixik.unigui.widgets.render.TextureWidgetState;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
 
@@ -57,7 +55,6 @@ public class TextureWidget extends WidgetBase {
     private final MutableColor tint = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private final MutableRect source = new MutableRect(0.0f, 0.0f, 1.0f, 1.0f);
     private final MutableRect previousSource = new MutableRect(0.0f, 0.0f, 1.0f, 1.0f);
-    private TextureWidgetRenderer renderer;
     private ImageFit fit = ImageFit.STRETCH;
     private ImageFit previousFit = ImageFit.STRETCH;
     private final MutableColor previousTint = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -165,21 +162,6 @@ public class TextureWidget extends WidgetBase {
         return source;
     }
 
-    public TextureWidgetRenderer renderer() {
-        return renderer;
-    }
-
-    public TextureWidget renderer(TextureWidgetRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public TextureWidget useDefaultRenderer() {
-        return renderer(null);
-    }
-
     public TextureWidget source(float u, float v, float width, float height) {
         source.set(u, v, width, height);
         return this;
@@ -232,63 +214,38 @@ public class TextureWidget extends WidgetBase {
         pushOpacity(context);
         try {
             DrawScope draw = new DrawScope(context, transform(), layoutBounds());
-            if (previousTexture != null && textureCrossfadeProgress < 1.0f) {
-                renderTextureState(context, draw, snapshot(
-                        previousTexture,
-                        previousSource,
-                        previousFit,
-                        multipliedAlpha(previousTint, 1.0f - textureCrossfadeProgress)));
+            if (renderCustomVisual(draw)) {
+                return;
             }
-            if (texture != null) {
-                ColorView effectiveTint = previousTexture == null
-                        ? tint.copy()
-                        : multipliedAlpha(tint, textureCrossfadeProgress);
-                renderTextureState(context, draw, snapshot(texture, source, fit, effectiveTint));
-            }
+            renderDefaultVisual(draw);
         } finally {
             popOpacity(context);
         }
     }
 
-    protected void renderTextureState(RenderContext context, DrawScope draw, TextureWidgetState state) {
-        if (renderer != null) {
-            renderer.render(draw, state);
-            return;
+    /**
+     * Рисует стандартный визуал виджета, включая crossfade предыдущей текстуры.
+     *
+     * @param draw draw scope виджета
+     */
+    public void renderDefaultVisual(DrawScope draw) {
+        if (previousTexture != null && textureCrossfadeProgress < 1.0f) {
+            TexturePlacement previousPlacement = TexturePlacement.fit(previousTexture,
+                    previousSource, layoutBounds(), previousFit);
+            if (previousPlacement != null) {
+                draw.texture(previousTexture, previousPlacement, radius,
+                        Paint.fill(multipliedAlpha(previousTint, 1.0f - textureCrossfadeProgress)));
+            }
         }
-        TextureWidgetRenderer styled = styleRendererOverride(TextureWidgetRenderer.class);
-        if (styled != null) {
-            styled.render(draw, state);
-            return;
+        if (texture != null) {
+            ColorView effectiveTint = previousTexture == null
+                    ? tint
+                    : multipliedAlpha(tint, textureCrossfadeProgress);
+            TexturePlacement placement = TexturePlacement.fit(texture, source, layoutBounds(), fit);
+            if (placement != null) {
+                draw.texture(texture, placement, radius, Paint.fill(effectiveTint));
+            }
         }
-        if (renderStylePlan(context, TextureWidgetState.class, state)) return;
-        defaultRenderer().render(draw, state);
-    }
-
-    protected TextureWidgetRenderer defaultRenderer() {
-        return WidgetsRender.textureWidget();
-    }
-
-    protected TextureWidgetRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(TextureWidgetRenderer.class, defaultRenderer()) : renderer;
-    }
-
-    protected TextureWidgetState snapshot() {
-        return snapshot(texture, source, fit, tint.copy());
-    }
-
-    protected TextureWidgetState snapshot(TextureHandle texture, RectView source, ImageFit fit, ColorView tint) {
-        TexturePlacement placement = texture == null ? null : TexturePlacement.fit(texture, source, layoutBounds(), fit);
-        return new TextureWidgetState(
-                layoutBounds().x(),
-                layoutBounds().y(),
-                layoutBounds().width(),
-                layoutBounds().height(),
-                texture,
-                source == null ? new MutableRect(0.0f, 0.0f, 1.0f, 1.0f) : new MutableRect(source.x(), source.y(), source.width(), source.height()),
-                fit,
-                radius,
-                tint == null ? new MutableColor() : new MutableColor(tint.r(), tint.g(), tint.b(), tint.a()),
-                placement);
     }
 
     private void setTextureCrossfadeProgress(float progress) {

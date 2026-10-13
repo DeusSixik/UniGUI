@@ -2,9 +2,11 @@ package dev.sixik.unigui.testmod.client.ui.renders;
 
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.widgets.core.Orientation;
-import dev.sixik.unigui.widgets.render.ScrollBarRenderer;
+import dev.sixik.unigui.widgets.interaction.ScrollBar;
 
 public final class DestinyLikeScrollBarRenders {
     private static final float BORDER_WIDTH = 0.16f;
@@ -15,28 +17,29 @@ public final class DestinyLikeScrollBarRenders {
     private static final ColorView THUMB_ACTIVE = MutableColor.rgba255(238, 241, 247, 250);
     private static final ColorView THUMB_ACCENT = MutableColor.rgba255(214, 207, 145, 210);
 
-    public static final ScrollBarRenderer DEFAULT = (draw, state) -> {
-        float x = state.x();
-        float y = state.y();
-        float width = Math.max(0.0f, state.width());
-        float height = Math.max(0.0f, state.height());
+    public static final WidgetRender DEFAULT = WidgetRender.of(ScrollBar.class, (draw, bar) -> {
+        RectView bounds = bar.layoutBounds();
+        float x = bounds.x();
+        float y = bounds.y();
+        float width = Math.max(0.0f, bounds.width());
+        float height = Math.max(0.0f, bounds.height());
         if (width <= 0.0f || height <= 0.0f) return;
 
         draw.rect(x, y, width, height, Paint.fill(TRACK));
         DestinyLikeRenderPrimitives.rectBorder(draw, x, y, width, height, TRACK_BORDER, BORDER_WIDTH);
 
-        if (state.orientation() == Orientation.VERTICAL) {
-            float thumbHeight = Math.max(8.0f, Math.min(height, state.thumbLength(height)));
+        if (bar.orientation() == Orientation.VERTICAL) {
+            float thumbHeight = Math.max(8.0f, Math.min(height, thumbLength(bar, height)));
             float travel = Math.max(0.0f, height - thumbHeight);
-            float thumbY = y + travel * clamp01(state.normalizedValue());
-            drawVerticalThumb(draw, state.dragging(), x, thumbY, width, thumbHeight);
+            float thumbY = y + travel * clamp01(normalizedValue(bar));
+            drawVerticalThumb(draw, bar.dragging(), x, thumbY, width, thumbHeight);
         } else {
-            float thumbWidth = Math.max(8.0f, Math.min(width, state.thumbLength(width)));
+            float thumbWidth = Math.max(8.0f, Math.min(width, thumbLength(bar, width)));
             float travel = Math.max(0.0f, width - thumbWidth);
-            float thumbX = x + travel * clamp01(state.normalizedValue());
-            drawHorizontalThumb(draw, state.dragging(), thumbX, y, thumbWidth, height);
+            float thumbX = x + travel * clamp01(normalizedValue(bar));
+            drawHorizontalThumb(draw, bar.dragging(), thumbX, y, thumbWidth, height);
         }
-    };
+    });
 
     private DestinyLikeScrollBarRenders() {
     }
@@ -67,6 +70,18 @@ public final class DestinyLikeScrollBarRenders {
         DestinyLikeRenderPrimitives.rectBorder(draw, x, thumbY, width, thumbHeight,
                 active ? THUMB_ACTIVE : THUMB_ACCENT, BORDER_WIDTH);
         draw.rect(x, thumbY, Math.min(1.0f, width), thumbHeight, Paint.fill(THUMB_ACCENT));
+    }
+
+    private static float normalizedValue(ScrollBar bar) {
+        float range = bar.max() - bar.min();
+        if (range <= 0.0f) return 0.0f;
+        return clamp01((bar.value() - bar.min()) / range);
+    }
+
+    private static float thumbLength(ScrollBar bar, float trackLength) {
+        float pageSize = bar.pageSize();
+        float contentExtent = Math.max(pageSize, pageSize + Math.max(0.0f, bar.max() - bar.min()));
+        return Math.max(8.0f, trackLength * (pageSize / contentExtent));
     }
 
     private static float clamp01(float value) {

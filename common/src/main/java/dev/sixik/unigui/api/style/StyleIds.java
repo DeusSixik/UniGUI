@@ -18,10 +18,12 @@ public final class StyleIds {
     /** Id style-свойств, на основе которых создаются {@link StyleKey} constants. */
     public static final class Key {
         public static final String RENDERER = "renderer";
+        public static final String BACKGROUND_KIND = "background.kind";
         public static final String BACKGROUND_COLOR = "background.color";
         public static final String BACKGROUND_TEXTURE = "background.texture";
         public static final String BACKGROUND_TEXTURE_TINT = "background.texture.tint";
         public static final String BACKGROUND_TEXTURE_FIT = "background.texture.fit";
+        public static final String BACKGROUND_SHADER = "background.shader";
         public static final String BORDER_COLOR = "border.color";
         public static final String TEXT_COLOR = "text.color";
         public static final String PLACEHOLDER_COLOR = "placeholder.color";

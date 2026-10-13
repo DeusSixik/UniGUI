@@ -3,6 +3,8 @@ jdk:
 
 before_install:
   - chmod +x gradlew
+  - chmod +x jitpack-build.sh
+  - sh jitpack-build.sh verify
 
 install:
-  - ./gradlew -Dorg.gradle.java.home=$JAVA_HOME publishToMavenLocal -x test --no-daemon
+  - sh jitpack-build.sh build

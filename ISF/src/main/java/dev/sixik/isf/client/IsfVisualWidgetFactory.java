@@ -8,13 +8,13 @@ import dev.sixik.isf.definition.IsfVisualNode;
 import dev.sixik.isf.runtime.IsfEvaluationContext;
 import dev.sixik.isf.runtime.IsfExpressionEvaluator;
 import dev.sixik.unigui.api.layout.Align;
+import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.Justify;
 import dev.sixik.unigui.api.layout.PositionType;
 import dev.sixik.unigui.api.math.MutableColor;
-import dev.sixik.unigui.api.render.TextureOptions;
+import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.backend.minecraft_impl.MinecraftTextureHandle;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.GridBox;
@@ -23,7 +23,6 @@ import dev.sixik.unigui.widgets.containers.PanelWidget;
 import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.feedback.ProgressBar;
-import dev.sixik.unigui.widgets.interaction.Button;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
@@ -38,16 +37,23 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /** Создаёт UniGUI-дерево из декларативного visual ISF-рецепта. */
 final class IsfVisualWidgetFactory {
+    private static final org.slf4j.Logger LOGGER =
+            org.slf4j.LoggerFactory.getLogger(IsfVisualWidgetFactory.class);
     private static final float CELL = 18.0f;
+    /** Кегль подписи шанса: дефолтные 10px распирают колонку 22px («12.5%» налезает). */
+    private static final float CHANCE_TEXT_SIZE = 7.0f;
     static final String SLOT_TEXTURE = "isf:textures/jei/atlas/gui/slot.png";
     static final String ARROW_TEXTURE = "isf:textures/jei/atlas/gui/recipe_arrow.png";
 
     private final IsfExpressionEvaluator evaluator = new IsfExpressionEvaluator(IsfMod.runtime().functions());
     private final IsfEvaluationContext context;
-    private final Button recipePlus = new Button();
+    /** Клетки сетки ингредиентов в порядке строк (для подсветки нехватки). */
+    private final List<IsfItemButton> ingredientCells = new ArrayList<>();
+    private final List<IsfTransferButton> transferButtons = new ArrayList<>();
 
     private IsfVisualWidgetFactory(Map<String, JsonElement> parameters) {
         context = new IsfEvaluationContext(parameters);
@@ -55,7 +61,12 @@ final class IsfVisualWidgetFactory {
 
     static Widget create(IsfVisualNode visual, Map<String, JsonElement> parameters) {
         if (visual == null) return null;
-        Widget widget = new IsfVisualWidgetFactory(parameters).createNode(visual);
+        IsfVisualWidgetFactory factory = new IsfVisualWidgetFactory(parameters);
+        Widget widget = factory.createNode(visual);
+        // Кнопки переноса привязываем к клеткам после сборки всего дерева.
+        for (IsfTransferButton button : factory.transferButtons) {
+            button.bindCells(factory.ingredientCells);
+        }
         if (widget != null) {
             adaptHeightToChildren(widget);
         }
@@ -79,6 +90,10 @@ final class IsfVisualWidgetFactory {
             case "unigui:texture", "isf:texture", "texture" -> textureWidget(node);
             case "unigui:progress_bar", "unigui:progressbar", "progress_bar" -> new ProgressBar();
             case "isf:ingredient_grid", "ingredient_grid" -> ingredientGrid(node);
+            case "isf:loot_grid", "loot_grid" -> lootGrid(node);
+            case "isf:loot_scroll", "loot_scroll" -> lootScroll(node);
+            case "isf:entity_or_item", "entity_or_item" -> entityOrItem(node);
+            case "isf:transfer_button", "transfer_button" -> transferButton(node);
             default -> {
                 Label unsupported = new Label("Unknown visual widget: " + node.widget());
                 unsupported.color(MutableColor.fromHex("#FF6B6BFF"));
@@ -97,7 +112,6 @@ final class IsfVisualWidgetFactory {
                                 8, 8, TextureOptions.nearest()),
                                 4.0f));
                         panel.addChild(childWidget);
-                        panel.addChild(recipePlus);
                     }
                 }
             }
@@ -105,11 +119,25 @@ final class IsfVisualWidgetFactory {
         return widget;
     }
 
+    /**
+     * Кнопка переноса в сетку крафта (объявляется в визуале типа).
+     * Ингредиенты берёт из того же параметра, что и сетка.
+     */
+    private WidgetBase transferButton(IsfVisualNode node) {
+        IsfTransferButton button = new IsfTransferButton(
+                string(value(node, "kind"), IsfTransferButton.KIND_CRAFTING_GRID),
+                value(node, "items"));
+        transferButtons.add(button);
+        return button;
+    }
+
     private WidgetBase itemWidget(IsfVisualNode node) {
         JsonElement raw = value(node, "item");
         ItemStack stack = item(raw);
+        // Свойство "count" перекрывает суффикс "#count" в id, но только когда оно > 1:
+        // fallback 1 не должен затирать количество, уже заданное в записи предмета.
         int count = integer(value(node, "count"), 1);
-        if (!stack.isEmpty() && count > 0) stack.setCount(Math.min(count, stack.getMaxStackSize()));
+        if (!stack.isEmpty() && count > 1) stack.setCount(Math.min(count, stack.getMaxStackSize()));
         if (stack.isEmpty()) {
             IsfItemIconWidget icon = new IsfItemIconWidget(stack);
             icon.enabled(false);
@@ -176,15 +204,320 @@ final class IsfVisualWidgetFactory {
         for (List<JsonArray> row : rows) {
             for (int column = 0; column < columns; column++) {
                 JsonArray cell = column < row.size() ? row.get(column) : new JsonArray();
-                grid.addChild(cellWidget(cell));
+                WidgetBase cellWidget = cellWidget(cell);
+                if (cellWidget instanceof IsfItemButton button) ingredientCells.add(button);
+                grid.addChild(cellWidget);
             }
         }
         return grid;
     }
 
+    /**
+     * Тело окна добычи: сетка дропа (5 колонок, шанс под моделью) в вертикальном
+     * скролле. Высота скролла подстраивается под контент: показывается максимум
+     * 3 строки, при меньшем числе дропов высота меньше — «пустой» прокрутки нет.
+     * Полоса невидима, пока контент влезает, и тонкая при переполнении.
+     */
+    private WidgetBase lootScroll(IsfVisualNode node) {
+        GridBox grid = lootGrid(node);
+        // Grid уже имеет точную высоту rows * CELL_ROW, поэтому ScrollView не
+        // растягивает строки и не создаёт пустые промежуточные линии.
+        grid.applyQueuedMutations();
+        grid.measure(new dev.sixik.unigui.api.layout.LayoutContext(140.0f, 4096.0f));
+        float contentHeight = Math.max(28.0f, grid.desiredSize().height());
+        float scrollHeight = Math.min(84.0f, contentHeight);
+        dev.sixik.unigui.widgets.containers.ScrollView scroll =
+                new dev.sixik.unigui.widgets.containers.ScrollView(grid);
+        scroll.scrollStep(CELL + 10.0f);
+        scroll.scrollbarGap(1);
+        scroll.scrollbarSize(4.0f);
+        scroll.scrollingEnabled(contentHeight > scrollHeight + 0.01f);
+        scroll.layout(style -> style
+                .widthPercent(100.0f)
+                .height(scrollHeight)
+                .flexNone()
+                .overflowX(dev.sixik.unigui.api.layout.Overflow.HIDDEN)
+                .overflowY(dev.sixik.unigui.api.layout.Overflow.AUTO));
+        return scroll;
+    }
+
+    /**
+     * Сетка дропа loot table: ячейка {@code {ids: [...], chance, count_min, count_max}}.
+     * В каждой ячейке — модель первого предмета (число — max диапазона) и подписи
+     * под ней: диапазон количества ({@code min-max}, если min != max) и шанс.
+     * Условия (Silk Touch, Fortune, убийство игроком...) и точный диапазон уходят
+     * в тултип; тег-варианты показываются сеткой «Принимает:».
+     */
+    private GridBox lootGrid(IsfVisualNode node) {
+        GridBox grid = new GridBox();
+        // Ячейка шире слота (22px): «12.5%» не налезает на соседнюю колонку.
+        float cellColumn = 22.0f;
+        grid.columns(5).spacing(0);
+        JsonElement raw = value(node, "drops");
+        if (raw == null || !raw.isJsonArray()) return grid;
+        JsonArray drops = raw.getAsJsonArray();
+        // Предпроход: высота всех строк сетки одинакова, поэтому заранее выясняем,
+        // нужны ли подписи диапазона количества и шанса хоть одной ячейке.
+        boolean needCount = false;
+        boolean needChance = false;
+        for (JsonElement element : drops) {
+            if (!element.isJsonObject()) continue;
+            com.google.gson.JsonObject cell = element.getAsJsonObject();
+            double min = number(cell.get("count_min"), 1.0f);
+            double max = number(cell.get("count_max"), (float) min);
+            if (min - 1e-9 > max) min = max;
+            if (max - min > 1e-9) needCount = true;
+            if (number(cell.get("chance"), 1.0f) < 0.999) needChance = true;
+        }
+        float rowHeight = CELL + (needCount ? 10.0f : 0.0f) + (needChance ? 10.0f : 0.0f);
+        if (rowHeight <= 0.0f) rowHeight = CELL;
+        final float slotHeight = rowHeight;
+        for (JsonElement element : drops) {
+            if (!element.isJsonObject()) continue;
+            com.google.gson.JsonObject cell = element.getAsJsonObject();
+            List<ResourceLocation> ids = new ArrayList<>();
+            List<ItemStack> stacks = new ArrayList<>();
+            double chance = number(cell.get("chance"), 1.0f);
+            double countMin = number(cell.get("count_min"), 1.0f);
+            double countMax = number(cell.get("count_max"), (float) countMin);
+            if (countMin - 1e-9 > countMax) countMin = countMax;
+            boolean ranged = countMax - countMin > 1e-9;
+            int countMaxInt = Math.max(1, (int) Math.ceil(countMax - 1e-9));
+            List<net.minecraft.network.chat.Component> conditions = conditionLines(cell);
+            boolean hasIds = false;
+            boolean hasAir = false;
+            if (cell.has("ids") && cell.get("ids").isJsonArray()) {
+                for (JsonElement id : cell.getAsJsonArray("ids")) {
+                    ResourceLocation itemId = itemId(id);
+                    if (itemId == null) continue;
+                    hasIds = true;
+                    if (isAirId(itemId)) {
+                        hasAir = true;
+                        continue;
+                    }
+                    ItemStack stack = item(id);
+                    if (stack.isEmpty()) continue;
+                    ids.add(itemId);
+                    stacks.add(stack);
+                }
+            }
+            // NBT ячейки (зелья, чары из set_nbt/set_potion/...): один тег на всех
+            // альтернатив, применяется до копирования главного стака.
+            net.minecraft.nbt.CompoundTag cellTag = readCellTag(cell.get("nbt"));
+            if (cellTag != null) {
+                for (ItemStack stack : stacks) stack.getOrCreateTag().merge(cellTag);
+            }
+            if (stacks.isEmpty()) {
+                if (hasIds && hasAir) {
+                    buildAirSlot(grid, cellColumn, slotHeight, chance,
+                            conditions, needCount, needChance);
+                    continue;
+                }
+                // Пустая ячейка сохраняет позицию в сетке: без placeholder'а индексы
+                // смещаются, и ряды «пропадают» (village temple и т.п.).
+                Box empty = new Box();
+                empty.layout(style -> style.size(cellColumn, slotHeight).flexNone());
+                grid.addChild(empty);
+                continue;
+            }
+            IsfItemButton button = new IsfItemButton(ids, stacks, SLOT_TEXTURE, CELL);
+            // Число на иконке — max диапазона; сам диапазон виден подписью под
+            // слотом (одним числом min-max не отобразить) и дублируется в тултипе.
+            ItemStack main = stacks.get(0).copy();
+            main.setCount(Math.min(countMaxInt, main.getMaxStackSize()));
+            button.icon().stack(main);
+            // Тег ветки tag-entry ("#namespace:path"): тултип «Принимает» покажет
+            // его над сеткой (как в JEI); у одиночного дропа тег не показывается.
+            // Без явного тега (старые файлы, явный список) — точным совпадением набора.
+            String lootTag = null;
+            JsonElement tagElement = cell.get("tag");
+            if (tagElement != null && tagElement.isJsonPrimitive()
+                    && tagElement.getAsJsonPrimitive().isString()
+                    && !tagElement.getAsString().isBlank()) {
+                lootTag = tagElement.getAsString();
+            }
+            if (lootTag == null && stacks.size() > 1) lootTag = findMatchingTag(ids);
+            if (lootTag != null && stacks.size() > 1) button.tag(lootTag);
+            List<net.minecraft.network.chat.Component> extra = new ArrayList<>(conditions);
+            if (ranged) {
+                extra.add(net.minecraft.network.chat.Component.literal(
+                        "Count: " + formatCount(countMin) + "-" + formatCount(countMax)));
+            }
+            button.extraTooltipLines(extra);
+            button.layout(style -> style.size(CELL, CELL).centerSelf().flexNone());
+            attachClickHandler(button);
+
+            VBox slot = new VBox();
+            slot.spacing(0);
+            slot.layout(style -> style.size(cellColumn, slotHeight).flexNone());
+            slot.addChild(button);
+            // Подпись диапазона: «1-3». У одиночного количества её нет — число
+            // уже нарисовано на иконке; пустая строка держит выравнивание колонок.
+            if (needCount) {
+                String countText = ranged
+                        ? formatCount(countMin) + "-" + formatCount(countMax) : "";
+                Label countLabel = new Label(
+                        RichText.of(countText, null, CHANCE_TEXT_SIZE));
+                countLabel.layout(style -> style.width(cellColumn).height(10.0f).flexNone());
+                countLabel.textAlignment(Alignment.CENTER);
+                countLabel.color(MutableColor.fromHex("#5A5A5AFF"));
+                slot.addChild(countLabel);
+            }
+            // 100% не подписываем: вероятность по умолчанию очевидна без текста.
+            if (needChance) {
+                Label chanceLabel = new Label(
+                        RichText.of(chance < 0.999 ? formatChance(chance) : "",
+                                null, CHANCE_TEXT_SIZE));
+                chanceLabel.layout(style -> style.width(cellColumn).height(10.0f).flexNone());
+                chanceLabel.textAlignment(Alignment.CENTER);
+                // Такой же тёмный цвет, как у ID таблицы добычи.
+                chanceLabel.color(MutableColor.fromHex("#5A5A5AFF"));
+                slot.addChild(chanceLabel);
+            }
+            grid.addChild(slot);
+        }
+        // Grid лежит внутри ScrollView: применяем queued addChild сразу.
+        grid.applyQueuedMutations();
+        int rows = Math.max(1, (grid.children().size() + 4) / 5);
+        // Фиксируем геометрию content: иначе ScrollView передаёт GridBox viewport
+        // целиком, и GridBox распределяет строки с пустыми промежутками.
+        grid.layout(style -> style.width(5.0f * cellColumn)
+                .height(rows * slotHeight).flexNone());
+        return grid;
+    }
+
+    /** Id «пустого» дропа: рисуется барьером, а не пропуском слота. */
+    private static final ResourceLocation AIR_ID = ResourceLocation.tryParse("minecraft:air");
+
+    private static boolean isAirId(ResourceLocation id) {
+        return AIR_ID != null && AIR_ID.equals(id);
+    }
+
+    /**
+     * Ячейка AIR-дропа («ничего не выпало»): иконка барьера в слоте, подпись
+     * шанса под ней и тултип без имени предмета («Пусто», шанс, условия).
+     * Пустым слотом не пропускаем — иначе в сетке остаются дыры.
+     */
+    private void buildAirSlot(GridBox grid, float cellColumn, float slotHeight, double chance,
+                              List<net.minecraft.network.chat.Component> conditions,
+                              boolean needCount, boolean needChance) {
+        ItemStack barrier = new ItemStack(net.minecraft.world.item.Items.BARRIER);
+        IsfItemButton button = new IsfItemButton(List.of(AIR_ID), List.of(barrier),
+                SLOT_TEXTURE, CELL);
+        List<net.minecraft.network.chat.Component> lines = new ArrayList<>();
+        lines.add(net.minecraft.network.chat.Component.translatableWithFallback(
+                "isf.loot.empty", "Empty").copy()
+                .withStyle(net.minecraft.ChatFormatting.GRAY));
+        lines.add(net.minecraft.network.chat.Component.translatableWithFallback(
+                "isf.loot.chance", "Chance: %s", formatChance(chance)));
+        lines.addAll(conditions);
+        button.tooltipLines(lines);
+        button.layout(style -> style.size(CELL, CELL).centerSelf().flexNone());
+        attachClickHandler(button);
+
+        VBox slot = new VBox();
+        slot.spacing(0);
+        slot.layout(style -> style.size(cellColumn, slotHeight).flexNone());
+        slot.addChild(button);
+        if (needCount) {
+            Label countLabel = new Label(RichText.of("", null, CHANCE_TEXT_SIZE));
+            countLabel.layout(style -> style.width(cellColumn).height(10.0f).flexNone());
+            countLabel.textAlignment(Alignment.CENTER);
+            countLabel.color(MutableColor.fromHex("#5A5A5AFF"));
+            slot.addChild(countLabel);
+        }
+        if (needChance) {
+            Label chanceLabel = new Label(
+                    RichText.of(chance < 0.999 ? formatChance(chance) : "",
+                            null, CHANCE_TEXT_SIZE));
+            chanceLabel.layout(style -> style.width(cellColumn).height(10.0f).flexNone());
+            chanceLabel.textAlignment(Alignment.CENTER);
+            chanceLabel.color(MutableColor.fromHex("#5A5A5AFF"));
+            slot.addChild(chanceLabel);
+        }
+        grid.addChild(slot);
+    }
+
+    /**
+     * Строки тултипа с условием выпадения: данные пишутся импортёром в ячейку
+     * {@code conditions: ["silk_touch", "killed_by_player", ...]} — человекочитаемо
+     * раскрываем каждое (например, красная руда без Silk Touch даёт пыль, а не руду).
+     */
+    private static List<net.minecraft.network.chat.Component> conditionLines(
+            com.google.gson.JsonObject cell) {
+        if (!cell.has("conditions") || !cell.get("conditions").isJsonArray()) return List.of();
+        List<net.minecraft.network.chat.Component> lines = new ArrayList<>();
+        for (JsonElement element : cell.getAsJsonArray("conditions")) {
+            if (!element.isJsonPrimitive()) continue;
+            String id = element.getAsString();
+            int colon = id.indexOf(':');
+            String path = colon >= 0 ? id.substring(colon + 1) : id;
+            String key = "isf.loot_condition." + path;
+            lines.add(net.minecraft.network.chat.Component.translatableWithFallback(
+                    key, prettifyWords(path)));
+        }
+        return List.copyOf(lines);
+    }
+
+    /** «killed_by_player_or_tamed» → «Killed By Player Or Tamed». */
+    private static String prettifyWords(String value) {
+        String[] words = value.replace('_', ' ').split(" ");
+        StringBuilder text = new StringBuilder();
+        for (String word : words) {
+            if (word.isEmpty()) continue;
+            if (!text.isEmpty()) text.append(' ');
+            text.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
+        }
+        return text.toString();
+    }
+
+    /** @return шанс как «25%» или «12.5%». */
+    private static String formatChance(double chance) {
+        double percent = Math.max(0.0, Math.min(1.0, chance)) * 100.0;
+        if (percent == Math.floor(percent)) return (int) percent + "%";
+        return String.format(java.util.Locale.ROOT, "%.1f%%", percent);
+    }
+
+    /**
+     * @return количество диапазона как «3» или «1.5» (импортёр округляет до 0.1).
+     */
+    private static String formatCount(double count) {
+        double value = Math.max(0.0, count);
+        if (Math.abs(value - Math.rint(value)) < 1e-9) return Long.toString(Math.round(value));
+        return String.format(java.util.Locale.ROOT, "%.1f", value);
+    }
+
+    /**
+     * Источник окна добычи: если задан параметр {@code entity} (id живой сущности) —
+     * рисует запечённую иконку модели моба (texture-путь уважает transform/clip
+     * Z-слоёв, в отличие от прямого InventoryScreen-рендера), иначе предмет.
+     */
+    private WidgetBase entityOrItem(IsfVisualNode node) {
+        // Размер иконки моба задаётся отдельным свойством: ячейка предмета (width)
+        // остаётся 18, а моделька рисуется крупнее.
+        float size = Math.max(CELL, integer(value(node, "entity_size"),
+                integer(value(node, "width"), (int) CELL)));
+        JsonElement entityRaw = value(node, "entity");
+        if (entityRaw != null && entityRaw.isJsonPrimitive() && !entityRaw.getAsString().isBlank()) {
+            ResourceLocation entityId = ResourceLocation.tryParse(entityRaw.getAsString());
+            net.minecraft.world.entity.EntityType<?> type = entityId == null ? null
+                    : net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.get(entityId);
+            // «Живость» типа проверяет сама запечка (instanceof на созданной сущности):
+            // EntityType.getBaseClass() для этого не подходит — в 1.20.1 он всегда
+            // возвращает Entity.class.
+            if (type != null) {
+                IsfEntityIconWidget icon = new IsfEntityIconWidget(type, size);
+                icon.enabled(false);
+                icon.layout(style -> style.size(size, size).centerSelf().flexNone());
+                return icon;
+            }
+            LOGGER.debug("entityOrItem: unknown entity '{}', fallback to item", entityRaw.getAsString());
+        }
+        return itemWidget(node);
+    }
+
     /** @return клетки крафта: pattern даёт строки, плоский список — одну строку. */
-    private static List<List<JsonArray>> readCells(JsonElement raw) {
-        List<List<JsonArray>> rows = new ArrayList<>();
+    private static List<List<JsonArray>> readCells(JsonElement raw) {        List<List<JsonArray>> rows = new ArrayList<>();
         if (raw == null || !raw.isJsonArray()) return rows;
         List<JsonArray> flat = new ArrayList<>();
         boolean flatMode = true;
@@ -210,7 +543,9 @@ final class IsfVisualWidgetFactory {
     private WidgetBase cellWidget(JsonArray alternatives) {
         List<ResourceLocation> ids = new ArrayList<>();
         List<ItemStack> stacks = new ArrayList<>();
+        String tag = cellTag(alternatives);
         for (JsonElement alternative : alternatives) {
+            if (isTagMarker(alternative)) continue;
             ResourceLocation id = itemId(alternative);
             if (id == null) continue;
             ItemStack stack = item(alternative);
@@ -220,9 +555,76 @@ final class IsfVisualWidgetFactory {
         }
         if (stacks.isEmpty()) return slotBackground(CELL, SLOT_TEXTURE);
         IsfItemButton button = new IsfItemButton(ids, stacks, SLOT_TEXTURE, CELL);
+        // Тег показываем только для набора из нескольких предметов: у одиночного
+        // ингредиента тултип — обычный тултип предмета, без строки тега.
+        // Маркера может не быть (старые файлы, составной ингредиент, лут) —
+        // тогда тег ищем точным совпадением набора с тегами реестра.
+        if (stacks.size() > 1) button.tag(tag != null ? tag : findMatchingTag(ids));
         button.layout(style -> style.size(CELL, CELL).flexNone());
         attachClickHandler(button);
         return button;
+    }
+
+    /**
+     * Ищет тег реестра, чей состав ТОЧНО равен набору id (для ячеек без маркера:
+     * составные ингредиенты, старые файлы, лут). Совпадение частичное —
+     * не тег (иначе припишем чужое имя). Без реестра — {@code null}.
+     */
+    private static String findMatchingTag(List<ResourceLocation> ids) {
+        if (ids == null || ids.size() < 2) return null;
+        Set<String> wanted = new java.util.HashSet<>();
+        for (ResourceLocation id : ids) {
+            if (id == null) return null;
+            wanted.add(id.toString());
+        }
+        Map<String, Set<String>> index = new java.util.LinkedHashMap<>();
+        try {
+            for (net.minecraft.tags.TagKey<net.minecraft.world.item.Item> key
+                    : BuiltInRegistries.ITEM.getTagNames().toList()) {
+                var holders = BuiltInRegistries.ITEM.getTag(key);
+                if (holders.isEmpty() || holders.get().size() != wanted.size()) continue;
+                Set<String> members = new java.util.HashSet<>();
+                for (net.minecraft.core.Holder<net.minecraft.world.item.Item> holder : holders.get()) {
+                    ResourceLocation id = BuiltInRegistries.ITEM.getKey(holder.value());
+                    if (id != null) members.add(id.toString());
+                }
+                index.put(key.location().toString(), members);
+            }
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+        return matchTagIn(index, wanted);
+    }
+
+    /**
+     * Правило совпадения набора с тегом: точное равенство множеств, минимум два
+     * предмета; при нескольких совпавших — первый по порядку индекса.
+     * Чистая функция — для тестов.
+     */
+    static String matchTagIn(Map<String, Set<String>> index, Set<String> wanted) {
+        if (index == null || wanted == null || wanted.size() < 2) return null;
+        for (Map.Entry<String, Set<String>> entry : index.entrySet()) {
+            if (wanted.equals(entry.getValue())) return entry.getKey();
+        }
+        return null;
+    }
+
+    /**
+     * Маркер тега ячейки (первая запись вида {@code "#namespace:path"})
+     * или {@code null}. Чистая функция от JSON.
+     */
+    static String cellTag(JsonArray alternatives) {
+        if (alternatives == null) return null;
+        for (JsonElement alternative : alternatives) {
+            if (isTagMarker(alternative)) return alternative.getAsString().substring(1);
+        }
+        return null;
+    }
+
+    /** Запись-маркер тега (начинается с {@code #}, в отличие от {@code id#count}). */
+    private static boolean isTagMarker(JsonElement alternative) {
+        return alternative != null && alternative.isJsonPrimitive()
+                && alternative.getAsString().startsWith("#");
     }
 
     private static void attachClickHandler(IsfItemButton ignoredButton) {
@@ -230,9 +632,26 @@ final class IsfVisualWidgetFactory {
         // IsfItemButton намеренно не потребляет pointer-события.
     }
 
+    /** @return id из записи {@code "minecraft:iron_ingot#9"} (суффикс {@code #count} отбрасывается). */
     private static ResourceLocation itemId(JsonElement value) {
-        return value == null || !value.isJsonPrimitive()
-                ? null : ResourceLocation.tryParse(value.getAsString());
+        if (value == null || !value.isJsonPrimitive()) return null;
+        String raw = value.getAsString();
+        int hash = raw.lastIndexOf('#');
+        String id = hash < 0 ? raw : raw.substring(0, hash);
+        return ResourceLocation.tryParse(id);
+    }
+
+    /** @return количество из суффикса {@code #count} записи или {@code 1}. */
+    private static int entryCount(JsonElement value) {
+        if (value == null || !value.isJsonPrimitive()) return 1;
+        String raw = value.getAsString();
+        int hash = raw.lastIndexOf('#');
+        if (hash < 0) return 1;
+        try {
+            return Math.max(1, Integer.parseInt(raw.substring(hash + 1).trim()));
+        } catch (NumberFormatException ignored) {
+            return 1;
+        }
     }
 
     private boolean isIngredientGrid(IsfVisualNode node) {
@@ -243,10 +662,22 @@ final class IsfVisualWidgetFactory {
         Map<String, JsonElement> properties = evaluatedProperties(node.properties());
         float width = number(properties.get("width"), Float.NaN);
         float height = number(properties.get("height"), Float.NaN);
+        // Иконка моба крупнее ячейки предмета: entity_size перекрывает width/height.
+        float iconWidth = width;
+        float iconHeight = height;
+        if (widget instanceof IsfEntityIconWidget && properties.containsKey("entity_size")) {
+            float entitySize = number(properties.get("entity_size"), Float.NaN);
+            if (Float.isFinite(entitySize) && entitySize > 0.0f) {
+                iconWidth = entitySize;
+                iconHeight = entitySize;
+            }
+        }
+        final float layoutWidth = iconWidth;
+        final float layoutHeight = iconHeight;
         widget.layout(style -> {
             style.position(PositionType.RELATIVE);
-            if (Float.isFinite(width)) style.width(width);
-            if (Float.isFinite(height)) style.height(height);
+            if (Float.isFinite(layoutWidth)) style.width(layoutWidth);
+            if (Float.isFinite(layoutHeight)) style.height(layoutHeight);
             if (properties.containsKey("padding")) style.padding(edgeInsets(properties.get("padding")));
             if (properties.containsKey("alignItems")) style.alignItems(align(properties.get("alignItems")));
             if (properties.containsKey("justifyContent")) style.justifyContent(justify(properties.get("justifyContent")));
@@ -303,11 +734,27 @@ final class IsfVisualWidgetFactory {
     }
 
     private static ItemStack item(JsonElement value) {
-        if (value == null || !value.isJsonPrimitive()) return ItemStack.EMPTY;
-        ResourceLocation id = ResourceLocation.tryParse(value.getAsString());
+        ResourceLocation id = itemId(value);
         if (id == null) return ItemStack.EMPTY;
         Item item = BuiltInRegistries.ITEM.get(id);
-        return item == null || item == net.minecraft.world.item.Items.AIR ? ItemStack.EMPTY : new ItemStack(item);
+        if (item == null || item == net.minecraft.world.item.Items.AIR) return ItemStack.EMPTY;
+        ItemStack stack = new ItemStack(item);
+        int count = entryCount(value);
+        if (count > 1) stack.setCount(Math.min(count, stack.getMaxStackSize()));
+        return stack;
+    }
+
+    /**
+     * NBT-тег ячейки дропа (SNBT из импортёра): битый/пустой даёт {@code null}.
+     * Применяется через merge поверх стака (как ванильный {@code set_nbt}).
+     */
+    static net.minecraft.nbt.CompoundTag readCellTag(JsonElement value) {
+        if (value == null || !value.isJsonPrimitive()) return null;
+        try {
+            return net.minecraft.nbt.TagParser.parseTag(value.getAsString());
+        } catch (com.mojang.brigadier.exceptions.CommandSyntaxException | RuntimeException ignored) {
+            return null;
+        }
     }
 
     private static int integer(JsonElement value, int fallback) {

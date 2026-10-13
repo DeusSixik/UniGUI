@@ -1,11 +1,8 @@
 package dev.sixik.unigui.widgets.interaction;
 
 import dev.sixik.unigui.api.input.TextEditorModel;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
-import dev.sixik.unigui.widgets.render.TextInputRenderer;
-import dev.sixik.unigui.widgets.render.TextInputRenderType;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
 
@@ -74,20 +71,5 @@ public class TextField extends TextInput {
     public TextField maxLength(int maxLength) {
         super.maxLength(maxLength);
         return this;
-    }
-
-    @Override
-    protected TextInputRenderer defaultRenderer() {
-        return WidgetsRender.textField();
-    }
-
-    @Override
-    protected TextInputRenderer effectiveRenderer() {
-        return renderer() == null ? styleRenderer(TextInputRenderer.class, defaultRenderer()) : renderer();
-    }
-
-    @Override
-    protected TextInputRenderType renderType() {
-        return TextInputRenderType.TEXT_FIELD;
     }
 }

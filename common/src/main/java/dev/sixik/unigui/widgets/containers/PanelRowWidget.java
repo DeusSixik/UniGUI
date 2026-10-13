@@ -12,6 +12,10 @@ import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 
+import dev.sixik.unigui.impl.layout.SlotLayout;
+import dev.sixik.unigui.impl.layout.flex.FlexSolver;
+import dev.sixik.unigui.impl.layout.flex.FlexStyleViews;
+
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -397,7 +401,7 @@ public class PanelRowWidget extends PanelWidget {
         int count = 0;
         for (Widget widget : widgets) {
             if (widget.visibility() == Visibility.COLLAPSED) continue;
-            EdgeInsets margin = widget.layoutConstraints().margin();
+            EdgeInsets margin = SlotLayout.marginOf(widget);
             if (count > 0) width += itemGap;
             width += widget.desiredSize().width() + margin.horizontal();
             height = Math.max(height, widget.desiredSize().height() + margin.vertical());
@@ -433,7 +437,7 @@ public class PanelRowWidget extends PanelWidget {
 
         for (Widget widget : widgets) {
             if (widget.visibility() == Visibility.COLLAPSED) continue;
-            EdgeInsets margin = widget.layoutConstraints().margin();
+            EdgeInsets margin = SlotLayout.marginOf(widget);
             float availableForChild = Math.max(0.0f, slotWidth - margin.horizontal());
             float childWidth = singleExplicit
                     ? availableForChild
@@ -441,6 +445,9 @@ public class PanelRowWidget extends PanelWidget {
             float childHeight = Math.min(Math.max(0.0f, slotHeight - margin.vertical()), widget.desiredSize().height());
             float childX = cursor + margin.left();
             float childY = slotY + margin.top() + Math.max(0.0f, slotHeight - margin.vertical() - childHeight) * 0.5f;
+            dev.sixik.unigui.api.layout.LayoutStyle childStyle = SlotLayout.childStyleOf(widget);
+            childX += FlexSolver.relativeOffsetX(FlexStyleViews.of(childStyle), slotWidth);
+            childY += FlexSolver.relativeOffsetY(FlexStyleViews.of(childStyle), slotHeight);
             widget.arrange(new MutableRect(childX, childY, childWidth, childHeight));
             cursor += childWidth + margin.horizontal() + itemGap;
         }

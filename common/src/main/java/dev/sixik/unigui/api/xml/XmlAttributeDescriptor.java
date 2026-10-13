@@ -226,8 +226,8 @@ public record XmlAttributeDescriptor(
                 || name.endsWith("orientation") || name.endsWith("direction") || name.equals("selectionmode")
                 || name.equals("visibility") || name.equals("overflow") || name.equals("overflowx")
                 || name.equals("overflowy") || name.equals("position") || name.equals("flexdirection")
-                || name.equals("flexwrap") || name.equals("align") || name.equals("alignitems")
-                || name.equals("alignself") || name.equals("justifycontent") || name.equals("dockarea")
+                || name.equals("flexwrap") || name.equals("gridautoflow") || name.equals("align") || name.equals("alignitems")
+                || name.equals("alignself") || name.equals("aligncontent") || name.equals("justifycontent") || name.equals("dockarea")
                 || name.equals("targetoptions") || name.equals("type") || name.equals("placement");
     }
 
@@ -239,7 +239,8 @@ public record XmlAttributeDescriptor(
     }
 
     private static boolean isNumericName(String name) {
-        return name.equals("x") || name.equals("y") || name.endsWith("index") || name.endsWith("count")
+        return name.equals("x") || name.equals("y") || name.equals("order") || name.equals("zindex")
+                || name.equals("aspectratio") || name.endsWith("index") || name.endsWith("count")
                 || name.contains("gap") || name.contains("radius") || name.contains("opacity")
                 || name.contains("speed") || name.contains("step") || name.contains("seconds")
                 || name.contains("duration") || name.contains("lines") || name.contains("phase");

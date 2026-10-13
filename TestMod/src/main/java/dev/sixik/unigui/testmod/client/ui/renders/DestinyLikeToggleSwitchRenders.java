@@ -2,10 +2,13 @@ package dev.sixik.unigui.testmod.client.ui.renders;
 
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.text.Fonts;
 import dev.sixik.unigui.api.text.RichText;
-import dev.sixik.unigui.widgets.render.ButtonRenderer;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
+import dev.sixik.unigui.impl.text.TextEngine;
+import dev.sixik.unigui.widgets.interaction.ToggleSwitch;
 
 public final class DestinyLikeToggleSwitchRenders {
 
@@ -22,24 +25,27 @@ public final class DestinyLikeToggleSwitchRenders {
     private static final ColorView DOMINION_SWITCH_THUMB_OFF = MutableColor.rgba255(192, 195, 202, 255);
     private static final ColorView DOMINION_SWITCH_THUMB_ON = MutableColor.rgba255(90, 165, 106, 255);
 
-    public static final ButtonRenderer DOMINION_TOGGLE_SWITCH_RENDERER = (draw, state) -> {
-        float trackWidth = Math.max(0.0f, state.indicatorSize());
-        float trackHeight = Math.max(0.0f, state.textPaddingX());
-        float thumbSize = Math.max(0.0f, state.indicatorInnerSize());
+    public static final WidgetRender DOMINION_TOGGLE_SWITCH_RENDERER = WidgetRender.of(ToggleSwitch.class, (draw, toggle) -> {
+        RectView bounds = toggle.layoutBounds();
+        float trackWidth = Math.max(0.0f, toggle.trackWidth());
+        float trackHeight = Math.max(0.0f, toggle.trackHeight());
+        float thumbSize = Math.max(0.0f, toggle.thumbSize());
         if (trackWidth <= 0.0f || trackHeight <= 0.0f || thumbSize <= 0.0f) return;
 
-        float progress = clamp01(state.indicatorProgress());
-        float labelGap = state.hasText() ? Math.max(0.0f, state.indicatorGap()) : 0.0f;
-        float labelWidth = state.hasText()
-                ? Math.min(Math.max(0.0f, state.textWidth()), Math.max(0.0f, state.width() - trackWidth - labelGap))
+        RichText richText = toggle.richText();
+        boolean hasText = richText != null && !richText.isEmpty();
+        float progress = clamp01(toggle.switchProgress());
+        float labelGap = hasText ? Math.max(0.0f, toggle.labelGap()) : 0.0f;
+        float labelWidth = hasText
+                ? Math.min(Math.max(0.0f, TextEngine.measureLineWidth(draw.context(), richText)), Math.max(0.0f, bounds.width() - trackWidth - labelGap))
                 : 0.0f;
-        float trackX = state.labelLeft() ? state.x() + labelWidth + labelGap : state.x();
-        float trackY = state.y() + Math.max(0.0f, state.height() - trackHeight) * 0.5f;
+        float trackX = toggle.labelLeft() ? bounds.x() + labelWidth + labelGap : bounds.x();
+        float trackY = bounds.y() + Math.max(0.0f, bounds.height() - trackHeight) * 0.5f;
 
         draw.rect(trackX, trackY, trackWidth, trackHeight,
                 Paint.fill(mix(DOMINION_SWITCH_TRACK_OFF, DOMINION_SWITCH_TRACK_ON, progress)));
         DestinyLikeRenderPrimitives.rectBorder(draw, trackX, trackY, trackWidth, trackHeight,
-                state.hovered() && state.enabled()
+                toggle.hovered() && toggle.enabled()
                         ? DOMINION_SWITCH_BORDER_HOVER
                         : mix(DOMINION_SWITCH_BORDER_OFF, DOMINION_SWITCH_BORDER_ON, progress),
                 DOMINION_SWITCH_BORDER_WIDTH);
@@ -51,12 +57,12 @@ public final class DestinyLikeToggleSwitchRenders {
         draw.rect(thumbX, thumbY, thumbSize, thumbSize,
                 Paint.fill(mix(DOMINION_SWITCH_THUMB_OFF, DOMINION_SWITCH_THUMB_ON, progress)));
 
-        if (state.labelLeft()) {
-            drawDominionSwitchLabel(draw, state, state.x(), labelWidth);
+        if (toggle.labelLeft()) {
+            drawDominionSwitchLabel(draw, toggle, bounds.x(), labelWidth);
         } else {
-            drawDominionSwitchLabel(draw, state, trackX + trackWidth + labelGap);
+            drawDominionSwitchLabel(draw, toggle, trackX + trackWidth + labelGap);
         }
-    };
+    });
 
     public static RichText dominionSwitchText(String text) {
         return RichText.builder()
@@ -70,23 +76,27 @@ public final class DestinyLikeToggleSwitchRenders {
     }
 
     private static void drawDominionSwitchLabel(dev.sixik.unigui.api.render.DrawScope draw,
-                                                dev.sixik.unigui.widgets.render.ButtonState state,
+                                                ToggleSwitch toggle,
                                                 float contentX,
                                                 float contentWidth) {
-        if (!state.hasText() || contentWidth <= 0.0f) return;
+        RichText richText = toggle.richText();
+        if (richText == null || richText.isEmpty() || contentWidth <= 0.0f) return;
 
-        float drawHeight = Math.min(Math.max(0.0f, state.height()), Math.max(0.0f, state.textHeight()));
-        float drawY = state.y() + Math.max(0.0f, state.height() - drawHeight) * 0.5f;
-        draw.text(state.richText(), contentX, drawY + 0.2f, contentWidth, drawHeight, Paint.fill(state.textColor()));
+        RectView bounds = toggle.layoutBounds();
+        float drawHeight = Math.min(Math.max(0.0f, bounds.height()), Math.max(0.0f, TextEngine.measureTextHeight(draw.context(), richText)));
+        float drawY = bounds.y() + Math.max(0.0f, bounds.height() - drawHeight) * 0.5f;
+        draw.text(richText, contentX, drawY + 0.2f, contentWidth, drawHeight, Paint.fill(toggle.textColor()));
     }
 
     private static void drawDominionSwitchLabel(dev.sixik.unigui.api.render.DrawScope draw,
-                                                dev.sixik.unigui.widgets.render.ButtonState state,
+                                                ToggleSwitch toggle,
                                                 float contentX) {
-        if (!state.hasText()) return;
+        RichText richText = toggle.richText();
+        if (richText == null || richText.isEmpty()) return;
 
-        float contentWidth = Math.max(0.0f, state.width() - (contentX - state.x()));
-        drawDominionSwitchLabel(draw, state, contentX, contentWidth);
+        RectView bounds = toggle.layoutBounds();
+        float contentWidth = Math.max(0.0f, bounds.width() - (contentX - bounds.x()));
+        drawDominionSwitchLabel(draw, toggle, contentX, contentWidth);
     }
 
     private static ColorView mix(ColorView from, ColorView to, float amount) {

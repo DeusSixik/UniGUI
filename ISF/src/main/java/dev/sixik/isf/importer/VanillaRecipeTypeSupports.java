@@ -74,10 +74,14 @@ public final class VanillaRecipeTypeSupports {
             case "campfire_cooking" -> id("minecraft:campfire");
             default -> id("minecraft:furnace");
         };
+        // Станция передаётся явно: без неё standardTriggers не добавит STATION-binding,
+        // и U-триггер по блоку печи не найдёт ни одного рецепта (matcher для usages
+        // ищет USE по ингредиентам или STATION по блоку-катализатору).
         return standardSupport(category,
                 recipe -> recipe instanceof AbstractCookingRecipe cooking && cooking.getType() == type,
                 VanillaRecipeTypeSupports::cookingParameters,
-                definition("isf:" + category, cookingSchema(), station, null, cookingVisual()));
+                definition("isf:" + category, cookingSchema(), station, null, cookingVisual()),
+                station);
     }
 
     private static IsfRecipeTypeSupport standardSupport(String category,
@@ -199,13 +203,40 @@ public final class VanillaRecipeTypeSupports {
         JsonArray ingredients = new JsonArray();
         for (Ingredient ingredient : recipe.getIngredients()) {
             JsonArray alternatives = new JsonArray();
+            // Маркер тега ("#namespace:path") первым элементом: клиент показывает
+            // его в тултипе «Принимает» (как JEI). На разбор id не влияет
+            // (такие строки не парсятся в id и везде пропускаются), индекс
+            // контента раскрывает маркер через теги реестра.
+            String tag = null;
+            try {
+                tag = singleTag(ingredient.toJson());
+            } catch (RuntimeException ignored) {
+            }
+            if (tag != null) alternatives.add("#" + tag);
             for (ItemStack stack : ingredient.getItems()) {
                 ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack.getItem());
-                if (id != null) alternatives.add(id.toString());
+                if (id == null) continue;
+                // "id" или "id#count": количество на входе сохраняется явно,
+                // чтобы визуал рецепта рисовал число в углу клетки.
+                alternatives.add(stack.getCount() > 1
+                        ? id + "#" + stack.getCount()
+                        : id.toString());
             }
             ingredients.add(alternatives);
         }
         return ingredients;
+    }
+
+    /**
+     * Тег одиночного tag-ингредиента из его JSON ({@code {"tag": "..."}})
+     * или {@code null} (предмет, выбор, пусто). Чистая функция от JSON.
+     */
+    static String singleTag(JsonElement ingredientJson) {
+        if (ingredientJson == null || !ingredientJson.isJsonObject()) return null;
+        JsonElement tag = ingredientJson.getAsJsonObject().get("tag");
+        if (tag == null || !tag.isJsonPrimitive() || !tag.getAsJsonPrimitive().isString()) return null;
+        String id = tag.getAsString();
+        return id == null || id.isBlank() ? null : id;
     }
 
     private static IsfRecipeTypeDefinition definition(String id,
@@ -266,10 +297,16 @@ public final class VanillaRecipeTypeSupports {
                 "alignItems", literal("center")), List.of(
                 // Без "columns": ширина сетки выводится из pattern рецепта,
                 // иначе свойства узла перезаписывают форму крафта тройкой колонок.
-                new IsfVisualNode("ingredients", id("isf:ingredient_grid"), Map.of(
-                        "items", parameter("pattern")), List.of()),
-                arrow(),
-                resultItem())));
+                  new IsfVisualNode("ingredients", id("isf:ingredient_grid"), Map.of(
+                          "items", parameter("pattern")), List.of()),
+                  arrow(),
+                  resultItem(),
+                  // Кнопка переноса в сетку верстака: поддержка объявлена здесь,
+                  // при регистрации типа; логика — в IsfTransferButton/IsfCraftTransfer.
+                  new IsfVisualNode("transfer", id("isf:transfer_button"), Map.of(
+                          "kind", literal("crafting_grid"),
+                          "items", parameter("pattern"),
+                          "alignSelf", literal("center")), List.of()))));
     }
 
     private static IsfVisualNode cookingVisual() {

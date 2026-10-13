@@ -1,7 +1,5 @@
 package dev.sixik.unigui.api.style;
 
-import dev.sixik.unigui.api.render.plan.RenderPlan;
-import dev.sixik.unigui.api.render.plan.StyleRenderPlanRegistry;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -23,7 +21,7 @@ import java.util.Set;
  * binding'ами и связями событий с анимациями как с обычными данными.</p>
  *
  * <p>Pack решает три задачи: хранит {@link StyleDefinition}, выбирает подходящие определения
- * через {@link StyleSelector} и строит {@link RenderPlan} через {@link StyleRenderPlanRegistry},
+ * Значения резолвятся через {@link StyleSelector}.
  * когда для типа виджета зарегистрирован декларативный render-plan builder.</p>
  */
 public final class StylePack implements Theme {
@@ -367,46 +365,6 @@ public final class StylePack implements Theme {
             layers.add(definition.style());
         }
         return ResolvedStyle.of(layers);
-    }
-
-    /**
-     * Строит RenderPlan для типа виджета без class/style-id условий.
-     *
-     * @param widgetType тип виджета
-     * @param stateType Java-тип render state
-     * @param renderState snapshot состояния виджета
-     * @param widgetState текущее visual state виджета
-     * @return план рендера или empty, если builder не зарегистрирован
-     * @param <S> тип render state
-     */
-    public <S> Optional<RenderPlan> renderPlanFor(String widgetType,
-                                                   Class<S> stateType,
-                                                   S renderState,
-                                                   WidgetState widgetState) {
-        return renderPlanFor(widgetType, "", List.of(), stateType, renderState, widgetState);
-    }
-
-
-    /**
-     * Строит RenderPlan для конкретного виджета с учётом style id и class'ов.
-     *
-     * @param widgetType тип виджета
-     * @param widgetStyleId явный style id виджета
-     * @param styleClasses style classes виджета
-     * @param stateType Java-тип render state
-     * @param renderState snapshot состояния виджета
-     * @param widgetState текущее visual state виджета
-     * @return план рендера или empty, если builder не зарегистрирован
-     * @param <S> тип render state
-     */
-    public <S> Optional<RenderPlan> renderPlanFor(String widgetType,
-                                                   String widgetStyleId,
-                                                   Collection<String> styleClasses,
-                                                   Class<S> stateType,
-                                                   S renderState,
-                                                   WidgetState widgetState) {
-        Style style = resolveStyleFor(widgetType, widgetStyleId, styleClasses);
-        return StyleRenderPlanRegistry.global().plan(widgetType, stateType, renderState, style, widgetState);
     }
 
     /**

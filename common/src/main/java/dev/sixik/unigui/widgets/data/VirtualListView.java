@@ -19,21 +19,18 @@ import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.selection.IndexSelectionModel;
 import dev.sixik.unigui.api.selection.SelectionMode;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.api.virtualization.FixedRowVirtualizer;
 import dev.sixik.unigui.api.virtualization.VirtualRange;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
-import dev.sixik.unigui.widgets.render.VirtualListViewRenderer;
-import dev.sixik.unigui.widgets.render.VirtualListViewRenderPhase;
-import dev.sixik.unigui.widgets.render.VirtualListViewRowState;
-import dev.sixik.unigui.widgets.render.VirtualListViewState;
 import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
@@ -71,7 +68,7 @@ public class VirtualListView extends WidgetBase {
     private boolean childrenViewDirty = true;
     private boolean childrenViewIncludesVerticalScrollBar;
     private IntFunction<? extends Widget> itemFactory = index -> new Label(String.valueOf(index));
-    private VirtualListViewRenderer renderer;
+    private RenderPhase renderPhase = RenderPhase.BACKGROUND;
     private float scrollStep = 16.0f;
     private int offscreenCacheSize;
     private boolean consumeWheelAtScrollBounds = true;
@@ -276,19 +273,15 @@ public class VirtualListView extends WidgetBase {
         return verticalScrollBar;
     }
 
-    public VirtualListViewRenderer renderer() {
-        return renderer;
-    }
-
-    public VirtualListView renderer(VirtualListViewRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public VirtualListView useDefaultRenderer() {
-        return renderer(null);
+    /**
+     * Возвращает фазу текущего render-прохода.
+     *
+     * <p>Поле обновляется самим виджетом перед каждым обращением к renderer'у и
+     * позволяет единому {@code WidgetRender} рисовать фазо-зависимый контент
+     * ({@code BACKGROUND} под дочерними виджетами, {@code FOREGROUND} над ними).</p>
+     */
+    public RenderPhase renderPhase() {
+        return renderPhase;
     }
 
     public VirtualListView scrollTo(float y) {
@@ -381,10 +374,15 @@ public class VirtualListView extends WidgetBase {
         if (visibility() != Visibility.VISIBLE) return;
         pushOpacity(context);
         try {
-            VirtualListViewRenderer activeRenderer = effectiveRenderer();
+            WidgetRender custom = customRender();
             DrawScope draw = new DrawScope(context, transform(), layoutBounds());
             draw.pushClip(layoutBounds().x(), layoutBounds().y(), viewportWidth(), layoutBounds().height());
-            activeRenderer.render(draw, snapshot(VirtualListViewRenderPhase.BACKGROUND));
+            renderPhase = RenderPhase.BACKGROUND;
+            if (custom != null) {
+                custom.render(draw, this);
+            } else {
+                renderPhaseVisual(draw, RenderPhase.BACKGROUND);
+            }
             context.pushTextPixelSnap(false);
             try {
                 for (Widget item : realizedWidgetSnapshot()) {
@@ -393,7 +391,12 @@ public class VirtualListView extends WidgetBase {
             } finally {
                 context.popTextPixelSnap();
             }
-            activeRenderer.render(draw, snapshot(VirtualListViewRenderPhase.FOREGROUND));
+            renderPhase = RenderPhase.FOREGROUND;
+            if (custom != null) {
+                custom.render(draw, this);
+            } else {
+                renderPhaseVisual(draw, RenderPhase.FOREGROUND);
+            }
             draw.popClip();
             if (hasVerticalScrollBar()) {
                 renderChildWithInheritedTransform(context, verticalScrollBar);
@@ -403,38 +406,30 @@ public class VirtualListView extends WidgetBase {
         }
     }
 
-    protected VirtualListViewRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(VirtualListViewRenderer.class, WidgetsRender.virtualListView()) : renderer;
-    }
-
-    protected VirtualListViewState snapshot(VirtualListViewRenderPhase phase) {
+    private void renderPhaseVisual(DrawScope draw, RenderPhase phase) {
         ensureRealizedSnapshot();
-        List<VirtualListViewRowState> rows = new ObjectArrayList<>(realizedWidgetSnapshot.length);
+        boolean focused = isFocused();
         for (int i = 0; i < realizedWidgetSnapshot.length; i++) {
             int index = realizedIndexSnapshot[i];
             Widget item = realizedWidgetSnapshot[i];
             if (item.visibility() != Visibility.VISIBLE) continue;
-            rows.add(new VirtualListViewRowState(
-                    index,
-                    item.layoutBounds().x(),
-                    item.layoutBounds().y(),
-                    item.layoutBounds().width(),
-                    item.layoutBounds().height(),
-                    selection.isSelected(index),
-                    index == activeIndex));
+            boolean selected = selection.isSelected(index);
+            boolean active = index == activeIndex;
+            if (phase == RenderPhase.BACKGROUND && selected) {
+                draw.rect(item.layoutBounds().x(), item.layoutBounds().y(),
+                        item.layoutBounds().width(), item.layoutBounds().height(),
+                        Paint.fill(SELECTED_ROW_COLOR));
+            } else if (phase == RenderPhase.FOREGROUND && focused && active) {
+                draw.rect(item.layoutBounds().x(), item.layoutBounds().y(),
+                        item.layoutBounds().width(), item.layoutBounds().height(),
+                        Paint.stroke(ACTIVE_ROW_COLOR, 1.0f));
+            }
         }
-        return new VirtualListViewState(
-                layoutBounds().x(),
-                layoutBounds().y(),
-                layoutBounds().width(),
-                layoutBounds().height(),
-                viewportWidth(),
-                layoutBounds().height(),
-                isFocused(),
-                phase,
-                SELECTED_ROW_COLOR.copy(),
-                ACTIVE_ROW_COLOR.copy(),
-                rows);
+    }
+
+    public enum RenderPhase {
+        BACKGROUND,
+        FOREGROUND
     }
 
     @Override

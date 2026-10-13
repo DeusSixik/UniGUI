@@ -4,7 +4,7 @@ import dev.sixik.unigui.api.math.RectView;
 
 import java.util.Objects;
 
-/** Calculated bounds for one Layout V3 node. */
+/** Вычисленные границы одного узла компоновки V3. */
 public record LayoutResult(
         LayoutNodeId id,
         float x,
