@@ -2,10 +2,13 @@ package dev.sixik.unigui.testmod.client.ui.renders;
 
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.text.Fonts;
 import dev.sixik.unigui.api.text.RichText;
-import dev.sixik.unigui.widgets.render.ButtonRenderer;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
+import dev.sixik.unigui.impl.text.TextEngine;
+import dev.sixik.unigui.widgets.interaction.Checkbox;
 
 public final class DestinyLikeCheckboxRenders {
     private static final float DOMINION_CHECKBOX_BORDER_WIDTH = 0.16f;
@@ -20,29 +23,32 @@ public final class DestinyLikeCheckboxRenders {
     private static final ColorView DOMINION_CHECKBOX_BORDER_HOVER = MutableColor.rgba255(255, 255, 255, 255);
     private static final ColorView DOMINION_CHECKBOX_INNER = MutableColor.rgba255(90, 165, 106, 255);
 
-    public static final ButtonRenderer DOMINION_CHECKBOX_RENDERER = (draw, state) -> {
-        float boxSize = Math.max(0.0f, state.indicatorSize());
-        float innerMaxSize = Math.max(0.0f, state.indicatorInnerSize());
+    public static final WidgetRender DOMINION_CHECKBOX_RENDERER = WidgetRender.of(Checkbox.class, (draw, checkbox) -> {
+        RectView bounds = checkbox.layoutBounds();
+        float boxSize = Math.max(0.0f, checkbox.boxSize());
+        float innerMaxSize = Math.max(0.0f, checkbox.checkSize());
         if (boxSize <= 0.0f || innerMaxSize <= 0.0f) return;
 
-        float progress = clamp01(state.indicatorProgress());
-        float labelGap = state.hasText() ? Math.max(0.0f, state.indicatorGap()) : 0.0f;
-        float labelWidth = state.hasText()
-                ? Math.min(Math.max(0.0f, state.textWidth()), Math.max(0.0f, state.width() - boxSize - labelGap))
+        RichText richText = checkbox.richText();
+        boolean hasText = richText != null && !richText.isEmpty();
+        float progress = clamp01(checkbox.checkProgress());
+        float labelGap = hasText ? Math.max(0.0f, checkbox.textGap()) : 0.0f;
+        float labelWidth = hasText
+                ? Math.min(Math.max(0.0f, TextEngine.measureLineWidth(draw.context(), richText)), Math.max(0.0f, bounds.width() - boxSize - labelGap))
                 : 0.0f;
-        float boxX = state.labelLeft() ? state.x() + labelWidth + labelGap : state.x();
-        float boxY = state.y() + Math.max(0.0f, state.height() - boxSize) * 0.5f;
+        float boxX = checkbox.labelLeft() ? bounds.x() + labelWidth + labelGap : bounds.x();
+        float boxY = bounds.y() + Math.max(0.0f, bounds.height() - boxSize) * 0.5f;
 
         draw.rect(boxX, boxY, boxSize, boxSize,
                 Paint.fill(mix(DOMINION_CHECKBOX_BOX_OFF, DOMINION_CHECKBOX_BOX_ON, progress)));
         DestinyLikeRenderPrimitives.rectBorder(draw, boxX, boxY, boxSize, boxSize,
-                state.hovered() && state.enabled()
+                checkbox.hovered() && checkbox.enabled()
                         ? DOMINION_CHECKBOX_BORDER_HOVER
                         : mix(DOMINION_CHECKBOX_BORDER_OFF, DOMINION_CHECKBOX_BORDER_ON, progress),
                 DOMINION_CHECKBOX_BORDER_WIDTH);
 
         if (progress > 0.0f) {
-            if (state.indeterminate()) {
+            if (checkbox.indeterminate()) {
                 float dashWidth = innerMaxSize * progress;
                 float dashHeight = Math.max(DOMINION_CHECKBOX_BORDER_WIDTH, innerMaxSize * 0.28f);
                 float dashX = boxX + (boxSize - dashWidth) * 0.5f;
@@ -56,12 +62,12 @@ public final class DestinyLikeCheckboxRenders {
             }
         }
 
-        if (state.labelLeft()) {
-            drawDominionCheckboxLabel(draw, state, state.x(), labelWidth);
+        if (checkbox.labelLeft()) {
+            drawDominionCheckboxLabel(draw, checkbox, bounds.x(), labelWidth);
         } else {
-            drawDominionCheckboxLabel(draw, state, boxX + boxSize + labelGap);
+            drawDominionCheckboxLabel(draw, checkbox, boxX + boxSize + labelGap);
         }
-    };
+    });
 
     public static RichText dominionCheckboxText(String text) {
         return RichText.builder()
@@ -75,24 +81,28 @@ public final class DestinyLikeCheckboxRenders {
     }
 
     private static void drawDominionCheckboxLabel(dev.sixik.unigui.api.render.DrawScope draw,
-                                                  dev.sixik.unigui.widgets.render.ButtonState state,
-                                                  float contentX,
-                                                  float contentWidth) {
-        if (!state.hasText()) return;
+                                                   Checkbox checkbox,
+                                                   float contentX,
+                                                   float contentWidth) {
+        RichText richText = checkbox.richText();
+        if (richText == null || richText.isEmpty()) return;
         if (contentWidth <= 0.0f) return;
 
-        float drawHeight = Math.min(Math.max(0.0f, state.height()), Math.max(0.0f, state.textHeight()));
-        float drawY = state.y() + Math.max(0.0f, state.height() - drawHeight) * 0.5f;
-        draw.text(state.richText(), contentX, drawY + 0.2f, contentWidth, drawHeight, Paint.fill(state.textColor()));
+        RectView bounds = checkbox.layoutBounds();
+        float drawHeight = Math.min(Math.max(0.0f, bounds.height()), Math.max(0.0f, TextEngine.measureTextHeight(draw.context(), richText)));
+        float drawY = bounds.y() + Math.max(0.0f, bounds.height() - drawHeight) * 0.5f;
+        draw.text(richText, contentX, drawY + 0.2f, contentWidth, drawHeight, Paint.fill(checkbox.textColor()));
     }
 
     private static void drawDominionCheckboxLabel(dev.sixik.unigui.api.render.DrawScope draw,
-                                                  dev.sixik.unigui.widgets.render.ButtonState state,
-                                                  float contentX) {
-        if (!state.hasText()) return;
+                                                   Checkbox checkbox,
+                                                   float contentX) {
+        RichText richText = checkbox.richText();
+        if (richText == null || richText.isEmpty()) return;
 
-        float contentWidth = Math.max(0.0f, state.width() - (contentX - state.x()));
-        drawDominionCheckboxLabel(draw, state, contentX, contentWidth);
+        RectView bounds = checkbox.layoutBounds();
+        float contentWidth = Math.max(0.0f, bounds.width() - (contentX - bounds.x()));
+        drawDominionCheckboxLabel(draw, checkbox, contentX, contentWidth);
     }
 
     private static ColorView mix(ColorView from, ColorView to, float amount) {

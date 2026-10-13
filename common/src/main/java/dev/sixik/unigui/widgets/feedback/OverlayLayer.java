@@ -13,17 +13,16 @@ import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.containers.PanelWidget;
 import dev.sixik.unigui.widgets.containers.StackPanel;
-import dev.sixik.unigui.widgets.render.ModalScrimRenderer;
-import dev.sixik.unigui.widgets.render.ModalScrimState;
 
 import java.util.IdentityHashMap;
 import java.util.Map;
@@ -39,7 +38,7 @@ public final class OverlayLayer extends PanelWidget {
     private final Map<Widget, Integer> overlayZ = new IdentityHashMap<>();
     private final MutableColor modalScrimColor = new MutableColor(0.0f, 0.0f, 0.0f, 0.48f);
     private Widget content;
-    private ModalScrimRenderer modalScrimRenderer;
+    private WidgetRender modalScrimRenderer;
     private int nextOverlayZ = 1;
 
     public OverlayLayer() {
@@ -66,19 +65,15 @@ public final class OverlayLayer extends PanelWidget {
         return modalScrimColor;
     }
 
-    public ModalScrimRenderer modalScrimRenderer() {
+    public WidgetRender modalScrimRenderer() {
         return modalScrimRenderer;
     }
 
-    public OverlayLayer modalScrimRenderer(ModalScrimRenderer modalScrimRenderer) {
+    public OverlayLayer modalScrimRenderer(WidgetRender modalScrimRenderer) {
         if (this.modalScrimRenderer == modalScrimRenderer) return this;
         this.modalScrimRenderer = modalScrimRenderer;
         invalidate(dev.sixik.unigui.api.core.InvalidationFlags.VISUAL);
         return this;
-    }
-
-    public OverlayLayer useDefaultModalScrimRenderer() {
-        return modalScrimRenderer(null);
     }
 
     public OverlayLayer content(Widget content) {
@@ -265,22 +260,21 @@ public final class OverlayLayer extends PanelWidget {
     }
 
     private void renderModalScrim(RenderContext context) {
-        effectiveModalScrimRenderer().render(new DrawScope(context, transform(), layoutBounds()), modalScrimState());
-    }
-
-    private ModalScrimRenderer effectiveModalScrimRenderer() {
-        return modalScrimRenderer == null ? styleRenderer(ModalScrimRenderer.class, WidgetsRender.modalScrim()) : modalScrimRenderer;
-    }
-
-    private ModalScrimState modalScrimState() {
-        return new ModalScrimState(
-                layoutBounds().x(),
-                layoutBounds().y(),
-                layoutBounds().width(),
-                layoutBounds().height(),
-                windowManager.topModalWindow() != null,
-                windowManager.modalStackDepth(),
-                modalScrimColor.copy());
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        if (modalScrimRenderer != null) {
+            modalScrimRenderer.render(draw, this);
+            return;
+        }
+        WidgetRender styled = styleRenderOverride();
+        if (styled != null) {
+            styled.render(draw, this);
+            return;
+        }
+        if (windowManager.topModalWindow() == null) return;
+        float width = layoutBounds().width();
+        float height = layoutBounds().height();
+        if (width <= 0.0f || height <= 0.0f) return;
+        draw.rect(layoutBounds().x(), layoutBounds().y(), width, height, Paint.fill(modalScrimColor));
     }
 
     void bringOverlayToFront(Widget overlay) {

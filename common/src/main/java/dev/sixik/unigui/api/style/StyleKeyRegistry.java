@@ -3,6 +3,8 @@ package dev.sixik.unigui.api.style;
 import dev.sixik.unigui.api.animation.AnimationEasing;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.render.ImageFit;
+import dev.sixik.unigui.api.render.shaders.ShaderHandle;
+import dev.sixik.unigui.api.widget.visual.BackgroundKind;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -40,8 +42,14 @@ public final class StyleKeyRegistry {
         StyleValueCodec<Float> number = StyleValueCodec.floatingPoint();
         StyleValueCodec<ImageFit> imageFit = StyleValueCodec.enumCodec(ImageFit.class);
         StyleValueCodec<AnimationEasing> easing = StyleValueCodec.enumCodec(AnimationEasing.class);
+        StyleValueCodec<BackgroundKind> backgroundKind = StyleValueCodec.enumCodec(BackgroundKind.class);
+        StyleValueCodec<ShaderHandle> shader = StyleValueCodec.of(
+                value -> value == null || value.isBlank() ? null : ShaderHandle.resource(value.trim()),
+                value -> value == null ? "" : value.id());
         return empty()
+                .register(new StylePropertyDescriptor<>(StyleKeys.BACKGROUND_KIND, "Background kind", "Background", null, backgroundKind, "Background source: none, color, texture or shader."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.BACKGROUND_COLOR, "Background color", "Background", null, color, "Main fill color."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.BACKGROUND_SHADER, "Background shader", "Background", null, shader, "Shader resource id used when background kind is shader."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.BACKGROUND_TEXTURE_TINT, "Texture tint", "Background", null, color, "Tint applied over the background texture."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.BACKGROUND_TEXTURE_FIT, "Texture fit", "Background", ImageFit.STRETCH, imageFit, "Texture placement mode."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.BORDER_COLOR, "Border color", "Border", null, color, "Stroke color."))

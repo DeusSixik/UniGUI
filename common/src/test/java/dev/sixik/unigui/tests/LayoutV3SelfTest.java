@@ -1,9 +1,12 @@
 package dev.sixik.unigui.tests;
 
 import dev.sixik.unigui.api.layout.Align;
+import dev.sixik.unigui.api.layout.AlignContent;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.FlexDirection;
+import dev.sixik.unigui.api.layout.GridAutoFlow;
+import dev.sixik.unigui.api.layout.GridTrack;
 import dev.sixik.unigui.api.layout.Justify;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
@@ -28,7 +31,7 @@ import dev.sixik.unigui.impl.layout.v3.LayoutDebugDumper;
 import dev.sixik.unigui.impl.layout.v3.LayoutTreeBuilder;
 import dev.sixik.unigui.impl.layout.v3.LayoutCache;
 import dev.sixik.unigui.impl.layout.v3.OverlayLayoutResolver;
-import dev.sixik.unigui.impl.layout.v3.TaffyLayoutEngine;
+import dev.sixik.unigui.impl.layout.v3.WebLayoutEngine;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.interaction.Button;
 import dev.sixik.unigui.widgets.caching.CachedSubtreeWidget;
@@ -74,6 +77,7 @@ public final class LayoutV3SelfTest {
         testAbsoluteChildRespectsMarginsAndOppositeInsets();
         testLayoutResultReportsOverflowExtent();
         testMeasureFunctionRunsOncePerPass();
+        testFlexBasisContentUsesMeasuredSize();
         testNestedAutoContainerMeasurementAndDump();
         testLayoutTreeBuilderKeepsStablePathsAcrossCollapsedChildren();
         testLinearBoxOptInMatchesV2Rows();
@@ -102,7 +106,19 @@ public final class LayoutV3SelfTest {
         testDockPanelV2BaselineSequentialDockAndFill();
         testDockPanelOptInMatchesV2SequentialDockAndAbsoluteChild();
         testDockPanelOptInMatchesV2LastChildFillDisabled();
-        testGridBoxV2BaselineEqualCellsAndAbsoluteChild();
+        testGridBoxFrTemplateBaseline();
+        testGridExplicitTracks();
+        testGridSpan();
+        testGridMinMax();
+        testGridExplicitPlacement();
+        testGridColumnFlow();
+        testGridSparseLeavesHoles();
+        testGridDenseBackfillsHoles();
+        testGridJustifyCenter();
+        testGridJustifySpaceBetween();
+        testGridAlignEnd();
+        testGridAlignStretch();
+        testZIndexHitOrder();
         testGridBoxOptInMatchesV2EqualCellsAndCollapsedChildren();
         testOverlayLayerV2BaselineIgnoresOverlayDesiredSize();
         testMinecraftZLayerPreservesAbsoluteContentBounds();
@@ -245,7 +261,7 @@ public final class LayoutV3SelfTest {
         LayoutNode root = LayoutNode.builder("root")
                 .style(new LayoutStyle().width(10.0f).height(5.0f))
                 .build();
-        LayoutOutput output = TaffyLayoutEngine.INSTANCE.compute(root, LayoutInput.of(10.0f, 5.0f));
+        LayoutOutput output = WebLayoutEngine.INSTANCE.compute(root, LayoutInput.of(10.0f, 5.0f));
         LayoutCache cache = new LayoutCache(1);
         LayoutCache.Key key = LayoutCache.Key.of(root.id(), 10.0f, 5.0f, 1.0f, 1L, 1L, 1L, 1L);
         LayoutCache.Key changedContent = LayoutCache.Key.of(root.id(), 10.0f, 5.0f, 1.0f, 1L, 1L, 2L, 1L);
@@ -255,7 +271,7 @@ public final class LayoutV3SelfTest {
                 "LayoutCache key should include constraints and invalidation versions");
 
         LayoutNode other = LayoutNode.builder("other").build();
-        LayoutOutput otherOutput = TaffyLayoutEngine.INSTANCE.compute(other, LayoutInput.of(1.0f, 1.0f));
+        LayoutOutput otherOutput = WebLayoutEngine.INSTANCE.compute(other, LayoutInput.of(1.0f, 1.0f));
         LayoutCache.Key otherKey = LayoutCache.Key.of(other.id(), 1.0f, 1.0f, 1.0f, 0L, 0L, 0L, 0L);
         cache.put(otherKey, otherOutput);
         expect(cache.size() == 1 && cache.get(key) == null && cache.get(otherKey) == otherOutput,
@@ -293,7 +309,7 @@ public final class LayoutV3SelfTest {
                 .child(grow)
                 .build();
 
-        LayoutOutput output = TaffyLayoutEngine.INSTANCE.compute(root, LayoutInput.of(120.0f, 30.0f));
+        LayoutOutput output = WebLayoutEngine.INSTANCE.compute(root, LayoutInput.of(120.0f, 30.0f));
         LayoutResult fixedResult = output.result(fixed.id());
         LayoutResult growResult = output.result(grow.id());
         expect(near(fixedResult.x(), 5.0f) && near(fixedResult.y(), 10.0f)
@@ -322,7 +338,7 @@ public final class LayoutV3SelfTest {
                 .child(overlay)
                 .build();
 
-        LayoutOutput output = TaffyLayoutEngine.INSTANCE.compute(root, LayoutInput.of(120.0f, 40.0f));
+        LayoutOutput output = WebLayoutEngine.INSTANCE.compute(root, LayoutInput.of(120.0f, 40.0f));
         expect(near(output.result(normal.id()).x(), 0.0f)
                         && near(output.result(normal.id()).width(), 50.0f),
                 "Absolute children should not consume normal flex flow space");
@@ -361,7 +377,7 @@ public final class LayoutV3SelfTest {
                 .child(stretched)
                 .build();
 
-        LayoutOutput output = TaffyLayoutEngine.INSTANCE.compute(root, LayoutInput.of(100.0f, 60.0f));
+        LayoutOutput output = WebLayoutEngine.INSTANCE.compute(root, LayoutInput.of(100.0f, 60.0f));
         LayoutResult anchoredResult = output.result(anchored.id());
         LayoutResult stretchedResult = output.result(stretched.id());
         expect(near(anchoredResult.x(), 17.0f)
@@ -390,7 +406,7 @@ public final class LayoutV3SelfTest {
                 .child(child)
                 .build();
 
-        LayoutOutput output = TaffyLayoutEngine.INSTANCE.compute(root, LayoutInput.of(100.0f, 40.0f));
+        LayoutOutput output = WebLayoutEngine.INSTANCE.compute(root, LayoutInput.of(100.0f, 40.0f));
         LayoutResult rootResult = output.rootResult();
         expect(near(rootResult.contentWidth(), 90.0f)
                         && near(rootResult.contentHeight(), 30.0f),
@@ -416,9 +432,39 @@ public final class LayoutV3SelfTest {
                 .child(leaf)
                 .build();
 
-        TaffyLayoutEngine.INSTANCE.compute(root, LayoutInput.of(100.0f, 40.0f));
+        WebLayoutEngine.INSTANCE.compute(root, LayoutInput.of(100.0f, 40.0f));
         expect(measures.get() == 1,
                 "Layout V3 should cache leaf measurement within one compute pass");
+    }
+
+    private void testFlexBasisContentUsesMeasuredSize() {
+        LayoutNode sized = LayoutNode.builder("sized")
+                .style(new LayoutStyle().width(200.0f).height(10.0f).flexShrink(0.0f))
+                .measure(context -> LayoutSize.of(50.0f, 10.0f))
+                .build();
+        LayoutNode sizedRoot = LayoutNode.builder("root")
+                .style(new LayoutStyle().flexDirection(FlexDirection.ROW))
+                .child(sized)
+                .build();
+        LayoutOutput sizedOutput = WebLayoutEngine.INSTANCE.compute(sizedRoot, LayoutInput.of(300.0f, 30.0f));
+        expect(near(sizedOutput.result(sized.id()).width(), 200.0f),
+                "Explicit width should win over measured content without content basis");
+
+        LayoutNode content = LayoutNode.builder("content")
+                .style(new LayoutStyle()
+                        .width(200.0f)
+                        .height(10.0f)
+                        .flexShrink(0.0f)
+                        .flexBasis(SizeValue.content()))
+                .measure(context -> LayoutSize.of(50.0f, 10.0f))
+                .build();
+        LayoutNode contentRoot = LayoutNode.builder("root")
+                .style(new LayoutStyle().flexDirection(FlexDirection.ROW))
+                .child(content)
+                .build();
+        LayoutOutput contentOutput = WebLayoutEngine.INSTANCE.compute(contentRoot, LayoutInput.of(300.0f, 30.0f));
+        expect(near(contentOutput.result(content.id()).width(), 50.0f),
+                "flex-basis: content should size from measured content ignoring explicit width");
     }
 
     private void testNestedAutoContainerMeasurementAndDump() {
@@ -443,12 +489,12 @@ public final class LayoutV3SelfTest {
                 .child(row)
                 .build();
 
-        LayoutSize measured = TaffyLayoutEngine.INSTANCE.measure(
+        LayoutSize measured = WebLayoutEngine.INSTANCE.measure(
                 root, LayoutInput.of(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY));
         expect(near(measured.width(), 59.0f) && near(measured.height(), 16.0f),
                 "Layout V3 should recursively measure nested auto flex containers");
 
-        LayoutOutput output = TaffyLayoutEngine.INSTANCE.compute(root, LayoutInput.of(100.0f, 50.0f));
+        LayoutOutput output = WebLayoutEngine.INSTANCE.compute(root, LayoutInput.of(100.0f, 50.0f));
         String dump = LayoutDebugDumper.dump(root, output);
         expect(dump.equals("""
                 root 0,0 100x50
@@ -874,7 +920,7 @@ public final class LayoutV3SelfTest {
                 "DockPanel V3 opt-in should respect lastChildFill(false) and dock the final normal child");
     }
 
-    private void testGridBoxV2BaselineEqualCellsAndAbsoluteChild() {
+    private void testGridBoxFrTemplateBaseline() {
         GridBoxFixture fixture = buildGridBoxFixture();
         GridBox grid = fixture.grid();
 
@@ -882,15 +928,254 @@ public final class LayoutV3SelfTest {
         grid.arrange(new MutableRect(0.0f, 0.0f, 123.0f, 60.0f));
 
         float cellWidth = 113.0f / 3.0f;
-        expect(near(grid.desiredSize().width(), 70.0f)
-                        && near(grid.desiredSize().height(), 40.0f),
-                "GridBox V2 baseline should measure max visible cell plus spacing and padding");
+        expect(near(grid.desiredSize().width(), 48.0f)
+                        && near(grid.desiredSize().height(), 37.0f),
+                "GridBox should measure per-track content minimums plus spacing and padding");
         expect(sameBounds(fixture.first().layoutBounds(), new MutableRect(3.0f, 3.0f, 20.0f, 10.0f))
-                        && sameBounds(fixture.second().layoutBounds(), new MutableRect(3.0f + cellWidth + 2.0f, 3.0f, cellWidth, 25.0f))
-                        && sameBounds(fixture.third().layoutBounds(), new MutableRect(102.0f, 9.5f, 18.0f, 12.0f))
-                        && sameBounds(fixture.fourth().layoutBounds(), new MutableRect(4.0f, 34.0f, cellWidth - 4.0f, 9.0f))
+                        && sameBounds(fixture.second().layoutBounds(), new MutableRect(3.0f + cellWidth + 2.0f, 3.0f, cellWidth, 23.5f))
+                        && sameBounds(fixture.third().layoutBounds(), new MutableRect(102.0f, 8.75f, 18.0f, 12.0f))
+                        && sameBounds(fixture.fourth().layoutBounds(), new MutableRect(4.0f, 32.5f, cellWidth - 4.0f, 9.0f))
                         && sameBounds(fixture.absolute().layoutBounds(), new MutableRect(12.0f, 10.0f, 11.0f, 13.0f)),
-                "GridBox V2 baseline should arrange equal cells, skip collapsed normal children and arrange absolute children in content bounds");
+                "GridBox should split fr columns equally, stretch implicit rows by align-content, skip collapsed normal children and arrange absolute children in content bounds");
+    }
+
+    private void testGridExplicitTracks() {
+        GridBox grid = new GridBox();
+        grid.gridColumns(GridTrack.px(100.0f), GridTrack.fr(1.0f), GridTrack.auto());
+        Box first = new Box();
+        first.layout(style -> style.size(10.0f, 10.0f).flexShrink(0.0f));
+        Box second = new Box();
+        second.layout(style -> style.size(10.0f, 10.0f).flexShrink(0.0f));
+        Box third = new Box();
+        third.layout(style -> style.size(40.0f, 10.0f).flexShrink(0.0f));
+        grid.addChild(first);
+        grid.addChild(second);
+        grid.addChild(third);
+        grid.applyQueuedMutations();
+
+        grid.measure(new dev.sixik.unigui.api.layout.LayoutContext(300.0f, 60.0f));
+        grid.arrange(new MutableRect(0.0f, 0.0f, 300.0f, 60.0f));
+
+        expect(near(grid.desiredSize().width(), 150.0f)
+                        && near(grid.desiredSize().height(), 10.0f),
+                "Grid should measure fixed tracks plus content minimums for fr and auto tracks");
+        expect(sameBounds(first.layoutBounds(), new MutableRect(0.0f, 0.0f, 10.0f, 10.0f))
+                        && sameBounds(second.layoutBounds(), new MutableRect(100.0f, 0.0f, 10.0f, 10.0f))
+                        && sameBounds(third.layoutBounds(), new MutableRect(260.0f, 0.0f, 40.0f, 10.0f)),
+                "Grid should resolve px tracks, split free space to fr and size auto from content");
+    }
+
+    private void testGridSpan() {
+        GridBox grid = new GridBox();
+        grid.columns(2);
+        Box wide = new Box();
+        wide.layout(style -> style.size(10.0f, 10.0f).flexShrink(0.0f).gridColumn(1, 2));
+        Box next = new Box();
+        next.layout(style -> style.size(10.0f, 10.0f).flexShrink(0.0f));
+        grid.addChild(wide);
+        grid.addChild(next);
+        grid.applyQueuedMutations();
+
+        grid.measure(new dev.sixik.unigui.api.layout.LayoutContext(200.0f, 60.0f));
+        grid.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 60.0f));
+
+        expect(sameBounds(wide.layoutBounds(), new MutableRect(0.0f, 0.0f, 10.0f, 10.0f))
+                        && sameBounds(next.layoutBounds(), new MutableRect(0.0f, 30.0f, 10.0f, 10.0f)),
+                "Spanning item should occupy its columns while the next auto item wraps to a stretched new row");
+    }
+
+    private void testGridMinMax() {
+        GridBox grid = new GridBox();
+        grid.gridColumns(GridTrack.minmax(GridTrack.px(100.0f), GridTrack.fr(1.0f)), GridTrack.auto());
+        Box first = new Box();
+        first.layout(style -> style.size(10.0f, 10.0f).flexShrink(0.0f));
+        Box second = new Box();
+        second.layout(style -> style.size(50.0f, 10.0f).flexShrink(0.0f));
+        grid.addChild(first);
+        grid.addChild(second);
+        grid.applyQueuedMutations();
+
+        grid.measure(new dev.sixik.unigui.api.layout.LayoutContext(300.0f, 60.0f));
+        grid.arrange(new MutableRect(0.0f, 0.0f, 300.0f, 60.0f));
+
+        expect(near(grid.desiredSize().width(), 150.0f),
+                "Grid should measure minmax tracks at their minimum plus auto content");
+        expect(sameBounds(first.layoutBounds(), new MutableRect(0.0f, 0.0f, 10.0f, 10.0f))
+                        && sameBounds(second.layoutBounds(), new MutableRect(150.0f, 0.0f, 50.0f, 10.0f)),
+                "Minmax track should keep its floor and take the fr share of free space");
+    }
+
+    private void testGridExplicitPlacement() {
+        GridBox grid = new GridBox();
+        grid.columns(2);
+        Box placed = new Box();
+        placed.layout(style -> style.size(10.0f, 10.0f).flexShrink(0.0f).gridColumn(2, 1));
+        Box auto = new Box();
+        auto.layout(style -> style.size(10.0f, 10.0f).flexShrink(0.0f));
+        grid.addChild(placed);
+        grid.addChild(auto);
+        grid.applyQueuedMutations();
+
+        grid.measure(new dev.sixik.unigui.api.layout.LayoutContext(200.0f, 60.0f));
+        grid.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 60.0f));
+
+        expect(sameBounds(placed.layoutBounds(), new MutableRect(100.0f, 0.0f, 10.0f, 10.0f))
+                        && sameBounds(auto.layoutBounds(), new MutableRect(0.0f, 0.0f, 10.0f, 10.0f)),
+                "Explicitly placed item should keep its cell while auto items fill from the start");
+    }
+
+    private void testGridColumnFlow() {
+        GridBox grid = new GridBox();
+        grid.gridRows(GridTrack.px(30.0f), GridTrack.px(30.0f));
+        grid.layout(style -> style.gridAutoFlow(GridAutoFlow.COLUMN));
+        for (int index = 0; index < 3; index++) {
+            Box child = new Box();
+            child.layout(style -> style.size(10.0f, 10.0f).flexShrink(0.0f));
+            grid.addChild(child);
+        }
+        grid.applyQueuedMutations();
+
+        grid.measure(new dev.sixik.unigui.api.layout.LayoutContext(200.0f, 60.0f));
+        grid.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 60.0f));
+
+        expect(sameBounds(grid.children().get(0).layoutBounds(), new MutableRect(0.0f, 0.0f, 10.0f, 10.0f))
+                        && sameBounds(grid.children().get(1).layoutBounds(), new MutableRect(0.0f, 30.0f, 10.0f, 10.0f))
+                        && sameBounds(grid.children().get(2).layoutBounds(), new MutableRect(10.0f, 0.0f, 10.0f, 10.0f)),
+                "Column flow should fill rows first inside implicit auto columns");
+    }
+
+    private void testGridSparseLeavesHoles() {
+        GridBoxFixtureSparse fixture = buildSparseGrid(GridAutoFlow.ROW);
+        expect(sameBounds(fixture.items().get(0).layoutBounds(), new MutableRect(0.0f, 0.0f, 10.0f, 10.0f))
+                        && sameBounds(fixture.locked().layoutBounds(), new MutableRect(0.0f, 20.0f, 10.0f, 10.0f))
+                        && sameBounds(fixture.items().get(1).layoutBounds(), new MutableRect(0.0f, 30.0f, 10.0f, 10.0f)),
+                "Sparse flow should lock the cursor past definite rows and leave holes behind");
+    }
+
+    private void testGridDenseBackfillsHoles() {
+        GridBoxFixtureSparse fixture = buildSparseGrid(GridAutoFlow.ROW_DENSE);
+        expect(sameBounds(fixture.items().get(0).layoutBounds(), new MutableRect(0.0f, 0.0f, 10.0f, 10.0f))
+                        && sameBounds(fixture.locked().layoutBounds(), new MutableRect(0.0f, 20.0f, 10.0f, 10.0f))
+                        && sameBounds(fixture.items().get(1).layoutBounds(), new MutableRect(10.0f, 0.0f, 10.0f, 10.0f)),
+                "Dense flow should backfill holes left behind the cursor");
+    }
+
+    private record GridBoxFixtureSparse(java.util.List<Widget> items, Widget locked) {
+    }
+
+    private void testGridJustifyCenter() {
+        GridBox grid = buildFixedTrackGrid(Justify.CENTER, AlignContent.START);
+        expect(sameBounds(grid.children().get(0).layoutBounds(), new MutableRect(50.0f, 0.0f, 10.0f, 10.0f))
+                        && sameBounds(grid.children().get(1).layoutBounds(), new MutableRect(150.0f, 0.0f, 10.0f, 10.0f)),
+                "Grid justify-center should center fixed tracks inside free content space");
+    }
+
+    private void testGridJustifySpaceBetween() {
+        GridBox grid = buildFixedTrackGrid(Justify.SPACE_BETWEEN, AlignContent.START);
+        expect(sameBounds(grid.children().get(0).layoutBounds(), new MutableRect(0.0f, 0.0f, 10.0f, 10.0f))
+                        && sameBounds(grid.children().get(1).layoutBounds(), new MutableRect(200.0f, 0.0f, 10.0f, 10.0f)),
+                "Grid justify space-between should push fixed tracks to content edges");
+    }
+
+    private void testGridAlignEnd() {
+        GridBox grid = buildFixedTrackGrid(Justify.START, AlignContent.END);
+        expect(sameBounds(grid.children().get(0).layoutBounds(), new MutableRect(0.0f, 80.0f, 10.0f, 10.0f))
+                        && sameBounds(grid.children().get(1).layoutBounds(), new MutableRect(100.0f, 80.0f, 10.0f, 10.0f)),
+                "Grid align-content end should pack fixed rows at the content bottom");
+    }
+
+    private void testGridAlignStretch() {
+        GridBox grid = new GridBox();
+        grid.gridColumns(GridTrack.auto(), GridTrack.auto());
+        grid.layout(style -> style.alignContent(AlignContent.STRETCH));
+        for (int index = 0; index < 4; index++) {
+            Box child = new Box();
+            child.layout(style -> style.size(10.0f, 10.0f).flexShrink(0.0f));
+            grid.addChild(child);
+        }
+        grid.applyQueuedMutations();
+
+        grid.measure(new dev.sixik.unigui.api.layout.LayoutContext(20.0f, 100.0f));
+        grid.arrange(new MutableRect(0.0f, 0.0f, 20.0f, 100.0f));
+
+        expect(sameBounds(grid.children().get(0).layoutBounds(), new MutableRect(0.0f, 0.0f, 10.0f, 10.0f))
+                        && sameBounds(grid.children().get(2).layoutBounds(), new MutableRect(0.0f, 50.0f, 10.0f, 10.0f)),
+                "Grid align-content stretch should grow auto rows to fill content height");
+    }
+
+    private GridBox buildFixedTrackGrid(Justify justify, AlignContent alignContent) {
+        GridBox grid = new GridBox();
+        grid.gridColumns(GridTrack.px(100.0f), GridTrack.px(100.0f));
+        grid.gridRows(GridTrack.px(20.0f));
+        grid.layout(style -> style.justifyContent(justify).alignContent(alignContent));
+        for (int index = 0; index < 2; index++) {
+            Box child = new Box();
+            child.layout(style -> style.size(10.0f, 10.0f).flexShrink(0.0f));
+            grid.addChild(child);
+        }
+        grid.applyQueuedMutations();
+
+        grid.measure(new dev.sixik.unigui.api.layout.LayoutContext(300.0f, 100.0f));
+        grid.arrange(new MutableRect(0.0f, 0.0f, 300.0f, 100.0f));
+        return grid;
+    }
+
+    private void testZIndexHitOrder() {
+        Box host = new Box();
+        host.layout(style -> style.width(100.0f).height(100.0f));
+        Box bottom = new Box();
+        bottom.layout(style -> style
+                .position(PositionType.ABSOLUTE)
+                .left(0.0f)
+                .top(0.0f)
+                .width(50.0f)
+                .height(50.0f)
+                .zIndex(5));
+        Box top = new Box();
+        top.layout(style -> style
+                .position(PositionType.ABSOLUTE)
+                .left(0.0f)
+                .top(0.0f)
+                .width(50.0f)
+                .height(50.0f));
+        host.addChild(bottom);
+        host.addChild(top);
+        host.applyQueuedMutations();
+
+        host.measure(new LayoutContext(100.0f, 100.0f));
+        host.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 100.0f));
+        Widget hit = new dev.sixik.unigui.impl.input.TransformHitTester()
+                .hitTest(host, 10.0f, 10.0f).orElseThrow().widget();
+        expect(hit == bottom,
+                "Higher z-index should win hit-test regardless of tree order");
+
+        bottom.layout(style -> style.zIndex(0));
+        host.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 100.0f));
+        Widget fallback = new dev.sixik.unigui.impl.input.TransformHitTester()
+                .hitTest(host, 10.0f, 10.0f).orElseThrow().widget();
+        expect(fallback == top,
+                "Without z-index the later sibling should win hit-test");
+    }
+
+    private GridBoxFixtureSparse buildSparseGrid(GridAutoFlow flow) {
+        GridBox grid = new GridBox();
+        grid.columns(3);
+        grid.gridRows(GridTrack.px(10.0f), GridTrack.px(10.0f), GridTrack.px(10.0f), GridTrack.px(10.0f));
+        grid.layout(style -> style.gridAutoFlow(flow));
+        Box first = new Box();
+        first.layout(style -> style.size(10.0f, 10.0f).flexShrink(0.0f));
+        Box locked = new Box();
+        locked.layout(style -> style.size(10.0f, 10.0f).flexShrink(0.0f).gridRow(3, 1));
+        Box second = new Box();
+        second.layout(style -> style.size(10.0f, 10.0f).flexShrink(0.0f));
+        grid.addChild(first);
+        grid.addChild(locked);
+        grid.addChild(second);
+        grid.applyQueuedMutations();
+
+        grid.measure(new dev.sixik.unigui.api.layout.LayoutContext(300.0f, 300.0f));
+        grid.arrange(new MutableRect(0.0f, 0.0f, 300.0f, 300.0f));
+        return new GridBoxFixtureSparse(java.util.List.of(first, second), locked);
     }
 
     private void testGridBoxOptInMatchesV2EqualCellsAndCollapsedChildren() {
@@ -1461,6 +1746,10 @@ public final class LayoutV3SelfTest {
                 "auto overflow should show needed scrollbars");
         assertScrollOverflowMode(Overflow.SCROLL, Overflow.SCROLL, true, true, true,
                 "scroll overflow should reserve scrollbars even without overflow");
+        assertScrollOverflowMode(Overflow.VISIBLE, Overflow.HIDDEN, true, false, true,
+                "visible horizontal with hidden vertical should compute to auto and scroll");
+        assertScrollOverflowMode(Overflow.HIDDEN, Overflow.VISIBLE, false, true, true,
+                "hidden horizontal with visible vertical should compute to auto and scroll");
     }
 
     private void testOverlayLayoutResolverPlacesPortalLikePopup() {

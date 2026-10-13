@@ -137,3 +137,4 @@ profile-2916-2916___dev.architectury.transformer.Tran.jfr
 .profileconfig.json
 /net
 gradle.properties
+/ISF/logs

@@ -3,13 +3,12 @@ package dev.sixik.isf.client;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.*;
-import dev.sixik.unigui.api.render.plan.RenderPrimitive;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.widgets.render.BoxRenderer;
-import dev.sixik.unigui.widgets.render.BoxState;
-import dev.sixik.unigui.widgets.render.ButtonRenderer;
-import dev.sixik.unigui.widgets.render.ButtonState;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
+import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.impl.text.TextEngine;
+import dev.sixik.unigui.widgets.interaction.Button;
 
 import java.util.List;
 import java.util.Objects;
@@ -18,7 +17,7 @@ import java.util.Objects;
  * Рендерер 9-slice (nine-patch) для визуальной подложки виджетов.
  * Позволяет растягивать текстуры интерфейса Minecraft без размытия и деформации границ.
  */
-public final class NineSliceButtonRenderer implements ButtonRenderer {
+public final class NineSliceButtonRenderer implements WidgetRender {
     private static final MutableColor WHITE = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
 
     private final TextureHandle texture;
@@ -88,46 +87,50 @@ public final class NineSliceButtonRenderer implements ButtonRenderer {
     }
 
     @Override
-    public void render(DrawScope draw, ButtonState state) {
-        if (state == null) return;
-        render(draw, state.x(), state.y(), state.width(), state.height());
-        addDefaultText(draw,state);
+    public void render(DrawScope draw, Widget widget) {
+        if (widget == null) return;
+        RectView b = widget.layoutBounds();
+        render(draw, b.x(), b.y(), b.width(), b.height());
+        if (widget instanceof Button button) {
+            addDefaultText(draw, button);
+        }
     }
 
-    private static void addDefaultText(DrawScope primitives, ButtonState state) {
-        if (!state.hasText()) return;
-        float contentX = state.textContentX();
-        float contentWidth = state.textContentWidth();
+    private static void addDefaultText(DrawScope draw, Button button) {
+        RichText richText = button.richText();
+        if (richText == null || richText.isEmpty()) return;
+        RectView bounds = button.layoutBounds();
+        float contentX = bounds.x() + button.textPaddingX();
+        float contentWidth = Math.max(0.0f, bounds.width() - button.textPaddingX() * 2.0f);
         if (contentWidth <= 0.0f) return;
-        float drawWidth = Math.min(Math.max(0.0f, contentWidth), Math.max(0.0f, state.textWidth()));
-        float drawHeight = Math.min(Math.max(0.0f, state.height()), Math.max(0.0f, state.textHeight()));
+        float drawWidth = Math.min(Math.max(0.0f, contentWidth), Math.max(0.0f, TextEngine.measureLineWidth(draw.context(), richText)));
+        float drawHeight = Math.min(Math.max(0.0f, bounds.height()), Math.max(0.0f, TextEngine.measureTextHeight(draw.context(), richText)));
         float drawX = contentX + Math.max(0.0f, contentWidth - drawWidth) * 0.5f;
-        float drawY = state.y() + Math.max(0.0f, state.height() - drawHeight) * 0.5f;
-        richText(state, drawX, drawY, drawWidth, drawHeight,
-                contentX, state.y(), contentWidth, state.height()).render(primitives);
+        float drawY = bounds.y() + Math.max(0.0f, bounds.height() - drawHeight) * 0.5f;
+        drawClippedText(draw, button, drawX, drawY, drawWidth, drawHeight,
+                contentX, bounds.y(), contentWidth, bounds.height());
     }
 
-    private static RenderPrimitive.RichTextBlock richText(ButtonState state,
-                                                          float x,
-                                                          float y,
-                                                          float width,
-                                                          float height,
-                                                          float clipX,
-                                                          float clipY,
-                                                          float clipWidth,
-                                                          float clipHeight) {
-        return new RenderPrimitive.RichTextBlock(
-                state.richText(),
-                x,
-                y,
-                width,
-                height,
-                Paint.fill(state.textColor()),
-                clipX,
-                clipY,
-                clipWidth,
-                clipHeight,
-                true);
+    private static void drawClippedText(DrawScope draw, Button button,
+                                        float x,
+                                        float y,
+                                        float width,
+                                        float height,
+                                        float clipX,
+                                        float clipY,
+                                        float clipWidth,
+                                        float clipHeight) {
+        RichText text = button.richText();
+        if (text == null || text.isEmpty()) return;
+        boolean clipped = clipWidth > 0.0f && clipHeight > 0.0f;
+        if (clipped) {
+            draw.pushTextClip(clipX, clipY, clipWidth, clipHeight);
+        }
+        try {
+            TextEngine.drawInline(draw, text, x, y, width, height, Paint.fill(button.textColor()));
+        } finally {
+            if (clipped) draw.popClip();
+        }
     }
     /**
      * Рендерит 9-slice подложку напрямую для любого виджета (например, HBox или VBox).

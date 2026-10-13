@@ -11,16 +11,16 @@ import java.util.Objects;
  */
 public final class LayoutOutput {
     /**
-     * Хранит текстовое или идентификационное значение {@code rootId}.
+     * Идентификатор корневого узла прохода компоновки.
      */
     private final LayoutNodeId rootId;
     /**
-     * Хранит коллекцию {@code Map<LayoutNodeId}, с которой работает этот объект.
+     * Результаты компоновки по идентификаторам узлов.
      */
     private final Map<LayoutNodeId, LayoutResult> results;
 
     /**
-     * Создаёт экземпляр {@code LayoutOutput} и подготавливает его начальное состояние.
+     * Создаёт вывод прохода с корневым идентификатором и картой результатов.
      */
     public LayoutOutput(LayoutNodeId rootId, Map<LayoutNodeId, LayoutResult> results) {
         this.rootId = Objects.requireNonNull(rootId, "rootId");
@@ -29,35 +29,35 @@ public final class LayoutOutput {
     }
 
     /**
-     * Выполняет операцию {@code builder} с переданными параметрами.
+     * Создаёт строитель вывода для заданного корневого узла.
      */
     public static Builder builder(LayoutNodeId rootId) {
         return new Builder(rootId);
     }
 
     /**
-     * Возвращает текущее значение или выполняет операцию {@code rootResult}.
+     * Возвращает результат корневого узла.
      */
     public LayoutResult rootResult() {
         return result(rootId);
     }
 
     /**
-     * Выполняет операцию {@code result} с переданными параметрами.
+     * Возвращает результат узла по его идентификатору или {@code null}.
      */
     public LayoutResult result(LayoutNodeId id) {
         return results.get(id);
     }
 
     /**
-     * Возвращает текущее значение или выполняет операцию {@code results}.
+     * Возвращает все результаты по идентификаторам узлов.
      */
     public Map<LayoutNodeId, LayoutResult> results() {
         return results;
     }
 
     /**
-     * Возвращает текущее значение или выполняет операцию {@code orderedResults}.
+     * Возвращает результаты в порядке обхода дерева.
      */
     public Collection<LayoutResult> orderedResults() {
         return results.values();
@@ -65,23 +65,23 @@ public final class LayoutOutput {
 
     public static final class Builder {
         /**
-         * Хранит текстовое или идентификационное значение {@code rootId}.
+         * Идентификатор корневого узла собираемого вывода.
          */
         private final LayoutNodeId rootId;
         /**
-         * Хранит текстовое или идентификационное значение {@code LinkedHashMap<LayoutNodeId}.
+         * Накапливаемые результаты по идентификаторам узлов.
          */
         private final LinkedHashMap<LayoutNodeId, LayoutResult> results = new LinkedHashMap<>();
 
         /**
-         * Выполняет операцию {@code Builder} с переданными параметрами.
+         * Создаёт строитель вывода для заданного корневого узла.
          */
         private Builder(LayoutNodeId rootId) {
             this.rootId = Objects.requireNonNull(rootId, "rootId");
         }
 
         /**
-         * Добавляет данные или команду через операцию {@code add}.
+         * Добавляет результат узла; {@code null} игнорируется.
          */
         public Builder add(LayoutResult result) {
             if (result != null) {
@@ -91,14 +91,14 @@ public final class LayoutOutput {
         }
 
         /**
-         * Выполняет операцию {@code peek} с переданными параметрами.
+         * Возвращает уже добавленный результат по идентификатору или {@code null}.
          */
         public LayoutResult peek(LayoutNodeId id) {
             return results.get(id);
         }
 
         /**
-         * Возвращает текущее значение или выполняет операцию {@code build}.
+         * Строит неизменяемый вывод из накопленных результатов.
          */
         public LayoutOutput build() {
             return new LayoutOutput(rootId, results);

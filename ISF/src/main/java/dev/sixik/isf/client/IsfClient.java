@@ -3,10 +3,7 @@ package dev.sixik.isf.client;
 import dev.sixik.unigui.backend.minecraft_impl.ScreenOverlayRender;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.client.event.ScreenEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.EventPriority;
@@ -18,7 +15,12 @@ public final class IsfClient {
     private IsfClient() {
     }
 
-    public static void init() {
+    public static void init(net.minecraftforge.eventbus.api.IEventBus modEventBus) {
+        if (modEventBus != null) {
+            // Клиентская фабрика tooltip-компонентов — IModBusEvent, регистрируется
+            // до первого тултипа с нашей сеткой моделей.
+            modEventBus.addListener(IsfClient::onRegisterTooltipComponents);
+        }
         OVERLAY.register();
         MinecraftForge.EVENT_BUS.addListener(IsfClient::keyPressed);
         MinecraftForge.EVENT_BUS.addListener(IsfClient::screenClosed);
@@ -34,49 +36,54 @@ public final class IsfClient {
         OVERLAY.updatePointerPosition(event.getMouseX(), event.getMouseY());
     }
 
-    private static void keyPressed(ScreenEvent.KeyPressed.Pre event) {
+    /**
+     * Регистрирует клиентскую фабрику tooltip-компонентов: маркер
+     * {@link IsfAcceptsTooltipData} конвертируется в рисующий
+     * {@code ClientTooltipComponent} (сетка моделей вариантов тега).
+     */
+    private static void onRegisterTooltipComponents(
+            net.minecraftforge.client.event.RegisterClientTooltipComponentFactoriesEvent event) {
+        event.register(IsfAcceptsTooltipData.class, data ->
+                new IsfAcceptsTooltipData.GridComponent(data,
+                        net.minecraft.client.Minecraft.getInstance().font));
+    }    private static void keyPressed(ScreenEvent.KeyPressed.Pre event) {
         if (event.isCanceled()) return;
         if (!(event.getScreen() instanceof AbstractContainerScreen<?> container)) return;
         if (event.getScreen().getFocused() instanceof EditBox) return;
         if (ScreenOverlayRender.isTextInputActive(container)) return;
-        if (event.getKeyCode() == org.lwjgl.glfw.GLFW.GLFW_KEY_A) {
-            // A над предметом в сетке крафта — закладка на него; иначе — на клетку списка.
-            ResourceLocation recipeItem = OVERLAY.recipeItemAt();
-            if (recipeItem != null) {
-                boolean bookmarked = !dev.sixik.isf.client.IsfClientState.bookmarks().contains(recipeItem);
-                dev.sixik.isf.network.IsfNetwork.toggleBookmark(recipeItem, bookmarked);
-                event.setCanceled(true);
-                return;
-            }
-            if (OVERLAY.toggleHoveredBookmark()) event.setCanceled(true);
-            return;
-        }
-        if (event.getKeyCode() != org.lwjgl.glfw.GLFW.GLFW_KEY_R
-                && event.getKeyCode() != org.lwjgl.glfw.GLFW.GLFW_KEY_U) {
-            return;
-        }
 
-        // Координаты курсора уже трекаются в render-событии — они в тех же
-        // GUI-координатах, что и работающие клики, независимо от guiScale.
-        ResourceLocation itemId = OVERLAY.recipeItemAt();
-        if (itemId == null) itemId = OVERLAY.hoveredItemId();
-        if (itemId == null) {
-            Slot slot = container.getSlotUnderMouse();
-            ItemStack stack = slot == null ? ItemStack.EMPTY : slot.getItem();
-            if (!stack.isEmpty()) itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
-        }
+        // Единое разрешение предмета под курсором через IsfItemTriggerUtils:
+        // визуалы рецептов, катализаторы окна рецептов, клетки каталога/закладок
+        // и, как фолбэк, слот инвентаря. KeyPressed не несёт координаты мыши —
+        // берём трекаемые в render-событии (те же GUI-координаты, что у кликов).
+        ResourceLocation itemId = IsfItemTriggerUtils.resolveItemAt(
+                OVERLAY, container, OVERLAY.pointerX(), OVERLAY.pointerY());
         if (itemId == null) return;
 
-        if (event.getKeyCode() == org.lwjgl.glfw.GLFW.GLFW_KEY_R) {
-            OVERLAY.showRecipes(itemId, false);
-        } else {
-            OVERLAY.showRecipes(itemId, true);
+        int keyCode = event.getKeyCode();
+        if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_A) {
+            if (IsfItemTriggerUtils.trigger(OVERLAY,
+                    IsfItemTriggerUtils.TriggerKind.TOGGLE_BOOKMARK, itemId)) {
+                event.setCanceled(true);
+            }
+            return;
         }
-        event.setCanceled(true);
+        if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_R) {
+            IsfItemTriggerUtils.trigger(OVERLAY, IsfItemTriggerUtils.TriggerKind.CRAFTING, itemId);
+            event.setCanceled(true);
+        } else if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_U) {
+            IsfItemTriggerUtils.trigger(OVERLAY, IsfItemTriggerUtils.TriggerKind.USAGES, itemId);
+            event.setCanceled(true);
+        }
     }
 
     private static void screenClosed(ScreenEvent.Closing event) {
         OVERLAY.resetPage();
+    }
+
+    /** Открыть окно с конкретными рецептами (пуш с сервера, вне R/U-запроса). */
+    public static void openRecipes(java.util.List<ResourceLocation> recipeIds) {
+        OVERLAY.showExplicitRecipes(recipeIds);
     }
 
     private static void mouseScrolled(ScreenEvent.MouseScrolled.Pre event) {

@@ -1,11 +1,15 @@
 package dev.sixik.isf.client;
 
 import dev.sixik.unigui.api.core.FrameContext;
+import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.event.Event;
 import dev.sixik.unigui.api.event.EventPhase;
 import dev.sixik.unigui.api.event.PointerEvent;
 import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.event.PointerReleasedEvent;
+import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.render.DrawPoint;
+import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.widgets.interaction.Button;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -31,9 +35,18 @@ final class IsfItemButton extends Button {
     private final List<ResourceLocation> itemIds;
     private final List<ItemStack> stacks;
     private final IsfItemIconWidget icon;
-    private final List<Component> tooltipLines;
+    /** Полная замена тултипа (например, «Пусто» у барьера AIR-дропа); {@code null} — обычный item tooltip. */
+    private List<Component> tooltipLines;
+    /** {@code true} — тег-ингредиент: тултип рисуется сеткой моделей («Принимает:»). */
+    private final boolean acceptsGrid;
+    /** Дополнительные строки тултипа (например, условие выпадения лута). */
+    private List<Component> extraLines = List.of();
+    /** Id тега ингредиента без {@code #} ({@code null} — обычный предмет или набор без тега). */
+    private String tag;
     private int shownIndex;
     private long nextCycleMillis;
+    /** Красная заливка нехватки для переноса в сетку крафта (см. IsfTransferButton). */
+    private boolean transferMissing;
 
     IsfItemButton(ResourceLocation itemId, ItemStack stack) {
         this(List.of(itemId), List.of(stack), null, 18.0f);
@@ -52,7 +65,10 @@ final class IsfItemButton extends Button {
         this.itemIds = List.copyOf(itemIds);
         this.stacks = List.copyOf(stacks);
         this.icon = new IsfItemIconWidget(this.stacks.get(0));
-        this.tooltipLines = stacks.size() > 1 ? buildLines(stacks) : null;
+        // Тег (несколько альтернатив) рисуется как «Принимает:» + сетка моделей,
+        // одиночный предмет — обычный ванильный item tooltip.
+        this.tooltipLines = null;
+        this.acceptsGrid = stacks.size() > 1;
         // Сдвиг фазы, чтобы соседние клетки переключались не синхронно.
         this.nextCycleMillis = System.currentTimeMillis()
                 + phaseOffset(itemIds.get(0));
@@ -75,15 +91,6 @@ final class IsfItemButton extends Button {
 
     private static long phaseOffset(ResourceLocation id) {
         return Math.floorMod(id.hashCode(), (int) CYCLE_MILLIS);
-    }
-
-    private static List<Component> buildLines(List<ItemStack> stacks) {
-        List<Component> lines = new ArrayList<>();
-        lines.add(Component.translatable("isf.tooltip.accepts"));
-        for (ItemStack stack : stacks) {
-            lines.add(stack.getHoverName());
-        }
-        return List.copyOf(lines);
     }
 
     @Override
@@ -121,5 +128,69 @@ final class IsfItemButton extends Button {
     /** Строки тултипа для клеток с несколькими альтернативами; {@code null} — обычный item tooltip. */
     List<Component> tooltipLines() {
         return tooltipLines;
+    }
+
+    /** Задаёт полную замену тултипа (используется окном рецептов как есть, без имени предмета). */
+    IsfItemButton tooltipLines(List<Component> lines) {
+        this.tooltipLines = lines == null || lines.isEmpty() ? null : List.copyOf(lines);
+        return this;
+    }
+
+    /** Иконка клетки: используется лоот-гридом для показа количества диапазона. */
+    IsfItemIconWidget icon() {
+        return icon;
+    }
+
+    /** {@code true}, если тултип клетки нужно рисовать сеткой моделей («Принимает:»). */
+    boolean acceptsGrid() {
+        return acceptsGrid;
+    }
+
+    /** Все варианты тега-ингредиента для сетки тултипа. */
+    List<ItemStack> acceptsStacks() {
+        return stacks;
+    }
+
+    /** Дополнительные строки тултипа (условие выпадения лута и т.п.). */
+    List<Component> extraTooltipLines() {
+        return extraLines;
+    }
+
+    IsfItemButton extraTooltipLines(List<Component> lines) {
+        this.extraLines = lines == null || lines.isEmpty() ? List.of() : List.copyOf(lines);
+        return this;
+    }
+
+    /** Id тега ингредиента без {@code #} (для строки в тултипе «Принимает»). */
+    String tag() {
+        return tag;
+    }
+
+    IsfItemButton tag(String tag) {
+        this.tag = tag == null || tag.isBlank() ? null : tag;
+        return this;
+    }
+
+    /** Подсветить клетку как недостающую для переноса (красный квадрат поверх). */
+    void setTransferMissing(boolean missing) {
+        if (this.transferMissing == missing) return;
+        this.transferMissing = missing;
+        invalidate(InvalidationFlags.VISUAL);
+    }
+
+    @Override
+    protected void renderContent(RenderContext context) {
+        super.renderContent(context);
+        if (!transferMissing) return;
+        float x = layoutBounds().x();
+        float y = layoutBounds().y();
+        float width = layoutBounds().width();
+        float height = layoutBounds().height();
+        context.addQuadFilled(
+                new DrawPoint(x, y),
+                new DrawPoint(x + width, y),
+                new DrawPoint(x + width, y + height),
+                new DrawPoint(x, y + height),
+                new MutableColor(1.0f, 0.12f, 0.12f, 0.45f));
     }
 }

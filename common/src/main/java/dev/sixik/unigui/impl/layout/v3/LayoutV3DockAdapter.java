@@ -1,8 +1,6 @@
 package dev.sixik.unigui.impl.layout.v3;
 
-import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.EdgeInsets;
-import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.layout.LayoutStyle;
@@ -14,6 +12,7 @@ import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
+import dev.sixik.unigui.impl.layout.SlotLayout;
 import dev.sixik.unigui.widgets.containers.DockSide;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -23,7 +22,7 @@ import java.util.Map;
 import java.util.function.Function;
 import dev.sixik.unigui.widgets.containers.DockPanel;
 
-/** V3 migration adapter for DockPanel's sequential edge-docking algorithm. */
+/** V3-адаптер миграции для последовательного алгоритма стыковки по краям DockPanel. */
 public final class LayoutV3DockAdapter {
     private static final LayoutNodeId ROOT_ID = LayoutNodeId.of("root");
 
@@ -210,63 +209,23 @@ public final class LayoutV3DockAdapter {
     }
 
     private static MutableRect childRect(Widget child, float slotX, float slotY, float slotWidth, float slotHeight) {
-        LayoutConstraints constraints = child.layoutConstraints();
-        EdgeInsets margin = constraints.margin();
-        float innerX = slotX + margin.left();
-        float innerY = slotY + margin.top();
-        float innerWidth = Math.max(0.0f, slotWidth - margin.horizontal());
-        float innerHeight = Math.max(0.0f, slotHeight - margin.vertical());
-        float childWidth = resolveSize(innerWidth, constraints.preferredWidth(), child.desiredSize().width(),
-                constraints.minWidth(), constraints.maxWidth(), constraints.horizontalAlignment());
-        float childHeight = resolveSize(innerHeight, constraints.preferredHeight(), child.desiredSize().height(),
-                constraints.minHeight(), constraints.maxHeight(), constraints.verticalAlignment());
-        return new MutableRect(
-                align(innerX, innerWidth, childWidth, constraints.horizontalAlignment()),
-                align(innerY, innerHeight, childHeight, constraints.verticalAlignment()),
-                childWidth,
-                childHeight);
+        return SlotLayout.placeChild(child, slotX, slotY, slotWidth, slotHeight);
     }
 
     private static float preferredWidth(Widget child, float fallback) {
-        LayoutConstraints constraints = child.layoutConstraints();
-        float preferred = constraints.preferredWidth();
-        float content = LayoutConstraints.isAuto(preferred) ? measuredOrFallback(child.desiredSize().width(), fallback) : preferred;
-        return constraints.margin().horizontal() + clamp(content, constraints.minWidth(), constraints.maxWidth());
+        return SlotLayout.preferredWidth(child, fallback);
     }
 
     private static float preferredHeight(Widget child, float fallback) {
-        LayoutConstraints constraints = child.layoutConstraints();
-        float preferred = constraints.preferredHeight();
-        float content = LayoutConstraints.isAuto(preferred) ? measuredOrFallback(child.desiredSize().height(), fallback) : preferred;
-        return constraints.margin().vertical() + clamp(content, constraints.minHeight(), constraints.maxHeight());
+        return SlotLayout.preferredHeight(child, fallback);
     }
 
     private static float outerDesiredWidth(Widget child) {
-        return child.desiredSize().width() + child.layoutConstraints().margin().horizontal();
+        return SlotLayout.outerDesiredWidth(child);
     }
 
     private static float outerDesiredHeight(Widget child) {
-        return child.desiredSize().height() + child.layoutConstraints().margin().vertical();
-    }
-
-    private static float resolveSize(float available, float preferred, float measured, float min, float max, Alignment alignment) {
-        if (alignment == Alignment.STRETCH && LayoutConstraints.isAuto(preferred)) {
-            return clamp(available, min, max);
-        }
-        float desired = LayoutConstraints.isAuto(preferred) ? measuredOrFallback(measured, available) : preferred;
-        return Math.min(available, clamp(desired, min, max));
-    }
-
-    private static float align(float start, float available, float size, Alignment alignment) {
-        return switch (alignment == null ? Alignment.STRETCH : alignment) {
-            case START, STRETCH -> start;
-            case CENTER -> start + (available - size) * 0.5f;
-            case END -> start + available - size;
-        };
-    }
-
-    private static float measuredOrFallback(float measured, float fallback) {
-        return measured > 0.0f ? measured : fallback;
+        return SlotLayout.outerDesiredHeight(child);
     }
 
     private static float subtractAvailable(float available, float consumed) {
@@ -285,9 +244,5 @@ public final class LayoutV3DockAdapter {
 
     private static int originalIndex(List<Widget> children, Widget child) {
         return children == null ? 0 : Math.max(0, children.indexOf(child));
-    }
-
-    private static float clamp(float value, float min, float max) {
-        return Math.max(min, Math.min(max, Math.max(0.0f, value)));
     }
 }

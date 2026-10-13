@@ -57,8 +57,6 @@ import java.util.List;
 public class ScrollView extends WidgetBase {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.SCROLL_VIEW;
 
-    private static final float SCROLLBAR_SIZE = ScrollBar.DEFAULT_SIZE;
-
     private final MutableColor scrollbarTrackColor = new MutableColor(0.0f, 0.0f, 0.0f, 0.28f);
     private final MutableColor scrollbarThumbColor = new MutableColor(0.25f, 0.78f, 1.0f, 0.75f);
     private final ScrollBar horizontalScrollBar = new ScrollBar().orientation(Orientation.HORIZONTAL);
@@ -72,6 +70,7 @@ public class ScrollView extends WidgetBase {
     private float scrollY;
     private float scrollStep = 16.0f;
     private float scrollbarGap = ScrollBar.DEFAULT_GAP;
+    private float scrollbarSize = ScrollBar.DEFAULT_SIZE;
     private boolean scrollingEnabled = true;
     private boolean consumeWheelAtScrollBounds = true;
     private boolean horizontalScrollBarVisible;
@@ -334,6 +333,34 @@ public class ScrollView extends WidgetBase {
         float normalized = Float.isFinite(scrollbarGap) ? Math.max(0.0f, scrollbarGap) : ScrollBar.DEFAULT_GAP;
         if (this.scrollbarGap == normalized) return this;
         this.scrollbarGap = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Возвращает толщину scrollbar'ов этого scroll view.
+     *
+     * @return толщина полосы поперёк оси прокрутки в пикселях UI-пространства
+     */
+    public float scrollbarSize() {
+        return scrollbarSize;
+    }
+
+    /**
+     * Задаёт толщину scrollbar'ов этого scroll view.
+     *
+     * <p>По умолчанию используется {@link ScrollBar#DEFAULT_SIZE}. Значение влияет
+     * на резерв места под полосу: viewport сжимается на
+     * {@code scrollbarSize + scrollbarGap} вдоль активной оси.</p>
+     *
+     * @param scrollbarSize толщина полосы в пикселях UI-пространства; минимум {@code 1}
+     * @return этот scroll view для fluent-настройки
+     */
+    @XmlAttribute(value = "scrollbarSize", category = "Layout", defaultValue = "6", description = "Thickness of the horizontal/vertical scrollbar tracks.")
+    public ScrollView scrollbarSize(float scrollbarSize) {
+        float normalized = Float.isFinite(scrollbarSize) ? Math.max(1.0f, scrollbarSize) : ScrollBar.DEFAULT_SIZE;
+        if (this.scrollbarSize == normalized) return this;
+        this.scrollbarSize = normalized;
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
@@ -626,13 +653,13 @@ public class ScrollView extends WidgetBase {
                     layoutBounds().x() + horizontalInset,
                     layoutBounds().y() + viewportHeight() + scrollbarGap,
                     viewportWidth(),
-                    SCROLLBAR_SIZE));
+                    scrollbarSize));
         }
         if (showsVerticalScrollBar()) {
             verticalScrollBar.arrange(new MutableRect(
                     layoutBounds().x() + viewportWidth() + scrollbarGap,
                     layoutBounds().y(),
-                    SCROLLBAR_SIZE,
+                    scrollbarSize,
                     viewportHeight()));
         }
         syncScrollBars();
@@ -660,19 +687,19 @@ public class ScrollView extends WidgetBase {
             verticalScrollBarVisible = false;
             return;
         }
-        boolean horizontal = layoutStyle().overflowX() == Overflow.SCROLL;
-        boolean vertical = layoutStyle().overflowY() == Overflow.SCROLL;
+        boolean horizontal = effectiveOverflowX() == Overflow.SCROLL;
+        boolean vertical = effectiveOverflowY() == Overflow.SCROLL;
         float width = Math.max(0.0f, layoutBounds().width());
         float height = Math.max(0.0f, layoutBounds().height());
 
         for (int pass = 0; pass < 4; pass++) {
             float candidateWidth = Math.max(0.0f, width - (vertical ? scrollbarReservation() : 0.0f));
             float candidateHeight = Math.max(0.0f, height - (horizontal ? scrollbarReservation() : 0.0f));
-            boolean nextHorizontal = layoutStyle().overflowX() == Overflow.SCROLL
-                    || (layoutStyle().overflowX() == Overflow.AUTO
+            boolean nextHorizontal = effectiveOverflowX() == Overflow.SCROLL
+                    || (effectiveOverflowX() == Overflow.AUTO
                     && rawContentWidth() > candidateWidth);
-            boolean nextVertical = layoutStyle().overflowY() == Overflow.SCROLL
-                    || (layoutStyle().overflowY() == Overflow.AUTO
+            boolean nextVertical = effectiveOverflowY() == Overflow.SCROLL
+                    || (effectiveOverflowY() == Overflow.AUTO
                     && rawContentHeight() > candidateHeight);
             if (horizontal == nextHorizontal && vertical == nextVertical) break;
             horizontal = nextHorizontal;
@@ -697,7 +724,7 @@ public class ScrollView extends WidgetBase {
     }
 
     private float scrollbarReservation() {
-        return SCROLLBAR_SIZE + scrollbarGap;
+        return scrollbarSize + scrollbarGap;
     }
 
     private float effectiveContentWidth() {
@@ -730,13 +757,13 @@ public class ScrollView extends WidgetBase {
 
     private boolean horizontalScrollingEnabled() {
         if (!scrollingEnabled) return false;
-        Overflow overflow = layoutStyle().overflowX();
+        Overflow overflow = effectiveOverflowX();
         return overflow == Overflow.AUTO || overflow == Overflow.SCROLL;
     }
 
     private boolean verticalScrollingEnabled() {
         if (!scrollingEnabled) return false;
-        Overflow overflow = layoutStyle().overflowY();
+        Overflow overflow = effectiveOverflowY();
         return overflow == Overflow.AUTO || overflow == Overflow.SCROLL;
     }
 
@@ -749,13 +776,21 @@ public class ScrollView extends WidgetBase {
     }
 
     private boolean showsHorizontalScrollBar() {
-        return layoutStyle().overflowX() == Overflow.SCROLL
-                || (layoutStyle().overflowX() == Overflow.AUTO && horizontalScrollBarVisible);
+        return effectiveOverflowX() == Overflow.SCROLL
+                || (effectiveOverflowX() == Overflow.AUTO && horizontalScrollBarVisible);
     }
 
     private boolean showsVerticalScrollBar() {
-        return layoutStyle().overflowY() == Overflow.SCROLL
-                || (layoutStyle().overflowY() == Overflow.AUTO && verticalScrollBarVisible);
+        return effectiveOverflowY() == Overflow.SCROLL
+                || (effectiveOverflowY() == Overflow.AUTO && verticalScrollBarVisible);
+    }
+
+    private Overflow effectiveOverflowX() {
+        return Overflow.effectiveHorizontal(layoutStyle().overflowX(), layoutStyle().overflowY());
+    }
+
+    private Overflow effectiveOverflowY() {
+        return Overflow.effectiveVertical(layoutStyle().overflowX(), layoutStyle().overflowY());
     }
 
     private boolean clipsContent() {

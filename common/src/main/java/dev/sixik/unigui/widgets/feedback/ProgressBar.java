@@ -5,14 +5,12 @@ import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.widget.Visibility;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
-import dev.sixik.unigui.widgets.render.ProgressBarRenderer;
-import dev.sixik.unigui.widgets.render.ProgressBarState;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
@@ -70,7 +68,6 @@ public class ProgressBar extends Box {
 
     private final MutableColor trackColor = new MutableColor(0.16f, 0.16f, 0.16f, 1.0f);
     private final MutableColor fillColor = new MutableColor(0.25f, 0.78f, 1.0f, 1.0f);
-    private ProgressBarRenderer renderer;
     private float preferredWidth = DEFAULT_PREFERRED_WIDTH;
     private float preferredHeight = DEFAULT_PREFERRED_HEIGHT;
     private float min;
@@ -174,21 +171,6 @@ public class ProgressBar extends Box {
         return fillColor;
     }
 
-    public ProgressBarRenderer renderer() {
-        return renderer;
-    }
-
-    public ProgressBar renderer(ProgressBarRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
-        invalidate(InvalidationFlags.VISUAL);
-        return this;
-    }
-
-    public ProgressBar useDefaultRenderer() {
-        return renderer(null);
-    }
-
     public float preferredWidth() {
         return preferredWidth;
     }
@@ -238,17 +220,31 @@ public class ProgressBar extends Box {
     @Override
     protected void renderContent(RenderContext context) {
         applyTheme();
-        ProgressBarState state = snapshot();
         DrawScope draw = new DrawScope(context, transform(), layoutBounds());
-        if (renderer != null) {
-            renderer.render(draw, state);
-        } else {
-            ProgressBarRenderer styled = styleRendererOverride(ProgressBarRenderer.class);
-            if (styled != null) {
-                styled.render(draw, state);
-            } else if (!renderStylePlan(context, ProgressBarState.class, state)) {
-                WidgetsRender.progressBar().render(draw, state);
+        if (renderCustomVisual(draw)) {
+            super.renderContent(context);
+            return;
+        }
+        float x = layoutBounds().x();
+        float y = layoutBounds().y();
+        float width = Math.max(0.0f, layoutBounds().width());
+        float height = layoutBounds().height();
+        float progress = progress();
+        float fillWidth = Math.max(0.0f, Math.min(width, width * progress));
+        draw.rect(x, y, width, height, Paint.fill(trackColor));
+        if (indeterminate) {
+            float segmentWidth = Math.max(8.0f, width * 0.32f);
+            float travel = width + segmentWidth;
+            float offset = indeterminateOffset - (float) Math.floor(indeterminateOffset);
+            float segmentX = x + offset * travel - segmentWidth;
+            draw.pushClip(x, y, width, height);
+            try {
+                draw.rect(segmentX, y, segmentWidth, height, Paint.fill(fillColor));
+            } finally {
+                draw.popClip();
             }
+        } else if (fillWidth > 0.0f) {
+            draw.rect(x, y, fillWidth, height, Paint.fill(fillColor));
         }
         super.renderContent(context);
     }
@@ -260,26 +256,6 @@ public class ProgressBar extends Box {
         float delta = Float.isFinite(frame.deltaSeconds()) ? Math.max(0.0f, frame.deltaSeconds()) : 0.0f;
         indeterminateOffset = wrap01(indeterminateOffset + delta * indeterminateSpeed);
         invalidate(InvalidationFlags.VISUAL);
-    }
-
-    private ProgressBarRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(ProgressBarRenderer.class, WidgetsRender.progressBar()) : renderer;
-    }
-
-    private ProgressBarState snapshot() {
-        return new ProgressBarState(
-                layoutBounds().x(),
-                layoutBounds().y(),
-                layoutBounds().width(),
-                layoutBounds().height(),
-                min,
-                max,
-                value,
-                progress(),
-                indeterminate,
-                indeterminateOffset,
-                trackColor.copy(),
-                fillColor.copy());
     }
 
     private static float clamp(float value, float min, float max) {

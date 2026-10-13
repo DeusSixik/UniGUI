@@ -8,11 +8,36 @@ architectury {
     forge()
 }
 
+// Имя файла: Название_Лоадер_ВерсияМайна_vВерсияМода, например ISF_Forge_1.20.1_v0.1.0.
+def isfModVersion = versionProject.findProperty('isf_version') ?: '0.1.0'
+def isfMinecraftVersion = versionProject.minecraft_version
+
 base {
-    archivesName = "isf-forge-${versionProject.minecraft_version}"
+    archivesName = "ISF_Forge_${isfMinecraftVersion}_v${isfModVersion}"
 }
 
-version = versionProject.findProperty('isf_version') ?: '0.1.0'
+version = isfModVersion
+
+// Версия уже вшита в archivesName, чтобы не дублировалась в имени файла:
+// ISF_Forge_1.20.1_v0.1.0.jar, а не ISF_Forge_1.20.1_v0.1.0-0.1.0.jar.
+tasks.withType(Jar).configureEach {
+    archiveVersion = ''
+}
+
+// Ремапнутый артефакт Loom версию дописывает сам — задаём имя файла явно.
+afterEvaluate {
+    def targetName = "ISF_Forge_${isfMinecraftVersion}_v${isfModVersion}.jar"
+    def remap = tasks.findByName('remapJar')
+    if (remap != null) remap.archiveFileName = targetName
+    def remapSources = tasks.findByName('remapSourcesJar')
+    if (remapSources != null) remapSources.archiveFileName = targetName.replace('.jar', '-sources.jar')
+}
+
+// Исходники в UTF-8 (кириллица в JavaDoc): без этого javadoc падает
+// с unmappable character на дефолтной windows-1251.
+tasks.withType(Javadoc).configureEach {
+    options.encoding = 'UTF-8'
+}
 
 configurations {
     uniguiCommon {
@@ -77,4 +102,108 @@ tasks.register('isfPageFlipSelfTest', JavaExec) {
     dependsOn tasks.named('testClasses')
     classpath = sourceSets.test.runtimeClasspath
     mainClass = 'dev.sixik.isf.tests.IsfPageFlipSelfTest'
+}
+
+tasks.register('isfLootChanceSelfTest', JavaExec) {
+    group = 'verification'
+    description = 'Проверяет математику шансов лут-таблиц ISF без запуска Minecraft.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.sixik.isf.importer.LootChanceSelfTest'
+}
+
+tasks.register('isfLootNbtClientSelfTest', JavaExec) {
+    group = 'verification'
+    description = 'Проверяет клиентское чтение NBT ячеек дропа ISF без запуска Minecraft.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.sixik.isf.client.LootNbtClientSelfTest'
+}
+
+tasks.register('isfClientOrderSelfTest', JavaExec) {
+    group = 'verification'
+    description = 'Проверяет детерминированный порядок вкладок и рецептов ISF без запуска Minecraft.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.sixik.isf.client.IsfClientOrderSelfTest'
+}
+
+tasks.register('isfCatalogVisibilitySelfTest', JavaExec) {
+    group = 'verification'
+    description = 'Проверяет сбор id предметов для скрытия пустых клеток каталога ISF.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.sixik.isf.client.IsfCatalogVisibilitySelfTest'
+}
+
+tasks.register('isfCraftTransferSelfTest', JavaExec) {
+    group = 'verification'
+    description = 'Проверяет планирование переноса ингредиентов в сетку крафта ISF.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.sixik.isf.client.IsfCraftTransferSelfTest'
+}
+
+tasks.register('isfCommandsSuggestSelfTest', JavaExec) {
+    group = 'verification'
+    description = 'Проверяет автодополнение селекторов команды generateRecipes ISF.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.sixik.isf.command.IsfCommandsSuggestSelfTest'
+}
+
+tasks.register('isfLootTitleSelfTest', JavaExec) {
+    group = 'verification'
+    description = 'Проверяет заголовок лут-таблиц ISF по умолчанию.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.sixik.isf.runtime.LootTitleSelfTest'
+}
+
+tasks.register('isfLootMergeSelfTest', JavaExec) {
+    group = 'verification'
+    description = 'Проверяет объединение одинаковых лут-таблиц ISF в один экран.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.sixik.isf.client.IsfLootMergeSelfTest'
+}
+
+tasks.register('isfIngredientTagSelfTest', JavaExec) {
+    group = 'verification'
+    description = 'Проверяет извлечение тега tag-ингредиента ISF.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.sixik.isf.importer.IngredientTagSelfTest'
+}
+
+tasks.register('isfCellTagSelfTest', JavaExec) {
+    group = 'verification'
+    description = 'Проверяет чтение маркера тега ячейки ингредиентов ISF.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.sixik.isf.client.IsfCellTagSelfTest'
+}
+
+tasks.register('isfButtonRendererSelfTest', JavaExec) {
+    group = 'verification'
+    description = 'Проверяет выбор подложки кнопок ISF по состоянию.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.sixik.isf.client.IsfButtonRendererSelfTest'
+}
+
+tasks.register('isfTriggerSelfTest', JavaExec) {
+    group = 'verification'
+    description = 'Проверяет привязки триггеров ISF к рецептам без запуска Minecraft.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.sixik.isf.trigger.IsfTriggerSelfTest'
+}
+
+tasks.register('isfGeneratePathsSelfTest', JavaExec) {
+    group = 'verification'
+    description = 'Проверяет раскладку сгенерированных рецептов ISF по папкам типов.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.sixik.isf.importer.IsfGeneratePathsSelfTest'
 }

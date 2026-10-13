@@ -2,13 +2,15 @@ package dev.sixik.unigui.testmod.client.ui.renders;
 
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.text.Fonts;
 import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.impl.text.TextEngine;
-import dev.sixik.unigui.widgets.render.BoxRenderer;
-import dev.sixik.unigui.widgets.render.ButtonRenderer;
-import dev.sixik.unigui.widgets.render.ButtonState;
+import dev.sixik.unigui.widgets.containers.Box;
+import dev.sixik.unigui.widgets.interaction.Button;
+import dev.sixik.unigui.widgets.interaction.ToggleButton;
 
 public final class DestinyLikeDropDownRenders {
     public static final float HEADER_HEIGHT = 20.0f;
@@ -28,52 +30,55 @@ public final class DestinyLikeDropDownRenders {
     private static final ColorView TEXT = MutableColor.rgba255(255, 255, 255, 255);
     private static final ColorView TEXT_HOVER = MutableColor.rgba255(105, 105, 105, 255);
 
-    public static final ButtonRenderer HEADER = (draw, state) -> {
-        float x = state.x();
-        float y = state.y();
-        float width = Math.max(0.0f, state.width());
-        float height = Math.max(0.0f, state.height());
+    public static final WidgetRender HEADER = WidgetRender.of(Button.class, (draw, button) -> {
+        RectView bounds = button.layoutBounds();
+        float x = bounds.x();
+        float y = bounds.y();
+        float width = Math.max(0.0f, bounds.width());
+        float height = Math.max(0.0f, bounds.height());
         if (width <= 0.0f || height <= 0.0f) return;
 
         draw.rect(x, y, width, height, Paint.fill(BACKGROUND));
         DestinyLikeRenderPrimitives.rectBorder(draw, x, y, width, height,
-                state.hovered() && state.enabled() ? BORDER_HOVER : BORDER, BORDER_WIDTH);
-        drawLabel(draw, state, displayText(state.text()), x + TEXT_PADDING_X,
+                button.hovered() && button.enabled() ? BORDER_HOVER : BORDER, BORDER_WIDTH);
+        drawLabel(draw, button, displayText(button.text()), x + TEXT_PADDING_X,
                 Math.max(0.0f, width - TEXT_PADDING_X - CHEVRON_RIGHT_PADDING - CHEVRON_SIZE - 5.0f),
-                state.enabled() ? TEXT : TEXT_HOVER);
+                button.enabled() ? TEXT : TEXT_HOVER);
         drawChevron(draw, x + width - CHEVRON_RIGHT_PADDING - CHEVRON_SIZE, y + height * 0.5f - CHEVRON_SIZE * 0.35f);
-    };
+    });
 
-    public static final BoxRenderer OPTIONS_HOST = (draw, state) -> {
-        float x = state.x();
-        float y = state.y();
-        float width = Math.max(0.0f, state.width());
-        float height = Math.max(0.0f, state.height());
+    public static final WidgetRender OPTIONS_HOST = WidgetRender.of(Box.class, (draw, box) -> {
+        RectView bounds = box.layoutBounds();
+        float x = bounds.x();
+        float y = bounds.y();
+        float width = Math.max(0.0f, bounds.width());
+        float height = Math.max(0.0f, bounds.height());
         if (width <= 0.0f || height <= 0.0f) return;
 
-        if (state.backgroundVisible()) {
-            draw.rect(x, y, width, height, Paint.fill(state.background()));
+        if (box.backgroundVisible()) {
+            draw.rect(x, y, width, height, Paint.fill(box.background()));
         }
-        if (state.borderVisible()) {
+        if (box.borderVisible()) {
             DestinyLikeRenderPrimitives.rectBorder(draw, x, y, width, height,
-                    state.borderColor(), state.borderWidth());
+                    box.borderColor(), box.borderWidth());
         }
-    };
+    });
 
-    public static final ButtonRenderer OPTION = (draw, state) -> {
-        float x = state.x();
-        float y = state.y();
-        float width = Math.max(0.0f, state.width());
-        float height = Math.max(0.0f, state.height());
+    public static final WidgetRender OPTION = WidgetRender.of(ToggleButton.class, (draw, option) -> {
+        RectView bounds = option.layoutBounds();
+        float x = bounds.x();
+        float y = bounds.y();
+        float width = Math.max(0.0f, bounds.width());
+        float height = Math.max(0.0f, bounds.height());
         if (width <= 0.0f || height <= 0.0f) return;
 
-        draw.rect(x, y, width, height, Paint.fill(state.hovered() || state.checked() ? OPTION_HOVER_BACKGROUND : BACKGROUND));
-        if (state.hovered() && state.enabled()) {
+        draw.rect(x, y, width, height, Paint.fill(option.hovered() || option.checked() ? OPTION_HOVER_BACKGROUND : BACKGROUND));
+        if (option.hovered() && option.enabled()) {
             DestinyLikeRenderPrimitives.rectBorder(draw, x, y, width, height, BORDER_HOVER, BORDER_WIDTH);
         }
-        drawLabel(draw, state, displayText(state.text()), x + TEXT_PADDING_X,
+        drawLabel(draw, option, displayText(option.text()), x + TEXT_PADDING_X,
                 Math.max(0.0f, width - TEXT_PADDING_X * 2.0f), TEXT);
-    };
+    });
 
     private DestinyLikeDropDownRenders() {
     }
@@ -94,19 +99,20 @@ public final class DestinyLikeDropDownRenders {
     }
 
     private static void drawLabel(dev.sixik.unigui.api.render.DrawScope draw,
-                                  ButtonState state,
+                                  Button button,
                                   String text,
                                   float x,
                                   float width,
                                   ColorView color) {
         if (text == null || text.isEmpty() || width <= 0.0f) return;
 
+        RectView bounds = button.layoutBounds();
         RichText richText = destinyText(text, color);
         float textWidth = Math.min(width, TextEngine.measureLineWidth(draw.context(), richText));
-        float textHeight = Math.min(Math.max(0.0f, state.height()), TextEngine.measureTextHeight(richText));
-        float drawY = state.y() + Math.max(0.0f, state.height() - textHeight) * 0.5f + 0.2f;
+        float textHeight = Math.min(Math.max(0.0f, bounds.height()), TextEngine.measureTextHeight(richText));
+        float drawY = bounds.y() + Math.max(0.0f, bounds.height() - textHeight) * 0.5f + 0.2f;
 
-        draw.pushClip(x, state.y(), width, state.height());
+        draw.pushClip(x, bounds.y(), width, bounds.height());
         try {
             draw.text(richText, x, drawY, textWidth, textHeight, Paint.fill(color));
         } finally {

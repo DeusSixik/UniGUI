@@ -9,11 +9,18 @@ import dev.sixik.unigui.api.event.PointerMovedEvent;
 import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.event.PointerReleasedEvent;
 import dev.sixik.unigui.api.layout.Align;
+import dev.sixik.unigui.api.layout.AlignContent;
+import dev.sixik.unigui.api.layout.Alignment;
+import dev.sixik.unigui.api.layout.AutoMargins;
 import dev.sixik.unigui.api.layout.FlexDirection;
 import dev.sixik.unigui.api.layout.FlexWrap;
+import dev.sixik.unigui.api.layout.GridAutoFlow;
+import dev.sixik.unigui.api.layout.GridTrack;
 import dev.sixik.unigui.api.layout.Justify;
 import dev.sixik.unigui.api.layout.LayoutContext;
+import dev.sixik.unigui.api.layout.PositionType;
 import dev.sixik.unigui.api.layout.SizeUnit;
+import dev.sixik.unigui.api.layout.SizeValue;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
@@ -87,6 +94,7 @@ import dev.sixik.unigui.api.xml.editor.XmlEditorSession;
 import dev.sixik.unigui.api.xml.editor.XmlEditorSessionChange;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.FlexBox;
+import dev.sixik.unigui.widgets.containers.GridBox;
 import dev.sixik.unigui.widgets.containers.HBox;
 import dev.sixik.unigui.widgets.containers.ScrollView;
 import dev.sixik.unigui.widgets.containers.VBox;
@@ -167,7 +175,6 @@ import dev.sixik.unigui.widgets.navigation.TreeList;
 import dev.sixik.unigui.widgets.navigation.TreeView;
 import dev.sixik.unigui.widgets.world.WorldCanvas;
 import dev.sixik.unigui.impl.widget.WidgetBase;
-
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -203,6 +210,7 @@ public final class XmlWidgetSelfTest {
         testScrollViewContentChildPolicy();
         testDocumentRoundTripModel();
         testRuntimeWidgetSnapshotSerializer();
+        testLayoutAttributesRoundTrip();
         testPrefabIncludeExpansionModel();
         testItemAndControlTemplateModel();
         testEditorDocumentIo();
@@ -2045,6 +2053,147 @@ public final class XmlWidgetSelfTest {
                         && unsupportedSnapshot.firstDiagnostic().orElseThrow().message().contains("does not have a complete XML snapshot exporter")
                         && unsupportedSnapshot.document().root().attribute("id").orElseThrow().equals("custom"),
                 "Runtime serializer should preserve unsupported widget ids while reporting export diagnostics");
+    }
+
+    private void testLayoutAttributesRoundTrip() {
+        GridBox grid = new GridBox();
+        grid.id("grid");
+        grid.columns(3).horizontalSpacing(2.0f).verticalSpacing(4.0f);
+        grid.layout(style -> style
+                .gridTemplateColumns(List.of(GridTrack.px(100.0f), GridTrack.fr(1.0f), GridTrack.auto()))
+                .gridTemplateRows(List.of(GridTrack.minmax(GridTrack.px(20.0f), GridTrack.fr(1.0f))))
+                .gridAutoColumns(List.of(GridTrack.px(50.0f)))
+                .gridAutoRows(List.of(GridTrack.px(25.0f)))
+                .gridAutoFlow(GridAutoFlow.COLUMN_DENSE)
+                .justifyContent(Justify.CENTER)
+                .alignContent(AlignContent.SPACE_BETWEEN));
+        Box cell = new Box();
+        cell.id("cell");
+        cell.layout(style -> style
+                .gridColumn(2, 2)
+                .gridRow(1, 3)
+                .order(2)
+                .aspectRatio(1.5f)
+                .marginAuto(AutoMargins.HORIZONTAL)
+                .zIndex(5)
+                .flexBasis(SizeValue.minContent())
+                .minWidth(SizeValue.minContent()));
+        grid.addChild(cell);
+        grid.applyQueuedMutations();
+
+        FlexBox flex = new FlexBox();
+        flex.id("flex");
+        flex.layout(style -> style
+                .flexDirection(FlexDirection.ROW_REVERSE)
+                .flexWrap(FlexWrap.WRAP_REVERSE)
+                .alignSelf(Align.BASELINE));
+        Label text = new Label("Text");
+        text.id("text");
+        text.layout(style -> style
+                .width(SizeValue.fitContent(30.0f))
+                .position(PositionType.FIXED)
+                .alignSelf(Align.BASELINE));
+        flex.addChild(text);
+        flex.applyQueuedMutations();
+
+        VBox root = new VBox();
+        root.addChild(grid);
+        root.addChild(flex);
+        root.applyQueuedMutations();
+
+        XmlWidgetDocumentResult snapshot = XmlWidgetRuntimeSerializer.snapshot(root);
+        expect(snapshot.valid(), "Runtime serializer should export new layout attributes without diagnostics");
+        String xml = snapshot.document().toXmlString(XmlWidgetSerializationOptions.COMPACT);
+        expect(xml.contains("gridTemplateColumns=\"100 1fr auto\"")
+                        && xml.contains("gridTemplateRows=\"minmax(20, 1fr)\"")
+                        && xml.contains("gridAutoColumns=\"50\"")
+                        && xml.contains("gridAutoRows=\"25\"")
+                        && xml.contains("gridAutoFlow=\"column-dense\"")
+                        && xml.contains("justifyContent=\"center\"")
+                        && xml.contains("alignContent=\"space-between\"")
+                        && xml.contains("columns=\"3\"")
+                        && xml.contains("horizontalSpacing=\"2\"")
+                        && xml.contains("verticalSpacing=\"4\""),
+                "Runtime serializer should write grid template and alignment attributes");
+        expect(xml.contains("gridColumn=\"2\"")
+                        && xml.contains("gridColumnSpan=\"2\"")
+                        && xml.contains("gridRow=\"1\"")
+                        && xml.contains("gridRowSpan=\"3\"")
+                        && xml.contains("order=\"2\"")
+                        && xml.contains("aspectRatio=\"1.5\"")
+                        && xml.contains("marginAuto=\"horizontal\"")
+                        && xml.contains("zIndex=\"5\"")
+                        && xml.contains("flexBasis=\"min-content\"")
+                        && xml.contains("minWidth=\"min-content\""),
+                "Runtime serializer should write grid placement and item layout attributes");
+        expect(xml.contains("flexDirection=\"row-reverse\"")
+                        && xml.contains("flexWrap=\"wrap-reverse\"")
+                        && xml.contains("alignSelf=\"baseline\"")
+                        && xml.contains("width=\"fit-content(30px)\"")
+                        && xml.contains("position=\"fixed\""),
+                "Runtime serializer should write reverse, baseline, fit-content and fixed attributes");
+
+        VBox loaded = XMLWidget.create(xml, VBox.class);
+        GridBox loadedGrid = (GridBox) loaded.children().get(0);
+        expect(loadedGrid.columns() == 3
+                        && near(loadedGrid.horizontalSpacing(), 2.0f)
+                        && near(loadedGrid.verticalSpacing(), 4.0f),
+                "Reloaded grid should restore columns and spacing state");
+        expect(loadedGrid.layoutStyle().gridTemplateColumns().equals(
+                                List.of(GridTrack.px(100.0f), GridTrack.fr(1.0f), GridTrack.auto()))
+                        && loadedGrid.layoutStyle().gridTemplateRows().equals(
+                                List.of(GridTrack.minmax(GridTrack.px(20.0f), GridTrack.fr(1.0f))))
+                        && loadedGrid.layoutStyle().gridAutoColumns().equals(List.of(GridTrack.px(50.0f)))
+                        && loadedGrid.layoutStyle().gridAutoRows().equals(List.of(GridTrack.px(25.0f)))
+                        && loadedGrid.layoutStyle().gridAutoFlow() == GridAutoFlow.COLUMN_DENSE
+                        && loadedGrid.layoutStyle().justifyContent() == Justify.CENTER
+                        && loadedGrid.layoutStyle().alignContent() == AlignContent.SPACE_BETWEEN,
+                "Reloaded grid should restore template and alignment styles");
+        Box loadedCell = (Box) loadedGrid.children().get(0);
+        expect(loadedCell.layoutStyle().gridColumnStart() == 2
+                        && loadedCell.layoutStyle().gridColumnSpan() == 2
+                        && loadedCell.layoutStyle().gridRowStart() == 1
+                        && loadedCell.layoutStyle().gridRowSpan() == 3
+                        && loadedCell.layoutStyle().order() == 2
+                        && near(loadedCell.layoutStyle().aspectRatio(), 1.5f)
+                        && loadedCell.layoutStyle().marginAuto().equals(AutoMargins.HORIZONTAL)
+                        && loadedCell.layoutStyle().zIndex() == 5
+                        && loadedCell.layoutStyle().flexBasis().equals(SizeValue.minContent())
+                        && loadedCell.layoutStyle().minWidth().equals(SizeValue.minContent()),
+                "Reloaded cell should restore placement and item layout styles");
+        FlexBox loadedFlex = (FlexBox) loaded.children().get(1);
+        expect(loadedFlex.layoutStyle().flexDirection() == FlexDirection.ROW_REVERSE
+                        && loadedFlex.layoutStyle().flexWrap() == FlexWrap.WRAP_REVERSE,
+                "Reloaded flex should restore reverse direction and wrap");
+        Label loadedText = (Label) loadedFlex.children().get(0);
+        expect(loadedText.layoutStyle().width().equals(SizeValue.fitContent(30.0f))
+                        && loadedText.layoutStyle().position() == PositionType.FIXED
+                        && loadedText.layoutStyle().alignSelf() == Align.BASELINE,
+                "Reloaded text should restore fit-content width, fixed position and baseline");
+
+        VBox parsed = XMLWidget.create("""
+                <VBox>
+                    <Box id="a" minWidth="auto" marginAuto="left right" flexBasis="content" position="static" />
+                    <Box id="b" marginAuto="all" flexBasis="max-content" />
+                    <GridBox id="g" gridTemplateColumns="repeat(2, 1fr) 10px" gridTemplateRows="minmax(10px, 1fr)" />
+                </VBox>
+                """, VBox.class);
+        Box parsedA = (Box) parsed.children().get(0);
+        expect(parsedA.layoutStyle().minWidth().isAuto()
+                        && parsedA.layoutStyle().marginAuto().equals(AutoMargins.of(true, false, true, false))
+                        && parsedA.layoutStyle().flexBasis().equals(SizeValue.content())
+                        && parsedA.layoutStyle().position() == PositionType.STATIC,
+                "XML loader should parse auto min-width, side list marginAuto, content basis and static position");
+        Box parsedB = (Box) parsed.children().get(1);
+        expect(parsedB.layoutStyle().marginAuto().equals(AutoMargins.ALL)
+                        && parsedB.layoutStyle().flexBasis().equals(SizeValue.maxContent()),
+                "XML loader should parse all marginAuto and max-content basis");
+        GridBox parsedGrid = (GridBox) parsed.children().get(2);
+        expect(parsedGrid.layoutStyle().gridTemplateColumns().equals(
+                                List.of(GridTrack.fr(1.0f), GridTrack.fr(1.0f), GridTrack.px(10.0f)))
+                        && parsedGrid.layoutStyle().gridTemplateRows().equals(
+                                List.of(GridTrack.minmax(GridTrack.px(10.0f), GridTrack.fr(1.0f)))),
+                "XML loader should expand repeat() and parse minmax() track shorthands");
     }
 
     private void testPrefabIncludeExpansionModel() {

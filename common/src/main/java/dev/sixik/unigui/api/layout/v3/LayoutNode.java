@@ -1,6 +1,7 @@
 package dev.sixik.unigui.api.layout.v3;
 
 import dev.sixik.unigui.api.layout.LayoutConstraints;
+import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.layout.LayoutStyle;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -13,28 +14,40 @@ import java.util.Objects;
  */
 public final class LayoutNode {
     /**
-     * Хранит текстовое или идентификационное значение {@code id}.
+     * Идентификатор узла в дереве компоновки.
      */
     private final LayoutNodeId id;
     /**
-     * Хранит текстовое или идентификационное значение {@code debugName}.
+     * Отладочное имя узла для логов и дампов дерева.
      */
     private final String debugName;
     /**
-     * Хранит состояние или настройку {@code style}, используемую логикой объекта.
+     * Снимок стиля узла, неизменяемый на время прохода компоновки.
      */
     private final LayoutStyleSnapshot style;
     /**
-     * Хранит обратный вызов {@code measureFunc}, который подключает внешнюю логику к этому публичному интерфейсу.
+     * Функция измерения содержимого листа; NONE, если измерение не нужно.
      */
     private final LayoutMeasureFunc measureFunc;
     /**
-     * Хранит коллекцию {@code children}, с которой работает этот объект.
+     * Baseline контента от cross-start края border box или {@code NaN}.
+     */
+    private final float baseline;
+    /**
+     * Минимальный контентный размер для intrinsic-раскладки или {@code null}.
+     */
+    private final LayoutSize minContentSize;
+    /**
+     * Максимальный контентный размер для intrinsic-раскладки или {@code null}.
+     */
+    private final LayoutSize maxContentSize;
+    /**
+     * Дочерние узлы дерева компоновки.
      */
     private final List<LayoutNode> children;
 
     /**
-     * Создаёт экземпляр {@code LayoutNode} и подготавливает его начальное состояние.
+     * Создаёт узел из накопленного строителем состояния.
      */
     private LayoutNode(Builder builder) {
         this.id = Objects.requireNonNull(builder.id, "id");
@@ -43,49 +56,73 @@ public final class LayoutNode {
                 : builder.debugName;
         this.style = builder.style == null ? LayoutStyleSnapshot.defaults() : builder.style;
         this.measureFunc = builder.measureFunc == null ? LayoutMeasureFunc.NONE : builder.measureFunc;
+        this.baseline = builder.baseline;
+        this.minContentSize = builder.minContentSize;
+        this.maxContentSize = builder.maxContentSize;
         this.children = List.copyOf(builder.children);
     }
 
     /**
-     * Выполняет операцию {@code builder} с переданными параметрами.
+     * Создаёт строитель узла с заданным строковым идентификатором.
      */
     public static Builder builder(String id) {
         return builder(LayoutNodeId.of(id));
     }
 
     /**
-     * Выполняет операцию {@code builder} с переданными параметрами.
+     * Создаёт строитель узла с заданным идентификатором.
      */
     public static Builder builder(LayoutNodeId id) {
         return new Builder(id);
     }
 
     /**
-     * Возвращает текущее значение или выполняет операцию {@code id}.
+     * Возвращает идентификатор узла.
      */
     public LayoutNodeId id() {
         return id;
     }
 
     /**
-     * Возвращает текущее значение или выполняет операцию {@code debugName}.
+     * Возвращает отладочное имя узла.
      */
     public String debugName() {
         return debugName;
     }
 
     /**
-     * Возвращает текущее значение или выполняет операцию {@code style}.
+     * Возвращает снимок стиля узла.
      */
     public LayoutStyleSnapshot style() {
         return style;
     }
 
     /**
-     * Возвращает текущее значение или выполняет операцию {@code measureFunc}.
+     * Возвращает функцию измерения содержимого листа.
      */
     public LayoutMeasureFunc measureFunc() {
         return measureFunc;
+    }
+
+    /**
+     * Возвращает baseline контента от cross-start края border box или {@code NaN}.
+     */
+    public float baseline() {
+        return baseline;
+    }
+
+    /**
+     * Возвращает минимальный контентный размер или {@code null}.
+     */
+    public LayoutSize minContentSize() {
+        return minContentSize;
+    }
+
+    /**
+     * Возвращает максимальный контентный размер или {@code null}.
+     */
+    public LayoutSize maxContentSize() {
+        return maxContentSize;
     }
 
     /**
@@ -96,7 +133,7 @@ public final class LayoutNode {
     }
 
     /**
-     * Возвращает текущее значение или выполняет операцию {@code leaf}.
+     * Проверяет, является ли узел листом (без детей).
      */
     public boolean leaf() {
         return children.isEmpty();
@@ -104,35 +141,47 @@ public final class LayoutNode {
 
     public static final class Builder {
         /**
-         * Хранит текстовое или идентификационное значение {@code id}.
+         * Идентификатор строящегося узла.
          */
         private final LayoutNodeId id;
         /**
-         * Хранит текстовое или идентификационное значение {@code debugName}.
+         * Отладочное имя; по умолчанию совпадает с идентификатором.
          */
         private String debugName;
         /**
-         * Хранит состояние или настройку {@code style}, используемую логикой объекта.
+         * Снимок стиля; по умолчанию стиль по умолчанию.
          */
         private LayoutStyleSnapshot style;
         /**
-         * Хранит обратный вызов {@code measureFunc}, который подключает внешнюю логику к этому публичному интерфейсу.
+         * Функция измерения листа; по умолчанию {@code NONE}.
          */
         private LayoutMeasureFunc measureFunc;
         /**
-         * Хранит коллекцию {@code children}, с которой работает этот объект.
+         * Baseline контента от cross-start края border box или {@code NaN}.
+         */
+        private float baseline = Float.NaN;
+        /**
+         * Минимальный контентный размер для intrinsic-раскладки или {@code null}.
+         */
+        private LayoutSize minContentSize;
+        /**
+         * Максимальный контентный размер для intrinsic-раскладки или {@code null}.
+         */
+        private LayoutSize maxContentSize;
+        /**
+         * Накапливаемые дочерние узлы.
          */
         private final List<LayoutNode> children = new ObjectArrayList<>();
 
         /**
-         * Выполняет операцию {@code Builder} с переданными параметрами.
+         * Создаёт строитель для узла с заданным идентификатором.
          */
         private Builder(LayoutNodeId id) {
             this.id = Objects.requireNonNull(id, "id");
         }
 
         /**
-         * Выполняет операцию {@code debugName} с переданными параметрами.
+         * Задаёт отладочное имя узла.
          */
         public Builder debugName(String debugName) {
             this.debugName = debugName;
@@ -140,7 +189,7 @@ public final class LayoutNode {
         }
 
         /**
-         * Выполняет операцию {@code style} с переданными параметрами.
+         * Задаёт снимок стиля узла.
          */
         public Builder style(LayoutStyleSnapshot style) {
             this.style = style == null ? LayoutStyleSnapshot.defaults() : style;
@@ -148,14 +197,14 @@ public final class LayoutNode {
         }
 
         /**
-         * Выполняет операцию {@code style} с переданными параметрами.
+         * Задаёт стиль узла из изменяемого {@code LayoutStyle}.
          */
         public Builder style(LayoutStyle style) {
             return style(LayoutStyleMapper.from(style));
         }
 
         /**
-         * Выполняет операцию {@code legacyConstraints} с переданными параметрами.
+         * Задаёт стиль узла из ограничений старого формата.
          */
         public Builder legacyConstraints(LayoutConstraints constraints) {
             return style(LayoutStyleMapper.from(constraints));
@@ -170,7 +219,31 @@ public final class LayoutNode {
         }
 
         /**
-         * Выполняет операцию {@code child} с переданными параметрами.
+         * Задаёт baseline контента от cross-start края border box.
+         */
+        public Builder baseline(float baseline) {
+            this.baseline = baseline;
+            return this;
+        }
+
+        /**
+         * Задаёт минимальный контентный размер для intrinsic-раскладки.
+         */
+        public Builder minContentSize(LayoutSize minContentSize) {
+            this.minContentSize = minContentSize;
+            return this;
+        }
+
+        /**
+         * Задаёт максимальный контентный размер для intrinsic-раскладки.
+         */
+        public Builder maxContentSize(LayoutSize maxContentSize) {
+            this.maxContentSize = maxContentSize;
+            return this;
+        }
+
+        /**
+         * Добавляет дочерний узел; {@code null} игнорируется.
          */
         public Builder child(LayoutNode child) {
             if (child != null) {
@@ -180,12 +253,12 @@ public final class LayoutNode {
         }
 
         /**
-         * Возвращает дочерние элементы, связанные с этим объектом.
+         * Добавляет несколько дочерних узлов; {@code null}-коллекция игнорируется.
          */
         public Builder children(Collection<LayoutNode> children) {
             if (children != null) {
                 for (LayoutNode child : children) {
-                    /** Выполняет операцию {@code child} с переданными параметрами. */
+                    /** Добавляет очередной дочерний узел. */
                     child(child);
                 }
             }
@@ -193,7 +266,7 @@ public final class LayoutNode {
         }
 
         /**
-         * Возвращает текущее значение или выполняет операцию {@code build}.
+         * Строит неизменяемый узел из накопленного состояния.
          */
         public LayoutNode build() {
             return new LayoutNode(this);

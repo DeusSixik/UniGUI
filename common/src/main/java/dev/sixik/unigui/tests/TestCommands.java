@@ -25,7 +25,6 @@ import dev.sixik.unigui.widgets.minecraft.MinecraftItemPreviewWidget;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftWidgetScreen;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.impl.widget.WidgetBase;
-import dev.sixik.unigui.widgets.render.DockSplitHandleRenderers;
 import net.minecraft.client.Minecraft;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -269,7 +268,7 @@ public final class TestCommands {
         if (inspector != null) inspector.pinned(true);
         docking.layout(layoutStyle -> layoutStyle.flexGrow(1).flexShrink(1.0f));
         // ImGui-style split: panels share a border line, no separate gap block
-        docking.splitHandleRenderer(DockSplitHandleRenderers.IMGUI_STYLE);
+        docking.splitHandleStyle(DockingRoot.SplitHandleStyle.SEAM);
 
         docking.onDragStarted(event -> status.text("Docking editor: dragging " + event.paneId()));
         docking.onDropPreviewChanged(event -> {
@@ -1036,7 +1035,7 @@ public final class TestCommands {
         }
         docking.layout(style -> style.size(LayoutConstraints.AUTO, 132.0f).flexGrow(0).flexShrink(0.0f));
         // ImGui-style split: panels share a border line, no separate gap block
-        docking.splitHandleRenderer(DockSplitHandleRenderers.IMGUI_STYLE);
+        docking.splitHandleStyle(DockingRoot.SplitHandleStyle.SEAM);
         VBox dockingDemo = new VBox();
         dockingDemo.spacing(6.0f);
         dockingDemo.layout(style -> style.flexGrow(0).flexShrink(0.0f));

@@ -6,7 +6,7 @@ import dev.sixik.unigui.api.layout.v3.LayoutResult;
 
 import java.util.Locale;
 
-/** Stable text dump helper for Layout V3 snapshot-style tests. */
+/** Помощник стабильного текстового дампа для снапшот-тестов Layout V3. */
 public final class LayoutDebugDumper {
     private LayoutDebugDumper() {
     }

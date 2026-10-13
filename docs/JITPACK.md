@@ -90,6 +90,21 @@ dependencies {
 
 For mod loader projects, prefer the platform module matching the target loader and use the loader-specific dependency configuration (`modImplementation`, `modApi`, etc.) used by that project. If you only consume `unigui-common-*`, the common artifact should not bring Fabric Loader transitively; Fabric Maven is still needed for Fabric platform artifacts.
 
+## Troubleshooting: GradleWrapperMain not found
+
+Some JitPack build images occasionally deliver a truncated or missing
+`gradle/wrapper/gradle-wrapper.jar` in the checkout. The build then fails
+immediately with:
+
+```text
+Error: Could not find or load main class org.gradle.wrapper.GradleWrapperMain
+```
+
+The root `jitpack.yml` handles this: `before_install` verifies the wrapper jar
+(`jar -tf ... | grep GradleWrapperMain`), and `install` falls back to
+downloading the Gradle distribution pinned in `gradle-wrapper.properties`
+(8.12.1) and running it directly when the wrapper jar is unusable.
+
 ## Versioning rule
 
 Minecraft version is part of the artifact id. Library/JitPack version is the dependency version:

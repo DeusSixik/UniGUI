@@ -98,7 +98,7 @@ public final class MutableStyle implements Style {
     }
 
     /**
-     * Задаёт renderer override по id из {@link dev.sixik.unigui.api.widget.render.WidgetRendererRegistry}.
+     * Задаёт renderer override по id из {@link dev.sixik.unigui.api.widget.render.WidgetRenderRegistry}.
      *
      * <p>Этот вариант нужен для декларативных StylePack/XML стилей, где нельзя хранить Java-объект,
      * но можно сослаться на renderer по стабильной строке.</p>

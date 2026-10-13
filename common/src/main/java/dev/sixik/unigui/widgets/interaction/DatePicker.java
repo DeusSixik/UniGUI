@@ -18,15 +18,12 @@ import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.impl.widget.WidgetBase;
-import dev.sixik.unigui.widgets.render.ButtonRenderer;
-import dev.sixik.unigui.widgets.render.DatePickerRenderer;
-import dev.sixik.unigui.widgets.render.DatePickerState;
-import dev.sixik.unigui.widgets.render.TextInputRenderer;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
+import dev.sixik.unigui.widgets.containers.HBox;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -54,50 +51,14 @@ public final class DatePicker extends LinearBox {
     private static final float DAYS_PANEL_WIDTH = 7.0f * DAY_CELL_WIDTH + 6.0f * DAY_GAP;
     private static final float DAYS_PANEL_HEIGHT = WEEK_ROWS * DAY_CELL_HEIGHT + (WEEK_ROWS - 1.0f) * DAY_GAP;
     private static final float CALENDAR_PANEL_HEIGHT = 20.0f + 4.0f + 14.0f + 4.0f + DAYS_PANEL_HEIGHT;
-    private static final TextInputRenderer CENTERED_TEXT_INPUT_RENDERER = (draw, state) -> {
-        float textOffset = Math.max(0.0f, state.viewportWidth() - state.measuredTextWidth()) * 0.5f;
-        draw.pushTextClip(state.viewportX(), state.viewportY(), state.viewportWidth(), state.viewportHeight());
-        try {
-            if (state.focused() && state.hasSelection() && !state.showingPlaceholder()) {
-                float selectionX = state.viewportX() + textOffset + state.prefixWidth(state.selectionStart()) - state.horizontalScrollPixels();
-                float selectionWidth = Math.max(1.0f,
-                        state.prefixWidth(state.selectionEnd()) - state.prefixWidth(state.selectionStart()));
-                draw.rect(selectionX,
-                        state.viewportY(),
-                        selectionWidth,
-                        state.viewportHeight(),
-                        Paint.fill(state.caretColor()));
-            }
-
-            if (state.hasVisibleText()) {
-                TextEngine.drawInline(draw,
-                        state.richText(),
-                        state.viewportX() + textOffset - state.horizontalScrollPixels(),
-                        state.textY(),
-                        Math.max(state.viewportWidth(), state.measuredTextWidth()),
-                        state.textHeight(),
-                        Paint.fill(state.showingPlaceholder() ? state.placeholderColor() : state.textColor()));
-            }
-
-            if (state.focused()) {
-                float caretX = state.viewportX() + textOffset + state.prefixWidth(state.cursorIndex()) - state.horizontalScrollPixels();
-                draw.rect(caretX,
-                        state.viewportY(),
-                        1.0f,
-                        state.viewportHeight(),
-                        Paint.fill(state.caretColor()));
-            }
-        } finally {
-            draw.popClip();
-        }
-    };
-    private static final ButtonRenderer COMPACT_CENTER_BUTTON_RENDERER = (draw, state) -> {
-        if (!state.hasText()) return;
-        TextEngine.draw(draw.context(), state.richText(),
-                state.x(), state.y(), state.width(), state.height(),
-                Paint.fill(state.textColor()), draw.transform(),
+    private static final WidgetRender COMPACT_CENTER_BUTTON_RENDERER = WidgetRender.of(Button.class, (draw, button) -> {
+        if (button.text().isEmpty()) return;
+        TextEngine.draw(draw.context(), button.richText(),
+                button.layoutBounds().x(), button.layoutBounds().y(),
+                button.layoutBounds().width(), button.layoutBounds().height(),
+                Paint.fill(button.textColor()), draw.transform(),
                 Alignment.CENTER, Alignment.CENTER);
-    };
+    });
 
     private final Button previous = new Button("<");
     private final DateField field = new DateField();
@@ -112,7 +73,6 @@ public final class DatePicker extends LinearBox {
     private final WrapPanel daysPanel = new WrapPanel();
     private OverlayLayer explicitOverlayLayer;
     private OverlayLayer attachedOverlayLayer;
-    private DatePickerRenderer renderer;
     private LocalDate value = LocalDate.now();
     private YearMonth displayedMonth = YearMonth.from(value);
     private boolean syncing;
@@ -172,20 +132,11 @@ public final class DatePicker extends LinearBox {
         return popup;
     }
 
-    public DatePickerRenderer renderer() {
-        return renderer;
-    }
-
-    public DatePicker renderer(DatePickerRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
+    @Override
+    public DatePicker renderer(WidgetRender renderer) {
+        super.renderer(renderer);
         calendarPanel.invalidate(InvalidationFlags.VISUAL);
-        invalidate(InvalidationFlags.VISUAL);
         return this;
-    }
-
-    public DatePicker useDefaultRenderer() {
-        return renderer(null);
     }
 
     public EventSubscription onDateChanged(EventListener<? super DateChangedEvent> listener) {
@@ -312,8 +263,11 @@ public final class DatePicker extends LinearBox {
         return event;
     }
 
-    private DatePickerRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(DatePickerRenderer.class, WidgetsRender.datePicker()) : renderer;
+    private boolean renderLabelCustom(DrawScope draw) {
+        WidgetRender custom = customRender();
+        if (custom == null) return false;
+        custom.render(draw, this);
+        return true;
     }
 
     private void buildCalendarPanel() {
@@ -387,7 +341,6 @@ public final class DatePicker extends LinearBox {
         private DateField() {
             placeholder("YYYY-MM-DD");
             maxLength(10);
-            renderer(CENTERED_TEXT_INPUT_RENDERER);
         }
 
         @Override
@@ -399,6 +352,55 @@ public final class DatePicker extends LinearBox {
             super.handle(event);
             if (event instanceof FocusLostEvent) {
                 syncFromText(true);
+            }
+        }
+
+        @Override
+        protected void renderTextContent(DrawScope draw,
+                                         float viewportX,
+                                         float viewportY,
+                                         float viewportWidth,
+                                         float viewportHeight,
+                                         float textY,
+                                         float textHeight) {
+            String visibleText = displayText();
+            RichText line = richText(visibleText);
+            boolean showingPlaceholder = isShowingPlaceholder();
+            float scroll = horizontalScrollPixels();
+            float textOffset = Math.max(0.0f, viewportWidth - measuredTextWidth()) * 0.5f;
+            draw.pushTextClip(viewportX, viewportY, viewportWidth, viewportHeight);
+            try {
+                if (focused() && hasSelection() && !showingPlaceholder) {
+                    float selectionX = viewportX + textOffset + prefixWidth(selectionStart()) - scroll;
+                    float selectionWidth = Math.max(1.0f,
+                            prefixWidth(selectionEnd()) - prefixWidth(selectionStart()));
+                    draw.rect(selectionX,
+                            viewportY,
+                            selectionWidth,
+                            viewportHeight,
+                            Paint.fill(caretColor()));
+                }
+
+                if (line != null && !line.isEmpty()) {
+                    TextEngine.drawInline(draw,
+                            line,
+                            viewportX + textOffset - scroll,
+                            textY,
+                            Math.max(viewportWidth, measuredTextWidth()),
+                            textHeight,
+                            Paint.fill(showingPlaceholder ? placeholderColor() : textColor()));
+                }
+
+                if (focused()) {
+                    float caretX = viewportX + textOffset + prefixWidth(cursorIndex()) - scroll;
+                    draw.rect(caretX,
+                            viewportY,
+                            1.0f,
+                            viewportHeight,
+                            Paint.fill(caretColor()));
+                }
+            } finally {
+                draw.popClip();
             }
         }
 
@@ -455,22 +457,17 @@ public final class DatePicker extends LinearBox {
         @Override
         public void render(RenderContext context) {
             if (text.isEmpty()) return;
-            effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot());
-        }
-
-        private DatePickerState snapshot() {
-            return new DatePickerState(
-                    layoutBounds().x(),
-                    layoutBounds().y(),
-                    layoutBounds().width(),
-                    layoutBounds().height(),
-                    part,
-                    text,
-                    value,
-                    displayedMonth,
-                    hovered(),
-                    enabled(),
-                    color.copy());
+            DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+            if (renderCustomVisual(draw)) {
+                return;
+            }
+            if (DatePicker.this.renderLabelCustom(draw)) {
+                return;
+            }
+            TextEngine.draw(draw.context(), RichText.resolve(text),
+                    layoutBounds().x(), layoutBounds().y(), layoutBounds().width(), layoutBounds().height(),
+                    Paint.fill(color), draw.transform(),
+                    Alignment.CENTER, Alignment.CENTER);
         }
     }
 }

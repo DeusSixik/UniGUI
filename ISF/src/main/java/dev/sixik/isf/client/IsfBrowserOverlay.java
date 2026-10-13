@@ -1,12 +1,18 @@
 package dev.sixik.isf.client;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonPrimitive;
 import dev.sixik.isf.IsfMod;
 import dev.sixik.isf.client.widgets.IconButton;
 import dev.sixik.isf.client.widgets.NineSliceHBox;
 import dev.sixik.isf.client.widgets.NineSliceVBox;
 import dev.sixik.isf.network.IsfNetwork;
 import dev.sixik.isf.definition.IsfCatalystDefinition;
+import dev.sixik.isf.definition.IsfExpression;
 import dev.sixik.isf.definition.IsfRecipeDefinition;
+import dev.sixik.isf.definition.IsfTriggerBinding;
+import dev.sixik.isf.definition.IsfVisualNode;
 import dev.sixik.isf.runtime.IsfRecipePaging;
 import dev.sixik.isf.runtime.IsfRecipeQueryMatcher;
 import dev.sixik.unigui.api.core.FrameContext;
@@ -24,6 +30,7 @@ import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 import dev.sixik.unigui.widgets.interaction.Button;
+import dev.sixik.unigui.widgets.interaction.ScrollBar;
 import dev.sixik.unigui.widgets.interaction.TextField;
 import dev.sixik.unigui.widgets.interaction.ToggleButton;
 import dev.sixik.unigui.widgets.minecraft.MinecraftItemTooltip;
@@ -42,10 +49,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Locale;
 import java.lang.reflect.Field;
 
 /** UniGUI screen-overlay с вертикально перелистываемой сеткой доступных предметов. */
 final class IsfBrowserOverlay {
+    private static final org.slf4j.Logger LOGGER =
+            org.slf4j.LoggerFactory.getLogger(IsfBrowserOverlay.class);
     private static final float CELL = 18.0f;
     private static final float PANEL_PADDING = 4.0f;
 
@@ -63,7 +73,8 @@ final class IsfBrowserOverlay {
     private final ToggleButton detailPin = new ToggleButton();
     private final Button detailClose = new Button();
     private final NineSliceHBox tabRow = new NineSliceHBox();
-    private final Button tabNext = new Button();
+    /** Горизонтальный скролл вкладок RecipeType: заменяет стрелку-кнопку. */
+    private final ScrollView tabScroll = new ScrollView(tabRow);
     private final Label detailPage = new Label();
     private final Button detailPrevious = new Button();
     private final Button detailNext = new Button();
@@ -72,15 +83,24 @@ final class IsfBrowserOverlay {
     private final NineSliceVBox catalystColumn = new NineSliceVBox();
     private final NineSliceVBox recipeArea = new NineSliceVBox();
     private final List<MinecraftItemTooltip> tooltips = new ArrayList<>();
+    /** Ленивые тултипы клеток каталога: создаются при первом наведении, а не все сразу. */
+    private final Map<Button, MinecraftItemTooltip> catalogTooltips = new LinkedHashMap<>();
     private final List<MinecraftItemTooltip> tabTooltips = new ArrayList<>();
     private final List<MinecraftItemTooltip> catalystTooltips = new ArrayList<>();
     private final List<MinecraftItemTooltip> recipeItemTooltips = new ArrayList<>();
     private final List<IsfItemButton> recipeItemButtons = new ArrayList<>();
+    private final List<IsfTransferButton> transferButtons = new ArrayList<>();
     private final List<Widget> pageVisuals = new ArrayList<>();
     private boolean recipeItemButtonsPopulated;
     private final Map<ResourceLocation, Button> bookmarkCells = new LinkedHashMap<>();
     private final Map<ResourceLocation, MinecraftItemTooltip> bookmarkTooltips = new LinkedHashMap<>();
     private final Map<ResourceLocation, Button> itemCells = new LinkedHashMap<>();
+    private String browserFilter = "";
+    /** Предметы, у которых есть рецепты/применения/станция: остальные в каталоге скрыты. */
+    private Set<ResourceLocation> itemsWithContent = Set.of();
+    private long contentIndexVersion = Long.MIN_VALUE;
+    /** Последняя применённая высота tabScroll; -1 — ещё не применялась. */
+    private float appliedTabScrollHeight = -1.0f;
 
     private MinecraftRenderLayerRegistration<Screen> registration;
     private AutoCloseable pointerBlocker;
@@ -104,7 +124,6 @@ final class IsfBrowserOverlay {
     private ResourceLocation selectedTypeId;
     private ResourceLocation selectedCatalyst;
     private int recipePage;
-    private int tabFirstIndex;
     private List<TypeTab> typeTabs = List.of();
     private List<CatalystCell> catalystCells = List.of();
     private List<RecipeView> builtRecipes = List.of();
@@ -118,9 +137,16 @@ final class IsfBrowserOverlay {
     private static final float RECIPE_GAP = 2.0f;
     private static final float CATALYST_CELL = 18.0f;
     private static final float TAB_CELL = 20.0f;
+    /** Высота строки вкладок: padding 1 сверху и снизу + вкладка 20. */
+    private static final float TAB_ROW_CONTENT = TAB_CELL + 2.0f;
+    /** Толщина горизонтального scrollbar вкладок: ~1.5x уже дефолтной полосы. */
+    private static final float TAB_SCROLLBAR_SIZE = 4.0f;
+    /** Резерв под scrollbar вкладок: толщина полосы + gap. */
+    private static final float TAB_ROW_RESERVED = TAB_SCROLLBAR_SIZE + 1.0f;
     private static final float FALLBACK_RECIPE_HEIGHT = 92.0f;
-    /** padding(4)*2 + заголовок 16 + вкладки 20 + пагинация 14 + три отступа VBox. */
-    private static final float DETAIL_FIXED_HEIGHT = 8.0f + 16.0f + TAB_CELL + 14.0f + 3 * RECIPE_GAP;
+    /** padding(4)*2 + заголовок 16 + вкладки 20+2 + пагинация 14 + три отступа VBox (без scrollbar). */
+    private static final float DETAIL_FIXED_HEIGHT =
+            8.0f + 16.0f + TAB_ROW_CONTENT + 14.0f + 3 * RECIPE_GAP;
 
     IsfBrowserOverlay() {
         configureTree();
@@ -169,10 +195,42 @@ final class IsfBrowserOverlay {
 
     boolean toggleHoveredBookmark() {
         ItemEntry entry = hoveredEntry;
-        if (entry == null) return false;
-        boolean bookmarked = !IsfClientState.bookmarks().contains(entry.id());
-        IsfNetwork.toggleBookmark(entry.id(), bookmarked);
-        return true;
+        return entry != null && IsfItemTriggerUtils.toggleBookmark(entry.id());
+    }
+
+    /** Закладка по id: используется триггерами R/U/A (клавиша A). */
+    boolean toggleBookmark(ResourceLocation itemId) {
+        return IsfItemTriggerUtils.toggleBookmark(itemId);
+    }
+
+    /**
+     * Предмет под курсором для R/U/A-триггеров.
+     * Порядок: визуалы рецептов → катализаторы окна → hovered-клетка каталога →
+     * клетки каталога/закладок (только внутри viewport'ов скролла).
+     * Слоты инвентаря добавляет {@link IsfItemTriggerUtils#resolveItemAt}.
+     */
+    ResourceLocation triggerItemAt(double mouseX, double mouseY) {
+        if (mouseX < 0.0 || mouseY < 0.0) return null;
+        float x = (float) mouseX;
+        float y = (float) mouseY;
+        ResourceLocation itemId = recipeItemAt(mouseX, mouseY);
+        if (itemId == null
+                && detailPanel.visibility() == dev.sixik.unigui.api.widget.Visibility.VISIBLE) {
+            for (CatalystCell cell : catalystCells) {
+                if (contains(cell.button().layoutBounds(), x, y)) {
+                    itemId = cell.itemId();
+                    break;
+                }
+            }
+        }
+        if (itemId == null) itemId = hoveredItemId();
+        if (itemId == null && contains(itemScroll.layoutBounds(), x, y)) {
+            itemId = cellIdAt(itemCells, x, y);
+        }
+        if (itemId == null && contains(bookmarkScroll.layoutBounds(), x, y)) {
+            itemId = cellIdAt(bookmarkCells, x, y);
+        }
+        return itemId;
     }
 
     ResourceLocation hoveredItemId() {
@@ -206,11 +264,32 @@ final class IsfBrowserOverlay {
         pointerY = mouseY;
     }
 
+    /** Трекаемая X-координата курсора (GUI-пространство); -1 — ещё не известна. */
+    double pointerX() {
+        return pointerX;
+    }
+
+    /** Трекаемая Y-координата курсора (GUI-пространство); -1 — ещё не известна. */
+    double pointerY() {
+        return pointerY;
+    }
+
     void showRecipes(ResourceLocation itemId, boolean usages) {
-        if (itemId == null) return;
+        if (itemId == null || isAirId(itemId)) return;
         pendingRecipeQuery = new PendingRecipeQuery(itemId, usages, IsfClientState.version());
         showRecipeQuery(pendingRecipeQuery);
         IsfNetwork.requestRecipes(itemId, usages);
+    }
+
+    /** {@code true} для воздуха: у AIR-дропа (барьер в лут-сетке) нет рецептов и закладок. */
+    private static boolean isAirId(ResourceLocation itemId) {
+        if (itemId == null) return false;
+        try {
+            Item item = BuiltInRegistries.ITEM.get(itemId);
+            return item == null || item == Items.AIR;
+        } catch (RuntimeException ignored) {
+            return false;
+        }
     }
 
     /**
@@ -249,12 +328,19 @@ final class IsfBrowserOverlay {
         }
         float x = (float) mouseX;
         float y = (float) mouseY;
-        // ПКМ по предмету в крафте — применения (U). Остальные элементы окна — только ЛКМ.
+        // ПКМ по предмету в крафте — применения (U). Катализаторы — тоже:
+        // ЛКМ остаётся переключением фильтра станции, ПКМ показывает usages.
         if (button == 1) {
             ensureRecipeItemButtons();
             for (IsfItemButton itemButton : recipeItemButtons) {
                 if (contains(itemButton.layoutBounds(), x, y)) {
                     showRecipes(itemButton.itemId(), true);
+                    return true;
+                }
+            }
+            for (CatalystCell cell : catalystCells) {
+                if (contains(cell.button().layoutBounds(), x, y)) {
+                    showRecipes(cell.itemId(), true);
                     return true;
                 }
             }
@@ -266,11 +352,6 @@ final class IsfBrowserOverlay {
         }
         if (contains(detailPin.layoutBounds(), x, y)) {
             setDetailPinned(!detailPinned);
-            return true;
-        }
-        if (tabNext.visibility() == dev.sixik.unigui.api.widget.Visibility.VISIBLE
-                && contains(tabNext.layoutBounds(), x, y)) {
-            shiftTabWindow();
             return true;
         }
         for (TypeTab tab : typeTabs) {
@@ -348,12 +429,12 @@ final class IsfBrowserOverlay {
         selectedTypeId = null;
         selectedCatalyst = null;
         recipePage = 0;
-        tabFirstIndex = 0;
         typeTabs = List.of();
         catalystCells = List.of();
         builtRecipes = List.of();
         recipePages = List.of();
         tabRow.clearChildren();
+        tabScroll.scrollTo(0.0f, 0.0f);
         catalystColumn.clearChildren();
         recipeArea.clearChildren();
         clearDetailTooltips();
@@ -409,9 +490,56 @@ final class IsfBrowserOverlay {
         return IsfRecipeQueryMatcher.matches(recipe.parameters(), recipe.triggers(), itemId, usages);
     }
 
+    /**
+     * Открывает окно с конкретными рецептами (пуш с сервера, вне R/U-запроса).
+     * Неизвестные клиенту id молча пропускаются (библиотека едет тем же каналом).
+     */
+    void showExplicitRecipes(List<ResourceLocation> recipeIds) {
+        if (recipeIds == null || recipeIds.isEmpty()) return;
+        List<ResourceLocation> known = new ArrayList<>();
+        for (ResourceLocation recipeId : recipeIds) {
+            if (recipeId != null && IsfClientState.recipes().containsKey(recipeId)
+                    && !known.contains(recipeId)) {
+                known.add(recipeId);
+            }
+        }
+        if (known.isEmpty()) return;
+        // Явный показ не привязан к запросу предмета: обновление идёт только им.
+        selectedQuery = null;
+        updateDetail(new ItemEntry(known.get(0), titleStackFor(
+                IsfClientState.recipes().get(known.get(0))), known));
+    }
+
+    /** Стак для заголовка окна: результат, иначе source_item, иначе пусто. */
+    private static ItemStack titleStackFor(IsfRecipeDefinition recipe) {
+        if (recipe != null) {
+            ResourceLocation result = recipe.resultItemId();
+            ItemStack stack = stackFor(result);
+            if (!stack.isEmpty()) return stack;
+            com.google.gson.JsonElement source = recipe.parameters().get("source_item");
+            if (source != null && source.isJsonPrimitive()) {
+                stack = stackFor(ResourceLocation.tryParse(source.getAsString()));
+                if (!stack.isEmpty()) return stack;
+            }
+        }
+        return ItemStack.EMPTY;
+    }
+
+    private static ItemStack stackFor(ResourceLocation itemId) {
+        if (itemId == null) return ItemStack.EMPTY;
+        Item item = BuiltInRegistries.ITEM.get(itemId);
+        return item == null || item == Items.AIR ? ItemStack.EMPTY : new ItemStack(item);
+    }
+
     boolean scrollItemsAt(double mouseX, double mouseY, double delta) {
         if (delta == 0.0) {
             return false;
+        }
+        // Над вкладками RecipeType колесо листает сами вкладки по горизонтали,
+        // если они не помещаются в ширину окна.
+        if (contains(tabScroll.layoutBounds(), (float) mouseX, (float) mouseY)
+                && tabScroll.maxScrollX() > 0.0f) {
+            return scrollViewX(tabScroll, delta);
         }
         // Над окном рецептов колесо листает страницы: вверх — назад, вниз — вперёд.
         if (detailPanel.visibility() == dev.sixik.unigui.api.widget.Visibility.VISIBLE
@@ -475,6 +603,38 @@ final class IsfBrowserOverlay {
         return before != scroll.scrollY();
     }
 
+    /** Горизонтальный аналог {@link #scrollViewAt}: колесо вверх — влево, вниз — вправо. */
+    private boolean scrollViewX(ScrollView scroll, double delta) {
+        float before = scroll.scrollX();
+        scroll.scrollBy((float) (-delta * scroll.scrollStep()), 0.0f);
+        return before != scroll.scrollX();
+    }
+
+    /** {@code true}, если вкладки не помещаются по ширине и scrollbar показан. */
+    private boolean tabScrollBarVisible() {
+        return tabScroll.maxScrollX() > 0.0f;
+    }
+
+    /**
+     * Фиксированная высота окна рецептов: базовая часть плюс резерв под
+     * scrollbar вкладок, но только когда он реально показан.
+     */
+    private float detailFixedHeight() {
+        return DETAIL_FIXED_HEIGHT + (tabScrollBarVisible() ? TAB_ROW_RESERVED : 0.0f);
+    }
+
+    /**
+     * Держит высоту строки вкладок точной: без scrollbar — только вкладки,
+     * с scrollbar — вкладки + резерв под полосу. Вызывается каждый тик,
+     * применяется только при реальном изменении.
+     */
+    private void syncTabScrollHeight() {
+        float desired = TAB_ROW_CONTENT + (tabScrollBarVisible() ? TAB_ROW_RESERVED : 0.0f);
+        if (Math.abs(desired - appliedTabScrollHeight) < 0.01f) return;
+        appliedTabScrollHeight = desired;
+        tabScroll.layout(style -> style.height(desired));
+    }
+
     private void updateScrollFromPointer(ScrollView scroll, float mouseY) {
         dev.sixik.unigui.api.math.RectView track = scroll.verticalScrollBar().layoutBounds();
         float trackLength = Math.max(1.0f, track.height());
@@ -516,7 +676,7 @@ final class IsfBrowserOverlay {
         search.boxVisualEnabled(true);
         search.backgroundVisible(false);
         search.borderVisible(false);
-        search.boxRenderer(new NineSliceBoxRenderer(
+        search.renderer(new NineSliceBoxRenderer(
                 new MinecraftTextureHandle(
                         ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/search_background_v2.png"),
                         20, 20, TextureOptions.nearest()),
@@ -528,6 +688,10 @@ final class IsfBrowserOverlay {
                 .padding(6.0f, 0.0f)
                 .flexShrink(0.0f)
         );
+        search.onTextChanged(event -> {
+            browserFilter = event.newText() == null ? "" : event.newText().trim();
+            applyBrowserFilter();
+        });
 
         column.addChild(itemScroll);
         column.addChild(search);
@@ -565,7 +729,7 @@ final class IsfBrowserOverlay {
         detailPanel.themeEnabled(false);
         detailPanel.backgroundVisible(false);
         detailPanel.borderVisible(false);
-        detailPanel.boxRenderer(new NineSliceBoxRenderer(
+        detailPanel.renderer(new NineSliceBoxRenderer(
                 new MinecraftTextureHandle(
                         ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/gui_background.png"),
                         64, 64, TextureOptions.nearest()),
@@ -672,7 +836,7 @@ final class IsfBrowserOverlay {
         body.addChild(recipeArea);
 
         content.addChild(detailHeader);
-        content.addChild(tabRow);
+        content.addChild(tabScroll);
         content.addChild(pagerRow);
         content.addChild(body);
         detailPanel.addChild(content);
@@ -704,6 +868,22 @@ final class IsfBrowserOverlay {
         return panel;
     }
 
+    /** Кнопка окна рецептов с текстурами под состояния (hover/press/disabled). */
+    private static IsfStateButtonRenderer detailButtonRenderer() {
+        return new IsfStateButtonRenderer(
+                nineSlice("textures/jei/atlas/gui/button_enabled_v2.png"),
+                nineSlice("textures/jei/atlas/gui/button_highlight_v2.png"),
+                nineSlice("textures/jei/atlas/gui/button_pressed_v2.png"),
+                nineSlice("textures/jei/atlas/gui/button_pressed_highlight_v2.png"),
+                nineSlice("textures/jei/atlas/gui/button_disabled_v2.png"));
+    }
+
+    private static NineSliceButtonRenderer nineSlice(String path) {
+        return new NineSliceButtonRenderer(new MinecraftTextureHandle(
+                ResourceLocation.tryBuild(IsfMod.MOD_ID, path),
+                20, 20, TextureOptions.nearest()), 4.0f);
+    }
+
     private void rebuild(boolean ignored, float ignoredOffset) {
         List<ItemEntry> entries = entries();
         catalogEntries = entries;
@@ -713,6 +893,7 @@ final class IsfBrowserOverlay {
 
         for (MinecraftItemTooltip tooltip : tooltips) overlayRoot.removeOverlay(tooltip);
         tooltips.clear();
+        catalogTooltips.clear();
         bookmarkCells.clear();
         bookmarkTooltips.clear();
         itemCells.clear();
@@ -723,10 +904,9 @@ final class IsfBrowserOverlay {
             Button cell = itemCell(entry);
             itemCells.put(entry.id(), cell);
             grid.addChild(cell);
-            addTooltip(cell, entry);
         }
 
-        updateItemScrollContentHeight();
+        refreshBrowserFilter();
 
         syncBookmarks();
 
@@ -742,11 +922,13 @@ final class IsfBrowserOverlay {
 
     /**
      * Инкрементальное обновление каталога после ответа сервера.
-     * Набор клеток не меняется (каталог содержит все предметы игры), поэтому
-     * клетки и тултипы не пересоздаются — панели не мерцают, как с закладками.
+     * Недостающие клетки (предметы модов, зарегистрированные после создания
+     * overlay) достраивает {@link #ensureItemCells} — панели не мерцают,
+     * как с закладками.
      */
     private void syncCatalog() {
         catalogEntries = entries();
+        refreshBrowserFilter();
         syncBookmarks();
         refreshSelectedDetail();
         observedRecipeResults = IsfClientState.recipeResults();
@@ -775,13 +957,23 @@ final class IsfBrowserOverlay {
      * ПКМ по клетке в списке предметов или закладках — применения (U),
      * а если предмет является катализатором (печь, верстак...) — окно станции
      * со всеми категориями этого блока.
+     *
+     * <p>Hit-проверка ограничена viewport'ом соответствующего ScrollView: клетки
+     * за пределами видимой области прокрутки остаются в layout-дереве со своими
+     * layout-границами (выше/ниже viewport'а), и без этой проверки клик по
+     * «пустой» зоне над/под списком попадал в обрезанную клетку.</p>
      */
     boolean clickItemList(double mouseX, double mouseY, int button) {
         if (button != 1) return false;
         float x = (float) mouseX;
         float y = (float) mouseY;
-        ResourceLocation itemId = cellIdAt(itemCells, x, y);
-        if (itemId == null) itemId = cellIdAt(bookmarkCells, x, y);
+        ResourceLocation itemId = null;
+        if (contains(itemScroll.layoutBounds(), x, y)) {
+            itemId = cellIdAt(itemCells, x, y);
+        }
+        if (itemId == null && contains(bookmarkScroll.layoutBounds(), x, y)) {
+            itemId = cellIdAt(bookmarkCells, x, y);
+        }
         if (itemId == null) return false;
         if (isCatalystItem(itemId)) {
             showStationRecipes(itemId);
@@ -803,6 +995,7 @@ final class IsfBrowserOverlay {
 
     private ResourceLocation cellIdAt(Map<ResourceLocation, Button> cells, float x, float y) {
         for (Map.Entry<ResourceLocation, Button> entry : cells.entrySet()) {
+            if (entry.getValue().visibility() == dev.sixik.unigui.api.widget.Visibility.COLLAPSED) continue;
             if (contains(entry.getValue().layoutBounds(), x, y)) return entry.getKey();
         }
         return null;
@@ -854,15 +1047,327 @@ final class IsfBrowserOverlay {
 
     private void updateItemScrollContentHeight() {
         int columns = Math.max(1, grid.columns());
-        int rows = (catalogEntries.size() + columns - 1) / columns;
+        int visible = 0;
+        for (ItemEntry entry : catalogEntries) {
+            Button cell = itemCells.get(entry.id());
+            if (cell != null
+                    && cell.visibility() != dev.sixik.unigui.api.widget.Visibility.COLLAPSED) {
+                visible++;
+            }
+        }
+        if (visible == 0) {
+            itemScroll.contentHeight(0.0f);
+            itemScroll.scrollTo(0.0f, 0.0f);
+            return;
+        }
+        int rows = (visible + columns - 1) / columns;
         itemScroll.contentHeight(rows * CELL);
+        float maxScroll = itemScroll.maxScrollY();
+        if (itemScroll.scrollY() > maxScroll) itemScroll.scrollTo(0.0f, maxScroll);
+    }
+
+    /**
+     * Фильтрует правую панель (browserPanel) по текущему тексту из поля поиска.
+     *
+     * <ul>
+     *   <li>Обычный текст — подстрока в DisplayName предмета, в его RegistryID
+     *   (namespace или path, регистр не важен) или в полном {@code namespace:path}.</li>
+     *   <li>{@code @Text} — то же сравнение, но только по Mod ID (namespace предмета).</li>
+     *   <li>{@code #Text} — подстрока в id тегов предмета
+     *   (namespace, path или полный {@code namespace:path} тега).</li>
+     * </ul>
+     * Клетки не пересоздаются: фильтр только переключает видимость существующих
+     * клеток и тултипы следуют за ними (тултип виден только при наведении на якорь).
+     */
+    private void applyBrowserFilter() {
+        refreshBrowserFilter();
+        itemScroll.scrollTo(0.0f, 0.0f);
+        updateItemScrollContentHeight();
+    }
+
+    /**
+     * Применяет текущий фильтр без сброса скролла: используется после rebuild/sync,
+     * где позиция скролла восстанавливается отдельно.
+     *
+     * <p>Клетка видна, только если предмет подходит под поиск И у него есть контент
+     * (рецепты, применения или станция): предметы без рецептов в каталоге скрыты.</p>
+     */
+    private void refreshBrowserFilter() {
+        if (contentIndexVersion != IsfClientState.version()) {
+            contentIndexVersion = IsfClientState.version();
+            refreshContentIndex();
+        }
+        ensureItemCells();
+        String query = browserFilter == null ? "" : browserFilter.trim();
+        boolean modOnly = query.startsWith("@");
+        boolean tagOnly = !modOnly && query.startsWith("#");
+        String needle = ((modOnly || tagOnly) ? query.substring(1) : query)
+                .trim()
+                .toLowerCase(Locale.ROOT);
+
+        if (hoveredEntry != null) {
+            // Поиск перестраивает сетку (скролл в 0, видимость клеток): прежний hover
+            // геометрии больше не соответствует. Гасим флаг клетки синтетическим exit
+            // (иначе тултип/подсветка зависают: exit по скрытию не прилетает)
+            // и саму запись — мышь доедет заново при движении.
+            Button cell = itemCells.get(hoveredEntry.id());
+            if (cell != null) {
+                cell.handle(new PointerExitedEvent(cell, cell,
+                        dev.sixik.unigui.api.event.EventPhase.TARGET,
+                        0.0f, 0.0f, 0.0f, 0.0f, 0));
+            }
+            hoveredEntry = null;
+        }
+        for (ItemEntry entry : catalogEntries) {
+            Button cell = itemCells.get(entry.id());
+            if (cell == null) continue;
+            boolean visible = matchesBrowserQuery(entry, needle, modOnly, tagOnly)
+                    && itemsWithContent.contains(entry.id());
+            cell.visibility(visible
+                    ? dev.sixik.unigui.api.widget.Visibility.VISIBLE
+                    : dev.sixik.unigui.api.widget.Visibility.COLLAPSED);
+        }
+
+        itemScroll.scrollTo(0.0f, 0.0f);
+        updateItemScrollContentHeight();
+    }
+
+    /**
+     * Достраивает клетки каталога, если набор предметов изменился после их
+     * создания. Клетки строятся один раз в {@link #rebuild}, а реестр предметов
+     * на клиенте дополняется модами позже инициализации overlay: без этого
+     * модовые предметы есть в индексе контента, но клеток для них нет и они
+     * не отображаются (видны только ванильные).
+     */
+    private void ensureItemCells() {
+        boolean missing = itemCells.size() != catalogEntries.size();
+        if (!missing) {
+            for (ItemEntry entry : catalogEntries) {
+                if (!itemCells.containsKey(entry.id())) {
+                    missing = true;
+                    break;
+                }
+            }
+        }
+        if (!missing) return;
+        for (MinecraftItemTooltip tooltip : catalogTooltips.values()) {
+            overlayRoot.removeOverlay(tooltip);
+            tooltips.remove(tooltip);
+        }
+        catalogTooltips.clear();
+        hoveredEntry = null;
+        itemCells.clear();
+        grid.clearChildren();
+        for (ItemEntry entry : catalogEntries) {
+            Button cell = itemCell(entry);
+            itemCells.put(entry.id(), cell);
+            grid.addChild(cell);
+        }
+        LOGGER.info("[ISF] catalog cells rebuilt: cells={} entries={}",
+                itemCells.size(), catalogEntries.size());
+    }
+
+    /**
+     * Перестраивает индекс предметов с контентом: результаты разблокированных
+     * рецептов, катализаторы станций, предметы/станции из триггеров рецептов
+     * и все id предметов, упомянутые в параметрах рецептов (ингредиенты, дроп —
+     * поиск ведётся по строкам, годным в id предметов из реестра; ссылки вида
+     * {@code #namespace:path} раскрываются через теги предметов).
+     */
+    private void refreshContentIndex() {
+        Set<ResourceLocation> visible = new java.util.HashSet<>();
+        visible.addAll(IsfClientState.recipeResults().values());
+        for (List<IsfCatalystDefinition> catalysts : IsfClientState.typeCatalysts().values()) {
+            for (IsfCatalystDefinition catalyst : catalysts) {
+                if (catalyst.item() != null) visible.add(catalyst.item());
+            }
+        }
+        Set<String> mentioned = new java.util.HashSet<>();
+        Set<ResourceLocation> triggered = new java.util.HashSet<>();
+        for (IsfRecipeDefinition recipe : IsfClientState.recipes().values()) {
+            if (recipe.parameters() != null) {
+                for (JsonElement value : recipe.parameters().values()) {
+                    collectMentionedIds(value, mentioned);
+                }
+            }
+            collectTriggerItems(recipe, triggered);
+        }
+        for (ResourceLocation id : triggered) {
+            if (id != null && BuiltInRegistries.ITEM.containsKey(id)) visible.add(id);
+        }
+        for (String raw : mentioned) {
+            if (raw == null) continue;
+            String text = raw.trim();
+            if (text.startsWith("#")) {
+                // Ссылка на тег ("#forge:ingots/iron"): видимы все предметы тега.
+                ResourceLocation tagId = ResourceLocation.tryParse(text.substring(1));
+                for (ResourceLocation id : expandItemTag(tagId)) {
+                    if (BuiltInRegistries.ITEM.containsKey(id)) visible.add(id);
+                }
+                continue;
+            }
+            // Записи вида "minecraft:iron_ingot#9": суффикс количества отбрасываем.
+            int hash = text.lastIndexOf('#');
+            ResourceLocation id = ResourceLocation.tryParse(hash < 0 ? text : text.substring(0, hash));
+            if (id != null && BuiltInRegistries.ITEM.containsKey(id)) visible.add(id);
+        }
+        visible.removeIf(id -> !BuiltInRegistries.ITEM.containsKey(id));
+        itemsWithContent = Set.copyOf(visible);
+        logCatalogDebug(visible, IsfClientState.recipes().size(), mentioned.size(), triggered.size());
+    }
+
+    /**
+     * Диагностика каталога: сколько рецептов знает клиент и сколько предметов
+     * каждого мода видно. Моды, у которых в реестре есть предметы, но ни один
+     * не попал в индекс, логируются отдельно — по ним видно, проблема в
+     * генерации/синке рецептов или в самом индексе.
+     */
+    private static void logCatalogDebug(Set<ResourceLocation> visible, int recipeCount,
+                                        int mentionedCount, int triggeredCount) {
+        try {
+            Map<String, Integer> registryByNs = new java.util.TreeMap<>();
+            int registryTotal = 0;
+            for (Item item : BuiltInRegistries.ITEM) {
+                if (item == Items.AIR) continue;
+                ResourceLocation id = BuiltInRegistries.ITEM.getKey(item);
+                if (id == null) continue;
+                registryTotal++;
+                registryByNs.merge(id.getNamespace(), 1, Integer::sum);
+            }
+            Map<String, Integer> visibleByNs = new java.util.TreeMap<>();
+            for (ResourceLocation id : visible) {
+                if (id != null) visibleByNs.merge(id.getNamespace(), 1, Integer::sum);
+            }
+            LOGGER.info("[ISF] catalog index: recipes={} mentioned={} triggered={} visible={} registryItems={}",
+                    recipeCount, mentionedCount, triggeredCount, visible.size(), registryTotal);
+            for (Map.Entry<String, Integer> entry : registryByNs.entrySet()) {
+                int shown = visibleByNs.getOrDefault(entry.getKey(), 0);
+                if (shown < entry.getValue()) {
+                    LOGGER.info("[ISF] catalog ns '{}': registry={} visible={}",
+                            entry.getKey(), entry.getValue(), shown);
+                }
+            }
+        } catch (RuntimeException ignored) {
+        }
+    }
+
+    /**
+     * Раскрывает тег предметов в id из реестра клиента.
+     * Битый id или отсутствие тега дают пустой список.
+     */
+    private static List<ResourceLocation> expandItemTag(ResourceLocation tagId) {
+        if (tagId == null) return List.of();
+        try {
+            return BuiltInRegistries.ITEM
+                    .getTag(net.minecraft.tags.TagKey.create(
+                            net.minecraft.core.registries.Registries.ITEM, tagId))
+                    .map(holders -> {
+                        List<ResourceLocation> ids = new ArrayList<>();
+                        holders.forEach(holder -> {
+                            ResourceLocation id = BuiltInRegistries.ITEM.getKey(holder.value());
+                            if (id != null) ids.add(id);
+                        });
+                        return List.copyOf(ids);
+                    })
+                    .orElseGet(List::of);
+        } catch (RuntimeException ignored) {
+            return List.of();
+        }
+    }
+
+    /**
+     * Собирает предметы/станции из триггеров рецепта (subject + station).
+     * Чистая функция без реестра — для тестов; годность id проверяет вызыватель.
+     */
+    static void collectTriggerItems(IsfRecipeDefinition recipe, Set<ResourceLocation> out) {
+        if (recipe == null || out == null) return;
+        List<dev.sixik.isf.definition.IsfTriggerBinding> triggers = recipe.triggers();
+        if (triggers == null) return;
+        for (dev.sixik.isf.definition.IsfTriggerBinding binding : triggers) {
+            if (binding == null) continue;
+            if (binding.subject() != null) out.add(binding.subject());
+            if (binding.station() != null) out.add(binding.station());
+        }
+    }
+
+    /**
+     * Собирает все строковые id из JSON-значения (объекты/массивы рекурсивно).
+     * Чистая функция без реестра — для тестов; годность строк проверяет вызыватель.
+     */
+    static void collectMentionedIds(JsonElement element, Set<String> out) {
+        if (element == null || element.isJsonNull() || out == null) return;
+        if (element.isJsonPrimitive()) {
+            out.add(element.getAsString());
+            return;
+        }
+        if (element.isJsonArray()) {
+            for (JsonElement child : element.getAsJsonArray()) collectMentionedIds(child, out);
+            return;
+        }
+        if (element.isJsonObject()) {
+            for (Map.Entry<String, JsonElement> member : element.getAsJsonObject().entrySet()) {
+                collectMentionedIds(member.getValue(), out);
+            }
+        }
+    }
+
+    /**
+     * Проверяет одну запись каталога против поискового запроса.
+     *
+     * @param entry запись каталога (id + ItemStack)
+     * @param needle поисковый запрос без {@code @}/{@code #}, уже в нижнем регистре; пустой — совпадает всё
+     * @param modOnly {@code true} — сверять только по Mod ID (namespace)
+     * @param tagOnly {@code true} — сверять только по тегам предмета
+     * @return {@code true}, если запись подходит под фильтр
+     */
+    private static boolean matchesBrowserQuery(ItemEntry entry, String needle,
+                                               boolean modOnly, boolean tagOnly) {
+        if (needle == null || needle.isEmpty()) return true;
+        ResourceLocation id = entry.id();
+        if (id == null) return false;
+        String namespace = id.getNamespace().toLowerCase(Locale.ROOT);
+        if (modOnly) return namespace.contains(needle);
+        if (tagOnly) return matchesTag(entry, needle);
+        String displayName = entry.stack().getHoverName().getString().toLowerCase(Locale.ROOT);
+        String path = id.getPath().toLowerCase(Locale.ROOT);
+        String fullId = namespace + ":" + path;
+        return displayName.contains(needle)
+                || namespace.contains(needle)
+                || path.contains(needle)
+                || fullId.contains(needle);
+    }
+
+    /**
+     * Проверяет теги предмета против поискового запроса (режим {@code #}).
+     *
+     * @param entry запись каталога (id + ItemStack)
+     * @param needle запрос без {@code #}, уже в нижнем регистре
+     * @return {@code true}, если id хотя бы одного тега предмета содержит запрос
+     */
+    private static boolean matchesTag(ItemEntry entry, String needle) {
+        try {
+            return entry.stack().getTags().anyMatch(tag -> {
+                ResourceLocation location = tag.location();
+                if (location == null) return false;
+                String tagNamespace = location.getNamespace().toLowerCase(Locale.ROOT);
+                String tagPath = location.getPath().toLowerCase(Locale.ROOT);
+                return tagNamespace.contains(needle)
+                        || tagPath.contains(needle)
+                        || (tagNamespace + ":" + tagPath).contains(needle);
+            });
+        } catch (RuntimeException ignored) {
+            return false;
+        }
     }
 
     private Button itemCell(ItemEntry entry) {
         Button cell = new IconButton();
         cell.textPadding(0.0f, 0.0f);
         cell.layout(style -> style.size(CELL, CELL).flexNone());
-        cell.on(PointerEnteredEvent.TYPE, event -> hoveredEntry = entry);
+        cell.on(PointerEnteredEvent.TYPE, event -> {
+            hoveredEntry = entry;
+            ensureCatalogTooltip(cell, entry);
+        });
         cell.on(PointerExitedEvent.TYPE, event -> {
             if (hoveredEntry == entry) hoveredEntry = null;
         });
@@ -879,8 +1384,15 @@ final class IsfBrowserOverlay {
         return cell;
     }
 
-    private void addTooltip(Button cell, ItemEntry entry) {
+    /**
+     * Тултип клетки каталога по первому наведению: тысячи eager-тултипов —
+     * это тысячи виджетов в дереве на каждый кадр (тик/measure/arrange/render)
+     * и фриз первого открытия, а показывают из них единицы.
+     */
+    private void ensureCatalogTooltip(Button cell, ItemEntry entry) {
+        if (cell == null || entry == null || catalogTooltips.containsKey(cell)) return;
         MinecraftItemTooltip tooltip = new MinecraftItemTooltip(cell, entry.stack());
+        catalogTooltips.put(cell, tooltip);
         tooltips.add(tooltip);
         overlayRoot.addOverlay(tooltip);
     }
@@ -943,11 +1455,12 @@ final class IsfBrowserOverlay {
         for (IsfRecipeDefinition recipe : recipes) {
             if (!order.contains(recipe.recipeType())) order.add(recipe.recipeType());
         }
+        // Порядок вкладок — из реестра сервера, а не из порядка сетевых чанков.
+        order = IsfClientState.sortByTypeOrder(order);
         List<ResourceLocation> current = new ArrayList<>();
         for (TypeTab tab : typeTabs) current.add(tab.typeId());
         if (!current.equals(order)) {
             clearTabTooltips();
-            tabFirstIndex = 0;
             selectedCatalyst = null;
             selectedTypeId = order.isEmpty() ? null : order.get(0);
             tabRow.clearChildren();
@@ -973,17 +1486,20 @@ final class IsfBrowserOverlay {
                     tabTooltips.add(tooltip);
                     overlayRoot.addOverlay(tooltip);
                 }
+                // Кнопка вкладки обязана обрабатывать клик сама: Button поглощает
+                // ЛКМ в widget-маршруте, и Forge-хук с bounds-проверкой уже не
+                // вызывается (как у detailClose/detailPin/пагинации).
+                tab.onClick(event -> selectType(typeId));
                 tabRow.addChild(tab);
                 tabs.add(new TypeTab(typeId, tab));
             }
-            tabRow.addChild(tabNext);
+            tabScroll.scrollTo(0.0f, 0.0f);
             typeTabs = List.copyOf(tabs);
         }
         if (selectedTypeId == null && !typeTabs.isEmpty()) {
             selectedTypeId = typeTabs.get(0).typeId();
         }
         applyTabHighlights();
-        updateTabVisibility();
     }
 
     /** Иконка вкладки: явная иконка типа, иначе первый катализатор. */
@@ -1026,29 +1542,9 @@ final class IsfBrowserOverlay {
         if (!typeIds.contains(selectedTypeId)) {
             selectedTypeId = typeIds.get(0);
             applyTabHighlights();
-            updateTabVisibility();
             rebuildCatalysts();
             rebuildRecipePages();
         }
-    }
-
-    /** Показывает окно вкладок [tabFirstIndex, tabFirstIndex + visible); стрелка видна при переполнении. */
-    private void updateTabVisibility() {
-        float rowWidth = tabRow.layoutBounds().width();
-        if (rowWidth <= 0.0f) rowWidth = typeTabs.size() * (TAB_CELL + 2.0f);
-        int visible = Math.max(1, (int) ((rowWidth - 16.0f - 2.0f) / (TAB_CELL + 2.0f)));
-        boolean overflow = typeTabs.size() > visible;
-        if (tabFirstIndex >= typeTabs.size()) tabFirstIndex = 0;
-        for (int index = 0; index < typeTabs.size(); index++) {
-            Button button = typeTabs.get(index).button();
-            boolean inWindow = index >= tabFirstIndex && index < tabFirstIndex + visible;
-            button.visibility(inWindow
-                    ? dev.sixik.unigui.api.widget.Visibility.VISIBLE
-                    : dev.sixik.unigui.api.widget.Visibility.COLLAPSED);
-        }
-        tabNext.visibility(overflow
-                ? dev.sixik.unigui.api.widget.Visibility.VISIBLE
-                : dev.sixik.unigui.api.widget.Visibility.COLLAPSED);
     }
 
     private void applyTabHighlights() {
@@ -1063,30 +1559,32 @@ final class IsfBrowserOverlay {
         }
     }
 
-    private void shiftTabWindow() {
-        if (typeTabs.isEmpty()) return;
-        tabFirstIndex = Math.floorMod(tabFirstIndex + 1, typeTabs.size());
-        updateTabVisibility();
-        applyTabHighlights();
-    }
-
     private void selectType(ResourceLocation typeId) {
         if (typeId == null || typeId.equals(selectedTypeId)) return;
         selectedTypeId = typeId;
         selectedCatalyst = null;
         recipePage = 0;
-        tabFirstIndex = 0;
         applyTabHighlights();
-        updateTabVisibility();
         updateDetailTitle();
         rebuildCatalysts();
         rebuildRecipePages();
     }
 
-    /** Красная зона: катализаторы (блоки/предметы, на которых выполняется крафт). */
+    /** Красная зона: катализаторы. Для LootTable-типа колонка скрыта целиком. */
     private void rebuildCatalysts() {
         catalystColumn.clearChildren();
         clearCatalystTooltips();
+        // У таблиц добычи нет станции: красная колонка не нужна — схлопываем её,
+        // чтобы рецепты занимали всю ширину окна.
+        boolean hideCatalysts = dev.sixik.isf.importer.LootTableSupports.LOOT_TYPE_ID
+                .equals(selectedTypeId);
+        catalystColumn.visibility(hideCatalysts
+                ? dev.sixik.unigui.api.widget.Visibility.COLLAPSED
+                : dev.sixik.unigui.api.widget.Visibility.VISIBLE);
+        if (hideCatalysts) {
+            catalystCells = List.of();
+            return;
+        }
         List<IsfCatalystDefinition> catalysts = selectedTypeId == null
                 ? List.of()
                 : IsfClientState.typeCatalysts().getOrDefault(selectedTypeId, List.of());
@@ -1147,7 +1645,164 @@ final class IsfBrowserOverlay {
             }
             result.add(recipe);
         }
+        // Одинаковые лут-таблицы — одним экраном с рядом источников (после
+        // фильтра станции: под фильтром мержатся только прошедшие его таблицы).
+        if (dev.sixik.isf.importer.LootTableSupports.LOOT_TYPE_ID.equals(selectedTypeId)) {
+            return mergeLootRecipes(result);
+        }
         return result;
+    }
+
+    /**
+     * Группирует лут-рецепты с идентичным дропом: вместо N одинаковых страниц —
+     * одна с рядом блоков-источников сверху. Мержится только дроп с предметными
+     * источниками (блоки/сундуки); таблицы сущностей (source_item — воздух) и
+     * рецепты без параметра {@code drops} остаются отдельными страницами.
+     * Порядок первых появлений сохраняется. Чистая функция без реестра.
+     */
+    static List<IsfRecipeDefinition> mergeLootRecipes(List<IsfRecipeDefinition> recipes) {
+        if (recipes == null) return List.of();
+        if (recipes.size() < 2) return List.copyOf(recipes);
+        Map<String, LootGroup> groups = new LinkedHashMap<>();
+        List<Object> sequence = new ArrayList<>();
+        for (IsfRecipeDefinition recipe : recipes) {
+            if (recipe == null) continue;
+            String key = lootMergeKey(recipe);
+            if (key == null) {
+                sequence.add(recipe);
+                continue;
+            }
+            LootGroup group = groups.get(key);
+            if (group == null) {
+                group = new LootGroup();
+                groups.put(key, group);
+                sequence.add(group);
+            }
+            group.members.add(recipe);
+        }
+        List<IsfRecipeDefinition> merged = new ArrayList<>();
+        for (Object slot : sequence) {
+            if (slot instanceof IsfRecipeDefinition single) {
+                merged.add(single);
+            } else if (slot instanceof LootGroup group) {
+                merged.add(group.members.size() > 1
+                        ? mergedLootRecipe(group.members) : group.members.get(0));
+            }
+        }
+        return List.copyOf(merged);
+    }
+
+    /** Ключ группировки: канонический дроп; {@code null} — не мержить. */
+    private static String lootMergeKey(IsfRecipeDefinition recipe) {
+        Map<String, JsonElement> parameters = recipe.parameters();
+        if (parameters == null) return null;
+        JsonElement drops = parameters.get("drops");
+        if (drops == null || !drops.isJsonArray()) return null;
+        JsonElement source = parameters.get("source_item");
+        if (source == null || !source.isJsonPrimitive()) return null;
+        String sourceId = source.getAsString();
+        if (sourceId == null || sourceId.isBlank()
+                || sourceId.equals("minecraft:air") || sourceId.equals("air")) {
+            return null;
+        }
+        return drops.toString();
+    }
+
+    /**
+     * Синтетический рецепт группы: дроп общий, источники — все таблицы группы
+     * (первый — в {@code source_item} для совместимости, все — в
+     * {@code source_items}), триггеры — объединение, визуал — шапка с рядом
+     * источников и та же сетка дропа.
+     */
+    private static IsfRecipeDefinition mergedLootRecipe(List<IsfRecipeDefinition> members) {
+        IsfRecipeDefinition first = members.get(0);
+        List<String> sources = new ArrayList<>();
+        for (IsfRecipeDefinition member : members) {
+            JsonElement source = member.parameters().get("source_item");
+            if (source == null || !source.isJsonPrimitive()) continue;
+            String id = source.getAsString();
+            if (id != null && !id.isBlank() && !sources.contains(id)) sources.add(id);
+        }
+        Map<String, JsonElement> parameters = new LinkedHashMap<>(first.parameters());
+        JsonArray items = new JsonArray();
+        sources.forEach(items::add);
+        parameters.put("source_items", items);
+        ResourceLocation mergedId =
+                ResourceLocation.tryBuild("isf", first.id().getPath() + "/merged");
+        if (mergedId == null) mergedId = first.id();
+        Set<IsfTriggerBinding> triggers = new java.util.LinkedHashSet<>();
+        for (IsfRecipeDefinition member : members) {
+            if (member.triggers() != null) triggers.addAll(member.triggers());
+        }
+        return new IsfRecipeDefinition(mergedId, first.recipeType(), null,
+                Map.copyOf(parameters), List.copyOf(triggers),
+                mergedLootVisual(sources), first.source());
+    }
+
+    /**
+     * Визуал merged-страницы: повторяет шапку/тело типа лут-таблицы, но вместо
+     * одного источника — сетка иконок всех источников группы (5 в ряд) и тот же
+     * заголовок первой таблицы. Строится клиентом на лету: старые сгенерированные
+     * type-файлы не затрагиваются.
+     */
+    private static IsfVisualNode mergedLootVisual(List<String> sources) {
+        List<IsfVisualNode> icons = new ArrayList<>();
+        for (int index = 0; index < sources.size(); index++) {
+            Map<String, IsfExpression> properties = new LinkedHashMap<>();
+            properties.put("item", new IsfExpression.Literal(new JsonPrimitive(sources.get(index))));
+            properties.put("slot", new IsfExpression.Literal(
+                    new JsonPrimitive(IsfVisualWidgetFactory.SLOT_TEXTURE)));
+            properties.put("width", new IsfExpression.Literal(new JsonPrimitive(18)));
+            properties.put("height", new IsfExpression.Literal(new JsonPrimitive(18)));
+            properties.put("alignSelf", new IsfExpression.Literal(new JsonPrimitive("center")));
+            icons.add(new IsfVisualNode("msrc" + index,
+                    ResourceLocation.tryParse("unigui:item"), properties, List.of()));
+        }
+        // Фиксированная геометрия (5 колонок по 22px, как сетка дропа): без неё
+        // сетка делит всю ширину шапки на колонки и кнопки ужимаются под ячейку.
+        int rows = Math.max(1, (sources.size() + 4) / 5);
+        Map<String, IsfExpression> gridProperties = new LinkedHashMap<>();
+        gridProperties.put("columns", new IsfExpression.Literal(new JsonPrimitive(5)));
+        gridProperties.put("spacing", new IsfExpression.Literal(new JsonPrimitive(0)));
+        gridProperties.put("width", new IsfExpression.Literal(new JsonPrimitive(5 * 22)));
+        gridProperties.put("height", new IsfExpression.Literal(new JsonPrimitive(rows * 18)));
+        IsfVisualNode grid = new IsfVisualNode("msources",
+                ResourceLocation.tryParse("unigui:grid"), gridProperties, icons);
+        Map<String, IsfExpression> titleProperties = new LinkedHashMap<>();
+        titleProperties.put("text", new IsfExpression.Call("isf:loot_title",
+                List.of(new IsfExpression.Parameter("table_id"))));
+        titleProperties.put("color", new IsfExpression.Literal(new JsonPrimitive("#5A5A5AFF")));
+        titleProperties.put("alignSelf", new IsfExpression.Literal(new JsonPrimitive("center")));
+        IsfVisualNode title = new IsfVisualNode("mtitle",
+                ResourceLocation.tryParse("unigui:label"), titleProperties, List.of());
+        Map<String, IsfExpression> headerProperties = new LinkedHashMap<>();
+        headerProperties.put("padding", new IsfExpression.Literal(new JsonPrimitive(2)));
+        headerProperties.put("spacing", new IsfExpression.Literal(new JsonPrimitive(2)));
+        headerProperties.put("alignItems", new IsfExpression.Literal(new JsonPrimitive("center")));
+        IsfVisualNode header = new IsfVisualNode("mheader",
+                ResourceLocation.tryParse("unigui:vbox"), headerProperties, List.of(title, grid));
+        Map<String, IsfExpression> scrollProperties = new LinkedHashMap<>();
+        scrollProperties.put("drops", new IsfExpression.Parameter("drops"));
+        IsfVisualNode scroll = new IsfVisualNode("mscroll",
+                ResourceLocation.tryParse("isf:loot_scroll"), scrollProperties, List.of());
+        Map<String, IsfExpression> bodyProperties = new LinkedHashMap<>();
+        bodyProperties.put("padding", new IsfExpression.Literal(new JsonPrimitive(4)));
+        bodyProperties.put("spacing", new IsfExpression.Literal(new JsonPrimitive(4)));
+        IsfVisualNode body = new IsfVisualNode("mbody",
+                ResourceLocation.tryParse("unigui:vbox"), bodyProperties, List.of(header, scroll));
+        Map<String, IsfExpression> rootProperties = new LinkedHashMap<>();
+        rootProperties.put("width", new IsfExpression.Literal(new JsonPrimitive(150)));
+        rootProperties.put("height", new IsfExpression.Literal(new JsonPrimitive(110)));
+        rootProperties.put("background", new IsfExpression.Literal(new JsonPrimitive("#11151DEB")));
+        rootProperties.put("border", new IsfExpression.Literal(new JsonPrimitive("#6A8FAEFF")));
+        rootProperties.put("radius", new IsfExpression.Literal(new JsonPrimitive(3)));
+        return new IsfVisualNode("mroot",
+                ResourceLocation.tryParse("unigui:box"), rootProperties, List.of(body));
+    }
+
+    /** Группа одинакового дропа при мерже лут-таблиц. */
+    private static final class LootGroup {
+        final List<IsfRecipeDefinition> members = new ArrayList<>();
     }
 
     /** Синяя зона: строит страницы рецептов по высоте области просмотра (до 3 элементов). */
@@ -1209,17 +1864,36 @@ final class IsfBrowserOverlay {
         if (recipeItemButtonsPopulated) return;
         recipeItemButtonsPopulated = true;
         List<IsfItemButton> collected = new ArrayList<>();
-        for (Widget root : pageVisuals) collectItemButtons(root, collected);
-        for (IsfItemButton button : collected) {
+        for (Widget root : pageVisuals) collectItemButtons(root, collected);        for (IsfItemButton button : collected) {
             recipeItemButtons.add(button);
             MinecraftItemTooltip tooltip = new MinecraftItemTooltip(button, button.stack());
-            if (button.tooltipLines() != null) {
+            if (button.acceptsGrid()) {
+                // Тег-ингредиент: «Принимает [любые:]» + строка тега + сетка моделей вариантов.
+                tooltip.renderer(dev.sixik.unigui.widgets.minecraft.MinecraftTooltipRenderers
+                        .acceptsGrid(button.acceptsStacks(), button.tag(),
+                                () -> new IsfAcceptsTooltipData(button.acceptsStacks(), button.tag())));
+            } else if (button.extraTooltipLines() != null && !button.extraTooltipLines().isEmpty()) {
+                // Условие выпадения лута: vanilla-тултип предмета + строки условий.
+                List<net.minecraft.network.chat.Component> lines = new ArrayList<>();
+                lines.add(button.stack().getHoverName());
+                lines.addAll(button.extraTooltipLines());
+                tooltip.renderer(dev.sixik.unigui.widgets.minecraft.MinecraftTooltipRenderers
+                        .vanilla(lines));
+            } else if (button.tooltipLines() != null) {
                 tooltip.renderer(dev.sixik.unigui.widgets.minecraft.MinecraftTooltipRenderers
                         .vanilla(button.tooltipLines()));
             }
             recipeItemTooltips.add(tooltip);
             overlayRoot.addOverlay(tooltip);
         }
+        // Кнопки переноса закрывают окно рецептов после выкладки.
+        for (Widget root : pageVisuals) collectTransferButtons(root, transferButtons);
+        for (IsfTransferButton button : transferButtons) button.onTransferred(this::closeDetail);
+    }
+
+    private static void collectTransferButtons(Widget widget, List<IsfTransferButton> out) {
+        if (widget instanceof IsfTransferButton button) out.add(button);
+        for (Widget child : widget.children()) collectTransferButtons(child, out);
     }
 
     private static void collectItemButtons(Widget widget, List<IsfItemButton> out) {
@@ -1239,6 +1913,7 @@ final class IsfBrowserOverlay {
         for (MinecraftItemTooltip tooltip : recipeItemTooltips) overlayRoot.removeOverlay(tooltip);
         recipeItemTooltips.clear();
         recipeItemButtons.clear();
+        transferButtons.clear();
         pageVisuals.clear();
         recipeItemButtonsPopulated = false;
     }
@@ -1271,7 +1946,7 @@ final class IsfBrowserOverlay {
         Screen screen = net.minecraft.client.Minecraft.getInstance().screen;
         float screenHeight = screen == null ? 240.0f : screen.height;
         float margin = 4.0f;
-        float available = screenHeight - margin * 2.0f - DETAIL_FIXED_HEIGHT;
+        float available = screenHeight - margin * 2.0f - detailFixedHeight();
         return Math.max(50.0f, available);
     }
 
@@ -1280,7 +1955,7 @@ final class IsfBrowserOverlay {
         if (screen == null) return;
         float pageContentHeight = currentRecipePageHeight();
         int maxDetailHeight = Math.max(120, screen.height - 8);
-        int detailHeight = Math.min(maxDetailHeight, Math.round(DETAIL_FIXED_HEIGHT + pageContentHeight));
+        int detailHeight = Math.min(maxDetailHeight, Math.round(detailFixedHeight() + pageContentHeight));
         detailPanel.layout(style -> style.height(detailHeight));
         if (detailPositionSet) {
             float width = detailPanel.layoutStyle().width().value();
@@ -1320,8 +1995,8 @@ final class IsfBrowserOverlay {
         Set<ResourceLocation> bookmarks = IsfClientState.bookmarks();
         Map<ResourceLocation, ItemEntry> indexed = new LinkedHashMap<>();
 
-        // Правая панель является полным каталогом предметов Minecraft и всех модов.
-        // Поэтому её содержимое не зависит от того, открыты ли у игрока ISF-рецепты.
+        // Правая панель строится по всем предметам, но видимость клеток решает
+        // refreshBrowserFilter: без рецептов/применений/станции предмет скрыт.
         for (Item item : BuiltInRegistries.ITEM) {
             ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(item);
             if (item == Items.AIR || itemId == null) continue;
@@ -1371,6 +2046,7 @@ final class IsfBrowserOverlay {
         public void tick(FrameContext frame) {
             super.tick(frame);
             syncPanelBounds();
+            syncTabScrollHeight();
             if (observedStateVersion != IsfClientState.version()) {
                 if (!observedRecipeResults.equals(IsfClientState.recipeResults())) {
                     syncCatalog();
@@ -1421,12 +2097,12 @@ final class IsfBrowserOverlay {
 
             float itemContentWidth = Math.max(0.0f,
                     rightWidth - PANEL_PADDING * 2.0f
-                            - dev.sixik.unigui.widgets.interaction.ScrollBar.DEFAULT_SIZE
+                            - ScrollBar.DEFAULT_SIZE
                             - itemScroll.scrollbarGap());
             int itemColumns = Math.max(1, (int) (itemContentWidth / CELL));
             if (grid.columns() != itemColumns) {
                 grid.columns(itemColumns);
-                updateItemScrollContentHeight();
+                refreshBrowserFilter();
             }
 
             int bookmarkContentWidth = Math.max(0, leftWidth - 8);
@@ -1438,14 +2114,14 @@ final class IsfBrowserOverlay {
             if (selectedEntry != null) {
                 int detailWidth = Math.min(240, Math.max(206, width - margin * 2));
                 int maxAvailableHeight = Math.max(120, height - margin * 2);
-                float maxAreaHeight = Math.max(50.0f, maxAvailableHeight - DETAIL_FIXED_HEIGHT);
+                float maxAreaHeight = Math.max(50.0f, maxAvailableHeight - detailFixedHeight());
 
                 if (Math.abs(maxAreaHeight - pageAreaHeight) > 0.5f) {
                     rebuildRecipePages(maxAreaHeight);
                 }
 
                 float pageContentHeight = currentRecipePageHeight();
-                int detailHeight = Math.min(maxAvailableHeight, Math.round(DETAIL_FIXED_HEIGHT + pageContentHeight));
+                int detailHeight = Math.min(maxAvailableHeight, Math.round(detailFixedHeight() + pageContentHeight));
 
                 if (!detailPositionSet) {
                     detailLeft = Math.max(margin, Math.min(width - detailWidth - margin, (width - detailWidth) * 0.5f));
@@ -1461,14 +2137,51 @@ final class IsfBrowserOverlay {
             }
         }
 
+        private Field imageWidthField;
+        private boolean imageWidthResolved;
+
+        /**
+         * Ширина GUI без геттера — читаем поле рефлексией. Строковые имена полей
+         * сборка не ремаппит (в отличие от вызовов методов), поэтому пробуем оба
+         * окружения: {@code "imageWidth"} в dev (mojmap) и {@code "f_97726_"}
+         * в проде (SRG). Без этого в релизе всегда падает в фолбэк 176: для
+         * выживания он случайно верен, а креативный экран шире (195) —
+         * панели наезжают на инвентарь.
+         */
         private int imageWidth(AbstractContainerScreen<?> screen) {
-            try {
-                Field field = AbstractContainerScreen.class.getDeclaredField("imageWidth");
-                field.setAccessible(true);
-                return Math.max(0, field.getInt(screen));
-            } catch (ReflectiveOperationException ignored) {
-                return 176;
+            if (!imageWidthResolved) {
+                imageWidthResolved = true;
+                imageWidthField = resolveImageWidthField();
+                if (imageWidthField != null) {
+                    LOGGER.info("[ISF] inventory width field: {}", imageWidthField.getName());
+                } else {
+                    LOGGER.warn("[ISF] inventory width field not found, fallback width");
+                }
             }
+            if (imageWidthField != null) {
+                try {
+                    return Math.max(0, imageWidthField.getInt(screen));
+                } catch (ReflectiveOperationException ignored) {
+                }
+            }
+            // Крайний случай: ширина креатива известна точно (195x136).
+            if (screen instanceof net.minecraft.client.gui.screens.inventory
+                    .CreativeModeInventoryScreen) {
+                return 195;
+            }
+            return 176;
+        }
+
+        private static Field resolveImageWidthField() {
+            for (String name : new String[]{"imageWidth", "f_97726_"}) {
+                try {
+                    Field field = AbstractContainerScreen.class.getDeclaredField(name);
+                    field.setAccessible(true);
+                    return field;
+                } catch (ReflectiveOperationException ignored) {
+                }
+            }
+            return null;
         }
     }
 

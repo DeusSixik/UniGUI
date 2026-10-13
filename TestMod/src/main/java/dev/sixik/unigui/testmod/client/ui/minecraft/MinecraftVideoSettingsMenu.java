@@ -30,6 +30,7 @@ import dev.sixik.unigui.api.text.Fonts;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.backend.minecraft_impl.UniGuiTextures;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftClipboardService;
@@ -57,7 +58,6 @@ import dev.sixik.unigui.widgets.interaction.ToggleButton;
 import dev.sixik.unigui.widgets.interaction.ToggleSwitch;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 import dev.sixik.unigui.widgets.feedback.Tooltip;
-import dev.sixik.unigui.widgets.render.ButtonRenderer;
 import net.minecraft.client.AttackIndicatorStatus;
 import net.minecraft.client.CloudStatus;
 import net.minecraft.client.GraphicsStatus;
@@ -992,7 +992,7 @@ public final class MinecraftVideoSettingsMenu {
         dropBox.optionsHost().borderVisible(true);
         dropBox.optionsHost().radius(0.0f);
         dropBox.optionsHost().borderWidth(0.18f);
-        dropBox.optionsHost().boxRenderer(DestinyLikeDropDownRenders.OPTIONS_HOST);
+        dropBox.optionsHost().renderer(DestinyLikeDropDownRenders.OPTIONS_HOST);
         dropBox.optionsHost().background().set(0.09f, 0.10f, 0.13f, 0.98f);
         dropBox.optionsHost().borderColor().set(0.41f, 0.43f, 0.48f, 0.88f);
         dropBox.optionsScroll().scrollbarGap(1.0f);
@@ -1046,7 +1046,7 @@ public final class MinecraftVideoSettingsMenu {
     }
 
     private static Button button(String text,
-                                 ButtonRenderer renderer,
+                                 WidgetRender renderer,
                                  MutableColor accent,
                                  MutableColor background,
                                  MutableColor textColor,

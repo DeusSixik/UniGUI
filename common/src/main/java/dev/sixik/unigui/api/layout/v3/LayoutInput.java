@@ -2,7 +2,7 @@ package dev.sixik.unigui.api.layout.v3;
 
 import dev.sixik.unigui.api.layout.LayoutContext;
 
-/** Root constraints supplied to a Layout V3 compute pass. */
+/** Корневые ограничения для одного прохода вычисления компоновки V3. */
 public record LayoutInput(float availableWidth, float availableHeight, float scale) {
     public LayoutInput {
         availableWidth = sanitizeAvailable(availableWidth);

@@ -23,12 +23,10 @@ import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.widget.skin.WidgetsRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
-import dev.sixik.unigui.widgets.render.ColorPickerRenderer;
-import dev.sixik.unigui.widgets.render.ColorPickerState;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.widgets.containers.HBox;
 import dev.sixik.unigui.widgets.containers.LinearBox;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
@@ -71,7 +69,6 @@ public final class ColorPicker extends LinearBox {
     private final Slider blueSlider = channelSlider();
     private OverlayLayer explicitOverlayLayer;
     private OverlayLayer attachedOverlayLayer;
-    private ColorPickerRenderer renderer;
     private Type type = Type.HSV;
     private boolean syncing;
     private float hue;
@@ -189,20 +186,11 @@ public final class ColorPicker extends LinearBox {
         return popup;
     }
 
-    public ColorPickerRenderer renderer() {
-        return renderer;
-    }
-
-    public ColorPicker renderer(ColorPickerRenderer renderer) {
-        if (this.renderer == renderer) return this;
-        this.renderer = renderer;
+    @Override
+    public ColorPicker renderer(WidgetRender renderer) {
+        super.renderer(renderer);
         colorPlane.invalidate(InvalidationFlags.VISUAL);
-        invalidate(InvalidationFlags.VISUAL);
         return this;
-    }
-
-    public ColorPicker useDefaultRenderer() {
-        return renderer(null);
     }
 
     public EventSubscription onColorChanged(EventListener<? super ColorChangedEvent> listener) {
@@ -368,8 +356,11 @@ public final class ColorPicker extends LinearBox {
         return event;
     }
 
-    private ColorPickerRenderer effectiveRenderer() {
-        return renderer == null ? styleRenderer(ColorPickerRenderer.class, WidgetsRender.colorPicker()) : renderer;
+    private boolean renderPlaneCustom(DrawScope draw) {
+        WidgetRender custom = customRender();
+        if (custom == null) return false;
+        custom.render(draw, this);
+        return true;
     }
 
     private void syncFieldsAndSliders() {
@@ -460,6 +451,15 @@ public final class ColorPicker extends LinearBox {
 
     private static int clamp255(int value) {
         return Math.max(0, Math.min(255, value));
+    }
+
+    private static MutableColor mix(ColorView a, ColorView b, float t) {
+        float normalized = Math.max(0.0f, Math.min(1.0f, t));
+        return MutableColor.rgba(
+                a.r() + (b.r() - a.r()) * normalized,
+                a.g() + (b.g() - a.g()) * normalized,
+                a.b() + (b.b() - a.b()) * normalized,
+                a.a() + (b.a() - a.a()) * normalized);
     }
 
     private static float[] hsvToRgb(float hue, float saturation, float value) {
@@ -622,30 +622,46 @@ public final class ColorPicker extends LinearBox {
 
         @Override
         public void render(RenderContext context) {
+            if (layoutBounds().width() <= 0.0f || layoutBounds().height() <= 0.0f) return;
+
+            DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+            if (renderCustomVisual(draw)) {
+                return;
+            }
+            if (ColorPicker.this.renderPlaneCustom(draw)) {
+                return;
+            }
+            renderDefaultPlane(draw);
+        }
+
+        private void renderDefaultPlane(DrawScope draw) {
             float x = layoutBounds().x();
             float y = layoutBounds().y();
             float width = layoutBounds().width();
             float height = layoutBounds().height();
             if (width <= 0.0f || height <= 0.0f) return;
 
-            effectiveRenderer().render(new DrawScope(context, transform(), layoutBounds()), snapshot());
-        }
-
-        private ColorPickerState snapshot() {
-            return new ColorPickerState(
-                    layoutBounds().x(),
-                    layoutBounds().y(),
-                    layoutBounds().width(),
-                    layoutBounds().height(),
-                    Part.COLOR_PLANE,
-                    type,
-                    color.copy(),
-                    hue,
-                    saturation,
-                    value,
-                    hovered(),
-                    dragging,
-                    enabled());
+            int steps = 32;
+            float[] hueRgb = hsvToRgb(hue, 1.0f, 1.0f);
+            MutableColor hueColor = MutableColor.rgba(hueRgb[0], hueRgb[1], hueRgb[2], 1.0f);
+            MutableColor white = MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f);
+            MutableColor black = MutableColor.rgba(0.0f, 0.0f, 0.0f, 1.0f);
+            for (int i = 0; i < steps; i++) {
+                float leftT = i / (float) steps;
+                float rightT = (i + 1) / (float) steps;
+                MutableColor topLeft = mix(white, hueColor, leftT);
+                MutableColor topRight = mix(white, hueColor, rightT);
+                float x1 = x + width * leftT;
+                float x2 = x + width * rightT;
+                draw.addRectFilledMultiColor(x1, y, x2 - x1, height, topLeft, topRight, black, black);
+            }
+            draw.rect(x, y, width, height,
+                    Paint.stroke(MutableColor.rgba(0.85f, 0.92f, 1.0f, enabled() ? 0.75f : 0.35f), 1.0f));
+            float cx = x + saturation * width;
+            float cy = y + (1.0f - value) * height;
+            float radius = dragging || hovered() ? 4.5f : 4.0f;
+            draw.addCircle(cx, cy, radius, MutableColor.rgba(0.0f, 0.0f, 0.0f, enabled() ? 0.90f : 0.45f), 16, 2.0f);
+            draw.addCircle(cx, cy, Math.max(1.0f, radius - 1.0f), MutableColor.rgba(1.0f, 1.0f, 1.0f, enabled() ? 0.95f : 0.45f), 16, 1.0f);
         }
 
         private void update(float rootX, float rootY) {
