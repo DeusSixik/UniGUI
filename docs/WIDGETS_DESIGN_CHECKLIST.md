@@ -848,6 +848,7 @@
 - [x] Поддерживать close/open state.
 - [x] Публиковать move/resize/open/close events.
 - [x] Поддерживать opt-in drag-to-dock в DockingRoot через флаг `dockable` (по умолчанию выключен): drag за header над DockingRoot показывает drop preview, release докирует контент как DockPane (`dockPaneId`/`dockKind`) и закрывает окно.
+- [x] Поддерживать opt-in docking area внутри окна через флаг `dockingEnabled` (по умолчанию выключен): контент оборачивается в DockPane внутреннего DockingRoot, окно принимает dock drops, дроп хоста на хост мёржит все панели.
 - [ ] Проверить minimize behavior, если контракт требует именно minimize.
 - [ ] Добавить modal/fixed modal docs.
 

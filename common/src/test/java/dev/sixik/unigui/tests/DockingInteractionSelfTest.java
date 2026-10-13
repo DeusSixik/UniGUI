@@ -14,6 +14,7 @@ import dev.sixik.unigui.widgets.docking.DockArea;
 import dev.sixik.unigui.widgets.docking.DockDropIntent;
 import dev.sixik.unigui.widgets.docking.DockPane;
 import dev.sixik.unigui.widgets.docking.DockingRoot;
+import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 import dev.sixik.unigui.widgets.containers.StackPanel;
@@ -33,6 +34,7 @@ public final class DockingInteractionSelfTest {
         testFloatingDropOutsideHostIsIgnoredByDefault();
         testFloatingDropInsideOverlayCreatesNonCloseableRedockableWindow();
         testDockableWindowDragDocksIntoRoot();
+        testWindowDockingAreaHostsAndMerges();
         testOverflowTabsScrollAndMenuSelection();
         testDockPaneContentIsClippedToLeafContentBounds();
         testTinySplitLayoutDoesNotProduceNegativeBounds();
@@ -329,6 +331,107 @@ public final class DockingInteractionSelfTest {
         expect(root.manager().containsPane("dragged-pane")
                         && !dragged.opened(),
                 "Routed drag release over a DockingRoot should dock the window");
+    }
+
+    private void testWindowDockingAreaHostsAndMerges() {
+        DefaultUIContext context = new DefaultUIContext();
+        OverlayLayer layer = new OverlayLayer(new StackPanel());
+        layer.setUiContextInternal(context);
+
+        // Флаг выключен по умолчанию.
+        WindowWidget plain = new WindowWidget("Plain", content("Plain body")).open();
+        plain.layout(style -> style.size(200.0f, 140.0f).flexGrow(0).flexShrink(0.0f));
+        layer.addOverlay(plain);
+        layout(layer, 640.0f, 400.0f);
+        expect(!plain.dockingEnabled() && plain.dockingRoot() == null,
+                "WindowWidget should not host a docking area by default");
+
+        // Включение оборачивает контент в панель внутреннего root.
+        WindowWidget host = new WindowWidget("Host", content("Host body"))
+                .position(20.0f, 20.0f)
+                .dockable(true)
+                .dockingEnabled(true)
+                .open();
+        host.layout(style -> style.size(260.0f, 180.0f).flexGrow(0).flexShrink(0.0f));
+        layer.addOverlay(host);
+        layout(layer, 640.0f, 400.0f);
+        expect(host.dockingEnabled()
+                        && host.dockingRoot() != null
+                        && host.content() == host.dockingRoot()
+                        && host.dockingRoot().manager().paneCount() == 1
+                        && host.dockingRoot().acceptsDockDrops(),
+                "dockingEnabled(true) should wrap window content into an internal docking pane");
+
+        host.dockTool("extra", "Extra", content("Extra body"));
+        layout(layer, 640.0f, 400.0f);
+        expect(host.dockingRoot().manager().paneCount() == 2
+                        && host.dockingRoot().manager().containsPane("extra"),
+                "dockTool should add a pane to the window-hosted docking area");
+
+        // Дроп обычного dockable-окна на окно-хост добавляет панель внутрь.
+        WindowWidget guest = new WindowWidget("Guest", content("Guest body"))
+                .position(420.0f, 60.0f)
+                .dockable(true)
+                .dockPaneId("guest-pane")
+                .open();
+        guest.layout(style -> style.size(200.0f, 120.0f).flexGrow(0).flexShrink(0.0f));
+        layer.addOverlay(guest);
+        layout(layer, 640.0f, 400.0f);
+        float hostCenterX = host.layoutBounds().x() + host.layoutBounds().width() * 0.5f;
+        float hostCenterY = host.layoutBounds().y() + host.layoutBounds().height() * 0.5f;
+        DockingRoot.previewForeignWindowDrop(guest, hostCenterX, hostCenterY);
+        DrawList hostPreview = new DrawList();
+        host.dockingRoot().render(new dev.sixik.unigui.impl.render.DefaultRenderContext(hostPreview));
+        expect(hasFloatingPreview(hostPreview),
+                "Dragging a dockable window over a window-host should preview inside the host");
+        expect(DockingRoot.finishForeignWindowDrop(guest, hostCenterX, hostCenterY)
+                        && host.dockingRoot().manager().containsPane("guest-pane")
+                        && !guest.opened(),
+                "Dropping a window on a window-host should dock it as an inner pane");
+
+        // Дроп окна-хоста на другое окно-хост мёржит все панели.
+        WindowWidget secondHost = new WindowWidget("Second", content("Second body"))
+                .position(330.0f, 220.0f)
+                .dockable(true)
+                .dockingEnabled(true)
+                .open();
+        secondHost.layout(style -> style.size(240.0f, 160.0f).flexGrow(0).flexShrink(0.0f));
+        secondHost.dockTool("second-extra", "Second Extra", content("Second extra"));
+        layer.addOverlay(secondHost);
+        layout(layer, 640.0f, 400.0f);
+        int hostPanesBefore = host.dockingRoot().manager().paneCount();
+        int secondPanes = secondHost.dockingRoot().manager().paneCount();
+        expect(secondPanes == 2, "second host should own two panes before merge");
+        secondHost.layout(style -> style.size(240.0f, 160.0f).flexGrow(0).flexShrink(0.0f));
+        layout(layer, 640.0f, 400.0f);
+        float secondCenterX = secondHost.layoutBounds().x() + secondHost.layoutBounds().width() * 0.5f;
+        float secondCenterY = secondHost.layoutBounds().y() + secondHost.layoutBounds().height() * 0.5f;
+        // Тащим host на secondHost: ищем цель от лица host как источника.
+        DockingRoot.previewForeignWindowDrop(host, secondCenterX, secondCenterY);
+        expect(DockingRoot.finishForeignWindowDrop(host, secondCenterX, secondCenterY)
+                        && !host.opened()
+                        && secondHost.dockingRoot().manager().paneCount() == hostPanesBefore + secondPanes,
+                "Dropping a window-host on another host should merge all panes and close the source");
+
+        // Выключение флага с одной панелью разворачивает контент обратно.
+        WindowWidget single = new WindowWidget("Single", content("Single body"))
+                .dockingEnabled(true)
+                .open();
+        single.layout(style -> style.size(200.0f, 120.0f).flexGrow(0).flexShrink(0.0f));
+        layer.addOverlay(single);
+        layout(layer, 640.0f, 400.0f);
+        Widget wrapped = single.dockingRoot().manager().panes().get(0).content();
+        single.dockingEnabled(false);
+        layout(layer, 640.0f, 400.0f);
+        expect(!single.dockingEnabled()
+                        && single.content() == wrapped
+                        && !single.dockingRoot().acceptsDockDrops(),
+                "Disabling docking with a single pane should unwrap content and block drops");
+
+        layer.removeOverlay(plain);
+        layer.removeOverlay(host);
+        layer.removeOverlay(secondHost);
+        layer.removeOverlay(single);
     }
 
     private void testOverflowTabsScrollAndMenuSelection() {

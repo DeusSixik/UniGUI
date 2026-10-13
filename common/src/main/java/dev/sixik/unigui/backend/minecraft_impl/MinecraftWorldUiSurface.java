@@ -249,9 +249,8 @@ public final class MinecraftWorldUiSurface implements AutoCloseable {
     public int textureId() {
         TextureHandle texture = texture();
         Object nativeHandle = texture == null ? null : texture.nativeHandle();
-        return nativeHandle instanceof MinecraftRenderTarget.ColorTextureHandle colorTexture
-                ? colorTexture.textureId()
-                : 0;
+        if (!(nativeHandle instanceof MinecraftRenderTarget.ColorTextureHandle colorTexture)) return 0;
+        return colorTexture.isDisposed() ? 0 : colorTexture.textureId();
     }
 
     /**

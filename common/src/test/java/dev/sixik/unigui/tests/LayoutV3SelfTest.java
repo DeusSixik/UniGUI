@@ -116,6 +116,7 @@ public final class LayoutV3SelfTest {
         testGridDenseBackfillsHoles();
         testGridJustifyCenter();
         testGridJustifySpaceBetween();
+        testGridSparseRowKeepsTemplateColumns();
         testGridAlignEnd();
         testGridAlignStretch();
         testZIndexHitOrder();
@@ -1178,8 +1179,27 @@ public final class LayoutV3SelfTest {
         return new GridBoxFixtureSparse(java.util.List.of(first, second), locked);
     }
 
-    private void testGridBoxOptInMatchesV2EqualCellsAndCollapsedChildren() {
-        assertGridBoxMatches(
+    private void testGridSparseRowKeepsTemplateColumns() {
+        GridBox grid = new GridBox();
+        grid.columns(4);
+        for (int index = 0; index < 2; index++) {
+            Box child = new Box();
+            child.layout(style -> style.size(10.0f, 10.0f).flexShrink(0.0f));
+            grid.addChild(child);
+        }
+        grid.applyQueuedMutations();
+
+        grid.measure(new dev.sixik.unigui.api.layout.LayoutContext(400.0f, 60.0f));
+        grid.arrange(new MutableRect(0.0f, 0.0f, 400.0f, 60.0f));
+
+        // 2 ребёнка при columns(4): каждый в своей 100px fr-колонке,
+        // а не делят ширину пополам по занятым ячейкам.
+        expect(sameBounds(grid.children().get(0).layoutBounds(), new MutableRect(0.0f, 0.0f, 10.0f, 10.0f))
+                        && sameBounds(grid.children().get(1).layoutBounds(), new MutableRect(100.0f, 0.0f, 10.0f, 10.0f)),
+                "Sparse grid row should keep template column widths instead of stretching over occupied cells");
+    }
+
+    private void testGridBoxOptInMatchesV2EqualCellsAndCollapsedChildren() {        assertGridBoxMatches(
                 buildGridBoxFixture(),
                 buildGridBoxFixture(),
                 new MutableRect(0.0f, 0.0f, 123.0f, 60.0f),

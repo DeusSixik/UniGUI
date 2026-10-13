@@ -370,6 +370,19 @@ public interface Widget extends EventEmitter {
     void measure(LayoutContext context);
 
     /**
+     * Измеряет виджет с пропуском повторных вызовов на чистом поддереве.
+     *
+     * <p>Обычная реализация сохраняет прежнее поведение. {@code WidgetBase}
+     * переопределяет метод и пропускает повторный measure, если поддерево
+     * чистое и контекст совпадает с последним измерением.</p>
+     *
+     * @param context constraints, scale и служебные данные layout pass
+     */
+    default void measureCached(LayoutContext context) {
+        measure(context);
+    }
+
+    /**
      * Размещает виджет в рассчитанных bounds и обновляет layout state.
      *
      * @param bounds финальный прямоугольник виджета

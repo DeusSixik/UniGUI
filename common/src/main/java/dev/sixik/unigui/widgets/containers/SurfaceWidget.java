@@ -600,6 +600,9 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
 
     /**
      * Возвращает, участвует ли виджет в theme/style lookup.
+     *
+     * @return {@code true}, если theme/local styles применяются к поверхности
+     */
     public boolean themeEnabled() {
         return themeEnabled;
     }

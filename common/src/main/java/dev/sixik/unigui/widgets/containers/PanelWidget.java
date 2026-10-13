@@ -49,6 +49,7 @@ public class PanelWidget extends WidgetBase {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.PANEL_WIDGET;
 
     private static final ThreadLocal<RectView> RENDER_CULL_BOUNDS = new ThreadLocal<>();
+    private static final ThreadLocal<RectView> TICK_CULL_BOUNDS = new ThreadLocal<>();
 
     private final List<Widget> children = new ObjectArrayList<>();
     private final List<Widget> childrenView = Collections.unmodifiableList(children);
@@ -248,6 +249,21 @@ public class PanelWidget extends WidgetBase {
         }
     }
 
+    static RectView pushTickCullBounds(RectView bounds) {
+        RectView previous = TICK_CULL_BOUNDS.get();
+        RectView next = previous == null ? copyRect(bounds) : intersection(previous, bounds);
+        TICK_CULL_BOUNDS.set(next);
+        return previous;
+    }
+
+    static void restoreTickCullBounds(RectView previous) {
+        if (previous == null) {
+            TICK_CULL_BOUNDS.remove();
+        } else {
+            TICK_CULL_BOUNDS.set(previous);
+        }
+    }
+
     private static RectView copyRect(RectView bounds) {
         if (bounds == null) return new MutableRect();
         return new MutableRect(bounds.x(), bounds.y(), bounds.width(), bounds.height());
@@ -277,8 +293,10 @@ public class PanelWidget extends WidgetBase {
         if (visibility() != Visibility.VISIBLE) return;
         super.tick(frame);
         applyQueuedMutations();
+        RectView cullBounds = TICK_CULL_BOUNDS.get();
         for (Widget child : childSnapshot()) {
             if (child.visibility() == Visibility.VISIBLE) {
+                if (cullBounds != null && !intersects(child.layoutBounds(), cullBounds)) continue;
                 child.tick(frame);
             }
         }

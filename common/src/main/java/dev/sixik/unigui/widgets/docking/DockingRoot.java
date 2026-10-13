@@ -145,6 +145,7 @@ public final class DockingRoot extends Box {
     private boolean hasArrangedBounds;
     private boolean allowFloatingOutsideHost;
     private boolean floatingWindowsRedockLocked;
+    private WindowWidget windowHost;
 
     // Split-drag state
     private String hoveredSplitNodeId = "";
@@ -172,6 +173,33 @@ public final class DockingRoot extends Box {
 
     public DockingManager manager() {
         return manager;
+    }
+
+    /**
+     * Окно-хост, внутрь которого встроен этот root, или {@code null} для
+     * обычных корневых docking area.
+     */
+    public WindowWidget windowHost() {
+        return windowHost;
+    }
+
+    /**
+     * Привязывает root к окну-хосту. Вызывается из {@link WindowWidget}
+     * при включении внутренней docking area.
+     */
+    public void windowHost(WindowWidget windowHost) {
+        this.windowHost = windowHost;
+    }
+
+    /**
+     * Принимает ли root dock drops прямо сейчас.
+     *
+     * <p>Корневые area принимают всегда. Root внутри окна принимает, только
+     * пока у окна включён флаг {@code dockingEnabled}: после выключения
+     * панели остаются на месте, но новые дропы блокируются.</p>
+     */
+    public boolean acceptsDockDrops() {
+        return windowHost == null || windowHost.dockingEnabled();
     }
 
     public DockNode rootNode() {
@@ -990,7 +1018,11 @@ public final class DockingRoot extends Box {
         }
         OverlayLayer overlay = nearestOverlayLayer(window);
         Widget searchRoot = overlay != null ? overlay : rootOf(window);
-        DockingRoot target = dockingRootAt(searchRoot, window, rootX, rootY);
+        WindowWidget hostWindow = windowHostAt(searchRoot, window, rootX, rootY);
+        DockingRoot target = hostWindow != null && hostWindow.dockingRoot() != null
+                ? hostWindow.dockingRoot()
+                : dockingRootAt(searchRoot, window, rootX, rootY);
+        if (target != null && !target.acceptsDockDrops()) target = null;
         DockingRoot previous = FOREIGN_WINDOW_PREVIEW_TARGETS.get(window);
         if (previous != null && previous != target) {
             previous.floatingDropPreview(DockDropIntent.none());
@@ -1000,11 +1032,18 @@ public final class DockingRoot extends Box {
             return;
         }
         FOREIGN_WINDOW_PREVIEW_TARGETS.put(window, target);
-        target.floatingDropPreview(target.resolveDockDropIntent(window.dockSourceId(), rootX, rootY));
+        String sourcePaneId = window.dockingRoot() != null && !window.dockingRoot().manager().panes().isEmpty()
+                ? window.dockingRoot().manager().panes().get(0).id()
+                : window.dockSourceId();
+        target.floatingDropPreview(target.resolveDockDropIntent(sourcePaneId, rootX, rootY));
     }
 
     /**
      * Завершает drop чужого dockable-окна: гасит preview и докирует контент.
+     *
+     * <p>Если точка дропа попадает на другое окно с включённой docking area,
+     * панели источника мержатся в окно-хост, а источник закрывается. Иначе
+     * контент докируется в найденный {@link DockingRoot} как одна панель.</p>
      *
      * @param window окно-источник в конце drag
      * @param rootX X указателя в root-координатах
@@ -1019,6 +1058,11 @@ public final class DockingRoot extends Box {
         if (window == null || !window.dockable() || window.dockRedockLocked()) return false;
         OverlayLayer overlay = nearestOverlayLayer(window);
         Widget searchRoot = overlay != null ? overlay : rootOf(window);
+        WindowWidget hostWindow = windowHostAt(searchRoot, window, rootX, rootY);
+        if (hostWindow != null && hostWindow.mergeDockingFrom(window)) {
+            detachForeignWindow(window);
+            return true;
+        }
         DockingRoot target = dockingRootAt(searchRoot, window, rootX, rootY);
         if (target == null) return false;
         return target.dockForeignWindow(window, rootX, rootY);
@@ -1040,10 +1084,10 @@ public final class DockingRoot extends Box {
     /**
      * Докирует контент чужого {@link WindowWidget} как новую панель этого root.
      *
-     * <p>Контент окна отсоединяется, окно закрывается и снимается с overlay,
-     * а панель вставляется по drop-зоне под точкой {@code rootX/rootY}:
-     * центр — табом, края — сплитом. Пустой id панели нормализуется самим
-     * {@link DockPane} в случайный UUID.</p>
+     * <p>Если источник — окно-хост с панелями, все его панели мержатся в этот
+     * root табом, а источник закрывается. Иначе контент окна отсоединяется как
+     * одна панель с id {@code dockSourceId()} и вставляется по drop-зоне под
+     * точкой {@code rootX/rootY}: центр — табом, края — сплитом.</p>
      *
      * @param window окно-источник с включённым флагом {@code dockable}
      * @param rootX X дропа в root-координатах
@@ -1052,10 +1096,37 @@ public final class DockingRoot extends Box {
      */
     public boolean dockForeignWindow(WindowWidget window, float rootX, float rootY) {
         if (window == null || !window.dockable() || window.dockRedockLocked()) return false;
-        Widget content = window.content();
-        if (content == null) return false;
+        if (!acceptsDockDrops()) return false;
         floatingDropPreview(DockDropIntent.none());
 
+        DockingRoot sourceRoot = window.dockingRoot();
+        if (sourceRoot != null) {
+            java.util.List<DockPane> panes = java.util.List.copyOf(sourceRoot.manager().panes());
+            if (!panes.isEmpty()) {
+                LeafHit anchorHit = anchorLeafForMerge(rootX, rootY);
+                String firstId = "";
+                for (DockPane pane : panes) {
+                    DockPane detached = sourceRoot.manager().detachPaneForFloating(pane.id());
+                    if (detached == null) continue;
+                    if (firstId.isEmpty()) {
+                        insertMergedPane(detached, anchorHit, rootX, rootY);
+                        firstId = detached.id();
+                    } else {
+                        // Последующие панели мержатся табом к первой перенесённой.
+                        manager.tabPane(firstId, detached);
+                    }
+                }
+                detachForeignWindow(window);
+                return true;
+            }
+        }
+
+        Widget content = window.content();
+        if (content == null || content == window.dockingRoot()) {
+            // Окно-хост без панелей: нечего докировать.
+            if (sourceRoot != null) detachForeignWindow(window);
+            return sourceRoot != null;
+        }
         String paneId = window.dockSourceId();
         DockPane pane = window.dockKind() == DockPaneKind.DOCUMENT
                 ? DockPane.document(paneId, window.richTitle(), content)
@@ -1064,37 +1135,83 @@ public final class DockingRoot extends Box {
 
         window.content(null);
         window.applyQueuedMutations();
+        detachForeignWindow(window);
+        insertMergedPane(pane, anchorLeafForMerge(rootX, rootY), rootX, rootY);
+        return true;
+    }
+
+    private LeafHit anchorLeafForMerge(float rootX, float rootY) {
+        return leafAt(rootNode(), layoutBounds(), rootX, rootY);
+    }
+
+    private void insertMergedPane(DockPane pane, LeafHit hit, float rootX, float rootY) {
+        if (hit == null || hit.node().panes().isEmpty()) {
+            manager.addPane(pane);
+            return;
+        }
+        DockPane targetPane = hit.node().selectedPane();
+        if (targetPane == null) targetPane = hit.node().panes().get(0);
+        DockArea area = dropArea(hit.bounds(), rootX, rootY);
+        if (area == DockArea.CENTER || area == DockArea.TAB) {
+            manager.tabPane(targetPane.id(), pane);
+        } else {
+            manager.splitPane(targetPane.id(), area, pane);
+        }
+    }
+
+    private static void detachForeignWindow(WindowWidget window) {
+        if (window == null) return;
+        window.content(null);
+        window.applyQueuedMutations();
         OverlayLayer overlay = nearestOverlayLayer(window);
         if (overlay != null) {
             overlay.removeOverlay(window);
         }
         window.close();
-
-        LeafHit hit = leafAt(rootNode(), layoutBounds(), rootX, rootY);
-        if (hit == null || hit.node().panes().isEmpty()) {
-            manager.addPane(pane);
-        } else {
-            DockPane targetPane = hit.node().selectedPane();
-            if (targetPane == null) targetPane = hit.node().panes().get(0);
-            DockArea area = dropArea(hit.bounds(), rootX, rootY);
-            if (area == DockArea.CENTER || area == DockArea.TAB) {
-                manager.tabPane(targetPane.id(), pane);
-            } else {
-                manager.splitPane(targetPane.id(), area, pane);
-            }
-        }
-        return true;
     }
 
     private static DockingRoot dockingRootAt(Widget root, Widget ignored, float rootX, float rootY) {
-        if (root == null || root == ignored || root.visibility() != Visibility.VISIBLE) return null;
+        if (root == null) return null;
+        WindowWidget hostWindow = windowHostAt(root, ignored, rootX, rootY);
+        if (hostWindow != null && hostWindow.dockingRoot() != null
+                && hostWindow.dockingRoot().acceptsDockDrops()) {
+            return hostWindow.dockingRoot();
+        }
+        if (root == ignored || root.visibility() != Visibility.VISIBLE) return null;
         if (!contains(root.layoutBounds(), rootX, rootY)) return null;
         List<Widget> children = root.children();
         for (int i = children.size() - 1; i >= 0; i--) {
             DockingRoot childHit = dockingRootAt(children.get(i), ignored, rootX, rootY);
             if (childHit != null) return childHit;
         }
-        return root instanceof DockingRoot dockingRoot ? dockingRoot : null;
+        DockingRoot self = root instanceof DockingRoot dockingRoot ? dockingRoot : null;
+        return self != null && self.acceptsDockDrops() ? self : null;
+    }
+
+    /**
+     * Ищет окно с включённой docking area под точкой дропа.
+     *
+     * <p>Окно-источник исключается: окно нельзя дропнуть само на себя.
+     * Хост с выключенным флагом или локом redock не подходит.</p>
+     */
+    private static WindowWidget windowHostAt(Widget root, Widget ignored, float rootX, float rootY) {
+        if (root == null || root.visibility() != Visibility.VISIBLE) return null;
+        List<Widget> children = root.children();
+        for (int i = children.size() - 1; i >= 0; i--) {
+            Widget child = children.get(i);
+            if (child == ignored) continue;
+            WindowWidget nested = windowHostAt(child, ignored, rootX, rootY);
+            if (nested != null) return nested;
+        }
+        if (root == ignored) return null;
+        if (root instanceof WindowWidget window
+                && window.dockingEnabled()
+                && !window.dockRedockLocked()
+                && window.opened()
+                && contains(window.layoutBounds(), rootX, rootY)) {
+            return window;
+        }
+        return null;
     }
 
     private void dispatchDockEvent(dev.sixik.unigui.api.event.WidgetEvent event) {
