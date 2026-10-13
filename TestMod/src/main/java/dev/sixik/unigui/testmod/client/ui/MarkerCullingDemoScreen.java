@@ -1,6 +1,7 @@
 package dev.sixik.unigui.testmod.client.ui;
 
 import dev.sixik.unigui.api.core.UnityLikeUIScaleProvider;
+import dev.sixik.unigui.api.debug.DebugFlags;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.Overflow;
 import dev.sixik.unigui.api.math.MutableColor;
@@ -55,6 +56,7 @@ public final class MarkerCullingDemoScreen {
                 .matchBalanced()
                 .scaleRange(0.75f, 6.0f)
                 .userScale(2.0f));
+        context.debugFlags(DebugFlags.PROFILER_OVERLAY);
 
         Runnable[] close = new Runnable[1];
         Widget root = root(() -> close[0].run());

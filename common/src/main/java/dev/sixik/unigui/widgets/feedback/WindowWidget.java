@@ -47,6 +47,7 @@ import java.util.Objects;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.ScrollView;
 import dev.sixik.unigui.widgets.containers.StackPanel;
+import dev.sixik.unigui.widgets.docking.DockPane;
 import dev.sixik.unigui.widgets.docking.DockPaneKind;
 import dev.sixik.unigui.widgets.docking.DockingRoot;
 import dev.sixik.unigui.widgets.data.VirtualTableView;
@@ -91,6 +92,9 @@ public class WindowWidget extends Box implements OverlayHostAware {
     private boolean dockable;
     private String dockPaneId = "";
     private DockPaneKind dockKind = DockPaneKind.TOOL;
+    private boolean dockingEnabled;
+    private DockingRoot dockingRoot;
+    private int dockPaneSeq;
     private boolean draggable = true;
     private boolean dragging;
     private boolean resizable = true;
@@ -391,6 +395,145 @@ public class WindowWidget extends Box implements OverlayHostAware {
         if (!dockPaneId.isEmpty()) return dockPaneId;
         String widgetId = id();
         return widgetId == null ? "" : widgetId;
+    }
+
+    /**
+     * Возвращает, является ли окно док-хостом: внутри него живёт свой
+     * {@link DockingRoot} и окно принимает dock drops.
+     *
+     * <p>По умолчанию {@code false}: окно — обычный floating-контейнер с
+     * единичным контентом. При включении текущий контент оборачивается в
+     * {@code DockPane}, а сам {@code DockingRoot} становится контентом окна.
+     * После этого на окно можно дропать другие dockable-окна и панели, а само
+     * окно-хост можно дропнуть на другой хост — все его панели смержатся.</p>
+     */
+    public boolean dockingEnabled() {
+        return dockingEnabled;
+    }
+
+    /**
+     * Включает или выключает внутреннюю docking area окна.
+     *
+     * <p>При включении текущий контент (если есть) оборачивается в панель
+     * с id {@link #dockSourceId()} и заголовком окна. При выключении одна
+     * панель разворачивается обратно в контент; несколько панелей остаются
+     * в root (он остаётся контентом), но дропы больше не принимаются.</p>
+     *
+     * @param dockingEnabled {@code true}, чтобы превратить окно в док-хост
+     * @return это окно для fluent-настройки
+     */
+    @XmlAttribute(value = "dockingEnabled", category = "Behavior", defaultValue = "false", description = "Whether this window hosts an internal docking area and accepts dock drops.")
+    public WindowWidget dockingEnabled(boolean dockingEnabled) {
+        if (this.dockingEnabled == dockingEnabled) return this;
+        this.dockingEnabled = dockingEnabled;
+        if (dockingEnabled) {
+            ensureDockingRoot();
+            wrapContentIntoDocking();
+        } else {
+            DockingRoot.clearForeignWindowDropPreview(this);
+            unwrapDockingRoot();
+        }
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Внутренний {@link DockingRoot} окна-хоста или {@code null}, если
+     * docking area ни разу не включалась.
+     */
+    public DockingRoot dockingRoot() {
+        return dockingRoot;
+    }
+
+    /**
+     * Добавляет панель во внутреннюю docking area, при необходимости включая её.
+     *
+     * @param pane панель для добавления; {@code null} игнорируется
+     * @return это окно для fluent-настройки
+     */
+    public WindowWidget dockPane(DockPane pane) {
+        if (pane == null) return this;
+        if (!dockingEnabled) dockingEnabled(true);
+        dockingRoot.addPane(pane);
+        return this;
+    }
+
+    /**
+     * Добавляет документ во внутреннюю docking area.
+     */
+    public WindowWidget dockDocument(String id, String title, Widget content) {
+        return dockPane(DockPane.document(id, title, content));
+    }
+
+    /**
+     * Добавляет tool-панель во внутреннюю docking area.
+     */
+    public WindowWidget dockTool(String id, String title, Widget content) {
+        return dockPane(DockPane.tool(id, title, content));
+    }
+
+    /**
+     * Переносит все панели из чужого окна-хоста в свой docking root табом.
+     *
+     * <p>Требует включённой docking area у приёмника. Источник не закрывается:
+     * закрытие решает вызывающий код (drop-путь в {@link DockingRoot} закрывает
+     * источник сам). Панели переносятся в порядке обхода дерева источника.</p>
+     *
+     * @param source окно-хост, чьи панели переносятся
+     * @return {@code true}, если перенесена хотя бы одна панель
+     */
+    public boolean mergeDockingFrom(WindowWidget source) {
+        if (!dockingEnabled || dockingRoot == null || source == null || source == this) return false;
+        DockingRoot sourceRoot = source.dockingRoot;
+        if (sourceRoot == null) return false;
+        java.util.List<DockPane> panes = java.util.List.copyOf(sourceRoot.manager().panes());
+        if (panes.isEmpty()) return false;
+        for (DockPane pane : panes) {
+            DockPane detached = sourceRoot.manager().detachPaneForFloating(pane.id());
+            if (detached != null) {
+                dockingRoot.manager().addPane(detached);
+            }
+        }
+        return true;
+    }
+
+    private void ensureDockingRoot() {
+        if (dockingRoot != null) return;
+        dockingRoot = new DockingRoot();
+        dockingRoot.windowHost(this);
+        dockingRoot.layout(style -> style.sizePercent(100.0f, 100.0f).flexGrow(1.0f).flexShrink(1.0f));
+    }
+
+    private void wrapContentIntoDocking() {
+        if (dockingRoot == null) return;
+        Widget current = content;
+        if (current == null || current == dockingRoot) {
+            if (current == null) content(dockingRoot);
+            return;
+        }
+        DockPane pane = dockKind == DockPaneKind.DOCUMENT
+                ? DockPane.document(dockSourceId(), richTitle, current)
+                : DockPane.tool(dockSourceId(), richTitle, current);
+        pane.closable(closeButtonVisible);
+        dockingRoot.addPane(pane);
+        content(dockingRoot);
+    }
+
+    private void unwrapDockingRoot() {
+        if (dockingRoot == null) return;
+        java.util.List<DockPane> panes = dockingRoot.manager().panes();
+        if (panes.size() == 1) {
+            DockPane single = panes.get(0);
+            DockPane detached = dockingRoot.manager().detachPaneForFloating(single.id());
+            Widget restored = detached == null ? single.content() : detached.content();
+            if (content == dockingRoot) {
+                content(restored);
+            }
+        } else if (panes.isEmpty() && content == dockingRoot) {
+            content(null);
+        }
+        // Несколько панелей: root остаётся контентом, но дропы блокируются
+        // через DockingRoot.acceptsDockDrops(), пока флаг выключен.
     }
 
     public WindowWidget openModal() {

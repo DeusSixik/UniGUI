@@ -118,7 +118,7 @@ public final class DockingWindowsDemoScreen {
         Label title = label("DOCKING WINDOWS", TEXT);
         title.layout(style -> style.widthPercent(100.0f).height(22.0f)
                 .flexGrow(0.0f).flexShrink(0.0f));
-        Label hint = label("Drag headers over the workspace. Locked windows stay floating.", MUTED);
+        Label hint = label("Drag headers over workspace or host windows. Hosts merge on drop.", MUTED);
         hint.layout(style -> style.widthPercent(100.0f).height(34.0f)
                 .flexGrow(0.0f).flexShrink(0.0f));
 
@@ -126,6 +126,8 @@ public final class DockingWindowsDemoScreen {
         dockableCheck.checked(true);
         Checkbox lockCheck = new Checkbox("Lock redock");
         lockCheck.checked(false);
+        Checkbox hostCheck = new Checkbox("Window is docking host");
+        hostCheck.checked(false);
 
         int[] counter = {1};
         Button spawn = button("Spawn window", () -> {
@@ -138,13 +140,18 @@ public final class DockingWindowsDemoScreen {
                     .dockPaneId(id)
                     .dockKind(DockPaneKind.TOOL)
                     .dockRedockLocked(lockCheck.checked())
+                    .dockingEnabled(hostCheck.checked())
                     .closeOnOutsideClick(false);
             window.layout(style -> style.size(220.0f, 130.0f).flexGrow(0.0f).flexShrink(0.0f));
             window.onClosed(event -> status.text("Window closed: " + id
                     + ", panes: " + docking.manager().paneCount()));
+            if (window.dockingEnabled()) {
+                window.dockTool(id + "-notes", "Notes", paneBody("Notes pane of " + id + "."));
+            }
             layer.addOverlay(window);
             window.open();
-            status.text("Spawned " + id + " (dockable=" + window.dockable() + ")");
+            status.text("Spawned " + id + " (dockable=" + window.dockable()
+                    + ", host=" + window.dockingEnabled() + ")");
         });
         spawn.layout(style -> style.widthPercent(100.0f).height(28.0f)
                 .flexGrow(0.0f).flexShrink(0.0f));
@@ -157,6 +164,7 @@ public final class DockingWindowsDemoScreen {
         side.addChild(hint);
         side.addChild(dockableCheck);
         side.addChild(lockCheck);
+        side.addChild(hostCheck);
         side.addChild(spawn);
         side.addChild(status);
         side.addChild(close);

@@ -997,6 +997,7 @@ public final class XmlWidgetSelfTest {
                         && descriptor(windowWidget.attributes(), "dockable").category().equals("Behavior")
                         && descriptor(windowWidget.attributes(), "dockPaneId").category().equals("Behavior")
                         && descriptor(windowWidget.attributes(), "dockKind").category().equals("Behavior")
+                        && descriptor(windowWidget.attributes(), "dockingEnabled").category().equals("Behavior")
                         && propertyChild(windowWidget.propertyChildren(), "Content").singleChild(),
                 "WindowWidget descriptor should expose window content and placement metadata");
         OverlayLayer xmlOverlayLayer = XMLWidget.create("""
