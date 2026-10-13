@@ -4,10 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonPrimitive;
 import dev.sixik.isf.IsfMod;
-import dev.sixik.isf.client.widgets.IconButton;
-import dev.sixik.isf.client.widgets.NineSliceHBox;
-import dev.sixik.isf.client.widgets.NineSliceVBox;
-import dev.sixik.isf.network.IsfNetwork;
+import dev.sixik.isf.client.widgets.IconButton;import dev.sixik.isf.network.IsfNetwork;
 import dev.sixik.isf.definition.IsfCatalystDefinition;
 import dev.sixik.isf.definition.IsfExpression;
 import dev.sixik.isf.definition.IsfRecipeDefinition;
@@ -67,12 +64,12 @@ final class IsfBrowserOverlay {
     private final ScrollView itemScroll = new ScrollView(grid);
     private final GridBox bookmarkGrid = new GridBox().columns(4);
     private final ScrollView bookmarkScroll = new ScrollView(bookmarkGrid);
-    private final NineSliceVBox detailPanel = new NineSliceVBox();
+    private final VBox detailPanel = new VBox();
     private final MinecraftZLayer detailLayer = new MinecraftZLayer(detailPanel, 300.0f);
     private final Label detailTitle = new Label();
     private final ToggleButton detailPin = new ToggleButton();
     private final Button detailClose = new Button();
-    private final NineSliceHBox tabRow = new NineSliceHBox();
+    private final HBox tabRow = new HBox();
     /** Горизонтальный скролл вкладок RecipeType: заменяет стрелку-кнопку. */
     private final ScrollView tabScroll = new ScrollView(tabRow);
     private final Label detailPage = new Label();
@@ -80,8 +77,8 @@ final class IsfBrowserOverlay {
     private final Button detailNext = new Button();
     private final TextField search = new TextField();
     private final HBox pageRow = new HBox();
-    private final NineSliceVBox catalystColumn = new NineSliceVBox();
-    private final NineSliceVBox recipeArea = new NineSliceVBox();
+    private final VBox catalystColumn = new VBox();
+    private final VBox recipeArea = new VBox();
     private final List<MinecraftItemTooltip> tooltips = new ArrayList<>();
     /** Ленивые тултипы клеток каталога: создаются при первом наведении, а не все сразу. */
     private final Map<Button, MinecraftItemTooltip> catalogTooltips = new LinkedHashMap<>();
@@ -705,13 +702,13 @@ final class IsfBrowserOverlay {
 
         search.themeEnabled(false);
         search.boxVisualEnabled(true);
-        search.backgroundVisible(false);
+        search.backgroundVisible(true);
         search.borderVisible(false);
-        search.renderer(new NineSliceBoxRenderer(
-                new MinecraftTextureHandle(
-                        ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/search_background_v2.png"),
-                        20, 20, TextureOptions.nearest()),
-                6.0f));
+        search.backgroundTextureFit(dev.sixik.unigui.api.render.ImageFit.NINE_SLICE);
+        search.sliceBorders(6.0f);
+        search.backgroundTexture(new MinecraftTextureHandle(
+                ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/search_background_v2.png"),
+                20, 20, TextureOptions.nearest()));
         search.layout(style -> style
                 .widthPercent(100.0f)
                 .maxWidthPercent(100.0f)
@@ -773,9 +770,11 @@ final class IsfBrowserOverlay {
                 .overflowX(Overflow.AUTO)
                 .overflowY(Overflow.HIDDEN));
 
-        tabRow.backgroundRenderer(new NineSliceBoxRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/scrollbar_background.png"),
-                20, 20, TextureOptions.nearest()),
-                4.0f));
+        tabRow.backgroundVisible(true);
+        tabRow.backgroundTextureFit(dev.sixik.unigui.api.render.ImageFit.NINE_SLICE);
+        tabRow.sliceBorders(4.0f);
+        tabRow.backgroundTexture(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/scrollbar_background.png"),
+                20, 20, TextureOptions.nearest()));
         tabRow.layout(style -> style
                 .width(SizeValue.auto())
                 .flexNone()
@@ -803,29 +802,21 @@ final class IsfBrowserOverlay {
         detailTitle.background(0.5f,0.5f,0.5f,0.5f);
         detailTitle.color().set(0,0,0,1);
 
-        detailPin.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/button_enabled.png"),
-                20, 20, TextureOptions.nearest()),
-                4.0f));
+        sliceButtonBackground(detailPin, "textures/jei/atlas/gui/button_enabled.png", 20, 20, 4.0f);
         detailPin.text("P").textPadding(0.0f, 0.0f);
         detailPin.layout(style -> style.size(16.0f, 16.0f).flexNone());
         detailPin.onCheckedChanged(event -> {
             setDetailPinned(event.newValue());
-            if(!event.newValue())  detailPin.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/button_enabled.png"),
-                    20, 20, TextureOptions.nearest()),
-                    4.0f));
-            else detailPin.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/button_pressed.png"),
-                    20, 20, TextureOptions.nearest()),
-                    4.0f));
+            if (!event.newValue()) {
+                sliceButtonBackground(detailPin, "textures/jei/atlas/gui/button_enabled.png", 20, 20, 4.0f);
+            } else {
+                sliceButtonBackground(detailPin, "textures/jei/atlas/gui/button_pressed.png", 20, 20, 4.0f);
+            }
             detailHeader.invalidate(InvalidationFlags.VISUAL);
         });
 
-        detailClose.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/button_enabled_v2.png"),
-                20, 20, TextureOptions.nearest()),
-                4.0f));
+        sliceButtonBackground(detailClose, "textures/jei/atlas/gui/button_enabled.png", 20, 20, 4.0f);
         detailClose.themeEnabled(false);
-        detailClose.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/button_enabled.png"),
-                20, 20, TextureOptions.nearest()),
-                4.0f));
         detailClose.text("X").textPadding(0.0f, 0.0f);
         detailClose.layout(style -> style.size(16.0f, 16.0f).flexNone());
         detailClose.onClick(event -> closeDetail());
@@ -840,14 +831,10 @@ final class IsfBrowserOverlay {
                 .justifyContent(Justify.CENTER));
         detailPage.layout(style -> style.height(14.0f).flexGrow(1.0f).horizontalAlignment(Alignment.CENTER));
         detailPage.background(43/255f,45/255f,52/255f,1.0f);
-        detailPrevious.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/arrow_left.png"),
-                14, 14, TextureOptions.nearest()),
-                1.0f));
+        sliceButtonBackground(detailPrevious, "textures/jei/atlas/gui/arrow_left.png", 14, 14, 1.0f);
         detailPrevious.layout(style -> style.size(14.0f, 14.0f).flexNone());
         detailPrevious.onClick(event -> changeRecipePage(-1));
-        detailNext.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/arrow_right.png"),
-                14, 14, TextureOptions.nearest()),
-                1.0f));
+        sliceButtonBackground(detailNext, "textures/jei/atlas/gui/arrow_right.png", 14, 14, 1.0f);
         detailNext.layout(style -> style.size(14.0f, 14.0f).flexNone());
         detailNext.onClick(event -> changeRecipePage(1));
         pageRow.addChild(detailPrevious);
@@ -865,11 +852,12 @@ final class IsfBrowserOverlay {
                 .padding(2)
                 .alignSelf(Align.START)
         );
-        catalystColumn.backgroundRenderer(new NineSliceBoxRenderer(
-                new MinecraftTextureHandle(
-                        ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/scrollbar_background.png"),
-                        14, 50, TextureOptions.nearest()),
-                4.0f));
+        catalystColumn.backgroundVisible(true);
+        catalystColumn.backgroundTextureFit(dev.sixik.unigui.api.render.ImageFit.NINE_SLICE);
+        catalystColumn.sliceBorders(4.0f);
+        catalystColumn.backgroundTexture(new MinecraftTextureHandle(
+                ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/scrollbar_background.png"),
+                14, 50, TextureOptions.nearest()));
         recipeArea.spacing(RECIPE_GAP);
         recipeArea.layout(style -> style.widthPercent(100.0f).flexGrow(1.0f).flexShrink(1.0f).alignItems(Align.CENTER));
 
@@ -908,20 +896,16 @@ final class IsfBrowserOverlay {
         return panel;
     }
 
-    /** Кнопка окна рецептов с текстурами под состояния (hover/press/disabled). */
-    private static IsfStateButtonRenderer detailButtonRenderer() {
-        return new IsfStateButtonRenderer(
-                nineSlice("textures/jei/atlas/gui/button_enabled_v2.png"),
-                nineSlice("textures/jei/atlas/gui/button_highlight_v2.png"),
-                nineSlice("textures/jei/atlas/gui/button_pressed_v2.png"),
-                nineSlice("textures/jei/atlas/gui/button_pressed_highlight_v2.png"),
-                nineSlice("textures/jei/atlas/gui/button_disabled_v2.png"));
-    }
-
-    private static NineSliceButtonRenderer nineSlice(String path) {
-        return new NineSliceButtonRenderer(new MinecraftTextureHandle(
+    /** Задаёт nine-slice фон кнопки из JEI-атласа вместо custom renderer. */
+    private static void sliceButtonBackground(Button button, String path, int width, int height, float border) {
+        button.themeEnabled(false);
+        button.backgroundVisible(true);
+        button.borderVisible(false);
+        button.backgroundTextureFit(dev.sixik.unigui.api.render.ImageFit.NINE_SLICE);
+        button.sliceBorders(border);
+        button.backgroundTexture(new MinecraftTextureHandle(
                 ResourceLocation.tryBuild(IsfMod.MOD_ID, path),
-                20, 20, TextureOptions.nearest()), 4.0f);
+                width, height, TextureOptions.nearest()));
     }
 
     private void rebuild(boolean ignored, float ignoredOffset) {

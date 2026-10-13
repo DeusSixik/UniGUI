@@ -15,6 +15,7 @@ import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.ImageFit;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.render.SliceBorders;
 import dev.sixik.unigui.api.render.TextureFilter;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.TexturePlacement;
@@ -65,6 +66,7 @@ public class TextWidget extends WidgetBase {
     private final MutableColor backgroundTextureTint = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private final MutableRect backgroundTextureSource = new MutableRect(0.0f, 0.0f, 1.0f, 1.0f);
     private ImageFit backgroundTextureFit = ImageFit.STRETCH;
+    private SliceBorders sliceBorders = SliceBorders.ZERO;
 
     private final MutableColor borderColor = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private boolean borderVisible;
@@ -424,6 +426,27 @@ public class TextWidget extends WidgetBase {
         return this;
     }
 
+    public SliceBorders sliceBorders() {
+        return sliceBorders;
+    }
+
+    @XmlAttribute(value = "sliceBorders", displayName = "Slice Borders", category = "Assets", defaultValue = "0 0 0 0", description = "Nine-slice borders in texture pixels: left top right bottom.")
+    public TextWidget sliceBorders(SliceBorders borders) {
+        SliceBorders effective = borders == null ? SliceBorders.ZERO : borders;
+        if (sliceBorders.equals(effective)) return this;
+        sliceBorders = effective;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public TextWidget sliceBorders(float border) {
+        return sliceBorders(SliceBorders.all(border));
+    }
+
+    public TextWidget sliceBorders(float left, float top, float right, float bottom) {
+        return sliceBorders(new SliceBorders(left, top, right, bottom));
+    }
+
     public MutableColor borderColor() {
         return borderColor;
     }
@@ -537,10 +560,15 @@ public class TextWidget extends WidgetBase {
                 if (background.a() > 0.0f) {
                     draw.roundedRect(x, y, width, height, radius, Paint.fill(background));
                 }
-                TexturePlacement placement = TexturePlacement.fit(backgroundTexture,
-                        backgroundTextureSource, layoutBounds(), backgroundTextureFit);
-                if (placement != null) {
-                    draw.texture(backgroundTexture, placement, radius, Paint.fill(backgroundTextureTint));
+                if (backgroundTextureFit == ImageFit.NINE_SLICE) {
+                    draw.nineSlice(sliceBorders.slice(backgroundTexture),
+                            x, y, width, height, Paint.fill(backgroundTextureTint));
+                } else {
+                    TexturePlacement placement = TexturePlacement.fit(backgroundTexture,
+                            backgroundTextureSource, layoutBounds(), backgroundTextureFit);
+                    if (placement != null) {
+                        draw.texture(backgroundTexture, placement, radius, Paint.fill(backgroundTextureTint));
+                    }
                 }
             } else {
                 draw.roundedRect(x, y, width, height, radius, Paint.fill(background));

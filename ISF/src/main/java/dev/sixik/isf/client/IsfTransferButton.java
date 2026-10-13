@@ -56,10 +56,13 @@ final class IsfTransferButton extends Button {
 
     /** Переключает текстуру по поддержке текущего экрана. */
     void refreshState() {
-        renderer(new NineSliceButtonRenderer(
-                new MinecraftTextureHandle(supportedTexture(), ICON_PIXELS, ICON_PIXELS,
-                        TextureOptions.nearest()),
-                4.0f));
+        themeEnabled(false);
+        backgroundVisible(true);
+        borderVisible(false);
+        backgroundTextureFit(dev.sixik.unigui.api.render.ImageFit.NINE_SLICE);
+        sliceBorders(4.0f);
+        backgroundTexture(new MinecraftTextureHandle(supportedTexture(), ICON_PIXELS, ICON_PIXELS,
+                TextureOptions.nearest()));
     }
 
     private ResourceLocation supportedTexture() {

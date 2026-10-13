@@ -7,6 +7,7 @@ import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.layout.SizeValue;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
+import dev.sixik.unigui.api.render.SliceBorders;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.TextureOptions;
 import dev.sixik.unigui.api.text.InlineContentResolverScope;
@@ -35,6 +36,7 @@ public final class XmlValueParsers {
     public static final XmlValueParser<TextureHandle> TEXTURE = XmlValueParsers::parseTexture;
     public static final XmlValueParser<SizeValue> SIZE = XmlValueParsers::parseSize;
     public static final XmlValueParser<EdgeInsets> INSETS = XmlValueParsers::parseInsets;
+    public static final XmlValueParser<SliceBorders> SLICE_BORDERS = XmlValueParsers::parseSliceBorders;
     public static final XmlValueParser<AutoMargins> AUTO_MARGINS = XmlValueParsers::parseAutoMargins;
     public static final XmlValueParser<java.util.List<GridTrack>> GRID_TRACKS = XmlValueParsers::parseGridTracks;
 
@@ -244,6 +246,29 @@ public final class XmlValueParsers {
             normalized = normalized.substring(0, normalized.length() - 2).trim();
         }
         return Float.parseFloat(normalized);
+    }
+
+    /**
+     * Парсит nine-slice рамки: одно значение, горизонталь/вертикаль или left/top/right/bottom.
+     */
+    private static SliceBorders parseSliceBorders(String value) {
+        String[] parts = required(value).trim().split("\\s+");
+        if (parts.length == 1) {
+            return SliceBorders.all(parseInset(parts[0]));
+        }
+        if (parts.length == 2) {
+            float horizontal = parseInset(parts[0]);
+            float vertical = parseInset(parts[1]);
+            return SliceBorders.symmetric(horizontal, vertical);
+        }
+        if (parts.length == 4) {
+            return new SliceBorders(
+                    parseInset(parts[0]),
+                    parseInset(parts[1]),
+                    parseInset(parts[2]),
+                    parseInset(parts[3]));
+        }
+        throw new IllegalArgumentException("Expected 1, 2 or 4 slice border values: left top right bottom, got: " + value);
     }
 
     private static <E extends Enum<E>> E parseEnum(Class<E> type, String value) {
