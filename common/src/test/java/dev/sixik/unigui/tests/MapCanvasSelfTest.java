@@ -21,6 +21,7 @@ public final class MapCanvasSelfTest {
         markerWidgetArrangesThroughAnchorLayer();
         projectedMarkerUsesMapProjection();
         markerHandleMovesAnchor();
+        markerZoomScalingClampsThroughHandle();
         markerLookupSkipsDetachedAnchors();
         mapLayerProducesDrawCommands();
         gridRendersOnlyVisibleLines();
@@ -107,6 +108,26 @@ public final class MapCanvasSelfTest {
         handle.visible(true);
         assertTrue(map.removeMarker("movable"), "marker should be removable");
         assertTrue(map.marker("movable") == null, "removed marker should leave registry");
+    }
+
+    private void markerZoomScalingClampsThroughHandle() {
+        MapCanvas map = new MapCanvas()
+                .mapSize(1000.0f, 500.0f)
+                .viewport(0.0f, 0.0f, 0.5f);
+        MapMarker marker = new MapMarker("Shrink");
+        MapMarkerHandle<MapMarker> handle = map.addMarker("shrink", 200.0f, 100.0f, marker)
+                .screenSize(72.0f, 22.0f)
+                .minScreenSize(36.0f, 12.0f)
+                .maxScreenSize(120.0f, 40.0f)
+                .zoomScaling(true, 1.0f);
+
+        map.measure(new LayoutContext(600.0f, 400.0f));
+        map.arrange(new MutableRect(0.0f, 0.0f, 600.0f, 400.0f));
+
+        // zoom 0.5 -> 36x11, высота ниже пола -> 36x12.
+        assertClose(36.0f, marker.layoutBounds().width(), "handle-scaled width");
+        assertClose(12.0f, marker.layoutBounds().height(), "handle-scaled height clamped to min");
+        assertTrue(handle.anchor().arrangedVisible(), "scaled marker should be visible");
     }
 
     private void markerLookupSkipsDetachedAnchors() {

@@ -57,6 +57,7 @@ public final class MarkerCullingDemoScreen {
                 .scaleRange(0.75f, 6.0f)
                 .userScale(2.0f));
         context.debugFlags(DebugFlags.PROFILER_OVERLAY);
+        context.debugOverlaySettings().scale()
 
         Runnable[] close = new Runnable[1];
         Widget root = root(() -> close[0].run());

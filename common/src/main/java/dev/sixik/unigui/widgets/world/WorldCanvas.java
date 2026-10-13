@@ -909,7 +909,7 @@ public class WorldCanvas extends WidgetBase {
      * Перекладывает anchor-виджеты после layout/viewport changes.
      *
      * <p>Каждый anchor проецируется world→root, затем размещается как обычный
-     * widget с учётом pivot, screenSize и zoom visibility range.</p>
+     * widget с учётом pivot, screenSize, zoom-scaling и zoom visibility range.</p>
      */
     private void arrangeAnchors() {
         AnchorWidget[] anchors = anchorLayer.snapshot();
@@ -931,10 +931,10 @@ public class WorldCanvas extends WidgetBase {
                 // грязное меньшинство и дешевле stale-позиций при pan.
                 child.measure(childContext);
             }
-            float width = anchor.screenWidth() >= 0.0f ? anchor.screenWidth() : child.desiredSize().width();
-            float height = anchor.screenHeight() >= 0.0f ? anchor.screenHeight() : child.desiredSize().height();
-            width = sanitizeSize(width);
-            height = sanitizeSize(height);
+            float baseWidth = anchor.screenWidth() >= 0.0f ? anchor.screenWidth() : child.desiredSize().width();
+            float baseHeight = anchor.screenHeight() >= 0.0f ? anchor.screenHeight() : child.desiredSize().height();
+            float width = sanitizeSize(anchor.effectiveWidth(baseWidth, viewport.zoom()));
+            float height = sanitizeSize(anchor.effectiveHeight(baseHeight, viewport.zoom()));
 
             float rootX = worldToRootX(anchor.worldX());
             float rootY = worldToRootY(anchor.worldY());

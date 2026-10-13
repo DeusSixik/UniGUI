@@ -3,6 +3,7 @@ package dev.sixik.unigui.testmod.client;
 import dev.sixik.unigui.testmod.client.ui.DominionScreen;
 import dev.sixik.unigui.testmod.client.ui.DockingWindowsDemoScreen;
 import dev.sixik.unigui.testmod.client.ui.MarkerCullingDemoScreen;
+import dev.sixik.unigui.testmod.client.ui.MarkerScalingDemoScreen;
 import dev.sixik.unigui.testmod.client.ui.ForkInSocketMinigameScreen;
 import dev.sixik.unigui.testmod.client.ui.LevelMapScreen;
 import dev.sixik.unigui.testmod.client.ui.LoadingScreenDemo;
@@ -85,6 +86,10 @@ public final class TestModClient implements ClientModInitializer {
 
     public static void openMarkerCullingDemo() {
         MarkerCullingDemoScreen.open();
+    }
+
+    public static void openMarkerScalingDemo() {
+        MarkerScalingDemoScreen.open();
     }
 
     public static void openTutorial() {
