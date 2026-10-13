@@ -47,6 +47,8 @@ import java.util.Objects;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.ScrollView;
 import dev.sixik.unigui.widgets.containers.StackPanel;
+import dev.sixik.unigui.widgets.docking.DockPaneKind;
+import dev.sixik.unigui.widgets.docking.DockingRoot;
 import dev.sixik.unigui.widgets.data.VirtualTableView;
 import dev.sixik.unigui.widgets.display.TextWidget;
 import dev.sixik.unigui.widgets.interaction.Button;
@@ -86,6 +88,9 @@ public class WindowWidget extends Box implements OverlayHostAware {
     private boolean modal;
     private boolean fixedModal;
     private boolean dockRedockLocked;
+    private boolean dockable;
+    private String dockPaneId = "";
+    private DockPaneKind dockKind = DockPaneKind.TOOL;
     private boolean draggable = true;
     private boolean dragging;
     private boolean resizable = true;
@@ -298,8 +303,94 @@ public class WindowWidget extends Box implements OverlayHostAware {
     public WindowWidget dockRedockLocked(boolean dockRedockLocked) {
         if (this.dockRedockLocked == dockRedockLocked) return this;
         this.dockRedockLocked = dockRedockLocked;
+        if (dockRedockLocked) {
+            DockingRoot.clearForeignWindowDropPreview(this);
+        }
         invalidate(InvalidationFlags.VISUAL);
         return this;
+    }
+
+    /**
+     * Возвращает, может ли окно докироваться drag-to-dock в {@link DockingRoot}.
+     *
+     * <p>По умолчанию {@code false}: окно остаётся свободным floating-окном.
+     * При включении перетаскивание окна за header над {@link DockingRoot}
+     * показывает drop preview, а release докирует контент окна как
+     * {@code DockPane} и закрывает само окно.</p>
+     */
+    public boolean dockable() {
+        return dockable;
+    }
+
+    /**
+     * Включает или выключает drag-to-dock этого окна в {@link DockingRoot}.
+     *
+     * @param dockable {@code true}, чтобы разрешить докирование перетаскиванием
+     * @return это окно для fluent-настройки
+     */
+    @XmlAttribute(value = "dockable", category = "Behavior", defaultValue = "false", description = "Whether dragging this window over a DockingRoot docks it as a pane.")
+    public WindowWidget dockable(boolean dockable) {
+        if (this.dockable == dockable) return this;
+        this.dockable = dockable;
+        if (!dockable) {
+            DockingRoot.clearForeignWindowDropPreview(this);
+        }
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Id, под которым контент окна будет зарегистрирован как {@code DockPane} при докинге.
+     *
+     * <p>Пустая строка означает авто-id: сначала используется widget id окна,
+     * иначе генерируется случайный id панели.</p>
+     */
+    public String dockPaneId() {
+        return dockPaneId;
+    }
+
+    /**
+     * Задаёт id будущей dock-панели.
+     *
+     * @param dockPaneId id панели или пустая строка для авто-id
+     * @return это окно для fluent-настройки
+     */
+    @XmlAttribute(value = "dockPaneId", category = "Behavior", defaultValue = "", description = "Pane id used when this window is docked into a DockingRoot.")
+    public WindowWidget dockPaneId(String dockPaneId) {
+        String normalized = dockPaneId == null ? "" : dockPaneId.trim();
+        if (this.dockPaneId.equals(normalized)) return this;
+        this.dockPaneId = normalized;
+        return this;
+    }
+
+    /**
+     * Роль будущей dock-панели: документ или tool-панель.
+     */
+    public DockPaneKind dockKind() {
+        return dockKind;
+    }
+
+    /**
+     * Задаёт роль будущей dock-панели.
+     *
+     * @param dockKind роль панели; {@code null} нормализуется в {@code TOOL}
+     * @return это окно для fluent-настройки
+     */
+    @XmlAttribute(value = "dockKind", category = "Behavior", defaultValue = "tool", description = "Dock pane kind used when this window is docked: tool or document.")
+    public WindowWidget dockKind(DockPaneKind dockKind) {
+        DockPaneKind normalized = dockKind == null ? DockPaneKind.TOOL : dockKind;
+        if (this.dockKind == normalized) return this;
+        this.dockKind = normalized;
+        return this;
+    }
+
+    /**
+     * Id-источник для drop intent при перетаскивании окна над {@link DockingRoot}.
+     */
+    public String dockSourceId() {
+        if (!dockPaneId.isEmpty()) return dockPaneId;
+        String widgetId = id();
+        return widgetId == null ? "" : widgetId;
     }
 
     public WindowWidget openModal() {
@@ -326,6 +417,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
         if (!open) {
             stopDragging();
             stopResizing();
+            DockingRoot.clearForeignWindowDropPreview(this);
             if (windowManager != null) {
                 windowManager.onWindowClosed(this);
             } else {
@@ -693,6 +785,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
                 && dragging
                 && pointer.pointerId() == dragPointerId) {
             updateDrag(pointer.rootX(), pointer.rootY());
+            DockingRoot.previewForeignWindowDrop(this, pointer.rootX(), pointer.rootY());
             event.cancel();
         } else if (event instanceof PointerReleasedEvent pointer
                 && pointer.button() == PointerButton.PRIMARY
@@ -700,6 +793,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
                 && pointer.pointerId() == dragPointerId) {
             updateDrag(pointer.rootX(), pointer.rootY());
             stopDragging();
+            DockingRoot.finishForeignWindowDrop(this, pointer.rootX(), pointer.rootY());
             event.cancel();
         }
     }
@@ -816,6 +910,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
         }
         dragging = false;
         dragPointerId = -1;
+        DockingRoot.clearForeignWindowDropPreview(this);
         invalidate(InvalidationFlags.VISUAL);
         dispatchWindowMoveEnded();
     }
@@ -929,6 +1024,12 @@ public class WindowWidget extends Box implements OverlayHostAware {
         if (this.active == active) return;
         this.active = active;
         invalidate(InvalidationFlags.VISUAL);
+    }
+
+    @Override
+    public void dispose() {
+        DockingRoot.clearForeignWindowDropPreview(this);
+        super.dispose();
     }
 
     WindowActivatedEvent dispatchWindowActivated(WindowWidget previousWindow) {

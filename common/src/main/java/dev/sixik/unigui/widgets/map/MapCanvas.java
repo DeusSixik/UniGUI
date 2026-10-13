@@ -525,11 +525,20 @@ public class MapCanvas extends WorldCanvas {
 
     private void renderGrid(DrawScope draw, float mapX, float mapY, float mapW, float mapH) {
         float safeGrid = Math.max(1.0f, gridSize);
-        for (float x = 0.0f; x <= mapWidth + 0.0001f; x += safeGrid) {
+        // Рисуем только линии, пересекающие видимый rect canvas'а: при большой
+        // карте и мелкой сетке невидимые линии составляли бы тысячи draw-команд.
+        float visibleMinX = Math.max(0.0f, rootToWorldX(layoutBounds().x()));
+        float visibleMaxX = Math.min(mapWidth, rootToWorldX(layoutBounds().x() + layoutBounds().width()));
+        float visibleMinY = Math.max(0.0f, rootToWorldY(layoutBounds().y()));
+        float visibleMaxY = Math.min(mapHeight, rootToWorldY(layoutBounds().y() + layoutBounds().height()));
+        if (visibleMaxX < 0.0f || visibleMinX > mapWidth || visibleMaxY < 0.0f || visibleMinY > mapHeight) return;
+        float firstX = (float) Math.floor(visibleMinX / safeGrid) * safeGrid;
+        float firstY = (float) Math.floor(visibleMinY / safeGrid) * safeGrid;
+        for (float x = firstX; x <= visibleMaxX + 0.0001f; x += safeGrid) {
             float gx = worldToRootX(x);
             draw.addLine(gx, mapY, gx, mapY + mapH, gridColor, 1.0f);
         }
-        for (float y = 0.0f; y <= mapHeight + 0.0001f; y += safeGrid) {
+        for (float y = firstY; y <= visibleMaxY + 0.0001f; y += safeGrid) {
             float gy = worldToRootY(y);
             draw.addLine(mapX, gy, mapX + mapW, gy, gridColor, 1.0f);
         }

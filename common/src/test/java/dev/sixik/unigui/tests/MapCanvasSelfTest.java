@@ -23,6 +23,7 @@ public final class MapCanvasSelfTest {
         markerHandleMovesAnchor();
         markerLookupSkipsDetachedAnchors();
         mapLayerProducesDrawCommands();
+        gridRendersOnlyVisibleLines();
     }
 
     private void projectionBuilderMapsWorldToMap() {
@@ -131,6 +132,29 @@ public final class MapCanvasSelfTest {
         map.render(context);
 
         assertTrue(context.drawList().size() > 0, "map layer should emit draw commands");
+    }
+
+    private void gridRendersOnlyVisibleLines() {
+        MapCanvas map = new MapCanvas()
+                .mapSize(4096.0f, 4096.0f)
+                .gridSize(32.0f)
+                .backgroundVisible(false)
+                .mapBorderVisible(false)
+                .viewport(0.0f, 0.0f, 1.0f);
+
+        map.measure(new LayoutContext(64.0f, 64.0f));
+        map.arrange(new MutableRect(0.0f, 0.0f, 64.0f, 64.0f));
+        NoopRenderContext context = new NoopRenderContext();
+        map.render(context);
+
+        int lines = 0;
+        for (dev.sixik.unigui.api.render.DrawCommand command : context.drawList().commands()) {
+            if (command.type() == dev.sixik.unigui.api.render.DrawCommandType.LINE) lines++;
+        }
+        // Видимо 64px при сетке 32: 3 вертикали + 3 горизонтали, с запасом — не больше 16.
+        // Без куллинга было бы 129 + 129 = 258 линий.
+        assertTrue(lines > 0 && lines <= 16,
+                "grid should emit only visible lines, got " + lines);
     }
 
     private static void assertClose(float expected, float actual, String message) {

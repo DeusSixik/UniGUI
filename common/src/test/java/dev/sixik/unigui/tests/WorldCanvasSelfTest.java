@@ -25,6 +25,8 @@ public final class WorldCanvasSelfTest {
         projectionUsesCanvasOriginAndViewportOffset();
         anchorsArrangeAsFixedSizeScreenWidgets();
         anchorCullingSetsZeroBoundsOffscreen();
+        steadyStateMeasureSkipsCleanAnchors();
+        tickAndRenderSkipCulledAnchors();
         scrollZoomDispatchesViewportChangedEvent();
         worldLayerRendersWithProjectionHelpers();
     }
@@ -72,6 +74,52 @@ public final class WorldCanvasSelfTest {
         assertTrue(!anchor.arrangedVisible(), "offscreen anchor should be culled");
         assertClose(0.0f, marker.layoutBounds().width(), "culled marker width");
         assertClose(0.0f, marker.layoutBounds().height(), "culled marker height");
+    }
+
+    private void steadyStateMeasureSkipsCleanAnchors() {
+        WorldCanvas canvas = new WorldCanvas().viewport(0.0f, 0.0f, 1.0f);
+        CountingWidget near = new CountingWidget(10.0f, 10.0f);
+        CountingWidget far = new CountingWidget(10.0f, 10.0f);
+        canvas.anchorLayer().add("near", 10.0f, 10.0f, near).screenSize(10.0f, 10.0f);
+        canvas.anchorLayer().add("far", 1000.0f, 1000.0f, far).screenSize(10.0f, 10.0f);
+
+        canvas.measure(new LayoutContext(100.0f, 100.0f));
+        canvas.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 100.0f));
+        canvas.clearInvalidation(dev.sixik.unigui.api.core.InvalidationFlags.ALL);
+        near.clearInvalidation(dev.sixik.unigui.api.core.InvalidationFlags.ALL);
+        far.clearInvalidation(dev.sixik.unigui.api.core.InvalidationFlags.ALL);
+        near.measures = 0;
+        far.measures = 0;
+
+        canvas.measure(new LayoutContext(100.0f, 100.0f));
+
+        assertTrue(near.measures == 0 && far.measures == 0,
+                "steady-state measure should skip anchors with known clean sizes, got near="
+                        + near.measures + " far=" + far.measures);
+    }
+
+    private void tickAndRenderSkipCulledAnchors() {
+        WorldCanvas canvas = new WorldCanvas().viewport(0.0f, 0.0f, 1.0f);
+        CountingWidget near = new CountingWidget(10.0f, 10.0f);
+        CountingWidget far = new CountingWidget(10.0f, 10.0f);
+        canvas.anchorLayer().add("near", 10.0f, 10.0f, near).screenSize(10.0f, 10.0f);
+        canvas.anchorLayer().add("far", 1000.0f, 1000.0f, far).screenSize(10.0f, 10.0f);
+
+        canvas.measure(new LayoutContext(100.0f, 100.0f));
+        canvas.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 100.0f));
+
+        near.ticks = 0;
+        far.ticks = 0;
+        near.renders = 0;
+        far.renders = 0;
+        canvas.tick(new dev.sixik.unigui.api.core.FrameContext(1L, 1.0f / 60.0f, 0.0f,
+                dev.sixik.unigui.api.core.FramePhase.ANIMATION));
+        canvas.render(new NoopRenderContext());
+
+        assertTrue(near.ticks == 1 && far.ticks == 0,
+                "tick should run only for on-screen anchors, got near=" + near.ticks + " far=" + far.ticks);
+        assertTrue(near.renders == 1 && far.renders == 0,
+                "render should draw only on-screen anchors, got near=" + near.renders + " far=" + far.renders);
     }
 
     private void scrollZoomDispatchesViewportChangedEvent() {
@@ -155,6 +203,40 @@ public final class WorldCanvasSelfTest {
         public void tick(FrameContext frame) {
             super.tick(frame);
             ticks++;
+        }
+    }
+
+    private static final class CountingWidget extends WidgetBase {
+        private final float preferredWidth;
+        private final float preferredHeight;
+        private int measures;
+        private int ticks;
+        private int renders;
+
+        private CountingWidget(float preferredWidth, float preferredHeight) {
+            this.preferredWidth = preferredWidth;
+            this.preferredHeight = preferredHeight;
+        }
+
+        @Override
+        public void measure(LayoutContext context) {
+            measures++;
+            if (visibility() == Visibility.COLLAPSED) {
+                setDesiredSize(LayoutSize.ZERO);
+                return;
+            }
+            setDesiredSize(preferredWidth, preferredHeight);
+        }
+
+        @Override
+        public void tick(FrameContext frame) {
+            super.tick(frame);
+            ticks++;
+        }
+
+        @Override
+        public void render(dev.sixik.unigui.api.render.RenderContext context) {
+            renders++;
         }
     }
 }

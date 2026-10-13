@@ -101,11 +101,9 @@ public class WorldCanvas extends WidgetBase {
     private final List<Widget> childrenView = Collections.unmodifiableList(children);
 
     /*
-     * Снапшоты нужны для горячих циклов tick/render: структура меняется редко,
+     * Снапшот слоёв нужен для горячего цикла render: структура меняется редко,
      * а обходить массив дешевле, чем каждый кадр создавать iterator.
      */
-    private Widget[] childSnapshot = new Widget[0];
-    private boolean childSnapshotDirty = true;
     private WorldLayer[] worldLayerSnapshot = new WorldLayer[0];
     private boolean worldLayerSnapshotDirty = true;
 
@@ -690,9 +688,14 @@ public class WorldCanvas extends WidgetBase {
         AnchorWidget[] anchors = anchorLayer.snapshot();
         for (AnchorWidget anchor : anchors) {
             Widget child = anchor.widget();
-            if (child.visibility() != Visibility.COLLAPSED) {
-                child.measure(childContext);
+            if (child.visibility() == Visibility.COLLAPSED) continue;
+            if (!hasPendingLayout(child) && hasKnownSize(anchor, child)) {
+                // Размер известен и контент не просил пересчёт: пропускаем
+                // измерение поддерева. Позиция якоря всё равно обновится в
+                // arrangeAnchors(), а desired size не зависит от viewport.
+                continue;
             }
+            child.measure(childContext);
         }
         setDesiredSize(resolveDesiredSize(context, preferredWidth, preferredHeight));
     }
@@ -709,8 +712,10 @@ public class WorldCanvas extends WidgetBase {
     public void tick(FrameContext frame) {
         if (visibility() != Visibility.VISIBLE) return;
         super.tick(frame);
-        Widget[] snapshot = childSnapshot();
-        for (Widget child : snapshot) {
+        AnchorWidget[] anchors = anchorLayer.snapshot();
+        for (AnchorWidget anchor : anchors) {
+            if (!anchor.arrangedVisible()) continue;
+            Widget child = anchor.widget();
             if (child.visibility() == Visibility.VISIBLE) {
                 child.tick(frame);
             }
@@ -788,7 +793,6 @@ public class WorldCanvas extends WidgetBase {
             throw new IllegalArgumentException("Anchor widget is already attached to this WorldCanvas");
         }
         children.add(child);
-        childSnapshotDirty = true;
         if (child instanceof WidgetBase base) {
             base.setParentInternal(this);
             base.setUiContextInternal(uiContext());
@@ -801,7 +805,6 @@ public class WorldCanvas extends WidgetBase {
     void detachAnchor(AnchorWidget anchor) {
         Widget child = anchor.widget();
         if (!children.remove(child)) return;
-        childSnapshotDirty = true;
         if (child instanceof WidgetBase base) {
             base.setParentInternal(null);
             base.setUiContextInternal(null);
@@ -920,7 +923,14 @@ public class WorldCanvas extends WidgetBase {
                 continue;
             }
 
-            child.measure(childContext);
+            if (hasPendingLayout(child) || !hasKnownSize(anchor, child)) {
+                // Размер неизвестен или поддерево просило пересчёт: измеряем.
+                // Чистые якоря с известным размером пропускаются: их desired
+                // size не зависит от viewport, позиция обновится ниже. Двойной
+                // measure грязных якорей в layout-кадры затрагивает только
+                // грязное меньшинство и дешевле stale-позиций при pan.
+                child.measure(childContext);
+            }
             float width = anchor.screenWidth() >= 0.0f ? anchor.screenWidth() : child.desiredSize().width();
             float height = anchor.screenHeight() >= 0.0f ? anchor.screenHeight() : child.desiredSize().height();
             width = sanitizeSize(width);
@@ -946,14 +956,6 @@ public class WorldCanvas extends WidgetBase {
         }
     }
 
-    private Widget[] childSnapshot() {
-        if (childSnapshotDirty) {
-            childSnapshot = children.toArray(new Widget[children.size()]);
-            childSnapshotDirty = false;
-        }
-        return childSnapshot;
-    }
-
     private WorldLayer[] worldLayerSnapshot() {
         if (worldLayerSnapshotDirty) {
             worldLayerSnapshot = worldLayers.toArray(new WorldLayer[worldLayers.size()]);
@@ -974,6 +976,29 @@ public class WorldCanvas extends WidgetBase {
 
     private static float sanitizeSize(float value) {
         return Float.isFinite(value) ? Math.max(0.0f, value) : 0.0f;
+    }
+
+    /**
+     * Проверяет, требует ли ребёнок повторного измерения.
+     *
+     * <p>Смотрится агрегированный subtree-флаг, а не только собственный флаг
+     * виджета: изменение текста во вложенном лейбле маркера тоже должно
+     * пересчитать размер. Якорь, ни разу не измеренный (desired size нулевой
+     * без явного screenSize) или с висящим layout-флагом, нельзя каллить:
+     * его размер ещё неизвестен, а пропуск measure закрепит неверную оценку.</p>
+     */
+    private static boolean hasPendingLayout(Widget child) {
+        if (child == null) return true;
+        return InvalidationFlags.has(child.subtreeInvalidationFlags(), InvalidationFlags.LAYOUT);
+    }
+
+    private static boolean hasKnownSize(AnchorWidget anchor, Widget child) {
+        if (anchor == null) return false;
+        if (anchor.screenWidth() >= 0.0f && anchor.screenHeight() >= 0.0f) return true;
+        if (child == null) return false;
+        float desiredWidth = anchor.screenWidth() >= 0.0f ? anchor.screenWidth() : child.desiredSize().width();
+        float desiredHeight = anchor.screenHeight() >= 0.0f ? anchor.screenHeight() : child.desiredSize().height();
+        return desiredWidth > 0.0f && desiredHeight > 0.0f;
     }
 
     private static float positiveOr(float value, float fallback) {

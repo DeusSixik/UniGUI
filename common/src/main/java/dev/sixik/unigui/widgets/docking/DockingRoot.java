@@ -46,6 +46,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.WeakHashMap;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.DockPanel;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
@@ -137,6 +138,8 @@ public final class DockingRoot extends Box {
     private final Map<String, Integer> tabScrollOffsets = new HashMap<>();
     private final Map<String, Integer> overflowMenuScrollOffsets = new HashMap<>();
     private DockDropIntent floatingDropPreviewIntent = DockDropIntent.none();
+    private static final Map<WindowWidget, DockingRoot> FOREIGN_WINDOW_PREVIEW_TARGETS =
+            Collections.synchronizedMap(new WeakHashMap<>());
     private float tabHeight = 22.0f;
     private float splitHandleThickness = 5.0f;
     private boolean hasArrangedBounds;
@@ -910,6 +913,7 @@ public final class DockingRoot extends Box {
     private void redockFloatingPane(WindowWidget window, DockPane pane, OverlayLayer overlay,
                                     DockingRoot target, float rootX, float rootY) {
         window.content(null);
+        window.applyQueuedMutations();
         window.close();
         overlay.removeOverlay(window);
         target.floatingDropPreview(DockDropIntent.none());
@@ -955,6 +959,131 @@ public final class DockingRoot extends Box {
             current = current.parent();
         }
         return null;
+    }
+
+    private static Widget rootOf(Widget widget) {
+        Widget current = widget;
+        Widget top = widget;
+        while (current != null) {
+            top = current;
+            current = current.parent();
+        }
+        return top;
+    }
+
+    /**
+     * Показывает drop preview для чужого dockable-окна, которое тащат над docking root.
+     *
+     * <p>Вызывается из {@link WindowWidget} во время drag, когда у окна включён
+     * флаг {@code dockable}. Окно не обязано принадлежать docking-дереву:
+     * достаточно общего overlay-предка. При выключенном флаге, локе или
+     * отсутствии цели preview молча гасится.</p>
+     *
+     * @param window окно-источник в состоянии drag
+     * @param rootX X указателя в root-координатах
+     * @param rootY Y указателя в root-координатах
+     */
+    public static void previewForeignWindowDrop(WindowWidget window, float rootX, float rootY) {
+        if (window == null || !window.dockable() || window.dockRedockLocked()) {
+            clearForeignWindowDropPreview(window);
+            return;
+        }
+        OverlayLayer overlay = nearestOverlayLayer(window);
+        Widget searchRoot = overlay != null ? overlay : rootOf(window);
+        DockingRoot target = dockingRootAt(searchRoot, window, rootX, rootY);
+        DockingRoot previous = FOREIGN_WINDOW_PREVIEW_TARGETS.get(window);
+        if (previous != null && previous != target) {
+            previous.floatingDropPreview(DockDropIntent.none());
+        }
+        if (target == null) {
+            FOREIGN_WINDOW_PREVIEW_TARGETS.remove(window);
+            return;
+        }
+        FOREIGN_WINDOW_PREVIEW_TARGETS.put(window, target);
+        target.floatingDropPreview(target.resolveDockDropIntent(window.dockSourceId(), rootX, rootY));
+    }
+
+    /**
+     * Завершает drop чужого dockable-окна: гасит preview и докирует контент.
+     *
+     * @param window окно-источник в конце drag
+     * @param rootX X указателя в root-координатах
+     * @param rootY Y указателя в root-координатах
+     * @return {@code true}, если контент окна стал dock-панелью
+     */
+    public static boolean finishForeignWindowDrop(WindowWidget window, float rootX, float rootY) {
+        DockingRoot previous = FOREIGN_WINDOW_PREVIEW_TARGETS.remove(window);
+        if (previous != null) {
+            previous.floatingDropPreview(DockDropIntent.none());
+        }
+        if (window == null || !window.dockable() || window.dockRedockLocked()) return false;
+        OverlayLayer overlay = nearestOverlayLayer(window);
+        Widget searchRoot = overlay != null ? overlay : rootOf(window);
+        DockingRoot target = dockingRootAt(searchRoot, window, rootX, rootY);
+        if (target == null) return false;
+        return target.dockForeignWindow(window, rootX, rootY);
+    }
+
+    /**
+     * Гасит drop preview чужого окна, если оно сейчас подсвечено на каком-либо root.
+     *
+     * @param window окно-источник или {@code null}
+     */
+    public static void clearForeignWindowDropPreview(WindowWidget window) {
+        if (window == null) return;
+        DockingRoot previous = FOREIGN_WINDOW_PREVIEW_TARGETS.remove(window);
+        if (previous != null) {
+            previous.floatingDropPreview(DockDropIntent.none());
+        }
+    }
+
+    /**
+     * Докирует контент чужого {@link WindowWidget} как новую панель этого root.
+     *
+     * <p>Контент окна отсоединяется, окно закрывается и снимается с overlay,
+     * а панель вставляется по drop-зоне под точкой {@code rootX/rootY}:
+     * центр — табом, края — сплитом. Пустой id панели нормализуется самим
+     * {@link DockPane} в случайный UUID.</p>
+     *
+     * @param window окно-источник с включённым флагом {@code dockable}
+     * @param rootX X дропа в root-координатах
+     * @param rootY Y дропа в root-координатах
+     * @return {@code true}, если панель добавлена в дерево
+     */
+    public boolean dockForeignWindow(WindowWidget window, float rootX, float rootY) {
+        if (window == null || !window.dockable() || window.dockRedockLocked()) return false;
+        Widget content = window.content();
+        if (content == null) return false;
+        floatingDropPreview(DockDropIntent.none());
+
+        String paneId = window.dockSourceId();
+        DockPane pane = window.dockKind() == DockPaneKind.DOCUMENT
+                ? DockPane.document(paneId, window.richTitle(), content)
+                : DockPane.tool(paneId, window.richTitle(), content);
+        pane.closable(window.closeButtonVisible());
+
+        window.content(null);
+        window.applyQueuedMutations();
+        OverlayLayer overlay = nearestOverlayLayer(window);
+        if (overlay != null) {
+            overlay.removeOverlay(window);
+        }
+        window.close();
+
+        LeafHit hit = leafAt(rootNode(), layoutBounds(), rootX, rootY);
+        if (hit == null || hit.node().panes().isEmpty()) {
+            manager.addPane(pane);
+        } else {
+            DockPane targetPane = hit.node().selectedPane();
+            if (targetPane == null) targetPane = hit.node().panes().get(0);
+            DockArea area = dropArea(hit.bounds(), rootX, rootY);
+            if (area == DockArea.CENTER || area == DockArea.TAB) {
+                manager.tabPane(targetPane.id(), pane);
+            } else {
+                manager.splitPane(targetPane.id(), area, pane);
+            }
+        }
+        return true;
     }
 
     private static DockingRoot dockingRootAt(Widget root, Widget ignored, float rootX, float rootY) {
