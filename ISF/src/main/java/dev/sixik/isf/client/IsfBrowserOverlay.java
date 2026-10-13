@@ -787,12 +787,6 @@ final class IsfBrowserOverlay {
                 .padding(1)
                 .alignSelf(Align.START)
         );
-        tabNext.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/arrow_right.png"),
-                20, 20, TextureOptions.nearest()),
-                3.0f));
-        tabNext.layout(style -> style.size(16.0f, TAB_CELL).flexNone());
-        tabNext.visibility(dev.sixik.unigui.api.widget.Visibility.COLLAPSED);
-        tabRow.addChild(tabNext);
 
         // Кнопки страниц находятся под вкладками RecipeType, как в оригинальном JEI.
         pagerRow.layout(style -> style.widthPercent(100.0f).height(14.0f).flexNone()
