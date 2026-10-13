@@ -719,6 +719,131 @@ public interface RenderContext {
         submitOwned(command);
     }
 
+    /**
+     * Рисует textured ленту вдоль полилинии одной mesh-командой.
+     *
+     * <p>Стыки — miter с клампом {@link RibbonMesh#DEFAULT_MITER_LIMIT}, торцы — butt caps.
+     * {@code v} идёт вдоль пути как {@code distance / textureLength}: при
+     * {@link TextureWrap#REPEAT} текстура тайлится без растяжения.</p>
+     *
+     * @param texture текстура ленты; {@code null} даёт сплошную цветную ленту
+     * @param points центральная полилиния; вырожденные точки пропускаются
+     * @param width ширина ленты
+     * @param textureLength длина одного текстурного тайла вдоль пути
+     * @param tint цвет вершин
+     */
+    default void addRibbon(TextureHandle texture, List<DrawPoint> points,
+                           float width, float textureLength, ColorView tint) {
+        addRibbon(texture, points, width, textureLength, tint, false, null);
+    }
+
+    /**
+     * Рисует textured ленту вдоль полилинии одной mesh-командой.
+     *
+     * @param texture текстура ленты; {@code null} даёт сплошную цветную ленту
+     * @param points центральная полилиния; вырожденные точки пропускаются
+     * @param width ширина ленты
+     * @param textureLength длина одного текстурного тайла вдоль пути
+     * @param tint цвет вершин
+     * @param closed {@code true}, чтобы замкнуть контур
+     * @param transform transform команды или {@code null}
+     */
+    default void addRibbon(TextureHandle texture, List<DrawPoint> points,
+                           float width, float textureLength, ColorView tint,
+                           boolean closed, Transform transform) {
+        DrawMesh mesh = RibbonMesh.builder(points)
+                .width(width)
+                .textureLength(textureLength)
+                .closed(closed)
+                .build(tint);
+        addMesh(mesh, texture, transform);
+    }
+
+    /**
+     * Рисует textured ленту с настраиваемым miter-лимитом стыков.
+     *
+     * @param texture текстура ленты; {@code null} даёт сплошную цветную ленту
+     * @param points центральная полилиния; вырожденные точки пропускаются
+     * @param width ширина ленты
+     * @param textureLength длина одного текстурного тайла вдоль пути
+     * @param tint цвет вершин
+     * @param closed {@code true}, чтобы замкнуть контур
+     * @param miterLimit лимит miter в половинах ширины ленты
+     * @param transform transform команды или {@code null}
+     */
+    default void addRibbon(TextureHandle texture, List<DrawPoint> points,
+                           float width, float textureLength, ColorView tint,
+                           boolean closed, float miterLimit, Transform transform) {
+        DrawMesh mesh = RibbonMesh.builder(points)
+                .width(width)
+                .textureLength(textureLength)
+                .closed(closed)
+                .miterLimit(miterLimit)
+                .build(tint);
+        addMesh(mesh, texture, transform);
+    }
+
+    /**
+     * Рисует textured ленту с поворотом текстуры на 90 градусов.
+     *
+     * <p>При {@code swapUv} {@code u} идёт вдоль пути, {@code v} — поперёк:
+     * для вертикальных текстур-полосок (кабельные 1x8), где градиент идёт
+     * вдоль {@code v}.</p>
+     *
+     * @param texture текстура ленты; {@code null} даёт сплошную цветную ленту
+     * @param points центральная полилиния; вырожденные точки пропускаются
+     * @param width ширина ленты
+     * @param textureLength длина одного текстурного тайла вдоль пути
+     * @param tint цвет вершин
+     * @param closed {@code true}, чтобы замкнуть контур
+     * @param miterLimit лимит miter в половинах ширины ленты
+     * @param swapUv {@code true}, чтобы поменять U и V местами
+     * @param transform transform команды или {@code null}
+     */
+    default void addRibbon(TextureHandle texture, List<DrawPoint> points,
+                           float width, float textureLength, ColorView tint,
+                           boolean closed, float miterLimit, boolean swapUv, Transform transform) {
+        DrawMesh mesh = RibbonMesh.builder(points)
+                .width(width)
+                .textureLength(textureLength)
+                .closed(closed)
+                .miterLimit(miterLimit)
+                .swapUv(swapUv)
+                .build(tint);
+        addMesh(mesh, texture, transform);
+    }
+
+    /**
+     * Рисует textured ленту с поворотом и отражением текстуры.
+     *
+     * @param texture текстура ленты; {@code null} даёт сплошную цветную ленту
+     * @param points центральная полилиния; вырожденные точки пропускаются
+     * @param width ширина ленты
+     * @param textureLength длина одного текстурного тайла вдоль пути
+     * @param tint цвет вершин
+     * @param closed {@code true}, чтобы замкнуть контур
+     * @param miterLimit лимит miter в половинах ширины ленты
+     * @param swapUv {@code true}: {@code u} вдоль пути, {@code v} поперёк
+     * @param flipU {@code true}, чтобы отразить финальную U внутри тайла
+     * @param flipV {@code true}, чтобы отразить финальную V внутри тайла
+     * @param transform transform команды или {@code null}
+     */
+    default void addRibbon(TextureHandle texture, List<DrawPoint> points,
+                           float width, float textureLength, ColorView tint,
+                           boolean closed, float miterLimit, boolean swapUv,
+                           boolean flipU, boolean flipV, Transform transform) {
+        DrawMesh mesh = RibbonMesh.builder(points)
+                .width(width)
+                .textureLength(textureLength)
+                .closed(closed)
+                .miterLimit(miterLimit)
+                .swapUv(swapUv)
+                .flipU(flipU)
+                .flipV(flipV)
+                .build(tint);
+        addMesh(mesh, texture, transform);
+    }
+
     default void channelsSplit(int count) {
         drawList().channelsSplit(count);
     }

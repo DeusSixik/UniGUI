@@ -66,5 +66,8 @@ public abstract class PauseScreenMixin extends Screen {
         addRenderableWidget(Button.builder(Component.literal("Marker Scaling"), button -> TestModClient.openMarkerScalingDemo())
                 .bounds(width - 244, 80, 116, 20)
                 .build());
+        addRenderableWidget(Button.builder(Component.literal("Ribbon Roads"), button -> TestModClient.openRibbonRoadsDemo())
+                .bounds(width - 244, 104, 116, 20)
+                .build());
     }
 }

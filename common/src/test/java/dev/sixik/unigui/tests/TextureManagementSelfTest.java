@@ -32,6 +32,7 @@ public final class TextureManagementSelfTest {
         testTextureHandleOptionsAreImmutableCopies();
         testBatcherSplitsMatchingIdsWithDifferentOptions();
         testNineSliceCells();
+        testRibbonMesh();
         testRenderTargetCacheDisposesReplacedTargets();
         System.out.println("TextureManagementSelfTest passed");
     }
@@ -138,6 +139,112 @@ public final class TextureManagementSelfTest {
         expect(overflowCells.size() == 8
                         && hasUv(overflowCells.get(0), 0.0f, 0.0f, 0.5f, 0.5f),
                 "oversized borders should scale down and drop the zero-area center");
+    }
+
+    private void testRibbonMesh() {
+        SimpleTextureHandle texture = new SimpleTextureHandle("test:road", 8, 8);
+        Paint white = Paint.fill(new MutableColor(1.0f, 1.0f, 1.0f, 1.0f));
+
+        // Прямой горизонтальный отрезок: 6 вершин, ширина 10, v по длине/тайлу.
+        DrawList straight = new DrawList();
+        new DrawScope(new DefaultRenderContext(straight), null).ribbon(texture,
+                java.util.List.of(new dev.sixik.unigui.api.render.DrawPoint(0.0f, 0.0f),
+                        new dev.sixik.unigui.api.render.DrawPoint(40.0f, 0.0f)),
+                10.0f, 20.0f, white.color());
+        java.util.List<DrawCommand> straightCells = straight.commands().stream()
+                .filter(command -> command.type() == DrawCommandType.MESH).toList();
+        expect(straightCells.size() == 1, "ribbon should emit a single mesh command");
+        expect(straightCells.get(0).mesh().vertexCount() == 6, "straight ribbon should have 6 vertices");
+        dev.sixik.unigui.api.render.DrawVertex first = straightCells.get(0).mesh().vertices().get(0);
+        expect(near(first.x(), 0.0f) && near(first.y(), 5.0f)
+                        && near(first.u(), 0.0f) && near(first.v(), 0.0f),
+                "ribbon start-left vertex should sit at half width with v=0");
+        dev.sixik.unigui.api.render.DrawVertex end = straightCells.get(0).mesh().vertices().get(2);
+        expect(near(end.x(), 40.0f) && near(end.y(), -5.0f)
+                        && near(end.u(), 1.0f) && near(end.v(), 2.0f),
+                "ribbon end-right vertex should advance v by length/tile");
+
+        // Г-образный путь: miter-стык без разрывов, 2 сегмента = 12 вершин.
+        DrawList corner = new DrawList();
+        new DrawScope(new DefaultRenderContext(corner), null).ribbon(texture,
+                java.util.List.of(new dev.sixik.unigui.api.render.DrawPoint(0.0f, 0.0f),
+                        new dev.sixik.unigui.api.render.DrawPoint(30.0f, 0.0f),
+                        new dev.sixik.unigui.api.render.DrawPoint(30.0f, 30.0f)),
+                10.0f, 20.0f, white.color());
+        java.util.List<DrawCommand> cornerCells = corner.commands().stream()
+                .filter(command -> command.type() == DrawCommandType.MESH).toList();
+        expect(cornerCells.size() == 1 && cornerCells.get(0).mesh().vertexCount() == 12,
+                "corner ribbon should emit 12 vertices in one command");
+        // Внешний угол miter: центр (30,0) + miter(-1,+1)*5 = (25,5).
+        boolean hasOuterCorner = cornerCells.get(0).mesh().vertices().stream()
+                .anyMatch(vertex -> near(vertex.x(), 25.0f) && near(vertex.y(), 5.0f));
+        expect(hasOuterCorner, "miter joint should extend the outer corner");
+
+        // Вырожденный путь: дубликаты и мусор дают пустой mesh без команд.
+        DrawList empty = new DrawList();
+        DrawScope emptyDraw = new DrawScope(new DefaultRenderContext(empty), null);
+        emptyDraw.ribbon(texture, java.util.List.of(
+                        new dev.sixik.unigui.api.render.DrawPoint(5.0f, 5.0f),
+                        new dev.sixik.unigui.api.render.DrawPoint(5.0f, 5.0f),
+                        new dev.sixik.unigui.api.render.DrawPoint(Float.NaN, 0.0f)),
+                10.0f, 20.0f, white.color());
+        emptyDraw.ribbon(texture, java.util.List.of(
+                        new dev.sixik.unigui.api.render.DrawPoint(0.0f, 0.0f)),
+                10.0f, 20.0f, white.color());
+        emptyDraw.ribbon(texture, java.util.List.of(
+                        new dev.sixik.unigui.api.render.DrawPoint(0.0f, 0.0f),
+                        new dev.sixik.unigui.api.render.DrawPoint(10.0f, 0.0f)),
+                0.0f, 20.0f, white.color());
+        expect(empty.commands().isEmpty(), "degenerate ribbons should emit no commands");
+
+        // Замкнутый треугольник: 3 сегмента = 18 вершин.
+        DrawList loop = new DrawList();
+        new DrawScope(new DefaultRenderContext(loop), null).ribbon(texture,
+                java.util.List.of(new dev.sixik.unigui.api.render.DrawPoint(0.0f, 0.0f),
+                        new dev.sixik.unigui.api.render.DrawPoint(30.0f, 0.0f),
+                        new dev.sixik.unigui.api.render.DrawPoint(15.0f, 20.0f)),
+                6.0f, 10.0f, white.color(), true);
+        java.util.List<DrawCommand> loopCells = loop.commands().stream()
+                .filter(command -> command.type() == DrawCommandType.MESH).toList();
+        expect(loopCells.size() == 1 && loopCells.get(0).mesh().vertexCount() == 18,
+                "closed ribbon should emit 18 vertices in one command");
+
+        // swapUv: u вдоль пути (t), v поперёк (0/1) — поворот текстуры на 90°.
+        DrawList swapped = new DrawList();
+        new DrawScope(new DefaultRenderContext(swapped), null).ribbon(texture,
+                java.util.List.of(new dev.sixik.unigui.api.render.DrawPoint(0.0f, 0.0f),
+                        new dev.sixik.unigui.api.render.DrawPoint(40.0f, 0.0f)),
+                10.0f, 20.0f, white.color(), false, true);
+        java.util.List<DrawCommand> swappedCells = swapped.commands().stream()
+                .filter(command -> command.type() == DrawCommandType.MESH).toList();
+        expect(swappedCells.size() == 1, "swapped ribbon should emit one mesh command");
+        dev.sixik.unigui.api.render.DrawVertex swappedStart =
+                swappedCells.get(0).mesh().vertices().get(0);
+        dev.sixik.unigui.api.render.DrawVertex swappedEnd =
+                swappedCells.get(0).mesh().vertices().get(2);
+        expect(near(swappedStart.u(), 0.0f) && near(swappedStart.v(), 0.0f),
+                "swapped start-left should have u=t0, v=0");
+        expect(near(swappedEnd.u(), 2.0f) && near(swappedEnd.v(), 1.0f),
+                "swapped end-right should have u=t1, v=1");
+
+        // flipV после swapUv: v зеркалится внутри тайла (0->1, 1->0).
+        DrawList flipped = new DrawList();
+        new DrawScope(new DefaultRenderContext(flipped), null).ribbon(texture,
+                java.util.List.of(new dev.sixik.unigui.api.render.DrawPoint(0.0f, 0.0f),
+                        new dev.sixik.unigui.api.render.DrawPoint(40.0f, 0.0f)),
+                10.0f, 20.0f, white.color(), false, true, false, true);
+        java.util.List<DrawCommand> flippedCells = flipped.commands().stream()
+                .filter(command -> command.type() == DrawCommandType.MESH).toList();
+        expect(flippedCells.size() == 1, "flipped ribbon should emit one mesh command");
+        dev.sixik.unigui.api.render.DrawVertex flippedStart =
+                flippedCells.get(0).mesh().vertices().get(0);
+        dev.sixik.unigui.api.render.DrawVertex flippedEnd =
+                flippedCells.get(0).mesh().vertices().get(2);
+        expect(near(flippedStart.u(), 0.0f) && near(flippedStart.v(), 1.0f),
+                "flipped start-left should have u=t0, v=1");
+        // v=1 зеркалится в 2.0 (fract 0 при REPEAT): градиент идёт 1->2 вместо 0->1.
+        expect(near(flippedEnd.u(), 2.0f) && near(flippedEnd.v(), 2.0f),
+                "flipped end-right should keep u=t1 with mirrored v");
     }
 
     private static boolean hasBounds(DrawCommand command, float x, float y, float width, float height) {
