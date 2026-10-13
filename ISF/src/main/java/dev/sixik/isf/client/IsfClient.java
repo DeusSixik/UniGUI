@@ -124,7 +124,7 @@ public final class IsfClient {
             event.setCanceled(true);
             return;
         }
-        if (OVERLAY.dragItemScrollBar(event.getMouseY(), event.getMouseButton())) {
+        if (OVERLAY.dragItemScrollBar(event.getMouseX(), event.getMouseY(), event.getMouseButton())) {
             event.setCanceled(true);
         }
     }
@@ -135,7 +135,7 @@ public final class IsfClient {
             event.setCanceled(true);
             return;
         }
-        if (OVERLAY.endItemScrollBarDrag(event.getMouseY(), event.getButton())) {
+        if (OVERLAY.endItemScrollBarDrag(event.getMouseX(), event.getMouseY(), event.getButton())) {
             event.setCanceled(true);
         }
     }
