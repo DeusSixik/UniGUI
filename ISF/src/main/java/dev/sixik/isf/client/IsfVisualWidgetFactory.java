@@ -13,8 +13,10 @@ import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.Justify;
 import dev.sixik.unigui.api.layout.PositionType;
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.render.TextureOptions;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.backend.minecraft_impl.MinecraftTextureHandle;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.GridBox;
@@ -23,6 +25,7 @@ import dev.sixik.unigui.widgets.containers.PanelWidget;
 import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.feedback.ProgressBar;
+import dev.sixik.unigui.widgets.interaction.Button;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
@@ -44,6 +47,7 @@ final class IsfVisualWidgetFactory {
     private static final org.slf4j.Logger LOGGER =
             org.slf4j.LoggerFactory.getLogger(IsfVisualWidgetFactory.class);
     private static final float CELL = 18.0f;
+    private final Button recipePlus = new Button();
     /** Кегль подписи шанса: дефолтные 10px распирают колонку 22px («12.5%» налезает). */
     private static final float CHANCE_TEXT_SIZE = 7.0f;
     static final String SLOT_TEXTURE = "isf:textures/jei/atlas/gui/slot.png";
@@ -57,6 +61,7 @@ final class IsfVisualWidgetFactory {
 
     private IsfVisualWidgetFactory(Map<String, JsonElement> parameters) {
         context = new IsfEvaluationContext(parameters);
+
     }
 
     static Widget create(IsfVisualNode visual, Map<String, JsonElement> parameters) {
@@ -107,6 +112,10 @@ final class IsfVisualWidgetFactory {
                 for (IsfVisualNode child : node.children()) {
                     Widget childWidget = createNode(child);
                     if (childWidget != null) {
+                        recipePlus.layout(style -> style.size(8,8).alignSelf(Align.END));
+                        recipePlus.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/setup_grid.png"),
+                                8, 8, TextureOptions.nearest()),
+                                4.0f));
                         panel.addChild(childWidget);
                     }
                 }
@@ -402,7 +411,7 @@ final class IsfVisualWidgetFactory {
                 SLOT_TEXTURE, CELL);
         List<net.minecraft.network.chat.Component> lines = new ArrayList<>();
         lines.add(net.minecraft.network.chat.Component.translatableWithFallback(
-                "isf.loot.empty", "Empty").copy()
+                        "isf.loot.empty", "Empty").copy()
                 .withStyle(net.minecraft.ChatFormatting.GRAY));
         lines.add(net.minecraft.network.chat.Component.translatableWithFallback(
                 "isf.loot.chance", "Chance: %s", formatChance(chance)));
