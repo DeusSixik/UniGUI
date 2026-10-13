@@ -1,5 +1,7 @@
 package dev.sixik.unigui.tests;
 
+import dev.sixik.unigui.api.core.FrameContext;
+import dev.sixik.unigui.api.core.FramePhase;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
@@ -24,6 +26,7 @@ public final class LayoutInvalidationSelfTest {
         test.measureCacheSkipsCleanSubtree();
         test.measureCacheMissesOnNewContextOrDirtySubtree();
         test.arrangeInvalidatesVisualForRenderCache();
+        test.scrollSkipsTickOutsideViewport();
         System.out.println("LayoutInvalidationSelfTest passed");
     }
 
@@ -152,6 +155,7 @@ public final class LayoutInvalidationSelfTest {
         private final float preferredWidth;
         private final float preferredHeight;
         private int measures;
+        private int ticks;
 
         private CountingWidget(float preferredWidth, float preferredHeight) {
             this.preferredWidth = preferredWidth;
@@ -167,6 +171,42 @@ public final class LayoutInvalidationSelfTest {
             }
             setDesiredSize(preferredWidth, preferredHeight);
         }
+
+        @Override
+        public void tick(FrameContext frame) {
+            super.tick(frame);
+            ticks++;
+        }
+    }
+
+    private void scrollSkipsTickOutsideViewport() {
+        VBox content = new VBox();
+        CountingWidget visible = new CountingWidget(120.0f, 18.0f);
+        CountingWidget below = new CountingWidget(120.0f, 18.0f);
+        content.addChild(visible);
+        content.addChild(below);
+        content.applyQueuedMutations();
+        ScrollView scroll = new ScrollView();
+        scroll.content(content);
+        // Viewport 100px высотой: первая строка видна, вторая начинается на 18px —
+        // обе видны; сдвигаем на 18px — первая уходит за кадр.
+        scroll.measure(new LayoutContext(200.0f, 18.0f));
+        scroll.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 18.0f));
+        scroll.scrollTo(0.0f, 18.0f);
+
+        visible.ticks = 0;
+        below.ticks = 0;
+        scroll.tick(new FrameContext(1L, 1.0f / 60.0f, 0.0f, FramePhase.ANIMATION));
+        expect(visible.ticks == 0 && below.ticks == 1,
+                "scroll should tick only viewport-visible children, got visible="
+                        + visible.ticks + " below=" + below.ticks);
+
+        scroll.tickCullingEnabled(false);
+        visible.ticks = 0;
+        below.ticks = 0;
+        scroll.tick(new FrameContext(2L, 1.0f / 60.0f, 0.0f, FramePhase.ANIMATION));
+        expect(visible.ticks == 1 && below.ticks == 1,
+                "disabled tick culling should tick all children");
     }
 
     private static void expect(boolean condition, String message) {

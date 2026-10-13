@@ -79,6 +79,7 @@ public class ScrollView extends WidgetBase {
     private boolean childrenViewDirty = true;
     private boolean childrenViewHasHorizontalScrollBar;
     private boolean childrenViewHasVerticalScrollBar;
+    private boolean tickCullingEnabled = true;
 
     /**
      * Создаёт пустой scroll viewport с {@code overflowX=HIDDEN} и {@code overflowY=AUTO}.
@@ -548,8 +549,22 @@ public class ScrollView extends WidgetBase {
     @Override
     public void tick(FrameContext frame) {
         super.tick(frame);
-        if (content != null) {
-            content.tick(frame);
+        if (content != null && content.visibility() == dev.sixik.unigui.api.widget.Visibility.VISIBLE) {
+            if (tickCullingEnabled && visibility() == dev.sixik.unigui.api.widget.Visibility.VISIBLE) {
+                MutableRect viewportBounds = new MutableRect(
+                        layoutBounds().x(),
+                        layoutBounds().y(),
+                        viewportWidth(),
+                        viewportHeight());
+                RectView previous = PanelWidget.pushTickCullBounds(viewportBounds);
+                try {
+                    content.tick(frame);
+                } finally {
+                    PanelWidget.restoreTickCullBounds(previous);
+                }
+            } else {
+                content.tick(frame);
+            }
         }
         if (showsHorizontalScrollBar()) {
             horizontalScrollBar.tick(frame);
@@ -557,6 +572,32 @@ public class ScrollView extends WidgetBase {
         if (showsVerticalScrollBar()) {
             verticalScrollBar.tick(frame);
         }
+    }
+
+    /**
+     * Возвращает, пропускается ли tick виджетов вне видимого viewport.
+     *
+     * <p>По умолчанию {@code true}: внеэкранные дети контента не тикают
+     * (анимации/таймеры в них останавливаются за кадром). Рендер таких детей
+     * и так отсекается через clip + render cull bounds.</p>
+     */
+    public boolean tickCullingEnabled() {
+        return tickCullingEnabled;
+    }
+
+    /**
+     * Включает или выключает пропуск tick внеэкранного контента.
+     *
+     * <p>Выключай, если контент за кадром обязан тикать: фоновые таймеры,
+     * progress-бары, live-данные. Рендер-куллинг при этом продолжает работать.</p>
+     *
+     * @param tickCullingEnabled {@code true}, чтобы тикали только видимые виджеты
+     * @return этот scroll view для fluent-настройки
+     */
+    @XmlAttribute(value = "tickCulling", category = "Behavior", defaultValue = "true", description = "Whether widgets outside the visible viewport skip tick.")
+    public ScrollView tickCullingEnabled(boolean tickCullingEnabled) {
+        this.tickCullingEnabled = tickCullingEnabled;
+        return this;
     }
 
     @Override

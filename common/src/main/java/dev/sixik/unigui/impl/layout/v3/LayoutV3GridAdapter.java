@@ -127,8 +127,11 @@ public final class LayoutV3GridAdapter {
         List<GridTrack> rowTemplate = style.gridTemplateRows();
         int columnLines = !columnTemplate.isEmpty() ? columnTemplate.size() : Math.max(1, columns);
         List<GridCell> cells = placeItems(children, columnLines, rowTemplate.size(), style.gridAutoFlow());
-        int columnCount = 0;
-        int rowCount = 0;
+        // Число треков — минимум из шаблона, а не только занятые ячейки:
+        // иначе 10 детей при columns(16) делили бы всю ширину на 10 вместо 16.
+        // Строки без шаблона остаются неявными (по занятым ячейкам).
+        int columnCount = columnLines;
+        int rowCount = rowTemplate.size();
         for (GridCell cell : cells) {
             columnCount = Math.max(columnCount, cell.column() + cell.columnSpan());
             rowCount = Math.max(rowCount, cell.row() + cell.rowSpan());

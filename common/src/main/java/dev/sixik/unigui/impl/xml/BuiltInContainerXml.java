@@ -6,6 +6,7 @@ import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.FlexBox;
 import dev.sixik.unigui.widgets.containers.GridBox;
 import dev.sixik.unigui.widgets.containers.HBox;
+import dev.sixik.unigui.widgets.containers.LinearBox;
 import dev.sixik.unigui.widgets.containers.PanelWidget;
 import dev.sixik.unigui.widgets.containers.ScrollView;
 import dev.sixik.unigui.widgets.containers.SettingRow;
@@ -74,12 +75,9 @@ final class BuiltInContainerXml {
                                 .singleChildOnly());
     }
 
-    private static <T extends WidgetBase> WidgetXmlType<T> linear(WidgetXmlType<T> type) {
-        return BuiltInWidgetXmlSupport.commonWidget(type)
-                .attribute("spacing", XmlValueParsers.FLOAT, (widget, value) -> {
-                    if (widget instanceof VBox vbox) vbox.spacing(value);
-                    if (widget instanceof HBox hbox) hbox.spacing(value);
-                });
+    private static <T extends LinearBox> WidgetXmlType<T> linear(WidgetXmlType<T> type) {
+        return BuiltInWidgetXmlSupport.annotated(BuiltInWidgetXmlSupport.commonWidget(type), LinearBox.class)
+                .attribute("spacing", XmlValueParsers.FLOAT, (widget, value) -> widget.spacing(value));
     }
 
     private static WidgetXmlType<WrapPanel> wrapPanel(WidgetXmlType<WrapPanel> type) {
