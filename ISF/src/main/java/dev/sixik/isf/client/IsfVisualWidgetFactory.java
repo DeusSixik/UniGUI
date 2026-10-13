@@ -107,6 +107,10 @@ final class IsfVisualWidgetFactory {
                 for (IsfVisualNode child : node.children()) {
                     Widget childWidget = createNode(child);
                     if (childWidget != null) {
+                        recipePlus.layout(style -> style.size(8,8).alignSelf(Align.END));
+                        recipePlus.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/setup_grid.png"),
+                                8, 8, TextureOptions.nearest()),
+                                4.0f));
                         panel.addChild(childWidget);
                     }
                 }

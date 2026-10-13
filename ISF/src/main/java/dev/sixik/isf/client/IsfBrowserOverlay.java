@@ -16,6 +16,7 @@ import dev.sixik.isf.definition.IsfVisualNode;
 import dev.sixik.isf.runtime.IsfRecipePaging;
 import dev.sixik.isf.runtime.IsfRecipeQueryMatcher;
 import dev.sixik.unigui.api.core.FrameContext;
+import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.event.PointerEnteredEvent;
 import dev.sixik.unigui.api.event.PointerExitedEvent;
 import dev.sixik.unigui.api.layout.*;
@@ -730,7 +731,7 @@ final class IsfBrowserOverlay {
         detailPanel.borderVisible(false);
         detailPanel.renderer(new NineSliceBoxRenderer(
                 new MinecraftTextureHandle(
-                        ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/recipe_preview_background_v2.png"),
+                        ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/gui_background.png"),
                         64, 64, TextureOptions.nearest()),
                 4.0f));
         detailPanel.layout(style -> style
@@ -750,11 +751,24 @@ final class IsfBrowserOverlay {
         detailTitle.layout(style -> style.flexGrow(1.0f).flexShrink(1.0f));
         detailTitle.background(0.5f,0.5f,0.5f,0.5f);
         detailTitle.color().set(0,0,0,1);
-        detailPin.renderer(detailButtonRenderer());
+        detailPin.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/button_enabled.png"),
+                20, 20, TextureOptions.nearest()),
+                4.0f));
         detailPin.text("P").textPadding(0.0f, 0.0f);
         detailPin.layout(style -> style.size(16.0f, 16.0f).flexNone());
-        detailPin.onCheckedChanged(event -> setDetailPinned(event.newValue()));
-        detailClose.renderer(detailButtonRenderer());
+        detailPin.onCheckedChanged(event -> {
+            setDetailPinned(event.newValue());
+            if(event.newValue())  detailPin.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/button_enabled.png"),
+                    20, 20, TextureOptions.nearest()),
+                    4.0f));
+            else detailPin.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/button_pressed.png"),
+                    20, 20, TextureOptions.nearest()),
+                    4.0f));
+            detailHeader.invalidate(InvalidationFlags.VISUAL);
+        });
+        detailClose.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/button_enabled_v2.png"),
+                20, 20, TextureOptions.nearest()),
+                4.0f));
         detailClose.themeEnabled(false);
         detailClose.text("X").textPadding(0.0f, 0.0f);
         detailClose.layout(style -> style.size(16.0f, 16.0f).flexNone());
@@ -763,9 +777,8 @@ final class IsfBrowserOverlay {
         detailHeader.addChild(detailPin);
         detailHeader.addChild(detailClose);
 
-        // Зелёная зона: вкладки доступных RecipeType. Все вкладки строятся целиком,
-        // а переполнение по ширине обслуживает горизонтальный scrollbar (без стрелки).
-        tabRow.backgroundRenderer(new NineSliceBoxRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/scrollbar_background_v2.png"),
+        // Зелёная зона: вкладки доступных RecipeType + стрелка прокрутки при переполнении.
+        tabRow.backgroundRenderer(new NineSliceBoxRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/scrollbar_background.png"),
                 20, 20, TextureOptions.nearest()),
                 4.0f));
         tabRow.layout(style -> style
@@ -774,32 +787,26 @@ final class IsfBrowserOverlay {
                 .padding(1)
                 .alignSelf(Align.START)
         );
-        tabScroll.scrollStep(TAB_CELL + 2.0f);
-        tabScroll.scrollbarGap(1);
-        tabScroll.scrollbarSize(TAB_SCROLLBAR_SIZE);
-        tabScroll.layout(style -> style
-                .widthPercent(100.0f)
-                .height(TAB_ROW_CONTENT)
-                .flexNone()
-                .overflowX(Overflow.AUTO)
-                .overflowY(Overflow.HIDDEN)
-        );
+        tabNext.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/arrow_right.png"),
+                20, 20, TextureOptions.nearest()),
+                3.0f));
+        tabNext.layout(style -> style.size(16.0f, TAB_CELL).flexNone());
+        tabNext.visibility(dev.sixik.unigui.api.widget.Visibility.COLLAPSED);
+        tabRow.addChild(tabNext);
 
         // Кнопки страниц находятся под вкладками RecipeType, как в оригинальном JEI.
         pagerRow.layout(style -> style.widthPercent(100.0f).height(14.0f).flexNone()
                 .justifyContent(Justify.CENTER));
         detailPage.layout(style -> style.width(48.0f).height(14.0f).flexNone().horizontalAlignment(Alignment.CENTER));
         detailPage.background(0.5f,0.5f,0.5f,0.5f);
-        detailPrevious.renderer(detailButtonRenderer());
-        detailPrevious.themeEnabled(false);
-        detailPrevious.textColor(1.0f, 1.0f, 1.0f, 1.0f);
-        detailPrevious.text("<").textPadding(0.0f, 0.0f);
+        detailPrevious.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/arrow_left.png"),
+                20, 20, TextureOptions.nearest()),
+                1.0f));
         detailPrevious.layout(style -> style.size(16.0f, 14.0f).flexNone());
         detailPrevious.onClick(event -> changeRecipePage(-1));
-        detailNext.renderer(detailButtonRenderer());
-        detailNext.themeEnabled(false);
-        detailNext.textColor(1.0f, 1.0f, 1.0f, 1.0f);
-        detailNext.text(">").textPadding(0.0f, 0.0f);
+        detailNext.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/arrow_right.png"),
+                20, 20, TextureOptions.nearest()),
+                1.0f));
         detailNext.layout(style -> style.size(16.0f, 14.0f).flexNone());
         detailNext.onClick(event -> changeRecipePage(1));
         pagerRow.addChild(detailPrevious);
@@ -819,7 +826,7 @@ final class IsfBrowserOverlay {
         );
         catalystColumn.backgroundRenderer(new NineSliceBoxRenderer(
                 new MinecraftTextureHandle(
-                        ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/scrollbar_background_v2.png"),
+                        ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/scrollbar_background.png"),
                         14, 50, TextureOptions.nearest()),
                 4.0f));
         recipeArea.spacing(RECIPE_GAP);
