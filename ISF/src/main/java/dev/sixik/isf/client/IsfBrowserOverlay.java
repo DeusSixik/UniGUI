@@ -67,7 +67,7 @@ final class IsfBrowserOverlay {
     private final ScrollView itemScroll = new ScrollView(grid);
     private final GridBox bookmarkGrid = new GridBox().columns(4);
     private final ScrollView bookmarkScroll = new ScrollView(bookmarkGrid);
-    private final Box detailPanel = new Box();
+    private final NineSliceVBox detailPanel = new NineSliceVBox();
     private final MinecraftZLayer detailLayer = new MinecraftZLayer(detailPanel, 300.0f);
     private final Label detailTitle = new Label();
     private final ToggleButton detailPin = new ToggleButton();
@@ -79,7 +79,7 @@ final class IsfBrowserOverlay {
     private final Button detailPrevious = new Button();
     private final Button detailNext = new Button();
     private final TextField search = new TextField();
-    private final HBox pagerRow = new HBox();
+    private final HBox pageRow = new HBox();
     private final NineSliceVBox catalystColumn = new NineSliceVBox();
     private final NineSliceVBox recipeArea = new NineSliceVBox();
     private final List<MinecraftItemTooltip> tooltips = new ArrayList<>();
@@ -114,6 +114,7 @@ final class IsfBrowserOverlay {
     private boolean restoreScroll;
     private boolean itemScrollBarDragging;
     private boolean bookmarkScrollBarDragging;
+    private boolean tabScrollBarDragging;
     private boolean detailPinned;
     private boolean detailPositionSet;
     private boolean detailDragging;
@@ -183,6 +184,7 @@ final class IsfBrowserOverlay {
         pendingRecipeQuery = null;
         itemScrollBarDragging = false;
         bookmarkScrollBarDragging = false;
+        tabScrollBarDragging = false;
         detailDragging = false;
         if (!detailPinned) {
             selectedEntry = null;
@@ -354,11 +356,13 @@ final class IsfBrowserOverlay {
             setDetailPinned(!detailPinned);
             return true;
         }
-        for (TypeTab tab : typeTabs) {
-            if (tab.button().visibility() == dev.sixik.unigui.api.widget.Visibility.VISIBLE
-                    && contains(tab.button().layoutBounds(), x, y)) {
-                selectType(tab.typeId());
-                return true;
+        if (contains(tabScroll.layoutBounds(), x, y)) {
+            for (TypeTab tab : typeTabs) {
+                if (tab.button().visibility() == dev.sixik.unigui.api.widget.Visibility.VISIBLE
+                        && contains(tab.button().layoutBounds(), x, y)) {
+                    selectType(tab.typeId());
+                    return true;
+                }
             }
         }
         if (recipePages.size() > 1 && contains(detailPrevious.layoutBounds(), x, y)) {
@@ -422,6 +426,7 @@ final class IsfBrowserOverlay {
     private void closeDetail() {
         setDetailPinned(false);
         detailDragging = false;
+        tabScrollBarDragging = false;
         pendingRecipeQuery = null;
         selectedQuery = null;
         selectedEntry = null;
@@ -576,24 +581,34 @@ final class IsfBrowserOverlay {
             updateScrollFromPointer(bookmarkScroll, (float) mouseY);
             return true;
         }
+        if (tabScrollBarVisible()
+                && containsExpanded(tabScroll.horizontalScrollBar().layoutBounds(),
+                (float) mouseX, (float) mouseY, 3.0f)) {
+            tabScrollBarDragging = true;
+            updateScrollFromPointerX(tabScroll, (float) mouseX);
+            return true;
+        }
         return false;
     }
 
-    boolean dragItemScrollBar(double mouseY, int button) {
+    boolean dragItemScrollBar(double mouseX, double mouseY, int button) {
         if (button != 0) return false;
         if (itemScrollBarDragging) updateScrollFromPointer(itemScroll, (float) mouseY);
         if (bookmarkScrollBarDragging) updateScrollFromPointer(bookmarkScroll, (float) mouseY);
-        if (!itemScrollBarDragging && !bookmarkScrollBarDragging) return false;
+        if (tabScrollBarDragging) updateScrollFromPointerX(tabScroll, (float) mouseX);
+        if (!itemScrollBarDragging && !bookmarkScrollBarDragging && !tabScrollBarDragging) return false;
         return true;
     }
 
-    boolean endItemScrollBarDrag(double mouseY, int button) {
+    boolean endItemScrollBarDrag(double mouseX, double mouseY, int button) {
         if (button != 0) return false;
         if (itemScrollBarDragging) updateScrollFromPointer(itemScroll, (float) mouseY);
         if (bookmarkScrollBarDragging) updateScrollFromPointer(bookmarkScroll, (float) mouseY);
-        if (!itemScrollBarDragging && !bookmarkScrollBarDragging) return false;
+        if (tabScrollBarDragging) updateScrollFromPointerX(tabScroll, (float) mouseX);
+        if (!itemScrollBarDragging && !bookmarkScrollBarDragging && !tabScrollBarDragging) return false;
         itemScrollBarDragging = false;
         bookmarkScrollBarDragging = false;
+        tabScrollBarDragging = false;
         return true;
     }
 
@@ -632,7 +647,11 @@ final class IsfBrowserOverlay {
         float desired = TAB_ROW_CONTENT + (tabScrollBarVisible() ? TAB_ROW_RESERVED : 0.0f);
         if (Math.abs(desired - appliedTabScrollHeight) < 0.01f) return;
         appliedTabScrollHeight = desired;
-        tabScroll.layout(style -> style.height(desired));
+        tabScroll.layout(style -> style
+                .height(desired)
+                .flexNone()
+                .overflowX(Overflow.AUTO)
+                .overflowY(Overflow.HIDDEN));
     }
 
     private void updateScrollFromPointer(ScrollView scroll, float mouseY) {
@@ -645,6 +664,18 @@ final class IsfBrowserOverlay {
         float normalized = Math.max(0.0f, Math.min(1.0f,
                 (mouseY - track.y() - thumbLength * 0.5f) / travel));
         scroll.scrollTo(0.0f, normalized * maxScroll);
+    }
+
+    private void updateScrollFromPointerX(ScrollView scroll, float mouseX) {
+        dev.sixik.unigui.api.math.RectView track = scroll.horizontalScrollBar().layoutBounds();
+        float trackLength = Math.max(1.0f, track.width());
+        float pageSize = Math.max(1.0f, scroll.horizontalScrollBar().pageSize());
+        float maxScroll = scroll.maxScrollX();
+        float thumbLength = Math.max(8.0f, trackLength * (pageSize / (pageSize + maxScroll)));
+        float travel = Math.max(1.0f, trackLength - thumbLength);
+        float normalized = Math.max(0.0f, Math.min(1.0f,
+                (mouseX - track.x() - thumbLength * 0.5f) / travel));
+        scroll.scrollTo(normalized * maxScroll, 0.0f);
     }
 
     //Правая панель(список всех Items)
@@ -726,58 +757,22 @@ final class IsfBrowserOverlay {
 
     //Панель содержащая рецепты выбранного предмета
     private void configureDetailPanel() {
-        detailPanel.themeEnabled(false);
-        detailPanel.backgroundVisible(false);
-        detailPanel.borderVisible(false);
-        detailPanel.renderer(new NineSliceBoxRenderer(
-                new MinecraftTextureHandle(
-                        ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/gui_background.png"),
-                        64, 64, TextureOptions.nearest()),
-                4.0f));
+        detailPanel.spacing(RECIPE_GAP);
         detailPanel.layout(style -> style
-                .position(PositionType.ABSOLUTE)
-                .left(104.0f)
-                .top(4.0f)
                 .size(206.0f, 140.0f)
                 .padding(4.0f));
 
-        VBox content = new VBox();
-        content.spacing(2.0f);
-        content.layout(style -> style.fill());
-
-        HBox detailHeader = new HBox();
-        detailHeader.spacing(2.0f);
-        detailHeader.layout(style -> style.widthPercent(100.0f).height(16.0f).flexNone());
-        detailTitle.layout(style -> style.flexGrow(1.0f).flexShrink(1.0f));
-        detailTitle.background(0.5f,0.5f,0.5f,0.5f);
-        detailTitle.color().set(0,0,0,1);
-        detailPin.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/button_enabled.png"),
-                20, 20, TextureOptions.nearest()),
-                4.0f));
-        detailPin.text("P").textPadding(0.0f, 0.0f);
-        detailPin.layout(style -> style.size(16.0f, 16.0f).flexNone());
-        detailPin.onCheckedChanged(event -> {
-            setDetailPinned(event.newValue());
-            if(event.newValue())  detailPin.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/button_enabled.png"),
-                    20, 20, TextureOptions.nearest()),
-                    4.0f));
-            else detailPin.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/button_pressed.png"),
-                    20, 20, TextureOptions.nearest()),
-                    4.0f));
-            detailHeader.invalidate(InvalidationFlags.VISUAL);
-        });
-        detailClose.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/button_enabled_v2.png"),
-                20, 20, TextureOptions.nearest()),
-                4.0f));
-        detailClose.themeEnabled(false);
-        detailClose.text("X").textPadding(0.0f, 0.0f);
-        detailClose.layout(style -> style.size(16.0f, 16.0f).flexNone());
-        detailClose.onClick(event -> closeDetail());
-        detailHeader.addChild(detailTitle);
-        detailHeader.addChild(detailPin);
-        detailHeader.addChild(detailClose);
-
         // Зелёная зона: вкладки доступных RecipeType + стрелка прокрутки при переполнении.
+        tabScroll.scrollStep(TAB_CELL);
+        tabScroll.scrollbarSize(TAB_SCROLLBAR_SIZE);
+        tabScroll.scrollbarGap(1.0f);
+        tabScroll.layout(style -> style
+                .widthPercent(100.0f)
+                .height(TAB_ROW_CONTENT)
+                .flexNone()
+                .overflowX(Overflow.AUTO)
+                .overflowY(Overflow.HIDDEN));
+
         tabRow.backgroundRenderer(new NineSliceBoxRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/scrollbar_background.png"),
                 20, 20, TextureOptions.nearest()),
                 4.0f));
@@ -788,24 +783,75 @@ final class IsfBrowserOverlay {
                 .alignSelf(Align.START)
         );
 
-        // Кнопки страниц находятся под вкладками RecipeType, как в оригинальном JEI.
-        pagerRow.layout(style -> style.widthPercent(100.0f).height(14.0f).flexNone()
-                .justifyContent(Justify.CENTER));
-        detailPage.layout(style -> style.width(48.0f).height(14.0f).flexNone().horizontalAlignment(Alignment.CENTER));
-        detailPage.background(0.5f,0.5f,0.5f,0.5f);
-        detailPrevious.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/arrow_left.png"),
+        detailPanel.addChild(tabScroll);
+
+        VBox content = new VBox();
+        content.spacing(2.0f);
+//        content.backgroundTexture(new MinecraftTextureHandle(
+//                        ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/gui_background.png"),
+//                        64, 64, TextureOptions.nearest()));
+        content.layout(style -> style
+                .widthPercent(100.0f)
+                .flexGrow(1.0f)
+                .flexShrink(1.0f));
+
+        HBox detailHeader = new HBox();
+        detailHeader.spacing(2.0f);
+        detailHeader.layout(style -> style.widthPercent(100.0f).height(16.0f).flexNone());
+        detailTitle.layout(style -> style.flexGrow(1.0f).flexShrink(1.0f).left(1.0f).horizontalAlignment(Alignment.CENTER));
+        detailTitle.background(0.5f,0.5f,0.5f,0.5f);
+        detailTitle.color().set(0,0,0,1);
+
+        detailPin.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/button_enabled.png"),
                 20, 20, TextureOptions.nearest()),
+                4.0f));
+        detailPin.text("P").textPadding(0.0f, 0.0f);
+        detailPin.layout(style -> style.size(16.0f, 16.0f).flexNone());
+        detailPin.onCheckedChanged(event -> {
+            setDetailPinned(event.newValue());
+            if(!event.newValue())  detailPin.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/button_enabled.png"),
+                    20, 20, TextureOptions.nearest()),
+                    4.0f));
+            else detailPin.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/button_pressed.png"),
+                    20, 20, TextureOptions.nearest()),
+                    4.0f));
+            detailHeader.invalidate(InvalidationFlags.VISUAL);
+        });
+
+        detailClose.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/button_enabled_v2.png"),
+                20, 20, TextureOptions.nearest()),
+                4.0f));
+        detailClose.themeEnabled(false);
+        detailClose.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/button_enabled.png"),
+                20, 20, TextureOptions.nearest()),
+                4.0f));
+        detailClose.text("X").textPadding(0.0f, 0.0f);
+        detailClose.layout(style -> style.size(16.0f, 16.0f).flexNone());
+        detailClose.onClick(event -> closeDetail());
+
+        detailHeader.addChild(detailTitle);
+        detailHeader.addChild(detailPin);
+        detailHeader.addChild(detailClose);
+
+
+        // Кнопки страниц находятся под вкладками RecipeType, как в оригинальном JEI.
+        pageRow.layout(style -> style.widthPercent(100.0f).height(14.0f).flexNone()
+                .justifyContent(Justify.CENTER));
+        detailPage.layout(style -> style.height(14.0f).flexGrow(1.0f).horizontalAlignment(Alignment.CENTER));
+        detailPage.background(43/255f,45/255f,52/255f,1.0f);
+        detailPrevious.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/arrow_left.png"),
+                14, 14, TextureOptions.nearest()),
                 1.0f));
-        detailPrevious.layout(style -> style.size(16.0f, 14.0f).flexNone());
+        detailPrevious.layout(style -> style.size(14.0f, 14.0f).flexNone());
         detailPrevious.onClick(event -> changeRecipePage(-1));
         detailNext.renderer(new NineSliceButtonRenderer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/arrow_right.png"),
-                20, 20, TextureOptions.nearest()),
+                14, 14, TextureOptions.nearest()),
                 1.0f));
-        detailNext.layout(style -> style.size(16.0f, 14.0f).flexNone());
+        detailNext.layout(style -> style.size(14.0f, 14.0f).flexNone());
         detailNext.onClick(event -> changeRecipePage(1));
-        pagerRow.addChild(detailPrevious);
-        pagerRow.addChild(detailPage);
-        pagerRow.addChild(detailNext);
+        pageRow.addChild(detailPrevious);
+        pageRow.addChild(detailPage);
+        pageRow.addChild(detailNext);
 
         // Тело: красная колонка катализаторов + синяя зона рецептов (страницами).
         HBox body = new HBox();
@@ -830,8 +876,7 @@ final class IsfBrowserOverlay {
         body.addChild(recipeArea);
 
         content.addChild(detailHeader);
-        content.addChild(tabScroll);
-        content.addChild(pagerRow);
+        content.addChild(pageRow);
         content.addChild(body);
         detailPanel.addChild(content);
         overlayRoot.addOverlay(detailLayer);
@@ -1462,8 +1507,8 @@ final class IsfBrowserOverlay {
             for (ResourceLocation typeId : order) {
                 IconButton tab = new IconButton();
                 tab.themeEnabled(false);
-                tab.backgroundVisible(true);
-                tab.borderVisible(true);
+                tab.backgroundVisible(false);
+                tab.borderVisible(false);
                 tab.radius(2.0f);
                 tab.layout(style -> style.size(TAB_CELL, TAB_CELL).flexNone());
                 ItemStack icon = tabIcon(typeId);
@@ -1493,7 +1538,6 @@ final class IsfBrowserOverlay {
         if (selectedTypeId == null && !typeTabs.isEmpty()) {
             selectedTypeId = typeTabs.get(0).typeId();
         }
-        applyTabHighlights();
     }
 
     /** Иконка вкладки: явная иконка типа, иначе первый катализатор. */
@@ -1535,21 +1579,8 @@ final class IsfBrowserOverlay {
         // Гарантированно открываем вкладку станции, даже если порядок вкладок другой.
         if (!typeIds.contains(selectedTypeId)) {
             selectedTypeId = typeIds.get(0);
-            applyTabHighlights();
             rebuildCatalysts();
             rebuildRecipePages();
-        }
-    }
-
-    private void applyTabHighlights() {
-        for (TypeTab tab : typeTabs) {
-            boolean active = tab.typeId().equals(selectedTypeId);
-            tab.button().background().set(active
-                    ? new dev.sixik.unigui.api.math.MutableColor(0.259f, 0.463f, 0.608f, 0.95f)
-                    : new dev.sixik.unigui.api.math.MutableColor(0.063f, 0.078f, 0.106f, 0.90f));
-            tab.button().borderColor().set(active
-                    ? new dev.sixik.unigui.api.math.MutableColor(0.85f, 0.92f, 1.0f, 1.0f)
-                    : new dev.sixik.unigui.api.math.MutableColor(0.416f, 0.561f, 0.682f, 1.0f));
         }
     }
 
@@ -1558,7 +1589,6 @@ final class IsfBrowserOverlay {
         selectedTypeId = typeId;
         selectedCatalyst = null;
         recipePage = 0;
-        applyTabHighlights();
         updateDetailTitle();
         rebuildCatalysts();
         rebuildRecipePages();
@@ -1589,8 +1619,8 @@ final class IsfBrowserOverlay {
             ItemStack stack = new ItemStack(item, Math.max(1, catalyst.count()));
             IconButton cell = new IconButton();
             cell.themeEnabled(false);
-            cell.backgroundVisible(true);
-            cell.borderVisible(true);
+            cell.backgroundVisible(false);
+            cell.borderVisible(false);
             cell.radius(2.0f);
             cell.layout(style -> style.size(CATALYST_CELL, CATALYST_CELL).flexNone());
             IsfItemIconWidget icon = new IsfItemIconWidget(stack);
@@ -1604,25 +1634,11 @@ final class IsfBrowserOverlay {
             cells.add(new CatalystCell(catalyst.item(), cell));
         }
         catalystCells = List.copyOf(cells);
-        applyCatalystHighlights();
-    }
-
-    private void applyCatalystHighlights() {
-        for (CatalystCell cell : catalystCells) {
-            boolean active = cell.itemId().equals(selectedCatalyst);
-            cell.button().background().set(active
-                    ? new dev.sixik.unigui.api.math.MutableColor(0.259f, 0.463f, 0.608f, 0.95f)
-                    : new dev.sixik.unigui.api.math.MutableColor(0.063f, 0.078f, 0.106f, 0.90f));
-            cell.button().borderColor().set(active
-                    ? new dev.sixik.unigui.api.math.MutableColor(0.85f, 0.92f, 1.0f, 1.0f)
-                    : new dev.sixik.unigui.api.math.MutableColor(0.416f, 0.561f, 0.682f, 1.0f));
-        }
     }
 
     private void toggleCatalyst(ResourceLocation itemId) {
         selectedCatalyst = itemId.equals(selectedCatalyst) ? null : itemId;
         recipePage = 0;
-        applyCatalystHighlights();
         rebuildRecipePages();
     }
 

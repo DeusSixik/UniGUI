@@ -644,7 +644,8 @@ public class ScrollView extends WidgetBase {
         if (scrollingEnabled && event instanceof ScrollEvent scroll && scroll.phase() != EventPhase.CAPTURE) {
             float beforeX = scrollX;
             float beforeY = scrollY;
-            boolean shiftHorizontal = KeyModifiers.has(scroll.modifiers(), KeyModifiers.SHIFT)
+            boolean horizontalOnly = !verticalScrollingEnabled() && horizontalScrollingEnabled();
+            boolean shiftHorizontal = (KeyModifiers.has(scroll.modifiers(), KeyModifiers.SHIFT) || horizontalOnly)
                     && maxScrollX() > 0.0f
                     && scroll.deltaY() != 0.0f;
             if (shiftHorizontal) {
@@ -814,7 +815,8 @@ public class ScrollView extends WidgetBase {
     private boolean canScrollWheel(ScrollEvent scroll) {
         if (scroll.deltaX() != 0.0f && maxScrollX() > 0.0f) return true;
         if (scroll.deltaY() != 0.0f && maxScrollY() > 0.0f) return true;
-        return KeyModifiers.has(scroll.modifiers(), KeyModifiers.SHIFT)
+        boolean horizontalOnly = !verticalScrollingEnabled() && horizontalScrollingEnabled();
+        return (KeyModifiers.has(scroll.modifiers(), KeyModifiers.SHIFT) || horizontalOnly)
                 && scroll.deltaY() != 0.0f
                 && maxScrollX() > 0.0f;
     }
