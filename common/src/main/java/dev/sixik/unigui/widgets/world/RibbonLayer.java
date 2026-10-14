@@ -39,22 +39,50 @@ import java.util.List;
  * }</pre>
  */
 public final class RibbonLayer implements WorldLayer {
+    /**
+     * Сентинел невидимой ленты: пустой shared mesh вместо {@code null}.
+     *
+     * <p>Кэш-хит проверяется по ссылке {@code cachedMesh != null}: если
+     * оффскрин-лента снепшотит {@code null}, каждый кадр идёт в ребилд и
+     * проецирует все точки ради bbox-теста. Сентинел хитает как обычный
+     * mesh, а {@link DrawMesh#isEmpty()} в render отсекает draw-команду.</p>
+     */
+    private static final DrawMesh EMPTY_MESH = new DrawMesh(List.of());
     /** Путь ленты в мировых координатах. */
     private final ObjectArrayList<ViewportPoint> path = new ObjectArrayList<>();
     /** Ревизия пути: растёт при каждом изменении точек, инвалидирует кэш mesh. */
     private long pathRevision;
+    /** Кэшированный world-space bbox пути: minX; NaN — bbox не посчитан. */
+    private float pathMinX = Float.NaN;
+    /** Кэшированный world-space bbox пути: minY. */
+    private float pathMinY;
+    /** Кэшированный world-space bbox пути: maxX. */
+    private float pathMaxX;
+    /** Кэшированный world-space bbox пути: maxY. */
+    private float pathMaxY;
     /** Текстура ленты; {@code null} даёт сплошную цветную ленту. */
     private TextureHandle texture;
     /** Tint-цвет вершин ленты. */
     private final MutableColor tint = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     /** Копия tint на момент кэширования mesh; {@code null} — кэш пуст. */
     private MutableColor cachedTint;
-    /** Кэшированный mesh спроецированной ленты; {@code null} — кэш пуст. */
+    /**
+     * Кэшированный mesh спроецированной ленты.
+     *
+     * <p>{@code null} — кэш пуст (первый кадр или инвалидация).
+     * {@link #EMPTY_MESH} — лента невидима, хит без draw-команды.</p>
+     */
     private DrawMesh cachedMesh;
     /** Ревизия пути, для которой построен кэш. */
     private long cachedPathRevision = -1L;
-    /** Ключ {@link RibbonOptions#packed()} на момент кэширования. */
-    private int cachedOptionsKey;
+    /**
+     * Параметры ленты на момент кэширования.
+     *
+     * <p>Храним сам immutable объект и сравниваем через {@link RibbonOptions#equals},
+     * а не квантованный {@code packed()}: miter-лимит в ключе округлён до сотых,
+     * и точное сравнение консистентно с width/tile ниже.</p>
+     */
+    private RibbonOptions cachedOptions;
     /** Ширина ленты в мировых единицах на момент кэширования. */
     private float cachedWidth = Float.NaN;
     /** Длина тайла в мировых единицах на момент кэширования. */
@@ -377,6 +405,7 @@ public final class RibbonLayer implements WorldLayer {
     public void invalidateCache() {
         cachedMesh = null;
         cachedTint = null;
+        cachedOptions = null;
         cachedPathRevision = -1L;
     }
 
@@ -396,6 +425,7 @@ public final class RibbonLayer implements WorldLayer {
             }
         }
         pathRevision++;
+        pathMinX = Float.NaN;
         invalidateCache();
         return this;
     }
@@ -410,6 +440,7 @@ public final class RibbonLayer implements WorldLayer {
     public RibbonLayer addPoint(float worldX, float worldY) {
         path.add(new ViewportPoint(worldX, worldY));
         pathRevision++;
+        pathMinX = Float.NaN;
         invalidateCache();
         return this;
     }
@@ -423,6 +454,7 @@ public final class RibbonLayer implements WorldLayer {
         if (!path.isEmpty()) {
             path.clear();
             pathRevision++;
+            pathMinX = Float.NaN;
             invalidateCache();
         }
         return this;
@@ -454,11 +486,11 @@ public final class RibbonLayer implements WorldLayer {
         DrawMesh mesh = cachedMesh;
         if (mesh == null || !cacheValid(canvas, zoom, canvasX, canvasY, canvasWidth, canvasHeight)) {
             mesh = rebuild(canvas, zoom, canvasX, canvasY, canvasWidth, canvasHeight, screenWidth, screenTile);
-            if (mesh == null) return;
             cacheRebuilds++;
         } else {
             cacheHits++;
         }
+        if (mesh == null || mesh.isEmpty()) return;
         draw.context().addMesh(mesh, texture, draw.transform());
     }
 
@@ -481,7 +513,7 @@ public final class RibbonLayer implements WorldLayer {
     private boolean cacheValid(WorldCanvas canvas, float zoom,
                                float canvasX, float canvasY, float canvasWidth, float canvasHeight) {
         if (cachedPathRevision != pathRevision) return false;
-        if (cachedOptionsKey != options.packed()) return false;
+        if (!options.equals(cachedOptions)) return false;
         if (Float.compare(cachedWidth, width) != 0) return false;
         if (Float.compare(cachedTextureLength, textureLength) != 0) return false;
         if (Float.compare(cachedViewportX, canvas.viewport().x()) != 0) return false;
@@ -499,11 +531,19 @@ public final class RibbonLayer implements WorldLayer {
     }
 
     /**
-     * Перестраивает кэш: проецирует путь, отсекает и триангулирует.
+     * Перестраивает кэш: отсекает, проецирует путь и триангулирует.
      *
-     * <p>Проекция идёт в переиспользуемый {@link #projectionBuffer} без
-     * аллокаций на точку. World-space bbox-тест отбрасывает полностью скрытую
-     * ленту до проекции; сегментный каллинг — через clip билдера.</p>
+     * <p>Порядок отсечения — от дешёвого к дорогому:
+     * <ol>
+     *   <li>Грубый world-space bbox-тест до проекции: O(1) на кэшированном bbox
+     *   пути против видимого world-rect. Полностью скрытая лента не проецирует
+     *   ни одной точки.</li>
+     *   <li>Проекция в переиспользуемый {@link #projectionBuffer} без аллокаций
+     *   на точку, с root-space bbox-тестом по ходу дела.</li>
+     *   <li>Сегментный каллинг через clip билдера.</li>
+     * </ol>
+     * Невидимая лента кэшируется сентинелом {@link #EMPTY_MESH} и хитает,
+     * как видимая.</p>
      *
      * @param canvas canvas для проекции
      * @param zoom текущий zoom viewport'а
@@ -513,12 +553,19 @@ public final class RibbonLayer implements WorldLayer {
      * @param canvasHeight высота layout-bounds canvas'а
      * @param screenWidth ширина ленты на экране
      * @param screenTile длина тайла на экране
-     * @return новый mesh или {@code null}, если лента невидима
+     * @return новый mesh или {@link #EMPTY_MESH}, если лента невидима
      */
     private DrawMesh rebuild(WorldCanvas canvas, float zoom,
                              float canvasX, float canvasY, float canvasWidth, float canvasHeight,
                              float screenWidth, float screenTile) {
         int size = path.size();
+        // Запас покрывает половину ширины ленты и возможные miter-шипы на стыках.
+        float worldMargin = width * 0.5f * options.miterLimit();
+        if (!worldBoundsVisible(canvas, canvasWidth, canvasHeight, worldMargin)) {
+            snapshotCacheState(canvas, zoom, canvasX, canvasY, canvasWidth, canvasHeight, EMPTY_MESH);
+            return EMPTY_MESH;
+        }
+
         float[] projected = ensureProjectionCapacity(size);
         Object[] raw = path.elements();
         float minX = Float.POSITIVE_INFINITY;
@@ -536,13 +583,13 @@ public final class RibbonLayer implements WorldLayer {
             if (rootX > maxX) maxX = rootX;
             if (rootY > maxY) maxY = rootY;
         }
-        // Bbox-тест: лента целиком за экраном — не строим ничего.
-        // Запас miterRange покрывает ширину и возможные miter-шипы.
+        // Root-space bbox-тест после проекции: world-тест грубый (весь путь
+        // одним rect), здесь отсекаем точнее перед триангуляцией.
         float miterRange = screenWidth * 0.5f * options.miterLimit();
         if (maxX < canvasX - miterRange || minX > canvasX + canvasWidth + miterRange
                 || maxY < canvasY - miterRange || minY > canvasY + canvasHeight + miterRange) {
-            snapshotCacheState(canvas, zoom, canvasX, canvasY, canvasWidth, canvasHeight, null);
-            return null;
+            snapshotCacheState(canvas, zoom, canvasX, canvasY, canvasWidth, canvasHeight, EMPTY_MESH);
+            return EMPTY_MESH;
         }
 
         projectionPoints.clear();
@@ -555,8 +602,71 @@ public final class RibbonLayer implements WorldLayer {
                 .options(options)
                 .clip(canvasX, canvasY, canvasWidth, canvasHeight)
                 .build(tint);
-        snapshotCacheState(canvas, zoom, canvasX, canvasY, canvasWidth, canvasHeight, mesh);
-        return mesh.isEmpty() ? null : mesh;
+        DrawMesh result = mesh.isEmpty() ? EMPTY_MESH : mesh;
+        snapshotCacheState(canvas, zoom, canvasX, canvasY, canvasWidth, canvasHeight, result);
+        return result;
+    }
+
+    /**
+     * Проверяет пересечение world-bbox пути с видимым world-rect.
+     *
+     * <p>Bbox пути кэшируется и пересчитывается только при смене пути.
+     * Видимый rect вычисляется из layout-размера canvas'а через обратную
+     * проекцию углов. O(1) после первого расчёта — против O(N) проекции.</p>
+     *
+     * @param canvas canvas для обратной проекции углов
+     * @param canvasWidth ширина layout-bounds canvas'а
+     * @param canvasHeight высота layout-bounds canvas'а
+     * @param margin запас вокруг bbox пути в мировых единицах
+     * @return {@code true}, если путь может быть виден
+     */
+    private boolean worldBoundsVisible(WorldCanvas canvas, float canvasWidth, float canvasHeight, float margin) {
+        if (Float.isNaN(pathMinX)) {
+            computePathBounds();
+        }
+        if (Float.isNaN(pathMinX)) return true;
+        float visibleMinX = canvas.rootToWorldX(canvas.layoutBounds().x()) - margin;
+        float visibleMaxX = canvas.rootToWorldX(canvas.layoutBounds().x() + canvasWidth) + margin;
+        float visibleMinY = canvas.rootToWorldY(canvas.layoutBounds().y()) - margin;
+        float visibleMaxY = canvas.rootToWorldY(canvas.layoutBounds().y() + canvasHeight) + margin;
+        float minX = Math.min(visibleMinX, visibleMaxX);
+        float maxX = Math.max(visibleMinX, visibleMaxX);
+        float minY = Math.min(visibleMinY, visibleMaxY);
+        float maxY = Math.max(visibleMinY, visibleMaxY);
+        return pathMaxX >= minX && pathMinX <= maxX && pathMaxY >= minY && pathMinY <= maxY;
+    }
+
+    /**
+     * Пересчитывает кэшированный world-space bbox пути.
+     *
+     * <p>Пустой путь и путь из мусора (NaN) оставляют {@link #pathMinX} NaN —
+     * cull в этом случае пропускается и лента идёт по обычному пути.</p>
+     */
+    private void computePathBounds() {
+        float minX = Float.POSITIVE_INFINITY;
+        float minY = Float.POSITIVE_INFINITY;
+        float maxX = Float.NEGATIVE_INFINITY;
+        float maxY = Float.NEGATIVE_INFINITY;
+        Object[] raw = path.elements();
+        for (int i = 0, size = path.size(); i < size; i++) {
+            ViewportPoint point = (ViewportPoint) raw[i];
+            if (point == null) continue;
+            float x = point.x();
+            float y = point.y();
+            if (!Float.isFinite(x) || !Float.isFinite(y)) continue;
+            if (x < minX) minX = x;
+            if (y < minY) minY = y;
+            if (x > maxX) maxX = x;
+            if (y > maxY) maxY = y;
+        }
+        if (minX == Float.POSITIVE_INFINITY) {
+            pathMinX = Float.NaN;
+            return;
+        }
+        pathMinX = minX;
+        pathMinY = minY;
+        pathMaxX = maxX;
+        pathMaxY = maxY;
     }
 
     /**
@@ -568,7 +678,7 @@ public final class RibbonLayer implements WorldLayer {
      * @param canvasY Y layout-bounds canvas'а
      * @param canvasWidth ширина layout-bounds canvas'а
      * @param canvasHeight высота layout-bounds canvas'а
-     * @param mesh построенный mesh или {@code null}, если лента невидима
+     * @param mesh построенный mesh или {@link #EMPTY_MESH}, если лента невидима
      */
     private void snapshotCacheState(WorldCanvas canvas, float zoom,
                                     float canvasX, float canvasY, float canvasWidth, float canvasHeight,
@@ -580,7 +690,7 @@ public final class RibbonLayer implements WorldLayer {
             cachedTint.set(tint.r(), tint.g(), tint.b(), tint.a());
         }
         cachedPathRevision = pathRevision;
-        cachedOptionsKey = options.packed();
+        cachedOptions = options;
         cachedWidth = width;
         cachedTextureLength = textureLength;
         cachedViewportX = canvas.viewport().x();

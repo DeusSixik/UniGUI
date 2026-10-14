@@ -359,6 +359,11 @@ public final class RibbonMesh {
          * сэмплит тот же тексель, что и середина ленты под ним, поэтому стык
          * не выделяется полосой.</p>
          *
+         * <p>Диски рисуются только на изломах: если входящий и исходящий
+         * сегменты почти коллинеарны (косинус угла между направлениями выше
+         * {@code 0.999}, то есть угол меньше ~2.6°), miter и так даёт ровную
+         * ленту без зазоров, и диск был бы чистым овердроу.</p>
+         *
          * @param vertices выходной список вершин mesh
          * @param clean очищенные координаты пути (пары x/y)
          * @param count число точек пути
@@ -376,6 +381,7 @@ public final class RibbonMesh {
             int last = closed ? count : count - 1;
             for (int index = first; index < last; index++) {
                 if (jointVisible != null && !jointVisible[index]) continue;
+                if (!isJointBent(clean, count, index)) continue;
                 float cx = clean[index * 2];
                 float cy = clean[index * 2 + 1];
                 float centerU = flip(applySwapU(0.5f, distances[index]), flipU);
@@ -395,8 +401,7 @@ public final class RibbonMesh {
             }
         }
 
-        private static float[] jointNormal(float[] clean, int count, int index, boolean closed, float limit) {
-            int prev = index - 1;
+                private static float[] jointNormal(float[] clean, int count, int index, boolean closed, float limit) {            int prev = index - 1;
             int next = index + 1;
             if (closed) {
                 prev = (index + count - 1) % count;
@@ -430,6 +435,38 @@ public final class RibbonMesh {
             float length = (float) Math.sqrt(dx * dx + dy * dy);
             if (!(length > 0.0f)) return new float[]{0.0f, 1.0f};
             return new float[]{-dy / length, dx / length};
+        }
+
+        /**
+         * Проверяет, изломан ли путь в точке настолько, что нужен диск стыка.
+         *
+         * <p>Формула: косинус угла между нормированными направлениями
+         * входящего и исходящего сегментов:
+         * <pre>
+         *   cos(a) = (in*out) / (|in| * |out|)
+         * </pre>
+         * Диск нужен при {@code cos(a) < 0.999} (угол больше ~2.6°).
+         * На прямой miter даёт ровную ленту, диск — чистый овердроу.
+         * Вырожденные направления (нулевая длина после чистки — не бывает,
+         * но страхуемся) считаются изломом: лучше лишний диск, чем дыра.</p>
+         *
+         * @param clean очищенные координаты пути (пары x/y)
+         * @param count число точек пути
+         * @param index индекс проверяемой внутренней точки
+         * @return {@code true}, если угол достаточно острый для диска
+         */
+        private boolean isJointBent(float[] clean, int count, int index) {
+            int prev = closed ? (index + count - 1) % count : index - 1;
+            int next = closed ? (index + 1) % count : index + 1;
+            float inX = clean[index * 2] - clean[prev * 2];
+            float inY = clean[index * 2 + 1] - clean[prev * 2 + 1];
+            float outX = clean[next * 2] - clean[index * 2];
+            float outY = clean[next * 2 + 1] - clean[index * 2 + 1];
+            float inLength = (float) Math.sqrt(inX * inX + inY * inY);
+            float outLength = (float) Math.sqrt(outX * outX + outY * outY);
+            if (!(inLength > 0.0f) || !(outLength > 0.0f)) return true;
+            float cosine = (inX * outX + inY * outY) / (inLength * outLength);
+            return cosine < 0.999f;
         }
 
         /**
