@@ -11,7 +11,9 @@ import java.util.List;
  * <p>Лента строится из центральной полилинии и ширины: каждая точка пути даёт пару
  * вершин (слева/справа от центра), соседние пары соединяются двумя треугольниками.
  * Внутренние стыки — miter (усреднённая нормаль соседних сегментов) с клампом длины,
- * чтобы острые углы не давали бесконечных шипов. Торцы — butt caps (ровный срез).</p>
+ * чтобы острые углы не давали бесконечных шипов. Торцы — butt caps (ровный срез).
+ * Опциональные круглые стыки ({@code jointDots}) закрывают дисками зазоры на
+ * острых поворотах и разворотах на 180°, где miter вырождается.</p>
  *
  * <p>UV: {@code u} идёт поперёк ленты ({@code 0..1}), {@code v} — вдоль пути в единицах
  * {@code distance / textureLength}. При {@link TextureWrap#REPEAT} текстура тайлится
@@ -72,6 +74,13 @@ public final class RibbonMesh {
         private boolean swapUv;
         private boolean flipU;
         private boolean flipV;
+        private boolean jointDots;
+        private int jointSegments;
+        private boolean clipEnabled;
+        private float clipX;
+        private float clipY;
+        private float clipWidth;
+        private float clipHeight;
 
         private Builder(List<DrawPoint> points) {
             this.points = points;
@@ -172,10 +181,84 @@ public final class RibbonMesh {
         }
 
         /**
+         * Применяет immutable параметры ленты одним вызовом.
+         *
+         * <p>Заменяет цепочку {@code closed/miterLimit/swapUv/flipU/flipV}: один
+         * options-объект вместо пяти сеттеров. {@code null} игнорируется.</p>
+         *
+         * @param options параметры ленты или {@code null}
+         * @return этот builder
+         */
+        public Builder options(RibbonOptions options) {
+            if (options == null) return this;
+            this.closed = options.closed();
+            this.miterLimit = options.miterLimit();
+            this.swapUv = options.swapUv();
+            this.flipU = options.flipU();
+            this.flipV = options.flipV();
+            this.jointDots = options.jointDots();
+            this.jointSegments = options.jointSegments();
+            return this;
+        }
+
+        /**
+         * Включает круглые стыки на внутренних углах.
+         *
+         * <p>На острых поворотах miter-лента даёт зазоры/нахлёсты; диск радиусом
+         * в половину ширины закрывает угол независимо от его остроты.</p>
+         *
+         * @param jointDots {@code true}, чтобы рисовать диски на стыках
+         * @return этот builder
+         */
+        public Builder jointDots(boolean jointDots) {
+            this.jointDots = jointDots;
+            return this;
+        }
+
+        /**
+         * Задаёт число сегментов круглого стыка.
+         *
+         * @param jointSegments число сегментов диска; {@code 0} — авто-подбор по радиусу
+         * @return этот builder
+         */
+        public Builder jointSegments(int jointSegments) {
+            this.jointSegments = Math.max(0, jointSegments);
+            return this;
+        }
+
+        /**
+         * Включает отсечение невидимых сегментов по clip-rect.
+         *
+         * <p>Сегмент пропускается, если его bounding box (с запасом в половину
+         * ширины ленты с каждой стороны) не пересекает clip-rect. Дистанция
+         * вдоль пути при этом не сбрасывается: текстура не рвётся на границах
+         * видимости. Стыки рисуются только в видимых точках.</p>
+         *
+         * @param x X-граница видимого rect в координатах пути
+         * @param y Y-граница видимого rect в координатах пути
+         * @param width ширина видимого rect; неположительная отключает отсечение
+         * @param height высота видимого rect; неположительная отключает отсечение
+         * @return этот builder
+         */
+        public Builder clip(float x, float y, float width, float height) {
+            if (!(width > 0.0f) || !(height > 0.0f)
+                    || !Float.isFinite(x) || !Float.isFinite(y)) {
+                this.clipEnabled = false;
+                return this;
+            }
+            this.clipEnabled = true;
+            this.clipX = x;
+            this.clipY = y;
+            this.clipWidth = width;
+            this.clipHeight = height;
+            return this;
+        }
+
+        /**
          * Строит mesh ленты.
          *
          * @param tint цвет всех вершин; {@code null} означает белый
-         * @return mesh из {@code 6 * segments} вершин или пустой mesh
+         * @return mesh из {@code 6 * segments} вершин плюс диски стыков, или пустой mesh
          */
         public DrawMesh build(ColorView tint) {
             float halfWidth = sanitizeWidth(width);
@@ -193,6 +276,12 @@ public final class RibbonMesh {
                     : tint;
             ObjectArrayList<DrawVertex> vertices = new ObjectArrayList<>(segments * 6);
             float distance = 0.0f;
+            float[] distances = jointDots ? new float[count] : null;
+            boolean[] jointVisible = distances != null && clipEnabled ? new boolean[count] : null;
+            // Каллинг: miter-шип на стыке может высунуться за bbox сегмента на
+            // limit половин ширины — расширяем тест на miterRange, иначе шипы
+            // обрежутся на границе экрана. Сами шипы клампятся лимитом в jointNormal.
+            float miterRange = halfWidth * limit;
             for (int i = 0; i < segments; i++) {
                 int a = i % count;
                 int b = (i + 1) % count;
@@ -205,11 +294,24 @@ public final class RibbonMesh {
                 float length = (float) Math.sqrt(dx * dx + dy * dy);
                 if (!(length > 0.0f)) continue;
 
-                float[] normalA = jointNormal(clean, count, a, closed, limit);
-                float[] normalB = jointNormal(clean, count, b, closed, limit);
                 float t0 = distance / tileLength;
                 float t1 = (distance + length) / tileLength;
                 distance += length;
+                // Видимость проверяем после advance дистанции: t обязана идти
+                // непрерывно через невидимые сегменты, иначе текстура рвётся
+                // на границах runs.
+                if (clipEnabled && !segmentVisible(ax, ay, bx, by, miterRange)) continue;
+
+                float[] normalA = jointNormal(clean, count, a, closed, limit);
+                float[] normalB = jointNormal(clean, count, b, closed, limit);
+                if (distances != null) {
+                    distances[a] = t0;
+                    distances[b] = t1;
+                }
+                if (jointVisible != null) {
+                    jointVisible[a] = true;
+                    jointVisible[b] = true;
+                }
                 // Обычно: u поперёк (0/1), v вдоль (t0/t1). При swapUv наоборот.
                 // flipU/flipV отражают финальные координаты внутри каждого тайла.
                 float aLeftU = flip(applySwapU(0.0f, t0), flipU);
@@ -238,7 +340,59 @@ public final class RibbonMesh {
                 vertices.add(new DrawVertex(bRightX, bRightY, bRightU, bRightV, vertexColor));
                 vertices.add(new DrawVertex(aRightX, aRightY, aRightU, aRightV, vertexColor));
             }
+            if (distances != null) {
+                emitJointDots(vertices, clean, count, distances, jointVisible, halfWidth, vertexColor);
+            }
             return new DrawMesh(vertices);
+        }
+
+        /**
+         * Добавляет круглые стыки на внутренних углах пути.
+         *
+         * <p>Каждый стык — triangle fan из {@code segments} треугольников с центром
+         * в точке пути и радиусом в половину ширины ленты. Fan закрывает зазоры,
+         * которые miter оставляет на острых углах, и сглаживает разворот на 180°,
+         * где miter вырождается во входящую нормаль.</p>
+         *
+         * <p>UV диска берётся из центра ленты в этой точке пути: поперёк —
+         * {@code 0.5}, вдоль — дистанция {@code t}. С учётом swap/flip диск
+         * сэмплит тот же тексель, что и середина ленты под ним, поэтому стык
+         * не выделяется полосой.</p>
+         *
+         * @param vertices выходной список вершин mesh
+         * @param clean очищенные координаты пути (пары x/y)
+         * @param count число точек пути
+         * @param distances дистанция {@code t} вдоль пути для каждой точки в единицах тайлов
+         * @param jointVisible видимость точек пути или {@code null}, если каллинг выключен
+         * @param halfWidth половина ширины ленты в единицах пути
+         * @param vertexColor цвет вершин
+         */
+        private void emitJointDots(ObjectArrayList<DrawVertex> vertices, float[] clean, int count,
+                                   float[] distances, boolean[] jointVisible,
+                                   float halfWidth, ColorView vertexColor) {
+            int segments = jointSegments > 0 ? Math.max(3, jointSegments)
+                    : Math.max(8, Math.min(32, Math.round(halfWidth * 1.5f)));
+            int first = closed ? 0 : 1;
+            int last = closed ? count : count - 1;
+            for (int index = first; index < last; index++) {
+                if (jointVisible != null && !jointVisible[index]) continue;
+                float cx = clean[index * 2];
+                float cy = clean[index * 2 + 1];
+                float centerU = flip(applySwapU(0.5f, distances[index]), flipU);
+                float centerV = flip(applySwapV(0.5f, distances[index]), flipV);
+                float prevX = cx + halfWidth;
+                float prevY = cy;
+                for (int s = 1; s <= segments; s++) {
+                    float angle = (float) (s / (float) segments * Math.PI * 2.0);
+                    float rimX = cx + (float) Math.cos(angle) * halfWidth;
+                    float rimY = cy + (float) Math.sin(angle) * halfWidth;
+                    vertices.add(new DrawVertex(cx, cy, centerU, centerV, vertexColor));
+                    vertices.add(new DrawVertex(prevX, prevY, centerU, centerV, vertexColor));
+                    vertices.add(new DrawVertex(rimX, rimY, centerU, centerV, vertexColor));
+                    prevX = rimX;
+                    prevY = rimY;
+                }
+            }
         }
 
         private static float[] jointNormal(float[] clean, int count, int index, boolean closed, float limit) {
@@ -276,6 +430,29 @@ public final class RibbonMesh {
             float length = (float) Math.sqrt(dx * dx + dy * dy);
             if (!(length > 0.0f)) return new float[]{0.0f, 1.0f};
             return new float[]{-dy / length, dx / length};
+        }
+
+        /**
+         * Проверяет, пересекает ли сегмент clip-rect с запасом.
+         *
+         * <p>Тест — пересечение bounding box сегмента (расширенного на
+         * {@code margin} с каждой стороны) с clip-rect. Margin покрывает
+         * половину ширины ленты плюс возможный miter-шип на стыках.</p>
+         *
+         * @param ax X начала сегмента
+         * @param ay Y начала сегмента
+         * @param bx X конца сегмента
+         * @param by Y конца сегмента
+         * @param margin запас вокруг bbox сегмента
+         * @return {@code true}, если сегмент может быть виден
+         */
+        private boolean segmentVisible(float ax, float ay, float bx, float by, float margin) {
+            float minX = Math.min(ax, bx) - margin;
+            float maxX = Math.max(ax, bx) + margin;
+            float minY = Math.min(ay, by) - margin;
+            float maxY = Math.max(ay, by) + margin;
+            return maxX >= clipX && minX <= clipX + clipWidth
+                    && maxY >= clipY && minY <= clipY + clipHeight;
         }
 
         private static float[] cleanPoints(List<DrawPoint> points, boolean closed) {
@@ -329,12 +506,44 @@ public final class RibbonMesh {
             return swapUv ? across : along;
         }
 
+        /**
+         * Отражает UV-координату зеркально: {@code f(c) = -c}.
+         *
+         * <p>Формула:
+         * <pre>
+         *   f(c) = -c
+         * </pre>
+         *
+         * <p>Переменные:
+         * <ul>
+         *   <li><b>c</b> — исходная UV-координата в единицах тайлов ({@code distance / textureLength}
+         *   вдоль пути, {@code 0..1} поперёк).</li>
+         *   <li><b>f(c)</b> — отражённая координата.</li>
+         * </ul>
+         *
+         * <p>Сопоставление с параметрами метода:
+         * <ul>
+         *   <li>{@code c} &larr; {@code coordinate}</li>
+         * </ul>
+         *
+         * <p>Глобальное отражение непрерывно везде, в отличие от потайлового
+         * {@code tile + (1 - fract)}: то давало разрыв на целых тайлах
+         * ({@code 0.999 -> 0.001}, но {@code 1.0 -> 2.0}), и GPU интерполировал
+         * между соседними вершинами прогон через весь тайл — видимый шов.
+         * Здесь {@code fract(-c) = 1 - fract(c)} (mod 1), то есть зеркало внутри
+         * каждого тайла при {@code REPEAT}-wrap сохраняется, а скачков нет:
+         * {@code flip(a) - flip(b) = -(a - b)}.
+         *
+         * <p>Осмысленно только с {@code REPEAT}/{@code MIRRORED_REPEAT}: при
+         * {@code CLAMP} отрицательные координаты клампятся к краю текстуры.
+         *
+         * @param coordinate исходная UV-координата в единицах тайлов
+         * @param flip {@code true}, чтобы отразить; {@code false} возвращает координату как есть
+         * @return отражённая координата {@code -coordinate} или исходная
+         */
         private static float flip(float coordinate, boolean flip) {
             if (!flip) return coordinate;
-            // Отражаем внутри тайла, сохраняя номер тайла: дробная часть зеркалится.
-            float tile = (float) Math.floor(coordinate);
-            float fract = coordinate - tile;
-            return tile + (1.0f - fract);
+            return -coordinate;
         }
     }
 }

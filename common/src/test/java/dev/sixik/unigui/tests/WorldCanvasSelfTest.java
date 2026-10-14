@@ -31,6 +31,8 @@ public final class WorldCanvasSelfTest {
         scrollZoomDispatchesViewportChangedEvent();
         worldLayerRendersWithProjectionHelpers();
         ribbonLayerProjectsWorldPathToRoot();
+        ribbonLayerCachesMeshAcrossFrames();
+        ribbonLayerCullSkipsOffscreenRibbon();
     }
 
     private void projectionUsesCanvasOriginAndViewportOffset() {
@@ -226,6 +228,62 @@ public final class WorldCanvasSelfTest {
         assertClose(40.0f, first.y(), "ribbon projected y with zoomed half width");
         // Мировая длина 20 / тайл 20 = 1 тайл; zoom сокращается в screen-space.
         assertClose(1.0f, meshes.get(0).mesh().vertices().get(2).v(), "ribbon v spans world length/tile");
+    }
+
+    private void ribbonLayerCachesMeshAcrossFrames() {
+        WorldCanvas canvas = new WorldCanvas().viewport(0.0f, 0.0f, 2.0f);
+        dev.sixik.unigui.widgets.world.RibbonLayer ribbon =
+                new dev.sixik.unigui.widgets.world.RibbonLayer()
+                        .width(10.0f)
+                        .textureLength(20.0f)
+                        .addPoint(5.0f, 5.0f)
+                        .addPoint(25.0f, 5.0f);
+        canvas.addWorldLayer(ribbon);
+        canvas.measure(new LayoutContext(200.0f, 200.0f));
+        canvas.arrange(new MutableRect(10.0f, 20.0f, 200.0f, 200.0f));
+
+        // Первый кадр строит mesh, второй переиспользует без ребилда.
+        canvas.render(new NoopRenderContext());
+        assertTrue(ribbon.cacheRebuilds() == 1, "first frame should rebuild ribbon mesh");
+        canvas.render(new NoopRenderContext());
+        assertTrue(ribbon.cacheRebuilds() == 1 && ribbon.cacheHits() == 1,
+                "steady frame should hit ribbon mesh cache, hits=" + ribbon.cacheHits());
+
+        // Pan камеры инвалидирует кэш: проекция изменилась.
+        canvas.viewport(10.0f, 0.0f, 2.0f);
+        canvas.arrange(new MutableRect(10.0f, 20.0f, 200.0f, 200.0f));
+        canvas.render(new NoopRenderContext());
+        assertTrue(ribbon.cacheRebuilds() == 2, "camera pan should rebuild ribbon mesh");
+
+        // Изменение пути инвалидирует кэш.
+        ribbon.addPoint(45.0f, 5.0f);
+        canvas.render(new NoopRenderContext());
+        assertTrue(ribbon.cacheRebuilds() == 3, "path change should rebuild ribbon mesh");
+
+        // Изменение options инвалидирует кэш.
+        ribbon.jointDots(true);
+        canvas.render(new NoopRenderContext());
+        assertTrue(ribbon.cacheRebuilds() == 4, "options change should rebuild ribbon mesh");
+    }
+
+    private void ribbonLayerCullSkipsOffscreenRibbon() {
+        WorldCanvas canvas = new WorldCanvas().viewport(0.0f, 0.0f, 1.0f);
+        dev.sixik.unigui.widgets.world.RibbonLayer ribbon =
+                new dev.sixik.unigui.widgets.world.RibbonLayer()
+                        .width(10.0f)
+                        .textureLength(20.0f)
+                        .addPoint(5000.0f, 5000.0f)
+                        .addPoint(5100.0f, 5000.0f);
+        canvas.addWorldLayer(ribbon);
+        canvas.measure(new LayoutContext(200.0f, 200.0f));
+        canvas.arrange(new MutableRect(10.0f, 20.0f, 200.0f, 200.0f));
+
+        NoopRenderContext context = new NoopRenderContext();
+        canvas.render(context);
+        long meshes = context.drawList().commands().stream()
+                .filter(command -> command.type() == dev.sixik.unigui.api.render.DrawCommandType.MESH)
+                .count();
+        assertTrue(meshes == 0, "offscreen ribbon should emit no mesh commands");
     }
 
     private static void assertClose(float expected, float actual, String message) {

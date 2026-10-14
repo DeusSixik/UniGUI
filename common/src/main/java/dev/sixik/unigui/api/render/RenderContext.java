@@ -731,10 +731,38 @@ public interface RenderContext {
      * @param width ширина ленты
      * @param textureLength длина одного текстурного тайла вдоль пути
      * @param tint цвет вершин
+     * @param options параметры ленты; {@code null} означает {@link RibbonOptions#defaults()}
+     * @param transform transform команды или {@code null}
      */
     default void addRibbon(TextureHandle texture, List<DrawPoint> points,
+                           float width, float textureLength, ColorView tint,
+                           RibbonOptions options, Transform transform) {
+        DrawMesh mesh = RibbonMesh.builder(points)
+                .width(width)
+                .textureLength(textureLength)
+                .options(options == null ? RibbonOptions.defaults() : options)
+                .build(tint);
+        addMesh(mesh, texture, transform);
+    }
+
+    /**
+     * Рисует textured ленту вдоль полилинии одной mesh-командой.
+     *
+     * <p>Стыки — miter с клампом {@link RibbonMesh#DEFAULT_MITER_LIMIT}, торцы — butt caps.
+     * {@code v} идёт вдоль пути как {@code distance / textureLength}: при
+     * {@link TextureWrap#REPEAT} текстура тайлится без растяжения.</p>
+     *
+     * @param texture текстура ленты; {@code null} даёт сплошную цветную ленту
+     * @param points центральная полилиния; вырожденные точки пропускаются
+     * @param width ширина ленты
+     * @param textureLength длина одного текстурного тайла вдоль пути
+     * @param tint цвет вершин
+     * @deprecated используй {@link #addRibbon(TextureHandle, List, float, float, ColorView, RibbonOptions, Transform)}
+     */
+    @Deprecated
+    default void addRibbon(TextureHandle texture, List<DrawPoint> points,
                            float width, float textureLength, ColorView tint) {
-        addRibbon(texture, points, width, textureLength, tint, false, null);
+        addRibbon(texture, points, width, textureLength, tint, RibbonOptions.defaults(), null);
     }
 
     /**
@@ -747,16 +775,14 @@ public interface RenderContext {
      * @param tint цвет вершин
      * @param closed {@code true}, чтобы замкнуть контур
      * @param transform transform команды или {@code null}
+     * @deprecated используй {@link #addRibbon(TextureHandle, List, float, float, ColorView, RibbonOptions, Transform)}
      */
+    @Deprecated
     default void addRibbon(TextureHandle texture, List<DrawPoint> points,
                            float width, float textureLength, ColorView tint,
                            boolean closed, Transform transform) {
-        DrawMesh mesh = RibbonMesh.builder(points)
-                .width(width)
-                .textureLength(textureLength)
-                .closed(closed)
-                .build(tint);
-        addMesh(mesh, texture, transform);
+        addRibbon(texture, points, width, textureLength, tint,
+                RibbonOptions.defaults().closed(closed), transform);
     }
 
     /**
@@ -770,17 +796,14 @@ public interface RenderContext {
      * @param closed {@code true}, чтобы замкнуть контур
      * @param miterLimit лимит miter в половинах ширины ленты
      * @param transform transform команды или {@code null}
+     * @deprecated используй {@link #addRibbon(TextureHandle, List, float, float, ColorView, RibbonOptions, Transform)}
      */
+    @Deprecated
     default void addRibbon(TextureHandle texture, List<DrawPoint> points,
                            float width, float textureLength, ColorView tint,
                            boolean closed, float miterLimit, Transform transform) {
-        DrawMesh mesh = RibbonMesh.builder(points)
-                .width(width)
-                .textureLength(textureLength)
-                .closed(closed)
-                .miterLimit(miterLimit)
-                .build(tint);
-        addMesh(mesh, texture, transform);
+        addRibbon(texture, points, width, textureLength, tint,
+                RibbonOptions.defaults().closed(closed).miterLimit(miterLimit), transform);
     }
 
     /**
@@ -799,18 +822,14 @@ public interface RenderContext {
      * @param miterLimit лимит miter в половинах ширины ленты
      * @param swapUv {@code true}, чтобы поменять U и V местами
      * @param transform transform команды или {@code null}
+     * @deprecated используй {@link #addRibbon(TextureHandle, List, float, float, ColorView, RibbonOptions, Transform)}
      */
+    @Deprecated
     default void addRibbon(TextureHandle texture, List<DrawPoint> points,
                            float width, float textureLength, ColorView tint,
                            boolean closed, float miterLimit, boolean swapUv, Transform transform) {
-        DrawMesh mesh = RibbonMesh.builder(points)
-                .width(width)
-                .textureLength(textureLength)
-                .closed(closed)
-                .miterLimit(miterLimit)
-                .swapUv(swapUv)
-                .build(tint);
-        addMesh(mesh, texture, transform);
+        addRibbon(texture, points, width, textureLength, tint,
+                RibbonOptions.defaults().closed(closed).miterLimit(miterLimit).swapUv(swapUv), transform);
     }
 
     /**
@@ -827,21 +846,17 @@ public interface RenderContext {
      * @param flipU {@code true}, чтобы отразить финальную U внутри тайла
      * @param flipV {@code true}, чтобы отразить финальную V внутри тайла
      * @param transform transform команды или {@code null}
+     * @deprecated используй {@link #addRibbon(TextureHandle, List, float, float, ColorView, RibbonOptions, Transform)}
      */
+    @Deprecated
     default void addRibbon(TextureHandle texture, List<DrawPoint> points,
                            float width, float textureLength, ColorView tint,
                            boolean closed, float miterLimit, boolean swapUv,
                            boolean flipU, boolean flipV, Transform transform) {
-        DrawMesh mesh = RibbonMesh.builder(points)
-                .width(width)
-                .textureLength(textureLength)
-                .closed(closed)
-                .miterLimit(miterLimit)
-                .swapUv(swapUv)
-                .flipU(flipU)
-                .flipV(flipV)
-                .build(tint);
-        addMesh(mesh, texture, transform);
+        addRibbon(texture, points, width, textureLength, tint,
+                RibbonOptions.defaults().closed(closed).miterLimit(miterLimit)
+                        .swapUv(swapUv).flipU(flipU).flipV(flipV),
+                transform);
     }
 
     default void channelsSplit(int count) {
