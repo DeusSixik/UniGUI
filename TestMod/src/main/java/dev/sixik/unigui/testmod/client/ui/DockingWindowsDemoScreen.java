@@ -25,6 +25,14 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
+import static dev.sixik.unigui.testmod.client.ui.DemoScaffold.BORDER;
+import static dev.sixik.unigui.testmod.client.ui.DemoScaffold.PANEL;
+import static dev.sixik.unigui.testmod.client.ui.DemoScaffold.TEXT;
+import static dev.sixik.unigui.testmod.client.ui.DemoScaffold.button;
+import static dev.sixik.unigui.testmod.client.ui.DemoScaffold.checkbox;
+import static dev.sixik.unigui.testmod.client.ui.DemoScaffold.fullWidth;
+import static dev.sixik.unigui.testmod.client.ui.DemoScaffold.label;
+
 /**
  * Демо drag-to-dock для {@link WindowWidget}.
  *
@@ -35,10 +43,6 @@ import net.minecraft.network.chat.Component;
  */
 public final class DockingWindowsDemoScreen {
     private static final MutableColor BG = MutableColor.rgba(0.020f, 0.026f, 0.038f, 1.0f);
-    private static final MutableColor PANEL = MutableColor.rgba(0.050f, 0.064f, 0.088f, 0.96f);
-    private static final MutableColor BORDER = MutableColor.rgba(0.220f, 0.400f, 0.580f, 0.88f);
-    private static final MutableColor TEXT = MutableColor.rgba(0.820f, 0.900f, 0.960f, 1.0f);
-    private static final MutableColor MUTED = MutableColor.rgba(0.500f, 0.600f, 0.700f, 1.0f);
 
     private DockingWindowsDemoScreen() {
     }
@@ -98,9 +102,7 @@ public final class DockingWindowsDemoScreen {
                 .selectPane("scene");
         docking.layout(style -> style.sizePercent(100.0f, 100.0f).flexGrow(1.0f).flexShrink(1.0f));
 
-        Label status = label("Panes: 3. Drag a dockable window header over the workspace.", TEXT);
-        status.layout(style -> style.widthPercent(100.0f).height(20.0f)
-                .flexGrow(0.0f).flexShrink(0.0f));
+        Label status = fullWidth(label("Panes: 3. Drag a dockable window header over the workspace.", TEXT), 20.0f);
         docking.onLayoutChanged(event -> status.text(
                 "Docking layout: " + event.operation() + " (" + event.paneId() + "), panes: "
                         + docking.manager().paneCount()));
@@ -115,22 +117,15 @@ public final class DockingWindowsDemoScreen {
         side.layout(style -> style.width(230.0f).heightPercent(100.0f).padding(10.0f)
                 .gap(8.0f).flexGrow(0.0f).flexShrink(0.0f));
 
-        Label title = label("DOCKING WINDOWS", TEXT);
-        title.layout(style -> style.widthPercent(100.0f).height(22.0f)
-                .flexGrow(0.0f).flexShrink(0.0f));
-        Label hint = label("Drag headers over workspace or host windows. Hosts merge on drop.", MUTED);
-        hint.layout(style -> style.widthPercent(100.0f).height(34.0f)
-                .flexGrow(0.0f).flexShrink(0.0f));
+        Label title = fullWidth(label("DOCKING WINDOWS", TEXT), 22.0f);
+        Label hint = fullWidth(label("Drag headers over workspace or host windows. Hosts merge on drop.", DemoScaffold.MUTED), 34.0f);
 
-        Checkbox dockableCheck = new Checkbox("Dockable windows");
-        dockableCheck.checked(true);
-        Checkbox lockCheck = new Checkbox("Lock redock");
-        lockCheck.checked(false);
-        Checkbox hostCheck = new Checkbox("Window is docking host");
-        hostCheck.checked(false);
+        Checkbox dockableCheck = checkbox("Dockable windows", true);
+        Checkbox lockCheck = checkbox("Lock redock", false);
+        Checkbox hostCheck = checkbox("Window is docking host", false);
 
         int[] counter = {1};
-        Button spawn = button("Spawn window", () -> {
+        Button spawn = fullWidth(button("Spawn window", () -> {
             OverlayLayer layer = overlayOf(docking);
             if (layer == null) return;
             String id = "demo-" + counter[0]++;
@@ -152,13 +147,9 @@ public final class DockingWindowsDemoScreen {
             window.open();
             status.text("Spawned " + id + " (dockable=" + window.dockable()
                     + ", host=" + window.dockingEnabled() + ")");
-        });
-        spawn.layout(style -> style.widthPercent(100.0f).height(28.0f)
-                .flexGrow(0.0f).flexShrink(0.0f));
+        }), 28.0f);
 
-        Button close = button("Close", closeAction);
-        close.layout(style -> style.widthPercent(100.0f).height(28.0f)
-                .flexGrow(0.0f).flexShrink(0.0f));
+        Button close = fullWidth(button("Close", closeAction), 28.0f);
 
         side.addChild(title);
         side.addChild(hint);
@@ -201,17 +192,5 @@ public final class DockingWindowsDemoScreen {
         Label body = label(text, TEXT);
         body.layout(style -> style.sizePercent(100.0f, 100.0f));
         return body;
-    }
-
-    private static Label label(String text, MutableColor color) {
-        Label label = new Label(text);
-        label.color(color);
-        return label;
-    }
-
-    private static Button button(String text, Runnable action) {
-        Button button = new Button(text);
-        button.onClick(event -> action.run());
-        return button;
     }
 }

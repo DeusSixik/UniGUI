@@ -411,10 +411,32 @@ public final class DrawScope {
      * @param width ширина ленты
      * @param textureLength длина одного текстурного тайла вдоль пути
      * @param tint цвет вершин
+     * @param options параметры ленты; {@code null} означает {@link RibbonOptions#defaults()}
      */
     public void ribbon(TextureHandle texture, List<DrawPoint> points,
+                       float width, float textureLength, ColorView tint, RibbonOptions options) {
+        context.addRibbon(texture, points, width, textureLength, tint,
+                options == null ? RibbonOptions.defaults() : options, transform);
+    }
+
+    /**
+     * Рисует textured ленту вдоль полилинии одной mesh-командой.
+     *
+     * <p>Дороги, кабели, маршруты, связи графа. Стыки — miter с клампом, торцы —
+     * butt caps. При {@code REPEAT}-wrap текстуры и {@code textureLength},
+     * равном длине тайла, текстура повторяется вдоль ленты без растяжения.</p>
+     *
+     * @param texture текстура ленты; {@code null} даёт сплошную цветную ленту
+     * @param points центральная полилиния в координатах scope
+     * @param width ширина ленты
+     * @param textureLength длина одного текстурного тайла вдоль пути
+     * @param tint цвет вершин
+     * @deprecated используй {@link #ribbon(TextureHandle, List, float, float, ColorView, RibbonOptions)}
+     */
+    @Deprecated
+    public void ribbon(TextureHandle texture, List<DrawPoint> points,
                        float width, float textureLength, ColorView tint) {
-        ribbon(texture, points, width, textureLength, tint, false);
+        ribbon(texture, points, width, textureLength, tint, RibbonOptions.defaults());
     }
 
     /**
@@ -426,10 +448,12 @@ public final class DrawScope {
      * @param textureLength длина одного текстурного тайла вдоль пути
      * @param tint цвет вершин
      * @param closed {@code true}, чтобы замкнуть контур
+     * @deprecated используй {@link #ribbon(TextureHandle, List, float, float, ColorView, RibbonOptions)}
      */
+    @Deprecated
     public void ribbon(TextureHandle texture, List<DrawPoint> points,
                        float width, float textureLength, ColorView tint, boolean closed) {
-        context.addRibbon(texture, points, width, textureLength, tint, closed, transform);
+        ribbon(texture, points, width, textureLength, tint, RibbonOptions.defaults().closed(closed));
     }
 
     /**
@@ -443,12 +467,14 @@ public final class DrawScope {
      * @param closed {@code true}, чтобы замкнуть контур
      * @param swapUv {@code true}: {@code u} вдоль пути, {@code v} поперёк
      *               (для вертикальных текстур-полосок)
+     * @deprecated используй {@link #ribbon(TextureHandle, List, float, float, ColorView, RibbonOptions)}
      */
+    @Deprecated
     public void ribbon(TextureHandle texture, List<DrawPoint> points,
                        float width, float textureLength, ColorView tint,
                        boolean closed, boolean swapUv) {
-        context.addRibbon(texture, points, width, textureLength, tint, closed,
-                RibbonMesh.DEFAULT_MITER_LIMIT, swapUv, transform);
+        ribbon(texture, points, width, textureLength, tint,
+                RibbonOptions.defaults().closed(closed).swapUv(swapUv));
     }
 
     /**
@@ -464,12 +490,14 @@ public final class DrawScope {
      *               (для вертикальных текстур-полосок)
      * @param flipU {@code true}, чтобы отразить финальную U внутри тайла
      * @param flipV {@code true}, чтобы отразить финальную V внутри тайла
+     * @deprecated используй {@link #ribbon(TextureHandle, List, float, float, ColorView, RibbonOptions)}
      */
+    @Deprecated
     public void ribbon(TextureHandle texture, List<DrawPoint> points,
                        float width, float textureLength, ColorView tint,
                        boolean closed, boolean swapUv, boolean flipU, boolean flipV) {
-        context.addRibbon(texture, points, width, textureLength, tint, closed,
-                RibbonMesh.DEFAULT_MITER_LIMIT, swapUv, flipU, flipV, transform);
+        ribbon(texture, points, width, textureLength, tint,
+                RibbonOptions.defaults().closed(closed).swapUv(swapUv).flipU(flipU).flipV(flipV));
     }
 
     public void channelsSplit(int count) {
