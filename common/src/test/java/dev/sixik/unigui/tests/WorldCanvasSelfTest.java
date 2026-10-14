@@ -284,6 +284,13 @@ public final class WorldCanvasSelfTest {
                 .filter(command -> command.type() == dev.sixik.unigui.api.render.DrawCommandType.MESH)
                 .count();
         assertTrue(meshes == 0, "offscreen ribbon should emit no mesh commands");
+
+        // Оффскрин-лента хитает кэш сентинелом: второй кадр без ребилда.
+        ribbon.resetCacheStats();
+        canvas.render(new NoopRenderContext());
+        assertTrue(ribbon.cacheRebuilds() == 0 && ribbon.cacheHits() == 1,
+                "offscreen ribbon should hit sentinel cache, rebuilds="
+                        + ribbon.cacheRebuilds() + " hits=" + ribbon.cacheHits());
     }
 
     private static void assertClose(float expected, float actual, String message) {

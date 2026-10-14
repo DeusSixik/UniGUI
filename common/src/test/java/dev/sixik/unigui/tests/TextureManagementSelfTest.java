@@ -323,8 +323,9 @@ public final class TextureManagementSelfTest {
         expect(near(clippedFirst.x(), 40.0f) && near(clippedFirst.v(), 2.0f),
                 "visible run must continue distance through culled segments");
 
-        // Каллинг со стыками: видимы 2 сегмента (12 вершин) и оба стыка —
-        // точка (30,30) видима как конец среднего сегмента. 2 диска по 24 вершины.
+        // Каллинг со стыками: видимы 2 сегмента (12 вершин) и стык (30,0) —
+        // 24 вершины диска. Стык (30,30) коллинеарен (прямая вверх), диск
+        // пропускается фильтром по углу.
         dev.sixik.unigui.api.render.DrawMesh clippedJoints =
                 dev.sixik.unigui.api.render.RibbonMesh.builder(java.util.List.of(
                                 new dev.sixik.unigui.api.render.DrawPoint(0.0f, 0.0f),
@@ -337,8 +338,8 @@ public final class TextureManagementSelfTest {
                         .jointSegments(8)
                         .clip(-100.0f, -100.0f, 200.0f, 105.0f)
                         .build(white.color());
-        expect(clippedJoints.vertexCount() == 12 + 48,
-                "clipped joints should cover visible points only, got " + clippedJoints.vertexCount());
+        expect(clippedJoints.vertexCount() == 12 + 24,
+                "clipped joints should cover bent visible points only, got " + clippedJoints.vertexCount());
 
         // Полностью скрытая лента даёт пустой mesh.
         dev.sixik.unigui.api.render.DrawMesh hidden =
@@ -350,6 +351,22 @@ public final class TextureManagementSelfTest {
                         .clip(1000.0f, 1000.0f, 100.0f, 100.0f)
                         .build(white.color());
         expect(hidden.isEmpty(), "fully clipped ribbon should be empty");
+
+        // Прямая линия со стыками: коллинеарные точки дисков не получают —
+        // только 2 сегмента ленты, без овердроу.
+        dev.sixik.unigui.api.render.DrawMesh straightJoints =
+                dev.sixik.unigui.api.render.RibbonMesh.builder(java.util.List.of(
+                                new dev.sixik.unigui.api.render.DrawPoint(0.0f, 0.0f),
+                                new dev.sixik.unigui.api.render.DrawPoint(30.0f, 0.0f),
+                                new dev.sixik.unigui.api.render.DrawPoint(60.0f, 0.0f)))
+                        .width(10.0f)
+                        .textureLength(20.0f)
+                        .jointDots(true)
+                        .jointSegments(8)
+                        .build(white.color());
+        expect(straightJoints.vertexCount() == 12,
+                "straight joints should skip disks on collinear points, got "
+                        + straightJoints.vertexCount());
     }
 
     private static boolean hasBounds(DrawCommand command, float x, float y, float width, float height) {

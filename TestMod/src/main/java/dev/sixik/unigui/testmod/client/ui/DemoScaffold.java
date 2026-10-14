@@ -177,6 +177,8 @@ public final class DemoScaffold {
         private final Runnable closeAction;
         private Widget content;
         private Runnable recenterAction;
+        private boolean rootBuilt;
+        private Widget builtRoot;
 
         private DemoShell(String panelTitle, String hintText, Runnable closeAction) {
             this.closeAction = closeAction;
@@ -271,6 +273,7 @@ public final class DemoScaffold {
         }
 
         private Widget root() {
+            if (rootBuilt) return builtRoot;
             StackPanel viewport = new StackPanel();
             viewport.layout(style -> style.sizePercent(100.0f, 100.0f).overflow(Overflow.HIDDEN));
 
@@ -311,7 +314,9 @@ public final class DemoScaffold {
             }
             body.addChild(sidePanel);
             viewport.addChild(body);
-            return new OverlayLayer(viewport);
+            builtRoot = new OverlayLayer(viewport);
+            rootBuilt = true;
+            return builtRoot;
         }
     }
 }
