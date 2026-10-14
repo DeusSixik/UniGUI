@@ -401,7 +401,8 @@ public final class RibbonMesh {
             }
         }
 
-                private static float[] jointNormal(float[] clean, int count, int index, boolean closed, float limit) {            int prev = index - 1;
+        private static float[] jointNormal(float[] clean, int count, int index, boolean closed, float limit) {
+            int prev = index - 1;
             int next = index + 1;
             if (closed) {
                 prev = (index + count - 1) % count;
