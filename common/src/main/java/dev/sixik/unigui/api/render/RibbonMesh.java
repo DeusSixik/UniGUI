@@ -81,6 +81,8 @@ public final class RibbonMesh {
         private float clipY;
         private float clipWidth;
         private float clipHeight;
+        /** Переиспользуемый scratch под две miter-нормали сегмента (4 float). */
+        private final float[] normalScratch = new float[4];
 
         private Builder(List<DrawPoint> points) {
             this.points = points;
@@ -302,8 +304,12 @@ public final class RibbonMesh {
                 // на границах runs.
                 if (clipEnabled && !segmentVisible(ax, ay, bx, by, miterRange)) continue;
 
-                float[] normalA = jointNormal(clean, count, a, closed, limit);
-                float[] normalB = jointNormal(clean, count, b, closed, limit);
+                jointNormalInto(clean, count, a, closed, limit, normalScratch, 0);
+                jointNormalInto(clean, count, b, closed, limit, normalScratch, 2);
+                float normalAX = normalScratch[0];
+                float normalAY = normalScratch[1];
+                float normalBX = normalScratch[2];
+                float normalBY = normalScratch[3];
                 if (distances != null) {
                     distances[a] = t0;
                     distances[b] = t1;
@@ -323,14 +329,14 @@ public final class RibbonMesh {
                 float bRightU = flip(applySwapU(1.0f, t1), flipU);
                 float bRightV = flip(applySwapV(1.0f, t1), flipV);
 
-                float aLeftX = ax + normalA[0] * halfWidth;
-                float aLeftY = ay + normalA[1] * halfWidth;
-                float aRightX = ax - normalA[0] * halfWidth;
-                float aRightY = ay - normalA[1] * halfWidth;
-                float bLeftX = bx + normalB[0] * halfWidth;
-                float bLeftY = by + normalB[1] * halfWidth;
-                float bRightX = bx - normalB[0] * halfWidth;
-                float bRightY = by - normalB[1] * halfWidth;
+                float aLeftX = ax + normalAX * halfWidth;
+                float aLeftY = ay + normalAY * halfWidth;
+                float aRightX = ax - normalAX * halfWidth;
+                float aRightY = ay - normalAY * halfWidth;
+                float bLeftX = bx + normalBX * halfWidth;
+                float bLeftY = by + normalBY * halfWidth;
+                float bRightX = bx - normalBX * halfWidth;
+                float bRightY = by - normalBY * halfWidth;
 
                 // Два треугольника на сегмент: (aL, bL, bR) и (aL, bR, aR).
                 vertices.add(new DrawVertex(aLeftX, aLeftY, aLeftU, aLeftV, vertexColor));
@@ -343,7 +349,7 @@ public final class RibbonMesh {
             if (distances != null) {
                 emitJointDots(vertices, clean, count, distances, jointVisible, halfWidth, vertexColor);
             }
-            return new DrawMesh(vertices);
+            return DrawMesh.owned(vertices);
         }
 
         /**
@@ -401,41 +407,95 @@ public final class RibbonMesh {
             }
         }
 
-        private static float[] jointNormal(float[] clean, int count, int index, boolean closed, float limit) {
+        /**
+         * Вычисляет miter-нормаль стыка без аллокаций: результат пишется в scratch.
+         *
+         * <p>Старая версия возвращала {@code new float[2]} на каждый вызов
+         * (до 6 массивов на сегмент: 2 стыка × (2 нормали + результат)).
+         * Здесь нормали считаются скалярами, итог пишется в {@code out} по
+         * смещению {@code offset}. Математика та же: усреднённая нормаль
+         * соседних сегментов, длина {@code min(1/cos, limit)}.</p>
+         *
+         * @param clean очищенные координаты пути (пары x/y)
+         * @param count число точек пути
+         * @param index индекс стыка
+         * @param closed {@code true} для замкнутого контура
+         * @param limit лимит miter в половинах ширины
+         * @param out scratch минимум на {@code offset + 2} элемента
+         * @param offset смещение результата в {@code out}
+         */
+        private static void jointNormalInto(float[] clean, int count, int index,
+                                            boolean closed, float limit, float[] out, int offset) {
             int prev = index - 1;
             int next = index + 1;
             if (closed) {
                 prev = (index + count - 1) % count;
                 next = (index + 1) % count;
             } else {
-                if (prev < 0) return segmentNormal(clean, index, index + 1);
-                if (next >= count) return segmentNormal(clean, index - 1, index);
+                if (prev < 0) {
+                    segmentNormalInto(clean, index, index + 1, out, offset);
+                    return;
+                }
+                if (next >= count) {
+                    segmentNormalInto(clean, index - 1, index, out, offset);
+                    return;
+                }
             }
-            float[] incoming = segmentNormal(clean, prev, index);
-            float[] outgoing = segmentNormal(clean, index, next);
-            float mx = incoming[0] + outgoing[0];
-            float my = incoming[1] + outgoing[1];
+            float inDx = clean[index * 2] - clean[prev * 2];
+            float inDy = clean[index * 2 + 1] - clean[prev * 2 + 1];
+            float inLength = (float) Math.sqrt(inDx * inDx + inDy * inDy);
+            float inNx;
+            float inNy;
+            if (inLength > 0.0f) {
+                inNx = -inDy / inLength;
+                inNy = inDx / inLength;
+            } else {
+                inNx = 0.0f;
+                inNy = 1.0f;
+            }
+            float outDx = clean[next * 2] - clean[index * 2];
+            float outDy = clean[next * 2 + 1] - clean[index * 2 + 1];
+            float outLength = (float) Math.sqrt(outDx * outDx + outDy * outDy);
+            float outNx;
+            float outNy;
+            if (outLength > 0.0f) {
+                outNx = -outDy / outLength;
+                outNy = outDx / outLength;
+            } else {
+                outNx = 0.0f;
+                outNy = 1.0f;
+            }
+            float mx = inNx + outNx;
+            float my = inNy + outNy;
             float lengthSquared = mx * mx + my * my;
             if (!(lengthSquared > 1e-8f)) {
                 // Разворот на 180°: miter не определён, берём нормаль входящего сегмента.
-                return incoming;
+                out[offset] = inNx;
+                out[offset + 1] = inNy;
+                return;
             }
             float length = (float) Math.sqrt(lengthSquared);
             mx /= length;
             my /= length;
             // Длина miter обратно пропорциональна косинусу половинного угла:
             // dot(miter, incomingNormal) = cos(halfAngle).
-            float cosine = mx * incoming[0] + my * incoming[1];
+            float cosine = mx * inNx + my * inNy;
             float scale = cosine > 1e-4f ? Math.min(1.0f / cosine, limit) : limit;
-            return new float[]{mx * scale, my * scale};
+            out[offset] = mx * scale;
+            out[offset + 1] = my * scale;
         }
 
-        private static float[] segmentNormal(float[] clean, int from, int to) {
+        private static void segmentNormalInto(float[] clean, int from, int to, float[] out, int offset) {
             float dx = clean[to * 2] - clean[from * 2];
             float dy = clean[to * 2 + 1] - clean[from * 2 + 1];
             float length = (float) Math.sqrt(dx * dx + dy * dy);
-            if (!(length > 0.0f)) return new float[]{0.0f, 1.0f};
-            return new float[]{-dy / length, dx / length};
+            if (!(length > 0.0f)) {
+                out[offset] = 0.0f;
+                out[offset + 1] = 1.0f;
+                return;
+            }
+            out[offset] = -dy / length;
+            out[offset + 1] = dx / length;
         }
 
         /**

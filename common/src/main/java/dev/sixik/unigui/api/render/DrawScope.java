@@ -603,7 +603,7 @@ public final class DrawScope {
     }
 
     private Transform transformFor(float commandX, float commandY) {
-        if (transform == null || !transformBoundsAnchored) return transform;
+        if (transform == null || !transformBoundsAnchored || transform.isIdentity()) return transform;
         Transform adjusted = transform.copy();
         adjusted.pivot().set(
                 transform.pivot().x() + transformBoundsX - commandX,

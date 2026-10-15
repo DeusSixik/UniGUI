@@ -37,6 +37,29 @@ public final class DrawMesh {
         return new DrawMesh(vertices);
     }
 
+    /**
+     * Создаёт mesh, забирая свежий список вершин без покомпонентного копирования.
+     *
+     * <p>В отличие от конструктора, вершины не копируются: метод предназначен для
+     * горячего пути, где список собран локально и больше никому не принадлежит
+     * (генераторы лент, immediate-примитивы {@link RenderContext}). Переданный
+     * список после вызова использовать нельзя; {@code null}-элементы пропускаются.</p>
+     *
+     * @param vertices свежие вершины треугольников; сам список переиспользуется
+     * @return новый mesh, владеющий вершинами
+     */
+    public static DrawMesh owned(ObjectArrayList<DrawVertex> vertices) {
+        DrawMesh mesh = new DrawMesh((List<DrawVertex>) null);
+        if (vertices != null) {
+            Object[] raw = vertices.elements();
+            for (int i = 0, size = vertices.size(); i < size; i++) {
+                DrawVertex vertex = (DrawVertex) raw[i];
+                if (vertex != null) mesh.vertices.add(vertex);
+            }
+        }
+        return mesh;
+    }
+
     /** @return read-only view вершин */
     public List<DrawVertex> vertices() {
         return verticesView;
