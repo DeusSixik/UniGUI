@@ -293,18 +293,18 @@ public class ScrollBar extends Box {
         float y = layoutBounds().y();
         float width = layoutBounds().width();
         float height = layoutBounds().height();
-        draw.roundedRect(x, y, width, height, Math.min(width, height) * 0.5f,
-                Paint.fill(trackColor));
+        draw.roundedRectFilled(x, y, width, height, Math.min(width, height) * 0.5f,
+                trackColor);
         if (orientation == Orientation.VERTICAL) {
             float thumbHeight = thumbLength(height);
             float thumbY = y + (height - thumbHeight) * normalizedValue();
-            draw.roundedRect(x, thumbY, width, thumbHeight, width * 0.5f,
-                    Paint.fill(thumbColor));
+            draw.roundedRectFilled(x, thumbY, width, thumbHeight, width * 0.5f,
+                    thumbColor);
         } else {
             float thumbWidth = thumbLength(width);
             float thumbX = x + (width - thumbWidth) * normalizedValue();
-            draw.roundedRect(thumbX, y, thumbWidth, height, height * 0.5f,
-                    Paint.fill(thumbColor));
+            draw.roundedRectFilled(thumbX, y, thumbWidth, height, height * 0.5f,
+                    thumbColor);
         }
         super.renderContent(context);
     }

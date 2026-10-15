@@ -8,6 +8,7 @@ import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.TextureHandle;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+
 import java.util.Objects;
 
 public final class SimpleDrawBatcher implements DrawBatcher {

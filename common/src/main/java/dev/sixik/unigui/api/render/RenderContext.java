@@ -1,6 +1,7 @@
 package dev.sixik.unigui.api.render;
 
 import dev.sixik.unigui.api.math.ColorView;
+import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.math.Transform;
@@ -352,11 +353,11 @@ public interface RenderContext {
     }
 
     default void addLine(float x1, float y1, float x2, float y2, ColorView color, float thickness, Transform transform) {
-        if (transform == null) {
-            line(x1, y1, x2, y2, Paint.stroke(color, thickness));
-        } else {
-            line(x1, y1, x2, y2, Paint.stroke(color, thickness), transform);
-        }
+        DrawCommand command = drawList().obtain(DrawCommandType.LINE)
+                .bounds(x1, y1, x2 - x1, y2 - y1);
+        paintStrokeOwned(command, color, thickness);
+        if (transform != null) command.transform(transform);
+        submitOwned(command);
     }
 
     default void addRect(float x, float y, float width, float height, ColorView color, float thickness) {
@@ -364,11 +365,7 @@ public interface RenderContext {
     }
 
     default void addRect(float x, float y, float width, float height, ColorView color, float thickness, Transform transform) {
-        if (transform == null) {
-            rect(x, y, width, height, Paint.stroke(color, thickness));
-        } else {
-            rect(x, y, width, height, Paint.stroke(color, thickness), transform);
-        }
+        rectStroke(x, y, width, height, color, thickness, transform);
     }
 
     default void addRectFilled(float x, float y, float width, float height, ColorView color) {
@@ -376,11 +373,7 @@ public interface RenderContext {
     }
 
     default void addRectFilled(float x, float y, float width, float height, ColorView color, Transform transform) {
-        if (transform == null) {
-            rect(x, y, width, height, Paint.fill(color));
-        } else {
-            rect(x, y, width, height, Paint.fill(color), transform);
-        }
+        rectFilled(x, y, width, height, color, transform);
     }
 
     default void addRect(float x, float y, float width, float height, float radius, ColorView color, float thickness) {
@@ -389,11 +382,7 @@ public interface RenderContext {
 
     default void addRect(float x, float y, float width, float height, float radius,
                          ColorView color, float thickness, Transform transform) {
-        if (transform == null) {
-            roundedRect(x, y, width, height, radius, Paint.stroke(color, thickness));
-        } else {
-            roundedRect(x, y, width, height, radius, Paint.stroke(color, thickness), transform);
-        }
+        roundedRectStroke(x, y, width, height, radius, color, thickness, transform);
     }
 
     default void addRectFilled(float x, float y, float width, float height, float radius, ColorView color) {
@@ -402,11 +391,7 @@ public interface RenderContext {
 
     default void addRectFilled(float x, float y, float width, float height, float radius,
                                ColorView color, Transform transform) {
-        if (transform == null) {
-            roundedRect(x, y, width, height, radius, Paint.fill(color));
-        } else {
-            roundedRect(x, y, width, height, radius, Paint.fill(color), transform);
-        }
+        roundedRectFilled(x, y, width, height, radius, color, transform);
     }
 
     default void addRectFilledMultiColor(float x, float y, float width, float height,
@@ -416,17 +401,17 @@ public interface RenderContext {
     }
 
     default void addRectFilledMultiColor(float x, float y, float width, float height,
-                                         ColorView topLeft, ColorView topRight,
-                                         ColorView bottomRight, ColorView bottomLeft,
-                                         Transform transform) {
-        addMesh(DrawMesh.triangles(List.of(
-                vertex(x, y, topLeft),
-                vertex(x, y + height, bottomLeft),
-                vertex(x + width, y + height, bottomRight),
-                vertex(x, y, topLeft),
-                vertex(x + width, y + height, bottomRight),
-                vertex(x + width, y, topRight)
-        )), null, transform);
+                                          ColorView topLeft, ColorView topRight,
+                                          ColorView bottomRight, ColorView bottomLeft,
+                                          Transform transform) {
+        ObjectArrayList<DrawVertex> vertices = new ObjectArrayList<>(6);
+        vertices.add(vertex(x, y, topLeft));
+        vertices.add(vertex(x, y + height, bottomLeft));
+        vertices.add(vertex(x + width, y + height, bottomRight));
+        vertices.add(vertex(x, y, topLeft));
+        vertices.add(vertex(x + width, y + height, bottomRight));
+        vertices.add(vertex(x + width, y, topRight));
+        addMesh(DrawMesh.owned(vertices), null, transform);
     }
 
     default void addQuad(DrawPoint p1, DrawPoint p2, DrawPoint p3, DrawPoint p4, ColorView color, float thickness) {
@@ -443,11 +428,15 @@ public interface RenderContext {
     }
 
     default void addQuadFilled(DrawPoint p1, DrawPoint p2, DrawPoint p3, DrawPoint p4,
-                               ColorView color, Transform transform) {
-        addMesh(DrawMesh.triangles(List.of(
-                vertex(p1, color), vertex(p2, color), vertex(p3, color),
-                vertex(p1, color), vertex(p3, color), vertex(p4, color)
-        )), null, transform);
+                                ColorView color, Transform transform) {
+        ObjectArrayList<DrawVertex> vertices = new ObjectArrayList<>(4);
+        vertices.add(vertex(p1, color));
+        vertices.add(vertex(p2, color));
+        vertices.add(vertex(p3, color));
+        vertices.add(vertex(p1, color));
+        vertices.add(vertex(p3, color));
+        vertices.add(vertex(p4, color));
+        addMesh(DrawMesh.owned(vertices), null, transform);
     }
 
     default void addTriangle(DrawPoint p1, DrawPoint p2, DrawPoint p3, ColorView color, float thickness) {
@@ -464,8 +453,12 @@ public interface RenderContext {
     }
 
     default void addTriangleFilled(DrawPoint p1, DrawPoint p2, DrawPoint p3,
-                                   ColorView color, Transform transform) {
-        addMesh(DrawMesh.triangles(List.of(vertex(p1, color), vertex(p2, color), vertex(p3, color))), null, transform);
+                                    ColorView color, Transform transform) {
+        ObjectArrayList<DrawVertex> vertices = new ObjectArrayList<>(3);
+        vertices.add(vertex(p1, color));
+        vertices.add(vertex(p2, color));
+        vertices.add(vertex(p3, color));
+        addMesh(DrawMesh.owned(vertices), null, transform);
     }
 
     default void addCircle(float centerX, float centerY, float radius, ColorView color, int segments, float thickness) {
@@ -514,8 +507,8 @@ public interface RenderContext {
         int count = normalizedSegments(Math.max(Math.abs(radiusX), Math.abs(radiusY)), segments);
         DrawCommand command = drawList().obtain(DrawCommandType.CIRCLE)
                 .bounds(centerX - radiusX, centerY - radiusY, radiusX * 2.0f, radiusY * 2.0f)
-                .segments(count)
-                .paintOwned(effectivePaint(Paint.stroke(color, thickness)));
+                .segments(count);
+        paintStrokeOwned(command, color, thickness);
         if (transform != null) command.transform(transform);
         submitOwned(command);
     }
@@ -530,8 +523,8 @@ public interface RenderContext {
         int count = normalizedSegments(Math.max(Math.abs(radiusX), Math.abs(radiusY)), segments);
         DrawCommand command = drawList().obtain(DrawCommandType.CIRCLE)
                 .bounds(centerX - radiusX, centerY - radiusY, radiusX * 2.0f, radiusY * 2.0f)
-                .segments(count)
-                .paintOwned(effectivePaint(Paint.fill(color)));
+                .segments(count);
+        paintFillOwned(command, color);
         if (transform != null) command.transform(transform);
         submitOwned(command);
     }
@@ -542,11 +535,13 @@ public interface RenderContext {
 
     default void addText(String text, float x, float y, float width, float height,
                          ColorView color, Transform transform) {
-        if (transform == null) {
-            text(text, x, y, width, height, Paint.fill(color));
-        } else {
-            text(text, x, y, width, height, Paint.fill(color), transform);
-        }
+        DrawCommand command = drawList().obtain(DrawCommandType.TEXT)
+                .text(text)
+                .bounds(x, y, width, height)
+                .textPixelSnap(textPixelSnapEnabled());
+        paintFillOwned(command, color);
+        if (transform != null) command.transform(transform);
+        submitOwned(command);
     }
 
     default void addText(RichText text, float x, float y, float width, float height, ColorView color) {
@@ -555,11 +550,13 @@ public interface RenderContext {
 
     default void addText(RichText text, float x, float y, float width, float height,
                          ColorView color, Transform transform) {
-        if (transform == null) {
-            text(text, x, y, width, height, Paint.fill(color));
-        } else {
-            text(text, x, y, width, height, Paint.fill(color), transform);
-        }
+        DrawCommand command = drawList().obtain(DrawCommandType.TEXT)
+                .richText(text)
+                .bounds(x, y, width, height)
+                .textPixelSnap(textPixelSnapEnabled());
+        paintFillOwned(command, color);
+        if (transform != null) command.transform(transform);
+        submitOwned(command);
     }
 
     default void addPolyline(List<DrawPoint> points, ColorView color, boolean closed, float thickness) {
@@ -585,7 +582,7 @@ public interface RenderContext {
 
     default void addConvexPolyFilled(List<DrawPoint> points, ColorView color, Transform transform) {
         if (points == null || points.size() < 3) return;
-        List<DrawVertex> vertices = new ObjectArrayList<>((points.size() - 2) * 3);
+        ObjectArrayList<DrawVertex> vertices = new ObjectArrayList<>((points.size() - 2) * 3);
         DrawPoint first = points.get(0);
         for (int i = 1; i < points.size() - 1; i++) {
             DrawPoint current = points.get(i);
@@ -596,7 +593,7 @@ public interface RenderContext {
                 vertices.add(vertex(next, color));
             }
         }
-        addMesh(DrawMesh.triangles(vertices), null, transform);
+        addMesh(DrawMesh.owned(vertices), null, transform);
     }
 
     default void addConcavePolyFilled(List<DrawPoint> points, ColorView color) {
@@ -604,9 +601,9 @@ public interface RenderContext {
     }
 
     default void addConcavePolyFilled(List<DrawPoint> points, ColorView color, Transform transform) {
-        List<DrawVertex> vertices = triangulate(points, effectiveColor(color));
+        ObjectArrayList<DrawVertex> vertices = triangulate(points, resolvedColor(color, opacityMultiplier()));
         if (!vertices.isEmpty()) {
-            addMesh(DrawMesh.triangles(vertices), null, transform);
+            addMesh(DrawMesh.owned(vertices), null, transform);
         }
     }
 
@@ -616,11 +613,7 @@ public interface RenderContext {
 
     default void addImage(TextureHandle texture, float x, float y, float width, float height,
                           ColorView tint, Transform transform) {
-        if (transform == null) {
-            texture(texture, x, y, width, height, Paint.fill(tint));
-        } else {
-            texture(texture, x, y, width, height, Paint.fill(tint), transform);
-        }
+        textureTinted(texture, x, y, width, height, tint, transform);
     }
 
     default void addImage(TextureHandle texture, float x, float y, float width, float height,
@@ -631,11 +624,7 @@ public interface RenderContext {
     default void addImage(TextureHandle texture, float x, float y, float width, float height,
                           DrawPoint uvMin, DrawPoint uvMax, ColorView tint, Transform transform) {
         TexturePlacement placement = placement(texture, x, y, width, height, uvMin, uvMax);
-        if (transform == null) {
-            texture(texture, placement, 0.0f, Paint.fill(tint));
-        } else {
-            texture(texture, placement, 0.0f, Paint.fill(tint), transform);
-        }
+        textureTinted(texture, placement, 0.0f, tint, transform);
     }
 
     default void addImageQuad(TextureHandle texture,
@@ -696,11 +685,191 @@ public interface RenderContext {
                                  DrawPoint uvMin, DrawPoint uvMax, ColorView tint, float radius,
                                  Transform transform) {
         TexturePlacement placement = placement(texture, x, y, width, height, uvMin, uvMax);
-        if (transform == null) {
-            texture(texture, placement, radius, Paint.fill(tint));
+        textureTinted(texture, placement, radius, tint, transform);
+    }
+
+    /**
+     * Garbage-free примитивы: те же фигуры, что и {@code Paint}-перегрузки выше,
+     * но цвет принимается напрямую без временного {@link Paint}.
+     *
+     * <p>Каждый {@code Paint.fill/stroke} у вызывающего — один eden-объект на команду,
+     * который умирал сразу в {@code paintOwned}. При тысячах виджетов это тысячи
+     * объектов на кадр. Здесь paint пишется напрямую в pooled команду:
+     * ноль аллокаций на вызов. Семантика идентична {@code Paint.fill/stroke}
+     * (solid, NORMAL blend, opacity через {@link #opacityMultiplier()});
+     * dashed/non-normal blend по-прежнему идут через {@code Paint}-перегрузки.</p>
+     */
+    default void rectFilled(float x, float y, float width, float height, ColorView color) {
+        DrawCommand command = drawList().obtain(DrawCommandType.RECT)
+                .bounds(x, y, width, height);
+        paintFillOwned(command, color);
+        submitOwned(command);
+    }
+
+    default void rectFilled(float x, float y, float width, float height, ColorView color, Transform transform) {
+        DrawCommand command = drawList().obtain(DrawCommandType.RECT)
+                .bounds(x, y, width, height);
+        paintFillOwned(command, color);
+        if (transform != null) command.transform(transform);
+        submitOwned(command);
+    }
+
+    default void rectStroke(float x, float y, float width, float height, ColorView color, float strokeWidth) {
+        DrawCommand command = drawList().obtain(DrawCommandType.RECT)
+                .bounds(x, y, width, height);
+        paintStrokeOwned(command, color, strokeWidth);
+        submitOwned(command);
+    }
+
+    default void rectStroke(float x, float y, float width, float height, ColorView color,
+                            float strokeWidth, Transform transform) {
+        DrawCommand command = drawList().obtain(DrawCommandType.RECT)
+                .bounds(x, y, width, height);
+        paintStrokeOwned(command, color, strokeWidth);
+        if (transform != null) command.transform(transform);
+        submitOwned(command);
+    }
+
+    default void roundedRectFilled(float x, float y, float width, float height, float radius, ColorView color) {
+        DrawCommand command = drawList().obtain(DrawCommandType.ROUNDED_RECT)
+                .bounds(x, y, width, height)
+                .radius(radius);
+        paintFillOwned(command, color);
+        submitOwned(command);
+    }
+
+    default void roundedRectFilled(float x, float y, float width, float height, float radius,
+                                   ColorView color, Transform transform) {
+        DrawCommand command = drawList().obtain(DrawCommandType.ROUNDED_RECT)
+                .bounds(x, y, width, height)
+                .radius(radius);
+        paintFillOwned(command, color);
+        if (transform != null) command.transform(transform);
+        submitOwned(command);
+    }
+
+    default void roundedRectStroke(float x, float y, float width, float height, float radius,
+                                   ColorView color, float strokeWidth) {
+        DrawCommand command = drawList().obtain(DrawCommandType.ROUNDED_RECT)
+                .bounds(x, y, width, height)
+                .radius(radius);
+        paintStrokeOwned(command, color, strokeWidth);
+        submitOwned(command);
+    }
+
+    default void roundedRectStroke(float x, float y, float width, float height, float radius,
+                                   ColorView color, float strokeWidth, Transform transform) {
+        DrawCommand command = drawList().obtain(DrawCommandType.ROUNDED_RECT)
+                .bounds(x, y, width, height)
+                .radius(radius);
+        paintStrokeOwned(command, color, strokeWidth);
+        if (transform != null) command.transform(transform);
+        submitOwned(command);
+    }
+
+    default void circleFilled(float x, float y, float width, float height, ColorView color) {
+        DrawCommand command = drawList().obtain(DrawCommandType.CIRCLE)
+                .bounds(x, y, width, height);
+        paintFillOwned(command, color);
+        submitOwned(command);
+    }
+
+    default void circleFilled(float x, float y, float width, float height, ColorView color, Transform transform) {
+        DrawCommand command = drawList().obtain(DrawCommandType.CIRCLE)
+                .bounds(x, y, width, height);
+        paintFillOwned(command, color);
+        if (transform != null) command.transform(transform);
+        submitOwned(command);
+    }
+
+    default void circleStroke(float x, float y, float width, float height, ColorView color, float strokeWidth) {
+        DrawCommand command = drawList().obtain(DrawCommandType.CIRCLE)
+                .bounds(x, y, width, height);
+        paintStrokeOwned(command, color, strokeWidth);
+        submitOwned(command);
+    }
+
+    default void circleStroke(float x, float y, float width, float height, ColorView color,
+                              float strokeWidth, Transform transform) {
+        DrawCommand command = drawList().obtain(DrawCommandType.CIRCLE)
+                .bounds(x, y, width, height);
+        paintStrokeOwned(command, color, strokeWidth);
+        if (transform != null) command.transform(transform);
+        submitOwned(command);
+    }
+
+    default void textureTinted(TextureHandle texture, float x, float y, float width, float height, ColorView tint) {
+        DrawCommand command = drawList().obtain(DrawCommandType.TEXTURE)
+                .texture(texture)
+                .bounds(x, y, width, height);
+        paintFillOwned(command, tint);
+        submitOwned(command);
+    }
+
+    default void textureTinted(TextureHandle texture, float x, float y, float width, float height,
+                               ColorView tint, Transform transform) {
+        DrawCommand command = drawList().obtain(DrawCommandType.TEXTURE)
+                .texture(texture)
+                .bounds(x, y, width, height);
+        paintFillOwned(command, tint);
+        if (transform != null) command.transform(transform);
+        submitOwned(command);
+    }
+
+    default void textureTinted(TextureHandle texture, TexturePlacement placement, float radius, ColorView tint) {
+        DrawCommand command = drawList().obtain(DrawCommandType.TEXTURE)
+                .texture(texture)
+                .bounds(placement.x(), placement.y(), placement.width(), placement.height())
+                .uv(placement.u(), placement.v(), placement.uWidth(), placement.vHeight())
+                .radius(radius);
+        paintFillOwned(command, tint);
+        submitOwned(command);
+    }
+
+    default void textureTinted(TextureHandle texture, TexturePlacement placement, float radius,
+                               ColorView tint, Transform transform) {
+        DrawCommand command = drawList().obtain(DrawCommandType.TEXTURE)
+                .texture(texture)
+                .bounds(placement.x(), placement.y(), placement.width(), placement.height())
+                .uv(placement.u(), placement.v(), placement.uWidth(), placement.vHeight())
+                .radius(radius);
+        paintFillOwned(command, tint);
+        if (transform != null) command.transform(transform);
+        submitOwned(command);
+    }
+
+    /**
+     * Пишет solid fill напрямую в paint pooled команды без временного {@link Paint}.
+     *
+     * @param command команда из {@link DrawList#obtain}; её paint перезаписывается
+     * @param color цвет заливки или {@code null} для белого
+     */
+    private void paintFillOwned(DrawCommand command, ColorView color) {
+        float opacity = clamp01(opacityMultiplier());
+        Paint paint = command.paint();
+        if (color == null) {
+            paint.color().set(1.0f, 1.0f, 1.0f, opacity);
         } else {
-            texture(texture, placement, radius, Paint.fill(tint), transform);
+            paint.color().set(color.r(), color.g(), color.b(), color.a() * opacity);
         }
+        paint.stroke(false);
+        paint.strokeWidth(0.0f);
+        paint.blend(BlendMode.NORMAL);
+        paint.clearDash();
+    }
+
+    /**
+     * Пишет solid stroke напрямую в paint pooled команды без временного {@link Paint}.
+     *
+     * @param command команда из {@link DrawList#obtain}; её paint перезаписывается
+     * @param color цвет обводки или {@code null} для белого
+     * @param strokeWidth толщина обводки в UI-пикселях
+     */
+    private void paintStrokeOwned(DrawCommand command, ColorView color, float strokeWidth) {
+        paintFillOwned(command, color);
+        Paint paint = command.paint();
+        paint.stroke(true);
+        paint.strokeWidth(strokeWidth);
     }
 
     default void addMesh(DrawMesh mesh, TextureHandle texture) {
@@ -1129,7 +1298,7 @@ public interface RenderContext {
     }
 
     private DrawVertex vertex(float x, float y, ColorView color) {
-        return new DrawVertex(x, y, effectiveColor(color));
+        return new DrawVertex(x, y, 0.0f, 0.0f, ownedVertexColor(color));
     }
 
     private DrawVertex vertex(DrawPoint point, DrawPoint uv, ColorView color) {
@@ -1138,7 +1307,39 @@ public interface RenderContext {
                 point == null ? 0.0f : point.y(),
                 uv == null ? 0.0f : uv.x(),
                 uv == null ? 0.0f : uv.y(),
-                effectiveColor(color));
+                ownedVertexColor(color));
+    }
+
+    /**
+     * Строит цвет вершины напрямую без временных {@link Paint}.
+     *
+     * <p>Старый путь шёл через {@code effectiveColor}: {@code Paint.fill} + копия
+     * paint при opacity + две копии цвета (в {@code effectiveColor} и в snapshot
+     * {@code DrawVertex}). Здесь один {@code MutableColor} с уже применённым
+     * opacity-множителем — его забирает snapshot вершины.</p>
+     *
+     * @param color исходный цвет или {@code null} для белого
+     * @return новый цвет вершины с учётом {@link #opacityMultiplier()}
+     */
+    private MutableColor ownedVertexColor(ColorView color) {
+        return resolvedColor(color, opacityMultiplier());
+    }
+
+    /**
+     * Строит цвет с применённым opacity-множителем без временных {@link Paint}.
+     *
+     * @param color исходный цвет или {@code null} для белого
+     * @param opacity внешний множитель прозрачности
+     * @return новый цвет с {@code alpha * clamp01(opacity)}
+     */
+    private static MutableColor resolvedColor(ColorView color, float opacity) {
+        float multiplier = clamp01(opacity);
+        if (color == null) {
+            return multiplier < 0.999f
+                    ? new MutableColor(1.0f, 1.0f, 1.0f, multiplier)
+                    : new MutableColor();
+        }
+        return new MutableColor(color.r(), color.g(), color.b(), color.a() * multiplier);
     }
 
     private static TexturePlacement placement(TextureHandle texture, float x, float y, float width, float height,
@@ -1184,7 +1385,9 @@ public interface RenderContext {
         float minY = Float.POSITIVE_INFINITY;
         float maxX = Float.NEGATIVE_INFINITY;
         float maxY = Float.NEGATIVE_INFINITY;
-        for (DrawVertex vertex : mesh.vertices()) {
+        Object[] rawVertices = mesh.vertexElements();
+        for (int i = 0, size = mesh.vertexCount(); i < size; i++) {
+            DrawVertex vertex = (DrawVertex) rawVertices[i];
             minX = Math.min(minX, vertex.x());
             minY = Math.min(minY, vertex.y());
             maxX = Math.max(maxX, vertex.x());
@@ -1275,18 +1478,18 @@ public interface RenderContext {
         return current;
     }
 
-    private static List<DrawVertex> triangulate(List<DrawPoint> points, ColorView color) {
-        if (points == null || points.size() < 3) return List.of();
-        List<DrawPoint> polygon = new ObjectArrayList<>();
+    private static ObjectArrayList<DrawVertex> triangulate(List<DrawPoint> points, ColorView color) {
+        if (points == null || points.size() < 3) return new ObjectArrayList<>();
+        ObjectArrayList<DrawPoint> polygon = new ObjectArrayList<>();
         for (DrawPoint point : points) {
             if (point != null) polygon.add(point);
         }
-        if (polygon.size() < 3) return List.of();
+        if (polygon.size() < 3) return new ObjectArrayList<>();
         if (signedArea(polygon) < 0.0f) {
             Collections.reverse(polygon);
         }
 
-        List<DrawVertex> vertices = new ObjectArrayList<>((polygon.size() - 2) * 3);
+        ObjectArrayList<DrawVertex> vertices = new ObjectArrayList<>((polygon.size() - 2) * 3);
         int guard = polygon.size() * polygon.size();
         while (polygon.size() > 3 && guard-- > 0) {
             boolean clipped = false;
