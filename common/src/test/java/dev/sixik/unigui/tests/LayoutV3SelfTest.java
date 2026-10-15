@@ -1741,6 +1741,8 @@ public final class LayoutV3SelfTest {
     private void testScrollViewV3ScrollbarReservationPolicyMatchesV2() {
         ScrollViewFixture v2 = buildScrollViewFixture();
         ScrollViewFixture v3 = buildScrollViewFixture();
+        v2.scroll().overlayScrollBars(false);
+        v3.scroll().overlayScrollBars(false);
         v2.scroll().measure(new dev.sixik.unigui.api.layout.LayoutContext(100.0f, 40.0f));
         v2.scroll().arrange(new MutableRect(0.0f, 0.0f, 100.0f, 40.0f));
         try {

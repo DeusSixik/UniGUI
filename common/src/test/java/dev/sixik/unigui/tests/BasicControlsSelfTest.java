@@ -297,6 +297,8 @@ public final class BasicControlsSelfTest {
         testSliderPointerAndKeyboardInput();
         testScrollViewBubbledWheelInput();
         testScrollViewNestedWheelLockAndOptOut();
+        testOverlayScrollBarZones();
+        testScrollBarHoverExpandsThumb();
         testNestedScissorStack();
         testWidgetAnimationTransitions();
         testMinecraftPreviewWidgetFallbacks();
@@ -3268,17 +3270,17 @@ public final class BasicControlsSelfTest {
         expect(automatic.children().size() == 3,
                 "AUTO overflow should expose content and both scrollbars when both axes overflow");
         expect(near(autoContent.layoutBounds().width(), 200.0f)
-                        && near(automatic.horizontalScrollBar().layoutBounds().width(), 86.0f)
-                        && near(automatic.verticalScrollBar().layoutBounds().height(), 86.0f),
-                "Visible scrollbars should reduce the opposite viewport axis");
-        expect(near(automatic.maxScrollX(), 114.0f) && near(automatic.maxScrollY(), 214.0f),
-                "Scroll ranges should use the viewport remaining after both scrollbars");
+                        && near(automatic.horizontalScrollBar().layoutBounds().width(), 91.0f)
+                        && near(automatic.verticalScrollBar().layoutBounds().height(), 100.0f),
+                "Overlay scrollbars should float above content without shrinking the viewport");
+        expect(near(automatic.maxScrollX(), 100.0f) && near(automatic.maxScrollY(), 200.0f),
+                "Scroll ranges should use the full viewport with overlay scrollbars");
 
         uiContext.routedEvents().dispatch(new PointerPressedEvent(automatic.horizontalScrollBar(),
-                47.0f, 97.0f, 47.0f, 3.0f, 0, PointerButton.PRIMARY));
+                45.5f, 94.0f, 45.5f, 3.0f, 0, PointerButton.PRIMARY));
         expect(automatic.horizontalScrollBar().dragging()
                         && uiContext.capturedPointer(0) == automatic.horizontalScrollBar()
-                        && near(automatic.scrollX(), 57.0f),
+                        && near(automatic.scrollX(), 50.0f),
                 "Dragging the horizontal scrollbar should capture the pointer and update scrollX");
         uiContext.routedEvents().dispatch(new PointerReleasedEvent(automatic.horizontalScrollBar(),
                 160.0f, 130.0f, 160.0f, 130.0f, 0, PointerButton.PRIMARY));
@@ -3593,8 +3595,8 @@ public final class BasicControlsSelfTest {
         viewportWidthScrollView.measure(new LayoutContext(240.0f, 80.0f));
         viewportWidthScrollView.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 80.0f));
         expect(viewportWidthScrollView.maxScrollX() == 0.0f, "ScrollView should not create implicit horizontal overflow without explicit content width");
-        expect(viewportWidthContent.layoutBounds().width() == 86.0f,
-                "ScrollView should arrange implicit-width content to viewport width after the vertical scrollbar");
+        expect(viewportWidthContent.layoutBounds().width() == 100.0f,
+                "ScrollView should arrange implicit-width content to the full viewport width with overlay scrollbars");
 
         Box hiddenAxisContent = new Box();
         ScrollView hiddenAxisScrollView = new ScrollView(hiddenAxisContent)
@@ -3602,8 +3604,52 @@ public final class BasicControlsSelfTest {
         hiddenAxisScrollView.measure(new LayoutContext(100.0f, 80.0f));
         hiddenAxisScrollView.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 80.0f));
         expect(hiddenAxisScrollView.verticalScrollBar().layoutBounds().width() == 6.0f
-                        && hiddenAxisContent.layoutBounds().width() == 86.0f,
-                "ScrollView should reserve the scrollbar element when horizontal overflow is hidden");
+                        && hiddenAxisContent.layoutBounds().width() == 100.0f,
+                "Overlay scrollbar should keep its hit strip while content uses the full viewport");
+    }
+
+    private void testOverlayScrollBarZones() {
+        Box content = new Box();
+        ScrollView overlay = new ScrollView(content).contentSize(200.0f, 300.0f);
+        overlay.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 100.0f));
+        expect(overlay.overlayScrollBars(), "ScrollView should default to overlay scrollbars");
+        expect(near(content.layoutBounds().width(), 100.0f)
+                        && near(overlay.maxScrollY(), 200.0f),
+                "Overlay content should use the full viewport width");
+        expect(near(overlay.verticalScrollBar().layoutBounds().x(), 100.0f - 3.0f - 6.0f)
+                        && near(overlay.verticalScrollBar().layoutBounds().y(), 0.0f)
+                        && near(overlay.verticalScrollBar().layoutBounds().width(), 6.0f)
+                        && near(overlay.verticalScrollBar().layoutBounds().height(), 100.0f),
+                "Overlay vertical bar should sit inside the viewport at inset without shrinking content");
+
+        Box reservedContent = new Box();
+        ScrollView reserved = new ScrollView(reservedContent).contentSize(200.0f, 300.0f);
+        reserved.overlayScrollBars(false);
+        reserved.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 100.0f));
+        expect(near(reservedContent.layoutBounds().width(), 86.0f)
+                        && near(reserved.verticalScrollBar().layoutBounds().x(), 94.0f)
+                        && near(reserved.verticalScrollBar().layoutBounds().height(), 100.0f),
+                "Reserved mode should keep the classic gap-separated slot outside the viewport");
+    }
+
+    private void testScrollBarHoverExpandsThumb() {
+        ScrollBar bar = new ScrollBar();
+        bar.arrange(new MutableRect(0.0f, 0.0f, 6.0f, 100.0f));
+        expect(near(bar.visualThickness(), 3.0f), "Thumb should rest at idle thickness");
+        bar.handle(new PointerEnteredEvent(bar, bar, EventPhase.TARGET, 3.0f, 50.0f, 3.0f, 50.0f, 0));
+        tickFrames(bar, 30);
+        expect(near(bar.visualThickness(), 6.0f), "Hover should expand the thumb toward hover thickness");
+        expect(near(bar.layoutBounds().width(), 6.0f),
+                "Hit strip should stay stable while only the visual thumb expands");
+        bar.handle(new PointerExitedEvent(bar, bar, EventPhase.TARGET, 30.0f, 50.0f, 30.0f, 50.0f, 0));
+        tickFrames(bar, 30);
+        expect(near(bar.visualThickness(), 3.0f), "Pointer exit should collapse the thumb back to idle");
+    }
+
+    private static void tickFrames(ScrollBar bar, int frames) {
+        for (int i = 0; i < frames; i++) {
+            bar.tick(new FrameContext(i, 1.0f / 60.0f, 0.0f, FramePhase.ANIMATION));
+        }
     }
 
     private void testScrollViewNestedWheelLockAndOptOut() {

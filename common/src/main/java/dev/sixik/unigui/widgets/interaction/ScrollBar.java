@@ -1,5 +1,7 @@
 package dev.sixik.unigui.widgets.interaction;
 
+import dev.sixik.unigui.api.animation.AnimationEasing;
+import dev.sixik.unigui.api.animation.TransitionSpec;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
 import dev.sixik.unigui.api.event.Event;
@@ -72,9 +74,23 @@ public class ScrollBar extends Box {
     public static final float DEFAULT_GAP = 8.0f;
     public static final float DEFAULT_PREFERRED_LENGTH = 120.0f;
     public static final float DEFAULT_PREFERRED_THICKNESS = DEFAULT_SIZE;
+    /** Толщина тамба в покое: тонкая полоска, не отвлекает от контента. */
+    public static final float DEFAULT_IDLE_THICKNESS = 3.0f;
+    /** Толщина тамба под курсором/в драге: удобная зона хвата. */
+    public static final float DEFAULT_HOVER_THICKNESS = 6.0f;
+    /** Длительность expand/collapse анимации, секунды. */
+    public static final float DEFAULT_HOVER_ANIMATION_SECONDS = 0.15f;
+
+    private static final Object THICKNESS_ANIMATION_KEY = new Object();
 
     private final MutableColor trackColor = new MutableColor(0.0f, 0.0f, 0.0f, 0.28f);
-    private final MutableColor thumbColor = new MutableColor(0.25f, 0.78f, 1.0f, 0.75f);
+    private final MutableColor thumbColor = new MutableColor(0.55f, 0.58f, 0.62f, 0.60f);
+    private final MutableColor thumbHoverColor = new MutableColor(0.80f, 0.82f, 0.86f, 0.90f);
+    private final MutableColor renderThumbColor = new MutableColor(0.55f, 0.58f, 0.62f, 0.60f);
+    private float idleThickness = DEFAULT_IDLE_THICKNESS;
+    private float hoverThickness = DEFAULT_HOVER_THICKNESS;
+    private float visualThickness = DEFAULT_IDLE_THICKNESS;
+    private TransitionSpec hoverAnimation = TransitionSpec.of(DEFAULT_HOVER_ANIMATION_SECONDS, AnimationEasing.CUBIC_OUT);
     private Orientation orientation = Orientation.VERTICAL;
     private float preferredLength = DEFAULT_PREFERRED_LENGTH;
     private float preferredThickness = DEFAULT_PREFERRED_THICKNESS;
@@ -189,6 +205,96 @@ public class ScrollBar extends Box {
         return thumbColor;
     }
 
+    /**
+     * Возвращает live-цвет тамба под курсором и в драге.
+     *
+     * @return изменяемый hover-цвет тамба
+     */
+    public MutableColor thumbHoverColor() {
+        return thumbHoverColor;
+    }
+
+    /**
+     * Возвращает текущую отрисовываемую толщину тамба.
+     *
+     * <p>Значение анимируется между {@link #idleThickness()} и
+     * {@link #hoverThickness()} при наведении/драге. Layout-полоса при этом не
+     * меняется: хит-зона стабильна, двигается только визуал.</p>
+     *
+     * @return визуальная толщина в пикселях UI-пространства
+     */
+    public float visualThickness() {
+        return visualThickness;
+    }
+
+    /**
+     * Возвращает толщину тамба в покое.
+     *
+     * @return толщина без ховера в пикселях UI-пространства
+     */
+    public float idleThickness() {
+        return idleThickness;
+    }
+
+    /**
+     * Задаёт толщину тамба в покое.
+     *
+     * @param idleThickness толщина в пикселях; минимум {@code 1}
+     * @return этот scrollbar для fluent-настройки
+     */
+    @XmlAttribute(value = "idleThickness", category = "Appearance", defaultValue = "3", description = "Thumb thickness at rest in UI pixels.")
+    public ScrollBar idleThickness(float idleThickness) {
+        float normalized = Float.isFinite(idleThickness) ? Math.max(1.0f, idleThickness) : DEFAULT_IDLE_THICKNESS;
+        if (this.idleThickness == normalized) return this;
+        this.idleThickness = normalized;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Возвращает толщину тамба под курсором и в драге.
+     *
+     * @return расширенная толщина в пикселях UI-пространства
+     */
+    public float hoverThickness() {
+        return hoverThickness;
+    }
+
+    /**
+     * Задаёт толщину тамба под курсором и в драге.
+     *
+     * @param hoverThickness толщина в пикселях; минимум {@code 1}
+     * @return этот scrollbar для fluent-настройки
+     */
+    @XmlAttribute(value = "hoverThickness", category = "Appearance", defaultValue = "6", description = "Thumb thickness on hover and drag in UI pixels.")
+    public ScrollBar hoverThickness(float hoverThickness) {
+        float normalized = Float.isFinite(hoverThickness) ? Math.max(1.0f, hoverThickness) : DEFAULT_HOVER_THICKNESS;
+        if (this.hoverThickness == normalized) return this;
+        this.hoverThickness = normalized;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Возвращает spec expand/collapse анимации.
+     *
+     * @return параметры перехода толщины и цвета
+     */
+    public TransitionSpec hoverAnimation() {
+        return hoverAnimation;
+    }
+
+    /**
+     * Задаёт spec expand/collapse анимации.
+     *
+     * @param hoverAnimation параметры перехода; {@code null} означает мгновенно
+     * @return этот scrollbar для fluent-настройки
+     */
+    public ScrollBar hoverAnimation(TransitionSpec hoverAnimation) {
+        this.hoverAnimation = hoverAnimation == null ? TransitionSpec.of(0.0f) : hoverAnimation;
+        return this;
+    }
+
     public float preferredLength() {
         return preferredLength;
     }
@@ -241,6 +347,32 @@ public class ScrollBar extends Box {
         super.applyTheme();
         trackColor.set(styleValue(StyleKeys.TRACK_COLOR, trackColor));
         thumbColor.set(styleValue(StyleKeys.THUMB_COLOR, thumbColor));
+        thumbHoverColor.set(styleValue(StyleKeys.THUMB_COLOR, dev.sixik.unigui.api.style.WidgetState.HOVERED, thumbHoverColor));
+    }
+
+    @Override
+    public void tick(dev.sixik.unigui.api.core.FrameContext frame) {
+        super.tick(frame);
+        syncHoverVisuals();
+    }
+
+    /**
+     * Перенацеливает анимации толщины и цвета под текущее состояние.
+     *
+     * <p>Активность = hover или drag. Анимации идут через существующие
+     * {@code animateParameter}/{@code animateColor} с ретаргетом: повторный вызов
+     * в том же состоянии — no-op, смена состояния — плавный переход от текущего
+     * значения. Layout не трогаем: анимируется только отрисовка.</p>
+     */
+    private void syncHoverVisuals() {
+        boolean active = dragging || hovered();
+        float targetThickness = active ? hoverThickness : idleThickness;
+        animateParameter(THICKNESS_ANIMATION_KEY,
+                () -> visualThickness,
+                value -> visualThickness = value,
+                targetThickness,
+                hoverAnimation);
+        animateColor(renderThumbColor, active ? thumbHoverColor : thumbColor, hoverAnimation);
     }
 
     @Override
@@ -293,18 +425,24 @@ public class ScrollBar extends Box {
         float y = layoutBounds().y();
         float width = layoutBounds().width();
         float height = layoutBounds().height();
+        // Тамб якорится к внешнему краю полосы (справа/снизу): при expand
+        // растёт внутрь вьюпорта, хит-зона layout-полосы при этом стабильна.
+        float thickness = Math.min(visualThickness,
+                orientation == Orientation.VERTICAL ? width : height);
         draw.roundedRectFilled(x, y, width, height, Math.min(width, height) * 0.5f,
                 trackColor);
         if (orientation == Orientation.VERTICAL) {
             float thumbHeight = thumbLength(height);
             float thumbY = y + (height - thumbHeight) * normalizedValue();
-            draw.roundedRectFilled(x, thumbY, width, thumbHeight, width * 0.5f,
-                    thumbColor);
+            float thumbX = x + width - thickness;
+            draw.roundedRectFilled(thumbX, thumbY, thickness, thumbHeight, thickness * 0.5f,
+                    renderThumbColor);
         } else {
             float thumbWidth = thumbLength(width);
             float thumbX = x + (width - thumbWidth) * normalizedValue();
-            draw.roundedRectFilled(thumbX, y, thumbWidth, height, height * 0.5f,
-                    thumbColor);
+            float thumbY = y + height - thickness;
+            draw.roundedRectFilled(thumbX, thumbY, thumbWidth, thickness, thickness * 0.5f,
+                    renderThumbColor);
         }
         super.renderContent(context);
     }
