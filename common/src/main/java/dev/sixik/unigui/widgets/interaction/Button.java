@@ -451,18 +451,18 @@ public class Button extends SurfaceWidget<Button> {
                                                boolean checked, boolean indeterminate,
                                                ColorView borderColor, ColorView indicatorColor) {
         if (draw == null || size <= 0.0f) return;
-        draw.roundedRect(x, y, size, size, 2.0f, Paint.stroke(borderColor, 1.0f));
+        draw.roundedRectStroke(x, y, size, size, 2.0f, borderColor, 1.0f);
         if (indeterminate) {
             float dashWidth = Math.max(1.0f, innerSize);
             float dashHeight = Math.max(1.0f, innerSize * 0.28f);
             float offsetX = Math.max(0.0f, (size - dashWidth) * 0.5f);
             float offsetY = Math.max(0.0f, (size - dashHeight) * 0.5f);
-            draw.rect(x + offsetX, y + offsetY, dashWidth, dashHeight, Paint.fill(indicatorColor));
+            draw.rectFilled(x + offsetX, y + offsetY, dashWidth, dashHeight, indicatorColor);
         } else if (checked) {
             float inner = Math.max(0.0f, innerSize);
             float offset = Math.max(0.0f, (size - inner) * 0.5f);
             if (inner > 0.0f) {
-                draw.rect(x + offset, y + offset, inner, inner, Paint.fill(indicatorColor));
+                draw.rectFilled(x + offset, y + offset, inner, inner, indicatorColor);
             }
         }
     }
@@ -482,12 +482,12 @@ public class Button extends SurfaceWidget<Button> {
     protected static void renderRadioIndicator(DrawScope draw, float x, float y, float size, float innerSize,
                                                float progress, ColorView borderColor, ColorView indicatorColor) {
         if (draw == null || size <= 0.0f) return;
-        draw.circle(x, y, size, size, Paint.stroke(borderColor, 1.0f));
+        draw.circleStroke(x, y, size, size, borderColor, 1.0f);
         float normalizedProgress = Math.max(0.0f, Math.min(1.0f, progress));
         if (normalizedProgress <= 0.0f || innerSize <= 0.0f) return;
         float inner = innerSize * normalizedProgress;
         float offset = Math.max(0.0f, (size - inner) * 0.5f);
-        draw.circle(x + offset, y + offset, inner, inner, Paint.fill(indicatorColor));
+        draw.circleFilled(x + offset, y + offset, inner, inner, indicatorColor);
     }
 
     @Override

@@ -231,6 +231,77 @@ public final class DrawScope {
         texture(texture, new TexturePlacement(x, y, width, height, u, v, uWidth, vHeight), 0.0f, paint);
     }
 
+    /**
+     * Garbage-free примитивы: те же фигуры, но цвет напрямую без временного {@link Paint}.
+     *
+     * <p>Зеркала {@code *Filled/*Stroke} перегрузок {@link RenderContext}: ноль аллокаций
+     * на вызов в общем случае. Transform scope применяется как обычно.</p>
+     */
+    public void rectFilled(float x, float y, float width, float height, ColorView color) {
+        if (transform == null) {
+            context.rectFilled(x, y, width, height, color);
+        } else {
+            context.rectFilled(x, y, width, height, color, transformFor(x, y));
+        }
+    }
+
+    public void rectStroke(float x, float y, float width, float height, ColorView color, float strokeWidth) {
+        if (transform == null) {
+            context.rectStroke(x, y, width, height, color, strokeWidth);
+        } else {
+            context.rectStroke(x, y, width, height, color, strokeWidth, transformFor(x, y));
+        }
+    }
+
+    public void roundedRectFilled(float x, float y, float width, float height, float radius, ColorView color) {
+        if (transform == null) {
+            context.roundedRectFilled(x, y, width, height, radius, color);
+        } else {
+            context.roundedRectFilled(x, y, width, height, radius, color, transformFor(x, y));
+        }
+    }
+
+    public void roundedRectStroke(float x, float y, float width, float height, float radius,
+                                  ColorView color, float strokeWidth) {
+        if (transform == null) {
+            context.roundedRectStroke(x, y, width, height, radius, color, strokeWidth);
+        } else {
+            context.roundedRectStroke(x, y, width, height, radius, color, strokeWidth, transformFor(x, y));
+        }
+    }
+
+    public void circleFilled(float x, float y, float width, float height, ColorView color) {
+        if (transform == null) {
+            context.circleFilled(x, y, width, height, color);
+        } else {
+            context.circleFilled(x, y, width, height, color, transformFor(x, y));
+        }
+    }
+
+    public void circleStroke(float x, float y, float width, float height, ColorView color, float strokeWidth) {
+        if (transform == null) {
+            context.circleStroke(x, y, width, height, color, strokeWidth);
+        } else {
+            context.circleStroke(x, y, width, height, color, strokeWidth, transformFor(x, y));
+        }
+    }
+
+    public void textureTinted(TextureHandle texture, float x, float y, float width, float height, ColorView tint) {
+        if (transform == null) {
+            context.textureTinted(texture, x, y, width, height, tint);
+        } else {
+            context.textureTinted(texture, x, y, width, height, tint, transformFor(x, y));
+        }
+    }
+
+    public void textureTinted(TextureHandle texture, TexturePlacement placement, float radius, ColorView tint) {
+        if (transform == null) {
+            context.textureTinted(texture, placement, radius, tint);
+        } else {
+            context.textureTinted(texture, placement, radius, tint, transformFor(placement.x(), placement.y()));
+        }
+    }
+
     public void shader(ShaderHandle shader, float x, float y, float width, float height,
                        ShaderUniforms uniforms, ShaderDrawOptions options) {
         if (transform == null) {

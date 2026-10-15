@@ -353,11 +353,11 @@ public interface RenderContext {
     }
 
     default void addLine(float x1, float y1, float x2, float y2, ColorView color, float thickness, Transform transform) {
-        if (transform == null) {
-            line(x1, y1, x2, y2, Paint.stroke(color, thickness));
-        } else {
-            line(x1, y1, x2, y2, Paint.stroke(color, thickness), transform);
-        }
+        DrawCommand command = drawList().obtain(DrawCommandType.LINE)
+                .bounds(x1, y1, x2 - x1, y2 - y1);
+        paintStrokeOwned(command, color, thickness);
+        if (transform != null) command.transform(transform);
+        submitOwned(command);
     }
 
     default void addRect(float x, float y, float width, float height, ColorView color, float thickness) {
@@ -365,11 +365,7 @@ public interface RenderContext {
     }
 
     default void addRect(float x, float y, float width, float height, ColorView color, float thickness, Transform transform) {
-        if (transform == null) {
-            rect(x, y, width, height, Paint.stroke(color, thickness));
-        } else {
-            rect(x, y, width, height, Paint.stroke(color, thickness), transform);
-        }
+        rectStroke(x, y, width, height, color, thickness, transform);
     }
 
     default void addRectFilled(float x, float y, float width, float height, ColorView color) {
@@ -377,11 +373,7 @@ public interface RenderContext {
     }
 
     default void addRectFilled(float x, float y, float width, float height, ColorView color, Transform transform) {
-        if (transform == null) {
-            rect(x, y, width, height, Paint.fill(color));
-        } else {
-            rect(x, y, width, height, Paint.fill(color), transform);
-        }
+        rectFilled(x, y, width, height, color, transform);
     }
 
     default void addRect(float x, float y, float width, float height, float radius, ColorView color, float thickness) {
@@ -390,11 +382,7 @@ public interface RenderContext {
 
     default void addRect(float x, float y, float width, float height, float radius,
                          ColorView color, float thickness, Transform transform) {
-        if (transform == null) {
-            roundedRect(x, y, width, height, radius, Paint.stroke(color, thickness));
-        } else {
-            roundedRect(x, y, width, height, radius, Paint.stroke(color, thickness), transform);
-        }
+        roundedRectStroke(x, y, width, height, radius, color, thickness, transform);
     }
 
     default void addRectFilled(float x, float y, float width, float height, float radius, ColorView color) {
@@ -403,11 +391,7 @@ public interface RenderContext {
 
     default void addRectFilled(float x, float y, float width, float height, float radius,
                                ColorView color, Transform transform) {
-        if (transform == null) {
-            roundedRect(x, y, width, height, radius, Paint.fill(color));
-        } else {
-            roundedRect(x, y, width, height, radius, Paint.fill(color), transform);
-        }
+        roundedRectFilled(x, y, width, height, radius, color, transform);
     }
 
     default void addRectFilledMultiColor(float x, float y, float width, float height,
@@ -523,8 +507,8 @@ public interface RenderContext {
         int count = normalizedSegments(Math.max(Math.abs(radiusX), Math.abs(radiusY)), segments);
         DrawCommand command = drawList().obtain(DrawCommandType.CIRCLE)
                 .bounds(centerX - radiusX, centerY - radiusY, radiusX * 2.0f, radiusY * 2.0f)
-                .segments(count)
-                .paintOwned(effectivePaint(Paint.stroke(color, thickness)));
+                .segments(count);
+        paintStrokeOwned(command, color, thickness);
         if (transform != null) command.transform(transform);
         submitOwned(command);
     }
@@ -539,8 +523,8 @@ public interface RenderContext {
         int count = normalizedSegments(Math.max(Math.abs(radiusX), Math.abs(radiusY)), segments);
         DrawCommand command = drawList().obtain(DrawCommandType.CIRCLE)
                 .bounds(centerX - radiusX, centerY - radiusY, radiusX * 2.0f, radiusY * 2.0f)
-                .segments(count)
-                .paintOwned(effectivePaint(Paint.fill(color)));
+                .segments(count);
+        paintFillOwned(command, color);
         if (transform != null) command.transform(transform);
         submitOwned(command);
     }
@@ -551,11 +535,13 @@ public interface RenderContext {
 
     default void addText(String text, float x, float y, float width, float height,
                          ColorView color, Transform transform) {
-        if (transform == null) {
-            text(text, x, y, width, height, Paint.fill(color));
-        } else {
-            text(text, x, y, width, height, Paint.fill(color), transform);
-        }
+        DrawCommand command = drawList().obtain(DrawCommandType.TEXT)
+                .text(text)
+                .bounds(x, y, width, height)
+                .textPixelSnap(textPixelSnapEnabled());
+        paintFillOwned(command, color);
+        if (transform != null) command.transform(transform);
+        submitOwned(command);
     }
 
     default void addText(RichText text, float x, float y, float width, float height, ColorView color) {
@@ -564,11 +550,13 @@ public interface RenderContext {
 
     default void addText(RichText text, float x, float y, float width, float height,
                          ColorView color, Transform transform) {
-        if (transform == null) {
-            text(text, x, y, width, height, Paint.fill(color));
-        } else {
-            text(text, x, y, width, height, Paint.fill(color), transform);
-        }
+        DrawCommand command = drawList().obtain(DrawCommandType.TEXT)
+                .richText(text)
+                .bounds(x, y, width, height)
+                .textPixelSnap(textPixelSnapEnabled());
+        paintFillOwned(command, color);
+        if (transform != null) command.transform(transform);
+        submitOwned(command);
     }
 
     default void addPolyline(List<DrawPoint> points, ColorView color, boolean closed, float thickness) {
@@ -625,11 +613,7 @@ public interface RenderContext {
 
     default void addImage(TextureHandle texture, float x, float y, float width, float height,
                           ColorView tint, Transform transform) {
-        if (transform == null) {
-            texture(texture, x, y, width, height, Paint.fill(tint));
-        } else {
-            texture(texture, x, y, width, height, Paint.fill(tint), transform);
-        }
+        textureTinted(texture, x, y, width, height, tint, transform);
     }
 
     default void addImage(TextureHandle texture, float x, float y, float width, float height,
@@ -640,11 +624,7 @@ public interface RenderContext {
     default void addImage(TextureHandle texture, float x, float y, float width, float height,
                           DrawPoint uvMin, DrawPoint uvMax, ColorView tint, Transform transform) {
         TexturePlacement placement = placement(texture, x, y, width, height, uvMin, uvMax);
-        if (transform == null) {
-            texture(texture, placement, 0.0f, Paint.fill(tint));
-        } else {
-            texture(texture, placement, 0.0f, Paint.fill(tint), transform);
-        }
+        textureTinted(texture, placement, 0.0f, tint, transform);
     }
 
     default void addImageQuad(TextureHandle texture,
@@ -705,11 +685,191 @@ public interface RenderContext {
                                  DrawPoint uvMin, DrawPoint uvMax, ColorView tint, float radius,
                                  Transform transform) {
         TexturePlacement placement = placement(texture, x, y, width, height, uvMin, uvMax);
-        if (transform == null) {
-            texture(texture, placement, radius, Paint.fill(tint));
+        textureTinted(texture, placement, radius, tint, transform);
+    }
+
+    /**
+     * Garbage-free примитивы: те же фигуры, что и {@code Paint}-перегрузки выше,
+     * но цвет принимается напрямую без временного {@link Paint}.
+     *
+     * <p>Каждый {@code Paint.fill/stroke} у вызывающего — один eden-объект на команду,
+     * который умирал сразу в {@code paintOwned}. При тысячах виджетов это тысячи
+     * объектов на кадр. Здесь paint пишется напрямую в pooled команду:
+     * ноль аллокаций на вызов. Семантика идентична {@code Paint.fill/stroke}
+     * (solid, NORMAL blend, opacity через {@link #opacityMultiplier()});
+     * dashed/non-normal blend по-прежнему идут через {@code Paint}-перегрузки.</p>
+     */
+    default void rectFilled(float x, float y, float width, float height, ColorView color) {
+        DrawCommand command = drawList().obtain(DrawCommandType.RECT)
+                .bounds(x, y, width, height);
+        paintFillOwned(command, color);
+        submitOwned(command);
+    }
+
+    default void rectFilled(float x, float y, float width, float height, ColorView color, Transform transform) {
+        DrawCommand command = drawList().obtain(DrawCommandType.RECT)
+                .bounds(x, y, width, height);
+        paintFillOwned(command, color);
+        if (transform != null) command.transform(transform);
+        submitOwned(command);
+    }
+
+    default void rectStroke(float x, float y, float width, float height, ColorView color, float strokeWidth) {
+        DrawCommand command = drawList().obtain(DrawCommandType.RECT)
+                .bounds(x, y, width, height);
+        paintStrokeOwned(command, color, strokeWidth);
+        submitOwned(command);
+    }
+
+    default void rectStroke(float x, float y, float width, float height, ColorView color,
+                            float strokeWidth, Transform transform) {
+        DrawCommand command = drawList().obtain(DrawCommandType.RECT)
+                .bounds(x, y, width, height);
+        paintStrokeOwned(command, color, strokeWidth);
+        if (transform != null) command.transform(transform);
+        submitOwned(command);
+    }
+
+    default void roundedRectFilled(float x, float y, float width, float height, float radius, ColorView color) {
+        DrawCommand command = drawList().obtain(DrawCommandType.ROUNDED_RECT)
+                .bounds(x, y, width, height)
+                .radius(radius);
+        paintFillOwned(command, color);
+        submitOwned(command);
+    }
+
+    default void roundedRectFilled(float x, float y, float width, float height, float radius,
+                                   ColorView color, Transform transform) {
+        DrawCommand command = drawList().obtain(DrawCommandType.ROUNDED_RECT)
+                .bounds(x, y, width, height)
+                .radius(radius);
+        paintFillOwned(command, color);
+        if (transform != null) command.transform(transform);
+        submitOwned(command);
+    }
+
+    default void roundedRectStroke(float x, float y, float width, float height, float radius,
+                                   ColorView color, float strokeWidth) {
+        DrawCommand command = drawList().obtain(DrawCommandType.ROUNDED_RECT)
+                .bounds(x, y, width, height)
+                .radius(radius);
+        paintStrokeOwned(command, color, strokeWidth);
+        submitOwned(command);
+    }
+
+    default void roundedRectStroke(float x, float y, float width, float height, float radius,
+                                   ColorView color, float strokeWidth, Transform transform) {
+        DrawCommand command = drawList().obtain(DrawCommandType.ROUNDED_RECT)
+                .bounds(x, y, width, height)
+                .radius(radius);
+        paintStrokeOwned(command, color, strokeWidth);
+        if (transform != null) command.transform(transform);
+        submitOwned(command);
+    }
+
+    default void circleFilled(float x, float y, float width, float height, ColorView color) {
+        DrawCommand command = drawList().obtain(DrawCommandType.CIRCLE)
+                .bounds(x, y, width, height);
+        paintFillOwned(command, color);
+        submitOwned(command);
+    }
+
+    default void circleFilled(float x, float y, float width, float height, ColorView color, Transform transform) {
+        DrawCommand command = drawList().obtain(DrawCommandType.CIRCLE)
+                .bounds(x, y, width, height);
+        paintFillOwned(command, color);
+        if (transform != null) command.transform(transform);
+        submitOwned(command);
+    }
+
+    default void circleStroke(float x, float y, float width, float height, ColorView color, float strokeWidth) {
+        DrawCommand command = drawList().obtain(DrawCommandType.CIRCLE)
+                .bounds(x, y, width, height);
+        paintStrokeOwned(command, color, strokeWidth);
+        submitOwned(command);
+    }
+
+    default void circleStroke(float x, float y, float width, float height, ColorView color,
+                              float strokeWidth, Transform transform) {
+        DrawCommand command = drawList().obtain(DrawCommandType.CIRCLE)
+                .bounds(x, y, width, height);
+        paintStrokeOwned(command, color, strokeWidth);
+        if (transform != null) command.transform(transform);
+        submitOwned(command);
+    }
+
+    default void textureTinted(TextureHandle texture, float x, float y, float width, float height, ColorView tint) {
+        DrawCommand command = drawList().obtain(DrawCommandType.TEXTURE)
+                .texture(texture)
+                .bounds(x, y, width, height);
+        paintFillOwned(command, tint);
+        submitOwned(command);
+    }
+
+    default void textureTinted(TextureHandle texture, float x, float y, float width, float height,
+                               ColorView tint, Transform transform) {
+        DrawCommand command = drawList().obtain(DrawCommandType.TEXTURE)
+                .texture(texture)
+                .bounds(x, y, width, height);
+        paintFillOwned(command, tint);
+        if (transform != null) command.transform(transform);
+        submitOwned(command);
+    }
+
+    default void textureTinted(TextureHandle texture, TexturePlacement placement, float radius, ColorView tint) {
+        DrawCommand command = drawList().obtain(DrawCommandType.TEXTURE)
+                .texture(texture)
+                .bounds(placement.x(), placement.y(), placement.width(), placement.height())
+                .uv(placement.u(), placement.v(), placement.uWidth(), placement.vHeight())
+                .radius(radius);
+        paintFillOwned(command, tint);
+        submitOwned(command);
+    }
+
+    default void textureTinted(TextureHandle texture, TexturePlacement placement, float radius,
+                               ColorView tint, Transform transform) {
+        DrawCommand command = drawList().obtain(DrawCommandType.TEXTURE)
+                .texture(texture)
+                .bounds(placement.x(), placement.y(), placement.width(), placement.height())
+                .uv(placement.u(), placement.v(), placement.uWidth(), placement.vHeight())
+                .radius(radius);
+        paintFillOwned(command, tint);
+        if (transform != null) command.transform(transform);
+        submitOwned(command);
+    }
+
+    /**
+     * Пишет solid fill напрямую в paint pooled команды без временного {@link Paint}.
+     *
+     * @param command команда из {@link DrawList#obtain}; её paint перезаписывается
+     * @param color цвет заливки или {@code null} для белого
+     */
+    private void paintFillOwned(DrawCommand command, ColorView color) {
+        float opacity = clamp01(opacityMultiplier());
+        Paint paint = command.paint();
+        if (color == null) {
+            paint.color().set(1.0f, 1.0f, 1.0f, opacity);
         } else {
-            texture(texture, placement, radius, Paint.fill(tint), transform);
+            paint.color().set(color.r(), color.g(), color.b(), color.a() * opacity);
         }
+        paint.stroke(false);
+        paint.strokeWidth(0.0f);
+        paint.blend(BlendMode.NORMAL);
+        paint.clearDash();
+    }
+
+    /**
+     * Пишет solid stroke напрямую в paint pooled команды без временного {@link Paint}.
+     *
+     * @param command команда из {@link DrawList#obtain}; её paint перезаписывается
+     * @param color цвет обводки или {@code null} для белого
+     * @param strokeWidth толщина обводки в UI-пикселях
+     */
+    private void paintStrokeOwned(DrawCommand command, ColorView color, float strokeWidth) {
+        paintFillOwned(command, color);
+        Paint paint = command.paint();
+        paint.stroke(true);
+        paint.strokeWidth(strokeWidth);
     }
 
     default void addMesh(DrawMesh mesh, TextureHandle texture) {
