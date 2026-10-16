@@ -707,7 +707,7 @@ final class IsfBrowserOverlay {
         search.backgroundTextureFit(dev.sixik.unigui.api.render.ImageFit.NINE_SLICE);
         search.sliceBorders(6.0f);
         search.backgroundTexture(new MinecraftTextureHandle(
-                ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/search_background_v2.png"),
+                ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/search_background.png"),
                 20, 20, TextureOptions.nearest()));
         search.layout(style -> style
                 .widthPercent(100.0f)
@@ -756,8 +756,7 @@ final class IsfBrowserOverlay {
     private void configureDetailPanel() {
         detailPanel.spacing(RECIPE_GAP);
         detailPanel.layout(style -> style
-                .size(206.0f, 140.0f)
-                .padding(4.0f));
+                .size(206.0f, 140.0f));
 
         // Зелёная зона: вкладки доступных RecipeType + стрелка прокрутки при переполнении.
         tabScroll.scrollStep(TAB_CELL);
@@ -787,13 +786,18 @@ final class IsfBrowserOverlay {
         VBox content = new VBox();
         content.spacing(2.0f);
         content.backgroundVisible(true);
+        content.backgroundTextureFit(dev.sixik.unigui.api.render.ImageFit.NINE_SLICE);
+        content.sliceBorders(4.0f);
         content.backgroundTexture(new MinecraftTextureHandle(
                         ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/gui_background.png"),
                         64, 64, TextureOptions.nearest()));
         content.layout(style -> style
                 .widthPercent(100.0f)
                 .flexGrow(1.0f)
-                .flexShrink(1.0f));
+                .flexShrink(1.0f)
+                .padding(4.0f)
+                .left(2.0f)
+                .right(2.0f));
 
         HBox detailHeader = new HBox();
         detailHeader.spacing(2.0f);

@@ -302,6 +302,7 @@ public final class VanillaRecipeTypeSupports {
                 arrow(),
                 new IsfVisualNode("result_column", id("unigui:vbox"), Map.of(
                         "spacing", literal(2),
+                        "paddingTop", literal(10),
                         "alignItems", literal("center"),
                         "alignSelf", literal("center")), List.of(
                         resultItem(),
@@ -374,9 +375,9 @@ public final class VanillaRecipeTypeSupports {
         return new IsfVisualNode("result", id("unigui:item"), Map.of(
                 "item", parameter("result"),
                 "count", parameter("result_count"),
-                "slot", literal("isf:textures/jei/atlas/gui/slot.png"),
-                "width", literal(18),
-                "height", literal(18),
+                "slot", literal("isf:textures/jei/atlas/gui/dark_output_slot.png"),
+                "width", literal(26),
+                "height", literal(26),
                 "alignSelf", literal("center")), List.of());
     }
 
