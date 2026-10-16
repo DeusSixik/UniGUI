@@ -17,7 +17,6 @@ import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
-import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.text.RichText;
@@ -190,14 +189,46 @@ public class HoldButton extends Button {
     protected void renderContent(RenderContext context) {
         applyTheme();
         DrawScope draw = new DrawScope(context, transform(), layoutBounds());
-        float progress = holdProgress();
-        if (progress > 0.0f) {
-            draw.rect(layoutBounds().x(), layoutBounds().y(),
-                    layoutBounds().width() * progress, layoutBounds().height(),
-                    Paint.fill(holdColor));
-        }
+        renderHoldProgress(draw);
         renderButtonText(draw);
+        renderFocusRing(draw);
         renderChildren(context);
+    }
+
+    /**
+     * Рисует заливку прогресса удержания.
+     *
+     * <p>Заливка повторяет радиус кнопки и отступает внутрь на толщину рамки,
+     * чтобы не перекрывать бордер и не вылезать острыми углами за скруглённый
+     * фон (раньше был плоский {@code rect} от края до края). При почти полном
+     * прогрессе правый радиус возвращается, чтобы заливка не выглядела
+     * обрезанной на последнем кадре.</p>
+     *
+     * @param draw draw scope виджета
+     */
+    protected void renderHoldProgress(DrawScope draw) {
+        if (draw == null) return;
+        float progress = holdProgress();
+        if (progress <= 0.0f) return;
+        float inset = borderVisible() ? Math.max(0.0f, borderWidth()) : 0.0f;
+        float x = layoutBounds().x() + inset;
+        float y = layoutBounds().y() + inset;
+        float width = layoutBounds().width() - inset * 2.0f;
+        float height = layoutBounds().height() - inset * 2.0f;
+        if (width <= 0.0f || height <= 0.0f) return;
+        float fillWidth = width * Math.min(1.0f, progress);
+        if (fillWidth <= 0.0f) return;
+        float radius = Math.max(0.0f, radius() - inset);
+        if (fillWidth >= width - 0.5f || radius <= 0.0f) {
+            draw.roundedRectFilled(x, y, fillWidth, height, Math.min(radius, fillWidth * 0.5f), holdColor);
+            return;
+        }
+        // Частичный прогресс: круглим только левые углы, правый край прямой.
+        float straightWidth = Math.max(0.0f, fillWidth - radius);
+        draw.roundedRectFilled(x, y, fillWidth, height, Math.min(radius, fillWidth * 0.5f), holdColor);
+        if (straightWidth > 0.0f) {
+            draw.rectFilled(x + radius, y, straightWidth, height, holdColor);
+        }
     }
 
     @Override

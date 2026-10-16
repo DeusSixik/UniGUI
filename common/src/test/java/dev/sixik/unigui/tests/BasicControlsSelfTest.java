@@ -306,6 +306,8 @@ public final class BasicControlsSelfTest {
         testTextFieldFocusRingAndBorder();
         testThemeDisabledFieldKeepsCustomFocusRing();
         testTextFieldPaddingMovesText();
+        testButtonFocusRing();
+        testButtonStateBackgrounds();
         testTextFieldCaretBlink();
         testNestedScissorStack();
         testWidgetAnimationTransitions();
@@ -3812,6 +3814,142 @@ public final class BasicControlsSelfTest {
         int asymIndex = firstCommandIndex(asym, DrawCommandType.TEXT, 0);
         expect(asymIndex >= 0 && near(asym.commands().get(asymIndex).bounds().x(), 52.0f),
                 "textPaddingLeft should control the text start edge independently");
+    }
+
+    private void testButtonFocusRing() {
+        Button button = new Button("Focus me");
+        button.setUiContextInternal(new DefaultUIContext());
+        button.arrange(new MutableRect(50.0f, 50.0f, 120.0f, 36.0f));
+        DrawList unfocused = new DrawList();
+        button.render(new DefaultRenderContext(unfocused));
+        expect(noStrokeWithColor(unfocused, button.focusRingColor()),
+                "Unfocused button should paint no focus ring");
+
+        button.handle(new FocusGainedEvent(button, null));
+        DrawList focusedDefault = new DrawList();
+        button.render(new DefaultRenderContext(focusedDefault));
+        expect(button.focused() && noStrokeWithColor(focusedDefault, button.focusRingColor()),
+                "Focus ring should stay off by default even while focused");
+
+        button.focusRingVisible(true);
+        DrawList focused = new DrawList();
+        button.render(new DefaultRenderContext(focused));
+        expect(hasStrokeWithColor(focused, button.focusRingColor(), 48.0f, 48.0f, 124.0f, 40.0f),
+                "Focused button with enabled ring should paint the halo outside its bounds");
+
+        button.handle(new FocusLostEvent(button, null));
+        DrawList blurred = new DrawList();
+        button.render(new DefaultRenderContext(blurred));
+        expect(!button.focused() && noStrokeWithColor(blurred, button.focusRingColor()),
+                "Blur should remove the button focus ring");
+    }
+
+    private void testButtonStateBackgrounds() {
+        Button button = new Button("State me");
+        button.setUiContextInternal(new DefaultUIContext());
+        button.themeEnabled(false);
+        button.background().set(0.10f, 0.10f, 0.10f, 1.0f);
+        button.hoverBackground().set(0.20f, 0.30f, 0.40f, 1.0f);
+        button.pressedBackground().set(0.50f, 0.10f, 0.10f, 1.0f);
+        button.arrange(new MutableRect(0.0f, 0.0f, 120.0f, 36.0f));
+
+        DrawList normal = new DrawList();
+        button.render(new DefaultRenderContext(normal));
+        expect(hasFillColor(normal, 0.10f, 0.10f, 0.10f, 1.0f)
+                        && !hasFillColor(normal, 0.20f, 0.30f, 0.40f, 1.0f),
+                "Idle button should paint only the base background");
+
+        button.handle(new PointerEnteredEvent(button, button, EventPhase.TARGET, 10.0f, 10.0f, 10.0f, 10.0f, 0));
+        DrawList hovered = new DrawList();
+        button.render(new DefaultRenderContext(hovered));
+        expect(lastFillColor(hovered, 0.20f, 0.30f, 0.40f, 1.0f),
+                "Hovered button should paint the explicit hover fill over the base");
+
+        button.handle(new PointerPressedEvent(button, 10.0f, 10.0f, 10.0f, 10.0f, 0, PointerButton.PRIMARY));
+        DrawList pressed = new DrawList();
+        button.render(new DefaultRenderContext(pressed));
+        expect(lastFillColor(pressed, 0.50f, 0.10f, 0.10f, 1.0f),
+                "Pressed button should prefer the pressed fill over the hover fill");
+
+        button.handle(new PointerReleasedEvent(button, 10.0f, 10.0f, 10.0f, 10.0f, 0, PointerButton.PRIMARY));
+        button.clearHoverBackground().clearPressedBackground();
+        DrawList cleared = new DrawList();
+        button.render(new DefaultRenderContext(cleared));
+        expect(hasFillColor(cleared, 0.10f, 0.10f, 0.10f, 1.0f)
+                        && !hasFillColor(cleared, 0.20f, 0.30f, 0.40f, 1.0f)
+                        && !hasFillColor(cleared, 0.50f, 0.10f, 0.10f, 1.0f),
+                "Cleared state backgrounds should leave only the base fill");
+
+        // State texture renders over the state fill of the same state.
+        button.hoverBackground().set(0.20f, 0.30f, 0.40f, 1.0f);
+        button.hoverTexture(new SimpleTextureHandle("test:hover", 16, 16));
+        DrawList textured = new DrawList();
+        button.render(new DefaultRenderContext(textured));
+        expect(lastTextureId(textured).equals("test:hover")
+                        && fillIndex(textured, 0.20f, 0.30f, 0.40f, 1.0f) < textureIndex(textured, "test:hover"),
+                "Hover texture should render over the hover fill");
+    }
+
+    private static boolean lastFillColor(DrawList drawList, float r, float g, float b, float a) {
+        int last = -1;
+        java.util.List<DrawCommand> commands = drawList.commands();
+        for (int i = 0; i < commands.size(); i++) {
+            DrawCommand command = commands.get(i);
+            if (command.paint() != null && !command.paint().isStroke()
+                    && near(command.paint().color().r(), r)
+                    && near(command.paint().color().g(), g)
+                    && near(command.paint().color().b(), b)
+                    && near(command.paint().color().a(), a)) {
+                last = i;
+            }
+        }
+        if (last < 0) return false;
+        // State fill must come after the base fill (theme color first).
+        for (int i = last + 1; i < commands.size(); i++) {
+            DrawCommand command = commands.get(i);
+            if (command.type() == DrawCommandType.ROUNDED_RECT && command.paint() != null
+                    && !command.paint().isStroke()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static int fillIndex(DrawList drawList, float r, float g, float b, float a) {
+        java.util.List<DrawCommand> commands = drawList.commands();
+        for (int i = 0; i < commands.size(); i++) {
+            DrawCommand command = commands.get(i);
+            if (command.paint() != null && !command.paint().isStroke()
+                    && near(command.paint().color().r(), r)
+                    && near(command.paint().color().g(), g)
+                    && near(command.paint().color().b(), b)
+                    && near(command.paint().color().a(), a)) {
+                return i;
+            }
+        }
+        return Integer.MAX_VALUE;
+    }
+
+    private static int textureIndex(DrawList drawList, String id) {
+        java.util.List<DrawCommand> commands = drawList.commands();
+        for (int i = 0; i < commands.size(); i++) {
+            DrawCommand command = commands.get(i);
+            if (command.type() == DrawCommandType.TEXTURE && command.texture() != null
+                    && id.equals(command.texture().id())) {
+                return i;
+            }
+        }
+        return Integer.MAX_VALUE;
+    }
+
+    private static String lastTextureId(DrawList drawList) {
+        String last = "";
+        for (DrawCommand command : drawList.commands()) {
+            if (command.type() == DrawCommandType.TEXTURE && command.texture() != null) {
+                last = command.texture().id();
+            }
+        }
+        return last;
     }
 
     private void testTextFieldCaretBlink() {

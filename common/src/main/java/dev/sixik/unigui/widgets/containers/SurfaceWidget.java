@@ -17,6 +17,7 @@ import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.render.SliceBorders;
 import dev.sixik.unigui.api.render.TextureFilter;
 import dev.sixik.unigui.api.render.TextureHandle;
+import dev.sixik.unigui.api.render.TextureLayer;
 import dev.sixik.unigui.api.render.TexturePlacement;
 import dev.sixik.unigui.api.render.TextureWrap;
 import dev.sixik.unigui.api.render.shaders.ShaderDrawOptions;
@@ -38,6 +39,7 @@ import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.api.widget.render.WidgetRender;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -85,6 +87,12 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
         if (surface.radius() == value) return;
         surface.radius(value);
     };
+    /**
+     * Дополнительные текстурные слои поверх базового фона. Ленивый список:
+     * {@code null}, пока не добавлен первый слой, — нулевая цена для
+     * виджетов с одной текстурой.
+     */
+    private List<TextureLayer> overlayTextures;
 
     /**
      * Создаёт виджет с пустой композируемой поверхностью.
@@ -444,6 +452,82 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
     }
 
     /**
+     * Возвращает дополнительные текстурные слои поверх базового фона.
+     *
+     * <p>Слои рисуются после базового фона в порядке списка, каждый со своим
+     * fit/source/tint. Возвращаемый список — live view для чтения; менять
+     * пачку следует через {@link #overlayTexture(TextureHandle)},
+     * {@link #overlayTexture(TextureLayer)} и {@link #clearOverlayTextures()}.</p>
+     *
+     * @return immutable вид пачки слоёв (пустой, если слоёв нет)
+     */
+    public List<TextureLayer> overlayTextures() {
+        return overlayTextures == null ? List.of() : Collections.unmodifiableList(overlayTextures);
+    }
+
+    /**
+     * Добавляет текстурный слой поверх базового фона.
+     *
+     * @param texture handle текстуры или {@code null} (пустой слой пропускается рендером)
+     * @return добавленный слой для chained-настройки fit/source/tint
+     */
+    public TextureLayer overlayTexture(TextureHandle texture) {
+        return overlayTexture(new TextureLayer(texture));
+    }
+
+    /**
+     * Добавляет готовый текстурный слой поверх базового фона.
+     *
+     * @param layer слой; {@code null} игнорируется
+     * @return добавленный слой или {@code null}, если передан {@code null}
+     */
+    public TextureLayer overlayTexture(TextureLayer layer) {
+        if (layer == null) return null;
+        if (overlayTextures == null) overlayTextures = new ArrayList<>(2);
+        overlayTextures.add(layer);
+        layer.source().onChanged(this::invalidateOverlayTexture);
+        layer.tint().onChanged(this::invalidateOverlayTexture);
+        invalidate(InvalidationFlags.VISUAL);
+        return layer;
+    }
+
+    /**
+     * Убирает текстурный слой из пачки.
+     *
+     * @param layer слой для удаления
+     * @return {@code true}, если слой был в пачке
+     */
+    public boolean removeOverlayTexture(TextureLayer layer) {
+        if (layer == null || overlayTextures == null) return false;
+        // onChanged у Mutable-объектов single-slot: отписываемся сбросом на no-op.
+        layer.source().onChanged(null);
+        layer.tint().onChanged(null);
+        boolean removed = overlayTextures.remove(layer);
+        if (removed) invalidate(InvalidationFlags.VISUAL);
+        return removed;
+    }
+
+    /**
+     * Убирает все дополнительные текстурные слои.
+     *
+     * @return этот виджет для fluent-настройки
+     */
+    public T clearOverlayTextures() {
+        if (overlayTextures == null || overlayTextures.isEmpty()) return self();
+        for (TextureLayer layer : overlayTextures) {
+            layer.source().onChanged(null);
+            layer.tint().onChanged(null);
+        }
+        overlayTextures.clear();
+        invalidate(InvalidationFlags.VISUAL);
+        return self();
+    }
+
+    private void invalidateOverlayTexture() {
+        invalidate(InvalidationFlags.VISUAL);
+    }
+
+    /**
      * Задаёт рамки nine-slice по четырём сторонам.
      *
      * @param left левая рамка в пикселях текстуры
@@ -751,10 +835,66 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
                 case NONE -> {
                 }
             }
+            renderOverlayTextures(draw, x, y, width, height, radius);
         }
         if (surface.borderVisible()) {
             draw.roundedRectStroke(x, y, width, height, radius,
                     surface.borderColor(), surface.borderWidth());
+        }
+    }
+
+    /**
+     * Рисует дополнительные текстурные слои поверх базового фона.
+     *
+     * <p>Каждый слой — своя текстура со своим fit/source/tint; порядок —
+     * порядок добавления. Пустые ({@code null}-текстура) и невидимые слои
+     * пропускаются. No-op без слоёв: ноль накладных для одиночных фонов.</p>
+     *
+     * @param draw draw scope поверхности
+     * @param x X границ
+     * @param y Y границ
+     * @param width ширина
+     * @param height высота
+     * @param radius радиус скругления поверхности
+     */
+    protected void renderOverlayTextures(DrawScope draw, float x, float y, float width, float height, float radius) {
+        if (draw == null || overlayTextures == null || overlayTextures.isEmpty()) return;
+        for (int i = 0, size = overlayTextures.size(); i < size; i++) {
+            TextureLayer layer = overlayTextures.get(i);
+            if (layer == null || !layer.visible() || layer.isEmpty()) continue;
+            renderTextureLayer(draw, layer, x, y, width, height, radius);
+        }
+    }
+
+    /**
+     * Рисует один текстурный слой в границах поверхности.
+     *
+     * <p>Nine-slice идёт через {@code draw.nineSlice}, остальные fit — через
+     * {@code TexturePlacement} + {@code draw.textureTinted}. Общая точка для
+     * базового фона и оверлеев, чтобы размещение не разъезжалось.</p>
+     *
+     * @param draw draw scope поверхности
+     * @param layer слой для отрисовки
+     * @param x X границ
+     * @param y Y границ
+     * @param width ширина
+     * @param height высота
+     * @param radius радиус скругления поверхности
+     */
+    protected void renderTextureLayer(DrawScope draw, TextureLayer layer,
+                                      float x, float y, float width, float height, float radius) {
+        if (draw == null || layer == null || layer.isEmpty()) return;
+        TextureHandle texture = layer.texture();
+        if (layer.fit() == ImageFit.NINE_SLICE) {
+            draw.nineSlice(layer.sliceBorders().slice(texture),
+                    x, y, width, height,
+                    Paint.fill(layer.tint()));
+        } else {
+            TexturePlacement placement = TexturePlacement.fit(texture,
+                    layer.source(),
+                    new MutableRect(x, y, width, height),
+                    layer.fit());
+            draw.textureTinted(texture, placement, radius, layer.tint());
         }
     }
 
