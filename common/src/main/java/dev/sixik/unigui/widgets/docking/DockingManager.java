@@ -132,6 +132,28 @@ public final class DockingManager {
         return splitPane(targetPaneId, area, pane, 0.5f);
     }
 
+    /**
+     * Переставляет панель на место другой панели того же листа.
+     *
+     * <p>Только внутри одного листа (live reorder табов во время драга):
+     * кросс-листовые перемещения идут через обычный drop. No-op, если панели
+     * в разных листах или порядок уже целевой.</p>
+     *
+     * @param paneId id перемещаемой панели
+     * @param beforePaneId id панели, на чью позицию встаём
+     * @return {@code true}, если порядок изменился
+     */
+    public boolean reorderPane(String paneId, String beforePaneId) {
+        LeafRef ref = findLeafContaining(root, null, false, paneId);
+        if (ref == null || !ref.node.containsPane(beforePaneId)) return false;
+        boolean moved = ref.node.movePaneBefore(paneId, beforePaneId);
+        if (moved) {
+            activePaneId = paneId;
+            changed("reorder", paneId, beforePaneId);
+        }
+        return moved;
+    }
+
     public DockingManager splitPane(String targetPaneId, DockArea area, DockPane pane, float splitRatio) {
         DockPane normalized = Objects.requireNonNull(pane, "pane");
         DockArea dockArea = area == null ? DockArea.RIGHT : area;

@@ -35,6 +35,11 @@ HollowEngine UI и главные окна игровых движков в ду
 
 - `scrollbar-refresh.md` — overlay-полосы default, hover-expand 3→6px,
   нейтральные дефолты вместо циана. ScrollBar/ScrollView готовы.
+- `textfield-refresh.md` — modern-хром TextField: фокус-кольцо, hover-рамка,
+  мигающая каретка, выделение-accent, высота 36, паддинги 12.
+- `docking-dropzones.md` — крест зон над листом, live tear-off таба в окно
+  при выходе из стрипа, reorder табов, релиз мимо триггеров оставляет окно
+  плавать, память размера окна; краевые полосы убраны.
 
 ## Статусы
 

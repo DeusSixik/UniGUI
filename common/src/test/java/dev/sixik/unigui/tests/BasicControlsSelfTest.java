@@ -17,6 +17,8 @@ import dev.sixik.unigui.api.editor.KeyBinding;
 import dev.sixik.unigui.api.event.ContextMenuItemSelectedEvent;
 import dev.sixik.unigui.api.event.ExpandedChangedEvent;
 import dev.sixik.unigui.api.event.EventPhase;
+import dev.sixik.unigui.api.event.FocusGainedEvent;
+import dev.sixik.unigui.api.event.FocusLostEvent;
 import dev.sixik.unigui.api.event.KeyPressedEvent;
 import dev.sixik.unigui.api.event.PointerEnteredEvent;
 import dev.sixik.unigui.api.event.PointerExitedEvent;
@@ -299,6 +301,9 @@ public final class BasicControlsSelfTest {
         testScrollViewNestedWheelLockAndOptOut();
         testOverlayScrollBarZones();
         testScrollBarHoverExpandsThumb();
+        testTextFieldModernChrome();
+        testTextFieldFocusRingAndBorder();
+        testTextFieldCaretBlink();
         testNestedScissorStack();
         testWidgetAnimationTransitions();
         testMinecraftPreviewWidgetFallbacks();
@@ -946,7 +951,7 @@ public final class BasicControlsSelfTest {
         DrawList measuredDrawList = new DrawList();
         measuredField.render(new DefaultRenderContext(measuredDrawList).backend(new FixedTextMetricsBackend(2.0f)));
         int caretIndex = lastCommandIndex(measuredDrawList, DrawCommandType.RECT);
-        expect(caretIndex >= 0 && near(measuredDrawList.commands().get(caretIndex).bounds().x(), 14.0f),
+        expect(caretIndex >= 0 && near(measuredDrawList.commands().get(caretIndex).bounds().x(), 22.0f),
                 "TextInput caret should use backend text metrics instead of fixed approximate width");
 
         TextField longField = new TextField("abcdefghijklmnopqrstuvwxyz");
@@ -983,10 +988,10 @@ public final class BasicControlsSelfTest {
         DrawList dragWarmup = new DrawList();
         dragField.render(new DefaultRenderContext(dragWarmup));
         uiContext.routedEvents().dispatch(new PointerPressedEvent(dragField, 4.0f, 8.0f, 4.0f, 8.0f, 0, PointerButton.PRIMARY));
-        uiContext.routedEvents().dispatch(new PointerMovedEvent(dragField, 22.0f, 8.0f, 22.0f, 8.0f, 0));
+        uiContext.routedEvents().dispatch(new PointerMovedEvent(dragField, 30.0f, 8.0f, 30.0f, 8.0f, 0));
         expect(dragField.hasSelection() && dragField.selectedText().equals("abc"),
                 "Dragging inside TextInput should select the covered character range");
-        uiContext.routedEvents().dispatch(new PointerReleasedEvent(dragField, 22.0f, 8.0f, 22.0f, 8.0f, 0, PointerButton.PRIMARY));
+        uiContext.routedEvents().dispatch(new PointerReleasedEvent(dragField, 30.0f, 8.0f, 30.0f, 8.0f, 0, PointerButton.PRIMARY));
         expect(uiContext.capturedPointer(0) == null, "TextInput should release pointer capture after drag selection");
 
         dragField.select(0, 2);
@@ -3650,6 +3655,100 @@ public final class BasicControlsSelfTest {
         for (int i = 0; i < frames; i++) {
             bar.tick(new FrameContext(i, 1.0f / 60.0f, 0.0f, FramePhase.ANIMATION));
         }
+    }
+
+    private void testTextFieldModernChrome() {
+        TextField field = new TextField();
+        expect(near(field.background().r(), 0.08f)
+                        && near(field.background().g(), 0.086f)
+                        && near(field.radius(), 8.0f),
+                "TextField chrome should use the modern input surface and radius");
+        field.measure(new LayoutContext(300.0f, 100.0f));
+        expect(near(field.desiredSize().height(), 36.0f),
+                "Single-line field should default to control height");
+        field.measure(new LayoutContext(300.0f, 100.0f));
+        expect(near(field.desiredSize().width(), 24.0f),
+                "Empty field width should be symmetric horizontal padding");
+    }
+
+    private void testTextFieldFocusRingAndBorder() {
+        TextField field = new TextField();
+        field.arrange(new MutableRect(50.0f, 50.0f, 200.0f, 36.0f));
+        DrawList unfocused = new DrawList();
+        field.render(new DefaultRenderContext(unfocused));
+        expect(noStrokeWithColor(unfocused, field.focusBorderColor()),
+                "Unfocused field should not paint the accent border");
+
+        field.handle(new FocusGainedEvent(field, null));
+        DrawList focused = new DrawList();
+        field.render(new DefaultRenderContext(focused));
+        expect(hasStrokeWithColor(focused, field.focusBorderColor(), 50.0f, 50.0f, 200.0f, 36.0f),
+                "Focused field should paint the accent border on its bounds");
+        expect(hasStrokeWithColor(focused, field.focusRingColor(), 48.0f, 48.0f, 204.0f, 40.0f),
+                "Focused field should paint the halo ring outside its bounds");
+
+        field.handle(new FocusLostEvent(field, null));
+        DrawList blurred = new DrawList();
+        field.render(new DefaultRenderContext(blurred));
+        expect(noStrokeWithColor(blurred, field.focusBorderColor()),
+                "Blur should return the border to the base color");
+    }
+
+    private void testTextFieldCaretBlink() {
+        TextField field = new TextField();
+        field.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 36.0f));
+        field.handle(new FocusGainedEvent(field, null));
+        DrawList shown = new DrawList();
+        field.render(new DefaultRenderContext(shown));
+        expect(countCaretRects(shown) == 1, "Caret should be visible right after focus");
+
+        field.tick(new FrameContext(1L, 0.75f, 0.0f, FramePhase.ANIMATION));
+        DrawList hidden = new DrawList();
+        field.render(new DefaultRenderContext(hidden));
+        expect(countCaretRects(hidden) == 0, "Caret should hide in the second half of the blink period");
+
+        field.tick(new FrameContext(2L, 0.5f, 0.0f, FramePhase.ANIMATION));
+        DrawList shownAgain = new DrawList();
+        field.render(new DefaultRenderContext(shownAgain));
+        expect(countCaretRects(shownAgain) == 1, "Caret should return in the next blink period");
+    }
+
+    private static boolean hasStrokeWithColor(DrawList drawList, dev.sixik.unigui.api.math.ColorView color,
+                                              float x, float y, float width, float height) {
+        for (DrawCommand command : drawList.commands()) {
+            if (command.type() == DrawCommandType.ROUNDED_RECT && command.paint().isStroke()
+                    && near(command.bounds().x(), x) && near(command.bounds().y(), y)
+                    && near(command.bounds().width(), width) && near(command.bounds().height(), height)
+                    && near(command.paint().color().r(), color.r())
+                    && near(command.paint().color().g(), color.g())
+                    && near(command.paint().color().b(), color.b())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean noStrokeWithColor(DrawList drawList, dev.sixik.unigui.api.math.ColorView color) {
+        for (DrawCommand command : drawList.commands()) {
+            if (command.type() == DrawCommandType.ROUNDED_RECT && command.paint().isStroke()
+                    && near(command.paint().color().r(), color.r())
+                    && near(command.paint().color().g(), color.g())
+                    && near(command.paint().color().b(), color.b())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static int countCaretRects(DrawList drawList) {
+        int count = 0;
+        for (DrawCommand command : drawList.commands()) {
+            if (command.type() == DrawCommandType.RECT && !command.paint().isStroke()
+                    && near(command.bounds().width(), 2.0f)) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private void testScrollViewNestedWheelLockAndOptOut() {

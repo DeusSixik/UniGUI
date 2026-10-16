@@ -12,6 +12,7 @@ import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.widgets.docking.DockArea;
 import dev.sixik.unigui.widgets.docking.DockDropIntent;
+import dev.sixik.unigui.widgets.docking.DockNode;
 import dev.sixik.unigui.widgets.docking.DockPane;
 import dev.sixik.unigui.widgets.docking.DockingRoot;
 import dev.sixik.unigui.api.widget.Widget;
@@ -29,9 +30,18 @@ public final class DockingInteractionSelfTest {
     }
 
     private void run() {
-        testDragThresholdPreviewAndEdgeDropMapping();
+        testDragThresholdAndClickWithoutDrag();
+        testTabStripDropKeepsTabbedWithoutTearOff();
+        testLiveTearOffHandsOffToWindowOnStripExit();
+        testReorderTabsByDraggingWithinStrip();
+        testWindowDropOnWestDiamondSplitsLeaf();
+        testCrossTriggersAndGapsViaWindow();
+        testReleasedWindowOutsideTriggersStaysFloating();
+        testFloatingWindowRemembersSizeAcrossRedock();
+        testDropZonesRenderDuringDrag();
+        testTearOffFloatsPaneDroppedOutsideZones();
         testFloatingDropDetachesPaneAndClearsPreview();
-        testFloatingDropOutsideHostIsIgnoredByDefault();
+        testDropOutsideHostTearsOffWithoutPreview();
         testFloatingDropInsideOverlayCreatesNonCloseableRedockableWindow();
         testDockableWindowDragDocksIntoRoot();
         testWindowDockingAreaHostsAndMerges();
@@ -41,68 +51,434 @@ public final class DockingInteractionSelfTest {
         System.out.println("DockingInteractionSelfTest passed");
     }
 
-    private void testDragThresholdPreviewAndEdgeDropMapping() {
+    private void testDragThresholdAndClickWithoutDrag() {
         DefaultUIContext context = new DefaultUIContext();
         DockingRoot root = new DockingRoot();
         root.setUiContextInternal(context);
         Counter drag = new Counter();
         root.onDragStarted(event -> drag.started++);
-        root.onDragMoved(event -> {
-            drag.moved++;
-            drag.lastArea = event.intent().area();
-        });
-        root.onDragEnded(event -> {
-            drag.ended++;
-            drag.dropped = event.dropped();
-            drag.lastArea = event.intent().area();
-        });
+        root.onDragEnded(event -> drag.ended++);
         root.onDropPreviewChanged(event -> drag.previewChanges++);
 
-        root.addDocument("scene", "Scene", content("Scene body"))
-                .addToolPane("inspector", "Inspector", content("Inspector body"), DockArea.RIGHT)
-                .selectPane("scene");
+        root.addDocument("scene", "Scene", content("Scene body"));
+        root.tabPane("scene", new DockPane("inspector", "Inspector", content("Inspector body")));
+        root.selectPane("scene");
         layout(root, 320.0f, 160.0f);
 
-        context.routedEvents().dispatch(new PointerPressedEvent(
-                root, 8.0f, 6.0f, 8.0f, 6.0f, 0, PointerButton.PRIMARY));
+        press(context, root, 8.0f, 6.0f, 0);
         expect(root.dragController().active()
                         && !root.dockDragging()
                         && context.capturedPointer(0) == root,
                 "Dock tab press should arm dock dragging and capture the pointer");
 
-        context.routedEvents().dispatch(new PointerMovedEvent(root, 10.0f, 7.0f, 10.0f, 7.0f, 0));
+        move(context, root, 10.0f, 7.0f, 0);
         expect(!root.dockDragging()
                         && !root.dockDropPreview().valid()
                         && drag.started == 0,
                 "Dock drag should not start before crossing the threshold");
 
-        DockPane inspector = root.manager().findPane("inspector");
-        float targetX = inspector.content().layoutBounds().x() + 1.0f;
-        float targetY = inspector.content().layoutBounds().y() + 8.0f;
-        context.routedEvents().dispatch(new PointerMovedEvent(root, targetX, targetY, targetX, targetY, 0));
-
-        DockDropIntent preview = root.dockDropPreview();
-        expect(root.dockDragging()
-                        && preview.valid()
-                        && preview.targetPaneId().equals("inspector")
-                        && preview.area() == DockArea.LEFT
-                        && drag.started == 1
-                        && drag.moved >= 1,
-                "Cross-threshold drag over a target edge should publish a LEFT drop preview");
-
-        context.routedEvents().dispatch(new PointerReleasedEvent(
-                root, targetX, targetY, targetX, targetY, 0, PointerButton.PRIMARY));
-
+        release(context, root, 10.0f, 7.0f, 0);
         expect(!root.dragController().active()
-                        && context.capturedPointer(0) == null
+                        && drag.ended == 0
+                        && root.manager().containsPane("scene")
+                        && root.manager().containsPane("inspector")
+                        && root.lastFloatingWindow() == null
+                        && context.capturedPointer(0) == null,
+                "Releasing before the threshold should be a click without drag events or tear-off");
+    }
+
+    private void testTabStripDropKeepsTabbedWithoutTearOff() {
+        DefaultUIContext context = new DefaultUIContext();
+        DockingRoot root = new DockingRoot();
+        root.setUiContextInternal(context);
+        Counter drag = new Counter();
+        root.onDragStarted(event -> drag.started++);
+        root.onDragEnded(event -> {
+            drag.ended++;
+            drag.dropped = event.dropped();
+        });
+        root.addDocument("scene", "Scene", content("Scene body"));
+        root.tabPane("scene", new DockPane("inspector", "Inspector", content("Inspector body")));
+        root.selectPane("scene");
+        layout(root, 320.0f, 160.0f);
+
+        press(context, root, 8.0f, 6.0f, 0);
+        // Пустая часть стрипа (правее табов): не таб, не сосед — reorder
+        // молчит, tear-off не стреляет, intent — таб в домашний лист.
+        move(context, root, 300.0f, 11.0f, 0);
+        DockDropIntent stripPreview = root.dockDropPreview();
+        expect(root.dockDragging()
+                        && stripPreview.valid()
+                        && stripPreview.area() == DockArea.CENTER
+                        && drag.started == 1
+                        && root.manager().containsPane("scene")
+                        && root.lastFloatingWindow() == null,
+                "Hovering the empty tab strip should preview a tab drop without detaching the pane");
+
+        release(context, root, 300.0f, 11.0f, 0);
+        expect(!root.dragController().active()
                         && drag.ended == 1
-                        && drag.dropped
-                        && drag.lastArea == DockArea.LEFT
+                        && !drag.dropped
+                        && tabbedTogether(root, "inspector", "scene")
+                        && root.lastFloatingWindow() == null,
+                "Dropping on the tab strip should keep the tabbed panes instead of floating a window");
+    }
+
+    private void testLiveTearOffHandsOffToWindowOnStripExit() {
+        DefaultUIContext context = new DefaultUIContext();
+        DockingRoot root = new DockingRoot();
+        root.setUiContextInternal(context);
+        Counter drag = new Counter();
+        root.onDragStarted(event -> drag.started++);
+        root.onDragMoved(event -> drag.moved++);
+        root.onDragEnded(event -> {
+            drag.ended++;
+            drag.dropped = event.dropped();
+        });
+        root.addDocument("scene", "Scene", content("Scene body"));
+        root.tabPane("scene", new DockPane("inspector", "Inspector", content("Inspector body")));
+        root.selectPane("scene");
+        OverlayLayer layer = overlayFixture(context, root, 320.0f, 160.0f, 640.0f, 400.0f);
+
+        press(context, root, 8.0f, 6.0f, 0);
+        // Выход из стрипа вниз (центр листа): таб отрывается сразу, не на release.
+        move(context, root, 160.0f, 80.0f, 0);
+        expect(drag.started == 1 && drag.moved >= 1,
+                "Tab drag should start once the threshold is crossed");
+        expect(!root.manager().containsPane("scene")
+                        && root.manager().containsPane("inspector"),
+                "Strip exit should detach the dragged pane immediately");
+
+        WindowWidget window = root.lastFloatingWindow();
+        expect(window != null
+                        && window.opened()
+                        && window.dragging()
+                        && window.content() != null
+                        && context.capturedPointer(0) == window,
+                "Tear-off should open a dragging window under the cursor and hand the capture over");
+        expect(!root.dragController().active()
                         && !root.dockDropPreview().valid()
+                        && drag.ended == 1
+                        && drag.dropped,
+                "Handoff should close the tab-drag phase as a successful tear-off");
+        layer.applyQueuedMutations();
+        expect(window.parent() == layer,
+                "Tear-off window should live in the overlay layer");
+
+        // Жест продолжается окном: движение едет в window, не в root.
+        // (183,80) — зазор между центральной и восточной ячейками: не триггер.
+        move(context, window, 183.0f, 80.0f, 0);
+        expect(window.lastDragRootX() == 183.0f && window.lastDragRootY() == 80.0f,
+                "Pointer moves after handoff should drive the floating window");
+        release(context, window, 183.0f, 80.0f, 0);
+        expect(!window.dragging()
+                        && window.opened()
+                        && !root.manager().containsPane("scene"),
+                "Releasing the torn-off window outside triggers should keep it floating");
+    }
+
+    private void testReorderTabsByDraggingWithinStrip() {
+        DefaultUIContext context = new DefaultUIContext();
+        DockingRoot root = new DockingRoot();
+        root.setUiContextInternal(context);
+        root.addDocument("doc0", "Doc 0", content("Doc 0 body"));
+        root.addDocument("doc1", "Doc 1", content("Doc 1 body"));
+        root.addDocument("doc2", "Doc 2", content("Doc 2 body"));
+        root.selectPane("doc0");
+        layout(root, 320.0f, 160.0f);
+        expect(tabOrder(root).equals(java.util.List.of("doc0", "doc1", "doc2")),
+                "Fixture should tab three documents in insertion order");
+
+        press(context, root, 8.0f, 6.0f, 0);
+        // Таб doc2 (x ~213..320): перетаскиваемый doc0 встаёт на его место.
+        move(context, root, 250.0f, 11.0f, 0);
+        expect(tabOrder(root).equals(java.util.List.of("doc1", "doc2", "doc0"))
+                        && root.manager().selectedPane().id().equals("doc0")
+                        && root.dockDragging()
+                        && root.lastFloatingWindow() == null,
+                "Hovering another tab of the same leaf should reorder without tearing off");
+
+        // Таб doc1 (x ~0..106 в новом порядке): возврат обратно.
+        move(context, root, 50.0f, 11.0f, 0);
+        expect(tabOrder(root).equals(java.util.List.of("doc0", "doc1", "doc2")),
+                "Hovering the first tab should move the dragged tab back to the front");
+
+        release(context, root, 50.0f, 11.0f, 0);
+        expect(!root.dragController().active()
+                        && root.manager().paneCount() == 3
+                        && root.lastFloatingWindow() == null,
+                "Releasing after reorder should keep all tabs docked");
+    }
+
+    private void testWindowDropOnWestDiamondSplitsLeaf() {
+        DefaultUIContext context = new DefaultUIContext();
+        DockingRoot root = new DockingRoot();
+        root.setUiContextInternal(context);
+        Counter drag = new Counter();
+        root.onDragStarted(event -> drag.started++);
+        root.onDragEnded(event -> {
+            drag.ended++;
+            drag.dropped = event.dropped();
+        });
+        root.addDocument("scene", "Scene", content("Scene body"));
+        root.tabPane("scene", new DockPane("inspector", "Inspector", content("Inspector body")));
+        root.selectPane("scene");
+        OverlayLayer layer = overlayFixture(context, root, 320.0f, 160.0f, 640.0f, 400.0f);
+
+        press(context, root, 8.0f, 6.0f, 0);
+        float[] west = diamondCenter(root, DockArea.LEFT);
+        move(context, root, west[0], west[1], 0);
+        expect(drag.started == 1 && drag.ended == 1 && drag.dropped
+                        && !root.manager().containsPane("scene"),
+                "Moving onto the west diamond should tear the tab off first (live tear-off)");
+
+        // Дальше жест идёт окном: наведение на тот же диамант даёт LEFT-оффер.
+        WindowWidget window = root.lastFloatingWindow();
+        move(context, window, west[0], west[1], 0);
+        DrawList previewDrawList = renderRoot(root);
+        expect(hasFloatingPreview(previewDrawList)
+                        && nearRect(dropFillRect(previewDrawList), 0.0f, 0.0f, 320.0f * 0.33f, 160.0f),
+                "Hovering the torn-off window over the west diamond should preview a left third");
+
+        release(context, window, west[0], west[1], 0);
+        layer.applyQueuedMutations();
+        expect(!root.dragController().active()
                         && root.rootNode().isSplit()
                         && root.rootNode().first().findPane("scene") != null
-                        && root.rootNode().second().findPane("inspector") != null,
-                "Dropping on a target edge should apply the mapped split operation and clear drag state");
+                        && root.rootNode().second().findPane("inspector") != null
+                        && !window.opened()
+                        && window.content() == null
+                        && root.lastFloatingWindow() == null,
+                "Dropping the window on the west diamond should split the leaf and consume the window");
+    }
+
+    private void testCrossTriggersAndGapsViaWindow() {
+        DefaultUIContext context = new DefaultUIContext();
+        DockingRoot root = new DockingRoot();
+        root.setUiContextInternal(context);
+        root.addDocument("scene", "Scene", content("Scene body"));
+        root.tabPane("scene", new DockPane("inspector", "Inspector", content("Inspector body")));
+        root.selectPane("scene");
+        overlayFixture(context, root, 320.0f, 160.0f, 640.0f, 400.0f);
+
+        press(context, root, 8.0f, 6.0f, 0);
+        move(context, root, 500.0f, 300.0f, 0);
+        WindowWidget window = root.lastFloatingWindow();
+        expect(window != null && !root.manager().containsPane("scene"),
+                "Tear-off fixture should detach the pane into a floating window");
+
+        float[] center = diamondCenter(root, DockArea.CENTER);
+        move(context, window, center[0], center[1], 0);
+        expect(nearRect(dropFillRect(renderRoot(root)), 3.0f, 3.0f, 314.0f, 154.0f),
+                "Hovering the center diamond should preview a tab drop over the whole leaf");
+
+        float[] east = diamondCenter(root, DockArea.RIGHT);
+        move(context, window, east[0], east[1], 0);
+        expect(nearRect(dropFillRect(renderRoot(root)), 320.0f - 320.0f * 0.33f, 0.0f,
+                        320.0f * 0.33f, 160.0f),
+                "Hovering the east diamond should preview a right third");
+
+        // Зазор между диамантами — не триггер: оффера нет.
+        float gapX = (center[0] + east[0]) * 0.5f;
+        move(context, window, gapX, center[1], 0);
+        expect(dropFillRect(renderRoot(root)) == null,
+                "Gaps between trigger diamonds should offer no drop zone");
+
+        release(context, window, east[0], east[1], 0);
+        expect(root.rootNode().isSplit()
+                        && root.rootNode().first().findPane("inspector") != null
+                        && root.rootNode().second().findPane("scene") != null
+                        && !window.opened(),
+                "Dropping the window on the east diamond should split the leaf with the pane last");
+    }
+
+    private void testReleasedWindowOutsideTriggersStaysFloating() {
+        DefaultUIContext context = new DefaultUIContext();
+        DockingRoot root = new DockingRoot();
+        root.setUiContextInternal(context);
+        root.addDocument("scene", "Scene", content("Scene body"));
+        root.tabPane("scene", new DockPane("inspector", "Inspector", content("Inspector body")));
+        root.selectPane("scene");
+        overlayFixture(context, root, 320.0f, 160.0f, 640.0f, 400.0f);
+
+        press(context, root, 8.0f, 6.0f, 0);
+        move(context, root, 500.0f, 300.0f, 0);
+        WindowWidget window = root.lastFloatingWindow();
+        expect(window != null && window.opened(), "Tear-off fixture should float the pane");
+
+        // Релиз мимо креста/стрипа (зазор диамантов): окно остаётся плавать,
+        // панель НЕ прибивается табом в чужой лист.
+        float[] center = diamondCenter(root, DockArea.CENTER);
+        float[] east = diamondCenter(root, DockArea.RIGHT);
+        float gapX = (center[0] + east[0]) * 0.5f;
+        move(context, window, gapX, center[1], 0);
+        expect(dropFillRect(renderRoot(root)) == null,
+                "Gap hover should show no drop preview");
+        release(context, window, gapX, center[1], 0);
+        expect(!root.manager().containsPane("scene")
+                        && root.manager().containsPane("inspector")
+                        && root.rootNode().isLeaf()
+                        && window.opened()
+                        && window.content() != null
+                        && root.lastFloatingWindow() == window,
+                "Releasing a floating window outside triggers should keep it floating instead of tabbing");
+    }
+
+    private void testFloatingWindowRemembersSizeAcrossRedock() {
+        DefaultUIContext context = new DefaultUIContext();
+        DockingRoot root = new DockingRoot();
+        root.setUiContextInternal(context);
+        root.addDocument("scene", "Scene", content("Scene body"));
+        root.tabPane("scene", new DockPane("inspector", "Inspector", content("Inspector body")));
+        root.selectPane("scene");
+        OverlayLayer layer = overlayFixture(context, root, 320.0f, 160.0f, 640.0f, 400.0f);
+
+        press(context, root, 8.0f, 6.0f, 0);
+        move(context, root, 500.0f, 300.0f, 0);
+        WindowWidget first = root.lastFloatingWindow();
+        expect(first != null
+                        && almostEqual(first.layoutBounds().width(), 320.0f)
+                        && almostEqual(first.layoutBounds().height(), 160.0f),
+                "First tear-off without a remembered size should use the source leaf size");
+
+        // Пользователь меняет размер плавающего окна, затем докирует его.
+        first.layout(style -> style.size(260.0f, 140.0f));
+        layout(layer, 640.0f, 400.0f);
+        expect(almostEqual(first.layoutBounds().width(), 260.0f)
+                        && almostEqual(first.layoutBounds().height(), 140.0f),
+                "Resizing the floating window should stick");
+        float[] center = diamondCenter(root, DockArea.CENTER);
+        move(context, first, center[0], center[1], 0);
+        release(context, first, center[0], center[1], 0);
+        layer.applyQueuedMutations();
+        expect(root.manager().containsPane("scene")
+                        && !first.opened(),
+                "Docking the resized window should consume it back into the tree");
+
+        // Повторный отрыв возвращает прошлый размер окна, а не размер листа.
+        press(context, root, 140.0f, 6.0f, 0);
+        move(context, root, 500.0f, 300.0f, 0);
+        WindowWidget second = root.lastFloatingWindow();
+        expect(second != null
+                        && second != first
+                        && almostEqual(second.layoutBounds().width(), 260.0f)
+                        && almostEqual(second.layoutBounds().height(), 140.0f),
+                "Second tear-off should restore the window size from before docking");
+        release(context, second, 500.0f, 300.0f, 0);
+        expect(second.opened() && !root.manager().containsPane("scene"),
+                "Releasing the restored window outside triggers should keep it floating");
+    }
+
+    private static boolean tabbedTogether(DockingRoot root, String firstId, String secondId) {
+        return leafWith(root.rootNode(), firstId, secondId);
+    }
+
+    private static boolean leafWith(dev.sixik.unigui.widgets.docking.DockNode node, String firstId, String secondId) {
+        if (node == null) return false;
+        if (node.isLeaf()) {
+            boolean first = false;
+            boolean second = false;
+            for (DockPane pane : node.panes()) {
+                if (pane.id().equals(firstId)) first = true;
+                if (pane.id().equals(secondId)) second = true;
+            }
+            return first && second;
+        }
+        return leafWith(node.first(), firstId, secondId) || leafWith(node.second(), firstId, secondId);
+    }
+
+    private void testDropZonesRenderDuringDrag() {
+        DefaultUIContext context = new DefaultUIContext();
+        DockingRoot root = new DockingRoot();
+        root.setUiContextInternal(context);
+        root.addDocument("scene", "Scene", content("Scene body"))
+                .addToolPane("inspector", "Inspector", content("Inspector body"), DockArea.RIGHT)
+                .selectPane("scene");
+        layout(root, 320.0f, 160.0f);
+
+        DrawList calm = new DrawList();
+        root.render(new dev.sixik.unigui.impl.render.DefaultRenderContext(calm));
+        long calmZones = countCommands(calm, DrawCommandType.ROUNDED_RECT);
+
+        // Пустая часть стрипа правого листа: драг жив, tear-off молчит,
+        // крест якорится на лист под курсором.
+        press(context, root, 8.0f, 6.0f, 0);
+        move(context, root, 300.0f, 11.0f, 0);
+        expect(root.dockDragging() && root.dockDropPreview().valid(),
+                "Strip hover should keep the tab drag alive with a valid preview");
+        DrawList dragging = new DrawList();
+        root.render(new dev.sixik.unigui.impl.render.DefaultRenderContext(dragging));
+        // Крест (5 ячеек × fill+stroke) + плашка таба + превью:
+        // зон заметно больше, чем в покое. Краевых полос больше нет.
+        expect(countCommands(dragging, DrawCommandType.ROUNDED_RECT) >= calmZones + 10,
+                "Dragging should render the drop-zone cross anchored on the hovered leaf");
+
+        release(context, root, 300.0f, 11.0f, 0);
+        DrawList settled = new DrawList();
+        root.render(new dev.sixik.unigui.impl.render.DefaultRenderContext(settled));
+        expect(!root.dockDragging()
+                        && !root.dockDropPreview().valid()
+                        && countCommands(settled, DrawCommandType.ROUNDED_RECT)
+                                < countCommands(dragging, DrawCommandType.ROUNDED_RECT),
+                "Drop zones should disappear after the drop settles");
+    }
+
+    private void testTearOffFloatsPaneDroppedOutsideZones() {
+        DefaultUIContext context = new DefaultUIContext();
+        DockingRoot root = new DockingRoot();
+        root.setUiContextInternal(context);
+        root.addDocument("scene", "Scene", content("Scene body"))
+                .addToolPane("inspector", "Inspector", content("Inspector body"), DockArea.RIGHT)
+                .selectPane("scene");
+        layout(root, 320.0f, 160.0f);
+
+        // Вынос за пределы root мимо всех зон: панель становится окном, а не возвращается.
+        // Live tear-off срабатывает уже на move (выход из стрипа), release лишь завершает жест окна.
+        context.routedEvents().dispatch(new PointerPressedEvent(
+                root, 8.0f, 6.0f, 8.0f, 6.0f, 0, PointerButton.PRIMARY));
+        context.routedEvents().dispatch(new PointerMovedEvent(root, 400.0f, 100.0f, 400.0f, 100.0f, 0));
+        expect(!root.dockDropPreview().valid(), "Drag outside the host should expose no dock preview");
+        expect(!root.manager().containsPane("scene")
+                        && root.lastFloatingWindow() != null
+                        && root.lastFloatingWindow().dragging()
+                        && context.capturedPointer(0) == root.lastFloatingWindow(),
+                "Strip exit should hand the gesture off to a dragging floating window immediately");
+        context.routedEvents().dispatch(new PointerReleasedEvent(
+                root, 400.0f, 100.0f, 400.0f, 100.0f, 0, PointerButton.PRIMARY));
+        expect(!root.manager().containsPane("scene")
+                        && root.manager().containsPane("inspector")
+                        && root.lastFloatingWindow() != null,
+                "Dropping outside all zones should tear the pane off into a floating window");
+
+        // Opt-out: тот же жест — snap-back, панель на месте.
+        DockingRoot strict = new DockingRoot();
+        strict.setUiContextInternal(context);
+        strict.tearOffOnDragOut(false);
+        strict.addDocument("scene", "Scene", content("Scene body"))
+                .addToolPane("inspector", "Inspector", content("Inspector body"), DockArea.RIGHT)
+                .selectPane("scene");
+        layout(strict, 320.0f, 160.0f);
+        context.routedEvents().dispatch(new PointerPressedEvent(
+                strict, 8.0f, 6.0f, 8.0f, 6.0f, 0, PointerButton.PRIMARY));
+        context.routedEvents().dispatch(new PointerMovedEvent(strict, 400.0f, 100.0f, 400.0f, 100.0f, 0));
+        context.routedEvents().dispatch(new PointerReleasedEvent(
+                strict, 400.0f, 100.0f, 400.0f, 100.0f, 0, PointerButton.PRIMARY));
+        expect(strict.manager().containsPane("scene") && strict.lastFloatingWindow() == null,
+                "Disabled tear-off should snap the pane back into the tree");
+
+        // Единственная панель, отпущенная над собой: нечего отрывать.
+        DockingRoot solo = new DockingRoot();
+        solo.setUiContextInternal(context);
+        solo.addDocument("only", "Only", content("Only body"));
+        solo.selectPane("only");
+        layout(solo, 320.0f, 160.0f);
+        context.routedEvents().dispatch(new PointerPressedEvent(
+                solo, 8.0f, 6.0f, 8.0f, 6.0f, 0, PointerButton.PRIMARY));
+        context.routedEvents().dispatch(new PointerMovedEvent(solo, 160.0f, 80.0f, 160.0f, 80.0f, 0));
+        context.routedEvents().dispatch(new PointerReleasedEvent(
+                solo, 160.0f, 80.0f, 160.0f, 80.0f, 0, PointerButton.PRIMARY));
+        expect(solo.manager().containsPane("only") && solo.lastFloatingWindow() == null,
+                "Dropping the only pane over its own leaf should keep it docked");
     }
 
     private void testFloatingDropDetachesPaneAndClearsPreview() {
@@ -130,7 +506,7 @@ public final class DockingInteractionSelfTest {
                 "FLOAT drop should detach the pane, open a floating bridge window and clear preview/capture state");
     }
 
-    private void testFloatingDropOutsideHostIsIgnoredByDefault() {
+    private void testDropOutsideHostTearsOffWithoutPreview() {
         DefaultUIContext context = new DefaultUIContext();
         DockingRoot root = new DockingRoot();
         root.setUiContextInternal(context);
@@ -145,10 +521,11 @@ public final class DockingInteractionSelfTest {
         context.routedEvents().dispatch(new PointerReleasedEvent(
                 root, 260.0f, 48.0f, 260.0f, 48.0f, 0, PointerButton.PRIMARY));
 
-        expect(root.manager().paneCount() == 1
-                        && root.manager().containsPane("safe")
-                        && root.lastFloatingWindow() == null,
-                "Dropping outside the floating host should keep the pane docked");
+        expect(root.manager().paneCount() == 0
+                        && !root.manager().containsPane("safe")
+                        && root.lastFloatingWindow() != null
+                        && root.lastFloatingWindow().opened(),
+                "Dropping outside the host should tear the pane off into a floating window");
     }
 
     private void testFloatingDropInsideOverlayCreatesNonCloseableRedockableWindow() {
@@ -168,22 +545,21 @@ public final class DockingInteractionSelfTest {
         context.routedEvents().dispatch(new PointerPressedEvent(
                 root, 8.0f, 6.0f, 8.0f, 6.0f, 1, PointerButton.PRIMARY));
         context.routedEvents().dispatch(new PointerMovedEvent(root, 240.0f, 54.0f, 240.0f, 54.0f, 1));
-        expect(root.dockDropPreview().floating(),
-                "Dragging outside the dock root but inside the overlay host should produce a FLOAT preview");
-        context.routedEvents().dispatch(new PointerReleasedEvent(
-                root, 240.0f, 54.0f, 240.0f, 54.0f, 1, PointerButton.PRIMARY));
         layer.applyQueuedMutations();
 
         WindowWidget floating = root.lastFloatingWindow();
         expect(root.manager().paneCount() == 1
                         && root.manager().containsPane("anchor")
+                        && !root.manager().containsPane("floatable")
                         && floating != null
                         && floating.parent() == layer
                         && floating.opened()
+                        && floating.dragging()
+                        && context.capturedPointer(1) == floating
                         && !floating.closeButtonVisible()
                         && floating.constrainToHost()
                         && floating.dockRedockLocked(),
-                "FLOAT drop inside an overlay should create a non-closeable constrained floating dock window and inherit redock lock");
+                "Strip exit should live tear-off into a dragging overlay window and inherit redock lock");
 
         layout(layer, 360.0f, 220.0f);
         floating.position(10.0f, 10.0f);
@@ -203,19 +579,23 @@ public final class DockingInteractionSelfTest {
         root.floatingWindowsRedockLocked(false);
         expect(!floating.dockRedockLocked(),
                 "floatingWindowsRedockLocked(false) should update already-created floating dock windows");
-        context.routedEvents().dispatch(new WindowMovedEvent(floating, 200.0f, 54.0f, 10.0f, 10.0f));
+        // Дальше жест идёт окном: наведение на центральный диамант даёт таб-оффер.
+        float[] center = diamondCenter(root, DockArea.CENTER);
+        context.routedEvents().dispatch(new PointerMovedEvent(floating, center[0], center[1], center[0], center[1], 1));
         DrawList previewDrawList = new DrawList();
         root.render(new dev.sixik.unigui.impl.render.DefaultRenderContext(previewDrawList));
         expect(hasFloatingPreview(previewDrawList),
                 "Moving a floating dock window over a DockingRoot should show a live dock drop preview");
 
-        context.routedEvents().dispatch(new WindowMoveEndedEvent(floating, 10.0f, 10.0f));
+        context.routedEvents().dispatch(new PointerReleasedEvent(
+                floating, center[0], center[1], center[0], center[1], 1, PointerButton.PRIMARY));
         layer.applyQueuedMutations();
         DrawList redockedDrawList = new DrawList();
         root.render(new dev.sixik.unigui.impl.render.DefaultRenderContext(redockedDrawList));
 
         expect(root.manager().containsPane("floatable")
                         && !floating.opened()
+                        && root.lastFloatingWindow() == null
                         && !hasFloatingPreview(redockedDrawList),
                 "Moving the floating dock window back over a DockingRoot should redock the original pane and clear preview");
     }
@@ -628,14 +1008,95 @@ public final class DockingInteractionSelfTest {
         return label;
     }
 
+    private static void press(DefaultUIContext context, Widget target, float x, float y, int pointerId) {
+        context.routedEvents().dispatch(new PointerPressedEvent(
+                target, x, y, x, y, pointerId, PointerButton.PRIMARY));
+    }
+
+    private static void move(DefaultUIContext context, Widget target, float x, float y, int pointerId) {
+        context.routedEvents().dispatch(new PointerMovedEvent(target, x, y, x, y, pointerId));
+    }
+
+    private static void release(DefaultUIContext context, Widget target, float x, float y, int pointerId) {
+        context.routedEvents().dispatch(new PointerReleasedEvent(
+                target, x, y, x, y, pointerId, PointerButton.PRIMARY));
+    }
+
+    private static java.util.List<String> tabOrder(DockingRoot root) {
+        java.util.List<String> ids = new java.util.ArrayList<>();
+        for (DockPane pane : root.manager().panes()) {
+            ids.add(pane.id());
+        }
+        return ids;
+    }
+
+    /**
+     * Bounds первого залитого DROP_FILL-прямоугольника (превью дропа)
+     * или {@code null}, если превью нет.
+     */
+    private static MutableRect dropFillRect(DrawList drawList) {
+        for (DrawCommand command : drawList.commands()) {
+            if ((command.type() == DrawCommandType.ROUNDED_RECT || command.type() == DrawCommandType.RECT)
+                    && command.paint() != null
+                    && !command.paint().isStroke()
+                    && almostEqual(command.paint().color().r(), 0.18f)
+                    && almostEqual(command.paint().color().g(), 0.56f)
+                    && almostEqual(command.paint().color().b(), 1.0f)
+                    && almostEqual(command.paint().color().a(), 0.22f)) {
+                dev.sixik.unigui.api.math.RectView bounds = command.bounds();
+                return new MutableRect(bounds.x(), bounds.y(), bounds.width(), bounds.height());
+            }
+        }
+        return null;
+    }
+
+    private static boolean nearRect(dev.sixik.unigui.api.math.RectView actual,
+            float x, float y, float width, float height) {
+        return actual != null
+                && Math.abs(actual.x() - x) <= 1.5f
+                && Math.abs(actual.y() - y) <= 1.5f
+                && Math.abs(actual.width() - width) <= 1.5f
+                && Math.abs(actual.height() - height) <= 1.5f;
+    }
+
     private static void layout(DockingRoot root, float width, float height) {
         root.measure(new LayoutContext(width, height));
         root.arrange(new MutableRect(0.0f, 0.0f, width, height));
     }
 
+    /**
+     * Возвращает центр диаманта креста для single-leaf root.
+     *
+     * <p>Фикстура обязана держать все панели в одном листе (= bounds root):
+     * тогда геометрия публичного {@code crossCellRect} точна без гаданий.</p>
+     */
+    private static float[] diamondCenter(DockingRoot root, DockArea area) {
+        dev.sixik.unigui.api.math.RectView bounds = root.layoutBounds();
+        dev.sixik.unigui.api.math.MutableRect cell = DockingRoot.crossCellRect(bounds, area);
+        return new float[]{cell.x() + cell.width() * 0.5f, cell.y() + cell.height() * 0.5f};
+    }
+
     private static void layout(OverlayLayer layer, float width, float height) {
         layer.measure(new LayoutContext(width, height));
         layer.arrange(new MutableRect(0.0f, 0.0f, width, height));
+    }
+
+    /**
+     * Фикстура «root в оверлее»: root фиксированного размера в левом верхнем
+     * углу слоя. Нужна жестам окно↔док: tear-off складывает окно в слой,
+     * а foreign-превью ищет цель от окна вверх до слоя.
+     *
+     * @return overlay-слой (уже измеренный и разложенный)
+     */
+    private static OverlayLayer overlayFixture(DefaultUIContext context, DockingRoot root,
+            float rootWidth, float rootHeight, float layerWidth, float layerHeight) {
+        root.layout(style -> style.size(rootWidth, rootHeight).flexGrow(0).flexShrink(0.0f));
+        StackPanel host = new StackPanel();
+        host.addChild(root);
+        OverlayLayer layer = new OverlayLayer(host);
+        layer.setUiContextInternal(context);
+        layout(layer, layerWidth, layerHeight);
+        return layer;
     }
 
     private static void expect(boolean condition, String message) {

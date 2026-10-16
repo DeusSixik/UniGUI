@@ -1,6 +1,7 @@
 package dev.sixik.unigui.widgets.interaction;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.UIContext;
 import dev.sixik.unigui.api.event.Event;
 import dev.sixik.unigui.api.event.EventListener;
@@ -100,13 +101,31 @@ public class TextInput extends Box {
         }
     }
 
-    protected static final float TEXT_PADDING = 4.0f;
+    protected static final float TEXT_PADDING = 12.0f;
     protected static final float APPROX_CHAR_WIDTH = TextEngine.APPROX_CHAR_WIDTH;
+    /** Дефолтная высота однострочного поля: место под текст + вертикальный воздух. */
+    protected static final float DEFAULT_FIELD_HEIGHT = 36.0f;
+    /** Ширина каретки в пикселях UI-пространства. */
+    protected static final float CARET_WIDTH = 2.0f;
+    /** Период мигания каретки в секундах (50% duty). */
+    protected static final float CARET_BLINK_PERIOD_SECONDS = 1.0f;
+    /** Вынос фокус-кольца за границы поля. */
+    protected static final float FOCUS_RING_OUTSET = 2.0f;
+    /** Толщина фокус-кольца. */
+    protected static final float FOCUS_RING_WIDTH = 2.0f;
+    /** Дефолтный радиус поля в хром-режиме. */
+    protected static final float CHROME_RADIUS = 8.0f;
 
     private final TextEditorModel editor = new TextEditorModel();
     private final MutableColor textColor = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private final MutableColor placeholderColor = new MutableColor(0.65f, 0.65f, 0.65f, 0.9f);
     private final MutableColor caretColor = new MutableColor(0.25f, 0.78f, 1.0f, 1.0f);
+    private final MutableColor selectionColor = new MutableColor(0.29f, 0.62f, 1.0f, 0.35f);
+    private final MutableColor focusBorderColor = new MutableColor(0.29f, 0.62f, 1.0f, 1.0f);
+    private final MutableColor hoverBorderColor = new MutableColor(0.30f, 0.33f, 0.38f, 1.0f);
+    private final MutableColor focusRingColor = new MutableColor(0.29f, 0.62f, 1.0f, 0.30f);
+    private float caretTime;
+    private boolean lastCaretVisible = true;
     private String placeholder = "";
     private FontFace font;
     private float pixelSize = TextRun.DEFAULT_PIXEL_SIZE;
@@ -124,6 +143,8 @@ public class TextInput extends Box {
         boxVisualEnabled(false);
         focusable(true);
         editor.onChanged((oldText, newText) -> {
+            caretTime = 0.0f;
+            lastCaretVisible = true;
             invalidate(visualOnlyTextChanges ? InvalidationFlags.VISUAL : InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
             emit(new TextChangedEvent(this, oldText, newText));
         });
@@ -141,8 +162,9 @@ public class TextInput extends Box {
     protected final void enableDefaultTextInputChrome() {
         backgroundVisible(true);
         borderVisible(true);
-        background().set(0.04f, 0.04f, 0.04f, 0.82f);
-        borderColor().set(0.35f, 0.35f, 0.35f, 1.0f);
+        background().set(0.08f, 0.086f, 0.10f, 1.0f);
+        borderColor().set(0.18f, 0.20f, 0.23f, 1.0f);
+        radius(CHROME_RADIUS);
     }
 
     public TextEditorModel editorModel() {
@@ -256,6 +278,46 @@ public class TextInput extends Box {
         return caretColor;
     }
 
+    /**
+     * Возвращает live-цвет заливки выделения.
+     *
+     * <p>Полупрозрачная акцентная заливка вместо сплошной полосы: текст под
+     * выделением остаётся читаемым. Отдельного theme-ключа нет — цвет
+     * считается частью хрома поля, а не палитры.</p>
+     *
+     * @return изменяемый цвет выделения
+     */
+    public MutableColor selectionColor() {
+        return selectionColor;
+    }
+
+    /**
+     * Возвращает live-цвет рамки сфокусированного поля.
+     *
+     * @return изменяемый цвет фокус-рамки
+     */
+    public MutableColor focusBorderColor() {
+        return focusBorderColor;
+    }
+
+    /**
+     * Возвращает live-цвет рамки поля под курсором (без фокуса).
+     *
+     * @return изменяемый цвет hover-рамки
+     */
+    public MutableColor hoverBorderColor() {
+        return hoverBorderColor;
+    }
+
+    /**
+     * Возвращает live-цвет внешнего фокус-кольца.
+     *
+     * @return изменяемый цвет кольца вокруг сфокусированного поля
+     */
+    public MutableColor focusRingColor() {
+        return focusRingColor;
+    }
+
     public boolean visualOnlyTextChanges() {
         return visualOnlyTextChanges;
     }
@@ -281,7 +343,7 @@ public class TextInput extends Box {
         float width = TextEngine.measureLineWidth(richText(measuredText))
                 + leftTextPadding()
                 + rightTextPadding();
-        setDesiredSize(resolveDesiredSize(context, width, 18.0f));
+        setDesiredSize(resolveDesiredSize(context, width, DEFAULT_FIELD_HEIGHT));
     }
 
     @Override
@@ -290,6 +352,8 @@ public class TextInput extends Box {
         textColor.set(styleValue(StyleKeys.TEXT_COLOR, textColor));
         placeholderColor.set(styleValue(StyleKeys.PLACEHOLDER_COLOR, placeholderColor));
         caretColor.set(styleValue(StyleKeys.ACCENT_COLOR, caretColor));
+        focusBorderColor.set(styleValue(StyleKeys.ACCENT_COLOR, focusBorderColor));
+        focusRingColor.set(focusBorderColor.r(), focusBorderColor.g(), focusBorderColor.b(), 0.30f);
     }
 
     @Override
@@ -367,6 +431,25 @@ public class TextInput extends Box {
     }
 
     @Override
+    public void tick(FrameContext frame) {
+        super.tick(frame);
+        if (!focused) {
+            return;
+        }
+        float delta = frame == null ? 1.0f / 60.0f : frame.deltaSeconds();
+        if (!Float.isFinite(delta) || delta <= 0.0f) {
+            delta = 1.0f / 60.0f;
+        }
+        caretTime += delta;
+        // Мигание 50% duty: инвалидируем только на фронтах, а не каждый кадр.
+        boolean visible = (caretTime % CARET_BLINK_PERIOD_SECONDS) < CARET_BLINK_PERIOD_SECONDS * 0.5f;
+        if (visible != lastCaretVisible) {
+            lastCaretVisible = visible;
+            invalidate(InvalidationFlags.VISUAL);
+        }
+    }
+
+    @Override
     protected void renderContent(RenderContext context) {
         applyTheme();
         renderTextInput(context);
@@ -388,16 +471,41 @@ public class TextInput extends Box {
             return;
         }
         if (backgroundVisible()) {
-            draw.roundedRect(layoutBounds().x(), layoutBounds().y(),
+            draw.roundedRectFilled(layoutBounds().x(), layoutBounds().y(),
                     layoutBounds().width(), layoutBounds().height(), radius(),
-                    Paint.fill(background()));
+                    background());
         }
         if (borderVisible() && borderWidth() > 0.0f) {
-            draw.roundedRect(layoutBounds().x(), layoutBounds().y(),
+            draw.roundedRectStroke(layoutBounds().x(), layoutBounds().y(),
                     layoutBounds().width(), layoutBounds().height(), radius(),
-                    Paint.stroke(borderColor(), borderWidth()));
+                    effectiveBorderColor(), borderWidth());
+        }
+        // Внешнее фокус-кольцо: тихий акцентный ореол поверх рамки.
+        if (focused) {
+            draw.roundedRectStroke(
+                    layoutBounds().x() - FOCUS_RING_OUTSET,
+                    layoutBounds().y() - FOCUS_RING_OUTSET,
+                    layoutBounds().width() + FOCUS_RING_OUTSET * 2.0f,
+                    layoutBounds().height() + FOCUS_RING_OUTSET * 2.0f,
+                    radius() + FOCUS_RING_OUTSET,
+                    focusRingColor, FOCUS_RING_WIDTH);
         }
         renderTextContent(draw, viewportX, viewportY, viewportWidth, viewportHeight, textY, textHeight);
+    }
+
+    /**
+     * Возвращает цвет рамки под текущее состояние.
+     *
+     * <p>Приоритет: фокус → акцентная рамка, hover без фокуса → приподнятая,
+     * иначе базовая. Состояния видны всегда — в отличие от legacy, где фокус
+     * никак не подсвечивался, хотя тема уже описывала {@code FOCUSED}-акцент.</p>
+     *
+     * @return цвет рамки для отрисовки
+     */
+    protected dev.sixik.unigui.api.math.ColorView effectiveBorderColor() {
+        if (focused) return focusBorderColor;
+        if (hovered()) return hoverBorderColor;
+        return borderColor();
     }
 
     protected void renderTextContent(DrawScope draw,
@@ -425,11 +533,11 @@ public class TextInput extends Box {
                 float selectionX = viewportX + prefixWidth(selectionStart()) - horizontalScrollPixels;
                 float selectionWidth = Math.max(1.0f,
                         prefixWidth(selectionEnd()) - prefixWidth(selectionStart()));
-                draw.rect(selectionX,
+                draw.rectFilled(selectionX,
                         viewportY,
                         selectionWidth,
                         viewportHeight,
-                        Paint.fill(caretColor));
+                        selectionColor);
             }
             if (drawText) {
                 TextEngine.drawInline(draw,
@@ -440,13 +548,13 @@ public class TextInput extends Box {
                         textHeight,
                         Paint.fill(showingPlaceholder ? placeholderColor : textColor));
             }
-            if (drawCaret) {
+            if (drawCaret && lastCaretVisible) {
                 float caretX = viewportX + prefixWidth(cursorIndex()) - horizontalScrollPixels;
-                draw.rect(caretX,
-                        viewportY,
-                        1.0f,
-                        viewportHeight,
-                        Paint.fill(caretColor));
+                draw.rectFilled(caretX,
+                        textY,
+                        CARET_WIDTH,
+                        textHeight,
+                        caretColor);
             }
         } finally {
             if (clipped) {
@@ -606,6 +714,8 @@ public class TextInput extends Box {
 
     private void moveCursor(int cursorIndex, boolean extendSelection) {
         if (editor.moveCursor(cursorIndex, extendSelection)) {
+            caretTime = 0.0f;
+            lastCaretVisible = true;
             invalidate(InvalidationFlags.VISUAL);
         }
     }
@@ -615,6 +725,8 @@ public class TextInput extends Box {
                 ? editor.select(selectionAnchor, cursorIndex)
                 : editor.moveCursor(cursorIndex, false);
         if (changed) {
+            caretTime = 0.0f;
+            lastCaretVisible = true;
             invalidate(InvalidationFlags.VISUAL);
         }
     }
@@ -787,6 +899,8 @@ public class TextInput extends Box {
     private void setFocused(boolean focused) {
         if (this.focused == focused) return;
         this.focused = focused;
+        caretTime = 0.0f;
+        lastCaretVisible = true;
         applyTheme();
         invalidate(InvalidationFlags.VISUAL);
     }
