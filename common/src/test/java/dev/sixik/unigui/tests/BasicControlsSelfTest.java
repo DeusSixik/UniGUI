@@ -280,6 +280,7 @@ public final class BasicControlsSelfTest {
         testDragDropHelperContracts();
         testTextWidgetRoleContracts();
         testPasswordAndSearchFields();
+        testTexturedFieldBackgroundNotBuried();
         testDefaultThemeContracts();
         testStylePackContracts();
         testStylePackXmlContracts();
@@ -303,6 +304,8 @@ public final class BasicControlsSelfTest {
         testScrollBarHoverExpandsThumb();
         testTextFieldModernChrome();
         testTextFieldFocusRingAndBorder();
+        testThemeDisabledFieldKeepsCustomFocusRing();
+        testTextFieldPaddingMovesText();
         testTextFieldCaretBlink();
         testNestedScissorStack();
         testWidgetAnimationTransitions();
@@ -2343,6 +2346,57 @@ public final class BasicControlsSelfTest {
         return lines;
     }
 
+    private void testTexturedFieldBackgroundNotBuried() {
+        // Кейс ISF-поиска: nine-slice текстура + хром-заливка. Плоская
+        // заливка обязана пропускать ход, иначе хоронит текстуру.
+        TextField textured = new TextField("query");
+        textured.boxVisualEnabled(true);
+        textured.backgroundVisible(true);
+        textured.borderVisible(false);
+        textured.backgroundTextureFit(dev.sixik.unigui.api.render.ImageFit.NINE_SLICE);
+        textured.sliceBorders(6.0f);
+        textured.backgroundTexture(new dev.sixik.unigui.api.render.SimpleTextureHandle("test:search_bg", 20, 20));
+        textured.measure(new LayoutContext(200.0f, 60.0f));
+        textured.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 36.0f));
+        DrawList texturedDrawList = new DrawList();
+        textured.render(new DefaultRenderContext(texturedDrawList));
+
+        int fills = 0;
+        int firstFill = -1;
+        int firstTextured = -1;
+        java.util.List<DrawCommand> commands = texturedDrawList.commands();
+        for (int i = 0; i < commands.size(); i++) {
+            DrawCommand command = commands.get(i);
+            if (command.type() == DrawCommandType.ROUNDED_RECT
+                    && command.paint() != null
+                    && !command.paint().isStroke()
+                    && near(command.paint().color().r(), 0.08f)
+                    && near(command.paint().color().g(), 0.086f)
+                    && near(command.paint().color().b(), 0.10f)) {
+                fills++;
+                if (firstFill < 0) firstFill = i;
+            }
+            if (command.type() == DrawCommandType.TEXTURE
+                    || command.type() == DrawCommandType.TEXTURED_QUAD
+                    || command.type() == DrawCommandType.MESH) {
+                if (firstTextured < 0) firstTextured = i;
+            }
+        }
+        expect(firstTextured >= 0, "Textured field should render its background texture cells");
+        expect(fills == 1 && firstFill < firstTextured,
+                "Only the surface under-fill may paint the chrome color, before the texture — "
+                        + "TextInput must not bury the texture with a second fill");
+
+        // Обычное поле без текстуры: заливка остаётся единственным фоном.
+        TextField plain = new TextField("query");
+        plain.measure(new LayoutContext(200.0f, 60.0f));
+        plain.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 36.0f));
+        DrawList plainDrawList = new DrawList();
+        plain.render(new DefaultRenderContext(plainDrawList));
+        expect(countFillColor(plainDrawList, 0.08f, 0.086f, 0.10f, 1.0f) >= 1,
+                "Plain field should keep its flat chrome background fill");
+    }
+
     private void testDefaultThemeContracts() {
         DefaultUIContext uiContext = new DefaultUIContext();
         ColorView buttonText = uiContext.theme().styleFor(StyleIds.Widget.BUTTON).get(StyleKeys.TEXT_COLOR, WidgetState.NORMAL, null);
@@ -3717,6 +3771,47 @@ public final class BasicControlsSelfTest {
         field.render(new DefaultRenderContext(blurred));
         expect(noStrokeWithColor(blurred, field.focusBorderColor()),
                 "Blur should return the border to the base color");
+    }
+
+    private void testThemeDisabledFieldKeepsCustomFocusRing() {
+        TextField field = new TextField();
+        field.themeEnabled(false);
+        field.focusRingColor().set(0.0f, 0.0f, 0.0f, 0.0f);
+        field.borderVisible(false);
+        field.arrange(new MutableRect(50.0f, 50.0f, 200.0f, 36.0f));
+        field.handle(new FocusGainedEvent(field, null));
+        DrawList focused = new DrawList();
+        field.render(new DefaultRenderContext(focused));
+        expect(near(field.focusRingColor().a(), 0.0f),
+                "applyTheme with disabled theme must not resurrect the focus ring color");
+        expect(noStrokeWithColor(focused, new MutableColor(0.29f, 0.62f, 1.0f, 0.30f)),
+                "Disabled-theme field should paint no accent halo ring when focused");
+    }
+
+    private void testTextFieldPaddingMovesText() {
+        TextField field = new TextField("abc");
+        field.textPaddingX(4.0f);
+        field.arrange(new MutableRect(50.0f, 50.0f, 200.0f, 36.0f));
+        DrawList tight = new DrawList();
+        field.render(new DefaultRenderContext(tight));
+        int textIndex = firstCommandIndex(tight, DrawCommandType.TEXT, 0);
+        expect(textIndex >= 0 && near(tight.commands().get(textIndex).bounds().x(), 54.0f),
+                "textPaddingX should move the rendered text start to bounds + padding");
+
+        field.layout(style -> style.padding(30.0f, 0.0f));
+        DrawList layout = new DrawList();
+        field.render(new DefaultRenderContext(layout));
+        int layoutTextIndex = firstCommandIndex(layout, DrawCommandType.TEXT, 0);
+        expect(layoutTextIndex >= 0 && near(layout.commands().get(layoutTextIndex).bounds().x(), 54.0f),
+                "Explicit text padding should win over a larger layout padding");
+
+        field.textPaddingLeft(2.0f).textPaddingRight(10.0f);
+        field.measure(new LayoutContext(300.0f, 100.0f));
+        DrawList asym = new DrawList();
+        field.render(new DefaultRenderContext(asym));
+        int asymIndex = firstCommandIndex(asym, DrawCommandType.TEXT, 0);
+        expect(asymIndex >= 0 && near(asym.commands().get(asymIndex).bounds().x(), 52.0f),
+                "textPaddingLeft should control the text start edge independently");
     }
 
     private void testTextFieldCaretBlink() {

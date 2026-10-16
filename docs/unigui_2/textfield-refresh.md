@@ -32,6 +32,54 @@
 Хит-зона, паддинг текста и hover-пилюля без изменений.
 Тест: `testPasswordAndSearchFields` (нет lone-`"x"`, ровно 2 LINE справа).
 
+## Текстура фона не хоронится хром-заливкой (ISF-поиск)
+
+Кейс: `TextField` с nine-slice текстурой (`boxVisualEnabled(true)`,
+`backgroundVisible(true)`) — плоская хром-заливка `renderTextInput`
+рисовалась поверх и хоронила текстуру под непрозрачным цветом
+(регресс refresh-хрома: раньше заливки не было).
+
+Фикс: заливка пропускается, когда поверхность рисует собственный фон
+(`surfaceDrawsBackgroundVisual`: TEXTURE с текстурой / SHADER с шейдером,
+с учётом явного `backgroundKind`). Без surface-визуала заливка остаётся
+единственным фоном; обычное поле без текстуры рисуется как раньше.
+Тест: `testTexturedFieldBackgroundNotBuried` (текстура есть, хром-заливка
+ровно одна и до текстуры; плоское поле с заливкой).
+
+## Фокус-кольцо не воскресает при выключенной теме (ISF-поиск)
+
+Симптом: у поиска с `themeEnabled(false)` и прозрачным кольцом синяя
+обводка возвращалась — `TextInput.applyTheme` пересчитывал
+`focusRingColor` из акцента каждый рендер, не глядя на флаг (в отличие
+от `SurfaceWidget.applyTheme`, где early-return был).
+
+Фикс: `TextInput.applyTheme` уважает `themeEnabled()` (early-return,
+как в поверхности). ISF-сторона: `search.focusRingColor().set(0,0,0,0)`
+рядом с остальным кастомным стайлингом.
+Тест: `testThemeDisabledFieldKeepsCustomFocusRing`.
+
+## Настраиваемый отступ текста от краёв (ISF-поиск)
+
+Симптом: текст в поиске сидел далеко от краёв — горизонтальный отступ
+был захардкожен (`leftTextPadding/rightTextPadding = max(12, layout)`):
+layout-padding мог только расширять, но не сужать.
+
+API (в `TextInput`, наследники `TextField/SearchField/PasswordField/
+NumberField/TimeSpanField` переопределяют для fluent-возврата):
+- `textPaddingX(v)` — симметрично слева/справа (шорткат для кейса
+  «сжать воздух»: `search.textPaddingX(6.0f)`);
+- `textPaddingLeft(v)` / `textPaddingRight(v)` — по отдельности.
+Отрицательные клампятся к 0; бесконечные — к дефолту 12.
+XML: `textPaddingX/textPaddingLeft/textPaddingRight` (аннотации,
+подхватываются наследниками автоматически).
+
+Семантика: дефолт без изменений (`max(12, layout)`); после первого
+явного вызова layout-подъём отключается и вьюпорт/каретка/хит-тест
+используют ровно заданные значения (флаг `explicitTextPadding`).
+`SearchField` сохраняет clear-зону поверх правого отступа.
+Тест: `testTextFieldPaddingMovesText` (TEXT в bounds+padding, явный
+выигрывает у layout 30, асимметрия).
+
 ## Совместимость
 
 - `PasswordField` / `SearchField` наследуют новый вид автоматически.

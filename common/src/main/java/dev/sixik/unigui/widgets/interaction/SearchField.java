@@ -93,6 +93,27 @@ public class SearchField extends TextInput {
     }
 
     @Override
+    @XmlAttribute(value = "textPaddingX", category = "Layout", defaultValue = "12", description = "Symmetric inset between both edges and editable text.")
+    public SearchField textPaddingX(float textPaddingX) {
+        super.textPaddingX(textPaddingX);
+        return this;
+    }
+
+    @Override
+    @XmlAttribute(value = "textPaddingLeft", category = "Layout", defaultValue = "12", description = "Inset between the left edge and editable text.")
+    public SearchField textPaddingLeft(float textPaddingLeft) {
+        super.textPaddingLeft(textPaddingLeft);
+        return this;
+    }
+
+    @Override
+    @XmlAttribute(value = "textPaddingRight", category = "Layout", defaultValue = "12", description = "Inset between editable text and the right edge.")
+    public SearchField textPaddingRight(float textPaddingRight) {
+        super.textPaddingRight(textPaddingRight);
+        return this;
+    }
+
+    @Override
     protected float rightTextPadding() {
         return super.rightTextPadding() + (text().isEmpty() ? 0.0f : CLEAR_ZONE_WIDTH);
     }
