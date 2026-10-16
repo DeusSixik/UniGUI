@@ -231,6 +231,77 @@ public final class DrawScope {
         texture(texture, new TexturePlacement(x, y, width, height, u, v, uWidth, vHeight), 0.0f, paint);
     }
 
+    /**
+     * Garbage-free примитивы: те же фигуры, но цвет напрямую без временного {@link Paint}.
+     *
+     * <p>Зеркала {@code *Filled/*Stroke} перегрузок {@link RenderContext}: ноль аллокаций
+     * на вызов в общем случае. Transform scope применяется как обычно.</p>
+     */
+    public void rectFilled(float x, float y, float width, float height, ColorView color) {
+        if (transform == null) {
+            context.rectFilled(x, y, width, height, color);
+        } else {
+            context.rectFilled(x, y, width, height, color, transformFor(x, y));
+        }
+    }
+
+    public void rectStroke(float x, float y, float width, float height, ColorView color, float strokeWidth) {
+        if (transform == null) {
+            context.rectStroke(x, y, width, height, color, strokeWidth);
+        } else {
+            context.rectStroke(x, y, width, height, color, strokeWidth, transformFor(x, y));
+        }
+    }
+
+    public void roundedRectFilled(float x, float y, float width, float height, float radius, ColorView color) {
+        if (transform == null) {
+            context.roundedRectFilled(x, y, width, height, radius, color);
+        } else {
+            context.roundedRectFilled(x, y, width, height, radius, color, transformFor(x, y));
+        }
+    }
+
+    public void roundedRectStroke(float x, float y, float width, float height, float radius,
+                                  ColorView color, float strokeWidth) {
+        if (transform == null) {
+            context.roundedRectStroke(x, y, width, height, radius, color, strokeWidth);
+        } else {
+            context.roundedRectStroke(x, y, width, height, radius, color, strokeWidth, transformFor(x, y));
+        }
+    }
+
+    public void circleFilled(float x, float y, float width, float height, ColorView color) {
+        if (transform == null) {
+            context.circleFilled(x, y, width, height, color);
+        } else {
+            context.circleFilled(x, y, width, height, color, transformFor(x, y));
+        }
+    }
+
+    public void circleStroke(float x, float y, float width, float height, ColorView color, float strokeWidth) {
+        if (transform == null) {
+            context.circleStroke(x, y, width, height, color, strokeWidth);
+        } else {
+            context.circleStroke(x, y, width, height, color, strokeWidth, transformFor(x, y));
+        }
+    }
+
+    public void textureTinted(TextureHandle texture, float x, float y, float width, float height, ColorView tint) {
+        if (transform == null) {
+            context.textureTinted(texture, x, y, width, height, tint);
+        } else {
+            context.textureTinted(texture, x, y, width, height, tint, transformFor(x, y));
+        }
+    }
+
+    public void textureTinted(TextureHandle texture, TexturePlacement placement, float radius, ColorView tint) {
+        if (transform == null) {
+            context.textureTinted(texture, placement, radius, tint);
+        } else {
+            context.textureTinted(texture, placement, radius, tint, transformFor(placement.x(), placement.y()));
+        }
+    }
+
     public void shader(ShaderHandle shader, float x, float y, float width, float height,
                        ShaderUniforms uniforms, ShaderDrawOptions options) {
         if (transform == null) {
@@ -399,6 +470,107 @@ public final class DrawScope {
         context.addMesh(mesh, texture, transform);
     }
 
+    /**
+     * Рисует textured ленту вдоль полилинии одной mesh-командой.
+     *
+     * <p>Дороги, кабели, маршруты, связи графа. Стыки — miter с клампом, торцы —
+     * butt caps. При {@code REPEAT}-wrap текстуры и {@code textureLength},
+     * равном длине тайла, текстура повторяется вдоль ленты без растяжения.</p>
+     *
+     * @param texture текстура ленты; {@code null} даёт сплошную цветную ленту
+     * @param points центральная полилиния в координатах scope
+     * @param width ширина ленты
+     * @param textureLength длина одного текстурного тайла вдоль пути
+     * @param tint цвет вершин
+     * @param options параметры ленты; {@code null} означает {@link RibbonOptions#defaults()}
+     */
+    public void ribbon(TextureHandle texture, List<DrawPoint> points,
+                       float width, float textureLength, ColorView tint, RibbonOptions options) {
+        context.addRibbon(texture, points, width, textureLength, tint,
+                options == null ? RibbonOptions.defaults() : options, transform);
+    }
+
+    /**
+     * Рисует textured ленту вдоль полилинии одной mesh-командой.
+     *
+     * <p>Дороги, кабели, маршруты, связи графа. Стыки — miter с клампом, торцы —
+     * butt caps. При {@code REPEAT}-wrap текстуры и {@code textureLength},
+     * равном длине тайла, текстура повторяется вдоль ленты без растяжения.</p>
+     *
+     * @param texture текстура ленты; {@code null} даёт сплошную цветную ленту
+     * @param points центральная полилиния в координатах scope
+     * @param width ширина ленты
+     * @param textureLength длина одного текстурного тайла вдоль пути
+     * @param tint цвет вершин
+     * @deprecated используй {@link #ribbon(TextureHandle, List, float, float, ColorView, RibbonOptions)}
+     */
+    @Deprecated
+    public void ribbon(TextureHandle texture, List<DrawPoint> points,
+                       float width, float textureLength, ColorView tint) {
+        ribbon(texture, points, width, textureLength, tint, RibbonOptions.defaults());
+    }
+
+    /**
+     * Рисует textured ленту вдоль полилинии одной mesh-командой.
+     *
+     * @param texture текстура ленты; {@code null} даёт сплошную цветную ленту
+     * @param points центральная полилиния в координатах scope
+     * @param width ширина ленты
+     * @param textureLength длина одного текстурного тайла вдоль пути
+     * @param tint цвет вершин
+     * @param closed {@code true}, чтобы замкнуть контур
+     * @deprecated используй {@link #ribbon(TextureHandle, List, float, float, ColorView, RibbonOptions)}
+     */
+    @Deprecated
+    public void ribbon(TextureHandle texture, List<DrawPoint> points,
+                       float width, float textureLength, ColorView tint, boolean closed) {
+        ribbon(texture, points, width, textureLength, tint, RibbonOptions.defaults().closed(closed));
+    }
+
+    /**
+     * Рисует textured ленту с поворотом текстуры на 90 градусов.
+     *
+     * @param texture текстура ленты; {@code null} даёт сплошную цветную ленту
+     * @param points центральная полилиния в координатах scope
+     * @param width ширина ленты
+     * @param textureLength длина одного текстурного тайла вдоль пути
+     * @param tint цвет вершин
+     * @param closed {@code true}, чтобы замкнуть контур
+     * @param swapUv {@code true}: {@code u} вдоль пути, {@code v} поперёк
+     *               (для вертикальных текстур-полосок)
+     * @deprecated используй {@link #ribbon(TextureHandle, List, float, float, ColorView, RibbonOptions)}
+     */
+    @Deprecated
+    public void ribbon(TextureHandle texture, List<DrawPoint> points,
+                       float width, float textureLength, ColorView tint,
+                       boolean closed, boolean swapUv) {
+        ribbon(texture, points, width, textureLength, tint,
+                RibbonOptions.defaults().closed(closed).swapUv(swapUv));
+    }
+
+    /**
+     * Рисует textured ленту с поворотом и отражением текстуры.
+     *
+     * @param texture текстура ленты; {@code null} даёт сплошную цветную ленту
+     * @param points центральная полилиния в координатах scope
+     * @param width ширина ленты
+     * @param textureLength длина одного текстурного тайла вдоль пути
+     * @param tint цвет вершин
+     * @param closed {@code true}, чтобы замкнуть контур
+     * @param swapUv {@code true}: {@code u} вдоль пути, {@code v} поперёк
+     *               (для вертикальных текстур-полосок)
+     * @param flipU {@code true}, чтобы отразить финальную U внутри тайла
+     * @param flipV {@code true}, чтобы отразить финальную V внутри тайла
+     * @deprecated используй {@link #ribbon(TextureHandle, List, float, float, ColorView, RibbonOptions)}
+     */
+    @Deprecated
+    public void ribbon(TextureHandle texture, List<DrawPoint> points,
+                       float width, float textureLength, ColorView tint,
+                       boolean closed, boolean swapUv, boolean flipU, boolean flipV) {
+        ribbon(texture, points, width, textureLength, tint,
+                RibbonOptions.defaults().closed(closed).swapUv(swapUv).flipU(flipU).flipV(flipV));
+    }
+
     public void channelsSplit(int count) {
         context.channelsSplit(count);
     }
@@ -502,7 +674,7 @@ public final class DrawScope {
     }
 
     private Transform transformFor(float commandX, float commandY) {
-        if (transform == null || !transformBoundsAnchored) return transform;
+        if (transform == null || !transformBoundsAnchored || transform.isIdentity()) return transform;
         Transform adjusted = transform.copy();
         adjusted.pivot().set(
                 transform.pivot().x() + transformBoundsX - commandX,

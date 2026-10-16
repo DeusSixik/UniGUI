@@ -267,12 +267,12 @@ public class Slider extends Box {
         float trackY = y + (height - trackHeight) * 0.5f;
         float fillWidth = width * normalizedValue();
         float knobX = x + fillWidth - KNOB_WIDTH * 0.5f;
-        draw.roundedRect(x, trackY, width, trackHeight, trackHeight * 0.5f,
-                Paint.fill(trackColor));
-        draw.roundedRect(x, trackY, fillWidth, trackHeight, trackHeight * 0.5f,
-                Paint.fill(fillColor));
-        draw.roundedRect(knobX, y + 2.0f, KNOB_WIDTH, Math.max(1.0f, height - 4.0f), 2.0f,
-                Paint.fill(knobColor));
+        draw.roundedRectFilled(x, trackY, width, trackHeight, trackHeight * 0.5f,
+                trackColor);
+        draw.roundedRectFilled(x, trackY, fillWidth, trackHeight, trackHeight * 0.5f,
+                fillColor);
+        draw.roundedRectFilled(knobX, y + 2.0f, KNOB_WIDTH, Math.max(1.0f, height - 4.0f), 2.0f,
+                knobColor);
         super.renderContent(context);
     }
 

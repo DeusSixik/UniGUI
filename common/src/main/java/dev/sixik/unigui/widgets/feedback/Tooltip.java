@@ -1,6 +1,7 @@
 package dev.sixik.unigui.widgets.feedback;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.event.EventSubscription;
 import dev.sixik.unigui.api.event.PointerEnteredEvent;
 import dev.sixik.unigui.api.event.PointerExitedEvent;
@@ -41,6 +42,10 @@ public class Tooltip extends Box implements OverlayHostAware {
     private float offsetX = 8.0f;
     private float offsetY = 10.0f;
     private float maxWidth = DEFAULT_MAX_WIDTH;
+    private float lastAnchorX = Float.NaN;
+    private float lastAnchorY = Float.NaN;
+    private float lastAnchorWidth = Float.NaN;
+    private float lastAnchorHeight = Float.NaN;
 
     public Tooltip() {
         backgroundVisible(true);
@@ -76,6 +81,10 @@ public class Tooltip extends Box implements OverlayHostAware {
         if (this.anchor == anchor) return this;
         unsubscribeFromAnchor();
         this.anchor = anchor;
+        lastAnchorX = Float.NaN;
+        lastAnchorY = Float.NaN;
+        lastAnchorWidth = Float.NaN;
+        lastAnchorHeight = Float.NaN;
         subscribeToAnchor();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
@@ -204,6 +213,50 @@ public class Tooltip extends Box implements OverlayHostAware {
         float height = desiredSize().height();
         mutableLayoutBounds().set(AbsoluteLayoutEngine.placeBelow(
                 bounds, anchor.layoutBounds(), width, height, offsetX, offsetY, true, true));
+        rememberAnchorBounds();
+    }
+
+    /**
+     * Следует за якорем без layout-прохода: скролл двигает якорь через
+     * {@code arrangeScrolledChildrenNow} с одним VISUAL-флагом, и layout не
+     * запускается — без этого tick позиция тултипа замирает на месте
+     * последнего layout, а текст уже принадлежит новому hovered-якорю.
+     */
+    @Override
+    public void tick(FrameContext frame) {
+        super.tick(frame);
+        if (anchor == null || visibility() == dev.sixik.unigui.api.widget.Visibility.COLLAPSED) return;
+        if (!isEffectivelyVisible(anchor)) return;
+        RectView anchorBounds = anchor.layoutBounds();
+        if (anchorBounds == null) return;
+        if (Float.compare(anchorBounds.x(), lastAnchorX) == 0
+                && Float.compare(anchorBounds.y(), lastAnchorY) == 0
+                && Float.compare(anchorBounds.width(), lastAnchorWidth) == 0
+                && Float.compare(anchorBounds.height(), lastAnchorHeight) == 0) {
+            return;
+        }
+        RectView hostBounds = parent() == null ? null : parent().layoutBounds();
+        if (hostBounds == null) return;
+        float width = desiredSize().width();
+        float height = desiredSize().height();
+        mutableLayoutBounds().set(AbsoluteLayoutEngine.placeBelow(
+                hostBounds, anchorBounds, width, height, offsetX, offsetY, true, true));
+        rememberAnchorBounds();
+    }
+
+    private void rememberAnchorBounds() {
+        RectView anchorBounds = anchor == null ? null : anchor.layoutBounds();
+        if (anchorBounds == null) {
+            lastAnchorX = Float.NaN;
+            lastAnchorY = Float.NaN;
+            lastAnchorWidth = Float.NaN;
+            lastAnchorHeight = Float.NaN;
+            return;
+        }
+        lastAnchorX = anchorBounds.x();
+        lastAnchorY = anchorBounds.y();
+        lastAnchorWidth = anchorBounds.width();
+        lastAnchorHeight = anchorBounds.height();
     }
 
     @Override

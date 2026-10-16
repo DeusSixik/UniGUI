@@ -22,6 +22,7 @@ public final class DockingModelSelfTest {
         testSplitTabFloatCloseAndRestoreEdgeCases();
         testSnapshotCodecRoundTripsSpecialIdsAndToleratesCorruptInput();
         testDockEventsCopyCancellationAcrossRoutedSnapshots();
+        testReorderPaneMovesWithinLeaf();
         System.out.println("DockingModelSelfTest passed");
     }
 
@@ -144,6 +145,50 @@ public final class DockingModelSelfTest {
                         && restoreCounter.restored == 1
                         && restoreCounter.missing == 1,
                 "Restoring with missing panes should prune unknown ids and report missing counts");
+    }
+
+    private void testReorderPaneMovesWithinLeaf() {
+        DockingRoot root = new DockingRoot();
+        DockPane scene = pane("scene", "Scene");
+        DockPane inspector = pane("inspector", "Inspector");
+        DockPane log = pane("log", "Log");
+        root.addPane(scene);
+        root.tabPane(scene.id(), inspector);
+        root.tabPane(scene.id(), log);
+        root.selectPane("scene");
+        expect(order(root).equals(java.util.List.of("scene", "inspector", "log")),
+                "Fixture should tab three panes into one leaf in insertion order");
+
+        expect(root.manager().reorderPane("scene", "log"),
+                "Reorder should move the dragged pane onto the hovered tab position");
+        expect(order(root).equals(java.util.List.of("inspector", "log", "scene"))
+                        && root.manager().selectedPane().id().equals("scene"),
+                "reorderPane should shift the rest and keep the dragged pane selected");
+
+        expect(root.manager().reorderPane("scene", "inspector"),
+                "Reorder back to the front should work the same way");
+        expect(order(root).equals(java.util.List.of("scene", "inspector", "log")),
+                "Moving the last tab before the first should restore the original order");
+
+        expect(!root.manager().reorderPane("scene", "scene")
+                        && !root.manager().reorderPane("scene", "ghost")
+                        && !root.manager().reorderPane("ghost", "log")
+                        && order(root).equals(java.util.List.of("scene", "inspector", "log")),
+                "Self, unknown and foreign ids should be a no-op that preserves the order");
+
+        root.splitPane("scene", DockArea.RIGHT, pane("side", "Side"));
+        expect(!root.manager().reorderPane("scene", "side")
+                        && root.manager().containsPane("scene")
+                        && root.manager().containsPane("side"),
+                "Reorder across leaves should be a no-op: cross-leaf moves go through drop");
+    }
+
+    private static java.util.List<String> order(DockingRoot root) {
+        java.util.List<String> ids = new java.util.ArrayList<>();
+        for (DockPane pane : root.manager().panes()) {
+            ids.add(pane.id());
+        }
+        return ids;
     }
 
     private static DockPane pane(String id, String title) {

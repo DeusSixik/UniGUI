@@ -11,6 +11,7 @@ import dev.sixik.unigui.testmod.client.ui.OverlayRenderDemo;
 import dev.sixik.unigui.testmod.client.ui.PlugSocketMinigameScreen;
 import dev.sixik.unigui.testmod.client.ui.PostProcessingLayerTestScreen;
 import dev.sixik.unigui.testmod.client.ui.RetroTerminalScreen;
+import dev.sixik.unigui.testmod.client.ui.RibbonRoadsDemoScreen;
 import dev.sixik.unigui.testmod.client.ui.SolarNavigationScreen;
 import dev.sixik.unigui.testmod.client.ui.SpannerRhythmMinigameScreen;
 import dev.sixik.unigui.testmod.client.ui.SyncBatteryMinigameScreen;
@@ -90,6 +91,10 @@ public final class TestModClient implements ClientModInitializer {
 
     public static void openMarkerScalingDemo() {
         MarkerScalingDemoScreen.open();
+    }
+
+    public static void openRibbonRoadsDemo() {
+        RibbonRoadsDemoScreen.open();
     }
 
     public static void openTutorial() {

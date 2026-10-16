@@ -11,6 +11,8 @@ public final class DockDragController {
     private int pointerId = -1;
     private float startRootX;
     private float startRootY;
+    private float lastRootX;
+    private float lastRootY;
     private boolean active;
     private boolean dragging;
     private DockDropIntent previewIntent = DockDropIntent.none();
@@ -48,6 +50,16 @@ public final class DockDragController {
         return previewIntent;
     }
 
+    /** Последняя позиция указателя в root-координатах; нужна рендеру зон. */
+    float lastRootX() {
+        return lastRootX;
+    }
+
+    /** Последняя позиция указателя в root-координатах; нужна рендеру зон. */
+    float lastRootY() {
+        return lastRootY;
+    }
+
     boolean begin(DockPane pane, int pointerId, float rootX, float rootY) {
         if (pane == null) return false;
         cancel();
@@ -63,6 +75,8 @@ public final class DockDragController {
 
     boolean move(int pointerId, float rootX, float rootY) {
         if (!active || this.pointerId != pointerId) return false;
+        lastRootX = rootX;
+        lastRootY = rootY;
         if (!dragging) {
             float dx = rootX - startRootX;
             float dy = rootY - startRootY;
@@ -88,11 +102,41 @@ public final class DockDragController {
         boolean wasDragging = dragging;
         DockDropIntent finalIntent = wasDragging ? previewIntent : DockDropIntent.none();
         boolean dropped = wasDragging && finalIntent.valid() && owner.applyDockDropIntent(paneId, finalIntent);
+        if (wasDragging && !dropped) {
+            // Мимо зон — не snap-back, а tear-off: панель вырывается плавающим окном.
+            dropped = owner.tryTearOff(paneId, rootX, rootY);
+        }
         if (wasDragging) {
             if (!previewIntent.equals(DockDropIntent.none())) {
                 owner.dispatchDockDropPreviewChanged(paneId, previewIntent, DockDropIntent.none());
             }
             owner.dispatchDockDragEnded(paneId, rootX, rootY, finalIntent, dropped);
+        }
+        clear();
+        return true;
+    }
+
+    /**
+     * Передаёт активный жест плавающему окну при live tear-off.
+     *
+     * <p>В отличие от {@link #end}, ничего не дропает и не отрывает повторно:
+     * панель уже извлечена вызывающей стороной. Гасит preview, шлёт
+     * {@code drag-ended(dropped=true)} как завершение таб-фазы жеста и
+     * очищает состояние, чтобы release указателя не попал обратно в root.</p>
+     *
+     * @param pointerId id указателя жеста
+     * @param rootX X указателя в момент handoff
+     * @param rootY Y указателя в момент handoff
+     * @return {@code true}, если был активный жест этого указателя
+     */
+    boolean handoff(int pointerId, float rootX, float rootY) {
+        if (!active || this.pointerId != pointerId) return false;
+        boolean wasDragging = dragging;
+        if (wasDragging) {
+            if (!previewIntent.equals(DockDropIntent.none())) {
+                owner.dispatchDockDropPreviewChanged(paneId, previewIntent, DockDropIntent.none());
+            }
+            owner.dispatchDockDragEnded(paneId, rootX, rootY, DockDropIntent.none(), true);
         }
         clear();
         return true;

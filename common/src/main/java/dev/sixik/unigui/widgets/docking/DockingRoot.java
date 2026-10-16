@@ -107,6 +107,11 @@ public final class DockingRoot extends Box {
     private static final MutableColor SPLIT_LINE_PRESS = new MutableColor(0.45f, 0.95f, 1.0f, 1.00f);
     private static final MutableColor DROP_FILL = new MutableColor(0.18f, 0.56f, 1.0f, 0.22f);
     private static final MutableColor DROP_STROKE = new MutableColor(0.28f, 0.78f, 1.0f, 0.92f);
+    /** Зазор между ячейками креста drop-зон. */
+    private static final float DROP_ZONE_GAP = 6.0f;
+    private static final MutableColor ZONE_FILL = new MutableColor(0.20f, 0.32f, 0.52f, 0.55f);
+    private static final MutableColor ZONE_FILL_ACTIVE = new MutableColor(0.25f, 0.55f, 1.0f, 0.80f);
+    private static final MutableColor ZONE_STROKE = new MutableColor(0.35f, 0.55f, 0.85f, 0.70f);
     private static final MutableColor EMPTY_TEXT = new MutableColor(0.62f, 0.68f, 0.78f, 0.8f);
     private static final MutableColor SEAM = new MutableColor(0.22f, 0.26f, 0.36f, 0.70f);
     private static final MutableColor SEAM_HOVER = new MutableColor(0.35f, 0.88f, 1.0f, 0.90f);
@@ -138,12 +143,15 @@ public final class DockingRoot extends Box {
     private final Map<String, Integer> tabScrollOffsets = new HashMap<>();
     private final Map<String, Integer> overflowMenuScrollOffsets = new HashMap<>();
     private DockDropIntent floatingDropPreviewIntent = DockDropIntent.none();
+    /** Последний размер floating-окна по id панели: tear-off возвращает его, а не размер листа. */
+    private final Map<String, float[]> floatingWindowSizes = new HashMap<>();
     private static final Map<WindowWidget, DockingRoot> FOREIGN_WINDOW_PREVIEW_TARGETS =
             Collections.synchronizedMap(new WeakHashMap<>());
     private float tabHeight = 22.0f;
     private float splitHandleThickness = 5.0f;
     private boolean hasArrangedBounds;
     private boolean allowFloatingOutsideHost;
+    private boolean tearOffOnDragOut = true;
     private boolean floatingWindowsRedockLocked;
     private WindowWidget windowHost;
 
@@ -222,6 +230,33 @@ public final class DockingRoot extends Box {
     public DockingRoot allowFloatingOutsideHost(boolean allowFloatingOutsideHost) {
         if (this.allowFloatingOutsideHost == allowFloatingOutsideHost) return this;
         this.allowFloatingOutsideHost = allowFloatingOutsideHost;
+        return this;
+    }
+
+    /**
+     * Возвращает, вырывается ли панель плавающим окном при дропе мимо зон.
+     *
+     * @return {@code true} для tear-off поведения (default)
+     */
+    public boolean tearOffOnDragOut() {
+        return tearOffOnDragOut;
+    }
+
+    /**
+     * Включает или выключает tear-off: дроп перетаскиваемой панели мимо всех
+     * зон превращает её в плавающее окно вместо snap-back на место.
+     *
+     * <p>Срабатывает только после реального драга (порог пройден) и только если
+     * отпустили вне исходного листа. Окно при создании клампится в хост, так
+     * что вынос за край даёт окно у края, а не потерю панели.</p>
+     *
+     * @param tearOffOnDragOut {@code true}, чтобы разрешить отрыв панелей
+     * @return этот root для fluent-настройки
+     */
+    @XmlAttribute(value = "tearOffOnDragOut", category = "Behavior", defaultValue = "true", description = "Whether dropping a dragged pane outside all zones tears it off into a floating window.")
+    public DockingRoot tearOffOnDragOut(boolean tearOffOnDragOut) {
+        if (this.tearOffOnDragOut == tearOffOnDragOut) return this;
+        this.tearOffOnDragOut = tearOffOnDragOut;
         return this;
     }
 
@@ -540,6 +575,10 @@ public final class DockingRoot extends Box {
             if (dragController.move(pointer.pointerId(), pointer.rootX(), pointer.rootY())) {
                 event.cancel();
             }
+            if (dragController.dragging()) {
+                reorderTabAtPointer(pointer);
+                tearOffTabAtPointer(pointer);
+            }
             return;
         }
 
@@ -643,6 +682,83 @@ public final class DockingRoot extends Box {
                 closeOverflowMenu();
             }
         }
+    }
+
+    /**
+     * Live-reorder табов: наведение на соседний таб того же листа ставит
+     * тащимую панель на его место.
+     *
+     * <p>Работает только внутри домашнего листа (таб под курсором и тащимая
+     * панель в одном листе): кросс-листовые перемещения — через обычный дроп.
+     * Повторные вызовы на том же табе — no-op, layout не дёргается.</p>
+     *
+     * @param pointer событие движения указателя
+     */
+    private void reorderTabAtPointer(PointerMovedEvent pointer) {
+        String draggedId = dragController.paneId();
+        DockPane hoveredTab = tabAt(rootNode(), layoutBounds(), pointer.rootX(), pointer.rootY());
+        if (hoveredTab == null || hoveredTab.id().equals(draggedId)) return;
+        LeafHit hoveredLeaf = leafContainingPane(rootNode(), layoutBounds(), hoveredTab.id());
+        LeafHit draggedLeaf = leafContainingPane(rootNode(), layoutBounds(), draggedId);
+        if (hoveredLeaf == null || draggedLeaf == null || hoveredLeaf.node() != draggedLeaf.node()) return;
+        manager.reorderPane(draggedId, hoveredTab.id());
+    }
+
+    /**
+     * Live tear-off таба: выход указателя из таб-стрипов отрывает панель
+     * плавающим окном прямо посреди жеста.
+     *
+     * <p>Окно создаётся под курсором (хедером под указатель), драг
+     * продолжается им: capture и drag-состояние передаются окну, дальше жест
+     * идёт штатным window-путём (триггеры, превью, дроп). Уважается
+     * {@code tearOffOnDragOut}; везёт только пока панель ещё в дереве.
+     * Выход на чужой стрип — тоже отрыв: кросс-листовый дроп идёт окном
+     * через зону. Единственная панель не вырывается заживо: пустой root
+     * вместо дока никому не нужен, release-путь вернёт её snap-back'ом.</p>
+     *
+     * @param pointer событие движения указателя
+     */
+    private void tearOffTabAtPointer(PointerMovedEvent pointer) {
+        if (!tearOffOnDragOut) return;
+        if (manager.paneCount() <= 1) return;
+        String paneId = dragController.paneId();
+        int pointerId = pointer.pointerId();
+        float rootX = pointer.rootX();
+        float rootY = pointer.rootY();
+        LeafHit source = leafContainingPane(rootNode(), layoutBounds(), paneId);
+        if (source == null) return;
+        // Выход из ЛЮБОГО таб-стрипа, не только домашнего: переход на чужой
+        // стрип — это тоже отрыв (кросс-листовый дроп идёт окном через зону).
+        if (tabStripAt(rootNode(), layoutBounds(), rootX, rootY) != null) return;
+        DockPane detached = manager.detachPaneForFloating(paneId);
+        if (detached == null) return;
+        float[] remembered = rememberedFloatingSize(paneId);
+        float winWidth = remembered != null
+                ? remembered[0]
+                : clamp(source.bounds().width(), 180.0f, 640.0f);
+        float winHeight = remembered != null
+                ? remembered[1]
+                : clamp(source.bounds().height(), 112.0f, 480.0f);
+        float grabDX = Math.min(Math.max(16.0f, winWidth * 0.5f), 96.0f);
+        WindowWidget window = createFloatingPaneWindow(detached, DockDropIntent.of(paneId, "", DockArea.FLOAT,
+                new MutableRect(rootX - grabDX, rootY - 11.0f, winWidth, winHeight), rootX, rootY));
+        lastFloatingWindow = window;
+        dragController.handoff(pointerId, rootX, rootY);
+        OverlayLayer overlay = nearestOverlayLayer(this);
+        if (overlay != null) {
+            overlay.applyQueuedMutations();
+        }
+        RectView host = overlay != null ? overlay.layoutBounds() : floatingHostBounds();
+        window.arrangeInHost(host);
+        UIContext context = uiContext();
+        if (context != null) {
+            context.releasePointer(pointerId, this);
+            context.capturePointer(pointerId, window);
+        }
+        window.takeoverDrag(pointerId, rootX, rootY);
+        setPressedPane("");
+        setHoveredPane("");
+        invalidate(InvalidationFlags.VISUAL);
     }
 
     private boolean handleOverflowMenuEventBeforeChildren(Event event) {
@@ -788,6 +904,9 @@ public final class DockingRoot extends Box {
     }
 
     void dispatchDockDragMoved(String paneId, float rootX, float rootY, DockDropIntent intent) {
+        // Крест зон следует за курсором даже внутри одной зоны: инвалидируем
+        // каждый move, иначе подсветка отстаёт от указателя.
+        invalidate(InvalidationFlags.VISUAL);
         dispatchDockEvent(new DockDragMovedEvent(this, paneId, rootX, rootY, intent));
     }
 
@@ -809,18 +928,31 @@ public final class DockingRoot extends Box {
             }
             return DockDropIntent.none();
         }
-        LeafHit hit = leafAt(rootNode(), rootBounds, rootX, rootY);
-        if (hit == null || hit.node().panes().isEmpty()) {
+        TriggerHit trigger = triggerAt(rootX, rootY);
+        if (!trigger.valid()) {
             return DockDropIntent.none();
         }
+        return leafIntent(sourcePaneId, trigger.leaf(), trigger.area(), rootX, rootY);
+    }
+
+    /**
+     * Строит intent дропа на лист: таб в центр, иначе сплит.
+     *
+     * @param sourcePaneId id перетаскиваемой панели
+     * @param hit лист под курсором
+     * @param area зона внутри листа
+     * @param rootX X курсора
+     * @param rootY Y курсора
+     * @return intent или {@code none} для дропа панели самой на себя
+     */
+    private DockDropIntent leafIntent(String sourcePaneId, LeafHit hit, DockArea area, float rootX, float rootY) {
         DockPane target = hit.node().selectedPane();
         if (target == null) target = hit.node().panes().get(0);
-        DockArea area = dropArea(hit.bounds(), rootX, rootY);
         if (sourcePaneId != null && sourcePaneId.equals(target.id()) && hit.node().panes().size() == 1) {
             return DockDropIntent.none();
         }
-        MutableRect preview = previewBounds(hit.bounds(), area);
-        return DockDropIntent.of(sourcePaneId, target.id(), area, preview, rootX, rootY);
+        return DockDropIntent.of(sourcePaneId, target.id(), area,
+                previewBounds(hit.bounds(), area), rootX, rootY);
     }
 
     boolean applyDockDropIntent(String paneId, DockDropIntent intent) {
@@ -837,16 +969,50 @@ public final class DockingRoot extends Box {
         return manager.dockPane(paneId, intent.targetPaneId(), intent.area());
     }
 
+    /**
+     * Отрывает панель плавающим окном при дропе мимо всех зон (tear-off).
+     *
+     * <p>Вызывается из {@code DockDragController.end} как fallback, когда
+     * intent пуст: панель уже убрана с места драгом, возвращать её молча —
+     * значит терять жест пользователя. Условия: флаг включён, root принимает
+     * дропы, панель ещё в дереве и отпустили вне её исходного листа.
+     * Позиция окна клампится в хост через {@code createFloatingPaneWindow},
+     * поэтому {@code allowFloatingOutsideHost} продолжает управлять только
+     * свободным движением, но не самим отрывом.</p>
+     *
+     * @param paneId id перетаскиваемой панели
+     * @param rootX X отпускания
+     * @param rootY Y отпускания
+     * @return {@code true}, если панель стала плавающим окном
+     */
+    boolean tryTearOff(String paneId, float rootX, float rootY) {
+        if (!tearOffOnDragOut || !acceptsDockDrops() || paneId == null || paneId.isEmpty()) return false;
+        LeafHit source = leafContainingPane(rootNode(), layoutBounds(), paneId);
+        if (source == null) return false;
+        if (contains(source.bounds(), rootX, rootY)) return false;
+        DockPane detached = manager.detachPaneForFloating(paneId);
+        if (detached == null) return false;
+        lastFloatingWindow = createFloatingPaneWindow(detached, DockDropIntent.floating(paneId, rootX, rootY));
+        return lastFloatingWindow != null;
+    }
+
     private WindowWidget createFloatingPaneWindow(DockPane pane, DockDropIntent intent) {
         WindowWidget window = new WindowWidget(pane.richTitle(), pane.content());
-        float width = Math.max(180.0f, intent.width());
-        float height = Math.max(112.0f, intent.height());
+        float[] remembered = rememberedFloatingSize(pane.id());
+        float width = remembered != null ? remembered[0] : Math.max(180.0f, intent.width());
+        float height = remembered != null ? remembered[1] : Math.max(112.0f, intent.height());
         window.layout(style -> style.size(width, height));
         window.minWindowSize(120.0f, 64.0f);
         window.closeButtonVisible(false);
         window.closeOnOutsideClick(false);
         window.constrainToHost(true);
         window.resizable(true);
+        // Floating-панель — dockable-источник своего же id: после tear-off
+        // окно докируется обратно штатным foreign-путём (превью на move,
+        // merge на release). Лок redock уважается там же.
+        window.dockable(true);
+        window.dockPaneId(pane.id());
+        window.dockKind(pane.kind());
         window.dockRedockLocked(floatingWindowsRedockLocked);
 
         OverlayLayer overlay = nearestOverlayLayer(this);
@@ -868,6 +1034,39 @@ public final class DockingRoot extends Box {
         window.open();
         registerFloatingDockWindow(window);
         return window;
+    }
+
+    /**
+     * Возвращает запомненный размер floating-окна панели или {@code null}.
+     *
+     * <p>Размер пишется в момент дока ({@code rememberFloatingSize}): повторный
+     * tear-off возвращает окну прошлый размер, а не размер листа, из которого
+     * его вытянули.</p>
+     *
+     * @param paneId id панели
+     * @return массив {@code [width, height]} или {@code null}, если панель ещё не плавала
+     */
+    private float[] rememberedFloatingSize(String paneId) {
+        float[] size = paneId == null ? null : floatingWindowSizes.get(paneId);
+        if (size == null) return null;
+        float width = clamp(size[0], 120.0f, 640.0f);
+        float height = clamp(size[1], 64.0f, 480.0f);
+        if (!Float.isFinite(width) || !Float.isFinite(height)) return null;
+        return new float[]{width, height};
+    }
+
+    /**
+     * Запоминает текущий размер floating-окна за id панели.
+     *
+     * @param paneId id панели
+     * @param window окно, чей размер запоминаем
+     */
+    private void rememberFloatingSize(String paneId, WindowWidget window) {
+        if (paneId == null || paneId.isEmpty() || window == null) return;
+        float width = window.layoutBounds().width();
+        float height = window.layoutBounds().height();
+        if (!Float.isFinite(width) || !Float.isFinite(height) || width <= 0.0f || height <= 0.0f) return;
+        floatingWindowSizes.put(paneId, new float[]{width, height});
     }
 
     private void registerFloatingDockWindow(WindowWidget window) {
@@ -897,8 +1096,10 @@ public final class DockingRoot extends Box {
                 }
                 return;
             }
-            float dropX = floatingWindowDropX(window, overlay, event.newX());
-            float dropY = floatingWindowDropY(window, overlay, event.newY());
+            // Превью строго по мыши, а не по прямоугольнику окна: иначе оффер
+            // и дроп расходятся, когда окно отстоит от курсора на offset захвата.
+            float dropX = window.lastDragRootX();
+            float dropY = window.lastDragRootY();
             DockingRoot target = dockingRootAt(overlay, window, dropX, dropY);
             if (previewTarget[0] != null && previewTarget[0] != target) {
                 previewTarget[0].floatingDropPreview(DockDropIntent.none());
@@ -916,8 +1117,8 @@ public final class DockingRoot extends Box {
                 }
                 return;
             }
-            float dropX = floatingWindowDropX(window, overlay, event.x());
-            float dropY = floatingWindowDropY(window, overlay, event.y());
+            float dropX = window.lastDragRootX();
+            float dropY = window.lastDragRootY();
             DockingRoot target = dockingRootAt(overlay, window, dropX, dropY);
             if (previewTarget[0] != null) {
                 previewTarget[0].floatingDropPreview(DockDropIntent.none());
@@ -929,35 +1130,29 @@ public final class DockingRoot extends Box {
         });
     }
 
-    private static float floatingWindowDropX(WindowWidget window, OverlayLayer overlay, float windowX) {
-        return overlay.layoutBounds().x() + windowX
-                + Math.min(Math.max(16.0f, window.layoutBounds().width() * 0.5f), 96.0f);
-    }
-
-    private static float floatingWindowDropY(WindowWidget window, OverlayLayer overlay, float windowY) {
-        return overlay.layoutBounds().y() + windowY + Math.max(6.0f, window.headerHeight() * 0.5f);
-    }
-
     private void redockFloatingPane(WindowWidget window, DockPane pane, OverlayLayer overlay,
-                                    DockingRoot target, float rootX, float rootY) {
+            DockingRoot target, float rootX, float rootY) {
+        rememberFloatingSize(pane.id(), window);
+        target.floatingDropPreview(DockDropIntent.none());
+        // Вне триггеров окно остаётся плавать: релиз мимо креста/стрипа
+        // не должен прибивать панель табом в чужой лист (иначе вытянутое
+        // окно при отпускании тут же прилипает обратно). Пустой root
+        // принимает дроп anywhere — целиться там не во что.
+        if (!target.manager().empty() && !target.triggerAt(rootX, rootY).valid()) {
+            return;
+        }
         window.content(null);
         window.applyQueuedMutations();
         window.close();
         overlay.removeOverlay(window);
-        target.floatingDropPreview(DockDropIntent.none());
 
-        LeafHit hit = target.leafAt(target.rootNode(), target.layoutBounds(), rootX, rootY);
-        if (hit == null || hit.node().panes().isEmpty()) {
+        // Резолв строго по мыши (rootX/rootY — указатель на момент релиза),
+        // тем же trigger-пайплайном, что и превью: дроп совпадает с оффером.
+        // Триггер уже проверен выше, fallback ниже — только страховка от
+        // гонки layout между проверкой и вставкой: панель нельзя потерять.
+        boolean merged = target.insertMergedPane(pane, target.anchorLeafForMerge(rootX, rootY), rootX, rootY);
+        if (!merged) {
             target.manager().addPane(pane);
-        } else {
-            DockPane targetPane = hit.node().selectedPane();
-            if (targetPane == null) targetPane = hit.node().panes().get(0);
-            DockArea area = target.dropArea(hit.bounds(), rootX, rootY);
-            if (area == DockArea.CENTER || area == DockArea.TAB) {
-                target.manager().tabPane(targetPane.id(), pane);
-            } else {
-                target.manager().splitPane(targetPane.id(), area, pane);
-            }
         }
         if (lastFloatingWindow == window) {
             lastFloatingWindow = null;
@@ -1042,8 +1237,10 @@ public final class DockingRoot extends Box {
      * Завершает drop чужого dockable-окна: гасит preview и докирует контент.
      *
      * <p>Если точка дропа попадает на другое окно с включённой docking area,
-     * панели источника мержатся в окно-хост, а источник закрывается. Иначе
-     * контент докируется в найденный {@link DockingRoot} как одна панель.</p>
+     * дроп идёт через зоны его внутреннего root (таб/сплит по триггеру,
+     * мимо триггеров — окно остаётся плавать); окно-хост со всеми панелями
+     * дропается так же, перенося всё содержимое. Иначе контент докируется
+     * в найденный {@link DockingRoot} как одна панель.</p>
      *
      * @param window окно-источник в конце drag
      * @param rootX X указателя в root-координатах
@@ -1059,9 +1256,8 @@ public final class DockingRoot extends Box {
         OverlayLayer overlay = nearestOverlayLayer(window);
         Widget searchRoot = overlay != null ? overlay : rootOf(window);
         WindowWidget hostWindow = windowHostAt(searchRoot, window, rootX, rootY);
-        if (hostWindow != null && hostWindow.mergeDockingFrom(window)) {
-            detachForeignWindow(window);
-            return true;
+        if (hostWindow != null && hostWindow.dockingRoot() != null) {
+            return hostWindow.dockingRoot().dockForeignWindow(window, rootX, rootY);
         }
         DockingRoot target = dockingRootAt(searchRoot, window, rootX, rootY);
         if (target == null) return false;
@@ -1098,6 +1294,12 @@ public final class DockingRoot extends Box {
         if (window == null || !window.dockable() || window.dockRedockLocked()) return false;
         if (!acceptsDockDrops()) return false;
         floatingDropPreview(DockDropIntent.none());
+        // Вне триггеров окно остаётся плавать (симметрично redockFloatingPane):
+        // иначе релиз мимо креста/стрипа молча табал бы контент в preferred
+        // leaf. Пустой root принимает дроп anywhere.
+        if (!manager.empty() && !triggerAt(rootX, rootY).valid()) {
+            return false;
+        }
 
         DockingRoot sourceRoot = window.dockingRoot();
         if (sourceRoot != null) {
@@ -1106,10 +1308,13 @@ public final class DockingRoot extends Box {
                 LeafHit anchorHit = anchorLeafForMerge(rootX, rootY);
                 String firstId = "";
                 for (DockPane pane : panes) {
+                    rememberFloatingSize(pane.id(), window);
                     DockPane detached = sourceRoot.manager().detachPaneForFloating(pane.id());
                     if (detached == null) continue;
                     if (firstId.isEmpty()) {
-                        insertMergedPane(detached, anchorHit, rootX, rootY);
+                        if (!insertMergedPane(detached, anchorHit, rootX, rootY)) {
+                            manager.addPane(detached);
+                        }
                         firstId = detached.id();
                     } else {
                         // Последующие панели мержатся табом к первой перенесённой.
@@ -1117,6 +1322,9 @@ public final class DockingRoot extends Box {
                     }
                 }
                 detachForeignWindow(window);
+                if (lastFloatingWindow == window) {
+                    lastFloatingWindow = null;
+                }
                 return true;
             }
         }
@@ -1128,6 +1336,7 @@ public final class DockingRoot extends Box {
             return sourceRoot != null;
         }
         String paneId = window.dockSourceId();
+        rememberFloatingSize(paneId, window);
         DockPane pane = window.dockKind() == DockPaneKind.DOCUMENT
                 ? DockPane.document(paneId, window.richTitle(), content)
                 : DockPane.tool(paneId, window.richTitle(), content);
@@ -1136,7 +1345,12 @@ public final class DockingRoot extends Box {
         window.content(null);
         window.applyQueuedMutations();
         detachForeignWindow(window);
-        insertMergedPane(pane, anchorLeafForMerge(rootX, rootY), rootX, rootY);
+        if (!insertMergedPane(pane, anchorLeafForMerge(rootX, rootY), rootX, rootY)) {
+            manager.addPane(pane);
+        }
+        if (lastFloatingWindow == window) {
+            lastFloatingWindow = null;
+        }
         return true;
     }
 
@@ -1144,19 +1358,24 @@ public final class DockingRoot extends Box {
         return leafAt(rootNode(), layoutBounds(), rootX, rootY);
     }
 
-    private void insertMergedPane(DockPane pane, LeafHit hit, float rootX, float rootY) {
+    private boolean insertMergedPane(DockPane pane, LeafHit hit, float rootX, float rootY) {
         if (hit == null || hit.node().panes().isEmpty()) {
             manager.addPane(pane);
-            return;
+            return true;
         }
-        DockPane targetPane = hit.node().selectedPane();
-        if (targetPane == null) targetPane = hit.node().panes().get(0);
-        DockArea area = dropArea(hit.bounds(), rootX, rootY);
+        TriggerHit trigger = triggerAt(rootX, rootY);
+        if (!trigger.valid()) {
+            return false;
+        }
+        DockPane targetPane = trigger.leaf().node().selectedPane();
+        if (targetPane == null) targetPane = trigger.leaf().node().panes().get(0);
+        DockArea area = trigger.area();
         if (area == DockArea.CENTER || area == DockArea.TAB) {
             manager.tabPane(targetPane.id(), pane);
         } else {
             manager.splitPane(targetPane.id(), area, pane);
         }
+        return true;
     }
 
     private static void detachForeignWindow(WindowWidget window) {
@@ -1233,18 +1452,108 @@ public final class DockingRoot extends Box {
         return first != null ? first : leafAt(node.second(), split.second(), rootX, rootY);
     }
 
-    private DockArea dropArea(RectView bounds, float rootX, float rootY) {
-        float width = Math.max(1.0f, bounds.width());
-        float height = Math.max(1.0f, bounds.height());
-        float relativeX = rootX - bounds.x();
-        float relativeY = rootY - bounds.y();
-        float edgeWidth = Math.min(width * 0.25f, 48.0f);
-        float edgeHeight = Math.min(height * 0.25f, 48.0f);
-        if (relativeX <= edgeWidth) return DockArea.LEFT;
-        if (relativeX >= width - edgeWidth) return DockArea.RIGHT;
-        if (relativeY <= edgeHeight && relativeY > Math.min(tabHeight, height)) return DockArea.TOP;
-        if (relativeY >= height - edgeHeight) return DockArea.BOTTOM;
-        return DockArea.CENTER;
+    /**
+     * Результат trigger-резолва: видимый триггер под курсором.
+     *
+     * @param leaf лист триггера
+     * @param area зона триггера
+     */
+    private record TriggerHit(LeafHit leaf, DockArea area) {
+        private static TriggerHit none() {
+            return new TriggerHit(null, null);
+        }
+
+        private boolean valid() {
+            return area != null;
+        }
+    }
+
+    private static final DockArea[] CROSS_AREAS = {
+            DockArea.CENTER, DockArea.TOP, DockArea.BOTTOM, DockArea.LEFT, DockArea.RIGHT
+    };
+
+    /**
+     * Находит видимый триггер под курсором мыши.
+     *
+     * <p>Единственная точка истины для всех drop-путей (intent, merge, redock):
+     * таб-стрип → ячейка креста листа. Квадрантной fallback-геометрии нет:
+     * оффер существует ровно там, где нарисован триггер. Вне триггеров —
+     * мимо зон (tear-off/float/addPane по контексту).</p>
+     *
+     * @param rootX X курсора в root-координатах
+     * @param rootY Y курсора в root-координатах
+     * @return триггер или {@code none()}
+     */
+    private TriggerHit triggerAt(float rootX, float rootY) {
+        RectView rootBounds = layoutBounds();
+        LeafHit tabHit = tabStripAt(rootNode(), rootBounds, rootX, rootY);
+        if (tabHit != null && !tabHit.node().panes().isEmpty()) {
+            return new TriggerHit(tabHit, DockArea.CENTER);
+        }
+        LeafHit hit = leafAt(rootNode(), rootBounds, rootX, rootY);
+        if (hit != null && !hit.node().panes().isEmpty()) {
+            for (DockArea area : CROSS_AREAS) {
+                if (contains(crossCellRect(hit.bounds(), area), rootX, rootY)) {
+                    return new TriggerHit(hit, area);
+                }
+            }
+        }
+        return TriggerHit.none();
+    }
+
+    /**
+     * Возвращает rect ячейки креста drop-зон для листа.
+     *
+     * <p>Та же геометрия используется рендером adornments и хит-тестом:
+     * нарисованная ячейка и есть зона дропа — расхождений «показали одно,
+     * приняли другое» быть не может. Ячейки не пересекаются.</p>
+     *
+     * @param leafBounds границы листа
+     * @param area зона: TOP/BOTTOM/LEFT/RIGHT — стороны креста, CENTER/TAB — центр
+     * @return rect ячейки; для прочих зон — пустой rect
+     */
+    public static MutableRect crossCellRect(RectView leafBounds, DockArea area) {
+        if (leafBounds == null) return new MutableRect();
+        float cell = dropZoneCell(leafBounds);
+        float gap = DROP_ZONE_GAP;
+        float centerX = leafBounds.x() + leafBounds.width() * 0.5f;
+        float centerY = leafBounds.y() + leafBounds.height() * 0.5f;
+        float half = cell * 0.5f;
+        if (area == DockArea.TOP) {
+            return new MutableRect(centerX - half, centerY - half - gap - cell, cell, cell);
+        }
+        if (area == DockArea.BOTTOM) {
+            return new MutableRect(centerX - half, centerY + half + gap, cell, cell);
+        }
+        if (area == DockArea.LEFT) {
+            return new MutableRect(centerX - half - gap - cell, centerY - half, cell, cell);
+        }
+        if (area == DockArea.RIGHT) {
+            return new MutableRect(centerX + half + gap, centerY - half, cell, cell);
+        }
+        if (area == DockArea.CENTER || area == DockArea.TAB) {
+            return new MutableRect(centerX - half, centerY - half, cell, cell);
+        }
+        return new MutableRect();
+    }
+
+    /**
+     * Возвращает размер ячейки креста drop-зон для листа.
+     *
+     * <p>Та же геометрия используется хит-тестом ({@code triggerAt}) и рендером
+     * ({@code renderDropCross}): что нарисовано, туда и дропается. Крест
+     * целиком влезает в лист ({@code 3*cell + 2*gap <= minSide}): в маленьком
+     * окне ячейки уменьшаются вместо того, чтобы вылезти за границы, где на
+     * них невозможно навестись. Пол — 8px: ячейка остаётся видимой
+     * и хитабельной даже в крошечных листах.</p>
+     *
+     * @param bounds границы листа
+     * @return сторона квадратной ячейки креста
+     */
+    private static float dropZoneCell(RectView bounds) {
+        float minSide = Math.min(Math.max(1.0f, bounds.width()), Math.max(1.0f, bounds.height()));
+        float fit = (minSide - DROP_ZONE_GAP * 2.0f) / 3.0f;
+        return Math.max(8.0f, Math.min(64.0f, Math.min(minSide * 0.25f, fit)));
     }
 
     private MutableRect previewBounds(RectView bounds, DockArea area) {
@@ -1386,6 +1695,7 @@ public final class DockingRoot extends Box {
                 renderDefaultDropPreview(draw, preview);
             }
         }
+        renderDefaultDropZones(draw);
     }
 
     private void renderDefaultRoot(DrawScope draw) {
@@ -1552,6 +1862,105 @@ public final class DockingRoot extends Box {
         if (preview == null || !preview.valid() || preview.width() <= 0.0f || preview.height() <= 0.0f) return;
         draw.roundedRect(preview.x(), preview.y(), preview.width(), preview.height(), 4.0f, Paint.fill(DROP_FILL));
         draw.roundedRect(preview.x(), preview.y(), preview.width(), preview.height(), 4.0f, Paint.stroke(DROP_STROKE, 1.5f));
+    }
+
+    /**
+     * Рисует drop-зоны во время драга: крест над целевым листом.
+     *
+     * <p>Геометрия 1-в-1 с хит-тестом ({@code crossCellRect}): что нарисовано,
+     * туда и дропается. Активная зона подсвечена акцентом по текущему intent,
+     * остальные тусклые. Крест якорится на целевой лист intent'а (или лист
+     * под курсором, если intent пуст).</p>
+     *
+     * @param draw draw scope
+     */
+    private void renderDefaultDropZones(DrawScope draw) {
+        boolean dragging = dragController.dragging();
+        DockDropIntent intent = dropPreviewIntent();
+        if (!dragging && !intent.valid()) return;
+        RectView rootBounds = layoutBounds();
+        if (rootBounds.width() <= 0.0f || rootBounds.height() <= 0.0f) return;
+
+        DockNode anchorNode = null;
+        RectView anchorBounds = null;
+        if (!intent.targetPaneId().isEmpty()) {
+            LeafHit hit = leafContainingPane(rootNode(), rootBounds, intent.targetPaneId());
+            if (hit != null && !hit.node().panes().isEmpty()) {
+                anchorNode = hit.node();
+                anchorBounds = hit.bounds();
+            }
+        } else if (dragging) {
+            LeafHit hit = leafAt(rootNode(), rootBounds,
+                    dragController.lastRootX(), dragController.lastRootY());
+            if (hit != null && !hit.node().panes().isEmpty()) {
+                anchorNode = hit.node();
+                anchorBounds = hit.bounds();
+            }
+        } else if (intent.valid()) {
+            // Floating-окно нависло над root, но триггер не задет: крест
+            // якорится на лист под указателем по координатам intent.
+            LeafHit hit = leafAt(rootNode(), rootBounds, intent.pointerX(), intent.pointerY());
+            if (hit != null && !hit.node().panes().isEmpty()) {
+                anchorNode = hit.node();
+                anchorBounds = hit.bounds();
+            }
+        }
+        if (anchorBounds != null) {
+            DockArea active = intent.valid()
+                    && !intent.targetPaneId().isEmpty()
+                    && anchorContainsPane(anchorNode, intent.targetPaneId())
+                    ? intent.area()
+                    : null;
+            renderDropCross(draw, anchorBounds, active);
+        }
+    }
+
+    private static boolean anchorContainsPane(DockNode node, String paneId) {
+        if (node == null || paneId == null || paneId.isEmpty()) return false;
+        for (DockPane pane : node.panes()) {
+            if (pane != null && paneId.equals(pane.id())) return true;
+        }
+        return false;
+    }
+
+    private static void renderDropCross(DrawScope draw, RectView bounds, DockArea active) {
+        float cell = dropZoneCell(bounds);
+        MutableRect center = crossCellRect(bounds, DockArea.CENTER);
+        MutableRect top = crossCellRect(bounds, DockArea.TOP);
+        renderZoneCell(draw, center.x(), center.y(), cell, active == DockArea.CENTER || active == DockArea.TAB);
+        renderZoneCell(draw, top.x(), top.y(), cell, active == DockArea.TOP);
+        MutableRect bottom = crossCellRect(bounds, DockArea.BOTTOM);
+        renderZoneCell(draw, bottom.x(), bottom.y(), cell, active == DockArea.BOTTOM);
+        MutableRect left = crossCellRect(bounds, DockArea.LEFT);
+        renderZoneCell(draw, left.x(), left.y(), cell, active == DockArea.LEFT);
+        MutableRect right = crossCellRect(bounds, DockArea.RIGHT);
+        renderZoneCell(draw, right.x(), right.y(), cell, active == DockArea.RIGHT);
+        // Метафоры стыковки: плашка, прибитая к стороне дропа.
+        // Верх — таб-стрип сверху, низ — плашка снизу,
+        // лево/право — вертикальные плашки у краёв, центр — слои.
+        float barMargin = Math.max(6.0f, cell * 0.18f);
+        float barThick = Math.max(2.0f, cell * 0.16f);
+        float barLen = Math.max(0.0f, cell - barMargin * 2.0f);
+        draw.roundedRectFilled(top.x() + barMargin, top.y() + barMargin,
+                barLen, barThick, 2.0f, TAB_TEXT);
+        draw.roundedRectFilled(bottom.x() + barMargin, bottom.y() + bottom.height() - barMargin - barThick,
+                barLen, barThick, 2.0f, TAB_TEXT);
+        draw.roundedRectFilled(left.x() + barMargin, left.y() + barMargin,
+                barThick, barLen, 2.0f, TAB_TEXT);
+        draw.roundedRectFilled(right.x() + right.width() - barMargin - barThick, right.y() + barMargin,
+                barThick, barLen, 2.0f, TAB_TEXT);
+        float centerX = bounds.x() + bounds.width() * 0.5f;
+        float centerY = bounds.y() + bounds.height() * 0.5f;
+        for (int line = -1; line <= 1; line++) {
+            float ly = centerY + line * Math.max(4.0f, cell * 0.14f);
+            float lx = Math.max(4.0f, cell * 0.22f);
+            draw.line(centerX - lx, ly, centerX + lx, ly, Paint.stroke(TAB_TEXT, 1.5f));
+        }
+    }
+
+    private static void renderZoneCell(DrawScope draw, float x, float y, float cell, boolean active) {
+        draw.roundedRectFilled(x, y, cell, cell, 8.0f, active ? ZONE_FILL_ACTIVE : ZONE_FILL);
+        draw.roundedRectStroke(x, y, cell, cell, 8.0f, active ? DROP_STROKE : ZONE_STROKE, active ? 2.0f : 1.0f);
     }
 
     private DockDropIntent dropPreviewIntent() {

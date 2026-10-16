@@ -1332,13 +1332,13 @@ public class MinecraftWidgetScreen extends Screen {
     }
 
     private static DrawMesh scaledMesh(DrawMesh mesh, float scale) {
-        List<DrawVertex> vertices = new ObjectArrayList<>(mesh.vertexCount());
+        ObjectArrayList<DrawVertex> vertices = new ObjectArrayList<>(mesh.vertexCount());
         Object[] rawVertices = mesh.vertexElements();
         for (int i = 0, size = mesh.vertexCount(); i < size; i++) {
             DrawVertex vertex = (DrawVertex) rawVertices[i];
             vertices.add(new DrawVertex(vertex.x() * scale, vertex.y() * scale, vertex.u(), vertex.v(), vertex.color()));
         }
-        return DrawMesh.triangles(vertices);
+        return DrawMesh.owned(vertices);
     }
 
     private static PointerButton pointerButton(int button) {

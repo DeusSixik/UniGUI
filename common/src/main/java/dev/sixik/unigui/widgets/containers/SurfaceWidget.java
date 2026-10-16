@@ -715,12 +715,12 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
         float radius = surface.radius();
         if (surface.backgroundVisible()) {
             switch (surface.effectiveKind()) {
-                case COLOR -> draw.roundedRect(x, y, width, height, radius,
-                        Paint.fill(surface.background()));
+                case COLOR -> draw.roundedRectFilled(x, y, width, height, radius,
+                        surface.background());
                 case TEXTURE -> {
                     if (surface.background().a() > 0.0f) {
-                        draw.roundedRect(x, y, width, height, radius,
-                                Paint.fill(surface.background()));
+                        draw.roundedRectFilled(x, y, width, height, radius,
+                                surface.background());
                     }
                     TextureHandle texture = surface.backgroundTexture();
                     if (texture != null) {
@@ -733,8 +733,8 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
                                     surface.backgroundTextureSource(),
                                     new MutableRect(x, y, width, height),
                                     surface.backgroundTextureFit());
-                            draw.texture(texture, placement, radius,
-                                    Paint.fill(surface.backgroundTextureTint()));
+                            draw.textureTinted(texture, placement, radius,
+                                    surface.backgroundTextureTint());
                         }
                     }
                 }
@@ -744,8 +744,8 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
                         draw.shader(shader, x, y, width, height,
                                 surface.shaderUniforms(), surface.shaderOptions());
                     } else {
-                        draw.roundedRect(x, y, width, height, radius,
-                                Paint.fill(surface.background()));
+                        draw.roundedRectFilled(x, y, width, height, radius,
+                                surface.background());
                     }
                 }
                 case NONE -> {
@@ -753,8 +753,8 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
             }
         }
         if (surface.borderVisible()) {
-            draw.roundedRect(x, y, width, height, radius,
-                    Paint.stroke(surface.borderColor(), surface.borderWidth()));
+            draw.roundedRectStroke(x, y, width, height, radius,
+                    surface.borderColor(), surface.borderWidth());
         }
     }
 

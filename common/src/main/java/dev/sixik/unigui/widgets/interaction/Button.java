@@ -16,6 +16,7 @@ import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.event.PointerReleasedEvent;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.input.MouseCursor;
+import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.ColorView;
@@ -109,6 +110,10 @@ public class Button extends SurfaceWidget<Button> {
     private float textPaddingX = DEFAULT_TEXT_PADDING_X;
     private float textPaddingY = DEFAULT_TEXT_PADDING_Y;
     private boolean pressed;
+    private boolean chevronVisible;
+    private boolean chevronUp;
+    private Alignment textAlignment =
+            Alignment.CENTER;
     private boolean interactionTransitions;
     private TransitionSpec interactionTransition = TransitionSpec.of(0.10f, AnimationEasing.EASE_OUT);
     private float normalScale = 1.0f;
@@ -118,19 +123,17 @@ public class Button extends SurfaceWidget<Button> {
     private float pressedOpacity = 0.88f;
     private float disabledOpacity = 0.55f;
     private boolean customTextColor;
-    private boolean updatingTheme;
 
     public Button() {
         mouseCursor(MouseCursor.POINTER);
         backgroundVisible(true);
         borderVisible(true);
         focusable(true);
-        textColor.onChanged(() -> {
-            if (!updatingTheme) {
-                customTextColor = true;
-            }
-            invalidate(InvalidationFlags.VISUAL);
-        });
+        // Только инвалидация: пометка custom ставится в явных сеттерах.
+        // Тики theme-анимаций тоже пишут в textColor — по ним нельзя отличать
+        // ручной цвет (иначе первое же нажатие с transition навсегда
+        // замораживало текст в pressed-цвете).
+        textColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
     }
 
     public Button(String text) {
@@ -178,12 +181,14 @@ public class Button extends SurfaceWidget<Button> {
     @XmlAttribute(value = "textColor", category = "Appearance", defaultValue = "#FFFFFFFF", description = "Button text color parsed from XML color syntax.")
     public Button textColor(ColorView color) {
         if (color != null) {
+            customTextColor = true;
             textColor.set(color);
         }
         return this;
     }
 
     public Button textColor(float r, float g, float b, float a) {
+        customTextColor = true;
         textColor.set(r, g, b, a);
         return this;
     }
@@ -242,6 +247,89 @@ public class Button extends SurfaceWidget<Button> {
         return pressed;
     }
 
+    /**
+     * Возвращает горизонтальное выравнивание текста кнопки.
+     *
+     * @return выравнивание (default {@code CENTER})
+     */
+    public Alignment textAlignment() {
+        return textAlignment;
+    }
+
+    /**
+     * Задаёт горизонтальное выравнивание текста кнопки.
+     *
+     * <p>Нужно строкам списков (опции ComboBox — влево, {@code START}),
+     * обычные кнопки остаются центрированными. {@code null} нормализуется
+     * в {@code CENTER}.</p>
+     *
+     * @param textAlignment выравнивание текста
+     * @return эта кнопка для fluent-настройки
+     */
+    public Button textAlignment(Alignment textAlignment) {
+        Alignment normalized = textAlignment == null
+                ? Alignment.CENTER
+                : textAlignment;
+        if (this.textAlignment == normalized) return this;
+        this.textAlignment = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Ширина слота trailing-шеврона: глиф 12px + отступ 12px от правого края.
+     * Текст при видимом шевроне ужимается левее слота и выравнивается влево.
+     */
+    public static final float CHEVRON_SLOT_WIDTH = 24.0f;
+    /** Размер глифа шеврона в UI-пикселях. */
+    public static final float CHEVRON_GLYPH_SIZE = 12.0f;
+
+    /**
+     * Возвращает, рисуется ли trailing-шеврон в правом слоте кнопки.
+     *
+     * @return {@code true}, если шеврон виден (default {@code false})
+     */
+    public boolean chevronVisible() {
+        return chevronVisible;
+    }
+
+    /**
+     * Показывает или прячет trailing-шеврон: отдельный слот справа через
+     * layout (текст ужимается, а не едет вместе с глифом), а не пробел
+     * в тексте. Нужно хедерам dropdown/ComboBox.
+     *
+     * @param chevronVisible {@code true}, чтобы рисовать шеврон справа
+     * @return эта кнопка для fluent-настройки
+     */
+    public Button chevronVisible(boolean chevronVisible) {
+        if (this.chevronVisible == chevronVisible) return this;
+        this.chevronVisible = chevronVisible;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Возвращает направление шеврона: вверх ({@code true}) или вниз.
+     *
+     * @return направление шеврона
+     */
+    public boolean chevronUp() {
+        return chevronUp;
+    }
+
+    /**
+     * Задаёт направление шеврона (вверх — открытый список, вниз — закрытый).
+     *
+     * @param chevronUp {@code true} для шеврона вверх
+     * @return эта кнопка для fluent-настройки
+     */
+    public Button chevronUp(boolean chevronUp) {
+        if (this.chevronUp == chevronUp) return this;
+        this.chevronUp = chevronUp;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
     public boolean interactionTransitions() {
         return interactionTransitions;
     }
@@ -298,8 +386,9 @@ public class Button extends SurfaceWidget<Button> {
         }
         float textWidth = TextEngine.measureLineWidth(richText);
         float textHeight = intrinsicTextHeight();
+        float trailingSlot = chevronVisible ? CHEVRON_SLOT_WIDTH : 0.0f;
         setDesiredSize(resolveDesiredSize(context,
-                textWidth + textPaddingX * 2.0f,
+                textWidth + textPaddingX * 2.0f + trailingSlot,
                 textHeight + textPaddingY * 2.0f));
     }
 
@@ -378,28 +467,79 @@ public class Button extends SurfaceWidget<Button> {
      * Рисует центрированный текст кнопки.
      *
      * <p>Используется кнопкой и наследниками с тем же текстовым layout
-     * (toggle button, tool button).</p>
+     * (toggle button, tool button). При видимом шевроне текст прижимается
+     * влево и ужимается левее шеврон-слота, а сам шеврон рисуется справа.</p>
      *
      * @param draw draw scope виджета
      */
     protected void renderButtonText(DrawScope draw) {
-        if (richText == null || richText.isEmpty()) return;
+        if (richText == null || richText.isEmpty()) {
+            renderChevron(draw);
+            return;
+        }
         float x = layoutBounds().x();
         float y = layoutBounds().y();
         float width = layoutBounds().width();
         float height = layoutBounds().height();
+        float reservedRight = chevronVisible ? CHEVRON_SLOT_WIDTH : 0.0f;
         float contentX = x + textPaddingX;
-        float contentWidth = Math.max(0.0f, width - textPaddingX * 2.0f);
-        if (contentWidth <= 0.0f) return;
+        float contentWidth = Math.max(0.0f, width - textPaddingX - Math.max(textPaddingX, reservedRight));
+        if (contentWidth <= 0.0f) {
+            renderChevron(draw);
+            return;
+        }
         float textWidth = TextEngine.measureLineWidth(draw.context(), richText);
         float textHeight = TextEngine.measureTextHeight(draw.context(), richText);
         float drawWidth = Math.min(contentWidth, Math.max(0.0f, textWidth));
         float drawHeight = Math.min(Math.max(0.0f, height), Math.max(0.0f, textHeight));
-        if (drawWidth <= 0.0f || drawHeight <= 0.0f) return;
-        float drawX = contentX + Math.max(0.0f, contentWidth - drawWidth) * 0.5f;
+        if (drawWidth <= 0.0f || drawHeight <= 0.0f) {
+            renderChevron(draw);
+            return;
+        }
+        float drawX;
+        if (chevronVisible) {
+            drawX = contentX;
+        } else if (textAlignment == Alignment.START) {
+            drawX = contentX;
+        } else if (textAlignment == Alignment.END) {
+            drawX = contentX + Math.max(0.0f, contentWidth - drawWidth);
+        } else {
+            drawX = contentX + Math.max(0.0f, contentWidth - drawWidth) * 0.5f;
+        }
         float drawY = y + Math.max(0.0f, height - drawHeight) * 0.5f;
         renderLabel(draw, richText, contentX, y, contentWidth, height,
                 drawX, drawY, drawWidth, drawHeight, textColor);
+        renderChevron(draw);
+    }
+
+    /**
+     * Рисует trailing-шеврон в правом слоте кнопки.
+     *
+     * <p>Шеврон — два stroke-отрезка (уголок вверх/вниз), а не filled
+     * треугольник: совпадает с референсом и не зависит от шрифта.
+     * No-op, если слот выключен или кнопке не хватило места.</p>
+     *
+     * @param draw draw scope виджета
+     */
+    protected void renderChevron(DrawScope draw) {
+        if (draw == null || !chevronVisible) return;
+        float x = layoutBounds().x();
+        float y = layoutBounds().y();
+        float width = layoutBounds().width();
+        float height = layoutBounds().height();
+        if (width < CHEVRON_SLOT_WIDTH || height <= 0.0f) return;
+        float centerX = x + width - textPaddingX - CHEVRON_GLYPH_SIZE * 0.5f;
+        float centerY = y + height * 0.5f;
+        float half = CHEVRON_GLYPH_SIZE * 0.5f - 1.0f;
+        float rise = CHEVRON_GLYPH_SIZE * 0.25f;
+        Paint paint = Paint.stroke(textColor, 2.0f);
+        if (chevronUp) {
+            draw.line(centerX - half, centerY + rise, centerX, centerY - rise, paint);
+            draw.line(centerX, centerY - rise, centerX + half, centerY + rise, paint);
+        } else {
+            draw.line(centerX - half, centerY - rise, centerX, centerY + rise, paint);
+            draw.line(centerX, centerY + rise, centerX + half, centerY - rise, paint);
+        }
     }
 
     /**
@@ -451,18 +591,18 @@ public class Button extends SurfaceWidget<Button> {
                                                boolean checked, boolean indeterminate,
                                                ColorView borderColor, ColorView indicatorColor) {
         if (draw == null || size <= 0.0f) return;
-        draw.roundedRect(x, y, size, size, 2.0f, Paint.stroke(borderColor, 1.0f));
+        draw.roundedRectStroke(x, y, size, size, 2.0f, borderColor, 1.0f);
         if (indeterminate) {
             float dashWidth = Math.max(1.0f, innerSize);
             float dashHeight = Math.max(1.0f, innerSize * 0.28f);
             float offsetX = Math.max(0.0f, (size - dashWidth) * 0.5f);
             float offsetY = Math.max(0.0f, (size - dashHeight) * 0.5f);
-            draw.rect(x + offsetX, y + offsetY, dashWidth, dashHeight, Paint.fill(indicatorColor));
+            draw.rectFilled(x + offsetX, y + offsetY, dashWidth, dashHeight, indicatorColor);
         } else if (checked) {
             float inner = Math.max(0.0f, innerSize);
             float offset = Math.max(0.0f, (size - inner) * 0.5f);
             if (inner > 0.0f) {
-                draw.rect(x + offset, y + offset, inner, inner, Paint.fill(indicatorColor));
+                draw.rectFilled(x + offset, y + offset, inner, inner, indicatorColor);
             }
         }
     }
@@ -482,12 +622,12 @@ public class Button extends SurfaceWidget<Button> {
     protected static void renderRadioIndicator(DrawScope draw, float x, float y, float size, float innerSize,
                                                float progress, ColorView borderColor, ColorView indicatorColor) {
         if (draw == null || size <= 0.0f) return;
-        draw.circle(x, y, size, size, Paint.stroke(borderColor, 1.0f));
+        draw.circleStroke(x, y, size, size, borderColor, 1.0f);
         float normalizedProgress = Math.max(0.0f, Math.min(1.0f, progress));
         if (normalizedProgress <= 0.0f || innerSize <= 0.0f) return;
         float inner = innerSize * normalizedProgress;
         float offset = Math.max(0.0f, (size - inner) * 0.5f);
-        draw.circle(x + offset, y + offset, inner, inner, Paint.fill(indicatorColor));
+        draw.circleFilled(x + offset, y + offset, inner, inner, indicatorColor);
     }
 
     @Override
@@ -510,12 +650,7 @@ public class Button extends SurfaceWidget<Button> {
         if (customTextColor) return;
         ColorView themedText = styleValue(StyleKeys.TEXT_COLOR, styleState(), textColor);
         if (themedText != null) {
-            updatingTheme = true;
-            try {
-                animateColor(textColor, themedText, styleTransition());
-            } finally {
-                updatingTheme = false;
-            }
+            animateColor(textColor, themedText, styleTransition());
         }
     }
 

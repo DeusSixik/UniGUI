@@ -36,6 +36,7 @@ public final class WindowManagerSelfTest {
         testFixedModalBlocksDraggingAndResizing();
         testCloseWhileResizingReleasesCaptureAndEndsResizeLifecycle();
         testWindowEventsCopyCancellationAcrossRoutedSnapshots();
+        testHitTestMapsTransformedWidgets();
         System.out.println("WindowManagerSelfTest passed");
     }
 
@@ -368,6 +369,56 @@ public final class WindowManagerSelfTest {
         modalOpened.cancel();
         expect(modalOpened.routeTo(currentTarget, EventPhase.TARGET).isCancelled(),
                 "ModalOpenedEvent.routeTo should copy cancellation state");
+    }
+
+    private void testHitTestMapsTransformedWidgets() {
+        DefaultUIContext context = new DefaultUIContext();
+        PanelWidget root = new PanelWidget();
+        root.setUiContextInternal(context);
+        Label child = new Label("hit");
+        root.addChild(child);
+        root.applyQueuedMutations();
+        root.measure(new LayoutContext(200.0f, 200.0f));
+        root.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 200.0f));
+        // Фиксируем bounds напрямую: контейнерный arrange ребёнка здесь не важен.
+        child.arrange(new MutableRect(50.0f, 50.0f, 20.0f, 20.0f));
+        TransformHitTester hitTester = new TransformHitTester();
+
+        // Identity: локальные координаты — прямое смещение от bounds.
+        dev.sixik.unigui.api.input.HitTestResult identity =
+                hitTester.hitTest(root, 55.0f, 57.0f).orElseThrow();
+        expect(identity.widget() == child
+                        && Math.abs(identity.localX() - 5.0f) < 0.001f
+                        && Math.abs(identity.localY() - 7.0f) < 0.001f,
+                "identity hit-test should map to bounds offset");
+
+        // Масштаб 2 от pivot (50,50): root (60,60) -> local (5,5).
+        child.transform().scale().set(2.0f, 2.0f);
+        dev.sixik.unigui.api.input.HitTestResult scaled =
+                hitTester.hitTest(root, 60.0f, 60.0f).orElseThrow();
+        expect(scaled.widget() == child
+                        && Math.abs(scaled.localX() - 5.0f) < 0.01f
+                        && Math.abs(scaled.localY() - 5.0f) < 0.01f,
+                "scaled hit-test should invert scale around pivot");
+        child.transform().scale().set(1.0f, 1.0f);
+
+        // Поворот 90 градусов вокруг pivot (50,50): root (50,60) -> local (10,0).
+        child.transform().setRotationDegrees(90.0f);
+        dev.sixik.unigui.api.input.HitTestResult rotated =
+                hitTester.hitTest(root, 50.0f, 60.0f).orElseThrow();
+        expect(rotated.widget() == child
+                        && Math.abs(rotated.localX() - 10.0f) < 0.01f
+                        && Math.abs(rotated.localY() - 0.0f) < 0.01f,
+                "rotated hit-test should invert rotation around pivot");
+        child.transform().setRotationDegrees(0.0f);
+
+        // localPoint через тот же путь: root (60,60) при масштабе 2 -> (5,5).
+        child.transform().scale().set(2.0f, 2.0f);
+        dev.sixik.unigui.api.input.HitTestResult local =
+                hitTester.localPoint(root, child, 60.0f, 60.0f).orElseThrow();
+        expect(Math.abs(local.localX() - 5.0f) < 0.01f
+                        && Math.abs(local.localY() - 5.0f) < 0.01f,
+                "localPoint should invert scale around pivot");
     }
 
     private static void layout(OverlayLayer layer, float width, float height) {

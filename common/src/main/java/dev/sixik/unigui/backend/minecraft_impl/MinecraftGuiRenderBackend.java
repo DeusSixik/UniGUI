@@ -64,6 +64,7 @@ import org.lwjgl.system.MemoryStack;
 
 import java.nio.IntBuffer;
 import java.util.Arrays;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Objects;
 
@@ -77,6 +78,12 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
             new RenderTargetOptions(false, true, "post_effect_layer");
     private static final RenderTargetOptions POST_EFFECT_PING_TARGET =
             new RenderTargetOptions(false, true, "post_effect_ping");
+    /**
+     * Ёмкость LRU-кэша разрешённых texture binding'ов: per-command fallback-пути
+     * (одиночные текстуры, смешанные батчи, сетки иконок) ходят через него вместо
+     * аллокации record + boxing на каждую команду.
+     */
+    private static final int TEXTURE_BINDING_CACHE_SIZE = 512;
 
     private final Minecraft minecraft;
     private final DrawBatcher batcher;
@@ -91,6 +98,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
     private final MinecraftShaderQuadRenderer shaderQuadRenderer;
     private final RenderTargetCache postEffectLayerTargets = new RenderTargetCache(this);
     private final RenderTargetCache postEffectPingTargets = new RenderTargetCache(this);
+    private final TextureBindingCache textureBindings = new TextureBindingCache(TEXTURE_BINDING_CACHE_SIZE);
     private final DrawList postEffectDrawList = new DrawList();
     private final FastItemRenderer fastItemRenderer;
     private GuiGraphics graphics;
@@ -951,7 +959,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
     private boolean renderMeshBatch(DrawBatch batch) {
         if (batch == null || batch.size() == 0) return false;
 
-        TextureBinding binding = batch.texture() == null ? null : TextureBinding.resolve(batch.texture());
+        TextureBinding binding = batch.texture() == null ? null : textureBindings.resolve(batch.texture());
         if (batch.texture() != null && binding == null) return false;
 
         graphics.flush();
@@ -1011,6 +1019,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
     @Override
     public void close() {
         clearScissorStack();
+        textureBindings.clear();
         fastItemRenderer.close();
         shapeBatchRenderer.close();
         shaderQuadRenderer.close();
@@ -1495,7 +1504,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         TextureHandle texture = command.texture();
         if (texture == null) return;
 
-        TextureBinding binding = TextureBinding.resolve(texture);
+        TextureBinding binding = textureBindings.resolve(texture);
         if (binding != null) {
             renderTextureBinding(binding, command);
         }
@@ -1544,7 +1553,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         TextureHandle texture = command.texture();
         if (texture == null) return;
 
-        TextureBinding binding = TextureBinding.resolve(texture);
+        TextureBinding binding = textureBindings.resolve(texture);
         if (binding == null) return;
 
         graphics.flush();
@@ -1592,7 +1601,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
             renderColoredMesh(mesh);
             return;
         }
-        TextureBinding binding = TextureBinding.resolve(command.texture());
+        TextureBinding binding = textureBindings.resolve(command.texture());
         if (binding != null) {
             renderTexturedMesh(mesh, binding);
         }
@@ -1849,6 +1858,40 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
             return location == null ? null : new TextureBinding(null, location, false, options.premultipliedAlpha(), options);
         }
 
+        /**
+         * Проверяет, описывает ли кэшированный binding текущее состояние того же хэндла.
+         *
+         * <p>Кэш ключуется identity хэндла, поэтому здесь только revalidate mutable
+         * состояния без аллокаций: числовые id сравниваются примитивами, location —
+         * по ссылке (реальные хэндлы всегда несут {@code ResourceLocation} native;
+         * {@code tryParse} дёргается только для чужих id-based хэндлов).
+         * Disposed render-target инвалидируется здесь же.</p>
+         *
+         * @param texture тот же {@link TextureHandle}, для которого строился binding
+         * @return {@code true}, если binding можно переиспользовать
+         */
+        private boolean matches(TextureHandle texture) {
+            TextureOptions currentOptions = texture.options() == null
+                    ? TextureOptions.defaults()
+                    : texture.options();
+            if (currentOptions.packed() != options.packed()) return false;
+            Object nativeHandle = texture.nativeHandle();
+            if (nativeHandle instanceof MinecraftRenderTarget.ColorTextureHandle colorTexture) {
+                if (colorTexture.isDisposed()) return false;
+                return textureId != null && textureId == colorTexture.textureId()
+                        && flipY == colorTexture.flipY();
+            }
+            if (nativeHandle instanceof Integer currentTextureId) {
+                // premultiplied здесь берётся из options — уже сверены через packed() выше.
+                return textureId != null && textureId.intValue() == currentTextureId.intValue();
+            }
+            if (location == null) return true;
+            if (nativeHandle instanceof ResourceLocation resourceLocation) {
+                return location.equals(resourceLocation);
+            }
+            return location.equals(ResourceLocation.tryParse(texture.id()));
+        }
+
         private void bind() {
             RenderSystem.activeTexture(GL13.GL_TEXTURE0);
             if (textureId != null) {
@@ -1857,6 +1900,104 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
             } else {
                 RenderSystem.setShaderTexture(0, location);
             }
+        }
+    }
+
+    /**
+     * Ограниченный LRU-кэш разрешённых texture binding'ов для per-command путей.
+     *
+     * <p>Батчи резолвят текстуру один раз, но fallback-пути (одиночные команды,
+     * смешанные батчи) дёргали {@code resolve} на каждую команду: record +
+     * boxing под каждую. Identity-ключи, узлы переиспользуются при вытеснении —
+     * дизайн повторяет {@code TextureBindingCache} из шейдерного рендера.</p>
+     */
+    private static final class TextureBindingCache {
+        private final IdentityHashMap<TextureHandle, Entry> entries;
+        private final int capacity;
+        private Entry first;
+        private Entry last;
+
+        private TextureBindingCache(int capacity) {
+            this.capacity = Math.max(1, capacity);
+            this.entries = new IdentityHashMap<>(this.capacity * 2);
+        }
+
+        private TextureBinding resolve(TextureHandle texture) {
+            if (texture == null) return null;
+            Entry entry = entries.get(texture);
+            if (entry != null) {
+                if (entry.binding != null && entry.binding.matches(texture)) {
+                    moveToFront(entry);
+                    return entry.binding;
+                }
+                remove(entry);
+            }
+
+            TextureBinding binding = TextureBinding.resolve(texture);
+            if (binding == null) return null;
+            put(texture, binding);
+            return binding;
+        }
+
+        private void put(TextureHandle texture, TextureBinding binding) {
+            Entry entry = entries.get(texture);
+            if (entry == null) {
+                if (entries.size() >= capacity) {
+                    entry = last;
+                    entries.remove(entry.texture);
+                    unlink(entry);
+                } else {
+                    entry = new Entry();
+                }
+                entries.put(texture, entry);
+            }
+
+            entry.texture = texture;
+            entry.binding = binding;
+            linkFirst(entry);
+        }
+
+        private void clear() {
+            entries.clear();
+            first = null;
+            last = null;
+        }
+
+        private void moveToFront(Entry entry) {
+            if (entry == first) return;
+            unlink(entry);
+            linkFirst(entry);
+        }
+
+        private void remove(Entry entry) {
+            entries.remove(entry.texture);
+            unlink(entry);
+            entry.texture = null;
+            entry.binding = null;
+        }
+
+        private void linkFirst(Entry entry) {
+            entry.previous = null;
+            entry.next = first;
+            if (first != null) first.previous = entry;
+            else last = entry;
+            first = entry;
+        }
+
+        private void unlink(Entry entry) {
+            if (entry.previous == null) first = entry.next;
+            else entry.previous.next = entry.next;
+            if (entry.next == null) last = entry.previous;
+            else entry.next.previous = entry.previous;
+            entry.previous = null;
+            entry.next = null;
+        }
+
+        private static final class Entry {
+            private TextureHandle texture;
+            private TextureBinding binding;
+            private Entry previous;
+            private Entry next;
         }
     }
 

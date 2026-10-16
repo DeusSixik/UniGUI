@@ -114,6 +114,8 @@ public class WindowWidget extends Box implements OverlayHostAware {
     private EdgeInsets padding = EdgeInsets.all(8.0f);
     private float dragOffsetX;
     private float dragOffsetY;
+    private float lastDragRootX;
+    private float lastDragRootY;
     private int dragPointerId = -1;
     private int resizePointerId = -1;
     private float resizeStartRootX;
@@ -320,10 +322,12 @@ public class WindowWidget extends Box implements OverlayHostAware {
      * <p>По умолчанию {@code false}: окно остаётся свободным floating-окном.
      * При включении перетаскивание окна за header над {@link DockingRoot}
      * показывает drop preview, а release докирует контент окна как
-     * {@code DockPane} и закрывает само окно.</p>
+     * {@code DockPane} и закрывает само окно. Окно-хост
+     * ({@code dockingEnabled(true)}) — всегда dockable: это и есть один флаг
+     * ImGui-стыля (вкл — окно стыкуется с доками и окнами, выкл — свободное).</p>
      */
     public boolean dockable() {
-        return dockable;
+        return dockable || dockingEnabled;
     }
 
     /**
@@ -414,10 +418,14 @@ public class WindowWidget extends Box implements OverlayHostAware {
     /**
      * Включает или выключает внутреннюю docking area окна.
      *
-     * <p>При включении текущий контент (если есть) оборачивается в панель
-     * с id {@link #dockSourceId()} и заголовком окна. При выключении одна
-     * панель разворачивается обратно в контент; несколько панелей остаются
-     * в root (он остаётся контентом), но дропы больше не принимаются.</p>
+     * <p>Единственный флаг ImGui-стыля: {@code true} — окно стыкуется
+     * (принимает дропы других окон/панелей через зоны креста и само может
+     * быть перетащено на доки и окна-хосты, {@code dockable()} имплицируется),
+     * {@code false} — обычное свободное окно. При включении текущий контент
+     * (если есть) оборачивается в панель с id {@link #dockSourceId()} и
+     * заголовком окна. При выключении одна панель разворачивается обратно
+     * в контент; несколько панелей остаются в root (он остаётся контентом),
+     * но дропы больше не принимаются.</p>
      *
      * @param dockingEnabled {@code true}, чтобы превратить окно в док-хост
      * @return это окно для fluent-настройки
@@ -475,9 +483,10 @@ public class WindowWidget extends Box implements OverlayHostAware {
     /**
      * Переносит все панели из чужого окна-хоста в свой docking root табом.
      *
-     * <p>Требует включённой docking area у приёмника. Источник не закрывается:
-     * закрытие решает вызывающий код (drop-путь в {@link DockingRoot} закрывает
-     * источник сам). Панели переносятся в порядке обхода дерева источника.</p>
+     * <p>Программный мерж (drop-путь идёт через зоны
+     * {@code DockingRoot.dockForeignWindow}). Требует включённой docking area
+     * у приёмника. Источник не закрывается: закрытие решает вызывающий код.
+     * Панели переносятся в порядке обхода дерева источника.</p>
      *
      * @param source окно-хост, чьи панели переносятся
      * @return {@code true}, если перенесена хотя бы одна панель
@@ -595,6 +604,29 @@ public class WindowWidget extends Box implements OverlayHostAware {
 
     public boolean dragging() {
         return dragging;
+    }
+
+    /**
+     * Возвращает последнюю позицию указателя во время drag окна.
+     *
+     * <p>Обновляется в {@code startDragging}/{@code updateDrag} координатами
+     * указателя (не окна): drop-логика обязана резолвить зону по мыши, иначе
+     * превью и результат расходятся, когда окно отстаёт от курсора на offset
+     * захвата.</p>
+     *
+     * @return X указателя в root-координатах на момент последнего drag-события
+     */
+    public float lastDragRootX() {
+        return lastDragRootX;
+    }
+
+    /**
+     * Возвращает последнюю позицию указателя во время drag окна.
+     *
+     * @return Y указателя в root-координатах на момент последнего drag-события
+     */
+    public float lastDragRootY() {
+        return lastDragRootY;
     }
 
     public boolean resizable() {
@@ -1015,11 +1047,42 @@ public class WindowWidget extends Box implements OverlayHostAware {
         return context != null && context.focusManager().isFocused(this);
     }
 
+    /**
+     * Принимает активный drag-жест от другого владельца указателя.
+     *
+     * <p>Нужно tear-off handoff в докинге: таб вырвали из стрипа посреди жеста,
+     * плавающее окно создано под курсором — жест продолжается им без разрыва.
+     * Смещение захвата считается от свежих bounds (окно только что arrange),
+     * окно не прыгает. Вызывает {@code move-started} для консистентности
+     * слушателей.</p>
+     *
+     * @param pointerId id указателя жеста
+     * @param rootX X указателя в root-координатах
+     * @param rootY Y указателя в root-координатах
+     */
+    public void takeoverDrag(int pointerId, float rootX, float rootY) {
+        dragging = true;
+        dragPointerId = pointerId;
+        dragOffsetX = rootX - layoutBounds().x();
+        dragOffsetY = rootY - layoutBounds().y();
+        lastDragRootX = rootX;
+        lastDragRootY = rootY;
+        invalidate(InvalidationFlags.VISUAL);
+        dispatchWindowMoveStarted();
+        // Немедленный preview под точкой handoff: иначе зоны/крест появятся
+        // только на следующем move, а первый кадр окна будет без оффера.
+        // Наш собственный окно-путь (updateDrag→WindowMovedEvent→listener)
+        // подхватит превью со следующего движения мыши.
+        DockingRoot.previewForeignWindowDrop(this, rootX, rootY);
+    }
+
     private void startDragging(PointerPressedEvent pointer) {
         dragging = true;
         dragPointerId = pointer.pointerId();
         dragOffsetX = pointer.rootX() - layoutBounds().x();
         dragOffsetY = pointer.rootY() - layoutBounds().y();
+        lastDragRootX = pointer.rootX();
+        lastDragRootY = pointer.rootY();
         UIContext context = uiContext();
         if (context != null) {
             context.capturePointer(pointer.pointerId(), this);
@@ -1029,6 +1092,8 @@ public class WindowWidget extends Box implements OverlayHostAware {
     }
 
     private void updateDrag(float rootX, float rootY) {
+        lastDragRootX = rootX;
+        lastDragRootY = rootY;
         float hostX = hostBounds.width() > 0.0f || hostBounds.height() > 0.0f ? hostBounds.x() : layoutBounds().x() - x;
         float hostY = hostBounds.width() > 0.0f || hostBounds.height() > 0.0f ? hostBounds.y() : layoutBounds().y() - y;
         float width = layoutBounds().width();

@@ -58,7 +58,8 @@ public class ScrollView extends WidgetBase {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.SCROLL_VIEW;
 
     private final MutableColor scrollbarTrackColor = new MutableColor(0.0f, 0.0f, 0.0f, 0.28f);
-    private final MutableColor scrollbarThumbColor = new MutableColor(0.25f, 0.78f, 1.0f, 0.75f);
+    private final MutableColor scrollbarThumbColor = new MutableColor(0.55f, 0.58f, 0.62f, 0.60f);
+    private final MutableColor scrollbarThumbHoverColor = new MutableColor(0.80f, 0.82f, 0.86f, 0.90f);
     private final ScrollBar horizontalScrollBar = new ScrollBar().orientation(Orientation.HORIZONTAL);
     private final ScrollBar verticalScrollBar = new ScrollBar().orientation(Orientation.VERTICAL);
     private Widget content;
@@ -71,6 +72,8 @@ public class ScrollView extends WidgetBase {
     private float scrollStep = 16.0f;
     private float scrollbarGap = ScrollBar.DEFAULT_GAP;
     private float scrollbarSize = ScrollBar.DEFAULT_SIZE;
+    private float overlayInset = 3.0f;
+    private boolean overlayScrollBars = true;
     private boolean scrollingEnabled = true;
     private boolean consumeWheelAtScrollBounds = true;
     private boolean horizontalScrollBarVisible;
@@ -98,12 +101,19 @@ public class ScrollView extends WidgetBase {
             verticalScrollBar.thumbColor().set(scrollbarThumbColor);
             invalidate(InvalidationFlags.VISUAL);
         });
+        scrollbarThumbHoverColor.onChanged(() -> {
+            horizontalScrollBar.thumbHoverColor().set(scrollbarThumbHoverColor);
+            verticalScrollBar.thumbHoverColor().set(scrollbarThumbHoverColor);
+            invalidate(InvalidationFlags.VISUAL);
+        });
         horizontalScrollBar.setParentInternal(this);
         verticalScrollBar.setParentInternal(this);
         horizontalScrollBar.trackColor().set(scrollbarTrackColor);
         horizontalScrollBar.thumbColor().set(scrollbarThumbColor);
+        horizontalScrollBar.thumbHoverColor().set(scrollbarThumbHoverColor);
         verticalScrollBar.trackColor().set(scrollbarTrackColor);
         verticalScrollBar.thumbColor().set(scrollbarThumbColor);
+        verticalScrollBar.thumbHoverColor().set(scrollbarThumbHoverColor);
         horizontalScrollBar.onValueChanged(event -> scrollTo(event.newValue(), scrollY));
         verticalScrollBar.onValueChanged(event -> scrollTo(scrollX, event.newValue()));
     }
@@ -326,6 +336,9 @@ public class ScrollView extends WidgetBase {
     /**
      * Задаёт расстояние между content viewport'ом и scrollbar'ами.
      *
+     * <p>Используется только в reserved-режиме как разделитель. В overlay-режиме
+     * отступ от края задаёт {@link #overlayInset(float)}.</p>
+     *
      * @param scrollbarGap gap в пикселях UI-пространства; невалидные значения заменяются дефолтом
      * @return этот scroll view для fluent-настройки
      */
@@ -350,9 +363,11 @@ public class ScrollView extends WidgetBase {
     /**
      * Задаёт толщину scrollbar'ов этого scroll view.
      *
-     * <p>По умолчанию используется {@link ScrollBar#DEFAULT_SIZE}. Значение влияет
-     * на резерв места под полосу: viewport сжимается на
-     * {@code scrollbarSize + scrollbarGap} вдоль активной оси.</p>
+     * <p>По умолчанию используется {@link ScrollBar#DEFAULT_SIZE}. В reserved-режиме
+     * значение влияет на резерв места под полосу: viewport сжимается на
+     * {@code scrollbarSize + scrollbarGap} вдоль активной оси. В overlay-режиме
+     * это ширина хит-зоны полосы; визуальный тамб уже ({@code idleThickness} в
+     * покое, {@code hoverThickness} под курсором) и рисуется внутри неё.</p>
      *
      * @param scrollbarSize толщина полосы в пикселях UI-пространства; минимум {@code 1}
      * @return этот scroll view для fluent-настройки
@@ -439,6 +454,67 @@ public class ScrollView extends WidgetBase {
      */
     public MutableColor scrollbarThumbColor() {
         return scrollbarThumbColor;
+    }
+
+    /**
+     * Возвращает live-цвет thumb scrollbar'ов под курсором и в драге.
+     *
+     * @return изменяемый hover-цвет thumb'а для обеих осей
+     */
+    public MutableColor scrollbarThumbHoverColor() {
+        return scrollbarThumbHoverColor;
+    }
+
+    /**
+     * Возвращает, рисуются ли scrollbar'ы поверх контента без резерва места.
+     *
+     * @return {@code true} для overlay-полос (modern default)
+     */
+    public boolean overlayScrollBars() {
+        return overlayScrollBars;
+    }
+
+    /**
+     * Переключает overlay- и reserved-режим scrollbar'ов.
+     *
+     * <p>Overlay (default): полосы плавают поверх контента у края вьюпорта,
+     * контент занимает всю ширину — как в современных редакторах. Reserved:
+     * классика, под полосы резервируется {@code scrollbarSize + scrollbarGap},
+     * контент сужается.</p>
+     *
+     * @param overlayScrollBars {@code true} для overlay-полос
+     * @return этот scroll view для fluent-настройки
+     */
+    @XmlAttribute(value = "overlayScrollBars", category = "Behavior", defaultValue = "true", description = "Whether scrollbars float above content without reserving layout space.")
+    public ScrollView overlayScrollBars(boolean overlayScrollBars) {
+        if (this.overlayScrollBars == overlayScrollBars) return this;
+        this.overlayScrollBars = overlayScrollBars;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Возвращает отступ overlay-полос от края вьюпорта.
+     *
+     * @return inset в пикселях UI-пространства; используется только в overlay-режиме
+     */
+    public float overlayInset() {
+        return overlayInset;
+    }
+
+    /**
+     * Задаёт отступ overlay-полос от края вьюпорта.
+     *
+     * @param overlayInset inset в пикселях; отрицательные приводятся к {@code 0}
+     * @return этот scroll view для fluent-настройки
+     */
+    @XmlAttribute(value = "overlayInset", category = "Layout", defaultValue = "3", description = "Inset of overlay scrollbars from the viewport edge.")
+    public ScrollView overlayInset(float overlayInset) {
+        float normalized = Float.isFinite(overlayInset) ? Math.max(0.0f, overlayInset) : 3.0f;
+        if (this.overlayInset == normalized) return this;
+        this.overlayInset = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
     }
 
     /**
@@ -692,6 +768,11 @@ public class ScrollView extends WidgetBase {
     }
 
     private void arrangeScrollBars() {
+        if (overlayScrollBars) {
+            arrangeOverlayScrollBars();
+            syncScrollBars();
+            return;
+        }
         if (showsHorizontalScrollBar()) {
             float horizontalInset = showsVerticalScrollBar() ? scrollbarGap * 0.5f : 0.0f;
             horizontalScrollBar.arrange(new MutableRect(
@@ -708,6 +789,36 @@ public class ScrollView extends WidgetBase {
                     viewportHeight()));
         }
         syncScrollBars();
+    }
+
+    /**
+     * Раскладывает overlay-полосы внутри вьюпорта поверх контента.
+     *
+     * <p>Вертикальная полоса — на всю высоту у правого края, горизонтальная —
+     * на всю ширину минус угол под вертикальную. Контент под полосами виден
+     * (тамб полупрозрачный и узкий в покое), клики по полосе забирает она сама:
+     * в children-порядке полосы идут после контента.</p>
+     */
+    private void arrangeOverlayScrollBars() {
+        float left = layoutBounds().x();
+        float top = layoutBounds().y();
+        float width = layoutBounds().width();
+        float height = layoutBounds().height();
+        if (showsVerticalScrollBar()) {
+            verticalScrollBar.arrange(new MutableRect(
+                    left + width - overlayInset - scrollbarSize,
+                    top,
+                    scrollbarSize,
+                    height));
+        }
+        if (showsHorizontalScrollBar()) {
+            float reservedCorner = showsVerticalScrollBar() ? scrollbarSize + overlayInset : 0.0f;
+            horizontalScrollBar.arrange(new MutableRect(
+                    left,
+                    top + height - overlayInset - scrollbarSize,
+                    Math.max(0.0f, width - reservedCorner),
+                    scrollbarSize));
+        }
     }
 
     private void syncScrollBars() {
@@ -769,6 +880,7 @@ public class ScrollView extends WidgetBase {
     }
 
     private float scrollbarReservation() {
+        if (overlayScrollBars) return 0.0f;
         return scrollbarSize + scrollbarGap;
     }
 

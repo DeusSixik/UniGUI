@@ -153,6 +153,36 @@ public final class DockNode {
         return false;
     }
 
+    /**
+     * Перемещает панель на позицию другой панели того же листа.
+     *
+     * <p>Нужно live-reorder табов во время драга: наведение на соседний таб
+     * ставит тащимую панель на его место, остальные сдвигаются. Выделенной
+     * остаётся тащимая панель. No-op (без событий вызывающей стороны),
+     * если панель уже на месте.</p>
+     *
+     * @param paneId id перемещаемой панели
+     * @param beforePaneId id панели, на чью позицию встаём
+     * @return {@code true}, если порядок изменился
+     */
+    boolean movePaneBefore(String paneId, String beforePaneId) {
+        ensureLeaf();
+        if (paneId == null || beforePaneId == null || paneId.equals(beforePaneId)) return false;
+        int from = -1;
+        int to = -1;
+        for (int i = 0; i < panes.size(); i++) {
+            String id = panes.get(i).id();
+            if (id.equals(paneId)) from = i;
+            if (id.equals(beforePaneId)) to = i;
+        }
+        if (from < 0 || to < 0 || from == to) return false;
+        DockPane pane = panes.remove(from);
+        int insert = Math.max(0, Math.min(to, panes.size()));
+        panes.add(insert, pane);
+        selectedIndex = insert;
+        return true;
+    }
+
     void splitRatio(float splitRatio) {
         this.splitRatio = sanitizeRatio(splitRatio);
     }

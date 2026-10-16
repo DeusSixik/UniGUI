@@ -197,6 +197,14 @@ tasks.register("textureManagementSelfTest", JavaExec) {
     mainClass = "dev.sixik.unigui.tests.TextureManagementSelfTest"
 }
 
+tasks.register("textureBindingCacheSelfTest", JavaExec) {
+    group = "verification"
+    description = "Runs GUI backend texture binding cache self-test assertions."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.TextureBindingCacheSelfTest"
+}
+
 tasks.register("xmlWidgetSelfTest", JavaExec) {
     group = "verification"
     description = "Runs XML widget loader self-test assertions."
@@ -245,6 +253,7 @@ tasks.named("test") {
     dependsOn tasks.named("renderPolishSelfTest")
     dependsOn tasks.named("widgetRenderCacheSelfTest")
     dependsOn tasks.named("textureManagementSelfTest")
+    dependsOn tasks.named("textureBindingCacheSelfTest")
     dependsOn tasks.named("xmlWidgetSelfTest")
     dependsOn tasks.named("holdButtonSelfTest")
     dependsOn tasks.named("animationInterpolationSelfTest")

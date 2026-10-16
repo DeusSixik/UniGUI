@@ -17,6 +17,8 @@ import dev.sixik.unigui.api.editor.KeyBinding;
 import dev.sixik.unigui.api.event.ContextMenuItemSelectedEvent;
 import dev.sixik.unigui.api.event.ExpandedChangedEvent;
 import dev.sixik.unigui.api.event.EventPhase;
+import dev.sixik.unigui.api.event.FocusGainedEvent;
+import dev.sixik.unigui.api.event.FocusLostEvent;
 import dev.sixik.unigui.api.event.KeyPressedEvent;
 import dev.sixik.unigui.api.event.PointerEnteredEvent;
 import dev.sixik.unigui.api.event.PointerExitedEvent;
@@ -297,6 +299,11 @@ public final class BasicControlsSelfTest {
         testSliderPointerAndKeyboardInput();
         testScrollViewBubbledWheelInput();
         testScrollViewNestedWheelLockAndOptOut();
+        testOverlayScrollBarZones();
+        testScrollBarHoverExpandsThumb();
+        testTextFieldModernChrome();
+        testTextFieldFocusRingAndBorder();
+        testTextFieldCaretBlink();
         testNestedScissorStack();
         testWidgetAnimationTransitions();
         testMinecraftPreviewWidgetFallbacks();
@@ -321,6 +328,10 @@ public final class BasicControlsSelfTest {
         testTabControlContracts();
         testPageViewAndCarouselContracts();
         testComboBoxAndDropDownBoxContracts();
+        testDropDownModernChrome();
+        testScrollViewNoOverscrollPastContent();
+        testDropDownBoxContentHostFitsArbitraryContent();
+        testPressedButtonTextColorRestoresAfterRelease();
         testExpandablePanelAndAccordionContracts();
         testTreeViewContracts();
         testLoadingIndicatorContracts();
@@ -944,7 +955,7 @@ public final class BasicControlsSelfTest {
         DrawList measuredDrawList = new DrawList();
         measuredField.render(new DefaultRenderContext(measuredDrawList).backend(new FixedTextMetricsBackend(2.0f)));
         int caretIndex = lastCommandIndex(measuredDrawList, DrawCommandType.RECT);
-        expect(caretIndex >= 0 && near(measuredDrawList.commands().get(caretIndex).bounds().x(), 14.0f),
+        expect(caretIndex >= 0 && near(measuredDrawList.commands().get(caretIndex).bounds().x(), 22.0f),
                 "TextInput caret should use backend text metrics instead of fixed approximate width");
 
         TextField longField = new TextField("abcdefghijklmnopqrstuvwxyz");
@@ -981,10 +992,10 @@ public final class BasicControlsSelfTest {
         DrawList dragWarmup = new DrawList();
         dragField.render(new DefaultRenderContext(dragWarmup));
         uiContext.routedEvents().dispatch(new PointerPressedEvent(dragField, 4.0f, 8.0f, 4.0f, 8.0f, 0, PointerButton.PRIMARY));
-        uiContext.routedEvents().dispatch(new PointerMovedEvent(dragField, 22.0f, 8.0f, 22.0f, 8.0f, 0));
+        uiContext.routedEvents().dispatch(new PointerMovedEvent(dragField, 30.0f, 8.0f, 30.0f, 8.0f, 0));
         expect(dragField.hasSelection() && dragField.selectedText().equals("abc"),
                 "Dragging inside TextInput should select the covered character range");
-        uiContext.routedEvents().dispatch(new PointerReleasedEvent(dragField, 22.0f, 8.0f, 22.0f, 8.0f, 0, PointerButton.PRIMARY));
+        uiContext.routedEvents().dispatch(new PointerReleasedEvent(dragField, 30.0f, 8.0f, 30.0f, 8.0f, 0, PointerButton.PRIMARY));
         expect(uiContext.capturedPointer(0) == null, "TextInput should release pointer capture after drag selection");
 
         dragField.select(0, 2);
@@ -2309,6 +2320,27 @@ public final class BasicControlsSelfTest {
         searchField.render(new DefaultRenderContext(hoveredSearchDrawList));
         expect(countCommands(hoveredSearchDrawList, DrawCommandType.ROUNDED_RECT) >= 2,
                 "SearchField clear zone should render a hover background");
+        expect(!hasLoneClearText(hoveredSearchDrawList) && countClearGlyphLines(hoveredSearchDrawList) == 2,
+                "SearchField clear button should draw a two-stroke cross, not the letter x");
+    }
+
+    private static boolean hasLoneClearText(DrawList drawList) {
+        for (DrawCommand command : drawList.commands()) {
+            if (command.type() != DrawCommandType.TEXT) continue;
+            String rendered = command.richText() != null ? command.richText().plainText() : command.text();
+            if ("x".equals(rendered)) return true;
+        }
+        return false;
+    }
+
+    private static int countClearGlyphLines(DrawList drawList) {
+        int lines = 0;
+        for (DrawCommand command : drawList.commands()) {
+            if (command.type() != DrawCommandType.LINE) continue;
+            // Зона очистки — правые 20px поля; текст/каретка левее.
+            if (command.bounds().x() >= 100.0f) lines++;
+        }
+        return lines;
     }
 
     private void testDefaultThemeContracts() {
@@ -3268,17 +3300,17 @@ public final class BasicControlsSelfTest {
         expect(automatic.children().size() == 3,
                 "AUTO overflow should expose content and both scrollbars when both axes overflow");
         expect(near(autoContent.layoutBounds().width(), 200.0f)
-                        && near(automatic.horizontalScrollBar().layoutBounds().width(), 86.0f)
-                        && near(automatic.verticalScrollBar().layoutBounds().height(), 86.0f),
-                "Visible scrollbars should reduce the opposite viewport axis");
-        expect(near(automatic.maxScrollX(), 114.0f) && near(automatic.maxScrollY(), 214.0f),
-                "Scroll ranges should use the viewport remaining after both scrollbars");
+                        && near(automatic.horizontalScrollBar().layoutBounds().width(), 91.0f)
+                        && near(automatic.verticalScrollBar().layoutBounds().height(), 100.0f),
+                "Overlay scrollbars should float above content without shrinking the viewport");
+        expect(near(automatic.maxScrollX(), 100.0f) && near(automatic.maxScrollY(), 200.0f),
+                "Scroll ranges should use the full viewport with overlay scrollbars");
 
         uiContext.routedEvents().dispatch(new PointerPressedEvent(automatic.horizontalScrollBar(),
-                47.0f, 97.0f, 47.0f, 3.0f, 0, PointerButton.PRIMARY));
+                45.5f, 94.0f, 45.5f, 3.0f, 0, PointerButton.PRIMARY));
         expect(automatic.horizontalScrollBar().dragging()
                         && uiContext.capturedPointer(0) == automatic.horizontalScrollBar()
-                        && near(automatic.scrollX(), 57.0f),
+                        && near(automatic.scrollX(), 50.0f),
                 "Dragging the horizontal scrollbar should capture the pointer and update scrollX");
         uiContext.routedEvents().dispatch(new PointerReleasedEvent(automatic.horizontalScrollBar(),
                 160.0f, 130.0f, 160.0f, 130.0f, 0, PointerButton.PRIMARY));
@@ -3593,8 +3625,8 @@ public final class BasicControlsSelfTest {
         viewportWidthScrollView.measure(new LayoutContext(240.0f, 80.0f));
         viewportWidthScrollView.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 80.0f));
         expect(viewportWidthScrollView.maxScrollX() == 0.0f, "ScrollView should not create implicit horizontal overflow without explicit content width");
-        expect(viewportWidthContent.layoutBounds().width() == 86.0f,
-                "ScrollView should arrange implicit-width content to viewport width after the vertical scrollbar");
+        expect(viewportWidthContent.layoutBounds().width() == 100.0f,
+                "ScrollView should arrange implicit-width content to the full viewport width with overlay scrollbars");
 
         Box hiddenAxisContent = new Box();
         ScrollView hiddenAxisScrollView = new ScrollView(hiddenAxisContent)
@@ -3602,8 +3634,146 @@ public final class BasicControlsSelfTest {
         hiddenAxisScrollView.measure(new LayoutContext(100.0f, 80.0f));
         hiddenAxisScrollView.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 80.0f));
         expect(hiddenAxisScrollView.verticalScrollBar().layoutBounds().width() == 6.0f
-                        && hiddenAxisContent.layoutBounds().width() == 86.0f,
-                "ScrollView should reserve the scrollbar element when horizontal overflow is hidden");
+                        && hiddenAxisContent.layoutBounds().width() == 100.0f,
+                "Overlay scrollbar should keep its hit strip while content uses the full viewport");
+    }
+
+    private void testOverlayScrollBarZones() {
+        Box content = new Box();
+        ScrollView overlay = new ScrollView(content).contentSize(200.0f, 300.0f);
+        overlay.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 100.0f));
+        expect(overlay.overlayScrollBars(), "ScrollView should default to overlay scrollbars");
+        expect(near(content.layoutBounds().width(), 100.0f)
+                        && near(overlay.maxScrollY(), 200.0f),
+                "Overlay content should use the full viewport width");
+        expect(near(overlay.verticalScrollBar().layoutBounds().x(), 100.0f - 3.0f - 6.0f)
+                        && near(overlay.verticalScrollBar().layoutBounds().y(), 0.0f)
+                        && near(overlay.verticalScrollBar().layoutBounds().width(), 6.0f)
+                        && near(overlay.verticalScrollBar().layoutBounds().height(), 100.0f),
+                "Overlay vertical bar should sit inside the viewport at inset without shrinking content");
+
+        Box reservedContent = new Box();
+        ScrollView reserved = new ScrollView(reservedContent).contentSize(200.0f, 300.0f);
+        reserved.overlayScrollBars(false);
+        reserved.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 100.0f));
+        expect(near(reservedContent.layoutBounds().width(), 86.0f)
+                        && near(reserved.verticalScrollBar().layoutBounds().x(), 94.0f)
+                        && near(reserved.verticalScrollBar().layoutBounds().height(), 100.0f),
+                "Reserved mode should keep the classic gap-separated slot outside the viewport");
+    }
+
+    private void testScrollBarHoverExpandsThumb() {
+        ScrollBar bar = new ScrollBar();
+        bar.arrange(new MutableRect(0.0f, 0.0f, 6.0f, 100.0f));
+        expect(near(bar.visualThickness(), 3.0f), "Thumb should rest at idle thickness");
+        bar.handle(new PointerEnteredEvent(bar, bar, EventPhase.TARGET, 3.0f, 50.0f, 3.0f, 50.0f, 0));
+        tickFrames(bar, 30);
+        expect(near(bar.visualThickness(), 6.0f), "Hover should expand the thumb toward hover thickness");
+        expect(near(bar.layoutBounds().width(), 6.0f),
+                "Hit strip should stay stable while only the visual thumb expands");
+        bar.handle(new PointerExitedEvent(bar, bar, EventPhase.TARGET, 30.0f, 50.0f, 30.0f, 50.0f, 0));
+        tickFrames(bar, 30);
+        expect(near(bar.visualThickness(), 3.0f), "Pointer exit should collapse the thumb back to idle");
+    }
+
+    private static void tickFrames(ScrollBar bar, int frames) {
+        for (int i = 0; i < frames; i++) {
+            bar.tick(new FrameContext(i, 1.0f / 60.0f, 0.0f, FramePhase.ANIMATION));
+        }
+    }
+
+    private void testTextFieldModernChrome() {
+        TextField field = new TextField();
+        expect(near(field.background().r(), 0.08f)
+                        && near(field.background().g(), 0.086f)
+                        && near(field.radius(), 8.0f),
+                "TextField chrome should use the modern input surface and radius");
+        field.measure(new LayoutContext(300.0f, 100.0f));
+        expect(near(field.desiredSize().height(), 36.0f),
+                "Single-line field should default to control height");
+        field.measure(new LayoutContext(300.0f, 100.0f));
+        expect(near(field.desiredSize().width(), 24.0f),
+                "Empty field width should be symmetric horizontal padding");
+    }
+
+    private void testTextFieldFocusRingAndBorder() {
+        TextField field = new TextField();
+        field.arrange(new MutableRect(50.0f, 50.0f, 200.0f, 36.0f));
+        DrawList unfocused = new DrawList();
+        field.render(new DefaultRenderContext(unfocused));
+        expect(noStrokeWithColor(unfocused, field.focusBorderColor()),
+                "Unfocused field should not paint the accent border");
+
+        field.handle(new FocusGainedEvent(field, null));
+        DrawList focused = new DrawList();
+        field.render(new DefaultRenderContext(focused));
+        expect(hasStrokeWithColor(focused, field.focusBorderColor(), 50.0f, 50.0f, 200.0f, 36.0f),
+                "Focused field should paint the accent border on its bounds");
+        expect(hasStrokeWithColor(focused, field.focusRingColor(), 48.0f, 48.0f, 204.0f, 40.0f),
+                "Focused field should paint the halo ring outside its bounds");
+
+        field.handle(new FocusLostEvent(field, null));
+        DrawList blurred = new DrawList();
+        field.render(new DefaultRenderContext(blurred));
+        expect(noStrokeWithColor(blurred, field.focusBorderColor()),
+                "Blur should return the border to the base color");
+    }
+
+    private void testTextFieldCaretBlink() {
+        TextField field = new TextField();
+        field.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 36.0f));
+        field.handle(new FocusGainedEvent(field, null));
+        DrawList shown = new DrawList();
+        field.render(new DefaultRenderContext(shown));
+        expect(countCaretRects(shown) == 1, "Caret should be visible right after focus");
+
+        field.tick(new FrameContext(1L, 0.75f, 0.0f, FramePhase.ANIMATION));
+        DrawList hidden = new DrawList();
+        field.render(new DefaultRenderContext(hidden));
+        expect(countCaretRects(hidden) == 0, "Caret should hide in the second half of the blink period");
+
+        field.tick(new FrameContext(2L, 0.5f, 0.0f, FramePhase.ANIMATION));
+        DrawList shownAgain = new DrawList();
+        field.render(new DefaultRenderContext(shownAgain));
+        expect(countCaretRects(shownAgain) == 1, "Caret should return in the next blink period");
+    }
+
+    private static boolean hasStrokeWithColor(DrawList drawList, dev.sixik.unigui.api.math.ColorView color,
+                                              float x, float y, float width, float height) {
+        for (DrawCommand command : drawList.commands()) {
+            if (command.type() == DrawCommandType.ROUNDED_RECT && command.paint().isStroke()
+                    && near(command.bounds().x(), x) && near(command.bounds().y(), y)
+                    && near(command.bounds().width(), width) && near(command.bounds().height(), height)
+                    && near(command.paint().color().r(), color.r())
+                    && near(command.paint().color().g(), color.g())
+                    && near(command.paint().color().b(), color.b())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean noStrokeWithColor(DrawList drawList, dev.sixik.unigui.api.math.ColorView color) {
+        for (DrawCommand command : drawList.commands()) {
+            if (command.type() == DrawCommandType.ROUNDED_RECT && command.paint().isStroke()
+                    && near(command.paint().color().r(), color.r())
+                    && near(command.paint().color().g(), color.g())
+                    && near(command.paint().color().b(), color.b())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static int countCaretRects(DrawList drawList) {
+        int count = 0;
+        for (DrawCommand command : drawList.commands()) {
+            if (command.type() == DrawCommandType.RECT && !command.paint().isStroke()
+                    && near(command.bounds().width(), 2.0f)) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private void testScrollViewNestedWheelLockAndOptOut() {
@@ -5863,7 +6033,7 @@ public final class BasicControlsSelfTest {
         combo.render(new DefaultRenderContext(closedDrawList));
         expect(combo.selectedIndex() == 1 && combo.selectedItem().equals("Medium"),
                 "ComboBox should expose selected index and selected item");
-        expect(hasText(closedDrawList, "Medium ?") && !hasText(closedDrawList, "Small"),
+        expect(hasText(closedDrawList, "Medium") && !hasText(closedDrawList, "Small"),
                 "Closed ComboBox should render the selected header but not options");
 
         combo.open();
@@ -5967,7 +6137,7 @@ public final class BasicControlsSelfTest {
         DrawList closedDropDownDrawList = new DrawList();
         inlineDropDown.render(new DefaultRenderContext(closedDropDownDrawList));
         expect(inlineDropDown.content() == customPanel
-                        && hasText(closedDropDownDrawList, "Tools ?")
+                        && hasText(closedDropDownDrawList, "Tools")
                         && !hasText(closedDropDownDrawList, "Custom content"),
                 "Closed DropDownBox should render only its header and keep arbitrary content hidden");
 
@@ -6010,6 +6180,283 @@ public final class BasicControlsSelfTest {
         expect(Widgets.comboBox() instanceof ComboBox
                         && Widgets.dropDownBox() instanceof DropDownBox,
                 "Widgets factory should expose ComboBox and DropDownBox");
+    }
+
+    private void testDropDownModernChrome() {
+        ComboBox combo = new ComboBox()
+                .items(java.util.List.of("Small", "Medium", "Large"))
+                .silentSelectedIndex(1)
+                .dropDownMode(ComboBox.DropDownMode.INLINE);
+        combo.measure(new LayoutContext(200.0f, 160.0f));
+        combo.arrange(new MutableRect(0.0f, 0.0f, 200.0f, combo.desiredSize().height()));
+
+        expect(near(combo.headerButton().layoutBounds().height(), 36.0f),
+                "DropDown header should be 36px tall (--control-h)");
+        expect(near(combo.headerButton().textPaddingX(), 12.0f),
+                "DropDown header text should keep a 12px padding (--pad-x)");
+        expect(combo.headerButton().richText().plainText().equals("Medium")
+                        && combo.headerButton().chevronVisible()
+                        && !combo.headerButton().chevronUp(),
+                "Closed header should show plain text with a downward slot chevron, not an inline arrow");
+        expect(near(combo.optionsHost().radius(), 8.0f)
+                        && near(combo.optionsHost().borderColor().r(), 0.180f)
+                        && near(combo.optionsHost().borderColor().g(), 0.200f)
+                        && near(combo.optionsHost().borderColor().b(), 0.231f),
+                "Options host should use radius 8 and a subtle border instead of the legacy cyan frame");
+
+        DrawList closedDrawList = new DrawList();
+        combo.render(new DefaultRenderContext(closedDrawList));
+        expect(countCommands(closedDrawList, DrawCommandType.LINE) >= 2,
+                "Closed header should draw the chevron glyph as strokes in the right slot");
+
+        combo.open();
+        expect(combo.headerButton().chevronUp(),
+                "Opening the list should flip the slot chevron up");
+        combo.measure(new LayoutContext(200.0f, 160.0f));
+        combo.arrange(new MutableRect(0.0f, 0.0f, 200.0f, combo.desiredSize().height()));
+        DrawList openDrawList = new DrawList();
+        combo.render(new DefaultRenderContext(openDrawList));
+        expect(hasSelectedPill(openDrawList, combo.optionsHost()),
+                "Selected option should render as an inset pill, not a full-bleed row");
+        expect(near(combo.optionButton(0).layoutBounds().height(), 28.0f)
+                        && combo.optionButton(0).textAlignment() == Alignment.START
+                        && near(combo.optionButton(0).textPaddingX(), 12.0f),
+                "Option rows should be 28px tall with left-aligned padded text");
+        expect(!combo.optionButton(0).borderVisible()
+                        && !combo.optionsScroll().overlayScrollBars(),
+                "Option rows should have no boxes of their own and the list scrollbar should keep a reserved lane");
+        expect(near(optionTextX(openDrawList, "Small") - combo.optionButton(0).layoutBounds().x(), 12.0f),
+                "Option text should start at a 12px padding like the header");
+
+        ComboBox overlayCombo = new ComboBox()
+                .items(java.util.List.of("Alpha", "Beta"))
+                .silentSelectedIndex(0);
+        VBox overlayContent = new VBox();
+        OverlayLayer overlayLayer = new OverlayLayer(overlayContent);
+        overlayContent.addChild(overlayCombo);
+        overlayLayer.measure(new LayoutContext(200.0f, 200.0f));
+        overlayLayer.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 200.0f));
+        overlayCombo.open();
+        overlayLayer.measure(new LayoutContext(200.0f, 200.0f));
+        overlayLayer.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 200.0f));
+        float anchorBottom = overlayCombo.headerButton().layoutBounds().y()
+                + overlayCombo.headerButton().layoutBounds().height();
+        float popupTop = overlayCombo.dropDownPopup().layoutBounds().y();
+        expect(overlayCombo.dropDownPopup().opened()
+                        && near(popupTop - anchorBottom, 6.0f),
+                "Overlay popup should open with a 6px gap below the header (--popup-gap)");
+
+        DropDownBox box = new DropDownBox().headerText("Tools");
+        box.measure(new LayoutContext(200.0f, 120.0f));
+        box.arrange(new MutableRect(0.0f, 0.0f, 200.0f, box.desiredSize().height()));
+        expect(near(box.headerButton().layoutBounds().height(), 36.0f)
+                        && box.headerButton().richText().plainText().equals("Tools")
+                        && box.headerButton().chevronVisible()
+                        && near(box.contentHost().radius(), 8.0f)
+                        && !box.contentScroll().overlayScrollBars(),
+                "DropDownBox header should share the modern chrome with ComboBox");
+    }
+
+    private void testScrollViewNoOverscrollPastContent() {
+        VBox list = new VBox();
+        list.spacing(1.0f);
+        for (int i = 0; i < 10; i++) {
+            Box row = new Box();
+            row.layout(style -> style.size(LayoutConstraints.AUTO, 28.0f).flexGrow(0).flexShrink(0.0f));
+            list.addChild(row);
+        }
+        ScrollView scroll = new ScrollView(list);
+        scroll.overlayScrollBars(false);
+        scroll.measure(new LayoutContext(200.0f, 173.0f));
+        scroll.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 173.0f));
+
+        float expectedContent = 10 * 28.0f + 9 * 1.0f;
+        float expectedMax = expectedContent - 173.0f;
+        expect(near(scroll.maxScrollY(), expectedMax),
+                "ScrollView maxScrollY should equal content minus viewport, got "
+                        + scroll.maxScrollY() + " expected " + expectedMax);
+
+        scroll.scrollTo(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY);
+        expect(near(scroll.scrollY(), expectedMax),
+                "Scrolling past the end should clamp exactly to maxScrollY");
+        Widget last = list.children().get(list.children().size() - 1);
+        // Контент уже сдвинут скроллом в layout-координатах: низ последней
+        // строки должен совпасть с низом вьюпорта один в один, без пустоты.
+        float lastBottom = last.layoutBounds().y() + last.layoutBounds().height();
+        expect(near(lastBottom, 173.0f),
+                "Last row bottom should sit exactly at the viewport bottom at max scroll, got "
+                        + lastBottom);
+
+        // Точная реплика списка ComboBox: ToggleButton-строки с маргинами.
+        ComboBox combo = new ComboBox()
+                .items(java.util.List.of("R0", "R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9"))
+                .silentSelectedIndex(0)
+                .dropDownMode(ComboBox.DropDownMode.INLINE);
+        combo.open();
+        combo.measure(new LayoutContext(200.0f, 400.0f));
+        combo.arrange(new MutableRect(0.0f, 0.0f, 200.0f, combo.desiredSize().height()));
+        ScrollView options = combo.optionsScroll();
+        options.scrollTo(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY);
+        Widget lastOption = combo.optionButton(9);
+        float optionBottom = lastOption.layoutBounds().y() + lastOption.layoutBounds().height();
+        float viewportBottom = options.layoutBounds().y() + options.layoutBounds().height();
+        expect(near(optionBottom, viewportBottom),
+                "Last option bottom should sit exactly at the options viewport bottom, got "
+                        + optionBottom + " viewport " + viewportBottom
+                        + " scroll " + options.scrollY() + " max " + options.maxScrollY());
+
+        // Тот же список через overlay-попап: размещение не должно раздувать контент.
+        ComboBox overlayCombo = new ComboBox()
+                .items(java.util.List.of("R0", "R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9"))
+                .silentSelectedIndex(0);
+        VBox overlayPage = new VBox();
+        overlayPage.addChild(overlayCombo);
+        OverlayLayer overlay = new OverlayLayer(overlayPage);
+        overlay.measure(new LayoutContext(300.0f, 400.0f));
+        overlay.arrange(new MutableRect(0.0f, 0.0f, 300.0f, 400.0f));
+        overlayCombo.open();
+        overlay.measure(new LayoutContext(300.0f, 400.0f));
+        overlay.arrange(new MutableRect(0.0f, 0.0f, 300.0f, 400.0f));
+        ScrollView overlayOptions = overlayCombo.optionsScroll();
+        overlayOptions.scrollTo(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY);
+        Widget overlayLast = overlayCombo.optionButton(9);
+        float overlayOptionBottom =
+                overlayLast.layoutBounds().y() + overlayLast.layoutBounds().height();
+        float overlayViewportBottom =
+                overlayOptions.layoutBounds().y() + overlayOptions.layoutBounds().height();
+        expect(near(overlayOptionBottom, overlayViewportBottom),
+                "Overlay popup should not inflate scroll content: last option bottom "
+                        + overlayOptionBottom + " viewport " + overlayViewportBottom
+                        + " scroll " + overlayOptions.scrollY() + " max " + overlayOptions.maxScrollY());
+    }
+
+    private static float optionTextX(DrawList drawList, String text) {
+        for (DrawCommand command : drawList.commands()) {
+            if (command.type() != DrawCommandType.TEXT) continue;
+            String rendered = command.richText() != null ? command.richText().plainText() : command.text();
+            if (text.equals(rendered)) return command.bounds().x();
+        }
+        return Float.NaN;
+    }
+
+    private static boolean near(float value, float expected, float epsilon) {
+        return Math.abs(value - expected) <= epsilon;
+    }
+
+    private static String rect(dev.sixik.unigui.api.math.RectView bounds) {
+        return "(" + bounds.x() + "," + bounds.y() + "," + bounds.width() + "," + bounds.height() + ")";
+    }
+
+    private static String size(Widget widget) {
+        return "(" + widget.desiredSize().width() + "," + widget.desiredSize().height() + ")";
+    }
+
+    private void testPressedButtonTextColorRestoresAfterRelease() {
+        DefaultUIContext uiContext = new DefaultUIContext();
+        Button button = new Button("Press me");
+        button.setUiContextInternal(uiContext);
+        button.measure(new LayoutContext(200.0f, 60.0f));
+        button.arrange(new MutableRect(0.0f, 0.0f, 120.0f, 36.0f));
+        button.render(new DefaultRenderContext(new DrawList()));
+        expect(isLight(button.textColor()) && !button.hasCustomTextColor(),
+                "Button text should start themed without a custom color mark");
+
+        uiContext.routedEvents().dispatch(new PointerPressedEvent(button, 10.0f, 10.0f, 10.0f, 10.0f, 0, PointerButton.PRIMARY));
+        for (int i = 0; i < 5; i++) {
+            button.tick(new FrameContext(i + 1, 0.5f, 0.0f, dev.sixik.unigui.api.core.FramePhase.ANIMATION));
+            button.render(new DefaultRenderContext(new DrawList()));
+        }
+        expect(button.pressed() && !button.hasCustomTextColor(),
+                "Theme color animation ticks must not mark the text color as custom");
+        uiContext.routedEvents().dispatch(new PointerReleasedEvent(button, 10.0f, 10.0f, 10.0f, 10.0f, 0, PointerButton.PRIMARY));
+        for (int i = 0; i < 5; i++) {
+            button.tick(new FrameContext(i + 6, 0.5f, 0.0f, dev.sixik.unigui.api.core.FramePhase.ANIMATION));
+            button.render(new DefaultRenderContext(new DrawList()));
+        }
+        expect(!button.pressed()
+                        && isLight(button.textColor())
+                        && !button.hasCustomTextColor(),
+                "Button text should restore the themed color after release, got " + color(button.textColor()));
+
+        button.textColor(1.0f, 0.0f, 0.0f, 1.0f);
+        expect(button.hasCustomTextColor(),
+                "Explicit textColor setter should keep marking the color as custom");
+        button.clearCustomTextColor();
+        expect(!button.hasCustomTextColor(),
+                "clearCustomTextColor should hand the text color back to the theme");
+    }
+
+    private static boolean isLight(dev.sixik.unigui.api.math.ColorView color) {
+        return color.r() > 0.5f && color.g() > 0.5f && color.b() > 0.5f;
+    }
+
+    private static String color(dev.sixik.unigui.api.math.ColorView color) {
+        return "(" + color.r() + "," + color.g() + "," + color.b() + "," + color.a() + ")";
+    }
+
+    private void testDropDownBoxContentHostFitsArbitraryContent() {
+        VBox menu = new VBox();
+        menu.spacing(6.0f);
+        menu.addChild(new Label("Graphics presets"));
+        Slider quality = new Slider().range(0.0f, 100.0f).value(72.0f);
+        quality.layout(style -> style.size(180.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
+        menu.addChild(quality);
+        Checkbox dayNight = new Checkbox("Day and night cycle");
+        menu.addChild(dayNight);
+        Button apply = new Button("Apply presets");
+        menu.addChild(apply);
+        DropDownBox box = new DropDownBox()
+                .headerText("Graphics")
+                .content(menu)
+                .dropDownSameWidth();
+        VBox page = new VBox();
+        page.addChild(box);
+        OverlayLayer layer = new OverlayLayer(page);
+        layer.measure(new LayoutContext(1280.0f, 800.0f));
+        layer.arrange(new MutableRect(0.0f, 0.0f, 1280.0f, 800.0f));
+        box.layout(style -> style.size(130.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
+        box.open();
+        layer.measure(new LayoutContext(1280.0f, 800.0f));
+        layer.arrange(new MutableRect(0.0f, 0.0f, 1280.0f, 800.0f));
+
+        StringBuilder kids = new StringBuilder();
+        for (Widget row : menu.children()) {
+            kids.append(rect(row.layoutBounds())).append(" desired=").append(size(row)).append(";");
+        }
+        float contentBottom = menu.layoutBounds().y() + menu.layoutBounds().height();
+        float hostBottom = box.contentHost().layoutBounds().y() + box.contentHost().layoutBounds().height();
+        expect(box.opened()
+                        && box.dropDownPopup().opened()
+                        && box.contentHost().layoutBounds().height() > 50.0f
+                        && menu.layoutBounds().height() > 50.0f,
+                "Fixture should open a non-trivial popup menu, popup="
+                        + rect(box.dropDownPopup().layoutBounds()));
+        expect(near(hostBottom, contentBottom, 8.0f),
+                "Content host should fit arbitrary menu content without a void, host="
+                        + rect(box.contentHost().layoutBounds())
+                        + " content=" + rect(menu.layoutBounds())
+                        + " scroll=" + rect(box.contentScroll().layoutBounds())
+                        + " popup=" + rect(box.dropDownPopup().layoutBounds())
+                        + " rows=" + kids);
+    }
+
+    private static boolean hasSelectedPill(DrawList drawList, Widget host) {
+        float hostLeft = host.layoutBounds().x();
+        float hostRight = hostLeft + host.layoutBounds().width();
+        for (DrawCommand command : drawList.commands()) {
+            if (command.type() != DrawCommandType.ROUNDED_RECT
+                    || command.paint() == null
+                    || command.paint().isStroke()) continue;
+            ColorView color = command.paint().color();
+            if (color == null
+                    || !near(color.r(), 0.149f)
+                    || !near(color.g(), 0.251f)
+                    || !near(color.b(), 0.369f)) continue;
+            dev.sixik.unigui.api.math.RectView bounds = command.bounds();
+            if (bounds.x() > hostLeft + 1.0f
+                    && bounds.x() + bounds.width() < hostRight - 1.0f) return true;
+        }
+        return false;
     }
 
     private void testTabControlContracts() {

@@ -558,7 +558,7 @@ public class TextWidget extends WidgetBase {
         if (backgroundVisible) {
             if (backgroundTexture != null) {
                 if (background.a() > 0.0f) {
-                    draw.roundedRect(x, y, width, height, radius, Paint.fill(background));
+                    draw.roundedRectFilled(x, y, width, height, radius, background);
                 }
                 if (backgroundTextureFit == ImageFit.NINE_SLICE) {
                     draw.nineSlice(sliceBorders.slice(backgroundTexture),
@@ -567,15 +567,15 @@ public class TextWidget extends WidgetBase {
                     TexturePlacement placement = TexturePlacement.fit(backgroundTexture,
                             backgroundTextureSource, layoutBounds(), backgroundTextureFit);
                     if (placement != null) {
-                        draw.texture(backgroundTexture, placement, radius, Paint.fill(backgroundTextureTint));
+                        draw.textureTinted(backgroundTexture, placement, radius, backgroundTextureTint);
                     }
                 }
             } else {
-                draw.roundedRect(x, y, width, height, radius, Paint.fill(background));
+                draw.roundedRectFilled(x, y, width, height, radius, background);
             }
         }
         if (borderVisible) {
-            draw.roundedRect(x, y, width, height, radius, Paint.stroke(borderColor, borderWidth));
+            draw.roundedRectStroke(x, y, width, height, radius, borderColor, borderWidth);
         }
     }
 
