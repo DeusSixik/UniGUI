@@ -1,14 +1,7 @@
 package dev.sixik.unigui.impl.layout.v3;
 
-import dev.sixik.unigui.api.layout.FlexDirection;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
-import dev.sixik.unigui.api.layout.LayoutStyle;
-import dev.sixik.unigui.api.layout.Overflow;
-import dev.sixik.unigui.api.layout.v3.LayoutInput;
-import dev.sixik.unigui.api.layout.v3.LayoutNode;
-import dev.sixik.unigui.api.layout.v3.LayoutOutput;
-import dev.sixik.unigui.api.layout.v3.LayoutResult;
 import dev.sixik.unigui.api.widget.Widget;
 
 /** V3-адаптер миграции для измерения вьюпорта/экстента контента ScrollView. */
@@ -16,6 +9,18 @@ public final class LayoutV3ScrollAdapter {
     private LayoutV3ScrollAdapter() {
     }
 
+    /**
+     * Измеряет scroll extent контента: его честную desired-высоту/ширину.
+     *
+     * <p>Именно размер контента, а не max с вьюпортом: сравнение с вьюпортом
+     * ({@code maxScroll = max(0, extent - viewport)}) — дело {@code ScrollView}.
+     * Старая версия брала {@code max(measured, overflow)} синтетического
+     * flex-прохода, а overflow по определению {@code >= available}: любой
+     * ScrollView со style-заданным размером меньше контекста (список опций,
+     * обрезанный до N строк; меню произвольного контента) получал раздутый
+     * extent — в конце списка скроллилось в пустоту, а хост растягивался
+     * под maxHeight вместо контента.</p>
+     */
     public static Extent measureContent(Widget content,
                                         LayoutContext context,
                                         boolean horizontalScrolling,
@@ -31,40 +36,7 @@ public final class LayoutV3ScrollAdapter {
                 verticalScrolling ? Float.POSITIVE_INFINITY : availableHeight);
         content.measure(contentContext);
         LayoutSize measured = content.desiredSize();
-
-        if (!Float.isFinite(availableWidth) || !Float.isFinite(availableHeight)) {
-            return new Extent(measured.width(), measured.height());
-        }
-
-        LayoutStyle rootStyle = new LayoutStyle()
-                .width(Math.max(0.0f, availableWidth))
-                .height(Math.max(0.0f, availableHeight))
-                .overflowX(Overflow.HIDDEN)
-                .overflowY(Overflow.HIDDEN)
-                .flexDirection(FlexDirection.COLUMN);
-        LayoutStyle contentStyle = new LayoutStyle()
-                .width(measured.width())
-                .height(measured.height())
-                .flexShrink(0.0f);
-        LayoutNode root = LayoutNode.builder("scroll")
-                .debugName("ScrollView")
-                .style(rootStyle)
-                .child(LayoutNode.builder("content")
-                        .debugName(content.getClass().getSimpleName())
-                        .style(contentStyle)
-                        .measure(ignored -> measured)
-                        .build())
-                .build();
-        LayoutOutput output = WebLayoutEngine.INSTANCE.compute(
-                root,
-                LayoutInput.of(availableWidth, availableHeight));
-        LayoutResult rootResult = output.rootResult();
-        if (rootResult == null) {
-            return new Extent(measured.width(), measured.height());
-        }
-        return new Extent(
-                Math.max(measured.width(), rootResult.overflowWidth()),
-                Math.max(measured.height(), rootResult.overflowHeight()));
+        return new Extent(measured.width(), measured.height());
     }
 
     public record Extent(float contentWidth, float contentHeight) {

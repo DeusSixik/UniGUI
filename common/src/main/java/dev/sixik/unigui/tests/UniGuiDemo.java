@@ -944,18 +944,40 @@ public final class UniGuiDemo {
         page.addChild(section("Text input", inputs));
 
         WrapPanel choice = wrap();
+        // Overlay-комбо: темы движка (витрина референса), ширина попапа = ширине хедера.
         ComboBox combo = new ComboBox()
                 .items(List.of("Dark", "Light", "High Contrast", "Minecraft"))
                 .silentSelectedIndex(0);
         combo.dropDownSameWidth();
         combo.layout(style -> style.size(142.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
         combo.onSelectionChanged(event -> status.text("Combo: " + combo.selectedItem()));
+        // Overlay-комбо с длинным списком: попап плавает над layout,
+        // ничего не смещает; скролл + пилюля выбранного.
+        ComboBox resolution = new ComboBox()
+                .items(List.of("1280x720", "1600x900", "1920x1080", "2560x1440", "3840x2160",
+                        "7680x4320", "800x600", "1024x768", "1366x768", "1536x864"))
+                .silentSelectedIndex(2);
+        resolution.dropDownSameWidth();
+        resolution.layout(style -> style.size(142.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
+        resolution.onSelectionChanged(event -> status.text("Resolution: " + resolution.selectedItem()));
+        // DropDownBox с произвольным меню-контентом в духе Hollow-референса:
+        // строка-пресет, слайдер-строка, чекбокс-строка, кнопка применения.
         VBox dropContent = new VBox();
-        dropContent.spacing(2.0f);
-        dropContent.addChild(new Label("Arbitrary popup content"));
-        dropContent.addChild(new Button("Action"));
+        dropContent.spacing(6.0f);
+        dropContent.addChild(new Label("Graphics presets"));
+        Slider presetQuality = new Slider().range(0.0f, 100.0f).value(72.0f);
+        presetQuality.layout(style -> style.size(180.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
+        presetQuality.onValueChanged(event -> status.text(
+                String.format(Locale.ROOT, "Preset quality: %.0f", event.newValue())));
+        dropContent.addChild(presetQuality);
+        Checkbox dayNight = new Checkbox("Day and night cycle");
+        dayNight.onCheckedChanged(event -> status.text("Day/night: " + event.newValue()));
+        dropContent.addChild(dayNight);
+        Button applyPresets = new Button("Apply presets");
+        applyPresets.onClick(event -> status.text("Presets applied"));
+        dropContent.addChild(applyPresets);
         DropDownBox drop = new DropDownBox()
-                .headerText("DropDownBox")
+                .headerText("Graphics")
                 .content(dropContent);
         drop.dropDownSameWidth();
         drop.layout(style -> style.size(130.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
@@ -967,6 +989,7 @@ public final class UniGuiDemo {
         detailed.layout(style -> style.size(78.0f, 20.0f).flexGrow(0).flexShrink(0.0f));
         new RadioGroup().add(compact).add(normal).add(detailed).silentSelectedValue("normal");
         choice.addChild(combo);
+        choice.addChild(resolution);
         choice.addChild(drop);
         choice.addChild(compact);
         choice.addChild(normal);
