@@ -39,11 +39,19 @@ import dev.sixik.unigui.widgets.feedback.Popup;
 public class DropDownBox extends LinearBox {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.DROP_DOWN_BOX;
 
-    private static final float HEADER_HEIGHT = 22.0f;
+    private static final float HEADER_HEIGHT = 36.0f;
     private static final float CONTENT_INSET = 2.0f;
     private static final float DEFAULT_DROP_DOWN_ROW_HEIGHT = HEADER_HEIGHT;
     private static final int DEFAULT_MAX_VISIBLE_ROWS = 6;
     private static final float DEFAULT_MAX_CONTENT_HEIGHT = DEFAULT_DROP_DOWN_ROW_HEIGHT * DEFAULT_MAX_VISIBLE_ROWS;
+    /** Фон хоста контента: --bg-1. */
+    private static final float HOST_BG_R = 0.118f;
+    private static final float HOST_BG_G = 0.129f;
+    private static final float HOST_BG_B = 0.149f;
+    /** Рамка хоста контента: --border-subtle. */
+    private static final float HOST_BORDER_R = 0.180f;
+    private static final float HOST_BORDER_G = 0.200f;
+    private static final float HOST_BORDER_B = 0.231f;
 
     private final Button headerButton = new Button();
     private final Box contentHost = new Box();
@@ -69,13 +77,15 @@ public class DropDownBox extends LinearBox {
         focusable(true);
 
         headerButton.layout(style -> style.size(LayoutConstraints.AUTO, HEADER_HEIGHT).flexGrow(0).flexShrink(0.0f));
+        headerButton.textPaddingX(12.0f);
+        headerButton.chevronVisible(true);
         headerButton.onClick(event -> toggle());
 
         contentHost.backgroundVisible(true);
         contentHost.borderVisible(true);
-        contentHost.radius(3.0f);
-        contentHost.background().set(0.025f, 0.030f, 0.040f, 0.97f);
-        contentHost.borderColor().set(0.25f, 0.78f, 1.0f, 0.75f);
+        contentHost.radius(8.0f);
+        contentHost.background().set(HOST_BG_R, HOST_BG_G, HOST_BG_B, 0.97f);
+        contentHost.borderColor().set(HOST_BORDER_R, HOST_BORDER_G, HOST_BORDER_B, 1.0f);
         contentHost.visibility(Visibility.COLLAPSED);
         contentHost.layout(style -> style
                 .size(LayoutConstraints.AUTO, LayoutConstraints.AUTO)
@@ -84,6 +94,8 @@ public class DropDownBox extends LinearBox {
                 .flexShrink(0.0f));
 
         contentScroll.scrollStep(DEFAULT_DROP_DOWN_ROW_HEIGHT);
+        // Reserved-скроллбар как в ComboBox: контент не уезжает под полосу.
+        contentScroll.overlayScrollBars(false);
         contentScroll.scrollbarGap(1.0f);
         contentScroll.scrollbarTrackColor().set(0.0f, 0.0f, 0.0f, 0.36f);
         contentScroll.scrollbarThumbColor().set(0.82f, 0.84f, 0.88f, 0.82f);
@@ -99,6 +111,7 @@ public class DropDownBox extends LinearBox {
         contentHost.addChild(contentScroll);
 
         dropDownPopup.anchor(headerButton);
+        dropDownPopup.offset(0.0f, 6.0f);
         dropDownPopup.padding(EdgeInsets.all(0.0f));
         dropDownPopup.backgroundVisible(false);
         dropDownPopup.borderVisible(false);
@@ -112,7 +125,8 @@ public class DropDownBox extends LinearBox {
         });
 
         super.addChild(headerButton);
-        headerButton.richText(richHeaderText.append(headerArrowClosed));
+        headerButton.richText(richHeaderText);
+        headerButton.chevronUp(opened);
     }
 
     public Widget content() {
@@ -298,7 +312,7 @@ public class DropDownBox extends LinearBox {
         return maxContentHeight;
     }
 
-    @XmlAttribute(value = "maxContentHeight", category = "Layout", defaultValue = "132", description = "Maximum dropdown content height before scrolling is used; 0 disables the cap.")
+    @XmlAttribute(value = "maxContentHeight", category = "Layout", defaultValue = "216", description = "Maximum dropdown content height before scrolling is used; 0 disables the cap.")
     public DropDownBox maxContentHeight(float height) {
         float normalized = Float.isFinite(height) && height > 0.0f ? height : 0.0f;
         if (maxContentHeight == normalized) return this;
@@ -361,15 +375,17 @@ public class DropDownBox extends LinearBox {
     }
 
     private void updateHeaderText() {
-        headerButton.richText(richHeaderText.append(headerArrow()));
+        headerButton.richText(richHeaderText);
+        headerButton.chevronUp(opened);
     }
 
     /**
      * Возвращает заранее созданную стрелку текущего состояния списка.
      *
-     * <p>Стрелки создаются один раз, поэтому переключение состояния не создаёт новый
-     * inline-renderer и не собирает повторно описание геометрии стрелки. Метод оставлен
-     * {@code protected}, чтобы наследник мог заменить визуальное представление.</p>
+     * <p>Legacy inline-индикатор для наследников: базовый хедер рисует шеврон
+     * слотом кнопки ({@code Button.chevronVisible/chevronUp}), а не текстом.
+     * Метод оставлен {@code protected}, чтобы наследник мог заменить
+     * визуальное представление.</p>
      *
      * @return стрелка вниз для закрытого списка или стрелка вверх для открытого
      */

@@ -1237,8 +1237,10 @@ public final class DockingRoot extends Box {
      * Завершает drop чужого dockable-окна: гасит preview и докирует контент.
      *
      * <p>Если точка дропа попадает на другое окно с включённой docking area,
-     * панели источника мержатся в окно-хост, а источник закрывается. Иначе
-     * контент докируется в найденный {@link DockingRoot} как одна панель.</p>
+     * дроп идёт через зоны его внутреннего root (таб/сплит по триггеру,
+     * мимо триггеров — окно остаётся плавать); окно-хост со всеми панелями
+     * дропается так же, перенося всё содержимое. Иначе контент докируется
+     * в найденный {@link DockingRoot} как одна панель.</p>
      *
      * @param window окно-источник в конце drag
      * @param rootX X указателя в root-координатах
@@ -1254,9 +1256,8 @@ public final class DockingRoot extends Box {
         OverlayLayer overlay = nearestOverlayLayer(window);
         Widget searchRoot = overlay != null ? overlay : rootOf(window);
         WindowWidget hostWindow = windowHostAt(searchRoot, window, rootX, rootY);
-        if (hostWindow != null && hostWindow.mergeDockingFrom(window)) {
-            detachForeignWindow(window);
-            return true;
+        if (hostWindow != null && hostWindow.dockingRoot() != null) {
+            return hostWindow.dockingRoot().dockForeignWindow(window, rootX, rootY);
         }
         DockingRoot target = dockingRootAt(searchRoot, window, rootX, rootY);
         if (target == null) return false;
@@ -1540,14 +1541,19 @@ public final class DockingRoot extends Box {
      * Возвращает размер ячейки креста drop-зон для листа.
      *
      * <p>Та же геометрия используется хит-тестом ({@code triggerAt}) и рендером
-     * ({@code renderDropCross}): что нарисовано, туда и дропается.</p>
+     * ({@code renderDropCross}): что нарисовано, туда и дропается. Крест
+     * целиком влезает в лист ({@code 3*cell + 2*gap <= minSide}): в маленьком
+     * окне ячейки уменьшаются вместо того, чтобы вылезти за границы, где на
+     * них невозможно навестись. Пол — 8px: ячейка остаётся видимой
+     * и хитабельной даже в крошечных листах.</p>
      *
      * @param bounds границы листа
      * @return сторона квадратной ячейки креста
      */
     private static float dropZoneCell(RectView bounds) {
         float minSide = Math.min(Math.max(1.0f, bounds.width()), Math.max(1.0f, bounds.height()));
-        return Math.max(40.0f, Math.min(64.0f, minSide * 0.25f));
+        float fit = (minSide - DROP_ZONE_GAP * 2.0f) / 3.0f;
+        return Math.max(8.0f, Math.min(64.0f, Math.min(minSide * 0.25f, fit)));
     }
 
     private MutableRect previewBounds(RectView bounds, DockArea area) {
@@ -1929,45 +1935,27 @@ public final class DockingRoot extends Box {
         renderZoneCell(draw, left.x(), left.y(), cell, active == DockArea.LEFT);
         MutableRect right = crossCellRect(bounds, DockArea.RIGHT);
         renderZoneCell(draw, right.x(), right.y(), cell, active == DockArea.RIGHT);
-        // Метафоры: верхняя ячейка — таб-стрип (плашка сверху), центр — слои,
-        // боковые ячейки — стрелки к краям сплита.
+        // Метафоры стыковки: плашка, прибитая к стороне дропа.
+        // Верх — таб-стрип сверху, низ — плашка снизу,
+        // лево/право — вертикальные плашки у краёв, центр — слои.
+        float barMargin = Math.max(6.0f, cell * 0.18f);
+        float barThick = Math.max(2.0f, cell * 0.16f);
+        float barLen = Math.max(0.0f, cell - barMargin * 2.0f);
+        draw.roundedRectFilled(top.x() + barMargin, top.y() + barMargin,
+                barLen, barThick, 2.0f, TAB_TEXT);
+        draw.roundedRectFilled(bottom.x() + barMargin, bottom.y() + bottom.height() - barMargin - barThick,
+                barLen, barThick, 2.0f, TAB_TEXT);
+        draw.roundedRectFilled(left.x() + barMargin, left.y() + barMargin,
+                barThick, barLen, 2.0f, TAB_TEXT);
+        draw.roundedRectFilled(right.x() + right.width() - barMargin - barThick, right.y() + barMargin,
+                barThick, barLen, 2.0f, TAB_TEXT);
         float centerX = bounds.x() + bounds.width() * 0.5f;
         float centerY = bounds.y() + bounds.height() * 0.5f;
-        float half = cell * 0.5f;
-        float gap = DROP_ZONE_GAP;
-        float barMargin = Math.max(6.0f, cell * 0.18f);
-        draw.roundedRectFilled(centerX - half + barMargin, centerY - half - gap - cell + barMargin,
-                Math.max(0.0f, cell - barMargin * 2.0f), Math.max(2.0f, cell * 0.16f), 2.0f, TAB_TEXT);
         for (int line = -1; line <= 1; line++) {
             float ly = centerY + line * Math.max(4.0f, cell * 0.14f);
             float lx = Math.max(4.0f, cell * 0.22f);
             draw.line(centerX - lx, ly, centerX + lx, ly, Paint.stroke(TAB_TEXT, 1.5f));
         }
-        float stride = cell + gap;
-        float arrowLen = Math.max(6.0f, cell * 0.26f);
-        float arrowHalf = Math.max(3.0f, cell * 0.11f);
-        renderZoneArrow(draw, centerX, centerY - stride, 0.0f, -1.0f, arrowLen, arrowHalf);
-        renderZoneArrow(draw, centerX, centerY + stride, 0.0f, 1.0f, arrowLen, arrowHalf);
-        renderZoneArrow(draw, centerX - stride, centerY, -1.0f, 0.0f, arrowLen, arrowHalf);
-        renderZoneArrow(draw, centerX + stride, centerY, 1.0f, 0.0f, arrowLen, arrowHalf);
-    }
-
-    private static void renderZoneArrow(DrawScope draw, float cx, float cy,
-            float dirX, float dirY, float length, float halfWidth) {
-        float tipX = cx + dirX * length;
-        float tipY = cy + dirY * length;
-        float baseX = cx - dirX * length * 0.4f;
-        float baseY = cy - dirY * length * 0.4f;
-        float perpX = -dirY;
-        float perpY = dirX;
-        Paint paint = Paint.stroke(TAB_TEXT, 1.5f);
-        draw.line(baseX, baseY, tipX, tipY, paint);
-        draw.line(tipX, tipY,
-                tipX - dirX * halfWidth * 1.6f + perpX * halfWidth, tipY - dirY * halfWidth * 1.6f + perpY * halfWidth,
-                paint);
-        draw.line(tipX, tipY,
-                tipX - dirX * halfWidth * 1.6f - perpX * halfWidth, tipY - dirY * halfWidth * 1.6f - perpY * halfWidth,
-                paint);
     }
 
     private static void renderZoneCell(DrawScope draw, float x, float y, float cell, boolean active) {

@@ -1,6 +1,7 @@
 package dev.sixik.unigui.widgets.interaction;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.event.Event;
 import dev.sixik.unigui.api.event.EventListener;
 import dev.sixik.unigui.api.event.EventPhase;
@@ -35,10 +36,24 @@ import dev.sixik.unigui.widgets.feedback.Popup;
 public class ComboBox extends LinearBox {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.COMBO_BOX;
 
-    private static final float HEADER_HEIGHT = 22.0f;
-    private static final float OPTION_HEIGHT = 20.0f;
+    private static final float HEADER_HEIGHT = 36.0f;
+    private static final float OPTION_HEIGHT = 28.0f;
     private static final float OPTIONS_INSET = 2.0f;
     private static final int DEFAULT_MAX_VISIBLE_OPTIONS = 6;
+    /** Фон хоста опций: --bg-1. */
+    private static final float HOST_BG_R = 0.118f;
+    private static final float HOST_BG_G = 0.129f;
+    private static final float HOST_BG_B = 0.149f;
+    /** Рамка хоста опций: --border-subtle. */
+    private static final float HOST_BORDER_R = 0.180f;
+    private static final float HOST_BORDER_G = 0.200f;
+    private static final float HOST_BORDER_B = 0.231f;
+    /** Фон выбранной строки-пилюли: --bg-selected. */
+    private static final float SELECTED_BG_R = 0.149f;
+    private static final float SELECTED_BG_G = 0.251f;
+    private static final float SELECTED_BG_B = 0.369f;
+    /** Горизонтальный отступ строк-пилюль от краёв списка. */
+    private static final float OPTION_SIDE_MARGIN = 4.0f;
 
     private final Button headerButton = new Button();
     private final Box optionsHost = new Box();
@@ -71,13 +86,15 @@ public class ComboBox extends LinearBox {
         focusable(true);
 
         headerButton.layout(style -> style.size(LayoutConstraints.AUTO, HEADER_HEIGHT).flexGrow(0).flexShrink(0.0f));
+        headerButton.textPaddingX(12.0f);
+        headerButton.chevronVisible(true);
         headerButton.onClick(event -> toggle());
 
         optionsHost.backgroundVisible(true);
         optionsHost.borderVisible(true);
-        optionsHost.radius(3.0f);
-        optionsHost.background().set(0.025f, 0.030f, 0.040f, 0.97f);
-        optionsHost.borderColor().set(0.25f, 0.78f, 1.0f, 0.75f);
+        optionsHost.radius(8.0f);
+        optionsHost.background().set(HOST_BG_R, HOST_BG_G, HOST_BG_B, 0.97f);
+        optionsHost.borderColor().set(HOST_BORDER_R, HOST_BORDER_G, HOST_BORDER_B, 1.0f);
         optionsHost.visibility(Visibility.COLLAPSED);
         optionsHost.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
 
@@ -86,6 +103,9 @@ public class ComboBox extends LinearBox {
         optionsList.layout(style -> style.flexGrow(0).flexShrink(0.0f));
 
         optionsScroll.scrollStep(optionRowHeight);
+        // Классический reserved-скроллбар: у строк своя полоса, скролл
+        // не плавает поверх пилюль (overlay default здесь неуместен).
+        optionsScroll.overlayScrollBars(false);
         optionsScroll.scrollbarGap(1.0f);
         optionsScroll.scrollbarTrackColor().set(0.0f, 0.0f, 0.0f, 0.36f);
         optionsScroll.scrollbarThumbColor().set(0.82f, 0.84f, 0.88f, 0.82f);
@@ -99,6 +119,7 @@ public class ComboBox extends LinearBox {
         optionsHost.addChild(optionsScroll);
 
         dropDownPopup.anchor(headerButton);
+        dropDownPopup.offset(0.0f, 6.0f);
         dropDownPopup.padding(EdgeInsets.all(0.0f));
         dropDownPopup.backgroundVisible(false);
         dropDownPopup.borderVisible(false);
@@ -356,7 +377,7 @@ public class ComboBox extends LinearBox {
         return optionRowHeight;
     }
 
-    @XmlAttribute(value = "optionRowHeight", category = "Layout", defaultValue = "20", description = "Height of each option row in UI pixels.")
+    @XmlAttribute(value = "optionRowHeight", category = "Layout", defaultValue = "28", description = "Height of each option row in UI pixels.")
     public ComboBox optionRowHeight(float height) {
         float normalized = Float.isFinite(height) && height > 0.0f ? height : OPTION_HEIGHT;
         if (optionRowHeight == normalized) return this;
@@ -526,7 +547,21 @@ public class ComboBox extends LinearBox {
         for (int index = 0; index < items.size(); index++) {
             final int itemIndex = index;
             ToggleButton option = new ToggleButton(richItems.get(index));
-            option.layout(style -> style.size(LayoutConstraints.AUTO, optionRowHeight).flexGrow(0).flexShrink(0.0f));
+            // Строка-пилюля: скругление + внутренние отступы от краёв списка,
+            // выбранная подсвечена --bg-selected, остальные прозрачные.
+            // Текст влево с паддингом хедера, высота строки 28px.
+            // Рамки нет (иначе каждая строка — отдельный бокс), скролл —
+            // reserved-полоса, не поверх строк.
+            option.radius(4.0f);
+            option.borderVisible(false);
+            option.textAlignment(Alignment.START);
+            option.textPaddingX(12.0f);
+            option.checkedBackground().set(SELECTED_BG_R, SELECTED_BG_G, SELECTED_BG_B, 1.0f);
+            option.uncheckedBackground().set(0.0f, 0.0f, 0.0f, 0.0f);
+            option.background().set(option.uncheckedBackground());
+            option.layout(style -> style.size(LayoutConstraints.AUTO, optionRowHeight)
+                    .margin(OPTION_SIDE_MARGIN, 0.0f)
+                    .flexGrow(0).flexShrink(0.0f));
             option.onClick(event -> {
                 selectedIndex(itemIndex);
                 close();
@@ -546,11 +581,17 @@ public class ComboBox extends LinearBox {
 
     private void updateHeaderText() {
         RichText value = selectedItem().isEmpty() ? richPlaceholder : selectedRichItem();
-        RichText indicator = customHeaderIndicator
-                ? headerIndicator
-                : (opened ? defaultHeaderIndicatorOpened : defaultHeaderIndicatorClosed);
-        headerIndicator = indicator;
-        headerButton.richText(indicator.plainText().isEmpty() ? value : value.append(indicator));
+        if (customHeaderIndicator) {
+            // Legacy inline-индикатор: как раньше текстом, слот-шеврон прячем,
+            // чтобы глиф не дублировался.
+            headerButton.chevronVisible(false);
+            headerButton.richText(headerIndicator.plainText().isEmpty() ? value : value.append(headerIndicator));
+            return;
+        }
+        headerIndicator = opened ? defaultHeaderIndicatorOpened : defaultHeaderIndicatorClosed;
+        headerButton.chevronVisible(true);
+        headerButton.richText(value);
+        headerButton.chevronUp(opened);
     }
 
     private void addItemInternal(RichText item) {

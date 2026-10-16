@@ -85,3 +85,23 @@ myButton.background().set(...); // explicit — побеждает всё, пе�
 2. `SurfaceWidget` / `Button` / `TextInput` — покрывают ~80% картинки.
 3. DropDown/Popup хром (пилюли, зазоры, шеврон слотом).
 4. Остальное по матрице аудита; старый API — депрекейт, не слом.
+
+## Починено: customTextColor poisoning (тёмный текст после нажатия)
+
+Симптом: после нажатия текст кнопки оставался тёмным (`TEXT_ON_ACCENT`
+pressed-цвета) навсегда — на вернувшемся тёмном фоне читался как чёрный.
+
+Цепочка: `Button.applyTheme` анимирует `textColor` к pressed-значению
+(transition 0.12s из темы); тики анимации пишут в `textColor` напрямую,
+а `onChanged`-слушатель помечал ЛЮБУЮ запись как `customTextColor`
+(`updatingTheme` покрывал только синхронный вызов, не тики) → флаг
+`customTextColor` взводился навсегда → `applyTheme` early-return →
+текст заморожен, фон продолжает темиться. Тот же яд действовал бы на
+checked-текст тоглов (`TEXT_ON_ACCENT`).
+
+Фикс: пометка custom — только в явных сеттерах
+`textColor(ColorView)`/`textColor(float...)`; тики theme-анимаций флаг
+не трогают (слушатель оставил только инвалидацию). Прямая мутация через
+`textColor()`-хэндл больше не защищает от темы — задокументированный
+трейд-офф (бой с темой за один цвет и раньше был сломан).
+Тест: `testPressedButtonTextColorRestoresAfterRelease`.

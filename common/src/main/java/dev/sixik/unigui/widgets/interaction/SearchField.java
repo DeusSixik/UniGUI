@@ -18,7 +18,6 @@ import dev.sixik.unigui.api.input.MouseCursor;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
-import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
@@ -192,13 +191,29 @@ public class SearchField extends TextInput {
                     3.0f,
                     Paint.fill(caretColor()));
         }
-        TextEngine.drawInline(draw,
-                RichText.plain("x"),
-                clearX,
-                clearY,
-                clearWidth,
-                clearHeight,
-                Paint.fill(clearButtonHovered() ? textColor() : placeholderColor()));
+        renderClearGlyph(draw, clearX, clearY, clearWidth, clearHeight);
+    }
+
+    /**
+     * Рисует крестик очистки двумя штрихами вместо буквы «x».
+     *
+     * <p>Глиф не зависит от шрифта и центрируется в зоне очистки; цвет —
+     * текст (в hover) или плейсхолдер, как раньше у буквы.</p>
+     *
+     * @param draw draw scope
+     * @param x X зоны глифа
+     * @param y Y зоны глифа
+     * @param width ширина зоны глифа
+     * @param height высота зоны глифа
+     */
+    private void renderClearGlyph(DrawScope draw, float x, float y, float width, float height) {
+        float centerX = x + width * 0.5f;
+        float centerY = y + height * 0.5f;
+        float half = Math.max(0.0f, Math.min(width, height) * 0.5f - 2.0f);
+        if (half <= 0.0f) return;
+        Paint paint = Paint.stroke(clearButtonHovered() ? textColor() : placeholderColor(), 2.0f);
+        draw.line(centerX - half, centerY - half, centerX + half, centerY + half, paint);
+        draw.line(centerX + half, centerY - half, centerX - half, centerY + half, paint);
     }
 
     @Override

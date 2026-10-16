@@ -24,6 +24,14 @@
 - Рендер переведён на garbage-free перегрузки (`roundedRectFilled/Stroke`,
   `rectFilled`).
 
+## Крестик очистки SearchField
+
+Был буквой `x` (`RichText.plain("x")` — зависит от шрифта, выглядит
+триггером с буквой). Стал два штриха крестом (`renderClearGlyph`),
+центрация в зоне очистки, цвет как раньше (текст в hover, плейсхолдер).
+Хит-зона, паддинг текста и hover-пилюля без изменений.
+Тест: `testPasswordAndSearchFields` (нет lone-`"x"`, ровно 2 LINE справа).
+
 ## Совместимость
 
 - `PasswordField` / `SearchField` наследуют новый вид автоматически.

@@ -38,6 +38,7 @@ public final class DockingInteractionSelfTest {
         testCrossTriggersAndGapsViaWindow();
         testReleasedWindowOutsideTriggersStaysFloating();
         testFloatingWindowRemembersSizeAcrossRedock();
+        testDropZonesFitSmallLeaf();
         testDropZonesRenderDuringDrag();
         testTearOffFloatsPaneDroppedOutsideZones();
         testFloatingDropDetachesPaneAndClearsPreview();
@@ -45,6 +46,12 @@ public final class DockingInteractionSelfTest {
         testFloatingDropInsideOverlayCreatesNonCloseableRedockableWindow();
         testDockableWindowDragDocksIntoRoot();
         testWindowDockingAreaHostsAndMerges();
+        testDockingEnabledImpliesDockable();
+        testWindowOnWindowTabsViaZones();
+        testWindowOnWindowGapStaysFloating();
+        testWindowOnWindowSideDiamondSplitsInsideHost();
+        testHostHeaderDragMovesAllPanesToOtherHost();
+        testDockingDisabledWindowRejectsDrops();
         testOverflowTabsScrollAndMenuSelection();
         testDockPaneContentIsClippedToLeafContentBounds();
         testTinySplitLayoutDoesNotProduceNegativeBounds();
@@ -387,6 +394,54 @@ public final class DockingInteractionSelfTest {
         return leafWith(node.first(), firstId, secondId) || leafWith(node.second(), firstId, secondId);
     }
 
+    private void testDropZonesFitSmallLeaf() {
+        // Геометрия: крест целиком внутри листа даже на маленьких размерах —
+        // ячейки уменьшаются, а не вылезают за границы, где на них не навестись.
+        float[][] sizes = {
+                {320.0f, 160.0f}, {120.0f, 90.0f}, {80.0f, 60.0f}, {200.0f, 40.0f}, {48.0f, 48.0f}};
+        DockArea[] areas = {
+                DockArea.CENTER, DockArea.TOP, DockArea.BOTTOM, DockArea.LEFT, DockArea.RIGHT};
+        for (float[] size : sizes) {
+            MutableRect leaf = new MutableRect(0.0f, 0.0f, size[0], size[1]);
+            for (DockArea area : areas) {
+                MutableRect cell = DockingRoot.crossCellRect(leaf, area);
+                expect(cell.width() > 0.0f && cell.height() > 0.0f
+                                && cell.x() >= leaf.x() - 0.01f
+                                && cell.y() >= leaf.y() - 0.01f
+                                && cell.x() + cell.width() <= leaf.x() + leaf.width() + 0.01f
+                                && cell.y() + cell.height() <= leaf.y() + leaf.height() + 0.01f,
+                        "Cross cell " + area + " should fit inside a "
+                                + size[0] + "x" + size[1] + " leaf");
+            }
+        }
+
+        // Функционал: в маленький root тоже можно дропнуть окном на диамант.
+        DefaultUIContext context = new DefaultUIContext();
+        DockingRoot root = new DockingRoot();
+        root.setUiContextInternal(context);
+        root.addDocument("scene", "Scene", content("Scene body"));
+        root.tabPane("scene", new DockPane("inspector", "Inspector", content("Inspector body")));
+        root.selectPane("scene");
+        OverlayLayer layer = overlayFixture(context, root, 140.0f, 100.0f, 640.0f, 400.0f);
+
+        press(context, root, 8.0f, 6.0f, 0);
+        move(context, root, 500.0f, 300.0f, 0);
+        WindowWidget window = root.lastFloatingWindow();
+        expect(window != null && !root.manager().containsPane("scene"),
+                "Tear-off fixture should detach the pane");
+
+        float[] west = diamondCenter(root, DockArea.LEFT);
+        move(context, window, west[0], west[1], 0);
+        expect(hasFloatingPreview(renderRoot(root)),
+                "West diamond of a small leaf should still offer a drop preview");
+        release(context, window, west[0], west[1], 0);
+        layer.applyQueuedMutations();
+        expect(root.rootNode().isSplit()
+                        && root.rootNode().first().findPane("scene") != null
+                        && !window.opened(),
+                "Dropping on a small leaf diamond should split it");
+    }
+
     private void testDropZonesRenderDuringDrag() {
         DefaultUIContext context = new DefaultUIContext();
         DockingRoot root = new DockingRoot();
@@ -711,6 +766,214 @@ public final class DockingInteractionSelfTest {
         expect(root.manager().containsPane("dragged-pane")
                         && !dragged.opened(),
                 "Routed drag release over a DockingRoot should dock the window");
+    }
+
+    private void testDockingEnabledImpliesDockable() {
+        WindowWidget plain = new WindowWidget("Plain", content("Plain body"));
+        expect(!plain.dockable() && !plain.dockingEnabled(),
+                "WindowWidget should be plain floating by default");
+
+        plain.dockingEnabled(true);
+        expect(plain.dockingEnabled() && plain.dockable(),
+                "dockingEnabled(true) should imply dockable: one flag makes a window join docks");
+
+        plain.dockingEnabled(false);
+        expect(!plain.dockingEnabled() && !plain.dockable(),
+                "Disabling docking should restore the explicit dockable flag");
+
+        plain.dockable(true);
+        plain.dockingEnabled(true);
+        plain.dockable(false);
+        expect(plain.dockingEnabled() && plain.dockable(),
+                "A hosting window should stay a dock source until docking itself is disabled");
+    }
+
+    private void testWindowOnWindowTabsViaZones() {
+        DefaultUIContext context = new DefaultUIContext();
+        OverlayLayer layer = new OverlayLayer(new StackPanel());
+        layer.setUiContextInternal(context);
+
+        WindowWidget host = new WindowWidget("Host", content("Host body"))
+                .position(300.0f, 200.0f)
+                .dockingEnabled(true)
+                .open();
+        host.layout(style -> style.size(240.0f, 160.0f).flexGrow(0).flexShrink(0.0f));
+        layer.addOverlay(host);
+
+        WindowWidget guest = new WindowWidget("Guest", content("Guest body"))
+                .position(40.0f, 40.0f)
+                .dockable(true)
+                .dockPaneId("guest-pane")
+                .open();
+        guest.layout(style -> style.size(200.0f, 120.0f).flexGrow(0).flexShrink(0.0f));
+        layer.addOverlay(guest);
+        layout(layer, 640.0f, 400.0f);
+
+        float[] center = cellCenter(host.dockingRoot(), DockArea.CENTER);
+        DockingRoot.previewForeignWindowDrop(guest, center[0], center[1]);
+        DrawList previewDrawList = new DrawList();
+        host.dockingRoot().render(new dev.sixik.unigui.impl.render.DefaultRenderContext(previewDrawList));
+        expect(hasFloatingPreview(previewDrawList),
+                "Dragging a window over a docking-enabled window should preview inside the host");
+
+        expect(DockingRoot.finishForeignWindowDrop(guest, center[0], center[1]),
+                "Releasing a window on the host center diamond should dock it");
+        layer.applyQueuedMutations();
+        expect(host.dockingRoot().manager().containsPane("guest-pane")
+                        && !guest.opened()
+                        && guest.content() == null
+                        && host.opened(),
+                "Docked guest content should become a tabbed pane and only the guest should close");
+    }
+
+    private void testWindowOnWindowGapStaysFloating() {
+        DefaultUIContext context = new DefaultUIContext();
+        OverlayLayer layer = new OverlayLayer(new StackPanel());
+        layer.setUiContextInternal(context);
+
+        WindowWidget host = new WindowWidget("Host", content("Host body"))
+                .position(300.0f, 200.0f)
+                .dockingEnabled(true)
+                .open();
+        host.layout(style -> style.size(240.0f, 160.0f).flexGrow(0).flexShrink(0.0f));
+        layer.addOverlay(host);
+
+        WindowWidget guest = new WindowWidget("Guest", content("Guest body"))
+                .position(40.0f, 40.0f)
+                .dockable(true)
+                .dockPaneId("guest-pane")
+                .open();
+        guest.layout(style -> style.size(200.0f, 120.0f).flexGrow(0).flexShrink(0.0f));
+        layer.addOverlay(guest);
+        layout(layer, 640.0f, 400.0f);
+        int hostPanes = host.dockingRoot().manager().paneCount();
+
+        float[] center = cellCenter(host.dockingRoot(), DockArea.CENTER);
+        float[] east = cellCenter(host.dockingRoot(), DockArea.RIGHT);
+        float gapX = (center[0] + east[0]) * 0.5f;
+        DockingRoot.previewForeignWindowDrop(guest, gapX, center[1]);
+        DrawList previewDrawList = new DrawList();
+        host.dockingRoot().render(new dev.sixik.unigui.impl.render.DefaultRenderContext(previewDrawList));
+        expect(!hasFloatingPreview(previewDrawList),
+                "Hovering a window over a host gap should show no drop preview");
+
+        expect(!DockingRoot.finishForeignWindowDrop(guest, gapX, center[1])
+                        && guest.opened()
+                        && guest.content() != null
+                        && host.dockingRoot().manager().paneCount() == hostPanes
+                        && !host.dockingRoot().manager().containsPane("guest-pane"),
+                "Releasing a window outside host triggers should keep it floating instead of tabbing");
+    }
+
+    private void testWindowOnWindowSideDiamondSplitsInsideHost() {
+        DefaultUIContext context = new DefaultUIContext();
+        OverlayLayer layer = new OverlayLayer(new StackPanel());
+        layer.setUiContextInternal(context);
+
+        WindowWidget host = new WindowWidget("Host", content("Host body"))
+                .position(300.0f, 200.0f)
+                .dockingEnabled(true)
+                .open();
+        host.layout(style -> style.size(240.0f, 160.0f).flexGrow(0).flexShrink(0.0f));
+        layer.addOverlay(host);
+
+        WindowWidget guest = new WindowWidget("Guest", content("Guest body"))
+                .position(40.0f, 40.0f)
+                .dockable(true)
+                .dockPaneId("guest-pane")
+                .open();
+        guest.layout(style -> style.size(200.0f, 120.0f).flexGrow(0).flexShrink(0.0f));
+        layer.addOverlay(guest);
+        layout(layer, 640.0f, 400.0f);
+
+        float[] west = cellCenter(host.dockingRoot(), DockArea.LEFT);
+        DockingRoot.previewForeignWindowDrop(guest, west[0], west[1]);
+        DrawList previewDrawList = new DrawList();
+        host.dockingRoot().render(new dev.sixik.unigui.impl.render.DefaultRenderContext(previewDrawList));
+        expect(hasFloatingPreview(previewDrawList),
+                "Hovering the west diamond should preview a split inside the host");
+
+        expect(DockingRoot.finishForeignWindowDrop(guest, west[0], west[1]),
+                "Releasing a window on the host west diamond should dock it");
+        layer.applyQueuedMutations();
+        expect(host.dockingRoot().rootNode().isSplit()
+                        && host.dockingRoot().rootNode().first().findPane("guest-pane") != null
+                        && !guest.opened()
+                        && host.opened(),
+                "West diamond drop should split the host with the guest first");
+    }
+
+    private void testHostHeaderDragMovesAllPanesToOtherHost() {
+        DefaultUIContext context = new DefaultUIContext();
+        OverlayLayer layer = new OverlayLayer(new StackPanel());
+        layer.setUiContextInternal(context);
+
+        WindowWidget first = new WindowWidget("First", content("First body"))
+                .position(40.0f, 40.0f)
+                .dockingEnabled(true)
+                .open();
+        first.layout(style -> style.size(220.0f, 140.0f).flexGrow(0).flexShrink(0.0f));
+        layer.addOverlay(first);
+        first.dockTool("first-extra", "First Extra", content("First extra"));
+
+        WindowWidget second = new WindowWidget("Second", content("Second body"))
+                .position(330.0f, 220.0f)
+                .dockingEnabled(true)
+                .open();
+        second.layout(style -> style.size(240.0f, 160.0f).flexGrow(0).flexShrink(0.0f));
+        layer.addOverlay(second);
+        layout(layer, 640.0f, 400.0f);
+        expect(first.dockingRoot().manager().paneCount() == 2
+                        && second.dockingRoot().manager().paneCount() == 1,
+                "Fixture should host two panes in the first window and one in the second");
+
+        // Тащим первое окно за header на центр второго: уезжает весь док-узел.
+        press(context, first,
+                first.layoutBounds().x() + 12.0f, first.layoutBounds().y() + 6.0f, 41);
+        expect(first.dragging(), "Header press should start dragging the whole host window");
+        float[] center = cellCenter(second.dockingRoot(), DockArea.CENTER);
+        move(context, first, center[0], center[1], 41);
+        DrawList previewDrawList = new DrawList();
+        second.dockingRoot().render(new dev.sixik.unigui.impl.render.DefaultRenderContext(previewDrawList));
+        expect(hasFloatingPreview(previewDrawList),
+                "Dragging a host window over another host should preview the merge");
+        release(context, first, center[0], center[1], 41);
+        layer.applyQueuedMutations();
+        layout(layer, 640.0f, 400.0f);
+
+        expect(second.dockingRoot().manager().paneCount() == 3
+                        && !first.opened()
+                        && second.opened(),
+                "Dropping a host window on another host should move all its panes and close the source");
+    }
+
+    private void testDockingDisabledWindowRejectsDrops() {
+        DefaultUIContext context = new DefaultUIContext();
+        OverlayLayer layer = new OverlayLayer(new StackPanel());
+        layer.setUiContextInternal(context);
+
+        WindowWidget plain = new WindowWidget("Plain", content("Plain body"))
+                .position(300.0f, 200.0f)
+                .open();
+        plain.layout(style -> style.size(240.0f, 160.0f).flexGrow(0).flexShrink(0.0f));
+        layer.addOverlay(plain);
+
+        WindowWidget guest = new WindowWidget("Guest", content("Guest body"))
+                .position(40.0f, 40.0f)
+                .dockable(true)
+                .dockPaneId("guest-pane")
+                .open();
+        guest.layout(style -> style.size(200.0f, 120.0f).flexGrow(0).flexShrink(0.0f));
+        layer.addOverlay(guest);
+        layout(layer, 640.0f, 400.0f);
+
+        float centerX = plain.layoutBounds().x() + plain.layoutBounds().width() * 0.5f;
+        float centerY = plain.layoutBounds().y() + plain.layoutBounds().height() * 0.5f;
+        DockingRoot.previewForeignWindowDrop(guest, centerX, centerY);
+        expect(!DockingRoot.finishForeignWindowDrop(guest, centerX, centerY)
+                        && guest.opened()
+                        && guest.content() != null,
+                "Releasing a window over a docking-disabled window should keep it floating");
     }
 
     private void testWindowDockingAreaHostsAndMerges() {
@@ -1074,6 +1337,14 @@ public final class DockingInteractionSelfTest {
         dev.sixik.unigui.api.math.RectView bounds = root.layoutBounds();
         dev.sixik.unigui.api.math.MutableRect cell = DockingRoot.crossCellRect(bounds, area);
         return new float[]{cell.x() + cell.width() * 0.5f, cell.y() + cell.height() * 0.5f};
+    }
+
+    /**
+     * Центр ячейки креста внутреннего root окна-хоста: точка дропа
+     * для window↔window жестов, устойчивая к хедеру/паддингам окна.
+     */
+    private static float[] cellCenter(DockingRoot root, DockArea area) {
+        return diamondCenter(root, area);
     }
 
     private static void layout(OverlayLayer layer, float width, float height) {

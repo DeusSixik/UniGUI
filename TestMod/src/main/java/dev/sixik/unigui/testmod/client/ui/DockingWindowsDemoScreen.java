@@ -118,7 +118,7 @@ public final class DockingWindowsDemoScreen {
                 .gap(8.0f).flexGrow(0.0f).flexShrink(0.0f));
 
         Label title = fullWidth(label("DOCKING WINDOWS", TEXT), 22.0f);
-        Label hint = fullWidth(label("Drag headers over workspace or host windows. Hosts merge on drop.", DemoScaffold.MUTED), 34.0f);
+        Label hint = fullWidth(label("Drag headers over workspace or host windows. One flag: docking host joins tabs/splits via zones.", DemoScaffold.MUTED), 34.0f);
 
         Checkbox dockableCheck = checkbox("Dockable windows", true);
         Checkbox lockCheck = checkbox("Lock redock", false);
