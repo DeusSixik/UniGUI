@@ -280,6 +280,7 @@ public final class BasicControlsSelfTest {
         testDragDropHelperContracts();
         testTextWidgetRoleContracts();
         testPasswordAndSearchFields();
+        testTexturedFieldBackgroundNotBuried();
         testDefaultThemeContracts();
         testStylePackContracts();
         testStylePackXmlContracts();
@@ -303,6 +304,10 @@ public final class BasicControlsSelfTest {
         testScrollBarHoverExpandsThumb();
         testTextFieldModernChrome();
         testTextFieldFocusRingAndBorder();
+        testThemeDisabledFieldKeepsCustomFocusRing();
+        testTextFieldPaddingMovesText();
+        testButtonFocusRing();
+        testButtonStateBackgrounds();
         testTextFieldCaretBlink();
         testNestedScissorStack();
         testWidgetAnimationTransitions();
@@ -2343,6 +2348,57 @@ public final class BasicControlsSelfTest {
         return lines;
     }
 
+    private void testTexturedFieldBackgroundNotBuried() {
+        // Кейс ISF-поиска: nine-slice текстура + хром-заливка. Плоская
+        // заливка обязана пропускать ход, иначе хоронит текстуру.
+        TextField textured = new TextField("query");
+        textured.boxVisualEnabled(true);
+        textured.backgroundVisible(true);
+        textured.borderVisible(false);
+        textured.backgroundTextureFit(dev.sixik.unigui.api.render.ImageFit.NINE_SLICE);
+        textured.sliceBorders(6.0f);
+        textured.backgroundTexture(new dev.sixik.unigui.api.render.SimpleTextureHandle("test:search_bg", 20, 20));
+        textured.measure(new LayoutContext(200.0f, 60.0f));
+        textured.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 36.0f));
+        DrawList texturedDrawList = new DrawList();
+        textured.render(new DefaultRenderContext(texturedDrawList));
+
+        int fills = 0;
+        int firstFill = -1;
+        int firstTextured = -1;
+        java.util.List<DrawCommand> commands = texturedDrawList.commands();
+        for (int i = 0; i < commands.size(); i++) {
+            DrawCommand command = commands.get(i);
+            if (command.type() == DrawCommandType.ROUNDED_RECT
+                    && command.paint() != null
+                    && !command.paint().isStroke()
+                    && near(command.paint().color().r(), 0.08f)
+                    && near(command.paint().color().g(), 0.086f)
+                    && near(command.paint().color().b(), 0.10f)) {
+                fills++;
+                if (firstFill < 0) firstFill = i;
+            }
+            if (command.type() == DrawCommandType.TEXTURE
+                    || command.type() == DrawCommandType.TEXTURED_QUAD
+                    || command.type() == DrawCommandType.MESH) {
+                if (firstTextured < 0) firstTextured = i;
+            }
+        }
+        expect(firstTextured >= 0, "Textured field should render its background texture cells");
+        expect(fills == 1 && firstFill < firstTextured,
+                "Only the surface under-fill may paint the chrome color, before the texture — "
+                        + "TextInput must not bury the texture with a second fill");
+
+        // Обычное поле без текстуры: заливка остаётся единственным фоном.
+        TextField plain = new TextField("query");
+        plain.measure(new LayoutContext(200.0f, 60.0f));
+        plain.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 36.0f));
+        DrawList plainDrawList = new DrawList();
+        plain.render(new DefaultRenderContext(plainDrawList));
+        expect(countFillColor(plainDrawList, 0.08f, 0.086f, 0.10f, 1.0f) >= 1,
+                "Plain field should keep its flat chrome background fill");
+    }
+
     private void testDefaultThemeContracts() {
         DefaultUIContext uiContext = new DefaultUIContext();
         ColorView buttonText = uiContext.theme().styleFor(StyleIds.Widget.BUTTON).get(StyleKeys.TEXT_COLOR, WidgetState.NORMAL, null);
@@ -3717,6 +3773,183 @@ public final class BasicControlsSelfTest {
         field.render(new DefaultRenderContext(blurred));
         expect(noStrokeWithColor(blurred, field.focusBorderColor()),
                 "Blur should return the border to the base color");
+    }
+
+    private void testThemeDisabledFieldKeepsCustomFocusRing() {
+        TextField field = new TextField();
+        field.themeEnabled(false);
+        field.focusRingColor().set(0.0f, 0.0f, 0.0f, 0.0f);
+        field.borderVisible(false);
+        field.arrange(new MutableRect(50.0f, 50.0f, 200.0f, 36.0f));
+        field.handle(new FocusGainedEvent(field, null));
+        DrawList focused = new DrawList();
+        field.render(new DefaultRenderContext(focused));
+        expect(near(field.focusRingColor().a(), 0.0f),
+                "applyTheme with disabled theme must not resurrect the focus ring color");
+        expect(noStrokeWithColor(focused, new MutableColor(0.29f, 0.62f, 1.0f, 0.30f)),
+                "Disabled-theme field should paint no accent halo ring when focused");
+    }
+
+    private void testTextFieldPaddingMovesText() {
+        TextField field = new TextField("abc");
+        field.textPaddingX(4.0f);
+        field.arrange(new MutableRect(50.0f, 50.0f, 200.0f, 36.0f));
+        DrawList tight = new DrawList();
+        field.render(new DefaultRenderContext(tight));
+        int textIndex = firstCommandIndex(tight, DrawCommandType.TEXT, 0);
+        expect(textIndex >= 0 && near(tight.commands().get(textIndex).bounds().x(), 54.0f),
+                "textPaddingX should move the rendered text start to bounds + padding");
+
+        field.layout(style -> style.padding(30.0f, 0.0f));
+        DrawList layout = new DrawList();
+        field.render(new DefaultRenderContext(layout));
+        int layoutTextIndex = firstCommandIndex(layout, DrawCommandType.TEXT, 0);
+        expect(layoutTextIndex >= 0 && near(layout.commands().get(layoutTextIndex).bounds().x(), 54.0f),
+                "Explicit text padding should win over a larger layout padding");
+
+        field.textPaddingLeft(2.0f).textPaddingRight(10.0f);
+        field.measure(new LayoutContext(300.0f, 100.0f));
+        DrawList asym = new DrawList();
+        field.render(new DefaultRenderContext(asym));
+        int asymIndex = firstCommandIndex(asym, DrawCommandType.TEXT, 0);
+        expect(asymIndex >= 0 && near(asym.commands().get(asymIndex).bounds().x(), 52.0f),
+                "textPaddingLeft should control the text start edge independently");
+    }
+
+    private void testButtonFocusRing() {
+        Button button = new Button("Focus me");
+        button.setUiContextInternal(new DefaultUIContext());
+        button.arrange(new MutableRect(50.0f, 50.0f, 120.0f, 36.0f));
+        DrawList unfocused = new DrawList();
+        button.render(new DefaultRenderContext(unfocused));
+        expect(noStrokeWithColor(unfocused, button.focusRingColor()),
+                "Unfocused button should paint no focus ring");
+
+        button.handle(new FocusGainedEvent(button, null));
+        DrawList focusedDefault = new DrawList();
+        button.render(new DefaultRenderContext(focusedDefault));
+        expect(button.focused() && noStrokeWithColor(focusedDefault, button.focusRingColor()),
+                "Focus ring should stay off by default even while focused");
+
+        button.focusRingVisible(true);
+        DrawList focused = new DrawList();
+        button.render(new DefaultRenderContext(focused));
+        expect(hasStrokeWithColor(focused, button.focusRingColor(), 48.0f, 48.0f, 124.0f, 40.0f),
+                "Focused button with enabled ring should paint the halo outside its bounds");
+
+        button.handle(new FocusLostEvent(button, null));
+        DrawList blurred = new DrawList();
+        button.render(new DefaultRenderContext(blurred));
+        expect(!button.focused() && noStrokeWithColor(blurred, button.focusRingColor()),
+                "Blur should remove the button focus ring");
+    }
+
+    private void testButtonStateBackgrounds() {
+        Button button = new Button("State me");
+        button.setUiContextInternal(new DefaultUIContext());
+        button.themeEnabled(false);
+        button.background().set(0.10f, 0.10f, 0.10f, 1.0f);
+        button.hoverBackground().set(0.20f, 0.30f, 0.40f, 1.0f);
+        button.pressedBackground().set(0.50f, 0.10f, 0.10f, 1.0f);
+        button.arrange(new MutableRect(0.0f, 0.0f, 120.0f, 36.0f));
+
+        DrawList normal = new DrawList();
+        button.render(new DefaultRenderContext(normal));
+        expect(hasFillColor(normal, 0.10f, 0.10f, 0.10f, 1.0f)
+                        && !hasFillColor(normal, 0.20f, 0.30f, 0.40f, 1.0f),
+                "Idle button should paint only the base background");
+
+        button.handle(new PointerEnteredEvent(button, button, EventPhase.TARGET, 10.0f, 10.0f, 10.0f, 10.0f, 0));
+        DrawList hovered = new DrawList();
+        button.render(new DefaultRenderContext(hovered));
+        expect(lastFillColor(hovered, 0.20f, 0.30f, 0.40f, 1.0f),
+                "Hovered button should paint the explicit hover fill over the base");
+
+        button.handle(new PointerPressedEvent(button, 10.0f, 10.0f, 10.0f, 10.0f, 0, PointerButton.PRIMARY));
+        DrawList pressed = new DrawList();
+        button.render(new DefaultRenderContext(pressed));
+        expect(lastFillColor(pressed, 0.50f, 0.10f, 0.10f, 1.0f),
+                "Pressed button should prefer the pressed fill over the hover fill");
+
+        button.handle(new PointerReleasedEvent(button, 10.0f, 10.0f, 10.0f, 10.0f, 0, PointerButton.PRIMARY));
+        button.clearHoverBackground().clearPressedBackground();
+        DrawList cleared = new DrawList();
+        button.render(new DefaultRenderContext(cleared));
+        expect(hasFillColor(cleared, 0.10f, 0.10f, 0.10f, 1.0f)
+                        && !hasFillColor(cleared, 0.20f, 0.30f, 0.40f, 1.0f)
+                        && !hasFillColor(cleared, 0.50f, 0.10f, 0.10f, 1.0f),
+                "Cleared state backgrounds should leave only the base fill");
+
+        // State texture renders over the state fill of the same state.
+        button.hoverBackground().set(0.20f, 0.30f, 0.40f, 1.0f);
+        button.hoverTexture(new SimpleTextureHandle("test:hover", 16, 16));
+        DrawList textured = new DrawList();
+        button.render(new DefaultRenderContext(textured));
+        expect(lastTextureId(textured).equals("test:hover")
+                        && fillIndex(textured, 0.20f, 0.30f, 0.40f, 1.0f) < textureIndex(textured, "test:hover"),
+                "Hover texture should render over the hover fill");
+    }
+
+    private static boolean lastFillColor(DrawList drawList, float r, float g, float b, float a) {
+        int last = -1;
+        java.util.List<DrawCommand> commands = drawList.commands();
+        for (int i = 0; i < commands.size(); i++) {
+            DrawCommand command = commands.get(i);
+            if (command.paint() != null && !command.paint().isStroke()
+                    && near(command.paint().color().r(), r)
+                    && near(command.paint().color().g(), g)
+                    && near(command.paint().color().b(), b)
+                    && near(command.paint().color().a(), a)) {
+                last = i;
+            }
+        }
+        if (last < 0) return false;
+        // State fill must come after the base fill (theme color first).
+        for (int i = last + 1; i < commands.size(); i++) {
+            DrawCommand command = commands.get(i);
+            if (command.type() == DrawCommandType.ROUNDED_RECT && command.paint() != null
+                    && !command.paint().isStroke()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static int fillIndex(DrawList drawList, float r, float g, float b, float a) {
+        java.util.List<DrawCommand> commands = drawList.commands();
+        for (int i = 0; i < commands.size(); i++) {
+            DrawCommand command = commands.get(i);
+            if (command.paint() != null && !command.paint().isStroke()
+                    && near(command.paint().color().r(), r)
+                    && near(command.paint().color().g(), g)
+                    && near(command.paint().color().b(), b)
+                    && near(command.paint().color().a(), a)) {
+                return i;
+            }
+        }
+        return Integer.MAX_VALUE;
+    }
+
+    private static int textureIndex(DrawList drawList, String id) {
+        java.util.List<DrawCommand> commands = drawList.commands();
+        for (int i = 0; i < commands.size(); i++) {
+            DrawCommand command = commands.get(i);
+            if (command.type() == DrawCommandType.TEXTURE && command.texture() != null
+                    && id.equals(command.texture().id())) {
+                return i;
+            }
+        }
+        return Integer.MAX_VALUE;
+    }
+
+    private static String lastTextureId(DrawList drawList) {
+        String last = "";
+        for (DrawCommand command : drawList.commands()) {
+            if (command.type() == DrawCommandType.TEXTURE && command.texture() != null) {
+                last = command.texture().id();
+            }
+        }
+        return last;
     }
 
     private void testTextFieldCaretBlink() {
@@ -6571,16 +6804,18 @@ public final class BasicControlsSelfTest {
         expect(carousel.pageView() instanceof PageView
                         && carousel.header().parent() == carousel
                         && carousel.pageView().parent() == carousel
-                        && hasText(carouselDrawList, "<")
-                        && hasText(carouselDrawList, ">")
-                        && hasText(carouselDrawList, "1 / 3"),
-                "Carousel should compose PageView with previous/next controls and indicator chrome");
+                        && !hasText(carouselDrawList, "<")
+                        && !hasText(carouselDrawList, ">")
+                        && countCommands(carouselDrawList, DrawCommandType.LINE) >= 4
+                        && countCommands(carouselDrawList, DrawCommandType.CIRCLE) == 3
+                        && carousel.indicator().text().equals("1 / 3"),
+                "Carousel should compose PageView with previous/next controls and dot indicator");
         carousel.selectRelative(-1);
         DrawList cycledDrawList = new DrawList();
         carousel.render(new DefaultRenderContext(cycledDrawList));
         expect(carousel.selectedIndex() == 2
                         && carousel.pageView().selectedPage() == carousel.pages().get(2)
-                        && hasText(cycledDrawList, "3 / 3")
+                        && carousel.indicator().text().equals("3 / 3")
                         && hasText(cycledDrawList, "Carousel page three"),
                 "Carousel selectRelative should stay cyclic on top of the PageView selection model");
 
@@ -6599,7 +6834,7 @@ public final class BasicControlsSelfTest {
         DrawList expandedDrawList = new DrawList();
         panel.render(new DefaultRenderContext(expandedDrawList));
         expect(panel.expanded() && hasText(expandedDrawList, "Advanced")
-                        && countCommands(expandedDrawList, DrawCommandType.MESH) >= 1
+                        && countCommands(expandedDrawList, DrawCommandType.LINE) >= 2
                         && hasText(expandedDrawList, "Inner"),
                 "ExpandablePanel should render its expanded header and content");
 
@@ -6616,7 +6851,7 @@ public final class BasicControlsSelfTest {
         panel.arrange(new MutableRect(0.0f, 0.0f, 200.0f, panel.desiredSize().height()));
         panel.render(new DefaultRenderContext(collapsedDrawList));
         expect(hasText(collapsedDrawList, "Advanced")
-                        && countCommands(collapsedDrawList, DrawCommandType.MESH) >= 1
+                        && countCommands(collapsedDrawList, DrawCommandType.LINE) >= 2
                         && !hasText(collapsedDrawList, "Inner"),
                 "Collapsed ExpandablePanel should render only its header");
         expect(changes.count == 1 && !changes.lastChecked,
@@ -6664,11 +6899,12 @@ public final class BasicControlsSelfTest {
                         && tree.selectedPath().equals(java.util.List.of(0, 0))
                         && tree.visibleNodes().size() == 4,
                 "TreeView should expose roots, visible nodes and selected path");
-        expect(hasText(expandedDrawList, "▾ Root")
-                        && hasText(expandedDrawList, "▾ Child")
-                        && hasText(expandedDrawList, "  Leaf")
-                        && hasText(expandedDrawList, "▸ Other")
-                        && !hasText(expandedDrawList, "  Hidden"),
+        expect(hasText(expandedDrawList, "Root")
+                        && hasText(expandedDrawList, "Child")
+                        && hasText(expandedDrawList, "Leaf")
+                        && hasText(expandedDrawList, "Other")
+                        && !hasText(expandedDrawList, "Hidden")
+                        && countTreeChevrons(expandedDrawList) == 6,
                 "TreeView should render expanded branches and hide collapsed descendants");
 
         child.expanded(false);
@@ -6678,8 +6914,9 @@ public final class BasicControlsSelfTest {
         tree.render(new DefaultRenderContext(collapsedDrawList));
         expect(tree.selectedNode() == child
                         && tree.visibleNodes().size() == 3
-                        && hasText(collapsedDrawList, "▸ Child")
-                        && !hasText(collapsedDrawList, "  Leaf"),
+                        && hasText(collapsedDrawList, "Child")
+                        && !hasText(collapsedDrawList, "Leaf")
+                        && countTreeChevrons(collapsedDrawList) == 6,
                 "Collapsing a TreeView node should remove descendants from layout and render");
 
         TreeViewNode quiet = tree.addRoot("Quiet");
@@ -6741,6 +6978,35 @@ public final class BasicControlsSelfTest {
         expect(Widgets.treeView() instanceof TreeView
                         && Widgets.treeNode("Factory") instanceof TreeViewNode,
                 "Widgets factory should expose TreeView and TreeViewNode");
+
+        expect(textCommandX(expandedDrawList, "Leaf") > textCommandX(expandedDrawList, "Child")
+                        && textCommandX(expandedDrawList, "Child") > textCommandX(expandedDrawList, "Root"),
+                "TreeView child text should indent past its parent, not align with the parent row");
+
+        DrawList folderDrawList = renderTree(tree);
+        long folderLines = countCommands(folderDrawList, DrawCommandType.LINE);
+        tree.iconMode(TreeView.TreeIconMode.NONE);
+        leaf.noIcon();
+        DrawList plainDrawList = renderTree(tree);
+        expect(countCommands(plainDrawList, DrawCommandType.LINE) < folderLines
+                        && countCommands(plainDrawList, DrawCommandType.TEXTURE) == 0,
+                "TreeIconMode.NONE and noIcon should drop folder glyphs without drawing a texture");
+        tree.iconMode(TreeView.TreeIconMode.FOLDERS);
+    }
+
+    private static DrawList renderTree(TreeView tree) {
+        tree.measure(new LayoutContext(220.0f, 200.0f));
+        tree.arrange(new MutableRect(0.0f, 0.0f, 220.0f, tree.desiredSize().height()));
+        DrawList drawList = new DrawList();
+        tree.render(new DefaultRenderContext(drawList));
+        return drawList;
+    }
+
+    private static float textCommandX(DrawList drawList, String text) {
+        for (DrawCommand command : drawList.commands()) {
+            if (text.equals(command.text())) return command.bounds().x();
+        }
+        return -1.0f;
     }
 
     private void testLoadingIndicatorContracts() {
@@ -6952,6 +7218,9 @@ public final class BasicControlsSelfTest {
         expect(toggle.checked(), "ToggleButton should toggle on click");
         expect(checkedChanges.count == 1 && checkedChanges.lastChecked, "ToggleButton should emit checked changed event");
 
+        ToggleSwitch preset = new ToggleSwitch("Preset").silentChecked(true);
+        expect(preset.checked() && near(preset.switchProgress(), 1.0f),
+                "ToggleSwitch created checked should start at the on position without animating");
         ToggleSwitch toggleSwitch = new ToggleSwitch("Online");
         toggleSwitch.setUiContextInternal(uiContext);
         toggleSwitch.arrange(new MutableRect(0.0f, 0.0f, 90.0f, 20.0f));
@@ -6961,12 +7230,18 @@ public final class BasicControlsSelfTest {
                         && countCommands(switchDrawList, DrawCommandType.CIRCLE) == 1
                         && hasText(switchDrawList, "Online"),
                 "ToggleSwitch should render a rounded track, thumb and optional label");
+        float thumbOff = firstCircleX(switchDrawList);
         uiContext.routedEvents().dispatch(new PointerPressedEvent(toggleSwitch, 8.0f, 8.0f, 8.0f, 8.0f, 0, PointerButton.PRIMARY));
         uiContext.routedEvents().dispatch(new PointerReleasedEvent(toggleSwitch, 8.0f, 8.0f, 8.0f, 8.0f, 0, PointerButton.PRIMARY));
         expect(toggleSwitch.checked(), "ToggleSwitch should reuse ToggleButton checked behavior");
         toggleSwitch.tick(new FrameContext(1L, 0.08f, 0.0f, FramePhase.ANIMATION));
         expect(toggleSwitch.switchProgress() > 0.0f && toggleSwitch.switchProgress() < 1.0f,
                 "ToggleSwitch should animate switch progress after toggling");
+        DrawList midSwitchDrawList = new DrawList();
+        toggleSwitch.render(new DefaultRenderContext(midSwitchDrawList));
+        float thumbMid = firstCircleX(midSwitchDrawList);
+        expect(thumbMid > thumbOff,
+                "ToggleSwitch thumb should travel with switch progress instead of jumping");
         toggleSwitch.tick(new FrameContext(2L, 0.20f, 0.0f, FramePhase.ANIMATION));
         expect(near(toggleSwitch.switchProgress(), 1.0f), "ToggleSwitch animation should settle at checked progress");
 
@@ -7224,8 +7499,34 @@ public final class BasicControlsSelfTest {
         return box;
     }
 
+    private static float firstCircleX(DrawList drawList) {
+        for (DrawCommand command : drawList.commands()) {
+            if (command.type() == DrawCommandType.CIRCLE) return command.bounds().x();
+        }
+        return -1.0f;
+    }
+
     private static boolean hasText(DrawList drawList, String text) {
         return drawList.commands().stream().anyMatch(command -> text.equals(command.text()));
+    }
+
+    /**
+     * Считает disclosure-шевроны дерева по цвету {@code --text-lo}.
+     *
+     * <p>Иконки папки и файла рисуются {@code --text-mid}, поэтому в счёт не попадают.</p>
+     *
+     * @param drawList список команд отрисовки
+     * @return число stroke-отрезков шеврона
+     */
+    private static int countTreeChevrons(DrawList drawList) {
+        int lines = 0;
+        for (DrawCommand command : drawList.commands()) {
+            if (command.type() != DrawCommandType.LINE) continue;
+            if (command.paint() == null || !command.paint().isStroke()) continue;
+            if (!near(command.paint().color().r(), 0.373f)) continue;
+            lines++;
+        }
+        return lines;
     }
 
     private static long countTextCommands(DrawList drawList) {

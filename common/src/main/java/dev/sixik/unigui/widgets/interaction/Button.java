@@ -9,6 +9,8 @@ import dev.sixik.unigui.api.event.EventPhase;
 import dev.sixik.unigui.api.event.Event;
 import dev.sixik.unigui.api.event.EventListener;
 import dev.sixik.unigui.api.event.EventSubscription;
+import dev.sixik.unigui.api.event.FocusGainedEvent;
+import dev.sixik.unigui.api.event.FocusLostEvent;
 import dev.sixik.unigui.api.event.PointerEvent;
 import dev.sixik.unigui.api.event.PointerEnteredEvent;
 import dev.sixik.unigui.api.event.PointerExitedEvent;
@@ -22,8 +24,12 @@ import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.ImageFit;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.render.SliceBorders;
+import dev.sixik.unigui.api.render.TextureHandle;
+import dev.sixik.unigui.api.render.TextureLayer;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
@@ -102,6 +108,10 @@ public class Button extends SurfaceWidget<Button> {
     protected static final float DEFAULT_HEIGHT = 18.0f;
     protected static final float DEFAULT_TEXT_PADDING_Y = (DEFAULT_HEIGHT - TextEngine.LINE_HEIGHT) * 0.5f;
     protected static final float APPROX_CHAR_WIDTH = TextEngine.APPROX_CHAR_WIDTH;
+    /** Вынос фокус-кольца за границы кнопки (как у TextInput). */
+    protected static final float FOCUS_RING_OUTSET = 2.0f;
+    /** Толщина фокус-кольца. */
+    protected static final float FOCUS_RING_WIDTH = 2.0f;
 
     private String text = "";
     private RichText richText = RichText.plain("");
@@ -110,6 +120,9 @@ public class Button extends SurfaceWidget<Button> {
     private float textPaddingX = DEFAULT_TEXT_PADDING_X;
     private float textPaddingY = DEFAULT_TEXT_PADDING_Y;
     private boolean pressed;
+    private boolean focused;
+    private boolean focusRingVisible;
+    private final MutableColor focusRingColor = new MutableColor(0.29f, 0.62f, 1.0f, 0.30f);
     private boolean chevronVisible;
     private boolean chevronUp;
     private Alignment textAlignment =
@@ -123,6 +136,15 @@ public class Button extends SurfaceWidget<Button> {
     private float pressedOpacity = 0.88f;
     private float disabledOpacity = 0.55f;
     private boolean customTextColor;
+    /**
+     * Явные per-state фоны: побеждают тему для своего состояния.
+     * Ленивые (null = не задан): цвет отдельно, текстура отдельно,
+     * чтобы можно было задать только заливку или только текстуру.
+     */
+    private MutableColor hoverBackground;
+    private TextureLayer hoverTexture;
+    private MutableColor pressedBackground;
+    private TextureLayer pressedTexture;
 
     public Button() {
         mouseCursor(MouseCursor.POINTER);
@@ -134,6 +156,7 @@ public class Button extends SurfaceWidget<Button> {
         // ручной цвет (иначе первое же нажатие с transition навсегда
         // замораживало текст в pressed-цвете).
         textColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
+        focusRingColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
     }
 
     public Button(String text) {
@@ -245,6 +268,238 @@ public class Button extends SurfaceWidget<Button> {
 
     public boolean pressed() {
         return pressed;
+    }
+
+    /**
+     * Возвращает, владеет ли кнопка клавиатурным фокусом.
+     *
+     * @return {@code true} после {@code FocusGainedEvent} до {@code FocusLostEvent}
+     */
+    public boolean focused() {
+        return focused;
+    }
+
+    /**
+     * Возвращает live-цвет внешнего фокус-кольца.
+     *
+     * <p>Кольцо рисуется самим классом (как у {@code TextInput}), тема только
+     * отдаёт цвет через {@code ACCENT_COLOR}: по умолчанию акцент с 30% alpha.
+     * Прозрачный цвет гасит кольцо без ломки остального хрома.</p>
+     *
+     * @return изменяемый цвет кольца вокруг сфокусированной кнопки
+     */
+    public MutableColor focusRingColor() {
+        return focusRingColor;
+    }
+
+    /**
+     * Возвращает, рисуется ли внешнее фокус-кольцо.
+     *
+     * <p>По умолчанию выключено: фокус виден по акцентной рамке из темы,
+     * кольцо — opt-in для мест, где нужен более заметный индикатор.</p>
+     *
+     * @return {@code true}, если кольцо рисуется в фокусе
+     */
+    public boolean focusRingVisible() {
+        return focusRingVisible;
+    }
+
+    /**
+     * Включает или выключает внешнее фокус-кольцо.
+     *
+     * @param focusRingVisible {@code true}, чтобы рисовать кольцо в фокусе
+     * @return эта кнопка для fluent-настройки
+     */
+    @XmlAttribute(value = "focusRingVisible", category = "Appearance", defaultValue = "false", description = "Whether the button paints an outer halo ring while focused.")
+    public Button focusRingVisible(boolean focusRingVisible) {
+        if (this.focusRingVisible == focusRingVisible) return this;
+        this.focusRingVisible = focusRingVisible;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Возвращает явный фон hover-состояния.
+     *
+     * <p>Ленивый live-цвет: создаётся при первом обращении, поэтому сам факт
+     * вызова геттера включает per-state фон. Заданный цвет побеждает тему
+     * для hover-состояния; текстура того же состояния рисуется поверх него.
+     * Сброс — {@link #clearHoverBackground()}.</p>
+     *
+     * @return изменяемый hover-цвет фона
+     */
+    public MutableColor hoverBackground() {
+        if (hoverBackground == null) {
+            hoverBackground = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
+            hoverBackground.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
+            invalidate(InvalidationFlags.VISUAL);
+        }
+        return hoverBackground;
+    }
+
+    /**
+     * Задаёт фон hover-состояния одним вызовом.
+     *
+     * @param color новый hover-цвет; {@code null} сбрасывает к теме
+     * @return эта кнопка для fluent-настройки
+     */
+    @XmlAttribute(value = "hoverBackground", category = "Appearance", defaultValue = "", description = "Explicit hover background color; empty means themed.")
+    public Button hoverBackground(ColorView color) {
+        if (color == null) return clearHoverBackground();
+        hoverBackground().set(color);
+        return this;
+    }
+
+    /**
+     * Сбрасывает явный фон hover-состояния: hover снова красится темой.
+     *
+     * @return эта кнопка для fluent-настройки
+     */
+    public Button clearHoverBackground() {
+        if (hoverBackground == null) return this;
+        hoverBackground = null;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Возвращает явный фон pressed-состояния.
+     *
+     * <p>Семантика как у {@link #hoverBackground()}: ленивый live-цвет,
+     * побеждает тему для pressed, сброс — {@link #clearPressedBackground()}.</p>
+     *
+     * @return изменяемый pressed-цвет фона
+     */
+    public MutableColor pressedBackground() {
+        if (pressedBackground == null) {
+            pressedBackground = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
+            pressedBackground.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
+            invalidate(InvalidationFlags.VISUAL);
+        }
+        return pressedBackground;
+    }
+
+    /**
+     * Задаёт фон pressed-состояния одним вызовом.
+     *
+     * @param color новый pressed-цвет; {@code null} сбрасывает к теме
+     * @return эта кнопка для fluent-настройки
+     */
+    @XmlAttribute(value = "pressedBackground", category = "Appearance", defaultValue = "", description = "Explicit pressed background color; empty means themed.")
+    public Button pressedBackground(ColorView color) {
+        if (color == null) return clearPressedBackground();
+        pressedBackground().set(color);
+        return this;
+    }
+
+    /**
+     * Сбрасывает явный фон pressed-состояния: pressed снова красится темой.
+     *
+     * @return эта кнопка для fluent-настройки
+     */
+    public Button clearPressedBackground() {
+        if (pressedBackground == null) return this;
+        pressedBackground = null;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Возвращает явную текстуру hover-состояния.
+     *
+     * <p>Ленивый слой: создаётся при первом обращении. Пустой слой
+     * ({@code null}-текстура) ничего не рисует; заданная текстура рисуется
+     * поверх hover-заливки того же состояния. Сброс —
+     * {@link #clearHoverTexture()}.</p>
+     *
+     * @return изменяемый hover-слой
+     */
+    public TextureLayer hoverTexture() {
+        if (hoverTexture == null) {
+            hoverTexture = wireStateTexture(new TextureLayer(null));
+        }
+        return hoverTexture;
+    }
+
+    /**
+     * Задаёт текстуру hover-состояния одним вызовом.
+     *
+     * @param texture handle текстуры или {@code null} для сброса к теме
+     * @return эта кнопка для fluent-настройки
+     */
+    @XmlAttribute(value = "hoverTexture", displayName = "Hover Texture", category = "Assets", defaultValue = "", description = "Explicit hover background texture; empty means themed.")
+    public Button hoverTexture(TextureHandle texture) {
+        if (texture == null) return clearHoverTexture();
+        hoverTexture().texture(texture);
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Сбрасывает явную текстуру hover-состояния.
+     *
+     * @return эта кнопка для fluent-настройки
+     */
+    public Button clearHoverTexture() {
+        if (hoverTexture == null) return this;
+        unwireStateTexture(hoverTexture);
+        hoverTexture = null;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Возвращает явную текстуру pressed-состояния.
+     *
+     * <p>Семантика как у {@link #hoverTexture()}: ленивый слой поверх
+     * pressed-заливки, сброс — {@link #clearPressedTexture()}.</p>
+     *
+     * @return изменяемый pressed-слой
+     */
+    public TextureLayer pressedTexture() {
+        if (pressedTexture == null) {
+            pressedTexture = wireStateTexture(new TextureLayer(null));
+        }
+        return pressedTexture;
+    }
+
+    /**
+     * Задаёт текстуру pressed-состояния одним вызовом.
+     *
+     * @param texture handle текстуры или {@code null} для сброса к теме
+     * @return эта кнопка для fluent-настройки
+     */
+    @XmlAttribute(value = "pressedTexture", displayName = "Pressed Texture", category = "Assets", defaultValue = "", description = "Explicit pressed background texture; empty means themed.")
+    public Button pressedTexture(TextureHandle texture) {
+        if (texture == null) return clearPressedTexture();
+        pressedTexture().texture(texture);
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Сбрасывает явную текстуру pressed-состояния.
+     *
+     * @return эта кнопка для fluent-настройки
+     */
+    public Button clearPressedTexture() {
+        if (pressedTexture == null) return this;
+        unwireStateTexture(pressedTexture);
+        pressedTexture = null;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    private TextureLayer wireStateTexture(TextureLayer layer) {
+        layer.source().onChanged(() -> invalidate(InvalidationFlags.VISUAL));
+        layer.tint().onChanged(() -> invalidate(InvalidationFlags.VISUAL));
+        invalidate(InvalidationFlags.VISUAL);
+        return layer;
+    }
+
+    private void unwireStateTexture(TextureLayer layer) {
+        layer.source().onChanged(null);
+        layer.tint().onChanged(null);
     }
 
     /**
@@ -409,6 +664,14 @@ public class Button extends SurfaceWidget<Button> {
         boolean hoverChanged = event instanceof PointerEnteredEvent entered && entered.phase() == EventPhase.TARGET
                 || event instanceof PointerExitedEvent exited && exited.phase() == EventPhase.TARGET;
         super.handle(event);
+        if (event instanceof FocusGainedEvent) {
+            setFocused(true);
+            return;
+        }
+        if (event instanceof FocusLostEvent) {
+            setFocused(false);
+            return;
+        }
         if (hoverChanged) {
             applyInteractionTransition();
         }
@@ -460,7 +723,52 @@ public class Button extends SurfaceWidget<Button> {
         applyTheme();
         DrawScope draw = new DrawScope(context, transform(), layoutBounds());
         renderButtonText(draw);
+        renderFocusRing(draw);
         super.renderContent(context);
+    }
+
+    @Override
+    protected void renderSurface(RenderContext context) {
+        super.renderSurface(context);
+        renderStateBackground(context);
+    }
+
+    /**
+     * Рисует явный per-state фон поверх базового surface-рендера.
+     *
+     * <p>Выбор в классе, не в стиле: pressed побеждает hover, hover побеждает
+     * normal-базу. Внутри состояния сначала заливка, затем текстура поверх неё
+     * (та же композиция, что у базового фона). Пустое состояние (ни цвета, ни
+     * текстуры) — no-op, виден themed-базовый фон под ним.</p>
+     *
+     * @param context текущий render context
+     */
+    protected void renderStateBackground(RenderContext context) {
+        if (context == null || !backgroundVisible()) return;
+        MutableColor fill = null;
+        TextureLayer texture = null;
+        if (pressed) {
+            fill = pressedBackground;
+            texture = pressedTexture;
+        } else if (hovered()) {
+            fill = hoverBackground;
+            texture = hoverTexture;
+        }
+        boolean hasFill = fill != null && fill.a() > 0.0f;
+        boolean hasTexture = texture != null && texture.visible() && !texture.isEmpty();
+        if (!hasFill && !hasTexture) return;
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        float x = layoutBounds().x();
+        float y = layoutBounds().y();
+        float width = layoutBounds().width();
+        float height = layoutBounds().height();
+        float radius = radius();
+        if (hasFill) {
+            draw.roundedRectFilled(x, y, width, height, radius, fill);
+        }
+        if (hasTexture) {
+            renderTextureLayer(draw, texture, x, y, width, height, radius);
+        }
     }
 
     /**
@@ -540,6 +848,32 @@ public class Button extends SurfaceWidget<Button> {
             draw.line(centerX - half, centerY - rise, centerX, centerY + rise, paint);
             draw.line(centerX, centerY + rise, centerX + half, centerY - rise, paint);
         }
+    }
+
+    /**
+     * Рисует внешнее фокус-кольцо вокруг кнопки.
+     *
+     * <p>Геометрия — в классе (outset/width, как у {@code TextInput}), цвет —
+     * из темы через {@code ACCENT_COLOR}. No-op без фокуса, при выключенном
+     * {@link #focusRingVisible()} или прозрачном цвете. Рисуется поверх
+     * текста: тонкое кольцо снаружи границ текст не перекрывает.</p>
+     *
+     * @param draw draw scope виджета
+     */
+    protected void renderFocusRing(DrawScope draw) {
+        if (draw == null || !focused || !focusRingVisible || focusRingColor.a() <= 0.0f) return;
+        float x = layoutBounds().x();
+        float y = layoutBounds().y();
+        float width = layoutBounds().width();
+        float height = layoutBounds().height();
+        if (width <= 0.0f || height <= 0.0f) return;
+        draw.roundedRectStroke(
+                x - FOCUS_RING_OUTSET,
+                y - FOCUS_RING_OUTSET,
+                width + FOCUS_RING_OUTSET * 2.0f,
+                height + FOCUS_RING_OUTSET * 2.0f,
+                radius() + FOCUS_RING_OUTSET,
+                focusRingColor, FOCUS_RING_WIDTH);
     }
 
     /**
@@ -647,6 +981,10 @@ public class Button extends SurfaceWidget<Button> {
     @Override
     protected void applyTheme() {
         super.applyTheme();
+        ColorView themedAccent = styleValue(StyleKeys.ACCENT_COLOR, styleState(), null);
+        if (themedAccent != null) {
+            focusRingColor.set(themedAccent.r(), themedAccent.g(), themedAccent.b(), 0.30f);
+        }
         if (customTextColor) return;
         ColorView themedText = styleValue(StyleKeys.TEXT_COLOR, styleState(), textColor);
         if (themedText != null) {
@@ -657,7 +995,16 @@ public class Button extends SurfaceWidget<Button> {
     @Override
     protected WidgetState styleState() {
         if (!enabled()) return super.styleState();
-        return pressed ? WidgetState.PRESSED : super.styleState();
+        if (pressed) return WidgetState.PRESSED;
+        if (focused) return WidgetState.FOCUSED;
+        return super.styleState();
+    }
+
+    private void setFocused(boolean focused) {
+        if (this.focused == focused) return;
+        this.focused = focused;
+        applyTheme();
+        invalidate(InvalidationFlags.VISUAL);
     }
 
     private void setPressed(boolean pressed) {

@@ -1,5 +1,7 @@
 package dev.sixik.unigui.widgets.navigation;
 
+import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.text.RichText;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -17,6 +19,9 @@ public final class TreeViewNode {
     private TreeView owner;
     private boolean expanded = true;
     private boolean selectable = true;
+    private TextureHandle icon;
+    private IconDraw iconDraw;
+    private boolean iconSuppressed;
     private Button rowButton;
 
     public TreeViewNode() {
@@ -114,6 +119,81 @@ public final class TreeViewNode {
 
     public TreeViewNode toggleExpanded() {
         return expanded(!expanded);
+    }
+
+    /**
+     * Возвращает пользовательскую иконку узла.
+     *
+     * @return текстура иконки или {@code null}, если строка рисует векторный глиф
+     */
+    public TextureHandle icon() {
+        return icon;
+    }
+
+    /**
+     * Задаёт текстуру иконки узла.
+     *
+     * <p>{@code null} снимает текстуру. Глиф режима дерева вернётся, только если
+     * у узла нет собственной отрисовки и иконка не подавлена через {@link #noIcon()}.</p>
+     *
+     * @param icon текстура иконки или {@code null}
+     * @return этот узел
+     */
+    public TreeViewNode icon(TextureHandle icon) {
+        if (this.icon == icon && !iconSuppressed) return this;
+        this.icon = icon;
+        this.iconSuppressed = false;
+        notifyVisualChanged();
+        return this;
+    }
+
+    /**
+     * Возвращает собственную отрисовку иконки узла.
+     *
+     * @return отрисовка или {@code null}
+     */
+    public IconDraw iconDraw() {
+        return iconDraw;
+    }
+
+    /**
+     * Задаёт собственную отрисовку иконки в слоте 16×16.
+     *
+     * <p>Отрисовка побеждает текстуру и глиф режима. {@code null} снимает её.
+     * Колбэк не должен аллоцировать: вызывается на каждом кадре строки.</p>
+     *
+     * @param iconDraw отрисовка или {@code null}
+     * @return этот узел
+     */
+    public TreeViewNode iconDraw(IconDraw iconDraw) {
+        if (this.iconDraw == iconDraw && !iconSuppressed) return this;
+        this.iconDraw = iconDraw;
+        this.iconSuppressed = false;
+        notifyVisualChanged();
+        return this;
+    }
+
+    /**
+     * Возвращает, подавлена ли иконка узла.
+     *
+     * @return {@code true}, если строка не резервирует слот иконки
+     */
+    public boolean iconSuppressed() {
+        return iconSuppressed;
+    }
+
+    /**
+     * Убирает иконку узла: ни текстуры, ни глифа, ни слота.
+     *
+     * @return этот узел
+     */
+    public TreeViewNode noIcon() {
+        if (iconSuppressed && icon == null && iconDraw == null) return this;
+        icon = null;
+        iconDraw = null;
+        iconSuppressed = true;
+        notifyVisualChanged();
+        return this;
     }
 
     public boolean selectable() {
@@ -250,5 +330,25 @@ public final class TreeViewNode {
 
     private static String normalize(String value) {
         return value == null ? "" : value;
+    }
+
+    /**
+     * Рисует иконку узла в уже посчитанном слоте.
+     *
+     * <p>Вызывается каждый кадр строки. Реализация не должна аллоцировать.</p>
+     */
+    @FunctionalInterface
+    public interface IconDraw {
+        /**
+         * Рисует иконку.
+         *
+         * @param draw draw scope строки
+         * @param node узел, которому принадлежит слот
+         * @param x X слота в пикселях
+         * @param y Y слота в пикселях
+         * @param width ширина слота в пикселях
+         * @param height высота слота в пикселях
+         */
+        void draw(DrawScope draw, TreeViewNode node, float x, float y, float width, float height);
     }
 }

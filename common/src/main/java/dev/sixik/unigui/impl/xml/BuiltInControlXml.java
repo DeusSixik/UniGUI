@@ -105,6 +105,10 @@ final class BuiltInControlXml {
                 .attribute("textPaddingX", XmlValueParsers.FLOAT, Button::textPaddingX)
                 .attribute("textPaddingY", XmlValueParsers.FLOAT, Button::textPaddingY)
                 .attribute("interactionTransitions", XmlValueParsers.BOOLEAN, Button::interactionTransitions)
+                .attribute("hoverBackground", XmlValueParsers.COLOR, Button::hoverBackground)
+                .attribute("pressedBackground", XmlValueParsers.COLOR, Button::pressedBackground)
+                .attribute("hoverTexture", XmlValueParsers.TEXTURE, Button::hoverTexture)
+                .attribute("pressedTexture", XmlValueParsers.TEXTURE, Button::pressedTexture)
                 .attribute("onClick", XmlValueParsers.STRING, BuiltInControlXml::bindClickCommand,
                         XmlAttributeDescriptor.of("onClick")
                                 .category("Behavior")

@@ -81,6 +81,27 @@ public class NumberField extends TextInput {
         return this;
     }
 
+    @Override
+    @XmlAttribute(value = "textPaddingX", category = "Layout", defaultValue = "12", description = "Symmetric inset between both edges and editable text.")
+    public NumberField textPaddingX(float textPaddingX) {
+        super.textPaddingX(textPaddingX);
+        return this;
+    }
+
+    @Override
+    @XmlAttribute(value = "textPaddingLeft", category = "Layout", defaultValue = "12", description = "Inset between the left edge and editable text.")
+    public NumberField textPaddingLeft(float textPaddingLeft) {
+        super.textPaddingLeft(textPaddingLeft);
+        return this;
+    }
+
+    @Override
+    @XmlAttribute(value = "textPaddingRight", category = "Layout", defaultValue = "12", description = "Inset between editable text and the right edge.")
+    public NumberField textPaddingRight(float textPaddingRight) {
+        super.textPaddingRight(textPaddingRight);
+        return this;
+    }
+
     public EventSubscription onValueChanged(EventListener<? super NumberValueChangedEvent> listener) {
         return on(NumberValueChangedEvent.TYPE, listener);
     }

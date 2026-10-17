@@ -88,4 +88,25 @@ public final class TimeSpanField extends TextField {
     private static boolean isAllowed(int codePoint) {
         return (codePoint >= '0' && codePoint <= '9') || codePoint == ':';
     }
+
+    @Override
+    @XmlAttribute(value = "textPaddingX", category = "Layout", defaultValue = "12", description = "Symmetric inset between both edges and editable text.")
+    public TimeSpanField textPaddingX(float textPaddingX) {
+        super.textPaddingX(textPaddingX);
+        return this;
+    }
+
+    @Override
+    @XmlAttribute(value = "textPaddingLeft", category = "Layout", defaultValue = "12", description = "Inset between the left edge and editable text.")
+    public TimeSpanField textPaddingLeft(float textPaddingLeft) {
+        super.textPaddingLeft(textPaddingLeft);
+        return this;
+    }
+
+    @Override
+    @XmlAttribute(value = "textPaddingRight", category = "Layout", defaultValue = "12", description = "Inset between editable text and the right edge.")
+    public TimeSpanField textPaddingRight(float textPaddingRight) {
+        super.textPaddingRight(textPaddingRight);
+        return this;
+    }
 }
