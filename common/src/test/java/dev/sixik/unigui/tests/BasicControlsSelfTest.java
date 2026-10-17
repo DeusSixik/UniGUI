@@ -7218,6 +7218,9 @@ public final class BasicControlsSelfTest {
         expect(toggle.checked(), "ToggleButton should toggle on click");
         expect(checkedChanges.count == 1 && checkedChanges.lastChecked, "ToggleButton should emit checked changed event");
 
+        ToggleSwitch preset = new ToggleSwitch("Preset").silentChecked(true);
+        expect(preset.checked() && near(preset.switchProgress(), 1.0f),
+                "ToggleSwitch created checked should start at the on position without animating");
         ToggleSwitch toggleSwitch = new ToggleSwitch("Online");
         toggleSwitch.setUiContextInternal(uiContext);
         toggleSwitch.arrange(new MutableRect(0.0f, 0.0f, 90.0f, 20.0f));
@@ -7227,12 +7230,18 @@ public final class BasicControlsSelfTest {
                         && countCommands(switchDrawList, DrawCommandType.CIRCLE) == 1
                         && hasText(switchDrawList, "Online"),
                 "ToggleSwitch should render a rounded track, thumb and optional label");
+        float thumbOff = firstCircleX(switchDrawList);
         uiContext.routedEvents().dispatch(new PointerPressedEvent(toggleSwitch, 8.0f, 8.0f, 8.0f, 8.0f, 0, PointerButton.PRIMARY));
         uiContext.routedEvents().dispatch(new PointerReleasedEvent(toggleSwitch, 8.0f, 8.0f, 8.0f, 8.0f, 0, PointerButton.PRIMARY));
         expect(toggleSwitch.checked(), "ToggleSwitch should reuse ToggleButton checked behavior");
         toggleSwitch.tick(new FrameContext(1L, 0.08f, 0.0f, FramePhase.ANIMATION));
         expect(toggleSwitch.switchProgress() > 0.0f && toggleSwitch.switchProgress() < 1.0f,
                 "ToggleSwitch should animate switch progress after toggling");
+        DrawList midSwitchDrawList = new DrawList();
+        toggleSwitch.render(new DefaultRenderContext(midSwitchDrawList));
+        float thumbMid = firstCircleX(midSwitchDrawList);
+        expect(thumbMid > thumbOff,
+                "ToggleSwitch thumb should travel with switch progress instead of jumping");
         toggleSwitch.tick(new FrameContext(2L, 0.20f, 0.0f, FramePhase.ANIMATION));
         expect(near(toggleSwitch.switchProgress(), 1.0f), "ToggleSwitch animation should settle at checked progress");
 
@@ -7488,6 +7497,13 @@ public final class BasicControlsSelfTest {
         box.backgroundVisible(true);
         box.background().set(0.25f, 0.50f, 0.75f, 1.0f);
         return box;
+    }
+
+    private static float firstCircleX(DrawList drawList) {
+        for (DrawCommand command : drawList.commands()) {
+            if (command.type() == DrawCommandType.CIRCLE) return command.bounds().x();
+        }
+        return -1.0f;
     }
 
     private static boolean hasText(DrawList drawList, String text) {

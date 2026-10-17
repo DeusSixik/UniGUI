@@ -556,9 +556,8 @@ public class ComboBox extends LinearBox {
             option.borderVisible(false);
             option.textAlignment(Alignment.START);
             option.textPaddingX(12.0f);
-            option.checkedBackground().set(SELECTED_BG_R, SELECTED_BG_G, SELECTED_BG_B, 1.0f);
-            option.uncheckedBackground().set(0.0f, 0.0f, 0.0f, 0.0f);
-            option.background().set(option.uncheckedBackground());
+            option.themeEnabled(false);
+            option.background().set(0.0f, 0.0f, 0.0f, 0.0f);
             option.layout(style -> style.size(LayoutConstraints.AUTO, optionRowHeight)
                     .margin(OPTION_SIDE_MARGIN, 0.0f)
                     .flexGrow(0).flexShrink(0.0f));
@@ -575,7 +574,13 @@ public class ComboBox extends LinearBox {
 
     private void syncSelectionState() {
         for (int i = 0; i < optionButtons.size(); i++) {
-            optionButtons.get(i).silentChecked(i == selectedIndex);
+            ToggleButton option = optionButtons.get(i);
+            option.silentChecked(i == selectedIndex);
+            if (i == selectedIndex) {
+                option.background().set(SELECTED_BG_R, SELECTED_BG_G, SELECTED_BG_B, 1.0f);
+            } else {
+                option.background().set(0.0f, 0.0f, 0.0f, 0.0f);
+            }
         }
     }
 

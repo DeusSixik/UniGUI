@@ -77,12 +77,28 @@ pressedTexture` (ручная регистрация в `button()`: `box()` чи
 Тест: `testButtonStateBackgrounds` (база в покое → hover-заливка поверх →
 pressed бьёт hover → clear возвращает базу → текстура поверх заливки).
 
+## ToggleSwitch: бегунок по прогрессу
+
+Прогресс переключения уже анимировался (`switchProgress`, 0.16 c), но
+бегунок читал `checked()` и прыгал в конец сразу, а дорожка меняла цвет
+скачком.
+
+Стало: `thumbX = padding + switchProgress * travel`, цвет дорожки —
+линейная смесь unchecked → checked по тому же прогрессу
+(`c = off + (on - off) * p`). Середина анимации показывает бегунок
+между краями.
+
+Тест: `testToggleCheckboxProgressAndNumberField` сравнивает X круга
+до клика и на полукадре.
+
 ## Отложено
 
 - Модерн-дефолты размеров кнопок (36/12/8 против текущих 18/8/5).
-- ToggleButton: pressed поверх checked, checked+hovered оттенок,
-  убрать императивный `background().set` в пользу theme-only, дефолты
-  в токены (сейчас legacy-циан `0.18/0.45/0.75`).
+- ToggleButton: checked+hovered оттенок. Императивный
+  `background().set` убран — checked-фон кнопки отдаёт тема через
+  `WidgetState.CHECKED`, hover/pressed больше не затираются.
+  `checkedBackground/uncheckedBackground` остались цветами индикатора
+  для Checkbox, ToggleSwitch и XML.
 - Danger-вариант из эталона (`.btn.danger`).
 - Палитра темы: тёплый акцент `0xC98A4B` против холодного `#4a9eff`
   в эталоне — решение отдельно, не в рамках кнопок.
