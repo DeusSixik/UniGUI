@@ -6832,7 +6832,7 @@ public final class BasicControlsSelfTest {
         DrawList expandedDrawList = new DrawList();
         panel.render(new DefaultRenderContext(expandedDrawList));
         expect(panel.expanded() && hasText(expandedDrawList, "Advanced")
-                        && countCommands(expandedDrawList, DrawCommandType.MESH) >= 1
+                        && countCommands(expandedDrawList, DrawCommandType.LINE) >= 2
                         && hasText(expandedDrawList, "Inner"),
                 "ExpandablePanel should render its expanded header and content");
 
@@ -6849,7 +6849,7 @@ public final class BasicControlsSelfTest {
         panel.arrange(new MutableRect(0.0f, 0.0f, 200.0f, panel.desiredSize().height()));
         panel.render(new DefaultRenderContext(collapsedDrawList));
         expect(hasText(collapsedDrawList, "Advanced")
-                        && countCommands(collapsedDrawList, DrawCommandType.MESH) >= 1
+                        && countCommands(collapsedDrawList, DrawCommandType.LINE) >= 2
                         && !hasText(collapsedDrawList, "Inner"),
                 "Collapsed ExpandablePanel should render only its header");
         expect(changes.count == 1 && !changes.lastChecked,

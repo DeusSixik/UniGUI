@@ -1253,9 +1253,27 @@ public final class UniGuiDemo {
                 .labelProvider(value -> "Pick: " + value);
         picker.dropDownSameWidth();
         picker.layout(style -> style.size(210.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
+        TreeView scrolledTree = new TreeView().iconMode(TreeView.TreeIconMode.FOLDERS);
+        TreeViewNode project = scrolledTree.addRoot("Project");
+        project.addChild("Button");
+        project.addChild("ComboBox");
+        project.addChild("TreeView");
+        project.addChild("ScrollView");
+        project.addChild("Accordion");
+        TreeViewNode assets = scrolledTree.addRoot("Assets");
+        assets.addChild("Textures");
+        assets.addChild("Shaders");
+        assets.addChild("Fonts");
+        scrolledTree.addRoot("Screens").addChild("Inventory").addChild("Crafting");
+        scrolledTree.silentSelect(project.child(2));
+        scrolledTree.layout(style -> style.size(190.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
+        ScrollView treeScroll = new ScrollView(scrolledTree);
+        treeScroll.overlayScrollBars(false);
+        treeScroll.layout(style -> style.size(190.0f, 120.0f).flexGrow(0).flexShrink(0.0f));
         WrapPanel trees = wrap();
         trees.addChild(tree);
         trees.addChild(treeList);
+        trees.addChild(treeScroll);
         trees.addChild(picker);
         page.addChild(section("TreeView / TreeList / TreeListPicker", trees));
 
