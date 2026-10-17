@@ -48,6 +48,8 @@ HollowEngine UI и главные окна игровых движков в ду
   слот иконки; unicode-маркер убран из текста.
 - `accordion-refresh.md` — заголовок ExpandablePanel: шеврон слотом справа
   вместо inline-треугольника. Accordion не слит с панелью.
+- `pageview-refresh.md` — Carousel: точки вместо видимого `1 / 3`.
+  PageView остаётся без хрома.
 
 ## Статусы
 

@@ -6804,16 +6804,18 @@ public final class BasicControlsSelfTest {
         expect(carousel.pageView() instanceof PageView
                         && carousel.header().parent() == carousel
                         && carousel.pageView().parent() == carousel
-                        && hasText(carouselDrawList, "<")
-                        && hasText(carouselDrawList, ">")
-                        && hasText(carouselDrawList, "1 / 3"),
-                "Carousel should compose PageView with previous/next controls and indicator chrome");
+                        && !hasText(carouselDrawList, "<")
+                        && !hasText(carouselDrawList, ">")
+                        && countCommands(carouselDrawList, DrawCommandType.LINE) >= 4
+                        && countCommands(carouselDrawList, DrawCommandType.CIRCLE) == 3
+                        && carousel.indicator().text().equals("1 / 3"),
+                "Carousel should compose PageView with previous/next controls and dot indicator");
         carousel.selectRelative(-1);
         DrawList cycledDrawList = new DrawList();
         carousel.render(new DefaultRenderContext(cycledDrawList));
         expect(carousel.selectedIndex() == 2
                         && carousel.pageView().selectedPage() == carousel.pages().get(2)
-                        && hasText(cycledDrawList, "3 / 3")
+                        && carousel.indicator().text().equals("3 / 3")
                         && hasText(cycledDrawList, "Carousel page three"),
                 "Carousel selectRelative should stay cyclic on top of the PageView selection model");
 
