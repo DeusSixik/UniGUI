@@ -6359,6 +6359,26 @@ public final class BasicControlsSelfTest {
         expect(autoOverlayCombo.attachedOverlayLayer() == rootOverlay,
                 "Overlay ComboBox should attach its Popup to the topmost OverlayLayer automatically");
 
+        Button scrollAnchor = new Button("Anchor");
+        scrollAnchor.layout(style -> style.size(120.0f, 24.0f).flexGrow(0).flexShrink(0.0f));
+        VBox scrollContent = new VBox();
+        scrollContent.addChild(scrollAnchor);
+        ScrollView scroll = new ScrollView(scrollContent).contentSize(120.0f, 400.0f);
+        scroll.layout(style -> style.size(140.0f, 100.0f).flexGrow(0).flexShrink(0.0f));
+        OverlayLayer scrollOverlay = new OverlayLayer(scroll);
+        scrollOverlay.measure(new LayoutContext(200.0f, 160.0f));
+        scrollOverlay.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 160.0f));
+        Popup scrollPopup = new Popup(scrollAnchor, new Label("Menu"));
+        scrollPopup.open();
+        scrollOverlay.addOverlay(scrollPopup);
+        scrollOverlay.measure(new LayoutContext(200.0f, 160.0f));
+        scrollOverlay.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 160.0f));
+        float popupY = scrollPopup.layoutBounds().y();
+        scroll.scrollTo(0.0f, 40.0f);
+        scrollPopup.render(new DefaultRenderContext(new DrawList()));
+        expect(near(scrollPopup.layoutBounds().y(), popupY - 40.0f),
+                "Open popup should follow its anchor when the anchor scrolls");
+
         VBox customPanel = new VBox();
         customPanel.addChild(new Label("Custom content"));
         DropDownBox inlineDropDown = new DropDownBox()
