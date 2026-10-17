@@ -6897,11 +6897,12 @@ public final class BasicControlsSelfTest {
                         && tree.selectedPath().equals(java.util.List.of(0, 0))
                         && tree.visibleNodes().size() == 4,
                 "TreeView should expose roots, visible nodes and selected path");
-        expect(hasText(expandedDrawList, "▾ Root")
-                        && hasText(expandedDrawList, "▾ Child")
-                        && hasText(expandedDrawList, "  Leaf")
-                        && hasText(expandedDrawList, "▸ Other")
-                        && !hasText(expandedDrawList, "  Hidden"),
+        expect(hasText(expandedDrawList, "Root")
+                        && hasText(expandedDrawList, "Child")
+                        && hasText(expandedDrawList, "Leaf")
+                        && hasText(expandedDrawList, "Other")
+                        && !hasText(expandedDrawList, "Hidden")
+                        && countTreeChevrons(expandedDrawList) == 6,
                 "TreeView should render expanded branches and hide collapsed descendants");
 
         child.expanded(false);
@@ -6911,8 +6912,9 @@ public final class BasicControlsSelfTest {
         tree.render(new DefaultRenderContext(collapsedDrawList));
         expect(tree.selectedNode() == child
                         && tree.visibleNodes().size() == 3
-                        && hasText(collapsedDrawList, "▸ Child")
-                        && !hasText(collapsedDrawList, "  Leaf"),
+                        && hasText(collapsedDrawList, "Child")
+                        && !hasText(collapsedDrawList, "Leaf")
+                        && countTreeChevrons(collapsedDrawList) == 6,
                 "Collapsing a TreeView node should remove descendants from layout and render");
 
         TreeViewNode quiet = tree.addRoot("Quiet");
@@ -6974,6 +6976,35 @@ public final class BasicControlsSelfTest {
         expect(Widgets.treeView() instanceof TreeView
                         && Widgets.treeNode("Factory") instanceof TreeViewNode,
                 "Widgets factory should expose TreeView and TreeViewNode");
+
+        expect(textCommandX(expandedDrawList, "Leaf") > textCommandX(expandedDrawList, "Child")
+                        && textCommandX(expandedDrawList, "Child") > textCommandX(expandedDrawList, "Root"),
+                "TreeView child text should indent past its parent, not align with the parent row");
+
+        DrawList folderDrawList = renderTree(tree);
+        long folderLines = countCommands(folderDrawList, DrawCommandType.LINE);
+        tree.iconMode(TreeView.TreeIconMode.NONE);
+        leaf.noIcon();
+        DrawList plainDrawList = renderTree(tree);
+        expect(countCommands(plainDrawList, DrawCommandType.LINE) < folderLines
+                        && countCommands(plainDrawList, DrawCommandType.TEXTURE) == 0,
+                "TreeIconMode.NONE and noIcon should drop folder glyphs without drawing a texture");
+        tree.iconMode(TreeView.TreeIconMode.FOLDERS);
+    }
+
+    private static DrawList renderTree(TreeView tree) {
+        tree.measure(new LayoutContext(220.0f, 200.0f));
+        tree.arrange(new MutableRect(0.0f, 0.0f, 220.0f, tree.desiredSize().height()));
+        DrawList drawList = new DrawList();
+        tree.render(new DefaultRenderContext(drawList));
+        return drawList;
+    }
+
+    private static float textCommandX(DrawList drawList, String text) {
+        for (DrawCommand command : drawList.commands()) {
+            if (text.equals(command.text())) return command.bounds().x();
+        }
+        return -1.0f;
     }
 
     private void testLoadingIndicatorContracts() {
@@ -7459,6 +7490,25 @@ public final class BasicControlsSelfTest {
 
     private static boolean hasText(DrawList drawList, String text) {
         return drawList.commands().stream().anyMatch(command -> text.equals(command.text()));
+    }
+
+    /**
+     * Считает disclosure-шевроны дерева по цвету {@code --text-lo}.
+     *
+     * <p>Иконки папки и файла рисуются {@code --text-mid}, поэтому в счёт не попадают.</p>
+     *
+     * @param drawList список команд отрисовки
+     * @return число stroke-отрезков шеврона
+     */
+    private static int countTreeChevrons(DrawList drawList) {
+        int lines = 0;
+        for (DrawCommand command : drawList.commands()) {
+            if (command.type() != DrawCommandType.LINE) continue;
+            if (command.paint() == null || !command.paint().isStroke()) continue;
+            if (!near(command.paint().color().r(), 0.373f)) continue;
+            lines++;
+        }
+        return lines;
     }
 
     private static long countTextCommands(DrawList drawList) {

@@ -1229,7 +1229,7 @@ public final class UniGuiDemo {
                 .addPanel(expandable("Debug", "Profiler overlay and draw command counters."));
         page.addChild(section("Accordion / ExpandablePanel", accordion));
 
-        TreeView tree = new TreeView();
+        TreeView tree = new TreeView().iconMode(TreeView.TreeIconMode.FOLDERS);
         TreeViewNode root = tree.addRoot("UniGUI");
         TreeViewNode widgets = root.addChild("Widgets");
         widgets.addChild("Button");
@@ -1246,6 +1246,7 @@ public final class UniGuiDemo {
                 .addPath("Screens", "Inventory", "Crafting")
                 .addPath("Screens", "Recipe Machine", "Very long nested recipe category label");
         treeList.rowTextHoverScrollSpeed(36.0f);
+        treeList.iconMode(TreeView.TreeIconMode.NONE);
         treeList.layout(style -> style.size(190.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
         TreeListPicker<String> picker = new TreeListPicker<String>()
                 .values(List.of("Blocks/Crafting Table", "Items/Diamond", "Entities/Zombie", "Very/Long/Category/That/Matches/Widget/Width"))
