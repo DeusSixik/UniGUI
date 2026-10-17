@@ -67,6 +67,27 @@ public class TextField extends TextInput {
     }
 
     @Override
+    @XmlAttribute(value = "textPaddingX", category = "Layout", defaultValue = "12", description = "Symmetric inset between both edges and editable text.")
+    public TextField textPaddingX(float textPaddingX) {
+        super.textPaddingX(textPaddingX);
+        return this;
+    }
+
+    @Override
+    @XmlAttribute(value = "textPaddingLeft", category = "Layout", defaultValue = "12", description = "Inset between the left edge and editable text.")
+    public TextField textPaddingLeft(float textPaddingLeft) {
+        super.textPaddingLeft(textPaddingLeft);
+        return this;
+    }
+
+    @Override
+    @XmlAttribute(value = "textPaddingRight", category = "Layout", defaultValue = "12", description = "Inset between editable text and the right edge.")
+    public TextField textPaddingRight(float textPaddingRight) {
+        super.textPaddingRight(textPaddingRight);
+        return this;
+    }
+
+    @Override
     @XmlAttribute(value = "maxLength", category = "Behavior", defaultValue = "0", description = "Maximum editable character count; 0 means unlimited.")
     public TextField maxLength(int maxLength) {
         super.maxLength(maxLength);

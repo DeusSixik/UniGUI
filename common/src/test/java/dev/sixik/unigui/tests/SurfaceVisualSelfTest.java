@@ -118,6 +118,28 @@ public final class SurfaceVisualSelfTest {
         expect(countType(slicedDraw, dev.sixik.unigui.api.render.DrawCommandType.TEXTURE) == 9,
                 "nine-slice background should emit 9 texture cells");
 
+        // Overlay texture stack renders after the base background, in order.
+        Box layered = new Box();
+        layered.themeEnabled(false);
+        layered.background(new dev.sixik.unigui.api.math.MutableColor(0.10f, 0.10f, 0.10f, 1.0f));
+        layered.backgroundTexture(new dev.sixik.unigui.api.render.SimpleTextureHandle("test:base", 16, 16));
+        layered.overlayTexture(new dev.sixik.unigui.api.render.SimpleTextureHandle("test:first", 16, 16));
+        layered.overlayTexture(new dev.sixik.unigui.api.render.SimpleTextureHandle("test:second", 16, 16));
+        layered.overlayTexture(new dev.sixik.unigui.api.render.TextureLayer(null).visible(false));
+        layered.measure(new LayoutContext(120.0f, 60.0f));
+        layered.arrange(new MutableRect(0.0f, 0.0f, 120.0f, 60.0f));
+        DrawList layeredDraw = new DrawList();
+        layered.render(new DefaultRenderContext(layeredDraw));
+        expect(textureIds(layeredDraw).equals(java.util.List.of("test:base", "test:first", "test:second")),
+                "overlay textures should render after the base in insertion order, skipping empty layers");
+        expect(layered.overlayTextures().size() == 3, "overlay stack should expose added layers");
+
+        layered.clearOverlayTextures();
+        DrawList clearedDraw = new DrawList();
+        layered.render(new DefaultRenderContext(clearedDraw));
+        expect(textureIds(clearedDraw).equals(java.util.List.of("test:base")),
+                "clearOverlayTextures should leave only the base background texture");
+
         System.out.println("SurfaceVisualSelfTest passed");
     }
 
@@ -151,6 +173,19 @@ public final class SurfaceVisualSelfTest {
             }
         }
         return count;
+    }
+
+    private static java.util.List<String> textureIds(DrawList drawList) {
+        java.util.List<String> ids = new java.util.ArrayList<>();
+        Object[] commands = drawList.commandElements();
+        for (int i = 0, size = drawList.size(); i < size; i++) {
+            if (commands[i] instanceof DrawCommand command
+                    && command.type() == dev.sixik.unigui.api.render.DrawCommandType.TEXTURE
+                    && command.texture() != null) {
+                ids.add(command.texture().id());
+            }
+        }
+        return ids;
     }
 
     private static void expect(boolean condition, String message) {

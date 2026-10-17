@@ -42,6 +42,14 @@ HollowEngine UI и главные окна игровых движков в ду
   плавать, память размера окна; краевые полосы убраны.
 - `dropdown-refresh.md` — модерн-хром DropDownBox/ComboBox: хедер 36,
   шеврон слотом справа, зазор попапа 6, selected-пилюля; API без изменений.
+- `button-refresh.md` — фокус-кольцо Button в классе + прогресс HoldButton
+  по радиусу с инсетом бордера; рендер в виджетах, тема отдаёт цвета.
+- `treeview-refresh.md` — строка TreeView: шеврон штрихами, selected-пилюля,
+  слот иконки; unicode-маркер убран из текста.
+- `accordion-refresh.md` — заголовок ExpandablePanel: шеврон слотом справа
+  вместо inline-треугольника. Accordion не слит с панелью.
+- `pageview-refresh.md` — Carousel: точки вместо видимого `1 / 3`.
+  PageView остаётся без хрома.
 
 ## Статусы
 

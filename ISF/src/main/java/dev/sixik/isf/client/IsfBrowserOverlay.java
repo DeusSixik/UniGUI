@@ -704,6 +704,11 @@ final class IsfBrowserOverlay {
         search.boxVisualEnabled(true);
         search.backgroundVisible(true);
         search.borderVisible(false);
+        // Своя nine-slice текстура вместо хрома: фокус-кольцо и рамки
+        // дефолтного TextField здесь не нужны.
+        search.focusRingColor().set(0.0f, 0.0f, 0.0f, 0.0f);
+        // Текст ближе к краям: 12px дефолта слишком много для 20px-панели.
+        search.textPaddingX(6.0f);
         search.backgroundTextureFit(dev.sixik.unigui.api.render.ImageFit.NINE_SLICE);
         search.sliceBorders(6.0f);
         search.backgroundTexture(new MinecraftTextureHandle(

@@ -161,6 +161,7 @@ import dev.sixik.unigui.widgets.navigation.Carousel;
 import dev.sixik.unigui.widgets.navigation.ExpandablePanel;
 import dev.sixik.unigui.widgets.navigation.Menu;
 import dev.sixik.unigui.widgets.navigation.MenuBar;
+import dev.sixik.unigui.widgets.navigation.PageView;
 import dev.sixik.unigui.widgets.navigation.TabControl;
 import dev.sixik.unigui.widgets.navigation.ToolBar;
 import dev.sixik.unigui.widgets.navigation.TreeList;
@@ -1229,7 +1230,7 @@ public final class UniGuiDemo {
                 .addPanel(expandable("Debug", "Profiler overlay and draw command counters."));
         page.addChild(section("Accordion / ExpandablePanel", accordion));
 
-        TreeView tree = new TreeView();
+        TreeView tree = new TreeView().iconMode(TreeView.TreeIconMode.FOLDERS);
         TreeViewNode root = tree.addRoot("UniGUI");
         TreeViewNode widgets = root.addChild("Widgets");
         widgets.addChild("Button");
@@ -1246,28 +1247,71 @@ public final class UniGuiDemo {
                 .addPath("Screens", "Inventory", "Crafting")
                 .addPath("Screens", "Recipe Machine", "Very long nested recipe category label");
         treeList.rowTextHoverScrollSpeed(36.0f);
+        treeList.iconMode(TreeView.TreeIconMode.NONE);
         treeList.layout(style -> style.size(190.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
         TreeListPicker<String> picker = new TreeListPicker<String>()
                 .values(List.of("Blocks/Crafting Table", "Items/Diamond", "Entities/Zombie", "Very/Long/Category/That/Matches/Widget/Width"))
                 .labelProvider(value -> "Pick: " + value);
         picker.dropDownSameWidth();
         picker.layout(style -> style.size(210.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
+        TreeView scrolledTree = new TreeView().iconMode(TreeView.TreeIconMode.FOLDERS);
+        TreeViewNode project = scrolledTree.addRoot("Project");
+        project.addChild("Button");
+        project.addChild("ComboBox");
+        project.addChild("TreeView");
+        project.addChild("ScrollView");
+        project.addChild("Accordion");
+        TreeViewNode assets = scrolledTree.addRoot("Assets");
+        assets.addChild("Textures");
+        assets.addChild("Shaders");
+        assets.addChild("Fonts");
+        scrolledTree.addRoot("Screens").addChild("Inventory").addChild("Crafting");
+        scrolledTree.silentSelect(project.child(2));
+        scrolledTree.layout(style -> style.size(190.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
+        ScrollView treeScroll = new ScrollView(scrolledTree);
+        treeScroll.overlayScrollBars(false);
+        treeScroll.layout(style -> style.size(190.0f, 120.0f).flexGrow(0).flexShrink(0.0f));
         WrapPanel trees = wrap();
         trees.addChild(tree);
         trees.addChild(treeList);
+        trees.addChild(treeScroll);
         trees.addChild(picker);
         page.addChild(section("TreeView / TreeList / TreeListPicker", trees));
 
         Carousel carousel = new Carousel()
-                .addPage(samplePane("Page 1", "Carousel keeps one page visible."))
-                .addPage(samplePane("Page 2", "Use arrows to switch pages."))
-                .addPage(samplePane("Page 3", "PageView owns retained pages without carousel chrome."));
-        carousel.layout(style -> style.size(LayoutConstraints.AUTO, 116.0f).flexGrow(0).flexShrink(0.0f));
+                .addPage(samplePane("Overview", "One page stays visible. Dots jump straight to a page."))
+                .addPage(samplePane("Layout", "Arrows cycle. The page counter stays available for contracts."))
+                .addPage(samplePane("Theme", "PageView itself draws no chrome. Carousel adds it."));
+        carousel.layout(style -> style.size(320.0f, 150.0f).flexGrow(0).flexShrink(0.0f));
+
+        PageView pages = new PageView()
+                .addPage(samplePane("Retained", "PageView keeps every page and shows exactly one."))
+                .addPage(samplePane("Selection", "Buttons below change selectedIndex. There is no built-in chrome."))
+                .addPage(samplePane("Content", "Collapsed pages stay in the tree and come back without rebuild."));
+        pages.layout(style -> style.size(320.0f, 96.0f).flexGrow(0).flexShrink(0.0f));
+        HBox pageNav = new HBox();
+        pageNav.spacing(6.0f);
+        Button pagePrevious = new Button("Previous");
+        Button pageNext = new Button("Next");
+        Label pageStatus = new Label("Page 1 / 3");
+        pagePrevious.layout(style -> style.size(84.0f, 28.0f).flexGrow(0).flexShrink(0.0f));
+        pageNext.layout(style -> style.size(72.0f, 28.0f).flexGrow(0).flexShrink(0.0f));
+        pageStatus.layout(style -> style.size(LayoutConstraints.AUTO, 28.0f).flexGrow(1).flexShrink(1.0f));
+        pagePrevious.onClick(event -> pages.selectRelative(-1));
+        pageNext.onClick(event -> pages.selectRelative(1));
+        pages.onSelectionChanged(event -> pageStatus.text(
+                "Page " + (pages.selectedIndex() + 1) + " / " + pages.pageCount()));
+        pageNav.addChild(pagePrevious);
+        pageNav.addChild(pageStatus);
+        pageNav.addChild(pageNext);
+
         View view = new View("View").addContent(paragraph("Titled content surface for feature modules."));
         view.layout(style -> style.size(LayoutConstraints.AUTO, 72.0f).flexGrow(0).flexShrink(0.0f));
         VBox pageWidgets = new VBox();
         pageWidgets.spacing(8.0f);
         pageWidgets.addChild(carousel);
+        pageWidgets.addChild(pages);
+        pageWidgets.addChild(pageNav);
         pageWidgets.addChild(view);
         page.addChild(section("Carousel / PageView / View", pageWidgets));
 
