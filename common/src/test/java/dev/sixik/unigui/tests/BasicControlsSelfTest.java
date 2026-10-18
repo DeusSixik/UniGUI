@@ -86,7 +86,6 @@ import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.StyleKeyRegistry;
 import dev.sixik.unigui.api.style.StylePackResult;
 import dev.sixik.unigui.api.style.StylePackXml;
-import dev.sixik.unigui.api.style.Theme;
 import dev.sixik.unigui.api.style.ThemeTokens;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.text.TextOverflowMode;
@@ -129,6 +128,7 @@ import dev.sixik.unigui.impl.text.AwtFontFace;
 import dev.sixik.unigui.impl.text.SdfGlyph;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
+import dev.sixik.unigui.impl.style.DefaultTheme;
 import dev.sixik.unigui.widgets.navigation.Accordion;
 import dev.sixik.unigui.widgets.interaction.Button;
 import dev.sixik.unigui.widgets.navigation.Breadcrumb;
@@ -2426,7 +2426,7 @@ public final class BasicControlsSelfTest {
         expect(tokenSnapshot.asStyle().get(StyleKeys.RADIUS, WidgetState.NORMAL, 0.0f) == 9.0f,
                 "ThemeTokens should expose shape values through the style layer");
         DefaultUIContext tokenContext = new DefaultUIContext();
-        tokenContext.theme(Theme.fromTokens(tokenSnapshot));
+        tokenContext.theme(DefaultTheme.withTokens(tokenSnapshot));
         Button tokenButton = new Button("Token");
         tokenButton.setUiContextInternal(tokenContext);
         tokenButton.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 18.0f));
@@ -2439,6 +2439,14 @@ public final class BasicControlsSelfTest {
         tokenButton.render(new DefaultRenderContext(explicitTokenDrawList));
         expect(hasFillColor(explicitTokenDrawList, 0.1f, 0.8f, 0.2f, 1.0f),
                 "Explicit control values should remain above token fallback");
+        TextField tokenField = new TextField();
+        tokenField.setUiContextInternal(tokenContext);
+        tokenField.arrange(new MutableRect(0.0f, 0.0f, 120.0f, 36.0f));
+        DrawList tokenFieldDrawList = new DrawList();
+        tokenField.render(new DefaultRenderContext(tokenFieldDrawList));
+        expect(hasFillColor(tokenFieldDrawList, 0.31f, 0.17f, 0.43f, 1.0f)
+                        && near(tokenField.radius(), 9.0f),
+                "Token theme should replace TextField constructor defaults");
         StylePack tokenPack = StylePack.create("token-pack")
                 .tokens(tokenSnapshot)
                 .putStyle(StyleIds.Widget.BUTTON,
@@ -3913,6 +3921,15 @@ public final class BasicControlsSelfTest {
         button.render(new DefaultRenderContext(blurred));
         expect(!button.focused() && noStrokeWithColor(blurred, button.focusRingColor()),
                 "Blur should remove the button focus ring");
+
+        DefaultUIContext pointerContext = new DefaultUIContext();
+        Button pointerButton = new Button("Pointer focus");
+        pointerButton.setUiContextInternal(pointerContext);
+        pointerContext.focusManager().requestFocus(pointerButton);
+        pointerButton.handle(new PointerPressedEvent(pointerButton, 4.0f, 4.0f, 4.0f, 4.0f, 0, PointerButton.PRIMARY));
+        pointerButton.handle(new PointerReleasedEvent(pointerButton, 4.0f, 4.0f, 4.0f, 4.0f, 0, PointerButton.PRIMARY));
+        expect(!pointerButton.focused() && pointerContext.focusManager().focusedWidget() == null,
+                "Pointer click should clear transient Button focus after release");
     }
 
     private void testButtonStateBackgrounds() {

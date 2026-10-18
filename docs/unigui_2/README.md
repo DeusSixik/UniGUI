@@ -22,6 +22,8 @@ HollowEngine UI и главные окна игровых движков в ду
    диагноз текущей Style + Theme, токены, приоритет резолва, API-скетч, миграция.
 4. [`style-token-layer.md`](style-token-layer.md) — контракт неизменяемых
    токенов, порядок резолва, версии и обязательный пользовательский пример.
+5. [`xaml-data-binding.md`](xaml-data-binding.md) — проект XML/XAML-подобного
+   data binding, code-behind, lifecycle и обязательной демо-команды.
 
 ## Порядок работ
 

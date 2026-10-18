@@ -703,6 +703,7 @@ public class Button extends SurfaceWidget<Button> {
             if (wasPressed) {
                 event.cancel();
             }
+            clearPointerFocus();
             return;
         }
 
@@ -1030,6 +1031,17 @@ public class Button extends SurfaceWidget<Button> {
         }
         pressedPointerId = -1;
         setPressed(false);
+    }
+
+    /**
+     * Снимает фокус, который экран временно назначил кнопке для pointer-click.
+     * Клавиатурная навигация продолжает управлять фокусом обычным образом.
+     */
+    private void clearPointerFocus() {
+        UIContext context = uiContext();
+        if (context != null && context.focusManager().isFocused(this)) {
+            context.focusManager().clearFocus();
+        }
     }
 
     private boolean ownsPressedPointer(PointerEvent pointer) {

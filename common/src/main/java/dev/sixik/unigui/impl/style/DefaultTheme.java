@@ -34,13 +34,27 @@ public final class DefaultTheme implements Theme {
     private static final ColorView OK = color(0x5F, 0xAE, 0x7A, 255);
     private static final float RADIUS = 5.0f;
 
-    public static final DefaultTheme INSTANCE = new DefaultTheme();
+    /**
+     * Стандартная тема без пользовательских token override.
+     */
+    public static final DefaultTheme INSTANCE = new DefaultTheme(ThemeTokens.EMPTY);
 
     private final Style fallback;
     private final Map<String, Style> styles = new HashMap<>();
-    private final ThemeTokens tokens = ThemeTokens.defaults();
+    private final ThemeTokens tokens;
 
-    private DefaultTheme() {
+    /**
+     * Создаёт копию стандартной темы с token override поверх hardcoded defaults.
+     *
+     * @param tokens снимок токенов или {@link ThemeTokens#EMPTY}
+     * @return тема с сохранёнными типовыми правилами и новой палитрой
+     */
+    public static DefaultTheme withTokens(ThemeTokens tokens) {
+        return new DefaultTheme(tokens == null ? ThemeTokens.EMPTY : tokens);
+    }
+
+    private DefaultTheme(ThemeTokens tokens) {
+        this.tokens = tokens;
         fallback = new MutableStyle()
                 .put(StyleKeys.BACKGROUND_COLOR, BG_1)
                 .put(StyleKeys.BACKGROUND_COLOR, WidgetState.DISABLED, BG_DISABLED)
@@ -78,7 +92,7 @@ public final class DefaultTheme implements Theme {
         Style style = widgetType == null || widgetType.isEmpty()
                 ? fallback
                 : styles.getOrDefault(widgetType, fallback);
-        return ResolvedStyle.of(List.of(tokens.asStyle(), style));
+        return ResolvedStyle.of(List.of(style, tokens.asStyle()));
     }
 
     @Override
