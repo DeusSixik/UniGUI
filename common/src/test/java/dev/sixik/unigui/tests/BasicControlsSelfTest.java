@@ -86,6 +86,8 @@ import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.StyleKeyRegistry;
 import dev.sixik.unigui.api.style.StylePackResult;
 import dev.sixik.unigui.api.style.StylePackXml;
+import dev.sixik.unigui.api.style.Theme;
+import dev.sixik.unigui.api.style.ThemeTokens;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.text.FontFace;
@@ -2414,6 +2416,38 @@ public final class BasicControlsSelfTest {
         expect(radiusKeyCopy.equals(StyleKeys.RADIUS), "StyleKey equality should use id and type");
         MutableStyle style = new MutableStyle().put(StyleKeys.RADIUS, 7.0f);
         expect(style.get(radiusKeyCopy, WidgetState.PRESSED, 0.0f) == 7.0f, "MutableStyle should fallback to NORMAL state");
+
+        ThemeTokens tokenSnapshot = ThemeTokens.builder()
+                .colors(colors -> colors
+                        .surface(MutableColor.rgba(0.31f, 0.17f, 0.43f, 1.0f))
+                        .accent(MutableColor.rgba(0.90f, 0.40f, 0.20f, 1.0f)))
+                .shapes(shapes -> shapes.radiusMd(9.0f))
+                .build();
+        expect(tokenSnapshot.asStyle().get(StyleKeys.RADIUS, WidgetState.NORMAL, 0.0f) == 9.0f,
+                "ThemeTokens should expose shape values through the style layer");
+        DefaultUIContext tokenContext = new DefaultUIContext();
+        tokenContext.theme(Theme.fromTokens(tokenSnapshot));
+        Button tokenButton = new Button("Token");
+        tokenButton.setUiContextInternal(tokenContext);
+        tokenButton.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 18.0f));
+        DrawList tokenDrawList = new DrawList();
+        tokenButton.render(new DefaultRenderContext(tokenDrawList));
+        expect(hasFillColor(tokenDrawList, 0.31f, 0.17f, 0.43f, 1.0f),
+                "Token theme should provide fallback colors to controls");
+        tokenButton.background(MutableColor.rgba(0.1f, 0.8f, 0.2f, 1.0f));
+        DrawList explicitTokenDrawList = new DrawList();
+        tokenButton.render(new DefaultRenderContext(explicitTokenDrawList));
+        expect(hasFillColor(explicitTokenDrawList, 0.1f, 0.8f, 0.2f, 1.0f),
+                "Explicit control values should remain above token fallback");
+        StylePack tokenPack = StylePack.create("token-pack")
+                .tokens(tokenSnapshot)
+                .putStyle(StyleIds.Widget.BUTTON,
+                        new MutableStyle().put(StyleKeys.BACKGROUND_COLOR,
+                                MutableColor.rgba(0.7f, 0.2f, 0.1f, 1.0f)));
+        ColorView packedColor = tokenPack.resolveStyleFor(StyleIds.Widget.BUTTON, "", List.of())
+                .get(StyleKeys.BACKGROUND_COLOR, WidgetState.NORMAL, null);
+        expect(packedColor != null && packedColor.r() == 0.7f,
+                "StylePack rules should remain above token fallback");
 
         Button themedButton = new Button("Theme");
         themedButton.setUiContextInternal(uiContext);

@@ -1,6 +1,7 @@
 package dev.sixik.unigui.api.style;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -13,7 +14,30 @@ import java.util.Map;
 public final class MutableTheme implements Theme {
     private final Map<String, Style> styles = new HashMap<>();
     private Style fallback = Style.EMPTY;
+    private ThemeTokens tokens = ThemeTokens.EMPTY;
     private long version;
+
+    /**
+     * Возвращает токены, которые используются после style-правил как fallback.
+     *
+     * @return неизменяемый снимок токенов
+     */
+    @Override
+    public ThemeTokens tokens() {
+        return tokens;
+    }
+
+    /**
+     * Назначает снимок токенов темы.
+     *
+     * @param tokens новый снимок или {@link ThemeTokens#EMPTY}
+     * @return эта тема для fluent-настройки
+     */
+    public MutableTheme tokens(ThemeTokens tokens) {
+        this.tokens = tokens == null ? ThemeTokens.EMPTY : tokens;
+        version++;
+        return this;
+    }
 
     /**
      * Задаёт fallback-стиль темы.
@@ -31,7 +55,7 @@ public final class MutableTheme implements Theme {
      * Назначает стиль на тип виджета.
      *
      * @param widgetType id типа виджета; пустой id обновляет fallback
-     * @param style стиль для типа или {@link Style#EMPTY}
+     * @param style      стиль для типа или {@link Style#EMPTY}
      * @return эта тема для fluent-настройки
      */
     public MutableTheme put(String widgetType, Style style) {
@@ -45,7 +69,7 @@ public final class MutableTheme implements Theme {
 
     @Override
     public long version() {
-        long result = version + fallback.version();
+        long result = version + tokens.version() + fallback.version();
         for (Style style : styles.values()) {
             result += style.version();
         }
@@ -54,7 +78,10 @@ public final class MutableTheme implements Theme {
 
     @Override
     public Style styleFor(String widgetType) {
-        if (widgetType == null || widgetType.isEmpty()) return fallback;
-        return styles.getOrDefault(widgetType, fallback);
+        Style style = widgetType == null || widgetType.isEmpty()
+                ? fallback
+                : styles.getOrDefault(widgetType, fallback);
+        if (tokens.asStyle() == Style.EMPTY) return style;
+        return ResolvedStyle.of(List.of(tokens.asStyle(), style));
     }
 }

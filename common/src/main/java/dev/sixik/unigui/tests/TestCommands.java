@@ -13,6 +13,9 @@ import dev.sixik.unigui.api.layout.SizeValue;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.UiRenderPolicy;
 import dev.sixik.unigui.api.selection.SelectionMode;
+import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.style.Theme;
+import dev.sixik.unigui.api.style.ThemeTokens;
 import dev.sixik.unigui.api.text.Fonts;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextOverflowMode;
@@ -125,6 +128,10 @@ public final class TestCommands {
                     RenderSystem.recordRenderCall(TestCommands::openNodeGraphExampleScreen);
                     return 0;
                 }))
+                .then(Commands.literal("style").executes(ctx -> {
+                    RenderSystem.recordRenderCall(TestCommands::openStyleApiExampleScreen);
+                    return 0;
+                }))
                 .then(Commands.literal("terminal").executes(ctx -> {
                     RenderSystem.recordRenderCall(DosTerminalDemo::openDemoClient);
                     return 0;
@@ -156,6 +163,13 @@ public final class TestCommands {
         installRenderModeToggle(screen);
     }
 
+    private static void openStyleApiExampleScreen() {
+        DefaultUIContext context = new DefaultUIContext(new MinecraftClipboardService());
+        Widget root = styleApiExample(context);
+        MinecraftWidgetScreen screen = openScreen(Component.literal("UniGUI Style API"), root, context);
+        installRenderModeToggle(screen);
+    }
+
     private static MinecraftWidgetScreen openScreen(Component title, Widget root, DefaultUIContext context) {
         MinecraftWidgetScreen screen = new MinecraftWidgetScreen(title, root, context);
         screen.renderPolicy(UiRenderPolicy.onDirty());
@@ -174,6 +188,115 @@ public final class TestCommands {
                 case CONTINUOUS -> screen.renderPolicy(UiRenderPolicy.onDirty());
             }
         };
+    }
+
+    /**
+     * Показывает минимальный пользовательский пример нового Style API.
+     *
+     * <p>Экран намеренно содержит и кодовые фрагменты, и живые виджеты: изменение API
+     * должно сразу получать проверяемый пример использования.</p>
+     */
+    private static Widget styleApiExample(DefaultUIContext context) {
+        StackPanel viewport = new StackPanel();
+        viewport.addChild(backgroundFrame());
+
+        ThemeTokens warmTokens = ThemeTokens.builder()
+                .colors(colors -> colors
+                        .surface(MutableColor.rgba(0.07f, 0.09f, 0.13f, 0.98f))
+                        .surfaceHover(MutableColor.rgba(0.11f, 0.15f, 0.22f, 1.0f))
+                        .accent(MutableColor.rgba(0.90f, 0.42f, 0.18f, 1.0f))
+                        .accentHover(MutableColor.rgba(1.0f, 0.58f, 0.24f, 1.0f)))
+                .shapes(shapes -> shapes.radiusMd(8.0f))
+                .build();
+        ThemeTokens coolTokens = ThemeTokens.builder()
+                .colors(colors -> colors
+                        .surface(MutableColor.rgba(0.04f, 0.10f, 0.16f, 0.98f))
+                        .surfaceHover(MutableColor.rgba(0.08f, 0.18f, 0.28f, 1.0f))
+                        .accent(MutableColor.rgba(0.22f, 0.62f, 1.0f, 1.0f))
+                        .accentHover(MutableColor.rgba(0.42f, 0.78f, 1.0f, 1.0f)))
+                .shapes(shapes -> shapes.radiusMd(5.0f))
+                .build();
+        context.theme(Theme.fromTokens(warmTokens));
+
+        VBox content = new VBox();
+        content.spacing(8.0f);
+        content.layout(style -> style.margin(18.0f).flexGrow(1).flexShrink(1.0f));
+
+        Label title = new Label("Style API");
+        title.color(MutableColor.rgba(0.92f, 0.95f, 1.0f, 1.0f));
+        title.layout(style -> style.size(LayoutConstraints.AUTO, 22.0f).flexGrow(0).flexShrink(0.0f));
+        content.addChild(title);
+
+        TextBlock description = new TextBlock(
+                "Строка и lambda дополняют один набор явных визуальных свойств. "
+                        + "Последнее добавленное правило StylePack перекрывает предыдущее.");
+        description.color(MutableColor.rgba(0.68f, 0.73f, 0.82f, 1.0f));
+        description.layout(style -> style.size(LayoutConstraints.AUTO, 38.0f).flexGrow(0).flexShrink(0.0f));
+        content.addChild(description);
+
+        TextBlock tokenCode = new TextBlock(
+                "Theme.fromTokens(tokens) меняет палитру и радиус без put(...) на каждый виджет.");
+        tokenCode.font(MinecraftFonts.uniformFace(), 10.0f);
+        tokenCode.color(MutableColor.rgba(0.72f, 0.86f, 0.98f, 1.0f));
+        tokenCode.layout(style -> style.size(LayoutConstraints.AUTO, 22.0f).flexGrow(0).flexShrink(0.0f));
+        content.addChild(tokenCode);
+
+        Button tokenButton = new Button("Токен темы");
+        tokenButton.layout(style -> style.size(190.0f, 28.0f).flexGrow(0).flexShrink(0.0f));
+        content.addChild(tokenButton);
+
+        final boolean[] cool = {false};
+        Button switchTheme = new Button("Переключить тему");
+        switchTheme.onClick(event -> {
+            cool[0] = !cool[0];
+            context.theme(Theme.fromTokens(cool[0] ? coolTokens : warmTokens), viewport);
+        });
+        switchTheme.layout(style -> style.size(190.0f, 28.0f).flexGrow(0).flexShrink(0.0f));
+        content.addChild(switchTheme);
+
+        TextBlock stringCode = new TextBlock(
+                "button.style(\"background: #7A1F1FFF; radius: 8;\");");
+        stringCode.font(MinecraftFonts.uniformFace(), 10.0f);
+        stringCode.color(MutableColor.rgba(0.72f, 0.86f, 0.98f, 1.0f));
+        stringCode.layout(style -> style.size(LayoutConstraints.AUTO, 22.0f).flexGrow(0).flexShrink(0.0f));
+        content.addChild(stringCode);
+
+        Button stringButton = new Button("Строковый стиль");
+        stringButton.style("background: #7A1F1FFF; radius: 8;");
+        stringButton.style(style -> style.put(StyleKeys.TEXT_COLOR,
+                MutableColor.rgba(1.0f, 0.94f, 0.88f, 1.0f)));
+        stringButton.layout(style -> style.size(190.0f, 28.0f).flexGrow(0).flexShrink(0.0f));
+        content.addChild(stringButton);
+
+        TextBlock lambdaCode = new TextBlock(
+                "button.style(s -> s.put(StyleKeys.BORDER_WIDTH, 2.0f));");
+        lambdaCode.font(MinecraftFonts.uniformFace(), 10.0f);
+        lambdaCode.color(MutableColor.rgba(0.72f, 0.86f, 0.98f, 1.0f));
+        lambdaCode.layout(style -> style.size(LayoutConstraints.AUTO, 22.0f).flexGrow(0).flexShrink(0.0f));
+        content.addChild(lambdaCode);
+
+        Button lambdaButton = new Button("Типизированный стиль");
+        lambdaButton.style(style -> style
+                .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.12f, 0.34f, 0.62f, 1.0f))
+                .put(StyleKeys.BORDER_WIDTH, 2.0f)
+                .put(StyleKeys.RADIUS, 8.0f));
+        lambdaButton.layout(style -> style.size(190.0f, 28.0f).flexGrow(0).flexShrink(0.0f));
+        content.addChild(lambdaButton);
+
+        TextBlock diagnosticsCode = new TextBlock(
+                "button.style(\"unknown: 1;\");  // диагностика доступна через styleDiagnostics()");
+        diagnosticsCode.font(MinecraftFonts.uniformFace(), 10.0f);
+        diagnosticsCode.color(MutableColor.rgba(0.92f, 0.68f, 0.46f, 1.0f));
+        diagnosticsCode.layout(style -> style.size(LayoutConstraints.AUTO, 22.0f).flexGrow(0).flexShrink(0.0f));
+        content.addChild(diagnosticsCode);
+
+        Button diagnosticButton = new Button("Стиль с диагностикой");
+        diagnosticButton.style("background: #33243DFF; unknown: 1;");
+        diagnosticButton.layout(style -> style.size(190.0f, 28.0f).flexGrow(0).flexShrink(0.0f));
+        content.addChild(diagnosticButton);
+
+        viewport.addChild(content);
+        return new OverlayLayer(viewport);
     }
 
     private static Widget examples(DefaultUIContext context) {

@@ -3,13 +3,16 @@ package dev.sixik.unigui.impl.style;
 import dev.sixik.unigui.api.animation.AnimationEasing;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.style.MutableStyle;
+import dev.sixik.unigui.api.style.ResolvedStyle;
 import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.style.StyleIds;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.Theme;
+import dev.sixik.unigui.api.style.ThemeTokens;
 import dev.sixik.unigui.api.style.WidgetState;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public final class DefaultTheme implements Theme {
@@ -35,6 +38,7 @@ public final class DefaultTheme implements Theme {
 
     private final Style fallback;
     private final Map<String, Style> styles = new HashMap<>();
+    private final ThemeTokens tokens = ThemeTokens.defaults();
 
     private DefaultTheme() {
         fallback = new MutableStyle()
@@ -71,8 +75,24 @@ public final class DefaultTheme implements Theme {
 
     @Override
     public Style styleFor(String widgetType) {
-        if (widgetType == null || widgetType.isEmpty()) return fallback;
-        return styles.getOrDefault(widgetType, fallback);
+        Style style = widgetType == null || widgetType.isEmpty()
+                ? fallback
+                : styles.getOrDefault(widgetType, fallback);
+        return ResolvedStyle.of(List.of(tokens.asStyle(), style));
+    }
+
+    @Override
+    public ThemeTokens tokens() {
+        return tokens;
+    }
+
+    @Override
+    public long version() {
+        long result = tokens.version();
+        for (Style style : styles.values()) {
+            result += style.version();
+        }
+        return result;
     }
 
     private void register(String widgetType, Style style) {

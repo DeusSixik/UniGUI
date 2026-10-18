@@ -20,16 +20,19 @@ HollowEngine UI и главные окна игровых движков в ду
    разобранный пример `DropDownBox`.
 3. [`theme-redesign.md`](theme-redesign.md) — проект новой системы тем:
    диагноз текущей Style + Theme, токены, приоритет резолва, API-скетч, миграция.
+4. [`style-token-layer.md`](style-token-layer.md) — контракт неизменяемых
+   токенов, порядок резолва, версии и обязательный пользовательский пример.
 
 ## Порядок работ
 
 1. HTML+CSS референс (фундамент: токены, shell, витрина dropdown) → `html-reference.md`.
 2. Зеркало в TestMod (`EngineWindowDemoScreen` на `DemoScaffold`) — открыть рядом
    с браузером, расхождения видны глазами.
-3. Токены темы + резолвер в коде → `theme-redesign.md`.
-4. Inline Style API и каскад правил → `style-api.md`, затем перевод `SurfaceWidget` / `Button` / `TextInput` (80% картинки), затем
+3. Контракт слоя токенов → `style-token-layer.md`.
+4. Токены темы + резолвер в коде → `theme-redesign.md`.
+5. Inline Style API и каскад правил → `style-api.md`, затем перевод `SurfaceWidget` / `Button` / `TextInput` (80% картинки), затем
    DropDown/Popup хром, затем остальное по аудиту.
-5. Таймлайн — отдельный новый виджет, вне этого цикла (см. `widget-audit.md`).
+6. Таймлайн — отдельный новый виджет, вне этого цикла (см. `widget-audit.md`).
 
 ## Выполнено вне очереди (ядро раньше хрома)
 
@@ -55,7 +58,7 @@ HollowEngine UI и главные окна игровых движков в ду
 
 - [x] HTML-референс собран (`engine-window-reference.html`)
 - [ ] Зеркало в TestMod собрано
-- [ ] Токены + резолвер реализованы
+- [x] Минимальные токены + token fallback подключены к резолверу
 - [ ] `SurfaceWidget` переведён
 - [ ] DropDown/Popup хром обновлён
 - [ ] Аудит остальных виджетов закрыт
