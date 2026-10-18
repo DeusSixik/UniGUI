@@ -42,9 +42,13 @@ import java.util.function.UnaryOperator;
  * {@link XmlWidgetOptions}.</p>
  */
 public final class XMLWidget {
-    /** Кэш стандартного реестра для коротких runtime-вызовов без пользовательского registry. */
+    /**
+     * Кэш стандартного реестра для коротких runtime-вызовов без пользовательского registry.
+     */
     private static volatile XmlWidgetRegistry defaultRegistry;
-    /** Версия contributions, на которой был построен {@link #defaultRegistry}. */
+    /**
+     * Версия contributions, на которой был построен {@link #defaultRegistry}.
+     */
     private static volatile long defaultRegistryVersion = Long.MIN_VALUE;
 
     private XMLWidget() {

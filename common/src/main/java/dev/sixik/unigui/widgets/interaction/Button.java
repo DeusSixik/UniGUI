@@ -4,48 +4,32 @@ import dev.sixik.unigui.api.animation.AnimationEasing;
 import dev.sixik.unigui.api.animation.TransitionSpec;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
-import dev.sixik.unigui.api.event.ButtonClickEvent;
-import dev.sixik.unigui.api.event.EventPhase;
-import dev.sixik.unigui.api.event.Event;
-import dev.sixik.unigui.api.event.EventListener;
-import dev.sixik.unigui.api.event.EventSubscription;
-import dev.sixik.unigui.api.event.FocusGainedEvent;
-import dev.sixik.unigui.api.event.FocusLostEvent;
-import dev.sixik.unigui.api.event.PointerEvent;
-import dev.sixik.unigui.api.event.PointerEnteredEvent;
-import dev.sixik.unigui.api.event.PointerExitedEvent;
-import dev.sixik.unigui.api.event.PointerPressedEvent;
-import dev.sixik.unigui.api.event.PointerReleasedEvent;
-import dev.sixik.unigui.api.input.PointerButton;
-import dev.sixik.unigui.api.input.MouseCursor;
-import dev.sixik.unigui.api.layout.Alignment;
+import dev.sixik.unigui.api.event.*;
 import dev.sixik.unigui.api.input.KeyCodes;
+import dev.sixik.unigui.api.input.MouseCursor;
+import dev.sixik.unigui.api.input.PointerButton;
+import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
-import dev.sixik.unigui.api.render.DrawScope;
-import dev.sixik.unigui.api.render.ImageFit;
-import dev.sixik.unigui.api.render.Paint;
-import dev.sixik.unigui.api.render.RenderContext;
-import dev.sixik.unigui.api.render.SliceBorders;
-import dev.sixik.unigui.api.render.TextureHandle;
-import dev.sixik.unigui.api.render.TextureLayer;
+import dev.sixik.unigui.api.render.*;
 import dev.sixik.unigui.api.render.shaders.ShaderDrawOptions;
 import dev.sixik.unigui.api.render.shaders.ShaderHandle;
 import dev.sixik.unigui.api.render.shaders.ShaderUniforms;
-import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.style.StyleAnimationIds;
+import dev.sixik.unigui.api.style.StyleIds;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
+import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.api.widget.render.WidgetRole;
+import dev.sixik.unigui.api.widget.visual.BackgroundKind;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
-import dev.sixik.unigui.api.style.StyleAnimationIds;
-import dev.sixik.unigui.api.style.StyleIds;
-import dev.sixik.unigui.api.widget.render.WidgetRole;
+import dev.sixik.unigui.widgets.containers.SurfaceWidget;
 
 import java.util.Objects;
-import dev.sixik.unigui.widgets.containers.SurfaceWidget;
 
 /**
  * Интерактивная кнопка с композируемой поверхностью и текстовым контентом.
@@ -111,9 +95,13 @@ public class Button extends SurfaceWidget<Button> {
     protected static final float DEFAULT_HEIGHT = 18.0f;
     protected static final float DEFAULT_TEXT_PADDING_Y = (DEFAULT_HEIGHT - TextEngine.LINE_HEIGHT) * 0.5f;
     protected static final float APPROX_CHAR_WIDTH = TextEngine.APPROX_CHAR_WIDTH;
-    /** Вынос фокус-кольца за границы кнопки (как у TextInput). */
+    /**
+     * Вынос фокус-кольца за границы кнопки (как у TextInput).
+     */
     protected static final float FOCUS_RING_OUTSET = 2.0f;
-    /** Толщина фокус-кольца. */
+    /**
+     * Толщина фокус-кольца.
+     */
     protected static final float FOCUS_RING_WIDTH = 2.0f;
 
     private String text = "";
@@ -146,11 +134,17 @@ public class Button extends SurfaceWidget<Button> {
      */
     private MutableColor hoverBackground;
     private TextureLayer hoverTexture;
-    /** Шейдер-оверлей hover-состояния; {@code null} отключает его. */
+    /**
+     * Шейдер-оверлей hover-состояния; {@code null} отключает его.
+     */
     private ShaderHandle hoverShader;
-    /** Uniforms hover-шейдера, переиспользуемые между кадрами. */
+    /**
+     * Uniforms hover-шейдера, переиспользуемые между кадрами.
+     */
     private ShaderUniforms hoverShaderUniforms = ShaderUniforms.empty();
-    /** Параметры draw-команды hover-шейдера. */
+    /**
+     * Параметры draw-команды hover-шейдера.
+     */
     private ShaderDrawOptions hoverShaderOptions = ShaderDrawOptions.defaults();
     private MutableColor pressedBackground;
     private TextureLayer pressedTexture;
@@ -619,7 +613,9 @@ public class Button extends SurfaceWidget<Button> {
      * Текст при видимом шевроне ужимается левее слота и выравнивается влево.
      */
     public static final float CHEVRON_SLOT_WIDTH = 24.0f;
-    /** Размер глифа шеврона в UI-пикселях. */
+    /**
+     * Размер глифа шеврона в UI-пикселях.
+     */
     public static final float CHEVRON_GLYPH_SIZE = 12.0f;
 
     /**
@@ -968,17 +964,17 @@ public class Button extends SurfaceWidget<Button> {
     /**
      * Рисует текст с обрезкой по области контента.
      *
-     * @param draw draw scope
-     * @param text текст
-     * @param clipX X области обрезки
-     * @param clipY Y области обрезки
-     * @param clipWidth ширина области обрезки
+     * @param draw       draw scope
+     * @param text       текст
+     * @param clipX      X области обрезки
+     * @param clipY      Y области обрезки
+     * @param clipWidth  ширина области обрезки
      * @param clipHeight высота области обрезки
-     * @param drawX X отрисовки текста
-     * @param drawY Y отрисовки текста
-     * @param drawWidth ширина отрисовки текста
+     * @param drawX      X отрисовки текста
+     * @param drawY      Y отрисовки текста
+     * @param drawWidth  ширина отрисовки текста
      * @param drawHeight высота отрисовки текста
-     * @param color цвет текста
+     * @param color      цвет текста
      */
     protected static void renderLabel(DrawScope draw, RichText text,
                                       float clipX, float clipY, float clipWidth, float clipHeight,
@@ -1000,14 +996,14 @@ public class Button extends SurfaceWidget<Button> {
     /**
      * Рисует квадратный indicator checkbox.
      *
-     * @param draw draw scope
-     * @param x X индикатора
-     * @param y Y индикатора
-     * @param size размер индикатора
-     * @param innerSize размер внутренней метки
-     * @param checked отмечен ли
-     * @param indeterminate неопределённое ли состояние
-     * @param borderColor цвет рамки
+     * @param draw           draw scope
+     * @param x              X индикатора
+     * @param y              Y индикатора
+     * @param size           размер индикатора
+     * @param innerSize      размер внутренней метки
+     * @param checked        отмечен ли
+     * @param indeterminate  неопределённое ли состояние
+     * @param borderColor    цвет рамки
      * @param indicatorColor цвет метки
      */
     protected static void renderCheckIndicator(DrawScope draw, float x, float y, float size, float innerSize,
@@ -1033,13 +1029,13 @@ public class Button extends SurfaceWidget<Button> {
     /**
      * Рисует круглый indicator radio button.
      *
-     * @param draw draw scope
-     * @param x X индикатора
-     * @param y Y индикатора
-     * @param size размер индикатора
-     * @param innerSize размер внутренней точки
-     * @param progress прогресс выбора от 0 до 1
-     * @param borderColor цвет кольца
+     * @param draw           draw scope
+     * @param x              X индикатора
+     * @param y              Y индикатора
+     * @param size           размер индикатора
+     * @param innerSize      размер внутренней точки
+     * @param progress       прогресс выбора от 0 до 1
+     * @param borderColor    цвет кольца
      * @param indicatorColor цвет точки
      */
     protected static void renderRadioIndicator(DrawScope draw, float x, float y, float size, float innerSize,
