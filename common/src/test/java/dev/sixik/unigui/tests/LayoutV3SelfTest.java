@@ -222,6 +222,13 @@ public final class LayoutV3SelfTest {
                         && EdgeInsets.css(1.0f, 2.0f).equals(new EdgeInsets(2.0f, 1.0f, 2.0f, 1.0f)),
                 "Сокращение EdgeInsets.css должно использовать порядок CSS top/right/bottom/left");
 
+        LayoutStyle implicitTracks = new LayoutStyle()
+                .gridAutoColumnsOf(GridTrack.px(24.0f), GridTrack.fr(1.0f))
+                .gridAutoRowsOf(GridTrack.auto(), GridTrack.minmax(GridTrack.px(12.0f), GridTrack.fr(1.0f)));
+        expect(implicitTracks.gridAutoColumns().equals(java.util.List.of(GridTrack.px(24.0f), GridTrack.fr(1.0f)))
+                        && implicitTracks.gridAutoRows().size() == 2,
+                "Varargs-помощники должны настраивать неявные треки так же, как явные шаблоны");
+
         expect(new FlexBox().layoutStyle().flexDirection() == FlexDirection.ROW,
                 "FlexBox по умолчанию должен использовать направление CSS row");
     }
