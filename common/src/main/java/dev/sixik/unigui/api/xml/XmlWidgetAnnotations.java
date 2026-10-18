@@ -16,6 +16,7 @@ import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.SliceBorders;
 import dev.sixik.unigui.api.render.TextureHandle;
+import dev.sixik.unigui.api.render.shaders.ShaderHandle;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.impl.widget.WidgetBase;
@@ -48,6 +49,14 @@ import java.util.function.Supplier;
  * на самом виджете, а не держать в ручном registry bootstrap.</p>
  */
 public final class XmlWidgetAnnotations {
+    /** Кэш результатов reflection-сканирования annotated setter-ов по runtime-классу. */
+    private static final ClassValue<List<Method>> ANNOTATED_SETTERS = new ClassValue<>() {
+        @Override
+        protected List<Method> computeValue(Class<?> type) {
+            return discoverAnnotatedSetters(type);
+        }
+    };
+
     private XmlWidgetAnnotations() {
     }
 
@@ -245,7 +254,7 @@ public final class XmlWidgetAnnotations {
         if (parameterType == SliceBorders.class) return XmlAttributeValueType.INSETS;
         if (parameterType == MutableColor.class || parameterType == ColorView.class) return XmlAttributeValueType.COLOR;
         if (parameterType == MutableRect.class || parameterType == RectView.class) return XmlAttributeValueType.STRING;
-        if (parameterType == TextureHandle.class) return XmlAttributeValueType.RESOURCE_ID;
+        if (parameterType == TextureHandle.class || parameterType == ShaderHandle.class) return XmlAttributeValueType.RESOURCE_ID;
         if (parameterType.isEnum()) return XmlAttributeValueType.ENUM;
         return XmlAttributeDescriptor.of(name).defaultValue(annotation.defaultValue()).valueType();
     }
@@ -579,6 +588,17 @@ public final class XmlWidgetAnnotations {
     }
 
     private static List<Method> annotatedSetters(Class<?> type) {
+        if (type == null) return List.of();
+        return ANNOTATED_SETTERS.get(type);
+    }
+
+    /**
+     * Выполняет reflection-поиск и стабильную сортировку annotated setter-ов.
+     *
+     * @param type класс виджета, методы которого нужно проанализировать
+     * @return неизменяемый список setter-ов, пригодных для XML-регистрации
+     */
+    private static List<Method> discoverAnnotatedSetters(Class<?> type) {
         Method[] methods = type.getMethods();
         Arrays.sort(methods, Comparator
                 .comparing(Method::getName)
@@ -637,6 +657,7 @@ public final class XmlWidgetAnnotations {
         if (type == MutableColor.class || type == ColorView.class) return XmlValueParsers.COLOR;
         if (type == MutableRect.class || type == RectView.class) return XmlValueParsers.RECT;
         if (type == TextureHandle.class) return XmlValueParsers.TEXTURE;
+        if (type == ShaderHandle.class) return XmlValueParsers.SHADER;
         if (type.isEnum()) return enumParser(type);
         throw new IllegalArgumentException("Unsupported @XmlAttribute parameter type: " + type.getName());
     }

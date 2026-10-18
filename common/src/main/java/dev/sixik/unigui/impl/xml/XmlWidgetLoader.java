@@ -52,6 +52,9 @@ import java.util.Set;
 public final class XmlWidgetLoader {
     private static final String XMLNS_URI = XMLConstants.XMLNS_ATTRIBUTE_NS_URI;
     private static final String LOCATION_KEY = XmlWidgetLoader.class.getName() + ".location";
+    /** Настроенные JAXP-фабрики, переиспользуемые в пределах одного loader-потока. */
+    private static final ThreadLocal<ParserFactories> PARSER_FACTORIES =
+            ThreadLocal.withInitial(ParserFactories::new);
     private static final Set<String> SCREEN_ATTRIBUTE_NAMES = Set.of(
             "type",
             "scaleProvider",
@@ -554,16 +557,11 @@ public final class XmlWidgetLoader {
 
     private Document parse(String xml) {
         try {
-            DocumentBuilderFactory documentFactory = DocumentBuilderFactory.newInstance();
-            documentFactory.setNamespaceAware(true);
+            ParserFactories parserFactories = PARSER_FACTORIES.get();
+            DocumentBuilderFactory documentFactory = parserFactories.documentFactory();
             Document document = documentFactory.newDocumentBuilder().newDocument();
 
-            SAXParserFactory factory = SAXParserFactory.newInstance();
-            factory.setNamespaceAware(true);
-            factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-            setFeatureIfSupported(factory, "http://apache.org/xml/features/disallow-doctype-decl", true);
-            setFeatureIfSupported(factory, "http://xml.org/sax/features/external-general-entities", false);
-            setFeatureIfSupported(factory, "http://xml.org/sax/features/external-parameter-entities", false);
+            SAXParserFactory factory = parserFactories.saxFactory();
 
             SAXParser parser = factory.newSAXParser();
             XMLReader reader = parser.getXMLReader();
@@ -600,6 +598,51 @@ public final class XmlWidgetLoader {
             reader.setFeature(feature, value);
         } catch (SAXNotRecognizedException | SAXNotSupportedException ignored) {
             // Не все XML-реализации поддерживают каждый флаг защиты парсера.
+        }
+    }
+
+    /**
+     * Хранит фабрики DOM/SAX с уже установленными безопасными настройками.
+     *
+     * <p>JAXP factory не используется между потоками: экземпляр принадлежит
+     * thread-local владельцу, а новый builder/reader создаётся для каждого XML.
+     * Это сохраняет безопасность и убирает повторную конфигурацию фабрик.</p>
+     */
+    private static final class ParserFactories {
+        /** Фабрика пустых DOM-документов с включёнными namespace. */
+        private final DocumentBuilderFactory documentFactory;
+        /** SAX-фабрика с запретом внешних сущностей и DTD. */
+        private final SAXParserFactory saxFactory;
+
+        /** Создаёт и один раз настраивает безопасные DOM/SAX-фабрики. */
+        private ParserFactories() {
+            documentFactory = DocumentBuilderFactory.newInstance();
+            documentFactory.setNamespaceAware(true);
+
+            saxFactory = SAXParserFactory.newInstance();
+            saxFactory.setNamespaceAware(true);
+            setFeatureIfSupported(saxFactory, XMLConstants.FEATURE_SECURE_PROCESSING, true);
+            setFeatureIfSupported(saxFactory, "http://apache.org/xml/features/disallow-doctype-decl", true);
+            setFeatureIfSupported(saxFactory, "http://xml.org/sax/features/external-general-entities", false);
+            setFeatureIfSupported(saxFactory, "http://xml.org/sax/features/external-parameter-entities", false);
+        }
+
+        /**
+         * Возвращает DOM factory текущего потока.
+         *
+         * @return настроенная DOM factory
+         */
+        private DocumentBuilderFactory documentFactory() {
+            return documentFactory;
+        }
+
+        /**
+         * Возвращает SAX factory текущего потока.
+         *
+         * @return настроенная SAX factory
+         */
+        private SAXParserFactory saxFactory() {
+            return saxFactory;
         }
     }
 

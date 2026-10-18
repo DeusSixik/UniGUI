@@ -42,6 +42,11 @@ import java.util.function.UnaryOperator;
  * {@link XmlWidgetOptions}.</p>
  */
 public final class XMLWidget {
+    /** Кэш стандартного реестра для коротких runtime-вызовов без пользовательского registry. */
+    private static volatile XmlWidgetRegistry defaultRegistry;
+    /** Версия contributions, на которой был построен {@link #defaultRegistry}. */
+    private static volatile long defaultRegistryVersion = Long.MIN_VALUE;
+
     private XMLWidget() {
     }
 
@@ -70,7 +75,7 @@ public final class XMLWidget {
      * @return корневой виджет документа
      */
     public static Widget create(String xml) {
-        return create(xml, registry(), XmlWidgetOptions.DEFAULT);
+        return create(xml, defaultRegistry(), XmlWidgetOptions.DEFAULT);
     }
 
     /**
@@ -81,7 +86,7 @@ public final class XMLWidget {
      * @return корневой виджет документа
      */
     public static Widget create(String xml, XmlWidgetOptions options) {
-        return create(xml, registry(), options);
+        return create(xml, defaultRegistry(), options);
     }
 
     /**
@@ -135,7 +140,7 @@ public final class XMLWidget {
      * @return screen payload с root widget и настройками масштаба
      */
     public static XmlWidgetScreen<Widget> createScreen(String xml) {
-        return createScreen(xml, registry(), XmlWidgetOptions.DEFAULT);
+        return createScreen(xml, defaultRegistry(), XmlWidgetOptions.DEFAULT);
     }
 
     /**
@@ -146,7 +151,7 @@ public final class XMLWidget {
      * @return screen payload с root widget и настройками масштаба
      */
     public static XmlWidgetScreen<Widget> createScreen(String xml, XmlWidgetOptions options) {
-        return createScreen(xml, registry(), options);
+        return createScreen(xml, defaultRegistry(), options);
     }
 
     /**
@@ -192,7 +197,7 @@ public final class XMLWidget {
      * @return typed screen payload
      */
     public static <T extends Widget> XmlWidgetScreen<T> createScreen(String xml, Class<T> widgetType) {
-        return createScreen(xml, widgetType, registry(), XmlWidgetOptions.DEFAULT);
+        return createScreen(xml, widgetType, defaultRegistry(), XmlWidgetOptions.DEFAULT);
     }
 
     /**
@@ -207,7 +212,7 @@ public final class XMLWidget {
     public static <T extends Widget> XmlWidgetScreen<T> createScreen(@Language("xaml") String xml,
                                                                      Class<T> widgetType,
                                                                      XmlWidgetOptions options) {
-        return createScreen(xml, widgetType, registry(), options);
+        return createScreen(xml, widgetType, defaultRegistry(), options);
     }
 
     /**
@@ -266,7 +271,7 @@ public final class XMLWidget {
      * @return корневой виджет, приведённый к {@code widgetType}
      */
     public static <T extends Widget> T create(String xml, Class<T> widgetType) {
-        return create(xml, widgetType, registry(), XmlWidgetOptions.DEFAULT);
+        return create(xml, widgetType, defaultRegistry(), XmlWidgetOptions.DEFAULT);
     }
 
     /**
@@ -279,7 +284,7 @@ public final class XMLWidget {
      * @return корневой виджет, приведённый к {@code widgetType}
      */
     public static <T extends Widget> T create(String xml, Class<T> widgetType, XmlWidgetOptions options) {
-        return create(xml, widgetType, registry(), options);
+        return create(xml, widgetType, defaultRegistry(), options);
     }
 
     /**
@@ -1089,9 +1094,32 @@ public final class XMLWidget {
     }
 
     private static XmlWidgetLoader loader(XmlWidgetRegistry registry, XmlWidgetOptions options) {
-        XmlWidgetRegistry normalizedRegistry = registry == null ? registry() : registry;
+        XmlWidgetRegistry normalizedRegistry = registry == null ? defaultRegistry() : registry;
         XmlWidgetOptions normalizedOptions = options == null ? XmlWidgetOptions.DEFAULT : options;
         return new XmlWidgetLoader(normalizedRegistry.delegate(), normalizedOptions);
+    }
+
+    /**
+     * Возвращает потокобезопасно переиспользуемый стандартный registry.
+     *
+     * <p>Построение built-in registry включает reflection-сканирование всех
+     * аннотированных setter-ов. Повторять эту работу перед каждым XML-load не
+     * нужно, поэтому кэш обновляется только после изменения глобальных
+     * contributions.</p>
+     *
+     * @return кэшированный registry со встроенными типами и текущими contributions
+     */
+    private static XmlWidgetRegistry defaultRegistry() {
+        long version = XmlWidgetRegistryContributions.version();
+        XmlWidgetRegistry cached = defaultRegistry;
+        if (cached != null && defaultRegistryVersion == version) return cached;
+        synchronized (XMLWidget.class) {
+            if (defaultRegistry == null || defaultRegistryVersion != version) {
+                defaultRegistry = XmlWidgetRegistry.builtIns();
+                defaultRegistryVersion = version;
+            }
+            return defaultRegistry;
+        }
     }
 
     private static XmlWidgetOptions applyOptions(UnaryOperator<XmlWidgetOptions> options) {

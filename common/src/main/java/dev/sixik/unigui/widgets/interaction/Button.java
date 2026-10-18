@@ -30,6 +30,9 @@ import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.render.SliceBorders;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.TextureLayer;
+import dev.sixik.unigui.api.render.shaders.ShaderDrawOptions;
+import dev.sixik.unigui.api.render.shaders.ShaderHandle;
+import dev.sixik.unigui.api.render.shaders.ShaderUniforms;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
@@ -143,6 +146,12 @@ public class Button extends SurfaceWidget<Button> {
      */
     private MutableColor hoverBackground;
     private TextureLayer hoverTexture;
+    /** Шейдер-оверлей hover-состояния; {@code null} отключает его. */
+    private ShaderHandle hoverShader;
+    /** Uniforms hover-шейдера, переиспользуемые между кадрами. */
+    private ShaderUniforms hoverShaderUniforms = ShaderUniforms.empty();
+    /** Параметры draw-команды hover-шейдера. */
+    private ShaderDrawOptions hoverShaderOptions = ShaderDrawOptions.defaults();
     private MutableColor pressedBackground;
     private TextureLayer pressedTexture;
 
@@ -431,6 +440,80 @@ public class Button extends SurfaceWidget<Button> {
     public Button hoverTexture(TextureHandle texture) {
         if (texture == null) return clearHoverTexture();
         hoverTexture().texture(texture);
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Возвращает шейдер, рисуемый поверх hover-заливки и hover-текстуры.
+     *
+     * @return handle шейдера или {@code null}
+     */
+    public ShaderHandle hoverShader() {
+        return hoverShader;
+    }
+
+    /**
+     * Задаёт шейдерный слой для состояния наведения.
+     *
+     * @param shader шейдер; {@code null} отключает overlay
+     * @return эта кнопка для fluent-настройки
+     */
+    @XmlAttribute(value = "hoverShader", category = "Appearance", defaultValue = "", description = "Ресурс шейдера поверх состояния наведения.")
+    public Button hoverShader(ShaderHandle shader) {
+        if (Objects.equals(hoverShader, shader)) return this;
+        hoverShader = shader;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Сбрасывает шейдерный слой наведения.
+     *
+     * @return эта кнопка для fluent-настройки
+     */
+    public Button clearHoverShader() {
+        return hoverShader(null);
+    }
+
+    /**
+     * Возвращает uniforms hover-шейдера.
+     *
+     * @return изменяемый набор uniforms
+     */
+    public ShaderUniforms hoverShaderUniforms() {
+        return hoverShaderUniforms;
+    }
+
+    /**
+     * Задаёт uniforms hover-шейдера.
+     *
+     * @param uniforms набор uniforms или {@code null} для пустого набора
+     * @return эта кнопка для fluent-настройки
+     */
+    public Button hoverShaderUniforms(ShaderUniforms uniforms) {
+        hoverShaderUniforms = uniforms == null ? ShaderUniforms.empty() : uniforms;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Возвращает параметры отрисовки hover-шейдера.
+     *
+     * @return изменяемые параметры draw-команды
+     */
+    public ShaderDrawOptions hoverShaderOptions() {
+        return hoverShaderOptions;
+    }
+
+    /**
+     * Задаёт параметры отрисовки hover-шейдера.
+     *
+     * @param options параметры или {@code null} для значений по умолчанию
+     * @return эта кнопка для fluent-настройки
+     */
+    public Button hoverShaderOptions(ShaderDrawOptions options) {
+        hoverShaderOptions = options == null ? ShaderDrawOptions.defaults() : options;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
@@ -748,16 +831,18 @@ public class Button extends SurfaceWidget<Button> {
         if (context == null || !backgroundVisible()) return;
         MutableColor fill = null;
         TextureLayer texture = null;
+        ShaderHandle shader = null;
         if (pressed) {
             fill = pressedBackground;
             texture = pressedTexture;
         } else if (hovered()) {
             fill = hoverBackground;
             texture = hoverTexture;
+            shader = hoverShader;
         }
         boolean hasFill = fill != null && fill.a() > 0.0f;
         boolean hasTexture = texture != null && texture.visible() && !texture.isEmpty();
-        if (!hasFill && !hasTexture) return;
+        if (!hasFill && !hasTexture && shader == null) return;
         DrawScope draw = new DrawScope(context, transform(), layoutBounds());
         float x = layoutBounds().x();
         float y = layoutBounds().y();
@@ -769,6 +854,9 @@ public class Button extends SurfaceWidget<Button> {
         }
         if (hasTexture) {
             renderTextureLayer(draw, texture, x, y, width, height, radius);
+        }
+        if (shader != null) {
+            draw.shader(shader, x, y, width, height, hoverShaderUniforms, hoverShaderOptions);
         }
     }
 

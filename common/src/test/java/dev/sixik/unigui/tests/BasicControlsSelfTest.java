@@ -6366,6 +6366,26 @@ public final class BasicControlsSelfTest {
                 "Open ComboBox should render all options");
         expect(combo.optionButton(1).checked(),
                 "ComboBox should mark the selected option as checked");
+        combo.optionHoverBackground().set(0.5f, 0.3f, 0.2f, 1.0f);
+        expect(near(combo.optionButton(0).hoverBackground().r(), 0.5f)
+                        && near(combo.optionButton(0).hoverBackground().g(), 0.3f),
+                "ComboBox live option hover color should update realized option buttons");
+        ToggleButton hoveredOption = combo.optionButton(0);
+        hoveredOption.handle(new PointerEnteredEvent(hoveredOption, 4.0f, 4.0f, 4.0f, 4.0f, 0));
+        DrawList hoveredOptionDrawList = new DrawList();
+        hoveredOption.render(new DefaultRenderContext(hoveredOptionDrawList));
+        expect(hasFillColor(hoveredOptionDrawList, 0.5f, 0.3f, 0.2f, 1.0f),
+                "ComboBox option should paint its configured hover background");
+
+        Button shaderHoverButton = new Button("Shader hover");
+        shaderHoverButton.themeEnabled(false);
+        shaderHoverButton.hoverShader(ShaderHandle.resource("test:hover"));
+        shaderHoverButton.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 20.0f));
+        shaderHoverButton.handle(new PointerEnteredEvent(shaderHoverButton, 4.0f, 4.0f, 4.0f, 4.0f, 0));
+        DrawList shaderHoverDrawList = new DrawList();
+        shaderHoverButton.render(new DefaultRenderContext(shaderHoverDrawList));
+        expect(shaderHoverDrawList.commands().stream().anyMatch(command -> command.type() == DrawCommandType.SHADER),
+                "Button should draw its configured shader over the hover state");
 
         Counter changes = new Counter();
         combo.onSelectionChanged(event -> {
