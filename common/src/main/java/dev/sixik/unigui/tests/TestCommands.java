@@ -4,27 +4,45 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.brigadier.CommandDispatcher;
 import dev.sixik.unigui.api.debug.DebugFlags;
 import dev.sixik.unigui.api.debug.DebugOverlayAnchor;
-import dev.sixik.unigui.api.layout.Align;
-import dev.sixik.unigui.api.layout.Alignment;
-import dev.sixik.unigui.api.layout.Justify;
-import dev.sixik.unigui.api.layout.LayoutConstraints;
-import dev.sixik.unigui.api.layout.PositionType;
-import dev.sixik.unigui.api.layout.SizeValue;
+import dev.sixik.unigui.api.layout.*;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.UiRenderPolicy;
 import dev.sixik.unigui.api.selection.SelectionMode;
+import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.style.ThemeTokens;
 import dev.sixik.unigui.api.text.Fonts;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.widgets.minecraft.MinecraftBlockPreviewWidget;
+import dev.sixik.unigui.api.xml.XMLWidget;
+import dev.sixik.unigui.api.xml.XmlBindingContext;
+import dev.sixik.unigui.api.xml.XmlCommandRegistry;
+import dev.sixik.unigui.api.xml.XmlMutableObservableValue;
+import dev.sixik.unigui.api.xml.XmlWidgetOptions;
+import dev.sixik.unigui.api.xml.XmlWidgetScreen;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftClipboardService;
-import dev.sixik.unigui.widgets.minecraft.MinecraftEntityPreviewWidget;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftFonts;
-import dev.sixik.unigui.widgets.minecraft.MinecraftItemPreviewWidget;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftWidgetScreen;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
+import dev.sixik.unigui.impl.style.DefaultTheme;
 import dev.sixik.unigui.impl.widget.WidgetBase;
+import dev.sixik.unigui.widgets.containers.*;
+import dev.sixik.unigui.widgets.core.Widgets;
+import dev.sixik.unigui.widgets.data.VirtualListView;
+import dev.sixik.unigui.widgets.data.VirtualTableColumn;
+import dev.sixik.unigui.widgets.data.VirtualTableView;
+import dev.sixik.unigui.widgets.display.*;
+import dev.sixik.unigui.widgets.docking.DockArea;
+import dev.sixik.unigui.widgets.docking.DockLayoutSnapshotCodec;
+import dev.sixik.unigui.widgets.docking.DockPane;
+import dev.sixik.unigui.widgets.docking.DockingRoot;
+import dev.sixik.unigui.widgets.feedback.*;
+import dev.sixik.unigui.widgets.graph.*;
+import dev.sixik.unigui.widgets.interaction.*;
+import dev.sixik.unigui.widgets.minecraft.MinecraftBlockPreviewWidget;
+import dev.sixik.unigui.widgets.minecraft.MinecraftEntityPreviewWidget;
+import dev.sixik.unigui.widgets.minecraft.MinecraftItemPreviewWidget;
+import dev.sixik.unigui.widgets.navigation.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -35,77 +53,15 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 
+import java.time.Duration;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Supplier;
-import java.time.Duration;
-import java.time.LocalDate;
-import dev.sixik.unigui.widgets.containers.Box;
-import dev.sixik.unigui.widgets.containers.DockPanel;
-import dev.sixik.unigui.widgets.containers.DockSide;
-import dev.sixik.unigui.widgets.containers.HBox;
-import dev.sixik.unigui.widgets.feedback.OverlayLayer;
-import dev.sixik.unigui.widgets.containers.ScrollView;
-import dev.sixik.unigui.widgets.containers.SplitPanel;
-import dev.sixik.unigui.widgets.containers.StackPanel;
-import dev.sixik.unigui.widgets.containers.VBox;
-import dev.sixik.unigui.widgets.containers.View;
-import dev.sixik.unigui.widgets.containers.WrapPanel;
-import dev.sixik.unigui.widgets.core.Widgets;
-import dev.sixik.unigui.widgets.data.VirtualListView;
-import dev.sixik.unigui.widgets.data.VirtualTableColumn;
-import dev.sixik.unigui.widgets.data.VirtualTableView;
-import dev.sixik.unigui.widgets.display.Chart;
-import dev.sixik.unigui.widgets.display.Label;
-import dev.sixik.unigui.widgets.display.RichTextView;
-import dev.sixik.unigui.widgets.display.Separator;
-import dev.sixik.unigui.widgets.display.Sparkline;
-import dev.sixik.unigui.widgets.display.TextBlock;
-import dev.sixik.unigui.widgets.docking.DockArea;
-import dev.sixik.unigui.widgets.docking.DockingRoot;
-import dev.sixik.unigui.widgets.docking.DockLayoutSnapshotCodec;
-import dev.sixik.unigui.widgets.docking.DockPane;
-import dev.sixik.unigui.widgets.feedback.ContextMenu;
-import dev.sixik.unigui.widgets.feedback.LoadingIndicator;
-import dev.sixik.unigui.widgets.feedback.Popup;
-import dev.sixik.unigui.widgets.feedback.ProgressBar;
-import dev.sixik.unigui.widgets.feedback.Spinner;
-import dev.sixik.unigui.widgets.feedback.Toast;
-import dev.sixik.unigui.widgets.feedback.Tooltip;
-import dev.sixik.unigui.widgets.feedback.WindowWidget;
-import dev.sixik.unigui.widgets.graph.GraphView;
-import dev.sixik.unigui.widgets.graph.NodeGraph;
-import dev.sixik.unigui.widgets.graph.NodeGraphItem;
-import dev.sixik.unigui.widgets.graph.NodeGraphPortKind;
-import dev.sixik.unigui.widgets.graph.NodeGraphPortRef;
-import dev.sixik.unigui.widgets.graph.NodeGraphPortSide;
-import dev.sixik.unigui.widgets.graph.NodeGraphSelectionMode;
-import dev.sixik.unigui.widgets.graph.NodeGraphSnapshot;
-import dev.sixik.unigui.widgets.interaction.Button;
-import dev.sixik.unigui.widgets.interaction.Checkbox;
-import dev.sixik.unigui.widgets.interaction.ColorPicker;
-import dev.sixik.unigui.widgets.interaction.ComboBox;
-import dev.sixik.unigui.widgets.interaction.DatePicker;
-import dev.sixik.unigui.widgets.interaction.NumberField;
-import dev.sixik.unigui.widgets.interaction.RadioButton;
-import dev.sixik.unigui.widgets.interaction.RadioGroup;
-import dev.sixik.unigui.widgets.interaction.SearchField;
-import dev.sixik.unigui.widgets.interaction.Slider;
-import dev.sixik.unigui.widgets.interaction.TextField;
-import dev.sixik.unigui.widgets.interaction.TimeSpanField;
-import dev.sixik.unigui.widgets.interaction.ToggleButton;
-import dev.sixik.unigui.widgets.interaction.TreeListPicker;
-import dev.sixik.unigui.widgets.navigation.Accordion;
-import dev.sixik.unigui.widgets.navigation.Breadcrumb;
-import dev.sixik.unigui.widgets.navigation.Carousel;
-import dev.sixik.unigui.widgets.navigation.ExpandablePanel;
-import dev.sixik.unigui.widgets.navigation.TabControl;
-import dev.sixik.unigui.widgets.navigation.TreeList;
-import dev.sixik.unigui.widgets.navigation.TreeView;
-import dev.sixik.unigui.widgets.navigation.TreeViewNode;
 
 public final class TestCommands {
-    private static Runnable changeMode = () -> {};
+    private static Runnable changeMode = () -> {
+    };
     private static Supplier<String> renderMode = UiRenderPolicy.Mode.ON_DIRTY::name;
 
     private TestCommands() {
@@ -123,6 +79,14 @@ public final class TestCommands {
                 }))
                 .then(Commands.literal("nodegraph").executes(ctx -> {
                     RenderSystem.recordRenderCall(TestCommands::openNodeGraphExampleScreen);
+                    return 0;
+                }))
+                .then(Commands.literal("style").executes(ctx -> {
+                    RenderSystem.recordRenderCall(TestCommands::openStyleApiExampleScreen);
+                    return 0;
+                }))
+                .then(Commands.literal("xaml").executes(ctx -> {
+                    RenderSystem.recordRenderCall(TestCommands::openXamlBindingExampleScreen);
                     return 0;
                 }))
                 .then(Commands.literal("terminal").executes(ctx -> {
@@ -156,6 +120,53 @@ public final class TestCommands {
         installRenderModeToggle(screen);
     }
 
+    private static void openStyleApiExampleScreen() {
+        DefaultUIContext context = new DefaultUIContext(new MinecraftClipboardService());
+        Widget root = styleApiExample(context);
+        MinecraftWidgetScreen screen = openScreen(Component.literal("UniGUI Style API"), root, context);
+        installRenderModeToggle(screen);
+    }
+
+    private static void openXamlBindingExampleScreen() {
+        XmlBindingContext bindingContext = XmlBindingContext.empty();
+        XmlMutableObservableValue<String> status = bindingContext.mutable(
+                "demo.status", String.class, "Состояние: готово");
+        XmlMutableObservableValue<String> actionLabel = bindingContext.mutable(
+                "demo.actionLabel", String.class, "Переключить состояние");
+        XmlMutableObservableValue<Boolean> detailsVisible = bindingContext.mutable(
+                "demo.detailsVisible", Boolean.class, true);
+        XmlMutableObservableValue<Float> gamma = bindingContext.mutable(
+                "demo.gamma", Float.class, 0.25f);
+
+        XmlCommandRegistry commands = XmlCommandRegistry.empty()
+                .register("demo.toggle", (source, event) -> {
+                    boolean nextVisible = !detailsVisible.get();
+                    detailsVisible.set(nextVisible);
+                    gamma.set(nextVisible ? 0.75f : 0.25f);
+                    actionLabel.set(nextVisible ? "Скрыть подробности" : "Показать подробности");
+                    status.set(nextVisible ? "Состояние: подробности включены" : "Состояние: подробности скрыты");
+                });
+
+        XmlWidgetScreen<VBox> xmlScreen = XMLWidget.createScreen("""
+                <VBox id="bindingDemo" spacing="8" width="420" height="220" padding="12">
+                    <Label text="XAML data binding" />
+                    <Label id="status" text="{Binding demo.status}" />
+                    <Slider id="gamma" value="{Binding demo.gamma}" />
+                    <Label id="details" text="Изменение источника сразу обновляет это поле"
+                           visible="{Binding demo.detailsVisible}" />
+                    <Button id="toggle" text="{Binding demo.actionLabel}" onClick="demo.toggle" />
+                    <Button id="test" text="{Binding demo.status}" />
+                </VBox>
+                """, VBox.class, XmlWidgetOptions.DEFAULT
+                .bindingContext(bindingContext)
+                .commands(commands));
+
+        MinecraftWidgetScreen screen = new MinecraftWidgetScreen(Component.literal("UniGUI XAML Binding"), xmlScreen);
+        screen.renderPolicy(UiRenderPolicy.onDirty());
+        Minecraft.getInstance().setScreen(screen);
+        installRenderModeToggle(screen);
+    }
+
     private static MinecraftWidgetScreen openScreen(Component title, Widget root, DefaultUIContext context) {
         MinecraftWidgetScreen screen = new MinecraftWidgetScreen(title, root, context);
         screen.renderPolicy(UiRenderPolicy.onDirty());
@@ -174,6 +185,115 @@ public final class TestCommands {
                 case CONTINUOUS -> screen.renderPolicy(UiRenderPolicy.onDirty());
             }
         };
+    }
+
+    /**
+     * Показывает минимальный пользовательский пример нового Style API.
+     *
+     * <p>Экран намеренно содержит и кодовые фрагменты, и живые виджеты: изменение API
+     * должно сразу получать проверяемый пример использования.</p>
+     */
+    private static Widget styleApiExample(DefaultUIContext context) {
+        StackPanel viewport = new StackPanel();
+        viewport.addChild(backgroundFrame());
+
+        ThemeTokens warmTokens = ThemeTokens.builder()
+                .colors(colors -> colors
+                        .surface(MutableColor.rgba(0.07f, 0.09f, 0.13f, 0.98f))
+                        .surfaceHover(MutableColor.rgba(0.11f, 0.15f, 0.22f, 1.0f))
+                        .accent(MutableColor.rgba(0.90f, 0.42f, 0.18f, 1.0f))
+                        .accentHover(MutableColor.rgba(1.0f, 0.58f, 0.24f, 1.0f)))
+                .shapes(shapes -> shapes.radiusMd(8.0f))
+                .build();
+        ThemeTokens coolTokens = ThemeTokens.builder()
+                .colors(colors -> colors
+                        .surface(MutableColor.rgba(0.04f, 0.10f, 0.16f, 0.98f))
+                        .surfaceHover(MutableColor.rgba(0.08f, 0.18f, 0.28f, 1.0f))
+                        .accent(MutableColor.rgba(0.22f, 0.62f, 1.0f, 1.0f))
+                        .accentHover(MutableColor.rgba(0.42f, 0.78f, 1.0f, 1.0f)))
+                .shapes(shapes -> shapes.radiusMd(5.0f))
+                .build();
+        context.theme(DefaultTheme.withTokens(warmTokens));
+
+        VBox content = new VBox();
+        content.spacing(8.0f);
+        content.layout(style -> style.margin(18.0f).flexGrow(1).flexShrink(1.0f));
+
+        Label title = new Label("Style API");
+        title.color(MutableColor.rgba(0.92f, 0.95f, 1.0f, 1.0f));
+        title.layout(style -> style.size(LayoutConstraints.AUTO, 22.0f).flexGrow(0).flexShrink(0.0f));
+        content.addChild(title);
+
+        TextBlock description = new TextBlock(
+                "Строка и lambda дополняют один набор явных визуальных свойств. "
+                        + "Последнее добавленное правило StylePack перекрывает предыдущее.");
+        description.color(MutableColor.rgba(0.68f, 0.73f, 0.82f, 1.0f));
+        description.layout(style -> style.size(LayoutConstraints.AUTO, 38.0f).flexGrow(0).flexShrink(0.0f));
+        content.addChild(description);
+
+        TextBlock tokenCode = new TextBlock(
+                "Theme.fromTokens(tokens) меняет палитру и радиус без put(...) на каждый виджет.");
+        tokenCode.font(MinecraftFonts.uniformFace(), 10.0f);
+        tokenCode.color(MutableColor.rgba(0.72f, 0.86f, 0.98f, 1.0f));
+        tokenCode.layout(style -> style.size(LayoutConstraints.AUTO, 22.0f).flexGrow(0).flexShrink(0.0f));
+        content.addChild(tokenCode);
+
+        Button tokenButton = new Button("Токен темы");
+        tokenButton.layout(style -> style.size(190.0f, 28.0f).flexGrow(0).flexShrink(0.0f));
+        content.addChild(tokenButton);
+
+        final boolean[] cool = {false};
+        Button switchTheme = new Button("Переключить тему");
+        switchTheme.onClick(event -> {
+            cool[0] = !cool[0];
+            context.theme(DefaultTheme.withTokens(cool[0] ? coolTokens : warmTokens), viewport);
+        });
+        switchTheme.layout(style -> style.size(190.0f, 28.0f).flexGrow(0).flexShrink(0.0f));
+        content.addChild(switchTheme);
+
+        TextBlock stringCode = new TextBlock(
+                "button.style(\"background: #7A1F1FFF; radius: 8;\");");
+        stringCode.font(MinecraftFonts.uniformFace(), 10.0f);
+        stringCode.color(MutableColor.rgba(0.72f, 0.86f, 0.98f, 1.0f));
+        stringCode.layout(style -> style.size(LayoutConstraints.AUTO, 22.0f).flexGrow(0).flexShrink(0.0f));
+        content.addChild(stringCode);
+
+        Button stringButton = new Button("Строковый стиль");
+        stringButton.style("background: #7A1F1FFF; radius: 8;");
+        stringButton.style(style -> style.put(StyleKeys.TEXT_COLOR,
+                MutableColor.rgba(1.0f, 0.94f, 0.88f, 1.0f)));
+        stringButton.layout(style -> style.size(190.0f, 28.0f).flexGrow(0).flexShrink(0.0f));
+        content.addChild(stringButton);
+
+        TextBlock lambdaCode = new TextBlock(
+                "button.style(s -> s.put(StyleKeys.BORDER_WIDTH, 2.0f));");
+        lambdaCode.font(MinecraftFonts.uniformFace(), 10.0f);
+        lambdaCode.color(MutableColor.rgba(0.72f, 0.86f, 0.98f, 1.0f));
+        lambdaCode.layout(style -> style.size(LayoutConstraints.AUTO, 22.0f).flexGrow(0).flexShrink(0.0f));
+        content.addChild(lambdaCode);
+
+        Button lambdaButton = new Button("Типизированный стиль");
+        lambdaButton.style(style -> style
+                .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.12f, 0.34f, 0.62f, 1.0f))
+                .put(StyleKeys.BORDER_WIDTH, 2.0f)
+                .put(StyleKeys.RADIUS, 8.0f));
+        lambdaButton.layout(style -> style.size(190.0f, 28.0f).flexGrow(0).flexShrink(0.0f));
+        content.addChild(lambdaButton);
+
+        TextBlock diagnosticsCode = new TextBlock(
+                "button.style(\"unknown: 1;\");  // диагностика доступна через styleDiagnostics()");
+        diagnosticsCode.font(MinecraftFonts.uniformFace(), 10.0f);
+        diagnosticsCode.color(MutableColor.rgba(0.92f, 0.68f, 0.46f, 1.0f));
+        diagnosticsCode.layout(style -> style.size(LayoutConstraints.AUTO, 22.0f).flexGrow(0).flexShrink(0.0f));
+        content.addChild(diagnosticsCode);
+
+        Button diagnosticButton = new Button("Стиль с диагностикой");
+        diagnosticButton.style("background: #33243DFF; unknown: 1;");
+        diagnosticButton.layout(style -> style.size(190.0f, 28.0f).flexGrow(0).flexShrink(0.0f));
+        content.addChild(diagnosticButton);
+
+        viewport.addChild(content);
+        return new OverlayLayer(viewport);
     }
 
     private static Widget examples(DefaultUIContext context) {
@@ -1527,10 +1647,13 @@ public final class TestCommands {
         OverlayLayer layer = new OverlayLayer(page);
         Popup popup = new Popup(popupAnchor, samplePane("Popup content", "Anchored popup with retained content."));
         ContextMenu menu = new ContextMenu()
-                .item("Inspect", () -> {})
-                .item("Duplicate", () -> {})
+                .item("Inspect", () -> {
+                })
+                .item("Duplicate", () -> {
+                })
                 .separator()
-                .item("Delete", () -> {});
+                .item("Delete", () -> {
+                });
         Toast toast = new Toast("NotificationView / Toast").duration(2.5f);
         WindowWidget window = new WindowWidget("Example Window", samplePane("Dialog body", "Drag the title bar, or close with x."))
                 .position(260.0f, 74.0f)

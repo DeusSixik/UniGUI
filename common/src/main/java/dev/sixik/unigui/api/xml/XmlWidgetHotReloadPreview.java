@@ -22,9 +22,15 @@ public final class XmlWidgetHotReloadPreview<T extends Widget> extends PanelWidg
     private final Class<T> widgetType;
     private XmlWidgetRegistry registry = XMLWidget.registry();
     private XmlWidgetOptions options = XmlWidgetOptions.DEFAULT;
-    private Consumer<? super T> reloadHandler = widget -> {};
-    private Consumer<Status> statusHandler = status -> {};
+    private Consumer<? super T> reloadHandler = widget -> {
+    };
+    private Consumer<Status> statusHandler = status -> {
+    };
     private T content;
+    /**
+     * Сессия binding-ов текущего успешно загруженного XML-контента.
+     */
+    private XmlWidgetScreen<T> contentScreen;
     private Status status;
     private long sourceVersion = Long.MIN_VALUE;
     private int reloadCount;
@@ -35,7 +41,7 @@ public final class XmlWidgetHotReloadPreview<T extends Widget> extends PanelWidg
     /**
      * Создаёт hot-reload preview для указанного источника и типа root widget-а.
      *
-     * @param source источник XML; не может быть {@code null}
+     * @param source     источник XML; не может быть {@code null}
      * @param widgetType ожидаемый тип root widget-а; не может быть {@code null}
      */
     public XmlWidgetHotReloadPreview(XmlWidgetHotReloadSource source, Class<T> widgetType) {
@@ -105,7 +111,8 @@ public final class XmlWidgetHotReloadPreview<T extends Widget> extends PanelWidg
      * @return этот preview для fluent-настройки
      */
     public XmlWidgetHotReloadPreview<T> onReload(Consumer<? super T> reloadHandler) {
-        this.reloadHandler = reloadHandler == null ? widget -> {} : reloadHandler;
+        this.reloadHandler = reloadHandler == null ? widget -> {
+        } : reloadHandler;
         return this;
     }
 
@@ -116,7 +123,8 @@ public final class XmlWidgetHotReloadPreview<T extends Widget> extends PanelWidg
      * @return этот preview для fluent-настройки
      */
     public XmlWidgetHotReloadPreview<T> onStatus(Consumer<Status> statusHandler) {
-        this.statusHandler = statusHandler == null ? status -> {} : statusHandler;
+        this.statusHandler = statusHandler == null ? status -> {
+        } : statusHandler;
         return this;
     }
 
@@ -215,25 +223,46 @@ public final class XmlWidgetHotReloadPreview<T extends Widget> extends PanelWidg
     }
 
     private Status reloadNow(long version) {
+        XmlWidgetScreen<T> nextScreen = null;
         try {
-            T next = XMLWidget.create(source.read(), widgetType, registry, options);
+            nextScreen = XMLWidget.createScreen(source.read(), widgetType, registry, options);
+            T next = nextScreen.root();
             reloadHandler.accept(next);
-            replaceContent(next);
+            replaceContent(nextScreen);
             sourceVersion = version;
             reloadCount++;
             return setStatus(Status.loaded(source.label(), sourceVersion, reloadCount));
         } catch (RuntimeException failure) {
+            if (nextScreen != null && nextScreen != contentScreen) {
+                nextScreen.close();
+            }
             return setStatus(Status.failed(source.label(), sourceVersion, reloadCount, content != null, failure));
         }
     }
 
-    private void replaceContent(T next) {
+    private void replaceContent(XmlWidgetScreen<T> nextScreen) {
         T previous = content;
+        XmlWidgetScreen<T> previousScreen = contentScreen;
+        T next = nextScreen.root();
         if (previous != null) removeChild(previous);
         content = next;
+        contentScreen = nextScreen;
         addChild(next);
         applyQueuedMutations();
         if (previous != null) previous.dispose();
+        if (previousScreen != null) previousScreen.close();
+    }
+
+    /**
+     * Освобождает текущий XML-контент и его binding-подписки.
+     */
+    @Override
+    public void dispose() {
+        if (contentScreen != null) {
+            contentScreen.close();
+            contentScreen = null;
+        }
+        super.dispose();
     }
 
     private Status setStatus(Status status) {
@@ -245,13 +274,13 @@ public final class XmlWidgetHotReloadPreview<T extends Widget> extends PanelWidg
     /**
      * Snapshot состояния hot-reload preview.
      *
-     * @param loaded есть ли валидный content для отображения
-     * @param failed завершилась ли последняя reload-попытка ошибкой
-     * @param sourceLabel подпись источника XML
+     * @param loaded        есть ли валидный content для отображения
+     * @param failed        завершилась ли последняя reload-попытка ошибкой
+     * @param sourceLabel   подпись источника XML
      * @param sourceVersion версия source, с которой работала последняя попытка
-     * @param reloadCount количество успешных reload-ов
-     * @param message короткое сообщение для UI
-     * @param diagnostics diagnostics последней ошибки или пустой список
+     * @param reloadCount   количество успешных reload-ов
+     * @param message       короткое сообщение для UI
+     * @param diagnostics   diagnostics последней ошибки или пустой список
      */
     public record Status(
             boolean loaded,
@@ -280,9 +309,9 @@ public final class XmlWidgetHotReloadPreview<T extends Widget> extends PanelWidg
         /**
          * Создаёт статус успешной перезагрузки.
          *
-         * @param sourceLabel подпись источника
+         * @param sourceLabel   подпись источника
          * @param sourceVersion версия source
-         * @param reloadCount количество успешных reload-ов
+         * @param reloadCount   количество успешных reload-ов
          * @return loaded status
          */
         public static Status loaded(String sourceLabel, long sourceVersion, int reloadCount) {
@@ -294,11 +323,11 @@ public final class XmlWidgetHotReloadPreview<T extends Widget> extends PanelWidg
         /**
          * Создаёт статус неуспешной reload-попытки.
          *
-         * @param sourceLabel подпись источника
+         * @param sourceLabel   подпись источника
          * @param sourceVersion последняя известная версия source
-         * @param reloadCount количество успешных reload-ов до ошибки
-         * @param hasContent есть ли предыдущий валидный content
-         * @param failure исключение загрузки
+         * @param reloadCount   количество успешных reload-ов до ошибки
+         * @param hasContent    есть ли предыдущий валидный content
+         * @param failure       исключение загрузки
          * @return failed status с diagnostics
          */
         public static Status failed(String sourceLabel,

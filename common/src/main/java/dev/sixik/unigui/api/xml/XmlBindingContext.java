@@ -35,10 +35,10 @@ public final class XmlBindingContext {
     /**
      * Создаёт mutable observable и сразу регистрирует его в context.
      *
-     * @param path имя/path значения
+     * @param path      имя/path значения
      * @param valueType runtime-тип значения
-     * @param value начальное значение
-     * @param <T> тип значения
+     * @param value     начальное значение
+     * @param <T>       тип значения
      * @return созданный observable, которым можно дальше управлять из code-behind
      */
     public <T> XmlMutableObservableValue<T> mutable(String path, Class<T> valueType, T value) {
@@ -50,7 +50,7 @@ public final class XmlBindingContext {
     /**
      * Регистрирует готовый observable source.
      *
-     * @param path имя/path, по которому source будет доступен
+     * @param path  имя/path, по которому source будет доступен
      * @param value observable source
      * @return этот context для chained-настройки
      */
@@ -73,9 +73,9 @@ public final class XmlBindingContext {
     /**
      * Возвращает observable source только если он существует и совместим с ожидаемым типом.
      *
-     * @param path имя/path значения
+     * @param path         имя/path значения
      * @param expectedType ожидаемый runtime-тип
-     * @param <T> тип значения
+     * @param <T>          тип значения
      * @return typed observable или empty при missing/type mismatch
      */
     public <T> Optional<XmlObservableValue<T>> resolve(String path, Class<T> expectedType) {
@@ -88,7 +88,7 @@ public final class XmlBindingContext {
     /**
      * Проверяет статус binding source без создания активной подписки.
      *
-     * @param path имя/path значения
+     * @param path         имя/path значения
      * @param expectedType ожидаемый runtime-тип
      * @return active, missing или type-mismatch статус
      */
@@ -109,19 +109,36 @@ public final class XmlBindingContext {
      * <p>Если source найден и тип совместим, target сразу получает текущее значение,
      * а затем будет получать все изменения до {@link XmlBinding#close()}.</p>
      *
-     * @param path имя/path значения
+     * @param path       имя/path значения
      * @param targetType ожидаемый тип target-а
-     * @param target consumer, принимающий текущее и будущие значения
-     * @param <T> тип target-значения
+     * @param target     consumer, принимающий текущее и будущие значения
+     * @param <T>        тип target-значения
      * @return active binding или inactive binding со статусом ошибки
      */
     public <T> XmlBinding<T> bind(String path, Class<T> targetType, Consumer<? super T> target) {
+        return bind(path, targetType, target, path);
+    }
+
+    /**
+     * Привязывает source к target-у с отдельным именем свойства для диагностики.
+     *
+     * @param path       имя observable source
+     * @param targetType ожидаемый тип target-значения
+     * @param target     consumer, принимающий текущее и будущие значения
+     * @param targetName отображаемое имя свойства виджета
+     * @param <T>        тип target-значения
+     * @return active binding или inactive binding со статусом ошибки
+     */
+    public <T> XmlBinding<T> bind(String path, Class<T> targetType,
+                                  Consumer<? super T> target, String targetName) {
         if (targetType == null) throw new IllegalArgumentException("XML binding target type must not be null");
         if (target == null) throw new IllegalArgumentException("XML binding target must not be null");
         String normalized = normalizePath(path);
         XmlObservableValue<?> value = values.get(normalized);
-        if (value == null) return XmlBinding.inactive(normalized, targetType, XmlBindingStatus.missing(normalized, targetType));
-        return XmlBinding.bind(value, targetType, target, normalized);
+        String displayName = targetName == null || targetName.isBlank() ? normalized : targetName.trim();
+        if (value == null)
+            return XmlBinding.inactive(normalized, targetType, XmlBindingStatus.missing(normalized, targetType));
+        return XmlBinding.bind(value, targetType, target, displayName);
     }
 
     /**

@@ -1,5 +1,6 @@
 package dev.sixik.unigui.widgets.containers;
 
+import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
 import dev.sixik.unigui.api.animation.AnimationEasing;
@@ -23,6 +24,7 @@ import dev.sixik.unigui.api.render.TextureWrap;
 import dev.sixik.unigui.api.render.shaders.ShaderDrawOptions;
 import dev.sixik.unigui.api.render.shaders.ShaderHandle;
 import dev.sixik.unigui.api.render.shaders.ShaderUniforms;
+import dev.sixik.unigui.api.style.MutableStyle;
 import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.style.StyleKey;
 import dev.sixik.unigui.api.style.StyleKeys;
@@ -42,6 +44,7 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Базовый контейнер с композируемой поверхностью: фон, рамка и радиус.
@@ -110,6 +113,18 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
         return (T) this;
     }
 
+    @Override
+    public T style(String declarations) {
+        super.style(declarations);
+        return self();
+    }
+
+    @Override
+    public T style(Consumer<MutableStyle> update) {
+        super.style(update);
+        return self();
+    }
+
     /**
      * Возвращает композируемую поверхность виджета.
      *
@@ -130,6 +145,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
 
     @XmlAttribute(value = "background", category = "Appearance", defaultValue = "#00000000", description = "Background color; setting it also enables background rendering.")
     public T background(ColorView color) {
+        surface.explicitBackground();
         surface.background().set(color == null ? new MutableColor(0.0f, 0.0f, 0.0f, 0.0f) : color);
         backgroundVisible(true);
         return self();
@@ -559,7 +575,10 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
 
     @XmlAttribute(value = "borderColor", category = "Appearance", defaultValue = "#FFFFFFFF", description = "Border color used when border rendering is enabled.")
     public T borderColor(ColorView color) {
-        if (color != null) surface.borderColor().set(color);
+        if (color != null) {
+            surface.explicitBorder();
+            surface.borderColor().set(color);
+        }
         return self();
     }
 
@@ -625,6 +644,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      */
     @XmlAttribute(value = "borderWidth", category = "Appearance", defaultValue = "1", description = "Border thickness in UI pixels.")
     public T borderWidth(float borderWidth) {
+        surface.explicitBorder();
         surface.borderWidth(borderWidth);
         return self();
     }
@@ -669,6 +689,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      */
     @XmlAttribute(value = "radius", category = "Appearance", defaultValue = "0", description = "Corner radius in UI pixels.")
     public T radius(float radius) {
+        surface.explicitRadius();
         surface.radius(radius);
         return self();
     }
@@ -757,6 +778,16 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
         transitionScopeStyleVersion = Long.MIN_VALUE;
         invalidate(InvalidationFlags.VISUAL);
         return self();
+    }
+
+    @Override
+    public void tick(FrameContext frame) {
+        surface.themeUpdating(true);
+        try {
+            super.tick(frame);
+        } finally {
+            surface.themeUpdating(false);
+        }
     }
 
     @Override
@@ -932,9 +963,6 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
         lastAppliedScopeStyleVersion = scopeStyleVersion;
 
         BackgroundKind themedKind = styleValue(StyleKeys.BACKGROUND_KIND, state, surface.backgroundKind());
-        if (themedKind != surface.backgroundKind()) {
-            surface.backgroundKind(themedKind);
-        }
         ColorView themedBackground = styleValue(StyleKeys.BACKGROUND_COLOR, state, surface.background());
         TextureHandle themedBackgroundTexture = styleValue(StyleKeys.BACKGROUND_TEXTURE, state, surface.backgroundTexture());
         ColorView themedBackgroundTextureTint = styleValue(StyleKeys.BACKGROUND_TEXTURE_TINT, state, surface.backgroundTextureTint());
@@ -944,30 +972,42 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
         Float themedBorderWidth = styleValue(StyleKeys.BORDER_WIDTH, state, surface.borderWidth());
         Float themedRadius = styleValue(StyleKeys.RADIUS, state, surface.radius());
 
-        if (themedBackground != null) {
-            animateColor(surface.background(), themedBackground, styleTransition);
-        }
-        if (surface.backgroundTexture() != themedBackgroundTexture) {
-            surface.backgroundTexture(themedBackgroundTexture);
-        }
-        if (themedBackgroundTextureTint != null) {
-            animateColor(surface.backgroundTextureTint(), themedBackgroundTextureTint, styleTransition);
-        }
-        if (themedBackgroundTextureFit != null && surface.backgroundTextureFit() != themedBackgroundTextureFit) {
-            surface.backgroundTextureFit(themedBackgroundTextureFit);
-        }
-        if (themedShader != surface.backgroundShader()) {
-            surface.backgroundShader(themedShader);
-        }
-        if (themedBorder != null) {
-            animateColor(surface.borderColor(), themedBorder, styleTransition);
-        }
-        if (themedBorderWidth != null) {
-            animateParameter(StyleKeys.BORDER_WIDTH, borderWidthReader, borderWidthWriter,
-                    themedBorderWidth, styleTransition);
-        }
-        if (themedRadius != null) {
-            animateParameter(StyleKeys.RADIUS, radiusReader, radiusWriter, themedRadius, styleTransition);
+        surface.themeUpdating(true);
+        try {
+            if (themedKind != null && !surface.hasExplicitBackgroundKind()
+                    && themedKind != surface.backgroundKind()) {
+                surface.backgroundKind(themedKind);
+            }
+            if (themedBackground != null && !surface.hasExplicitBackground()) {
+                animateColor(surface.background(), themedBackground, styleTransition);
+            }
+            if (!surface.hasExplicitBackgroundTexture()
+                    && surface.backgroundTexture() != themedBackgroundTexture) {
+                surface.backgroundTexture(themedBackgroundTexture);
+            }
+            if (themedBackgroundTextureTint != null && !surface.hasExplicitBackgroundTextureTint()) {
+                animateColor(surface.backgroundTextureTint(), themedBackgroundTextureTint, styleTransition);
+            }
+            if (!surface.hasExplicitBackgroundTextureFit()
+                    && themedBackgroundTextureFit != null
+                    && surface.backgroundTextureFit() != themedBackgroundTextureFit) {
+                surface.backgroundTextureFit(themedBackgroundTextureFit);
+            }
+            if (!surface.hasExplicitBackgroundShader() && themedShader != surface.backgroundShader()) {
+                surface.backgroundShader(themedShader);
+            }
+            if (themedBorder != null && !surface.hasExplicitBorder()) {
+                animateColor(surface.borderColor(), themedBorder, styleTransition);
+            }
+            if (themedBorderWidth != null && !surface.hasExplicitBorder()) {
+                animateParameter(StyleKeys.BORDER_WIDTH, borderWidthReader, borderWidthWriter,
+                        themedBorderWidth, styleTransition);
+            }
+            if (themedRadius != null && !surface.hasExplicitRadius()) {
+                animateParameter(StyleKeys.RADIUS, radiusReader, radiusWriter, themedRadius, styleTransition);
+            }
+        } finally {
+            surface.themeUpdating(false);
         }
     }
 

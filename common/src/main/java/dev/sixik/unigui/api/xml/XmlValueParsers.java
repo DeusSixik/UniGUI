@@ -9,6 +9,7 @@ import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.render.SliceBorders;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.TextureOptions;
+import dev.sixik.unigui.api.render.shaders.ShaderHandle;
 
 /**
  * Набор стандартных parser-ов для XML-атрибутов виджетов.
@@ -22,33 +23,65 @@ import dev.sixik.unigui.api.render.TextureOptions;
  * Во время обычной загрузки loader сам устанавливает этот контекст.</p>
  */
 public final class XmlValueParsers {
-    /** Parser строк без дополнительной нормализации, кроме замены {@code null} на пустую строку. */
+    /**
+     * Parser строк без дополнительной нормализации, кроме замены {@code null} на пустую строку.
+     */
     public static final XmlValueParser<String> STRING = value -> dev.sixik.unigui.impl.xml.XmlValueParsers.STRING.parse(value);
-    /** Parser boolean-значений: {@code true/false}, {@code 1/0}, {@code yes/no}, {@code on/off}. */
+    /**
+     * Parser boolean-значений: {@code true/false}, {@code 1/0}, {@code yes/no}, {@code on/off}.
+     */
     public static final XmlValueParser<Boolean> BOOLEAN = value -> dev.sixik.unigui.impl.xml.XmlValueParsers.BOOLEAN.parse(value);
-    /** Parser целых чисел. */
+    /**
+     * Parser целых чисел.
+     */
     public static final XmlValueParser<Integer> INT = value -> dev.sixik.unigui.impl.xml.XmlValueParsers.INT.parse(value);
-    /** Parser float-чисел. */
+    /**
+     * Parser float-чисел.
+     */
     public static final XmlValueParser<Float> FLOAT = value -> dev.sixik.unigui.impl.xml.XmlValueParsers.FLOAT.parse(value);
-    /** Parser float-чисел и специального значения {@code auto} для старых layout-полей. */
-    public static final XmlValueParser<Float> FLOAT_OR_AUTO = value -> dev.sixik.unigui.impl.xml.XmlValueParsers.FLOAT_OR_AUTO.parse(value);
-    /** Parser double-чисел. */
+    /**
+     * Parser float-чисел и специального значения {@code auto} для старых layout-полей.
+     */
+    public static final XmlValueParser<Float> FLOAT_OR_AUTO = dev.sixik.unigui.impl.xml.XmlValueParsers.FLOAT_OR_AUTO::parse;
+    /**
+     * Parser double-чисел.
+     */
     public static final XmlValueParser<Double> DOUBLE = value -> dev.sixik.unigui.impl.xml.XmlValueParsers.DOUBLE.parse(value);
-    /** Parser цвета в формате {@code RRGGBB}, {@code RRGGBBAA} или с ведущим {@code #}. */
+    /**
+     * Parser цвета в формате {@code RRGGBB}, {@code RRGGBBAA} или с ведущим {@code #}.
+     */
     public static final XmlValueParser<MutableColor> COLOR = value -> dev.sixik.unigui.impl.xml.XmlValueParsers.COLOR.parse(value);
-    /** Parser rect-значения вида {@code x y width height}. */
+    /**
+     * Parser rect-значения вида {@code x y width height}.
+     */
     public static final XmlValueParser<MutableRect> RECT = value -> dev.sixik.unigui.impl.xml.XmlValueParsers.RECT.parse(value);
-    /** Parser texture id через текущий {@link XmlTextureResolver}. */
+    /**
+     * Parser texture id через текущий {@link XmlTextureResolver}.
+     */
     public static final XmlValueParser<TextureHandle> TEXTURE = value -> dev.sixik.unigui.impl.xml.XmlValueParsers.TEXTURE.parse(value);
-    /** Parser layout-size значений: {@code auto}, {@code 10px}, {@code 50%} или {@code 10}. */
+    /**
+     * Parser shader resource id в {@link ShaderHandle}.
+     */
+    public static final XmlValueParser<ShaderHandle> SHADER = value -> dev.sixik.unigui.impl.xml.XmlValueParsers.SHADER.parse(value);
+    /**
+     * Parser layout-size значений: {@code auto}, {@code 10px}, {@code 50%} или {@code 10}.
+     */
     public static final XmlValueParser<SizeValue> SIZE = value -> dev.sixik.unigui.impl.xml.XmlValueParsers.SIZE.parse(value);
-    /** Parser edge insets: одно значение, вертикаль/горизонталь или четыре стороны. */
+    /**
+     * Parser edge insets: одно значение, вертикаль/горизонталь или четыре стороны.
+     */
     public static final XmlValueParser<EdgeInsets> INSETS = value -> dev.sixik.unigui.impl.xml.XmlValueParsers.INSETS.parse(value);
-    /** Parser nine-slice рамок: одно значение, горизонталь/вертикаль или left/top/right/bottom. */
+    /**
+     * Parser nine-slice рамок: одно значение, горизонталь/вертикаль или left/top/right/bottom.
+     */
     public static final XmlValueParser<SliceBorders> SLICE_BORDERS = value -> dev.sixik.unigui.impl.xml.XmlValueParsers.SLICE_BORDERS.parse(value);
-    /** Parser marginAuto: стороны {@code left/top/right/bottom}, {@code horizontal}, {@code vertical}, {@code all} или {@code none}. */
+    /**
+     * Parser marginAuto: стороны {@code left/top/right/bottom}, {@code horizontal}, {@code vertical}, {@code all} или {@code none}.
+     */
     public static final XmlValueParser<AutoMargins> AUTO_MARGINS = value -> dev.sixik.unigui.impl.xml.XmlValueParsers.AUTO_MARGINS.parse(value);
-    /** Parser grid template: треки через пробел, {@code repeat(n, track)} разворачивается. */
+    /**
+     * Parser grid template: треки через пробел, {@code repeat(n, track)} разворачивается.
+     */
     public static final XmlValueParser<java.util.List<GridTrack>> GRID_TRACKS = value -> dev.sixik.unigui.impl.xml.XmlValueParsers.GRID_TRACKS.parse(value);
 
     private XmlValueParsers() {
@@ -62,7 +95,7 @@ public final class XmlValueParsers {
      * совпадает с {@code CLAMP_TO_EDGE}.</p>
      *
      * @param type enum-класс
-     * @param <E> тип enum
+     * @param <E>  тип enum
      * @return parser для XML-строк
      */
     public static <E extends Enum<E>> XmlValueParser<E> enumValue(Class<E> type) {
@@ -76,9 +109,9 @@ public final class XmlValueParsers {
      * <p>Метод нужен setter-ам, которые меняют ширину/высоту/options уже созданного
      * texture handle. Если вызван вне XML-загрузки, используется дефолтный simple resolver.</p>
      *
-     * @param id id текстуры из XML
-     * @param width желаемая ширина source texture
-     * @param height желаемая высота source texture
+     * @param id      id текстуры из XML
+     * @param width   желаемая ширина source texture
+     * @param height  желаемая высота source texture
      * @param options параметры sampling/wrap/mipmaps
      * @return texture handle, созданный текущим resolver-ом
      */

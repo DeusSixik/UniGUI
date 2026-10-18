@@ -588,7 +588,6 @@ public class TreeView extends LinearBox {
             this.tree = tree;
             this.node = node;
             this.depth = depth;
-            themeEnabled(false);
             focusable(false);
             boxVisualEnabled(false);
             backgroundVisible(false);
@@ -606,7 +605,7 @@ public class TreeView extends LinearBox {
         private void syncVisualState() {
             boolean selected = tree.selectedNode() == node;
             MutableColor color = !node.selectable() ? TEXT_LO : selected ? TEXT_HI : TEXT_MID;
-            textColor().set(color.r(), color.g(), color.b(), color.a());
+            textColor(color);
             richText(rowText());
         }
 

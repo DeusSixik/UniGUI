@@ -47,7 +47,7 @@ final class BuiltInWidgetXmlSupport {
     }
 
     static <T extends WidgetBase> WidgetXmlType<T> commonWidget(WidgetXmlType<T> type) {
-        return annotated(type
+        WidgetXmlType<T> registered = annotated(type
                 .attribute("class", XmlValueParsers.STRING, (widget, value) -> {
                 }, commonAttribute("class"))
                 .attribute("styleClass", XmlValueParsers.STRING, (widget, value) -> {
@@ -104,6 +104,16 @@ final class BuiltInWidgetXmlSupport {
                 .attribute("right", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.right(value)), commonAttribute("right"))
                 .attribute("bottom", XmlValueParsers.SIZE, (widget, value) -> widget.layout(style -> style.bottom(value)), commonAttribute("bottom")),
                 WidgetBase.class);
+        return registered
+                .bindable("enabled", Boolean.class)
+                .bindable("visible", Boolean.class)
+                .bindable("opacity", Float.class)
+                .bindable("rotation", Float.class)
+                .bindable("x", Float.class)
+                .bindable("y", Float.class)
+                .bindable("scale", Float.class)
+                .bindable("scaleX", Float.class)
+                .bindable("scaleY", Float.class);
     }
 
     static <T extends WidgetBase> WidgetXmlType<T> commonWidget(WidgetXmlType<T> type, Class<?> widgetType) {

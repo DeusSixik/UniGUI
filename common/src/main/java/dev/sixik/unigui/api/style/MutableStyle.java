@@ -85,6 +85,22 @@ public final class MutableStyle implements Style {
     }
 
     /**
+     * Добавляет все значения другого стиля, сохраняя записи для отдельных состояний.
+     *
+     * @param source исходный стиль; null и пустой стиль игнорируются
+     * @return этот стиль для fluent-настройки
+     */
+    public MutableStyle putAll(Style source) {
+        if (source == null || source == Style.EMPTY) return this;
+        for (Map.Entry<WidgetState, Map<StyleKey<?>, Object>> stateEntry : source.values().entrySet()) {
+            for (Map.Entry<StyleKey<?>, Object> entry : stateEntry.getValue().entrySet()) {
+                putUnchecked(entry.getKey(), stateEntry.getKey(), entry.getValue());
+            }
+        }
+        return this;
+    }
+
+    /**
      * Задаёт renderer override для виджетов, использующих этот стиль.
      *
      * <p>Конкретный виджет приводит значение к своему renderer-интерфейсу. Локальный renderer,
@@ -145,5 +161,10 @@ public final class MutableStyle implements Style {
         Object value = stateValues.get(key);
         if (value == null) return null;
         return key.type().cast(value);
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private void putUnchecked(StyleKey<?> key, WidgetState state, Object value) {
+        put((StyleKey) key, state, value);
     }
 }

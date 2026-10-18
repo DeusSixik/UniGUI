@@ -9,6 +9,7 @@ import dev.sixik.unigui.api.layout.PositionType;
 import dev.sixik.unigui.api.layout.v3.LayoutNodeId;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
+import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.widget.RenderedBoundsMapper;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
@@ -181,6 +182,23 @@ public final class Popup extends Box implements OverlayHostAware {
         arrangeInHost(bounds);
     }
 
+    /**
+     * Пересчитывает позицию перед отрисовкой.
+     *
+     * <p>Скролл сдвигает якорь без полной раскладки, поэтому попап иначе
+     * остаётся на старом месте. Повторный расчёт держит меню под виджетом
+     * и даёт ему уйти за край экрана вместе с якорем.</p>
+     *
+     * @param context текущий render context
+     */
+    @Override
+    public void render(RenderContext context) {
+        if (open && anchor != null && parent() != null) {
+            arrangeInHost(parent().layoutBounds());
+        }
+        super.render(context);
+    }
+
     @Override
     public void arrangeInHost(RectView bounds) {
         if (!open || visibility() == Visibility.COLLAPSED || anchor == null) {
@@ -224,8 +242,32 @@ public final class Popup extends Box implements OverlayHostAware {
                         width,
                         height)
                 .offset(offsetX, offsetY);
+        if (anchorOutsideHost(hostBounds, anchorBounds)) {
+            request = request.clippingPolicy(OverlayLayoutResolver.ClippingPolicy.ALLOW_OUTSIDE_SCREEN);
+        }
         OverlayLayoutResolver.ResolvedOverlay resolved = resolver.resolve(host, request, 0);
         return new MutableRect(resolved.x(), resolved.y(), resolved.width(), resolved.height());
+    }
+
+    /**
+     * Возвращает, ушёл ли якорь за границы хоста.
+     *
+     * <p>Так бывает при скролле: виджет уехал за край, а меню должно уехать
+     * следом. Пока якорь внутри, попап остаётся в хосте и переворачивается
+     * у края.</p>
+     *
+     * @param hostBounds границы хоста
+     * @param anchorBounds границы якоря
+     * @return {@code true}, если якорь вышел за границу хоста
+     */
+    private static boolean anchorOutsideHost(RectView hostBounds, RectView anchorBounds) {
+        if (hostBounds == null || anchorBounds == null) return false;
+        float right = hostBounds.x() + hostBounds.width();
+        float bottom = hostBounds.y() + hostBounds.height();
+        return anchorBounds.x() + anchorBounds.width() <= hostBounds.x()
+                || anchorBounds.y() + anchorBounds.height() <= hostBounds.y()
+                || anchorBounds.x() >= right
+                || anchorBounds.y() >= bottom;
     }
 
     private MutableRect placeAbove(RectView hostBounds, RectView anchorBounds, float width, float height) {

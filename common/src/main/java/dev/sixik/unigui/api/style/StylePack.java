@@ -4,7 +4,6 @@ package dev.sixik.unigui.api.style;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -31,6 +30,7 @@ public final class StylePack implements Theme {
     private final Map<String, StyleAnimationDefinition> animations = new LinkedHashMap<>();
     private Style fallback = Style.EMPTY;
     private String fallbackStyleId = "";
+    private ThemeTokens tokens = ThemeTokens.EMPTY;
     private long version;
 
     /**
@@ -68,7 +68,7 @@ public final class StylePack implements Theme {
     /**
      * Парсит XML-документ {@code <StylePack>} через указанный registry свойств.
      *
-     * @param xml XML-документ StylePack
+     * @param xml      XML-документ StylePack
      * @param registry registry известных style-свойств
      * @return загруженный style pack
      */
@@ -105,6 +105,28 @@ public final class StylePack implements Theme {
     public Style fallback() {
         Style fallbackStyle = styleById(fallbackStyleId);
         return fallbackStyle == null ? fallback : fallbackStyle;
+    }
+
+    /**
+     * Возвращает token fallback этого pack'а.
+     *
+     * @return неизменяемый снимок токенов
+     */
+    @Override
+    public ThemeTokens tokens() {
+        return tokens;
+    }
+
+    /**
+     * Назначает token fallback, не меняя каскад StylePack rules.
+     *
+     * @param tokens снимок токенов или {@link ThemeTokens#EMPTY}
+     * @return этот pack для fluent-настройки
+     */
+    public StylePack tokens(ThemeTokens tokens) {
+        this.tokens = tokens == null ? ThemeTokens.EMPTY : tokens;
+        version++;
+        return this;
     }
 
     /**
@@ -164,10 +186,10 @@ public final class StylePack implements Theme {
     /**
      * Возвращает наиболее приоритетный стиль для конкретного виджета.
      *
-     * @param widgetType тип виджета
+     * @param widgetType    тип виджета
      * @param widgetStyleId явный style id виджета
-     * @param styleClasses style classes виджета
-     * @return последний подходящее definition после сортировки specificity
+     * @param styleClasses  style classes виджета
+     * @return последнее подходящее definition в порядке добавления
      */
     public Optional<StyleDefinition> styleDefinitionFor(String widgetType, String widgetStyleId, Collection<String> styleClasses) {
         List<StyleDefinition> definitions = matchingDefinitions(widgetType, widgetStyleId, styleClasses);
@@ -177,9 +199,9 @@ public final class StylePack implements Theme {
     /**
      * Возвращает custom renderer id для конкретного виджета.
      *
-     * @param widgetType тип виджета
+     * @param widgetType    тип виджета
      * @param widgetStyleId явный style id виджета
-     * @param styleClasses style classes виджета
+     * @param styleClasses  style classes виджета
      * @return renderer id или пустая строка
      */
     public String rendererIdFor(String widgetType, String widgetStyleId, Collection<String> styleClasses) {
@@ -198,7 +220,7 @@ public final class StylePack implements Theme {
      * Добавляет декларативный стиль по id.
      *
      * @param styleId id стиля
-     * @param style style-свойства
+     * @param style   style-свойства
      * @return этот pack для fluent-настройки
      */
     public StylePack putStyle(String styleId, Style style) {
@@ -260,7 +282,7 @@ public final class StylePack implements Theme {
      * Привязывает тип виджета к style id.
      *
      * @param widgetType тип виджета
-     * @param styleId id стиля
+     * @param styleId    id стиля
      * @return этот pack для fluent-настройки
      */
     public StylePack bind(String widgetType, String styleId) {
@@ -339,7 +361,7 @@ public final class StylePack implements Theme {
     /**
      * Возвращает animation id, привязанный к событию конкретного стиля.
      *
-     * @param styleId id стиля
+     * @param styleId   id стиля
      * @param eventName id события
      * @return animation id или пустая строка
      */
@@ -352,13 +374,14 @@ public final class StylePack implements Theme {
     /**
      * Собирает итоговый стиль для конкретного виджета.
      *
-     * @param widgetType тип виджета
+     * @param widgetType    тип виджета
      * @param widgetStyleId явный style id виджета
-     * @param styleClasses style classes виджета
+     * @param styleClasses  style classes виджета
      * @return итоговый стиль из fallback и подходящее definitions
      */
     public Style resolveStyleFor(String widgetType, String widgetStyleId, Collection<String> styleClasses) {
         List<Style> layers = new ArrayList<>();
+        if (tokens.asStyle() != Style.EMPTY) layers.add(tokens.asStyle());
         Style fallbackStyle = fallback();
         if (fallbackStyle != Style.EMPTY) layers.add(fallbackStyle);
         for (StyleDefinition definition : matchingDefinitions(widgetType, widgetStyleId, styleClasses)) {
@@ -370,10 +393,11 @@ public final class StylePack implements Theme {
     /**
      * Возвращает все matching style definitions в порядке применения.
      *
-     * @param widgetType тип виджета
+     * @param widgetType    тип виджета
      * @param widgetStyleId явный style id виджета
-     * @param styleClasses style classes виджета
-     * @return definitions от меньшего приоритета к большему
+     * @param styleClasses  style classes виджета
+     * @return definitions от меньшего приоритета к большему; более позднее
+     * правило перекрывает более раннее независимо от specificity selector'а
      */
     public List<StyleDefinition> matchingDefinitions(String widgetType, String widgetStyleId, Collection<String> styleClasses) {
         String normalizedWidgetType = normalizeOptional(widgetType, "");
@@ -383,26 +407,19 @@ public final class StylePack implements Theme {
 
         addUnique(result, added, definitionByBindingOrType(normalizedWidgetType).orElse(null));
 
-        List<StyleDefinition> selectorMatches = new ArrayList<>();
         for (StyleDefinition definition : styles.values()) {
-            if (definition.selector().matches(normalizedWidgetType, normalizedStyleId, styleClasses)) {
-                selectorMatches.add(definition);
+            boolean explicitStyle = !normalizedStyleId.isEmpty()
+                    && definition.id().equals(normalizedStyleId);
+            if (explicitStyle || definition.selector().matches(normalizedWidgetType, normalizedStyleId, styleClasses)) {
+                addUnique(result, added, definition);
             }
-        }
-        selectorMatches.sort(Comparator.comparingInt(definition -> definition.selector().specificity()));
-        for (StyleDefinition definition : selectorMatches) {
-            addUnique(result, added, definition);
-        }
-
-        if (!normalizedStyleId.isEmpty()) {
-            addUnique(result, added, styles.get(normalizedStyleId));
         }
         return List.copyOf(result);
     }
 
     @Override
     public long version() {
-        long result = version + fallback.version();
+        long result = version + tokens.version() + fallback.version();
         Style fallbackStyle = styleById(fallbackStyleId);
         if (fallbackStyle != null) {
             result += fallbackStyle.version();

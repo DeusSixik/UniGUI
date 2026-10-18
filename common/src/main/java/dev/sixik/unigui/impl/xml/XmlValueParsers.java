@@ -9,6 +9,7 @@ import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.render.SliceBorders;
 import dev.sixik.unigui.api.render.TextureHandle;
+import dev.sixik.unigui.api.render.shaders.ShaderHandle;
 import dev.sixik.unigui.api.render.TextureOptions;
 import dev.sixik.unigui.api.text.InlineContentResolverScope;
 import dev.sixik.unigui.api.text.InlineContentResolvers;
@@ -34,6 +35,7 @@ public final class XmlValueParsers {
     public static final XmlValueParser<MutableColor> COLOR = value -> MutableColor.fromHex(required(value).trim());
     public static final XmlValueParser<MutableRect> RECT = XmlValueParsers::parseRect;
     public static final XmlValueParser<TextureHandle> TEXTURE = XmlValueParsers::parseTexture;
+    public static final XmlValueParser<ShaderHandle> SHADER = value -> ShaderHandle.resource(required(value).trim());
     public static final XmlValueParser<SizeValue> SIZE = XmlValueParsers::parseSize;
     public static final XmlValueParser<EdgeInsets> INSETS = XmlValueParsers::parseInsets;
     public static final XmlValueParser<SliceBorders> SLICE_BORDERS = XmlValueParsers::parseSliceBorders;

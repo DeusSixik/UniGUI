@@ -16,6 +16,7 @@ import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.SliceBorders;
 import dev.sixik.unigui.api.render.TextureHandle;
+import dev.sixik.unigui.api.render.shaders.ShaderHandle;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.impl.widget.WidgetBase;
@@ -48,6 +49,16 @@ import java.util.function.Supplier;
  * на самом виджете, а не держать в ручном registry bootstrap.</p>
  */
 public final class XmlWidgetAnnotations {
+    /**
+     * Кэш результатов reflection-сканирования annotated setter-ов по runtime-классу.
+     */
+    private static final ClassValue<List<Method>> ANNOTATED_SETTERS = new ClassValue<>() {
+        @Override
+        protected List<Method> computeValue(Class<?> type) {
+            return discoverAnnotatedSetters(type);
+        }
+    };
+
     private XmlWidgetAnnotations() {
     }
 
@@ -90,9 +101,9 @@ public final class XmlWidgetAnnotations {
      * <p>Класс должен иметь no-arg constructor. Для явной фабрики используй
      * {@link #register(XmlWidgetRegistry, Class, Supplier)}.</p>
      *
-     * @param registry целевой XML-реестр
+     * @param registry   целевой XML-реестр
      * @param widgetType класс виджета с {@link XmlWidgetName}
-     * @param <T> runtime-тип виджета
+     * @param <T>        runtime-тип виджета
      * @return builder зарегистрированного XML-типа
      */
     public static <T extends Widget> XmlWidgetType<T> register(XmlWidgetRegistry registry, Class<T> widgetType) {
@@ -105,10 +116,10 @@ public final class XmlWidgetAnnotations {
      * <p>Метод добавляет common layout/style атрибуты, annotated setter-ы и базовые
      * child policy для известных контейнерных типов.</p>
      *
-     * @param registry целевой XML-реестр
+     * @param registry   целевой XML-реестр
      * @param widgetType класс виджета с {@link XmlWidgetName}
-     * @param factory фабрика экземпляров для XML-loader'а
-     * @param <T> runtime-тип виджета
+     * @param factory    фабрика экземпляров для XML-loader'а
+     * @param <T>        runtime-тип виджета
      * @return builder зарегистрированного XML-типа
      */
     public static <T extends Widget> XmlWidgetType<T> register(XmlWidgetRegistry registry,
@@ -137,7 +148,7 @@ public final class XmlWidgetAnnotations {
      *
      * @param registered уже созданный internal XML-тип
      * @param widgetType класс, с которого читаются annotated setter-ы
-     * @param <T> runtime-тип виджета
+     * @param <T>        runtime-тип виджета
      * @return тот же internal XML-тип для chained-настройки
      */
     public static <T extends Widget> WidgetXmlType<T> applyAnnotatedAttributes(
@@ -245,7 +256,8 @@ public final class XmlWidgetAnnotations {
         if (parameterType == SliceBorders.class) return XmlAttributeValueType.INSETS;
         if (parameterType == MutableColor.class || parameterType == ColorView.class) return XmlAttributeValueType.COLOR;
         if (parameterType == MutableRect.class || parameterType == RectView.class) return XmlAttributeValueType.STRING;
-        if (parameterType == TextureHandle.class) return XmlAttributeValueType.RESOURCE_ID;
+        if (parameterType == TextureHandle.class || parameterType == ShaderHandle.class)
+            return XmlAttributeValueType.RESOURCE_ID;
         if (parameterType.isEnum()) return XmlAttributeValueType.ENUM;
         return XmlAttributeDescriptor.of(name).defaultValue(annotation.defaultValue()).valueType();
     }
@@ -454,6 +466,7 @@ public final class XmlWidgetAnnotations {
                                                                       XmlAttributeDescriptor descriptor,
                                                                       Method method) {
         registered.attribute(name, (XmlValueParser) parser, (widget, value) -> invokeSetter(method, widget, value), descriptor);
+        registered.bindable(name, boxed(method.getParameterTypes()[0]));
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -467,6 +480,26 @@ public final class XmlWidgetAnnotations {
                 (dev.sixik.unigui.impl.xml.XmlValueParser) value -> ((XmlValueParser) parser).parse((String) value),
                 (widget, value) -> invokeSetter(method, widget, value),
                 descriptor);
+        registered.bindable(name, boxed(method.getParameterTypes()[0]));
+    }
+
+    /**
+     * Приводит примитивный тип setter-а к boxed runtime-типу observable source.
+     *
+     * @param type тип параметра Java-setter-а
+     * @return тип, который можно сравнивать с {@link Class#isAssignableFrom(Class)}
+     */
+    private static Class<?> boxed(Class<?> type) {
+        if (type == null || !type.isPrimitive()) return type;
+        if (type == boolean.class) return Boolean.class;
+        if (type == byte.class) return Byte.class;
+        if (type == short.class) return Short.class;
+        if (type == int.class) return Integer.class;
+        if (type == long.class) return Long.class;
+        if (type == float.class) return Float.class;
+        if (type == double.class) return Double.class;
+        if (type == char.class) return Character.class;
+        return type;
     }
 
     private static void registerStyleAttributes(XmlWidgetType<? extends WidgetBase> registered) {
@@ -558,6 +591,17 @@ public final class XmlWidgetAnnotations {
     }
 
     private static List<Method> annotatedSetters(Class<?> type) {
+        if (type == null) return List.of();
+        return ANNOTATED_SETTERS.get(type);
+    }
+
+    /**
+     * Выполняет reflection-поиск и стабильную сортировку annotated setter-ов.
+     *
+     * @param type класс виджета, методы которого нужно проанализировать
+     * @return неизменяемый список setter-ов, пригодных для XML-регистрации
+     */
+    private static List<Method> discoverAnnotatedSetters(Class<?> type) {
         Method[] methods = type.getMethods();
         Arrays.sort(methods, Comparator
                 .comparing(Method::getName)
@@ -616,6 +660,7 @@ public final class XmlWidgetAnnotations {
         if (type == MutableColor.class || type == ColorView.class) return XmlValueParsers.COLOR;
         if (type == MutableRect.class || type == RectView.class) return XmlValueParsers.RECT;
         if (type == TextureHandle.class) return XmlValueParsers.TEXTURE;
+        if (type == ShaderHandle.class) return XmlValueParsers.SHADER;
         if (type.isEnum()) return enumParser(type);
         throw new IllegalArgumentException("Unsupported @XmlAttribute parameter type: " + type.getName());
     }

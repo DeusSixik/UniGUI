@@ -252,8 +252,8 @@ public final class ColorPicker extends LinearBox {
 
         hsvModeButton.layout(style -> style.size(58.0f, 20.0f).flexGrow(0).flexShrink(0.0f));
         argbModeButton.layout(style -> style.size(66.0f, 20.0f).flexGrow(0).flexShrink(0.0f));
-        hsvModeButton.themeEnabled(false).radius(3.0f);
-        argbModeButton.themeEnabled(false).radius(3.0f);
+        hsvModeButton.radius(3.0f);
+        argbModeButton.radius(3.0f);
         hsvModeButton.onClick(event -> type(Type.HSV));
         argbModeButton.onClick(event -> type(Type.ARGB));
 
@@ -290,9 +290,9 @@ public final class ColorPicker extends LinearBox {
     }
 
     private static void styleModeButton(Button button, boolean selected) {
-        button.background().set(selected ? 0.18f : 0.07f, selected ? 0.45f : 0.08f, selected ? 0.75f : 0.10f, 1.0f);
-        button.borderColor().set(selected ? 0.35f : 0.18f, selected ? 0.85f : 0.25f, selected ? 1.0f : 0.32f, selected ? 0.95f : 0.70f);
-        button.textColor().set(selected ? 0.95f : 0.72f, selected ? 0.98f : 0.82f, 1.0f, 1.0f);
+        button.background(MutableColor.rgba(selected ? 0.18f : 0.07f, selected ? 0.45f : 0.08f, selected ? 0.75f : 0.10f, 1.0f));
+        button.borderColor(MutableColor.rgba(selected ? 0.35f : 0.18f, selected ? 0.85f : 0.25f, selected ? 1.0f : 0.32f, selected ? 0.95f : 0.70f));
+        button.textColor(MutableColor.rgba(selected ? 0.95f : 0.72f, selected ? 0.98f : 0.82f, 1.0f, 1.0f));
     }
 
     private void updateFromFields(boolean normalizeText) {

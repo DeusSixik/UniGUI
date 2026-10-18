@@ -13,8 +13,11 @@ import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.math.Transform;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.Style;
+import dev.sixik.unigui.api.style.MutableStyle;
+import dev.sixik.unigui.api.xml.XmlWidgetDiagnostic;
 
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Базовый контракт любого элемента UI-дерева.
@@ -156,6 +159,37 @@ public interface Widget extends EventEmitter {
      */
     default boolean hasStyleClass(String styleClass) {
         return false;
+    }
+
+    /**
+     * Добавляет встроенные визуальные объявления стиля к этому виджету.
+     *
+     * <p>Объявления объединяются с уже заданным встроенным стилем и имеют приоритет
+     * над значениями темы. Строка без двоеточия считается ссылкой на {@link #styleId(String)}
+     * для совместимости с краткой записью ссылок на стили.</p>
+     *
+     * @param declarations объявления, например {@code "background: #7a1f1f; radius: 8;"}
+     * @return этот виджет
+     */
+    default Widget style(String declarations) {
+        return this;
+    }
+
+    /**
+     * Изменяет тот же набор встроенных стилей с проверкой типизированных ключей компилятором.
+     *
+     * @param update функция настройки стиля
+     * @return этот виджет
+     */
+    default Widget style(Consumer<MutableStyle> update) {
+        return this;
+    }
+
+    /**
+     * @return диагностика, собранная при разборе встроенных объявлений стиля
+     */
+    default List<XmlWidgetDiagnostic> styleDiagnostics() {
+        return List.of();
     }
 
     /**

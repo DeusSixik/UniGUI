@@ -73,6 +73,7 @@ import dev.sixik.unigui.api.render.TexturePlacement;
 import dev.sixik.unigui.api.selection.SelectionMode;
 import dev.sixik.unigui.api.sort.SortDirection;
 import dev.sixik.unigui.api.style.MutableStyle;
+import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.style.MutableTheme;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleKey;
@@ -85,6 +86,7 @@ import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.StyleKeyRegistry;
 import dev.sixik.unigui.api.style.StylePackResult;
 import dev.sixik.unigui.api.style.StylePackXml;
+import dev.sixik.unigui.api.style.ThemeTokens;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.text.FontFace;
@@ -126,6 +128,7 @@ import dev.sixik.unigui.impl.text.AwtFontFace;
 import dev.sixik.unigui.impl.text.SdfGlyph;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
+import dev.sixik.unigui.impl.style.DefaultTheme;
 import dev.sixik.unigui.widgets.navigation.Accordion;
 import dev.sixik.unigui.widgets.interaction.Button;
 import dev.sixik.unigui.widgets.navigation.Breadcrumb;
@@ -250,6 +253,7 @@ public final class BasicControlsSelfTest {
     }
 
     private void run() {
+        testDefaultThemeContracts();
         testTextEditorModelCore();
         testUIScaleProviderContracts();
         testTextInputShellAndTextFieldChrome();
@@ -2413,6 +2417,46 @@ public final class BasicControlsSelfTest {
         MutableStyle style = new MutableStyle().put(StyleKeys.RADIUS, 7.0f);
         expect(style.get(radiusKeyCopy, WidgetState.PRESSED, 0.0f) == 7.0f, "MutableStyle should fallback to NORMAL state");
 
+        ThemeTokens tokenSnapshot = ThemeTokens.builder()
+                .colors(colors -> colors
+                        .surface(MutableColor.rgba(0.31f, 0.17f, 0.43f, 1.0f))
+                        .accent(MutableColor.rgba(0.90f, 0.40f, 0.20f, 1.0f)))
+                .shapes(shapes -> shapes.radiusMd(9.0f))
+                .build();
+        expect(tokenSnapshot.asStyle().get(StyleKeys.RADIUS, WidgetState.NORMAL, 0.0f) == 9.0f,
+                "ThemeTokens should expose shape values through the style layer");
+        DefaultUIContext tokenContext = new DefaultUIContext();
+        tokenContext.theme(DefaultTheme.withTokens(tokenSnapshot));
+        Button tokenButton = new Button("Token");
+        tokenButton.setUiContextInternal(tokenContext);
+        tokenButton.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 18.0f));
+        DrawList tokenDrawList = new DrawList();
+        tokenButton.render(new DefaultRenderContext(tokenDrawList));
+        expect(hasFillColor(tokenDrawList, 0.31f, 0.17f, 0.43f, 1.0f),
+                "Token theme should provide fallback colors to controls");
+        tokenButton.background(MutableColor.rgba(0.1f, 0.8f, 0.2f, 1.0f));
+        DrawList explicitTokenDrawList = new DrawList();
+        tokenButton.render(new DefaultRenderContext(explicitTokenDrawList));
+        expect(hasFillColor(explicitTokenDrawList, 0.1f, 0.8f, 0.2f, 1.0f),
+                "Explicit control values should remain above token fallback");
+        TextField tokenField = new TextField();
+        tokenField.setUiContextInternal(tokenContext);
+        tokenField.arrange(new MutableRect(0.0f, 0.0f, 120.0f, 36.0f));
+        DrawList tokenFieldDrawList = new DrawList();
+        tokenField.render(new DefaultRenderContext(tokenFieldDrawList));
+        expect(hasFillColor(tokenFieldDrawList, 0.31f, 0.17f, 0.43f, 1.0f)
+                        && near(tokenField.radius(), 9.0f),
+                "Token theme should replace TextField constructor defaults");
+        StylePack tokenPack = StylePack.create("token-pack")
+                .tokens(tokenSnapshot)
+                .putStyle(StyleIds.Widget.BUTTON,
+                        new MutableStyle().put(StyleKeys.BACKGROUND_COLOR,
+                                MutableColor.rgba(0.7f, 0.2f, 0.1f, 1.0f)));
+        ColorView packedColor = tokenPack.resolveStyleFor(StyleIds.Widget.BUTTON, "", List.of())
+                .get(StyleKeys.BACKGROUND_COLOR, WidgetState.NORMAL, null);
+        expect(packedColor != null && packedColor.r() == 0.7f,
+                "StylePack rules should remain above token fallback");
+
         Button themedButton = new Button("Theme");
         themedButton.setUiContextInternal(uiContext);
         themedButton.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 18.0f));
@@ -2433,6 +2477,15 @@ public final class BasicControlsSelfTest {
         DrawList manualButtonDrawList = new DrawList();
         manualButton.render(new DefaultRenderContext(manualButtonDrawList));
         expect(hasFillColor(manualButtonDrawList, 0.9f, 0.1f, 0.2f, 1.0f), "themeEnabled(false) should preserve manual colors");
+
+        Button explicitButton = new Button("Explicit");
+        explicitButton.background(MutableColor.rgba(0.2f, 0.8f, 0.3f, 1.0f));
+        explicitButton.setUiContextInternal(uiContext);
+        explicitButton.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 18.0f));
+        DrawList explicitButtonDrawList = new DrawList();
+        explicitButton.render(new DefaultRenderContext(explicitButtonDrawList));
+        expect(hasFillColor(explicitButtonDrawList, 0.2f, 0.8f, 0.3f, 1.0f),
+                "Explicit background should survive theme application");
 
         MutableStyle customButtonStyle = new MutableStyle()
                 .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.4f, 0.2f, 0.8f, 1.0f))
@@ -2556,6 +2609,32 @@ public final class BasicControlsSelfTest {
                         && near(resolvedCool.b(), 0.8f)
                         && near(resolvedWarm.r(), 0.8f),
                 "StylePack widgetId selectors should make runtime styleId switching visible");
+
+        MutableStyle specificFirst = new MutableStyle()
+                .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.0f, 0.0f, 0.9f, 1.0f));
+        MutableStyle genericLater = new MutableStyle()
+                .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.9f, 0.0f, 0.0f, 1.0f));
+        StylePack orderedPack = StylePack.create("ordered")
+                .put(StyleDefinition.of("specific-first", specificFirst)
+                        .target(Button.STYLE_TYPE).styleClass("primary").widgetId("primary"))
+                .put(StyleDefinition.of("generic-later", genericLater)
+                        .target(Button.STYLE_TYPE));
+        ColorView ordered = orderedPack.resolveStyleFor(Button.STYLE_TYPE, "primary", List.of("primary"))
+                .get(StyleKeys.BACKGROUND_COLOR, WidgetState.NORMAL, null);
+        expect(ordered != null && near(ordered.r(), 0.9f),
+                "StylePack should let the last matching rule win regardless of selector specificity");
+
+        Button inlineStyled = new Button("Inline");
+        inlineStyled.style("background: #7A1F1FFF; radius: 8; unknown: 1;");
+        inlineStyled.style(style -> style.put(StyleKeys.BORDER_WIDTH, 2.0f));
+        Style inline = inlineStyled.localStyle(StyleIds.WILDCARD);
+        ColorView inlineBackground = inline.get(StyleKeys.BACKGROUND_COLOR, WidgetState.NORMAL, null);
+        expect(inlineBackground != null && near(inlineBackground.r(), 0x7A / 255.0f)
+                        && near(inlineBackground.g(), 0x1F / 255.0f)
+                        && near(inline.get(StyleKeys.RADIUS, WidgetState.NORMAL, 0.0f), 8.0f)
+                        && near(inline.get(StyleKeys.BORDER_WIDTH, WidgetState.NORMAL, 0.0f), 2.0f)
+                        && inlineStyled.styleDiagnostics().size() == 1,
+                "Widget inline styles should merge string and lambda values and retain diagnostics");
         expect(pack.eventAnimation("primaryButton", Button.AnimationEvents.ON_CLICK).equals("pulse")
                         && pack.animation("pulse").orElseThrow().tweens().size() == 2,
                 "StylePack should keep event animation links as editable data");
@@ -3842,6 +3921,15 @@ public final class BasicControlsSelfTest {
         button.render(new DefaultRenderContext(blurred));
         expect(!button.focused() && noStrokeWithColor(blurred, button.focusRingColor()),
                 "Blur should remove the button focus ring");
+
+        DefaultUIContext pointerContext = new DefaultUIContext();
+        Button pointerButton = new Button("Pointer focus");
+        pointerButton.setUiContextInternal(pointerContext);
+        pointerContext.focusManager().requestFocus(pointerButton);
+        pointerButton.handle(new PointerPressedEvent(pointerButton, 4.0f, 4.0f, 4.0f, 4.0f, 0, PointerButton.PRIMARY));
+        pointerButton.handle(new PointerReleasedEvent(pointerButton, 4.0f, 4.0f, 4.0f, 4.0f, 0, PointerButton.PRIMARY));
+        expect(!pointerButton.focused() && pointerContext.focusManager().focusedWidget() == null,
+                "Pointer click should clear transient Button focus after release");
     }
 
     private void testButtonStateBackgrounds() {
@@ -6278,6 +6366,26 @@ public final class BasicControlsSelfTest {
                 "Open ComboBox should render all options");
         expect(combo.optionButton(1).checked(),
                 "ComboBox should mark the selected option as checked");
+        combo.optionHoverBackground().set(0.5f, 0.3f, 0.2f, 1.0f);
+        expect(near(combo.optionButton(0).hoverBackground().r(), 0.5f)
+                        && near(combo.optionButton(0).hoverBackground().g(), 0.3f),
+                "ComboBox live option hover color should update realized option buttons");
+        ToggleButton hoveredOption = combo.optionButton(0);
+        hoveredOption.handle(new PointerEnteredEvent(hoveredOption, 4.0f, 4.0f, 4.0f, 4.0f, 0));
+        DrawList hoveredOptionDrawList = new DrawList();
+        hoveredOption.render(new DefaultRenderContext(hoveredOptionDrawList));
+        expect(hasFillColor(hoveredOptionDrawList, 0.5f, 0.3f, 0.2f, 1.0f),
+                "ComboBox option should paint its configured hover background");
+
+        Button shaderHoverButton = new Button("Shader hover");
+        shaderHoverButton.themeEnabled(false);
+        shaderHoverButton.hoverShader(ShaderHandle.resource("test:hover"));
+        shaderHoverButton.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 20.0f));
+        shaderHoverButton.handle(new PointerEnteredEvent(shaderHoverButton, 4.0f, 4.0f, 4.0f, 4.0f, 0));
+        DrawList shaderHoverDrawList = new DrawList();
+        shaderHoverButton.render(new DefaultRenderContext(shaderHoverDrawList));
+        expect(shaderHoverDrawList.commands().stream().anyMatch(command -> command.type() == DrawCommandType.SHADER),
+                "Button should draw its configured shader over the hover state");
 
         Counter changes = new Counter();
         combo.onSelectionChanged(event -> {
@@ -6358,6 +6466,26 @@ public final class BasicControlsSelfTest {
         autoOverlayCombo.open();
         expect(autoOverlayCombo.attachedOverlayLayer() == rootOverlay,
                 "Overlay ComboBox should attach its Popup to the topmost OverlayLayer automatically");
+
+        Button scrollAnchor = new Button("Anchor");
+        scrollAnchor.layout(style -> style.size(120.0f, 24.0f).flexGrow(0).flexShrink(0.0f));
+        VBox scrollContent = new VBox();
+        scrollContent.addChild(scrollAnchor);
+        ScrollView scroll = new ScrollView(scrollContent).contentSize(120.0f, 400.0f);
+        scroll.layout(style -> style.size(140.0f, 100.0f).flexGrow(0).flexShrink(0.0f));
+        OverlayLayer scrollOverlay = new OverlayLayer(scroll);
+        scrollOverlay.measure(new LayoutContext(200.0f, 160.0f));
+        scrollOverlay.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 160.0f));
+        Popup scrollPopup = new Popup(scrollAnchor, new Label("Menu"));
+        scrollPopup.open();
+        scrollOverlay.addOverlay(scrollPopup);
+        scrollOverlay.measure(new LayoutContext(200.0f, 160.0f));
+        scrollOverlay.arrange(new MutableRect(0.0f, 0.0f, 200.0f, 160.0f));
+        float popupY = scrollPopup.layoutBounds().y();
+        scroll.scrollTo(0.0f, 40.0f);
+        scrollPopup.render(new DefaultRenderContext(new DrawList()));
+        expect(near(scrollPopup.layoutBounds().y(), popupY - 40.0f),
+                "Open popup should follow its anchor when the anchor scrolls");
 
         VBox customPanel = new VBox();
         customPanel.addChild(new Label("Custom content"));

@@ -167,9 +167,15 @@ public class TextInput extends Box {
     protected final void enableDefaultTextInputChrome() {
         backgroundVisible(true);
         borderVisible(true);
-        background().set(0.08f, 0.086f, 0.10f, 1.0f);
-        borderColor().set(0.18f, 0.20f, 0.23f, 1.0f);
-        radius(CHROME_RADIUS);
+        // Значения конструктора являются дефолтом контрола, а не явным стилем пользователя.
+        surface().themeUpdating(true);
+        try {
+            background().set(0.08f, 0.086f, 0.10f, 1.0f);
+            borderColor().set(0.18f, 0.20f, 0.23f, 1.0f);
+            surface().radius(CHROME_RADIUS);
+        } finally {
+            surface().themeUpdating(false);
+        }
     }
 
     public TextEditorModel editorModel() {

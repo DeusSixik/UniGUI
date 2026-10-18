@@ -4,6 +4,7 @@ import dev.sixik.unigui.api.widget.Widget;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
 /**
@@ -15,6 +16,10 @@ import java.util.function.Supplier;
  */
 public final class XmlWidgetRegistryContributions {
     private static final CopyOnWriteArrayList<XmlWidgetRegistryContributor> CONTRIBUTORS = new CopyOnWriteArrayList<>();
+    /**
+     * Версия глобального списка contributions для инвалидирования кэша built-in registry.
+     */
+    private static final AtomicLong VERSION = new AtomicLong();
 
     private XmlWidgetRegistryContributions() {
     }
@@ -28,14 +33,17 @@ public final class XmlWidgetRegistryContributions {
     public static AutoCloseable register(XmlWidgetRegistryContributor contributor) {
         if (contributor == null) throw new IllegalArgumentException("XML widget registry contributor must not be null");
         CONTRIBUTORS.add(contributor);
-        return () -> CONTRIBUTORS.remove(contributor);
+        VERSION.incrementAndGet();
+        return () -> {
+            if (CONTRIBUTORS.remove(contributor)) VERSION.incrementAndGet();
+        };
     }
 
     /**
      * Регистрирует annotated widget class во всех будущих built-in registry.
      *
      * @param widgetType класс виджета с {@link XmlWidgetName}
-     * @param <T> тип виджета
+     * @param <T>        тип виджета
      * @return close handle для удаления contribution
      */
     public static <T extends Widget> AutoCloseable registerAnnotated(Class<T> widgetType) {
@@ -46,8 +54,8 @@ public final class XmlWidgetRegistryContributions {
      * Регистрирует annotated widget class с явной factory во всех будущих built-in registry.
      *
      * @param widgetType класс виджета с {@link XmlWidgetName}
-     * @param factory factory создания виджета
-     * @param <T> тип виджета
+     * @param factory    factory создания виджета
+     * @param <T>        тип виджета
      * @return close handle для удаления contribution
      */
     public static <T extends Widget> AutoCloseable registerAnnotated(Class<T> widgetType, Supplier<T> factory) {
@@ -68,5 +76,14 @@ public final class XmlWidgetRegistryContributions {
         for (XmlWidgetRegistryContributor contributor : CONTRIBUTORS) {
             contributor.contribute(registry);
         }
+    }
+
+    /**
+     * Возвращает текущую версию глобальных contributions.
+     *
+     * @return монотонно возрастающая версия списка расширений
+     */
+    static long version() {
+        return VERSION.get();
     }
 }
