@@ -43,6 +43,7 @@ import java.util.Locale;
 import java.util.function.Supplier;
 import java.time.Duration;
 import java.time.LocalDate;
+
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.DockPanel;
 import dev.sixik.unigui.widgets.containers.DockSide;
@@ -108,7 +109,8 @@ import dev.sixik.unigui.widgets.navigation.TreeView;
 import dev.sixik.unigui.widgets.navigation.TreeViewNode;
 
 public final class TestCommands {
-    private static Runnable changeMode = () -> {};
+    private static Runnable changeMode = () -> {
+    };
     private static Supplier<String> renderMode = UiRenderPolicy.Mode.ON_DIRTY::name;
 
     private TestCommands() {
@@ -1650,10 +1652,13 @@ public final class TestCommands {
         OverlayLayer layer = new OverlayLayer(page);
         Popup popup = new Popup(popupAnchor, samplePane("Popup content", "Anchored popup with retained content."));
         ContextMenu menu = new ContextMenu()
-                .item("Inspect", () -> {})
-                .item("Duplicate", () -> {})
+                .item("Inspect", () -> {
+                })
+                .item("Duplicate", () -> {
+                })
                 .separator()
-                .item("Delete", () -> {});
+                .item("Delete", () -> {
+                });
         Toast toast = new Toast("NotificationView / Toast").duration(2.5f);
         WindowWidget window = new WindowWidget("Example Window", samplePane("Dialog body", "Drag the title bar, or close with x."))
                 .position(260.0f, 74.0f)
