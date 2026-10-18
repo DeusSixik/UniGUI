@@ -52,6 +52,18 @@ public interface Style {
     }
 
     /**
+     * Разбирает встроенные объявления, например {@code "background: #7a1f1f; radius: 8;"}.
+     * Короткая форма пропускает ошибочные объявления; для получения
+     * диагностики используй {@link StyleTextParser#parseEditor(String)}.
+     *
+     * @param text объявления встроенного стиля
+     * @return разобранный стиль
+     */
+    static Style fromText(String text) {
+        return StyleTextParser.parse(text);
+    }
+
+    /**
      * Возвращает версию стиля для кэшей и invalidation.
      *
      * <p>Версия должна меняться при любом изменении значений. Неизменяемые стили могут

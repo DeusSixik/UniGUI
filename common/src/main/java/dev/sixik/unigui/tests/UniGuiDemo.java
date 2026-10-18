@@ -1,27 +1,17 @@
 package dev.sixik.unigui.tests;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.brigadier.CommandDispatcher;
-import dev.sixik.unigui.api.core.MutableUIScaleProvider;
 import dev.sixik.unigui.api.animation.AnimationEasing;
-import dev.sixik.unigui.api.animation.TransitionSpec;
 import dev.sixik.unigui.api.animation.TransformOrigin;
+import dev.sixik.unigui.api.animation.TransitionSpec;
+import dev.sixik.unigui.api.core.MutableUIScaleProvider;
 import dev.sixik.unigui.api.debug.DebugFlags;
-import dev.sixik.unigui.api.editor.CommandManager;
-import dev.sixik.unigui.api.editor.EditorCommand;
-import dev.sixik.unigui.api.editor.KeyBinding;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
-import dev.sixik.unigui.api.render.BlendMode;
-import dev.sixik.unigui.api.render.DrawCommand;
-import dev.sixik.unigui.api.render.DrawScope;
-import dev.sixik.unigui.api.render.Paint;
-import dev.sixik.unigui.api.render.SimpleTextureHandle;
-import dev.sixik.unigui.api.render.TextureOptions;
-import dev.sixik.unigui.api.render.UiRenderPolicy;
+import dev.sixik.unigui.api.render.*;
 import dev.sixik.unigui.api.render.shaders.ShaderDrawOptions;
 import dev.sixik.unigui.api.render.shaders.ShaderHandle;
 import dev.sixik.unigui.api.render.shaders.ShaderUniforms;
@@ -32,30 +22,26 @@ import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.widget.CheckboxState;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.xml.XMLWidget;
-import dev.sixik.unigui.api.xml.XmlAttributeDescriptor;
-import dev.sixik.unigui.api.xml.XmlAttributeValueType;
-import dev.sixik.unigui.api.xml.XmlWidgetAsset;
-import dev.sixik.unigui.api.xml.XmlWidgetAssetCatalog;
-import dev.sixik.unigui.api.xml.XmlWidgetAssetKind;
-import dev.sixik.unigui.api.xml.XmlWidgetDiagnosticsPanel;
-import dev.sixik.unigui.api.xml.XmlWidgetDocument;
-import dev.sixik.unigui.api.xml.XmlWidgetElement;
-import dev.sixik.unigui.api.xml.XmlWidgetHotReloadPreview;
-import dev.sixik.unigui.api.xml.XmlWidgetHotReloadSource;
-import dev.sixik.unigui.api.xml.XmlWidgetNodePath;
-import dev.sixik.unigui.widgets.display.*;
-import dev.sixik.unigui.widgets.minecraft.MinecraftBlockPreviewWidget;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftClipboardService;
-import dev.sixik.unigui.backend.minecraft_impl.UniGuiTextures;
-import dev.sixik.unigui.widgets.minecraft.MinecraftEntityPreviewWidget;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftFonts;
-import dev.sixik.unigui.widgets.minecraft.MinecraftItemPickerWidget;
-import dev.sixik.unigui.widgets.minecraft.MinecraftItemPreviewWidget;
-import dev.sixik.unigui.widgets.minecraft.MinecraftItemTooltip;
-import dev.sixik.unigui.widgets.minecraft.MinecraftTexturePickerWidget;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftWidgetScreen;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
-import dev.sixik.unigui.widgets.map.*;
+import dev.sixik.unigui.widgets.containers.*;
+import dev.sixik.unigui.widgets.data.VirtualListView;
+import dev.sixik.unigui.widgets.data.VirtualTableColumn;
+import dev.sixik.unigui.widgets.data.VirtualTableView;
+import dev.sixik.unigui.widgets.display.*;
+import dev.sixik.unigui.widgets.docking.DockArea;
+import dev.sixik.unigui.widgets.docking.DockPane;
+import dev.sixik.unigui.widgets.docking.DockingRoot;
+import dev.sixik.unigui.widgets.feedback.*;
+import dev.sixik.unigui.widgets.graph.*;
+import dev.sixik.unigui.widgets.interaction.*;
+import dev.sixik.unigui.widgets.map.MapCanvas;
+import dev.sixik.unigui.widgets.map.MapProjection;
+import dev.sixik.unigui.widgets.minecraft.*;
+import dev.sixik.unigui.widgets.navigation.*;
+import dev.sixik.unigui.widgets.world.WorldCanvas;
 import net.minecraft.client.Minecraft;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -67,108 +53,10 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 
-import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.LocalDate;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.List;
 import java.util.Locale;
-import dev.sixik.unigui.widgets.containers.Border;
-import dev.sixik.unigui.widgets.containers.Box;
-import dev.sixik.unigui.widgets.containers.DockPanel;
-import dev.sixik.unigui.widgets.containers.DockSide;
-import dev.sixik.unigui.widgets.containers.HBox;
-import dev.sixik.unigui.widgets.feedback.OverlayLayer;
-import dev.sixik.unigui.widgets.containers.PanelRowWidget;
-import dev.sixik.unigui.widgets.containers.ScrollView;
-import dev.sixik.unigui.widgets.containers.SettingRow;
-import dev.sixik.unigui.widgets.containers.SplitPanel;
-import dev.sixik.unigui.widgets.containers.StackPanel;
-import dev.sixik.unigui.widgets.containers.VBox;
-import dev.sixik.unigui.widgets.containers.View;
-import dev.sixik.unigui.widgets.containers.WrapPanel;
-import dev.sixik.unigui.widgets.data.VirtualListView;
-import dev.sixik.unigui.widgets.data.VirtualTableColumn;
-import dev.sixik.unigui.widgets.data.VirtualTableView;
-import dev.sixik.unigui.widgets.docking.DockArea;
-import dev.sixik.unigui.widgets.docking.DockingRoot;
-import dev.sixik.unigui.widgets.docking.DockPane;
-import dev.sixik.unigui.widgets.editor.AssetBrowserPanel;
-import dev.sixik.unigui.widgets.editor.CommandPalette;
-import dev.sixik.unigui.widgets.editor.DesignCanvasOverlay;
-import dev.sixik.unigui.widgets.editor.DiagnosticsStrip;
-import dev.sixik.unigui.widgets.editor.Dialog;
-import dev.sixik.unigui.widgets.editor.DragSource;
-import dev.sixik.unigui.widgets.editor.DropTarget;
-import dev.sixik.unigui.widgets.editor.GridOverlay;
-import dev.sixik.unigui.widgets.editor.PalettePanel;
-import dev.sixik.unigui.widgets.editor.PaneHeader;
-import dev.sixik.unigui.widgets.editor.PaneVisibilityController;
-import dev.sixik.unigui.widgets.editor.ProjectPickerPanel;
-import dev.sixik.unigui.widgets.editor.PropertyFieldRow;
-import dev.sixik.unigui.widgets.editor.PropertyGrid;
-import dev.sixik.unigui.widgets.editor.ResizablePanelHeader;
-import dev.sixik.unigui.widgets.editor.SearchBoxWithFilterChips;
-import dev.sixik.unigui.widgets.editor.SelectionOverlay;
-import dev.sixik.unigui.widgets.editor.StatusBar;
-import dev.sixik.unigui.widgets.editor.WidgetPalette;
-import dev.sixik.unigui.widgets.editor.XmlEditorDemoScreen;
-import dev.sixik.unigui.widgets.feedback.ContextMenu;
-import dev.sixik.unigui.widgets.feedback.LoadingIndicator;
-import dev.sixik.unigui.widgets.feedback.NotificationView;
-import dev.sixik.unigui.widgets.feedback.Popup;
-import dev.sixik.unigui.widgets.feedback.ProgressBar;
-import dev.sixik.unigui.widgets.feedback.Spinner;
-import dev.sixik.unigui.widgets.feedback.Toast;
-import dev.sixik.unigui.widgets.feedback.Tooltip;
-import dev.sixik.unigui.widgets.feedback.WindowWidget;
-import dev.sixik.unigui.widgets.graph.GraphView;
-import dev.sixik.unigui.widgets.graph.NodeGraph;
-import dev.sixik.unigui.widgets.graph.NodeGraphItem;
-import dev.sixik.unigui.widgets.graph.NodeGraphPortKind;
-import dev.sixik.unigui.widgets.graph.NodeGraphPortRef;
-import dev.sixik.unigui.widgets.graph.NodeGraphPortSide;
-import dev.sixik.unigui.widgets.graph.NodeGraphSelectionMode;
-import dev.sixik.unigui.widgets.interaction.Button;
-import dev.sixik.unigui.widgets.interaction.Checkbox;
-import dev.sixik.unigui.widgets.interaction.CodeEditor;
-import dev.sixik.unigui.widgets.interaction.ColorPicker;
-import dev.sixik.unigui.widgets.interaction.ComboBox;
-import dev.sixik.unigui.widgets.interaction.DatePicker;
-import dev.sixik.unigui.widgets.interaction.DropDownBox;
-import dev.sixik.unigui.widgets.interaction.HoldButton;
-import dev.sixik.unigui.widgets.interaction.IconButton;
-import dev.sixik.unigui.widgets.interaction.NumberField;
-import dev.sixik.unigui.widgets.interaction.PasswordField;
-import dev.sixik.unigui.widgets.interaction.RadioButton;
-import dev.sixik.unigui.widgets.interaction.RadioGroup;
-import dev.sixik.unigui.widgets.interaction.SearchField;
-import dev.sixik.unigui.widgets.interaction.Slider;
-import dev.sixik.unigui.widgets.interaction.TextArea;
-import dev.sixik.unigui.widgets.interaction.TextField;
-import dev.sixik.unigui.widgets.interaction.TextInput;
-import dev.sixik.unigui.widgets.interaction.TimeSpanField;
-import dev.sixik.unigui.widgets.interaction.ToggleButton;
-import dev.sixik.unigui.widgets.interaction.ToggleToolButton;
-import dev.sixik.unigui.widgets.interaction.ToggleSwitch;
-import dev.sixik.unigui.widgets.interaction.ToolButton;
-import dev.sixik.unigui.widgets.interaction.TreeListPicker;
-import dev.sixik.unigui.widgets.interaction.XmlCodeEditor;
-import dev.sixik.unigui.widgets.navigation.Accordion;
-import dev.sixik.unigui.widgets.navigation.Breadcrumb;
-import dev.sixik.unigui.widgets.navigation.Carousel;
-import dev.sixik.unigui.widgets.navigation.ExpandablePanel;
-import dev.sixik.unigui.widgets.navigation.Menu;
-import dev.sixik.unigui.widgets.navigation.MenuBar;
-import dev.sixik.unigui.widgets.navigation.PageView;
-import dev.sixik.unigui.widgets.navigation.TabControl;
-import dev.sixik.unigui.widgets.navigation.ToolBar;
-import dev.sixik.unigui.widgets.navigation.TreeList;
-import dev.sixik.unigui.widgets.navigation.TreeView;
-import dev.sixik.unigui.widgets.navigation.TreeViewNode;
-import dev.sixik.unigui.widgets.world.WorldCanvas;
-import org.intellij.lang.annotations.Language;
 
 public final class UniGuiDemo {
     private static final MutableUIScaleProvider SCALE = new MutableUIScaleProvider(2.0f);
@@ -181,192 +69,192 @@ public final class UniGuiDemo {
     private static final ShaderHandle MAP_AURORA_BACKGROUND_SHADER = ShaderHandle.source(
             "unigui:demo_map_aurora_background",
             """
-            #version 150
-
-            in vec3 Position;
-
-            out vec2 mapUv;
-            out vec2 localCoord;
-            out vec2 quadSize;
-
-            uniform vec2 ScreenSize;
-            uniform vec4 SquareVertex;
-
-            void main() {
-                vec2 rawUv = Position.xy * 0.5 + 0.5;
-                mapUv = vec2(rawUv.x, 1.0 - rawUv.y);
-
-                vec2 rectMin = min(SquareVertex.xy, SquareVertex.zw);
-                vec2 rectMax = max(SquareVertex.xy, SquareVertex.zw);
-                quadSize = max(rectMax - rectMin, vec2(1.0));
-                localCoord = mapUv * quadSize;
-
-                vec2 pixel = mix(rectMin, rectMax, mapUv);
-                vec2 ndc = vec2(
-                        pixel.x / max(ScreenSize.x, 1.0) * 2.0 - 1.0,
-                        1.0 - pixel.y / max(ScreenSize.y, 1.0) * 2.0);
-                gl_Position = vec4(ndc, 0.0, 1.0);
-            }
-            """,
+                    #version 150
+                    
+                    in vec3 Position;
+                    
+                    out vec2 mapUv;
+                    out vec2 localCoord;
+                    out vec2 quadSize;
+                    
+                    uniform vec2 ScreenSize;
+                    uniform vec4 SquareVertex;
+                    
+                    void main() {
+                        vec2 rawUv = Position.xy * 0.5 + 0.5;
+                        mapUv = vec2(rawUv.x, 1.0 - rawUv.y);
+                    
+                        vec2 rectMin = min(SquareVertex.xy, SquareVertex.zw);
+                        vec2 rectMax = max(SquareVertex.xy, SquareVertex.zw);
+                        quadSize = max(rectMax - rectMin, vec2(1.0));
+                        localCoord = mapUv * quadSize;
+                    
+                        vec2 pixel = mix(rectMin, rectMax, mapUv);
+                        vec2 ndc = vec2(
+                                pixel.x / max(ScreenSize.x, 1.0) * 2.0 - 1.0,
+                                1.0 - pixel.y / max(ScreenSize.y, 1.0) * 2.0);
+                        gl_Position = vec4(ndc, 0.0, 1.0);
+                    }
+                    """,
             """
-            #version 150
-
-            in vec2 mapUv;
-            in vec2 localCoord;
-            in vec2 quadSize;
-
-            out vec4 FragColor;
-
-            uniform float Time;
-            uniform vec4 AuroraColor;
-            uniform vec4 BackgroundColor1;
-            uniform vec4 BackgroundColor2;
-            uniform float AuroraIntensity;
-            uniform float StarBrightness;
-
-            const float PI = 3.14159265358979323846264;
-            const mat2 M2 = mat2(0.95534, 0.29552, -0.29552, 0.95534);
-
-            mat2 mm2(float a) {
-                float c = cos(a);
-                float s = sin(a);
-                return mat2(c, s, -s, c);
-            }
-
-            float tri(float x) {
-                return clamp(abs(fract(x) - 0.5), 0.01, 0.49);
-            }
-
-            vec2 tri2(vec2 p) {
-                return vec2(tri(p.x) + tri(p.y), tri(p.y + tri(p.x)));
-            }
-
-            float hash21(vec2 n) {
-                return fract(sin(dot(n, vec2(12.9898, 4.1414))) * 43758.5453);
-            }
-
-            vec3 hash33(vec3 p) {
-                p = fract(p * vec3(0.1031, 0.1030, 0.0973));
-                p += dot(p, p.yxz + 33.33);
-                return fract((p.xxy + p.yxx) * p.zyx);
-            }
-
-            float triNoise2d(vec2 p, float spd) {
-                float z = 1.8;
-                float z2 = 2.5;
-                float rz = 0.0;
-                p = p * mm2(p.x * 0.06);
-                vec2 bp = p;
-                for (int octave = 0; octave < 5; octave++) {
-                    vec2 dg = tri2(bp * 1.85) * 0.75;
-                    dg = dg * mm2(Time * spd);
-                    p -= dg / z2;
-
-                    bp *= 1.3;
-                    z2 *= 0.45;
-                    z *= 0.42;
-                    p *= 1.21 + (rz - 1.0) * 0.02;
-
-                    rz += tri(p.x + tri(p.y)) * z;
-                    p = p * (M2 * -1.0);
-                }
-                return clamp(1.0 / pow(rz * 29.0, 1.3), 0.0, 0.55);
-            }
-
-            vec4 aurora(vec3 ro, vec3 rd, vec2 fragCoord) {
-                vec4 col = vec4(0.0);
-                vec4 avgCol = vec4(0.0);
-
-                for (int sampleIndex = 0; sampleIndex < 50; sampleIndex++) {
-                    float i = float(sampleIndex);
-                    float of = 0.006 * hash21(fragCoord) * smoothstep(0.0, 15.0, i);
-                    float denom = rd.y * 2.0 + 0.4;
-                    denom = abs(denom) < 0.03 ? (denom < 0.0 ? -0.03 : 0.03) : denom;
-                    float pt = ((0.8 + pow(i, 1.4) * 0.002) - ro.y) / denom;
-                    pt -= of;
-
-                    vec3 bpos = ro + pt * rd;
-                    float rzt = triNoise2d(bpos.zx, 0.06);
-                    vec4 col2 = vec4(0.0, 0.0, 0.0, rzt);
-
-                    vec3 colorVariation = sin(1.0 - vec3(2.15, -0.5, 1.2) + i * 0.043) * 0.5 + 0.5;
-                    col2.rgb = AuroraColor.rgb * colorVariation * rzt;
-
-                    avgCol = mix(avgCol, col2, 0.5);
-                    col += avgCol * exp2(-i * 0.065 - 2.5) * smoothstep(0.0, 5.0, i);
-                }
-
-                col *= clamp(rd.y * 15.0 + 0.4, 0.0, 1.0);
-                return col * AuroraIntensity;
-            }
-
-            vec3 stars(vec3 p, vec2 res) {
-                vec3 c = vec3(0.0);
-                float resVal = max(min(res.x, res.y), 1.0);
-                for (int starLayer = 0; starLayer < 4; starLayer++) {
-                    float i = float(starLayer);
-                    vec3 q = fract(p * (0.15 * resVal)) - 0.5;
-                    vec3 id = floor(p * (0.15 * resVal));
-                    vec2 rn = hash33(id).xy;
-                    float c2 = 1.0 - smoothstep(0.0, 0.6, length(q));
-                    c2 *= step(rn.x, 0.0005 + i * i * 0.001);
-                    c += c2 * (mix(vec3(1.0, 0.49, 0.1), vec3(0.75, 0.9, 1.0), rn.y) * 0.1 + 0.9);
-                    p *= 1.3;
-                }
-                return c * c * StarBrightness;
-            }
-
-            vec3 bg(vec3 rd) {
-                float sd = dot(normalize(vec3(-0.5, -0.6, 0.9)), rd) * 0.5 + 0.5;
-                sd = pow(sd, 5.0);
-                return mix(BackgroundColor1.rgb, BackgroundColor2.rgb, sd) * 0.63;
-            }
-
-            void main() {
-                vec2 res = max(quadSize, vec2(1.0));
-                vec2 uv = clamp(mapUv, vec2(0.0), vec2(1.0));
-                vec2 fragCoord = uv * res;
-
-                vec3 ro = vec3(0.0, 0.0, -6.7);
-                float theta = uv.y * PI;
-                float phi = (uv.x - 0.5) * 2.0 * PI;
-                vec3 rd = vec3(sin(theta) * sin(phi), sin(theta) * cos(phi), cos(theta));
-
-                float timeRot = Time * 0.05;
-                rd.yz = rd.yz * mm2(0.4);
-                rd.xz = rd.xz * mm2(sin(timeRot) * 0.2);
-
-                vec3 col;
-                float fade = smoothstep(0.0, 0.01, abs(rd.y)) * 0.1 + 0.9;
-
-                if (rd.y > 0.0) {
-                    col = bg(rd) * fade;
-                    vec4 aur = smoothstep(vec4(0.0), vec4(1.5), aurora(ro, rd, fragCoord)) * fade;
-                    col += stars(rd, res);
-                    col = col * (1.0 - aur.a) + aur.rgb;
-                } else {
-                    vec3 rrd = rd;
-                    rrd.y = abs(rrd.y);
-                    col = bg(rrd) * fade * 0.6;
-
-                    vec4 aur = smoothstep(vec4(0.0), vec4(2.5), aurora(ro, rrd, fragCoord));
-                    col += stars(rrd, res) * 0.1;
-                    col = col * (1.0 - aur.a) + aur.rgb;
-
-                    float waterDenom = max(rrd.y, 0.04);
-                    vec3 pos = ro + ((0.5 - ro.y) / waterDenom) * rrd;
-                    float nz2 = triNoise2d(pos.xz * vec2(0.5, 0.7), 0.0);
-                    col += mix(vec3(0.2, 0.25, 0.5) * 0.08, vec3(0.3, 0.3, 0.5) * 0.7, nz2 * 0.4);
-                }
-
-                float vignette = smoothstep(0.0, 0.08, uv.x)
-                        * smoothstep(1.0, 0.92, uv.x)
-                        * smoothstep(0.0, 0.06, uv.y)
-                        * smoothstep(1.0, 0.90, uv.y);
-                col *= mix(0.72, 1.0, vignette);
-                FragColor = vec4(max(col, vec3(0.0)), 1.0);
-            }
-            """);
+                    #version 150
+                    
+                    in vec2 mapUv;
+                    in vec2 localCoord;
+                    in vec2 quadSize;
+                    
+                    out vec4 FragColor;
+                    
+                    uniform float Time;
+                    uniform vec4 AuroraColor;
+                    uniform vec4 BackgroundColor1;
+                    uniform vec4 BackgroundColor2;
+                    uniform float AuroraIntensity;
+                    uniform float StarBrightness;
+                    
+                    const float PI = 3.14159265358979323846264;
+                    const mat2 M2 = mat2(0.95534, 0.29552, -0.29552, 0.95534);
+                    
+                    mat2 mm2(float a) {
+                        float c = cos(a);
+                        float s = sin(a);
+                        return mat2(c, s, -s, c);
+                    }
+                    
+                    float tri(float x) {
+                        return clamp(abs(fract(x) - 0.5), 0.01, 0.49);
+                    }
+                    
+                    vec2 tri2(vec2 p) {
+                        return vec2(tri(p.x) + tri(p.y), tri(p.y + tri(p.x)));
+                    }
+                    
+                    float hash21(vec2 n) {
+                        return fract(sin(dot(n, vec2(12.9898, 4.1414))) * 43758.5453);
+                    }
+                    
+                    vec3 hash33(vec3 p) {
+                        p = fract(p * vec3(0.1031, 0.1030, 0.0973));
+                        p += dot(p, p.yxz + 33.33);
+                        return fract((p.xxy + p.yxx) * p.zyx);
+                    }
+                    
+                    float triNoise2d(vec2 p, float spd) {
+                        float z = 1.8;
+                        float z2 = 2.5;
+                        float rz = 0.0;
+                        p = p * mm2(p.x * 0.06);
+                        vec2 bp = p;
+                        for (int octave = 0; octave < 5; octave++) {
+                            vec2 dg = tri2(bp * 1.85) * 0.75;
+                            dg = dg * mm2(Time * spd);
+                            p -= dg / z2;
+                    
+                            bp *= 1.3;
+                            z2 *= 0.45;
+                            z *= 0.42;
+                            p *= 1.21 + (rz - 1.0) * 0.02;
+                    
+                            rz += tri(p.x + tri(p.y)) * z;
+                            p = p * (M2 * -1.0);
+                        }
+                        return clamp(1.0 / pow(rz * 29.0, 1.3), 0.0, 0.55);
+                    }
+                    
+                    vec4 aurora(vec3 ro, vec3 rd, vec2 fragCoord) {
+                        vec4 col = vec4(0.0);
+                        vec4 avgCol = vec4(0.0);
+                    
+                        for (int sampleIndex = 0; sampleIndex < 50; sampleIndex++) {
+                            float i = float(sampleIndex);
+                            float of = 0.006 * hash21(fragCoord) * smoothstep(0.0, 15.0, i);
+                            float denom = rd.y * 2.0 + 0.4;
+                            denom = abs(denom) < 0.03 ? (denom < 0.0 ? -0.03 : 0.03) : denom;
+                            float pt = ((0.8 + pow(i, 1.4) * 0.002) - ro.y) / denom;
+                            pt -= of;
+                    
+                            vec3 bpos = ro + pt * rd;
+                            float rzt = triNoise2d(bpos.zx, 0.06);
+                            vec4 col2 = vec4(0.0, 0.0, 0.0, rzt);
+                    
+                            vec3 colorVariation = sin(1.0 - vec3(2.15, -0.5, 1.2) + i * 0.043) * 0.5 + 0.5;
+                            col2.rgb = AuroraColor.rgb * colorVariation * rzt;
+                    
+                            avgCol = mix(avgCol, col2, 0.5);
+                            col += avgCol * exp2(-i * 0.065 - 2.5) * smoothstep(0.0, 5.0, i);
+                        }
+                    
+                        col *= clamp(rd.y * 15.0 + 0.4, 0.0, 1.0);
+                        return col * AuroraIntensity;
+                    }
+                    
+                    vec3 stars(vec3 p, vec2 res) {
+                        vec3 c = vec3(0.0);
+                        float resVal = max(min(res.x, res.y), 1.0);
+                        for (int starLayer = 0; starLayer < 4; starLayer++) {
+                            float i = float(starLayer);
+                            vec3 q = fract(p * (0.15 * resVal)) - 0.5;
+                            vec3 id = floor(p * (0.15 * resVal));
+                            vec2 rn = hash33(id).xy;
+                            float c2 = 1.0 - smoothstep(0.0, 0.6, length(q));
+                            c2 *= step(rn.x, 0.0005 + i * i * 0.001);
+                            c += c2 * (mix(vec3(1.0, 0.49, 0.1), vec3(0.75, 0.9, 1.0), rn.y) * 0.1 + 0.9);
+                            p *= 1.3;
+                        }
+                        return c * c * StarBrightness;
+                    }
+                    
+                    vec3 bg(vec3 rd) {
+                        float sd = dot(normalize(vec3(-0.5, -0.6, 0.9)), rd) * 0.5 + 0.5;
+                        sd = pow(sd, 5.0);
+                        return mix(BackgroundColor1.rgb, BackgroundColor2.rgb, sd) * 0.63;
+                    }
+                    
+                    void main() {
+                        vec2 res = max(quadSize, vec2(1.0));
+                        vec2 uv = clamp(mapUv, vec2(0.0), vec2(1.0));
+                        vec2 fragCoord = uv * res;
+                    
+                        vec3 ro = vec3(0.0, 0.0, -6.7);
+                        float theta = uv.y * PI;
+                        float phi = (uv.x - 0.5) * 2.0 * PI;
+                        vec3 rd = vec3(sin(theta) * sin(phi), sin(theta) * cos(phi), cos(theta));
+                    
+                        float timeRot = Time * 0.05;
+                        rd.yz = rd.yz * mm2(0.4);
+                        rd.xz = rd.xz * mm2(sin(timeRot) * 0.2);
+                    
+                        vec3 col;
+                        float fade = smoothstep(0.0, 0.01, abs(rd.y)) * 0.1 + 0.9;
+                    
+                        if (rd.y > 0.0) {
+                            col = bg(rd) * fade;
+                            vec4 aur = smoothstep(vec4(0.0), vec4(1.5), aurora(ro, rd, fragCoord)) * fade;
+                            col += stars(rd, res);
+                            col = col * (1.0 - aur.a) + aur.rgb;
+                        } else {
+                            vec3 rrd = rd;
+                            rrd.y = abs(rrd.y);
+                            col = bg(rrd) * fade * 0.6;
+                    
+                            vec4 aur = smoothstep(vec4(0.0), vec4(2.5), aurora(ro, rrd, fragCoord));
+                            col += stars(rrd, res) * 0.1;
+                            col = col * (1.0 - aur.a) + aur.rgb;
+                    
+                            float waterDenom = max(rrd.y, 0.04);
+                            vec3 pos = ro + ((0.5 - ro.y) / waterDenom) * rrd;
+                            float nz2 = triNoise2d(pos.xz * vec2(0.5, 0.7), 0.0);
+                            col += mix(vec3(0.2, 0.25, 0.5) * 0.08, vec3(0.3, 0.3, 0.5) * 0.7, nz2 * 0.4);
+                        }
+                    
+                        float vignette = smoothstep(0.0, 0.08, uv.x)
+                                * smoothstep(1.0, 0.92, uv.x)
+                                * smoothstep(0.0, 0.06, uv.y)
+                                * smoothstep(1.0, 0.90, uv.y);
+                        col *= mix(0.72, 1.0, vignette);
+                        FragColor = vec4(max(col, vec3(0.0)), 1.0);
+                    }
+                    """);
     private static final ShaderDrawOptions MAP_AURORA_BACKGROUND_OPTIONS = ShaderDrawOptions.defaults()
             .blend(true)
             .squareVertexOffset(0.0f);
@@ -374,163 +262,163 @@ public final class UniGuiDemo {
     private static final ShaderHandle MAP_DESTINY_BACKGROUND_SHADER = ShaderHandle.source(
             "unigui:demo_map_destiny_background",
             """
-            #version 150
-
-            in vec3 Position;
-
-            out vec2 mapUv;
-            out vec2 localCoord;
-            out vec2 quadSize;
-
-            uniform vec2 ScreenSize;
-            uniform vec4 SquareVertex;
-
-            void main() {
-                vec2 rawUv = Position.xy * 0.5 + 0.5;
-                mapUv = vec2(rawUv.x, 1.0 - rawUv.y);
-
-                vec2 rectMin = min(SquareVertex.xy, SquareVertex.zw);
-                vec2 rectMax = max(SquareVertex.xy, SquareVertex.zw);
-                quadSize = max(rectMax - rectMin, vec2(1.0));
-                localCoord = mapUv * quadSize;
-
-                vec2 pixel = mix(rectMin, rectMax, mapUv);
-                vec2 ndc = vec2(
-                        pixel.x / max(ScreenSize.x, 1.0) * 2.0 - 1.0,
-                        1.0 - pixel.y / max(ScreenSize.y, 1.0) * 2.0);
-                gl_Position = vec4(ndc, 0.0, 1.0);
-            }
-            """,
+                    #version 150
+                    
+                    in vec3 Position;
+                    
+                    out vec2 mapUv;
+                    out vec2 localCoord;
+                    out vec2 quadSize;
+                    
+                    uniform vec2 ScreenSize;
+                    uniform vec4 SquareVertex;
+                    
+                    void main() {
+                        vec2 rawUv = Position.xy * 0.5 + 0.5;
+                        mapUv = vec2(rawUv.x, 1.0 - rawUv.y);
+                    
+                        vec2 rectMin = min(SquareVertex.xy, SquareVertex.zw);
+                        vec2 rectMax = max(SquareVertex.xy, SquareVertex.zw);
+                        quadSize = max(rectMax - rectMin, vec2(1.0));
+                        localCoord = mapUv * quadSize;
+                    
+                        vec2 pixel = mix(rectMin, rectMax, mapUv);
+                        vec2 ndc = vec2(
+                                pixel.x / max(ScreenSize.x, 1.0) * 2.0 - 1.0,
+                                1.0 - pixel.y / max(ScreenSize.y, 1.0) * 2.0);
+                        gl_Position = vec4(ndc, 0.0, 1.0);
+                    }
+                    """,
             """
-            #version 150
-
-            in vec2 mapUv;
-            in vec2 localCoord;
-            in vec2 quadSize;
-
-            out vec4 FragColor;
-
-            uniform float Time;
-            uniform vec2 ViewportOffset;
-            uniform vec2 MapSize;
-            uniform float Zoom;
-
-            float hash21(vec2 p) {
-                p = fract(p * vec2(123.34, 456.21));
-                p += dot(p, p + 45.32);
-                return fract(p.x * p.y);
-            }
-
-            vec2 hash22(vec2 p) {
-                float n = hash21(p);
-                return vec2(n, hash21(p + n + 19.19));
-            }
-
-            float noise(vec2 p) {
-                vec2 i = floor(p);
-                vec2 f = fract(p);
-                vec2 u = f * f * (3.0 - 2.0 * f);
-                float a = hash21(i);
-                float b = hash21(i + vec2(1.0, 0.0));
-                float c = hash21(i + vec2(0.0, 1.0));
-                float d = hash21(i + vec2(1.0, 1.0));
-                return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
-            }
-
-            float fbm(vec2 p) {
-                float v = 0.0;
-                float amp = 0.52;
-                for (int octave = 0; octave < 5; octave++) {
-                    v += noise(p) * amp;
-                    p = mat2(1.62, 1.08, -1.08, 1.62) * p + 7.13;
-                    amp *= 0.53;
-                }
-                return v;
-            }
-
-            float ridge(vec2 p) {
-                float n = fbm(p);
-                return 1.0 - abs(n * 2.0 - 1.0);
-            }
-
-            float blob(vec2 uv, vec2 center, vec2 radius) {
-                vec2 p = (uv - center) / radius;
-                return exp(-dot(p, p));
-            }
-
-            float starDust(vec2 uv) {
-                vec2 cell = floor(uv * 180.0);
-                vec2 local = fract(uv * 180.0) - 0.5;
-                vec2 rnd = hash22(cell);
-                float dotShape = smoothstep(0.18, 0.0, length(local - (rnd - 0.5) * 0.36));
-                float mask = step(0.975, rnd.x);
-                return dotShape * mask;
-            }
-
-            float mapScratches(vec2 uv, vec2 drift) {
-                float n = fbm(uv * vec2(15.0, 9.0) + drift * 3.0);
-                float contour = abs(fract(n * 7.0 + uv.x * 1.7 + uv.y * 0.9) - 0.5);
-                float lines = smoothstep(0.035, 0.0, contour) * 0.28;
-
-                float scan = abs(fract((uv.x + uv.y * 0.23) * 48.0 + n * 0.8) - 0.5);
-                lines += smoothstep(0.020, 0.0, scan) * 0.08;
-                return lines;
-            }
-
-            void main() {
-                vec2 uv = clamp(mapUv, vec2(0.0), vec2(1.0));
-                vec2 safeMapSize = max(MapSize, vec2(1.0));
-                float safeZoom = max(Zoom, 0.001);
-
-                vec2 cameraUv = ViewportOffset / (safeMapSize * safeZoom);
-                vec2 drift = cameraUv * vec2(0.16, 0.16);
-
-                vec2 hazeUv = uv + drift;
-                vec2 slowUv = uv + drift * 0.55 + vec2(Time * 0.006, -Time * 0.004);
-                vec2 detailUv = uv + drift * 1.75 + vec2(Time * 0.011, Time * 0.007);
-
-                float largeA = fbm(hazeUv * vec2(2.2, 1.35) + vec2(0.0, Time * 0.015));
-                float largeB = fbm((hazeUv + vec2(8.4, 2.1)) * vec2(3.1, 1.9) - vec2(Time * 0.010, 0.0));
-                float veils = ridge(slowUv * vec2(4.0, 2.6)) * 0.55 + largeA * 0.45;
-
-                vec3 base = mix(vec3(0.030, 0.038, 0.045), vec3(0.070, 0.078, 0.085), uv.y);
-                base *= 0.78 + 0.22 * largeB;
-
-                vec3 greenHaze = vec3(0.18, 0.48, 0.34) * blob(hazeUv, vec2(0.13, 0.45), vec2(0.34, 0.42));
-                vec3 amberHaze = vec3(0.58, 0.30, 0.18) * blob(hazeUv, vec2(0.34, 0.18), vec2(0.36, 0.32));
-                vec3 redHaze = vec3(0.46, 0.18, 0.18) * blob(hazeUv, vec2(0.46, 0.79), vec2(0.42, 0.30));
-                vec3 blueHaze = vec3(0.18, 0.36, 0.65) * blob(hazeUv, vec2(0.84, 0.42), vec2(0.38, 0.46));
-                vec3 tealHaze = vec3(0.10, 0.50, 0.52) * blob(hazeUv, vec2(0.78, 0.88), vec2(0.48, 0.24));
-
-                vec3 haze = (greenHaze + amberHaze + redHaze + blueHaze + tealHaze) * (0.48 + veils * 0.62);
-                vec3 col = base + haze;
-
-                float paper = fbm(detailUv * vec2(18.0, 12.0));
-                float clouds = fbm(detailUv * vec2(7.0, 5.0) + paper);
-                col += vec3(0.080, 0.095, 0.105) * smoothstep(0.38, 0.92, clouds) * 0.42;
-
-                float linework = mapScratches(uv, drift);
-                col += vec3(0.44, 0.48, 0.46) * linework;
-
-                float dust = starDust(uv + drift * 2.4 + vec2(Time * 0.003, -Time * 0.002));
-                col += vec3(0.52, 0.74, 0.68) * dust * 0.65;
-
-                float grain = hash21(localCoord + vec2(Time * 37.0, Time * 11.0)) - 0.5;
-                col += grain * 0.035;
-
-                float edge = smoothstep(0.0, 0.08, uv.x)
-                        * smoothstep(1.0, 0.92, uv.x)
-                        * smoothstep(0.0, 0.08, uv.y)
-                        * smoothstep(1.0, 0.92, uv.y);
-                col *= mix(0.56, 1.0, edge);
-
-                float fadedCorners = blob(uv, vec2(0.0, 0.0), vec2(0.55, 0.45))
-                        + blob(uv, vec2(1.0, 1.0), vec2(0.55, 0.45));
-                col += vec3(0.11, 0.12, 0.10) * fadedCorners * 0.12;
-
-                FragColor = vec4(max(col, vec3(0.0)), 1.0);
-            }
-            """);
+                    #version 150
+                    
+                    in vec2 mapUv;
+                    in vec2 localCoord;
+                    in vec2 quadSize;
+                    
+                    out vec4 FragColor;
+                    
+                    uniform float Time;
+                    uniform vec2 ViewportOffset;
+                    uniform vec2 MapSize;
+                    uniform float Zoom;
+                    
+                    float hash21(vec2 p) {
+                        p = fract(p * vec2(123.34, 456.21));
+                        p += dot(p, p + 45.32);
+                        return fract(p.x * p.y);
+                    }
+                    
+                    vec2 hash22(vec2 p) {
+                        float n = hash21(p);
+                        return vec2(n, hash21(p + n + 19.19));
+                    }
+                    
+                    float noise(vec2 p) {
+                        vec2 i = floor(p);
+                        vec2 f = fract(p);
+                        vec2 u = f * f * (3.0 - 2.0 * f);
+                        float a = hash21(i);
+                        float b = hash21(i + vec2(1.0, 0.0));
+                        float c = hash21(i + vec2(0.0, 1.0));
+                        float d = hash21(i + vec2(1.0, 1.0));
+                        return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+                    }
+                    
+                    float fbm(vec2 p) {
+                        float v = 0.0;
+                        float amp = 0.52;
+                        for (int octave = 0; octave < 5; octave++) {
+                            v += noise(p) * amp;
+                            p = mat2(1.62, 1.08, -1.08, 1.62) * p + 7.13;
+                            amp *= 0.53;
+                        }
+                        return v;
+                    }
+                    
+                    float ridge(vec2 p) {
+                        float n = fbm(p);
+                        return 1.0 - abs(n * 2.0 - 1.0);
+                    }
+                    
+                    float blob(vec2 uv, vec2 center, vec2 radius) {
+                        vec2 p = (uv - center) / radius;
+                        return exp(-dot(p, p));
+                    }
+                    
+                    float starDust(vec2 uv) {
+                        vec2 cell = floor(uv * 180.0);
+                        vec2 local = fract(uv * 180.0) - 0.5;
+                        vec2 rnd = hash22(cell);
+                        float dotShape = smoothstep(0.18, 0.0, length(local - (rnd - 0.5) * 0.36));
+                        float mask = step(0.975, rnd.x);
+                        return dotShape * mask;
+                    }
+                    
+                    float mapScratches(vec2 uv, vec2 drift) {
+                        float n = fbm(uv * vec2(15.0, 9.0) + drift * 3.0);
+                        float contour = abs(fract(n * 7.0 + uv.x * 1.7 + uv.y * 0.9) - 0.5);
+                        float lines = smoothstep(0.035, 0.0, contour) * 0.28;
+                    
+                        float scan = abs(fract((uv.x + uv.y * 0.23) * 48.0 + n * 0.8) - 0.5);
+                        lines += smoothstep(0.020, 0.0, scan) * 0.08;
+                        return lines;
+                    }
+                    
+                    void main() {
+                        vec2 uv = clamp(mapUv, vec2(0.0), vec2(1.0));
+                        vec2 safeMapSize = max(MapSize, vec2(1.0));
+                        float safeZoom = max(Zoom, 0.001);
+                    
+                        vec2 cameraUv = ViewportOffset / (safeMapSize * safeZoom);
+                        vec2 drift = cameraUv * vec2(0.16, 0.16);
+                    
+                        vec2 hazeUv = uv + drift;
+                        vec2 slowUv = uv + drift * 0.55 + vec2(Time * 0.006, -Time * 0.004);
+                        vec2 detailUv = uv + drift * 1.75 + vec2(Time * 0.011, Time * 0.007);
+                    
+                        float largeA = fbm(hazeUv * vec2(2.2, 1.35) + vec2(0.0, Time * 0.015));
+                        float largeB = fbm((hazeUv + vec2(8.4, 2.1)) * vec2(3.1, 1.9) - vec2(Time * 0.010, 0.0));
+                        float veils = ridge(slowUv * vec2(4.0, 2.6)) * 0.55 + largeA * 0.45;
+                    
+                        vec3 base = mix(vec3(0.030, 0.038, 0.045), vec3(0.070, 0.078, 0.085), uv.y);
+                        base *= 0.78 + 0.22 * largeB;
+                    
+                        vec3 greenHaze = vec3(0.18, 0.48, 0.34) * blob(hazeUv, vec2(0.13, 0.45), vec2(0.34, 0.42));
+                        vec3 amberHaze = vec3(0.58, 0.30, 0.18) * blob(hazeUv, vec2(0.34, 0.18), vec2(0.36, 0.32));
+                        vec3 redHaze = vec3(0.46, 0.18, 0.18) * blob(hazeUv, vec2(0.46, 0.79), vec2(0.42, 0.30));
+                        vec3 blueHaze = vec3(0.18, 0.36, 0.65) * blob(hazeUv, vec2(0.84, 0.42), vec2(0.38, 0.46));
+                        vec3 tealHaze = vec3(0.10, 0.50, 0.52) * blob(hazeUv, vec2(0.78, 0.88), vec2(0.48, 0.24));
+                    
+                        vec3 haze = (greenHaze + amberHaze + redHaze + blueHaze + tealHaze) * (0.48 + veils * 0.62);
+                        vec3 col = base + haze;
+                    
+                        float paper = fbm(detailUv * vec2(18.0, 12.0));
+                        float clouds = fbm(detailUv * vec2(7.0, 5.0) + paper);
+                        col += vec3(0.080, 0.095, 0.105) * smoothstep(0.38, 0.92, clouds) * 0.42;
+                    
+                        float linework = mapScratches(uv, drift);
+                        col += vec3(0.44, 0.48, 0.46) * linework;
+                    
+                        float dust = starDust(uv + drift * 2.4 + vec2(Time * 0.003, -Time * 0.002));
+                        col += vec3(0.52, 0.74, 0.68) * dust * 0.65;
+                    
+                        float grain = hash21(localCoord + vec2(Time * 37.0, Time * 11.0)) - 0.5;
+                        col += grain * 0.035;
+                    
+                        float edge = smoothstep(0.0, 0.08, uv.x)
+                                * smoothstep(1.0, 0.92, uv.x)
+                                * smoothstep(0.0, 0.08, uv.y)
+                                * smoothstep(1.0, 0.92, uv.y);
+                        col *= mix(0.56, 1.0, edge);
+                    
+                        float fadedCorners = blob(uv, vec2(0.0, 0.0), vec2(0.55, 0.45))
+                                + blob(uv, vec2(1.0, 1.0), vec2(0.55, 0.45));
+                        col += vec3(0.11, 0.12, 0.10) * fadedCorners * 0.12;
+                    
+                        FragColor = vec4(max(col, vec3(0.0)), 1.0);
+                    }
+                    """);
 
 
     private UniGuiDemo() {
@@ -540,28 +428,12 @@ public final class UniGuiDemo {
         RenderSystem.recordRenderCall(UniGuiDemo::openDemoClient);
     }
 
-    public static void openXmlDemo() {
-        RenderSystem.recordRenderCall(UniGuiDemo::openXmlDemoClient);
-    }
-
-    public static void openXmlHotReloadDemo() {
-        RenderSystem.recordRenderCall(UniGuiDemo::openXmlHotReloadDemoClient);
-    }
-
-    public static void openXmlEditorDemo() {
-        RenderSystem.recordRenderCall(UniGuiDemo::openXmlEditorDemoClient);
-    }
-
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("unigui")
                 .executes(ctx -> {
                     openDemo();
                     return 0;
                 })
-                .then(Commands.literal("xml").executes(ctx -> {
-                    openXmlDemo();
-                    return 0;
-                }))
                 .then(Commands.literal("animations").executes(ctx -> {
                     RenderSystem.recordRenderCall(AnimationsSampler::openDemoClient);
                     return 0;
@@ -572,22 +444,6 @@ public final class UniGuiDemo {
                 }))
                 .then(Commands.literal("stress").executes(ctx -> {
                     ComplexUiDemo.openDemo();
-                    return 0;
-                }))
-                .then(Commands.literal("xmlhot").executes(ctx -> {
-                    openXmlHotReloadDemo();
-                    return 0;
-                }))
-                .then(Commands.literal("xml-hot").executes(ctx -> {
-                    openXmlHotReloadDemo();
-                    return 0;
-                }))
-                .then(Commands.literal("xmleditor").executes(ctx -> {
-                    openXmlEditorDemo();
-                    return 0;
-                }))
-                .then(Commands.literal("xml-editor").executes(ctx -> {
-                    openXmlEditorDemo();
                     return 0;
                 })));
     }
@@ -607,179 +463,6 @@ public final class UniGuiDemo {
 
         Widget root = demoScreenWidget(context);
         openScreen(Component.literal("UniGUI Demo"), root, context);
-    }
-
-    private static void openXmlDemoClient() {
-        DefaultUIContext context = new DefaultUIContext(new MinecraftClipboardService())
-                .scaleProvider(SCALE);
-        Widget root = xmlDemoScreenWidget();
-        openScreen(Component.literal("UniGUI XML Demo"), root, context);
-    }
-
-    private static void openXmlHotReloadDemoClient() {
-        DefaultUIContext context = new DefaultUIContext(new MinecraftClipboardService())
-                .scaleProvider(SCALE);
-        Widget root = xmlHotReloadDemoScreenWidget();
-        openScreen(Component.literal("UniGUI XML Hot Reload"), root, context);
-    }
-
-    private static void openXmlEditorDemoClient() {
-        DefaultUIContext context = new DefaultUIContext(new MinecraftClipboardService())
-                .scaleProvider(SCALE);
-        StackPanel viewport = new StackPanel();
-        viewport.addChild(backgroundFrame());
-
-        XmlEditorDemoScreen editor = new XmlEditorDemoScreen();
-        editor.layout(style -> style.margin(10.0f)
-                .size(LayoutConstraints.AUTO, LayoutConstraints.AUTO)
-                .align(Alignment.STRETCH, Alignment.STRETCH)
-                .flexGrow(1.0f)
-                .flexShrink(1.0f));
-        viewport.addChild(editor);
-
-        openScreen(Component.literal("UniGUI XML Editor"), new OverlayLayer(viewport), context);
-    }
-
-    private static Widget xmlDemoScreenWidget() {
-        StackPanel viewport = new StackPanel();
-        viewport.addChild(backgroundFrame());
-
-        ensureXmlDemoTextures();
-
-        Box panel = XMLWidget.createResource(XML_DEMO_RESOURCE, Box.class);
-
-        wireXmlDemoPanel(panel);
-
-        viewport.addChild(panel);
-        return new OverlayLayer(viewport);
-    }
-
-    private static Widget xmlHotReloadDemoScreenWidget() {
-        StackPanel viewport = new StackPanel();
-        viewport.addChild(backgroundFrame());
-
-        ensureXmlDemoTextures();
-
-        java.nio.file.Path sourcePath = xmlDemoHotReloadPath();
-        Label reloadStatus = new Label("Watching " + sourcePath.getFileName());
-        reloadStatus.layout(style -> style.size(LayoutConstraints.AUTO, 18.0f).flexGrow(1).flexShrink(1.0f));
-
-        XmlWidgetDiagnosticsPanel diagnostics = new XmlWidgetDiagnosticsPanel()
-                .entryLimit(5);
-        diagnostics.layout(style -> style
-                .margin(10.0f)
-                .size(408.0f, 154.0f)
-                .align(Alignment.END, Alignment.START)
-                .flexGrow(0)
-                .flexShrink(0.0f));
-
-        XmlWidgetHotReloadPreview<Box> preview = new XmlWidgetHotReloadPreview<>(
-                XmlWidgetHotReloadSource.path(sourcePath),
-                Box.class)
-                .reloadIntervalSeconds(0.35f)
-                .onReload(UniGuiDemo::wireXmlDemoPanel)
-                .onStatus(status -> {
-                    reloadStatus.text(xmlHotReloadStatusText(status));
-                    diagnostics.status(status);
-                });
-        preview.layout(style -> style.flexGrow(1).flexShrink(1.0f));
-        preview.reloadNow();
-
-        Box footer = panelBox(0.035f, 0.040f, 0.052f, 0.94f);
-        footer.layout(style -> style
-                .margin(10.0f)
-                .size(LayoutConstraints.AUTO, 34.0f)
-                .align(Alignment.CENTER, Alignment.END)
-                .flexGrow(0)
-                .flexShrink(0.0f));
-
-        HBox row = new HBox();
-        row.spacing(8.0f);
-        row.layout(style -> style.margin(8.0f, 6.0f).flexGrow(1).flexShrink(1.0f));
-
-        Label command = new Label("/unigui xmlhot");
-        command.layout(style -> style.size(106.0f, 18.0f).flexGrow(0).flexShrink(0.0f));
-        Button reload = new Button("Reload");
-        reload.layout(style -> style.size(70.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
-        reload.onClick(event -> preview.reloadNow());
-        Button close = new Button("Close");
-        close.layout(style -> style.size(70.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
-        close.onClick(event -> Minecraft.getInstance().setScreen(null));
-
-        row.addChild(command);
-        row.addChild(reloadStatus);
-        row.addChild(reload);
-        row.addChild(close);
-        footer.addChild(row);
-
-        viewport.addChild(preview);
-        viewport.addChild(diagnostics);
-        viewport.addChild(footer);
-        return new OverlayLayer(viewport);
-    }
-
-    private static void wireXmlDemoPanel(Box panel) {
-        if (panel == null) return;
-
-        if(XMLWidget.findWidget(panel, "playerChart").isEmpty())
-            return;
-        Chart chart = XMLWidget.getWidget(panel, "playerChart", Chart.class);
-        chart.values(List.of(8, 14, 10, 22, 18, 30, 24, 36, 28));
-
-//
-//        Slider amount = XMLWidget.getWidget(panel, "amount", Slider.class);
-//        ProgressBar meter = XMLWidget.getWidget(panel, "meter", ProgressBar.class);
-//        Checkbox strict = XMLWidget.getWidget(panel, "strict", Checkbox.class);
-//        Button apply = XMLWidget.getWidget(panel, "apply", Button.class);
-//        Button cycle = XMLWidget.getWidget(panel, "cycle", Button.class);
-//        Button close = XMLWidget.getWidget(panel, "close", Button.class);
-//        Label status = XMLWidget.getWidget(panel, "status", Label.class);
-//
-//        amount.onValueChanged(event -> {
-//            meter.value(event.newValue());
-//            status.text(String.format(Locale.ROOT, "Slider -> %.0f, strict=%s", event.newValue(), strict.checked()));
-//        });
-//        apply.onClick(event -> status.text(String.format(Locale.ROOT,
-//                "Apply clicked: value %.0f, strict=%s", amount.value(), strict.checked())));
-//        strict.onCheckedChanged(event -> status.text("Strict XML: " + event.newValue()));
-//        float[] cycleValues = {12.0f, 42.0f, 68.0f, 91.0f};
-//        int[] cycleIndex = {1};
-//        cycle.onClick(event -> {
-//            cycleIndex[0] = (cycleIndex[0] + 1) % cycleValues.length;
-//            amount.value(cycleValues[cycleIndex[0]]);
-//        });
-//        close.onClick(event -> Minecraft.getInstance().setScreen(null));
-    }
-
-    private static String xmlHotReloadStatusText(XmlWidgetHotReloadPreview.Status status) {
-        if (status == null) return "XML hot reload: waiting.";
-        String prefix = status.failed() ? "XML hot reload failed: " : "XML hot reload: ";
-        return prefix + status.message();
-    }
-
-    private static java.nio.file.Path xmlDemoHotReloadPath() {
-        String relativePath = "common/src/main/resources/" + XML_DEMO_RESOURCE;
-        java.nio.file.Path workingDirectory = Paths.get("").toAbsolutePath().normalize();
-        for (java.nio.file.Path current = workingDirectory; current != null; current = current.getParent()) {
-            java.nio.file.Path candidate = current.resolve(relativePath).normalize();
-            if (java.nio.file.Files.exists(candidate)) return candidate;
-        }
-        return workingDirectory.resolve(relativePath).normalize();
-    }
-
-    private static void ensureXmlDemoTextures() {
-        if (xmlDemoCloudTextureLoadFailed || UniGuiTextures.get(XML_DEMO_CLOUD_TEXTURE_ID) != null) return;
-
-        ClassLoader loader = UniGuiDemo.class.getClassLoader();
-        try (InputStream stream = loader.getResourceAsStream(XML_DEMO_CLOUD_TEXTURE_RESOURCE)) {
-            if (stream == null) {
-                xmlDemoCloudTextureLoadFailed = true;
-                return;
-            }
-            UniGuiTextures.replace(XML_DEMO_CLOUD_TEXTURE_ID, NativeImage.read(stream), TextureOptions.linear());
-        } catch (IOException | RuntimeException failure) {
-            xmlDemoCloudTextureLoadFailed = true;
-        }
     }
 
     private static Widget demoScreenWidget(DefaultUIContext context) {
@@ -833,7 +516,6 @@ public final class UniGuiDemo {
         tabs.addTab("Controls", scroll(controlsPage()));
         tabs.addTab("Text", scroll(textPage()));
         tabs.addTab("Containers", scroll(containersPage()));
-        tabs.addTab("XML Editor", scroll(xmlEditorPage()));
         tabs.addTab("Data", scroll(dataPage()));
         tabs.addTab("Custom Renders", scroll(customRendersPage()));
         tabs.addTab("Animations", scroll(animationsPage()));
@@ -1088,12 +770,12 @@ public final class UniGuiDemo {
         panelRows.addChild(titlePanel);
         panelRows.addChild(navigationPanel);
         panelRows.addChild(new SettingRow("HUD OPACITY", new Slider().range(0.0f, 100.0f).value(72.0f)
-                        .layout(style -> style.size(140.0f, 22.0f).flexGrow(0).flexShrink(0.0f)))
+                .layout(style -> style.size(140.0f, 22.0f).flexGrow(0).flexShrink(0.0f)))
                 .rowHeight(28.0f)
                 .gap(14.0f)
                 .controlWidth(140.0f));
         panelRows.addChild(new SettingRow("SUBTITLES", new ToggleSwitch().checked(true)
-                        .layout(style -> style.size(LayoutConstraints.AUTO, 20.0f).flexGrow(0).flexShrink(0.0f)))
+                .layout(style -> style.size(LayoutConstraints.AUTO, 20.0f).flexGrow(0).flexShrink(0.0f)))
                 .rowHeight(24.0f)
                 .gap(14.0f));
         panelRows.addChild(actionPanel);
@@ -1318,417 +1000,6 @@ public final class UniGuiDemo {
         DockingRoot docking = compactDockingRoot();
         docking.layout(style -> style.size(LayoutConstraints.AUTO, 150.0f).flexGrow(0).flexShrink(0.0f));
         page.addChild(section("DockingRoot", docking));
-        return page;
-    }
-
-    private static VBox xmlEditorPage() {
-        VBox page = page("XML Editor", "Editor-facing widgets from XML_UI_EDITOR_WIDGET_GAPS: command shell, code view, palette, inspector, assets, canvas overlays and pane helpers.");
-
-        Label actionStatus = new Label("Ready: XML editor widgets are running from retained UniGUI controls.");
-        actionStatus.layout(style -> style.size(LayoutConstraints.AUTO, 18.0f).flexGrow(0).flexShrink(0.0f));
-        page.addChild(actionStatus);
-
-        XmlEditorDemoScreen editorDemoScreen = new XmlEditorDemoScreen();
-        editorDemoScreen.layout(style -> style.size(LayoutConstraints.AUTO, 344.0f).flexGrow(0.0f).flexShrink(0.0f));
-        page.addChild(section("Session MVP / Docking workspace", editorDemoScreen));
-
-        GridOverlay canvasGrid = new GridOverlay();
-        canvasGrid.spacing(16.0f).majorEvery(4).snapSize(8.0f).snapEnabled(true);
-        canvasGrid.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO)
-                .align(Alignment.STRETCH, Alignment.STRETCH)
-                .flexGrow(1.0f)
-                .flexShrink(1.0f));
-
-        CommandManager commands = new CommandManager();
-        boolean[] propertiesVisible = {true};
-        commands.register(new EditorCommand("xml.new", "New XML Document")
-                .action(() -> actionStatus.text("Command: new XML document")));
-        commands.register(new EditorCommand("xml.open", "Open XML")
-                .action(() -> actionStatus.text("Command: open XML file")));
-        commands.register(new EditorCommand("xml.save", "Save XML")
-                .action(() -> actionStatus.text("Command: save XML file")));
-        commands.register(new EditorCommand("xml.preview", "Run Preview")
-                .action(() -> actionStatus.text("Command: run live preview")));
-        commands.register(new EditorCommand("xml.properties", "Toggle Properties")
-                .checkedWhen(() -> propertiesVisible[0])
-                .action(() -> {
-                    propertiesVisible[0] = !propertiesVisible[0];
-                    actionStatus.text("Properties pane: " + (propertiesVisible[0] ? "visible" : "hidden"));
-                    commands.command("xml.properties").ifPresent(command -> command.notifyChanged());
-                }));
-        commands.register(new EditorCommand("xml.grid", "Toggle Grid")
-                .checkedWhen(canvasGrid::gridVisible)
-                .action(() -> {
-                    canvasGrid.gridVisible(!canvasGrid.gridVisible());
-                    actionStatus.text("Canvas grid: " + (canvasGrid.gridVisible() ? "visible" : "hidden"));
-                    commands.command("xml.grid").ifPresent(command -> command.notifyChanged());
-                }));
-        commands.bind("xml.new", KeyBinding.ctrl('N'));
-        commands.bind("xml.open", KeyBinding.ctrl('O'));
-        commands.bind("xml.save", KeyBinding.ctrl('S'));
-        commands.bind("xml.preview", KeyBinding.ctrl('P'));
-
-        DockingRoot editorWorkspace = compactDockingRoot();
-        editorWorkspace.layout(style -> style.size(LayoutConstraints.AUTO, 154.0f).flexGrow(0).flexShrink(0.0f));
-        PaneVisibilityController paneVisibility = new PaneVisibilityController(editorWorkspace)
-                .bindViewCommands(commands)
-                .diagnosticsPaneId("log");
-        DockPane assetsPane = editorWorkspace.manager().findPane("assets");
-        DockPane inspectorPane = editorWorkspace.manager().findPane("inspector");
-        DockPane logPane = editorWorkspace.manager().findPane("log");
-        if (assetsPane != null) paneVisibility.registerPane(assetsPane, DockArea.LEFT, true);
-        if (inspectorPane != null) paneVisibility.registerPane(inspectorPane, DockArea.RIGHT, true);
-        if (logPane != null) paneVisibility.registerPane(logPane, DockArea.BOTTOM, false);
-        paneVisibility.onVisibilityChanged(event -> actionStatus.text("Pane " + event.paneId() + ": " + (event.visible() ? "visible" : "hidden")));
-
-        ProjectPickerPanel projectPicker = new ProjectPickerPanel();
-        projectPicker.title("Project");
-        projectPicker.currentProject(ProjectPickerPanel.ProjectReference.path(
-                "recipe-machine", "Recipe Machine UI", "screens/recipe_machine.xml"));
-        projectPicker.recentProjects(List.of(
-                ProjectPickerPanel.ProjectReference.path("inventory", "Inventory Screen", "screens/inventory.xml"),
-                ProjectPickerPanel.ProjectReference.path("crafting", "Crafting Screen", "screens/crafting.xml"),
-                ProjectPickerPanel.ProjectReference.resource("builtin-demo", "Built-in XML Demo", XML_DEMO_RESOURCE)
-        ));
-        projectPicker.dirty(true).maxRecentProjects(3).registerCommands(commands);
-        projectPicker.onProjectAction(action -> actionStatus.text("Project action: " + action.kind()));
-        projectPicker.layout(style -> style.size(230.0f, 138.0f).flexGrow(0).flexShrink(0.0f));
-
-        MenuBar menuBar = new MenuBar().commandManager(commands);
-        menuBar.menu(new Menu("File")
-                .command("xml.new")
-                .command("xml.open")
-                .separator()
-                .command("xml.save"));
-        menuBar.menu(new Menu("View")
-                .command("xml.properties")
-                .command("xml.grid")
-                .separator()
-                .command(paneVisibility.viewCommandId("assets"), "Assets Pane")
-                .command(paneVisibility.viewCommandId("inspector"), "Inspector Pane")
-                .command(paneVisibility.viewCommandId("log"), "Diagnostics Pane"));
-        menuBar.menu(new Menu("Run")
-                .command("xml.preview")
-                .separator()
-                .command(ProjectPickerPanel.COMMAND_LAST_PROJECTS, "Recent Projects"));
-        menuBar.layout(style -> style.size(LayoutConstraints.AUTO, 22.0f).flexGrow(0).flexShrink(0.0f));
-
-        ToolBar toolBar = new ToolBar().commandManager(commands);
-        toolBar.command("xml.new", "+", ToolButton.DisplayMode.ICON_AND_TEXT);
-        toolBar.command("xml.open", "O", ToolButton.DisplayMode.ICON_AND_TEXT);
-        toolBar.command("xml.save", "S", ToolButton.DisplayMode.ICON_AND_TEXT);
-        toolBar.separator();
-        toolBar.toggleCommand("xml.properties", "I", ToolButton.DisplayMode.ICON_AND_TEXT);
-        toolBar.toggleCommand("xml.grid", "#", ToolButton.DisplayMode.ICON_AND_TEXT);
-        toolBar.spacer();
-        toolBar.iconCommand("xml.preview", ">");
-        toolBar.layout(style -> style.size(LayoutConstraints.AUTO, 26.0f).flexGrow(0).flexShrink(0.0f));
-
-        WrapPanel toolButtonSamples = wrap();
-        ToolButton addTool = new ToolButton();
-        addTool.icon("+").label("Add").displayMode(ToolButton.DisplayMode.ICON_AND_TEXT);
-        addTool.tooltip("Standalone ToolButton");
-        addTool.onClick(event -> actionStatus.text("Standalone ToolButton clicked"));
-        IconButton saveIcon = new IconButton("S");
-        saveIcon.tooltip("IconButton example");
-        saveIcon.onClick(event -> commands.execute("xml.save"));
-        ToggleToolButton snapTool = new ToggleToolButton();
-        snapTool.icon("#").label("Snap").displayMode(ToolButton.DisplayMode.ICON_AND_TEXT).checked(true);
-        snapTool.onCheckedChanged(event -> actionStatus.text("Snap ToolButton: " + event.newValue()));
-        toolButtonSamples.addChild(addTool);
-        toolButtonSamples.addChild(saveIcon);
-        toolButtonSamples.addChild(snapTool);
-
-        CommandPalette commandPalette = new CommandPalette();
-        commandPalette.commandManager(commands).search("xml").selectedCommand("xml.save");
-        commandPalette.onCommandInvoked(invocation -> actionStatus.text("Command palette executed: " + invocation.commandId()));
-        commandPalette.layout(style -> style.size(250.0f, 138.0f).flexGrow(0).flexShrink(0.0f));
-
-        VBox commandColumn = new VBox();
-        commandColumn.spacing(6.0f);
-        commandColumn.layout(style -> style.size(420.0f, LayoutConstraints.AUTO).flexGrow(1.0f).flexShrink(1.0f));
-        commandColumn.addChild(menuBar);
-        commandColumn.addChild(toolBar);
-        commandColumn.addChild(toolButtonSamples);
-
-        HBox commandShell = new HBox();
-        commandShell.spacing(10.0f);
-        commandShell.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
-        commandShell.addChild(commandColumn);
-        commandShell.addChild(projectPicker);
-        commandShell.addChild(commandPalette);
-        page.addChild(section("Command shell / Project picker / Command palette", commandShell));
-
-        @Language("xml")
-        String sampleXml = """
-                <DockPanel id="screen" width="360" height="220">
-                  <ToolBar id="mainToolbar" />
-                  <StackPanel id="canvas" dock="center">
-                    <Button id="apply" text="Apply" x="52" y="36" width="154" height="54" />
-                    <Label id="status" text="Ready" x="46" y="104" width="188" height="26" />
-                  </StackPanel>
-                </DockPanel>
-                """;
-
-        XmlCodeEditor xmlCodeEditor = new XmlCodeEditor();
-        xmlCodeEditor.loadText(sampleXml);
-        xmlCodeEditor.diagnostic(CodeEditor.Severity.WARNING, 4, 21, "Demo diagnostic: inspect id/apply bindings before save.");
-        xmlCodeEditor.scrollToLine(3);
-        xmlCodeEditor.layout(style -> style.size(LayoutConstraints.AUTO, 158.0f).flexGrow(1.0f).flexShrink(1.0f));
-
-        TextArea sourceNotes = new TextArea("""
-                TextArea covers multiline editor notes.
-                XmlCodeEditor adds line numbers, XML diagnostics and format/validate hooks.
-                StatusBar and DiagnosticsStrip mirror dirty state, selected XML path and zoom.
-                """);
-        sourceNotes.visibleLines(4).lineHeight(15.0f);
-        sourceNotes.layout(style -> style.size(300.0f, 96.0f).flexGrow(0).flexShrink(0.0f));
-
-        StatusBar sourceStatus = new StatusBar();
-        sourceStatus.dirty(true).mode("Code").selectedNodePath("/0/1").viewScale(1.25f).errorCount(0).warningCount(1);
-        sourceStatus.layout(style -> style.size(LayoutConstraints.AUTO, 20.0f).flexGrow(0).flexShrink(0.0f));
-        DiagnosticsStrip diagnosticsStrip = new DiagnosticsStrip();
-        diagnosticsStrip.dirty(true).selectedNodePath("/0/1/0").viewScale(1.25f).errorCount(1).warningCount(1);
-        diagnosticsStrip.layout(style -> style.size(LayoutConstraints.AUTO, 20.0f).flexGrow(0).flexShrink(0.0f));
-
-        VBox sourceStack = new VBox();
-        sourceStack.spacing(6.0f);
-        sourceStack.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
-        HBox sourceRow = new HBox();
-        sourceRow.spacing(8.0f);
-        sourceRow.addChild(xmlCodeEditor);
-        sourceRow.addChild(sourceNotes);
-        sourceStack.addChild(sourceRow);
-        sourceStack.addChild(sourceStatus);
-        sourceStack.addChild(diagnosticsStrip);
-        page.addChild(section("Source editor / Diagnostics", sourceStack));
-
-        XmlWidgetElement inspectedButton = new XmlWidgetElement("Button")
-                .attribute("id", "apply")
-                .attribute("text", "Apply")
-                .attribute("width", "154")
-                .attribute("height", "54")
-                .attribute("enabled", "true")
-                .attribute("x", "52")
-                .attribute("y", "36");
-        PropertyGrid propertyGrid = new PropertyGrid();
-        propertyGrid.inspect(inspectedButton).showUnsetAttributes(true).labelWidth(108.0f);
-        propertyGrid.layout(style -> style.size(280.0f, 182.0f).flexGrow(0).flexShrink(0.0f));
-
-        PropertyFieldRow opacityRow = new PropertyFieldRow(
-                XmlAttributeDescriptor.of("opacity")
-                        .category("Appearance")
-                        .displayName("Opacity")
-                        .defaultValue("1")
-                        .description("Reusable numeric PropertyFieldRow demo.")
-                        .valueType(XmlAttributeValueType.NUMBER),
-                "0.85",
-                true);
-        opacityRow.layout(style -> style.size(280.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
-
-        PalettePanel palette = new PalettePanel();
-        palette.includeInternalWidgets(true).selectedCategory("Editor").search("Panel");
-        palette.selectWidget("PropertyGrid");
-        palette.onInsertRequested(request -> actionStatus.text("Palette insert requested: <" + request.element().name() + ">"));
-        palette.layout(style -> style.size(240.0f, 150.0f).flexGrow(0).flexShrink(0.0f));
-
-        WidgetPalette userPalette = new WidgetPalette();
-        userPalette.title("User Palette").selectedCategory("Controls").search("Button");
-        userPalette.selectWidget("Button");
-        userPalette.onInsertRequested(request -> actionStatus.text("User palette insert requested: <" + request.element().name() + ">"));
-        userPalette.layout(style -> style.size(240.0f, 118.0f).flexGrow(0).flexShrink(0.0f));
-
-        XmlWidgetAssetCatalog assetCatalog = XmlWidgetAssetCatalog.builder()
-                .add(XmlWidgetAsset.texture("minecraft:textures/gui/widgets.png", 256, 256)
-                        .displayName("Vanilla Widgets")
-                        .description("Built-in button atlas."))
-                .add(XmlWidgetAsset.texture("unigui:editor/checkerboard", 64, 64)
-                        .displayName("Checkerboard")
-                        .description("Canvas transparency preview."))
-                .font("minecraft:default")
-                .shader("unigui:rounded_rect")
-                .build();
-        AssetBrowserPanel assetBrowser = new AssetBrowserPanel();
-        assetBrowser.catalog(assetCatalog)
-                .kind(XmlWidgetAssetKind.TEXTURE)
-                .targetAttribute("texture")
-                .selectedAsset("minecraft:textures/gui/widgets.png")
-                .maxVisibleAssets(4);
-        assetBrowser.onAssetApplied(selection -> actionStatus.text("Asset applied to " + selection.targetAttribute() + ": " + selection.asset().id()));
-        assetBrowser.layout(style -> style.size(278.0f, 182.0f).flexGrow(0).flexShrink(0.0f));
-
-        VBox inspectorColumn = new VBox();
-        inspectorColumn.spacing(6.0f);
-        inspectorColumn.addChild(propertyGrid);
-        inspectorColumn.addChild(opacityRow);
-
-        VBox paletteColumn = new VBox();
-        paletteColumn.spacing(6.0f);
-        paletteColumn.addChild(palette);
-        paletteColumn.addChild(userPalette);
-
-        HBox inspectorRow = new HBox();
-        inspectorRow.spacing(10.0f);
-        inspectorRow.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
-        inspectorRow.addChild(paletteColumn);
-        inspectorRow.addChild(inspectorColumn);
-        inspectorRow.addChild(assetBrowser);
-        page.addChild(section("Palette / Inspector / Assets", inspectorRow));
-
-        XmlWidgetElement canvasRoot = new XmlWidgetElement("StackPanel")
-                .attribute("x", "0")
-                .attribute("y", "0")
-                .attribute("width", "360")
-                .attribute("height", "160");
-        canvasRoot.addChild(new XmlWidgetElement("Button")
-                .attribute("id", "apply")
-                .attribute("text", "Apply")
-                .attribute("x", "52")
-                .attribute("y", "36")
-                .attribute("width", "154")
-                .attribute("height", "54"));
-        canvasRoot.addChild(new XmlWidgetElement("Label")
-                .attribute("id", "status")
-                .attribute("text", "Ready")
-                .attribute("x", "46")
-                .attribute("y", "104")
-                .attribute("width", "188")
-                .attribute("height", "26"));
-        XmlWidgetDocument canvasDocument = XmlWidgetDocument.of(canvasRoot);
-
-        StackPanel canvas = new StackPanel();
-        canvas.layout(style -> style.size(LayoutConstraints.AUTO, 166.0f).flexGrow(0).flexShrink(0.0f));
-        Box canvasBack = panelBox(0.020f, 0.024f, 0.032f, 0.98f);
-        canvasBack.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO)
-                .align(Alignment.STRETCH, Alignment.STRETCH)
-                .flexGrow(1.0f)
-                .flexShrink(1.0f));
-
-        Box selectedWidget = panelBox(0.075f, 0.120f, 0.155f, 0.95f);
-        selectedWidget.borderColor().set(0.25f, 0.78f, 1.0f, 0.90f);
-        selectedWidget.layout(style -> style.size(154.0f, 54.0f)
-                .margin(52.0f, 36.0f, 0.0f, 0.0f)
-                .align(Alignment.START, Alignment.START)
-                .flexGrow(0)
-                .flexShrink(0.0f));
-        selectedWidget.addChild(new Label("Button: Apply").layout(style -> style.margin(8.0f, 18.0f).size(LayoutConstraints.AUTO, 16.0f)));
-
-        Box statusWidget = panelBox(0.070f, 0.095f, 0.070f, 0.92f);
-        statusWidget.layout(style -> style.size(188.0f, 26.0f)
-                .margin(46.0f, 104.0f, 0.0f, 0.0f)
-                .align(Alignment.START, Alignment.START)
-                .flexGrow(0)
-                .flexShrink(0.0f));
-        statusWidget.addChild(new Label("Label: Ready").layout(style -> style.margin(8.0f, 5.0f).size(LayoutConstraints.AUTO, 16.0f)));
-
-        SelectionOverlay selectionOverlay = new SelectionOverlay();
-        selectionOverlay.document(canvasDocument).selectedPath(XmlWidgetNodePath.of(0));
-        selectionOverlay.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO)
-                .align(Alignment.STRETCH, Alignment.STRETCH)
-                .flexGrow(1.0f)
-                .flexShrink(1.0f));
-        DesignCanvasOverlay designOverlay = new DesignCanvasOverlay();
-        designOverlay.document(canvasDocument).selectedPath(XmlWidgetNodePath.of(1));
-        designOverlay.editMode(false).resizeHandlesVisible(false).outlineThickness(1.0f);
-        designOverlay.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO)
-                .align(Alignment.STRETCH, Alignment.STRETCH)
-                .flexGrow(1.0f)
-                .flexShrink(1.0f));
-
-        canvas.addChild(canvasBack);
-        canvas.addChild(canvasGrid);
-        canvas.addChild(selectedWidget);
-        canvas.addChild(statusWidget);
-        canvas.addChild(selectionOverlay);
-        canvas.addChild(designOverlay);
-        page.addChild(section("Design canvas overlays / GridOverlay", canvas));
-
-        PaneHeader paneHeader = new PaneHeader()
-                .paneId("inspector")
-                .title("Inspector")
-                .dirty(true)
-                .pinned(true);
-        paneHeader.onAction(action -> actionStatus.text("PaneHeader action: " + action.action()));
-        paneHeader.layout(style -> style.size(260.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
-
-        ResizablePanelHeader resizableHeader = new ResizablePanelHeader();
-        resizableHeader.paneId("assets")
-                .title("Assets")
-                .resizeEdge(ResizablePanelHeader.ResizeEdge.RIGHT)
-                .panelSize(240.0f)
-                .sizeRange(160.0f, 420.0f);
-        resizableHeader.onResizeRequested(request -> actionStatus.text("Resize request: " + request.paneId() + " -> " + Math.round(request.newSize())));
-        resizableHeader.layout(style -> style.size(260.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
-
-        SearchBoxWithFilterChips filters = new SearchBoxWithFilterChips();
-        filters.filters("layout:Layout|input:Input|diagnostics:Diagnostics|editor:Editor");
-        filters.activeFilters("layout|diagnostics");
-        filters.search("button");
-        filters.onFilterChanged(change -> actionStatus.text("Filter search: " + change.search() + " active=" + change.activeFilters()));
-        filters.layout(style -> style.size(300.0f, 48.0f).flexGrow(0).flexShrink(0.0f));
-
-        DragSource dragSource = new DragSource();
-        dragSource.payloadId("Button").payloadType("widget").dragPreview("<Button text=\"Apply\" />");
-        dragSource.backgroundVisible(true).borderVisible(true).radius(4.0f);
-        dragSource.background().set(0.055f, 0.080f, 0.115f, 0.96f);
-        dragSource.borderColor().set(0.25f, 0.78f, 1.0f, 0.75f);
-        dragSource.addChild(new Label("DragSource: <Button />").layout(style -> style.margin(8.0f, 10.0f).size(LayoutConstraints.AUTO, 16.0f)));
-        dragSource.layout(style -> style.size(184.0f, 42.0f).flexGrow(0).flexShrink(0.0f));
-
-        DropTarget dropTarget = new DropTarget();
-        dropTarget.acceptedPayloadTypes("widget");
-        dropTarget.previewDrop(dragSource.payload(), 0.0f, 0.0f);
-        dropTarget.backgroundVisible(true).borderVisible(true).radius(4.0f);
-        dropTarget.background().set(0.060f, 0.105f, 0.070f, 0.95f);
-        dropTarget.borderColor().set(0.40f, 1.0f, 0.48f, 0.75f);
-        dropTarget.addChild(new Label("DropTarget: widget payloads").layout(style -> style.margin(8.0f, 10.0f).size(LayoutConstraints.AUTO, 16.0f)));
-        dropTarget.layout(style -> style.size(210.0f, 42.0f).flexGrow(0).flexShrink(0.0f));
-
-        Dialog unsavedDialog = new Dialog();
-        unsavedDialog.title("Unsaved Changes");
-        unsavedDialog.message("The demo XML document has edits.");
-        unsavedDialog.buttons("save:Save|discard:Discard|cancel:Cancel");
-        unsavedDialog.defaultResult("save").cancelResult("cancel").closeOnResult(false);
-        unsavedDialog.content(paragraph("Dialog content slot can host any retained widget."));
-        unsavedDialog.open(true);
-        unsavedDialog.layout(style -> style.size(300.0f, 118.0f).flexGrow(0).flexShrink(0.0f));
-        unsavedDialog.onDialogResult(result -> actionStatus.text("Dialog result: " + result.resultId()));
-
-        StackPanel dialogStage = new StackPanel();
-        dialogStage.layout(style -> style.size(340.0f, 134.0f).flexGrow(0).flexShrink(0.0f));
-        Box dialogBack = panelBox(0.020f, 0.024f, 0.032f, 0.90f);
-        dialogBack.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO)
-                .align(Alignment.STRETCH, Alignment.STRETCH)
-                .flexGrow(1.0f)
-                .flexShrink(1.0f));
-        dialogStage.addChild(dialogBack);
-        dialogStage.addChild(unsavedDialog);
-
-        VBox headerColumn = new VBox();
-        headerColumn.spacing(6.0f);
-        headerColumn.layout(style -> style.size(300.0f, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
-        headerColumn.addChild(paneHeader);
-        headerColumn.addChild(resizableHeader);
-        headerColumn.addChild(filters);
-
-        HBox helperRow = new HBox();
-        helperRow.spacing(10.0f);
-        helperRow.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
-        helperRow.addChild(headerColumn);
-        VBox dragColumn = new VBox();
-        dragColumn.spacing(8.0f);
-        dragColumn.addChild(dragSource);
-        dragColumn.addChild(dropTarget);
-        helperRow.addChild(dragColumn);
-        helperRow.addChild(dialogStage);
-        page.addChild(section("Pane headers / Search chips / Drag-drop / Dialog", helperRow));
-
-        VBox dockingColumn = new VBox();
-        dockingColumn.spacing(6.0f);
-        dockingColumn.addChild(paragraph("PaneVisibilityController binds view.* commands to DockingRoot panes. The diagnostics pane starts hidden here, while Assets and Inspector remain visible."));
-        dockingColumn.addChild(editorWorkspace);
-        page.addChild(section("Docking pane visibility controller", dockingColumn));
-
         return page;
     }
 
@@ -2304,6 +1575,7 @@ public final class UniGuiDemo {
             draw.addRect(mapX, mapY, mapW, mapH, map.borderColor(), 1.0f);
         }
     }
+
     private static Button addDestinationMarker(MapCanvas map, Label status, String title,
                                                float worldX, float worldY, boolean selected) {
         Button marker = destinationMarkerButton(title, selected);

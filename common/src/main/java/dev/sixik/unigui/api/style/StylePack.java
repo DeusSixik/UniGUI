@@ -4,7 +4,6 @@ package dev.sixik.unigui.api.style;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -167,7 +166,7 @@ public final class StylePack implements Theme {
      * @param widgetType тип виджета
      * @param widgetStyleId явный style id виджета
      * @param styleClasses style classes виджета
-     * @return последний подходящее definition после сортировки specificity
+     * @return последнее подходящее definition в порядке добавления
      */
     public Optional<StyleDefinition> styleDefinitionFor(String widgetType, String widgetStyleId, Collection<String> styleClasses) {
         List<StyleDefinition> definitions = matchingDefinitions(widgetType, widgetStyleId, styleClasses);
@@ -373,7 +372,8 @@ public final class StylePack implements Theme {
      * @param widgetType тип виджета
      * @param widgetStyleId явный style id виджета
      * @param styleClasses style classes виджета
-     * @return definitions от меньшего приоритета к большему
+     * @return definitions от меньшего приоритета к большему; более позднее
+     * правило перекрывает более раннее независимо от specificity selector'а
      */
     public List<StyleDefinition> matchingDefinitions(String widgetType, String widgetStyleId, Collection<String> styleClasses) {
         String normalizedWidgetType = normalizeOptional(widgetType, "");
@@ -383,19 +383,12 @@ public final class StylePack implements Theme {
 
         addUnique(result, added, definitionByBindingOrType(normalizedWidgetType).orElse(null));
 
-        List<StyleDefinition> selectorMatches = new ArrayList<>();
         for (StyleDefinition definition : styles.values()) {
-            if (definition.selector().matches(normalizedWidgetType, normalizedStyleId, styleClasses)) {
-                selectorMatches.add(definition);
+            boolean explicitStyle = !normalizedStyleId.isEmpty()
+                    && definition.id().equals(normalizedStyleId);
+            if (explicitStyle || definition.selector().matches(normalizedWidgetType, normalizedStyleId, styleClasses)) {
+                addUnique(result, added, definition);
             }
-        }
-        selectorMatches.sort(Comparator.comparingInt(definition -> definition.selector().specificity()));
-        for (StyleDefinition definition : selectorMatches) {
-            addUnique(result, added, definition);
-        }
-
-        if (!normalizedStyleId.isEmpty()) {
-            addUnique(result, added, styles.get(normalizedStyleId));
         }
         return List.copyOf(result);
     }

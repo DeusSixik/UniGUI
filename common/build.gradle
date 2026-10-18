@@ -80,6 +80,14 @@ tasks.register("dockingInteractionSelfTest", JavaExec) {
     mainClass = "dev.sixik.unigui.tests.DockingInteractionSelfTest"
 }
 
+tasks.register("basicControlsSelfTestTmp", JavaExec) {
+    group = "verification"
+    description = "Временная проверка явных стилей."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.BasicControlsSelfTest"
+}
+
 //tasks.register("basicControlsSelfTest", JavaExec) {
 //    group = "verification"
 //    description = "Runs basic controls and widget contract self-test assertions."

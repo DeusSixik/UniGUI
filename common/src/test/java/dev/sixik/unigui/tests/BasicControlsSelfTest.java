@@ -73,6 +73,7 @@ import dev.sixik.unigui.api.render.TexturePlacement;
 import dev.sixik.unigui.api.selection.SelectionMode;
 import dev.sixik.unigui.api.sort.SortDirection;
 import dev.sixik.unigui.api.style.MutableStyle;
+import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.style.MutableTheme;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleKey;
@@ -250,6 +251,7 @@ public final class BasicControlsSelfTest {
     }
 
     private void run() {
+        testDefaultThemeContracts();
         testTextEditorModelCore();
         testUIScaleProviderContracts();
         testTextInputShellAndTextFieldChrome();
@@ -2434,6 +2436,15 @@ public final class BasicControlsSelfTest {
         manualButton.render(new DefaultRenderContext(manualButtonDrawList));
         expect(hasFillColor(manualButtonDrawList, 0.9f, 0.1f, 0.2f, 1.0f), "themeEnabled(false) should preserve manual colors");
 
+        Button explicitButton = new Button("Explicit");
+        explicitButton.background(MutableColor.rgba(0.2f, 0.8f, 0.3f, 1.0f));
+        explicitButton.setUiContextInternal(uiContext);
+        explicitButton.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 18.0f));
+        DrawList explicitButtonDrawList = new DrawList();
+        explicitButton.render(new DefaultRenderContext(explicitButtonDrawList));
+        expect(hasFillColor(explicitButtonDrawList, 0.2f, 0.8f, 0.3f, 1.0f),
+                "Explicit background should survive theme application");
+
         MutableStyle customButtonStyle = new MutableStyle()
                 .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.4f, 0.2f, 0.8f, 1.0f))
                 .put(StyleKeys.TEXT_COLOR, MutableColor.rgba(0.9f, 0.9f, 0.2f, 1.0f));
@@ -2556,6 +2567,32 @@ public final class BasicControlsSelfTest {
                         && near(resolvedCool.b(), 0.8f)
                         && near(resolvedWarm.r(), 0.8f),
                 "StylePack widgetId selectors should make runtime styleId switching visible");
+
+        MutableStyle specificFirst = new MutableStyle()
+                .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.0f, 0.0f, 0.9f, 1.0f));
+        MutableStyle genericLater = new MutableStyle()
+                .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.9f, 0.0f, 0.0f, 1.0f));
+        StylePack orderedPack = StylePack.create("ordered")
+                .put(StyleDefinition.of("specific-first", specificFirst)
+                        .target(Button.STYLE_TYPE).styleClass("primary").widgetId("primary"))
+                .put(StyleDefinition.of("generic-later", genericLater)
+                        .target(Button.STYLE_TYPE));
+        ColorView ordered = orderedPack.resolveStyleFor(Button.STYLE_TYPE, "primary", List.of("primary"))
+                .get(StyleKeys.BACKGROUND_COLOR, WidgetState.NORMAL, null);
+        expect(ordered != null && near(ordered.r(), 0.9f),
+                "StylePack should let the last matching rule win regardless of selector specificity");
+
+        Button inlineStyled = new Button("Inline");
+        inlineStyled.style("background: #7A1F1FFF; radius: 8; unknown: 1;");
+        inlineStyled.style(style -> style.put(StyleKeys.BORDER_WIDTH, 2.0f));
+        Style inline = inlineStyled.localStyle(StyleIds.WILDCARD);
+        ColorView inlineBackground = inline.get(StyleKeys.BACKGROUND_COLOR, WidgetState.NORMAL, null);
+        expect(inlineBackground != null && near(inlineBackground.r(), 0x7A / 255.0f)
+                        && near(inlineBackground.g(), 0x1F / 255.0f)
+                        && near(inline.get(StyleKeys.RADIUS, WidgetState.NORMAL, 0.0f), 8.0f)
+                        && near(inline.get(StyleKeys.BORDER_WIDTH, WidgetState.NORMAL, 0.0f), 2.0f)
+                        && inlineStyled.styleDiagnostics().size() == 1,
+                "Widget inline styles should merge string and lambda values and retain diagnostics");
         expect(pack.eventAnimation("primaryButton", Button.AnimationEvents.ON_CLICK).equals("pulse")
                         && pack.animation("pulse").orElseThrow().tweens().size() == 2,
                 "StylePack should keep event animation links as editable data");

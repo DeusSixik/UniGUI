@@ -27,7 +27,7 @@ HollowEngine UI и главные окна игровых движков в ду
 2. Зеркало в TestMod (`EngineWindowDemoScreen` на `DemoScaffold`) — открыть рядом
    с браузером, расхождения видны глазами.
 3. Токены темы + резолвер в коде → `theme-redesign.md`.
-4. Перевод `SurfaceWidget` / `Button` / `TextInput` (80% картинки), затем
+4. Inline Style API и каскад правил → `style-api.md`, затем перевод `SurfaceWidget` / `Button` / `TextInput` (80% картинки), затем
    DropDown/Popup хром, затем остальное по аудиту.
 5. Таймлайн — отдельный новый виджет, вне этого цикла (см. `widget-audit.md`).
 

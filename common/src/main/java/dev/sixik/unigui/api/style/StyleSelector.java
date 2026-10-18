@@ -8,7 +8,8 @@ import java.util.Locale;
  *
  * <p>Это минимальный resolver до полноценной CSS-подобной системы. Selector может ограничить стиль
  * типом виджета ({@link #target()}), class'ом ({@link #styleClass()}) и/или style id виджета
- * ({@link #widgetId()}). Чем конкретнее selector, тем выше его {@link #specificity()}.</p>
+ * ({@link #widgetId()}). Значение {@link #specificity()} сохраняется для инспекторов и совместимости,
+ * но не меняет порядок каскада.</p>
  *
  * @param target id типа виджета, например {@link StyleIds.Widget#BUTTON}
  * @param styleClass class виджета без точки
@@ -80,7 +81,8 @@ public record StyleSelector(String target, String styleClass, String widgetId) {
     }
 
     /**
-     * Возвращает вес selector'а для сортировки каскада.
+     * Возвращает информационный вес selector'а. Каскад {@link StylePack} упорядочивает правила
+     * по порядку добавления и этот вес не использует.
      *
      * @return числовая специфичность; id сильнее class, class сильнее type
      */
