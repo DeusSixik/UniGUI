@@ -153,6 +153,10 @@ public final class XmlRuntimeViewPane extends PanelWidget {
             sessionSubscription.close();
             sessionSubscription = null;
         }
+        if (runtimeScreen != null) {
+            runtimeScreen.close();
+            runtimeScreen = null;
+        }
         super.dispose();
     }
 
@@ -185,6 +189,9 @@ public final class XmlRuntimeViewPane extends PanelWidget {
     }
 
     private void replaceRuntimeScreen(XmlWidgetScreen<Widget> nextScreen, String xml) {
+        if (runtimeScreen != null && runtimeScreen != nextScreen) {
+            runtimeScreen.close();
+        }
         runtimeHost.clearChildren();
         runtimeHost.applyQueuedMutations();
         runtimeScreen = nextScreen;
@@ -204,6 +211,9 @@ public final class XmlRuntimeViewPane extends PanelWidget {
         }
         runtimeHost.clearChildren();
         runtimeHost.applyQueuedMutations();
+        if (runtimeScreen != null) {
+            runtimeScreen.close();
+        }
         runtimeScreen = null;
         runtimeRoot = null;
         runtimeXml = "";

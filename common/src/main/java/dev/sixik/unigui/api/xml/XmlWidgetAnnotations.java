@@ -90,9 +90,9 @@ public final class XmlWidgetAnnotations {
      * <p>Класс должен иметь no-arg constructor. Для явной фабрики используй
      * {@link #register(XmlWidgetRegistry, Class, Supplier)}.</p>
      *
-     * @param registry целевой XML-реестр
+     * @param registry   целевой XML-реестр
      * @param widgetType класс виджета с {@link XmlWidgetName}
-     * @param <T> runtime-тип виджета
+     * @param <T>        runtime-тип виджета
      * @return builder зарегистрированного XML-типа
      */
     public static <T extends Widget> XmlWidgetType<T> register(XmlWidgetRegistry registry, Class<T> widgetType) {
@@ -105,10 +105,10 @@ public final class XmlWidgetAnnotations {
      * <p>Метод добавляет common layout/style атрибуты, annotated setter-ы и базовые
      * child policy для известных контейнерных типов.</p>
      *
-     * @param registry целевой XML-реестр
+     * @param registry   целевой XML-реестр
      * @param widgetType класс виджета с {@link XmlWidgetName}
-     * @param factory фабрика экземпляров для XML-loader'а
-     * @param <T> runtime-тип виджета
+     * @param factory    фабрика экземпляров для XML-loader'а
+     * @param <T>        runtime-тип виджета
      * @return builder зарегистрированного XML-типа
      */
     public static <T extends Widget> XmlWidgetType<T> register(XmlWidgetRegistry registry,
@@ -137,7 +137,7 @@ public final class XmlWidgetAnnotations {
      *
      * @param registered уже созданный internal XML-тип
      * @param widgetType класс, с которого читаются annotated setter-ы
-     * @param <T> runtime-тип виджета
+     * @param <T>        runtime-тип виджета
      * @return тот же internal XML-тип для chained-настройки
      */
     public static <T extends Widget> WidgetXmlType<T> applyAnnotatedAttributes(
@@ -454,6 +454,7 @@ public final class XmlWidgetAnnotations {
                                                                       XmlAttributeDescriptor descriptor,
                                                                       Method method) {
         registered.attribute(name, (XmlValueParser) parser, (widget, value) -> invokeSetter(method, widget, value), descriptor);
+        registered.bindable(name, boxed(method.getParameterTypes()[0]));
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -467,6 +468,26 @@ public final class XmlWidgetAnnotations {
                 (dev.sixik.unigui.impl.xml.XmlValueParser) value -> ((XmlValueParser) parser).parse((String) value),
                 (widget, value) -> invokeSetter(method, widget, value),
                 descriptor);
+        registered.bindable(name, boxed(method.getParameterTypes()[0]));
+    }
+
+    /**
+     * Приводит примитивный тип setter-а к boxed runtime-типу observable source.
+     *
+     * @param type тип параметра Java-setter-а
+     * @return тип, который можно сравнивать с {@link Class#isAssignableFrom(Class)}
+     */
+    private static Class<?> boxed(Class<?> type) {
+        if (type == null || !type.isPrimitive()) return type;
+        if (type == boolean.class) return Boolean.class;
+        if (type == byte.class) return Byte.class;
+        if (type == short.class) return Short.class;
+        if (type == int.class) return Integer.class;
+        if (type == long.class) return Long.class;
+        if (type == float.class) return Float.class;
+        if (type == double.class) return Double.class;
+        if (type == char.class) return Character.class;
+        return type;
     }
 
     private static void registerStyleAttributes(XmlWidgetType<? extends WidgetBase> registered) {

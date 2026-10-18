@@ -14,6 +14,12 @@ import dev.sixik.unigui.api.text.Fonts;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.xml.XMLWidget;
+import dev.sixik.unigui.api.xml.XmlBindingContext;
+import dev.sixik.unigui.api.xml.XmlCommandRegistry;
+import dev.sixik.unigui.api.xml.XmlMutableObservableValue;
+import dev.sixik.unigui.api.xml.XmlWidgetOptions;
+import dev.sixik.unigui.api.xml.XmlWidgetScreen;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftClipboardService;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftFonts;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftWidgetScreen;
@@ -79,6 +85,10 @@ public final class TestCommands {
                     RenderSystem.recordRenderCall(TestCommands::openStyleApiExampleScreen);
                     return 0;
                 }))
+                .then(Commands.literal("xaml").executes(ctx -> {
+                    RenderSystem.recordRenderCall(TestCommands::openXamlBindingExampleScreen);
+                    return 0;
+                }))
                 .then(Commands.literal("terminal").executes(ctx -> {
                     RenderSystem.recordRenderCall(DosTerminalDemo::openDemoClient);
                     return 0;
@@ -114,6 +124,46 @@ public final class TestCommands {
         DefaultUIContext context = new DefaultUIContext(new MinecraftClipboardService());
         Widget root = styleApiExample(context);
         MinecraftWidgetScreen screen = openScreen(Component.literal("UniGUI Style API"), root, context);
+        installRenderModeToggle(screen);
+    }
+
+    private static void openXamlBindingExampleScreen() {
+        XmlBindingContext bindingContext = XmlBindingContext.empty();
+        XmlMutableObservableValue<String> status = bindingContext.mutable(
+                "demo.status", String.class, "Состояние: готово");
+        XmlMutableObservableValue<String> actionLabel = bindingContext.mutable(
+                "demo.actionLabel", String.class, "Переключить состояние");
+        XmlMutableObservableValue<Boolean> detailsVisible = bindingContext.mutable(
+                "demo.detailsVisible", Boolean.class, true);
+        XmlMutableObservableValue<Float> gamma = bindingContext.mutable(
+                "demo.gamma", Float.class, 0.25f);
+
+        XmlCommandRegistry commands = XmlCommandRegistry.empty()
+                .register("demo.toggle", (source, event) -> {
+                    boolean nextVisible = !detailsVisible.get();
+                    detailsVisible.set(nextVisible);
+                    gamma.set(nextVisible ? 0.75f : 0.25f);
+                    actionLabel.set(nextVisible ? "Скрыть подробности" : "Показать подробности");
+                    status.set(nextVisible ? "Состояние: подробности включены" : "Состояние: подробности скрыты");
+                });
+
+        XmlWidgetScreen<VBox> xmlScreen = XMLWidget.createScreen("""
+                <VBox id="bindingDemo" spacing="8" width="420" height="220" padding="12">
+                    <Label text="XAML data binding" />
+                    <Label id="status" text="{Binding demo.status}" />
+                    <Slider id="gamma" value="{Binding demo.gamma}" />
+                    <Label id="details" text="Изменение источника сразу обновляет это поле"
+                           visible="{Binding demo.detailsVisible}" />
+                    <Button id="toggle" text="{Binding demo.actionLabel}" onClick="demo.toggle" />
+                    <Button id="test" text="{Binding demo.status}" />
+                </VBox>
+                """, VBox.class, XmlWidgetOptions.DEFAULT
+                .bindingContext(bindingContext)
+                .commands(commands));
+
+        MinecraftWidgetScreen screen = new MinecraftWidgetScreen(Component.literal("UniGUI XAML Binding"), xmlScreen);
+        screen.renderPolicy(UiRenderPolicy.onDirty());
+        Minecraft.getInstance().setScreen(screen);
         installRenderModeToggle(screen);
     }
 

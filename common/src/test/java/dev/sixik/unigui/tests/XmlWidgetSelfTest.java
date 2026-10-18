@@ -203,6 +203,7 @@ public final class XmlWidgetSelfTest {
         testAnnotationBackedRegistryApi();
         testCommandRegistryApi();
         testTypedObservableBindingModel();
+        testXmlBindingExpressions();
         testDescriptorMetadata();
         testXmlCodeEditorWidgetContracts();
         testDescriptorBackedInspectorModel();
@@ -647,6 +648,49 @@ public final class XmlWidgetSelfTest {
         expect(XmlBindingDiagnosticsModel.empty().summary().equals("No XML binding diagnostics."),
                 "Empty binding diagnostics model should have a stable summary");
         labelBinding.close();
+    }
+
+    private void testXmlBindingExpressions() {
+        XmlBindingContext context = XmlBindingContext.empty();
+        XmlMutableObservableValue<String> title = context.mutable("user.name", String.class, "Initial");
+        XmlMutableObservableValue<Boolean> showSettings = context.mutable("ui.showSettings", Boolean.class, true);
+        XmlMutableObservableValue<Float> gamma = context.mutable("settings.gamma", Float.class, 0.25f);
+
+        XmlWidgetScreen<VBox> screen = XMLWidget.createScreen("""
+                <VBox id="root" visible="{Binding ui.showSettings}">
+                    <Label id="title" text="{Binding user.name}" />
+                    <Slider id="gamma" value="{Binding settings.gamma}" />
+                </VBox>
+                """, VBox.class, XmlWidgetOptions.DEFAULT.bindingContext(context));
+
+        Label label = XMLWidget.findWidget(screen.root(), "title", Label.class).orElseThrow();
+        Slider slider = XMLWidget.findWidget(screen.root(), "gamma", Slider.class).orElseThrow();
+        expect(label.text().equals("Initial") && near(slider.value(), 0.25f) && screen.root().visible(),
+                "XML binding expressions should push initial source values into widget properties");
+
+        title.set("Updated");
+        gamma.set(0.75f);
+        showSettings.set(false);
+        expect(label.text().equals("Updated") && near(slider.value(), 0.75f) && !screen.root().visible(),
+                "XML binding expressions should update widget properties when sources change");
+        expect(screen.bindingSession().diagnostics().isEmpty(),
+                "Valid XML binding expressions should not produce diagnostics");
+
+        screen.close();
+        title.set("After close");
+        expect(label.text().equals("Updated") && screen.bindingSession().closed(),
+                "Closing an XML screen should unsubscribe all binding expressions");
+
+        XmlBindingContext invalidContext = XmlBindingContext.empty();
+        invalidContext.mutable("settings.gamma", Float.class, 0.5f);
+        XmlWidgetScreen<Label> invalid = XMLWidget.createScreen(
+                "<Label text=\"{Binding settings.gamma}\" />",
+                Label.class,
+                XmlWidgetOptions.DEFAULT.bindingContext(invalidContext));
+        expect(invalid.bindingSession().diagnostics().size() == 1
+                        && invalid.bindingSession().diagnostics().get(0).state() == XmlBindingStatus.State.ERROR,
+                "XML binding type mismatches should remain visible as diagnostics");
+        invalid.close();
     }
 
     private void testDescriptorMetadata() {

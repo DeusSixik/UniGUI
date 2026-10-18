@@ -17,49 +17,82 @@ package dev.sixik.unigui.api.xml;
  *         .commands(myCommands));
  * }</pre>
  *
+ * <pre>{@code
+ * XmlBindingContext context = XmlBindingContext.empty();
+ * context.mutable("user.name", String.class, "Alex");
+ * XmlWidgetScreen<?> screen = XMLWidget.createScreen(
+ *         "<Label text=\"{Binding user.name}\" />",
+ *         XmlWidgetOptions.DEFAULT.bindingContext(context));
+ * }</pre>
+ *
  * @param strictAttributes если {@code true}, неизвестные XML-атрибуты вызывают ошибку загрузки
- * @param maxDepth максимальная глубина XML-дерева; значения меньше 1 нормализуются в 1
- * @param textureResolver resolver texture id в runtime {@code TextureHandle}
- * @param commands реестр command handlers для event-атрибутов
+ * @param maxDepth         максимальная глубина XML-дерева; значения меньше 1 нормализуются в 1
+ * @param textureResolver  resolver texture id в runtime {@code TextureHandle}
+ * @param commands         реестр command handlers для event-атрибутов
+ * @param bindingContext   контекст observable-значений для {@code {Binding path}}
  */
 public record XmlWidgetOptions(
         boolean strictAttributes,
         int maxDepth,
         XmlTextureResolver textureResolver,
-        XmlCommandRegistry commands) {
-    /** Дефолтный resolver, который создаёт simple texture handles без backend native handle. */
+        XmlCommandRegistry commands,
+        XmlBindingContext bindingContext) {
+    /**
+     * Дефолтный resolver, который создаёт simple texture handles без backend native handle.
+     */
     public static final XmlTextureResolver DEFAULT_TEXTURE_RESOLVER = XmlTextureResolver.simple();
-    /** Дефолтный immutable command registry без разрешённых XML-команд. */
+    /**
+     * Дефолтный immutable command registry без разрешённых XML-команд.
+     */
     public static final XmlCommandRegistry DEFAULT_COMMANDS = XmlCommandRegistry.none();
-    /** Строгие runtime-настройки загрузки XML по умолчанию. */
-    public static final XmlWidgetOptions DEFAULT = new XmlWidgetOptions(true, 128, DEFAULT_TEXTURE_RESOLVER, DEFAULT_COMMANDS);
+    /**
+     * Строгие runtime-настройки загрузки XML по умолчанию.
+     */
+    public static final XmlWidgetOptions DEFAULT = new XmlWidgetOptions(true, 128, DEFAULT_TEXTURE_RESOLVER,
+            DEFAULT_COMMANDS, XmlBindingContext.empty());
 
     /**
      * Создаёт настройки с дефолтными texture resolver и command registry.
      *
      * @param strictAttributes строгая проверка неизвестных атрибутов
-     * @param maxDepth максимальная глубина XML-дерева
+     * @param maxDepth         максимальная глубина XML-дерева
      */
     public XmlWidgetOptions(boolean strictAttributes, int maxDepth) {
-        this(strictAttributes, maxDepth, DEFAULT_TEXTURE_RESOLVER, DEFAULT_COMMANDS);
+        this(strictAttributes, maxDepth, DEFAULT_TEXTURE_RESOLVER, DEFAULT_COMMANDS, XmlBindingContext.empty());
     }
 
     /**
      * Создаёт настройки с явным texture resolver и дефолтным пустым command registry.
      *
      * @param strictAttributes строгая проверка неизвестных атрибутов
-     * @param maxDepth максимальная глубина XML-дерева
-     * @param textureResolver resolver текстур; {@code null} заменяется дефолтным
+     * @param maxDepth         максимальная глубина XML-дерева
+     * @param textureResolver  resolver текстур; {@code null} заменяется дефолтным
      */
     public XmlWidgetOptions(boolean strictAttributes, int maxDepth, XmlTextureResolver textureResolver) {
-        this(strictAttributes, maxDepth, textureResolver, DEFAULT_COMMANDS);
+        this(strictAttributes, maxDepth, textureResolver, DEFAULT_COMMANDS, XmlBindingContext.empty());
     }
 
-    /** Нормализует nullable зависимости и минимальную глубину дерева. */
+    /**
+     * Создаёт настройки с явными texture и command resolver-ами без binding-контекста.
+     *
+     * @param strictAttributes строгая проверка неизвестных атрибутов
+     * @param maxDepth         максимальная глубина XML-дерева
+     * @param textureResolver  resolver текстур
+     * @param commands         реестр команд
+     */
+    public XmlWidgetOptions(boolean strictAttributes, int maxDepth,
+                            XmlTextureResolver textureResolver, XmlCommandRegistry commands) {
+        this(strictAttributes, maxDepth, textureResolver, commands, XmlBindingContext.empty());
+    }
+
+    /**
+     * Нормализует nullable зависимости и минимальную глубину дерева.
+     */
     public XmlWidgetOptions {
         maxDepth = Math.max(1, maxDepth);
         textureResolver = textureResolver == null ? DEFAULT_TEXTURE_RESOLVER : textureResolver;
         commands = commands == null ? DEFAULT_COMMANDS : commands;
+        bindingContext = bindingContext == null ? XmlBindingContext.empty() : bindingContext;
     }
 
     /**
@@ -87,7 +120,7 @@ public record XmlWidgetOptions(
      * @return новая копия настроек
      */
     public XmlWidgetOptions strictAttributes(boolean strictAttributes) {
-        return new XmlWidgetOptions(strictAttributes, maxDepth, textureResolver, commands);
+        return new XmlWidgetOptions(strictAttributes, maxDepth, textureResolver, commands, bindingContext);
     }
 
     /**
@@ -97,7 +130,7 @@ public record XmlWidgetOptions(
      * @return новая копия настроек
      */
     public XmlWidgetOptions maxDepth(int maxDepth) {
-        return new XmlWidgetOptions(strictAttributes, maxDepth, textureResolver, commands);
+        return new XmlWidgetOptions(strictAttributes, maxDepth, textureResolver, commands, bindingContext);
     }
 
     /**
@@ -107,7 +140,7 @@ public record XmlWidgetOptions(
      * @return новая копия настроек
      */
     public XmlWidgetOptions textureResolver(XmlTextureResolver textureResolver) {
-        return new XmlWidgetOptions(strictAttributes, maxDepth, textureResolver, commands);
+        return new XmlWidgetOptions(strictAttributes, maxDepth, textureResolver, commands, bindingContext);
     }
 
     /**
@@ -117,6 +150,16 @@ public record XmlWidgetOptions(
      * @return новая копия настроек
      */
     public XmlWidgetOptions commands(XmlCommandRegistry commands) {
-        return new XmlWidgetOptions(strictAttributes, maxDepth, textureResolver, commands);
+        return new XmlWidgetOptions(strictAttributes, maxDepth, textureResolver, commands, bindingContext);
+    }
+
+    /**
+     * Подставляет контекст observable-значений для XML binding-выражений.
+     *
+     * @param bindingContext контекст значений; {@code null} заменяется пустым
+     * @return новая копия настроек
+     */
+    public XmlWidgetOptions bindingContext(XmlBindingContext bindingContext) {
+        return new XmlWidgetOptions(strictAttributes, maxDepth, textureResolver, commands, bindingContext);
     }
 }

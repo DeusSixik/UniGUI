@@ -67,12 +67,14 @@
 Проект binding ведётся в [`xaml-data-binding.md`](xaml-data-binding.md).
 
 - [x] Зафиксировать границу: XML UI + явный Java code-behind уже поддерживаются,
-  полноценный `{Binding ...}` для XML ещё не подключён.
+  полный XAML data binding с two-way и коллекциями ещё не подключён.
 - [x] Описать MVP однонаправленного `source -> view` binding.
-- [ ] Добавить разбор `{Binding path}` в XML-атрибуты и binding targets в descriptor-ы.
-- [ ] Добавить lifecycle-контейнер сессии для закрытия всех binding-ов экрана.
-- [ ] Добавить конвертеры типов и диагностику path/property/location.
-- [ ] Добавить рабочую команду `/unigui xaml` с обновлением значения и ошибками
-  binding в редакторе.
+- [x] Добавить разбор `{Binding path}` в XML-атрибуты и binding targets в descriptor-ы.
+- [x] Добавить lifecycle-контейнер сессии для закрытия всех binding-ов экрана.
+- [x] Добавить диагностику missing/type mismatch через `XmlBindingStatus` и
+  `XmlBindingSession`.
+- [ ] Добавить конвертеры типов и координаты XML-атрибута в binding diagnostics.
+- [x] Добавить рабочую команду `/unigui xaml` с обновлением значения и
+  диагностикой binding в runtime-сценарии.
 - [ ] После стабилизации scalar binding спроектировать explicit TwoWay.
 - [ ] Отдельно спроектировать `ItemsSource` и наблюдаемые коллекции.

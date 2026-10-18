@@ -2,6 +2,10 @@ package dev.sixik.unigui.impl.xml;
 
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.xml.XmlAttributeDescriptor;
+import dev.sixik.unigui.api.xml.XmlBinding;
+import dev.sixik.unigui.api.xml.XmlBindingContext;
+import dev.sixik.unigui.api.xml.XmlBindingExpression;
+import dev.sixik.unigui.api.xml.XmlBindingSession;
 import dev.sixik.unigui.api.xml.XmlPropertyChildDescriptor;
 import dev.sixik.unigui.api.xml.XmlWidgetDescriptor;
 
@@ -52,7 +56,7 @@ public final class WidgetXmlType<T extends Widget> {
         if (parser == null || setter == null) {
             throw new IllegalArgumentException("XML attribute parser and setter must not be null");
         }
-        attributes.put(name, new XmlAttribute<>(name, parser, setter, normalizeDescriptor(name, descriptor)));
+        attributes.put(name, new XmlAttribute<>(name, parser, setter, normalizeDescriptor(name, descriptor), null));
         return this;
     }
 
@@ -69,6 +73,30 @@ public final class WidgetXmlType<T extends Widget> {
             throw new IllegalArgumentException("Unknown XML attribute '" + name + "' on " + xmlName);
         }
         attributes.put(name, attribute.descriptor(normalizeDescriptor(name, descriptor)));
+        return this;
+    }
+
+    /**
+     * Разрешает однонаправленную привязку указанного атрибута к источнику
+     * {@code {Binding path}}.
+     *
+     * @param name имя зарегистрированного XML-атрибута
+     * @param valueType runtime-тип значения источника
+     * @param <V> тип значения атрибута
+     * @return этот XML-тип для chained-настройки
+     */
+    public <V> WidgetXmlType<T> bindable(String name, Class<V> valueType) {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("XML bindable attribute name must not be blank");
+        }
+        if (valueType == null) {
+            throw new IllegalArgumentException("XML binding value type must not be null");
+        }
+        XmlAttribute<T, ?> attribute = attributes.get(name);
+        if (attribute == null) {
+            throw new IllegalArgumentException("Unknown XML attribute '" + name + "' on " + xmlName);
+        }
+        attributes.put(name, attribute.bindingType(valueType));
         return this;
     }
 
@@ -141,11 +169,14 @@ public final class WidgetXmlType<T extends Widget> {
                 propertyChildDescriptors());
     }
 
-    public void applyAttributes(T widget, Map<String, XmlWidgetLoader.XmlAttributeValue> values) {
+    public void applyAttributes(T widget,
+                                Map<String, XmlWidgetLoader.XmlAttributeValue> values,
+                                XmlBindingContext bindingContext,
+                                XmlBindingSession bindingSession) {
         for (XmlAttribute<T, ?> attribute : attributes.values()) {
             XmlWidgetLoader.XmlAttributeValue value = values.get(attribute.name());
             if (value != null) {
-                attribute.apply(widget, value);
+                attribute.apply(widget, value, bindingContext, bindingSession);
             }
         }
     }
@@ -175,13 +206,30 @@ public final class WidgetXmlType<T extends Widget> {
             String name,
             XmlValueParser<V> parser,
             XmlPropertySetter<? super T, ? super V> setter,
-            XmlAttributeDescriptor descriptor) {
+            XmlAttributeDescriptor descriptor,
+            Class<?> bindingType) {
         private XmlAttribute<T, V> descriptor(XmlAttributeDescriptor descriptor) {
-            return new XmlAttribute<>(name, parser, setter, descriptor);
+            return new XmlAttribute<>(name, parser, setter, descriptor, bindingType);
         }
 
-        private void apply(T widget, XmlWidgetLoader.XmlAttributeValue value) {
+        private XmlAttribute<T, V> bindingType(Class<?> valueType) {
+            return new XmlAttribute<>(name, parser, setter, descriptor, valueType);
+        }
+
+        private void apply(T widget,
+                           XmlWidgetLoader.XmlAttributeValue value,
+                           XmlBindingContext bindingContext,
+                           XmlBindingSession bindingSession) {
             try {
+                java.util.Optional<XmlBindingExpression> expression = XmlBindingExpression.parse(value.value());
+                if (expression.isPresent()) {
+                    if (bindingType == null) {
+                        throw new IllegalArgumentException("Attribute '" + value.displayName()
+                                + "' does not support XML binding");
+                    }
+                    bind(widget, value, expression.get(), bindingContext, bindingSession);
+                    return;
+                }
                 setter.set(widget, parser.parse(value.value()));
             } catch (RuntimeException failure) {
                 throw new XmlAttributeApplyException(
@@ -191,6 +239,18 @@ public final class WidgetXmlType<T extends Widget> {
                                 + "' value '" + value.value() + "': " + failure.getMessage(),
                         failure);
             }
+        }
+
+        @SuppressWarnings("unchecked")
+        private void bind(T widget,
+                          XmlWidgetLoader.XmlAttributeValue value,
+                          XmlBindingExpression expression,
+                          XmlBindingContext bindingContext,
+                          XmlBindingSession bindingSession) {
+            XmlBinding<?> binding = bindingContext.bind(expression.path(), (Class<Object>) bindingType,
+                    next -> setter.set(widget, (V) next),
+                    widget.getClass().getSimpleName() + "." + value.displayName());
+            bindingSession.add(binding);
         }
     }
 
