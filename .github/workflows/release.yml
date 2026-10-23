@@ -44,11 +44,11 @@ jobs:
 
           echo "old=$OLD new=$NEW ref=${{ github.ref }}"
 
+          # Release only on Main_other, and only when mod_version actually changed.
+          # A manual run or a push without a version diff never publishes a tag.
           RELEASE=false
-          if [ "${{ github.ref }}" = "refs/heads/Main_other" ]; then
-            if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$OLD" != "$NEW" ]; then
-              RELEASE=true
-            fi
+          if [ "${{ github.ref }}" = "refs/heads/Main_other" ] && [ -n "$OLD" ] && [ "$OLD" != "$NEW" ]; then
+            RELEASE=true
           fi
 
           if [ "$RELEASE" = "true" ] && git ls-remote --exit-code --tags origin "refs/tags/v$NEW" >/dev/null 2>&1; then
