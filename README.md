@@ -20,7 +20,7 @@
 
 <p align="center">
   <a href="https://www.curseforge.com/minecraft/mc-mods/uni-gui">
-    <img src="https://img.shields.io/curseforge/dt/<YOUR_PROJECT_ID>?logo=curseforge&label=&suffix=%20&style=flat&color=242629&labelColor=F16436&logoColor=1C1C1C" alt="CurseForge">
+    <img src="https://img.shields.io/curseforge/dt/1649763?logo=curseforge&label=&suffix=%20&style=flat&color=242629&labelColor=F16436&logoColor=1C1C1C" alt="CurseForge">
   </a>
 </p>
 
