@@ -6,6 +6,12 @@ plugins {
 
 def versionProject = project
 def versionProperty = { String key ->
+    // mod_version is owned by the repository root gradle.properties.
+    // Stonecutter swaps the Gradle project for each Minecraft profile, so a copy
+    // inside versions/<mc>/gradle.properties would shadow the root value.
+    if (key == 'mod_version') {
+        return rootProject.findProperty(key)
+    }
     def value = versionProject.findProperty(key)
     return value != null ? value : rootProject.findProperty(key)
 }
