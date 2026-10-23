@@ -2,50 +2,113 @@ package dev.sixik.unigui.widgets.navigation;
 
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
-import dev.sixik.unigui.api.event.Event;
-import dev.sixik.unigui.api.event.EventListener;
-import dev.sixik.unigui.api.event.EventPhase;
-import dev.sixik.unigui.api.event.EventSubscription;
-import dev.sixik.unigui.api.event.KeyPressedEvent;
-import dev.sixik.unigui.api.event.SelectionChangedEvent;
+import dev.sixik.unigui.api.event.*;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.layout.LayoutContext;
+import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
-
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import java.util.Collections;
-import java.util.LinkedList;
-import java.util.List;
 import dev.sixik.unigui.widgets.containers.LinearBox;
 import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.widgets.interaction.Button;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
 
 @XmlWidgetName("TreeView")
 public class TreeView extends LinearBox {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TREE_VIEW;
 
-    private static final float ROW_HEIGHT = 20.0f;
-    private static final float INDENT_WIDTH = 12.0f;
+    private static final float ROW_HEIGHT = 28.0f;
+    /**
+     * Шаг глубины равен слоту шеврона: стрелка ребёнка встаёт под иконку родителя.
+     */
+    private static final float INDENT_WIDTH = 18.0f;
+    private static final float ROW_INSET_X = 4.0f;
+    private static final float ROW_INSET_Y = 1.0f;
+    private static final float ROW_RADIUS = 4.0f;
+    private static final float DISCLOSURE_SLOT = 14.0f;
+    private static final float ICON_SLOT = 16.0f;
+    private static final float SLOT_GAP = 4.0f;
+    private static final float CHEVRON_HALF = 3.5f;
+    private static final float CHEVRON_RISE = 2.0f;
+    private static final float CHEVRON_STROKE = 1.5f;
+    private static final float ICON_STROKE = 1.25f;
     private static final float ROW_TEXT_HOVER_SCROLL_SPEED = 24.0f;
+    /**
+     * --bg-hover #2a2f37.
+     */
+    private static final MutableColor HOVER_PILL = MutableColor.rgba(0.165f, 0.184f, 0.216f, 1.0f);
+    /**
+     * --bg-selected #26405e.
+     */
+    private static final MutableColor SELECTED_PILL = MutableColor.rgba(0.149f, 0.251f, 0.369f, 1.0f);
+    /**
+     * --text-hi #e8eef4.
+     */
+    private static final MutableColor TEXT_HI = MutableColor.rgba(0.910f, 0.933f, 0.957f, 1.0f);
+    /**
+     * --text-mid #9aa4b0.
+     */
+    private static final MutableColor TEXT_MID = MutableColor.rgba(0.604f, 0.643f, 0.690f, 1.0f);
+    /**
+     * --text-lo #5f6772.
+     */
+    private static final MutableColor TEXT_LO = MutableColor.rgba(0.373f, 0.404f, 0.447f, 1.0f);
 
     private final VBox rowsHost = new VBox();
     private final List<TreeViewNode> roots = new ObjectArrayList<>();
     private final List<TreeViewNode> visibleNodes = new ObjectArrayList<>();
     private TreeViewNode selectedNode;
+    private TreeIconMode iconMode = TreeIconMode.FOLDERS;
     private float rowTextHoverScrollSpeed = ROW_TEXT_HOVER_SCROLL_SPEED;
     private int batchDepth;
     private boolean rebuildPending;
+
+    /**
+     * Возвращает режим иконок строк без собственной иконки.
+     *
+     * @return текущий режим
+     */
+    public TreeIconMode iconMode() {
+        return iconMode;
+    }
+
+    /**
+     * Задаёт режим иконок для узлов без собственной текстуры или отрисовки.
+     *
+     * <p>{@link TreeIconMode#FOLDERS} рисует папку у ветки и файл у листа.
+     * {@link TreeIconMode#NONE} оставляет только шеврон и текст — иерархия
+     * без глифов, как дерево сцены.</p>
+     *
+     * @param iconMode режим или {@code null} (трактуется как {@link TreeIconMode#NONE})
+     * @return это дерево
+     */
+    public TreeView iconMode(TreeIconMode iconMode) {
+        TreeIconMode normalized = iconMode == null ? TreeIconMode.NONE : iconMode;
+        if (this.iconMode == normalized) return this;
+        this.iconMode = normalized;
+        for (int i = 0, size = visibleNodes.size(); i < size; i++) {
+            if (visibleNodes.get(i).rowButton() instanceof TreeRowButton row) {
+                row.invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+            }
+        }
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
 
     public TreeView() {
         super(Orientation.VERTICAL);
@@ -173,9 +236,7 @@ public class TreeView extends LinearBox {
 
     @XmlAttribute(value = "rowTextHoverScrollSpeed", category = "Behavior", defaultValue = "24", description = "Text marquee speed for overflowing hovered tree rows.")
     public TreeView rowTextHoverScrollSpeed(float pixelsPerSecond) {
-        float normalized = Float.isFinite(pixelsPerSecond)
-                ? Math.max(0.0f, pixelsPerSecond)
-                : ROW_TEXT_HOVER_SCROLL_SPEED;
+        float normalized = Float.isFinite(pixelsPerSecond) ? Math.max(0.0f, pixelsPerSecond) : ROW_TEXT_HOVER_SCROLL_SPEED;
         if (rowTextHoverScrollSpeed == normalized) return this;
         rowTextHoverScrollSpeed = normalized;
         invalidate(InvalidationFlags.VISUAL);
@@ -204,11 +265,7 @@ public class TreeView extends LinearBox {
     public void handle(Event event) {
         super.handle(event);
         if (event.isCancelled()) return;
-        if (event instanceof KeyPressedEvent key
-                && key.phase() == EventPhase.TARGET
-                && uiContext() != null
-                && uiContext().focusManager().isFocused(this)
-                && handleKey(key.keyCode())) {
+        if (event instanceof KeyPressedEvent key && key.phase() == EventPhase.TARGET && uiContext() != null && uiContext().focusManager().isFocused(this) && handleKey(key.keyCode())) {
             event.cancel();
         }
     }
@@ -286,8 +343,7 @@ public class TreeView extends LinearBox {
     private boolean handleKey(int keyCode) {
         if (visibleNodes.isEmpty()) return false;
         if (selectedNode == null) {
-            if (keyCode == KeyCodes.DOWN || keyCode == KeyCodes.HOME || keyCode == KeyCodes.RIGHT
-                    || keyCode == KeyCodes.SPACE || keyCode == KeyCodes.ENTER || keyCode == KeyCodes.KEYPAD_ENTER) {
+            if (keyCode == KeyCodes.DOWN || keyCode == KeyCodes.HOME || keyCode == KeyCodes.RIGHT || keyCode == KeyCodes.SPACE || keyCode == KeyCodes.ENTER || keyCode == KeyCodes.KEYPAD_ENTER) {
                 selectFirstVisible();
                 return true;
             }
@@ -532,11 +588,10 @@ public class TreeView extends LinearBox {
             this.tree = tree;
             this.node = node;
             this.depth = depth;
-            themeEnabled(false);
             focusable(false);
-            backgroundVisible(true);
+            boxVisualEnabled(false);
+            backgroundVisible(false);
             borderVisible(false);
-            radius(2.0f);
             layout(style -> style.size(LayoutConstraints.AUTO, ROW_HEIGHT).flexGrow(0).flexShrink(0.0f));
             onClick(event -> {
                 tree.select(node);
@@ -549,20 +604,15 @@ public class TreeView extends LinearBox {
 
         private void syncVisualState() {
             boolean selected = tree.selectedNode() == node;
-            background().set(selected ? 0.16f : 0.08f, selected ? 0.22f : 0.09f, selected ? 0.30f : 0.11f, selected ? 0.92f : 0.45f);
-            borderVisible(selected);
-            borderColor().set(0.38f, 0.70f, 1.0f, selected ? 0.70f : 0.0f);
-            textColor().set(selected ? 0.82f : 0.88f, selected ? 0.92f : 0.90f, selected ? 1.0f : 0.94f, node.selectable() ? 1.0f : 0.55f);
+            MutableColor color = !node.selectable() ? TEXT_LO : selected ? TEXT_HI : TEXT_MID;
+            textColor(color);
             richText(rowText());
         }
 
         @Override
         public void measure(LayoutContext context) {
-            RichText text = rowText();
-            float textWidth = TextEngine.measureLineWidth(text);
-            setDesiredSize(resolveDesiredSize(context,
-                    TEXT_PADDING_X * 2.0f + depth * INDENT_WIDTH + textWidth,
-                    ROW_HEIGHT));
+            float textWidth = TextEngine.measureLineWidth(rowText());
+            setDesiredSize(resolveDesiredSize(context, leadingWidth() + textWidth + TEXT_PADDING_X, ROW_HEIGHT));
         }
 
         @Override
@@ -585,34 +635,213 @@ public class TreeView extends LinearBox {
         }
 
         private void renderRowVisual(DrawScope draw) {
-            RichText text = rowText();
-            if (text == null || text.isEmpty()) return;
             float x = layoutBounds().x();
             float y = layoutBounds().y();
             float width = layoutBounds().width();
             float height = layoutBounds().height();
-            float indent = depth * INDENT_WIDTH;
-            float baseTextX = x + TEXT_PADDING_X + indent;
-            float availableWidth = Math.max(0.0f, width - TEXT_PADDING_X * 2.0f - indent);
-            float availableHeight = Math.max(0.0f, height);
+            renderRowPill(draw, x, y, width, height);
+            float cursor = x + TEXT_PADDING_X + depth * INDENT_WIDTH;
+            cursor = renderDisclosure(draw, cursor, y, height);
+            cursor = renderRowIcon(draw, cursor, y, height);
+            renderRowText(draw, rowText(), cursor, y, width, height);
+        }
+
+        /**
+         * Рисует пилюлю строки с горизонтальным и вертикальным инсетом.
+         *
+         * <p>Selected перекрывает hover. Обычная строка без hover не рисуется:
+         * фон дерева остаётся виден. Радиус — {@code --radius-sm} (4px).</p>
+         *
+         * @param draw   draw scope строки
+         * @param x      X границ строки в пикселях
+         * @param y      Y границ строки в пикселях
+         * @param width  ширина строки в пикселях
+         * @param height высота строки в пикселях
+         */
+        private void renderRowPill(DrawScope draw, float x, float y, float width, float height) {
+            boolean selected = tree.selectedNode() == node;
+            if (!selected && !hovered()) return;
+            float pillX = x + ROW_INSET_X;
+            float pillY = y + ROW_INSET_Y;
+            float pillWidth = Math.max(0.0f, width - ROW_INSET_X * 2.0f);
+            float pillHeight = Math.max(0.0f, height - ROW_INSET_Y * 2.0f);
+            if (pillWidth <= 0.0f || pillHeight <= 0.0f) return;
+            draw.roundedRectFilled(pillX, pillY, pillWidth, pillHeight, ROW_RADIUS, selected ? SELECTED_PILL : HOVER_PILL);
+        }
+
+        /**
+         * Рисует disclosure-шеврон двумя stroke-отрезками.
+         *
+         * <p>Слот резервируется у каждой строки, включая лист. Иначе лист без
+         * шеврона сдвигает иконку и текст влево и встаёт вровень с родителем.
+         * Глиф рисуется только у узла с детьми: вниз если раскрыт, вправо если свёрнут.</p>
+         *
+         * <p>Раскрытый (центр слота {@code (cx, cy)}, полуширина {@code h}, подъём {@code r}):
+         * <pre>
+         *   (cx - h, cy - r) → (cx, cy + r) → (cx + h, cy - r)
+         * </pre>
+         * Свёрнутый:
+         * <pre>
+         *   (cx - r, cy - h) → (cx + r, cy) → (cx - r, cy + h)
+         * </pre>
+         *
+         * @param draw   draw scope строки
+         * @param cursor X начала слота в пикселях
+         * @param y      Y границ строки в пикселях
+         * @param height высота строки в пикселях
+         * @return X следующего слота
+         */
+        private float renderDisclosure(DrawScope draw, float cursor, float y, float height) {
+            if (node.hasChildren()) {
+                renderDisclosureGlyph(draw, cursor, y, height);
+            }
+            return cursor + DISCLOSURE_SLOT + SLOT_GAP;
+        }
+
+        private void renderDisclosureGlyph(DrawScope draw, float cursor, float y, float height) {
+            float centerX = cursor + DISCLOSURE_SLOT * 0.5f;
+            float centerY = y + height * 0.5f;
+            Paint paint = Paint.stroke(TEXT_LO, CHEVRON_STROKE);
+            if (node.expanded()) {
+                draw.line(centerX - CHEVRON_HALF, centerY - CHEVRON_RISE, centerX, centerY + CHEVRON_RISE, paint);
+                draw.line(centerX, centerY + CHEVRON_RISE, centerX + CHEVRON_HALF, centerY - CHEVRON_RISE, paint);
+            } else {
+                draw.line(centerX - CHEVRON_RISE, centerY - CHEVRON_HALF, centerX + CHEVRON_RISE, centerY, paint);
+                draw.line(centerX + CHEVRON_RISE, centerY, centerX - CHEVRON_RISE, centerY + CHEVRON_HALF, paint);
+            }
+        }
+
+        /**
+         * Рисует иконку строки, если у узла она есть.
+         *
+         * <p>Приоритет: собственная отрисовка узла, затем текстура, затем глиф
+         * режима {@link TreeIconMode#FOLDERS}. {@link TreeViewNode#noIcon()} и
+         * {@link TreeIconMode#NONE} слот не занимают — текст начинается сразу
+         * после шеврона.</p>
+         *
+         * @param draw   draw scope строки
+         * @param cursor X начала слота в пикселях
+         * @param y      Y границ строки в пикселях
+         * @param height высота строки в пикселях
+         * @return X начала текста
+         */
+        private float renderRowIcon(DrawScope draw, float cursor, float y, float height) {
+            if (!hasRowIcon()) return cursor;
+            float iconY = y + (height - ICON_SLOT) * 0.5f;
+            TreeViewNode.IconDraw iconDraw = node.iconDraw();
+            if (iconDraw != null) {
+                iconDraw.draw(draw, node, cursor, iconY, ICON_SLOT, ICON_SLOT);
+            } else {
+                TextureHandle icon = node.icon();
+                if (icon != null) {
+                    draw.texture(icon, cursor, iconY, ICON_SLOT, ICON_SLOT, Paint.fill(TEXT_MID));
+                } else if (node.hasChildren()) {
+                    renderFolderGlyph(draw, cursor, iconY);
+                } else {
+                    renderFileGlyph(draw, cursor, iconY);
+                }
+            }
+            return cursor + ICON_SLOT + SLOT_GAP;
+        }
+
+        private boolean hasRowIcon() {
+            if (node.iconSuppressed()) return false;
+            if (node.iconDraw() != null || node.icon() != null) return true;
+            return tree.iconMode == TreeIconMode.FOLDERS;
+        }
+
+        /**
+         * Рисует папку двумя stroke-контурами: клапан и корпус.
+         *
+         * @param draw draw scope строки
+         * @param x    X слота в пикселях
+         * @param y    Y слота в пикселях
+         */
+        private void renderFolderGlyph(DrawScope draw, float x, float y) {
+            Paint paint = Paint.stroke(TEXT_MID, ICON_STROKE);
+            float tabWidth = ICON_SLOT * 0.45f;
+            float tabHeight = ICON_SLOT * 0.22f;
+            draw.line(x + 1.0f, y + tabHeight, x + 1.0f, y + 1.0f, paint);
+            draw.line(x + 1.0f, y + 1.0f, x + tabWidth, y + 1.0f, paint);
+            draw.line(x + tabWidth, y + 1.0f, x + tabWidth + 1.5f, y + tabHeight, paint);
+            float bodyTop = y + tabHeight + 1.0f;
+            float bodyBottom = y + ICON_SLOT - 1.0f;
+            float bodyRight = x + ICON_SLOT - 1.0f;
+            draw.line(x + 1.0f, bodyTop, bodyRight, bodyTop, paint);
+            draw.line(bodyRight, bodyTop, bodyRight, bodyBottom, paint);
+            draw.line(bodyRight, bodyBottom, x + 1.0f, bodyBottom, paint);
+            draw.line(x + 1.0f, bodyBottom, x + 1.0f, bodyTop, paint);
+        }
+
+        /**
+         * Рисует файл stroke-контуром с загнутым углом.
+         *
+         * @param draw draw scope строки
+         * @param x    X слота в пикселях
+         * @param y    Y слота в пикселях
+         */
+        private void renderFileGlyph(DrawScope draw, float x, float y) {
+            Paint paint = Paint.stroke(TEXT_MID, ICON_STROKE);
+            float left = x + 2.5f;
+            float right = x + ICON_SLOT - 2.5f;
+            float top = y + 1.0f;
+            float bottom = y + ICON_SLOT - 1.0f;
+            float fold = 4.0f;
+            draw.line(left, top, right - fold, top, paint);
+            draw.line(right - fold, top, right, top + fold, paint);
+            draw.line(right, top + fold, right, bottom, paint);
+            draw.line(right, bottom, left, bottom, paint);
+            draw.line(left, bottom, left, top, paint);
+            draw.line(right - fold, top, right - fold, top + fold, paint);
+            draw.line(right - fold, top + fold, right, top + fold, paint);
+        }
+
+        /**
+         * Рисует текст строки с клипом и hover-прокруткой длинных подписей.
+         *
+         * @param draw      draw scope строки
+         * @param text      текст узла без disclosure-маркера
+         * @param textStart X начала текста в пикселях
+         * @param y         Y границ строки в пикселях
+         * @param width     ширина строки в пикселях
+         * @param height    высота строки в пикселях
+         */
+        private void renderRowText(DrawScope draw, RichText text, float textStart, float y, float width, float height) {
+            if (text == null || text.isEmpty()) return;
+            float x = layoutBounds().x();
+            float clipRight = x + width - TEXT_PADDING_X;
+            float availableWidth = Math.max(0.0f, clipRight - textStart);
             float textWidth = TextEngine.measureLineWidth(draw.context(), text);
-            float textHeight = Math.min(availableHeight, TextEngine.measureTextHeight(draw.context(), text));
-            float textX = baseTextX - hoverTextScrollOffset(textWidth, availableWidth);
-            float textY = TextEngine.alignedStart(y, availableHeight, textHeight, Alignment.CENTER);
-            float clipX = x + TEXT_PADDING_X + depth * INDENT_WIDTH;
-            float clipWidth = Math.max(0.0f, width - TEXT_PADDING_X * 2.0f - depth * INDENT_WIDTH);
-            draw.pushTextClip(clipX, y, clipWidth, height);
+            float textHeight = Math.min(height, TextEngine.measureTextHeight(draw.context(), text));
+            float textX = textStart - hoverTextScrollOffset(textWidth, availableWidth);
+            float textY = TextEngine.alignedStart(y, height, textHeight, Alignment.CENTER);
+            draw.pushTextClip(textStart, y, availableWidth, height);
             try {
-                TextEngine.drawInline(draw, text, textX, textY, Math.max(0.0f, textWidth), textHeight,
-                        Paint.fill(textColor()));
+                TextEngine.drawInline(draw, text, textX, textY, Math.max(0.0f, textWidth), textHeight, Paint.fill(textColor()));
             } finally {
                 draw.popClip();
             }
         }
 
         private RichText rowText() {
-            String marker = node.hasChildren() ? (node.expanded() ? "\u25BE " : "\u25B8 ") : "  ";
-            return RichText.plain(marker).append(node.richText());
+            return node.richText();
+        }
+
+        /**
+         * Возвращает ширину отступа, disclosure и иконки до текста.
+         *
+         * <p>Формула:
+         * <pre>
+         *   leading = padX + depth * indent + disclosure + icon
+         * </pre>
+         * Слот шеврона резервируется всегда. Слот иконки — только если строка
+         * её рисует.</p>
+         *
+         * @return ширина ведущей части строки в пикселях
+         */
+        private float leadingWidth() {
+            float icon = hasRowIcon() ? ICON_SLOT + SLOT_GAP : 0.0f;
+            return TEXT_PADDING_X + depth * INDENT_WIDTH + DISCLOSURE_SLOT + SLOT_GAP + icon;
         }
 
         private float textOverflowAmount() {
@@ -620,7 +849,7 @@ public class TreeView extends LinearBox {
         }
 
         private float availableTextWidth() {
-            return Math.max(0.0f, layoutBounds().width() - TEXT_PADDING_X * 2.0f - depth * INDENT_WIDTH);
+            return Math.max(0.0f, layoutBounds().width() - leadingWidth() - TEXT_PADDING_X);
         }
 
         private float hoverTextScrollOffset(float textWidth, float availableWidth) {
@@ -631,6 +860,20 @@ public class TreeView extends LinearBox {
             float phase = hoverScrollOffset % period;
             return phase <= overflow ? phase : period - phase;
         }
+    }
+
+    /**
+     * Режим иконок для узлов без собственной текстуры или отрисовки.
+     */
+    public enum TreeIconMode {
+        /**
+         * Папка у ветки, файл у листа.
+         */
+        FOLDERS,
+        /**
+         * Только шеврон и текст, без слота иконки.
+         */
+        NONE
     }
 
 }

@@ -46,8 +46,11 @@ import dev.sixik.unigui.api.render.DrawList;
 import dev.sixik.unigui.api.render.RenderBackend;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.Style;
+import dev.sixik.unigui.api.style.MutableStyle;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.StylePack;
+import dev.sixik.unigui.api.style.StyleTextParseResult;
+import dev.sixik.unigui.api.style.StyleTextParser;
 import dev.sixik.unigui.api.style.Theme;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.widget.render.WidgetRenderRegistry;
@@ -58,12 +61,14 @@ import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlLayoutAttributes;
 import dev.sixik.unigui.api.xml.XmlStyleAttributes;
+import dev.sixik.unigui.api.xml.XmlWidgetDiagnostic;
 import dev.sixik.unigui.impl.event.FastEventEmitter;
 import dev.sixik.unigui.impl.render.DefaultRenderContext;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
+
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.HashMap;
@@ -74,7 +79,9 @@ import java.util.function.Consumer;
 @XmlLayoutAttributes
 @XmlStyleAttributes
 public abstract class WidgetBase implements Widget {
-    /** Общие animation property id, доступные всем виджетам. */
+    /**
+     * Общие animation property id, доступные всем виджетам.
+     */
     public static final class AnimationProperties {
         public static final String POSITION_X = StyleAnimationIds.Property.POSITION_X;
         public static final String POSITION_Y = StyleAnimationIds.Property.POSITION_Y;
@@ -89,7 +96,9 @@ public abstract class WidgetBase implements Widget {
         }
     }
 
-    /** Общие event id для hover/focus/press анимаций. */
+    /**
+     * Общие event id для hover/focus/press анимаций.
+     */
     public static final class AnimationEvents {
         public static final String ON_FOCUS = StyleAnimationIds.Event.ON_FOCUS;
         public static final String ON_BLUR = StyleAnimationIds.Event.ON_BLUR;
@@ -108,7 +117,9 @@ public abstract class WidgetBase implements Widget {
      * Хранит подписки и отправку событий, связанных с жизненным циклом и вводом виджета.
      */
     private final FastEventEmitter events = new FastEventEmitter();
-    /** Единый реестр всех активных анимаций виджета. */
+    /**
+     * Единый реестр всех активных анимаций виджета.
+     */
     private final AnimationController animations = new AnimationController();
     /**
      * Единственный custom renderer виджета. {@code null} означает стандартный визуал.
@@ -141,13 +152,21 @@ public abstract class WidgetBase implements Widget {
      * Хранит желаемый размер, который виджет сообщает layout-системе.
      */
     private LayoutSize desiredSize = LayoutSize.ZERO;
-    /** Показывает, что measure-кэш содержит актуальный desiredSize для ключа ниже. */
+    /**
+     * Показывает, что measure-кэш содержит актуальный desiredSize для ключа ниже.
+     */
     private boolean measureCacheValid;
-    /** Ключ measure-кэша: availableWidth последнего измерения. */
+    /**
+     * Ключ measure-кэша: availableWidth последнего измерения.
+     */
     private float measureCacheWidth = Float.NaN;
-    /** Ключ measure-кэша: availableHeight последнего измерения. */
+    /**
+     * Ключ measure-кэша: availableHeight последнего измерения.
+     */
     private float measureCacheHeight = Float.NaN;
-    /** Счётчики используются тестами и профилированием конкретного виджета. */
+    /**
+     * Счётчики используются тестами и профилированием конкретного виджета.
+     */
     private long measureCacheHits;
     private long measureCacheMisses;
     /**
@@ -174,21 +193,37 @@ public abstract class WidgetBase implements Widget {
      * Хранит агрегированные флаги инвалидации всего поддерева виджета.
      */
     private int subtreeInvalidationFlags = InvalidationFlags.ALL;
-    /** Ленивый retained-фрагмент draw-команд виджета без дочерних элементов. */
+    /**
+     * Ленивый retained-фрагмент draw-команд виджета без дочерних элементов.
+     */
     private DrawList renderCache;
-    /** Контекст, записывающий draw-команды в retained-фрагмент. */
+    /**
+     * Контекст, записывающий draw-команды в retained-фрагмент.
+     */
     private DefaultRenderContext renderCacheContext;
-    /** Показывает, что retained-фрагмент нужно пересобрать. */
+    /**
+     * Показывает, что retained-фрагмент нужно пересобрать.
+     */
     private boolean renderCacheDirty = true;
-    /** Позволяет отключить retained-кэш для заведомо динамического виджета. */
+    /**
+     * Позволяет отключить retained-кэш для заведомо динамического виджета.
+     */
     private boolean renderCachingEnabled = true;
-    /** Защищает от рекурсивного входа во время записи фрагмента. */
+    /**
+     * Защищает от рекурсивного входа во время записи фрагмента.
+     */
     private boolean renderingCache;
-    /** Backend, для которого последний раз строился фрагмент. */
+    /**
+     * Backend, для которого последний раз строился фрагмент.
+     */
     private RenderBackend renderCacheBackend;
-    /** Агрегированная версия theme и локальных style scope последней сборки. */
+    /**
+     * Агрегированная версия theme и локальных style scope последней сборки.
+     */
     private long renderCacheStyleVersion = Long.MIN_VALUE;
-    /** Счётчики используются тестами и профилированием конкретного виджета. */
+    /**
+     * Счётчики используются тестами и профилированием конкретного виджета.
+     */
     private long renderCacheHits;
     private long renderCacheRebuilds;
     /**
@@ -245,6 +280,8 @@ public abstract class WidgetBase implements Widget {
     private String id = "";
     private String styleId = "";
     private final LinkedHashSet<String> styleClasses = new LinkedHashSet<>();
+    private MutableStyle inlineStyle;
+    private List<XmlWidgetDiagnostic> styleDiagnostics = List.of();
 
     /**
      * Создаёт экземпляр {@code WidgetBase} и подготавливает начальное состояние виджета.
@@ -320,6 +357,7 @@ public abstract class WidgetBase implements Widget {
         this.id = normalized;
         return this;
     }
+
     /**
      * Возвращает явный id стиля виджета.
      */
@@ -403,6 +441,54 @@ public abstract class WidgetBase implements Widget {
     }
 
     /**
+     * Объединяет встроенные визуальные объявления с локальным wildcard-стилем виджета.
+     *
+     * <p>Строка без двоеточия остаётся удобным псевдонимом для {@link #styleId(String)}. Встроенные
+     * объявления используют форму {@code property: value; property: value}.</p>
+     */
+    @Override
+    public WidgetBase style(String declarations) {
+        String normalized = declarations == null ? "" : declarations.trim();
+        if (normalized.isEmpty()) return this;
+        if (normalized.indexOf(':') < 0 && normalized.indexOf(';') < 0) {
+            return styleId(normalized);
+        }
+        StyleTextParseResult result = StyleTextParser.parseEditor(normalized);
+        inlineStyle().putAll(result.style());
+        if (!result.diagnostics().isEmpty()) {
+            java.util.ArrayList<XmlWidgetDiagnostic> next = new java.util.ArrayList<>(styleDiagnostics);
+            next.addAll(result.diagnostics());
+            styleDiagnostics = List.copyOf(next);
+        }
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Добавляет типизированные значения в тот же набор встроенных стилей.
+     */
+    @Override
+    public WidgetBase style(Consumer<MutableStyle> update) {
+        if (update == null) return this;
+        update.accept(inlineStyle());
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    @Override
+    public List<XmlWidgetDiagnostic> styleDiagnostics() {
+        return styleDiagnostics;
+    }
+
+    private MutableStyle inlineStyle() {
+        if (inlineStyle == null) {
+            inlineStyle = new MutableStyle();
+            localStyles.put(Theme.WILDCARD, inlineStyle);
+        }
+        return inlineStyle;
+    }
+
+    /**
      * Возвращает текущие границы виджета после layout-прохода.
      */
     @Override
@@ -439,7 +525,9 @@ public abstract class WidgetBase implements Widget {
         return this;
     }
 
-    /** @return параметры следующего FLIP-перехода */
+    /**
+     * @return параметры следующего FLIP-перехода
+     */
     public TransitionSpec layoutTransitionSpec() {
         return layoutTransitionSpec;
     }
@@ -469,7 +557,7 @@ public abstract class WidgetBase implements Widget {
      * Включает FLIP-переход с указанными параметрами.
      *
      * @param durationSeconds длительность перехода в секундах
-     * @param easing функция плавности; {@code null} означает линейный easing
+     * @param easing          функция плавности; {@code null} означает линейный easing
      * @return этот виджет
      */
     public WidgetBase layoutTransition(float durationSeconds, Easing easing) {
@@ -768,12 +856,12 @@ public abstract class WidgetBase implements Widget {
     /**
      * Запускает пружинную анимацию кастомного float-параметра.
      *
-     * @param key ключ параметра; повторный вызов заменяет предыдущую пружину
-     * @param reader источник текущего значения
-     * @param writer получатель результата
-     * @param target целевое значение
+     * @param key       ключ параметра; повторный вызов заменяет предыдущую пружину
+     * @param reader    источник текущего значения
+     * @param writer    получатель результата
+     * @param target    целевое значение
      * @param stiffness жёсткость пружины
-     * @param damping затухание пружины
+     * @param damping   затухание пружины
      * @return этот виджет
      */
     public WidgetBase animateSpringParameter(Object key, FloatValueReader reader, FloatValueWriter writer,
@@ -792,7 +880,9 @@ public abstract class WidgetBase implements Widget {
         return this;
     }
 
-    /** Останавливает spring-анимацию кастомного параметра. */
+    /**
+     * Останавливает spring-анимацию кастомного параметра.
+     */
     public WidgetBase stopSpringParameterAnimation(Object key) {
         animations.stopScoped(SCOPE_SPRING_PARAMETER, key, false);
         return this;
@@ -801,10 +891,10 @@ public abstract class WidgetBase implements Widget {
     /**
      * Запускает пружинную анимацию встроенного свойства виджета.
      *
-     * @param property анимируемое свойство
+     * @param property    анимируемое свойство
      * @param targetValue целевое значение
-     * @param stiffness жёсткость пружины
-     * @param damping затухание пружины
+     * @param stiffness   жёсткость пружины
+     * @param damping     затухание пружины
      * @return этот виджет
      */
     public WidgetBase animateSpring(AnimatedProperty property, float targetValue,
@@ -955,7 +1045,9 @@ public abstract class WidgetBase implements Widget {
         return playStoryboard(null, storyboard, null);
     }
 
-    /** Запускает storyboard под стабильным ключом, заменяя предыдущую анимацию с тем же ключом. */
+    /**
+     * Запускает storyboard под стабильным ключом, заменяя предыдущую анимацию с тем же ключом.
+     */
     public StoryboardPlayer playStoryboard(Object key, Storyboard storyboard) {
         return playStoryboard(key, storyboard, null);
     }
@@ -963,9 +1055,9 @@ public abstract class WidgetBase implements Widget {
     /**
      * Запускает storyboard с пользовательским resolver'ом property path.
      *
-     * @param key ключ в animation controller; {@code null} использует сам player
+     * @param key        ключ в animation controller; {@code null} использует сам player
      * @param storyboard описание анимации
-     * @param resolver resolver встроенных и пользовательских свойств; {@code null} использует built-ins
+     * @param resolver   resolver встроенных и пользовательских свойств; {@code null} использует built-ins
      * @return запущенный player
      */
     public StoryboardPlayer playStoryboard(Object key,
@@ -980,7 +1072,9 @@ public abstract class WidgetBase implements Widget {
         return player;
     }
 
-    /** Останавливает storyboard, запущенный с указанным ключом. */
+    /**
+     * Останавливает storyboard, запущенный с указанным ключом.
+     */
     public WidgetBase stopStoryboard(Object key) {
         if (key != null) animations.stop(key);
         return this;
@@ -1267,6 +1361,7 @@ public abstract class WidgetBase implements Widget {
         if (!enabled()) return WidgetState.DISABLED;
         return hovered() ? WidgetState.HOVERED : WidgetState.NORMAL;
     }
+
     /**
      * Returns the style type used by theme and local style lookup.
      */
@@ -1386,6 +1481,7 @@ public abstract class WidgetBase implements Widget {
         Collections.reverse(chain);
         return chain;
     }
+
     @Override
     public void invalidate(int flags) {
         if (flags == InvalidationFlags.NONE) return;
@@ -1510,17 +1606,23 @@ public abstract class WidgetBase implements Widget {
         measureCacheHeight = availableHeight;
     }
 
-    /** @return число пропусков повторного measure через {@link #measureCached} */
+    /**
+     * @return число пропусков повторного measure через {@link #measureCached}
+     */
     public long measureCacheHits() {
         return measureCacheHits;
     }
 
-    /** @return число реальных измерений через {@link #measureCached} */
+    /**
+     * @return число реальных измерений через {@link #measureCached}
+     */
     public long measureCacheMisses() {
         return measureCacheMisses;
     }
 
-    /** Сбрасывает диагностические счётчики measure-кэша. */
+    /**
+     * Сбрасывает диагностические счётчики measure-кэша.
+     */
     public void resetMeasureCacheStats() {
         measureCacheHits = 0L;
         measureCacheMisses = 0L;
@@ -1589,7 +1691,9 @@ public abstract class WidgetBase implements Widget {
         return this;
     }
 
-    /** @return {@code true}, если для виджета разрешён retained-кэш */
+    /**
+     * @return {@code true}, если для виджета разрешён retained-кэш
+     */
     public boolean renderCachingEnabled() {
         return renderCachingEnabled;
     }
@@ -1604,22 +1708,30 @@ public abstract class WidgetBase implements Widget {
         return this;
     }
 
-    /** @return количество команд в последнем собранном фрагменте или {@code 0} */
+    /**
+     * @return количество команд в последнем собранном фрагменте или {@code 0}
+     */
     public int renderCacheCommandCount() {
         return renderCache == null ? 0 : renderCache.size();
     }
 
-    /** @return число воспроизведений фрагмента без вызова {@link #render(RenderContext)} */
+    /**
+     * @return число воспроизведений фрагмента без вызова {@link #render(RenderContext)}
+     */
     public long renderCacheHits() {
         return renderCacheHits;
     }
 
-    /** @return число полных пересборок retained-фрагмента */
+    /**
+     * @return число полных пересборок retained-фрагмента
+     */
     public long renderCacheRebuilds() {
         return renderCacheRebuilds;
     }
 
-    /** Сбрасывает диагностические счётчики retained-кэша. */
+    /**
+     * Сбрасывает диагностические счётчики retained-кэша.
+     */
     public void resetRenderCacheStats() {
         renderCacheHits = 0L;
         renderCacheRebuilds = 0L;
@@ -1686,7 +1798,9 @@ public abstract class WidgetBase implements Widget {
         tickAnimations(frame);
     }
 
-    /** Освобождает retained-команды перед удалением виджета из UI-дерева. */
+    /**
+     * Освобождает retained-команды перед удалением виджета из UI-дерева.
+     */
     @Override
     public void dispose() {
         restoreTransformEffectOffset();
@@ -1975,10 +2089,14 @@ public abstract class WidgetBase implements Widget {
         }
 
         @Override
-        public boolean isFinished() { return transition.finished(); }
+        public boolean isFinished() {
+            return transition.finished();
+        }
 
         @Override
-        public void cancel() { transition.cancel(); }
+        public void cancel() {
+            transition.cancel();
+        }
 
         private void retarget(float target, FloatValueWriter newWriter) {
             writer = newWriter;
@@ -2023,10 +2141,13 @@ public abstract class WidgetBase implements Widget {
         }
 
         @Override
-        public boolean isFinished() { return transition.finished(); }
+        public boolean isFinished() {
+            return transition.finished();
+        }
 
         @Override
-        public void cancel() { }
+        public void cancel() {
+        }
     }
 
     private static LinkedHashSet<String> parseStyleClasses(String value) {
@@ -2042,6 +2163,7 @@ public abstract class WidgetBase implements Widget {
     private static String normalizeStyleClass(String value) {
         return value == null ? "" : value.trim().toLowerCase(java.util.Locale.ROOT);
     }
+
     /**
      * Ограничивает число диапазоном от 0 до 1.
      */

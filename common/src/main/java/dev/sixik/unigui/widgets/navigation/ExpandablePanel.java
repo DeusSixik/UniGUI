@@ -16,18 +16,15 @@ import dev.sixik.unigui.widgets.containers.LinearBox;
 import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.widgets.interaction.ToggleButton;
-import dev.sixik.unigui.widgets.interaction.DropDownBox;
 
 @XmlWidgetName("ExpandablePanel")
 public class ExpandablePanel extends LinearBox {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.EXPANDABLE_PANEL;
 
-    private static final float HEADER_HEIGHT = 22.0f;
+    private static final float HEADER_HEIGHT = 32.0f;
 
     private final ToggleButton headerButton = new ToggleButton();
     private final VBox contentHost = new VBox();
-    private final RichText expansionArrowClosed = DropDownBox.createHeaderArrow(false, false);
-    private final RichText expansionArrowOpened = DropDownBox.createHeaderArrow(true, false);
     private String title = "";
     private RichText richTitle = RichText.plain("");
     private boolean expanded = true;
@@ -43,6 +40,8 @@ public class ExpandablePanel extends LinearBox {
         this.richTitle = RichText.resolve(this.title);
 
         headerButton.layout(style -> style.size(LayoutConstraints.AUTO, HEADER_HEIGHT).flexGrow(0).flexShrink(0.0f));
+        headerButton.chevronVisible(true);
+        headerButton.radius(4.0f);
         headerButton.silentChecked(expanded);
         headerButton.onCheckedChanged(event -> expanded(event.newValue()));
 
@@ -176,8 +175,8 @@ public class ExpandablePanel extends LinearBox {
     }
 
     private void updateHeaderText() {
-        RichText arrow = expanded ? expansionArrowOpened : expansionArrowClosed;
-        headerButton.richText(arrow.append(richTitle));
+        headerButton.richText(richTitle);
+        headerButton.chevronUp(expanded);
     }
 
     private static String normalize(String title) {

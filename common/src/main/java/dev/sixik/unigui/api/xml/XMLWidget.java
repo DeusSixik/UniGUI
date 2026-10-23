@@ -3,6 +3,7 @@ package dev.sixik.unigui.api.xml;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.impl.xml.XmlWidgetLoader;
 import dev.sixik.unigui.widgets.containers.ScrollView;
+import org.intellij.lang.annotations.Language;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -41,6 +42,15 @@ import java.util.function.UnaryOperator;
  * {@link XmlWidgetOptions}.</p>
  */
 public final class XMLWidget {
+    /**
+     * Кэш стандартного реестра для коротких runtime-вызовов без пользовательского registry.
+     */
+    private static volatile XmlWidgetRegistry defaultRegistry;
+    /**
+     * Версия contributions, на которой был построен {@link #defaultRegistry}.
+     */
+    private static volatile long defaultRegistryVersion = Long.MIN_VALUE;
+
     private XMLWidget() {
     }
 
@@ -69,18 +79,18 @@ public final class XMLWidget {
      * @return корневой виджет документа
      */
     public static Widget create(String xml) {
-        return create(xml, registry(), XmlWidgetOptions.DEFAULT);
+        return create(xml, defaultRegistry(), XmlWidgetOptions.DEFAULT);
     }
 
     /**
      * Загружает XML-строку через стандартный registry и явные настройки.
      *
-     * @param xml исходный XML виджетов
+     * @param xml     исходный XML виджетов
      * @param options настройки loader'а; {@code null} заменяется дефолтными
      * @return корневой виджет документа
      */
     public static Widget create(String xml, XmlWidgetOptions options) {
-        return create(xml, registry(), options);
+        return create(xml, defaultRegistry(), options);
     }
 
     /**
@@ -89,7 +99,7 @@ public final class XMLWidget {
      * <p>Эта перегрузка удобна для коротких вызовов вида
      * {@code XMLWidget.create(xml, options -> options.strictAttributes(false))}.</p>
      *
-     * @param xml исходный XML виджетов
+     * @param xml     исходный XML виджетов
      * @param options функция изменения {@link XmlWidgetOptions#DEFAULT}; может быть {@code null}
      * @return корневой виджет документа
      */
@@ -100,7 +110,7 @@ public final class XMLWidget {
     /**
      * Загружает XML-строку через указанный registry и дефолтные настройки.
      *
-     * @param xml исходный XML виджетов
+     * @param xml      исходный XML виджетов
      * @param registry реестр XML-типов; {@code null} заменяется built-ins
      * @return корневой виджет документа
      */
@@ -115,9 +125,9 @@ public final class XMLWidget {
      * методы. Ошибки парсинга, неизвестные типы и ошибки применения атрибутов
      * выбрасываются как {@link XmlWidgetLoadException}.</p>
      *
-     * @param xml исходный XML виджетов
+     * @param xml      исходный XML виджетов
      * @param registry реестр XML-типов; {@code null} заменяется built-ins
-     * @param options настройки loader'а; {@code null} заменяется дефолтными
+     * @param options  настройки loader'а; {@code null} заменяется дефолтными
      * @return корневой виджет документа
      */
     public static Widget create(String xml, XmlWidgetRegistry registry, XmlWidgetOptions options) {
@@ -134,24 +144,24 @@ public final class XMLWidget {
      * @return screen payload с root widget и настройками масштаба
      */
     public static XmlWidgetScreen<Widget> createScreen(String xml) {
-        return createScreen(xml, registry(), XmlWidgetOptions.DEFAULT);
+        return createScreen(xml, defaultRegistry(), XmlWidgetOptions.DEFAULT);
     }
 
     /**
      * Загружает XML как screen document с явными настройками loader-а.
      *
-     * @param xml исходный XML screen/widget document
+     * @param xml     исходный XML screen/widget document
      * @param options настройки loader-а; {@code null} заменяется дефолтными
      * @return screen payload с root widget и настройками масштаба
      */
     public static XmlWidgetScreen<Widget> createScreen(String xml, XmlWidgetOptions options) {
-        return createScreen(xml, registry(), options);
+        return createScreen(xml, defaultRegistry(), options);
     }
 
     /**
      * Загружает XML как screen document, предварительно изменив дефолтные настройки.
      *
-     * @param xml исходный XML screen/widget document
+     * @param xml     исходный XML screen/widget document
      * @param options функция изменения {@link XmlWidgetOptions#DEFAULT}; может быть {@code null}
      * @return screen payload с root widget и настройками масштаба
      */
@@ -162,7 +172,7 @@ public final class XMLWidget {
     /**
      * Загружает XML как screen document через указанный registry.
      *
-     * @param xml исходный XML screen/widget document
+     * @param xml      исходный XML screen/widget document
      * @param registry реестр XML-типов; {@code null} заменяется built-ins
      * @return screen payload с root widget и настройками масштаба
      */
@@ -173,9 +183,9 @@ public final class XMLWidget {
     /**
      * Загружает XML как screen document через указанный registry/options.
      *
-     * @param xml исходный XML screen/widget document
+     * @param xml      исходный XML screen/widget document
      * @param registry реестр XML-типов; {@code null} заменяется built-ins
-     * @param options настройки loader-а; {@code null} заменяется дефолтными
+     * @param options  настройки loader-а; {@code null} заменяется дефолтными
      * @return screen payload с root widget и настройками масштаба
      */
     public static XmlWidgetScreen<Widget> createScreen(String xml, XmlWidgetRegistry registry, XmlWidgetOptions options) {
@@ -185,37 +195,37 @@ public final class XMLWidget {
     /**
      * Загружает XML как screen document и проверяет runtime-тип root widget-а.
      *
-     * @param xml исходный XML screen/widget document
+     * @param xml        исходный XML screen/widget document
      * @param widgetType ожидаемый тип root widget-а
-     * @param <T> тип root widget-а
+     * @param <T>        тип root widget-а
      * @return typed screen payload
      */
     public static <T extends Widget> XmlWidgetScreen<T> createScreen(String xml, Class<T> widgetType) {
-        return createScreen(xml, widgetType, registry(), XmlWidgetOptions.DEFAULT);
+        return createScreen(xml, widgetType, defaultRegistry(), XmlWidgetOptions.DEFAULT);
     }
 
     /**
      * Загружает XML как screen document и проверяет тип root widget-а с явными настройками.
      *
-     * @param xml исходный XML screen/widget document
+     * @param xml        исходный XML screen/widget document
      * @param widgetType ожидаемый тип root widget-а
-     * @param options настройки loader-а; {@code null} заменяется дефолтными
-     * @param <T> тип root widget-а
+     * @param options    настройки loader-а; {@code null} заменяется дефолтными
+     * @param <T>        тип root widget-а
      * @return typed screen payload
      */
-    public static <T extends Widget> XmlWidgetScreen<T> createScreen(String xml,
+    public static <T extends Widget> XmlWidgetScreen<T> createScreen(@Language("xaml") String xml,
                                                                      Class<T> widgetType,
                                                                      XmlWidgetOptions options) {
-        return createScreen(xml, widgetType, registry(), options);
+        return createScreen(xml, widgetType, defaultRegistry(), options);
     }
 
     /**
      * Загружает XML как screen document и проверяет тип root widget-а, предварительно изменив настройки.
      *
-     * @param xml исходный XML screen/widget document
+     * @param xml        исходный XML screen/widget document
      * @param widgetType ожидаемый тип root widget-а
-     * @param options функция изменения {@link XmlWidgetOptions#DEFAULT}; может быть {@code null}
-     * @param <T> тип root widget-а
+     * @param options    функция изменения {@link XmlWidgetOptions#DEFAULT}; может быть {@code null}
+     * @param <T>        тип root widget-а
      * @return typed screen payload
      */
     public static <T extends Widget> XmlWidgetScreen<T> createScreen(String xml,
@@ -227,10 +237,10 @@ public final class XMLWidget {
     /**
      * Загружает XML как screen document через указанный registry и проверяет тип root widget-а.
      *
-     * @param xml исходный XML screen/widget document
+     * @param xml        исходный XML screen/widget document
      * @param widgetType ожидаемый тип root widget-а
-     * @param registry реестр XML-типов; {@code null} заменяется built-ins
-     * @param <T> тип root widget-а
+     * @param registry   реестр XML-типов; {@code null} заменяется built-ins
+     * @param <T>        тип root widget-а
      * @return typed screen payload
      */
     public static <T extends Widget> XmlWidgetScreen<T> createScreen(String xml,
@@ -242,11 +252,11 @@ public final class XMLWidget {
     /**
      * Загружает XML как screen document через указанный registry/options и проверяет тип root widget-а.
      *
-     * @param xml исходный XML screen/widget document
+     * @param xml        исходный XML screen/widget document
      * @param widgetType ожидаемый тип root widget-а
-     * @param registry реестр XML-типов; {@code null} заменяется built-ins
-     * @param options настройки loader-а; {@code null} заменяется дефолтными
-     * @param <T> тип root widget-а
+     * @param registry   реестр XML-типов; {@code null} заменяется built-ins
+     * @param options    настройки loader-а; {@code null} заменяется дефолтными
+     * @param <T>        тип root widget-а
      * @return typed screen payload
      */
     public static <T extends Widget> XmlWidgetScreen<T> createScreen(String xml,
@@ -259,35 +269,35 @@ public final class XMLWidget {
     /**
      * Загружает XML-строку и проверяет runtime-тип корневого виджета.
      *
-     * @param xml исходный XML виджетов
+     * @param xml        исходный XML виджетов
      * @param widgetType ожидаемый тип корня
-     * @param <T> тип корневого виджета
+     * @param <T>        тип корневого виджета
      * @return корневой виджет, приведённый к {@code widgetType}
      */
     public static <T extends Widget> T create(String xml, Class<T> widgetType) {
-        return create(xml, widgetType, registry(), XmlWidgetOptions.DEFAULT);
+        return create(xml, widgetType, defaultRegistry(), XmlWidgetOptions.DEFAULT);
     }
 
     /**
      * Загружает XML-строку и проверяет тип корневого виджета с явными настройками.
      *
-     * @param xml исходный XML виджетов
+     * @param xml        исходный XML виджетов
      * @param widgetType ожидаемый тип корня
-     * @param options настройки loader-а; {@code null} заменяется дефолтными
-     * @param <T> тип корневого виджета
+     * @param options    настройки loader-а; {@code null} заменяется дефолтными
+     * @param <T>        тип корневого виджета
      * @return корневой виджет, приведённый к {@code widgetType}
      */
     public static <T extends Widget> T create(String xml, Class<T> widgetType, XmlWidgetOptions options) {
-        return create(xml, widgetType, registry(), options);
+        return create(xml, widgetType, defaultRegistry(), options);
     }
 
     /**
      * Загружает XML-строку и проверяет тип корня, предварительно изменив дефолтные настройки.
      *
-     * @param xml исходный XML виджетов
+     * @param xml        исходный XML виджетов
      * @param widgetType ожидаемый тип корня
-     * @param options функция изменения {@link XmlWidgetOptions#DEFAULT}; может быть {@code null}
-     * @param <T> тип корневого виджета
+     * @param options    функция изменения {@link XmlWidgetOptions#DEFAULT}; может быть {@code null}
+     * @param <T>        тип корневого виджета
      * @return корневой виджет, приведённый к {@code widgetType}
      */
     public static <T extends Widget> T create(String xml, Class<T> widgetType, UnaryOperator<XmlWidgetOptions> options) {
@@ -297,10 +307,10 @@ public final class XMLWidget {
     /**
      * Загружает XML-строку через указанный registry и проверяет тип корня.
      *
-     * @param xml исходный XML виджетов
+     * @param xml        исходный XML виджетов
      * @param widgetType ожидаемый тип корня
-     * @param registry реестр XML-типов; {@code null} заменяется built-ins
-     * @param <T> тип корневого виджета
+     * @param registry   реестр XML-типов; {@code null} заменяется built-ins
+     * @param <T>        тип корневого виджета
      * @return корневой виджет, приведённый к {@code widgetType}
      */
     public static <T extends Widget> T create(String xml, Class<T> widgetType, XmlWidgetRegistry registry) {
@@ -310,17 +320,17 @@ public final class XMLWidget {
     /**
      * Загружает XML-строку через указанный registry/options и проверяет тип корня.
      *
-     * @param xml исходный XML виджетов
+     * @param xml        исходный XML виджетов
      * @param widgetType ожидаемый тип корня
-     * @param registry реестр XML-типов; {@code null} заменяется built-ins
-     * @param options настройки loader-а; {@code null} заменяется дефолтными
-     * @param <T> тип корневого виджета
+     * @param registry   реестр XML-типов; {@code null} заменяется built-ins
+     * @param options    настройки loader-а; {@code null} заменяется дефолтными
+     * @param <T>        тип корневого виджета
      * @return корневой виджет, приведённый к {@code widgetType}
      */
     public static <T extends Widget> T create(String xml,
-                                             Class<T> widgetType,
-                                             XmlWidgetRegistry registry,
-                                             XmlWidgetOptions options) {
+                                              Class<T> widgetType,
+                                              XmlWidgetRegistry registry,
+                                              XmlWidgetOptions options) {
         return castRoot(create(xml, registry, options), widgetType);
     }
 
@@ -340,7 +350,7 @@ public final class XMLWidget {
     /**
      * Загружает XML из UTF-8 потока с явными настройками.
      *
-     * @param xml поток с XML-текстом; метод не закрывает поток
+     * @param xml     поток с XML-текстом; метод не закрывает поток
      * @param options настройки loader-а; {@code null} заменяется дефолтными
      * @return корневой виджет документа
      */
@@ -351,7 +361,7 @@ public final class XMLWidget {
     /**
      * Загружает XML из UTF-8 потока, предварительно изменив дефолтные настройки.
      *
-     * @param xml поток с XML-текстом; метод не закрывает поток
+     * @param xml     поток с XML-текстом; метод не закрывает поток
      * @param options функция изменения {@link XmlWidgetOptions#DEFAULT}; может быть {@code null}
      * @return корневой виджет документа
      */
@@ -362,7 +372,7 @@ public final class XMLWidget {
     /**
      * Загружает XML из UTF-8 потока через указанный registry.
      *
-     * @param xml поток с XML-текстом; метод не закрывает поток
+     * @param xml      поток с XML-текстом; метод не закрывает поток
      * @param registry реестр XML-типов; {@code null} заменяется built-ins
      * @return корневой виджет документа
      */
@@ -373,9 +383,9 @@ public final class XMLWidget {
     /**
      * Загружает XML из UTF-8 потока через указанный registry/options.
      *
-     * @param xml поток с XML-текстом; метод не закрывает поток
+     * @param xml      поток с XML-текстом; метод не закрывает поток
      * @param registry реестр XML-типов; {@code null} заменяется built-ins
-     * @param options настройки loader-а; {@code null} заменяется дефолтными
+     * @param options  настройки loader-а; {@code null} заменяется дефолтными
      * @return корневой виджет документа
      */
     public static Widget create(InputStream xml, XmlWidgetRegistry registry, XmlWidgetOptions options) {
@@ -395,7 +405,7 @@ public final class XMLWidget {
     /**
      * Загружает XML screen document из UTF-8 потока с явными настройками.
      *
-     * @param xml поток с XML-текстом; метод не закрывает поток
+     * @param xml     поток с XML-текстом; метод не закрывает поток
      * @param options настройки loader-а; {@code null} заменяется дефолтными
      * @return screen payload с root widget и настройками масштаба
      */
@@ -406,7 +416,7 @@ public final class XMLWidget {
     /**
      * Загружает XML screen document из UTF-8 потока через указанный registry.
      *
-     * @param xml поток с XML-текстом; метод не закрывает поток
+     * @param xml      поток с XML-текстом; метод не закрывает поток
      * @param registry реестр XML-типов; {@code null} заменяется built-ins
      * @return screen payload с root widget и настройками масштаба
      */
@@ -417,9 +427,9 @@ public final class XMLWidget {
     /**
      * Загружает XML screen document из UTF-8 потока через указанный registry/options.
      *
-     * @param xml поток с XML-текстом; метод не закрывает поток
+     * @param xml      поток с XML-текстом; метод не закрывает поток
      * @param registry реестр XML-типов; {@code null} заменяется built-ins
-     * @param options настройки loader-а; {@code null} заменяется дефолтными
+     * @param options  настройки loader-а; {@code null} заменяется дефолтными
      * @return screen payload с root widget и настройками масштаба
      */
     public static XmlWidgetScreen<Widget> createScreen(InputStream xml,
@@ -431,9 +441,9 @@ public final class XMLWidget {
     /**
      * Загружает XML из UTF-8 потока и проверяет тип корневого виджета.
      *
-     * @param xml поток с XML-текстом; метод не закрывает поток
+     * @param xml        поток с XML-текстом; метод не закрывает поток
      * @param widgetType ожидаемый тип корня
-     * @param <T> тип корневого виджета
+     * @param <T>        тип корневого виджета
      * @return корневой виджет, приведённый к {@code widgetType}
      */
     public static <T extends Widget> T create(InputStream xml, Class<T> widgetType) {
@@ -443,10 +453,10 @@ public final class XMLWidget {
     /**
      * Загружает XML из UTF-8 потока и проверяет тип корня с явными настройками.
      *
-     * @param xml поток с XML-текстом; метод не закрывает поток
+     * @param xml        поток с XML-текстом; метод не закрывает поток
      * @param widgetType ожидаемый тип корня
-     * @param options настройки loader-а; {@code null} заменяется дефолтными
-     * @param <T> тип корневого виджета
+     * @param options    настройки loader-а; {@code null} заменяется дефолтными
+     * @param <T>        тип корневого виджета
      * @return корневой виджет, приведённый к {@code widgetType}
      */
     public static <T extends Widget> T create(InputStream xml, Class<T> widgetType, XmlWidgetOptions options) {
@@ -456,25 +466,25 @@ public final class XMLWidget {
     /**
      * Загружает XML из UTF-8 потока и проверяет тип корня, предварительно изменив настройки.
      *
-     * @param xml поток с XML-текстом; метод не закрывает поток
+     * @param xml        поток с XML-текстом; метод не закрывает поток
      * @param widgetType ожидаемый тип корня
-     * @param options функция изменения {@link XmlWidgetOptions#DEFAULT}; может быть {@code null}
-     * @param <T> тип корневого виджета
+     * @param options    функция изменения {@link XmlWidgetOptions#DEFAULT}; может быть {@code null}
+     * @param <T>        тип корневого виджета
      * @return корневой виджет, приведённый к {@code widgetType}
      */
     public static <T extends Widget> T create(InputStream xml,
-                                             Class<T> widgetType,
-                                             UnaryOperator<XmlWidgetOptions> options) {
+                                              Class<T> widgetType,
+                                              UnaryOperator<XmlWidgetOptions> options) {
         return create(readUtf8(xml), widgetType, options);
     }
 
     /**
      * Загружает XML из UTF-8 потока через указанный registry и проверяет тип корня.
      *
-     * @param xml поток с XML-текстом; метод не закрывает поток
+     * @param xml        поток с XML-текстом; метод не закрывает поток
      * @param widgetType ожидаемый тип корня
-     * @param registry реестр XML-типов; {@code null} заменяется built-ins
-     * @param <T> тип корневого виджета
+     * @param registry   реестр XML-типов; {@code null} заменяется built-ins
+     * @param <T>        тип корневого виджета
      * @return корневой виджет, приведённый к {@code widgetType}
      */
     public static <T extends Widget> T create(InputStream xml, Class<T> widgetType, XmlWidgetRegistry registry) {
@@ -484,26 +494,26 @@ public final class XMLWidget {
     /**
      * Загружает XML из UTF-8 потока через указанный registry/options и проверяет тип корня.
      *
-     * @param xml поток с XML-текстом; метод не закрывает поток
+     * @param xml        поток с XML-текстом; метод не закрывает поток
      * @param widgetType ожидаемый тип корня
-     * @param registry реестр XML-типов; {@code null} заменяется built-ins
-     * @param options настройки loader-а; {@code null} заменяется дефолтными
-     * @param <T> тип корневого виджета
+     * @param registry   реестр XML-типов; {@code null} заменяется built-ins
+     * @param options    настройки loader-а; {@code null} заменяется дефолтными
+     * @param <T>        тип корневого виджета
      * @return корневой виджет, приведённый к {@code widgetType}
      */
     public static <T extends Widget> T create(InputStream xml,
-                                             Class<T> widgetType,
-                                             XmlWidgetRegistry registry,
-                                             XmlWidgetOptions options) {
+                                              Class<T> widgetType,
+                                              XmlWidgetRegistry registry,
+                                              XmlWidgetOptions options) {
         return create(readUtf8(xml), widgetType, registry, options);
     }
 
     /**
      * Загружает XML screen document из UTF-8 потока и проверяет тип root widget-а.
      *
-     * @param xml поток с XML-текстом; метод не закрывает поток
+     * @param xml        поток с XML-текстом; метод не закрывает поток
      * @param widgetType ожидаемый тип root widget-а
-     * @param <T> тип root widget-а
+     * @param <T>        тип root widget-а
      * @return typed screen payload
      */
     public static <T extends Widget> XmlWidgetScreen<T> createScreen(InputStream xml, Class<T> widgetType) {
@@ -513,10 +523,10 @@ public final class XMLWidget {
     /**
      * Загружает XML screen document из UTF-8 потока и проверяет тип root widget-а с явными настройками.
      *
-     * @param xml поток с XML-текстом; метод не закрывает поток
+     * @param xml        поток с XML-текстом; метод не закрывает поток
      * @param widgetType ожидаемый тип root widget-а
-     * @param options настройки loader-а; {@code null} заменяется дефолтными
-     * @param <T> тип root widget-а
+     * @param options    настройки loader-а; {@code null} заменяется дефолтными
+     * @param <T>        тип root widget-а
      * @return typed screen payload
      */
     public static <T extends Widget> XmlWidgetScreen<T> createScreen(InputStream xml,
@@ -528,10 +538,10 @@ public final class XMLWidget {
     /**
      * Загружает XML screen document из UTF-8 потока через registry и проверяет тип root widget-а.
      *
-     * @param xml поток с XML-текстом; метод не закрывает поток
+     * @param xml        поток с XML-текстом; метод не закрывает поток
      * @param widgetType ожидаемый тип root widget-а
-     * @param registry реестр XML-типов; {@code null} заменяется built-ins
-     * @param <T> тип root widget-а
+     * @param registry   реестр XML-типов; {@code null} заменяется built-ins
+     * @param <T>        тип root widget-а
      * @return typed screen payload
      */
     public static <T extends Widget> XmlWidgetScreen<T> createScreen(InputStream xml,
@@ -543,11 +553,11 @@ public final class XMLWidget {
     /**
      * Загружает XML screen document из UTF-8 потока через registry/options и проверяет тип root widget-а.
      *
-     * @param xml поток с XML-текстом; метод не закрывает поток
+     * @param xml        поток с XML-текстом; метод не закрывает поток
      * @param widgetType ожидаемый тип root widget-а
-     * @param registry реестр XML-типов; {@code null} заменяется built-ins
-     * @param options настройки loader-а; {@code null} заменяется дефолтными
-     * @param <T> тип root widget-а
+     * @param registry   реестр XML-типов; {@code null} заменяется built-ins
+     * @param options    настройки loader-а; {@code null} заменяется дефолтными
+     * @param <T>        тип root widget-а
      * @return typed screen payload
      */
     public static <T extends Widget> XmlWidgetScreen<T> createScreen(InputStream xml,
@@ -573,7 +583,7 @@ public final class XMLWidget {
     /**
      * Legacy-алиас для {@link #create(String, XmlWidgetOptions)}.
      *
-     * @param xml исходный XML виджетов
+     * @param xml     исходный XML виджетов
      * @param options настройки loader-а
      * @return корневой виджет документа
      */
@@ -584,7 +594,7 @@ public final class XMLWidget {
     /**
      * Legacy-алиас для {@link #create(String, UnaryOperator)}.
      *
-     * @param xml исходный XML виджетов
+     * @param xml     исходный XML виджетов
      * @param options функция изменения дефолтных настроек
      * @return корневой виджет документа
      */
@@ -595,7 +605,7 @@ public final class XMLWidget {
     /**
      * Legacy-алиас для {@link #create(String, XmlWidgetRegistry)}.
      *
-     * @param xml исходный XML виджетов
+     * @param xml      исходный XML виджетов
      * @param registry реестр XML-типов
      * @return корневой виджет документа
      */
@@ -606,9 +616,9 @@ public final class XMLWidget {
     /**
      * Legacy-алиас для {@link #create(String, Class)}.
      *
-     * @param xml исходный XML виджетов
+     * @param xml        исходный XML виджетов
      * @param widgetType ожидаемый тип корня
-     * @param <T> тип корневого виджета
+     * @param <T>        тип корневого виджета
      * @return корневой виджет, приведённый к {@code widgetType}
      */
     public static <T extends Widget> T createRoot(String xml, Class<T> widgetType) {
@@ -618,10 +628,10 @@ public final class XMLWidget {
     /**
      * Legacy-алиас для {@link #create(String, Class, XmlWidgetOptions)}.
      *
-     * @param xml исходный XML виджетов
+     * @param xml        исходный XML виджетов
      * @param widgetType ожидаемый тип корня
-     * @param options настройки loader-а
-     * @param <T> тип корневого виджета
+     * @param options    настройки loader-а
+     * @param <T>        тип корневого виджета
      * @return корневой виджет, приведённый к {@code widgetType}
      */
     public static <T extends Widget> T createRoot(String xml, Class<T> widgetType, XmlWidgetOptions options) {
@@ -631,25 +641,25 @@ public final class XMLWidget {
     /**
      * Legacy-алиас для {@link #create(String, Class, UnaryOperator)}.
      *
-     * @param xml исходный XML виджетов
+     * @param xml        исходный XML виджетов
      * @param widgetType ожидаемый тип корня
-     * @param options функция изменения дефолтных настроек
-     * @param <T> тип корневого виджета
+     * @param options    функция изменения дефолтных настроек
+     * @param <T>        тип корневого виджета
      * @return корневой виджет, приведённый к {@code widgetType}
      */
     public static <T extends Widget> T createRoot(String xml,
-                                                 Class<T> widgetType,
-                                                 UnaryOperator<XmlWidgetOptions> options) {
+                                                  Class<T> widgetType,
+                                                  UnaryOperator<XmlWidgetOptions> options) {
         return create(xml, widgetType, options);
     }
 
     /**
      * Legacy-алиас для {@link #create(String, Class, XmlWidgetRegistry)}.
      *
-     * @param xml исходный XML виджетов
+     * @param xml        исходный XML виджетов
      * @param widgetType ожидаемый тип корня
-     * @param registry реестр XML-типов
-     * @param <T> тип корневого виджета
+     * @param registry   реестр XML-типов
+     * @param <T>        тип корневого виджета
      * @return корневой виджет, приведённый к {@code widgetType}
      */
     public static <T extends Widget> T createRoot(String xml, Class<T> widgetType, XmlWidgetRegistry registry) {
@@ -669,9 +679,9 @@ public final class XMLWidget {
     /**
      * Legacy-алиас для {@link #create(InputStream, Class)}.
      *
-     * @param xml поток с XML-текстом; метод не закрывает поток
+     * @param xml        поток с XML-текстом; метод не закрывает поток
      * @param widgetType ожидаемый тип корня
-     * @param <T> тип корневого виджета
+     * @param <T>        тип корневого виджета
      * @return корневой виджет, приведённый к {@code widgetType}
      */
     public static <T extends Widget> T createRoot(InputStream xml, Class<T> widgetType) {
@@ -700,7 +710,7 @@ public final class XMLWidget {
      * Загружает XML из classpath-ресурса с явными настройками.
      *
      * @param resourcePath путь ресурса в classpath
-     * @param options настройки loader-а; {@code null} заменяется дефолтными
+     * @param options      настройки loader-а; {@code null} заменяется дефолтными
      * @return корневой виджет документа
      */
     public static Widget createResource(String resourcePath, XmlWidgetOptions options) {
@@ -715,7 +725,7 @@ public final class XMLWidget {
      * Загружает XML из classpath-ресурса, предварительно изменив дефолтные настройки.
      *
      * @param resourcePath путь ресурса в classpath
-     * @param options функция изменения {@link XmlWidgetOptions#DEFAULT}; может быть {@code null}
+     * @param options      функция изменения {@link XmlWidgetOptions#DEFAULT}; может быть {@code null}
      * @return корневой виджет документа
      */
     public static Widget createResource(String resourcePath, UnaryOperator<XmlWidgetOptions> options) {
@@ -726,7 +736,7 @@ public final class XMLWidget {
      * Загружает XML из classpath-ресурса через указанный registry.
      *
      * @param resourcePath путь ресурса в classpath
-     * @param registry реестр XML-типов; {@code null} заменяется built-ins
+     * @param registry     реестр XML-типов; {@code null} заменяется built-ins
      * @return корневой виджет документа
      */
     public static Widget createResource(String resourcePath, XmlWidgetRegistry registry) {
@@ -741,8 +751,8 @@ public final class XMLWidget {
      * Загружает XML из classpath-ресурса через указанный registry/options.
      *
      * @param resourcePath путь ресурса в classpath
-     * @param registry реестр XML-типов; {@code null} заменяется built-ins
-     * @param options настройки loader-а; {@code null} заменяется дефолтными
+     * @param registry     реестр XML-типов; {@code null} заменяется built-ins
+     * @param options      настройки loader-а; {@code null} заменяется дефолтными
      * @return корневой виджет документа
      */
     public static Widget createResource(String resourcePath, XmlWidgetRegistry registry, XmlWidgetOptions options) {
@@ -771,7 +781,7 @@ public final class XMLWidget {
      * Загружает XML screen document из classpath-ресурса с явными настройками.
      *
      * @param resourcePath путь ресурса в classpath
-     * @param options настройки loader-а; {@code null} заменяется дефолтными
+     * @param options      настройки loader-а; {@code null} заменяется дефолтными
      * @return screen payload с root widget и настройками масштаба
      */
     public static XmlWidgetScreen<Widget> createScreenResource(String resourcePath, XmlWidgetOptions options) {
@@ -786,11 +796,11 @@ public final class XMLWidget {
      * Загружает XML screen document из classpath-ресурса, предварительно изменив настройки.
      *
      * @param resourcePath путь ресурса в classpath
-     * @param options функция изменения {@link XmlWidgetOptions#DEFAULT}; может быть {@code null}
+     * @param options      функция изменения {@link XmlWidgetOptions#DEFAULT}; может быть {@code null}
      * @return screen payload с root widget и настройками масштаба
      */
     public static XmlWidgetScreen<Widget> createScreenResource(String resourcePath,
-                                                              UnaryOperator<XmlWidgetOptions> options) {
+                                                               UnaryOperator<XmlWidgetOptions> options) {
         return createScreenResource(resourcePath, applyOptions(options));
     }
 
@@ -798,7 +808,7 @@ public final class XMLWidget {
      * Загружает XML screen document из classpath-ресурса через registry.
      *
      * @param resourcePath путь ресурса в classpath
-     * @param registry реестр XML-типов; {@code null} заменяется built-ins
+     * @param registry     реестр XML-типов; {@code null} заменяется built-ins
      * @return screen payload с root widget и настройками масштаба
      */
     public static XmlWidgetScreen<Widget> createScreenResource(String resourcePath, XmlWidgetRegistry registry) {
@@ -813,13 +823,13 @@ public final class XMLWidget {
      * Загружает XML screen document из classpath-ресурса через registry/options.
      *
      * @param resourcePath путь ресурса в classpath
-     * @param registry реестр XML-типов; {@code null} заменяется built-ins
-     * @param options настройки loader-а; {@code null} заменяется дефолтными
+     * @param registry     реестр XML-типов; {@code null} заменяется built-ins
+     * @param options      настройки loader-а; {@code null} заменяется дефолтными
      * @return screen payload с root widget и настройками масштаба
      */
     public static XmlWidgetScreen<Widget> createScreenResource(String resourcePath,
-                                                              XmlWidgetRegistry registry,
-                                                              XmlWidgetOptions options) {
+                                                               XmlWidgetRegistry registry,
+                                                               XmlWidgetOptions options) {
         try (InputStream stream = openResource(resourcePath)) {
             return createScreen(stream, registry, options);
         } catch (IOException failure) {
@@ -831,8 +841,8 @@ public final class XMLWidget {
      * Загружает XML из classpath-ресурса и проверяет тип корня.
      *
      * @param resourcePath путь ресурса в classpath
-     * @param widgetType ожидаемый тип корня
-     * @param <T> тип корневого виджета
+     * @param widgetType   ожидаемый тип корня
+     * @param <T>          тип корневого виджета
      * @return корневой виджет, приведённый к {@code widgetType}
      */
     public static <T extends Widget> T createResource(String resourcePath, Class<T> widgetType) {
@@ -847,14 +857,14 @@ public final class XMLWidget {
      * Загружает XML из classpath-ресурса и проверяет тип корня с явными настройками.
      *
      * @param resourcePath путь ресурса в classpath
-     * @param widgetType ожидаемый тип корня
-     * @param options настройки loader-а; {@code null} заменяется дефолтными
-     * @param <T> тип корневого виджета
+     * @param widgetType   ожидаемый тип корня
+     * @param options      настройки loader-а; {@code null} заменяется дефолтными
+     * @param <T>          тип корневого виджета
      * @return корневой виджет, приведённый к {@code widgetType}
      */
     public static <T extends Widget> T createResource(String resourcePath,
-                                                     Class<T> widgetType,
-                                                     XmlWidgetOptions options) {
+                                                      Class<T> widgetType,
+                                                      XmlWidgetOptions options) {
         try (InputStream stream = openResource(resourcePath)) {
             return create(stream, widgetType, options);
         } catch (IOException failure) {
@@ -866,14 +876,14 @@ public final class XMLWidget {
      * Загружает XML из classpath-ресурса и проверяет тип корня, предварительно изменив настройки.
      *
      * @param resourcePath путь ресурса в classpath
-     * @param widgetType ожидаемый тип корня
-     * @param options функция изменения {@link XmlWidgetOptions#DEFAULT}; может быть {@code null}
-     * @param <T> тип корневого виджета
+     * @param widgetType   ожидаемый тип корня
+     * @param options      функция изменения {@link XmlWidgetOptions#DEFAULT}; может быть {@code null}
+     * @param <T>          тип корневого виджета
      * @return корневой виджет, приведённый к {@code widgetType}
      */
     public static <T extends Widget> T createResource(String resourcePath,
-                                                     Class<T> widgetType,
-                                                     UnaryOperator<XmlWidgetOptions> options) {
+                                                      Class<T> widgetType,
+                                                      UnaryOperator<XmlWidgetOptions> options) {
         return createResource(resourcePath, widgetType, applyOptions(options));
     }
 
@@ -881,14 +891,14 @@ public final class XMLWidget {
      * Загружает XML из classpath-ресурса через registry и проверяет тип корня.
      *
      * @param resourcePath путь ресурса в classpath
-     * @param widgetType ожидаемый тип корня
-     * @param registry реестр XML-типов; {@code null} заменяется built-ins
-     * @param <T> тип корневого виджета
+     * @param widgetType   ожидаемый тип корня
+     * @param registry     реестр XML-типов; {@code null} заменяется built-ins
+     * @param <T>          тип корневого виджета
      * @return корневой виджет, приведённый к {@code widgetType}
      */
     public static <T extends Widget> T createResource(String resourcePath,
-                                                     Class<T> widgetType,
-                                                     XmlWidgetRegistry registry) {
+                                                      Class<T> widgetType,
+                                                      XmlWidgetRegistry registry) {
         try (InputStream stream = openResource(resourcePath)) {
             return create(stream, widgetType, registry);
         } catch (IOException failure) {
@@ -900,16 +910,16 @@ public final class XMLWidget {
      * Загружает XML из classpath-ресурса через registry/options и проверяет тип корня.
      *
      * @param resourcePath путь ресурса в classpath
-     * @param widgetType ожидаемый тип корня
-     * @param registry реестр XML-типов; {@code null} заменяется built-ins
-     * @param options настройки loader-а; {@code null} заменяется дефолтными
-     * @param <T> тип корневого виджета
+     * @param widgetType   ожидаемый тип корня
+     * @param registry     реестр XML-типов; {@code null} заменяется built-ins
+     * @param options      настройки loader-а; {@code null} заменяется дефолтными
+     * @param <T>          тип корневого виджета
      * @return корневой виджет, приведённый к {@code widgetType}
      */
     public static <T extends Widget> T createResource(String resourcePath,
-                                                     Class<T> widgetType,
-                                                     XmlWidgetRegistry registry,
-                                                     XmlWidgetOptions options) {
+                                                      Class<T> widgetType,
+                                                      XmlWidgetRegistry registry,
+                                                      XmlWidgetOptions options) {
         try (InputStream stream = openResource(resourcePath)) {
             return create(stream, widgetType, registry, options);
         } catch (IOException failure) {
@@ -921,8 +931,8 @@ public final class XMLWidget {
      * Загружает XML screen document из classpath-ресурса и проверяет тип root widget-а.
      *
      * @param resourcePath путь ресурса в classpath
-     * @param widgetType ожидаемый тип root widget-а
-     * @param <T> тип root widget-а
+     * @param widgetType   ожидаемый тип root widget-а
+     * @param <T>          тип root widget-а
      * @return typed screen payload
      */
     public static <T extends Widget> XmlWidgetScreen<T> createScreenResource(String resourcePath,
@@ -938,9 +948,9 @@ public final class XMLWidget {
      * Загружает XML screen document из classpath-ресурса и проверяет тип root widget-а с явными настройками.
      *
      * @param resourcePath путь ресурса в classpath
-     * @param widgetType ожидаемый тип root widget-а
-     * @param options настройки loader-а; {@code null} заменяется дефолтными
-     * @param <T> тип root widget-а
+     * @param widgetType   ожидаемый тип root widget-а
+     * @param options      настройки loader-а; {@code null} заменяется дефолтными
+     * @param <T>          тип root widget-а
      * @return typed screen payload
      */
     public static <T extends Widget> XmlWidgetScreen<T> createScreenResource(String resourcePath,
@@ -957,9 +967,9 @@ public final class XMLWidget {
      * Загружает XML screen document из classpath-ресурса через registry и проверяет тип root widget-а.
      *
      * @param resourcePath путь ресурса в classpath
-     * @param widgetType ожидаемый тип root widget-а
-     * @param registry реестр XML-типов; {@code null} заменяется built-ins
-     * @param <T> тип root widget-а
+     * @param widgetType   ожидаемый тип root widget-а
+     * @param registry     реестр XML-типов; {@code null} заменяется built-ins
+     * @param <T>          тип root widget-а
      * @return typed screen payload
      */
     public static <T extends Widget> XmlWidgetScreen<T> createScreenResource(String resourcePath,
@@ -976,10 +986,10 @@ public final class XMLWidget {
      * Загружает XML screen document из classpath-ресурса через registry/options и проверяет тип root widget-а.
      *
      * @param resourcePath путь ресурса в classpath
-     * @param widgetType ожидаемый тип root widget-а
-     * @param registry реестр XML-типов; {@code null} заменяется built-ins
-     * @param options настройки loader-а; {@code null} заменяется дефолтными
-     * @param <T> тип root widget-а
+     * @param widgetType   ожидаемый тип root widget-а
+     * @param registry     реестр XML-типов; {@code null} заменяется built-ins
+     * @param options      настройки loader-а; {@code null} заменяется дефолтными
+     * @param <T>          тип root widget-а
      * @return typed screen payload
      */
     public static <T extends Widget> XmlWidgetScreen<T> createScreenResource(String resourcePath,
@@ -1007,8 +1017,8 @@ public final class XMLWidget {
      * Legacy-алиас для {@link #createResource(String, Class)}.
      *
      * @param resourcePath путь ресурса в classpath
-     * @param widgetType ожидаемый тип корня
-     * @param <T> тип корневого виджета
+     * @param widgetType   ожидаемый тип корня
+     * @param <T>          тип корневого виджета
      * @return корневой виджет, приведённый к {@code widgetType}
      */
     public static <T extends Widget> T createRootResource(String resourcePath, Class<T> widgetType) {
@@ -1022,7 +1032,7 @@ public final class XMLWidget {
      * {@link ScrollView}, который не всегда представлен в обычном списке children.</p>
      *
      * @param root корень дерева поиска
-     * @param id значение XML/runtime {@code id}
+     * @param id   значение XML/runtime {@code id}
      * @return найденный виджет
      * @throws XmlWidgetLoadException если виджет не найден
      */
@@ -1034,10 +1044,10 @@ public final class XMLWidget {
     /**
      * Находит обязательный виджет по {@code id} и проверяет его runtime-тип.
      *
-     * @param root корень дерева поиска
-     * @param id значение XML/runtime {@code id}
+     * @param root       корень дерева поиска
+     * @param id         значение XML/runtime {@code id}
      * @param widgetType ожидаемый тип найденного виджета
-     * @param <T> тип найденного виджета
+     * @param <T>        тип найденного виджета
      * @return найденный виджет, приведённый к {@code widgetType}
      */
     public static <T extends Widget> T getWidget(Widget root, String id, Class<T> widgetType) {
@@ -1049,7 +1059,7 @@ public final class XMLWidget {
      * Пытается найти виджет по {@code id} внутри уже загруженного дерева.
      *
      * @param root корень дерева поиска
-     * @param id значение XML/runtime {@code id}
+     * @param id   значение XML/runtime {@code id}
      * @return найденный виджет или {@link Optional#empty()}, если id пустой или отсутствует
      */
     public static Optional<Widget> findWidget(Widget root, String id) {
@@ -1077,10 +1087,10 @@ public final class XMLWidget {
     /**
      * Пытается найти виджет по {@code id} и привести его к ожидаемому типу.
      *
-     * @param root корень дерева поиска
-     * @param id значение XML/runtime {@code id}
+     * @param root       корень дерева поиска
+     * @param id         значение XML/runtime {@code id}
      * @param widgetType ожидаемый тип найденного виджета
-     * @param <T> тип найденного виджета
+     * @param <T>        тип найденного виджета
      * @return найденный и приведённый виджет или empty, если id не найден
      */
     public static <T extends Widget> Optional<T> findWidget(Widget root, String id, Class<T> widgetType) {
@@ -1088,9 +1098,32 @@ public final class XMLWidget {
     }
 
     private static XmlWidgetLoader loader(XmlWidgetRegistry registry, XmlWidgetOptions options) {
-        XmlWidgetRegistry normalizedRegistry = registry == null ? registry() : registry;
+        XmlWidgetRegistry normalizedRegistry = registry == null ? defaultRegistry() : registry;
         XmlWidgetOptions normalizedOptions = options == null ? XmlWidgetOptions.DEFAULT : options;
         return new XmlWidgetLoader(normalizedRegistry.delegate(), normalizedOptions);
+    }
+
+    /**
+     * Возвращает потокобезопасно переиспользуемый стандартный registry.
+     *
+     * <p>Построение built-in registry включает reflection-сканирование всех
+     * аннотированных setter-ов. Повторять эту работу перед каждым XML-load не
+     * нужно, поэтому кэш обновляется только после изменения глобальных
+     * contributions.</p>
+     *
+     * @return кэшированный registry со встроенными типами и текущими contributions
+     */
+    private static XmlWidgetRegistry defaultRegistry() {
+        long version = XmlWidgetRegistryContributions.version();
+        XmlWidgetRegistry cached = defaultRegistry;
+        if (cached != null && defaultRegistryVersion == version) return cached;
+        synchronized (XMLWidget.class) {
+            if (defaultRegistry == null || defaultRegistryVersion != version) {
+                defaultRegistry = XmlWidgetRegistry.builtIns();
+                defaultRegistryVersion = version;
+            }
+            return defaultRegistry;
+        }
     }
 
     private static XmlWidgetOptions applyOptions(UnaryOperator<XmlWidgetOptions> options) {
@@ -1107,7 +1140,7 @@ public final class XMLWidget {
 
     private static <T extends Widget> XmlWidgetScreen<T> castScreenRoot(XmlWidgetScreen<Widget> screen, Class<T> widgetType) {
         T root = castRoot(screen.root(), widgetType);
-        return new XmlWidgetScreen<>(root, screen.scaleProvider(), screen.scaleWithMinecraftGui());
+        return new XmlWidgetScreen<>(root, screen.scaleProvider(), screen.scaleWithMinecraftGui(), screen.bindingSession());
     }
 
     private static <T extends Widget> T castLookup(String id, Widget widget, Class<T> widgetType) {

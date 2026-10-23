@@ -19,6 +19,26 @@ public interface Theme {
     Theme EMPTY = widgetType -> Style.EMPTY;
 
     /**
+     * Возвращает неизменяемый снимок токенов темы.
+     *
+     * @return токены или {@link ThemeTokens#EMPTY}, если тема их не предоставляет
+     */
+    default ThemeTokens tokens() {
+        return ThemeTokens.EMPTY;
+    }
+
+    /**
+     * Создаёт тему только из токенов. Правила типов при этом остаются пустыми,
+     * поэтому все значения берутся из token fallback.
+     *
+     * @param tokens снимок токенов
+     * @return тема с указанными токенами
+     */
+    static Theme fromTokens(ThemeTokens tokens) {
+        return new MutableTheme().tokens(tokens);
+    }
+
+    /**
      * Возвращает версию темы для кэширования style lookup.
      *
      * @return версия темы и вложенных стилей

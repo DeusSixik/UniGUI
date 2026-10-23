@@ -162,8 +162,8 @@ Update (фаза 1.1 выполнена): единое ядро `impl/layout/fle
       snapshot, `SlotLayout` (=> grid/dock/stack/split/panel), `PanelRowWidget`.
       XML работает через generic enum. Покрыто 5 тестами.
 - [ ] 5.2 `position: sticky` (поздняя фаза, высокая сложность — за флагом).
-- [ ] 5.3 Insets с `auto` + static-position fallback + процентные insets (проценты
-      уже резолвятся: left/right от ширины, top/bottom от высоты хоста).
+- [ ] 5.3 Insets с `auto` + static-position fallback + отрицательные значения.
+      Проценты уже резолвятся: left/right от ширины, top/bottom от высоты хоста.
 - [x] 5.4 `z-index` для positioned/overlay-детей: `LayoutStyle.zIndex`,
       `ZOrder.paintOrder` (stable sort, zero-alloc fast path при всех нулях),
       `PanelWidget.renderChildren` + `TransformHitTester` в обратном порядке.
@@ -176,9 +176,10 @@ Update (фаза 1.1 выполнена): единое ядро `impl/layout/fle
 
 - [ ] 6.1 Margin collapsing — решить осознанно: **не делать** (flex/grid не схлопывают;
       нужно только для block-раскладки, которой нет).
-- [x] 6.2 Процентные padding/margin: проверять нечего — `EdgeInsets` только
-      в пикселях, проценты неприменимы. Процентные insets уже корректны:
-      left/right от ширины хоста, top/bottom от высоты.
+- [ ] 6.2 Процентные padding/margin: сейчас `EdgeInsets` поддерживает только
+      пиксели. CSS допускает проценты для этих свойств (база расчёта — ширина
+      containing block), поэтому это ограничение UniGUI, а не CSS. До реализации
+      определить единый тип значения отступа и покрыть flex/grid/slot пути.
 - [x] 6.3 `overflow-x/y` комбинационные правила: `Overflow.effectiveHorizontal/Vertical`
       (visible + не-visible → visible вычисляется в auto), применено в `ScrollView`.
       Клиппинг уже был эквивалентен. Покрыто combo-кейсами.

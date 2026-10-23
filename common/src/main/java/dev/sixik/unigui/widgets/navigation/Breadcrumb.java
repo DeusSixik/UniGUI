@@ -206,7 +206,6 @@ public class Breadcrumb extends PanelWidget {
             final int itemIndex = index;
             BreadcrumbItem item = items.get(index);
             Button button = new Button(item.richText());
-            button.themeEnabled(false);
             button.enabled(item.enabled());
             button.layout(style -> style.size(LayoutConstraints.AUTO, ITEM_HEIGHT).flexGrow(0).flexShrink(0.0f));
             button.backgroundVisible(true);
@@ -257,19 +256,18 @@ public class Breadcrumb extends PanelWidget {
             Button button = itemButtons.get(i);
             boolean selected = i == selectedIndex;
             boolean ancestor = selectedIndex >= 0 && i < selectedIndex;
-            MutableColor background = button.background();
             if (selected) {
-                background.set(0.16f, 0.23f, 0.32f, 0.96f);
-                button.textColor().set(0.88f, 0.94f, 1.0f, 1.0f);
+                button.background(MutableColor.rgba(0.16f, 0.23f, 0.32f, 0.96f));
+                button.textColor(MutableColor.rgba(0.88f, 0.94f, 1.0f, 1.0f));
                 button.borderVisible(true);
-                button.borderColor().set(0.32f, 0.70f, 1.0f, 0.70f);
+                button.borderColor(MutableColor.rgba(0.32f, 0.70f, 1.0f, 0.70f));
             } else if (ancestor) {
-                background.set(0.08f, 0.12f, 0.16f, 0.82f);
-                button.textColor().set(0.70f, 0.86f, 1.0f, 1.0f);
+                button.background(MutableColor.rgba(0.08f, 0.12f, 0.16f, 0.82f));
+                button.textColor(MutableColor.rgba(0.70f, 0.86f, 1.0f, 1.0f));
                 button.borderVisible(false);
             } else {
-                background.set(0.07f, 0.08f, 0.10f, 0.68f);
-                button.textColor().set(0.86f, 0.88f, 0.92f, button.enabled() ? 1.0f : 0.50f);
+                button.background(MutableColor.rgba(0.07f, 0.08f, 0.10f, 0.68f));
+                button.textColor(MutableColor.rgba(0.86f, 0.88f, 0.92f, button.enabled() ? 1.0f : 0.50f));
                 button.borderVisible(false);
             }
         }

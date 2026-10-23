@@ -22,52 +22,84 @@ public final class StyleKeys {
      */
     public static final StyleKey<Object> RENDERER = StyleKey.of(StyleIds.Key.RENDERER, Object.class);
 
-    /** Источник фона поверхности: цвет, текстура или шейдер. */
+    /**
+     * Источник фона поверхности: цвет, текстура или шейдер.
+     */
     public static final StyleKey<BackgroundKind> BACKGROUND_KIND = StyleKey.of(StyleIds.Key.BACKGROUND_KIND, BackgroundKind.class);
 
-    /** Цвет заливки фона базового прямоугольника виджета. */
+    /**
+     * Цвет заливки фона базового прямоугольника виджета.
+     */
     public static final StyleKey<ColorView> BACKGROUND_COLOR = StyleKey.of(StyleIds.Key.BACKGROUND_COLOR, ColorView.class);
 
-    /** Текстура фона виджета. */
+    /**
+     * Текстура фона виджета.
+     */
     public static final StyleKey<TextureHandle> BACKGROUND_TEXTURE = StyleKey.of(StyleIds.Key.BACKGROUND_TEXTURE, TextureHandle.class);
 
-    /** Tint-цвет фоновой текстуры. */
+    /**
+     * Tint-цвет фоновой текстуры.
+     */
     public static final StyleKey<ColorView> BACKGROUND_TEXTURE_TINT = StyleKey.of(StyleIds.Key.BACKGROUND_TEXTURE_TINT, ColorView.class);
 
-    /** Режим подгонки фоновой текстуры в bounds виджета. */
+    /**
+     * Режим подгонки фоновой текстуры в bounds виджета.
+     */
     public static final StyleKey<ImageFit> BACKGROUND_TEXTURE_FIT = StyleKey.of(StyleIds.Key.BACKGROUND_TEXTURE_FIT, ImageFit.class);
 
-    /** Шейдер фона виджета. */
+    /**
+     * Шейдер фона виджета.
+     */
     public static final StyleKey<ShaderHandle> BACKGROUND_SHADER = StyleKey.of(StyleIds.Key.BACKGROUND_SHADER, ShaderHandle.class);
 
-    /** Цвет рамки виджета. */
+    /**
+     * Цвет рамки виджета.
+     */
     public static final StyleKey<ColorView> BORDER_COLOR = StyleKey.of(StyleIds.Key.BORDER_COLOR, ColorView.class);
 
-    /** Основной цвет текста. */
+    /**
+     * Основной цвет текста.
+     */
     public static final StyleKey<ColorView> TEXT_COLOR = StyleKey.of(StyleIds.Key.TEXT_COLOR, ColorView.class);
 
-    /** Цвет placeholder-текста в input-like виджетах. */
+    /**
+     * Цвет placeholder-текста в input-like виджетах.
+     */
     public static final StyleKey<ColorView> PLACEHOLDER_COLOR = StyleKey.of(StyleIds.Key.PLACEHOLDER_COLOR, ColorView.class);
 
-    /** Акцентный цвет для selected/focused/active частей виджета. */
+    /**
+     * Акцентный цвет для selected/focused/active частей виджета.
+     */
     public static final StyleKey<ColorView> ACCENT_COLOR = StyleKey.of(StyleIds.Key.ACCENT_COLOR, ColorView.class);
 
-    /** Цвет track-части slider/progress/scrollbar виджетов. */
+    /**
+     * Цвет track-части slider/progress/scrollbar виджетов.
+     */
     public static final StyleKey<ColorView> TRACK_COLOR = StyleKey.of(StyleIds.Key.TRACK_COLOR, ColorView.class);
 
-    /** Цвет thumb/handle-части slider/scrollbar виджетов. */
+    /**
+     * Цвет thumb/handle-части slider/scrollbar виджетов.
+     */
     public static final StyleKey<ColorView> THUMB_COLOR = StyleKey.of(StyleIds.Key.THUMB_COLOR, ColorView.class);
 
-    /** Толщина рамки в UI-пикселях. */
+    /**
+     * Толщина рамки в UI-пикселях.
+     */
     public static final StyleKey<Float> BORDER_WIDTH = StyleKey.of(StyleIds.Key.BORDER_WIDTH, Float.class);
 
-    /** Радиус скругления в UI-пикселях. */
+    /**
+     * Радиус скругления в UI-пикселях.
+     */
     public static final StyleKey<Float> RADIUS = StyleKey.of(StyleIds.Key.RADIUS, Float.class);
 
-    /** Длительность автоматического перехода style-свойств в секундах. Ноль отключает переходы. */
+    /**
+     * Длительность автоматического перехода style-свойств в секундах. Ноль отключает переходы.
+     */
     public static final StyleKey<Float> TRANSITION_DURATION = StyleKey.of(StyleIds.Key.TRANSITION_DURATION, Float.class);
 
-    /** Стандартная easing-кривая автоматического перехода style-свойств. */
+    /**
+     * Стандартная easing-кривая автоматического перехода style-свойств.
+     */
     public static final StyleKey<dev.sixik.unigui.api.animation.AnimationEasing> TRANSITION_EASING =
             StyleKey.of(StyleIds.Key.TRANSITION_EASING, dev.sixik.unigui.api.animation.AnimationEasing.class);
 

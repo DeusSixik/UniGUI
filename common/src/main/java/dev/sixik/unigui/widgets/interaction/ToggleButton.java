@@ -34,6 +34,11 @@ public class ToggleButton extends Button {
         }
     }
 
+    /**
+     * Цвета индикатора checked-контролов (Checkbox, ToggleSwitch, опции ComboBox).
+     * Сама кнопка их в фон не пишет: checked-фон кнопки отдаёт тема через
+     * {@link WidgetState#CHECKED}, иначе hover/pressed затирались бы цианом.
+     */
     private final MutableColor checkedBackground = new MutableColor(0.18f, 0.45f, 0.75f, 1.0f);
     private final MutableColor uncheckedBackground = new MutableColor(0.12f, 0.12f, 0.12f, 1.0f);
     private boolean checked;
@@ -44,7 +49,6 @@ public class ToggleButton extends Button {
 
     public ToggleButton(String text) {
         super(text);
-        background().set(uncheckedBackground);
         checkedBackground.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         uncheckedBackground.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         onClick(this::toggleOnClick);
@@ -70,10 +74,22 @@ public class ToggleButton extends Button {
         return this;
     }
 
+    /**
+     * Возвращает цвет индикатора в состоянии checked.
+     *
+     * <p>Не является фоном самой кнопки. Его читают индикаторы наследников.</p>
+     *
+     * @return live-цвет отмеченного индикатора
+     */
     public MutableColor checkedBackground() {
         return checkedBackground;
     }
 
+    /**
+     * Возвращает цвет индикатора в состоянии unchecked.
+     *
+     * @return live-цвет неотмеченного индикатора
+     */
     public MutableColor uncheckedBackground() {
         return uncheckedBackground;
     }
@@ -122,7 +138,7 @@ public class ToggleButton extends Button {
         if (this.checked == checked) return;
         boolean oldValue = this.checked;
         this.checked = checked;
-        background().set(checked ? checkedBackground : uncheckedBackground);
+        applyTheme();
         invalidate(InvalidationFlags.VISUAL);
         if (emitChange) {
             emit(new CheckedChangedEvent(this, oldValue, checked));

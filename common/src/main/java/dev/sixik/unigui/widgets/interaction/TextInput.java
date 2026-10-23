@@ -102,6 +102,8 @@ public class TextInput extends Box {
     }
 
     protected static final float TEXT_PADDING = 12.0f;
+    /** Дефолтный горизонтальный отступ текста от краёв (синхронно с Button.textPaddingX). */
+    protected static final float DEFAULT_TEXT_PADDING_X = TEXT_PADDING;
     protected static final float APPROX_CHAR_WIDTH = TextEngine.APPROX_CHAR_WIDTH;
     /** Дефолтная высота однострочного поля: место под текст + вертикальный воздух. */
     protected static final float DEFAULT_FIELD_HEIGHT = 36.0f;
@@ -137,6 +139,9 @@ public class TextInput extends Box {
     private Object measuredMetricsSource;
     private float[] measuredPrefixWidths = new float[]{0.0f};
     private boolean visualOnlyTextChanges;
+    private float textPaddingLeft = DEFAULT_TEXT_PADDING_X;
+    private float textPaddingRight = DEFAULT_TEXT_PADDING_X;
+    private boolean explicitTextPadding;
 
     public TextInput() {
         mouseCursor(MouseCursor.TEXT);
@@ -162,9 +167,15 @@ public class TextInput extends Box {
     protected final void enableDefaultTextInputChrome() {
         backgroundVisible(true);
         borderVisible(true);
-        background().set(0.08f, 0.086f, 0.10f, 1.0f);
-        borderColor().set(0.18f, 0.20f, 0.23f, 1.0f);
-        radius(CHROME_RADIUS);
+        // Значения конструктора являются дефолтом контрола, а не явным стилем пользователя.
+        surface().themeUpdating(true);
+        try {
+            background().set(0.08f, 0.086f, 0.10f, 1.0f);
+            borderColor().set(0.18f, 0.20f, 0.23f, 1.0f);
+            surface().radius(CHROME_RADIUS);
+        } finally {
+            surface().themeUpdating(false);
+        }
     }
 
     public TextEditorModel editorModel() {
@@ -329,6 +340,81 @@ public class TextInput extends Box {
         return this;
     }
 
+    /**
+     * Возвращает отступ текста от левого края.
+     *
+     * <p>По умолчанию — {@link #DEFAULT_TEXT_PADDING_X} с legacy-подъёмом через
+     * layout-padding (`max(12, padding.left)`). После первого явного вызова
+     * {@link #textPaddingX} / {@link #textPaddingLeft} layout-подъём
+     * отключается: виджет использует ровно заданные значения.</p>
+     *
+     * @return левый текстовый отступ в UI-пикселях
+     */
+    public float textPaddingLeft() {
+        return textPaddingLeft;
+    }
+
+    /**
+     * Задаёт отступ текста от левого края.
+     *
+     * @param textPaddingLeft новый отступ, отрицательные клампятся к нулю
+     * @return этот виджет для chained-настройки
+     */
+    @XmlAttribute(value = "textPaddingLeft", category = "Layout", defaultValue = "12", description = "Inset between the left edge and editable text.")
+    public TextInput textPaddingLeft(float textPaddingLeft) {
+        float normalized = Float.isFinite(textPaddingLeft) ? Math.max(0.0f, textPaddingLeft) : DEFAULT_TEXT_PADDING_X;
+        if (this.textPaddingLeft == normalized && explicitTextPadding) return this;
+        this.textPaddingLeft = normalized;
+        explicitTextPadding = true;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Возвращает отступ текста от правого края.
+     *
+     * @return правый текстовый отступ в UI-пикселях
+     */
+    public float textPaddingRight() {
+        return textPaddingRight;
+    }
+
+    /**
+     * Задаёт отступ текста от правого края.
+     *
+     * @param textPaddingRight новый отступ, отрицательные клампятся к нулю
+     * @return этот виджет для chained-настройки
+     */
+    @XmlAttribute(value = "textPaddingRight", category = "Layout", defaultValue = "12", description = "Inset between editable text and the right edge.")
+    public TextInput textPaddingRight(float textPaddingRight) {
+        float normalized = Float.isFinite(textPaddingRight) ? Math.max(0.0f, textPaddingRight) : DEFAULT_TEXT_PADDING_X;
+        if (this.textPaddingRight == normalized && explicitTextPadding) return this;
+        this.textPaddingRight = normalized;
+        explicitTextPadding = true;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Задаёт симметричный горизонтальный отступ текста от краёв.
+     *
+     * <p>Шорткат для ISF-подобных кейсов: сжимает «воздух» слева и справа
+     * одним вызовом, например {@code search.textPaddingX(6.0f)}.</p>
+     *
+     * @param textPaddingX новый отступ с обеих сторон
+     * @return этот виджет для chained-настройки
+     */
+    @XmlAttribute(value = "textPaddingX", category = "Layout", defaultValue = "12", description = "Symmetric inset between both edges and editable text.")
+    public TextInput textPaddingX(float textPaddingX) {
+        float normalized = Float.isFinite(textPaddingX) ? Math.max(0.0f, textPaddingX) : DEFAULT_TEXT_PADDING_X;
+        if (this.textPaddingLeft == normalized && this.textPaddingRight == normalized && explicitTextPadding) return this;
+        this.textPaddingLeft = normalized;
+        this.textPaddingRight = normalized;
+        explicitTextPadding = true;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
     public EventSubscription onTextChanged(EventListener<? super TextChangedEvent> listener) {
         return on(TextChangedEvent.TYPE, listener);
     }
@@ -348,6 +434,10 @@ public class TextInput extends Box {
 
     @Override
     protected void applyTheme() {
+        // Выключенная тема = «не трогай мои цвета»: как в SurfaceWidget,
+        // иначе пересчёт focusRingColor затёр бы ручную прозрачность
+        // (кейс ISF-поиска с выключенной темой и своим фоном).
+        if (!themeEnabled()) return;
         super.applyTheme();
         textColor.set(styleValue(StyleKeys.TEXT_COLOR, textColor));
         placeholderColor.set(styleValue(StyleKeys.PLACEHOLDER_COLOR, placeholderColor));
@@ -470,7 +560,7 @@ public class TextInput extends Box {
         if (renderCustomVisual(draw)) {
             return;
         }
-        if (backgroundVisible()) {
+        if (backgroundVisible() && !surfaceDrawsBackgroundVisual()) {
             draw.roundedRectFilled(layoutBounds().x(), layoutBounds().y(),
                     layoutBounds().width(), layoutBounds().height(), radius(),
                     background());
@@ -491,6 +581,28 @@ public class TextInput extends Box {
                     focusRingColor, FOCUS_RING_WIDTH);
         }
         renderTextContent(draw, viewportX, viewportY, viewportWidth, viewportHeight, textY, textHeight);
+    }
+
+    /**
+     * Возвращает, рисует ли поверхность собственный фон (текстура/шейдер).
+     *
+     * <p>В этом случае плоская хром-заливка пропускается: поверхность уже
+     * отрисовала фон до контента, а повторная непрозрачная заливка хоронила
+     * бы текстуру (кейс ISF-поиска с nine-slice фоном). Без surface-визуала
+     * заливка остаётся единственным фоном поля.</p>
+     *
+     * @return {@code true}, если фон рисует поверхность, а не эта заливка
+     */
+    private boolean surfaceDrawsBackgroundVisual() {
+        if (!boxVisualEnabled() || !backgroundVisible()) return false;
+        dev.sixik.unigui.api.widget.visual.BackgroundKind explicit = backgroundKind();
+        if (explicit != null) {
+            return (explicit == dev.sixik.unigui.api.widget.visual.BackgroundKind.TEXTURE
+                            && backgroundTexture() != null)
+                    || (explicit == dev.sixik.unigui.api.widget.visual.BackgroundKind.SHADER
+                            && backgroundShader() != null);
+        }
+        return backgroundShader() != null || backgroundTexture() != null;
     }
 
     /**
@@ -602,10 +714,14 @@ public class TextInput extends Box {
     }
 
     protected float leftTextPadding() {
+        // Legacy: layout-padding мог только расширять отступ, но не сужать.
+        // После явной настройки используем ровно заданные значения.
+        if (explicitTextPadding) return textPaddingLeft;
         return Math.max(TEXT_PADDING, layoutStyle().padding().left());
     }
 
     protected float rightTextPadding() {
+        if (explicitTextPadding) return textPaddingRight;
         return Math.max(TEXT_PADDING, layoutStyle().padding().right());
     }
 

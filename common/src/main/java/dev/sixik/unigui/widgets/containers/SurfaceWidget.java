@@ -1,5 +1,6 @@
 package dev.sixik.unigui.widgets.containers;
 
+import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
 import dev.sixik.unigui.api.animation.AnimationEasing;
@@ -17,11 +18,13 @@ import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.render.SliceBorders;
 import dev.sixik.unigui.api.render.TextureFilter;
 import dev.sixik.unigui.api.render.TextureHandle;
+import dev.sixik.unigui.api.render.TextureLayer;
 import dev.sixik.unigui.api.render.TexturePlacement;
 import dev.sixik.unigui.api.render.TextureWrap;
 import dev.sixik.unigui.api.render.shaders.ShaderDrawOptions;
 import dev.sixik.unigui.api.render.shaders.ShaderHandle;
 import dev.sixik.unigui.api.render.shaders.ShaderUniforms;
+import dev.sixik.unigui.api.style.MutableStyle;
 import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.style.StyleKey;
 import dev.sixik.unigui.api.style.StyleKeys;
@@ -38,8 +41,10 @@ import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.api.widget.render.WidgetRender;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Базовый контейнер с композируемой поверхностью: фон, рамка и радиус.
@@ -85,6 +90,12 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
         if (surface.radius() == value) return;
         surface.radius(value);
     };
+    /**
+     * Дополнительные текстурные слои поверх базового фона. Ленивый список:
+     * {@code null}, пока не добавлен первый слой, — нулевая цена для
+     * виджетов с одной текстурой.
+     */
+    private List<TextureLayer> overlayTextures;
 
     /**
      * Создаёт виджет с пустой композируемой поверхностью.
@@ -100,6 +111,18 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
     @SuppressWarnings("unchecked")
     protected final T self() {
         return (T) this;
+    }
+
+    @Override
+    public T style(String declarations) {
+        super.style(declarations);
+        return self();
+    }
+
+    @Override
+    public T style(Consumer<MutableStyle> update) {
+        super.style(update);
+        return self();
     }
 
     /**
@@ -122,6 +145,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
 
     @XmlAttribute(value = "background", category = "Appearance", defaultValue = "#00000000", description = "Background color; setting it also enables background rendering.")
     public T background(ColorView color) {
+        surface.explicitBackground();
         surface.background().set(color == null ? new MutableColor(0.0f, 0.0f, 0.0f, 0.0f) : color);
         backgroundVisible(true);
         return self();
@@ -444,6 +468,82 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
     }
 
     /**
+     * Возвращает дополнительные текстурные слои поверх базового фона.
+     *
+     * <p>Слои рисуются после базового фона в порядке списка, каждый со своим
+     * fit/source/tint. Возвращаемый список — live view для чтения; менять
+     * пачку следует через {@link #overlayTexture(TextureHandle)},
+     * {@link #overlayTexture(TextureLayer)} и {@link #clearOverlayTextures()}.</p>
+     *
+     * @return immutable вид пачки слоёв (пустой, если слоёв нет)
+     */
+    public List<TextureLayer> overlayTextures() {
+        return overlayTextures == null ? List.of() : Collections.unmodifiableList(overlayTextures);
+    }
+
+    /**
+     * Добавляет текстурный слой поверх базового фона.
+     *
+     * @param texture handle текстуры или {@code null} (пустой слой пропускается рендером)
+     * @return добавленный слой для chained-настройки fit/source/tint
+     */
+    public TextureLayer overlayTexture(TextureHandle texture) {
+        return overlayTexture(new TextureLayer(texture));
+    }
+
+    /**
+     * Добавляет готовый текстурный слой поверх базового фона.
+     *
+     * @param layer слой; {@code null} игнорируется
+     * @return добавленный слой или {@code null}, если передан {@code null}
+     */
+    public TextureLayer overlayTexture(TextureLayer layer) {
+        if (layer == null) return null;
+        if (overlayTextures == null) overlayTextures = new ArrayList<>(2);
+        overlayTextures.add(layer);
+        layer.source().onChanged(this::invalidateOverlayTexture);
+        layer.tint().onChanged(this::invalidateOverlayTexture);
+        invalidate(InvalidationFlags.VISUAL);
+        return layer;
+    }
+
+    /**
+     * Убирает текстурный слой из пачки.
+     *
+     * @param layer слой для удаления
+     * @return {@code true}, если слой был в пачке
+     */
+    public boolean removeOverlayTexture(TextureLayer layer) {
+        if (layer == null || overlayTextures == null) return false;
+        // onChanged у Mutable-объектов single-slot: отписываемся сбросом на no-op.
+        layer.source().onChanged(null);
+        layer.tint().onChanged(null);
+        boolean removed = overlayTextures.remove(layer);
+        if (removed) invalidate(InvalidationFlags.VISUAL);
+        return removed;
+    }
+
+    /**
+     * Убирает все дополнительные текстурные слои.
+     *
+     * @return этот виджет для fluent-настройки
+     */
+    public T clearOverlayTextures() {
+        if (overlayTextures == null || overlayTextures.isEmpty()) return self();
+        for (TextureLayer layer : overlayTextures) {
+            layer.source().onChanged(null);
+            layer.tint().onChanged(null);
+        }
+        overlayTextures.clear();
+        invalidate(InvalidationFlags.VISUAL);
+        return self();
+    }
+
+    private void invalidateOverlayTexture() {
+        invalidate(InvalidationFlags.VISUAL);
+    }
+
+    /**
      * Задаёт рамки nine-slice по четырём сторонам.
      *
      * @param left левая рамка в пикселях текстуры
@@ -475,7 +575,10 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
 
     @XmlAttribute(value = "borderColor", category = "Appearance", defaultValue = "#FFFFFFFF", description = "Border color used when border rendering is enabled.")
     public T borderColor(ColorView color) {
-        if (color != null) surface.borderColor().set(color);
+        if (color != null) {
+            surface.explicitBorder();
+            surface.borderColor().set(color);
+        }
         return self();
     }
 
@@ -541,6 +644,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      */
     @XmlAttribute(value = "borderWidth", category = "Appearance", defaultValue = "1", description = "Border thickness in UI pixels.")
     public T borderWidth(float borderWidth) {
+        surface.explicitBorder();
         surface.borderWidth(borderWidth);
         return self();
     }
@@ -585,6 +689,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      */
     @XmlAttribute(value = "radius", category = "Appearance", defaultValue = "0", description = "Corner radius in UI pixels.")
     public T radius(float radius) {
+        surface.explicitRadius();
         surface.radius(radius);
         return self();
     }
@@ -676,6 +781,16 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
     }
 
     @Override
+    public void tick(FrameContext frame) {
+        surface.themeUpdating(true);
+        try {
+            super.tick(frame);
+        } finally {
+            surface.themeUpdating(false);
+        }
+    }
+
+    @Override
     public void render(RenderContext context) {
         if (visibility() != Visibility.VISIBLE) return;
         pushOpacity(context);
@@ -751,10 +866,66 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
                 case NONE -> {
                 }
             }
+            renderOverlayTextures(draw, x, y, width, height, radius);
         }
         if (surface.borderVisible()) {
             draw.roundedRectStroke(x, y, width, height, radius,
                     surface.borderColor(), surface.borderWidth());
+        }
+    }
+
+    /**
+     * Рисует дополнительные текстурные слои поверх базового фона.
+     *
+     * <p>Каждый слой — своя текстура со своим fit/source/tint; порядок —
+     * порядок добавления. Пустые ({@code null}-текстура) и невидимые слои
+     * пропускаются. No-op без слоёв: ноль накладных для одиночных фонов.</p>
+     *
+     * @param draw draw scope поверхности
+     * @param x X границ
+     * @param y Y границ
+     * @param width ширина
+     * @param height высота
+     * @param radius радиус скругления поверхности
+     */
+    protected void renderOverlayTextures(DrawScope draw, float x, float y, float width, float height, float radius) {
+        if (draw == null || overlayTextures == null || overlayTextures.isEmpty()) return;
+        for (int i = 0, size = overlayTextures.size(); i < size; i++) {
+            TextureLayer layer = overlayTextures.get(i);
+            if (layer == null || !layer.visible() || layer.isEmpty()) continue;
+            renderTextureLayer(draw, layer, x, y, width, height, radius);
+        }
+    }
+
+    /**
+     * Рисует один текстурный слой в границах поверхности.
+     *
+     * <p>Nine-slice идёт через {@code draw.nineSlice}, остальные fit — через
+     * {@code TexturePlacement} + {@code draw.textureTinted}. Общая точка для
+     * базового фона и оверлеев, чтобы размещение не разъезжалось.</p>
+     *
+     * @param draw draw scope поверхности
+     * @param layer слой для отрисовки
+     * @param x X границ
+     * @param y Y границ
+     * @param width ширина
+     * @param height высота
+     * @param radius радиус скругления поверхности
+     */
+    protected void renderTextureLayer(DrawScope draw, TextureLayer layer,
+                                      float x, float y, float width, float height, float radius) {
+        if (draw == null || layer == null || layer.isEmpty()) return;
+        TextureHandle texture = layer.texture();
+        if (layer.fit() == ImageFit.NINE_SLICE) {
+            draw.nineSlice(layer.sliceBorders().slice(texture),
+                    x, y, width, height,
+                    Paint.fill(layer.tint()));
+        } else {
+            TexturePlacement placement = TexturePlacement.fit(texture,
+                    layer.source(),
+                    new MutableRect(x, y, width, height),
+                    layer.fit());
+            draw.textureTinted(texture, placement, radius, layer.tint());
         }
     }
 
@@ -792,9 +963,6 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
         lastAppliedScopeStyleVersion = scopeStyleVersion;
 
         BackgroundKind themedKind = styleValue(StyleKeys.BACKGROUND_KIND, state, surface.backgroundKind());
-        if (themedKind != surface.backgroundKind()) {
-            surface.backgroundKind(themedKind);
-        }
         ColorView themedBackground = styleValue(StyleKeys.BACKGROUND_COLOR, state, surface.background());
         TextureHandle themedBackgroundTexture = styleValue(StyleKeys.BACKGROUND_TEXTURE, state, surface.backgroundTexture());
         ColorView themedBackgroundTextureTint = styleValue(StyleKeys.BACKGROUND_TEXTURE_TINT, state, surface.backgroundTextureTint());
@@ -804,30 +972,42 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
         Float themedBorderWidth = styleValue(StyleKeys.BORDER_WIDTH, state, surface.borderWidth());
         Float themedRadius = styleValue(StyleKeys.RADIUS, state, surface.radius());
 
-        if (themedBackground != null) {
-            animateColor(surface.background(), themedBackground, styleTransition);
-        }
-        if (surface.backgroundTexture() != themedBackgroundTexture) {
-            surface.backgroundTexture(themedBackgroundTexture);
-        }
-        if (themedBackgroundTextureTint != null) {
-            animateColor(surface.backgroundTextureTint(), themedBackgroundTextureTint, styleTransition);
-        }
-        if (themedBackgroundTextureFit != null && surface.backgroundTextureFit() != themedBackgroundTextureFit) {
-            surface.backgroundTextureFit(themedBackgroundTextureFit);
-        }
-        if (themedShader != surface.backgroundShader()) {
-            surface.backgroundShader(themedShader);
-        }
-        if (themedBorder != null) {
-            animateColor(surface.borderColor(), themedBorder, styleTransition);
-        }
-        if (themedBorderWidth != null) {
-            animateParameter(StyleKeys.BORDER_WIDTH, borderWidthReader, borderWidthWriter,
-                    themedBorderWidth, styleTransition);
-        }
-        if (themedRadius != null) {
-            animateParameter(StyleKeys.RADIUS, radiusReader, radiusWriter, themedRadius, styleTransition);
+        surface.themeUpdating(true);
+        try {
+            if (themedKind != null && !surface.hasExplicitBackgroundKind()
+                    && themedKind != surface.backgroundKind()) {
+                surface.backgroundKind(themedKind);
+            }
+            if (themedBackground != null && !surface.hasExplicitBackground()) {
+                animateColor(surface.background(), themedBackground, styleTransition);
+            }
+            if (!surface.hasExplicitBackgroundTexture()
+                    && surface.backgroundTexture() != themedBackgroundTexture) {
+                surface.backgroundTexture(themedBackgroundTexture);
+            }
+            if (themedBackgroundTextureTint != null && !surface.hasExplicitBackgroundTextureTint()) {
+                animateColor(surface.backgroundTextureTint(), themedBackgroundTextureTint, styleTransition);
+            }
+            if (!surface.hasExplicitBackgroundTextureFit()
+                    && themedBackgroundTextureFit != null
+                    && surface.backgroundTextureFit() != themedBackgroundTextureFit) {
+                surface.backgroundTextureFit(themedBackgroundTextureFit);
+            }
+            if (!surface.hasExplicitBackgroundShader() && themedShader != surface.backgroundShader()) {
+                surface.backgroundShader(themedShader);
+            }
+            if (themedBorder != null && !surface.hasExplicitBorder()) {
+                animateColor(surface.borderColor(), themedBorder, styleTransition);
+            }
+            if (themedBorderWidth != null && !surface.hasExplicitBorder()) {
+                animateParameter(StyleKeys.BORDER_WIDTH, borderWidthReader, borderWidthWriter,
+                        themedBorderWidth, styleTransition);
+            }
+            if (themedRadius != null && !surface.hasExplicitRadius()) {
+                animateParameter(StyleKeys.RADIUS, radiusReader, radiusWriter, themedRadius, styleTransition);
+            }
+        } finally {
+            surface.themeUpdating(false);
         }
     }
 

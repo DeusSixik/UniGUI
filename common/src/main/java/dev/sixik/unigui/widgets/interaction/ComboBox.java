@@ -1,36 +1,37 @@
 package dev.sixik.unigui.widgets.interaction;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
-import dev.sixik.unigui.api.layout.Alignment;
-import dev.sixik.unigui.api.event.Event;
-import dev.sixik.unigui.api.event.EventListener;
-import dev.sixik.unigui.api.event.EventPhase;
-import dev.sixik.unigui.api.event.EventSubscription;
-import dev.sixik.unigui.api.event.KeyPressedEvent;
-import dev.sixik.unigui.api.event.SelectionChangedEvent;
 import dev.sixik.unigui.api.core.UIContext;
+import dev.sixik.unigui.api.event.*;
 import dev.sixik.unigui.api.input.KeyCodes;
+import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.layout.Overflow;
+import dev.sixik.unigui.api.math.ColorView;
+import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.RectView;
+import dev.sixik.unigui.api.render.TextureHandle;
+import dev.sixik.unigui.api.render.shaders.ShaderDrawOptions;
+import dev.sixik.unigui.api.render.shaders.ShaderHandle;
+import dev.sixik.unigui.api.render.shaders.ShaderUniforms;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
-
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.LinearBox;
 import dev.sixik.unigui.widgets.containers.ScrollView;
-import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.core.Orientation;
+import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 import dev.sixik.unigui.widgets.feedback.Popup;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 
 @XmlWidgetName("ComboBox")
 public class ComboBox extends LinearBox {
@@ -40,19 +41,27 @@ public class ComboBox extends LinearBox {
     private static final float OPTION_HEIGHT = 28.0f;
     private static final float OPTIONS_INSET = 2.0f;
     private static final int DEFAULT_MAX_VISIBLE_OPTIONS = 6;
-    /** Фон хоста опций: --bg-1. */
+    /**
+     * Фон хоста опций: --bg-1.
+     */
     private static final float HOST_BG_R = 0.118f;
     private static final float HOST_BG_G = 0.129f;
     private static final float HOST_BG_B = 0.149f;
-    /** Рамка хоста опций: --border-subtle. */
+    /**
+     * Рамка хоста опций: --border-subtle.
+     */
     private static final float HOST_BORDER_R = 0.180f;
     private static final float HOST_BORDER_G = 0.200f;
     private static final float HOST_BORDER_B = 0.231f;
-    /** Фон выбранной строки-пилюли: --bg-selected. */
+    /**
+     * Фон выбранной строки-пилюли: --bg-selected.
+     */
     private static final float SELECTED_BG_R = 0.149f;
     private static final float SELECTED_BG_G = 0.251f;
     private static final float SELECTED_BG_B = 0.369f;
-    /** Горизонтальный отступ строк-пилюль от краёв списка. */
+    /**
+     * Горизонтальный отступ строк-пилюль от краёв списка.
+     */
     private static final float OPTION_SIDE_MARGIN = 4.0f;
 
     private final Button headerButton = new Button();
@@ -63,6 +72,26 @@ public class ComboBox extends LinearBox {
     private final List<String> items = new ObjectArrayList<>();
     private final List<RichText> richItems = new ObjectArrayList<>();
     private final List<ToggleButton> optionButtons = new ObjectArrayList<>();
+    /**
+     * Цвет подсветки строки при наведении.
+     */
+    private final MutableColor optionHoverBackground = new MutableColor(0.24f, 0.28f, 0.35f, 0.92f);
+    /**
+     * Текстура подсветки строки при наведении.
+     */
+    private TextureHandle optionHoverTexture;
+    /**
+     * Шейдер подсветки строки при наведении.
+     */
+    private ShaderHandle optionHoverShader;
+    /**
+     * Uniforms шейдера подсветки строк.
+     */
+    private ShaderUniforms optionHoverShaderUniforms = ShaderUniforms.empty();
+    /**
+     * Параметры отрисовки шейдера подсветки строк.
+     */
+    private ShaderDrawOptions optionHoverShaderOptions = ShaderDrawOptions.defaults();
     private int selectedIndex = -1;
     private boolean opened;
     private String placeholder = "Select...";
@@ -82,6 +111,7 @@ public class ComboBox extends LinearBox {
 
     public ComboBox() {
         super(Orientation.VERTICAL);
+        optionHoverBackground.onChanged(this::syncOptionHoverAppearance);
         spacing(2.0f);
         focusable(true);
 
@@ -134,6 +164,55 @@ public class ComboBox extends LinearBox {
 
         super.addChild(headerButton);
         updateHeaderText();
+    }
+
+    /**
+     * Возвращает изменяемый цвет фона строки при наведении.
+     *
+     * @return live-цвет подсветки строк
+     */
+    public MutableColor optionHoverBackground() {
+        return optionHoverBackground;
+    }
+
+    /**
+     * Задаёт цвет фона строки при наведении.
+     *
+     * @param color цвет подсветки; {@code null} делает подсветку прозрачной
+     * @return этот ComboBox для fluent-настройки
+     */
+    @XmlAttribute(value = "optionHoverBackground", category = "Appearance", defaultValue = "#3D4759EB", description = "Цвет строки при наведении.")
+    public ComboBox optionHoverBackground(ColorView color) {
+        if (color == null) optionHoverBackground.set(0.0f, 0.0f, 0.0f, 0.0f);
+        else optionHoverBackground.set(color);
+        syncOptionHoverAppearance();
+        return this;
+    }
+
+    /**
+     * Задаёт текстуру поверх фона строки при наведении.
+     *
+     * @param texture текстура или {@code null}, чтобы убрать слой
+     * @return этот ComboBox для fluent-настройки
+     */
+    @XmlAttribute(value = "optionHoverTexture", category = "Assets", defaultValue = "", description = "Текстура строки при наведении.")
+    public ComboBox optionHoverTexture(TextureHandle texture) {
+        optionHoverTexture = texture;
+        syncOptionHoverAppearance();
+        return this;
+    }
+
+    /**
+     * Задаёт шейдер поверх фона и текстуры строки при наведении.
+     *
+     * @param shader шейдер или {@code null}, чтобы убрать слой
+     * @return этот ComboBox для fluent-настройки
+     */
+    @XmlAttribute(value = "optionHoverShader", category = "Assets", defaultValue = "", description = "Шейдер строки при наведении.")
+    public ComboBox optionHoverShader(ShaderHandle shader) {
+        optionHoverShader = shader;
+        syncOptionHoverAppearance();
+        return this;
     }
 
     public List<String> items() {
@@ -459,6 +538,7 @@ public class ComboBox extends LinearBox {
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
+
     public Box optionsHost() {
         return optionsHost;
     }
@@ -556,9 +636,13 @@ public class ComboBox extends LinearBox {
             option.borderVisible(false);
             option.textAlignment(Alignment.START);
             option.textPaddingX(12.0f);
-            option.checkedBackground().set(SELECTED_BG_R, SELECTED_BG_G, SELECTED_BG_B, 1.0f);
-            option.uncheckedBackground().set(0.0f, 0.0f, 0.0f, 0.0f);
-            option.background().set(option.uncheckedBackground());
+            option.themeEnabled(false);
+            option.background().set(0.0f, 0.0f, 0.0f, 0.0f);
+            option.hoverBackground(optionHoverBackground);
+            option.hoverTexture(optionHoverTexture);
+            option.hoverShader(optionHoverShader)
+                    .hoverShaderUniforms(optionHoverShaderUniforms)
+                    .hoverShaderOptions(optionHoverShaderOptions);
             option.layout(style -> style.size(LayoutConstraints.AUTO, optionRowHeight)
                     .margin(OPTION_SIDE_MARGIN, 0.0f)
                     .flexGrow(0).flexShrink(0.0f));
@@ -573,9 +657,49 @@ public class ComboBox extends LinearBox {
         syncDropDownSize();
     }
 
+    /**
+     * Задаёт uniforms шейдера подсветки всех строк.
+     *
+     * @param uniforms набор uniforms или {@code null} для пустого набора
+     * @return этот ComboBox для fluent-настройки
+     */
+    public ComboBox optionHoverShaderUniforms(ShaderUniforms uniforms) {
+        optionHoverShaderUniforms = uniforms == null ? ShaderUniforms.empty() : uniforms;
+        syncOptionHoverAppearance();
+        return this;
+    }
+
+    /**
+     * Задаёт параметры отрисовки шейдера подсветки всех строк.
+     *
+     * @param options параметры отрисовки или {@code null} для значений по умолчанию
+     * @return этот ComboBox для fluent-настройки
+     */
+    public ComboBox optionHoverShaderOptions(ShaderDrawOptions options) {
+        optionHoverShaderOptions = options == null ? ShaderDrawOptions.defaults() : options;
+        syncOptionHoverAppearance();
+        return this;
+    }
+
+    private void syncOptionHoverAppearance() {
+        for (ToggleButton option : optionButtons) {
+            option.hoverBackground(optionHoverBackground)
+                    .hoverTexture(optionHoverTexture)
+                    .hoverShader(optionHoverShader)
+                    .hoverShaderUniforms(optionHoverShaderUniforms)
+                    .hoverShaderOptions(optionHoverShaderOptions);
+        }
+    }
+
     private void syncSelectionState() {
         for (int i = 0; i < optionButtons.size(); i++) {
-            optionButtons.get(i).silentChecked(i == selectedIndex);
+            ToggleButton option = optionButtons.get(i);
+            option.silentChecked(i == selectedIndex);
+            if (i == selectedIndex) {
+                option.background().set(SELECTED_BG_R, SELECTED_BG_G, SELECTED_BG_B, 1.0f);
+            } else {
+                option.background().set(0.0f, 0.0f, 0.0f, 0.0f);
+            }
         }
     }
 

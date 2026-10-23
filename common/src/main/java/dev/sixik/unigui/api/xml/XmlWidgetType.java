@@ -49,10 +49,10 @@ public final class XmlWidgetType<T extends Widget> {
      * {@link XmlAttributeDescriptor}. Для user-facing редактора лучше использовать
      * перегрузку с явным descriptor-ом.</p>
      *
-     * @param name имя XML-атрибута
+     * @param name   имя XML-атрибута
      * @param parser преобразователь строкового значения
      * @param setter действие, применяющее значение к виджету
-     * @param <V> тип распарсенного значения
+     * @param <V>    тип распарсенного значения
      * @return этот builder для chained-настройки
      */
     public <V> XmlWidgetType<T> attribute(String name,
@@ -68,11 +68,11 @@ public final class XmlWidgetType<T extends Widget> {
      * затем {@code setter}. Исключения parser/setter превращаются в
      * {@link XmlWidgetLoadException} с координатами XML-атрибута, если они доступны.</p>
      *
-     * @param name имя XML-атрибута
-     * @param parser преобразователь строкового значения
-     * @param setter действие, применяющее значение к виджету
+     * @param name       имя XML-атрибута
+     * @param parser     преобразователь строкового значения
+     * @param setter     действие, применяющее значение к виджету
      * @param descriptor display/category/default/description для inspector UI
-     * @param <V> тип распарсенного значения
+     * @param <V>        тип распарсенного значения
      * @return этот builder для chained-настройки
      */
     public <V> XmlWidgetType<T> attribute(String name,
@@ -87,10 +87,23 @@ public final class XmlWidgetType<T extends Widget> {
     }
 
     /**
+     * Разрешает однонаправленную запись {@code {Binding path}} для атрибута.
+     *
+     * @param name      имя уже зарегистрированного XML-атрибута
+     * @param valueType runtime-тип observable-источника
+     * @param <V>       тип значения атрибута
+     * @return этот builder для chained-настройки
+     */
+    public <V> XmlWidgetType<T> bindable(String name, Class<V> valueType) {
+        delegate.bindable(name, valueType);
+        return this;
+    }
+
+    /**
      * Задаёт metadata самого XML-типа для палитры редактора.
      *
      * @param displayName человекочитаемое имя типа
-     * @param category группа в палитре, например {@code "Controls"}
+     * @param category    группа в палитре, например {@code "Controls"}
      * @param description короткое описание назначения виджета
      * @return этот builder для chained-настройки
      */
@@ -105,7 +118,7 @@ public final class XmlWidgetType<T extends Widget> {
      * <p>Метод полезен, когда атрибут добавлен автоматически аннотациями, но
      * конкретный registry хочет уточнить описание или category.</p>
      *
-     * @param name имя существующего XML-атрибута
+     * @param name       имя существующего XML-атрибута
      * @param descriptor новый descriptor
      * @return этот builder для chained-настройки
      */
@@ -136,7 +149,7 @@ public final class XmlWidgetType<T extends Widget> {
      * <p>Property-child соответствует XML-элементу вида {@code <ScrollView.Content>}
      * и позволяет отличать обычных детей от именованных слотов.</p>
      *
-     * @param name имя слота без имени родительского типа
+     * @param name        имя слота без имени родительского типа
      * @param childPolicy правило применения child-виджета к слоту
      * @return этот builder для chained-настройки
      */
@@ -147,9 +160,9 @@ public final class XmlWidgetType<T extends Widget> {
     /**
      * Регистрирует property-child слот с явной metadata.
      *
-     * @param name имя слота, например {@code "Content"}
+     * @param name        имя слота, например {@code "Content"}
      * @param childPolicy правило применения child-виджета к слоту
-     * @param descriptor display/category/description для inspector UI
+     * @param descriptor  display/category/description для inspector UI
      * @return этот builder для chained-настройки
      */
     public XmlWidgetType<T> propertyChild(String name, XmlChildPolicy<T> childPolicy, XmlPropertyChildDescriptor descriptor) {
@@ -161,7 +174,7 @@ public final class XmlWidgetType<T extends Widget> {
     /**
      * Обновляет descriptor уже зарегистрированного property-child слота.
      *
-     * @param name имя существующего слота
+     * @param name       имя существующего слота
      * @param descriptor новый descriptor слота
      * @return этот builder для chained-настройки
      */

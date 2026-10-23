@@ -98,19 +98,24 @@ final class BuiltInControlXml {
     }
 
     private static <T extends Button> WidgetXmlType<T> button(WidgetXmlType<T> type) {
-        return BuiltInWidgetXmlSupport.box(type)
+        WidgetXmlType<T> registered = BuiltInWidgetXmlSupport.box(type)
                 .attribute("text", XmlValueParsers.STRING, Button::text)
                 .attribute("color", XmlValueParsers.COLOR, (widget, color) -> widget.textColor().set(color))
                 .attribute("textColor", XmlValueParsers.COLOR, (widget, color) -> widget.textColor().set(color))
                 .attribute("textPaddingX", XmlValueParsers.FLOAT, Button::textPaddingX)
                 .attribute("textPaddingY", XmlValueParsers.FLOAT, Button::textPaddingY)
                 .attribute("interactionTransitions", XmlValueParsers.BOOLEAN, Button::interactionTransitions)
+                .attribute("hoverBackground", XmlValueParsers.COLOR, Button::hoverBackground)
+                .attribute("pressedBackground", XmlValueParsers.COLOR, Button::pressedBackground)
+                .attribute("hoverTexture", XmlValueParsers.TEXTURE, Button::hoverTexture)
+                .attribute("pressedTexture", XmlValueParsers.TEXTURE, Button::pressedTexture)
                 .attribute("onClick", XmlValueParsers.STRING, BuiltInControlXml::bindClickCommand,
                         XmlAttributeDescriptor.of("onClick")
                                 .category("Behavior")
                                 .defaultValue("")
                                 .valueType(XmlAttributeValueType.BINDING_OR_ACTION)
                                 .description("Named command/action id invoked when the button is clicked."));
+        return registered.bindable("text", String.class);
     }
 
     private static void bindClickCommand(Button button, String commandName) {
@@ -128,7 +133,8 @@ final class BuiltInControlXml {
         return button(type)
                 .attribute("checked", XmlValueParsers.BOOLEAN, ToggleButton::silentChecked)
                 .attribute("checkedBackground", XmlValueParsers.COLOR, (widget, color) -> widget.checkedBackground().set(color))
-                .attribute("uncheckedBackground", XmlValueParsers.COLOR, (widget, color) -> widget.uncheckedBackground().set(color));
+                .attribute("uncheckedBackground", XmlValueParsers.COLOR, (widget, color) -> widget.uncheckedBackground().set(color))
+                .bindable("checked", Boolean.class);
     }
 
     private static WidgetXmlType<ToggleSwitch> toggleSwitch(WidgetXmlType<ToggleSwitch> type) {
@@ -137,7 +143,7 @@ final class BuiltInControlXml {
     }
 
     private static <T extends TextInput> WidgetXmlType<T> textInput(WidgetXmlType<T> type, Class<?> widgetType) {
-        return BuiltInWidgetXmlSupport.annotated(BuiltInWidgetXmlSupport.commonWidget(type)
+        WidgetXmlType<T> registered = BuiltInWidgetXmlSupport.annotated(BuiltInWidgetXmlSupport.commonWidget(type)
                 .attribute("text", XmlValueParsers.STRING, TextInput::text,
                         XmlAttributeDescriptor.of("text")
                                 .category("Content")
@@ -164,6 +170,7 @@ final class BuiltInControlXml {
                                 .defaultValue("0")
                                 .description("Initial cursor position in the editable text.")),
                 widgetType);
+        return registered.bindable("text", String.class);
     }
 
     private static <T extends ToolButton> WidgetXmlType<T> toolButton(WidgetXmlType<T> type, Class<?> widgetType) {
@@ -381,7 +388,7 @@ final class BuiltInControlXml {
     }
 
     private static WidgetXmlType<Slider> slider(WidgetXmlType<Slider> type) {
-        return BuiltInWidgetXmlSupport.box(type)
+        WidgetXmlType<Slider> registered = BuiltInWidgetXmlSupport.box(type)
                 .attribute("min", XmlValueParsers.FLOAT, (widget, value) -> widget.range(value, widget.max()))
                 .attribute("max", XmlValueParsers.FLOAT, (widget, value) -> widget.range(widget.min(), value))
                 .attribute("value", XmlValueParsers.FLOAT, Slider::value)
@@ -391,10 +398,11 @@ final class BuiltInControlXml {
                 .attribute("trackColor", XmlValueParsers.COLOR, (widget, color) -> widget.trackColor().set(color))
                 .attribute("fillColor", XmlValueParsers.COLOR, (widget, color) -> widget.fillColor().set(color))
                 .attribute("knobColor", XmlValueParsers.COLOR, (widget, color) -> widget.knobColor().set(color));
+        return registered.bindable("value", Float.class);
     }
 
     private static WidgetXmlType<ProgressBar> progressBar(WidgetXmlType<ProgressBar> type) {
-        return BuiltInWidgetXmlSupport.box(type)
+        WidgetXmlType<ProgressBar> registered = BuiltInWidgetXmlSupport.box(type)
                 .attribute("min", XmlValueParsers.FLOAT, (widget, value) -> widget.range(value, widget.max()))
                 .attribute("max", XmlValueParsers.FLOAT, (widget, value) -> widget.range(widget.min(), value))
                 .attribute("value", XmlValueParsers.FLOAT, ProgressBar::value)
@@ -404,5 +412,6 @@ final class BuiltInControlXml {
                 .attribute("preferredHeight", XmlValueParsers.FLOAT, ProgressBar::preferredHeight)
                 .attribute("trackColor", XmlValueParsers.COLOR, (widget, color) -> widget.trackColor().set(color))
                 .attribute("fillColor", XmlValueParsers.COLOR, (widget, color) -> widget.fillColor().set(color));
+        return registered.bindable("value", Float.class);
     }
 }

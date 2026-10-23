@@ -20,16 +20,21 @@ HollowEngine UI и главные окна игровых движков в ду
    разобранный пример `DropDownBox`.
 3. [`theme-redesign.md`](theme-redesign.md) — проект новой системы тем:
    диагноз текущей Style + Theme, токены, приоритет резолва, API-скетч, миграция.
+4. [`style-token-layer.md`](style-token-layer.md) — контракт неизменяемых
+   токенов, порядок резолва, версии и обязательный пользовательский пример.
+5. [`xaml-data-binding.md`](xaml-data-binding.md) — проект XML/XAML-подобного
+   data binding, code-behind, lifecycle и обязательной демо-команды.
 
 ## Порядок работ
 
 1. HTML+CSS референс (фундамент: токены, shell, витрина dropdown) → `html-reference.md`.
 2. Зеркало в TestMod (`EngineWindowDemoScreen` на `DemoScaffold`) — открыть рядом
    с браузером, расхождения видны глазами.
-3. Токены темы + резолвер в коде → `theme-redesign.md`.
-4. Перевод `SurfaceWidget` / `Button` / `TextInput` (80% картинки), затем
+3. Контракт слоя токенов → `style-token-layer.md`.
+4. Токены темы + резолвер в коде → `theme-redesign.md`.
+5. Inline Style API и каскад правил → `style-api.md`, затем перевод `SurfaceWidget` / `Button` / `TextInput` (80% картинки), затем
    DropDown/Popup хром, затем остальное по аудиту.
-5. Таймлайн — отдельный новый виджет, вне этого цикла (см. `widget-audit.md`).
+6. Таймлайн — отдельный новый виджет, вне этого цикла (см. `widget-audit.md`).
 
 ## Выполнено вне очереди (ядро раньше хрома)
 
@@ -42,12 +47,20 @@ HollowEngine UI и главные окна игровых движков в ду
   плавать, память размера окна; краевые полосы убраны.
 - `dropdown-refresh.md` — модерн-хром DropDownBox/ComboBox: хедер 36,
   шеврон слотом справа, зазор попапа 6, selected-пилюля; API без изменений.
+- `button-refresh.md` — фокус-кольцо Button в классе + прогресс HoldButton
+  по радиусу с инсетом бордера; рендер в виджетах, тема отдаёт цвета.
+- `treeview-refresh.md` — строка TreeView: шеврон штрихами, selected-пилюля,
+  слот иконки; unicode-маркер убран из текста.
+- `accordion-refresh.md` — заголовок ExpandablePanel: шеврон слотом справа
+  вместо inline-треугольника. Accordion не слит с панелью.
+- `pageview-refresh.md` — Carousel: точки вместо видимого `1 / 3`.
+  PageView остаётся без хрома.
 
 ## Статусы
 
 - [x] HTML-референс собран (`engine-window-reference.html`)
 - [ ] Зеркало в TestMod собрано
-- [ ] Токены + резолвер реализованы
+- [x] Минимальные токены + token fallback подключены к резолверу
 - [ ] `SurfaceWidget` переведён
 - [ ] DropDown/Popup хром обновлён
 - [ ] Аудит остальных виджетов закрыт

@@ -54,6 +54,7 @@ public class ToggleSwitch extends ToggleButton {
     private float labelGap = DEFAULT_LABEL_GAP;
     private boolean labelLeft;
     private float switchProgress;
+    private final MutableColor trackBlend = new MutableColor();
     private TransitionSpec switchAnimation = TransitionSpec.of(DEFAULT_SWITCH_ANIMATION_SECONDS);
 
     public ToggleSwitch() {
@@ -87,7 +88,9 @@ public class ToggleSwitch extends ToggleButton {
     public ToggleSwitch silentChecked(boolean checked) {
         boolean changed = checked() != checked;
         super.silentChecked(checked);
-        if (changed) animateSwitchProgress(checked);
+        // Начальное состояние (XML, конструктор) не проигрывает анимацию:
+        // иначе уже включённый свитч при открытии UI ехал бы из выключенного.
+        if (changed) setSwitchProgress(checked ? 1.0f : 0.0f);
         return this;
     }
 
@@ -222,7 +225,7 @@ public class ToggleSwitch extends ToggleButton {
 
             float thumbPadding = Math.max(1.0f, (trackHeight - thumbSize) * 0.5f);
             float thumbTravel = Math.max(0.0f, trackWidth - thumbSize - thumbPadding * 2.0f);
-            float thumbX = trackX + thumbPadding + (checked() ? thumbTravel : 0.0f);
+            float thumbX = trackX + thumbPadding + switchProgress * thumbTravel;
             float thumbY = trackY + Math.max(0.0f, trackHeight - thumbSize) * 0.5f;
             draw.circle(thumbX, thumbY, thumbSize, thumbSize, Paint.fill(thumbColor));
 
@@ -263,10 +266,35 @@ public class ToggleSwitch extends ToggleButton {
         return StyleIds.Widget.TOGGLE_SWITCH;
     }
 
+    /**
+     * Возвращает цвет дорожки, смешанный по прогрессу переключения.
+     *
+     * <p>Формула по каждому каналу:
+     * <pre>
+     *   c = off + (on - off) * p
+     * </pre>
+     * {@code p} — {@link #switchProgress()} в диапазоне {@code [0, 1]}.
+     * Крайние значения берут цвет состояния целиком, промежуточные дают
+     * плавный переход вместе с бегунком.</p>
+     *
+     * @return цвет дорожки на текущем кадре
+     */
     private ColorView switchTrackColor() {
-        ColorView fallback = checked() ? checkedBackground().copy() : uncheckedBackground().copy();
-        ColorView themed = styleValue(StyleKeys.BACKGROUND_COLOR, styleState(), fallback);
-        return themed == null ? fallback : themed;
+        ColorView off = styleValue(StyleKeys.BACKGROUND_COLOR, dev.sixik.unigui.api.style.WidgetState.NORMAL,
+                uncheckedBackground());
+        ColorView on = styleValue(StyleKeys.BACKGROUND_COLOR, dev.sixik.unigui.api.style.WidgetState.CHECKED,
+                checkedBackground());
+        if (off == null) off = uncheckedBackground();
+        if (on == null) on = checkedBackground();
+        float progress = switchProgress;
+        if (progress <= 0.0f) return off;
+        if (progress >= 1.0f) return on;
+        trackBlend.set(
+                off.r() + (on.r() - off.r()) * progress,
+                off.g() + (on.g() - off.g()) * progress,
+                off.b() + (on.b() - off.b()) * progress,
+                off.a() + (on.a() - off.a()) * progress);
+        return trackBlend;
     }
 
     private void animateSwitchProgress(boolean checked) {

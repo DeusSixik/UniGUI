@@ -44,6 +44,8 @@ public class MinecraftWidgetScreen extends Screen {
     private static final MutableColor CACHE_TINT = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private final Widget root;
     private final UIContext uiContext;
+    /** XML-экран, владеющий binding-подписками, которые нужно закрыть при удалении Minecraft screen. */
+    private XmlWidgetScreen<? extends Widget> xmlScreenOwner;
     private final DrawList drawList = new DrawList();
     private final DrawList scaledDrawList = new DrawList();
     private final DrawList debugOverlayDrawList = new DrawList();
@@ -93,6 +95,7 @@ public class MinecraftWidgetScreen extends Screen {
     public MinecraftWidgetScreen(Component title, XmlWidgetScreen<? extends Widget> xmlScreen) {
         this(title, xmlScreenRoot(xmlScreen), xmlScreenContext(xmlScreen));
         applyXmlScreenConfig(xmlScreen);
+        this.xmlScreenOwner = xmlScreen;
     }
 
     public MinecraftWidgetScreen(Component title, Widget root, UIContext uiContext) {
@@ -686,6 +689,10 @@ public class MinecraftWidgetScreen extends Screen {
         }
         releaseRenderCache();
         root.dispose();
+        if (xmlScreenOwner != null) {
+            xmlScreenOwner.close();
+            xmlScreenOwner = null;
+        }
     }
 
     private CacheRenderDecision cacheRenderDecision(long nowNanos, boolean profileDetails) {

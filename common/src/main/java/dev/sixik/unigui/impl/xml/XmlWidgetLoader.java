@@ -5,6 +5,8 @@ import dev.sixik.unigui.api.core.UIScaleProvider;
 import dev.sixik.unigui.api.core.UnityLikeUIScaleProvider;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.xml.XmlWidgetDiagnostic;
+import dev.sixik.unigui.api.xml.XmlBindingContext;
+import dev.sixik.unigui.api.xml.XmlBindingSession;
 import dev.sixik.unigui.api.xml.XmlWidgetLoadException;
 import dev.sixik.unigui.api.xml.XmlWidgetOptions;
 import dev.sixik.unigui.api.xml.XmlWidgetScreen;
@@ -50,6 +52,11 @@ import java.util.Set;
 public final class XmlWidgetLoader {
     private static final String XMLNS_URI = XMLConstants.XMLNS_ATTRIBUTE_NS_URI;
     private static final String LOCATION_KEY = XmlWidgetLoader.class.getName() + ".location";
+    /**
+     * Настроенные JAXP-фабрики, переиспользуемые в пределах одного loader-потока.
+     */
+    private static final ThreadLocal<ParserFactories> PARSER_FACTORIES =
+            ThreadLocal.withInitial(ParserFactories::new);
     private static final Set<String> SCREEN_ATTRIBUTE_NAMES = Set.of(
             "type",
             "scaleProvider",
@@ -75,6 +82,14 @@ public final class XmlWidgetLoader {
     private final boolean strictAttributes;
     private final dev.sixik.unigui.api.xml.XmlTextureResolver textureResolver;
     private final dev.sixik.unigui.api.xml.XmlCommandRegistry commands;
+    /**
+     * Контекст observable-значений, доступных выражениям {@code {Binding path}}.
+     */
+    private final XmlBindingContext bindingContext;
+    /**
+     * Сессия binding-ов текущего вызова загрузки; используется только во время обхода DOM.
+     */
+    private XmlBindingSession activeBindingSession;
 
     public XmlWidgetLoader(WidgetXmlRegistry registry) {
         this(registry, XmlWidgetOptions.DEFAULT);
@@ -92,6 +107,7 @@ public final class XmlWidgetLoader {
         this.strictAttributes = normalizedOptions.strictAttributes();
         this.textureResolver = normalizedOptions.textureResolver();
         this.commands = normalizedOptions.commands();
+        this.bindingContext = normalizedOptions.bindingContext();
     }
 
     public Widget load(String xml) {
@@ -102,18 +118,27 @@ public final class XmlWidgetLoader {
         if (xml == null || xml.isBlank()) {
             throw fail("XML widget source must not be blank.");
         }
+        XmlBindingSession bindingSession = new XmlBindingSession();
+        XmlBindingSession previousSession = activeBindingSession;
+        activeBindingSession = bindingSession;
         try (XmlValueParsers.TextureResolverScope ignored = XmlValueParsers.pushLoadContext(textureResolver, commands)) {
             Document document = parse(xml);
             Element root = document.getDocumentElement();
             if (root == null) throw fail("XML document does not contain a root widget.");
             if (isScreenElement(elementName(root))) {
-                return readScreenElement(root);
+                return readScreenElement(root, bindingSession);
             }
-            return new XmlWidgetScreen<>(readElement(root, new HashMap<>(), 0), UIScaleProvider.IDENTITY, true);
+            return new XmlWidgetScreen<>(readElement(root, new HashMap<>(), 0), UIScaleProvider.IDENTITY, true,
+                    bindingSession);
+        } catch (RuntimeException failure) {
+            bindingSession.close();
+            throw failure;
+        } finally {
+            activeBindingSession = previousSession;
         }
     }
 
-    private XmlWidgetScreen<Widget> readScreenElement(Element element) {
+    private XmlWidgetScreen<Widget> readScreenElement(Element element, XmlBindingSession bindingSession) {
         ScreenConfig config = readScreenConfig(element, "Screen");
         Map<String, Widget> ids = new HashMap<>();
         Widget root = null;
@@ -135,9 +160,11 @@ public final class XmlWidgetLoader {
                             + "' cannot be used inside Screen.");
                 }
                 switch (propertyElement.propertyName()) {
-                    case "ScaleProvider" -> config = config.merge(readScreenConfig(childElement, elementName(childElement)));
+                    case "ScaleProvider" ->
+                            config = config.merge(readScreenConfig(childElement, elementName(childElement)));
                     case "Content" -> root = readScreenContentProperty(childElement, root, ids);
-                    default -> throw fail(childElement, "Unknown property element '" + elementName(childElement) + "' on Screen.");
+                    default ->
+                            throw fail(childElement, "Unknown property element '" + elementName(childElement) + "' on Screen.");
                 }
                 continue;
             }
@@ -151,7 +178,7 @@ public final class XmlWidgetLoader {
         if (root == null) {
             throw fail(element, "Screen element must contain exactly one root widget.");
         }
-        return new XmlWidgetScreen<>(root, config.scaleProvider(), config.scaleWithMinecraftGui());
+        return new XmlWidgetScreen<>(root, config.scaleProvider(), config.scaleWithMinecraftGui(), bindingSession);
     }
 
     private Widget readScreenContentProperty(Element element, Widget currentRoot, Map<String, Widget> ids) {
@@ -327,7 +354,7 @@ public final class XmlWidgetLoader {
                     + "' value '" + value.value() + "': Expected two numeric values.", value.line(), value.column(), null);
         }
         try {
-            return new float[] {Float.parseFloat(parts[0]), Float.parseFloat(parts[1])};
+            return new float[]{Float.parseFloat(parts[0]), Float.parseFloat(parts[1])};
         } catch (RuntimeException failure) {
             throw fail("Cannot apply attribute on Screen: Cannot parse/apply attribute '" + value.displayName()
                     + "' value '" + value.value() + "': " + failure.getMessage(), value.line(), value.column(), failure);
@@ -389,7 +416,7 @@ public final class XmlWidgetLoader {
         }
 
         try {
-            type.applyAttributes(widget, values);
+            type.applyAttributes(widget, values, bindingContext, activeBindingSession);
         } catch (WidgetXmlType.XmlAttributeApplyException failure) {
             throw fail("Cannot apply attribute on " + type.xmlName() + ": " + failure.getMessage(),
                     failure.line(), failure.column(), failure);
@@ -538,16 +565,11 @@ public final class XmlWidgetLoader {
 
     private Document parse(String xml) {
         try {
-            DocumentBuilderFactory documentFactory = DocumentBuilderFactory.newInstance();
-            documentFactory.setNamespaceAware(true);
+            ParserFactories parserFactories = PARSER_FACTORIES.get();
+            DocumentBuilderFactory documentFactory = parserFactories.documentFactory();
             Document document = documentFactory.newDocumentBuilder().newDocument();
 
-            SAXParserFactory factory = SAXParserFactory.newInstance();
-            factory.setNamespaceAware(true);
-            factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-            setFeatureIfSupported(factory, "http://apache.org/xml/features/disallow-doctype-decl", true);
-            setFeatureIfSupported(factory, "http://xml.org/sax/features/external-general-entities", false);
-            setFeatureIfSupported(factory, "http://xml.org/sax/features/external-parameter-entities", false);
+            SAXParserFactory factory = parserFactories.saxFactory();
 
             SAXParser parser = factory.newSAXParser();
             XMLReader reader = parser.getXMLReader();
@@ -584,6 +606,57 @@ public final class XmlWidgetLoader {
             reader.setFeature(feature, value);
         } catch (SAXNotRecognizedException | SAXNotSupportedException ignored) {
             // Не все XML-реализации поддерживают каждый флаг защиты парсера.
+        }
+    }
+
+    /**
+     * Хранит фабрики DOM/SAX с уже установленными безопасными настройками.
+     *
+     * <p>JAXP factory не используется между потоками: экземпляр принадлежит
+     * thread-local владельцу, а новый builder/reader создаётся для каждого XML.
+     * Это сохраняет безопасность и убирает повторную конфигурацию фабрик.</p>
+     */
+    private static final class ParserFactories {
+        /**
+         * Фабрика пустых DOM-документов с включёнными namespace.
+         */
+        private final DocumentBuilderFactory documentFactory;
+        /**
+         * SAX-фабрика с запретом внешних сущностей и DTD.
+         */
+        private final SAXParserFactory saxFactory;
+
+        /**
+         * Создаёт и один раз настраивает безопасные DOM/SAX-фабрики.
+         */
+        private ParserFactories() {
+            documentFactory = DocumentBuilderFactory.newInstance();
+            documentFactory.setNamespaceAware(true);
+
+            saxFactory = SAXParserFactory.newInstance();
+            saxFactory.setNamespaceAware(true);
+            setFeatureIfSupported(saxFactory, XMLConstants.FEATURE_SECURE_PROCESSING, true);
+            setFeatureIfSupported(saxFactory, "http://apache.org/xml/features/disallow-doctype-decl", true);
+            setFeatureIfSupported(saxFactory, "http://xml.org/sax/features/external-general-entities", false);
+            setFeatureIfSupported(saxFactory, "http://xml.org/sax/features/external-parameter-entities", false);
+        }
+
+        /**
+         * Возвращает DOM factory текущего потока.
+         *
+         * @return настроенная DOM factory
+         */
+        private DocumentBuilderFactory documentFactory() {
+            return documentFactory;
+        }
+
+        /**
+         * Возвращает SAX factory текущего потока.
+         *
+         * @return настроенная SAX factory
+         */
+        private SAXParserFactory saxFactory() {
+            return saxFactory;
         }
     }
 
