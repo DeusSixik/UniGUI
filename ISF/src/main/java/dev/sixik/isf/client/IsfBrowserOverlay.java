@@ -65,7 +65,7 @@ final class IsfBrowserOverlay {
     private final ScrollView itemScroll = new ScrollView(grid);
     private final GridBox bookmarkGrid = new GridBox().columns(4);
     private final ScrollView bookmarkScroll = new ScrollView(bookmarkGrid);
-    private final VBox detailPanel = new VBox();
+    private final Box detailPanel = new Box();
     private final MinecraftZLayer detailLayer = new MinecraftZLayer(detailPanel, 300.0f);
     private final Label detailTitle = new Label();
     private final ToggleButton detailPin = new ToggleButton();
@@ -134,10 +134,10 @@ final class IsfBrowserOverlay {
     private PendingRecipeQuery selectedQuery;
 
     private static final float RECIPE_GAP = 2.0f;
-    private static final float CATALYST_CELL = 18.0f;
-    private static final float TAB_CELL = 20.0f;
-    /** Высота строки вкладок: padding 1 сверху и снизу + вкладка 20. */
-    private static final float TAB_ROW_CONTENT = TAB_CELL + 2.0f;
+    private static final float CATALYST_CELL = 20.0f;
+    private static final float TAB_CELL = 24.0f;
+    /** Высота строки вкладок: вкладка 20. */
+    private static final float TAB_ROW_CONTENT = TAB_CELL;
     /** Толщина горизонтального scrollbar вкладок: ~1.5x уже дефолтной полосы. */
     private static final float TAB_SCROLLBAR_SIZE = 4.0f;
     /** Резерв под scrollbar вкладок: толщина полосы + gap. */
@@ -345,10 +345,6 @@ final class IsfBrowserOverlay {
                 }
             }
             return false;
-        }
-        if (contains(detailClose.layoutBounds(), x, y)) {
-            closeDetail();
-            return true;
         }
         if (contains(detailPin.layoutBounds(), x, y)) {
             setDetailPinned(!detailPinned);
@@ -766,37 +762,35 @@ final class IsfBrowserOverlay {
                 .widthPercent(100.0f)
                 .height(TAB_ROW_CONTENT)
                 .flexNone()
+                .left(CATALYST_CELL + 2)
                 .overflowX(Overflow.AUTO)
                 .overflowY(Overflow.HIDDEN));
+        tabScroll.overlayScrollBars(false);
 
         tabRow.backgroundVisible(true);
-        tabRow.backgroundTextureFit(dev.sixik.unigui.api.render.ImageFit.NINE_SLICE);
-        tabRow.sliceBorders(4.0f);
-        tabRow.backgroundTexture(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/scrollbar_background.png"),
-                20, 20, TextureOptions.nearest()));
         tabRow.layout(style -> style
                 .width(SizeValue.auto())
                 .flexNone()
-                .padding(1)
                 .alignSelf(Align.START)
         );
 
         detailPanel.addChild(tabScroll);
 
-        HBox catalystCont = new HBox();
-        catalystCont.layout(style -> style.flexGrow(1.0f));
-        catalystColumn.spacing(RECIPE_GAP);
+
         catalystColumn.layout(style -> style
                 .width(SizeValue.auto())
                 .flexNone()
+                .top(TAB_CELL + 2)
                 .alignSelf(Align.START)
         );
         catalystColumn.backgroundVisible(true);
         catalystColumn.backgroundTextureFit(dev.sixik.unigui.api.render.ImageFit.NINE_SLICE);
-        catalystColumn.sliceBorders(4.0f);
+        catalystColumn.sliceBorders(1.0f);
         catalystColumn.backgroundTexture(new MinecraftTextureHandle(
                 ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/scrollbar_background.png"),
                 14, 50, TextureOptions.nearest()));
+
+        detailPanel.addChild(catalystColumn);
 
         VBox content = new VBox();
         content.spacing(2.0f);
@@ -810,10 +804,11 @@ final class IsfBrowserOverlay {
                 .widthPercent(100.0f)
                 .flexGrow(1.0f)
                 .flexShrink(1.0f)
+                .top(TAB_CELL - 1)
+                .left(CATALYST_CELL - 1)
                 .padding(6.0f,4.0f,6.0f,4.0f));
 
-        catalystCont.addChild(catalystColumn);
-        catalystCont.addChild(content);
+
 
         HBox detailHeader = new HBox();
         detailHeader.spacing(2.0f);
@@ -838,7 +833,10 @@ final class IsfBrowserOverlay {
         detailClose.themeEnabled(false);
         detailClose.text("X").textPadding(0.0f, 0.0f);
         detailClose.layout(style -> style.size(16.0f, 16.0f).flexNone());
-        detailClose.onClick(event -> closeDetail());
+        detailClose.onClick(event -> {
+            sliceButtonBackground(detailPin, "textures/jei/atlas/gui/button_enabled.png", 20, 20, 4.0f);
+            //closeDetail();
+        });
 
         detailHeader.addChild(detailTitle);
         detailHeader.addChild(detailPin);
@@ -867,7 +865,8 @@ final class IsfBrowserOverlay {
         content.addChild(detailHeader);
         content.addChild(pageRow);
         content.addChild(recipeArea);
-        detailPanel.addChild(catalystCont);
+
+        detailPanel.addChild(content);
         overlayRoot.addOverlay(detailLayer);
         updateDetail(null);
     }
@@ -1480,7 +1479,7 @@ final class IsfBrowserOverlay {
                 IconButton tab = new IconButton();
                 tab.themeEnabled(false);
                 tab.backgroundTextureFit(ImageFit.NINE_SLICE);
-                tab.sliceBorders(2.0f);
+                tab.sliceBorders(1.0f);
                 tab.backgroundTexture(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID,"textures/jei/atlas/gui/dark_tab_unselected.png"),34,34, TextureOptions.nearest()));
                 tab.borderVisible(false);
                 tab.radius(2.0f);
