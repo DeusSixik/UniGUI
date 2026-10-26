@@ -1450,9 +1450,21 @@ public abstract class WidgetBase implements Widget {
      * @return compatible style renderer or {@code null}
      */
     protected WidgetRender styleRenderOverride(WidgetRole role) {
+        return styleRenderOverride(role, true);
+    }
+
+    /**
+     * Resolves a renderer override while optionally excluding the global theme.
+     * Local styles remain in the lookup chain regardless of the theme flag.
+     *
+     * @param role expected widget role
+     * @param includeTheme whether global theme and StylePack values participate
+     * @return compatible style renderer or {@code null}
+     */
+    protected WidgetRender styleRenderOverride(WidgetRole role, boolean includeTheme) {
         if (role == null) role = WidgetRole.UNSPECIFIED;
         UIContext context = uiContext();
-        Theme theme = context == null ? Theme.EMPTY : context.theme();
+        Theme theme = includeTheme && context != null ? context.theme() : Theme.EMPTY;
         String type = styleType();
         Style themeStyle = theme instanceof StylePack stylePack
                 ? stylePack.resolveStyleFor(type, styleId(), styleClasses())

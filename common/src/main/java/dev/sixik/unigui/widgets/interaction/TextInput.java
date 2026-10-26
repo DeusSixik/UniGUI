@@ -50,6 +50,8 @@ public class TextInput extends Box {
         public static final String RADIUS = StyleIds.Key.RADIUS;
         public static final String TEXT_COLOR = StyleIds.Key.TEXT_COLOR;
         public static final String PLACEHOLDER_COLOR = StyleIds.Key.PLACEHOLDER_COLOR;
+        public static final String CARET_COLOR = StyleIds.Key.CARET_COLOR;
+        public static final String FOCUS_RING_COLOR = StyleIds.Key.FOCUS_RING_COLOR;
         public static final String ACCENT_COLOR = StyleIds.Key.ACCENT_COLOR;
 
         private StyleProperties() {
@@ -418,16 +420,20 @@ public class TextInput extends Box {
 
     @Override
     protected void applyTheme() {
-        // Выключенная тема = «не трогай мои цвета»: как в SurfaceWidget,
-        // иначе пересчёт focusRingColor затёр бы ручную прозрачность
-        // (кейс ISF-поиска с выключенной темой и своим фоном).
-        if (!themeEnabled()) return;
         super.applyTheme();
         textColor.set(styleValue(StyleKeys.TEXT_COLOR, textColor));
         placeholderColor.set(styleValue(StyleKeys.PLACEHOLDER_COLOR, placeholderColor));
-        caretColor.set(styleValue(StyleKeys.ACCENT_COLOR, caretColor));
-        focusBorderColor.set(styleValue(StyleKeys.ACCENT_COLOR, focusBorderColor));
-        focusRingColor.set(focusBorderColor.r(), focusBorderColor.g(), focusBorderColor.b(), 0.30f);
+        WidgetState state = styleState();
+        ColorView accent = styleValue(StyleKeys.ACCENT_COLOR, state, caretColor);
+        caretColor.set(styleValue(StyleKeys.CARET_COLOR, state, accent));
+        hoverBorderColor.set(styleValue(StyleKeys.BORDER_COLOR, WidgetState.HOVERED, hoverBorderColor));
+        ColorView focusedAccent = styleValue(StyleKeys.ACCENT_COLOR, WidgetState.FOCUSED, focusBorderColor);
+        focusBorderColor.set(styleValue(StyleKeys.BORDER_COLOR, WidgetState.FOCUSED, focusedAccent));
+        if (themeEnabled()) {
+            focusRingColor.set(focusBorderColor.r(), focusBorderColor.g(), focusBorderColor.b(), 0.30f);
+        }
+        ColorView styledFocusRing = styleValue(StyleKeys.FOCUS_RING_COLOR, state, null);
+        if (styledFocusRing != null) focusRingColor.set(styledFocusRing);
     }
 
     @Override

@@ -2,6 +2,7 @@ package dev.sixik.unigui.api.style;
 
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.render.ImageFit;
+import dev.sixik.unigui.api.render.SliceBorders;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.shaders.ShaderHandle;
 import dev.sixik.unigui.api.widget.visual.BackgroundKind;
@@ -47,6 +48,12 @@ public final class StyleKeys {
      */
     public static final StyleKey<ImageFit> BACKGROUND_TEXTURE_FIT = StyleKey.of(StyleIds.Key.BACKGROUND_TEXTURE_FIT, ImageFit.class);
 
+    /** Рамки фоновой текстуры для режима nine-slice. */
+    public static final StyleKey<SliceBorders> SLICE_BORDERS = StyleKey.of(StyleIds.Key.SLICE_BORDERS, SliceBorders.class);
+
+    /** Признак отрисовки фоновой поверхности. */
+    public static final StyleKey<Boolean> BACKGROUND_VISIBLE = StyleKey.of(StyleIds.Key.BACKGROUND_VISIBLE, Boolean.class);
+
     /**
      * Шейдер фона виджета.
      */
@@ -57,6 +64,9 @@ public final class StyleKeys {
      */
     public static final StyleKey<ColorView> BORDER_COLOR = StyleKey.of(StyleIds.Key.BORDER_COLOR, ColorView.class);
 
+    /** Признак отрисовки рамки поверхности. */
+    public static final StyleKey<Boolean> BORDER_VISIBLE = StyleKey.of(StyleIds.Key.BORDER_VISIBLE, Boolean.class);
+
     /**
      * Основной цвет текста.
      */
@@ -66,6 +76,12 @@ public final class StyleKeys {
      * Цвет placeholder-текста в input-like виджетах.
      */
     public static final StyleKey<ColorView> PLACEHOLDER_COLOR = StyleKey.of(StyleIds.Key.PLACEHOLDER_COLOR, ColorView.class);
+
+    /** Цвет каретки однострочных и многострочных текстовых редакторов. */
+    public static final StyleKey<ColorView> CARET_COLOR = StyleKey.of(StyleIds.Key.CARET_COLOR, ColorView.class);
+
+    /** Цвет внешнего кольца фокуса текстового поля. */
+    public static final StyleKey<ColorView> FOCUS_RING_COLOR = StyleKey.of(StyleIds.Key.FOCUS_RING_COLOR, ColorView.class);
 
     /**
      * Акцентный цвет для selected/focused/active частей виджета.
