@@ -14,7 +14,9 @@ import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.widgets.core.Orientation;
+import dev.sixik.unigui.widgets.WidgetStyles;
 
 /**
  * Интерактивный разделитель, встроенный в {@link SplitPanel}.
@@ -36,11 +38,18 @@ public final class Splitter extends Box {
     Splitter(SplitPanel owner) {
         this.owner = owner;
         boxVisualEnabled(false);
-        backgroundVisible(true);
-        borderVisible(false);
-        background().set(0.09f, 0.10f, 0.12f, 0.95f);
-        radius(2.0f);
         handleColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
+        applyComponentStyleDefaults(WidgetStyles.Splitter.DEFAULT);
+    }
+
+    /**
+     * Возвращает стандартный стиль дорожки разделителя, уступающий стилям темы и экземпляра.
+     *
+     * @return стандартные значения оформления компонента разделителя
+     */
+    @Override
+    protected Style defaultStyle() {
+        return WidgetStyles.Splitter.DEFAULT;
     }
 
     /**

@@ -23,6 +23,8 @@ import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
+import dev.sixik.unigui.api.style.Style;
+import dev.sixik.unigui.widgets.WidgetStyles;
 
 @XmlWidgetName("SearchField")
 public class SearchField extends TextInput {
@@ -48,11 +50,21 @@ public class SearchField extends TextInput {
     private boolean clearButtonHovered;
 
     public SearchField() {
-        enableDefaultTextInputChrome();
+        applyComponentStyleDefaults(WidgetStyles.TextInput.DEFAULT_CHROME);
         placeholder("Search...");
         lastEmittedSearchQuery = text();
         pendingSearchQuery = text();
         onTextChanged(event -> scheduleSearchChanged(event.newText()));
+    }
+
+    /**
+     * Возвращает defaults chrome для семейства стандартных текстовых полей.
+     *
+     * @return стандартный style preset оформления поля
+     */
+    @Override
+    protected Style defaultStyle() {
+        return WidgetStyles.TextInput.DEFAULT_CHROME;
     }
 
     public SearchField(String query) {

@@ -475,6 +475,23 @@ public abstract class WidgetBase implements Widget {
         return this;
     }
 
+    /**
+     * Удаляет inline-style этого виджета, не меняя style scopes и styles, назначенные извне.
+     *
+     * @return этот виджет
+     */
+    @Override
+    public WidgetBase styleClear() {
+        if (inlineStyle == null && styleDiagnostics.isEmpty()) return this;
+        if (inlineStyle != null && localStyles.get(Theme.WILDCARD) == inlineStyle) {
+            localStyles.remove(Theme.WILDCARD);
+        }
+        inlineStyle = null;
+        styleDiagnostics = List.of();
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
     @Override
     public List<XmlWidgetDiagnostic> styleDiagnostics() {
         return styleDiagnostics;
@@ -1450,14 +1467,27 @@ public abstract class WidgetBase implements Widget {
      * @return compatible style renderer or {@code null}
      */
     protected WidgetRender styleRenderOverride(WidgetRole role) {
+        return styleRenderOverride(role, true);
+    }
+
+    /**
+     * Resolves a renderer override while optionally excluding the global theme.
+     * Local styles remain in the lookup chain regardless of the theme flag.
+     *
+     * @param role expected widget role
+     * @param includeTheme whether global theme and StylePack values participate
+     * @return compatible style renderer or {@code null}
+     */
+    protected WidgetRender styleRenderOverride(WidgetRole role, boolean includeTheme) {
         if (role == null) role = WidgetRole.UNSPECIFIED;
         UIContext context = uiContext();
-        Theme theme = context == null ? Theme.EMPTY : context.theme();
+        Theme theme = includeTheme && context != null ? context.theme() : Theme.EMPTY;
         String type = styleType();
         Style themeStyle = theme instanceof StylePack stylePack
                 ? stylePack.resolveStyleFor(type, styleId(), styleClasses())
                 : theme.styleFor(type);
-        Object value = themeStyle.get(StyleKeys.RENDERER, null, null);
+        Object value = defaultStyle().get(StyleKeys.RENDERER, null, null);
+        value = themeStyle.get(StyleKeys.RENDERER, null, value);
         if ((value == null || value.equals("")) && theme instanceof StylePack stylePack) {
             value = stylePack.rendererIdFor(type, styleId(), styleClasses());
         }
@@ -1466,6 +1496,15 @@ public abstract class WidgetBase implements Widget {
             value = localStyle.get(StyleKeys.RENDERER, null, value);
         }
         return WidgetRenderRegistry.global().resolve(role, value, null);
+    }
+
+    /**
+     * Возвращает встроенные defaults компонента, которые лежат ниже темы и локальных стилей.
+     *
+     * @return defaults виджета или {@link Style#EMPTY}
+     */
+    protected Style defaultStyle() {
+        return Style.EMPTY;
     }
 
     private List<Widget> styleLookupChain() {

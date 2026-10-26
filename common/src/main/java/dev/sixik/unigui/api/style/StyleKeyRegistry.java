@@ -3,6 +3,9 @@ package dev.sixik.unigui.api.style;
 import dev.sixik.unigui.api.animation.AnimationEasing;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.render.ImageFit;
+import dev.sixik.unigui.api.render.SimpleTextureHandle;
+import dev.sixik.unigui.api.render.SliceBorders;
+import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.shaders.ShaderHandle;
 import dev.sixik.unigui.api.widget.visual.BackgroundKind;
 
@@ -41,6 +44,23 @@ public final class StyleKeyRegistry {
         StyleValueCodec<ColorView> color = StyleValueCodec.color();
         StyleValueCodec<Float> number = StyleValueCodec.floatingPoint();
         StyleValueCodec<ImageFit> imageFit = StyleValueCodec.enumCodec(ImageFit.class);
+        StyleValueCodec<Boolean> bool = StyleValueCodec.of(value -> {
+            if ("true".equalsIgnoreCase(value)) return true;
+            if ("false".equalsIgnoreCase(value)) return false;
+            throw new IllegalArgumentException("Expected true or false.");
+        }, value -> Boolean.toString(value));
+        StyleValueCodec<SliceBorders> sliceBorders = StyleValueCodec.of(
+                dev.sixik.unigui.api.xml.XmlValueParsers.SLICE_BORDERS::parse,
+                value -> value.left() + " " + value.top() + " " + value.right() + " " + value.bottom());
+        StyleValueCodec<TextureHandle> texture = StyleValueCodec.of(value -> {
+            String[] parts = value.trim().split("\\s+");
+            if (parts.length != 1 && parts.length != 3) {
+                throw new IllegalArgumentException("Expected texture id and optional width/height.");
+            }
+            int width = parts.length == 3 ? Integer.parseInt(parts[1]) : 16;
+            int height = parts.length == 3 ? Integer.parseInt(parts[2]) : 16;
+            return new SimpleTextureHandle(parts[0], width, height);
+        }, value -> value.id() + " " + value.width() + " " + value.height());
         StyleValueCodec<AnimationEasing> easing = StyleValueCodec.enumCodec(AnimationEasing.class);
         StyleValueCodec<BackgroundKind> backgroundKind = StyleValueCodec.enumCodec(BackgroundKind.class);
         StyleValueCodec<ShaderHandle> shader = StyleValueCodec.of(
@@ -49,14 +69,20 @@ public final class StyleKeyRegistry {
         return empty()
                 .register(new StylePropertyDescriptor<>(StyleKeys.BACKGROUND_KIND, "Background kind", "Background", null, backgroundKind, "Background source: none, color, texture or shader."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.BACKGROUND_COLOR, "Background color", "Background", null, color, "Main fill color."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.BACKGROUND_VISIBLE, "Background visible", "Background", false, bool, "Whether the surface background is rendered."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.BACKGROUND_SHADER, "Background shader", "Background", null, shader, "Shader resource id used when background kind is shader."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.BACKGROUND_TEXTURE, "Background texture", "Background", null, texture, "Texture id, optionally followed by source width and height."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.BACKGROUND_TEXTURE_TINT, "Texture tint", "Background", null, color, "Tint applied over the background texture."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.BACKGROUND_TEXTURE_FIT, "Texture fit", "Background", ImageFit.STRETCH, imageFit, "Texture placement mode."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.SLICE_BORDERS, "Slice borders", "Background", SliceBorders.ZERO, sliceBorders, "Nine-slice borders in texture pixels: left top right bottom."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.BORDER_COLOR, "Border color", "Border", null, color, "Stroke color."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.BORDER_VISIBLE, "Border visible", "Border", false, bool, "Whether the surface border is rendered."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.BORDER_WIDTH, "Border width", "Border", 0.0f, number, "Stroke width in logical pixels."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.RADIUS, "Radius", "Border", 0.0f, number, "Corner radius in logical pixels."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.TEXT_COLOR, "Text color", "Text", null, color, "Primary text color."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.PLACEHOLDER_COLOR, "Placeholder color", "Text", null, color, "Placeholder text color."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.CARET_COLOR, "Caret color", "Text", null, color, "Text editor caret color."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.FOCUS_RING_COLOR, "Focus ring color", "Focus", null, color, "Outer focus ring color for text inputs."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.ACCENT_COLOR, "Accent color", "Accent", null, color, "Accent color for active controls."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.TRACK_COLOR, "Track color", "Controls", null, color, "Track color for slider/progress controls."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.THUMB_COLOR, "Thumb color", "Controls", null, color, "Thumb color for slider/scroll controls."))

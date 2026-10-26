@@ -12,12 +12,14 @@ import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.widget.RenderedBoundsMapper;
 import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.layout.v3.OverlayLayoutResolver;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.StackPanel;
+import dev.sixik.unigui.widgets.WidgetStyles;
 
 @XmlWidgetName("Popup")
 public final class Popup extends Box implements OverlayHostAware {
@@ -34,17 +36,23 @@ public final class Popup extends Box implements OverlayHostAware {
     private Runnable onOpenChanged;
 
     public Popup() {
-        backgroundVisible(true);
-        borderVisible(true);
-        radius(3.0f);
-        background().set(0.025f, 0.030f, 0.040f, 0.97f);
-        borderColor().set(0.25f, 0.78f, 1.0f, 0.90f);
+        applyComponentStyleDefaults(WidgetStyles.Popup.DEFAULT);
         layout(style -> style
                 .position(PositionType.ABSOLUTE)
                 .maxWidthPercent(100.0f)
                 .maxHeightPercent(100.0f)
                 .overflow(Overflow.HIDDEN));
         visible(false);
+    }
+
+    /**
+     * Возвращает стандартный стиль поверхности всплывающего окна, уступающий стилям темы и экземпляра.
+     *
+     * @return стандартные значения оформления всплывающего окна
+     */
+    @Override
+    protected Style defaultStyle() {
+        return WidgetStyles.Popup.DEFAULT;
     }
 
     public Popup(Widget anchor, Widget content) {

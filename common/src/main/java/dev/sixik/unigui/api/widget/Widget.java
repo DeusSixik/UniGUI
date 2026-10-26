@@ -186,6 +186,16 @@ public interface Widget extends EventEmitter {
     }
 
     /**
+     * Удаляет inline-объявления, добавленные через {@link #style(String)} и {@link #style(Consumer)}.
+     * Глобальная тема, component defaults и назначенные родителем local styles остаются активны.
+     *
+     * @return этот виджет
+     */
+    default Widget styleClear() {
+        return this;
+    }
+
+    /**
      * @return диагностика, собранная при разборе встроенных объявлений стиля
      */
     default List<XmlWidgetDiagnostic> styleDiagnostics() {

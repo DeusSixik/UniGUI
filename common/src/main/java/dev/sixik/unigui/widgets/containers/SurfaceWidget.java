@@ -41,6 +41,7 @@ import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.api.widget.render.WidgetRender;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -66,7 +67,9 @@ import java.util.function.Consumer;
  */
 @XmlWidgetName("Surface")
 public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
-    /** Композируемая поверхность: фон, рамка и радиус. */
+    /**
+     * Композируемая поверхность: фон, рамка и радиус.
+     */
     protected final Surface surface = new Surface(() -> invalidate(InvalidationFlags.VISUAL));
     /**
      * Мастер-переключатель отрисовки поверхности. Контролы со своим foreground
@@ -113,6 +116,56 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
         return (T) this;
     }
 
+    /**
+     * Применяет при создании только стандартные значения поверхности компонента для состояния NORMAL.
+     * Значения темы и родительских/локальных стилей разрешаются позже через {@link #applyTheme()}.
+     *
+     * @param defaults стандартные стили компонента, применяемые к поверхности
+     */
+    protected final void applyComponentStyleDefaults(Style defaults) {
+        if (defaults == null || defaults == Style.EMPTY) return;
+        surface.themeUpdating(true);
+        try {
+            BackgroundKind kind = defaults.get(StyleKeys.BACKGROUND_KIND, WidgetState.NORMAL,
+                    surface.backgroundKind());
+            ColorView background = defaults.get(StyleKeys.BACKGROUND_COLOR, WidgetState.NORMAL,
+                    surface.background());
+            Boolean backgroundVisible = defaults.get(StyleKeys.BACKGROUND_VISIBLE, WidgetState.NORMAL,
+                    surface.backgroundVisible());
+            TextureHandle backgroundTexture = defaults.get(StyleKeys.BACKGROUND_TEXTURE, WidgetState.NORMAL,
+                    surface.backgroundTexture());
+            ColorView textureTint = defaults.get(StyleKeys.BACKGROUND_TEXTURE_TINT, WidgetState.NORMAL,
+                    surface.backgroundTextureTint());
+            ImageFit textureFit = defaults.get(StyleKeys.BACKGROUND_TEXTURE_FIT, WidgetState.NORMAL,
+                    surface.backgroundTextureFit());
+            SliceBorders sliceBorders = defaults.get(StyleKeys.SLICE_BORDERS, WidgetState.NORMAL,
+                    surface.sliceBorders());
+            ShaderHandle shader = defaults.get(StyleKeys.BACKGROUND_SHADER, WidgetState.NORMAL,
+                    surface.backgroundShader());
+            ColorView border = defaults.get(StyleKeys.BORDER_COLOR, WidgetState.NORMAL,
+                    surface.borderColor());
+            Boolean borderVisible = defaults.get(StyleKeys.BORDER_VISIBLE, WidgetState.NORMAL,
+                    surface.borderVisible());
+            Float borderWidth = defaults.get(StyleKeys.BORDER_WIDTH, WidgetState.NORMAL,
+                    surface.borderWidth());
+            Float radius = defaults.get(StyleKeys.RADIUS, WidgetState.NORMAL, surface.radius());
+            if (kind != null) surface.backgroundKind(kind);
+            if (background != null) surface.background().set(background);
+            if (backgroundVisible != null) surface.backgroundVisible(backgroundVisible);
+            if (backgroundTexture != null) surface.backgroundTexture(backgroundTexture);
+            if (textureTint != null) surface.backgroundTextureTint().set(textureTint);
+            if (textureFit != null) surface.backgroundTextureFit(textureFit);
+            if (sliceBorders != null) surface.sliceBorders(sliceBorders);
+            if (shader != null) surface.backgroundShader(shader);
+            if (border != null) surface.borderColor().set(border);
+            if (borderVisible != null) surface.borderVisible(borderVisible);
+            if (borderWidth != null) surface.borderWidth(borderWidth);
+            if (radius != null) surface.radius(radius);
+        } finally {
+            surface.themeUpdating(false);
+        }
+    }
+
     @Override
     public T style(String declarations) {
         super.style(declarations);
@@ -122,6 +175,17 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
     @Override
     public T style(Consumer<MutableStyle> update) {
         super.style(update);
+        return self();
+    }
+
+    /**
+     * Удаляет inline-style этого виджета, сохраняя component defaults, тему и внешние local styles.
+     *
+     * @return этот виджет для fluent-настройки
+     */
+    @Override
+    public T styleClear() {
+        super.styleClear();
         return self();
     }
 
@@ -154,7 +218,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
     /**
      * Анимирует цвет фона за заданное время.
      *
-     * @param color целевой цвет
+     * @param color           целевой цвет
      * @param durationSeconds длительность анимации в секундах
      * @return этот виджет для fluent-настройки
      */
@@ -167,7 +231,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      * Анимирует цвет фона по заданной transition-спецификации.
      *
      * @param color целевой цвет
-     * @param spec параметры transition'а
+     * @param spec  параметры transition'а
      * @return этот виджет для fluent-настройки
      */
     public T animateBackgroundColor(ColorView color, TransitionSpec spec) {
@@ -364,7 +428,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
     /**
      * Анимирует tint фоновой текстуры за заданное время.
      *
-     * @param color целевой tint-цвет
+     * @param color           целевой tint-цвет
      * @param durationSeconds длительность анимации в секундах
      * @return этот виджет для fluent-настройки
      */
@@ -377,7 +441,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      * Анимирует tint фоновой текстуры по заданной transition-спецификации.
      *
      * @param color целевой tint-цвет
-     * @param spec параметры transition'а
+     * @param spec  параметры transition'а
      * @return этот виджет для fluent-настройки
      */
     public T animateBackgroundTextureTint(ColorView color, TransitionSpec spec) {
@@ -546,9 +610,9 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
     /**
      * Задаёт рамки nine-slice по четырём сторонам.
      *
-     * @param left левая рамка в пикселях текстуры
-     * @param top верхняя рамка в пикселях текстуры
-     * @param right правая рамка в пикселях текстуры
+     * @param left   левая рамка в пикселях текстуры
+     * @param top    верхняя рамка в пикселях текстуры
+     * @param right  правая рамка в пикселях текстуры
      * @param bottom нижняя рамка в пикселях текстуры
      * @return этот виджет для fluent-настройки
      */
@@ -585,7 +649,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
     /**
      * Анимирует цвет рамки за заданное время.
      *
-     * @param color целевой цвет рамки
+     * @param color           целевой цвет рамки
      * @param durationSeconds длительность анимации в секундах
      * @return этот виджет для fluent-настройки
      */
@@ -598,7 +662,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      * Анимирует цвет рамки по заданной transition-спецификации.
      *
      * @param color целевой цвет рамки
-     * @param spec параметры transition'а
+     * @param spec  параметры transition'а
      * @return этот виджет для fluent-настройки
      */
     public T animateBorderColor(ColorView color, TransitionSpec spec) {
@@ -652,7 +716,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
     /**
      * Анимирует толщину рамки за заданное время.
      *
-     * @param borderWidth целевая толщина рамки
+     * @param borderWidth     целевая толщина рамки
      * @param durationSeconds длительность анимации в секундах
      * @return этот виджет для fluent-настройки
      */
@@ -664,7 +728,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      * Анимирует толщину рамки по заданной transition-спецификации.
      *
      * @param borderWidth целевая толщина рамки
-     * @param spec параметры transition'а
+     * @param spec        параметры transition'а
      * @return этот виджет для fluent-настройки
      */
     public T animateBorderWidth(float borderWidth, TransitionSpec spec) {
@@ -697,7 +761,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
     /**
      * Анимирует радиус скругления за заданное время.
      *
-     * @param radius целевой радиус скругления
+     * @param radius          целевой радиус скругления
      * @param durationSeconds длительность анимации в секундах
      * @return этот виджет для fluent-настройки
      */
@@ -709,7 +773,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      * Анимирует радиус скругления по заданной transition-спецификации.
      *
      * @param radius целевой радиус скругления
-     * @param spec параметры transition'а
+     * @param spec   параметры transition'а
      * @return этот виджет для fluent-настройки
      */
     public T animateRadius(float radius, TransitionSpec spec) {
@@ -764,12 +828,15 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
     }
 
     /**
-     * Включает или выключает theme/style lookup для этого виджета.
+     * Включает или выключает lookup глобальной темы для этого виджета.
      *
-     * @param themeEnabled {@code true}, чтобы применять theme/local styles
+     * <p>Локальные стили, заданные через {@link #style(Consumer)}, применяются независимо
+     * от этого флага и имеют приоритет над глобальной темой.</p>
+     *
+     * @param themeEnabled {@code true}, чтобы применять глобальную тему
      * @return этот виджет для fluent-настройки
      */
-    @XmlAttribute(value = "themeEnabled", category = "Appearance", defaultValue = "true", description = "Whether theme/style lookup can override visual values.")
+    @XmlAttribute(value = "themeEnabled", category = "Appearance", defaultValue = "true", description = "Whether global theme lookup can override visual values; local styles always apply.")
     public T themeEnabled(boolean themeEnabled) {
         if (this.themeEnabled == themeEnabled) return self();
         this.themeEnabled = themeEnabled;
@@ -881,10 +948,10 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      * порядок добавления. Пустые ({@code null}-текстура) и невидимые слои
      * пропускаются. No-op без слоёв: ноль накладных для одиночных фонов.</p>
      *
-     * @param draw draw scope поверхности
-     * @param x X границ
-     * @param y Y границ
-     * @param width ширина
+     * @param draw   draw scope поверхности
+     * @param x      X границ
+     * @param y      Y границ
+     * @param width  ширина
      * @param height высота
      * @param radius радиус скругления поверхности
      */
@@ -904,11 +971,11 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      * {@code TexturePlacement} + {@code draw.textureTinted}. Общая точка для
      * базового фона и оверлеев, чтобы размещение не разъезжалось.</p>
      *
-     * @param draw draw scope поверхности
-     * @param layer слой для отрисовки
-     * @param x X границ
-     * @param y Y границ
-     * @param width ширина
+     * @param draw   draw scope поверхности
+     * @param layer  слой для отрисовки
+     * @param x      X границ
+     * @param y      Y границ
+     * @param width  ширина
      * @param height высота
      * @param radius радиус скругления поверхности
      */
@@ -949,9 +1016,8 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      * local style scopes, чтобы invalidate происходил при смене стилей.</p>
      */
     protected void applyTheme() {
-        if (!themeEnabled) return;
         UIContext context = uiContext();
-        long styleVersion = context == null ? Theme.EMPTY.version() : context.styleVersion();
+        long styleVersion = !themeEnabled || context == null ? Theme.EMPTY.version() : context.styleVersion();
         long scopeStyleVersion = scopeStyleVersion();
         WidgetState state = styleState();
         updateStyleTransition(styleVersion, scopeStyleVersion, state);
@@ -967,43 +1033,65 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
         TextureHandle themedBackgroundTexture = styleValue(StyleKeys.BACKGROUND_TEXTURE, state, surface.backgroundTexture());
         ColorView themedBackgroundTextureTint = styleValue(StyleKeys.BACKGROUND_TEXTURE_TINT, state, surface.backgroundTextureTint());
         ImageFit themedBackgroundTextureFit = styleValue(StyleKeys.BACKGROUND_TEXTURE_FIT, state, surface.backgroundTextureFit());
+        SliceBorders themedSliceBorders = styleValue(
+                StyleKeys.SLICE_BORDERS, state, surface.sliceBorders());
         ShaderHandle themedShader = styleValue(StyleKeys.BACKGROUND_SHADER, state, surface.backgroundShader());
         ColorView themedBorder = styleValue(StyleKeys.BORDER_COLOR, state, surface.borderColor());
         Float themedBorderWidth = styleValue(StyleKeys.BORDER_WIDTH, state, surface.borderWidth());
         Float themedRadius = styleValue(StyleKeys.RADIUS, state, surface.radius());
+        Boolean themedBackgroundVisible = styleValue(StyleKeys.BACKGROUND_VISIBLE, state, surface.backgroundVisible());
+        Boolean themedBorderVisible = styleValue(StyleKeys.BORDER_VISIBLE, state, surface.borderVisible());
 
         surface.themeUpdating(true);
         try {
-            if (themedKind != null && !surface.hasExplicitBackgroundKind()
+            if (themedKind != null && (!surface.hasExplicitBackgroundKind()
+                    || hasLocalStyleValue(StyleKeys.BACKGROUND_KIND, state))
                     && themedKind != surface.backgroundKind()) {
                 surface.backgroundKind(themedKind);
             }
-            if (themedBackground != null && !surface.hasExplicitBackground()) {
+            if (themedBackground != null && (!surface.hasExplicitBackground()
+                    || hasLocalStyleValue(StyleKeys.BACKGROUND_COLOR, state))) {
                 animateColor(surface.background(), themedBackground, styleTransition);
             }
-            if (!surface.hasExplicitBackgroundTexture()
+            if ((!surface.hasExplicitBackgroundTexture()
+                    || hasLocalStyleValue(StyleKeys.BACKGROUND_TEXTURE, state))
                     && surface.backgroundTexture() != themedBackgroundTexture) {
                 surface.backgroundTexture(themedBackgroundTexture);
             }
-            if (themedBackgroundTextureTint != null && !surface.hasExplicitBackgroundTextureTint()) {
+            if (themedBackgroundTextureTint != null && (!surface.hasExplicitBackgroundTextureTint()
+                    || hasLocalStyleValue(StyleKeys.BACKGROUND_TEXTURE_TINT, state))) {
                 animateColor(surface.backgroundTextureTint(), themedBackgroundTextureTint, styleTransition);
             }
-            if (!surface.hasExplicitBackgroundTextureFit()
+            if ((!surface.hasExplicitBackgroundTextureFit()
+                    || hasLocalStyleValue(StyleKeys.BACKGROUND_TEXTURE_FIT, state))
                     && themedBackgroundTextureFit != null
                     && surface.backgroundTextureFit() != themedBackgroundTextureFit) {
                 surface.backgroundTextureFit(themedBackgroundTextureFit);
             }
-            if (!surface.hasExplicitBackgroundShader() && themedShader != surface.backgroundShader()) {
+            if ((!surface.hasExplicitBackgroundShader() || hasLocalStyleValue(StyleKeys.BACKGROUND_SHADER, state))
+                    && themedShader != surface.backgroundShader()) {
                 surface.backgroundShader(themedShader);
             }
-            if (themedBorder != null && !surface.hasExplicitBorder()) {
+            if (themedSliceBorders != null && !surface.sliceBorders().equals(themedSliceBorders)) {
+                surface.sliceBorders(themedSliceBorders);
+            }
+            if (themedBackgroundVisible != null && surface.backgroundVisible() != themedBackgroundVisible) {
+                surface.backgroundVisible(themedBackgroundVisible);
+            }
+            if (themedBorderVisible != null && surface.borderVisible() != themedBorderVisible) {
+                surface.borderVisible(themedBorderVisible);
+            }
+            if (themedBorder != null && (!surface.hasExplicitBorder()
+                    || hasLocalStyleValue(StyleKeys.BORDER_COLOR, state))) {
                 animateColor(surface.borderColor(), themedBorder, styleTransition);
             }
-            if (themedBorderWidth != null && !surface.hasExplicitBorder()) {
+            if (themedBorderWidth != null && (!surface.hasExplicitBorder()
+                    || hasLocalStyleValue(StyleKeys.BORDER_WIDTH, state))) {
                 animateParameter(StyleKeys.BORDER_WIDTH, borderWidthReader, borderWidthWriter,
                         themedBorderWidth, styleTransition);
             }
-            if (themedRadius != null && !surface.hasExplicitRadius()) {
+            if (themedRadius != null && (!surface.hasExplicitRadius()
+                    || hasLocalStyleValue(StyleKeys.RADIUS, state))) {
                 animateParameter(StyleKeys.RADIUS, radiusReader, radiusWriter, themedRadius, styleTransition);
             }
         } finally {
@@ -1062,13 +1150,13 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
 
     @Override
     protected WidgetRender styleRenderOverride() {
-        return themeEnabled ? super.styleRenderOverride() : null;
+        return super.styleRenderOverride(renderRole(), themeEnabled);
     }
 
     /**
      * Ищет style value в theme и local style scopes.
      *
-     * @param key ключ style-значения
+     * @param key      ключ style-значения
      * @param fallback значение, если style ничего не задал
      * @return найденное или fallback-значение
      */
@@ -1079,25 +1167,40 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
     /**
      * Ищет style value для конкретного {@link WidgetState}.
      *
-     * @param key ключ style-значения
-     * @param state состояние виджета для style lookup
+     * @param key      ключ style-значения
+     * @param state    состояние виджета для style lookup
      * @param fallback значение, если style ничего не задал
      * @return найденное или fallback-значение
      */
     protected <S> S styleValue(StyleKey<S> key, WidgetState state, S fallback) {
-        if (!themeEnabled) return fallback;
         UIContext context = uiContext();
-        Theme theme = context == null ? Theme.EMPTY : context.theme();
+        Theme theme = themeEnabled && context != null ? context.theme() : Theme.EMPTY;
         String type = styleType();
+        S value = defaultStyle().get(key, state, fallback);
         Style themeStyle = theme instanceof StylePack stylePack
                 ? stylePack.resolveStyleFor(type, styleId(), styleClasses())
                 : theme.styleFor(type);
-        S value = themeStyle.get(key, state, fallback);
+        value = themeStyle.get(key, state, value);
         for (Widget current : styleLookupChain()) {
             Style localStyle = current.localStyle(type);
             value = localStyle.get(key, state, value);
         }
         return value;
+    }
+
+    private boolean hasLocalStyleValue(StyleKey<?> key, WidgetState state) {
+        String type = styleType();
+        for (Widget current = this; current != null; current = current.parent()) {
+            java.util.Map<WidgetState, java.util.Map<StyleKey<?>, Object>> values = current.localStyle(type).values();
+            java.util.Map<StyleKey<?>, Object> stateValues = values.get(state);
+            if (stateValues != null && stateValues.containsKey(key)) return true;
+            if (state != WidgetState.NORMAL) {
+                java.util.Map<StyleKey<?>, Object> normalValues = values.get(WidgetState.NORMAL);
+                if (normalValues != null && normalValues.containsKey(key)) return true;
+            }
+            if (current != this && current.styleScope()) break;
+        }
+        return false;
     }
 
     private long scopeStyleVersion() {

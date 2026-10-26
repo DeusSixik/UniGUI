@@ -9,13 +9,17 @@ package dev.sixik.unigui.api.style;
  * литералов в темах, XML и custom skin'ах.</p>
  */
 public final class StyleIds {
-    /** Wildcard id для fallback/local стилей. */
+    /**
+     * Wildcard id для fallback/local стилей.
+     */
     public static final String WILDCARD = Theme.WILDCARD;
 
     private StyleIds() {
     }
 
-    /** Id style-свойств, на основе которых создаются {@link StyleKey} constants. */
+    /**
+     * Id style-свойств, на основе которых создаются {@link StyleKey} constants.
+     */
     public static final class Key {
         public static final String RENDERER = "renderer";
         public static final String BACKGROUND_KIND = "background.kind";
@@ -23,10 +27,15 @@ public final class StyleIds {
         public static final String BACKGROUND_TEXTURE = "background.texture";
         public static final String BACKGROUND_TEXTURE_TINT = "background.texture.tint";
         public static final String BACKGROUND_TEXTURE_FIT = "background.texture.fit";
+        public static final String SLICE_BORDERS = "background.texture.slice-borders";
         public static final String BACKGROUND_SHADER = "background.shader";
+        public static final String BACKGROUND_VISIBLE = "background.visible";
         public static final String BORDER_COLOR = "border.color";
+        public static final String BORDER_VISIBLE = "border.visible";
         public static final String TEXT_COLOR = "text.color";
         public static final String PLACEHOLDER_COLOR = "placeholder.color";
+        public static final String CARET_COLOR = "caret.color";
+        public static final String FOCUS_RING_COLOR = "focus.ring.color";
         public static final String ACCENT_COLOR = "accent.color";
         public static final String TRACK_COLOR = "track.color";
         public static final String THUMB_COLOR = "thumb.color";
@@ -39,7 +48,9 @@ public final class StyleIds {
         }
     }
 
-    /** Id типов виджетов, используемые Theme и local style lookup. */
+    /**
+     * Id типов виджетов, используемые Theme и local style lookup.
+     */
     public static final class Widget {
         public static final String ACCORDION = "Accordion";
         public static final String BORDER = "Border";

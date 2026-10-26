@@ -22,6 +22,7 @@ import dev.sixik.unigui.widgets.containers.LinearBox;
 import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.widgets.interaction.Button;
+import dev.sixik.unigui.widgets.WidgetStyles;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 import java.util.Collections;
@@ -590,8 +591,7 @@ public class TreeView extends LinearBox {
             this.depth = depth;
             focusable(false);
             boxVisualEnabled(false);
-            backgroundVisible(false);
-            borderVisible(false);
+            applyComponentStyleDefaults(WidgetStyles.Surface.UNSURFACED);
             layout(style -> style.size(LayoutConstraints.AUTO, ROW_HEIGHT).flexGrow(0).flexShrink(0.0f));
             onClick(event -> {
                 tree.select(node);

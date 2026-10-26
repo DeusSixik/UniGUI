@@ -1,47 +1,31 @@
 package dev.sixik.unigui.widgets.interaction;
 
-import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.FrameContext;
+import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
-import dev.sixik.unigui.api.event.Event;
-import dev.sixik.unigui.api.event.EventListener;
-import dev.sixik.unigui.api.event.EventPhase;
-import dev.sixik.unigui.api.event.EventSubscription;
-import dev.sixik.unigui.api.event.FocusGainedEvent;
-import dev.sixik.unigui.api.event.FocusLostEvent;
-import dev.sixik.unigui.api.event.KeyPressedEvent;
-import dev.sixik.unigui.api.event.PointerEvent;
-import dev.sixik.unigui.api.event.PointerMovedEvent;
-import dev.sixik.unigui.api.event.PointerPressedEvent;
-import dev.sixik.unigui.api.event.PointerReleasedEvent;
-import dev.sixik.unigui.api.event.TextChangedEvent;
-import dev.sixik.unigui.api.event.TextInputEvent;
-import dev.sixik.unigui.api.input.KeyCodes;
-import dev.sixik.unigui.api.input.KeyModifiers;
-import dev.sixik.unigui.api.input.MouseCursor;
-import dev.sixik.unigui.api.input.PointerButton;
-import dev.sixik.unigui.api.input.TextEditorModel;
+import dev.sixik.unigui.api.event.*;
+import dev.sixik.unigui.api.input.*;
 import dev.sixik.unigui.api.layout.LayoutContext;
+import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.style.StyleAnimationIds;
+import dev.sixik.unigui.api.style.StyleIds;
+import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextRun;
-import dev.sixik.unigui.api.style.StyleKeys;
-import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.api.widget.render.WidgetRole;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
-import dev.sixik.unigui.api.widget.render.WidgetRole;
-import dev.sixik.unigui.api.style.StyleAnimationIds;
-import dev.sixik.unigui.api.style.StyleIds;
 import dev.sixik.unigui.widgets.containers.Box;
 
 import java.util.Objects;
-import dev.sixik.unigui.widgets.containers.Box;
 
 /**
  * Generic public single-line text editor widget.
@@ -66,6 +50,8 @@ public class TextInput extends Box {
         public static final String RADIUS = StyleIds.Key.RADIUS;
         public static final String TEXT_COLOR = StyleIds.Key.TEXT_COLOR;
         public static final String PLACEHOLDER_COLOR = StyleIds.Key.PLACEHOLDER_COLOR;
+        public static final String CARET_COLOR = StyleIds.Key.CARET_COLOR;
+        public static final String FOCUS_RING_COLOR = StyleIds.Key.FOCUS_RING_COLOR;
         public static final String ACCENT_COLOR = StyleIds.Key.ACCENT_COLOR;
 
         private StyleProperties() {
@@ -115,8 +101,6 @@ public class TextInput extends Box {
     protected static final float FOCUS_RING_OUTSET = 2.0f;
     /** Толщина фокус-кольца. */
     protected static final float FOCUS_RING_WIDTH = 2.0f;
-    /** Дефолтный радиус поля в хром-режиме. */
-    protected static final float CHROME_RADIUS = 8.0f;
 
     private final TextEditorModel editor = new TextEditorModel();
     private final MutableColor textColor = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -162,20 +146,6 @@ public class TextInput extends Box {
         this();
         editor.silentText(normalize(text));
         editor.cursorIndex(editor.text().length());
-    }
-
-    protected final void enableDefaultTextInputChrome() {
-        backgroundVisible(true);
-        borderVisible(true);
-        // Значения конструктора являются дефолтом контрола, а не явным стилем пользователя.
-        surface().themeUpdating(true);
-        try {
-            background().set(0.08f, 0.086f, 0.10f, 1.0f);
-            borderColor().set(0.18f, 0.20f, 0.23f, 1.0f);
-            surface().radius(CHROME_RADIUS);
-        } finally {
-            surface().themeUpdating(false);
-        }
     }
 
     public TextEditorModel editorModel() {
@@ -434,16 +404,20 @@ public class TextInput extends Box {
 
     @Override
     protected void applyTheme() {
-        // Выключенная тема = «не трогай мои цвета»: как в SurfaceWidget,
-        // иначе пересчёт focusRingColor затёр бы ручную прозрачность
-        // (кейс ISF-поиска с выключенной темой и своим фоном).
-        if (!themeEnabled()) return;
         super.applyTheme();
         textColor.set(styleValue(StyleKeys.TEXT_COLOR, textColor));
         placeholderColor.set(styleValue(StyleKeys.PLACEHOLDER_COLOR, placeholderColor));
-        caretColor.set(styleValue(StyleKeys.ACCENT_COLOR, caretColor));
-        focusBorderColor.set(styleValue(StyleKeys.ACCENT_COLOR, focusBorderColor));
-        focusRingColor.set(focusBorderColor.r(), focusBorderColor.g(), focusBorderColor.b(), 0.30f);
+        WidgetState state = styleState();
+        ColorView accent = styleValue(StyleKeys.ACCENT_COLOR, state, caretColor);
+        caretColor.set(styleValue(StyleKeys.CARET_COLOR, state, accent));
+        hoverBorderColor.set(styleValue(StyleKeys.BORDER_COLOR, WidgetState.HOVERED, hoverBorderColor));
+        ColorView focusedAccent = styleValue(StyleKeys.ACCENT_COLOR, WidgetState.FOCUSED, focusBorderColor);
+        focusBorderColor.set(styleValue(StyleKeys.BORDER_COLOR, WidgetState.FOCUSED, focusedAccent));
+        if (themeEnabled()) {
+            focusRingColor.set(focusBorderColor.r(), focusBorderColor.g(), focusBorderColor.b(), 0.30f);
+        }
+        ColorView styledFocusRing = styleValue(StyleKeys.FOCUS_RING_COLOR, state, null);
+        if (styledFocusRing != null) focusRingColor.set(styledFocusRing);
     }
 
     @Override
@@ -614,7 +588,7 @@ public class TextInput extends Box {
      *
      * @return цвет рамки для отрисовки
      */
-    protected dev.sixik.unigui.api.math.ColorView effectiveBorderColor() {
+    protected ColorView effectiveBorderColor() {
         if (focused) return focusBorderColor;
         if (hovered()) return hoverBorderColor;
         return borderColor();
