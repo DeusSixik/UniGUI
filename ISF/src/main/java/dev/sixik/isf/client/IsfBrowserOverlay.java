@@ -801,11 +801,11 @@ final class IsfBrowserOverlay {
                         ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/gui_background.png"),
                         64, 64, TextureOptions.nearest()));
         content.layout(style -> style
-                .widthPercent(100.0f)
-                .flexGrow(1.0f)
-                .flexShrink(1.0f)
+                .position(PositionType.ABSOLUTE)
                 .top(TAB_CELL - 1)
                 .left(CATALYST_CELL - 1)
+                .right(0.0f)
+                .bottom(0.0f)
                 .padding(6.0f,4.0f,6.0f,4.0f));
 
 
