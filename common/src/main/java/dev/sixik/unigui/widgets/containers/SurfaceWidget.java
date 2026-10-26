@@ -41,6 +41,7 @@ import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.api.widget.render.WidgetRender;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -66,7 +67,9 @@ import java.util.function.Consumer;
  */
 @XmlWidgetName("Surface")
 public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
-    /** Композируемая поверхность: фон, рамка и радиус. */
+    /**
+     * Композируемая поверхность: фон, рамка и радиус.
+     */
     protected final Surface surface = new Surface(() -> invalidate(InvalidationFlags.VISUAL));
     /**
      * Мастер-переключатель отрисовки поверхности. Контролы со своим foreground
@@ -114,10 +117,10 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
     }
 
     /**
-     * Materializes only the component's NORMAL surface defaults during construction.
-     * Theme values and parent/local style scopes are resolved later through {@link #applyTheme()}.
+     * При создании материализует только стандартную поверхность NORMAL компонента.
+     * Значения темы и области родительских/локальных стилей разрешаются позже через {@link #applyTheme()}.
      *
-     * @param defaults immutable component style defaults to materialize
+     * @param defaults неизменяемые стандартные стили компонента для материализации
      */
     protected final void applyComponentStyleDefaults(Style defaults) {
         if (defaults == null || defaults == Style.EMPTY) return;
@@ -215,7 +218,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
     /**
      * Анимирует цвет фона за заданное время.
      *
-     * @param color целевой цвет
+     * @param color           целевой цвет
      * @param durationSeconds длительность анимации в секундах
      * @return этот виджет для fluent-настройки
      */
@@ -228,7 +231,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      * Анимирует цвет фона по заданной transition-спецификации.
      *
      * @param color целевой цвет
-     * @param spec параметры transition'а
+     * @param spec  параметры transition'а
      * @return этот виджет для fluent-настройки
      */
     public T animateBackgroundColor(ColorView color, TransitionSpec spec) {
@@ -425,7 +428,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
     /**
      * Анимирует tint фоновой текстуры за заданное время.
      *
-     * @param color целевой tint-цвет
+     * @param color           целевой tint-цвет
      * @param durationSeconds длительность анимации в секундах
      * @return этот виджет для fluent-настройки
      */
@@ -438,7 +441,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      * Анимирует tint фоновой текстуры по заданной transition-спецификации.
      *
      * @param color целевой tint-цвет
-     * @param spec параметры transition'а
+     * @param spec  параметры transition'а
      * @return этот виджет для fluent-настройки
      */
     public T animateBackgroundTextureTint(ColorView color, TransitionSpec spec) {
@@ -607,9 +610,9 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
     /**
      * Задаёт рамки nine-slice по четырём сторонам.
      *
-     * @param left левая рамка в пикселях текстуры
-     * @param top верхняя рамка в пикселях текстуры
-     * @param right правая рамка в пикселях текстуры
+     * @param left   левая рамка в пикселях текстуры
+     * @param top    верхняя рамка в пикселях текстуры
+     * @param right  правая рамка в пикселях текстуры
      * @param bottom нижняя рамка в пикселях текстуры
      * @return этот виджет для fluent-настройки
      */
@@ -646,7 +649,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
     /**
      * Анимирует цвет рамки за заданное время.
      *
-     * @param color целевой цвет рамки
+     * @param color           целевой цвет рамки
      * @param durationSeconds длительность анимации в секундах
      * @return этот виджет для fluent-настройки
      */
@@ -659,7 +662,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      * Анимирует цвет рамки по заданной transition-спецификации.
      *
      * @param color целевой цвет рамки
-     * @param spec параметры transition'а
+     * @param spec  параметры transition'а
      * @return этот виджет для fluent-настройки
      */
     public T animateBorderColor(ColorView color, TransitionSpec spec) {
@@ -713,7 +716,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
     /**
      * Анимирует толщину рамки за заданное время.
      *
-     * @param borderWidth целевая толщина рамки
+     * @param borderWidth     целевая толщина рамки
      * @param durationSeconds длительность анимации в секундах
      * @return этот виджет для fluent-настройки
      */
@@ -725,7 +728,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      * Анимирует толщину рамки по заданной transition-спецификации.
      *
      * @param borderWidth целевая толщина рамки
-     * @param spec параметры transition'а
+     * @param spec        параметры transition'а
      * @return этот виджет для fluent-настройки
      */
     public T animateBorderWidth(float borderWidth, TransitionSpec spec) {
@@ -758,7 +761,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
     /**
      * Анимирует радиус скругления за заданное время.
      *
-     * @param radius целевой радиус скругления
+     * @param radius          целевой радиус скругления
      * @param durationSeconds длительность анимации в секундах
      * @return этот виджет для fluent-настройки
      */
@@ -770,7 +773,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      * Анимирует радиус скругления по заданной transition-спецификации.
      *
      * @param radius целевой радиус скругления
-     * @param spec параметры transition'а
+     * @param spec   параметры transition'а
      * @return этот виджет для fluent-настройки
      */
     public T animateRadius(float radius, TransitionSpec spec) {
@@ -945,10 +948,10 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      * порядок добавления. Пустые ({@code null}-текстура) и невидимые слои
      * пропускаются. No-op без слоёв: ноль накладных для одиночных фонов.</p>
      *
-     * @param draw draw scope поверхности
-     * @param x X границ
-     * @param y Y границ
-     * @param width ширина
+     * @param draw   draw scope поверхности
+     * @param x      X границ
+     * @param y      Y границ
+     * @param width  ширина
      * @param height высота
      * @param radius радиус скругления поверхности
      */
@@ -968,11 +971,11 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      * {@code TexturePlacement} + {@code draw.textureTinted}. Общая точка для
      * базового фона и оверлеев, чтобы размещение не разъезжалось.</p>
      *
-     * @param draw draw scope поверхности
-     * @param layer слой для отрисовки
-     * @param x X границ
-     * @param y Y границ
-     * @param width ширина
+     * @param draw   draw scope поверхности
+     * @param layer  слой для отрисовки
+     * @param x      X границ
+     * @param y      Y границ
+     * @param width  ширина
      * @param height высота
      * @param radius радиус скругления поверхности
      */
@@ -1153,7 +1156,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
     /**
      * Ищет style value в theme и local style scopes.
      *
-     * @param key ключ style-значения
+     * @param key      ключ style-значения
      * @param fallback значение, если style ничего не задал
      * @return найденное или fallback-значение
      */
@@ -1164,8 +1167,8 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
     /**
      * Ищет style value для конкретного {@link WidgetState}.
      *
-     * @param key ключ style-значения
-     * @param state состояние виджета для style lookup
+     * @param key      ключ style-значения
+     * @param state    состояние виджета для style lookup
      * @param fallback значение, если style ничего не задал
      * @return найденное или fallback-значение
      */
