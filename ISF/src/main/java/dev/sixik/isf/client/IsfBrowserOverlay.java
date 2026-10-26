@@ -774,8 +774,24 @@ final class IsfBrowserOverlay {
                 .alignSelf(Align.START)
         );
 
-        detailPanel.addChild(tabScroll);
+        VBox content = new VBox();
+        content.spacing(2.0f);
+        content.backgroundVisible(true);
+        content.backgroundTextureFit(dev.sixik.unigui.api.render.ImageFit.NINE_SLICE);
+        content.sliceBorders(4.0f);
+        content.backgroundTexture(new MinecraftTextureHandle(
+                ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/gui_background.png"),
+                64, 64, TextureOptions.nearest()));
+        content.layout(style -> style
+                .position(PositionType.ABSOLUTE)
+                .top(TAB_CELL - 1)
+                .left(CATALYST_CELL - 1)
+                .right(0.0f)
+                .bottom(0.0f)
+                .padding(6.0f,4.0f,6.0f,4.0f));
 
+        detailPanel.addChild(content);
+        detailPanel.addChild(tabScroll);
 
         catalystColumn.layout(style -> style
                 .width(SizeValue.auto())
@@ -791,24 +807,6 @@ final class IsfBrowserOverlay {
                 14, 50, TextureOptions.nearest()));
 
         detailPanel.addChild(catalystColumn);
-
-        VBox content = new VBox();
-        content.spacing(2.0f);
-        content.backgroundVisible(true);
-        content.backgroundTextureFit(dev.sixik.unigui.api.render.ImageFit.NINE_SLICE);
-        content.sliceBorders(4.0f);
-        content.backgroundTexture(new MinecraftTextureHandle(
-                        ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/gui_background.png"),
-                        64, 64, TextureOptions.nearest()));
-        content.layout(style -> style
-                .position(PositionType.ABSOLUTE)
-                .top(TAB_CELL - 1)
-                .left(CATALYST_CELL - 1)
-                .right(0.0f)
-                .bottom(0.0f)
-                .padding(6.0f,4.0f,6.0f,4.0f));
-
-
 
         HBox detailHeader = new HBox();
         detailHeader.spacing(2.0f);
@@ -866,7 +864,6 @@ final class IsfBrowserOverlay {
         content.addChild(pageRow);
         content.addChild(recipeArea);
 
-        detailPanel.addChild(content);
         overlayRoot.addOverlay(detailLayer);
         updateDetail(null);
     }
