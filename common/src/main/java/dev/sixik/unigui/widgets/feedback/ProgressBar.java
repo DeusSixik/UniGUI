@@ -8,10 +8,12 @@ import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.widgets.containers.Box;
+import dev.sixik.unigui.widgets.WidgetStyles;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
 
@@ -79,10 +81,19 @@ public class ProgressBar extends Box {
 
     public ProgressBar() {
         boxVisualEnabled(false);
-        backgroundVisible(false);
-        borderVisible(false);
+        applyComponentStyleDefaults(WidgetStyles.Surface.UNSURFACED);
         trackColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         fillColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
+    }
+
+    /**
+     * Returns defaults for a progress bar that draws its own track and fill.
+     *
+     * @return unsurfaced component defaults
+     */
+    @Override
+    protected Style defaultStyle() {
+        return WidgetStyles.Surface.UNSURFACED;
     }
 
     public float min() {

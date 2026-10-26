@@ -30,12 +30,14 @@ import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextRun;
 import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.containers.Box;
+import dev.sixik.unigui.widgets.WidgetStyles;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -86,7 +88,6 @@ public class TextArea extends Box {
         mouseCursor(MouseCursor.TEXT);
         boxVisualEnabled(false);
         focusable(true);
-        enableDefaultTextAreaChrome();
         editor.onChanged((oldText, newText) -> {
             clearLineMetrics();
             invalidate(visualOnlyTextChanges ? InvalidationFlags.VISUAL : InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
@@ -95,6 +96,17 @@ public class TextArea extends Box {
         textColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         placeholderColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         caretColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
+        applyComponentStyleDefaults(WidgetStyles.TextArea.DEFAULT);
+    }
+
+    /**
+     * Returns the built-in multiline editor defaults below theme and instance styles.
+     *
+     * @return standard text-area component defaults
+     */
+    @Override
+    protected Style defaultStyle() {
+        return WidgetStyles.TextArea.DEFAULT;
     }
 
     public TextArea(String text) {
@@ -102,13 +114,6 @@ public class TextArea extends Box {
         editor.silentText(normalizeEditableText(text));
         editor.cursorIndex(text().length());
         clearLineMetrics();
-    }
-
-    protected final void enableDefaultTextAreaChrome() {
-        backgroundVisible(true);
-        borderVisible(true);
-        background().set(0.04f, 0.04f, 0.04f, 0.82f);
-        borderColor().set(0.35f, 0.35f, 0.35f, 1.0f);
     }
 
     public TextEditorModel editorModel() {

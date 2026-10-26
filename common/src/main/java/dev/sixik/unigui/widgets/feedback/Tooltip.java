@@ -15,6 +15,7 @@ import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
@@ -24,6 +25,7 @@ import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
 import java.util.List;
 import java.util.Objects;
 import dev.sixik.unigui.widgets.containers.Box;
+import dev.sixik.unigui.widgets.WidgetStyles;
 
 @XmlWidgetName("Tooltip")
 public class Tooltip extends Box implements OverlayHostAware {
@@ -48,17 +50,23 @@ public class Tooltip extends Box implements OverlayHostAware {
     private float lastAnchorHeight = Float.NaN;
 
     public Tooltip() {
-        backgroundVisible(true);
-        borderVisible(true);
-        radius(3.0f);
-        background().set(0.02f, 0.025f, 0.035f, 0.94f);
-        borderColor().set(0.25f, 0.78f, 1.0f, 0.85f);
+        applyComponentStyleDefaults(WidgetStyles.Tooltip.DEFAULT);
         enabled(false);
         layout(style -> style
                 .position(PositionType.ABSOLUTE)
                 .maxWidthPercent(100.0f)
                 .overflow(Overflow.HIDDEN));
         textColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
+    }
+
+    /**
+     * Returns the built-in tooltip surface defaults below theme and instance styles.
+     *
+     * @return standard tooltip component defaults
+     */
+    @Override
+    protected Style defaultStyle() {
+        return WidgetStyles.Tooltip.DEFAULT;
     }
 
     public Tooltip(Widget anchor, String text) {

@@ -29,6 +29,7 @@ import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 import dev.sixik.unigui.widgets.interaction.Button;
 import dev.sixik.unigui.widgets.interaction.ScrollBar;
 import dev.sixik.unigui.widgets.interaction.TextField;
+import dev.sixik.unigui.widgets.WidgetStyles;
 import dev.sixik.unigui.widgets.interaction.ToggleButton;
 import dev.sixik.unigui.widgets.minecraft.MinecraftItemTooltip;
 import dev.sixik.unigui.widgets.minecraft.MinecraftZLayer;
@@ -728,9 +729,10 @@ final class IsfBrowserOverlay {
 
         search.boxVisualEnabled(true);
         search.themeEnabled(false);
-        
+
         search.style(style -> {
-            style.put(StyleKeys.BACKGROUND_VISIBLE, true)
+            style.putAll(WidgetStyles.TextInput.UNCHROMED)
+                .put(StyleKeys.BACKGROUND_VISIBLE, true)
                 .put(StyleKeys.BACKGROUND_KIND, BackgroundKind.TEXTURE)
                 .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0, 0, 0, 0))
                 .put(StyleKeys.BACKGROUND_TEXTURE, WidgetState.NORMAL, new MinecraftTextureHandle(
@@ -741,15 +743,6 @@ final class IsfBrowserOverlay {
                         20, 20, TextureOptions.nearest()))
                 .put(StyleKeys.BACKGROUND_TEXTURE_FIT, ImageFit.NINE_SLICE)
                 .put(StyleKeys.SLICE_BORDERS, SliceBorders.all(6.0f))
-                .put(StyleKeys.BORDER_VISIBLE, false)
-                .put(StyleKeys.BORDER_COLOR, WidgetState.NORMAL,
-                        MutableColor.rgba(0, 0, 0, 0))
-                .put(StyleKeys.BORDER_COLOR, WidgetState.HOVERED,
-                        MutableColor.rgba(0, 0, 0, 0))
-                .put(StyleKeys.BORDER_COLOR, WidgetState.FOCUSED,
-                        MutableColor.rgba(0, 0, 0, 0))
-                .put(StyleKeys.FOCUS_RING_COLOR,
-                        MutableColor.rgba(0, 0, 0, 0))
                 .put(StyleKeys.PLACEHOLDER_COLOR,
                         MutableColor.rgba(0, 0, 0, 1))
                 .put(StyleKeys.CARET_COLOR,
@@ -935,8 +928,8 @@ final class IsfBrowserOverlay {
      */
     private static void sliceButtonBackground(Button button, String path, int width, int height, float border) {
         button.themeEnabled(false);
+        button.style(style -> style.put(StyleKeys.BORDER_VISIBLE, false));
         button.backgroundVisible(true);
-        button.borderVisible(false);
         button.backgroundTextureFit(ImageFit.NINE_SLICE);
         button.sliceBorders(border);
         button.backgroundTexture(new MinecraftTextureHandle(
@@ -1428,6 +1421,9 @@ final class IsfBrowserOverlay {
 
     private Button itemCell(ItemEntry entry) {
         Button cell = new IconButton();
+        cell.style(style -> style
+                .put(StyleKeys.BACKGROUND_VISIBLE, false)
+                .put(StyleKeys.BORDER_VISIBLE, false));
         cell.textPadding(0.0f, 0.0f);
         cell.layout(style -> style.size(CELL, CELL).flexNone());
         cell.on(PointerEnteredEvent.TYPE, event -> {
@@ -1543,7 +1539,7 @@ final class IsfBrowserOverlay {
                 tab.backgroundTextureFit(ImageFit.NINE_SLICE);
                 tab.sliceBorders(1.0f);
                 tab.backgroundTexture(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/dark_tab_unselected.png"), 34, 34, TextureOptions.nearest()));
-                tab.borderVisible(false);
+                tab.style(style -> style.put(StyleKeys.BORDER_VISIBLE, false));
                 tab.radius(2.0f);
                 tab.layout(style -> style.size(TAB_CELL, TAB_CELL).flexNone());
                 ItemStack icon = tabIcon(typeId);
@@ -1658,8 +1654,9 @@ final class IsfBrowserOverlay {
             ItemStack stack = new ItemStack(item, Math.max(1, catalyst.count()));
             IconButton cell = new IconButton();
             cell.themeEnabled(false);
-            cell.backgroundVisible(false);
-            cell.borderVisible(false);
+            cell.style(style -> style
+                    .put(StyleKeys.BACKGROUND_VISIBLE, false)
+                    .put(StyleKeys.BORDER_VISIBLE, false));
             cell.radius(2.0f);
             cell.layout(style -> style.size(CATALYST_CELL, CATALYST_CELL).flexNone());
             IsfItemIconWidget icon = new IsfItemIconWidget(stack);

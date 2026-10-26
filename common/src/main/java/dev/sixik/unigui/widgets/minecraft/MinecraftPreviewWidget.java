@@ -9,12 +9,14 @@ import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderBackend;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.render.TextureHandle;
+import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftGuiRenderBackend;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.containers.Box;
+import dev.sixik.unigui.widgets.WidgetStyles;
 
 import java.util.Objects;
 
@@ -33,13 +35,19 @@ public abstract class MinecraftPreviewWidget extends Box {
     protected MinecraftPreviewWidget(String label) {
         this.label = label == null ? "" : label;
         this.richLabel = RichText.resolve(this.label);
-        backgroundVisible(true);
-        borderVisible(true);
-        radius(4.0f);
-        background().set(0.035f, 0.040f, 0.055f, 0.94f);
-        borderColor().set(0.20f, 0.23f, 0.30f, 0.92f);
         labelColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         fallbackColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
+        applyComponentStyleDefaults(WidgetStyles.MinecraftPreview.DEFAULT);
+    }
+
+    /**
+     * Returns the built-in preview surface defaults below theme and instance styles.
+     *
+     * @return standard Minecraft preview component defaults
+     */
+    @Override
+    protected final Style defaultStyle() {
+        return WidgetStyles.MinecraftPreview.DEFAULT;
     }
 
     public String label() {

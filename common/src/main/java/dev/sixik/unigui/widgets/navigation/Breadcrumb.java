@@ -19,6 +19,7 @@ import dev.sixik.unigui.widgets.containers.PanelWidget;
 import dev.sixik.unigui.widgets.containers.WrapPanel;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.interaction.Button;
+import dev.sixik.unigui.widgets.WidgetStyles;
 
 @XmlWidgetName("Breadcrumb")
 public class Breadcrumb extends PanelWidget {
@@ -207,10 +208,8 @@ public class Breadcrumb extends PanelWidget {
             BreadcrumbItem item = items.get(index);
             Button button = new Button(item.richText());
             button.enabled(item.enabled());
+            button.style(style -> style.putAll(WidgetStyles.Navigation.BREADCRUMB_ITEM));
             button.layout(style -> style.size(LayoutConstraints.AUTO, ITEM_HEIGHT).flexGrow(0).flexShrink(0.0f));
-            button.backgroundVisible(true);
-            button.borderVisible(false);
-            button.radius(3.0f);
             button.onClick(event -> selectedIndex(itemIndex));
             itemButtons.add(button);
             host.addChild(button);

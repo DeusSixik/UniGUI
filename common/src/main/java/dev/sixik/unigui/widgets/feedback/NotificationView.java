@@ -9,6 +9,7 @@ import dev.sixik.unigui.api.layout.PositionType;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 
@@ -16,6 +17,7 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Iterator;
 import java.util.List;
 import dev.sixik.unigui.widgets.containers.Box;
+import dev.sixik.unigui.widgets.WidgetStyles;
 
 /**
  * Overlay host for transient notification cards.
@@ -41,10 +43,19 @@ public class NotificationView extends Box implements OverlayHostAware {
     private Placement placement = Placement.TOP_RIGHT;
 
     public NotificationView() {
-        backgroundVisible(false);
-        borderVisible(false);
+        applyComponentStyleDefaults(WidgetStyles.Surface.UNSURFACED);
         layout(style -> style.position(PositionType.ABSOLUTE).overflow(Overflow.VISIBLE));
         visible(true);
+    }
+
+    /**
+     * Returns the default transparent host appearance.
+     *
+     * @return the shared unsurfaced preset
+     */
+    @Override
+    protected Style defaultStyle() {
+        return WidgetStyles.Surface.UNSURFACED;
     }
 
     public NotificationView(String text) {

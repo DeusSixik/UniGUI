@@ -19,6 +19,7 @@ import dev.sixik.unigui.api.render.shaders.ShaderUniforms;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
 import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
@@ -28,6 +29,7 @@ import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.containers.SurfaceWidget;
+import dev.sixik.unigui.widgets.WidgetStyles;
 
 import java.util.Objects;
 
@@ -151,8 +153,6 @@ public class Button extends SurfaceWidget<Button> {
 
     public Button() {
         mouseCursor(MouseCursor.POINTER);
-        backgroundVisible(true);
-        borderVisible(true);
         focusable(true);
         // Только инвалидация: пометка custom ставится в явных сеттерах.
         // Тики theme-анимаций тоже пишут в textColor — по ним нельзя отличать
@@ -160,6 +160,17 @@ public class Button extends SurfaceWidget<Button> {
         // замораживало текст в pressed-цвете).
         textColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         focusRingColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
+        applyComponentStyleDefaults(WidgetStyles.Button.DEFAULT);
+    }
+
+    /**
+     * Returns the built-in button defaults below theme and instance styles.
+     *
+     * @return standard button component defaults
+     */
+    @Override
+    protected Style defaultStyle() {
+        return WidgetStyles.Button.DEFAULT;
     }
 
     public Button(String text) {

@@ -23,6 +23,7 @@ import dev.sixik.unigui.widgets.containers.LinearBox;
 import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.interaction.Button;
+import dev.sixik.unigui.widgets.WidgetStyles;
 
 /**
  * Карусель поверх {@link PageView}: страницы плюс навигация.
@@ -251,8 +252,7 @@ public class Carousel extends LinearBox {
         private WidgetBaseIndicator() {
             themeEnabled(false);
             boxVisualEnabled(false);
-            backgroundVisible(false);
-            borderVisible(false);
+            applyComponentStyleDefaults(WidgetStyles.Surface.UNSURFACED);
         }
     }
 }

@@ -26,12 +26,20 @@ import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.HBox;
 import dev.sixik.unigui.widgets.containers.VBox;
+import dev.sixik.unigui.widgets.containers.View;
+import dev.sixik.unigui.widgets.docking.DockingRoot;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.feedback.Tooltip;
+import dev.sixik.unigui.widgets.feedback.NotificationView;
 import dev.sixik.unigui.widgets.feedback.WindowWidget;
 import dev.sixik.unigui.widgets.interaction.Button;
 import dev.sixik.unigui.widgets.interaction.Checkbox;
+import dev.sixik.unigui.widgets.interaction.ComboBox;
+import dev.sixik.unigui.widgets.interaction.DropDownBox;
 import dev.sixik.unigui.widgets.interaction.TextField;
+import dev.sixik.unigui.widgets.interaction.TextArea;
+import dev.sixik.unigui.widgets.WidgetStyles;
+import dev.sixik.unigui.widgets.map.MapMarker;
 
 /**
  * Проверяет ядро визуала: композируемый Surface вместо двойных renderer'ов.
@@ -71,6 +79,30 @@ public final class SurfaceVisualSelfTest {
         expect(box.renderer() == null, "box has no custom renderer by default");
         expect(new Checkbox("Check") instanceof Button, "checkbox still is a button");
         expect(!(((Object) new Checkbox("Check")) instanceof Box), "checkbox no longer inherits Box visual");
+
+        NotificationView notifications = new NotificationView();
+        expect(!notifications.backgroundVisible() && !notifications.borderVisible(),
+                "notification host should use the shared unsurfaced component style");
+        MapMarker marker = new MapMarker();
+        expect(!marker.backgroundVisible() && !marker.borderVisible(),
+                "map marker should use the shared unsurfaced component style");
+
+        DockingRoot dockingRoot = new DockingRoot();
+        expect(dockingRoot.backgroundVisible() && dockingRoot.borderVisible()
+                        && near(dockingRoot.background().b(), 0.042f)
+                        && near(dockingRoot.radius(), 4.0f),
+                "docking root should materialize its WidgetStyles defaults during construction");
+
+        View view = new View();
+        expect(view.backgroundVisible() && view.borderVisible()
+                        && near(view.background().r(), 0.030f)
+                        && near(view.radius(), 5.0f),
+                "View should materialize its WidgetStyles defaults during construction");
+
+        TextArea textArea = new TextArea();
+        expect(textArea.backgroundVisible() && textArea.borderVisible()
+                        && near(textArea.background().r(), 0.04f),
+                "TextArea should materialize its WidgetStyles defaults during construction");
 
         // LinearBox owns a surface too, but renders transparent by default so
         // existing mods see no visual change after the SurfaceWidget migration.
@@ -220,6 +252,28 @@ public final class SurfaceVisualSelfTest {
                 "focused state should override texture and use its own fit");
         expect(near(search.focusRingColor().a(), 0.0f),
                 "focused local focus-ring style should override the default ring");
+
+        TextField resettable = new TextField();
+        resettable.themeEnabled(false);
+        resettable.style(style -> style.putAll(WidgetStyles.TextInput.UNCHROMED)
+                .put(StyleKeys.BACKGROUND_COLOR,
+                        dev.sixik.unigui.api.math.MutableColor.rgba(0.9f, 0.1f, 0.1f, 1.0f)));
+        resettable.render(new DefaultRenderContext(new DrawList()));
+        expect(!resettable.borderVisible() && near(resettable.background().r(), 0.9f),
+                "local preset and values should override TextField component defaults");
+        resettable.styleClear();
+        resettable.render(new DefaultRenderContext(new DrawList()));
+        expect(resettable.borderVisible() && near(resettable.background().r(), 0.08f),
+                "styleClear should restore component defaults without enabling the theme");
+
+        ComboBox comboBox = new ComboBox();
+        comboBox.render(new DefaultRenderContext(new DrawList()));
+        expect(!((Button) comboBox.children().get(0)).borderVisible(),
+                "ComboBox header should retain its borderless component style during rendering");
+        DropDownBox dropDownBox = new DropDownBox();
+        dropDownBox.render(new DefaultRenderContext(new DrawList()));
+        expect(!((Button) dropDownBox.children().get(0)).borderVisible(),
+                "DropDownBox header should retain its borderless component style during rendering");
 
         String stylePackXml = "<StylePack id=\"state-textures\"><Style id=\"Search\" target=\"TextField\">"
                 + "<Setter property=\"background.kind\" value=\"texture\"/>"

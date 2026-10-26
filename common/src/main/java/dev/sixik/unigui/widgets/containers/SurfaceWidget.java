@@ -113,6 +113,56 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
         return (T) this;
     }
 
+    /**
+     * Materializes only the component's NORMAL surface defaults during construction.
+     * Theme values and parent/local style scopes are resolved later through {@link #applyTheme()}.
+     *
+     * @param defaults immutable component style defaults to materialize
+     */
+    protected final void applyComponentStyleDefaults(Style defaults) {
+        if (defaults == null || defaults == Style.EMPTY) return;
+        surface.themeUpdating(true);
+        try {
+            BackgroundKind kind = defaults.get(StyleKeys.BACKGROUND_KIND, WidgetState.NORMAL,
+                    surface.backgroundKind());
+            ColorView background = defaults.get(StyleKeys.BACKGROUND_COLOR, WidgetState.NORMAL,
+                    surface.background());
+            Boolean backgroundVisible = defaults.get(StyleKeys.BACKGROUND_VISIBLE, WidgetState.NORMAL,
+                    surface.backgroundVisible());
+            TextureHandle backgroundTexture = defaults.get(StyleKeys.BACKGROUND_TEXTURE, WidgetState.NORMAL,
+                    surface.backgroundTexture());
+            ColorView textureTint = defaults.get(StyleKeys.BACKGROUND_TEXTURE_TINT, WidgetState.NORMAL,
+                    surface.backgroundTextureTint());
+            ImageFit textureFit = defaults.get(StyleKeys.BACKGROUND_TEXTURE_FIT, WidgetState.NORMAL,
+                    surface.backgroundTextureFit());
+            SliceBorders sliceBorders = defaults.get(StyleKeys.SLICE_BORDERS, WidgetState.NORMAL,
+                    surface.sliceBorders());
+            ShaderHandle shader = defaults.get(StyleKeys.BACKGROUND_SHADER, WidgetState.NORMAL,
+                    surface.backgroundShader());
+            ColorView border = defaults.get(StyleKeys.BORDER_COLOR, WidgetState.NORMAL,
+                    surface.borderColor());
+            Boolean borderVisible = defaults.get(StyleKeys.BORDER_VISIBLE, WidgetState.NORMAL,
+                    surface.borderVisible());
+            Float borderWidth = defaults.get(StyleKeys.BORDER_WIDTH, WidgetState.NORMAL,
+                    surface.borderWidth());
+            Float radius = defaults.get(StyleKeys.RADIUS, WidgetState.NORMAL, surface.radius());
+            if (kind != null) surface.backgroundKind(kind);
+            if (background != null) surface.background().set(background);
+            if (backgroundVisible != null) surface.backgroundVisible(backgroundVisible);
+            if (backgroundTexture != null) surface.backgroundTexture(backgroundTexture);
+            if (textureTint != null) surface.backgroundTextureTint().set(textureTint);
+            if (textureFit != null) surface.backgroundTextureFit(textureFit);
+            if (sliceBorders != null) surface.sliceBorders(sliceBorders);
+            if (shader != null) surface.backgroundShader(shader);
+            if (border != null) surface.borderColor().set(border);
+            if (borderVisible != null) surface.borderVisible(borderVisible);
+            if (borderWidth != null) surface.borderWidth(borderWidth);
+            if (radius != null) surface.radius(radius);
+        } finally {
+            surface.themeUpdating(false);
+        }
+    }
+
     @Override
     public T style(String declarations) {
         super.style(declarations);
@@ -122,6 +172,17 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
     @Override
     public T style(Consumer<MutableStyle> update) {
         super.style(update);
+        return self();
+    }
+
+    /**
+     * Удаляет inline-style этого виджета, сохраняя component defaults, тему и внешние local styles.
+     *
+     * @return этот виджет для fluent-настройки
+     */
+    @Override
+    public T styleClear() {
+        super.styleClear();
         return self();
     }
 
@@ -969,7 +1030,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
         TextureHandle themedBackgroundTexture = styleValue(StyleKeys.BACKGROUND_TEXTURE, state, surface.backgroundTexture());
         ColorView themedBackgroundTextureTint = styleValue(StyleKeys.BACKGROUND_TEXTURE_TINT, state, surface.backgroundTextureTint());
         ImageFit themedBackgroundTextureFit = styleValue(StyleKeys.BACKGROUND_TEXTURE_FIT, state, surface.backgroundTextureFit());
-        dev.sixik.unigui.api.render.SliceBorders themedSliceBorders = styleValue(
+        SliceBorders themedSliceBorders = styleValue(
                 StyleKeys.SLICE_BORDERS, state, surface.sliceBorders());
         ShaderHandle themedShader = styleValue(StyleKeys.BACKGROUND_SHADER, state, surface.backgroundShader());
         ColorView themedBorder = styleValue(StyleKeys.BORDER_COLOR, state, surface.borderColor());
@@ -1112,10 +1173,11 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
         UIContext context = uiContext();
         Theme theme = themeEnabled && context != null ? context.theme() : Theme.EMPTY;
         String type = styleType();
+        S value = defaultStyle().get(key, state, fallback);
         Style themeStyle = theme instanceof StylePack stylePack
                 ? stylePack.resolveStyleFor(type, styleId(), styleClasses())
                 : theme.styleFor(type);
-        S value = themeStyle.get(key, state, fallback);
+        value = themeStyle.get(key, state, value);
         for (Widget current : styleLookupChain()) {
             Style localStyle = current.localStyle(type);
             value = localStyle.get(key, state, value);

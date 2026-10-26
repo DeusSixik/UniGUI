@@ -9,6 +9,7 @@ import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.StyleIds;
 import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.render.Paint;
@@ -17,6 +18,7 @@ import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.api.widget.render.WidgetRole;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
+import dev.sixik.unigui.widgets.WidgetStyles;
 
 @XmlWidgetName("ToggleSwitch")
 public class ToggleSwitch extends ToggleButton {
@@ -63,11 +65,20 @@ public class ToggleSwitch extends ToggleButton {
 
     public ToggleSwitch(String text) {
         super(text);
-        backgroundVisible(false);
-        borderVisible(false);
+        applyComponentStyleDefaults(WidgetStyles.Surface.UNSURFACED);
         checkedBackground().set(0.25f, 0.78f, 1.0f, 1.0f);
         uncheckedBackground().set(0.22f, 0.22f, 0.22f, 1.0f);
         thumbColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
+    }
+
+    /**
+     * Returns defaults for a switch track drawn by the control itself.
+     *
+     * @return unsurfaced component defaults
+     */
+    @Override
+    protected Style defaultStyle() {
+        return WidgetStyles.Surface.UNSURFACED;
     }
 
     public ToggleSwitch(RichText text) {

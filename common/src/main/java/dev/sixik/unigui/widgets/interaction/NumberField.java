@@ -14,6 +14,8 @@ import dev.sixik.unigui.api.xml.XmlWidgetName;
 import java.util.Locale;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
+import dev.sixik.unigui.api.style.Style;
+import dev.sixik.unigui.widgets.WidgetStyles;
 
 @XmlWidgetName("NumberField")
 public class NumberField extends TextInput {
@@ -34,8 +36,18 @@ public class NumberField extends TextInput {
     private double step = 1.0d;
 
     public NumberField() {
-        enableDefaultTextInputChrome();
+        applyComponentStyleDefaults(WidgetStyles.TextInput.DEFAULT_CHROME);
         text("0");
+    }
+
+    /**
+     * Возвращает defaults chrome для семейства стандартных текстовых полей.
+     *
+     * @return стандартный style preset оформления поля
+     */
+    @Override
+    protected Style defaultStyle() {
+        return WidgetStyles.TextInput.DEFAULT_CHROME;
     }
 
     public double value() {

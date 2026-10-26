@@ -25,6 +25,8 @@ import dev.sixik.unigui.api.widget.render.WidgetRole;
 import java.util.Objects;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
+import dev.sixik.unigui.api.style.Style;
+import dev.sixik.unigui.widgets.WidgetStyles;
 
 @XmlWidgetName("RadioButton")
 public class RadioButton extends Button {
@@ -76,8 +78,7 @@ public class RadioButton extends Button {
     public RadioButton(String text, String value) {
         super(text);
         this.value = normalize(value);
-        backgroundVisible(false);
-        borderVisible(false);
+        applyComponentStyleDefaults(WidgetStyles.Surface.UNSURFACED);
         checkedColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         onClick(event -> checked(true));
     }
@@ -89,10 +90,19 @@ public class RadioButton extends Button {
     public RadioButton(RichText text, String value) {
         super(text);
         this.value = normalize(value);
-        backgroundVisible(false);
-        borderVisible(false);
+        applyComponentStyleDefaults(WidgetStyles.Surface.UNSURFACED);
         checkedColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         onClick(event -> checked(true));
+    }
+
+    /**
+     * Returns defaults for a radio indicator drawn by the control itself.
+     *
+     * @return unsurfaced component defaults
+     */
+    @Override
+    protected Style defaultStyle() {
+        return WidgetStyles.Surface.UNSURFACED;
     }
 
     public String value() {

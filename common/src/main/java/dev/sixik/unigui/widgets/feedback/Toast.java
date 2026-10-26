@@ -9,11 +9,13 @@ import dev.sixik.unigui.api.layout.Overflow;
 import dev.sixik.unigui.api.layout.PositionType;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.StackPanel;
 import dev.sixik.unigui.widgets.display.TextBlock;
+import dev.sixik.unigui.widgets.WidgetStyles;
 
 /**
  * Lightweight transient message overlay.
@@ -35,15 +37,21 @@ public final class Toast extends Box implements OverlayHostAware {
     private float margin = 10.0f;
 
     public Toast() {
-        backgroundVisible(true);
-        borderVisible(true);
-        radius(5.0f);
-        background().set(0.035f, 0.043f, 0.060f, 0.96f);
-        borderColor().set(0.30f, 0.78f, 1.0f, 0.75f);
+        applyComponentStyleDefaults(WidgetStyles.Toast.DEFAULT);
         layout(style -> style.position(PositionType.ABSOLUTE).overflow(Overflow.HIDDEN));
         visible(false);
         message.layout(style -> style.margin(8.0f, 6.0f).align(Alignment.STRETCH, Alignment.STRETCH));
         addChild(message);
+    }
+
+    /**
+     * Returns the built-in toast surface defaults below theme and instance styles.
+     *
+     * @return standard toast component defaults
+     */
+    @Override
+    protected Style defaultStyle() {
+        return WidgetStyles.Toast.DEFAULT;
     }
 
     public Toast(String text) {

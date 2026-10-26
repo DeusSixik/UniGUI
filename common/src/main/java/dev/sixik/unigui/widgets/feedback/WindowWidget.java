@@ -1,6 +1,7 @@
 package dev.sixik.unigui.widgets.feedback;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.core.UIContext;
 import dev.sixik.unigui.api.event.Event;
 import dev.sixik.unigui.api.event.EventPhase;
@@ -45,6 +46,7 @@ import dev.sixik.unigui.impl.text.TextEngine;
 
 import java.util.Objects;
 import dev.sixik.unigui.widgets.containers.Box;
+import dev.sixik.unigui.widgets.WidgetStyles;
 import dev.sixik.unigui.widgets.containers.ScrollView;
 import dev.sixik.unigui.widgets.containers.StackPanel;
 import dev.sixik.unigui.widgets.docking.DockPane;
@@ -127,12 +129,8 @@ public class WindowWidget extends Box implements OverlayHostAware {
     private final MutableRect hostBounds = new MutableRect();
 
     public WindowWidget() {
-        backgroundVisible(true);
-        borderVisible(true);
+        applyComponentStyleDefaults(WidgetStyles.Window.DEFAULT);
         focusable(true);
-        radius(4.0f);
-        background().set(0.030f, 0.035f, 0.050f, 0.98f);
-        borderColor().set(0.25f, 0.78f, 1.0f, 0.85f);
         closeButton.textPaddingX(0.0f);
         closeButton.layout(style -> style.size(18.0f, 18.0f).flexGrow(0).flexShrink(0.0f));
         closeButton.onClick(event -> close());
@@ -153,6 +151,16 @@ public class WindowWidget extends Box implements OverlayHostAware {
                 .maxHeightPercent(100.0f)
                 .overflow(Overflow.HIDDEN));
         visible(false);
+    }
+
+    /**
+     * Returns the built-in window surface defaults below theme and instance styles.
+     *
+     * @return standard window component defaults
+     */
+    @Override
+    protected Style defaultStyle() {
+        return WidgetStyles.Window.DEFAULT;
     }
 
     public WindowWidget(String title, Widget content) {

@@ -20,8 +20,10 @@ import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.api.widget.render.WidgetRole;
+import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
+import dev.sixik.unigui.widgets.WidgetStyles;
 
 @XmlWidgetName("Checkbox")
 public class Checkbox extends ToggleButton {
@@ -67,14 +69,22 @@ public class Checkbox extends ToggleButton {
 
     public Checkbox(String text) {
         super(text);
-        backgroundVisible(false);
-        borderVisible(false);
+        applyComponentStyleDefaults(WidgetStyles.Surface.UNSURFACED);
     }
 
     public Checkbox(RichText text) {
         super(text);
-        backgroundVisible(false);
-        borderVisible(false);
+        applyComponentStyleDefaults(WidgetStyles.Surface.UNSURFACED);
+    }
+
+    /**
+     * Returns defaults for a checkbox whose indicator is drawn by the control itself.
+     *
+     * @return unsurfaced component defaults
+     */
+    @Override
+    protected Style defaultStyle() {
+        return WidgetStyles.Surface.UNSURFACED;
     }
 
     public CheckboxState state() {
