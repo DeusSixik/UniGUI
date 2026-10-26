@@ -1,47 +1,31 @@
 package dev.sixik.unigui.widgets.interaction;
 
-import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.FrameContext;
+import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
-import dev.sixik.unigui.api.event.Event;
-import dev.sixik.unigui.api.event.EventListener;
-import dev.sixik.unigui.api.event.EventPhase;
-import dev.sixik.unigui.api.event.EventSubscription;
-import dev.sixik.unigui.api.event.FocusGainedEvent;
-import dev.sixik.unigui.api.event.FocusLostEvent;
-import dev.sixik.unigui.api.event.KeyPressedEvent;
-import dev.sixik.unigui.api.event.PointerEvent;
-import dev.sixik.unigui.api.event.PointerMovedEvent;
-import dev.sixik.unigui.api.event.PointerPressedEvent;
-import dev.sixik.unigui.api.event.PointerReleasedEvent;
-import dev.sixik.unigui.api.event.TextChangedEvent;
-import dev.sixik.unigui.api.event.TextInputEvent;
-import dev.sixik.unigui.api.input.KeyCodes;
-import dev.sixik.unigui.api.input.KeyModifiers;
-import dev.sixik.unigui.api.input.MouseCursor;
-import dev.sixik.unigui.api.input.PointerButton;
-import dev.sixik.unigui.api.input.TextEditorModel;
+import dev.sixik.unigui.api.event.*;
+import dev.sixik.unigui.api.input.*;
 import dev.sixik.unigui.api.layout.LayoutContext;
+import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.style.StyleAnimationIds;
+import dev.sixik.unigui.api.style.StyleIds;
+import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextRun;
-import dev.sixik.unigui.api.style.StyleKeys;
-import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.api.widget.render.WidgetRole;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
-import dev.sixik.unigui.api.widget.render.WidgetRole;
-import dev.sixik.unigui.api.style.StyleAnimationIds;
-import dev.sixik.unigui.api.style.StyleIds;
 import dev.sixik.unigui.widgets.containers.Box;
 
 import java.util.Objects;
-import dev.sixik.unigui.widgets.containers.Box;
 
 /**
  * Generic public single-line text editor widget.
@@ -614,7 +598,7 @@ public class TextInput extends Box {
      *
      * @return цвет рамки для отрисовки
      */
-    protected dev.sixik.unigui.api.math.ColorView effectiveBorderColor() {
+    protected ColorView effectiveBorderColor() {
         if (focused) return focusBorderColor;
         if (hovered()) return hoverBorderColor;
         return borderColor();

@@ -19,6 +19,8 @@ import dev.sixik.unigui.api.event.PointerExitedEvent;
 import dev.sixik.unigui.api.layout.*;
 import dev.sixik.unigui.api.render.ImageFit;
 import dev.sixik.unigui.api.render.TextureOptions;
+import dev.sixik.unigui.api.style.WidgetState;
+import dev.sixik.unigui.api.widget.visual.BackgroundKind;
 import dev.sixik.unigui.backend.minecraft_impl.*;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.GridBox;
@@ -698,13 +700,31 @@ final class IsfBrowserOverlay {
         itemScroll.layout(style -> style.widthPercent(100.0f).flexGrow(1.0f).flexShrink(1.0f));
 
         search.boxVisualEnabled(true);
+        search.themeEnabled(false);
         search.backgroundVisible(true);
+        search.backgroundKind(BackgroundKind.TEXTURE);
+        search.background().set(0.0f, 0.0f, 0.0f, 0.0f);
         search.borderVisible(false);
-        search.placeholderColor().set(0,0,0,1);
-        search.backgroundTextureFit(dev.sixik.unigui.api.render.ImageFit.NINE_SLICE);
+
+        search.style(style -> {
+
+        });
+
+        search.borderColor().set(0.0f,0.0f,0.0f,0.0f);
+        search.hoverBorderColor().set(0.0f, 0.0f, 0.0f, 0.0f);
+        search.focusBorderColor().set(0.0f, 0.0f, 0.0f, 0.0f);
+        search.focusRingColor().set(0.0f, 0.0f, 0.0f, 0.0f);
+        search.placeholderColor().set(0.0f,0.0f,0.0f,1.0f);
+        search.caretColor().set(1.0f, 1.0f, 1.0f, 1.0f);
+        search.textPaddingLeft(6);
+        search.textPaddingRight(6);
+        search.backgroundTextureFit(ImageFit.NINE_SLICE);
         search.sliceBorders(6.0f);
-        search.backgroundTexture(new MinecraftTextureHandle(
+        search.stateBackgroundTexture(WidgetState.NORMAL, new MinecraftTextureHandle(
                 ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/search_background.png"),
+                20, 20, TextureOptions.nearest()));
+        search.stateBackgroundTexture(WidgetState.FOCUSED, new MinecraftTextureHandle(
+                ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/search_background_v2.png"),
                 20, 20, TextureOptions.nearest()));
         search.layout(style -> style
                 .widthPercent(100.0f)
@@ -777,7 +797,7 @@ final class IsfBrowserOverlay {
         VBox content = new VBox();
         content.spacing(2.0f);
         content.backgroundVisible(true);
-        content.backgroundTextureFit(dev.sixik.unigui.api.render.ImageFit.NINE_SLICE);
+        content.backgroundTextureFit(ImageFit.NINE_SLICE);
         content.sliceBorders(4.0f);
         content.backgroundTexture(new MinecraftTextureHandle(
                 ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/gui_background.png"),
@@ -800,7 +820,7 @@ final class IsfBrowserOverlay {
                 .alignSelf(Align.START)
         );
         catalystColumn.backgroundVisible(true);
-        catalystColumn.backgroundTextureFit(dev.sixik.unigui.api.render.ImageFit.NINE_SLICE);
+        catalystColumn.backgroundTextureFit(ImageFit.NINE_SLICE);
         catalystColumn.sliceBorders(1.0f);
         catalystColumn.backgroundTexture(new MinecraftTextureHandle(
                 ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/scrollbar_background.png"),
@@ -884,7 +904,7 @@ final class IsfBrowserOverlay {
         button.themeEnabled(false);
         button.backgroundVisible(true);
         button.borderVisible(false);
-        button.backgroundTextureFit(dev.sixik.unigui.api.render.ImageFit.NINE_SLICE);
+        button.backgroundTextureFit(ImageFit.NINE_SLICE);
         button.sliceBorders(border);
         button.backgroundTexture(new MinecraftTextureHandle(
                 ResourceLocation.tryBuild(IsfMod.MOD_ID, path),

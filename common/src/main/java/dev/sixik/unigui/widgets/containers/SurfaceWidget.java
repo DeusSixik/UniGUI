@@ -43,6 +43,7 @@ import dev.sixik.unigui.api.widget.render.WidgetRender;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -96,6 +97,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      * виджетов с одной текстурой.
      */
     private List<TextureLayer> overlayTextures;
+    private EnumMap<WidgetState, TextureLayer> stateBackgroundTextures;
 
     /**
      * Создаёт виджет с пустой композируемой поверхностью.
@@ -313,6 +315,42 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
     @XmlAttribute(value = "backgroundTexture", displayName = "Background Texture", category = "Assets", defaultValue = "", description = "Texture resource id resolved through XmlWidgetOptions.textureResolver.")
     public T backgroundTexture(TextureHandle backgroundTexture) {
         surface.backgroundTexture(backgroundTexture);
+        return self();
+    }
+
+    /**
+     * Задаёт текстуру, заменяющую основной фон в указанном состоянии.
+     * Для текстуры используются текущие fit, nine-slice и tint фоновой поверхности.
+     *
+     * @param state состояние виджета
+     * @param texture текстура или {@code null}, чтобы удалить override
+     * @return этот виджет для fluent-настройки
+     */
+    public T stateBackgroundTexture(WidgetState state, TextureHandle texture) {
+        TextureLayer layer = texture == null ? null : new TextureLayer(texture)
+                .source(surface.backgroundTextureSource().x(), surface.backgroundTextureSource().y(),
+                        surface.backgroundTextureSource().width(), surface.backgroundTextureSource().height())
+                .fit(surface.backgroundTextureFit())
+                .sliceBorders(surface.sliceBorders())
+                .tint(surface.backgroundTextureTint());
+        return stateBackgroundLayer(state, layer);
+    }
+
+    /**
+     * Задаёт текстурный слой, заменяющий основной фон в указанном состоянии.
+     * Слой может иметь собственные fit, source, tint и nine-slice рамки.
+     *
+     * @param state состояние виджета
+     * @param layer текстурный слой или {@code null}, чтобы удалить override
+     * @return этот виджет для fluent-настройки
+     */
+    public T stateBackgroundLayer(WidgetState state, TextureLayer layer) {
+        if (state == null) throw new IllegalArgumentException("state must not be null");
+        if (layer == null && stateBackgroundTextures == null) return self();
+        if (stateBackgroundTextures == null) stateBackgroundTextures = new EnumMap<>(WidgetState.class);
+        if (layer == null) stateBackgroundTextures.remove(state);
+        else stateBackgroundTextures.put(state, layer);
+        invalidate(InvalidationFlags.VISUAL);
         return self();
     }
 
@@ -837,19 +875,30 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
                         draw.roundedRectFilled(x, y, width, height, radius,
                                 surface.background());
                     }
-                    TextureHandle texture = surface.backgroundTexture();
-                    if (texture != null) {
-                        if (surface.backgroundTextureFit() == ImageFit.NINE_SLICE) {
-                            draw.nineSlice(surface.sliceBorders().slice(texture),
-                                    x, y, width, height,
-                                    Paint.fill(surface.backgroundTextureTint()));
-                        } else {
-                            TexturePlacement placement = TexturePlacement.fit(texture,
-                                    surface.backgroundTextureSource(),
-                                    new MutableRect(x, y, width, height),
-                                    surface.backgroundTextureFit());
-                            draw.textureTinted(texture, placement, radius,
-                                    surface.backgroundTextureTint());
+                    WidgetState currentState = styleState();
+                    TextureLayer stateLayer = stateBackgroundTextures == null
+                            ? null : stateBackgroundTextures.get(currentState);
+                    if (stateLayer == null && stateBackgroundTextures != null
+                            && currentState != WidgetState.NORMAL) {
+                        stateLayer = stateBackgroundTextures.get(WidgetState.NORMAL);
+                    }
+                    if (stateLayer != null && !stateLayer.isEmpty()) {
+                        renderTextureLayer(draw, stateLayer, x, y, width, height, radius);
+                    } else {
+                        TextureHandle texture = surface.backgroundTexture();
+                        if (texture != null) {
+                            if (surface.backgroundTextureFit() == ImageFit.NINE_SLICE) {
+                                draw.nineSlice(surface.sliceBorders().slice(texture),
+                                        x, y, width, height,
+                                        Paint.fill(surface.backgroundTextureTint()));
+                            } else {
+                                TexturePlacement placement = TexturePlacement.fit(texture,
+                                        surface.backgroundTextureSource(),
+                                        new MutableRect(x, y, width, height),
+                                        surface.backgroundTextureFit());
+                                draw.textureTinted(texture, placement, radius,
+                                        surface.backgroundTextureTint());
+                            }
                         }
                     }
                 }
