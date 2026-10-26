@@ -117,10 +117,10 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
     }
 
     /**
-     * Materializes only the component's NORMAL surface defaults during construction.
-     * Theme values and parent/local style scopes are resolved later through {@link #applyTheme()}.
+     * Применяет при создании только стандартные значения поверхности компонента для состояния NORMAL.
+     * Значения темы и родительских/локальных стилей разрешаются позже через {@link #applyTheme()}.
      *
-     * @param defaults immutable component style defaults to materialize
+     * @param defaults стандартные стили компонента, применяемые к поверхности
      */
     protected final void applyComponentStyleDefaults(Style defaults) {
         if (defaults == null || defaults == Style.EMPTY) return;

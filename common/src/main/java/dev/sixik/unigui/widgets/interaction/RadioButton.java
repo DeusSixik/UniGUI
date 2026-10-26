@@ -96,9 +96,9 @@ public class RadioButton extends Button {
     }
 
     /**
-     * Returns defaults for a radio indicator drawn by the control itself.
+     * Возвращает стандартный стиль переключателя, индикатор которого рисуется самим элементом.
      *
-     * @return unsurfaced component defaults
+     * @return стандартные значения без фоновой поверхности и рамки
      */
     @Override
     protected Style defaultStyle() {

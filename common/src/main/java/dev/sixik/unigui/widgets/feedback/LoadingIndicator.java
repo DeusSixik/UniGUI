@@ -60,9 +60,9 @@ public class LoadingIndicator extends Box {
     }
 
     /**
-     * Returns defaults for a loading indicator drawn entirely by the control.
+     * Возвращает стандартный стиль для индикатора загрузки, целиком рисуемого самим элементом.
      *
-     * @return unsurfaced component defaults
+     * @return стандартные значения без фоновой поверхности и рамки
      */
     @Override
     protected Style defaultStyle() {

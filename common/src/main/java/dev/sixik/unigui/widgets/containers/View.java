@@ -40,9 +40,9 @@ public class View extends Box {
     }
 
     /**
-     * Returns the built-in card surface defaults below theme and instance styles.
+     * Возвращает стандартный стиль поверхности карточки, уступающий стилям темы и экземпляра.
      *
-     * @return standard view component defaults
+     * @return стандартные значения оформления компонента {@code View}
      */
     @Override
     protected Style defaultStyle() {

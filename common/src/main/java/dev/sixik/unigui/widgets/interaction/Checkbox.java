@@ -78,9 +78,9 @@ public class Checkbox extends ToggleButton {
     }
 
     /**
-     * Returns defaults for a checkbox whose indicator is drawn by the control itself.
+     * Возвращает стандартный стиль флажка, индикатор которого рисуется самим элементом.
      *
-     * @return unsurfaced component defaults
+     * @return стандартные значения без фоновой поверхности и рамки
      */
     @Override
     protected Style defaultStyle() {

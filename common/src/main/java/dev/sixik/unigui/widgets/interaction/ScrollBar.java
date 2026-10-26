@@ -112,9 +112,9 @@ public class ScrollBar extends Box {
     }
 
     /**
-     * Returns defaults for a scrollbar that draws its own track and thumb.
+     * Возвращает стандартный стиль полосы прокрутки, самостоятельно рисующей дорожку и бегунок.
      *
-     * @return unsurfaced component defaults
+     * @return стандартные значения без фоновой поверхности и рамки
      */
     @Override
     protected Style defaultStyle() {

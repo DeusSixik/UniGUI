@@ -87,9 +87,9 @@ public class ProgressBar extends Box {
     }
 
     /**
-     * Returns defaults for a progress bar that draws its own track and fill.
+     * Возвращает стандартный стиль для полосы прогресса, самостоятельно рисующей дорожку и заполнение.
      *
-     * @return unsurfaced component defaults
+     * @return стандартные значения без фоновой поверхности и рамки
      */
     @Override
     protected Style defaultStyle() {

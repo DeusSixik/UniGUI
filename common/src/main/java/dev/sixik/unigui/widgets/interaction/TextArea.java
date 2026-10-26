@@ -100,9 +100,9 @@ public class TextArea extends Box {
     }
 
     /**
-     * Returns the built-in multiline editor defaults below theme and instance styles.
+     * Возвращает стандартный стиль многострочного редактора, уступающий стилям темы и экземпляра.
      *
-     * @return standard text-area component defaults
+     * @return стандартные значения оформления многострочного редактора
      */
     @Override
     protected Style defaultStyle() {

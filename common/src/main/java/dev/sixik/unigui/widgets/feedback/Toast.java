@@ -45,9 +45,9 @@ public final class Toast extends Box implements OverlayHostAware {
     }
 
     /**
-     * Returns the built-in toast surface defaults below theme and instance styles.
+     * Возвращает стандартный стиль поверхности уведомления, уступающий стилям темы и экземпляра.
      *
-     * @return standard toast component defaults
+     * @return стандартные значения оформления уведомления
      */
     @Override
     protected Style defaultStyle() {

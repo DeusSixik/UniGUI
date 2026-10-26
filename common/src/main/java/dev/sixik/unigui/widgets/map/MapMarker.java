@@ -41,9 +41,9 @@ public class MapMarker extends Box {
     }
 
     /**
-     * Returns the default transparent marker appearance.
+     * Возвращает стандартное прозрачное оформление маркера.
      *
-     * @return the shared unsurfaced preset
+     * @return общий стиль без фоновой поверхности и рамки
      */
     @Override
     protected Style defaultStyle() {

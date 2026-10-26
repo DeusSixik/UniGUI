@@ -27,9 +27,9 @@ public final class MinecraftItemTooltip extends Tooltip {
     private Supplier<ItemStack> stackSupplier = () -> ItemStack.EMPTY;
 
     /**
-     * Returns the default transparent vanilla tooltip appearance.
+     * Возвращает стандартное прозрачное оформление подсказки предмета Minecraft.
      *
-     * @return the shared unsurfaced preset
+     * @return общий стиль без фоновой поверхности и рамки
      */
     @Override
     protected Style defaultStyle() {

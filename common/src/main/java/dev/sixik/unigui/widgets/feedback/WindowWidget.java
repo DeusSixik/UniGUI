@@ -154,9 +154,9 @@ public class WindowWidget extends Box implements OverlayHostAware {
     }
 
     /**
-     * Returns the built-in window surface defaults below theme and instance styles.
+     * Возвращает стандартный стиль поверхности окна, уступающий стилям темы и экземпляра.
      *
-     * @return standard window component defaults
+     * @return стандартные значения оформления окна
      */
     @Override
     protected Style defaultStyle() {

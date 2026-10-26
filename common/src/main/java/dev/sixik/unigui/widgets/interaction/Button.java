@@ -164,9 +164,9 @@ public class Button extends SurfaceWidget<Button> {
     }
 
     /**
-     * Returns the built-in button defaults below theme and instance styles.
+     * Возвращает стандартный стиль кнопки, уступающий стилям темы и экземпляра.
      *
-     * @return standard button component defaults
+     * @return стандартные значения оформления кнопки
      */
     @Override
     protected Style defaultStyle() {

@@ -49,9 +49,9 @@ public class NotificationView extends Box implements OverlayHostAware {
     }
 
     /**
-     * Returns the default transparent host appearance.
+     * Возвращает стандартное прозрачное оформление контейнера уведомлений.
      *
-     * @return the shared unsurfaced preset
+     * @return общий стиль без фоновой поверхности и рамки
      */
     @Override
     protected Style defaultStyle() {

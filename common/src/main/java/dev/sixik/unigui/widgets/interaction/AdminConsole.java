@@ -165,9 +165,9 @@ public class AdminConsole extends Box {
     }
 
     /**
-     * Returns the built-in console root surface defaults.
+     * Возвращает стандартный стиль корневой поверхности консоли.
      *
-     * @return the shared administration console style
+     * @return общий стиль административной консоли
      */
     @Override
     protected Style defaultStyle() {

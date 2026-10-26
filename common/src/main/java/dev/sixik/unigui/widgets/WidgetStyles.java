@@ -7,21 +7,21 @@ import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
 
 /**
- * Reusable component defaults and appearance presets for built-in widgets.
+ * Общие стили компонентов и готовые варианты оформления встроенных виджетов.
  */
 public final class WidgetStyles {
     /**
-     * Prevents construction of the static style catalog.
+     * Запрещает создавать экземпляр каталога стилей.
      */
     private WidgetStyles() {
     }
 
     /**
-     * Styles shared by single-line and multiline text controls.
+     * Стили однострочных и многострочных текстовых полей.
      */
     public static final class TextInput {
         /**
-         * Default field chrome below theme and instance styles.
+         * Оформление поля по умолчанию; уступает стилям темы и экземпляра.
          */
         public static final Style DEFAULT_CHROME = new MutableStyle()
                 .put(StyleKeys.BACKGROUND_VISIBLE, true)
@@ -31,7 +31,7 @@ public final class WidgetStyles {
                 .put(StyleKeys.RADIUS, 8.0f);
 
         /**
-         * Preset that hides the border and focus ring while preserving other field styling.
+         * Вариант без рамки и кольца фокуса, сохраняющий остальное оформление поля.
          */
         public static final Style UNCHROMED = new MutableStyle()
                 .put(StyleKeys.BORDER_VISIBLE, false)
@@ -41,54 +41,54 @@ public final class WidgetStyles {
                 .put(StyleKeys.FOCUS_RING_COLOR, transparent());
 
         /**
-         * Prevents construction of the nested style namespace.
+         * Запрещает создавать экземпляр пространства имён стилей.
          */
         private TextInput() {
         }
     }
 
     /**
-     * Surface participation presets for controls that draw their own visual content.
+     * Варианты поверхности для элементов, которые рисуют собственное содержимое.
      */
     public static final class Surface {
         /**
-         * Hides generic background and border surfaces.
+         * Скрывает стандартные фон и рамку.
          */
         public static final Style UNSURFACED = new MutableStyle()
                 .put(StyleKeys.BACKGROUND_VISIBLE, false)
                 .put(StyleKeys.BORDER_VISIBLE, false);
 
         /**
-         * Prevents construction of the nested style namespace.
+         * Запрещает создавать экземпляр пространства имён стилей.
          */
         private Surface() {
         }
     }
 
     /**
-     * Styles for standard push buttons.
+     * Стили обычных кнопок.
      */
     public static final class Button {
         /**
-         * Default surface participation; colors are supplied by the theme.
+         * Стандартная поверхность; цвета задаются темой.
          */
         public static final Style DEFAULT = new MutableStyle()
                 .put(StyleKeys.BACKGROUND_VISIBLE, true)
                 .put(StyleKeys.BORDER_VISIBLE, true);
 
         /**
-         * Prevents construction of the nested style namespace.
+         * Запрещает создавать экземпляр пространства имён стилей.
          */
         private Button() {
         }
     }
 
     /**
-     * Styles for multiline text editors.
+     * Стили многострочных текстовых полей.
      */
     public static final class TextArea {
         /**
-         * Default editor surface below theme and instance styles.
+         * Поверхность редактора по умолчанию; уступает стилям темы и экземпляра.
          */
         public static final Style DEFAULT = new MutableStyle()
                 .put(StyleKeys.BACKGROUND_VISIBLE, true)
@@ -97,18 +97,18 @@ public final class WidgetStyles {
                 .put(StyleKeys.BORDER_COLOR, MutableColor.rgba(0.35f, 0.35f, 0.35f, 1.0f));
 
         /**
-         * Prevents construction of the nested style namespace.
+         * Запрещает создавать экземпляр пространства имён стилей.
          */
         private TextArea() {
         }
     }
 
     /**
-     * Styles for card-like {@code View} containers.
+     * Стили контейнеров-карточек {@code View}.
      */
     public static final class View {
         /**
-         * Default view surface below theme and instance styles.
+         * Поверхность {@code View} по умолчанию; уступает стилям темы и экземпляра.
          */
         public static final Style DEFAULT = new MutableStyle()
                 .put(StyleKeys.BACKGROUND_VISIBLE, true)
@@ -118,18 +118,18 @@ public final class WidgetStyles {
                 .put(StyleKeys.RADIUS, 5.0f);
 
         /**
-         * Prevents construction of the nested style namespace.
+         * Запрещает создавать экземпляр пространства имён стилей.
          */
         private View() {
         }
     }
 
     /**
-     * Styles for Minecraft item and entity preview surfaces.
+     * Стили поверхностей предпросмотра предметов и сущностей Minecraft.
      */
     public static final class MinecraftPreview {
         /**
-         * Default preview surface below theme and instance styles.
+         * Поверхность предпросмотра по умолчанию; уступает стилям темы и экземпляра.
          */
         public static final Style DEFAULT = new MutableStyle()
                 .put(StyleKeys.BACKGROUND_VISIBLE, true)
@@ -139,18 +139,18 @@ public final class WidgetStyles {
                 .put(StyleKeys.RADIUS, 4.0f);
 
         /**
-         * Prevents construction of the nested style namespace.
+         * Запрещает создавать экземпляр пространства имён стилей.
          */
         private MinecraftPreview() {
         }
     }
 
     /**
-     * Styles for the visual track of a split-panel divider.
+     * Стили визуальной дорожки разделителя панелей.
      */
     public static final class Splitter {
         /**
-         * Default splitter track below theme and instance styles.
+         * Дорожка разделителя по умолчанию; уступает стилям темы и экземпляра.
          */
         public static final Style DEFAULT = new MutableStyle()
                 .put(StyleKeys.BACKGROUND_VISIBLE, true)
@@ -159,18 +159,18 @@ public final class WidgetStyles {
                 .put(StyleKeys.RADIUS, 2.0f);
 
         /**
-         * Prevents construction of the nested style namespace.
+         * Запрещает создавать экземпляр пространства имён стилей.
          */
         private Splitter() {
         }
     }
 
     /**
-     * Styles for navigation controls and their reusable item surfaces.
+     * Стили элементов навигации и их поверхностей.
      */
     public static final class Navigation {
         /**
-         * Default shape for breadcrumb items; state colors remain runtime-owned.
+         * Форма элементов пути навигации; цвета состояний задаются во время работы.
          */
         public static final Style BREADCRUMB_ITEM = new MutableStyle()
                 .put(StyleKeys.BACKGROUND_VISIBLE, true)
@@ -178,18 +178,18 @@ public final class WidgetStyles {
                 .put(StyleKeys.RADIUS, 3.0f);
 
         /**
-         * Prevents construction of the nested style namespace.
+         * Запрещает создавать экземпляр пространства имён стилей.
          */
         private Navigation() {
         }
     }
 
     /**
-     * Styles for docking and administrative tool surfaces.
+     * Стили поверхностей стыковки панелей и административной консоли.
      */
     public static final class Tools {
         /**
-         * Default docking root surface below theme and instance styles.
+         * Поверхность корня стыковки; уступает стилям темы и экземпляра.
          */
         public static final Style DOCKING_ROOT = new MutableStyle()
                 .put(StyleKeys.BACKGROUND_VISIBLE, true)
@@ -200,7 +200,7 @@ public final class WidgetStyles {
                 .put(StyleKeys.RADIUS, 4.0f);
 
         /**
-         * Default root surface for the extensible administration console.
+         * Стандартная корневая поверхность расширяемой административной консоли.
          */
         public static final Style ADMIN_CONSOLE = new MutableStyle()
                 .put(StyleKeys.BACKGROUND_VISIBLE, true)
@@ -210,24 +210,24 @@ public final class WidgetStyles {
                 .put(StyleKeys.RADIUS, 6.0f);
 
         /**
-         * Prevents construction of the nested style namespace.
+         * Запрещает создавать экземпляр пространства имён стилей.
          */
         private Tools() {
         }
     }
 
     /**
-     * Styles for selection headers and option rows.
+     * Стили заголовков и вариантов списков выбора.
      */
     public static final class Selection {
         /**
-         * Borderless surface used by ComboBox and DropDownBox header buttons.
+         * Поверхность без рамки для кнопок-заголовков {@code ComboBox} и {@code DropDownBox}.
          */
         public static final Style DROPDOWN_HEADER = new MutableStyle()
                 .put(StyleKeys.BORDER_VISIBLE, false);
 
         /**
-         * Borderless, transparent surface used by ComboBox option rows.
+         * Прозрачная поверхность без рамки для строк вариантов {@code ComboBox}.
          */
         public static final Style DROPDOWN_OPTION = new MutableStyle()
                 .put(StyleKeys.BACKGROUND_VISIBLE, true)
@@ -235,18 +235,18 @@ public final class WidgetStyles {
                 .put(StyleKeys.RADIUS, 4.0f);
 
         /**
-         * Prevents construction of the nested style namespace.
+         * Запрещает создавать экземпляр пространства имён стилей.
          */
         private Selection() {
         }
     }
 
     /**
-     * Styles for movable and resizable windows.
+     * Стили перемещаемых окон с изменяемым размером.
      */
     public static final class Window {
         /**
-         * Default window surface below theme and instance styles.
+         * Поверхность окна по умолчанию; уступает стилям темы и экземпляра.
          */
         public static final Style DEFAULT = new MutableStyle()
                 .put(StyleKeys.BACKGROUND_VISIBLE, true)
@@ -256,18 +256,18 @@ public final class WidgetStyles {
                 .put(StyleKeys.RADIUS, 4.0f);
 
         /**
-         * Prevents construction of the nested style namespace.
+         * Запрещает создавать экземпляр пространства имён стилей.
          */
         private Window() {
         }
     }
 
     /**
-     * Styles for tooltip surfaces.
+     * Стили поверхностей всплывающих подсказок.
      */
     public static final class Tooltip {
         /**
-         * Default tooltip surface below theme and instance styles.
+         * Поверхность подсказки по умолчанию; уступает стилям темы и экземпляра.
          */
         public static final Style DEFAULT = new MutableStyle()
                 .put(StyleKeys.BACKGROUND_VISIBLE, true)
@@ -277,18 +277,18 @@ public final class WidgetStyles {
                 .put(StyleKeys.RADIUS, 3.0f);
 
         /**
-         * Prevents construction of the nested style namespace.
+         * Запрещает создавать экземпляр пространства имён стилей.
          */
         private Tooltip() {
         }
     }
 
     /**
-     * Styles for transient toast notifications.
+     * Стили временных уведомлений.
      */
     public static final class Toast {
         /**
-         * Default toast surface below theme and instance styles.
+         * Поверхность уведомления по умолчанию; уступает стилям темы и экземпляра.
          */
         public static final Style DEFAULT = new MutableStyle()
                 .put(StyleKeys.BACKGROUND_VISIBLE, true)
@@ -298,18 +298,18 @@ public final class WidgetStyles {
                 .put(StyleKeys.RADIUS, 5.0f);
 
         /**
-         * Prevents construction of the nested style namespace.
+         * Запрещает создавать экземпляр пространства имён стилей.
          */
         private Toast() {
         }
     }
 
     /**
-     * Styles for anchored popup surfaces.
+     * Стили поверхностей всплывающих окон, привязанных к элементу.
      */
     public static final class Popup {
         /**
-         * Default popup surface below theme and instance styles.
+         * Поверхность всплывающего окна по умолчанию; уступает стилям темы и экземпляра.
          */
         public static final Style DEFAULT = new MutableStyle()
                 .put(StyleKeys.BACKGROUND_VISIBLE, true)
@@ -319,18 +319,18 @@ public final class WidgetStyles {
                 .put(StyleKeys.RADIUS, 3.0f);
 
         /**
-         * Prevents construction of the nested style namespace.
+         * Запрещает создавать экземпляр пространства имён стилей.
          */
         private Popup() {
         }
     }
 
     /**
-     * Styles for context-menu surfaces.
+     * Стили поверхностей контекстных меню.
      */
     public static final class ContextMenu {
         /**
-         * Default context-menu surface below theme and instance styles.
+         * Поверхность контекстного меню по умолчанию; уступает стилям темы и экземпляра.
          */
         public static final Style DEFAULT = new MutableStyle()
                 .put(StyleKeys.BACKGROUND_VISIBLE, true)
@@ -340,16 +340,16 @@ public final class WidgetStyles {
                 .put(StyleKeys.RADIUS, 3.0f);
 
         /**
-         * Prevents construction of the nested style namespace.
+         * Запрещает создавать экземпляр пространства имён стилей.
          */
         private ContextMenu() {
         }
     }
 
     /**
-     * Creates a fresh transparent color for style declarations.
+     * Создаёт новый прозрачный цвет для объявления стиля.
      *
-     * @return independent fully transparent color
+     * @return отдельный полностью прозрачный цвет
      */
     private static MutableColor transparent() {
         return MutableColor.rgba(0.0f, 0.0f, 0.0f, 0.0f);

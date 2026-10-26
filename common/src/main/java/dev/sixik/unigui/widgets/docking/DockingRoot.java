@@ -173,9 +173,9 @@ public final class DockingRoot extends Box {
     }
 
     /**
-     * Returns the built-in docking root surface defaults.
+     * Возвращает стандартный стиль поверхности корня стыковки панелей.
      *
-     * @return the shared docking root style
+     * @return общий стиль корня стыковки
      */
     @Override
     protected Style defaultStyle() {

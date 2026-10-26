@@ -72,9 +72,9 @@ public class ToggleSwitch extends ToggleButton {
     }
 
     /**
-     * Returns defaults for a switch track drawn by the control itself.
+     * Возвращает стандартный стиль переключателя, дорожка которого рисуется самим элементом.
      *
-     * @return unsurfaced component defaults
+     * @return стандартные значения без фоновой поверхности и рамки
      */
     @Override
     protected Style defaultStyle() {

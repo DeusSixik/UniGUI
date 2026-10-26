@@ -96,9 +96,9 @@ public class Slider extends Box {
     }
 
     /**
-     * Returns defaults for a slider that draws its own track and knob.
+     * Возвращает стандартный стиль ползунка, самостоятельно рисующего дорожку и бегунок.
      *
-     * @return unsurfaced component defaults
+     * @return стандартные значения без фоновой поверхности и рамки
      */
     @Override
     protected Style defaultStyle() {

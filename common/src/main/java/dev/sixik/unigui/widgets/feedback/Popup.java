@@ -46,9 +46,9 @@ public final class Popup extends Box implements OverlayHostAware {
     }
 
     /**
-     * Returns the built-in popup surface defaults below theme and instance styles.
+     * Возвращает стандартный стиль поверхности всплывающего окна, уступающий стилям темы и экземпляра.
      *
-     * @return standard popup component defaults
+     * @return стандартные значения оформления всплывающего окна
      */
     @Override
     protected Style defaultStyle() {

@@ -60,9 +60,9 @@ public class Tooltip extends Box implements OverlayHostAware {
     }
 
     /**
-     * Returns the built-in tooltip surface defaults below theme and instance styles.
+     * Возвращает стандартный стиль поверхности подсказки, уступающий стилям темы и экземпляра.
      *
-     * @return standard tooltip component defaults
+     * @return стандартные значения оформления подсказки
      */
     @Override
     protected Style defaultStyle() {

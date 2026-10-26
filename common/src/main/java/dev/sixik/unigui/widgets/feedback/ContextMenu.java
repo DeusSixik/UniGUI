@@ -59,9 +59,9 @@ public final class ContextMenu extends Box implements OverlayHostAware {
     }
 
     /**
-     * Returns the built-in context-menu surface defaults below theme and instance styles.
+     * Возвращает стандартный стиль поверхности контекстного меню, уступающий стилям темы и экземпляра.
      *
-     * @return standard context-menu component defaults
+     * @return стандартные значения оформления контекстного меню
      */
     @Override
     protected Style defaultStyle() {

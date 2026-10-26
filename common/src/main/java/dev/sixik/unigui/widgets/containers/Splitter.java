@@ -43,9 +43,9 @@ public final class Splitter extends Box {
     }
 
     /**
-     * Returns the built-in splitter track defaults below theme and instance styles.
+     * Возвращает стандартный стиль дорожки разделителя, уступающий стилям темы и экземпляра.
      *
-     * @return standard splitter component defaults
+     * @return стандартные значения оформления компонента разделителя
      */
     @Override
     protected Style defaultStyle() {

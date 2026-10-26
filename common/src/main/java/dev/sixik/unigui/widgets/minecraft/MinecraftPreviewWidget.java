@@ -41,9 +41,9 @@ public abstract class MinecraftPreviewWidget extends Box {
     }
 
     /**
-     * Returns the built-in preview surface defaults below theme and instance styles.
+     * Возвращает стандартный стиль поверхности предпросмотра, уступающий стилям темы и экземпляра.
      *
-     * @return standard Minecraft preview component defaults
+     * @return стандартные значения оформления предпросмотра Minecraft
      */
     @Override
     protected final Style defaultStyle() {
