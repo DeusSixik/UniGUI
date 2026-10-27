@@ -1,5 +1,6 @@
 package dev.sixik.unigui.api.style;
 
+import dev.sixik.unigui.api.animation.AnimationEasing;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.render.ImageFit;
 import dev.sixik.unigui.api.render.SliceBorders;
@@ -160,8 +161,8 @@ public final class StyleKeys {
     /**
      * Стандартная easing-кривая автоматического перехода style-свойств.
      */
-    public static final StyleKey<dev.sixik.unigui.api.animation.AnimationEasing> TRANSITION_EASING =
-            StyleKey.of(StyleIds.Key.TRANSITION_EASING, dev.sixik.unigui.api.animation.AnimationEasing.class);
+    public static final StyleKey<AnimationEasing> TRANSITION_EASING =
+            StyleKey.of(StyleIds.Key.TRANSITION_EASING, AnimationEasing.class);
 
     private StyleKeys() {
     }
