@@ -10,6 +10,8 @@ import dev.sixik.unigui.api.render.DrawList;
 import dev.sixik.unigui.api.render.ImageFit;
 import dev.sixik.unigui.api.render.SimpleTextureHandle;
 import dev.sixik.unigui.api.render.SliceBorders;
+import dev.sixik.unigui.api.render.TextureGroup;
+import dev.sixik.unigui.api.render.TextureLayer;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.StyleIds;
 import dev.sixik.unigui.api.style.MutableStyle;
@@ -200,6 +202,25 @@ public final class SurfaceVisualSelfTest {
                 "overlay textures should render after the base in insertion order, skipping empty layers");
         expect(layered.overlayTextures().size() == 3, "overlay stack should expose added layers");
 
+        TextureGroup backgroundGroup = TextureGroup.builder()
+                .add(new TextureLayer(new SimpleTextureHandle("test:group-base", 16, 16)))
+                .add(new TextureLayer(new SimpleTextureHandle("test:group-inset", 16, 16)).inset(4.0f))
+                .build();
+        Box grouped = new Box();
+        grouped.themeEnabled(false);
+        grouped.backgroundKind(BackgroundKind.TEXTURE).backgroundVisible(true);
+        grouped.style(style -> style.put(StyleKeys.BACKGROUND_TEXTURE_GROUP, backgroundGroup));
+        grouped.measure(new LayoutContext(40.0f, 20.0f));
+        grouped.arrange(new MutableRect(10.0f, 12.0f, 40.0f, 20.0f));
+        DrawList groupedDraw = new DrawList();
+        grouped.render(new DefaultRenderContext(groupedDraw));
+        expect(textureIds(groupedDraw).equals(java.util.List.of("test:group-base", "test:group-inset")),
+                "background texture group should render layers in insertion order");
+        DrawCommand insetCommand = (DrawCommand) groupedDraw.commandElements()[1];
+        expect(near(insetCommand.bounds().x(), 14.0f) && near(insetCommand.bounds().y(), 16.0f)
+                        && near(insetCommand.bounds().width(), 32.0f) && near(insetCommand.bounds().height(), 12.0f),
+                "texture layer insets should adjust only that layer's target bounds");
+
         layered.clearOverlayTextures();
         DrawList clearedDraw = new DrawList();
         layered.render(new DefaultRenderContext(clearedDraw));
@@ -315,6 +336,23 @@ public final class SurfaceVisualSelfTest {
         expect(roundTripped.styleFor("TextField")
                         .get(StyleKeys.SLICE_BORDERS, WidgetState.NORMAL, null).equals(SliceBorders.all(6.0f)),
                 "StylePack should round-trip nine-slice borders");
+
+        String groupValue = "test:layer-a,16,16,STRETCH,0.0,0.0,1.0,1.0,0.0,0.0,0.0,0.0,#FFFFFFFF,0.0,0.0,0.0,0.0;"
+                + "test:layer-b,32,24,CONTAIN,0.1,0.2,0.7,0.6,2.0,3.0,4.0,5.0,#80FF00FF,1.0,2.0,3.0,4.0";
+        StylePackResult groupStyle = StylePackXml.parseEditor("<StylePack id=\"texture-group\"><Style id=\"Box\">"
+                + "<Setter property=\"background.kind\" value=\"texture\"/>"
+                + "<Setter property=\"background.texture.group\" value=\"" + groupValue + "\"/>"
+                + "</Style></StylePack>", StyleKeyRegistry.builtIns());
+        expect(groupStyle.valid(), "texture group StylePack should parse: " + groupStyle.diagnosticMessages());
+        StylePack groupRoundTrip = StylePackXml.parse(
+                StylePackXml.toXmlString(groupStyle.pack()), StyleKeyRegistry.builtIns());
+        TextureGroup decodedGroup = groupRoundTrip.styleFor("Box")
+                .get(StyleKeys.BACKGROUND_TEXTURE_GROUP, WidgetState.NORMAL, null);
+        expect(decodedGroup != null && decodedGroup.layers().size() == 2
+                        && decodedGroup.layers().get(1).texture().id().equals("test:layer-b")
+                        && near(decodedGroup.layers().get(1).insetBottom(), 5.0f)
+                        && decodedGroup.layers().get(1).sliceBorders().equals(new SliceBorders(1, 2, 3, 4)),
+                "StylePack should preserve texture group layer render settings");
 
         System.out.println("SurfaceVisualSelfTest passed");
     }

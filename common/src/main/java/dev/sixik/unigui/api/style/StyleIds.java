@@ -25,6 +25,7 @@ public final class StyleIds {
         public static final String BACKGROUND_KIND = "background.kind";
         public static final String BACKGROUND_COLOR = "background.color";
         public static final String BACKGROUND_TEXTURE = "background.texture";
+        public static final String BACKGROUND_TEXTURE_GROUP = "background.texture.group";
         public static final String BACKGROUND_TEXTURE_TINT = "background.texture.tint";
         public static final String BACKGROUND_TEXTURE_FIT = "background.texture.fit";
         public static final String SLICE_BORDERS = "background.texture.slice-borders";

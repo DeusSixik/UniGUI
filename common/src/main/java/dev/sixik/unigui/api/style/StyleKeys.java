@@ -4,6 +4,7 @@ import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.render.ImageFit;
 import dev.sixik.unigui.api.render.SliceBorders;
 import dev.sixik.unigui.api.render.TextureHandle;
+import dev.sixik.unigui.api.render.TextureGroup;
 import dev.sixik.unigui.api.render.shaders.ShaderHandle;
 import dev.sixik.unigui.api.widget.visual.BackgroundKind;
 import dev.sixik.unigui.api.text.TextTransform;
@@ -38,6 +39,12 @@ public final class StyleKeys {
      * Текстура фона виджета.
      */
     public static final StyleKey<TextureHandle> BACKGROUND_TEXTURE = StyleKey.of(StyleIds.Key.BACKGROUND_TEXTURE, TextureHandle.class);
+
+    /**
+     * Упорядоченная группа текстурных слоёв фоновой поверхности.
+     */
+    public static final StyleKey<TextureGroup> BACKGROUND_TEXTURE_GROUP =
+            StyleKey.of(StyleIds.Key.BACKGROUND_TEXTURE_GROUP, TextureGroup.class);
 
     /**
      * Tint-цвет фоновой текстуры.
