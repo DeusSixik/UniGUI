@@ -69,6 +69,16 @@ public class Tooltip extends Box implements OverlayHostAware {
         return WidgetStyles.Tooltip.DEFAULT;
     }
 
+    /**
+     * Возвращает стабильный тип стиля для подсказки и её специализированных подклассов.
+     *
+     * @return тип {@link #STYLE_TYPE}
+     */
+    @Override
+    protected String styleType() {
+        return STYLE_TYPE;
+    }
+
     public Tooltip(Widget anchor, String text) {
         this();
         anchor(anchor);

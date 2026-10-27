@@ -126,6 +126,54 @@ public abstract class WidgetBase implements Widget {
      * Custom renderer полностью заменяет стандартный визуал (фон плюс контент).
      */
     private WidgetRender renderer;
+    /**
+     * Последняя версия каскада стилей, для которой разрешался renderer из Style API.
+     */
+    private long cachedStyleRendererStyleVersion = Long.MIN_VALUE;
+    /**
+     * Последняя версия стандартного стиля компонента, учтённая renderer-кэшем.
+     */
+    private long cachedStyleRendererDefaultVersion = Long.MIN_VALUE;
+    /**
+     * Версия id/class-селектора, учтённая renderer-кэшем.
+     */
+    private long cachedStyleRendererSelectorVersion = Long.MIN_VALUE;
+    /**
+     * Версия реестра renderer'ов, учтённая renderer-кэшем.
+     */
+    private long cachedStyleRendererRegistryVersion = Long.MIN_VALUE;
+    /**
+     * Роль, для которой разрешался последний renderer из стилей.
+     */
+    private WidgetRole cachedStyleRendererRole;
+    /**
+     * UI-контекст последнего разрешения renderer'а.
+     */
+    private UIContext cachedStyleRendererContext;
+    /**
+     * Тема последнего разрешения renderer'а.
+     */
+    private Theme cachedStyleRendererTheme;
+    /**
+     * Объект стандартных стилей, учтённый renderer-кэшем.
+     */
+    private Style cachedStyleRendererDefaults;
+    /**
+     * Включался ли глобальный theme lookup при последнем разрешении renderer'а.
+     */
+    private boolean cachedStyleRendererIncludesTheme;
+    /**
+     * Показывает, что renderer из стилей разрешён хотя бы один раз, включая результат null.
+     */
+    private boolean styleRendererCacheValid;
+    /**
+     * Последний renderer из каскада стилей или null для стандартной отрисовки.
+     */
+    private WidgetRender cachedStyleRenderer;
+    /**
+     * Версия селекторов виджета; меняется при редактировании style id или классов.
+     */
+    private long styleSelectorVersion;
 
     private static final int SCOPE_PROPERTY = 1;
     private static final int SCOPE_PARAMETER = 2;
@@ -375,6 +423,7 @@ public abstract class WidgetBase implements Widget {
         String normalized = styleId == null ? "" : styleId.trim();
         if (this.styleId.equals(normalized)) return this;
         this.styleId = normalized;
+        styleSelectorVersion++;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
@@ -397,6 +446,7 @@ public abstract class WidgetBase implements Widget {
         if (this.styleClasses.equals(parsed)) return this;
         this.styleClasses.clear();
         this.styleClasses.addAll(parsed);
+        styleSelectorVersion++;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
@@ -416,6 +466,7 @@ public abstract class WidgetBase implements Widget {
     public WidgetBase addStyleClass(String styleClass) {
         String normalized = normalizeStyleClass(styleClass);
         if (normalized.isEmpty() || !styleClasses.add(normalized)) return this;
+        styleSelectorVersion++;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
@@ -427,6 +478,7 @@ public abstract class WidgetBase implements Widget {
     public WidgetBase removeStyleClass(String styleClass) {
         String normalized = normalizeStyleClass(styleClass);
         if (normalized.isEmpty() || !styleClasses.remove(normalized)) return this;
+        styleSelectorVersion++;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
@@ -1474,7 +1526,7 @@ public abstract class WidgetBase implements Widget {
      * Resolves a renderer override while optionally excluding the global theme.
      * Local styles remain in the lookup chain regardless of the theme flag.
      *
-     * @param role expected widget role
+     * @param role         expected widget role
      * @param includeTheme whether global theme and StylePack values participate
      * @return compatible style renderer or {@code null}
      */
@@ -1482,6 +1534,23 @@ public abstract class WidgetBase implements Widget {
         if (role == null) role = WidgetRole.UNSPECIFIED;
         UIContext context = uiContext();
         Theme theme = includeTheme && context != null ? context.theme() : Theme.EMPTY;
+        long styleVersion = currentRenderStyleVersion();
+        Style componentDefaults = defaultStyle();
+        long defaultVersion = componentDefaults == null ? 0L : componentDefaults.version();
+        long registryVersion = WidgetRenderRegistry.global().version();
+        if (styleRendererCacheValid
+                && cachedStyleRendererStyleVersion == styleVersion
+                && cachedStyleRendererDefaultVersion == defaultVersion
+                && cachedStyleRendererSelectorVersion == styleSelectorVersion
+                && cachedStyleRendererRegistryVersion == registryVersion
+                && cachedStyleRendererRole == role
+                && cachedStyleRendererContext == context
+                && cachedStyleRendererTheme == theme
+                && cachedStyleRendererDefaults == componentDefaults
+                && cachedStyleRendererIncludesTheme == includeTheme) {
+            return cachedStyleRenderer;
+        }
+
         String type = styleType();
         Style themeStyle = theme instanceof StylePack stylePack
                 ? stylePack.resolveStyleFor(type, styleId(), styleClasses())
@@ -1495,7 +1564,19 @@ public abstract class WidgetBase implements Widget {
             Style localStyle = current.localStyle(type);
             value = localStyle.get(StyleKeys.RENDERER, null, value);
         }
-        return WidgetRenderRegistry.global().resolve(role, value, null);
+        WidgetRender resolved = WidgetRenderRegistry.global().resolve(role, value, null);
+        cachedStyleRendererStyleVersion = styleVersion;
+        cachedStyleRendererDefaultVersion = defaultVersion;
+        cachedStyleRendererSelectorVersion = styleSelectorVersion;
+        cachedStyleRendererRegistryVersion = registryVersion;
+        cachedStyleRendererRole = role;
+        cachedStyleRendererContext = context;
+        cachedStyleRendererTheme = theme;
+        cachedStyleRendererDefaults = componentDefaults;
+        cachedStyleRendererIncludesTheme = includeTheme;
+        cachedStyleRenderer = resolved;
+        styleRendererCacheValid = true;
+        return resolved;
     }
 
     /**
@@ -1863,6 +1944,8 @@ public abstract class WidgetBase implements Widget {
         String type = styleType();
         Widget current = this;
         while (current != null) {
+            version = version * 31L + System.identityHashCode(current);
+            version = version * 31L + (current.styleScope() ? 1L : 0L);
             version = version * 31L + current.localStyle(type).version();
             if (current != this && current.styleScope()) break;
             current = current.parent();

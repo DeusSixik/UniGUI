@@ -637,7 +637,6 @@ public class ComboBox extends LinearBox {
             // reserved-полоса, не поверх строк.
             option.textAlignment(Alignment.START);
             option.textPaddingX(12.0f);
-            option.themeEnabled(false);
             option.background().set(0.0f, 0.0f, 0.0f, 0.0f);
             option.hoverBackground(optionHoverBackground);
             option.hoverTexture(optionHoverTexture);

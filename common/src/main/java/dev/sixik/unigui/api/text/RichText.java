@@ -242,6 +242,35 @@ public final class RichText {
     }
 
     /**
+     * Возвращает копию текста с переопределёнными параметрами текстовых run'ов.
+     * Inline-содержимое сохраняется без изменений.
+     *
+     * @param pixelSize новый размер текста или {@code null}, чтобы сохранить размер run'а
+     * @param tracking новый tracking или {@code null}, чтобы сохранить tracking run'а
+     * @param transform новое преобразование или {@code null}, чтобы сохранить transform run'а
+     * @return обновлённый immutable rich-text или текущий объект, если переопределений нет
+     */
+    public RichText withTextStyle(Float pixelSize, Float tracking, TextTransform transform) {
+        if (spans.isEmpty() || (pixelSize == null && tracking == null && transform == null)) return this;
+        ObjectArrayList<RichTextSpan> updated = new ObjectArrayList<>(spans.size());
+        for (RichTextSpan span : spans) {
+            if (span instanceof TextRun run) {
+                updated.add(new TextRun(
+                        run.text(),
+                        run.font(),
+                        pixelSize == null ? run.pixelSize() : pixelSize,
+                        run.color(),
+                        run.brush(),
+                        tracking == null ? run.tracking() : tracking,
+                        transform == null ? run.transform() : transform));
+            } else {
+                updated.add(span);
+            }
+        }
+        return new RichText(updated, true);
+    }
+
+    /**
      * Возвращает копию rich-text с линейным градиентом на всех текстовых run'ах.
      */
     public RichText withLinearGradient(ColorView startColor, ColorView endColor, float angleDegrees) {
