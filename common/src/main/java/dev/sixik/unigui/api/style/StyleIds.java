@@ -36,12 +36,14 @@ public final class StyleIds {
         public static final String TEXT_SIZE = "text.size";
         public static final String TEXT_TRACKING = "text.tracking";
         public static final String TEXT_TRANSFORM = "text.transform";
+        public static final String CHECKBOX_BACKGROUND_COLOR = "checkbox.background.color";
         public static final String PLACEHOLDER_COLOR = "placeholder.color";
         public static final String CARET_COLOR = "caret.color";
         public static final String FOCUS_RING_COLOR = "focus.ring.color";
         public static final String ACCENT_COLOR = "accent.color";
         public static final String TRACK_COLOR = "track.color";
         public static final String THUMB_COLOR = "thumb.color";
+        public static final String THUMB_RADIUS = "thumb.radius";
         public static final String BORDER_WIDTH = "border.width";
         public static final String RADIUS = "radius";
         public static final String TRANSITION_DURATION = "transition.duration";

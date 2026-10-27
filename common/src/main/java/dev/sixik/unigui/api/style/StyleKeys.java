@@ -95,6 +95,12 @@ public final class StyleKeys {
     public static final StyleKey<TextTransform> TEXT_TRANSFORM = StyleKey.of(StyleIds.Key.TEXT_TRANSFORM, TextTransform.class);
 
     /**
+     * Цвет заливки индикатора Checkbox для каждого состояния.
+     */
+    public static final StyleKey<ColorView> CHECKBOX_BACKGROUND_COLOR =
+            StyleKey.of(StyleIds.Key.CHECKBOX_BACKGROUND_COLOR, ColorView.class);
+
+    /**
      * Цвет placeholder-текста в input-like виджетах.
      */
     public static final StyleKey<ColorView> PLACEHOLDER_COLOR = StyleKey.of(StyleIds.Key.PLACEHOLDER_COLOR, ColorView.class);
@@ -123,6 +129,11 @@ public final class StyleKeys {
      * Цвет thumb/handle-части slider/scrollbar виджетов.
      */
     public static final StyleKey<ColorView> THUMB_COLOR = StyleKey.of(StyleIds.Key.THUMB_COLOR, ColorView.class);
+
+    /**
+     * Радиус скругления бегунка в UI-пикселях; половина размера образует круг.
+     */
+    public static final StyleKey<Float> THUMB_RADIUS = StyleKey.of(StyleIds.Key.THUMB_RADIUS, Float.class);
 
     /**
      * Толщина рамки в UI-пикселях.

@@ -85,12 +85,17 @@ public final class StyleKeyRegistry {
                 .register(new StylePropertyDescriptor<>(StyleKeys.TEXT_TRACKING, "Character spacing", "Text", null, number, "Additional spacing between characters in logical pixels."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.TEXT_TRANSFORM, "Text conversion", "Text", null,
                         StyleValueCodec.enumCodec(TextTransform.class), "Text transformation before measurement and rendering."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.CHECKBOX_BACKGROUND_COLOR,
+                        "The color of the flag indicator", "Controls", null, color,
+                        "The fill color of the square Checkbox indicator for the state."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.PLACEHOLDER_COLOR, "Placeholder color", "Text", null, color, "Placeholder text color."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.CARET_COLOR, "Caret color", "Text", null, color, "Text editor caret color."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.FOCUS_RING_COLOR, "Focus ring color", "Focus", null, color, "Outer focus ring color for text inputs."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.ACCENT_COLOR, "Accent color", "Accent", null, color, "Accent color for active controls."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.TRACK_COLOR, "Track color", "Controls", null, color, "Track color for slider/progress controls."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.THUMB_COLOR, "Thumb color", "Controls", null, color, "Thumb color for slider/scroll controls."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.THUMB_RADIUS, "Slider radius", "Controls", null, number,
+                        "The radius of the slider’s rounding; half of its size forms a circle."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.TRANSITION_DURATION, "Transition duration", "Animation", 0.0f, number, "Automatic style transition duration in seconds."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.TRANSITION_EASING, "Transition easing", "Animation", AnimationEasing.EASE_OUT, easing, "Automatic style transition easing curve."));
     }

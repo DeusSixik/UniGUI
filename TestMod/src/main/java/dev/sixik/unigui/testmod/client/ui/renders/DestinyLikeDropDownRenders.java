@@ -8,9 +8,7 @@ import dev.sixik.unigui.api.text.Fonts;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.impl.text.TextEngine;
-import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.interaction.Button;
-import dev.sixik.unigui.widgets.interaction.ToggleButton;
 
 public final class DestinyLikeDropDownRenders {
     public static final float HEADER_HEIGHT = 20.0f;
@@ -24,7 +22,6 @@ public final class DestinyLikeDropDownRenders {
     private static final float CHEVRON_RIGHT_PADDING = 7.0f;
 
     private static final ColorView BACKGROUND = MutableColor.rgba255(22, 25, 31, 246);
-    private static final ColorView OPTION_HOVER_BACKGROUND = MutableColor.rgba255(39, 43, 52, 246);
     private static final ColorView BORDER = MutableColor.rgba255(105, 109, 112, 225);
     private static final ColorView BORDER_HOVER = MutableColor.rgba255(238, 241, 247, 255);
     private static final ColorView TEXT = MutableColor.rgba255(255, 255, 255, 255);
@@ -45,39 +42,6 @@ public final class DestinyLikeDropDownRenders {
                 Math.max(0.0f, width - TEXT_PADDING_X - CHEVRON_RIGHT_PADDING - CHEVRON_SIZE - 5.0f),
                 button.enabled() ? TEXT : TEXT_HOVER);
         drawChevron(draw, x + width - CHEVRON_RIGHT_PADDING - CHEVRON_SIZE, y + height * 0.5f - CHEVRON_SIZE * 0.35f);
-    });
-
-    public static final WidgetRender OPTIONS_HOST = WidgetRender.of(Box.class, (draw, box) -> {
-        RectView bounds = box.layoutBounds();
-        float x = bounds.x();
-        float y = bounds.y();
-        float width = Math.max(0.0f, bounds.width());
-        float height = Math.max(0.0f, bounds.height());
-        if (width <= 0.0f || height <= 0.0f) return;
-
-        if (box.backgroundVisible()) {
-            draw.rect(x, y, width, height, Paint.fill(box.background()));
-        }
-        if (box.borderVisible()) {
-            DestinyLikeRenderPrimitives.rectBorder(draw, x, y, width, height,
-                    box.borderColor(), box.borderWidth());
-        }
-    });
-
-    public static final WidgetRender OPTION = WidgetRender.of(ToggleButton.class, (draw, option) -> {
-        RectView bounds = option.layoutBounds();
-        float x = bounds.x();
-        float y = bounds.y();
-        float width = Math.max(0.0f, bounds.width());
-        float height = Math.max(0.0f, bounds.height());
-        if (width <= 0.0f || height <= 0.0f) return;
-
-        draw.rect(x, y, width, height, Paint.fill(option.hovered() || option.checked() ? OPTION_HOVER_BACKGROUND : BACKGROUND));
-        if (option.hovered() && option.enabled()) {
-            DestinyLikeRenderPrimitives.rectBorder(draw, x, y, width, height, BORDER_HOVER, BORDER_WIDTH);
-        }
-        drawLabel(draw, option, displayText(option.text()), x + TEXT_PADDING_X,
-                Math.max(0.0f, width - TEXT_PADDING_X * 2.0f), TEXT);
     });
 
     private DestinyLikeDropDownRenders() {

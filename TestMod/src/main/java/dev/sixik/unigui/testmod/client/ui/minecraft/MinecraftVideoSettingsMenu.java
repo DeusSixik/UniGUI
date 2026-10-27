@@ -36,10 +36,8 @@ import dev.sixik.unigui.backend.minecraft_impl.MinecraftClipboardService;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftWidgetScreen;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeButtonRenders;
-import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeCheckboxRenders;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeDropDownRenders;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeTooltipRenders;
-import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeToggleSwitchRenders;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.HBox;
 import dev.sixik.unigui.widgets.containers.ScrollView;
@@ -986,11 +984,7 @@ public final class MinecraftVideoSettingsMenu {
 
         dropBox.optionsHost().backgroundVisible(true);
         dropBox.optionsHost().borderVisible(true);
-        dropBox.optionsHost().radius(0.0f);
-        dropBox.optionsHost().borderWidth(0.18f);
         dropBox.optionsHost().styleClass(DestinyLikeStyles.DROPDOWN_HOST);
-        dropBox.optionsHost().background().set(0.09f, 0.10f, 0.13f, 0.98f);
-        dropBox.optionsHost().borderColor().set(0.41f, 0.43f, 0.48f, 0.88f);
         dropBox.optionsScroll().scrollbarGap(1.0f);
         dropBox.optionsScroll().scrollStep(DROPBOX_OPTION_HEIGHT);
         dropBox.optionsScroll().scrollbarTrackColor().set(0.0f, 0.0f, 0.0f, 0.42f);
@@ -1003,6 +997,7 @@ public final class MinecraftVideoSettingsMenu {
             option.styleClass(DestinyLikeStyles.DROPDOWN_OPTION);
             option.themeEnabled(true);
             option.textPadding(DestinyLikeDropDownRenders.TEXT_PADDING_X, 0.0f);
+            option.textAlignment(Alignment.START);
             option.backgroundVisible(false);
             option.borderVisible(false);
             option.layout(style -> style
@@ -1021,10 +1016,10 @@ public final class MinecraftVideoSettingsMenu {
 
     private static List<RichText> dropBoxItems(String... options) {
         if (options == null || options.length == 0) {
-            return List.of(DestinyLikeDropDownRenders.destinyText(""));
+            return List.of(RichText.plain(""));
         }
         return Arrays.stream(options)
-                .map(DestinyLikeDropDownRenders::destinyText)
+                .map(RichText::resolve)
                 .toList();
     }
 
@@ -1109,7 +1104,6 @@ public final class MinecraftVideoSettingsMenu {
         checkbox.boxSize(5.2f);
         checkbox.checkSize(3.4f);
         checkbox.textGap(1.35f);
-        checkbox.richText(DestinyLikeCheckboxRenders.dominionCheckboxText(text));
         checkbox.checkAnimation(0.0f).silentChecked(checked).checkAnimation(0.12f);
         return checkbox;
     }
@@ -1317,7 +1311,6 @@ public final class MinecraftVideoSettingsMenu {
         toggle.thumbSize(TOGGLE_SWITCH_THUMB);
         toggle.labelGap(1.35f);
         toggle.labelLeft(labelLeft);
-        toggle.richText(DestinyLikeToggleSwitchRenders.dominionSwitchText(text));
         toggle.switchAnimation(0.0f).silentChecked(checked).switchAnimation(0.16f);
         return toggle;
     }

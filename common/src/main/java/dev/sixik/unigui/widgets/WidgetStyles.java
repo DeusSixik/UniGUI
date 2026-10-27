@@ -226,11 +226,23 @@ public final class WidgetStyles {
         public static final Style DROPDOWN_HEADER = new MutableStyle()
                 .put(StyleKeys.BORDER_VISIBLE, false);
 
+        /** Стандартная поверхность списка ComboBox; уступает теме и локальным стилям. */
+        public static final Style DROPDOWN_HOST = new MutableStyle()
+                .put(StyleKeys.BACKGROUND_VISIBLE, true)
+                .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.118f, 0.129f, 0.149f, 0.97f))
+                .put(StyleKeys.BORDER_VISIBLE, true)
+                .put(StyleKeys.BORDER_COLOR, MutableColor.rgba(0.180f, 0.200f, 0.231f, 1.0f))
+                .put(StyleKeys.RADIUS, 8.0f);
+
         /**
          * Прозрачная поверхность без рамки для строк вариантов {@code ComboBox}.
          */
         public static final Style DROPDOWN_OPTION = new MutableStyle()
                 .put(StyleKeys.BACKGROUND_VISIBLE, true)
+                .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.0f, 0.0f, 0.0f, 0.0f))
+                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.HOVERED, MutableColor.rgba(0.24f, 0.28f, 0.35f, 0.92f))
+                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.PRESSED, MutableColor.rgba(0.24f, 0.28f, 0.35f, 0.92f))
+                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.CHECKED, MutableColor.rgba(0.149f, 0.251f, 0.369f, 1.0f))
                 .put(StyleKeys.BORDER_VISIBLE, false)
                 .put(StyleKeys.RADIUS, 4.0f);
 
