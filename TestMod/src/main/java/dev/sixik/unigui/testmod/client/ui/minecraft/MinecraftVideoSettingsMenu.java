@@ -1049,7 +1049,8 @@ public final class MinecraftVideoSettingsMenu {
                                  boolean animateText) {
         Button button = new Button();
         button.styleClass(DestinyLikeStyles.ACTION);
-        button.richText(DestinyLikeButtonRenders.dominionButtonText(text, textColor));
+        button.text(text);
+        button.textColor(textColor);
         button.textPadding(
                 DestinyLikeButtonRenders.INTRINSIC_TEXT_PADDING_X * ACTION_BUTTON_SCALE,
                 DestinyLikeButtonRenders.INTRINSIC_TEXT_PADDING_Y * ACTION_BUTTON_SCALE);

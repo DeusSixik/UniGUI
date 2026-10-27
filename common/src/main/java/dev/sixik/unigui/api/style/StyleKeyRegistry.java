@@ -8,6 +8,7 @@ import dev.sixik.unigui.api.render.SliceBorders;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.shaders.ShaderHandle;
 import dev.sixik.unigui.api.widget.visual.BackgroundKind;
+import dev.sixik.unigui.api.text.TextTransform;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -80,6 +81,10 @@ public final class StyleKeyRegistry {
                 .register(new StylePropertyDescriptor<>(StyleKeys.BORDER_WIDTH, "Border width", "Border", 0.0f, number, "Stroke width in logical pixels."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.RADIUS, "Radius", "Border", 0.0f, number, "Corner radius in logical pixels."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.TEXT_COLOR, "Text color", "Text", null, color, "Primary text color."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.TEXT_SIZE, "Text size", "Text", null, number, "The text size in logical pixels."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.TEXT_TRACKING, "Character spacing", "Text", null, number, "Additional spacing between characters in logical pixels."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.TEXT_TRANSFORM, "Text conversion", "Text", null,
+                        StyleValueCodec.enumCodec(TextTransform.class), "Text transformation before measurement and rendering."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.PLACEHOLDER_COLOR, "Placeholder color", "Text", null, color, "Placeholder text color."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.CARET_COLOR, "Caret color", "Text", null, color, "Text editor caret color."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.FOCUS_RING_COLOR, "Focus ring color", "Focus", null, color, "Outer focus ring color for text inputs."))
@@ -94,8 +99,8 @@ public final class StyleKeyRegistry {
      * Регистрирует descriptor свойства.
      *
      * @param descriptor metadata свойства
+     * @param <T>        Java-тип значения свойства
      * @return этот registry для fluent-настройки
-     * @param <T> Java-тип значения свойства
      */
     public <T> StyleKeyRegistry register(StylePropertyDescriptor<T> descriptor) {
         Objects.requireNonNull(descriptor, "descriptor");
@@ -117,8 +122,8 @@ public final class StyleKeyRegistry {
      * Ищет descriptor по типизированному ключу и проверяет совместимость типов.
      *
      * @param key ключ свойства
-     * @return типизированный descriptor или {@link Optional#empty()}
      * @param <T> Java-тип значения свойства
+     * @return типизированный descriptor или {@link Optional#empty()}
      */
     public <T> Optional<StylePropertyDescriptor<T>> descriptor(StyleKey<T> key) {
         Objects.requireNonNull(key, "key");

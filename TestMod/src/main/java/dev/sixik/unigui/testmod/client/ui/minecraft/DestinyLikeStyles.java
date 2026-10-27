@@ -3,7 +3,9 @@ package dev.sixik.unigui.testmod.client.ui.minecraft;
 import dev.sixik.unigui.api.style.MutableStyle;
 import dev.sixik.unigui.api.style.StyleDefinition;
 import dev.sixik.unigui.api.style.StyleIds;
+import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.StylePack;
+import dev.sixik.unigui.api.text.TextTransform;
 import dev.sixik.unigui.api.widget.render.WidgetRenderRegistry;
 import dev.sixik.unigui.api.widget.render.WidgetRole;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeButtonRenders;
@@ -120,7 +122,11 @@ final class DestinyLikeStyles {
         registry.register(ID_TOOLTIP, WidgetRole.POPUP, DestinyLikeTooltipRenders.DEFAULT);
 
         return StylePack.create("testmod:destiny-like")
-                .put(renderer("button.action", StyleIds.Widget.BUTTON, ACTION, ID_BUTTON))
+                .put(renderer("button.action", StyleIds.Widget.BUTTON, ACTION, ID_BUTTON,
+                        new MutableStyle()
+                                .put(StyleKeys.TEXT_SIZE, 3.2f)
+                                .put(StyleKeys.TEXT_TRACKING, 0.34f)
+                                .put(StyleKeys.TEXT_TRANSFORM, TextTransform.UPPERCASE)))
                 .put(renderer("button.dropdown.header", StyleIds.Widget.BUTTON, DROPDOWN_HEADER, ID_DROPDOWN_HEADER))
                 .put(renderer("toggle.dropdown.option", StyleIds.Widget.TOGGLE_BUTTON, DROPDOWN_OPTION, ID_DROPDOWN_OPTION))
                 .put(renderer("box.dropdown.host", StyleIds.Widget.BOX, DROPDOWN_HOST, ID_DROPDOWN_HOST))
@@ -132,7 +138,12 @@ final class DestinyLikeStyles {
     }
 
     private static StyleDefinition renderer(String id, String target, String styleClass, String rendererId) {
-        return StyleDefinition.custom(id, rendererId, new MutableStyle())
+        return renderer(id, target, styleClass, rendererId, new MutableStyle());
+    }
+
+    private static StyleDefinition renderer(String id, String target, String styleClass, String rendererId,
+                                            MutableStyle style) {
+        return StyleDefinition.custom(id, rendererId, style)
                 .target(target)
                 .styleClass(styleClass);
     }

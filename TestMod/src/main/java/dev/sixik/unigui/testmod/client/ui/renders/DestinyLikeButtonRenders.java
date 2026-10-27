@@ -32,11 +32,11 @@ public final class DestinyLikeButtonRenders {
         draw.rect(x, y, w, h, Paint.fill(button.background()));
         drawBorder(draw, x, y, w, h, button.borderColor());
 
-        RichText richText = button.richText();
+        RichText richText = button.renderedRichText();
         if (richText == null || richText.isEmpty()) return;
 
         float availableWidth = Math.max(0.0f, w - TEXT_HORIZONTAL_PADDING * 2.0f);
-        RichText text = destinyText(draw, button.text(), button.textColor(), availableWidth);
+        RichText text = button.fittedRichText(availableWidth, MIN_TEXT_SIZE, 0.25f);
         float textWidth = Math.min(availableWidth, TextEngine.measureLineWidth(draw.context(), text));
         float textHeight = Math.min(h, TextEngine.measureTextHeight(text));
 
@@ -51,16 +51,6 @@ public final class DestinyLikeButtonRenders {
 
     public static RichText dominionButtonText(String value, ColorView color) {
         return buildDestinyText(value, color, TEXT_SIZE);
-    }
-
-    private static RichText destinyText(DrawScope draw, String value, ColorView color, float maxWidth) {
-        float size = TEXT_SIZE;
-        RichText text = buildDestinyText(value, color, size);
-        while (size > MIN_TEXT_SIZE && TextEngine.measureLineWidth(draw.context(), text) > maxWidth) {
-            size = Math.max(MIN_TEXT_SIZE, size - 0.25f);
-            text = buildDestinyText(value, color, size);
-        }
-        return text;
     }
 
     private static RichText buildDestinyText(String value, ColorView color, float size) {

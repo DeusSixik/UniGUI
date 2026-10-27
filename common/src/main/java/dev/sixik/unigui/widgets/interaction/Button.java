@@ -22,6 +22,7 @@ import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.text.TextTransform;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.render.WidgetRole;
 import dev.sixik.unigui.api.widget.visual.BackgroundKind;
@@ -55,6 +56,9 @@ public class Button extends SurfaceWidget<Button> {
         public static final String BORDER_WIDTH = StyleIds.Key.BORDER_WIDTH;
         public static final String RADIUS = StyleIds.Key.RADIUS;
         public static final String TEXT_COLOR = StyleIds.Key.TEXT_COLOR;
+        public static final String TEXT_SIZE = StyleIds.Key.TEXT_SIZE;
+        public static final String TEXT_TRACKING = StyleIds.Key.TEXT_TRACKING;
+        public static final String TEXT_TRANSFORM = StyleIds.Key.TEXT_TRANSFORM;
         public static final String TRANSITION_DURATION = StyleIds.Key.TRANSITION_DURATION;
         public static final String TRANSITION_EASING = StyleIds.Key.TRANSITION_EASING;
 
@@ -108,6 +112,16 @@ public class Button extends SurfaceWidget<Button> {
 
     private String text = "";
     private RichText richText = RichText.plain("");
+    private RichText styledRichText = richText;
+    private RichText styledTextSource;
+    private float styledTextSize = Float.NaN;
+    private float styledTextTracking = Float.NaN;
+    private TextTransform styledTextTransform;
+    private RichText fittedTextSource;
+    private RichText fittedRichText;
+    private float fittedTextWidth = Float.NaN;
+    private float fittedTextMinimumSize = Float.NaN;
+    private float fittedTextSizeStep = Float.NaN;
     private final MutableColor textColor = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private int pressedPointerId = -1;
     private float textPaddingX = DEFAULT_TEXT_PADDING_X;
@@ -202,10 +216,59 @@ public class Button extends SurfaceWidget<Button> {
         return richText;
     }
 
+    /**
+     * Возвращает текст после применения типизированных style-переопределений.
+     * Предназначен штатным и совместимым custom renderer'ам.
+     *
+     * @return кэшированный текст для измерения и отрисовки
+     */
+    public RichText renderedRichText() {
+        applyTheme();
+        return styledRichText;
+    }
+
+    /**
+     * Возвращает текст, уменьшенный до заданной ширины, с кэшированием результата.
+     * Повторный вызов с тем же текстом, шириной и параметрами не создаёт новый rich-text.
+     *
+     * @param maxWidth доступная ширина текста
+     * @param minimumPixelSize минимальный размер текста
+     * @param pixelSizeStep шаг уменьшения размера
+     * @return текст, помещающийся в ширину настолько, насколько позволяют параметры
+     */
+    public RichText fittedRichText(float maxWidth, float minimumPixelSize, float pixelSizeStep) {
+        RichText source = renderedRichText();
+        float width = Float.isFinite(maxWidth) ? Math.max(0.0f, maxWidth) : 0.0f;
+        float minimum = Float.isFinite(minimumPixelSize) ? Math.max(1.0f, minimumPixelSize) : 1.0f;
+        float step = Float.isFinite(pixelSizeStep) ? Math.max(0.01f, pixelSizeStep) : 0.25f;
+        if (fittedTextSource == source
+                && Float.compare(fittedTextWidth, width) == 0
+                && Float.compare(fittedTextMinimumSize, minimum) == 0
+                && Float.compare(fittedTextSizeStep, step) == 0) {
+            return fittedRichText;
+        }
+
+        fittedTextSource = source;
+        fittedTextWidth = width;
+        fittedTextMinimumSize = minimum;
+        fittedTextSizeStep = step;
+        fittedRichText = source;
+        if (source.runs().isEmpty()) return fittedRichText;
+
+        float size = source.runs().get(0).pixelSize();
+        float minimumSize = Math.min(minimum, size);
+        while (size > minimumSize && TextEngine.measureLineWidth(fittedRichText) > width) {
+            size = Math.max(minimumSize, size - step);
+            fittedRichText = source.withTextStyle(size, null, null);
+        }
+        return fittedRichText;
+    }
+
     public Button richText(RichText richText) {
         RichText normalized = richText == null ? RichText.plain("") : richText;
         if (Objects.equals(this.richText, normalized)) return this;
         this.richText = normalized;
+        this.styledTextSource = null;
         this.text = normalized.plainText();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
@@ -729,7 +792,8 @@ public class Button extends SurfaceWidget<Button> {
             setDesiredSize(0.0f, 0.0f);
             return;
         }
-        float textWidth = TextEngine.measureLineWidth(richText);
+        applyTheme();
+        float textWidth = TextEngine.measureLineWidth(styledRichText);
         float textHeight = intrinsicTextHeight();
         float trailingSlot = chevronVisible ? CHEVRON_SLOT_WIDTH : 0.0f;
         setDesiredSize(resolveDesiredSize(context,
@@ -877,7 +941,8 @@ public class Button extends SurfaceWidget<Button> {
      * @param draw draw scope виджета
      */
     protected void renderButtonText(DrawScope draw) {
-        if (richText == null || richText.isEmpty()) {
+        RichText textValue = styledRichText;
+        if (textValue == null || textValue.isEmpty()) {
             renderChevron(draw);
             return;
         }
@@ -892,8 +957,8 @@ public class Button extends SurfaceWidget<Button> {
             renderChevron(draw);
             return;
         }
-        float textWidth = TextEngine.measureLineWidth(draw.context(), richText);
-        float textHeight = TextEngine.measureTextHeight(draw.context(), richText);
+        float textWidth = TextEngine.measureLineWidth(draw.context(), textValue);
+        float textHeight = TextEngine.measureTextHeight(draw.context(), textValue);
         float drawWidth = Math.min(contentWidth, Math.max(0.0f, textWidth));
         float drawHeight = Math.min(Math.max(0.0f, height), Math.max(0.0f, textHeight));
         if (drawWidth <= 0.0f || drawHeight <= 0.0f) {
@@ -911,7 +976,7 @@ public class Button extends SurfaceWidget<Button> {
             drawX = contentX + Math.max(0.0f, contentWidth - drawWidth) * 0.5f;
         }
         float drawY = y + Math.max(0.0f, height - drawHeight) * 0.5f;
-        renderLabel(draw, richText, contentX, y, contentWidth, height,
+        renderLabel(draw, textValue, contentX, y, contentWidth, height,
                 drawX, drawY, drawWidth, drawHeight, textColor);
         renderChevron(draw);
     }
@@ -1070,7 +1135,7 @@ public class Button extends SurfaceWidget<Button> {
     }
 
     protected float intrinsicTextHeight() {
-        float measured = TextEngine.measureTextHeight(richText);
+        float measured = TextEngine.measureTextHeight(styledRichText);
         return measured > 0.0f ? measured : TextEngine.LINE_HEIGHT;
     }
 
@@ -1081,10 +1146,29 @@ public class Button extends SurfaceWidget<Button> {
         if (themedAccent != null) {
             focusRingColor.set(themedAccent.r(), themedAccent.g(), themedAccent.b(), 0.30f);
         }
-        if (customTextColor) return;
-        ColorView themedText = styleValue(StyleKeys.TEXT_COLOR, styleState(), textColor);
-        if (themedText != null) {
-            animateColor(textColor, themedText, styleTransition());
+        if (!customTextColor) {
+            ColorView themedText = styleValue(StyleKeys.TEXT_COLOR, styleState(), textColor);
+            if (themedText != null) {
+                animateColor(textColor, themedText, styleTransition());
+            }
+        }
+        Float textSize = styleValue(StyleKeys.TEXT_SIZE, styleState(), null);
+        Float textTracking = styleValue(StyleKeys.TEXT_TRACKING, styleState(), null);
+        TextTransform textTransform = styleValue(StyleKeys.TEXT_TRANSFORM, styleState(), null);
+        float nextSize = textSize == null ? Float.NaN : textSize;
+        float nextTracking = textTracking == null ? Float.NaN : textTracking;
+        if (styledTextSource != richText
+                || Float.compare(styledTextSize, nextSize) != 0
+                || Float.compare(styledTextTracking, nextTracking) != 0
+                || styledTextTransform != textTransform) {
+            styledTextSource = richText;
+            styledTextSize = nextSize;
+            styledTextTracking = nextTracking;
+            styledTextTransform = textTransform;
+            styledRichText = richText.withTextStyle(
+                    Float.isNaN(nextSize) ? null : nextSize,
+                    Float.isNaN(nextTracking) ? null : nextTracking,
+                    textTransform);
         }
     }
 

@@ -33,6 +33,9 @@ public final class StyleIds {
         public static final String BORDER_COLOR = "border.color";
         public static final String BORDER_VISIBLE = "border.visible";
         public static final String TEXT_COLOR = "text.color";
+        public static final String TEXT_SIZE = "text.size";
+        public static final String TEXT_TRACKING = "text.tracking";
+        public static final String TEXT_TRANSFORM = "text.transform";
         public static final String PLACEHOLDER_COLOR = "placeholder.color";
         public static final String CARET_COLOR = "caret.color";
         public static final String FOCUS_RING_COLOR = "focus.ring.color";
