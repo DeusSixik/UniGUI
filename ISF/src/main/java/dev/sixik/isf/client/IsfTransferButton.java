@@ -5,6 +5,7 @@ import dev.sixik.isf.IsfMod;
 import dev.sixik.unigui.api.event.PointerEnteredEvent;
 import dev.sixik.unigui.api.event.PointerExitedEvent;
 import dev.sixik.unigui.api.render.TextureOptions;
+import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftTextureHandle;
 import dev.sixik.unigui.widgets.interaction.Button;
 import net.minecraft.client.Minecraft;
@@ -57,8 +58,8 @@ final class IsfTransferButton extends Button {
     /** Переключает текстуру по поддержке текущего экрана. */
     void refreshState() {
         themeEnabled(false);
+        style(style -> style.put(StyleKeys.BORDER_VISIBLE, false));
         backgroundVisible(true);
-        borderVisible(false);
         backgroundTextureFit(dev.sixik.unigui.api.render.ImageFit.NINE_SLICE);
         sliceBorders(4.0f);
         backgroundTexture(new MinecraftTextureHandle(supportedTexture(), ICON_PIXELS, ICON_PIXELS,

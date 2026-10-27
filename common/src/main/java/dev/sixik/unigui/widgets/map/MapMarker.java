@@ -4,6 +4,8 @@ import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.api.style.Style;
+import dev.sixik.unigui.widgets.WidgetStyles;
 import dev.sixik.unigui.widgets.world.AnchorWidget;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.display.Label;
@@ -34,9 +36,18 @@ public class MapMarker extends Box {
      * Создает пустой marker shell без фона/рамки темы.
      */
     public MapMarker() {
-        backgroundVisible(false);
-        borderVisible(false);
+        applyComponentStyleDefaults(WidgetStyles.Surface.UNSURFACED);
         themeEnabled(false);
+    }
+
+    /**
+     * Возвращает стандартное прозрачное оформление маркера.
+     *
+     * @return общий стиль без фоновой поверхности и рамки
+     */
+    @Override
+    protected Style defaultStyle() {
+        return WidgetStyles.Surface.UNSURFACED;
     }
 
     /**

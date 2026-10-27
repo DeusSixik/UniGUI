@@ -51,6 +51,8 @@ import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.DockPanel;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 import dev.sixik.unigui.widgets.feedback.WindowWidget;
+import dev.sixik.unigui.widgets.WidgetStyles;
+import dev.sixik.unigui.api.style.Style;
 
 /**
  * Visual root host for the IDE-style docking system.
@@ -166,13 +168,18 @@ public final class DockingRoot extends Box {
     private float splitDragAvailable;  // total track length (px) at drag start
 
     public DockingRoot() {
-        backgroundVisible(true);
-        borderVisible(true);
-        radius(4.0f);
-        background().set(0.025f, 0.030f, 0.042f, 0.98f);
-        borderColor().set(0.18f, 0.22f, 0.30f, 0.95f);
-        borderWidth(1.0f);
+        applyComponentStyleDefaults(WidgetStyles.Tools.DOCKING_ROOT);
         focusable(true);
+    }
+
+    /**
+     * Возвращает стандартный стиль поверхности корня стыковки панелей.
+     *
+     * @return общий стиль корня стыковки
+     */
+    @Override
+    protected Style defaultStyle() {
+        return WidgetStyles.Tools.DOCKING_ROOT;
     }
 
     public DockingManager dockingManager() {

@@ -10,10 +10,12 @@ import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.widgets.containers.Box;
+import dev.sixik.unigui.widgets.WidgetStyles;
 
 /**
  * Generic animated activity indicator.
@@ -51,11 +53,20 @@ public class LoadingIndicator extends Box {
 
     public LoadingIndicator() {
         boxVisualEnabled(false);
-        backgroundVisible(false);
-        borderVisible(false);
+        applyComponentStyleDefaults(WidgetStyles.Surface.UNSURFACED);
         accentColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         secondaryColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         trackColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
+    }
+
+    /**
+     * Возвращает стандартный стиль для индикатора загрузки, целиком рисуемого самим элементом.
+     *
+     * @return стандартные значения без фоновой поверхности и рамки
+     */
+    @Override
+    protected Style defaultStyle() {
+        return WidgetStyles.Surface.UNSURFACED;
     }
 
     public Mode mode() {

@@ -1,6 +1,8 @@
 package dev.sixik.unigui.widgets.interaction;
 
 import dev.sixik.unigui.api.input.TextEditorModel;
+import dev.sixik.unigui.api.style.Style;
+import dev.sixik.unigui.widgets.WidgetStyles;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
@@ -17,8 +19,14 @@ import dev.sixik.unigui.api.style.StyleIds;
 public class TextField extends TextInput {
     public static final String STYLE_TYPE = StyleIds.Widget.TEXT_FIELD;
 
+    /** Defaults used when no global or local style provides text-field chrome. */
     public TextField() {
-        enableDefaultTextInputChrome();
+        applyComponentStyleDefaults(WidgetStyles.TextInput.DEFAULT_CHROME);
+    }
+
+    @Override
+    protected Style defaultStyle() {
+        return WidgetStyles.TextInput.DEFAULT_CHROME;
     }
 
     public TextField(String text) {

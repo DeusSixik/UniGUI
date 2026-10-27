@@ -18,6 +18,7 @@ import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
@@ -28,6 +29,7 @@ import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.display.Separator;
 import dev.sixik.unigui.widgets.interaction.Button;
+import dev.sixik.unigui.widgets.WidgetStyles;
 
 @XmlWidgetName("ContextMenu")
 public final class ContextMenu extends Box implements OverlayHostAware {
@@ -47,17 +49,23 @@ public final class ContextMenu extends Box implements OverlayHostAware {
     private int pendingSelectedItemIndex = -1;
 
     public ContextMenu() {
-        backgroundVisible(true);
-        borderVisible(true);
-        radius(3.0f);
-        background().set(0.025f, 0.030f, 0.040f, 0.98f);
-        borderColor().set(0.25f, 0.78f, 1.0f, 0.85f);
+        applyComponentStyleDefaults(WidgetStyles.ContextMenu.DEFAULT);
         layout(style -> style.position(PositionType.ABSOLUTE).overflow(Overflow.VISIBLE));
         visible(false);
         focusable(true);
         itemsHost.spacing(1.0f);
         addChild(itemsHost);
         applyQueuedMutations();
+    }
+
+    /**
+     * Возвращает стандартный стиль поверхности контекстного меню, уступающий стилям темы и экземпляра.
+     *
+     * @return стандартные значения оформления контекстного меню
+     */
+    @Override
+    protected Style defaultStyle() {
+        return WidgetStyles.ContextMenu.DEFAULT;
     }
 
     public ContextMenu item(String text) {

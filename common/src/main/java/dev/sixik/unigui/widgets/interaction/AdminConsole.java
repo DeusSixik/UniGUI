@@ -39,6 +39,8 @@ import dev.sixik.unigui.widgets.containers.ScrollView;
 import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.feedback.Popup;
+import dev.sixik.unigui.widgets.WidgetStyles;
+import dev.sixik.unigui.api.style.Style;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectList;
 
@@ -158,12 +160,18 @@ public class AdminConsole extends Box {
      * <p>Переопределяйте этот метод, если нужна другая базовая геометрия или внешний вид окна.</p>
      */
     protected void configureRoot() {
-        backgroundVisible(true);
-        borderVisible(true);
-        radius(6.0f);
-        background().set(COLOR_BACKGROUND);
-        borderColor().set(COLOR_BORDER);
+        applyComponentStyleDefaults(WidgetStyles.Tools.ADMIN_CONSOLE);
         layout(style -> style.size(520.0f, 320.0f).padding(EdgeInsets.all(10.0f)).overflow(Overflow.VISIBLE));
+    }
+
+    /**
+     * Возвращает стандартный стиль корневой поверхности консоли.
+     *
+     * @return общий стиль административной консоли
+     */
+    @Override
+    protected Style defaultStyle() {
+        return WidgetStyles.Tools.ADMIN_CONSOLE;
     }
 
     /**

@@ -27,6 +27,7 @@ import dev.sixik.unigui.widgets.containers.ScrollView;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.widgets.feedback.Popup;
+import dev.sixik.unigui.widgets.WidgetStyles;
 
 /**
  * Generic drop-down host for arbitrary popup content.
@@ -76,6 +77,7 @@ public class DropDownBox extends LinearBox {
         spacing(2.0f);
         focusable(true);
 
+        headerButton.style(style -> style.putAll(WidgetStyles.Selection.DROPDOWN_HEADER));
         headerButton.layout(style -> style.size(LayoutConstraints.AUTO, HEADER_HEIGHT).flexGrow(0).flexShrink(0.0f));
         headerButton.textPaddingX(12.0f);
         headerButton.chevronVisible(true);

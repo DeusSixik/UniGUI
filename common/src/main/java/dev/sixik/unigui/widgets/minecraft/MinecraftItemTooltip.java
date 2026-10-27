@@ -3,7 +3,9 @@ package dev.sixik.unigui.widgets.minecraft;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.widgets.feedback.Tooltip;
+import dev.sixik.unigui.widgets.WidgetStyles;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.Objects;
@@ -23,6 +25,16 @@ public final class MinecraftItemTooltip extends Tooltip {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.MINECRAFT_ITEM_TOOLTIP;
 
     private Supplier<ItemStack> stackSupplier = () -> ItemStack.EMPTY;
+
+    /**
+     * Возвращает стандартное прозрачное оформление подсказки предмета Minecraft.
+     *
+     * @return общий стиль без фоновой поверхности и рамки
+     */
+    @Override
+    protected Style defaultStyle() {
+        return WidgetStyles.Surface.UNSURFACED;
+    }
 
     public MinecraftItemTooltip() {
         super();
@@ -63,8 +75,7 @@ public final class MinecraftItemTooltip extends Tooltip {
     private void configureVanillaItemTooltip() {
         // Tooltip uses non-empty text as a lightweight layout/visibility anchor.
         text(" ");
-        backgroundVisible(false);
-        borderVisible(false);
+        applyComponentStyleDefaults(WidgetStyles.Surface.UNSURFACED);
         themeEnabled(false);
         renderer(MinecraftTooltipRenderers.item(this::stack));
     }

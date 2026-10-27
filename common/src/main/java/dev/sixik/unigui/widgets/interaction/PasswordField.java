@@ -5,6 +5,8 @@ import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
+import dev.sixik.unigui.api.style.Style;
+import dev.sixik.unigui.widgets.WidgetStyles;
 
 @XmlWidgetName("PasswordField")
 public class PasswordField extends TextInput {
@@ -13,7 +15,17 @@ public class PasswordField extends TextInput {
     private char mask = '\u2022';
 
     public PasswordField() {
-        enableDefaultTextInputChrome();
+        applyComponentStyleDefaults(WidgetStyles.TextInput.DEFAULT_CHROME);
+    }
+
+    /**
+     * Возвращает defaults chrome для семейства стандартных текстовых полей.
+     *
+     * @return стандартный style preset оформления поля
+     */
+    @Override
+    protected Style defaultStyle() {
+        return WidgetStyles.TextInput.DEFAULT_CHROME;
     }
 
     public PasswordField(String text) {

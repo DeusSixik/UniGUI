@@ -1,22 +1,45 @@
 package dev.sixik.unigui.tests;
 
 import dev.sixik.unigui.api.event.EventPhase;
+import dev.sixik.unigui.api.event.FocusGainedEvent;
 import dev.sixik.unigui.api.event.PointerEnteredEvent;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.render.DrawCommand;
 import dev.sixik.unigui.api.render.DrawList;
+import dev.sixik.unigui.api.render.ImageFit;
+import dev.sixik.unigui.api.render.SimpleTextureHandle;
+import dev.sixik.unigui.api.render.SliceBorders;
+import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.style.MutableStyle;
+import dev.sixik.unigui.api.style.MutableTheme;
+import dev.sixik.unigui.api.style.StylePack;
+import dev.sixik.unigui.api.style.StylePackResult;
+import dev.sixik.unigui.api.style.StylePackXml;
+import dev.sixik.unigui.api.style.StyleKeyRegistry;
+import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.widget.visual.BackgroundKind;
 import dev.sixik.unigui.api.widget.visual.Surface;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.impl.render.DefaultRenderContext;
+import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.HBox;
 import dev.sixik.unigui.widgets.containers.VBox;
+import dev.sixik.unigui.widgets.containers.View;
+import dev.sixik.unigui.widgets.docking.DockingRoot;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.feedback.Tooltip;
+import dev.sixik.unigui.widgets.feedback.NotificationView;
 import dev.sixik.unigui.widgets.feedback.WindowWidget;
 import dev.sixik.unigui.widgets.interaction.Button;
 import dev.sixik.unigui.widgets.interaction.Checkbox;
+import dev.sixik.unigui.widgets.interaction.ComboBox;
+import dev.sixik.unigui.widgets.interaction.DropDownBox;
+import dev.sixik.unigui.widgets.interaction.TextField;
+import dev.sixik.unigui.widgets.interaction.TextArea;
+import dev.sixik.unigui.widgets.WidgetStyles;
+import dev.sixik.unigui.widgets.map.MapMarker;
 
 /**
  * Проверяет ядро визуала: композируемый Surface вместо двойных renderer'ов.
@@ -56,6 +79,30 @@ public final class SurfaceVisualSelfTest {
         expect(box.renderer() == null, "box has no custom renderer by default");
         expect(new Checkbox("Check") instanceof Button, "checkbox still is a button");
         expect(!(((Object) new Checkbox("Check")) instanceof Box), "checkbox no longer inherits Box visual");
+
+        NotificationView notifications = new NotificationView();
+        expect(!notifications.backgroundVisible() && !notifications.borderVisible(),
+                "notification host should use the shared unsurfaced component style");
+        MapMarker marker = new MapMarker();
+        expect(!marker.backgroundVisible() && !marker.borderVisible(),
+                "map marker should use the shared unsurfaced component style");
+
+        DockingRoot dockingRoot = new DockingRoot();
+        expect(dockingRoot.backgroundVisible() && dockingRoot.borderVisible()
+                        && near(dockingRoot.background().b(), 0.042f)
+                        && near(dockingRoot.radius(), 4.0f),
+                "docking root should materialize its WidgetStyles defaults during construction");
+
+        View view = new View();
+        expect(view.backgroundVisible() && view.borderVisible()
+                        && near(view.background().r(), 0.030f)
+                        && near(view.radius(), 5.0f),
+                "View should materialize its WidgetStyles defaults during construction");
+
+        TextArea textArea = new TextArea();
+        expect(textArea.backgroundVisible() && textArea.borderVisible()
+                        && near(textArea.background().r(), 0.04f),
+                "TextArea should materialize its WidgetStyles defaults during construction");
 
         // LinearBox owns a surface too, but renders transparent by default so
         // existing mods see no visual change after the SurfaceWidget migration.
@@ -139,6 +186,113 @@ public final class SurfaceVisualSelfTest {
         layered.render(new DefaultRenderContext(clearedDraw));
         expect(textureIds(clearedDraw).equals(java.util.List.of("test:base")),
                 "clearOverlayTextures should leave only the base background texture");
+
+        Box localStyled = new Box();
+        DefaultUIContext localStyleContext = new DefaultUIContext();
+        localStyled.setUiContextInternal(localStyleContext);
+        MutableTheme localStyleTheme = new MutableTheme().put("Box",
+                new MutableStyle().put(StyleKeys.BACKGROUND_VISIBLE, true)
+                        .put(StyleKeys.BACKGROUND_COLOR,
+                                dev.sixik.unigui.api.math.MutableColor.rgba(0.8f, 0.1f, 0.1f, 1.0f)));
+        localStyleContext.theme(localStyleTheme, localStyled);
+        localStyled.themeEnabled(false);
+        localStyled.style(style -> style.put(StyleKeys.BACKGROUND_VISIBLE, true)
+                .put(StyleKeys.BACKGROUND_COLOR,
+                        dev.sixik.unigui.api.math.MutableColor.rgba(0.2f, 0.3f, 0.4f, 1.0f)));
+        localStyled.measure(new LayoutContext(40.0f, 20.0f));
+        localStyled.arrange(new MutableRect(0.0f, 0.0f, 40.0f, 20.0f));
+        DrawList localStyleDraw = new DrawList();
+        localStyled.render(new DefaultRenderContext(localStyleDraw));
+        expect(countFill(localStyleDraw, 0.2f, 0.3f, 0.4f, 1.0f) == 1,
+                "local style should apply while global theme lookup is disabled");
+        expect(countFill(localStyleDraw, 0.8f, 0.1f, 0.1f, 1.0f) == 0,
+                "global theme values should be ignored while theme lookup is disabled");
+
+        int[] localRendererCalls = {0};
+        Box localRenderer = new Box();
+        localRenderer.themeEnabled(false);
+        localRenderer.style(style -> style.renderer(
+                (WidgetRender) (draw, widget) -> localRendererCalls[0]++));
+        localRenderer.measure(new LayoutContext(40.0f, 20.0f));
+        localRenderer.arrange(new MutableRect(0.0f, 0.0f, 40.0f, 20.0f));
+        localRenderer.render(new DefaultRenderContext(new DrawList()));
+        expect(localRendererCalls[0] == 1,
+                "local renderer override should apply while global theme lookup is disabled");
+
+        TextField search = new TextField();
+        search.boxVisualEnabled(true);
+        search.themeEnabled(false);
+        search.style(style -> style
+                .put(StyleKeys.BACKGROUND_VISIBLE, true)
+                .put(StyleKeys.BACKGROUND_KIND, BackgroundKind.TEXTURE)
+                .put(StyleKeys.BACKGROUND_TEXTURE, WidgetState.NORMAL,
+                        new SimpleTextureHandle("test:search-normal", 20, 20))
+                .put(StyleKeys.BACKGROUND_TEXTURE, WidgetState.FOCUSED,
+                        new SimpleTextureHandle("test:search-focused", 20, 20))
+                .put(StyleKeys.BACKGROUND_TEXTURE_FIT, WidgetState.NORMAL, ImageFit.NINE_SLICE)
+                .put(StyleKeys.BACKGROUND_TEXTURE_FIT, WidgetState.FOCUSED, ImageFit.STRETCH)
+                .put(StyleKeys.SLICE_BORDERS, WidgetState.NORMAL, SliceBorders.all(4.0f))
+                .put(StyleKeys.BORDER_VISIBLE, false)
+                .put(StyleKeys.CARET_COLOR, dev.sixik.unigui.api.math.MutableColor.rgba(1, 1, 1, 1))
+                .put(StyleKeys.FOCUS_RING_COLOR, WidgetState.FOCUSED,
+                        dev.sixik.unigui.api.math.MutableColor.rgba(0, 0, 0, 0)));
+        search.measure(new LayoutContext(80.0f, 20.0f));
+        search.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 20.0f));
+        DrawList normalSearchDraw = new DrawList();
+        search.render(new DefaultRenderContext(normalSearchDraw));
+        expect(textureIds(normalSearchDraw).equals(java.util.Collections.nCopies(9, "test:search-normal")),
+                "normal state should use its texture and nine-slice fit");
+        expect(near(search.caretColor().r(), 1.0f),
+                "local caret style should apply with global theme disabled");
+
+        search.handle(new FocusGainedEvent(search, null));
+        DrawList focusedSearchDraw = new DrawList();
+        search.render(new DefaultRenderContext(focusedSearchDraw));
+        expect(textureIds(focusedSearchDraw).equals(java.util.List.of("test:search-focused")),
+                "focused state should override texture and use its own fit");
+        expect(near(search.focusRingColor().a(), 0.0f),
+                "focused local focus-ring style should override the default ring");
+
+        TextField resettable = new TextField();
+        resettable.themeEnabled(false);
+        resettable.style(style -> style.putAll(WidgetStyles.TextInput.UNCHROMED)
+                .put(StyleKeys.BACKGROUND_COLOR,
+                        dev.sixik.unigui.api.math.MutableColor.rgba(0.9f, 0.1f, 0.1f, 1.0f)));
+        resettable.render(new DefaultRenderContext(new DrawList()));
+        expect(!resettable.borderVisible() && near(resettable.background().r(), 0.9f),
+                "local preset and values should override TextField component defaults");
+        resettable.styleClear();
+        resettable.render(new DefaultRenderContext(new DrawList()));
+        expect(resettable.borderVisible() && near(resettable.background().r(), 0.08f),
+                "styleClear should restore component defaults without enabling the theme");
+
+        ComboBox comboBox = new ComboBox();
+        comboBox.render(new DefaultRenderContext(new DrawList()));
+        expect(!((Button) comboBox.children().get(0)).borderVisible(),
+                "ComboBox header should retain its borderless component style during rendering");
+        DropDownBox dropDownBox = new DropDownBox();
+        dropDownBox.render(new DefaultRenderContext(new DrawList()));
+        expect(!((Button) dropDownBox.children().get(0)).borderVisible(),
+                "DropDownBox header should retain its borderless component style during rendering");
+
+        String stylePackXml = "<StylePack id=\"state-textures\"><Style id=\"Search\" target=\"TextField\">"
+                + "<Setter property=\"background.kind\" value=\"texture\"/>"
+                + "<Setter property=\"background.texture\" value=\"test:normal 20 20\"/>"
+                + "<Setter property=\"background.texture.fit\" value=\"nine-slice\"/>"
+                + "<Setter property=\"background.texture.slice-borders\" value=\"6\"/>"
+                + "<State name=\"FOCUSED\"><Setter property=\"background.texture\" value=\"test:focused 20 20\"/>"
+                + "<Setter property=\"background.texture.fit\" value=\"stretch\"/></State>"
+                + "</Style></StylePack>";
+        StylePackResult parsedStyles = StylePackXml.parseEditor(stylePackXml, StyleKeyRegistry.builtIns());
+        expect(parsedStyles.valid(), "state texture style pack should parse: " + parsedStyles.diagnosticMessages());
+        StylePack roundTripped = StylePackXml.parse(
+                StylePackXml.toXmlString(parsedStyles.pack()), StyleKeyRegistry.builtIns());
+        expect(roundTripped.styleFor("TextField")
+                        .get(StyleKeys.BACKGROUND_TEXTURE, WidgetState.FOCUSED, null).id().equals("test:focused"),
+                "StylePack should round-trip focused texture handles");
+        expect(roundTripped.styleFor("TextField")
+                        .get(StyleKeys.SLICE_BORDERS, WidgetState.NORMAL, null).equals(SliceBorders.all(6.0f)),
+                "StylePack should round-trip nine-slice borders");
 
         System.out.println("SurfaceVisualSelfTest passed");
     }
