@@ -13,12 +13,5 @@ public class IconButton extends Button {
         float width = layoutBounds().width();
         float height = layoutBounds().height();
         renderChildren(context);
-        if (hovered()) context.addQuadFilled(
-                new DrawPoint(x, y),
-                new DrawPoint(x + width, y),
-                new DrawPoint(x + width, y + height),
-                new DrawPoint(x, y + height),
-                new MutableColor(1f, 1f, 1f, 0.3f)
-        );
     }
 }

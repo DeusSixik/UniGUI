@@ -155,6 +155,8 @@ final class IsfBrowserOverlay {
      */
     private static final float TAB_ROW_RESERVED = TAB_SCROLLBAR_SIZE + 1.0f;
     private static final float FALLBACK_RECIPE_HEIGHT = 92.0f;
+    private static final String TAB_TEXTURE_SELECTED = "textures/jei/atlas/gui/dark_tab_selected.png";
+    private static final String TAB_TEXTURE_UNSELECTED = "textures/jei/atlas/gui/dark_tab_unselected.png";
     /**
      * padding(4)*2 + заголовок 16 + вкладки 20+2 + пагинация 14 + три отступа VBox (без scrollbar).
      */
@@ -820,19 +822,26 @@ final class IsfBrowserOverlay {
 
         VBox content = new VBox();
         content.spacing(2.0f);
-        content.backgroundVisible(true);
-        content.backgroundTextureFit(ImageFit.NINE_SLICE);
-        content.sliceBorders(4.0f);
-        content.backgroundTexture(new MinecraftTextureHandle(
-                ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/gui_background.png"),
-                64, 64, TextureOptions.nearest()));
+        content.themeEnabled(false);
+        content.boxVisualEnabled(true);
         content.layout(style -> style
                 .position(PositionType.ABSOLUTE)
-                .top(TAB_CELL - 1)
+                .top(TAB_CELL - 3.0f)
                 .left(CATALYST_CELL - 1)
                 .right(0.0f)
                 .bottom(0.0f)
-                .padding(6.0f, 4.0f, 6.0f, 4.0f));
+                .padding(6.0f, 4.0f, 6.0f, 4.0f)
+        );
+
+        content.style(style -> {
+            style.put(StyleKeys.BACKGROUND_VISIBLE, true)
+                    .put(StyleKeys.BACKGROUND_KIND, BackgroundKind.TEXTURE)
+                    .put(StyleKeys.BACKGROUND_TEXTURE_FIT, ImageFit.NINE_SLICE)
+                    .put(StyleKeys.SLICE_BORDERS, SliceBorders.all(4.0f))
+                    .put(StyleKeys.BACKGROUND_TEXTURE, WidgetState.NORMAL, new MinecraftTextureHandle(
+                            ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/gui_background.png"),
+                            64, 64, TextureOptions.nearest()));
+        });
 
         detailPanel.addChild(content);
         detailPanel.addChild(tabScroll);
@@ -840,15 +849,17 @@ final class IsfBrowserOverlay {
         catalystColumn.layout(style -> style
                 .width(SizeValue.auto())
                 .flexNone()
-                .top(TAB_CELL + 2)
+                .top(TAB_CELL - 1)
                 .alignSelf(Align.START)
         );
-        catalystColumn.backgroundVisible(true);
-        catalystColumn.backgroundTextureFit(ImageFit.NINE_SLICE);
-        catalystColumn.sliceBorders(1.0f);
-        catalystColumn.backgroundTexture(new MinecraftTextureHandle(
-                ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/scrollbar_background.png"),
-                14, 50, TextureOptions.nearest()));
+        catalystColumn.themeEnabled(false);
+        catalystColumn.style(style -> style.put(StyleKeys.BACKGROUND_VISIBLE, true)
+                .put(StyleKeys.BACKGROUND_KIND, BackgroundKind.TEXTURE)
+                .put(StyleKeys.BACKGROUND_TEXTURE_FIT, ImageFit.NINE_SLICE)
+                .put(StyleKeys.SLICE_BORDERS, SliceBorders.all(1.0f))
+                .put(StyleKeys.BACKGROUND_TEXTURE,new MinecraftTextureHandle(
+                        ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/dark_catalyst_tab.png"),
+                        14, 50, TextureOptions.nearest())));
 
         detailPanel.addChild(catalystColumn);
 
@@ -858,26 +869,21 @@ final class IsfBrowserOverlay {
         detailTitle.layout(style -> style.flexGrow(1.0f).flexShrink(1.0f).left(1.0f).horizontalAlignment(Alignment.CENTER));
         detailTitle.background(0.5f, 0.5f, 0.5f, 0.5f);
 
-        sliceButtonBackground(detailPin, "textures/jei/atlas/gui/button_enabled.png", 20, 20, 4.0f);
+        sliceButtonBackground(detailPin, "textures/jei/atlas/gui/button_enabled.png", null,null,"textures/jei/atlas/gui/button_pressed.png",20, 20, 2.0f);
         detailPin.text("P").textPadding(0.0f, 0.0f);
         detailPin.layout(style -> style.size(16.0f, 16.0f).flexNone());
         detailPin.onCheckedChanged(event -> {
             setDetailPinned(event.newValue());
-            if (!event.newValue()) {
-                sliceButtonBackground(detailPin, "textures/jei/atlas/gui/button_enabled.png", 20, 20, 4.0f);
-            } else {
-                sliceButtonBackground(detailPin, "textures/jei/atlas/gui/button_pressed.png", 20, 20, 4.0f);
-            }
             detailHeader.invalidate(InvalidationFlags.VISUAL);
         });
 
-        sliceButtonBackground(detailClose, "textures/jei/atlas/gui/button_enabled.png", 20, 20, 4.0f);
+        sliceButtonBackground(detailClose, "textures/jei/atlas/gui/button_enabled.png", null, null,null, 20, 20, 2.0f);
         detailClose.themeEnabled(false);
         detailClose.text("X").textPadding(0.0f, 0.0f);
         detailClose.layout(style -> style.size(16.0f, 16.0f).flexNone());
         detailClose.onClick(event -> {
-            sliceButtonBackground(detailPin, "textures/jei/atlas/gui/button_enabled.png", 20, 20, 4.0f);
-            //closeDetail();
+            //sliceButtonBackground(detailPin, "textures/jei/atlas/gui/button_enabled.png", null,null, null,20, 20, 2.0f);
+            closeDetail();
         });
 
         detailHeader.addChild(detailTitle);
@@ -890,10 +896,10 @@ final class IsfBrowserOverlay {
                 .justifyContent(Justify.CENTER));
         detailPage.layout(style -> style.height(14.0f).flexGrow(1.0f).horizontalAlignment(Alignment.CENTER));
         detailPage.background(43 / 255f, 45 / 255f, 52 / 255f, 1.0f);
-        sliceButtonBackground(detailPrevious, "textures/jei/atlas/gui/arrow_left.png", 14, 14, 1.0f);
+        sliceButtonBackground(detailPrevious, "textures/jei/atlas/gui/arrow_left.png", "textures/jei/atlas/gui/arrow_left_unclickable.png","textures/jei/atlas/gui/arrow_left_hovered.png",null,14, 14, 1.0f);
         detailPrevious.layout(style -> style.size(14.0f, 14.0f).flexNone());
         detailPrevious.onClick(event -> changeRecipePage(-1));
-        sliceButtonBackground(detailNext, "textures/jei/atlas/gui/arrow_right.png", 14, 14, 1.0f);
+        sliceButtonBackground(detailNext, "textures/jei/atlas/gui/arrow_right.png", "textures/jei/atlas/gui/arrow_right_unclickable.png","textures/jei/atlas/gui/arrow_right_hovered.png",null,14, 14, 1.0f);
         detailNext.layout(style -> style.size(14.0f, 14.0f).flexNone());
         detailNext.onClick(event -> changeRecipePage(1));
         pageRow.addChild(detailPrevious);
@@ -926,15 +932,18 @@ final class IsfBrowserOverlay {
     /**
      * Задаёт nine-slice фон кнопки из JEI-атласа вместо custom renderer.
      */
-    private static void sliceButtonBackground(Button button, String path, int width, int height, float border) {
+    private static void sliceButtonBackground(Button button, String enable, String disenable, String hovered,String checked, int width, int height, float border) {
         button.themeEnabled(false);
-        button.style(style -> style.put(StyleKeys.BORDER_VISIBLE, false));
-        button.backgroundVisible(true);
-        button.backgroundTextureFit(ImageFit.NINE_SLICE);
-        button.sliceBorders(border);
-        button.backgroundTexture(new MinecraftTextureHandle(
-                ResourceLocation.tryBuild(IsfMod.MOD_ID, path),
-                width, height, TextureOptions.nearest()));
+        button.style(style -> {
+                    style.put(StyleKeys.BORDER_VISIBLE, false)
+                            .put(StyleKeys.BACKGROUND_KIND, BackgroundKind.TEXTURE)
+                            .put(StyleKeys.BACKGROUND_TEXTURE_FIT, ImageFit.NINE_SLICE)
+                            .put(StyleKeys.SLICE_BORDERS, SliceBorders.all(border))
+                            .put(StyleKeys.BACKGROUND_TEXTURE, new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, enable), width, height, TextureOptions.nearest()));
+                    if (disenable != null) style.put(StyleKeys.BACKGROUND_TEXTURE, WidgetState.DISABLED, new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, disenable), width, height, TextureOptions.nearest()));
+                    if(hovered != null) style.put(StyleKeys.BACKGROUND_TEXTURE, WidgetState.HOVERED, new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, hovered), width, height, TextureOptions.nearest()));
+                    if(checked != null) style.put(StyleKeys.BACKGROUND_TEXTURE, WidgetState.CHECKED,new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, checked), width, height, TextureOptions.nearest()));
+        });
     }
 
     private void rebuild(boolean ignored, float ignoredOffset) {
@@ -1536,10 +1545,12 @@ final class IsfBrowserOverlay {
             for (ResourceLocation typeId : order) {
                 IconButton tab = new IconButton();
                 tab.themeEnabled(false);
-                tab.backgroundTextureFit(ImageFit.NINE_SLICE);
-                tab.sliceBorders(1.0f);
-                tab.backgroundTexture(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/dark_tab_unselected.png"), 34, 34, TextureOptions.nearest()));
-                tab.style(style -> style.put(StyleKeys.BORDER_VISIBLE, false));
+                tab.style(style -> style.put(StyleKeys.BORDER_VISIBLE, false)
+                        .put(StyleKeys.BACKGROUND_VISIBLE, true)
+                        .put(StyleKeys.BACKGROUND_KIND, BackgroundKind.TEXTURE)
+                        .put(StyleKeys.BACKGROUND_TEXTURE_FIT, ImageFit.NINE_SLICE)
+                        .put(StyleKeys.SLICE_BORDERS, SliceBorders.all(2.0f))
+                        .put(StyleKeys.BACKGROUND_TEXTURE, tabTexture(false)));
                 tab.radius(2.0f);
                 tab.layout(style -> style.size(TAB_CELL, TAB_CELL).flexNone());
                 ItemStack icon = tabIcon(typeId);
@@ -1569,6 +1580,22 @@ final class IsfBrowserOverlay {
         if (selectedTypeId == null && !typeTabs.isEmpty()) {
             selectedTypeId = typeTabs.get(0).typeId();
         }
+        syncTabTextures();
+    }
+
+    /** Выбранная вкладка — selected-текстура, остальные — unselected. */
+    private void syncTabTextures() {
+        for (TypeTab tab : typeTabs) {
+            boolean selected = tab.typeId().equals(selectedTypeId);
+            tab.button().style(style -> style.put(StyleKeys.BACKGROUND_TEXTURE, tabTexture(selected)));
+        }
+    }
+
+    private static MinecraftTextureHandle tabTexture(boolean selected) {
+        return new MinecraftTextureHandle(
+                ResourceLocation.tryBuild(IsfMod.MOD_ID,
+                        selected ? TAB_TEXTURE_SELECTED : TAB_TEXTURE_UNSELECTED),
+                34, 34, TextureOptions.nearest());
     }
 
     /**
@@ -1612,6 +1639,7 @@ final class IsfBrowserOverlay {
         // Гарантированно открываем вкладку станции, даже если порядок вкладок другой.
         if (!typeIds.contains(selectedTypeId)) {
             selectedTypeId = typeIds.get(0);
+            syncTabTextures();
             rebuildCatalysts();
             rebuildRecipePages();
         }
@@ -1622,6 +1650,7 @@ final class IsfBrowserOverlay {
         selectedTypeId = typeId;
         selectedCatalyst = null;
         recipePage = 0;
+        syncTabTextures();
         updateDetailTitle();
         rebuildCatalysts();
         rebuildRecipePages();
