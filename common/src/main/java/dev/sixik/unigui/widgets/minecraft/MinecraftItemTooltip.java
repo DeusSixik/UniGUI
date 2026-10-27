@@ -36,6 +36,16 @@ public final class MinecraftItemTooltip extends Tooltip {
         return WidgetStyles.Surface.UNSURFACED;
     }
 
+    /**
+     * Возвращает отдельный тип стиля для подсказки предмета Minecraft.
+     *
+     * @return тип {@link #STYLE_TYPE}
+     */
+    @Override
+    protected String styleType() {
+        return STYLE_TYPE;
+    }
+
     public MinecraftItemTooltip() {
         super();
         configureVanillaItemTooltip();

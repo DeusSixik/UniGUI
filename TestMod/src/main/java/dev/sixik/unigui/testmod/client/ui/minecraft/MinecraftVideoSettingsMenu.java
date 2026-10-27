@@ -30,7 +30,6 @@ import dev.sixik.unigui.api.text.Fonts;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.backend.minecraft_impl.UniGuiTextures;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftClipboardService;
@@ -39,8 +38,6 @@ import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeButtonRenders;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeCheckboxRenders;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeDropDownRenders;
-import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeScrollBarRenders;
-import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeSliderRenders;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeTooltipRenders;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeToggleSwitchRenders;
 import dev.sixik.unigui.widgets.containers.Box;
@@ -280,7 +277,9 @@ public final class MinecraftVideoSettingsMenu {
 
         List<SettingTooltipTarget> settingTooltipTargets = new ArrayList<>();
         int oldMipmaps = options.mipmapLevels().get();
-        return openScreen(last, screen(options, last, oldMipmaps, settingTooltipTargets), context, options, oldMipmaps, settingTooltipTargets);
+        Widget root = screen(options, last, oldMipmaps, settingTooltipTargets);
+        context.theme(DestinyLikeStyles.PACK, root);
+        return openScreen(last, root, context, options, oldMipmaps, settingTooltipTargets);
     }
 
     private static MinecraftWidgetScreen openScreen(Screen last,
@@ -447,8 +446,8 @@ public final class MinecraftVideoSettingsMenu {
                 .scrollbarGap(3.0f);
         scroll.scrollbarTrackColor().set(0.0f, 0.0f, 0.0f, 0.52f);
         scroll.scrollbarThumbColor().set(0.82f, 0.84f, 0.88f, 0.92f);
-        scroll.verticalScrollBar().renderer(DestinyLikeScrollBarRenders.DEFAULT);
-        scroll.horizontalScrollBar().renderer(DestinyLikeScrollBarRenders.DEFAULT);
+        scroll.verticalScrollBar().styleClass(DestinyLikeStyles.SCROLLBAR);
+        scroll.horizontalScrollBar().styleClass(DestinyLikeStyles.SCROLLBAR);
         scroll.layout(style -> style
                 .size(MENU_CONTENT_WIDTH, SETTINGS_HEIGHT)
                 .align(Alignment.CENTER, Alignment.CENTER)
@@ -510,11 +509,10 @@ public final class MinecraftVideoSettingsMenu {
 
     private static Tooltip settingTooltip(SettingTooltipTarget target) {
         DescendantAwareTooltip tooltip = new DescendantAwareTooltip(target, settingTooltipText(target.title()));
-        tooltip.renderer(DestinyLikeTooltipRenders.DEFAULT);
+        tooltip.styleClass(DestinyLikeStyles.TOOLTIP);
         tooltip.offset(TOOLTIP_OFFSET_X, TOOLTIP_OFFSET_Y);
         tooltip.maxWidth(TOOLTIP_MAX_WIDTH);
         target.tooltip(tooltip);
-        tooltip.themeEnabled(false);
         tooltip.backgroundVisible(false);
         tooltip.borderVisible(false);
         tooltip.radius(0.0f);
@@ -715,7 +713,7 @@ public final class MinecraftVideoSettingsMenu {
                 .flexGrow(0.0f)
                 .flexShrink(0.0f));
 
-        Button back = button("BACK", DestinyLikeButtonRenders.DEFAULT,
+        Button back = button("BACK",
                 BUTTON_TEXT, BUTTON_BACKGROUND, BUTTON_TEXT, BUTTON_TEXT_HOVER_DARK, true);
         back.onClick(event -> finishVideoSettings(last, options, oldMipmaps));
 
@@ -729,7 +727,7 @@ public final class MinecraftVideoSettingsMenu {
                 .flexGrow(0.0f)
                 .flexShrink(0.0f));
 
-        Button reset = button("RESET", DestinyLikeButtonRenders.DEFAULT,
+        Button reset = button("RESET",
                 BUTTON_RESET, BUTTON_BACKGROUND, BUTTON_TEXT, BUTTON_TEXT_HOVER_DARK, true);
         reset.onClick(event -> {
             resetVideoDefaults(options);
@@ -737,7 +735,7 @@ public final class MinecraftVideoSettingsMenu {
             resetRefreshers.forEach(Runnable::run);
         });
 
-        Button accept = button("ACCEPT", DestinyLikeButtonRenders.DEFAULT,
+        Button accept = button("ACCEPT",
                 BUTTON_CONFIRM, BUTTON_BACKGROUND, BUTTON_TEXT, BUTTON_TEXT, false);
         accept.onClick(event -> finishVideoSettings(last, options, oldMipmaps));
 
@@ -977,38 +975,36 @@ public final class MinecraftVideoSettingsMenu {
         dropBox.dropDownSameWidth();
         dropBox.optionRowHeight(DROPBOX_OPTION_HEIGHT);
         dropBox.maxVisibleOptions(6);
-        dropBox.headerButton().renderer(DestinyLikeDropDownRenders.HEADER);
+        dropBox.headerButton().styleClass(DestinyLikeStyles.DROPDOWN_HEADER);
         dropBox.headerButton().textPadding(DestinyLikeDropDownRenders.TEXT_PADDING_X, 0.0f);
         dropBox.headerButton().backgroundVisible(false);
         dropBox.headerButton().borderVisible(false);
-        dropBox.headerButton().themeEnabled(false);
         dropBox.headerButton().layout(style -> style
                 .size(DROPBOX_WIDTH, DROPBOX_HEIGHT)
                 .flexGrow(0.0f)
                 .flexShrink(0.0f));
 
-        dropBox.optionsHost().themeEnabled(false);
         dropBox.optionsHost().backgroundVisible(true);
         dropBox.optionsHost().borderVisible(true);
         dropBox.optionsHost().radius(0.0f);
         dropBox.optionsHost().borderWidth(0.18f);
-        dropBox.optionsHost().renderer(DestinyLikeDropDownRenders.OPTIONS_HOST);
+        dropBox.optionsHost().styleClass(DestinyLikeStyles.DROPDOWN_HOST);
         dropBox.optionsHost().background().set(0.09f, 0.10f, 0.13f, 0.98f);
         dropBox.optionsHost().borderColor().set(0.41f, 0.43f, 0.48f, 0.88f);
         dropBox.optionsScroll().scrollbarGap(1.0f);
         dropBox.optionsScroll().scrollStep(DROPBOX_OPTION_HEIGHT);
         dropBox.optionsScroll().scrollbarTrackColor().set(0.0f, 0.0f, 0.0f, 0.42f);
         dropBox.optionsScroll().scrollbarThumbColor().set(0.82f, 0.84f, 0.88f, 0.86f);
-        dropBox.optionsScroll().verticalScrollBar().renderer(DestinyLikeScrollBarRenders.DEFAULT);
-        dropBox.optionsScroll().horizontalScrollBar().renderer(DestinyLikeScrollBarRenders.DEFAULT);
+        dropBox.optionsScroll().verticalScrollBar().styleClass(DestinyLikeStyles.SCROLLBAR);
+        dropBox.optionsScroll().horizontalScrollBar().styleClass(DestinyLikeStyles.SCROLLBAR);
 
         for (int i = 0; i < dropBox.itemCount(); i++) {
             ToggleButton option = dropBox.optionButton(i);
-            option.renderer(DestinyLikeDropDownRenders.OPTION);
+            option.styleClass(DestinyLikeStyles.DROPDOWN_OPTION);
+            option.themeEnabled(true);
             option.textPadding(DestinyLikeDropDownRenders.TEXT_PADDING_X, 0.0f);
             option.backgroundVisible(false);
             option.borderVisible(false);
-            option.themeEnabled(false);
             option.layout(style -> style
                     .size(LayoutConstraints.AUTO, DROPBOX_OPTION_HEIGHT)
                     .flexGrow(0.0f)
@@ -1046,13 +1042,13 @@ public final class MinecraftVideoSettingsMenu {
     }
 
     private static Button button(String text,
-                                 WidgetRender renderer,
                                  MutableColor accent,
                                  MutableColor background,
                                  MutableColor textColor,
                                  MutableColor hoverTextColor,
                                  boolean animateText) {
         Button button = new Button();
+        button.styleClass(DestinyLikeStyles.ACTION);
         button.richText(DestinyLikeButtonRenders.dominionButtonText(text, textColor));
         button.textPadding(
                 DestinyLikeButtonRenders.INTRINSIC_TEXT_PADDING_X * ACTION_BUTTON_SCALE,
@@ -1064,8 +1060,6 @@ public final class MinecraftVideoSettingsMenu {
                 .flexShrink(0.0f));
         button.backgroundVisible(false);
         button.borderVisible(false);
-        button.themeEnabled(false);
-        button.renderer(renderer);
         button.background().set(background);
         button.borderColor().set(accent);
 
@@ -1090,7 +1084,7 @@ public final class MinecraftVideoSettingsMenu {
                 .step(step)
                 .value(value)
                 .preferredSize(SLIDER_WIDTH, 12.0f);
-        slider.renderer(DestinyLikeSliderRenders.DEFAULT);
+        slider.styleClass(DestinyLikeStyles.SLIDER);
         slider.trackColor().set(0.12f, 0.13f, 0.16f, 0.92f);
         slider.fillColor().set(0.66f, 0.64f, 0.44f, 0.95f);
         slider.knobColor().set(0.96f, 0.96f, 0.92f, 1.0f);
@@ -1104,19 +1098,18 @@ public final class MinecraftVideoSettingsMenu {
 
     private static Checkbox checkbox(String text, boolean checked) {
         Checkbox checkbox = new Checkbox(text);
+        checkbox.styleClass(DestinyLikeStyles.CHECKBOX);
         checkbox.layout(layout -> layout
                 .align(Alignment.CENTER, Alignment.CENTER)
                 .flexGrow(0.0f)
                 .flexShrink(0.0f));
         checkbox.backgroundVisible(false);
         checkbox.borderVisible(false);
-        checkbox.themeEnabled(false);
         checkbox.boxSize(5.2f);
         checkbox.checkSize(3.4f);
         checkbox.textGap(1.35f);
         checkbox.richText(DestinyLikeCheckboxRenders.dominionCheckboxText(text));
         checkbox.checkAnimation(0.0f).silentChecked(checked).checkAnimation(0.12f);
-        checkbox.renderer(DestinyLikeCheckboxRenders.DOMINION_CHECKBOX_RENDERER);
         return checkbox;
     }
 
@@ -1312,20 +1305,19 @@ public final class MinecraftVideoSettingsMenu {
 
     private static ToggleSwitch toggleSwitch(String text, boolean checked, boolean labelLeft) {
         ToggleSwitch toggle = new ToggleSwitch(text);
+        toggle.styleClass(DestinyLikeStyles.TOGGLE_SWITCH);
         toggle.layout(layout -> layout
                 .align(Alignment.CENTER, Alignment.CENTER)
                 .flexGrow(0.0f)
                 .flexShrink(0.0f));
         toggle.backgroundVisible(false);
         toggle.borderVisible(false);
-        toggle.themeEnabled(false);
         toggle.trackSize(TOGGLE_SWITCH_WIDTH, TOGGLE_SWITCH_HEIGHT);
         toggle.thumbSize(TOGGLE_SWITCH_THUMB);
         toggle.labelGap(1.35f);
         toggle.labelLeft(labelLeft);
         toggle.richText(DestinyLikeToggleSwitchRenders.dominionSwitchText(text));
         toggle.switchAnimation(0.0f).silentChecked(checked).switchAnimation(0.16f);
-        toggle.renderer(DestinyLikeToggleSwitchRenders.DOMINION_TOGGLE_SWITCH_RENDERER);
         return toggle;
     }
 }

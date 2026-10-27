@@ -11,6 +11,7 @@ import dev.sixik.unigui.api.render.ImageFit;
 import dev.sixik.unigui.api.render.SimpleTextureHandle;
 import dev.sixik.unigui.api.render.SliceBorders;
 import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.style.StyleIds;
 import dev.sixik.unigui.api.style.MutableStyle;
 import dev.sixik.unigui.api.style.MutableTheme;
 import dev.sixik.unigui.api.style.StylePack;
@@ -151,6 +152,24 @@ public final class SurfaceVisualSelfTest {
         expect(countFill(tooltipDraw, 0.02f, 0.025f, 0.035f, 0.94f) == 1,
                 "tooltip background is drawn exactly once by the surface");
 
+        DefaultUIContext tooltipStyleContext = new DefaultUIContext();
+        int[] tooltipStyleCalls = {0};
+        Tooltip subclassedTooltip = new Tooltip() {
+            @Override
+            public boolean showing() {
+                return true;
+            }
+        };
+        subclassedTooltip.setUiContextInternal(tooltipStyleContext);
+        tooltipStyleContext.theme(new MutableTheme().put(StyleIds.Widget.TOOLTIP,
+                new MutableStyle().renderer((dev.sixik.unigui.api.widget.render.WidgetRender)
+                        (draw, widget) -> tooltipStyleCalls[0]++)), subclassedTooltip);
+        subclassedTooltip.measure(new LayoutContext(80.0f, 30.0f));
+        subclassedTooltip.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 30.0f));
+        subclassedTooltip.render(new DefaultRenderContext(new DrawList()));
+        expect(tooltipStyleCalls[0] == 1,
+                "Tooltip subclasses should resolve the stable Tooltip style type");
+
         // Nine-slice background emits 9 texture cells through the surface.
         Box sliced = new Box();
         sliced.themeEnabled(false);
@@ -270,6 +289,9 @@ public final class SurfaceVisualSelfTest {
         comboBox.render(new DefaultRenderContext(new DrawList()));
         expect(!((Button) comboBox.children().get(0)).borderVisible(),
                 "ComboBox header should retain its borderless component style during rendering");
+        comboBox.items(java.util.List.of("A"));
+        expect(comboBox.optionButton(0).themeEnabled(),
+                "ComboBox options should participate in StylePack theme lookup");
         DropDownBox dropDownBox = new DropDownBox();
         dropDownBox.render(new DefaultRenderContext(new DrawList()));
         expect(!((Button) dropDownBox.children().get(0)).borderVisible(),

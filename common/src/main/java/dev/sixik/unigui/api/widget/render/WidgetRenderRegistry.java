@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Registry для Java-renderer'ов, на которые может ссылаться декларативный {@code StylePack}.
@@ -44,6 +45,10 @@ public final class WidgetRenderRegistry {
     private static final WidgetRenderRegistry GLOBAL = new WidgetRenderRegistry();
 
     private final Map<String, RegisteredRenderer> renderers = new ConcurrentHashMap<>();
+    /**
+     * Версия реестра; увеличивается при каждой замене или удалении renderer'а.
+     */
+    private final AtomicLong version = new AtomicLong();
 
     /**
      * Возвращает глобальный registry renderer'ов.
@@ -63,7 +68,7 @@ public final class WidgetRenderRegistry {
      * <p>Повторная регистрация того же id заменяет старый renderer. Это удобно для hot-reload
      * dev-сценариев, но production-коду лучше держать id стабильными и уникальными.</p>
      *
-     * @param id строковый id renderer'а, например {@code testmod:destiny/button}
+     * @param id       строковый id renderer'а, например {@code testmod:destiny/button}
      * @param renderer объект renderer'а
      * @return этот registry для fluent-настройки
      */
@@ -77,8 +82,8 @@ public final class WidgetRenderRegistry {
      * <p>Role запрещает назначить, например, renderer обычной кнопки checkbox-контролу.
      * Renderer без заявленной роли принимается для любой ожидаемой роли.</p>
      *
-     * @param id строковый id renderer'а
-     * @param role semantic role, для которой предназначен renderer
+     * @param id       строковый id renderer'а
+     * @param role     semantic role, для которой предназначен renderer
      * @param renderer объект renderer'а
      * @return этот registry для fluent-настройки
      */
@@ -91,7 +96,17 @@ public final class WidgetRenderRegistry {
                     + renderer.role() + ", expected " + role);
         }
         renderers.put(normalized, new RegisteredRenderer(normalized, role, renderer));
+        version.incrementAndGet();
         return this;
+    }
+
+    /**
+     * Возвращает версию реестра для проверки актуальности кэшированных разрешений renderer'ов.
+     *
+     * @return монотонно возрастающая версия реестра
+     */
+    public long version() {
+        return version.get();
     }
 
     /**
@@ -103,7 +118,7 @@ public final class WidgetRenderRegistry {
     public WidgetRenderRegistry unregister(String id) {
         String normalized = normalize(id);
         if (!normalized.isEmpty()) {
-            renderers.remove(normalized);
+            if (renderers.remove(normalized) != null) version.incrementAndGet();
         }
         return this;
     }
@@ -131,7 +146,7 @@ public final class WidgetRenderRegistry {
     /**
      * Возвращает renderer только если его роль совместима с ожидаемой.
      *
-     * @param id id renderer'а
+     * @param id   id renderer'а
      * @param role ожидаемая роль виджета
      * @return совместимый renderer или {@link Optional#empty()}
      */
@@ -150,7 +165,7 @@ public final class WidgetRenderRegistry {
      * <p>{@code value} может быть уже готовым renderer-объектом или строковым id. Если значение
      * пустое, неизвестное или несовместимое с ролью, возвращается {@code fallback}.</p>
      *
-     * @param value renderer-объект или строковый renderer id
+     * @param value    renderer-объект или строковый renderer id
      * @param fallback fallback-значение
      * @return resolved renderer или {@code fallback}
      */
@@ -161,8 +176,8 @@ public final class WidgetRenderRegistry {
     /**
      * Разрешает renderer с проверкой semantic role.
      *
-     * @param role ожидаемая роль виджета
-     * @param value renderer-объект или строковый id
+     * @param role     ожидаемая роль виджета
+     * @param value    renderer-объект или строковый id
      * @param fallback fallback-значение
      * @return совместимый renderer или {@code fallback}
      */
@@ -201,17 +216,21 @@ public final class WidgetRenderRegistry {
     /**
      * Описание одного renderer'а в registry.
      *
-     * @param id строковый id renderer'а
-     * @param role semantic role renderer'а
+     * @param id       строковый id renderer'а
+     * @param role     semantic role renderer'а
      * @param renderer renderer-объект
      */
     public record RegisteredRenderer(String id, WidgetRole role, WidgetRender renderer) {
-        /** Совместимый конструктор для кода без semantic role. */
+        /**
+         * Совместимый конструктор для кода без semantic role.
+         */
         public RegisteredRenderer(String id, WidgetRender renderer) {
             this(id, WidgetRole.UNSPECIFIED, renderer);
         }
 
-        /** Нормализует id и проверяет обязательные поля descriptor'а. */
+        /**
+         * Нормализует id и проверяет обязательные поля descriptor'а.
+         */
         public RegisteredRenderer {
             id = normalizeRequired(id, "id");
             role = Objects.requireNonNull(role, "role");
