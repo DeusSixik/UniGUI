@@ -286,14 +286,14 @@ public class Checkbox extends ToggleButton {
         ColorView borderOn = styleValue(StyleKeys.BORDER_COLOR, WidgetState.CHECKED, borderOff);
         ColorView hoverBorder = styleValue(StyleKeys.BORDER_COLOR, WidgetState.HOVERED, borderOff);
         ColorView markColor = styleValue(StyleKeys.ACCENT_COLOR, WidgetState.CHECKED, checkedBackground());
-        Float styledRadius = styleValue(StyleKeys.RADIUS, WidgetState.NORMAL, 2.0f);
+        Float styledRadius = styleValue(StyleKeys.RADIUS, WidgetState.NORMAL, 0.0f);
         Float styledBorderWidth = styleValue(StyleKeys.BORDER_WIDTH, WidgetState.NORMAL, 1.0f);
         float progress = clamp01(checkProgress());
         interpolate(interpolatedBoxColor, boxOff, boxOn, progress);
         ColorView indicatorBorder = hovered() && enabled()
                 ? hoverBorder
                 : interpolate(interpolatedBorderColor, borderOff, borderOn, progress);
-        float radius = styledRadius == null ? 2.0f : Math.max(0.0f, styledRadius);
+        float radius = styledRadius == null ? 0.0f : Math.max(0.0f, styledRadius);
         float borderWidth = styledBorderWidth == null ? 1.0f : Math.max(0.0f, styledBorderWidth);
         draw.roundedRectFilled(indicatorX, indicatorY, boxSize, boxSize, radius, interpolatedBoxColor);
         if (borderWidth > 0.0f) {
@@ -308,7 +308,7 @@ public class Checkbox extends ToggleButton {
                         indicatorY + (boxSize - dashHeight) * 0.5f, dashWidth, dashHeight, markColor);
             } else {
                 float markSize = checkSize * progress;
-                draw.rectFilled(indicatorX + (boxSize - markSize) * 0.5f,
+                draw.circleFilled(indicatorX + (boxSize - markSize) * 0.5f,
                         indicatorY + (boxSize - markSize) * 0.5f, markSize, markSize, markColor);
             }
         }

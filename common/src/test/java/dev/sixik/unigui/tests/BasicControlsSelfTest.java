@@ -3072,8 +3072,14 @@ public final class BasicControlsSelfTest {
         DrawList styledCheckboxDrawList = new DrawList();
         styledCheckbox.render(new DefaultRenderContext(styledCheckboxDrawList));
         expect(hasFillColor(styledCheckboxDrawList, 0.2f, 0.6f, 0.3f, 1.0f)
-                        && hasText(styledCheckboxDrawList, "READY"),
-                "Checkbox should render the styled checked indicator and transformed label natively");
+                        && hasText(styledCheckboxDrawList, "READY")
+                        && styledCheckboxDrawList.commands().stream().anyMatch(command ->
+                        command.type() == DrawCommandType.CIRCLE
+                                && command.paint() != null
+                                && !command.paint().isStroke()
+                                && near(command.bounds().width(), styledCheckbox.checkSize())
+                                && near(command.bounds().height(), styledCheckbox.checkSize())),
+                "Checkbox should render a round checked mark inside its square indicator");
 
         Checkbox compactCheckbox = new Checkbox();
         compactCheckbox.richText(compactButtonText);
