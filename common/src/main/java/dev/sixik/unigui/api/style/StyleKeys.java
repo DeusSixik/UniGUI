@@ -6,6 +6,7 @@ import dev.sixik.unigui.api.render.SliceBorders;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.shaders.ShaderHandle;
 import dev.sixik.unigui.api.widget.visual.BackgroundKind;
+import dev.sixik.unigui.api.text.TextTransform;
 
 /**
  * Стандартные типизированные ключи style-системы.
@@ -48,10 +49,14 @@ public final class StyleKeys {
      */
     public static final StyleKey<ImageFit> BACKGROUND_TEXTURE_FIT = StyleKey.of(StyleIds.Key.BACKGROUND_TEXTURE_FIT, ImageFit.class);
 
-    /** Рамки фоновой текстуры для режима nine-slice. */
+    /**
+     * Рамки фоновой текстуры для режима nine-slice.
+     */
     public static final StyleKey<SliceBorders> SLICE_BORDERS = StyleKey.of(StyleIds.Key.SLICE_BORDERS, SliceBorders.class);
 
-    /** Признак отрисовки фоновой поверхности. */
+    /**
+     * Признак отрисовки фоновой поверхности.
+     */
     public static final StyleKey<Boolean> BACKGROUND_VISIBLE = StyleKey.of(StyleIds.Key.BACKGROUND_VISIBLE, Boolean.class);
 
     /**
@@ -64,7 +69,9 @@ public final class StyleKeys {
      */
     public static final StyleKey<ColorView> BORDER_COLOR = StyleKey.of(StyleIds.Key.BORDER_COLOR, ColorView.class);
 
-    /** Признак отрисовки рамки поверхности. */
+    /**
+     * Признак отрисовки рамки поверхности.
+     */
     public static final StyleKey<Boolean> BORDER_VISIBLE = StyleKey.of(StyleIds.Key.BORDER_VISIBLE, Boolean.class);
 
     /**
@@ -73,14 +80,33 @@ public final class StyleKeys {
     public static final StyleKey<ColorView> TEXT_COLOR = StyleKey.of(StyleIds.Key.TEXT_COLOR, ColorView.class);
 
     /**
+     * Размер текста в UI-пикселях для текстовых контролов.
+     */
+    public static final StyleKey<Float> TEXT_SIZE = StyleKey.of(StyleIds.Key.TEXT_SIZE, Float.class);
+
+    /**
+     * Дополнительный межсимвольный интервал в UI-пикселях.
+     */
+    public static final StyleKey<Float> TEXT_TRACKING = StyleKey.of(StyleIds.Key.TEXT_TRACKING, Float.class);
+
+    /**
+     * Преобразование текста перед измерением и отрисовкой.
+     */
+    public static final StyleKey<TextTransform> TEXT_TRANSFORM = StyleKey.of(StyleIds.Key.TEXT_TRANSFORM, TextTransform.class);
+
+    /**
      * Цвет placeholder-текста в input-like виджетах.
      */
     public static final StyleKey<ColorView> PLACEHOLDER_COLOR = StyleKey.of(StyleIds.Key.PLACEHOLDER_COLOR, ColorView.class);
 
-    /** Цвет каретки однострочных и многострочных текстовых редакторов. */
+    /**
+     * Цвет каретки однострочных и многострочных текстовых редакторов.
+     */
     public static final StyleKey<ColorView> CARET_COLOR = StyleKey.of(StyleIds.Key.CARET_COLOR, ColorView.class);
 
-    /** Цвет внешнего кольца фокуса текстового поля. */
+    /**
+     * Цвет внешнего кольца фокуса текстового поля.
+     */
     public static final StyleKey<ColorView> FOCUS_RING_COLOR = StyleKey.of(StyleIds.Key.FOCUS_RING_COLOR, ColorView.class);
 
     /**

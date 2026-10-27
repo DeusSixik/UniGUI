@@ -58,7 +58,7 @@ final class IsfBrowserOverlay {
     private final Box bookmarkPanel = panelShell();
     private final Box browserPanel = panelShell();
     private final GridBox grid = new GridBox().columns(1);
-    private final ScrollView itemScroll = new ScrollView(grid);
+    private final ScrollView itemScroll = new ScrollView(grid).overlayScrollBars(false);
     private final GridBox bookmarkGrid = new GridBox().columns(4);
     private final ScrollView bookmarkScroll = new ScrollView(bookmarkGrid);
     private final Box detailPanel = new Box();

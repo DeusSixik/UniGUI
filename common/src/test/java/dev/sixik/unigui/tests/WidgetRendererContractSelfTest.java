@@ -8,6 +8,9 @@ import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.api.widget.render.WidgetRenderRegistry;
 import dev.sixik.unigui.api.widget.render.WidgetRole;
+import dev.sixik.unigui.api.style.MutableStyle;
+import dev.sixik.unigui.api.style.MutableTheme;
+import dev.sixik.unigui.api.style.StyleIds;
 import dev.sixik.unigui.impl.render.DefaultRenderContext;
 import dev.sixik.unigui.widgets.interaction.Button;
 import dev.sixik.unigui.widgets.interaction.Checkbox;
@@ -82,6 +85,15 @@ public final class WidgetRendererContractSelfTest {
         expect(registry.resolve(WidgetRole.BUTTON, roleRenderer, null) == roleRenderer,
                 "Direct renderer object with a matching role must be accepted");
 
+        long registryVersion = registry.version();
+        registry.register("test:button-reload", WidgetRole.BUTTON, buttonRenderer);
+        expect(registry.version() > registryVersion,
+                "Renderer registry version should change after registration for cache invalidation");
+        registryVersion = registry.version();
+        registry.unregister("test:button-reload");
+        expect(registry.version() > registryVersion,
+                "Renderer registry version should change after renderer removal");
+
         // WidgetRender.of guards the widget type instead of throwing.
         DrawList drawList = new DrawList();
         DefaultRenderContext context = new DefaultRenderContext(drawList);
@@ -141,6 +153,26 @@ public final class WidgetRendererContractSelfTest {
         customButton.renderer(null);
         customButton.render(new DefaultRenderContext(new DrawList()));
         expect(customCalls[0] == 1, "Reset renderer should restore the hardcoded visual");
+
+        // Style renderer caches must observe hot replacement of a registry id.
+        int[] styledCalls = new int[1];
+        WidgetRender firstStyledRenderer = (scope, widget) -> styledCalls[0]++;
+        WidgetRender reloadedStyledRenderer = (scope, widget) -> styledCalls[0] += 10;
+        WidgetRenderRegistry.global().register("test:style-cache", WidgetRole.BUTTON, firstStyledRenderer);
+        Button styledButton = new Button("Styled");
+        styledButton.setUiContextInternal(new dev.sixik.unigui.impl.core.DefaultUIContext());
+        styledButton.uiContext();
+        ((dev.sixik.unigui.impl.core.DefaultUIContext) styledButton.uiContext()).theme(
+                new MutableTheme().put(StyleIds.Widget.BUTTON,
+                        new MutableStyle().rendererId("test:style-cache")), styledButton);
+        styledButton.measure(new LayoutContext(80.0f, 18.0f));
+        styledButton.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 18.0f));
+        styledButton.render(new DefaultRenderContext(new DrawList()));
+        WidgetRenderRegistry.global().register("test:style-cache", WidgetRole.BUTTON, reloadedStyledRenderer);
+        styledButton.render(new DefaultRenderContext(new DrawList()));
+        expect(styledCalls[0] == 11,
+                "Style renderer cache should resolve the replacement registered under the same id");
+        WidgetRenderRegistry.global().unregister("test:style-cache");
 
         System.out.println("WidgetRendererContractSelfTest passed");
     }

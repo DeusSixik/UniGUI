@@ -95,6 +95,7 @@ import dev.sixik.unigui.api.text.InlineContentResolvers;
 import dev.sixik.unigui.api.text.InlineContentSpan;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextRun;
+import dev.sixik.unigui.api.text.TextTransform;
 import dev.sixik.unigui.api.widget.CheckboxState;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.Visibility;
@@ -562,6 +563,16 @@ public final class BasicControlsSelfTest {
                         && inline.plainText().equals("A" + InlineContentSpan.DEFAULT_FALLBACK_TEXT + "B")
                         && near(TextEngine.measureLineWidth(inline), 20.0f),
                 "RichText should preserve inline spans with fallback text and measured width");
+
+        RichText styledInline = inline.withTextStyle(6.0f, 0.5f, TextTransform.UPPERCASE);
+        expect(styledInline.hasInlineContent()
+                        && styledInline.spans().size() == inline.spans().size()
+                        && styledInline.spans().get(1) == inline.spans().get(1)
+                        && styledInline.runs().stream().allMatch(run -> near(run.pixelSize(), 6.0f)
+                                && near(run.tracking(), 0.5f)
+                                && run.transform() == TextTransform.UPPERCASE
+                                && run.text().equals(run.text().toUpperCase(java.util.Locale.ROOT))),
+                "RichText style overrides should update text runs and preserve inline spans");
 
         RichTextView inlineView = new RichTextView(inline);
         inlineView.noWrap();
@@ -3024,6 +3035,22 @@ public final class BasicControlsSelfTest {
         expect(near(compactButton.desiredSize().width(), TextEngine.measureLineWidth(compactButtonText) + 3.0f)
                         && near(compactButton.desiredSize().height(), TextEngine.measureTextHeight(compactButtonText) + 4.0f),
                 "Button should derive intrinsic size from rich text and configurable padding");
+
+        Button styledButton = new Button("ok");
+        styledButton.style(style -> style
+                .put(StyleKeys.TEXT_SIZE, 6.0f)
+                .put(StyleKeys.TEXT_TRACKING, 0.5f)
+                .put(StyleKeys.TEXT_TRANSFORM, TextTransform.UPPERCASE));
+        RichText renderedStyledButton = styledButton.renderedRichText();
+        expect(renderedStyledButton.runs().size() == 1
+                        && renderedStyledButton.runs().get(0).text().equals("OK")
+                        && near(renderedStyledButton.runs().get(0).pixelSize(), 6.0f)
+                        && near(renderedStyledButton.runs().get(0).tracking(), 0.5f),
+                "Button should apply typed text style values to its rendered rich text");
+        RichText fittedStyledButton = styledButton.fittedRichText(8.0f, 3.0f, 0.5f);
+        expect(fittedStyledButton == styledButton.fittedRichText(8.0f, 3.0f, 0.5f)
+                        && fittedStyledButton.runs().get(0).pixelSize() < 6.0f,
+                "Button should cache its width-fitted rich text until inputs change");
 
         Checkbox compactCheckbox = new Checkbox();
         compactCheckbox.richText(compactButtonText);

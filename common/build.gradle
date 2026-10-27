@@ -1,3 +1,5 @@
+apply plugin: 'me.champeau.jmh'
+
 architectury {
     common versionProject.enabled_platforms.split(',')
 }
