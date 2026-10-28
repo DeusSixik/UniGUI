@@ -32,6 +32,11 @@ import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.containers.View;
 import dev.sixik.unigui.widgets.docking.DockingRoot;
 import dev.sixik.unigui.widgets.display.Label;
+import dev.sixik.unigui.widgets.display.TextureWidget;
+import dev.sixik.unigui.widgets.display.ImageView;
+import dev.sixik.unigui.widgets.display.Shape;
+import dev.sixik.unigui.widgets.display.Path;
+import dev.sixik.unigui.widgets.containers.Border;
 import dev.sixik.unigui.widgets.feedback.Tooltip;
 import dev.sixik.unigui.widgets.feedback.NotificationView;
 import dev.sixik.unigui.widgets.feedback.WindowWidget;
@@ -202,6 +207,85 @@ public final class SurfaceVisualSelfTest {
         expect(near(scrollbarThumb.bounds().width(), 5.0f) && near(scrollbarThumb.radius(), 0.0f),
                 "ScrollBar should resolve idle thumb thickness and radius from Style API");
 
+        TextureWidget styledTexture = new TextureWidget(new SimpleTextureHandle("test:unstyled", 16, 16));
+        styledTexture.style(style -> style
+                .put(StyleKeys.BACKGROUND_TEXTURE, new SimpleTextureHandle("test:styled", 32, 16))
+                .put(StyleKeys.BACKGROUND_TEXTURE_TINT,
+                        dev.sixik.unigui.api.math.MutableColor.rgba(0.25f, 0.5f, 0.75f, 1.0f))
+                .put(StyleKeys.BACKGROUND_TEXTURE_FIT, ImageFit.CONTAIN)
+                .put(StyleKeys.RADIUS, 3.0f));
+        styledTexture.measure(new LayoutContext(40.0f, 40.0f));
+        styledTexture.arrange(new MutableRect(0.0f, 0.0f, 40.0f, 40.0f));
+        DrawList styledTextureDraw = new DrawList();
+        styledTexture.render(new DefaultRenderContext(styledTextureDraw));
+        DrawCommand textureCommand = (DrawCommand) styledTextureDraw.commandElements()[0];
+        expect(textureCommand.texture().id().equals("test:styled")
+                        && near(textureCommand.bounds().height(), 20.0f)
+                        && near(textureCommand.radius(), 3.0f)
+                        && near(textureCommand.paint().color().g(), 0.5f),
+                "TextureWidget should resolve texture, tint, fit and radius through Style API");
+        expect(new ImageView() instanceof TextureWidget,
+                "ImageView remains a compatibility alias of TextureWidget");
+
+        Shape styledShape = new Shape().type(Shape.Type.ROUNDED_RECT);
+        styledShape.style(style -> style
+                .put(StyleKeys.SHAPE_COLOR, dev.sixik.unigui.api.math.MutableColor.rgba(0.1f, 0.2f, 0.3f, 1.0f))
+                .put(StyleKeys.SHAPE_TYPE, "rounded-rect")
+                .put(StyleKeys.SHAPE_STROKE, true)
+                .put(StyleKeys.BORDER_COLOR, dev.sixik.unigui.api.math.MutableColor.rgba(0.8f, 0.7f, 0.6f, 1.0f))
+                .put(StyleKeys.BORDER_WIDTH, 2.0f)
+                .put(StyleKeys.RADIUS, 5.0f));
+        styledShape.measure(new LayoutContext(30.0f, 20.0f));
+        styledShape.arrange(new MutableRect(0.0f, 0.0f, 30.0f, 20.0f));
+        DrawList styledShapeDraw = new DrawList();
+        styledShape.render(new DefaultRenderContext(styledShapeDraw));
+        DrawCommand shapeCommand = (DrawCommand) styledShapeDraw.commandElements()[0];
+        expect(shapeCommand.paint().isStroke() && near(shapeCommand.paint().strokeWidth(), 2.0f)
+                        && near(shapeCommand.radius(), 5.0f)
+                        && near(shapeCommand.paint().color().r(), 0.8f),
+                "Shape should resolve stroke, border color, width and radius through Style API");
+        Shape styledShapeType = new Shape();
+        styledShapeType.style(style -> style.put(StyleKeys.SHAPE_TYPE, "circle"));
+        styledShapeType.measure(new LayoutContext(20.0f, 20.0f));
+        styledShapeType.arrange(new MutableRect(0.0f, 0.0f, 20.0f, 20.0f));
+        DrawList styledShapeTypeDraw = new DrawList();
+        styledShapeType.render(new DefaultRenderContext(styledShapeTypeDraw));
+        expect(((DrawCommand) styledShapeTypeDraw.commandElements()[0]).type()
+                        == dev.sixik.unigui.api.render.DrawCommandType.CIRCLE,
+                "Shape type should be selectable through Style API");
+
+        Path styledPath = new Path();
+        styledPath.path().moveTo(0.0f, 0.0f).lineTo(1.0f, 1.0f);
+        styledPath.style(style -> style
+                .put(StyleKeys.PATH_COLOR,
+                        dev.sixik.unigui.api.math.MutableColor.rgba(0.4f, 0.5f, 0.6f, 1.0f))
+                .put(StyleKeys.PATH_STROKE, true)
+                .put(StyleKeys.PATH_STROKE_WIDTH, 4.0f));
+        styledPath.measure(new LayoutContext(24.0f, 24.0f));
+        styledPath.arrange(new MutableRect(0.0f, 0.0f, 24.0f, 24.0f));
+        DrawList styledPathDraw = new DrawList();
+        styledPath.render(new DefaultRenderContext(styledPathDraw));
+        DrawCommand pathCommand = (DrawCommand) styledPathDraw.commandElements()[0];
+        expect(pathCommand.paint().isStroke() && near(pathCommand.paint().strokeWidth(), 4.0f)
+                        && near(pathCommand.paint().color().b(), 0.6f),
+                "Path should resolve color, stroke mode and width through Style API");
+
+        Border styledBorder = new Border();
+        styledBorder.style(style -> style
+                .put(StyleKeys.BORDER_COLOR,
+                        dev.sixik.unigui.api.math.MutableColor.rgba(0.7f, 0.2f, 0.1f, 1.0f))
+                .put(StyleKeys.BORDER_WIDTH, 3.0f)
+                .put(StyleKeys.RADIUS, 6.0f));
+        styledBorder.measure(new LayoutContext(30.0f, 20.0f));
+        styledBorder.arrange(new MutableRect(0.0f, 0.0f, 30.0f, 20.0f));
+        DrawList styledBorderDraw = new DrawList();
+        styledBorder.render(new DefaultRenderContext(styledBorderDraw));
+        DrawCommand borderCommand = (DrawCommand) styledBorderDraw.commandElements()[0];
+        expect(borderCommand.paint().isStroke() && near(borderCommand.paint().strokeWidth(), 3.0f)
+                        && near(borderCommand.radius(), 6.0f)
+                        && near(borderCommand.paint().color().r(), 0.7f),
+                "Border should resolve color, width and radius through shared border style keys");
+
         RadioButton styledRadio = new RadioButton("Radio");
         styledRadio.style(style -> style.put(StyleKeys.RADIO_OUTER_SIZE, 20.0f)
                 .put(StyleKeys.RADIO_INNER_SIZE, 10.0f)
@@ -211,8 +295,11 @@ public final class SurfaceVisualSelfTest {
                 "RadioButton layout should resolve indicator size and text gap from Style API");
 
         expect(StyleKeyRegistry.builtIns().descriptor(StyleKeys.HOLD_COLOR).isPresent()
-                        && StyleKeyRegistry.builtIns().descriptor(StyleKeys.RADIO_OUTER_SIZE).isPresent(),
-                "interaction appearance keys should be registered for StylePack editors");
+                        && StyleKeyRegistry.builtIns().descriptor(StyleKeys.RADIO_OUTER_SIZE).isPresent()
+                        && StyleKeyRegistry.builtIns().descriptor(StyleKeys.PATH_STROKE_WIDTH).isPresent()
+                        && StyleKeyRegistry.builtIns().descriptor(StyleKeys.SHAPE_COLOR).isPresent()
+                        && StyleKeyRegistry.builtIns().descriptor(StyleKeys.SHAPE_TYPE).isPresent(),
+                "interaction and display appearance keys should be registered for StylePack editors");
         HoldButton holdButton = new HoldButton();
         holdButton.style(style -> style.put(StyleKeys.HOLD_COLOR,
                 dev.sixik.unigui.api.math.MutableColor.rgba(1.0f, 0.0f, 0.0f, 0.5f)));

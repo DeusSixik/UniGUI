@@ -53,6 +53,12 @@ public final class StyleIds {
         public static final String RADIO_TEXT_GAP = "radio.text-gap";
         public static final String BORDER_WIDTH = "border.width";
         public static final String RADIUS = "radius";
+        public static final String SHAPE_STROKE = "shape.stroke";
+        public static final String SHAPE_COLOR = "shape.color";
+        public static final String SHAPE_TYPE = "shape.type";
+        public static final String PATH_COLOR = "path.color";
+        public static final String PATH_STROKE = "path.stroke";
+        public static final String PATH_STROKE_WIDTH = "path.stroke-width";
         public static final String TRANSITION_DURATION = "transition.duration";
         public static final String TRANSITION_EASING = "transition.easing";
 

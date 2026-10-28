@@ -47,6 +47,7 @@ import dev.sixik.unigui.api.render.RenderBackend;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.style.MutableStyle;
+import dev.sixik.unigui.api.style.StyleKey;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.StylePack;
 import dev.sixik.unigui.api.style.StyleTextParseResult;
@@ -1586,6 +1587,38 @@ public abstract class WidgetBase implements Widget {
      */
     protected Style defaultStyle() {
         return Style.EMPTY;
+    }
+
+    /**
+     * Читает значение стиля с учётом defaults виджета, темы и локальных style-scope.
+     * Display-примитивы используют этот общий путь так же, как поверхности контейнеров.
+     *
+     * @param key ключ свойства
+     * @param state состояние виджета
+     * @param fallback значение при отсутствии объявления
+     * @param <S> тип свойства
+     * @return разрешённое значение свойства
+     */
+    protected <S> S styleValue(StyleKey<S> key,
+                               WidgetState state,
+                               S fallback) {
+        UIContext context = uiContext();
+        Theme theme = context == null ? Theme.EMPTY : context.theme();
+        String type = styleType();
+        S value = defaultStyle().get(key, state, fallback);
+        Style themeStyle = theme instanceof StylePack stylePack
+                ? stylePack.resolveStyleFor(type, styleId(), styleClasses())
+                : theme.styleFor(type);
+        value = themeStyle.get(key, state, value);
+        for (Widget current : styleLookupChain()) {
+            value = current.localStyle(type).get(key, state, value);
+        }
+        return value;
+    }
+
+    /** Читает значение стиля для текущего состояния виджета. */
+    protected <S> S styleValue(StyleKey<S> key, S fallback) {
+        return styleValue(key, styleState(), fallback);
     }
 
     private List<Widget> styleLookupChain() {

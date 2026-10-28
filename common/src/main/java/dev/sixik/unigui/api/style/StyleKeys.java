@@ -184,6 +184,36 @@ public final class StyleKeys {
     public static final StyleKey<Float> RADIUS = StyleKey.of(StyleIds.Key.RADIUS, Float.class);
 
     /**
+     * Признак отрисовки Shape как обводки вместо заливки.
+     */
+    public static final StyleKey<Boolean> SHAPE_STROKE = StyleKey.of(StyleIds.Key.SHAPE_STROKE, Boolean.class);
+
+    /**
+     * Цвет заливки фигуры Shape.
+     */
+    public static final StyleKey<ColorView> SHAPE_COLOR = StyleKey.of(StyleIds.Key.SHAPE_COLOR, ColorView.class);
+
+    /**
+     * Тип геометрического примитива Shape: rect, rounded-rect, circle или line.
+     */
+    public static final StyleKey<String> SHAPE_TYPE = StyleKey.of(StyleIds.Key.SHAPE_TYPE, String.class);
+
+    /**
+     * Цвет заливки или обводки векторного Path.
+     */
+    public static final StyleKey<ColorView> PATH_COLOR = StyleKey.of(StyleIds.Key.PATH_COLOR, ColorView.class);
+
+    /**
+     * Признак отрисовки Path как обводки вместо заливки.
+     */
+    public static final StyleKey<Boolean> PATH_STROKE = StyleKey.of(StyleIds.Key.PATH_STROKE, Boolean.class);
+
+    /**
+     * Толщина обводки векторного Path.
+     */
+    public static final StyleKey<Float> PATH_STROKE_WIDTH = StyleKey.of(StyleIds.Key.PATH_STROKE_WIDTH, Float.class);
+
+    /**
      * Длительность автоматического перехода style-свойств в секундах. Ноль отключает переходы.
      */
     public static final StyleKey<Float> TRANSITION_DURATION = StyleKey.of(StyleIds.Key.TRANSITION_DURATION, Float.class);
