@@ -55,6 +55,7 @@ public class TreeView extends LinearBox {
     private static final float CHEVRON_STROKE = 1.5f;
     private static final float ICON_STROKE = 1.25f;
     private static final float ROW_TEXT_HOVER_SCROLL_SPEED = 24.0f;
+    private Consumer<TreeRowButton> onRowCreated;
     private final VBox rowsHost = new VBox();
     private final List<TreeViewNode> roots = new ObjectArrayList<>();
     private final List<TreeViewNode> visibleNodes = new ObjectArrayList<>();
@@ -159,6 +160,15 @@ public class TreeView extends LinearBox {
         return styleValue(StyleKeys.TREE_ICON_COLOR, (ColorView) null);
     }
 
+    public TreeView onRowCreated(Consumer<TreeRowButton> listener) {
+        this.onRowCreated = listener;
+        return this;
+    }
+
+    public Consumer<TreeRowButton> onRowCreated() {
+        return onRowCreated;
+    }
+
     public List<TreeViewNode> roots() {
         return Collections.unmodifiableList(roots);
     }
@@ -185,6 +195,22 @@ public class TreeView extends LinearBox {
         TreeViewNode node = new TreeViewNode(text);
         addRoot(node);
         return node;
+    }
+
+    public TreeView insertRoot(int index, TreeViewNode node) {
+        if (node == null) return this;
+        if (node.parentInternal() != null) {
+            node.parentInternal().removeChild(node);
+        } else if (node.ownerInternal() != null && node.ownerInternal() != this) {
+            node.ownerInternal().removeRoot(node);
+        } else if (roots.contains(node)) {
+            roots.remove(node);
+        }
+        int clamped = Math.max(0, Math.min(roots.size(), index));
+        roots.add(clamped, node);
+        node.attach(this, null);
+        requestRowsRebuild();
+        return this;
     }
 
     public TreeView addRoot(TreeViewNode node) {
@@ -427,6 +453,9 @@ public class TreeView extends LinearBox {
         TreeRowButton row = new TreeRowButton(this, node, depth);
         node.rowButtonInternal(row);
         rowsHost.addChild(row);
+        if (onRowCreated != null) {
+            onRowCreated.accept(row);
+        }
         if (node.expanded()) {
             for (TreeViewNode child : node.children()) {
                 appendVisible(child, depth + 1);
@@ -458,6 +487,9 @@ public class TreeView extends LinearBox {
                 entry.node().rowButtonInternal(row);
                 visibleNodes.add(insertAt + i, entry.node());
                 rowsHost.insertChild(insertAt + i, row);
+                if (onRowCreated != null) {
+                    onRowCreated.accept(row);
+                }
             }
         } else {
             int removeFrom = nodeIndex + 1;
@@ -689,7 +721,7 @@ public class TreeView extends LinearBox {
             tree.renderRow(new DrawScope(context, transform(), layoutBounds()), this);
         }
 
-        private void renderRowVisual(DrawScope draw) {
+        public void renderRowVisual(DrawScope draw) {
             float x = layoutBounds().x();
             float y = layoutBounds().y();
             float width = layoutBounds().width();

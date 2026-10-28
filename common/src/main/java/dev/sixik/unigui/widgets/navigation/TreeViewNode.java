@@ -19,6 +19,7 @@ public final class TreeViewNode {
     private TreeView owner;
     private boolean expanded = true;
     private boolean selectable = true;
+    private Object userData;
     private boolean isFolder;
     private TextureHandle icon;
     private IconDraw iconDraw;
@@ -247,6 +248,31 @@ public final class TreeViewNode {
         return child;
     }
 
+    public Object userData() {
+        return userData;
+    }
+
+    public TreeViewNode userData(Object userData) {
+        this.userData = userData;
+        return this;
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T> T userData(Class<T> type) {
+        if (type == null || userData == null) return null;
+        return type.isInstance(userData) ? (T) userData : null;
+    }
+
+    public TreeViewNode insertChild(int index, TreeViewNode child) {
+        if (child == null || child == this || isAncestor(child)) return this;
+        child.detachFromCurrentContainer();
+        int clamped = Math.max(0, Math.min(children.size(), index));
+        children.add(clamped, child);
+        child.attach(owner, this);
+        notifyStructureChanged();
+        return this;
+    }
+
     public TreeViewNode addChild(TreeViewNode child) {
         if (child == null || child == this || isAncestor(child)) return this;
         child.detachFromCurrentContainer();
@@ -318,7 +344,7 @@ public final class TreeViewNode {
         }
     }
 
-    private boolean isAncestor(TreeViewNode candidate) {
+    public boolean isAncestor(TreeViewNode candidate) {
         TreeViewNode current = this;
         while (current != null) {
             if (current == candidate) return true;
