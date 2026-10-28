@@ -105,7 +105,7 @@ public class ScrollBar extends Box {
 
     public ScrollBar() {
         boxVisualEnabled(false);
-        applyComponentStyleDefaults(WidgetStyles.Surface.UNSURFACED);
+        applyComponentStyleDefaults(WidgetStyles.RangeControls.SCROLL_BAR);
         focusable(true);
         trackColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         thumbColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
@@ -118,7 +118,7 @@ public class ScrollBar extends Box {
      */
     @Override
     protected Style defaultStyle() {
-        return WidgetStyles.Surface.UNSURFACED;
+        return WidgetStyles.RangeControls.SCROLL_BAR;
     }
 
     public Orientation orientation() {
@@ -377,7 +377,10 @@ public class ScrollBar extends Box {
      */
     private void syncHoverVisuals() {
         boolean active = dragging || hovered();
-        float targetThickness = active ? hoverThickness : idleThickness;
+        float targetThickness = active
+                ? styleValue(StyleKeys.THUMB_THICKNESS, dev.sixik.unigui.api.style.WidgetState.HOVERED, hoverThickness)
+                : styleValue(StyleKeys.THUMB_THICKNESS, dev.sixik.unigui.api.style.WidgetState.NORMAL, idleThickness);
+        targetThickness = Float.isFinite(targetThickness) ? Math.max(1.0f, targetThickness) : DEFAULT_IDLE_THICKNESS;
         animateParameter(THICKNESS_ANIMATION_KEY,
                 () -> visualThickness,
                 value -> visualThickness = value,
@@ -436,23 +439,30 @@ public class ScrollBar extends Box {
         float y = layoutBounds().y();
         float width = layoutBounds().width();
         float height = layoutBounds().height();
+        Float styledRadius = styleValue(StyleKeys.THUMB_RADIUS, (Float) null);
         // Тамб якорится к внешнему краю полосы (справа/снизу): при expand
         // растёт внутрь вьюпорта, хит-зона layout-полосы при этом стабильна.
-        float thickness = Math.min(visualThickness,
+        float effectiveVisualThickness = dragging || hovered()
+                ? visualThickness
+                : styleValue(StyleKeys.THUMB_THICKNESS, dev.sixik.unigui.api.style.WidgetState.NORMAL, idleThickness);
+        effectiveVisualThickness = Float.isFinite(effectiveVisualThickness)
+                ? Math.max(1.0f, effectiveVisualThickness)
+                : DEFAULT_IDLE_THICKNESS;
+        float thickness = Math.min(effectiveVisualThickness,
                 orientation == Orientation.VERTICAL ? width : height);
-        draw.roundedRectFilled(x, y, width, height, Math.min(width, height) * 0.5f,
+        draw.roundedRectFilled(x, y, width, height, styledRadius == null ? Math.min(width, height) * 0.5f : Math.max(0.0f, styledRadius),
                 trackColor);
         if (orientation == Orientation.VERTICAL) {
             float thumbHeight = thumbLength(height);
             float thumbY = y + (height - thumbHeight) * normalizedValue();
             float thumbX = x + width - thickness;
-            draw.roundedRectFilled(thumbX, thumbY, thickness, thumbHeight, thickness * 0.5f,
+            draw.roundedRectFilled(thumbX, thumbY, thickness, thumbHeight, styledRadius == null ? thickness * 0.5f : Math.max(0.0f, styledRadius),
                     renderThumbColor);
         } else {
             float thumbWidth = thumbLength(width);
             float thumbX = x + (width - thumbWidth) * normalizedValue();
             float thumbY = y + height - thickness;
-            draw.roundedRectFilled(thumbX, thumbY, thumbWidth, thickness, thickness * 0.5f,
+            draw.roundedRectFilled(thumbX, thumbY, thumbWidth, thickness, styledRadius == null ? thickness * 0.5f : Math.max(0.0f, styledRadius),
                     renderThumbColor);
         }
         super.renderContent(context);

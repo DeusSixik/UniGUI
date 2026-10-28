@@ -19,6 +19,7 @@ import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.WidgetState;
+import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.xml.XmlAttribute;
@@ -219,15 +220,16 @@ public class HoldButton extends Button {
         float fillWidth = width * Math.min(1.0f, progress);
         if (fillWidth <= 0.0f) return;
         float radius = Math.max(0.0f, radius() - inset);
+        ColorView effectiveHoldColor = styleValue(StyleKeys.HOLD_COLOR, styleState(), holdColor);
         if (fillWidth >= width - 0.5f || radius <= 0.0f) {
-            draw.roundedRectFilled(x, y, fillWidth, height, Math.min(radius, fillWidth * 0.5f), holdColor);
+            draw.roundedRectFilled(x, y, fillWidth, height, Math.min(radius, fillWidth * 0.5f), effectiveHoldColor);
             return;
         }
         // Частичный прогресс: круглим только левые углы, правый край прямой.
         float straightWidth = Math.max(0.0f, fillWidth - radius);
-        draw.roundedRectFilled(x, y, fillWidth, height, Math.min(radius, fillWidth * 0.5f), holdColor);
+        draw.roundedRectFilled(x, y, fillWidth, height, Math.min(radius, fillWidth * 0.5f), effectiveHoldColor);
         if (straightWidth > 0.0f) {
-            draw.rectFilled(x + radius, y, straightWidth, height, holdColor);
+            draw.rectFilled(x + radius, y, straightWidth, height, effectiveHoldColor);
         }
     }
 

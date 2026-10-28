@@ -41,6 +41,10 @@ import dev.sixik.unigui.widgets.interaction.ComboBox;
 import dev.sixik.unigui.widgets.interaction.DropDownBox;
 import dev.sixik.unigui.widgets.interaction.TextField;
 import dev.sixik.unigui.widgets.interaction.TextArea;
+import dev.sixik.unigui.widgets.interaction.Slider;
+import dev.sixik.unigui.widgets.interaction.ScrollBar;
+import dev.sixik.unigui.widgets.interaction.RadioButton;
+import dev.sixik.unigui.widgets.interaction.HoldButton;
 import dev.sixik.unigui.widgets.WidgetStyles;
 import dev.sixik.unigui.widgets.map.MapMarker;
 
@@ -171,6 +175,49 @@ public final class SurfaceVisualSelfTest {
         subclassedTooltip.render(new DefaultRenderContext(new DrawList()));
         expect(tooltipStyleCalls[0] == 1,
                 "Tooltip subclasses should resolve the stable Tooltip style type");
+
+        Slider styledSlider = new Slider().value(0.5f);
+        styledSlider.style(style -> style.put(StyleKeys.TRACK_THICKNESS, 10.0f)
+                .put(StyleKeys.THUMB_THICKNESS, 14.0f)
+                .put(StyleKeys.THUMB_RADIUS, 0.0f));
+        styledSlider.measure(new LayoutContext(100.0f, 20.0f));
+        styledSlider.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 20.0f));
+        DrawList styledSliderDraw = new DrawList();
+        styledSlider.render(new DefaultRenderContext(styledSliderDraw));
+        DrawCommand sliderTrack = (DrawCommand) styledSliderDraw.commandElements()[0];
+        DrawCommand sliderThumb = (DrawCommand) styledSliderDraw.commandElements()[2];
+        expect(near(sliderTrack.bounds().height(), 10.0f)
+                        && near(sliderThumb.bounds().width(), 14.0f)
+                        && near(sliderThumb.radius(), 0.0f),
+                "Slider geometry should resolve thickness and radius from Style API");
+
+        ScrollBar styledScrollBar = new ScrollBar();
+        styledScrollBar.style(style -> style.put(StyleKeys.THUMB_THICKNESS, WidgetState.NORMAL, 5.0f)
+                .put(StyleKeys.THUMB_RADIUS, 0.0f));
+        styledScrollBar.measure(new LayoutContext(10.0f, 60.0f));
+        styledScrollBar.arrange(new MutableRect(0.0f, 0.0f, 10.0f, 60.0f));
+        DrawList styledScrollDraw = new DrawList();
+        styledScrollBar.render(new DefaultRenderContext(styledScrollDraw));
+        DrawCommand scrollbarThumb = (DrawCommand) styledScrollDraw.commandElements()[1];
+        expect(near(scrollbarThumb.bounds().width(), 5.0f) && near(scrollbarThumb.radius(), 0.0f),
+                "ScrollBar should resolve idle thumb thickness and radius from Style API");
+
+        RadioButton styledRadio = new RadioButton("Radio");
+        styledRadio.style(style -> style.put(StyleKeys.RADIO_OUTER_SIZE, 20.0f)
+                .put(StyleKeys.RADIO_INNER_SIZE, 10.0f)
+                .put(StyleKeys.RADIO_TEXT_GAP, 8.0f));
+        styledRadio.measure(new LayoutContext(100.0f, 40.0f));
+        expect(styledRadio.desiredSize().height() >= 20.0f && styledRadio.desiredSize().width() > 20.0f,
+                "RadioButton layout should resolve indicator size and text gap from Style API");
+
+        expect(StyleKeyRegistry.builtIns().descriptor(StyleKeys.HOLD_COLOR).isPresent()
+                        && StyleKeyRegistry.builtIns().descriptor(StyleKeys.RADIO_OUTER_SIZE).isPresent(),
+                "interaction appearance keys should be registered for StylePack editors");
+        HoldButton holdButton = new HoldButton();
+        holdButton.style(style -> style.put(StyleKeys.HOLD_COLOR,
+                dev.sixik.unigui.api.math.MutableColor.rgba(1.0f, 0.0f, 0.0f, 0.5f)));
+        expect(StyleKeyRegistry.builtIns().descriptor(StyleKeys.HOLD_COLOR).isPresent(),
+                "HoldButton should expose hold progress color through Style API");
 
         // Nine-slice background emits 9 texture cells through the surface.
         Box sliced = new Box();

@@ -103,6 +103,18 @@ public final class StyleKeyRegistry {
                 .register(new StylePropertyDescriptor<>(StyleKeys.THUMB_COLOR, "Thumb color", "Controls", null, color, "Thumb color for slider/scroll controls."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.THUMB_RADIUS, "Slider radius", "Controls", null, number,
                         "The radius of the slider’s rounding; half of its size forms a circle."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.TRACK_THICKNESS, "Track thickness", "Controls", null, number,
+                        "Track thickness in logical pixels; zero uses the widget's automatic size."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.THUMB_THICKNESS, "Thumb thickness", "Controls", null, number,
+                        "Slider thumb width or ScrollBar thumb thickness in logical pixels."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.HOLD_COLOR, "Hold color", "Controls", null, color,
+                        "HoldButton progress fill color."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.RADIO_OUTER_SIZE, "RadioButton outer size", "Controls", null, number,
+                        "RadioButton indicator outer size in logical pixels."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.RADIO_INNER_SIZE, "RadioButton inner size", "Controls", null, number,
+                        "RadioButton selected mark size in logical pixels."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.RADIO_TEXT_GAP, "RadioButton text gap", "Controls", null, number,
+                        "Gap between the RadioButton indicator and its label in logical pixels."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.TRANSITION_DURATION, "Transition duration", "Animation", 0.0f, number, "Automatic style transition duration in seconds."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.TRANSITION_EASING, "Transition easing", "Animation", AnimationEasing.EASE_OUT, easing, "Automatic style transition easing curve."));
     }

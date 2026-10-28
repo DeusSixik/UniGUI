@@ -144,6 +144,36 @@ public final class StyleKeys {
     public static final StyleKey<Float> THUMB_RADIUS = StyleKey.of(StyleIds.Key.THUMB_RADIUS, Float.class);
 
     /**
+     * Толщина дорожки ползунка в логических пикселях.
+     */
+    public static final StyleKey<Float> TRACK_THICKNESS = StyleKey.of(StyleIds.Key.TRACK_THICKNESS, Float.class);
+
+    /**
+     * Ширина бегунка Slider либо толщина тамба ScrollBar в логических пикселях.
+     */
+    public static final StyleKey<Float> THUMB_THICKNESS = StyleKey.of(StyleIds.Key.THUMB_THICKNESS, Float.class);
+
+    /**
+     * Цвет заливки прогресса HoldButton.
+     */
+    public static final StyleKey<ColorView> HOLD_COLOR = StyleKey.of(StyleIds.Key.HOLD_COLOR, ColorView.class);
+
+    /**
+     * Внешний размер индикатора RadioButton в логических пикселях.
+     */
+    public static final StyleKey<Float> RADIO_OUTER_SIZE = StyleKey.of(StyleIds.Key.RADIO_OUTER_SIZE, Float.class);
+
+    /**
+     * Размер внутренней отметки RadioButton в логических пикселях.
+     */
+    public static final StyleKey<Float> RADIO_INNER_SIZE = StyleKey.of(StyleIds.Key.RADIO_INNER_SIZE, Float.class);
+
+    /**
+     * Зазор между индикатором и подписью RadioButton в логических пикселях.
+     */
+    public static final StyleKey<Float> RADIO_TEXT_GAP = StyleKey.of(StyleIds.Key.RADIO_TEXT_GAP, Float.class);
+
+    /**
      * Толщина рамки в UI-пикселях.
      */
     public static final StyleKey<Float> BORDER_WIDTH = StyleKey.of(StyleIds.Key.BORDER_WIDTH, Float.class);

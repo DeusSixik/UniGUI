@@ -45,6 +45,12 @@ public final class StyleIds {
         public static final String TRACK_COLOR = "track.color";
         public static final String THUMB_COLOR = "thumb.color";
         public static final String THUMB_RADIUS = "thumb.radius";
+        public static final String TRACK_THICKNESS = "track.thickness";
+        public static final String THUMB_THICKNESS = "thumb.thickness";
+        public static final String HOLD_COLOR = "hold.color";
+        public static final String RADIO_OUTER_SIZE = "radio.outer-size";
+        public static final String RADIO_INNER_SIZE = "radio.inner-size";
+        public static final String RADIO_TEXT_GAP = "radio.text-gap";
         public static final String BORDER_WIDTH = "border.width";
         public static final String RADIUS = "radius";
         public static final String TRANSITION_DURATION = "transition.duration";

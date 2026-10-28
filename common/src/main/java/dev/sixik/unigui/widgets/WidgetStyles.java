@@ -84,6 +84,48 @@ public final class WidgetStyles {
     }
 
     /**
+     * Стили ползунков и полос прокрутки.
+     */
+    public static final class RangeControls {
+        /**
+         * Стандартное оформление Slider с прежней геометрией.
+         */
+        public static final Style SLIDER = new MutableStyle()
+                .putAll(Surface.UNSURFACED)
+                .put(StyleKeys.TRACK_THICKNESS, 0.0f)
+                .put(StyleKeys.THUMB_THICKNESS, 8.0f)
+                .put(StyleKeys.THUMB_RADIUS, 2.0f);
+
+        /**
+         * Стандартное оформление ScrollBar с прежней геометрией.
+         */
+        public static final Style SCROLL_BAR = new MutableStyle()
+                .putAll(Surface.UNSURFACED)
+                .put(StyleKeys.THUMB_THICKNESS, WidgetState.NORMAL, 3.0f)
+                .put(StyleKeys.THUMB_THICKNESS, WidgetState.HOVERED, 6.0f);
+
+        private RangeControls() {
+        }
+    }
+
+    /**
+     * Стили checked-контролов с самостоятельными индикаторами.
+     */
+    public static final class CheckedControls {
+        /**
+         * Стандартная геометрия RadioButton.
+         */
+        public static final Style RADIO_BUTTON = new MutableStyle()
+                .putAll(Surface.UNSURFACED)
+                .put(StyleKeys.RADIO_OUTER_SIZE, 12.0f)
+                .put(StyleKeys.RADIO_INNER_SIZE, 6.0f)
+                .put(StyleKeys.RADIO_TEXT_GAP, 4.0f);
+
+        private CheckedControls() {
+        }
+    }
+
+    /**
      * Стили многострочных текстовых полей.
      */
     public static final class TextArea {
@@ -226,7 +268,9 @@ public final class WidgetStyles {
         public static final Style DROPDOWN_HEADER = new MutableStyle()
                 .put(StyleKeys.BORDER_VISIBLE, false);
 
-        /** Стандартная поверхность списка ComboBox; уступает теме и локальным стилям. */
+        /**
+         * Стандартная поверхность списка ComboBox; уступает теме и локальным стилям.
+         */
         public static final Style DROPDOWN_HOST = new MutableStyle()
                 .put(StyleKeys.BACKGROUND_VISIBLE, true)
                 .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.118f, 0.129f, 0.149f, 0.97f))

@@ -73,7 +73,8 @@ public class Slider extends Box {
     public static final float DEFAULT_PREFERRED_WIDTH = 120.0f;
     public static final float DEFAULT_PREFERRED_HEIGHT = 18.0f;
 
-    private static final float KNOB_WIDTH = 8.0f;
+    private static final float DEFAULT_TRACK_THICKNESS = 0.0f;
+    private static final float DEFAULT_KNOB_WIDTH = 8.0f;
 
     private final MutableColor trackColor = new MutableColor(0.25f, 0.25f, 0.25f, 1.0f);
     private final MutableColor fillColor = new MutableColor(0.25f, 0.78f, 1.0f, 1.0f);
@@ -88,7 +89,7 @@ public class Slider extends Box {
 
     public Slider() {
         boxVisualEnabled(false);
-        applyComponentStyleDefaults(WidgetStyles.Surface.UNSURFACED);
+        applyComponentStyleDefaults(WidgetStyles.RangeControls.SLIDER);
         focusable(true);
         trackColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         fillColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
@@ -102,7 +103,7 @@ public class Slider extends Box {
      */
     @Override
     protected Style defaultStyle() {
-        return WidgetStyles.Surface.UNSURFACED;
+        return WidgetStyles.RangeControls.SLIDER;
     }
 
     public float min() {
@@ -274,15 +275,20 @@ public class Slider extends Box {
         float y = layoutBounds().y();
         float width = layoutBounds().width();
         float height = Math.max(1.0f, layoutBounds().height());
-        float trackHeight = Math.max(2.0f, Math.min(4.0f, height * 0.25f));
+        float configuredTrackThickness = styleValue(StyleKeys.TRACK_THICKNESS, DEFAULT_TRACK_THICKNESS);
+        float trackHeight = configuredTrackThickness > 0.0f
+                ? Math.max(1.0f, Math.min(configuredTrackThickness, height))
+                : Math.max(2.0f, Math.min(4.0f, height * 0.25f));
+        float knobWidth = Math.max(1.0f, styleValue(StyleKeys.THUMB_THICKNESS, DEFAULT_KNOB_WIDTH));
+        float knobRadius = Math.max(0.0f, styleValue(StyleKeys.THUMB_RADIUS, 2.0f));
         float trackY = y + (height - trackHeight) * 0.5f;
         float fillWidth = width * normalizedValue();
-        float knobX = x + fillWidth - KNOB_WIDTH * 0.5f;
+        float knobX = x + fillWidth - knobWidth * 0.5f;
         draw.roundedRectFilled(x, trackY, width, trackHeight, trackHeight * 0.5f,
                 trackColor);
         draw.roundedRectFilled(x, trackY, fillWidth, trackHeight, trackHeight * 0.5f,
                 fillColor);
-        draw.roundedRectFilled(knobX, y + 2.0f, KNOB_WIDTH, Math.max(1.0f, height - 4.0f), 2.0f,
+        draw.roundedRectFilled(knobX, y + 2.0f, knobWidth, Math.max(1.0f, height - 4.0f), knobRadius,
                 knobColor);
         super.renderContent(context);
     }
