@@ -9,6 +9,7 @@ import com.mojang.math.Axis;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.posteffect.UiLayerBounds;
 import dev.sixik.unigui.api.posteffect.UiPostEffectBackend;
+import dev.sixik.unigui.api.posteffect.UiPostEffectBlendMode;
 import dev.sixik.unigui.api.posteffect.UiPostEffectChain;
 import dev.sixik.unigui.api.posteffect.UiPostEffectPass;
 import dev.sixik.unigui.api.posteffect.UiPostEffectRegistry;
@@ -69,6 +70,18 @@ import java.util.List;
 import java.util.Objects;
 
 public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEffectBackend, AutoCloseable {
+    /**
+     * Минимальная полуглубина ортопроекции offscreen target'а.
+     */
+    private static final float MIN_RENDER_TARGET_DEPTH = 1000.0f;
+    /**
+     * Прирост полуглубины на один texel большей стороны target'а.
+     */
+    private static final float RENDER_TARGET_DEPTH_PER_TEXEL = 32.0f;
+    /**
+     * Запас по Z сверх сдвига ModelView для pose-translate'ов GuiGraphics (предметы, tooltip'ы).
+     */
+    private static final float RENDER_TARGET_DEPTH_MARGIN = 2000.0f;
     /**
      * Vanilla Font treats colors with alpha 0..3 as "alpha not specified" and promotes them
      * to opaque, which causes fade-in text to flash on the first visible frame.
@@ -143,7 +156,8 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         this.mixedTextRenderer = new MinecraftMixedTextRenderer(this.minecraft, sdfTextRenderer);
         this.fastItemRenderer = new FastItemRenderer(this.minecraft);
         this.shaderQuadRenderer = new MinecraftShaderQuadRenderer(this.minecraft);
-        UiPostEffects.ensureRegistered();    }
+        UiPostEffects.ensureRegistered();
+    }
 
     public MinecraftGuiRenderBackend graphics(GuiGraphics graphics) {
         this.graphics = Objects.requireNonNull(graphics, "graphics");
@@ -170,7 +184,9 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         return graphics;
     }
 
-    /** Font used by plain String text commands that do not provide a RichText face. */
+    /**
+     * Font used by plain String text commands that do not provide a RichText face.
+     */
     public FontFace defaultFont() {
         return sdfTextRenderer.defaultFace();
     }
@@ -262,7 +278,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
             graphics.renderComponentTooltip(minecraft.font, lines, round(x), round(y));
             graphics.flush();
         } finally {
-              RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+            RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
             restoreState(state);
         }
     }
@@ -298,7 +314,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
                     round(x), round(y));
             graphics.flush();
         } finally {
-              RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+            RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
             restoreState(state);
         }
     }
@@ -317,7 +333,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
             graphics.renderTooltip(minecraft.font, stack, round(x), round(y));
             graphics.flush();
         } finally {
-              RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+            RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
             restoreState(state);
         }
     }
@@ -369,7 +385,8 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, clamp01(opacity));
         try {
             int centerX = Math.round(x + size * 0.5f);
-            int bottomY = Math.round(y + size * 0.92f);            int entityScale = Math.max(1, Math.round(size * 0.72f));
+            int bottomY = Math.round(y + size * 0.92f);
+            int entityScale = Math.max(1, Math.round(size * 0.72f));
             renderEntityInInventory(centerX, bottomY, entityScale, size, x + mouseX, y + mouseY, entity);
             clearPreviewDepthBuffer();
             return true;
@@ -482,9 +499,17 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         try {
             int targetWidth = layerBounds.targetWidth();
             int targetHeight = layerBounds.targetHeight();
+            float layerScaleX = targetWidth / layerBounds.safeWidth();
+            float layerScaleY = targetHeight / layerBounds.safeHeight();
             RenderTarget layerTarget = postEffectLayerTargets.acquire(targetWidth, targetHeight, POST_EFFECT_LAYER_TARGET);
             RenderTarget pingTarget = postEffectPingTargets.acquire(targetWidth, targetHeight, POST_EFFECT_PING_TARGET);
-            renderPostEffectLayer(drawList, layerTarget, layerScale);
+            renderPostEffectLayer(drawList, layerTarget, layerScaleX, layerScaleY);
+            if (isPassthroughOnly(passes)) {
+                renderState.prepareComposite(this);
+                compositePostEffectTexture(layerTarget, layerBounds, target,
+                        layerScaleX, layerScaleY, renderState);
+                return;
+            }
             RenderTarget current = layerTarget;
             for (UiPostEffectPass pass : passes) {
                 RenderTarget destination = current == layerTarget ? pingTarget : layerTarget;
@@ -492,16 +517,26 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
                 // наследовать масштаб координат исходного UI-слоя.
                 if (!renderPostEffectPass(pass, current, destination, 1.0f)) {
                     renderState.prepareComposite(this);
-                    compositePostEffectTexture(current, layerBounds, target, layerScale, renderState);
+                    compositePostEffectTexture(current, layerBounds, target, layerScaleX, layerScaleY, renderState);
                     return;
                 }
                 current = destination;
             }
             renderState.prepareComposite(this);
-            compositePostEffectTexture(current, layerBounds, target, layerScale, renderState);
+            compositePostEffectTexture(current, layerBounds, target, layerScaleX, layerScaleY, renderState);
         } finally {
             popPostEffectRenderState(renderState);
         }
+    }
+
+    private static boolean isPassthroughOnly(List<UiPostEffectPass> passes) {
+        if (passes == null || passes.size() != 1) return false;
+        UiPostEffectPass pass = passes.get(0);
+        return pass != null
+                && UiPostEffects.PASSTHROUGH.equals(pass.shaderId())
+                && pass.blendMode() == UiPostEffectBlendMode.REPLACE
+                && pass.uniforms().isEmpty()
+                && pass.textures().isEmpty();
     }
 
     private PostEffectRenderState pushPostEffectRenderState() {
@@ -522,13 +557,14 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         }
     }
 
-    private void renderPostEffectLayer(DrawList drawList, RenderTarget target, float coordinateScale) {
+    private void renderPostEffectLayer(DrawList drawList, RenderTarget target,
+                                       float coordinateScaleX, float coordinateScaleY) {
         if (!(target instanceof MinecraftRenderTarget minecraftTarget)) {
             render(drawList, target);
             return;
         }
 
-        renderToTarget(drawList, minecraftTarget, coordinateScale, coordinateScale);
+        renderToTarget(drawList, minecraftTarget, coordinateScaleX, coordinateScaleY);
     }
 
     private boolean renderPostEffectPass(UiPostEffectPass pass, RenderTarget source, RenderTarget destination,
@@ -575,7 +611,8 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
     }
 
     private void compositePostEffectTexture(RenderTarget source, UiLayerBounds bounds, RenderTarget target,
-                                            float coordinateScale, PostEffectRenderState renderState) {
+                                            float coordinateScaleX, float coordinateScaleY,
+                                            PostEffectRenderState renderState) {
         postEffectDrawList.clear();
         postEffectDrawList.add(DrawCommand.texture(
                 source.colorTexture(),
@@ -588,7 +625,11 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         }
 
         renderState.isolateScissor(this);
-        render(postEffectDrawList, target, coordinateScale);
+        if (target instanceof MinecraftRenderTarget minecraftTarget) {
+            renderToTarget(postEffectDrawList, minecraftTarget, coordinateScaleX, coordinateScaleY);
+        } else {
+            render(postEffectDrawList, target, coordinateScaleX);
+        }
     }
 
     private UiLayerBounds currentPostEffectBounds() {
@@ -599,6 +640,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
                 Math.max(1.0f, minecraft.getWindow().getGuiScaledWidth()),
                 Math.max(1.0f, minecraft.getWindow().getGuiScaledHeight()));
     }
+
     @Override
     public void endFrame() {
         graphics.flush();
@@ -633,10 +675,27 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
     private void applyRenderTargetProjection(MinecraftRenderTarget target) {
         float coordinateWidth = Math.max(1.0f, target.width() / sanitizeScale(activeRenderTargetScaleX));
         float coordinateHeight = Math.max(1.0f, target.height() / sanitizeScale(activeRenderTargetScaleY));
-        float depth = Math.max(1000.0f, Math.max(target.width(), target.height()) * 32.0f);
+        float depth = renderTargetProjectionDepth(target);
         RenderSystem.setProjectionMatrix(
                 new Matrix4f().setOrtho(0.0f, coordinateWidth, coordinateHeight, 0.0f, -depth, depth),
                 VertexSorting.ORTHOGRAPHIC_Z);
+    }
+
+    /**
+     * Возвращает половину Z-диапазона ортопроекции для offscreen target'а.
+     *
+     * <p>Во время GUI-прохода Minecraft держит в ModelView сдвиг по Z (в 1.20.1 это {@code -11000}),
+     * поэтому вершины попадают в проекцию, только если {@code depth >= |modelViewZ| + запас}.
+     * Если брать глубину только от размера target'а, маленькие target'ы (локальные post-effect слои,
+     * {@code effectScale < 1}) целиком обрезаются по Z и остаются пустыми.</p>
+     *
+     * @param target target, для которого строится проекция
+     * @return положительная полуглубина: z-диапазон проекции равен {@code [-depth, depth]}
+     */
+    private static float renderTargetProjectionDepth(MinecraftRenderTarget target) {
+        float sizeDepth = Math.max(target.width(), target.height()) * RENDER_TARGET_DEPTH_PER_TEXEL;
+        float modelViewDepth = Math.abs(RenderSystem.getModelViewMatrix().m32()) + RENDER_TARGET_DEPTH_MARGIN;
+        return Math.max(MIN_RENDER_TARGET_DEPTH, Math.max(sizeDepth, modelViewDepth));
     }
 
     private float renderTargetScaleX(MinecraftRenderTarget target) {
@@ -916,6 +975,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
             }
         }
     }
+
     private enum TimerQuerySupport {
         NONE,
         OPENGL33,
@@ -1105,6 +1165,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         if (minecraft.getWindow() == null || minecraft.getWindow().getGuiScaledWidth() <= 0) return 1.0f;
         return sanitizeScale(minecraft.getWindow().getWidth() / (float) minecraft.getWindow().getGuiScaledWidth());
     }
+
     private void applyTransform(RectView bounds, Transform transform, PoseStack pose) {
         if (transform == null) return;
 
