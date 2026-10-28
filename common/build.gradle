@@ -247,6 +247,14 @@ tasks.register("pathAntiAliasingSelfTest", JavaExec) {
     mainClass = "dev.sixik.unigui.tests.PathAntiAliasingSelfTest"
 }
 
+tasks.register("dragReorderSelfTest", JavaExec) {
+    group = "verification"
+    description = "Runs composition drag-and-drop, reorder, ghost overlay and auto-scroll self-test assertions."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.DragReorderSelfTest"
+}
+
 tasks.register("dumpXmlWidgetReference", JavaExec) {
     group = "documentation"
     description = "Generates XML widget reference markdown from registry descriptors."
@@ -283,4 +291,5 @@ tasks.named("test") {
       dependsOn tasks.named("surfaceVisualSelfTest")
       dependsOn tasks.named("debugHotkeysSelfTest")
       dependsOn tasks.named("pathAntiAliasingSelfTest")
+      dependsOn tasks.named("dragReorderSelfTest")
   }

@@ -2016,6 +2016,11 @@ public abstract class WidgetBase implements Widget {
         return events.on(type, listener);
     }
 
+    @Override
+    public <T extends Event> EventSubscription on(EventType<T> type, boolean receiveCancelled, EventListener<? super T> listener) {
+        return events.on(type, receiveCancelled, listener);
+    }
+
     /**
      * Отправляет событие подписчикам этого виджета.
      */
