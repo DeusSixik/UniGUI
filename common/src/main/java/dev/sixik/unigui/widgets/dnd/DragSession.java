@@ -58,6 +58,9 @@ public final class DragSession {
     private float indicatorHeight;
     private float restoredOpacity = 1.0f;
     private boolean dimmed;
+    private Widget ghostWidget;
+    private float initialGhostX;
+    private float initialGhostY;
 
     DragSession(DragController controller, Widget handle, Widget dragged, DragPayload payload,
                 DragGhost ghost, float pressX, float pressY) {
@@ -146,17 +149,35 @@ public final class DragSession {
     }
 
     /**
-     * @return сдвиг ghost'а по X с учётом блокировки оси
+     * @return сдвиг ghost'а по X с учётом блокировки оси и компенсации прокрутки контейнера
      */
     public float ghostOffsetX() {
-        return controller.ghostAxis() == Orientation.VERTICAL ? 0.0f : deltaX();
+        return ghostOffsetX(ghostWidget != null ? ghostWidget : handle, initialGhostX);
     }
 
     /**
-     * @return сдвиг ghost'а по Y с учётом блокировки оси
+     * @return сдвиг ghost'а по Y с учётом блокировки оси и компенсации прокрутки контейнера
      */
     public float ghostOffsetY() {
-        return controller.ghostAxis() == Orientation.HORIZONTAL ? 0.0f : deltaY();
+        return ghostOffsetY(ghostWidget != null ? ghostWidget : handle, initialGhostY);
+    }
+
+    /**
+     * Возвращает сдвиг ghost'а по X для указанного виджета с учётом блокировки оси
+     * и компенсации смещения самого виджета (например, при скролле).
+     */
+    public float ghostOffsetX(Widget widget, float initialX) {
+        float raw = controller.ghostAxis() == Orientation.VERTICAL ? 0.0f : deltaX();
+        return widget == null ? raw : raw + (initialX - widget.layoutBounds().x());
+    }
+
+    /**
+     * Возвращает сдвиг ghost'а по Y для указанного виджета с учётом блокировки оси
+     * и компенсации смещения самого виджета (например, при скролле).
+     */
+    public float ghostOffsetY(Widget widget, float initialY) {
+        float raw = controller.ghostAxis() == Orientation.HORIZONTAL ? 0.0f : deltaY();
+        return widget == null ? raw : raw + (initialY - widget.layoutBounds().y());
     }
 
     /**
@@ -250,6 +271,14 @@ public final class DragSession {
         active = true;
         pointerX = x;
         pointerY = y;
+        this.ghostWidget = ghostWidget;
+        if (ghostWidget != null) {
+            this.initialGhostX = ghostWidget.layoutBounds().x();
+            this.initialGhostY = ghostWidget.layoutBounds().y();
+        } else {
+            this.initialGhostX = handle.layoutBounds().x();
+            this.initialGhostY = handle.layoutBounds().y();
+        }
         dimSource(ghostWidget);
         attachOverlay();
         update(0.0f, false);

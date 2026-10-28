@@ -37,15 +37,30 @@ public interface DragGhost {
         Objects.requireNonNull(widget, "widget");
         float alpha = Math.max(0.0f, Math.min(1.0f, opacity));
         Transform offset = new Transform();
-        return (context, session) -> {
-            offset.position().set(session.ghostOffsetX(), session.ghostOffsetY());
-            context.pushOpacity(alpha);
-            context.pushTransform(widget.layoutBounds(), offset);
-            try {
-                widget.renderCached(context);
-            } finally {
-                context.popTransform();
-                context.popOpacity();
+        return new DragGhost() {
+            private DragSession currentSession;
+            private float initialX;
+            private float initialY;
+
+            @Override
+            public void render(RenderContext context, DragSession session) {
+                if (currentSession != session) {
+                    currentSession = session;
+                    initialX = widget.layoutBounds().x();
+                    initialY = widget.layoutBounds().y();
+                }
+                offset.position().set(
+                        session.ghostOffsetX(widget, initialX),
+                        session.ghostOffsetY(widget, initialY)
+                );
+                context.pushOpacity(alpha);
+                context.pushTransform(widget.layoutBounds(), offset);
+                try {
+                    widget.renderCached(context);
+                } finally {
+                    context.popTransform();
+                    context.popOpacity();
+                }
             }
         };
     }
