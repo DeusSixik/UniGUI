@@ -11,8 +11,11 @@ import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.widgets.docking.DockArea;
+import dev.sixik.unigui.widgets.docking.DockColor;
+import dev.sixik.unigui.widgets.docking.DockTheme;
 import dev.sixik.unigui.widgets.docking.DockDropIntent;
 import dev.sixik.unigui.widgets.docking.DockNode;
+import dev.sixik.unigui.widgets.docking.DockPolicy;
 import dev.sixik.unigui.widgets.docking.DockPane;
 import dev.sixik.unigui.widgets.docking.DockingRoot;
 import dev.sixik.unigui.api.widget.Widget;
@@ -196,21 +199,22 @@ public final class DockingInteractionSelfTest {
         expect(tabOrder(root).equals(java.util.List.of("doc0", "doc1", "doc2")),
                 "Fixture should tab three documents in insertion order");
 
+        float[] doc2Title = textCenter(renderRoot(root), "Doc 2");
         press(context, root, 8.0f, 6.0f, 0);
-        // Таб doc2 (x ~213..320): перетаскиваемый doc0 встаёт на его место.
-        move(context, root, 250.0f, 11.0f, 0);
+        // Таб doc2: перетаскиваемый doc0 встаёт на его место.
+        move(context, root, doc2Title[0], 11.0f, 0);
         expect(tabOrder(root).equals(java.util.List.of("doc1", "doc2", "doc0"))
                         && root.manager().selectedPane().id().equals("doc0")
                         && root.dockDragging()
                         && root.lastFloatingWindow() == null,
                 "Hovering another tab of the same leaf should reorder without tearing off");
 
-        // Таб doc1 (x ~0..106 в новом порядке): возврат обратно.
-        move(context, root, 50.0f, 11.0f, 0);
+        // Первый таб в новом порядке: возврат обратно.
+        move(context, root, 20.0f, 11.0f, 0);
         expect(tabOrder(root).equals(java.util.List.of("doc0", "doc1", "doc2")),
                 "Hovering the first tab should move the dragged tab back to the front");
 
-        release(context, root, 50.0f, 11.0f, 0);
+        release(context, root, 20.0f, 11.0f, 0);
         expect(!root.dragController().active()
                         && root.manager().paneCount() == 3
                         && root.lastFloatingWindow() == null,
@@ -344,16 +348,29 @@ public final class DockingInteractionSelfTest {
         move(context, root, 500.0f, 300.0f, 0);
         WindowWidget first = root.lastFloatingWindow();
         expect(first != null
+                        && first.compactDrag()
+                        && almostEqual(first.layoutBounds().width(), 128.0f)
+                        && almostEqual(first.layoutBounds().height(), 128.0f)
+                        && almostEqual(first.fullWidth(), 320.0f)
+                        && almostEqual(first.fullHeight(), 160.0f),
+                "Live tear-off should carry a compact 128x128 ghost that remembers the source leaf size");
+
+        // Отпускание мимо триггеров: окно принимает свой настоящий размер.
+        release(context, first, 500.0f, 300.0f, 0);
+        layout(layer, 640.0f, 400.0f);
+        expect(!first.compactDrag()
+                        && first.opened()
                         && almostEqual(first.layoutBounds().width(), 320.0f)
                         && almostEqual(first.layoutBounds().height(), 160.0f),
-                "First tear-off without a remembered size should use the source leaf size");
+                "Releasing the ghost outside triggers should restore the full window size");
 
-        // Пользователь меняет размер плавающего окна, затем докирует его.
+        // Пользователь меняет размер плавающего окна, затем докирует его за заголовок.
         first.layout(style -> style.size(260.0f, 140.0f));
         layout(layer, 640.0f, 400.0f);
         expect(almostEqual(first.layoutBounds().width(), 260.0f)
                         && almostEqual(first.layoutBounds().height(), 140.0f),
                 "Resizing the floating window should stick");
+        press(context, first, first.layoutBounds().x() + 40.0f, first.layoutBounds().y() + 6.0f, 0);
         float[] center = diamondCenter(root, DockArea.CENTER);
         move(context, first, center[0], center[1], 0);
         release(context, first, center[0], center[1], 0);
@@ -362,20 +379,25 @@ public final class DockingInteractionSelfTest {
                         && !first.opened(),
                 "Docking the resized window should consume it back into the tree");
 
-        // Повторный отрыв возвращает прошлый размер окна, а не размер листа.
-        press(context, root, 140.0f, 6.0f, 0);
+        // Повторный отрыв: призрак снова компактный, а настоящий размер — прошлый размер окна, не листа.
+        float[] sceneTab = textCenter(renderRoot(root), "Scene");
+        press(context, root, sceneTab[0], sceneTab[1], 0);
         move(context, root, 500.0f, 300.0f, 0);
         WindowWidget second = root.lastFloatingWindow();
         expect(second != null
                         && second != first
+                        && second.compactDrag()
+                        && almostEqual(second.fullWidth(), 260.0f)
+                        && almostEqual(second.fullHeight(), 140.0f),
+                "Second tear-off should remember the window size from before docking");
+        release(context, second, 500.0f, 300.0f, 0);
+        layout(layer, 640.0f, 400.0f);
+        expect(second.opened()
+                        && !root.manager().containsPane("scene")
                         && almostEqual(second.layoutBounds().width(), 260.0f)
                         && almostEqual(second.layoutBounds().height(), 140.0f),
-                "Second tear-off should restore the window size from before docking");
-        release(context, second, 500.0f, 300.0f, 0);
-        expect(second.opened() && !root.manager().containsPane("scene"),
-                "Releasing the restored window outside triggers should keep it floating");
+                "Releasing the restored window outside triggers should keep it floating at the remembered size");
     }
-
     private static boolean tabbedTogether(DockingRoot root, String firstId, String secondId) {
         return leafWith(root.rootNode(), firstId, secondId);
     }
@@ -666,15 +688,18 @@ public final class DockingInteractionSelfTest {
         layer.setUiContextInternal(context);
         layout(layer, 360.0f, 220.0f);
 
-        // Флаг выключен по умолчанию: окно остаётся свободным.
+        // Докинг — свойство окна по умолчанию; свободным остаётся только окно с отключённой политикой.
+        expect(new WindowWidget("Default", content("Default body")).dockable(),
+                "WindowWidget should be dockable by default");
         WindowWidget plain = new WindowWidget("Plain", content("Plain body"))
                 .position(10.0f, 10.0f)
+                .dockPolicy(DockPolicy.DISABLED)
                 .open();
         plain.layout(style -> style.size(120.0f, 60.0f).flexGrow(0).flexShrink(0.0f));
         layer.addOverlay(plain);
         layout(layer, 360.0f, 220.0f);
         expect(!plain.dockable() && plain.dockPaneId().isEmpty(),
-                "WindowWidget should be non-dockable by default");
+                "DockPolicy.DISABLED should make the window non-dockable");
         DockingRoot.previewForeignWindowDrop(plain, 60.0f, 60.0f);
         DrawList noPreview = new DrawList();
         root.render(new dev.sixik.unigui.impl.render.DefaultRenderContext(noPreview));
@@ -770,24 +795,29 @@ public final class DockingInteractionSelfTest {
 
     private void testDockingEnabledImpliesDockable() {
         WindowWidget plain = new WindowWidget("Plain", content("Plain body"));
-        expect(!plain.dockable() && !plain.dockingEnabled(),
-                "WindowWidget should be plain floating by default");
+        expect(plain.dockable() && plain.dockPolicy() == DockPolicy.FULL
+                        && !plain.dockingEnabled() && plain.dockingRoot() == null,
+                "WindowWidget should dock by default without owning a docking root up front");
+
+        plain.dockable(false);
+        expect(!plain.dockable() && plain.dockPolicy() == DockPolicy.DISABLED,
+                "dockable(false) should disable docking for the window");
+        plain.dockable(true);
+        expect(plain.dockable() && plain.dockPolicy() == DockPolicy.FULL,
+                "dockable(true) should restore the default policy");
 
         plain.dockingEnabled(true);
-        expect(plain.dockingEnabled() && plain.dockable(),
-                "dockingEnabled(true) should imply dockable: one flag makes a window join docks");
+        expect(plain.dockingEnabled() && plain.dockable() && plain.captionless(),
+                "dockingEnabled(true) should turn the window into a captionless host");
 
         plain.dockingEnabled(false);
-        expect(!plain.dockingEnabled() && !plain.dockable(),
-                "Disabling docking should restore the explicit dockable flag");
+        expect(!plain.dockingEnabled() && plain.dockable() && !plain.acceptsDocking()
+                        && plain.dockPolicy() == DockPolicy.GUEST_ONLY,
+                "Disabling the host should keep the window dockable but stop it accepting drops");
 
-        plain.dockable(true);
-        plain.dockingEnabled(true);
-        plain.dockable(false);
-        expect(plain.dockingEnabled() && plain.dockable(),
-                "A hosting window should stay a dock source until docking itself is disabled");
+        WindowWidget modal = new WindowWidget("Modal", content("Modal body")).modal(true);
+        expect(!modal.dockable(), "Modal windows should never dock");
     }
-
     private void testWindowOnWindowTabsViaZones() {
         DefaultUIContext context = new DefaultUIContext();
         OverlayLayer layer = new OverlayLayer(new StackPanel());
@@ -927,10 +957,11 @@ public final class DockingInteractionSelfTest {
                         && second.dockingRoot().manager().paneCount() == 1,
                 "Fixture should host two panes in the first window and one in the second");
 
-        // Тащим первое окно за header на центр второго: уезжает весь док-узел.
+        // У окна-хоста нет заголовка: за него сходит свободное место полосы вкладок.
         press(context, first,
-                first.layoutBounds().x() + 12.0f, first.layoutBounds().y() + 6.0f, 41);
-        expect(first.dragging(), "Header press should start dragging the whole host window");
+                first.layoutBounds().x() + first.layoutBounds().width() - 8.0f,
+                first.layoutBounds().y() + 6.0f, 41);
+        expect(first.dragging(), "Pressing the empty tab strip should start dragging the whole host window");
         float[] center = cellCenter(second.dockingRoot(), DockArea.CENTER);
         move(context, first, center[0], center[1], 41);
         DrawList previewDrawList = new DrawList();
@@ -954,6 +985,7 @@ public final class DockingInteractionSelfTest {
 
         WindowWidget plain = new WindowWidget("Plain", content("Plain body"))
                 .position(300.0f, 200.0f)
+                .dockPolicy(DockPolicy.GUEST_ONLY)
                 .open();
         plain.layout(style -> style.size(240.0f, 160.0f).flexGrow(0).flexShrink(0.0f));
         layer.addOverlay(plain);
@@ -973,7 +1005,9 @@ public final class DockingInteractionSelfTest {
         expect(!DockingRoot.finishForeignWindowDrop(guest, centerX, centerY)
                         && guest.opened()
                         && guest.content() != null,
-                "Releasing a window over a docking-disabled window should keep it floating");
+                "Releasing a window over a guest-only window should keep it floating");
+        expect(plain.dockingRoot() == null && !plain.dockingEnabled(),
+                "A window that does not accept drops should never turn into a host");
     }
 
     private void testWindowDockingAreaHostsAndMerges() {
@@ -1159,11 +1193,11 @@ public final class DockingInteractionSelfTest {
     }
 
     private static boolean hasOverflowDots(DrawList drawList) {
-        return countFillColor(drawList, 0.28f, 0.78f, 1.0f, 0.85f) >= 3;
+        return countFillColor(drawList, themeColor(DockColor.OVERFLOW_GLYPH)) >= 1;
     }
 
     private static boolean hasOverflowMenu(DrawList drawList) {
-        return countFillColor(drawList, 0.045f, 0.052f, 0.070f, 0.98f) >= 1;
+        return countFillColor(drawList, themeColor(DockColor.OVERFLOW_BACKGROUND)) >= 1;
     }
 
     private static boolean hasFloatingPreview(DrawList drawList) {
@@ -1175,14 +1209,24 @@ public final class DockingInteractionSelfTest {
             if ((command.type() == DrawCommandType.ROUNDED_RECT || command.type() == DrawCommandType.RECT)
                     && command.paint() != null
                     && !command.paint().isStroke()
-                    && almostEqual(command.paint().color().r(), 0.18f)
-                    && almostEqual(command.paint().color().g(), 0.56f)
-                    && almostEqual(command.paint().color().b(), 1.0f)
-                    && almostEqual(command.paint().color().a(), 0.22f)) {
+                    && sameColor(command.paint().color(), themeColor(DockColor.DROP_FILL))) {
                 return true;
             }
         }
         return false;
+    }
+
+    private static dev.sixik.unigui.api.math.ColorView themeColor(DockColor role) {
+        return DockTheme.defaultTheme().color(role);
+    }
+
+    private static boolean sameColor(dev.sixik.unigui.api.math.ColorView actual, dev.sixik.unigui.api.math.ColorView expected) {
+        return almostEqual(actual.r(), expected.r()) && almostEqual(actual.g(), expected.g())
+                && almostEqual(actual.b(), expected.b()) && almostEqual(actual.a(), expected.a());
+    }
+
+    private static int countFillColor(DrawList drawList, dev.sixik.unigui.api.math.ColorView color) {
+        return countFillColor(drawList, color.r(), color.g(), color.b(), color.a());
     }
 
     private static int countFillColor(DrawList drawList, float r, float g, float b, float a) {
@@ -1302,10 +1346,7 @@ public final class DockingInteractionSelfTest {
             if ((command.type() == DrawCommandType.ROUNDED_RECT || command.type() == DrawCommandType.RECT)
                     && command.paint() != null
                     && !command.paint().isStroke()
-                    && almostEqual(command.paint().color().r(), 0.18f)
-                    && almostEqual(command.paint().color().g(), 0.56f)
-                    && almostEqual(command.paint().color().b(), 1.0f)
-                    && almostEqual(command.paint().color().a(), 0.22f)) {
+                    && sameColor(command.paint().color(), themeColor(DockColor.DROP_FILL))) {
                 dev.sixik.unigui.api.math.RectView bounds = command.bounds();
                 return new MutableRect(bounds.x(), bounds.y(), bounds.width(), bounds.height());
             }

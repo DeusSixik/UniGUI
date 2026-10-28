@@ -235,11 +235,11 @@ public final class WidgetStyles {
          */
         public static final Style DOCKING_ROOT = new MutableStyle()
                 .put(StyleKeys.BACKGROUND_VISIBLE, true)
-                .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.025f, 0.030f, 0.042f, 0.98f))
+                .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.105f, 0.105f, 0.112f, 1.0f))
                 .put(StyleKeys.BORDER_VISIBLE, true)
-                .put(StyleKeys.BORDER_COLOR, MutableColor.rgba(0.18f, 0.22f, 0.30f, 0.95f))
+                .put(StyleKeys.BORDER_COLOR, MutableColor.rgba(0.070f, 0.070f, 0.075f, 1.0f))
                 .put(StyleKeys.BORDER_WIDTH, 1.0f)
-                .put(StyleKeys.RADIUS, 4.0f);
+                .put(StyleKeys.RADIUS, 0.0f);
 
         /**
          * Стандартная корневая поверхность расширяемой административной консоли.
@@ -306,9 +306,9 @@ public final class WidgetStyles {
          */
         public static final Style DEFAULT = new MutableStyle()
                 .put(StyleKeys.BACKGROUND_VISIBLE, true)
-                .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.030f, 0.035f, 0.050f, 0.98f))
+                .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.220f, 0.220f, 0.235f, 1.0f))
                 .put(StyleKeys.BORDER_VISIBLE, true)
-                .put(StyleKeys.BORDER_COLOR, MutableColor.rgba(0.25f, 0.78f, 1.0f, 0.85f))
+                .put(StyleKeys.BORDER_COLOR, MutableColor.rgba(0.070f, 0.070f, 0.075f, 1.0f))
                 .put(StyleKeys.RADIUS, 4.0f);
 
         /**

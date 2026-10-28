@@ -1093,7 +1093,8 @@ public final class XmlWidgetSelfTest {
                         && near(xmlWindow.windowY(), 18.0f)
                         && xmlWindow.content() instanceof Label windowBody
                         && windowBody.text().equals("Properties")
-                        && xmlWindow.dockable()
+                        && xmlWindow.dockPolicy() == dev.sixik.unigui.widgets.docking.DockPolicy.FULL
+                        && !xmlWindow.dockable()
                         && xmlWindow.dockPaneId().equals("inspector-pane")
                         && xmlWindow.dockKind() == dev.sixik.unigui.widgets.docking.DockPaneKind.DOCUMENT
                         && !xmlWindow.dockRedockLocked()

@@ -101,8 +101,8 @@ public final class SurfaceVisualSelfTest {
 
         DockingRoot dockingRoot = new DockingRoot();
         expect(dockingRoot.backgroundVisible() && dockingRoot.borderVisible()
-                        && near(dockingRoot.background().b(), 0.042f)
-                        && near(dockingRoot.radius(), 4.0f),
+                        && near(dockingRoot.background().b(), 0.112f)
+                        && near(dockingRoot.radius(), 0.0f),
                 "docking root should materialize its WidgetStyles defaults during construction");
 
         View view = new View();
@@ -147,7 +147,7 @@ public final class SurfaceVisualSelfTest {
         window.arrange(new MutableRect(0.0f, 0.0f, 220.0f, 120.0f));
         DrawList windowDraw = new DrawList();
         window.render(new DefaultRenderContext(windowDraw));
-        expect(countFill(windowDraw, 0.030f, 0.035f, 0.050f, 0.98f) == 1,
+        expect(countFill(windowDraw, 0.220f, 0.220f, 0.235f, 1.0f) == 1,
                 "window background is drawn exactly once by the surface");
 
         // Tooltip background comes from the surface as well.
