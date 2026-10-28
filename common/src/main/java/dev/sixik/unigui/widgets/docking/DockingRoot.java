@@ -262,9 +262,18 @@ public final class DockingRoot extends Box {
         return this;
     }
 
+    public DockingRoot splitPane(String targetPaneId, DockArea area, DockPane pane, float splitRatio) {
+        manager.splitPane(targetPaneId, area, pane, splitRatio);
+        return this;
+    }
+
     public DockingRoot tabPane(String targetPaneId, DockPane pane) {
         manager.tabPane(targetPaneId, pane);
         return this;
+    }
+
+    public DockPane findPane(String paneId) {
+        return manager.findPane(paneId);
     }
 
     public DockingRoot selectPane(String paneId) {

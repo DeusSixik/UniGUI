@@ -214,6 +214,72 @@ public final class StyleKeys {
     public static final StyleKey<Float> PATH_STROKE_WIDTH = StyleKey.of(StyleIds.Key.PATH_STROKE_WIDTH, Float.class);
 
     /**
+     * Высота строки TreeView.
+     */
+    public static final StyleKey<Float> TREE_ROW_HEIGHT = StyleKey.of(StyleIds.Key.TREE_ROW_HEIGHT, Float.class);
+    /**
+     * Форма фона строки TreeView.
+     */
+    public static final StyleKey<TreeRowStyle> TREE_ROW_STYLE = StyleKey.of(StyleIds.Key.TREE_ROW_STYLE, TreeRowStyle.class);
+    /**
+     * Форма маркера раскрытия TreeView.
+     */
+    public static final StyleKey<TreeDisclosureStyle> TREE_DISCLOSURE_STYLE =
+            StyleKey.of(StyleIds.Key.TREE_DISCLOSURE_STYLE, TreeDisclosureStyle.class);
+    /**
+     * Радиус фона строки TreeView.
+     */
+    public static final StyleKey<Float> TREE_ROW_RADIUS = StyleKey.of(StyleIds.Key.TREE_ROW_RADIUS, Float.class);
+    /**
+     * Горизонтальный отступ фона строки TreeView.
+     */
+    public static final StyleKey<Float> TREE_ROW_INSET_X = StyleKey.of(StyleIds.Key.TREE_ROW_INSET_X, Float.class);
+    /**
+     * Вертикальный отступ фона строки TreeView.
+     */
+    public static final StyleKey<Float> TREE_ROW_INSET_Y = StyleKey.of(StyleIds.Key.TREE_ROW_INSET_Y, Float.class);
+    /**
+     * Шаг отступа дочерней строки TreeView.
+     */
+    public static final StyleKey<Float> TREE_INDENT_WIDTH = StyleKey.of(StyleIds.Key.TREE_INDENT_WIDTH, Float.class);
+    /**
+     * Заполнять ли встроенные иконки папок.
+     */
+    public static final StyleKey<Boolean> TREE_FOLDER_FILL_ENABLED =
+            StyleKey.of(StyleIds.Key.TREE_FOLDER_FILL_ENABLED, Boolean.class);
+    /**
+     * Цвет подсветки наведённой строки.
+     */
+    public static final StyleKey<ColorView> TREE_HOVER_COLOR = StyleKey.of(StyleIds.Key.TREE_HOVER_COLOR, ColorView.class);
+    /**
+     * Цвет выбранной строки.
+     */
+    public static final StyleKey<ColorView> TREE_SELECTED_COLOR = StyleKey.of(StyleIds.Key.TREE_SELECTED_COLOR, ColorView.class);
+    /**
+     * Цвет обычного текста строки.
+     */
+    public static final StyleKey<ColorView> TREE_TEXT_COLOR = StyleKey.of(StyleIds.Key.TREE_TEXT_COLOR, ColorView.class);
+    /**
+     * Цвет текста выбранной строки.
+     */
+    public static final StyleKey<ColorView> TREE_SELECTED_TEXT_COLOR =
+            StyleKey.of(StyleIds.Key.TREE_SELECTED_TEXT_COLOR, ColorView.class);
+    /**
+     * Цвет текста недоступной строки.
+     */
+    public static final StyleKey<ColorView> TREE_DISABLED_TEXT_COLOR =
+            StyleKey.of(StyleIds.Key.TREE_DISABLED_TEXT_COLOR, ColorView.class);
+    /**
+     * Цвет маркера раскрытия.
+     */
+    public static final StyleKey<ColorView> TREE_DISCLOSURE_COLOR =
+            StyleKey.of(StyleIds.Key.TREE_DISCLOSURE_COLOR, ColorView.class);
+    /**
+     * Цвет встроенной иконки папки или файла.
+     */
+    public static final StyleKey<ColorView> TREE_ICON_COLOR = StyleKey.of(StyleIds.Key.TREE_ICON_COLOR, ColorView.class);
+
+    /**
      * Длительность автоматического перехода style-свойств в секундах. Ноль отключает переходы.
      */
     public static final StyleKey<Float> TRANSITION_DURATION = StyleKey.of(StyleIds.Key.TRANSITION_DURATION, Float.class);

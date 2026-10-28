@@ -70,6 +70,8 @@ public final class StyleKeyRegistry {
                 StyleKeyRegistry::formatTextureGroup);
         StyleValueCodec<AnimationEasing> easing = StyleValueCodec.enumCodec(AnimationEasing.class);
         StyleValueCodec<BackgroundKind> backgroundKind = StyleValueCodec.enumCodec(BackgroundKind.class);
+        StyleValueCodec<TreeRowStyle> treeRowStyle = StyleValueCodec.enumCodec(TreeRowStyle.class);
+        StyleValueCodec<TreeDisclosureStyle> treeDisclosureStyle = StyleValueCodec.enumCodec(TreeDisclosureStyle.class);
         StyleValueCodec<ShaderHandle> shader = StyleValueCodec.of(
                 value -> value == null || value.isBlank() ? null : ShaderHandle.resource(value.trim()),
                 value -> value == null ? "" : value.id());
@@ -93,6 +95,21 @@ public final class StyleKeyRegistry {
                 .register(new StylePropertyDescriptor<>(StyleKeys.PATH_COLOR, "Path color", "Path", null, color, "Vector path fill or stroke color."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.PATH_STROKE, "Path stroke", "Path", null, bool, "Whether a vector path is rendered as a stroke."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.PATH_STROKE_WIDTH, "Path stroke width", "Path", null, number, "Vector path stroke width in logical pixels."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.TREE_ROW_HEIGHT, "Tree row height", "TreeView", 28.0f, number, "Height of each visible tree row in logical pixels."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.TREE_ROW_STYLE, "Tree row style", "TreeView", TreeRowStyle.PILL, treeRowStyle, "Whether row highlight is inset or full-width."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.TREE_DISCLOSURE_STYLE, "Tree disclosure style", "TreeView", TreeDisclosureStyle.CHEVRON, treeDisclosureStyle, "Shape of the branch expansion marker."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.TREE_ROW_RADIUS, "Tree row radius", "TreeView", 4.0f, number, "Corner radius of inset row highlights."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.TREE_ROW_INSET_X, "Tree row horizontal inset", "TreeView", 4.0f, number, "Horizontal inset of row highlights."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.TREE_ROW_INSET_Y, "Tree row vertical inset", "TreeView", 1.0f, number, "Vertical inset of row highlights."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.TREE_INDENT_WIDTH, "Tree indent width", "TreeView", 18.0f, number, "Indent added for each tree depth."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.TREE_FOLDER_FILL_ENABLED, "Tree filled folder icons", "TreeView", false, bool, "Whether built-in folder icons are filled."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.TREE_HOVER_COLOR, "Tree hover color", "TreeView", null, color, "Background color of a hovered tree row."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.TREE_SELECTED_COLOR, "Tree selected color", "TreeView", null, color, "Background color of the selected tree row."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.TREE_TEXT_COLOR, "Tree text color", "TreeView", null, color, "Text color of an ordinary tree row."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.TREE_SELECTED_TEXT_COLOR, "Tree selected text color", "TreeView", null, color, "Text color of the selected tree row."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.TREE_DISABLED_TEXT_COLOR, "Tree disabled text color", "TreeView", null, color, "Text color of a non-selectable tree row."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.TREE_DISCLOSURE_COLOR, "Tree disclosure color", "TreeView", null, color, "Color of branch expansion markers."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.TREE_ICON_COLOR, "Tree icon color", "TreeView", null, color, "Color of built-in folder and file icons."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.TEXT_COLOR, "Text color", "Text", null, color, "Primary text color."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.TEXT_SIZE, "Text size", "Text", null, number, "The text size in logical pixels."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.TEXT_TRACKING, "Character spacing", "Text", null, number, "Additional spacing between characters in logical pixels."))

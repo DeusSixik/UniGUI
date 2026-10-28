@@ -19,6 +19,7 @@ public final class TreeViewNode {
     private TreeView owner;
     private boolean expanded = true;
     private boolean selectable = true;
+    private boolean isFolder;
     private TextureHandle icon;
     private IconDraw iconDraw;
     private boolean iconSuppressed;
@@ -97,6 +98,16 @@ public final class TreeViewNode {
 
     public boolean hasChildren() {
         return !children.isEmpty();
+    }
+
+    public boolean folder() {
+        return isFolder || hasChildren();
+    }
+
+    public TreeViewNode folder(boolean isFolder) {
+        this.isFolder = isFolder;
+        notifyVisualChanged();
+        return this;
     }
 
     public boolean expanded() {

@@ -59,6 +59,21 @@ public final class StyleIds {
         public static final String PATH_COLOR = "path.color";
         public static final String PATH_STROKE = "path.stroke";
         public static final String PATH_STROKE_WIDTH = "path.stroke-width";
+        public static final String TREE_ROW_HEIGHT = "tree.row.height";
+        public static final String TREE_ROW_STYLE = "tree.row.style";
+        public static final String TREE_DISCLOSURE_STYLE = "tree.disclosure.style";
+        public static final String TREE_ROW_RADIUS = "tree.row.radius";
+        public static final String TREE_ROW_INSET_X = "tree.row.inset-x";
+        public static final String TREE_ROW_INSET_Y = "tree.row.inset-y";
+        public static final String TREE_INDENT_WIDTH = "tree.indent.width";
+        public static final String TREE_FOLDER_FILL_ENABLED = "tree.folder.fill-enabled";
+        public static final String TREE_HOVER_COLOR = "tree.hover.color";
+        public static final String TREE_SELECTED_COLOR = "tree.selected.color";
+        public static final String TREE_TEXT_COLOR = "tree.text.color";
+        public static final String TREE_SELECTED_TEXT_COLOR = "tree.selected.text-color";
+        public static final String TREE_DISABLED_TEXT_COLOR = "tree.disabled.text-color";
+        public static final String TREE_DISCLOSURE_COLOR = "tree.disclosure.color";
+        public static final String TREE_ICON_COLOR = "tree.icon.color";
         public static final String TRANSITION_DURATION = "transition.duration";
         public static final String TRANSITION_EASING = "transition.easing";
 

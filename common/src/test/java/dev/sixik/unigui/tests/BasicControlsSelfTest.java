@@ -88,6 +88,8 @@ import dev.sixik.unigui.api.style.StylePackResult;
 import dev.sixik.unigui.api.style.StylePackXml;
 import dev.sixik.unigui.api.style.ThemeTokens;
 import dev.sixik.unigui.api.style.WidgetState;
+import dev.sixik.unigui.api.style.TreeDisclosureStyle;
+import dev.sixik.unigui.api.style.TreeRowStyle;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.FontMetrics;
@@ -7087,6 +7089,12 @@ public final class BasicControlsSelfTest {
 
     private void testTreeViewContracts() {
         TreeView tree = new TreeView();
+        tree.style(style -> style
+                .put(StyleKeys.TREE_ROW_HEIGHT, 20.0f)
+                .put(StyleKeys.TREE_ROW_STYLE, TreeRowStyle.FULL_WIDTH)
+                .put(StyleKeys.TREE_DISCLOSURE_STYLE, TreeDisclosureStyle.TRIANGLE)
+                .put(StyleKeys.TREE_INDENT_WIDTH, 14.0f)
+                .put(StyleKeys.TREE_FOLDER_FILL_ENABLED, true));
         TreeViewNode root = tree.addRoot("Root");
         TreeViewNode child = root.addChild("Child");
         TreeViewNode leaf = child.addChild("Leaf");
@@ -7097,6 +7105,12 @@ public final class BasicControlsSelfTest {
 
         tree.measure(new LayoutContext(220.0f, 200.0f));
         tree.arrange(new MutableRect(0.0f, 0.0f, 220.0f, tree.desiredSize().height()));
+        expect(near(root.rowButton().desiredSize().height(), 20.0f),
+                "TreeView row height should resolve from the typed Style API");
+        tree.style(style -> style.put(StyleKeys.TREE_ROW_HEIGHT, 24.0f));
+        tree.measure(new LayoutContext(220.0f, 200.0f));
+        expect(near(root.rowButton().desiredSize().height(), 24.0f),
+                "Changing a layout-affecting TreeView style should remeasure its rows");
         DrawList expandedDrawList = new DrawList();
         tree.render(new DefaultRenderContext(expandedDrawList));
         expect(tree.rootCount() == 2

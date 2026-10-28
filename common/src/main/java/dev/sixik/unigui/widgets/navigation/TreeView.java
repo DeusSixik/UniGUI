@@ -7,12 +7,17 @@ import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.layout.LayoutContext;
-import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.render.TextureHandle;
+import dev.sixik.unigui.api.style.MutableStyle;
+import dev.sixik.unigui.api.style.Style;
+import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.style.TreeDisclosureStyle;
+import dev.sixik.unigui.api.style.TreeRowStyle;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
@@ -28,6 +33,7 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.function.Consumer;
 
 @XmlWidgetName("TreeView")
 public class TreeView extends LinearBox {
@@ -49,27 +55,6 @@ public class TreeView extends LinearBox {
     private static final float CHEVRON_STROKE = 1.5f;
     private static final float ICON_STROKE = 1.25f;
     private static final float ROW_TEXT_HOVER_SCROLL_SPEED = 24.0f;
-    /**
-     * --bg-hover #2a2f37.
-     */
-    private static final MutableColor HOVER_PILL = MutableColor.rgba(0.165f, 0.184f, 0.216f, 1.0f);
-    /**
-     * --bg-selected #26405e.
-     */
-    private static final MutableColor SELECTED_PILL = MutableColor.rgba(0.149f, 0.251f, 0.369f, 1.0f);
-    /**
-     * --text-hi #e8eef4.
-     */
-    private static final MutableColor TEXT_HI = MutableColor.rgba(0.910f, 0.933f, 0.957f, 1.0f);
-    /**
-     * --text-mid #9aa4b0.
-     */
-    private static final MutableColor TEXT_MID = MutableColor.rgba(0.604f, 0.643f, 0.690f, 1.0f);
-    /**
-     * --text-lo #5f6772.
-     */
-    private static final MutableColor TEXT_LO = MutableColor.rgba(0.373f, 0.404f, 0.447f, 1.0f);
-
     private final VBox rowsHost = new VBox();
     private final List<TreeViewNode> roots = new ObjectArrayList<>();
     private final List<TreeViewNode> visibleNodes = new ObjectArrayList<>();
@@ -119,6 +104,59 @@ public class TreeView extends LinearBox {
         rowsHost.spacing(1.0f);
         rowsHost.layout(style -> style.flexGrow(0).flexShrink(0.0f));
         super.addChild(rowsHost);
+    }
+
+    @Override
+    protected Style defaultStyle() {
+        return WidgetStyles.Navigation.TREE_VIEW;
+    }
+
+    @Override
+    public TreeView style(String declarations) {
+        super.style(declarations);
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    @Override
+    public TreeView style(Consumer<MutableStyle> update) {
+        super.style(update);
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    @Override
+    public TreeView styleClear() {
+        super.styleClear();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    private float styledRowHeight() {
+        return Math.max(14.0f, styleValue(StyleKeys.TREE_ROW_HEIGHT, ROW_HEIGHT));
+    }
+
+    private float styledIndentWidth() {
+        return Math.max(0.0f, styleValue(StyleKeys.TREE_INDENT_WIDTH, INDENT_WIDTH));
+    }
+
+    private ColorView styledTextColor(TreeViewNode node) {
+        if (!node.selectable()) {
+            return styleValue(StyleKeys.TREE_DISABLED_TEXT_COLOR, (ColorView) null);
+        }
+        return node == selectedNode
+                ? styleValue(StyleKeys.TREE_SELECTED_TEXT_COLOR, (ColorView) null)
+                : styleValue(StyleKeys.TREE_TEXT_COLOR, (ColorView) null);
+    }
+
+    private ColorView styledRowColor(boolean selected) {
+        return selected
+                ? styleValue(StyleKeys.TREE_SELECTED_COLOR, (ColorView) null)
+                : styleValue(StyleKeys.TREE_HOVER_COLOR, (ColorView) null);
+    }
+
+    private ColorView styledIconColor() {
+        return styleValue(StyleKeys.TREE_ICON_COLOR, (ColorView) null);
     }
 
     public List<TreeViewNode> roots() {
@@ -569,7 +607,7 @@ public class TreeView extends LinearBox {
      * {@code customRender()} недоступен строке напрямую: строка является другим
      * наследником {@code WidgetBase}.</p>
      */
-    private void renderRow(DrawScope draw, TreeRowButton row) {
+    protected void renderRow(DrawScope draw, TreeRowButton row) {
         WidgetRender custom = customRender();
         if (custom != null) {
             custom.render(draw, row);
@@ -592,7 +630,7 @@ public class TreeView extends LinearBox {
             focusable(false);
             boxVisualEnabled(false);
             applyComponentStyleDefaults(WidgetStyles.Surface.UNSURFACED);
-            layout(style -> style.size(LayoutConstraints.AUTO, ROW_HEIGHT).flexGrow(0).flexShrink(0.0f));
+            layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
             onClick(event -> {
                 tree.select(node);
                 if (node.hasChildren()) {
@@ -603,16 +641,33 @@ public class TreeView extends LinearBox {
         }
 
         private void syncVisualState() {
-            boolean selected = tree.selectedNode() == node;
-            MutableColor color = !node.selectable() ? TEXT_LO : selected ? TEXT_HI : TEXT_MID;
-            textColor(color);
+            textColor(tree.styledTextColor(node));
             richText(rowText());
+        }
+
+        public TreeView tree() {
+            return tree;
+        }
+
+        public TreeViewNode node() {
+            return node;
+        }
+
+        public int depth() {
+            return depth;
         }
 
         @Override
         public void measure(LayoutContext context) {
             float textWidth = TextEngine.measureLineWidth(rowText());
-            setDesiredSize(resolveDesiredSize(context, leadingWidth() + textWidth + TEXT_PADDING_X, ROW_HEIGHT));
+            float minWidth = leadingWidth() + textWidth + TEXT_PADDING_X;
+            float availWidth = context == null ? minWidth : context.availableWidth();
+            float targetWidth = (tree.styleValue(StyleKeys.TREE_ROW_STYLE, TreeRowStyle.PILL)
+                    == TreeRowStyle.FULL_WIDTH
+                    && Float.isFinite(availWidth))
+                    ? Math.max(minWidth, availWidth)
+                    : minWidth;
+            setDesiredSize(resolveDesiredSize(context, targetWidth, tree.styledRowHeight()));
         }
 
         @Override
@@ -640,7 +695,7 @@ public class TreeView extends LinearBox {
             float width = layoutBounds().width();
             float height = layoutBounds().height();
             renderRowPill(draw, x, y, width, height);
-            float cursor = x + TEXT_PADDING_X + depth * INDENT_WIDTH;
+            float cursor = x + TEXT_PADDING_X + depth * tree.styledIndentWidth();
             cursor = renderDisclosure(draw, cursor, y, height);
             cursor = renderRowIcon(draw, cursor, y, height);
             renderRowText(draw, rowText(), cursor, y, width, height);
@@ -661,12 +716,19 @@ public class TreeView extends LinearBox {
         private void renderRowPill(DrawScope draw, float x, float y, float width, float height) {
             boolean selected = tree.selectedNode() == node;
             if (!selected && !hovered()) return;
-            float pillX = x + ROW_INSET_X;
-            float pillY = y + ROW_INSET_Y;
-            float pillWidth = Math.max(0.0f, width - ROW_INSET_X * 2.0f);
-            float pillHeight = Math.max(0.0f, height - ROW_INSET_Y * 2.0f);
+            if (tree.styleValue(StyleKeys.TREE_ROW_STYLE, TreeRowStyle.PILL) == TreeRowStyle.FULL_WIDTH) {
+                draw.rectFilled(x, y, width, height, tree.styledRowColor(selected));
+                return;
+            }
+            float insetX = Math.max(0.0f, tree.styleValue(StyleKeys.TREE_ROW_INSET_X, ROW_INSET_X));
+            float insetY = Math.max(0.0f, tree.styleValue(StyleKeys.TREE_ROW_INSET_Y, ROW_INSET_Y));
+            float pillX = x + insetX;
+            float pillY = y + insetY;
+            float pillWidth = Math.max(0.0f, width - insetX * 2.0f);
+            float pillHeight = Math.max(0.0f, height - insetY * 2.0f);
             if (pillWidth <= 0.0f || pillHeight <= 0.0f) return;
-            draw.roundedRectFilled(pillX, pillY, pillWidth, pillHeight, ROW_RADIUS, selected ? SELECTED_PILL : HOVER_PILL);
+            float radius = Math.max(0.0f, tree.styleValue(StyleKeys.TREE_ROW_RADIUS, ROW_RADIUS));
+            draw.roundedRectFilled(pillX, pillY, pillWidth, pillHeight, radius, tree.styledRowColor(selected));
         }
 
         /**
@@ -701,7 +763,24 @@ public class TreeView extends LinearBox {
         private void renderDisclosureGlyph(DrawScope draw, float cursor, float y, float height) {
             float centerX = cursor + DISCLOSURE_SLOT * 0.5f;
             float centerY = y + height * 0.5f;
-            Paint paint = Paint.stroke(TEXT_LO, CHEVRON_STROKE);
+            ColorView disclosureColor = tree.styleValue(StyleKeys.TREE_DISCLOSURE_COLOR, (ColorView) null);
+            if (tree.styleValue(StyleKeys.TREE_DISCLOSURE_STYLE, TreeDisclosureStyle.CHEVRON)
+                    == TreeDisclosureStyle.TRIANGLE) {
+                float half = 3.5f;
+                draw.pathClear();
+                if (node.expanded()) {
+                    draw.pathLineTo(centerX - half, centerY - 2.0f);
+                    draw.pathLineTo(centerX + half, centerY - 2.0f);
+                    draw.pathLineTo(centerX, centerY + 2.5f);
+                } else {
+                    draw.pathLineTo(centerX - 2.0f, centerY - half);
+                    draw.pathLineTo(centerX + 2.5f, centerY);
+                    draw.pathLineTo(centerX - 2.0f, centerY + half);
+                }
+                draw.pathFillConvex(disclosureColor);
+                return;
+            }
+            Paint paint = Paint.stroke(disclosureColor, CHEVRON_STROKE);
             if (node.expanded()) {
                 draw.line(centerX - CHEVRON_HALF, centerY - CHEVRON_RISE, centerX, centerY + CHEVRON_RISE, paint);
                 draw.line(centerX, centerY + CHEVRON_RISE, centerX + CHEVRON_HALF, centerY - CHEVRON_RISE, paint);
@@ -734,8 +813,8 @@ public class TreeView extends LinearBox {
             } else {
                 TextureHandle icon = node.icon();
                 if (icon != null) {
-                    draw.texture(icon, cursor, iconY, ICON_SLOT, ICON_SLOT, Paint.fill(TEXT_MID));
-                } else if (node.hasChildren()) {
+                    draw.texture(icon, cursor, iconY, ICON_SLOT, ICON_SLOT, Paint.fill(tree.styledIconColor()));
+                } else if (node.folder()) {
                     renderFolderGlyph(draw, cursor, iconY);
                 } else {
                     renderFileGlyph(draw, cursor, iconY);
@@ -758,7 +837,15 @@ public class TreeView extends LinearBox {
          * @param y    Y слота в пикселях
          */
         private void renderFolderGlyph(DrawScope draw, float x, float y) {
-            Paint paint = Paint.stroke(TEXT_MID, ICON_STROKE);
+            if (tree.styleValue(StyleKeys.TREE_FOLDER_FILL_ENABLED, false)) {
+                float tabWidth = ICON_SLOT * 0.45f;
+                float tabHeight = ICON_SLOT * 0.28f;
+                ColorView tint = tree.styledTextColor(node);
+                draw.roundedRectFilled(x + 1.0f, y + 1.0f, tabWidth, tabHeight, 1.0f, tint);
+                draw.roundedRectFilled(x + 1.0f, y + tabHeight, ICON_SLOT - 2.0f, ICON_SLOT - tabHeight - 1.0f, 1.5f, tint);
+                return;
+            }
+            Paint paint = Paint.stroke(tree.styledIconColor(), ICON_STROKE);
             float tabWidth = ICON_SLOT * 0.45f;
             float tabHeight = ICON_SLOT * 0.22f;
             draw.line(x + 1.0f, y + tabHeight, x + 1.0f, y + 1.0f, paint);
@@ -781,7 +868,7 @@ public class TreeView extends LinearBox {
          * @param y    Y слота в пикселях
          */
         private void renderFileGlyph(DrawScope draw, float x, float y) {
-            Paint paint = Paint.stroke(TEXT_MID, ICON_STROKE);
+            Paint paint = Paint.stroke(tree.styledIconColor(), ICON_STROKE);
             float left = x + 2.5f;
             float right = x + ICON_SLOT - 2.5f;
             float top = y + 1.0f;
@@ -817,7 +904,8 @@ public class TreeView extends LinearBox {
             float textY = TextEngine.alignedStart(y, height, textHeight, Alignment.CENTER);
             draw.pushTextClip(textStart, y, availableWidth, height);
             try {
-                TextEngine.drawInline(draw, text, textX, textY, Math.max(0.0f, textWidth), textHeight, Paint.fill(textColor()));
+                TextEngine.drawInline(draw, text, textX, textY, Math.max(0.0f, textWidth), textHeight,
+                        Paint.fill(tree.styledTextColor(node)));
             } finally {
                 draw.popClip();
             }
@@ -841,7 +929,7 @@ public class TreeView extends LinearBox {
          */
         private float leadingWidth() {
             float icon = hasRowIcon() ? ICON_SLOT + SLOT_GAP : 0.0f;
-            return TEXT_PADDING_X + depth * INDENT_WIDTH + DISCLOSURE_SLOT + SLOT_GAP + icon;
+            return TEXT_PADDING_X + depth * tree.styledIndentWidth() + DISCLOSURE_SLOT + SLOT_GAP + icon;
         }
 
         private float textOverflowAmount() {

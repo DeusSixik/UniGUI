@@ -212,6 +212,26 @@ public final class WidgetStyles {
      */
     public static final class Navigation {
         /**
+         * Стандартное оформление строк и маркеров TreeView.
+         */
+        public static final Style TREE_VIEW = new MutableStyle()
+                .put(StyleKeys.TREE_ROW_HEIGHT, 28.0f)
+                .put(StyleKeys.TREE_ROW_STYLE, dev.sixik.unigui.api.style.TreeRowStyle.PILL)
+                .put(StyleKeys.TREE_DISCLOSURE_STYLE, dev.sixik.unigui.api.style.TreeDisclosureStyle.CHEVRON)
+                .put(StyleKeys.TREE_ROW_RADIUS, 4.0f)
+                .put(StyleKeys.TREE_ROW_INSET_X, 4.0f)
+                .put(StyleKeys.TREE_ROW_INSET_Y, 1.0f)
+                .put(StyleKeys.TREE_INDENT_WIDTH, 18.0f)
+                .put(StyleKeys.TREE_FOLDER_FILL_ENABLED, false)
+                .put(StyleKeys.TREE_HOVER_COLOR, MutableColor.rgba(0.165f, 0.184f, 0.216f, 1.0f))
+                .put(StyleKeys.TREE_SELECTED_COLOR, MutableColor.rgba(0.149f, 0.251f, 0.369f, 1.0f))
+                .put(StyleKeys.TREE_TEXT_COLOR, MutableColor.rgba(0.604f, 0.643f, 0.690f, 1.0f))
+                .put(StyleKeys.TREE_SELECTED_TEXT_COLOR, MutableColor.rgba(0.910f, 0.933f, 0.957f, 1.0f))
+                .put(StyleKeys.TREE_DISABLED_TEXT_COLOR, MutableColor.rgba(0.373f, 0.404f, 0.447f, 1.0f))
+                .put(StyleKeys.TREE_DISCLOSURE_COLOR, MutableColor.rgba(0.373f, 0.404f, 0.447f, 1.0f))
+                .put(StyleKeys.TREE_ICON_COLOR, MutableColor.rgba(0.604f, 0.643f, 0.690f, 1.0f));
+
+        /**
          * Форма элементов пути навигации; цвета состояний задаются во время работы.
          */
         public static final Style BREADCRUMB_ITEM = new MutableStyle()
