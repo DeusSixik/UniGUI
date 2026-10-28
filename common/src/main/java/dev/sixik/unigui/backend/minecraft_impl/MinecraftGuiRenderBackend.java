@@ -985,7 +985,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
     private void renderBatch(DrawBatch batch) {
         boolean renderingToPremultipliedTarget = activeRenderTarget != null;
         if (MinecraftShapeBatchRenderer.supports(batch.type())
-                && shapeBatchRenderer.render(graphics, batch, renderingToPremultipliedTarget)) {
+                && shapeBatchRenderer.render(graphics, batch, renderingToPremultipliedTarget, shaderGuiScale())) {
             return;
         }
         if (batch.type() == DrawCommandType.MESH && renderMeshBatch(batch)) {

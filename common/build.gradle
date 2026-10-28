@@ -239,6 +239,14 @@ tasks.register("debugHotkeysSelfTest", JavaExec) {
     mainClass = "dev.sixik.unigui.tests.DebugHotkeysSelfTest"
 }
 
+tasks.register("pathAntiAliasingSelfTest", JavaExec) {
+    group = "verification"
+    description = "Runs path anti-aliasing tessellator and batch separation self-test assertions."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.PathAntiAliasingSelfTest"
+}
+
 tasks.register("dumpXmlWidgetReference", JavaExec) {
     group = "documentation"
     description = "Generates XML widget reference markdown from registry descriptors."
@@ -274,4 +282,5 @@ tasks.named("test") {
       dependsOn tasks.named("tooltipVisibilitySelfTest")
       dependsOn tasks.named("surfaceVisualSelfTest")
       dependsOn tasks.named("debugHotkeysSelfTest")
+      dependsOn tasks.named("pathAntiAliasingSelfTest")
   }

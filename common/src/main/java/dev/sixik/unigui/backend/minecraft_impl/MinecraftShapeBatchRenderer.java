@@ -11,6 +11,7 @@ import dev.sixik.unigui.api.render.DrawCommandType;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.VectorPath;
 import dev.sixik.unigui.impl.render.DrawBatch;
+import dev.sixik.unigui.impl.render.PathAntiAliasing;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.GameRenderer;
 import org.joml.Matrix4f;
@@ -25,10 +26,26 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(MinecraftShapeBatchRenderer.class);
     private static final float TAU = (float) (Math.PI * 2.0);
     private static final float MIN_SCREEN_STROKE_WIDTH = 1.0f;
+    /** Допуск flatten'а кривых в физических пикселях: отклонение полилинии от кривой не больше этого. */
+    private static final float CURVE_TOLERANCE_PIXELS = 0.05f;
+    private static final int MIN_CURVE_SEGMENTS = 2;
+    private static final int MAX_CURVE_SEGMENTS = 96;
     private final MinecraftSdfShapeRenderer sdfRenderer = new MinecraftSdfShapeRenderer();
+    private final PathAntiAliasing pathAntiAliasing = new PathAntiAliasing();
+    private final ColorVertexSink colorSink = new ColorVertexSink();
+    /** Физических пикселей на одну единицу GUI-координат текущего прохода; нужен для ширины AA-бахромы. */
+    private float pixelsPerUnit = 1.0f;
 
-    boolean render(GuiGraphics graphics, DrawBatch batch, boolean renderingToPremultipliedTarget) {
+    /**
+     * Рендерит batch однотонных примитивов.
+     *
+     * @param pixelsPerUnit физических пикселей на единицу координат (масштаб GUI или масштаб target'а);
+     *                      по нему считается ширина сглаживающей бахромы путей ровно в один пиксель
+     */
+    boolean render(GuiGraphics graphics, DrawBatch batch, boolean renderingToPremultipliedTarget,
+                   float pixelsPerUnit) {
         if (graphics == null || batch == null || batch.size() == 0) return false;
+        this.pixelsPerUnit = Float.isFinite(pixelsPerUnit) && pixelsPerUnit > 0.0f ? pixelsPerUnit : 1.0f;
         Object[] rawCommands = batch.commandElements();
         int commandCount = batch.size();
         for (int i = 0; i < commandCount; i++) {
@@ -93,7 +110,7 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
                 || type == DrawCommandType.PATH;
     }
 
-    private static int append(Object buffer, Matrix4f matrix, DrawCommand command) {
+    private int append(Object buffer, Matrix4f matrix, DrawCommand command) {
         return switch (command.type()) {
             case RECT -> appendRect(buffer, matrix, command.bounds(), command.paint());
             case ROUNDED_RECT -> appendRoundedRect(buffer, matrix, command);
@@ -195,10 +212,16 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
                 : fillFan(buffer, matrix, outline, cx, cy, paint.color());
     }
 
-    private static int appendPath(Object buffer, Matrix4f matrix, DrawCommand command) {
+    /**
+     * Строит сглаженные вершины пути (ImGui-style AA: бахрома шириной ровно в один физический пиксель).
+     */
+    private int appendPath(Object buffer, Matrix4f matrix, DrawCommand command) {
         VectorPath path = command.path();
         if (path == null || path.isEmpty()) return 0;
         RectView bounds = command.bounds();
+        float fringe = fringeWidth(matrix);
+        float pixelsPerLocalUnit = fringe > 0.0f ? 1.0f / fringe : pixelsPerUnit;
+        colorSink.begin(buffer, matrix, command.paint().color());
         FloatPoints points = new FloatPoints(32);
         int vertices = 0;
         float currentX = bounds.x();
@@ -211,7 +234,7 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
             VectorPath.Element element = (VectorPath.Element) rawPathElements[i];
             switch (element.verb()) {
                 case MOVE_TO -> {
-                    vertices += flushPath(buffer, matrix, points, command.paint(), false);
+                    vertices += flushPath(points, command.paint(), false, fringe);
                     points.clear();
                     currentX = bounds.x() + element.x1();
                     currentY = bounds.y() + element.y1();
@@ -229,7 +252,8 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
                     float controlY = bounds.y() + element.y1();
                     float nextX = bounds.x() + element.x2();
                     float nextY = bounds.y() + element.y2();
-                    int segments = pathSegments(currentX, currentY, nextX, nextY);
+                    int segments = quadraticSegments(currentX, currentY, controlX, controlY,
+                            nextX, nextY, pixelsPerLocalUnit);
                     for (int segmentIndex = 1; segmentIndex <= segments; segmentIndex++) {
                         float t = segmentIndex / (float) segments;
                         points.add(quadratic(currentX, controlX, nextX, t),
@@ -245,7 +269,8 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
                     float controlY2 = bounds.y() + element.y2();
                     float nextX = bounds.x() + element.x3();
                     float nextY = bounds.y() + element.y3();
-                    int segments = pathSegments(currentX, currentY, nextX, nextY);
+                    int segments = cubicSegments(currentX, currentY, controlX1, controlY1,
+                            controlX2, controlY2, nextX, nextY, pixelsPerLocalUnit);
                     for (int segmentIndex = 1; segmentIndex <= segments; segmentIndex++) {
                         float t = segmentIndex / (float) segments;
                         points.add(cubic(currentX, controlX1, controlX2, nextX, t),
@@ -258,29 +283,75 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
                     if (points.size() > 0 && (currentX != startX || currentY != startY)) {
                         points.add(startX, startY);
                     }
-                    vertices += flushPath(buffer, matrix, points, command.paint(), true);
+                    vertices += flushPath(points, command.paint(), true, fringe);
                     points.clear();
                     currentX = startX;
                     currentY = startY;
                 }
             }
         }
-        return vertices + flushPath(buffer, matrix, points, command.paint(), false);
+        return vertices + flushPath(points, command.paint(), false, fringe);
     }
 
-    private static int flushPath(Object buffer, Matrix4f matrix, FloatPoints points,
-                                 Paint paint, boolean closed) {
+    /** Отправляет накопленный подконтур через AA-тесселятор: заливка выпуклая, обводка с miter-стыками. */
+    private int flushPath(FloatPoints points, Paint paint, boolean closed, float fringe) {
         if (points.size() < 2) return 0;
-        if (paint.isStroke()) return stroke(buffer, matrix, points, paint, closed);
-        if (points.size() < 3) return 0;
-        float centerX = 0.0f;
-        float centerY = 0.0f;
-        int count = closed && samePoint(points, 0, points.size() - 1) ? points.size() - 1 : points.size();
-        for (int i = 0; i < count; i++) {
-            centerX += points.x(i);
-            centerY += points.y(i);
+        if (paint.isStroke()) {
+            return pathAntiAliasing.stroke(points.values, points.size(), closed,
+                    positiveThickness(paint.strokeWidth()), fringe, colorSink);
         }
-        return fillFan(buffer, matrix, points, centerX / count, centerY / count, paint.color(), count);
+        if (points.size() < 3) return 0;
+        return pathAntiAliasing.fillConvex(points.values, points.size(), fringe, colorSink);
+    }
+
+    /**
+     * Возвращает ширину одного физического пикселя в локальных единицах команды.
+     *
+     * <p>{@code fringe = 1 / (pixelsPerUnit * sqrt(|det M2x2|))}, где {@code M2x2} — линейная часть
+     * итоговой матрицы команды (pose, UI-scale, transform). Так бахрома остаётся ровно в один пиксель
+     * при любом масштабе.</p>
+     *
+     * @return ширина пикселя или {@code 0}, если масштаб вырожден (AA отключается)
+     */
+    private float fringeWidth(Matrix4f matrix) {
+        float determinant = Math.abs(matrix.m00() * matrix.m11() - matrix.m01() * matrix.m10());
+        float scale = pixelsPerUnit * (float) Math.sqrt(determinant);
+        return scale > 1.0e-6f && Float.isFinite(scale) ? 1.0f / scale : 0.0f;
+    }
+
+    /**
+     * Число сегментов квадратичной кривой по допуску в физических пикселях.
+     *
+     * <p>Ошибка аппроксимации {@code <= |P0 - 2*P1 + P2| / (4*n^2)}, значит
+     * {@code n = ceil(sqrt(|P0 - 2*P1 + P2| * px / (4 * tolerance)))}.</p>
+     */
+    private static int quadraticSegments(float x0, float y0, float x1, float y1, float x2, float y2,
+                                         float pixelsPerLocalUnit) {
+        float sx = x0 - 2.0f * x1 + x2;
+        float sy = y0 - 2.0f * y1 + y2;
+        float deviation = (float) Math.sqrt(sx * sx + sy * sy) * pixelsPerLocalUnit;
+        return clampSegments(Math.sqrt(deviation / (4.0f * CURVE_TOLERANCE_PIXELS)));
+    }
+
+    /**
+     * Число сегментов кубической кривой по допуску в физических пикселях.
+     *
+     * <p>Ошибка аппроксимации {@code <= 0.75 * D / n^2}, где {@code D} — максимум норм вторых разностей
+     * контрольного многоугольника, значит {@code n = ceil(sqrt(0.75 * D * px / tolerance))}.</p>
+     */
+    private static int cubicSegments(float x0, float y0, float x1, float y1, float x2, float y2,
+                                     float x3, float y3, float pixelsPerLocalUnit) {
+        float ax = x0 - 2.0f * x1 + x2;
+        float ay = y0 - 2.0f * y1 + y2;
+        float bx = x1 - 2.0f * x2 + x3;
+        float by = y1 - 2.0f * y2 + y3;
+        float deviation = (float) Math.sqrt(Math.max(ax * ax + ay * ay, bx * bx + by * by)) * pixelsPerLocalUnit;
+        return clampSegments(Math.sqrt(0.75f * deviation / CURVE_TOLERANCE_PIXELS));
+    }
+
+    private static int clampSegments(double estimate) {
+        if (!Double.isFinite(estimate)) return MIN_CURVE_SEGMENTS;
+        return Math.max(MIN_CURVE_SEGMENTS, Math.min(MAX_CURVE_SEGMENTS, (int) Math.ceil(estimate)));
     }
 
     private static int fillFan(Object buffer, Matrix4f matrix, FloatPoints points,
@@ -435,12 +506,6 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
         return Math.max(12, Math.min(64, Math.round(radius * 0.75f)));
     }
 
-    private static int pathSegments(float x1, float y1, float x2, float y2) {
-        float dx = x2 - x1;
-        float dy = y2 - y1;
-        return Math.max(4, Math.min(32, Math.round((float) Math.sqrt(dx * dx + dy * dy) * 0.2f)));
-    }
-
     private static float quadratic(float x0, float x1, float x2, float t) {
         float inverse = 1.0f - t;
         return inverse * inverse * x0 + 2.0f * inverse * t * x1 + t * t * x2;
@@ -468,6 +533,30 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
 
     private static int channel(float value) {
         return Math.max(0, Math.min(255, Math.round(value * 255.0f)));
+    }
+
+    /**
+     * Приёмник вершин AA-тесселятора: пишет position-color вершины, умножая альфу цвета на покрытие.
+     * Единственный экземпляр переиспользуется между командами, чтобы не создавать объекты на кадр.
+     */
+    private static final class ColorVertexSink implements PathAntiAliasing.VertexSink {
+        private Object buffer;
+        private Matrix4f matrix;
+        private int rgb;
+        private float alpha;
+
+        private void begin(Object buffer, Matrix4f matrix, ColorView color) {
+            this.buffer = buffer;
+            this.matrix = matrix;
+            this.rgb = (channel(color.r()) << 16) | (channel(color.g()) << 8) | channel(color.b());
+            this.alpha = color.a();
+        }
+
+        @Override
+        public void vertex(float x, float y, float coverage) {
+            int a = channel(alpha * coverage);
+            MinecraftBufferCompat.colorVertex(buffer, matrix, x, y, (a << 24) | rgb);
+        }
     }
 
     private static final class FloatPoints {
