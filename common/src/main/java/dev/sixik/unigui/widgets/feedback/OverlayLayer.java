@@ -113,6 +113,19 @@ public final class OverlayLayer extends PanelWidget {
         return this;
     }
 
+    public OverlayLayer clearOverlays() {
+        java.util.List<Widget> overlays = new java.util.ArrayList<>();
+        for (Widget child : children()) {
+            if (child != content) {
+                overlays.add(child);
+            }
+        }
+        for (Widget overlay : overlays) {
+            removeOverlay(overlay);
+        }
+        return this;
+    }
+
     @Override
     public void applyQueuedMutations() {
         super.applyQueuedMutations();

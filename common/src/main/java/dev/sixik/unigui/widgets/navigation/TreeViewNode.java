@@ -21,6 +21,7 @@ public final class TreeViewNode {
     private boolean selectable = true;
     private Object userData;
     private boolean isFolder;
+    private Boolean emptyFolder;
     private TextureHandle icon;
     private IconDraw iconDraw;
     private boolean iconSuppressed;
@@ -107,6 +108,16 @@ public final class TreeViewNode {
 
     public TreeViewNode folder(boolean isFolder) {
         this.isFolder = isFolder;
+        notifyVisualChanged();
+        return this;
+    }
+
+    public boolean emptyFolder() {
+        return emptyFolder != null ? emptyFolder : !hasChildren();
+    }
+
+    public TreeViewNode emptyFolder(boolean emptyFolder) {
+        this.emptyFolder = emptyFolder;
         notifyVisualChanged();
         return this;
     }

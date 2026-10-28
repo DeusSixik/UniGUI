@@ -164,8 +164,17 @@ public class Tooltip extends Box implements OverlayHostAware {
     }
 
     public boolean showing() {
-        return visibility() == Visibility.VISIBLE && anchor != null && anchor.hovered()
+        return visibility() == Visibility.VISIBLE && anchor != null && isAnchorHovered(anchor)
                 && isEffectivelyVisible(anchor) && !text.isEmpty();
+    }
+
+    private static boolean isAnchorHovered(Widget anchor) {
+        if (anchor == null || anchor.visibility() != Visibility.VISIBLE) return false;
+        if (anchor.hovered()) return true;
+        for (Widget child : anchor.children()) {
+            if (isAnchorHovered(child)) return true;
+        }
+        return false;
     }
 
     /**

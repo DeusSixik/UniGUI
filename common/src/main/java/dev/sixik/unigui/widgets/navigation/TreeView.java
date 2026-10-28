@@ -873,8 +873,30 @@ public class TreeView extends LinearBox {
                 float tabWidth = ICON_SLOT * 0.45f;
                 float tabHeight = ICON_SLOT * 0.28f;
                 ColorView tint = tree.styledTextColor(node);
-                draw.roundedRectFilled(x + 1.0f, y + 1.0f, tabWidth, tabHeight, 1.0f, tint);
-                draw.roundedRectFilled(x + 1.0f, y + tabHeight, ICON_SLOT - 2.0f, ICON_SLOT - tabHeight - 1.0f, 1.5f, tint);
+                if (!node.emptyFolder()) {
+                    draw.roundedRectFilled(x + 1.0f, y + 1.0f, tabWidth, tabHeight, 1.0f, tint);
+                    draw.roundedRectFilled(x + 1.0f, y + tabHeight, ICON_SLOT - 2.0f, ICON_SLOT - tabHeight - 1.0f, 1.5f, tint);
+                } else {
+                    float x0 = x + 1.0f;
+                    float y0 = y + 1.0f;
+                    float w = ICON_SLOT - 2.0f;
+                    float h = ICON_SLOT - 2.0f;
+                    float tabW = tabWidth;
+                    float tabH = tabHeight;
+
+                    draw.pathClear();
+                    draw.pathLineTo(x0 + 1.0f, y0);
+                    draw.pathLineTo(x0 + tabW, y0);
+                    draw.pathLineTo(x0 + tabW + 1.5f, y0 + tabH);
+                    draw.pathLineTo(x0 + w - 1.0f, y0 + tabH);
+                    draw.pathLineTo(x0 + w, y0 + tabH + 1.0f);
+                    draw.pathLineTo(x0 + w, y0 + h - 1.0f);
+                    draw.pathLineTo(x0 + w - 1.0f, y0 + h);
+                    draw.pathLineTo(x0 + 1.0f, y0 + h);
+                    draw.pathLineTo(x0, y0 + h - 1.0f);
+                    draw.pathLineTo(x0, y0 + 1.0f);
+                    draw.pathStroke(tint, true, 1.1f);
+                }
                 return;
             }
             Paint paint = Paint.stroke(tree.styledIconColor(), ICON_STROKE);

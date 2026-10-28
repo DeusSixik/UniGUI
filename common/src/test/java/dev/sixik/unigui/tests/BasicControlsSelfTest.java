@@ -498,6 +498,24 @@ public final class BasicControlsSelfTest {
         marquee.render(new DefaultRenderContext(marqueeDrawList));
         expect(marqueeDrawList.commands().stream().filter(command -> command.type() == DrawCommandType.TEXT).count() == 2,
                 "TextWidget MARQUEE_ON_HOVER should draw a wrapped marquee copy while hovered");
+
+        // Один символ = 6 px, ширина 50: без многоточия влезает 8 символов, с "..." (18 px) - 5.
+        // Убирается на символ больше, чем влезло бы, но не больше, чем нужно под многоточие.
+        TextBlock ellipsis = new TextBlock("abcdefghijklmnop");
+        ellipsis.overflowMode(TextOverflowMode.ELLIPSIS);
+        ellipsis.arrange(new MutableRect(0.0f, 0.0f, 50.0f, 12.0f));
+        DrawList ellipsisDrawList = new DrawList();
+        ellipsis.render(new DefaultRenderContext(ellipsisDrawList));
+        expect(hasText(ellipsisDrawList, "abcde..."),
+                "TextWidget ELLIPSIS should cut overflowing text and finish it with three dots");
+
+        TextBlock fitting = new TextBlock("abcdefg");
+        fitting.overflowMode(TextOverflowMode.ELLIPSIS);
+        fitting.arrange(new MutableRect(0.0f, 0.0f, 50.0f, 12.0f));
+        DrawList fittingDrawList = new DrawList();
+        fitting.render(new DefaultRenderContext(fittingDrawList));
+        expect(hasText(fittingDrawList, "abcdefg"),
+                "TextWidget ELLIPSIS should leave text that fits untouched");
     }
 
     private void testTextClipAddsGlyphBleed() {

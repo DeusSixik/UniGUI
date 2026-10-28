@@ -1,6 +1,7 @@
 package dev.sixik.unigui.testmod.client.ui.unity;
 
 import dev.sixik.unigui.api.math.ColorView;
+import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
@@ -629,5 +630,319 @@ public final class UnityIcons {
         float ry = size * 0.25f;
         draw.circleStroke(cx - rx, cy - ry, rx * 2.0f, ry * 2.0f, color, 1.0f);
         draw.circleFilled(cx - 1.5f, cy - 1.5f, 3.0f, 3.0f, color);
+    }
+
+    /**
+     * Рисует большую иконку папки для Project View:
+     * контурная (прозрачная внутри), если пустая, или заполненная, если содержит ассеты.
+     */
+    public static void drawProjectFolder(DrawScope draw, float x, float y, float w, float h, boolean empty) {
+        // Пропорции папки 48x38 сохраняются при любом размере: от 14 px в списке до крупных иконок.
+        float avail = Math.min(w, h / 0.792f);
+        float fw = avail * 0.92f;
+        float fh = fw * 0.792f;
+        float k = fw / 48.0f;
+        float r = 3.0f * k;
+        float fx = x + (w - fw) * 0.5f;
+        float fy = y + (h - fh) * 0.5f;
+        float tabW = fw * 0.38f;
+        float tabH = fh * 0.24f;
+
+        if (empty) {
+            ColorView outlineColor = MutableColor.rgba255(0x9A, 0xA8, 0xBA, 0xFF);
+            // Углы дуг задаются в радианах.
+            final float half = (float) (Math.PI * 0.5);
+            final float pi = (float) Math.PI;
+            draw.pathClear();
+            draw.pathArcTo(fx + r, fy + r, r, pi, pi + half, 6);
+            draw.pathLineTo(fx + tabW, fy);
+            draw.pathLineTo(fx + tabW + 4.0f * k, fy + tabH);
+            draw.pathLineTo(fx + fw - r, fy + tabH);
+            draw.pathArcTo(fx + fw - r, fy + tabH + r, r, pi + half, pi * 2.0f, 6);
+            draw.pathLineTo(fx + fw, fy + fh - r);
+            draw.pathArcTo(fx + fw - r, fy + fh - r, r, 0.0f, half, 6);
+            draw.pathLineTo(fx + r, fy + fh);
+            draw.pathArcTo(fx + r, fy + fh - r, r, half, pi, 6);
+            // Путь замкнут флагом closed: повторная точка в начале дала бы шип на стыке.
+            draw.pathStroke(outlineColor, true, Math.max(1.0f, 2.0f * k));
+        } else {
+            draw.roundedRectFilled(fx, fy, tabW + 5.0f * k, tabH + 5.0f * k, r, MutableColor.rgba255(0x76, 0x86, 0x98, 0xFF));
+            draw.roundedRectFilled(fx, fy + tabH, fw, fh - tabH, r, MutableColor.rgba255(0x9A, 0xA8, 0xBA, 0xFF));
+            draw.roundedRectFilled(fx, fy + tabH + 3.0f * k, fw, fh - tabH - 3.0f * k, r, MutableColor.rgba255(0x8A, 0x98, 0xAA, 0xFF));
+        }
+    }
+    /**
+     * Иконка Unity Scene (белый трёхмерный изометрический куб с вырезами и полостью в центре).
+     */
+    public static void drawProjectSceneCube(DrawScope draw, float x, float y, float size) {
+        float cx = x + size * 0.5f;
+        float cy = y + size * 0.5f;
+        float R = size * 0.44f;
+        float W = R * 0.866f;
+        float H2 = R * 0.5f;
+        float rIn = R * 0.46f;
+        float wIn = rIn * 0.866f;
+        float h2In = rIn * 0.5f;
+
+        ColorView colTop = MutableColor.rgba255(0xFF, 0xFF, 0xFF, 0xFF);
+        ColorView colLeft = MutableColor.rgba255(0xD8, 0xD8, 0xD8, 0xFF);
+        ColorView colRight = MutableColor.rgba255(0xAF, 0xAF, 0xAF, 0xFF);
+        ColorView colCavity = MutableColor.rgba255(0x28, 0x28, 0x28, 0xFF);
+
+        // Внутренняя тёмная полость куба
+        draw.pathClear();
+        draw.pathLineTo(cx, cy - rIn);
+        draw.pathLineTo(cx + wIn, cy - h2In);
+        draw.pathLineTo(cx + wIn, cy + h2In);
+        draw.pathLineTo(cx, cy + rIn);
+        draw.pathLineTo(cx - wIn, cy + h2In);
+        draw.pathLineTo(cx - wIn, cy - h2In);
+        draw.pathFillConvex(colCavity);
+
+        // 1. Верхняя грань (чистый белый цвет)
+        draw.pathClear();
+        draw.pathLineTo(cx - W, cy - H2);
+        draw.pathLineTo(cx, cy - R);
+        draw.pathLineTo(cx, cy - rIn);
+        draw.pathLineTo(cx - wIn, cy - h2In);
+        draw.pathFillConvex(colTop);
+
+        draw.pathClear();
+        draw.pathLineTo(cx, cy - R);
+        draw.pathLineTo(cx + W, cy - H2);
+        draw.pathLineTo(cx + wIn, cy - h2In);
+        draw.pathLineTo(cx, cy - rIn);
+        draw.pathFillConvex(colTop);
+
+        // 2. Левая грань (светло-серый)
+        draw.pathClear();
+        draw.pathLineTo(cx - W, cy - H2);
+        draw.pathLineTo(cx - wIn, cy - h2In);
+        draw.pathLineTo(cx - wIn, cy + h2In);
+        draw.pathLineTo(cx - W, cy + H2);
+        draw.pathFillConvex(colLeft);
+
+        draw.pathClear();
+        draw.pathLineTo(cx - W, cy + H2);
+        draw.pathLineTo(cx - wIn, cy + h2In);
+        draw.pathLineTo(cx, cy + rIn);
+        draw.pathLineTo(cx, cy + R);
+        draw.pathFillConvex(colLeft);
+
+        // 3. Правая грань (серый средней яркости)
+        draw.pathClear();
+        draw.pathLineTo(cx + wIn, cy - h2In);
+        draw.pathLineTo(cx + W, cy - H2);
+        draw.pathLineTo(cx + W, cy + H2);
+        draw.pathLineTo(cx + wIn, cy + h2In);
+        draw.pathFillConvex(colRight);
+
+        draw.pathClear();
+        draw.pathLineTo(cx + wIn, cy + h2In);
+        draw.pathLineTo(cx + W, cy + H2);
+        draw.pathLineTo(cx, cy + R);
+        draw.pathLineTo(cx, cy + rIn);
+        draw.pathFillConvex(colRight);
+    }
+
+    /**
+     * Иконка Unity Prefab (синий изометрический трёхмерный куб).
+     */
+    public static void drawProjectPrefabCube(DrawScope draw, float x, float y, float size) {
+        float cx = x + size * 0.5f;
+        float cy = y + size * 0.5f;
+        float R = size * 0.44f;
+        float W = R * 0.866f;
+        float H2 = R * 0.5f;
+        float rIn = R * 0.46f;
+        float wIn = rIn * 0.866f;
+        float h2In = rIn * 0.5f;
+
+        ColorView colTop = MutableColor.rgba255(0x52, 0xA6, 0xFF, 0xFF);
+        ColorView colLeft = MutableColor.rgba255(0x30, 0x82, 0xD8, 0xFF);
+        ColorView colRight = MutableColor.rgba255(0x1E, 0x5E, 0xAA, 0xFF);
+        ColorView colCavity = MutableColor.rgba255(0x10, 0x2A, 0x48, 0xFF);
+
+        draw.pathClear();
+        draw.pathLineTo(cx, cy - rIn);
+        draw.pathLineTo(cx + wIn, cy - h2In);
+        draw.pathLineTo(cx + wIn, cy + h2In);
+        draw.pathLineTo(cx, cy + rIn);
+        draw.pathLineTo(cx - wIn, cy + h2In);
+        draw.pathLineTo(cx - wIn, cy - h2In);
+        draw.pathFillConvex(colCavity);
+
+        draw.pathClear();
+        draw.pathLineTo(cx - W, cy - H2);
+        draw.pathLineTo(cx, cy - R);
+        draw.pathLineTo(cx, cy - rIn);
+        draw.pathLineTo(cx - wIn, cy - h2In);
+        draw.pathFillConvex(colTop);
+
+        draw.pathClear();
+        draw.pathLineTo(cx, cy - R);
+        draw.pathLineTo(cx + W, cy - H2);
+        draw.pathLineTo(cx + wIn, cy - h2In);
+        draw.pathLineTo(cx, cy - rIn);
+        draw.pathFillConvex(colTop);
+
+        draw.pathClear();
+        draw.pathLineTo(cx - W, cy - H2);
+        draw.pathLineTo(cx - wIn, cy - h2In);
+        draw.pathLineTo(cx - wIn, cy + h2In);
+        draw.pathLineTo(cx - W, cy + H2);
+        draw.pathFillConvex(colLeft);
+
+        draw.pathClear();
+        draw.pathLineTo(cx - W, cy + H2);
+        draw.pathLineTo(cx - wIn, cy + h2In);
+        draw.pathLineTo(cx, cy + rIn);
+        draw.pathLineTo(cx, cy + R);
+        draw.pathFillConvex(colLeft);
+
+        draw.pathClear();
+        draw.pathLineTo(cx + wIn, cy - h2In);
+        draw.pathLineTo(cx + W, cy - H2);
+        draw.pathLineTo(cx + W, cy + H2);
+        draw.pathLineTo(cx + wIn, cy + h2In);
+        draw.pathFillConvex(colRight);
+
+        draw.pathClear();
+        draw.pathLineTo(cx + wIn, cy + h2In);
+        draw.pathLineTo(cx + W, cy + H2);
+        draw.pathLineTo(cx, cy + R);
+        draw.pathLineTo(cx, cy + rIn);
+        draw.pathFillConvex(colRight);
+    }
+
+    /**
+     * Иконка Material (объёмная сфера с бликом).
+     */
+    public static void drawProjectMaterial(DrawScope draw, float x, float y, float size) {
+        float cx = x + size * 0.5f;
+        float cy = y + size * 0.5f;
+        float r = size * 0.38f;
+
+        draw.circleFilled(cx - r * 0.9f, cy + r * 0.6f, r * 1.8f, r * 0.5f, MutableColor.rgba255(0x14, 0x14, 0x14, 0x88));
+        draw.circleFilled(cx - r, cy - r, r * 2.0f, r * 2.0f, MutableColor.rgba255(0x4E, 0x58, 0x66, 0xFF));
+        draw.circleFilled(cx - r * 0.85f, cy - r * 0.9f, r * 1.6f, r * 1.6f, MutableColor.rgba255(0x72, 0x82, 0x96, 0xFF));
+        draw.circleFilled(cx - r * 0.70f, cy - r * 0.8f, r * 1.2f, r * 1.2f, MutableColor.rgba255(0x9E, 0xB0, 0xC6, 0xFF));
+        draw.circleFilled(cx - r * 0.45f, cy - r * 0.55f, r * 0.45f, r * 0.45f, MutableColor.rgba255(0xFF, 0xFF, 0xFF, 0xEE));
+    }
+
+    /**
+     * Иконка Script C# (лист документа с загнутым уголком и символом #).
+     */
+    public static void drawProjectScript(DrawScope draw, float x, float y, float size) {
+        float dw = size * 0.62f;
+        float dh = size * 0.78f;
+        float dx = x + (size - dw) * 0.5f;
+        float dy = y + (size - dh) * 0.5f;
+        float fold = dw * 0.28f;
+
+        draw.roundedRectFilled(dx + 1.5f, dy + 1.5f, dw, dh, 2.0f, MutableColor.rgba255(0x18, 0x18, 0x18, 0x60));
+
+        draw.pathClear();
+        draw.pathLineTo(dx, dy);
+        draw.pathLineTo(dx + dw - fold, dy);
+        draw.pathLineTo(dx + dw, dy + fold);
+        draw.pathLineTo(dx + dw, dy + dh);
+        draw.pathLineTo(dx, dy + dh);
+        draw.pathFillConvex(MutableColor.rgba255(0xEA, 0xEE, 0xF2, 0xFF));
+
+        draw.pathClear();
+        draw.pathLineTo(dx + dw - fold, dy);
+        draw.pathLineTo(dx + dw - fold, dy + fold);
+        draw.pathLineTo(dx + dw, dy + fold);
+        draw.pathFillConvex(MutableColor.rgba255(0xB4, 0xC2, 0xD2, 0xFF));
+
+        float cx = dx + dw * 0.5f;
+        float cy = dy + dh * 0.52f;
+        float hs = dw * 0.34f;
+        Paint hashPaint = Paint.stroke(MutableColor.rgba255(0x2B, 0x78, 0xC5, 0xFF), 1.8f);
+
+        draw.line(cx - hs * 0.25f + 1.0f, cy - hs * 0.5f, cx - hs * 0.25f - 1.0f, cy + hs * 0.5f, hashPaint);
+        draw.line(cx + hs * 0.25f + 1.0f, cy - hs * 0.5f, cx + hs * 0.25f - 1.0f, cy + hs * 0.5f, hashPaint);
+        draw.line(cx - hs * 0.5f, cy - hs * 0.2f, cx + hs * 0.5f, cy - hs * 0.2f, hashPaint);
+        draw.line(cx - hs * 0.5f, cy + hs * 0.2f, cx + hs * 0.5f, cy + hs * 0.2f, hashPaint);
+    }
+
+    /**
+     * Иконка Texture (рамка с миниатюрой пейзажа).
+     */
+    public static void drawProjectTexture(DrawScope draw, float x, float y, float size) {
+        float tw = size * 0.74f;
+        float th = size * 0.62f;
+        float tx = x + (size - tw) * 0.5f;
+        float ty = y + (size - th) * 0.5f;
+
+        draw.roundedRectFilled(tx, ty, tw, th, 3.0f, MutableColor.rgba255(0x42, 0x4B, 0x56, 0xFF));
+        draw.rectFilled(tx + 2.0f, ty + 2.0f, tw - 4.0f, th - 4.0f, MutableColor.rgba255(0x22, 0x2A, 0x38, 0xFF));
+
+        draw.circleFilled(tx + tw - 11.0f, ty + 5.0f, 5.0f, 5.0f, MutableColor.rgba255(0xF6, 0xC4, 0x44, 0xFF));
+
+        draw.pathClear();
+        draw.pathLineTo(tx + 2.0f, ty + th - 2.0f);
+        draw.pathLineTo(tx + tw * 0.38f, ty + th * 0.35f);
+        draw.pathLineTo(tx + tw * 0.75f, ty + th - 2.0f);
+        draw.pathFillConvex(MutableColor.rgba255(0x38, 0x6E, 0x4E, 0xFF));
+
+        draw.pathClear();
+        draw.pathLineTo(tx + tw * 0.25f, ty + th - 2.0f);
+        draw.pathLineTo(tx + tw * 0.65f, ty + th * 0.45f);
+        draw.pathLineTo(tx + tw - 2.0f, ty + th - 2.0f);
+        draw.pathFillConvex(MutableColor.rgba255(0x4E, 0x9A, 0x66, 0xFF));
+    }
+
+    /**
+     * Иконка Package (картонная коробка).
+     */
+    public static void drawProjectPackage(DrawScope draw, float x, float y, float size) {
+        float cx = x + size * 0.5f;
+        float cy = y + size * 0.5f;
+        float R = size * 0.38f;
+        float W = R * 0.866f;
+        float H2 = R * 0.5f;
+
+        draw.pathClear();
+        draw.pathLineTo(cx, cy - R);
+        draw.pathLineTo(cx + W, cy - H2);
+        draw.pathLineTo(cx, cy);
+        draw.pathLineTo(cx - W, cy - H2);
+        draw.pathFillConvex(MutableColor.rgba255(0xCE, 0xA2, 0x72, 0xFF));
+
+        draw.pathClear();
+        draw.pathLineTo(cx - W, cy - H2);
+        draw.pathLineTo(cx, cy);
+        draw.pathLineTo(cx, cy + R);
+        draw.pathLineTo(cx - W, cy + H2);
+        draw.pathFillConvex(MutableColor.rgba255(0xAC, 0x82, 0x54, 0xFF));
+
+        draw.pathClear();
+        draw.pathLineTo(cx, cy);
+        draw.pathLineTo(cx + W, cy - H2);
+        draw.pathLineTo(cx + W, cy + H2);
+        draw.pathLineTo(cx, cy + R);
+        draw.pathFillConvex(MutableColor.rgba255(0x8E, 0x66, 0x3C, 0xFF));
+
+        Paint tapePaint = Paint.stroke(MutableColor.rgba255(0xEC, 0xD4, 0xB0, 0xFF), 2.5f);
+        draw.line(cx - W * 0.5f, cy - H2 * 1.5f, cx + W * 0.5f, cy - H2 * 0.5f, tapePaint);
+    }
+
+    /**
+     * Маршрутизатор отрисовки иконок Project View.
+     */
+    public static void drawProjectItemIcon(DrawScope draw, String type, boolean emptyFolder, float x, float y, float w, float h) {
+        if (type == null) type = "scene";
+        switch (type.toLowerCase()) {
+            case "folder" -> drawProjectFolder(draw, x, y, w, h, emptyFolder);
+            case "scene" -> drawProjectSceneCube(draw, x, y, Math.min(w, h));
+            case "prefab" -> drawProjectPrefabCube(draw, x, y, Math.min(w, h));
+            case "material" -> drawProjectMaterial(draw, x, y, Math.min(w, h));
+            case "script", "cs", "asset" -> drawProjectScript(draw, x, y, Math.min(w, h));
+            case "texture", "png", "jpg" -> drawProjectTexture(draw, x, y, Math.min(w, h));
+            case "package" -> drawProjectPackage(draw, x, y, Math.min(w, h));
+            default -> drawProjectSceneCube(draw, x, y, Math.min(w, h));
+        }
     }
 }
