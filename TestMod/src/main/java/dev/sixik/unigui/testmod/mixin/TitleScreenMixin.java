@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Р вЂќР С•Р В±Р В°Р Р†Р В»РЎРЏР ВµРЎвЂљ Р В±РЎвЂ№РЎРѓРЎвЂљРЎР‚РЎвЂ№Р в„– Р Р†РЎвЂ¦Р С•Р Т‘ Р Р† UniGUI demo Р Р…Р В° Р С–Р В»Р В°Р Р†Р Р…РЎвЂ№Р в„– РЎРЊР С”РЎР‚Р В°Р Р… Minecraft.
+ * Добавляет быстрый вход в UniGUI demo на главный экран Minecraft.
  */
 @Mixin(TitleScreen.class)
 public abstract class TitleScreenMixin extends Screen {
@@ -68,6 +68,9 @@ public abstract class TitleScreenMixin extends Screen {
                 .build());
         addRenderableWidget(Button.builder(Component.literal("Ribbon Roads"), button -> TestModClient.openRibbonRoadsDemo())
                 .bounds(width - 244, 104, 116, 20)
+                .build());
+        addRenderableWidget(Button.builder(Component.literal("Unity Inspector"), button -> TestModClient.openUnityInspector())
+                .bounds(width - 244, 128, 116, 20)
                 .build());
     }
 }

@@ -16,6 +16,7 @@ import dev.sixik.unigui.testmod.client.ui.SolarNavigationScreen;
 import dev.sixik.unigui.testmod.client.ui.SpannerRhythmMinigameScreen;
 import dev.sixik.unigui.testmod.client.ui.SyncBatteryMinigameScreen;
 import dev.sixik.unigui.testmod.client.ui.TutorialScreen;
+import dev.sixik.unigui.testmod.client.ui.unity.UnityInspectorScreen;
 import dev.sixik.unigui.testmod.client.ui.WrenchNutMinigameScreen;
 import dev.sixik.unigui.testmod.client.ui.WireConnectionMinigameScreen;
 import dev.sixik.unigui.testmod.client.ui_tests.TestWidgetsScreen;
@@ -33,9 +34,6 @@ public final class TestModClient implements ClientModInitializer {
 
     /**
      * Открывает основное UniGUI demo.
-     *
-     * <p>Вынесено в отдельный метод, чтобы mixin'ы не зависели напрямую от
-     * внутренней структуры demo screen.</p>
      */
     public static void openDemo() {
         TestWidgetsScreen.openGui();
@@ -99,5 +97,9 @@ public final class TestModClient implements ClientModInitializer {
 
     public static void openTutorial() {
         TutorialScreen.open();
+    }
+
+    public static void openUnityInspector() {
+        UnityInspectorScreen.open();
     }
 }
