@@ -347,6 +347,8 @@ public final class UnityStyles {
         button.themeEnabled(false);
         button.backgroundVisible(true);
         button.background().set(BG_BUTTON);
+        button.hoverBackground().set(BG_BUTTON_HOVER);
+        button.pressedBackground().set(BG_BUTTON_ACTIVE);
         button.borderVisible(true);
         button.borderColor().set(BORDER_BUTTON);
         button.radius(3.0f);
@@ -414,7 +416,20 @@ public final class UnityStyles {
 
         RichText rt = RichText.plain(btn.text());
         float padX = 14.0f;
-        float contentWidth = Math.max(0.0f, w - padX * 2.0f);
+
+        String shortcut = (btn instanceof UnityContextMenuItem item) ? item.shortcut() : null;
+        float shortcutWidth = 0.0f;
+        if (shortcut != null && !shortcut.isEmpty()) {
+            RichText srt = RichText.plain(shortcut);
+            shortcutWidth = TextEngine.measureLineWidth(draw.context(), srt) + 8.0f;
+            float sHeight = TextEngine.measureTextHeight(draw.context(), srt);
+            float sX = x + w - padX - (shortcutWidth - 8.0f);
+            float sY = y + Math.max(0.0f, h - sHeight) * 0.5f;
+            ColorView sColor = !enabled ? TEXT_MUTED : (hovered || pressed ? TEXT_BOLD : TEXT_MUTED);
+            TextEngine.drawInline(draw, srt, sX, sY, shortcutWidth - 8.0f, sHeight, Paint.fill(sColor));
+        }
+
+        float contentWidth = Math.max(0.0f, w - padX * 2.0f - shortcutWidth);
         float textHeight = TextEngine.measureTextHeight(draw.context(), rt);
         float drawY = y + Math.max(0.0f, h - textHeight) * 0.5f;
 
@@ -466,8 +481,29 @@ public final class UnityStyles {
     /**
      * Добавление элемента контекстного меню с кастомным рендерером и размером.
      */
-    public static Button addContextMenuItem(ContextMenu menu, String text, boolean enabled, float menuWidth, Runnable action) {
-        Button btn = new Button(text);
+    public static class UnityContextMenuItem extends Button {
+        private String shortcut;
+
+        public UnityContextMenuItem(String text) {
+            this(text, null);
+        }
+
+        public UnityContextMenuItem(String text, String shortcut) {
+            super(text);
+            this.shortcut = shortcut;
+        }
+
+        public String shortcut() {
+            return shortcut;
+        }
+
+        public void shortcut(String shortcut) {
+            this.shortcut = shortcut;
+        }
+    }
+
+    public static Button addContextMenuItem(ContextMenu menu, String text, String shortcut, boolean enabled, float menuWidth, Runnable action) {
+        UnityContextMenuItem btn = new UnityContextMenuItem(text, shortcut);
         btn.themeEnabled(false);
         btn.enabled(enabled);
         btn.renderer(CONTEXT_MENU_ITEM_RENDERER);
@@ -476,6 +512,19 @@ public final class UnityStyles {
         }
         menu.item(btn);
         btn.layout(style -> style.size(menuWidth, 19.0f).flexGrow(0.0f).flexShrink(0.0f));
+        return btn;
+    }
+
+    public static Button addContextMenuItem(ContextMenu menu, String text, boolean enabled, float menuWidth, Runnable action) {
+        return addContextMenuItem(menu, text, null, enabled, menuWidth, action);
+    }
+
+    public static Button addContextMenuSubmenu(ContextMenu menu, String text, ContextMenu subMenu, float menuWidth) {
+        UnityContextMenuItem btn = new UnityContextMenuItem(text, ">");
+        btn.themeEnabled(false);
+        btn.renderer(CONTEXT_MENU_ITEM_RENDERER);
+        btn.layout(style -> style.size(menuWidth, 19.0f).flexGrow(0.0f).flexShrink(0.0f));
+        menu.submenu(btn, subMenu);
         return btn;
     }
 

@@ -74,6 +74,7 @@ public class UnityEditorHierarchyView extends LinearBox {
     private final TreeView treeView = new TreeView();
     private TreeViewNode sceneNode;
     private String selectedId = "Main Camera";
+    private ContextMenu activeCreateMenu;
     private Consumer<String> selectionListener;
     private BiConsumer<String, GameObjectType> objectSelectionListener;
     private DropIntent currentDropIntent;
@@ -90,11 +91,7 @@ public class UnityEditorHierarchyView extends LinearBox {
                 .padding(4.0f, 2.0f, 4.0f, 2.0f).alignItems(Align.CENTER)
                 .flexGrow(0.0f).flexShrink(0.0f));
 
-        Button createBtn = new Button("+ v");
-        UnityStyles.styleButton(createBtn);
-        createBtn.focusRingVisible(false);
-        createBtn.focusable(false);
-        createBtn.layout(style -> style.height(20.0f).padding(4.0f, 0.0f));
+        UnityCreateButton createBtn = new UnityCreateButton();
         createBtn.onClick(e -> openCreateMenu(createBtn));
         topBar.addChild(createBtn);
 
@@ -348,6 +345,11 @@ public class UnityEditorHierarchyView extends LinearBox {
         OverlayLayer overlay = findOverlayLayer(this);
         if (overlay == null) return;
 
+        if (activeCreateMenu != null) {
+            activeCreateMenu.close();
+            activeCreateMenu = null;
+        }
+
         RectView b = triggerBtn.layoutBounds();
         float menuX = b.x();
         float menuY = b.y() + b.height() + 2.0f;
@@ -410,6 +412,7 @@ public class UnityEditorHierarchyView extends LinearBox {
             addNewGameObject("Camera", GameObjectType.CAMERA, false);
         });
 
+        activeCreateMenu = menu;
         menu.openAt(menuX, menuY);
         overlay.addOverlay(menu);
     }

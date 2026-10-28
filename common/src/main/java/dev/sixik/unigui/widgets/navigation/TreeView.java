@@ -5,6 +5,8 @@ import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.event.*;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.layout.Alignment;
+import dev.sixik.unigui.api.layout.PositionType;
+import dev.sixik.unigui.widgets.interaction.TextInput;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.ColorView;
@@ -64,6 +66,91 @@ public class TreeView extends LinearBox {
     private float rowTextHoverScrollSpeed = ROW_TEXT_HOVER_SCROLL_SPEED;
     private int batchDepth;
     private boolean rebuildPending;
+    private TreeViewNode editingNode;
+    private TextInput editingInput;
+
+    public TreeViewNode editingNode() {
+        return editingNode;
+    }
+
+    public boolean isEditing() {
+        return editingNode != null;
+    }
+
+    public void startEditing(TreeViewNode node, Consumer<TextInput> config, Consumer<String> onCommit) {
+        if (node == null || node.rowButton() == null) return;
+        cancelEditing();
+
+        editingNode = node;
+        TreeRowButton row = (TreeRowButton) node.rowButton();
+
+        TextInput input = new TextInput(node.text());
+        if (config != null) {
+            config.accept(input);
+        }
+        editingInput = input;
+
+        float indent = row.leadingWidth();
+        float availWidth = Math.max(60.0f, row.layoutBounds().width() - indent - 4.0f);
+        float rowHeight = styledRowHeight();
+        input.layout(style -> style
+                .position(PositionType.ABSOLUTE)
+                .left(indent)
+                .top(1.0f)
+                .size(availWidth, Math.max(16.0f, rowHeight - 2.0f)));
+
+        input.on(KeyPressedEvent.TYPE, e -> {
+            if (e.keyCode() == KeyCodes.ENTER || e.keyCode() == KeyCodes.KEYPAD_ENTER) {
+                String newText = input.text();
+                stopEditing();
+                if (onCommit != null) {
+                    onCommit.accept(newText);
+                }
+                e.cancel();
+            } else if (e.keyCode() == KeyCodes.ESCAPE) {
+                cancelEditing();
+                e.cancel();
+            }
+        });
+
+        input.on(FocusLostEvent.TYPE, e -> {
+            if (editingNode == node) {
+                String newText = input.text();
+                stopEditing();
+                if (onCommit != null) {
+                    onCommit.accept(newText);
+                }
+            }
+        });
+
+        row.addChild(input);
+        row.invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+
+        if (uiContext() != null) {
+            uiContext().focusManager().requestFocus(input);
+            input.selectAll();
+        }
+    }
+
+    public void startEditing(TreeViewNode node, Consumer<String> onCommit) {
+        startEditing(node, null, onCommit);
+    }
+
+    public void stopEditing() {
+        if (editingNode != null && editingInput != null) {
+            if (editingNode.rowButton() instanceof TreeRowButton row) {
+                row.removeChild(editingInput);
+            }
+            editingNode = null;
+            editingInput = null;
+            invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        }
+    }
+
+    public void cancelEditing() {
+        stopEditing();
+    }
 
     /**
      * Возвращает режим иконок строк без собственной иконки.
@@ -361,6 +448,7 @@ public class TreeView extends LinearBox {
     }
 
     void rebuildRows() {
+        cancelEditing();
         rebuildPending = false;
         for (TreeViewNode node : visibleNodes) {
             node.rowButtonInternal(null);
@@ -719,6 +807,7 @@ public class TreeView extends LinearBox {
         @Override
         protected void renderContent(RenderContext context) {
             tree.renderRow(new DrawScope(context, transform(), layoutBounds()), this);
+            renderChildren(context);
         }
 
         public void renderRowVisual(DrawScope draw) {
@@ -730,7 +819,9 @@ public class TreeView extends LinearBox {
             float cursor = x + TEXT_PADDING_X + depth * tree.styledIndentWidth();
             cursor = renderDisclosure(draw, cursor, y, height);
             cursor = renderRowIcon(draw, cursor, y, height);
-            renderRowText(draw, rowText(), cursor, y, width, height);
+            if (node != tree.editingNode()) {
+                renderRowText(draw, rowText(), cursor, y, width, height);
+            }
         }
 
         /**

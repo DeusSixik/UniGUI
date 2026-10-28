@@ -143,11 +143,12 @@ public final class OverlayLayer extends PanelWidget {
             return;
         }
         if (event instanceof PointerPressedEvent pointer
-                && pointer.phase() == EventPhase.CAPTURE
-                && pointer.button() == PointerButton.PRIMARY) {
-            WindowWidget window = windowAncestor(pointer.target());
-            if (window != null && window.opened()) {
-                windowManager.activate(window);
+                && pointer.phase() == EventPhase.CAPTURE) {
+            if (pointer.button() == PointerButton.PRIMARY) {
+                WindowWidget window = windowAncestor(pointer.target());
+                if (window != null && window.opened()) {
+                    windowManager.activate(window);
+                }
             }
             closeOverlaysOutside(pointer.target());
         }

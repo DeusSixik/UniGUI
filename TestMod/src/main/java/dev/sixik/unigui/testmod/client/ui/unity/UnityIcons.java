@@ -945,4 +945,38 @@ public final class UnityIcons {
             default -> drawProjectSceneCube(draw, x, y, Math.min(w, h));
         }
     }
+
+    /**
+     * Рисует иконку "+ с маленькой стрелочкой dropdown" (кнопка создания / Create) в стиле редактора Unity.
+     *
+     * @param draw  область рисования
+     * @param x     X координаты кнопки
+     * @param y     Y координаты кнопки
+     * @param w     ширина кнопки
+     * @param h     высота кнопки
+     * @param color цвет иконки
+     */
+    public static void drawCreateDropdownIcon(DrawScope draw, float x, float y, float w, float h, ColorView color) {
+        float cx = x + w * 0.5f;
+        float cy = y + h * 0.5f;
+        float px = cx - 3.5f;
+        float py = cy - 1.0f;
+
+        // Плюс: вертикальный и горизонтальный штрихи (толщина 2.0px, длина 12.0px)
+        draw.rectFilled(px - 1.0f, py - 6.0f, 2.0f, 12.0f, color);
+        draw.rectFilled(px - 6.0f, py - 1.0f, 12.0f, 2.0f, color);
+
+        // Маленькая стрелочка dropdown справа внизу от плюса (ширина 5px, высота 3px)
+        float triLeft = px + 8.0f;
+        float triRight = px + 13.0f;
+        float triTop = py + 5.5f;
+        float triBottom = py + 8.5f;
+        float triMid = (triLeft + triRight) * 0.5f;
+
+        draw.pathClear();
+        draw.pathLineTo(triLeft, triTop);
+        draw.pathLineTo(triRight, triTop);
+        draw.pathLineTo(triMid, triBottom);
+        draw.pathFillConvex(color);
+    }
 }
