@@ -5,6 +5,7 @@ import dev.sixik.unigui.api.layout.AlignContent;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.FlexDirection;
+import dev.sixik.unigui.api.layout.FlexWrap;
 import dev.sixik.unigui.api.layout.GridAutoFlow;
 import dev.sixik.unigui.api.layout.GridTrack;
 import dev.sixik.unigui.api.layout.Justify;
@@ -207,6 +208,27 @@ public final class LayoutV3SelfTest {
         expect(centered.alignItems() == Align.CENTER
                         && centered.justifyContent() == Justify.CENTER,
                 "Помощник center должен центрировать детей контейнера по обеим осям");
+
+        LayoutStyle rowSpacing = new LayoutStyle()
+                .flexDirection(FlexDirection.ROW)
+                .flexWrap(FlexWrap.WRAP)
+                .rowGap(12.0f)
+                .spacing(Orientation.HORIZONTAL, 7.0f);
+        expect(near(rowSpacing.rowGap(), 0.0f) && near(rowSpacing.columnGap(), 7.0f)
+                        && rowSpacing.flexDirection() == FlexDirection.ROW
+                        && rowSpacing.flexWrap() == FlexWrap.WRAP,
+                "Horizontal spacing should set only the main-axis gap without changing flex configuration");
+
+        LayoutStyle columnSpacing = new LayoutStyle()
+                .columnGap(12.0f)
+                .spacing(Orientation.VERTICAL, 5.0f);
+        expect(near(columnSpacing.rowGap(), 5.0f) && near(columnSpacing.columnGap(), 0.0f),
+                "Vertical spacing should set row gap and clear the cross-axis gap");
+
+        LayoutStyle nullOrientationSpacing = new LayoutStyle().spacing(null, Float.NaN);
+        expect(near(nullOrientationSpacing.rowGap(), 0.0f)
+                        && near(nullOrientationSpacing.columnGap(), 0.0f),
+                "Null orientation should default to vertical and invalid spacing should normalize to zero");
 
         LayoutStyle centeredSelf = new LayoutStyle().centerSelf();
         expect(centeredSelf.alignSelf() == Align.CENTER,
