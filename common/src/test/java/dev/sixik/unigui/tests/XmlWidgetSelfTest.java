@@ -10,7 +10,6 @@ import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.event.PointerReleasedEvent;
 import dev.sixik.unigui.api.layout.Align;
 import dev.sixik.unigui.api.layout.AlignContent;
-import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.AutoMargins;
 import dev.sixik.unigui.api.layout.FlexDirection;
 import dev.sixik.unigui.api.layout.FlexWrap;

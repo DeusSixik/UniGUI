@@ -237,7 +237,6 @@ import dev.sixik.unigui.widgets.core.Widgets;
 import dev.sixik.unigui.widgets.feedback.WindowWidget;
 import dev.sixik.unigui.widgets.containers.WrapPanel;
 import dev.sixik.unigui.api.widget.render.WidgetRender;
-import dev.sixik.unigui.api.widget.render.WidgetRenderRegistry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;

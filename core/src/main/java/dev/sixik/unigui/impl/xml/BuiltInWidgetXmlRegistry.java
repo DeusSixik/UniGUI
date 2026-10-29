@@ -15,7 +15,6 @@ public final class BuiltInWidgetXmlRegistry {
         BuiltInControlXml.register(registry);
         BuiltInDataXml.register(registry);
         BuiltInNavigationXml.register(registry);
-        BuiltInMinecraftXml.register(registry);
         BuiltInDockingXml.register(registry);
         BuiltInEditorXml.register(registry);
         registerAliases(registry);

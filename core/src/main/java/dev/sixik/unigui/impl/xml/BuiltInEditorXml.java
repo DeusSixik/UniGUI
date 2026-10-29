@@ -19,7 +19,6 @@ import dev.sixik.unigui.widgets.editor.SelectionOverlay;
 import dev.sixik.unigui.widgets.editor.StatusBar;
 import dev.sixik.unigui.widgets.editor.WidgetPalette;
 import dev.sixik.unigui.widgets.editor.XmlDesignCanvas;
-import dev.sixik.unigui.widgets.editor.XmlPropertiesPanel;
 import dev.sixik.unigui.widgets.editor.XmlRuntimeViewPane;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.xml.XmlAttributeDescriptor;
@@ -33,8 +32,6 @@ final class BuiltInEditorXml {
     static void register(WidgetXmlRegistry registry) {
         BuiltInWidgetXmlSupport.commonWidget(registry.register("PropertyGrid", PropertyGrid::new), PropertyGrid.class)
                 .describe("Property Grid", "Editor", "Descriptor-backed inspector for XML widget attributes and property-child slots.");
-        BuiltInWidgetXmlSupport.commonWidget(registry.register("XmlPropertiesPanel", XmlPropertiesPanel::new), XmlPropertiesPanel.class)
-                .describe("XML Properties Panel", "Editor", "Session-aware XML inspector pane that applies attribute edits through undoable document edits.");
         BuiltInWidgetXmlSupport.commonWidget(registry.register("SelectionOverlay", SelectionOverlay::new), SelectionOverlay.class)
                 .describe("Selection Overlay", "Editor", "Editor overlay for XML widget hover, selection, move and resize handles.");
         BuiltInWidgetXmlSupport.commonWidget(registry.register("DesignCanvasOverlay", DesignCanvasOverlay::new), DesignCanvasOverlay.class)

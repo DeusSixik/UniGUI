@@ -32,6 +32,8 @@ dependencies {
     neoForge versionProject.neoforge_dependency
 
     common(project(path: "${versionProject.path}:common", configuration: 'namedElements')) { transitive false }
+    common(project(path: ':core', configuration: 'apiElements')) { transitive false }
+    shadowBundle(project(path: ':core', configuration: 'runtimeElements')) { transitive false }
     shadowBundle project(path: "${versionProject.path}:common", configuration: 'transformProductionNeoForge')
 }
 

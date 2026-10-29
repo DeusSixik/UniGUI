@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
+import java.util.ServiceLoader;
 
 /**
  * Локальная для процесса точка расширения для XML descriptor-ов виджетов, предоставленных модами.
@@ -16,6 +17,9 @@ import java.util.function.Supplier;
  */
 public final class XmlWidgetRegistryContributions {
     private static final CopyOnWriteArrayList<XmlWidgetRegistryContributor> CONTRIBUTORS = new CopyOnWriteArrayList<>();
+    static {
+        ServiceLoader.load(XmlWidgetRegistryContributor.class).forEach(CONTRIBUTORS::add);
+    }
     /**
      * Версия глобального списка contributions для инвалидирования кэша built-in registry.
      */

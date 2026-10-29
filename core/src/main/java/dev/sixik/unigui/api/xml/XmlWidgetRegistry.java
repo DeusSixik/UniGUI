@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
+import java.util.function.Consumer;
 
 /**
  * Изменяемый XML-реестр descriptor-ов виджетов.
@@ -79,6 +80,13 @@ public final class XmlWidgetRegistry {
      */
     public <T extends Widget> XmlWidgetType<T> register(String xmlName, Supplier<T> factory) {
         return new XmlWidgetType<>(delegate.register(xmlName, factory));
+    }
+
+    /** Applies a backend-specific contribution to the underlying descriptor registry. */
+    public XmlWidgetRegistry contribute(Consumer<dev.sixik.unigui.impl.xml.WidgetXmlRegistry> contribution) {
+        if (contribution == null) throw new IllegalArgumentException("contribution must not be null");
+        contribution.accept(delegate);
+        return this;
     }
 
     /**

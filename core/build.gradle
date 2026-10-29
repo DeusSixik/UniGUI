@@ -1,0 +1,63 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+    id 'me.champeau.jmh' version '0.7.2'
+}
+
+group = rootProject.findProperty('maven_group') ?: 'dev.sixik'
+version = rootProject.findProperty('mod_version') ?: 'unspecified'
+
+repositories {
+    mavenCentral()
+}
+
+base {
+    archivesName = "${rootProject.findProperty('archives_name') ?: 'unigui'}-core"
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+
+    withSourcesJar()
+}
+
+configurations {
+    include {
+        canBeResolved = true
+        canBeConsumed = false
+    }
+    implementation.extendsFrom(include)
+}
+
+dependencies {
+    include 'it.unimi.dsi:fastutil:8.5.9'
+    include 'org.slf4j:slf4j-api:2.0.18'
+    include 'org.jetbrains:annotations:26.0.1'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 17
+}
+
+tasks.named('jar', Jar).configure {
+    from {
+        configurations.include.collect { dependency ->
+            dependency.isDirectory() ? dependency : zipTree(dependency)
+        }
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifactId = base.archivesName.get()
+            from components.java
+        }
+    }
+}
