@@ -255,6 +255,14 @@ tasks.register("dockingChromeSelfTest", JavaExec) {
     mainClass = "dev.sixik.unigui.tests.DockingChromeSelfTest"
 }
 
+tasks.register("buttonPressReleaseSelfTest", JavaExec) {
+    group = "verification"
+    description = "Runs button auto-release self-test assertions (hidden or disabled while pressed)."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.ButtonPressReleaseSelfTest"
+}
+
 tasks.register("dragReorderSelfTest", JavaExec) {
     group = "verification"
     description = "Runs composition drag-and-drop, reorder, ghost overlay and auto-scroll self-test assertions."
@@ -301,4 +309,5 @@ tasks.named("test") {
       dependsOn tasks.named("pathAntiAliasingSelfTest")
       dependsOn tasks.named("dragReorderSelfTest")
       dependsOn tasks.named("dockingChromeSelfTest")
+      dependsOn tasks.named("buttonPressReleaseSelfTest")
   }
