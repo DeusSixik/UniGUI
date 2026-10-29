@@ -10,6 +10,7 @@ class CleanroomKeyCodesTest {
     void toCore_knownLetters_mapsLwjglCodesToGlfwCodes() {
         assertEquals('A', CleanroomKeyCodes.toCore(Keyboard.KEY_A));
         assertEquals('B', CleanroomKeyCodes.toCore(Keyboard.KEY_B));
+        assertEquals('P', CleanroomKeyCodes.toCore(Keyboard.KEY_P));
         assertEquals('Z', CleanroomKeyCodes.toCore(Keyboard.KEY_Z));
     }
 

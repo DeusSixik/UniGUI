@@ -220,7 +220,7 @@ public class MinecraftWidgetScreen extends Screen {
     /**
      * Включает или выключает отладочные хоткеи экрана.
      *
-     * <p>Выключено по умолчанию: комбинации {@code Ctrl+Shift+P} (тоггл профайлера)
+     * <p>Выключено по умолчанию: комбинация {@code Ctrl+Shift+P} (тоггл профайлера)
      * и {@code Ctrl+Shift+Plus/Minus} (scale дебаг-оверлея) могут конфликтовать
      * с вводом в текстовых полях модов.</p>
      *
@@ -629,10 +629,13 @@ public class MinecraftWidgetScreen extends Screen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        uiContext.keyboard().press(keyCode);
         if (keyboardInputHandler != null
-                && keyboardInputHandler.keyPressed(keyCode, scanCode, modifiers)) return true;
+                && keyboardInputHandler.keyPressed(keyCode, scanCode, modifiers)) {
+            uiContext.keyboard().press(keyCode);
+            return true;
+        }
         if (debugHotkeysEnabled && handleDebugHotkey(keyCode, modifiers)) return true;
+        uiContext.keyboard().press(keyCode);
         if (keyCode == KeyCodes.TAB) {
             Widget focused = uiContext.focusManager().focusedWidget();
             if (focused != null && uiContext.routedEvents().dispatch(new KeyPressedEvent(focused, keyCode, scanCode, modifiers))) {

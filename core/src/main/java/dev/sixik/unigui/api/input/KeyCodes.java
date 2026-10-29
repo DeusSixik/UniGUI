@@ -9,6 +9,7 @@ public final class KeyCodes {
     public static final int C = 67;
     public static final int D = 68;
     public static final int E = 69;
+    public static final int P = 80;
     public static final int Q = 81;
     public static final int R = 82;
     public static final int S = 83;
@@ -28,6 +29,8 @@ public final class KeyCodes {
     public static final int PAGE_DOWN = 267;
     public static final int HOME = 268;
     public static final int END = 269;
+    public static final int MINUS = 45;
+    public static final int EQUAL = 61;
     public static final int F1 = 290;
     public static final int F2 = 291;
     public static final int F3 = 292;
@@ -41,6 +44,8 @@ public final class KeyCodes {
     public static final int F11 = 300;
     public static final int F12 = 301;
     public static final int KEYPAD_ENTER = 335;
+    public static final int KEYPAD_SUBTRACT = 333;
+    public static final int KEYPAD_ADD = 334;
     public static final int LEFT_SHIFT = 340;
     public static final int LEFT_CONTROL = 341;
     public static final int LEFT_ALT = 342;

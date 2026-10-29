@@ -16,7 +16,10 @@ import dev.sixik.unigui.api.screen.UniScreen;
 import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.cleanroom.backend.CleanroomClientBootstrap;
+import dev.sixik.unigui.api.debug.ProfileScope;
 import dev.sixik.unigui.impl.render.DefaultRenderContext;
+import dev.sixik.unigui.impl.debug.DebugHotkeys;
+import dev.sixik.unigui.impl.debug.DebugOverlayRenderer;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
@@ -43,6 +46,8 @@ final class CleanroomWidgetScreen extends GuiScreen implements CleanroomRenderHo
     private boolean closed;
     private long frameIndex;
     private long lastFrameNanos;
+    private float lastFrameCpuMillis;
+    private float lastFrameTotalMillis;
 
     CleanroomWidgetScreen(UniScreen source, UIContext uiContext, Runnable closeAction) {
         this.source = source;
@@ -94,10 +99,22 @@ final class CleanroomWidgetScreen extends GuiScreen implements CleanroomRenderHo
         float delta = lastFrameNanos == 0L ? 1.0f / 60.0f
                 : Math.min(0.25f, (now - lastFrameNanos) / 1_000_000_000.0f);
         lastFrameNanos = now;
-        root.tick(new FrameContext(frameIndex, delta, partialTicks, FramePhase.ANIMATION));
-        updateLayout(logicalWidth, logicalHeight);
+        uiContext.profiler().beginFrame(frameIndex);
+        uiContext.debugCounters().beginFrame(frameIndex);
+        uiContext.debugCounters().recordFrameCpuMillis(lastFrameCpuMillis);
+        uiContext.debugCounters().recordFrameTotalMillis(lastFrameTotalMillis);
+        try (ProfileScope ignored = uiContext.profiler().scope("animation")) {
+            root.tick(new FrameContext(frameIndex, delta, partialTicks, FramePhase.ANIMATION));
+        }
+        try (ProfileScope ignored = uiContext.profiler().scope("layout")) {
+            updateLayout(logicalWidth, logicalHeight);
+        }
         drawList.clear();
-        root.render(renderContext);
+        try (ProfileScope ignored = uiContext.profiler().scope("buildDrawList")) {
+            root.render(renderContext);
+        }
+        DebugOverlayRenderer.render(renderContext, uiContext, logicalWidth, logicalHeight);
+        lastFrameCpuMillis = (System.nanoTime() - now) / 1_000_000.0f;
 
         GlStateManager.pushMatrix();
         GlStateManager.scale(scale, scale, 1.0f);
@@ -109,6 +126,10 @@ final class CleanroomWidgetScreen extends GuiScreen implements CleanroomRenderHo
             renderBackend.endFrame();
             GlStateManager.popMatrix();
         }
+        lastFrameTotalMillis = (System.nanoTime() - now) / 1_000_000.0f;
+        uiContext.debugCounters().recordFrameCpuMillis(lastFrameCpuMillis);
+        uiContext.debugCounters().recordFrameTotalMillis(lastFrameTotalMillis);
+        uiContext.keyboard().endFrame();
         CleanroomClientBootstrap.backend().renderScreen(this, mouseX, mouseY, partialTicks);
         frameIndex++;
     }
@@ -187,6 +208,7 @@ final class CleanroomWidgetScreen extends GuiScreen implements CleanroomRenderHo
             keyConsumed = key >= 0 && keyboardInputHandler.keyPressed(key, 0, modifiers);
             if (typedChar >= 32 && keyboardInputHandler.textInput(typedChar, modifiers)) return;
         }
+        if (key >= 0 && DebugHotkeys.handle(uiContext, key, modifiers)) return;
         if (CleanroomClientBootstrap.backend().screenKeyTyped(this, typedChar, keyCode, modifiers)) return;
         boolean inputConsumed = false;
         if (!keyConsumed && key >= 0) inputConsumed = inputHandle.keyPressed(key, 0, modifiers);

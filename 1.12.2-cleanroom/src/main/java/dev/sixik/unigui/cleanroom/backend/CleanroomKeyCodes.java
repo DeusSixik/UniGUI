@@ -25,6 +25,8 @@ final class CleanroomKeyCodes {
             case Keyboard.KEY_NEXT -> KeyCodes.PAGE_DOWN;
             case Keyboard.KEY_HOME -> KeyCodes.HOME;
             case Keyboard.KEY_END -> KeyCodes.END;
+            case Keyboard.KEY_EQUALS -> KeyCodes.EQUAL;
+            case Keyboard.KEY_MINUS -> KeyCodes.MINUS;
             case Keyboard.KEY_LSHIFT -> KeyCodes.LEFT_SHIFT;
             case Keyboard.KEY_LCONTROL -> KeyCodes.LEFT_CONTROL;
             case Keyboard.KEY_LMENU -> KeyCodes.LEFT_ALT;
@@ -60,7 +62,7 @@ final class CleanroomKeyCodes {
             case Keyboard.KEY_M -> 'M';
             case Keyboard.KEY_N -> 'N';
             case Keyboard.KEY_O -> 'O';
-            case Keyboard.KEY_P -> 'P';
+            case Keyboard.KEY_P -> KeyCodes.P;
             case Keyboard.KEY_Q -> KeyCodes.Q;
             case Keyboard.KEY_R -> KeyCodes.R;
             case Keyboard.KEY_S -> KeyCodes.S;
@@ -81,6 +83,8 @@ final class CleanroomKeyCodes {
             case Keyboard.KEY_7 -> '7';
             case Keyboard.KEY_8 -> '8';
             case Keyboard.KEY_9 -> '9';
+            case Keyboard.KEY_ADD -> KeyCodes.KEYPAD_ADD;
+            case Keyboard.KEY_SUBTRACT -> KeyCodes.KEYPAD_SUBTRACT;
             default -> -1;
         };
     }
