@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Р вЂќР С•Р В±Р В°Р Р†Р В»РЎРЏР ВµРЎвЂљ Р В±РЎвЂ№РЎРѓРЎвЂљРЎР‚РЎвЂ№Р в„– Р Р†РЎвЂ¦Р С•Р Т‘ Р Р† UniGUI demo Р С‘Р В· pause menu, Р С”Р С•Р С–Р Т‘Р В° РЎС“Р В¶Р Вµ Р С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљ Р СР С‘РЎР‚.
+ * Добавляет быстрый вход в UniGUI demo из pause menu, когда уже открыт мир.
  */
 @Mixin(PauseScreen.class)
 public abstract class PauseScreenMixin extends Screen {
@@ -68,6 +68,9 @@ public abstract class PauseScreenMixin extends Screen {
                 .build());
         addRenderableWidget(Button.builder(Component.literal("Ribbon Roads"), button -> TestModClient.openRibbonRoadsDemo())
                 .bounds(width - 244, 104, 116, 20)
+                .build());
+        addRenderableWidget(Button.builder(Component.literal("Unity Inspector"), button -> TestModClient.openUnityInspector())
+                .bounds(width - 244, 128, 116, 20)
                 .build());
     }
 }

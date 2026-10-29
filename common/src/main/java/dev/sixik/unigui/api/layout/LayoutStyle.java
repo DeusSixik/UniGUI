@@ -3,6 +3,7 @@ package dev.sixik.unigui.api.layout;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
+import dev.sixik.unigui.widgets.core.Orientation;
 
 /**
  * Набор правил, по которым родитель вычисляет размер и положение виджета.
@@ -1177,6 +1178,25 @@ public final class LayoutStyle {
         return update(style -> {
             style.rowGap(gap);
             style.columnGap(gap);
+        });
+    }
+
+    /**
+     * Задаёт расстояние между соседями на главной оси и сбрасывает поперечный gap.
+     *
+     * <p>{@link Orientation#HORIZONTAL} задаёт {@code columnGap}, а
+     * {@link Orientation#VERTICAL} — {@code rowGap}. Метод не меняет направление
+     * flex и режим переноса.</p>
+     *
+     * @param orientation направление главной оси; {@code null} трактуется как {@link Orientation#VERTICAL}
+     * @param spacing расстояние в логических пикселях; отрицательные и неконечные значения нормализуются в ноль
+     * @return этот стиль для fluent-настройки
+     */
+    public LayoutStyle spacing(Orientation orientation, float spacing) {
+        Orientation resolved = orientation == null ? Orientation.VERTICAL : orientation;
+        return update(style -> {
+            style.rowGap(resolved == Orientation.VERTICAL ? spacing : 0.0f);
+            style.columnGap(resolved == Orientation.HORIZONTAL ? spacing : 0.0f);
         });
     }
 

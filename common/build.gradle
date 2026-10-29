@@ -239,6 +239,46 @@ tasks.register("debugHotkeysSelfTest", JavaExec) {
     mainClass = "dev.sixik.unigui.tests.DebugHotkeysSelfTest"
 }
 
+tasks.register("pathAntiAliasingSelfTest", JavaExec) {
+    group = "verification"
+    description = "Runs path anti-aliasing tessellator and batch separation self-test assertions."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.PathAntiAliasingSelfTest"
+}
+
+tasks.register("dockingChromeSelfTest", JavaExec) {
+    group = "verification"
+    description = "Runs dock chrome, default window docking, host window and compact tear-off self-test assertions."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.DockingChromeSelfTest"
+}
+
+tasks.register("buttonPressReleaseSelfTest", JavaExec) {
+    group = "verification"
+    description = "Runs button auto-release self-test assertions (hidden or disabled while pressed)."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.ButtonPressReleaseSelfTest"
+}
+
+tasks.register("scrollViewWrapSelfTest", JavaExec) {
+    group = "verification"
+    description = "Runs ScrollView wrapped-content re-measure self-test assertions."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.ScrollViewWrapSelfTest"
+}
+
+tasks.register("dragReorderSelfTest", JavaExec) {
+    group = "verification"
+    description = "Runs composition drag-and-drop, reorder, ghost overlay and auto-scroll self-test assertions."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.DragReorderSelfTest"
+}
+
 tasks.register("dumpXmlWidgetReference", JavaExec) {
     group = "documentation"
     description = "Generates XML widget reference markdown from registry descriptors."
@@ -274,4 +314,9 @@ tasks.named("test") {
       dependsOn tasks.named("tooltipVisibilitySelfTest")
       dependsOn tasks.named("surfaceVisualSelfTest")
       dependsOn tasks.named("debugHotkeysSelfTest")
+      dependsOn tasks.named("pathAntiAliasingSelfTest")
+      dependsOn tasks.named("dragReorderSelfTest")
+      dependsOn tasks.named("dockingChromeSelfTest")
+      dependsOn tasks.named("buttonPressReleaseSelfTest")
+      dependsOn tasks.named("scrollViewWrapSelfTest")
   }

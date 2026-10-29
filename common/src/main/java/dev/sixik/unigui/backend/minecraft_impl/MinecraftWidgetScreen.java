@@ -21,6 +21,7 @@ import dev.sixik.unigui.api.text.TextRun;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.xml.XmlWidgetScreen;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
+import dev.sixik.unigui.impl.input.CursorResolver;
 import dev.sixik.unigui.impl.debug.DebugOverlayRenderer;
 import dev.sixik.unigui.impl.render.DefaultRenderContext;
 import dev.sixik.unigui.impl.render.DrawBatch;
@@ -41,6 +42,11 @@ import org.lwjgl.glfw.GLFW;
 import java.util.*;
 
 public class MinecraftWidgetScreen extends Screen {
+    /** Значение {@code GLFW_RESIZE_NWSE_CURSOR} из GLFW 3.4: в LWJGL 3.3.1 константы нет. */
+    private static final int GLFW_RESIZE_NWSE_CURSOR = 0x00036007;
+    /** Значение {@code GLFW_RESIZE_NESW_CURSOR} из GLFW 3.4. */
+    private static final int GLFW_RESIZE_NESW_CURSOR = 0x00036008;
+
     private static final MutableColor CACHE_TINT = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private final Widget root;
     private final UIContext uiContext;
@@ -448,7 +454,7 @@ public class MinecraftWidgetScreen extends Screen {
         Widget captured = uiContext.capturedPointer(0);
         if (captured != null) {
             HitTestResult local = localPoint(captured, logicalMouseX, logicalMouseY);
-            updateMouseCursor(captured, local.localX(), local.localY());
+            updateMouseCursor(captured, local.localX(), local.localY(), logicalMouseX, logicalMouseY);
             uiContext.routedEvents().dispatch(new PointerMovedEvent(
                     captured,
                     logicalMouseX,
@@ -467,7 +473,7 @@ public class MinecraftWidgetScreen extends Screen {
         }
 
         HitTestResult result = hit.get();
-        updateMouseCursor(result.widget().mouseCursorAt(result.localX(), result.localY()));
+        updateMouseCursor(result.widget(), result.localX(), result.localY(), logicalMouseX, logicalMouseY);
         uiContext.hoverManager().updateHover(result.widget(),
                 logicalMouseX,
                 logicalMouseY,
@@ -563,7 +569,7 @@ public class MinecraftWidgetScreen extends Screen {
         }
 
         HitTestResult local = localPoint(captured, logicalMouseX, logicalMouseY);
-        updateMouseCursor(captured, local.localX(), local.localY());
+        updateMouseCursor(captured, local.localX(), local.localY(), logicalMouseX, logicalMouseY);
         PointerMovedEvent event = new PointerMovedEvent(
                 captured,
                 logicalMouseX,
@@ -947,8 +953,8 @@ public class MinecraftWidgetScreen extends Screen {
         return (float) rootY - widget.layoutBounds().y();
     }
 
-    private void updateMouseCursor(Widget widget, float localX, float localY) {
-        updateMouseCursor(widget == null ? MouseCursor.DEFAULT : widget.mouseCursorAt(localX, localY));
+    private void updateMouseCursor(Widget widget, float localX, float localY, float rootX, float rootY) {
+        updateMouseCursor(CursorResolver.resolve(widget, localX, localY, rootX, rootY));
     }
 
     private void updateMouseCursorAt(float rootX, float rootY) {
@@ -958,7 +964,7 @@ public class MinecraftWidgetScreen extends Screen {
             return;
         }
         HitTestResult result = hit.get();
-        updateMouseCursor(result.widget().mouseCursorAt(result.localX(), result.localY()));
+        updateMouseCursor(result.widget(), result.localX(), result.localY(), rootX, rootY);
     }
 
     private void updateMouseCursor(MouseCursor cursor) {
@@ -984,9 +990,23 @@ public class MinecraftWidgetScreen extends Screen {
             case CROSSHAIR -> GLFW.GLFW_CROSSHAIR_CURSOR;
             case RESIZE_HORIZONTAL -> GLFW.GLFW_HRESIZE_CURSOR;
             case RESIZE_VERTICAL -> GLFW.GLFW_VRESIZE_CURSOR;
+            case RESIZE_NWSE -> diagonalCursorShape(GLFW_RESIZE_NWSE_CURSOR, GLFW.GLFW_HRESIZE_CURSOR);
+            case RESIZE_NESW -> diagonalCursorShape(GLFW_RESIZE_NESW_CURSOR, GLFW.GLFW_HRESIZE_CURSOR);
             case DEFAULT -> GLFW.GLFW_ARROW_CURSOR;
         };
         return GLFW.glfwCreateStandardCursor(shape);
+    }
+
+    /**
+     * Форма диагонального курсора: GLFW 3.4+ умеет её сам, на старых версиях (Minecraft 1.20.1 приносит
+     * GLFW 3.3) остаётся горизонтальная стрелка, чтобы не вызвать ошибку {@code invalid enum}.
+     */
+    private static int diagonalCursorShape(int shape, int fallback) {
+        int[] major = new int[1];
+        int[] minor = new int[1];
+        int[] revision = new int[1];
+        GLFW.glfwGetVersion(major, minor, revision);
+        return major[0] > 3 || (major[0] == 3 && minor[0] >= 4) ? shape : fallback;
     }
 
     private void releaseMouseCursors() {

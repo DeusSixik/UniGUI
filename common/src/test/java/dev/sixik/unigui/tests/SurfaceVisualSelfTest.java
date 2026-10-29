@@ -10,6 +10,8 @@ import dev.sixik.unigui.api.render.DrawList;
 import dev.sixik.unigui.api.render.ImageFit;
 import dev.sixik.unigui.api.render.SimpleTextureHandle;
 import dev.sixik.unigui.api.render.SliceBorders;
+import dev.sixik.unigui.api.render.TextureGroup;
+import dev.sixik.unigui.api.render.TextureLayer;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.StyleIds;
 import dev.sixik.unigui.api.style.MutableStyle;
@@ -30,6 +32,11 @@ import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.containers.View;
 import dev.sixik.unigui.widgets.docking.DockingRoot;
 import dev.sixik.unigui.widgets.display.Label;
+import dev.sixik.unigui.widgets.display.TextureWidget;
+import dev.sixik.unigui.widgets.display.ImageView;
+import dev.sixik.unigui.widgets.display.Shape;
+import dev.sixik.unigui.widgets.display.Path;
+import dev.sixik.unigui.widgets.containers.Border;
 import dev.sixik.unigui.widgets.feedback.Tooltip;
 import dev.sixik.unigui.widgets.feedback.NotificationView;
 import dev.sixik.unigui.widgets.feedback.WindowWidget;
@@ -39,6 +46,10 @@ import dev.sixik.unigui.widgets.interaction.ComboBox;
 import dev.sixik.unigui.widgets.interaction.DropDownBox;
 import dev.sixik.unigui.widgets.interaction.TextField;
 import dev.sixik.unigui.widgets.interaction.TextArea;
+import dev.sixik.unigui.widgets.interaction.Slider;
+import dev.sixik.unigui.widgets.interaction.ScrollBar;
+import dev.sixik.unigui.widgets.interaction.RadioButton;
+import dev.sixik.unigui.widgets.interaction.HoldButton;
 import dev.sixik.unigui.widgets.WidgetStyles;
 import dev.sixik.unigui.widgets.map.MapMarker;
 
@@ -90,8 +101,8 @@ public final class SurfaceVisualSelfTest {
 
         DockingRoot dockingRoot = new DockingRoot();
         expect(dockingRoot.backgroundVisible() && dockingRoot.borderVisible()
-                        && near(dockingRoot.background().b(), 0.042f)
-                        && near(dockingRoot.radius(), 4.0f),
+                        && near(dockingRoot.background().b(), 0.112f)
+                        && near(dockingRoot.radius(), 0.0f),
                 "docking root should materialize its WidgetStyles defaults during construction");
 
         View view = new View();
@@ -136,7 +147,7 @@ public final class SurfaceVisualSelfTest {
         window.arrange(new MutableRect(0.0f, 0.0f, 220.0f, 120.0f));
         DrawList windowDraw = new DrawList();
         window.render(new DefaultRenderContext(windowDraw));
-        expect(countFill(windowDraw, 0.030f, 0.035f, 0.050f, 0.98f) == 1,
+        expect(countFill(windowDraw, 0.220f, 0.220f, 0.235f, 1.0f) == 1,
                 "window background is drawn exactly once by the surface");
 
         // Tooltip background comes from the surface as well.
@@ -170,6 +181,131 @@ public final class SurfaceVisualSelfTest {
         expect(tooltipStyleCalls[0] == 1,
                 "Tooltip subclasses should resolve the stable Tooltip style type");
 
+        Slider styledSlider = new Slider().value(0.5f);
+        styledSlider.style(style -> style.put(StyleKeys.TRACK_THICKNESS, 10.0f)
+                .put(StyleKeys.THUMB_THICKNESS, 14.0f)
+                .put(StyleKeys.THUMB_RADIUS, 0.0f));
+        styledSlider.measure(new LayoutContext(100.0f, 20.0f));
+        styledSlider.arrange(new MutableRect(0.0f, 0.0f, 100.0f, 20.0f));
+        DrawList styledSliderDraw = new DrawList();
+        styledSlider.render(new DefaultRenderContext(styledSliderDraw));
+        DrawCommand sliderTrack = (DrawCommand) styledSliderDraw.commandElements()[0];
+        DrawCommand sliderThumb = (DrawCommand) styledSliderDraw.commandElements()[2];
+        expect(near(sliderTrack.bounds().height(), 10.0f)
+                        && near(sliderThumb.bounds().width(), 14.0f)
+                        && near(sliderThumb.radius(), 0.0f),
+                "Slider geometry should resolve thickness and radius from Style API");
+
+        ScrollBar styledScrollBar = new ScrollBar();
+        styledScrollBar.style(style -> style.put(StyleKeys.THUMB_THICKNESS, WidgetState.NORMAL, 5.0f)
+                .put(StyleKeys.THUMB_RADIUS, 0.0f));
+        styledScrollBar.measure(new LayoutContext(10.0f, 60.0f));
+        styledScrollBar.arrange(new MutableRect(0.0f, 0.0f, 10.0f, 60.0f));
+        DrawList styledScrollDraw = new DrawList();
+        styledScrollBar.render(new DefaultRenderContext(styledScrollDraw));
+        DrawCommand scrollbarThumb = (DrawCommand) styledScrollDraw.commandElements()[1];
+        expect(near(scrollbarThumb.bounds().width(), 5.0f) && near(scrollbarThumb.radius(), 0.0f),
+                "ScrollBar should resolve idle thumb thickness and radius from Style API");
+
+        TextureWidget styledTexture = new TextureWidget(new SimpleTextureHandle("test:unstyled", 16, 16));
+        styledTexture.style(style -> style
+                .put(StyleKeys.BACKGROUND_TEXTURE, new SimpleTextureHandle("test:styled", 32, 16))
+                .put(StyleKeys.BACKGROUND_TEXTURE_TINT,
+                        dev.sixik.unigui.api.math.MutableColor.rgba(0.25f, 0.5f, 0.75f, 1.0f))
+                .put(StyleKeys.BACKGROUND_TEXTURE_FIT, ImageFit.CONTAIN)
+                .put(StyleKeys.RADIUS, 3.0f));
+        styledTexture.measure(new LayoutContext(40.0f, 40.0f));
+        styledTexture.arrange(new MutableRect(0.0f, 0.0f, 40.0f, 40.0f));
+        DrawList styledTextureDraw = new DrawList();
+        styledTexture.render(new DefaultRenderContext(styledTextureDraw));
+        DrawCommand textureCommand = (DrawCommand) styledTextureDraw.commandElements()[0];
+        expect(textureCommand.texture().id().equals("test:styled")
+                        && near(textureCommand.bounds().height(), 20.0f)
+                        && near(textureCommand.radius(), 3.0f)
+                        && near(textureCommand.paint().color().g(), 0.5f),
+                "TextureWidget should resolve texture, tint, fit and radius through Style API");
+        expect(new ImageView() instanceof TextureWidget,
+                "ImageView remains a compatibility alias of TextureWidget");
+
+        Shape styledShape = new Shape().type(Shape.Type.ROUNDED_RECT);
+        styledShape.style(style -> style
+                .put(StyleKeys.SHAPE_COLOR, dev.sixik.unigui.api.math.MutableColor.rgba(0.1f, 0.2f, 0.3f, 1.0f))
+                .put(StyleKeys.SHAPE_TYPE, "rounded-rect")
+                .put(StyleKeys.SHAPE_STROKE, true)
+                .put(StyleKeys.BORDER_COLOR, dev.sixik.unigui.api.math.MutableColor.rgba(0.8f, 0.7f, 0.6f, 1.0f))
+                .put(StyleKeys.BORDER_WIDTH, 2.0f)
+                .put(StyleKeys.RADIUS, 5.0f));
+        styledShape.measure(new LayoutContext(30.0f, 20.0f));
+        styledShape.arrange(new MutableRect(0.0f, 0.0f, 30.0f, 20.0f));
+        DrawList styledShapeDraw = new DrawList();
+        styledShape.render(new DefaultRenderContext(styledShapeDraw));
+        DrawCommand shapeCommand = (DrawCommand) styledShapeDraw.commandElements()[0];
+        expect(shapeCommand.paint().isStroke() && near(shapeCommand.paint().strokeWidth(), 2.0f)
+                        && near(shapeCommand.radius(), 5.0f)
+                        && near(shapeCommand.paint().color().r(), 0.8f),
+                "Shape should resolve stroke, border color, width and radius through Style API");
+        Shape styledShapeType = new Shape();
+        styledShapeType.style(style -> style.put(StyleKeys.SHAPE_TYPE, "circle"));
+        styledShapeType.measure(new LayoutContext(20.0f, 20.0f));
+        styledShapeType.arrange(new MutableRect(0.0f, 0.0f, 20.0f, 20.0f));
+        DrawList styledShapeTypeDraw = new DrawList();
+        styledShapeType.render(new DefaultRenderContext(styledShapeTypeDraw));
+        expect(((DrawCommand) styledShapeTypeDraw.commandElements()[0]).type()
+                        == dev.sixik.unigui.api.render.DrawCommandType.CIRCLE,
+                "Shape type should be selectable through Style API");
+
+        Path styledPath = new Path();
+        styledPath.path().moveTo(0.0f, 0.0f).lineTo(1.0f, 1.0f);
+        styledPath.style(style -> style
+                .put(StyleKeys.PATH_COLOR,
+                        dev.sixik.unigui.api.math.MutableColor.rgba(0.4f, 0.5f, 0.6f, 1.0f))
+                .put(StyleKeys.PATH_STROKE, true)
+                .put(StyleKeys.PATH_STROKE_WIDTH, 4.0f));
+        styledPath.measure(new LayoutContext(24.0f, 24.0f));
+        styledPath.arrange(new MutableRect(0.0f, 0.0f, 24.0f, 24.0f));
+        DrawList styledPathDraw = new DrawList();
+        styledPath.render(new DefaultRenderContext(styledPathDraw));
+        DrawCommand pathCommand = (DrawCommand) styledPathDraw.commandElements()[0];
+        expect(pathCommand.paint().isStroke() && near(pathCommand.paint().strokeWidth(), 4.0f)
+                        && near(pathCommand.paint().color().b(), 0.6f),
+                "Path should resolve color, stroke mode and width through Style API");
+
+        Border styledBorder = new Border();
+        styledBorder.style(style -> style
+                .put(StyleKeys.BORDER_COLOR,
+                        dev.sixik.unigui.api.math.MutableColor.rgba(0.7f, 0.2f, 0.1f, 1.0f))
+                .put(StyleKeys.BORDER_WIDTH, 3.0f)
+                .put(StyleKeys.RADIUS, 6.0f));
+        styledBorder.measure(new LayoutContext(30.0f, 20.0f));
+        styledBorder.arrange(new MutableRect(0.0f, 0.0f, 30.0f, 20.0f));
+        DrawList styledBorderDraw = new DrawList();
+        styledBorder.render(new DefaultRenderContext(styledBorderDraw));
+        DrawCommand borderCommand = (DrawCommand) styledBorderDraw.commandElements()[0];
+        expect(borderCommand.paint().isStroke() && near(borderCommand.paint().strokeWidth(), 3.0f)
+                        && near(borderCommand.radius(), 6.0f)
+                        && near(borderCommand.paint().color().r(), 0.7f),
+                "Border should resolve color, width and radius through shared border style keys");
+
+        RadioButton styledRadio = new RadioButton("Radio");
+        styledRadio.style(style -> style.put(StyleKeys.RADIO_OUTER_SIZE, 20.0f)
+                .put(StyleKeys.RADIO_INNER_SIZE, 10.0f)
+                .put(StyleKeys.RADIO_TEXT_GAP, 8.0f));
+        styledRadio.measure(new LayoutContext(100.0f, 40.0f));
+        expect(styledRadio.desiredSize().height() >= 20.0f && styledRadio.desiredSize().width() > 20.0f,
+                "RadioButton layout should resolve indicator size and text gap from Style API");
+
+        expect(StyleKeyRegistry.builtIns().descriptor(StyleKeys.HOLD_COLOR).isPresent()
+                        && StyleKeyRegistry.builtIns().descriptor(StyleKeys.RADIO_OUTER_SIZE).isPresent()
+                        && StyleKeyRegistry.builtIns().descriptor(StyleKeys.PATH_STROKE_WIDTH).isPresent()
+                        && StyleKeyRegistry.builtIns().descriptor(StyleKeys.SHAPE_COLOR).isPresent()
+                        && StyleKeyRegistry.builtIns().descriptor(StyleKeys.SHAPE_TYPE).isPresent(),
+                "interaction and display appearance keys should be registered for StylePack editors");
+        HoldButton holdButton = new HoldButton();
+        holdButton.style(style -> style.put(StyleKeys.HOLD_COLOR,
+                dev.sixik.unigui.api.math.MutableColor.rgba(1.0f, 0.0f, 0.0f, 0.5f)));
+        expect(StyleKeyRegistry.builtIns().descriptor(StyleKeys.HOLD_COLOR).isPresent(),
+                "HoldButton should expose hold progress color through Style API");
+
         // Nine-slice background emits 9 texture cells through the surface.
         Box sliced = new Box();
         sliced.themeEnabled(false);
@@ -199,6 +335,25 @@ public final class SurfaceVisualSelfTest {
         expect(textureIds(layeredDraw).equals(java.util.List.of("test:base", "test:first", "test:second")),
                 "overlay textures should render after the base in insertion order, skipping empty layers");
         expect(layered.overlayTextures().size() == 3, "overlay stack should expose added layers");
+
+        TextureGroup backgroundGroup = TextureGroup.builder()
+                .add(new TextureLayer(new SimpleTextureHandle("test:group-base", 16, 16)))
+                .add(new TextureLayer(new SimpleTextureHandle("test:group-inset", 16, 16)).inset(4.0f))
+                .build();
+        Box grouped = new Box();
+        grouped.themeEnabled(false);
+        grouped.backgroundKind(BackgroundKind.TEXTURE).backgroundVisible(true);
+        grouped.style(style -> style.put(StyleKeys.BACKGROUND_TEXTURE_GROUP, backgroundGroup));
+        grouped.measure(new LayoutContext(40.0f, 20.0f));
+        grouped.arrange(new MutableRect(10.0f, 12.0f, 40.0f, 20.0f));
+        DrawList groupedDraw = new DrawList();
+        grouped.render(new DefaultRenderContext(groupedDraw));
+        expect(textureIds(groupedDraw).equals(java.util.List.of("test:group-base", "test:group-inset")),
+                "background texture group should render layers in insertion order");
+        DrawCommand insetCommand = (DrawCommand) groupedDraw.commandElements()[1];
+        expect(near(insetCommand.bounds().x(), 14.0f) && near(insetCommand.bounds().y(), 16.0f)
+                        && near(insetCommand.bounds().width(), 32.0f) && near(insetCommand.bounds().height(), 12.0f),
+                "texture layer insets should adjust only that layer's target bounds");
 
         layered.clearOverlayTextures();
         DrawList clearedDraw = new DrawList();
@@ -315,6 +470,23 @@ public final class SurfaceVisualSelfTest {
         expect(roundTripped.styleFor("TextField")
                         .get(StyleKeys.SLICE_BORDERS, WidgetState.NORMAL, null).equals(SliceBorders.all(6.0f)),
                 "StylePack should round-trip nine-slice borders");
+
+        String groupValue = "test:layer-a,16,16,STRETCH,0.0,0.0,1.0,1.0,0.0,0.0,0.0,0.0,#FFFFFFFF,0.0,0.0,0.0,0.0;"
+                + "test:layer-b,32,24,CONTAIN,0.1,0.2,0.7,0.6,2.0,3.0,4.0,5.0,#80FF00FF,1.0,2.0,3.0,4.0";
+        StylePackResult groupStyle = StylePackXml.parseEditor("<StylePack id=\"texture-group\"><Style id=\"Box\">"
+                + "<Setter property=\"background.kind\" value=\"texture\"/>"
+                + "<Setter property=\"background.texture.group\" value=\"" + groupValue + "\"/>"
+                + "</Style></StylePack>", StyleKeyRegistry.builtIns());
+        expect(groupStyle.valid(), "texture group StylePack should parse: " + groupStyle.diagnosticMessages());
+        StylePack groupRoundTrip = StylePackXml.parse(
+                StylePackXml.toXmlString(groupStyle.pack()), StyleKeyRegistry.builtIns());
+        TextureGroup decodedGroup = groupRoundTrip.styleFor("Box")
+                .get(StyleKeys.BACKGROUND_TEXTURE_GROUP, WidgetState.NORMAL, null);
+        expect(decodedGroup != null && decodedGroup.layers().size() == 2
+                        && decodedGroup.layers().get(1).texture().id().equals("test:layer-b")
+                        && near(decodedGroup.layers().get(1).insetBottom(), 5.0f)
+                        && decodedGroup.layers().get(1).sliceBorders().equals(new SliceBorders(1, 2, 3, 4)),
+                "StylePack should preserve texture group layer render settings");
 
         System.out.println("SurfaceVisualSelfTest passed");
     }

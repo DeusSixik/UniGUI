@@ -50,6 +50,10 @@ public class TextWidget extends WidgetBase {
     private final MutableColor color = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private boolean wrap = true;
     private TextOverflowMode overflowMode = TextOverflowMode.VISIBLE;
+    private RichText ellipsisCacheSource;
+    private Object ellipsisCacheBackend;
+    private float ellipsisCacheWidth = Float.NaN;
+    private RichText ellipsisCacheResult;
     private float marqueeSpeed = 24.0f;
     private float marqueeGap = 24.0f;
     private float marqueeOffset;
@@ -658,6 +662,35 @@ public class TextWidget extends WidgetBase {
                 clipWidth = layoutBounds().width();
                 clipHeight = layoutBounds().height();
             }
+            case ELLIPSIS -> {
+                EdgeInsets padding = layoutStyle().padding();
+                float contentX = layoutBounds().x() + padding.left();
+                float contentY = layoutBounds().y() + padding.top();
+                float availableWidth = Math.max(0.0f, layoutBounds().width() - padding.horizontal());
+                float availableHeight = Math.max(0.0f, layoutBounds().height() - padding.vertical());
+                RichText drawText = effectiveRichText();
+                float textWidth = wrap ? 0.0f : TextEngine.measureLineWidth(context, drawText);
+                if (wrap || textWidth <= availableWidth + 0.01f) {
+                    segments = visibleSegments(context);
+                    clipped = wrap;
+                    clipX = layoutBounds().x();
+                    clipY = layoutBounds().y();
+                    clipWidth = layoutBounds().width();
+                    clipHeight = layoutBounds().height();
+                } else {
+                    RichText shown = cachedEllipsis(context, drawText, availableWidth);
+                    float shownWidth = Math.min(availableWidth, TextEngine.measureLineWidth(context, shown));
+                    float shownHeight = Math.min(availableHeight, TextEngine.measureTextHeight(context, shown));
+                    float drawX = TextEngine.alignedStart(contentX, availableWidth, shownWidth, textHorizontalAlignment());
+                    float drawY = TextEngine.alignedStart(contentY, availableHeight, shownHeight, textVerticalAlignment());
+                    segments = List.of(new Segment(shown, drawX, drawY, shownWidth, shownHeight, null));
+                    clipped = true;
+                    clipX = contentX;
+                    clipY = contentY;
+                    clipWidth = availableWidth;
+                    clipHeight = availableHeight;
+                }
+            }
             case SHRINK_TO_FIT -> {
                 EdgeInsets padding = layoutStyle().padding();
                 float contentX = layoutBounds().x() + padding.left();
@@ -781,6 +814,72 @@ public class TextWidget extends WidgetBase {
         return alignment == Alignment.STRETCH ? Alignment.START : alignment;
     }
 
+    private RichText cachedEllipsis(RenderContext context, RichText source, float availableWidth) {
+        Object backend = context == null ? null : context.backend();
+        if (Objects.equals(ellipsisCacheSource, source)
+                && ellipsisCacheBackend == backend
+                && Float.compare(ellipsisCacheWidth, availableWidth) == 0
+                && ellipsisCacheResult != null) {
+            return ellipsisCacheResult;
+        }
+        ellipsisCacheSource = source;
+        ellipsisCacheBackend = backend;
+        ellipsisCacheWidth = availableWidth;
+        ellipsisCacheResult = ellipsize(context, source, availableWidth);
+        return ellipsisCacheResult;
+    }
+
+    /**
+     * Обрезает однострочный текст под {@code availableWidth} и добавляет {@code ...}.
+     *
+     * <p>Пусть {@code fit} - число символов, помещающихся без многоточия, а {@code withDots} - число
+     * символов, после которых помещается и {@code ...}. Остаётся {@code min(fit - 1, withDots)} символов:
+     * на один меньше, чем просто влезло бы, и всегда с запасом под точки. Хвостовые пробелы перед
+     * многоточием убираются.</p>
+     */
+    private static RichText ellipsize(RenderContext context, RichText source, float availableWidth) {
+        String plain = source.plainText();
+        int length = plain.length();
+        int fit = largestPrefix(context, source, length, availableWidth, null);
+        int withDots = largestPrefix(context, source, length, availableWidth, "...");
+        int keep = Math.max(0, Math.min(fit - 1, withDots));
+        while (keep > 0 && Character.isWhitespace(plain.charAt(keep - 1))) keep--;
+        if (keep > 0 && Character.isHighSurrogate(plain.charAt(keep - 1))) keep--;
+
+        RichText head = source.slice(0, keep);
+        TextRun style = null;
+        for (TextRun run : head.runs()) style = run;
+        if (style == null) {
+            for (TextRun run : source.runs()) {
+                style = run;
+                break;
+            }
+        }
+        if (style == null) return RichText.plain(head.plainText() + "...");
+        TextRun dots = new TextRun("...", style.font(), style.pixelSize(), style.color(), style.brush(),
+                style.tracking(), style.transform());
+        return head.append(new RichText(List.of(dots)));
+    }
+
+    /** Наибольшее число символов префикса (с необязательным суффиксом), чья ширина не больше {@code limit}. */
+    private static int largestPrefix(RenderContext context, RichText source, int length, float limit, String suffix) {
+        int low = 0;
+        int high = length;
+        while (low < high) {
+            int mid = (low + high + 1) >>> 1;
+            RichText candidate = source.slice(0, mid);
+            if (suffix != null) {
+                candidate = candidate.append(RichText.plain(suffix));
+            }
+            if (TextEngine.measureLineWidth(context, candidate) <= limit) {
+                low = mid;
+            } else {
+                high = mid - 1;
+            }
+        }
+        return low;
+    }
+
     private List<Segment> visibleSegments(RenderContext context) {
         EdgeInsets padding = layoutStyle().padding();
         float x = layoutBounds().x() + padding.left();
@@ -889,7 +988,28 @@ public class TextWidget extends WidgetBase {
         return wrappedCacheLines;
     }
 
+    /**
+     * Проверяет, обрезается ли текст из-за нехватки доступной ширины.
+     *
+     * @return {@code true}, если полная ширина текста превышает доступную ширину с учётом padding
+     */
+    public boolean isTextTruncated() {
+        if (text == null || text.isEmpty()) return false;
+        float paddingX = layoutStyle().padding().horizontal();
+        float availableWidth;
+        if (layoutBounds() != null && layoutBounds().width() > 0.0f) {
+            availableWidth = Math.max(0.0f, layoutBounds().width() - paddingX);
+        } else if (layoutStyle().maxWidth() != null && !layoutStyle().maxWidth().isAuto()) {
+            availableWidth = Math.max(0.0f, layoutStyle().maxWidth().value() - paddingX);
+        } else {
+            return false;
+        }
+        return intrinsicTextWidth() > availableWidth + 0.5f;
+    }
+
     private void clearWrapCache() {
+        ellipsisCacheResult = null;
+        ellipsisCacheSource = null;
         wrappedCacheText = null;
         wrappedCacheBackend = null;
         wrappedCacheWidth = Float.NaN;

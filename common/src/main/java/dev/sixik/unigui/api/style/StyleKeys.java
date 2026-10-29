@@ -1,9 +1,11 @@
 package dev.sixik.unigui.api.style;
 
+import dev.sixik.unigui.api.animation.AnimationEasing;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.render.ImageFit;
 import dev.sixik.unigui.api.render.SliceBorders;
 import dev.sixik.unigui.api.render.TextureHandle;
+import dev.sixik.unigui.api.render.TextureGroup;
 import dev.sixik.unigui.api.render.shaders.ShaderHandle;
 import dev.sixik.unigui.api.widget.visual.BackgroundKind;
 import dev.sixik.unigui.api.text.TextTransform;
@@ -38,6 +40,12 @@ public final class StyleKeys {
      * Текстура фона виджета.
      */
     public static final StyleKey<TextureHandle> BACKGROUND_TEXTURE = StyleKey.of(StyleIds.Key.BACKGROUND_TEXTURE, TextureHandle.class);
+
+    /**
+     * Упорядоченная группа текстурных слоёв фоновой поверхности.
+     */
+    public static final StyleKey<TextureGroup> BACKGROUND_TEXTURE_GROUP =
+            StyleKey.of(StyleIds.Key.BACKGROUND_TEXTURE_GROUP, TextureGroup.class);
 
     /**
      * Tint-цвет фоновой текстуры.
@@ -95,6 +103,12 @@ public final class StyleKeys {
     public static final StyleKey<TextTransform> TEXT_TRANSFORM = StyleKey.of(StyleIds.Key.TEXT_TRANSFORM, TextTransform.class);
 
     /**
+     * Цвет заливки индикатора Checkbox для каждого состояния.
+     */
+    public static final StyleKey<ColorView> CHECKBOX_BACKGROUND_COLOR =
+            StyleKey.of(StyleIds.Key.CHECKBOX_BACKGROUND_COLOR, ColorView.class);
+
+    /**
      * Цвет placeholder-текста в input-like виджетах.
      */
     public static final StyleKey<ColorView> PLACEHOLDER_COLOR = StyleKey.of(StyleIds.Key.PLACEHOLDER_COLOR, ColorView.class);
@@ -125,6 +139,41 @@ public final class StyleKeys {
     public static final StyleKey<ColorView> THUMB_COLOR = StyleKey.of(StyleIds.Key.THUMB_COLOR, ColorView.class);
 
     /**
+     * Радиус скругления бегунка в UI-пикселях; половина размера образует круг.
+     */
+    public static final StyleKey<Float> THUMB_RADIUS = StyleKey.of(StyleIds.Key.THUMB_RADIUS, Float.class);
+
+    /**
+     * Толщина дорожки ползунка в логических пикселях.
+     */
+    public static final StyleKey<Float> TRACK_THICKNESS = StyleKey.of(StyleIds.Key.TRACK_THICKNESS, Float.class);
+
+    /**
+     * Ширина бегунка Slider либо толщина тамба ScrollBar в логических пикселях.
+     */
+    public static final StyleKey<Float> THUMB_THICKNESS = StyleKey.of(StyleIds.Key.THUMB_THICKNESS, Float.class);
+
+    /**
+     * Цвет заливки прогресса HoldButton.
+     */
+    public static final StyleKey<ColorView> HOLD_COLOR = StyleKey.of(StyleIds.Key.HOLD_COLOR, ColorView.class);
+
+    /**
+     * Внешний размер индикатора RadioButton в логических пикселях.
+     */
+    public static final StyleKey<Float> RADIO_OUTER_SIZE = StyleKey.of(StyleIds.Key.RADIO_OUTER_SIZE, Float.class);
+
+    /**
+     * Размер внутренней отметки RadioButton в логических пикселях.
+     */
+    public static final StyleKey<Float> RADIO_INNER_SIZE = StyleKey.of(StyleIds.Key.RADIO_INNER_SIZE, Float.class);
+
+    /**
+     * Зазор между индикатором и подписью RadioButton в логических пикселях.
+     */
+    public static final StyleKey<Float> RADIO_TEXT_GAP = StyleKey.of(StyleIds.Key.RADIO_TEXT_GAP, Float.class);
+
+    /**
      * Толщина рамки в UI-пикселях.
      */
     public static final StyleKey<Float> BORDER_WIDTH = StyleKey.of(StyleIds.Key.BORDER_WIDTH, Float.class);
@@ -135,6 +184,102 @@ public final class StyleKeys {
     public static final StyleKey<Float> RADIUS = StyleKey.of(StyleIds.Key.RADIUS, Float.class);
 
     /**
+     * Признак отрисовки Shape как обводки вместо заливки.
+     */
+    public static final StyleKey<Boolean> SHAPE_STROKE = StyleKey.of(StyleIds.Key.SHAPE_STROKE, Boolean.class);
+
+    /**
+     * Цвет заливки фигуры Shape.
+     */
+    public static final StyleKey<ColorView> SHAPE_COLOR = StyleKey.of(StyleIds.Key.SHAPE_COLOR, ColorView.class);
+
+    /**
+     * Тип геометрического примитива Shape: rect, rounded-rect, circle или line.
+     */
+    public static final StyleKey<String> SHAPE_TYPE = StyleKey.of(StyleIds.Key.SHAPE_TYPE, String.class);
+
+    /**
+     * Цвет заливки или обводки векторного Path.
+     */
+    public static final StyleKey<ColorView> PATH_COLOR = StyleKey.of(StyleIds.Key.PATH_COLOR, ColorView.class);
+
+    /**
+     * Признак отрисовки Path как обводки вместо заливки.
+     */
+    public static final StyleKey<Boolean> PATH_STROKE = StyleKey.of(StyleIds.Key.PATH_STROKE, Boolean.class);
+
+    /**
+     * Толщина обводки векторного Path.
+     */
+    public static final StyleKey<Float> PATH_STROKE_WIDTH = StyleKey.of(StyleIds.Key.PATH_STROKE_WIDTH, Float.class);
+
+    /**
+     * Высота строки TreeView.
+     */
+    public static final StyleKey<Float> TREE_ROW_HEIGHT = StyleKey.of(StyleIds.Key.TREE_ROW_HEIGHT, Float.class);
+    /**
+     * Форма фона строки TreeView.
+     */
+    public static final StyleKey<TreeRowStyle> TREE_ROW_STYLE = StyleKey.of(StyleIds.Key.TREE_ROW_STYLE, TreeRowStyle.class);
+    /**
+     * Форма маркера раскрытия TreeView.
+     */
+    public static final StyleKey<TreeDisclosureStyle> TREE_DISCLOSURE_STYLE =
+            StyleKey.of(StyleIds.Key.TREE_DISCLOSURE_STYLE, TreeDisclosureStyle.class);
+    /**
+     * Радиус фона строки TreeView.
+     */
+    public static final StyleKey<Float> TREE_ROW_RADIUS = StyleKey.of(StyleIds.Key.TREE_ROW_RADIUS, Float.class);
+    /**
+     * Горизонтальный отступ фона строки TreeView.
+     */
+    public static final StyleKey<Float> TREE_ROW_INSET_X = StyleKey.of(StyleIds.Key.TREE_ROW_INSET_X, Float.class);
+    /**
+     * Вертикальный отступ фона строки TreeView.
+     */
+    public static final StyleKey<Float> TREE_ROW_INSET_Y = StyleKey.of(StyleIds.Key.TREE_ROW_INSET_Y, Float.class);
+    /**
+     * Шаг отступа дочерней строки TreeView.
+     */
+    public static final StyleKey<Float> TREE_INDENT_WIDTH = StyleKey.of(StyleIds.Key.TREE_INDENT_WIDTH, Float.class);
+    /**
+     * Заполнять ли встроенные иконки папок.
+     */
+    public static final StyleKey<Boolean> TREE_FOLDER_FILL_ENABLED =
+            StyleKey.of(StyleIds.Key.TREE_FOLDER_FILL_ENABLED, Boolean.class);
+    /**
+     * Цвет подсветки наведённой строки.
+     */
+    public static final StyleKey<ColorView> TREE_HOVER_COLOR = StyleKey.of(StyleIds.Key.TREE_HOVER_COLOR, ColorView.class);
+    /**
+     * Цвет выбранной строки.
+     */
+    public static final StyleKey<ColorView> TREE_SELECTED_COLOR = StyleKey.of(StyleIds.Key.TREE_SELECTED_COLOR, ColorView.class);
+    /**
+     * Цвет обычного текста строки.
+     */
+    public static final StyleKey<ColorView> TREE_TEXT_COLOR = StyleKey.of(StyleIds.Key.TREE_TEXT_COLOR, ColorView.class);
+    /**
+     * Цвет текста выбранной строки.
+     */
+    public static final StyleKey<ColorView> TREE_SELECTED_TEXT_COLOR =
+            StyleKey.of(StyleIds.Key.TREE_SELECTED_TEXT_COLOR, ColorView.class);
+    /**
+     * Цвет текста недоступной строки.
+     */
+    public static final StyleKey<ColorView> TREE_DISABLED_TEXT_COLOR =
+            StyleKey.of(StyleIds.Key.TREE_DISABLED_TEXT_COLOR, ColorView.class);
+    /**
+     * Цвет маркера раскрытия.
+     */
+    public static final StyleKey<ColorView> TREE_DISCLOSURE_COLOR =
+            StyleKey.of(StyleIds.Key.TREE_DISCLOSURE_COLOR, ColorView.class);
+    /**
+     * Цвет встроенной иконки папки или файла.
+     */
+    public static final StyleKey<ColorView> TREE_ICON_COLOR = StyleKey.of(StyleIds.Key.TREE_ICON_COLOR, ColorView.class);
+
+    /**
      * Длительность автоматического перехода style-свойств в секундах. Ноль отключает переходы.
      */
     public static final StyleKey<Float> TRANSITION_DURATION = StyleKey.of(StyleIds.Key.TRANSITION_DURATION, Float.class);
@@ -142,8 +287,8 @@ public final class StyleKeys {
     /**
      * Стандартная easing-кривая автоматического перехода style-свойств.
      */
-    public static final StyleKey<dev.sixik.unigui.api.animation.AnimationEasing> TRANSITION_EASING =
-            StyleKey.of(StyleIds.Key.TRANSITION_EASING, dev.sixik.unigui.api.animation.AnimationEasing.class);
+    public static final StyleKey<AnimationEasing> TRANSITION_EASING =
+            StyleKey.of(StyleIds.Key.TRANSITION_EASING, AnimationEasing.class);
 
     private StyleKeys() {
     }

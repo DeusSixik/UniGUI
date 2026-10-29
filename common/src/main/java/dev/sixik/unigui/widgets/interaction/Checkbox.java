@@ -11,6 +11,8 @@ import dev.sixik.unigui.api.event.EventPhase;
 import dev.sixik.unigui.api.event.EventSubscription;
 import dev.sixik.unigui.api.event.KeyPressedEvent;
 import dev.sixik.unigui.api.input.KeyCodes;
+import dev.sixik.unigui.api.math.ColorView;
+import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
@@ -23,6 +25,8 @@ import dev.sixik.unigui.api.widget.render.WidgetRole;
 import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
+import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.widgets.WidgetStyles;
 
 @XmlWidgetName("Checkbox")
@@ -61,6 +65,8 @@ public class Checkbox extends ToggleButton {
     private float textGap = TEXT_GAP;
     private boolean labelLeft;
     private float checkProgress;
+    private final MutableColor interpolatedBoxColor = new MutableColor();
+    private final MutableColor interpolatedBorderColor = new MutableColor();
     private TransitionSpec checkAnimation = TransitionSpec.of(DEFAULT_CHECK_ANIMATION_SECONDS);
 
     public Checkbox() {
@@ -230,9 +236,11 @@ public class Checkbox extends ToggleButton {
             setDesiredSize(0.0f, 0.0f);
             return;
         }
-        boolean hasText = !text().isEmpty();
-        float textWidth = hasText ? textGap + TextEngine.measureLineWidth(richText()) : 0.0f;
-        float textHeight = hasText ? TextEngine.measureTextHeight(richText()) : 0.0f;
+        applyTheme();
+        RichText text = renderedRichText();
+        boolean hasText = text != null && !text.isEmpty();
+        float textWidth = hasText ? textGap + TextEngine.measureLineWidth(text) : 0.0f;
+        float textHeight = hasText ? TextEngine.measureTextHeight(text) : 0.0f;
         setDesiredSize(resolveDesiredSize(context, boxSize + textWidth, Math.max(boxSize, textHeight)));
     }
 
@@ -259,19 +267,51 @@ public class Checkbox extends ToggleButton {
         float y = layoutBounds().y();
         float width = layoutBounds().width();
         float height = layoutBounds().height();
-        boolean hasText = richText() != null && !richText().isEmpty();
+        RichText text = renderedRichText();
+        boolean hasText = text != null && !text.isEmpty();
 
         float labelGap = hasText ? Math.max(0.0f, textGap) : 0.0f;
-        float textWidth = hasText ? TextEngine.measureLineWidth(draw.context(), richText()) : 0.0f;
-        float textHeight = hasText ? TextEngine.measureTextHeight(draw.context(), richText()) : 0.0f;
+        float textWidth = hasText ? TextEngine.measureLineWidth(draw.context(), text) : 0.0f;
+        float textHeight = hasText ? TextEngine.measureTextHeight(draw.context(), text) : 0.0f;
         float labelWidth = hasText
                 ? Math.min(Math.max(0.0f, textWidth), Math.max(0.0f, width - boxSize - labelGap))
                 : 0.0f;
         float indicatorX = labelLeft ? x + labelWidth + labelGap : x;
         float indicatorY = y + Math.max(0.0f, height - boxSize) * 0.5f;
 
-        renderCheckIndicator(draw, indicatorX, indicatorY, boxSize, checkSize,
-                checked(), indeterminate(), borderColor(), checkedBackground());
+        ColorView boxOff = styleValue(StyleKeys.CHECKBOX_BACKGROUND_COLOR, WidgetState.NORMAL,
+                MutableColor.rgba(0.0f, 0.0f, 0.0f, 0.0f));
+        ColorView boxOn = styleValue(StyleKeys.CHECKBOX_BACKGROUND_COLOR, WidgetState.CHECKED, boxOff);
+        ColorView borderOff = styleValue(StyleKeys.BORDER_COLOR, WidgetState.NORMAL, borderColor());
+        ColorView borderOn = styleValue(StyleKeys.BORDER_COLOR, WidgetState.CHECKED, borderOff);
+        ColorView hoverBorder = styleValue(StyleKeys.BORDER_COLOR, WidgetState.HOVERED, borderOff);
+        ColorView markColor = styleValue(StyleKeys.ACCENT_COLOR, WidgetState.CHECKED, checkedBackground());
+        Float styledRadius = styleValue(StyleKeys.RADIUS, WidgetState.NORMAL, 0.0f);
+        Float styledBorderWidth = styleValue(StyleKeys.BORDER_WIDTH, WidgetState.NORMAL, 1.0f);
+        float progress = clamp01(checkProgress());
+        interpolate(interpolatedBoxColor, boxOff, boxOn, progress);
+        ColorView indicatorBorder = hovered() && enabled()
+                ? hoverBorder
+                : interpolate(interpolatedBorderColor, borderOff, borderOn, progress);
+        float radius = styledRadius == null ? 0.0f : Math.max(0.0f, styledRadius);
+        float borderWidth = styledBorderWidth == null ? 1.0f : Math.max(0.0f, styledBorderWidth);
+        draw.roundedRectFilled(indicatorX, indicatorY, boxSize, boxSize, radius, interpolatedBoxColor);
+        if (borderWidth > 0.0f) {
+            draw.roundedRectStroke(indicatorX, indicatorY, boxSize, boxSize, radius,
+                    indicatorBorder, borderWidth);
+        }
+        if (progress > 0.0f && checkSize > 0.0f) {
+            if (indeterminate()) {
+                float dashWidth = checkSize * progress;
+                float dashHeight = Math.max(borderWidth, checkSize * 0.28f);
+                draw.rectFilled(indicatorX + (boxSize - dashWidth) * 0.5f,
+                        indicatorY + (boxSize - dashHeight) * 0.5f, dashWidth, dashHeight, markColor);
+            } else {
+                float markSize = checkSize * progress;
+                draw.circleFilled(indicatorX + (boxSize - markSize) * 0.5f,
+                        indicatorY + (boxSize - markSize) * 0.5f, markSize, markSize, markColor);
+            }
+        }
 
         if (hasText) {
             float contentX;
@@ -289,7 +329,7 @@ public class Checkbox extends ToggleButton {
                 drawY = indicatorCenterY - drawHeight * 0.5f + 1.0f;
             }
             if (contentWidth > 0.0f && drawHeight > 0.0f) {
-                renderLabel(draw, richText(), contentX, y, contentWidth, height,
+                renderLabel(draw, text, contentX, y, contentWidth, height,
                         contentX, drawY, contentWidth, drawHeight, textColor());
             }
         }
@@ -299,6 +339,16 @@ public class Checkbox extends ToggleButton {
     @Override
     protected WidgetRole renderRole() {
         return WidgetRole.CHECKBOX;
+    }
+
+    private static ColorView interpolate(MutableColor target, ColorView from, ColorView to, float amount) {
+        float progress = clamp01(amount);
+        target.set(
+                from.r() + (to.r() - from.r()) * progress,
+                from.g() + (to.g() - from.g()) * progress,
+                from.b() + (to.b() - from.b()) * progress,
+                from.a() + (to.a() - from.a()) * progress);
+        return target;
     }
 
     private void setState(CheckboxState state, boolean emitChange) {

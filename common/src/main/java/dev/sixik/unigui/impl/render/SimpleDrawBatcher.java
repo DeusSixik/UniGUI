@@ -50,7 +50,12 @@ public final class SimpleDrawBatcher implements DrawBatcher {
     private static boolean canMerge(DrawBatch batch, DrawCommand command) {
         if (batch.isBarrier()) return false;
         if (!sameBlend(batch.blendMode(), command.paint())) return false;
-        if (isColorPrimitive(batch.type()) && isColorPrimitive(command.type())) return true;
+        // PATH рисуется через AA-тесселятор, а остальные примитивы - через SDF. Если смешать их в одном
+        // batch'е, весь batch уйдёт в путь без SDF, и круги/линии/скругления потеряют сглаживание.
+        // Порядок команд при разделении не меняется: batch'и идут в том же порядке, что и команды.
+        if (isColorPrimitive(batch.type()) && isColorPrimitive(command.type())) {
+            return (batch.type() == DrawCommandType.PATH) == (command.type() == DrawCommandType.PATH);
+        }
         if (isTextureCommand(batch.type()) && isTextureCommand(command.type())) {
             return sameTexture(batch.texture(), command.texture());
         }

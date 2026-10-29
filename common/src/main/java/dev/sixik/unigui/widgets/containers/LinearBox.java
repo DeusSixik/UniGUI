@@ -200,8 +200,7 @@ public class LinearBox extends SurfaceWidget<LinearBox> {
                     ? FlexDirection.ROW
                     : FlexDirection.COLUMN);
             style.flexWrap(FlexWrap.NOWRAP);
-            style.rowGap(orientation == Orientation.HORIZONTAL ? 0.0f : spacing);
-            style.columnGap(orientation == Orientation.HORIZONTAL ? spacing : 0.0f);
+            style.spacing(orientation, spacing);
         });
     }
 }

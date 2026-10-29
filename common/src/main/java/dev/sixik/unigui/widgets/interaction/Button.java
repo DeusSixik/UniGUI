@@ -780,10 +780,43 @@ public class Button extends SurfaceWidget<Button> {
     public Button enabled(boolean enabled) {
         boolean changed = enabled() != enabled;
         super.enabled(enabled);
+        if (!enabled) {
+            // Отпускание уже не дойдёт до выключенной кнопки: handle() её игнорирует.
+            cancelPress();
+        }
         if (changed) {
             applyInteractionTransition();
         }
         return this;
+    }
+
+    /**
+     * Меняет видимость; кнопка, переставшая быть {@link Visibility#VISIBLE}, автоматически отжимается.
+     *
+     * <p>Скрытая кнопка не получает события, поэтому без этого отпускание мыши до неё не дойдёт, а
+     * {@link #pressed()} и захват указателя остались бы включёнными бесконечно.</p>
+     */
+    @Override
+    public Button visibility(Visibility visibility) {
+        super.visibility(visibility);
+        if (visibility() != Visibility.VISIBLE) {
+            cancelPress();
+        }
+        return this;
+    }
+
+    /**
+     * Принудительно отжимает кнопку без клика: снимает захват указателя и состояние pressed.
+     * Ничего не делает, если кнопка не нажата.
+     */
+    private void cancelPress() {
+        if (!pressed && pressedPointerId < 0) return;
+        UIContext context = uiContext();
+        if (context != null && pressedPointerId >= 0) {
+            context.releasePointer(pressedPointerId, this);
+        }
+        pressedPointerId = -1;
+        setPressed(false);
     }
 
     @Override

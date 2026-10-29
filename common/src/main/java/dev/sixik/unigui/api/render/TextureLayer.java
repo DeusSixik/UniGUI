@@ -1,5 +1,6 @@
 package dev.sixik.unigui.api.render;
 
+import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 
@@ -19,6 +20,10 @@ public final class TextureLayer {
     private final MutableColor tint = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private ImageFit fit = ImageFit.STRETCH;
     private SliceBorders sliceBorders = SliceBorders.ZERO;
+    private float insetLeft;
+    private float insetTop;
+    private float insetRight;
+    private float insetBottom;
     private boolean visible = true;
 
     /**
@@ -30,7 +35,9 @@ public final class TextureLayer {
         this.texture = texture;
     }
 
-    /** @return handle текстуры или {@code null} */
+    /**
+     * @return handle текстуры или {@code null}
+     */
     public TextureHandle texture() {
         return texture;
     }
@@ -46,7 +53,9 @@ public final class TextureLayer {
         return this;
     }
 
-    /** @return live UV source-rect */
+    /**
+     * @return live UV source-rect
+     */
     public MutableRect source() {
         return source;
     }
@@ -54,9 +63,9 @@ public final class TextureLayer {
     /**
      * Задаёт UV source-rect.
      *
-     * @param u начальная U-координата
-     * @param v начальная V-координата
-     * @param width ширина UV-области
+     * @param u      начальная U-координата
+     * @param v      начальная V-координата
+     * @param width  ширина UV-области
      * @param height высота UV-области
      * @return этот слой для chained-настройки
      */
@@ -65,7 +74,9 @@ public final class TextureLayer {
         return this;
     }
 
-    /** @return live tint-цвет слоя */
+    /**
+     * @return live tint-цвет слоя
+     */
     public MutableColor tint() {
         return tint;
     }
@@ -76,12 +87,14 @@ public final class TextureLayer {
      * @param color новый tint; {@code null} игнорируется
      * @return этот слой для chained-настройки
      */
-    public TextureLayer tint(dev.sixik.unigui.api.math.ColorView color) {
+    public TextureLayer tint(ColorView color) {
         if (color != null) tint.set(color);
         return this;
     }
 
-    /** @return fit-режим слоя */
+    /**
+     * @return fit-режим слоя
+     */
     public ImageFit fit() {
         return fit;
     }
@@ -97,7 +110,9 @@ public final class TextureLayer {
         return this;
     }
 
-    /** @return рамки nine-slice в пикселях текстуры */
+    /**
+     * @return рамки nine-slice в пикселях текстуры
+     */
     public SliceBorders sliceBorders() {
         return sliceBorders;
     }
@@ -123,7 +138,64 @@ public final class TextureLayer {
         return sliceBorders(SliceBorders.all(border));
     }
 
-    /** @return {@code true}, если слой участвует в рендере */
+    /**
+     * Возвращает левый отступ слоя в логических пикселях.
+     */
+    public float insetLeft() {
+        return insetLeft;
+    }
+
+    /**
+     * Возвращает верхний отступ слоя в логических пикселях.
+     */
+    public float insetTop() {
+        return insetTop;
+    }
+
+    /**
+     * Возвращает правый отступ слоя в логических пикселях.
+     */
+    public float insetRight() {
+        return insetRight;
+    }
+
+    /**
+     * Возвращает нижний отступ слоя в логических пикселях.
+     */
+    public float insetBottom() {
+        return insetBottom;
+    }
+
+    /**
+     * Задаёт отступы слоя от целевых bounds в логических пикселях.
+     */
+    public TextureLayer insets(float left, float top, float right, float bottom) {
+        insetLeft = finite(left);
+        insetTop = finite(top);
+        insetRight = finite(right);
+        insetBottom = finite(bottom);
+        return this;
+    }
+
+    /**
+     * Задаёт одинаковый отступ со всех сторон в логических пикселях.
+     */
+    public TextureLayer inset(float value) {
+        return insets(value, value, value, value);
+    }
+
+    /**
+     * Создаёт целевые bounds слоя с учётом отступов.
+     */
+    public MutableRect bounds(float x, float y, float width, float height) {
+        return new MutableRect(x + insetLeft, y + insetTop,
+                Math.max(0.0f, width - insetLeft - insetRight),
+                Math.max(0.0f, height - insetTop - insetBottom));
+    }
+
+    /**
+     * @return {@code true}, если слой участвует в рендере
+     */
     public boolean visible() {
         return visible;
     }
@@ -139,7 +211,9 @@ public final class TextureLayer {
         return this;
     }
 
-    /** @return {@code true}, если слой нечего рисовать */
+    /**
+     * @return {@code true}, если слой нечего рисовать
+     */
     public boolean isEmpty() {
         return texture == null;
     }
@@ -153,6 +227,10 @@ public final class TextureLayer {
                 && sameColor(tint, other.tint)
                 && fit == other.fit
                 && Objects.equals(sliceBorders, other.sliceBorders)
+                && Float.compare(insetLeft, other.insetLeft) == 0
+                && Float.compare(insetTop, other.insetTop) == 0
+                && Float.compare(insetRight, other.insetRight) == 0
+                && Float.compare(insetBottom, other.insetBottom) == 0
                 && visible == other.visible;
     }
 
@@ -163,7 +241,7 @@ public final class TextureLayer {
                 Float.floatToIntBits(source.width()), Float.floatToIntBits(source.height()),
                 Float.floatToIntBits(tint.r()), Float.floatToIntBits(tint.g()),
                 Float.floatToIntBits(tint.b()), Float.floatToIntBits(tint.a()),
-                fit, sliceBorders, visible);
+                fit, sliceBorders, insetLeft, insetTop, insetRight, insetBottom, visible);
     }
 
     private static boolean sameRect(MutableRect left, MutableRect right) {
@@ -178,6 +256,10 @@ public final class TextureLayer {
                 && Float.compare(left.g(), right.g()) == 0
                 && Float.compare(left.b(), right.b()) == 0
                 && Float.compare(left.a(), right.a()) == 0;
+    }
+
+    private static float finite(float value) {
+        return Float.isFinite(value) ? value : 0.0f;
     }
 
     @Override

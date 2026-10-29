@@ -1,10 +1,13 @@
 package dev.sixik.unigui.widgets.docking;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.api.render.UiIcon;
 import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.api.widget.Widget;
 
 import java.util.Objects;
+import java.util.function.Predicate;
 import java.util.UUID;
 import dev.sixik.unigui.widgets.containers.PanelWidget;
 
@@ -18,6 +21,10 @@ public final class DockPane {
     private boolean dirty;
     private boolean pinned = true;
     private boolean autoHide;
+    private UiIcon icon = UiIcon.NONE;
+    private Predicate<DockPane> closeGuard;
+    private RichText measuredTitle;
+    private float measuredTitleWidth;
 
     public DockPane(String title, Widget content) {
         this(null, title, content);
@@ -143,6 +150,63 @@ public final class DockPane {
         return this;
     }
 
+    /**
+     * Иконка вкладки.
+     *
+     * @return иконка или {@link UiIcon#NONE}
+     */
+    public UiIcon icon() {
+        return icon;
+    }
+
+    /**
+     * Задаёт иконку, которую рисуют вкладка в {@link DockingRoot} и заголовок окна, если панель вытянули
+     * в плавающее окно.
+     *
+     * @param icon иконка; {@code null} убирает иконку
+     * @return эта панель для fluent-настройки
+     */
+    public DockPane icon(UiIcon icon) {
+        this.icon = icon == null ? UiIcon.NONE : icon;
+        content.invalidate(InvalidationFlags.VISUAL | InvalidationFlags.LAYOUT);
+        return this;
+    }
+
+    /**
+     * Охранник закрытия: вызывается, когда пользователь закрывает вкладку крестиком, средней кнопкой или
+     * {@code Ctrl+W}.
+     *
+     * @param guard предикат; {@code false} отменяет закрытие (например, чтобы спросить про сохранение);
+     *              {@code null} снимает охранник
+     * @return эта панель для fluent-настройки
+     */
+    public DockPane onCloseRequested(Predicate<DockPane> guard) {
+        this.closeGuard = guard;
+        return this;
+    }
+
+    /**
+     * Можно ли сейчас закрыть панель действием пользователя.
+     *
+     * @return {@code true}, если панель закрываемая и охранник (если есть) не против
+     */
+    public boolean canClose() {
+        return closable && (closeGuard == null || closeGuard.test(this));
+    }
+
+    /**
+     * Ширина заголовка в пикселях; результат кэшируется до смены текста, потому что раскладка вкладок
+     * вызывается на каждое движение указателя.
+     *
+     * @return ширина однострочного заголовка
+     */
+    float titleWidth() {
+        if (measuredTitle != richTitle) {
+            measuredTitle = richTitle;
+            measuredTitleWidth = TextEngine.measureLineWidth(richTitle);
+        }
+        return measuredTitleWidth;
+    }
     private static String normalizeId(String id) {
         String normalized = id == null ? "" : id.trim();
         return normalized.isEmpty() ? UUID.randomUUID().toString() : normalized;

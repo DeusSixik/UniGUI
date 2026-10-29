@@ -113,6 +113,19 @@ public final class OverlayLayer extends PanelWidget {
         return this;
     }
 
+    public OverlayLayer clearOverlays() {
+        java.util.List<Widget> overlays = new java.util.ArrayList<>();
+        for (Widget child : children()) {
+            if (child != content) {
+                overlays.add(child);
+            }
+        }
+        for (Widget overlay : overlays) {
+            removeOverlay(overlay);
+        }
+        return this;
+    }
+
     @Override
     public void applyQueuedMutations() {
         super.applyQueuedMutations();
@@ -130,11 +143,12 @@ public final class OverlayLayer extends PanelWidget {
             return;
         }
         if (event instanceof PointerPressedEvent pointer
-                && pointer.phase() == EventPhase.CAPTURE
-                && pointer.button() == PointerButton.PRIMARY) {
-            WindowWidget window = windowAncestor(pointer.target());
-            if (window != null && window.opened()) {
-                windowManager.activate(window);
+                && pointer.phase() == EventPhase.CAPTURE) {
+            if (pointer.button() == PointerButton.PRIMARY) {
+                WindowWidget window = windowAncestor(pointer.target());
+                if (window != null && window.opened()) {
+                    windowManager.activate(window);
+                }
             }
             closeOverlaysOutside(pointer.target());
         }
