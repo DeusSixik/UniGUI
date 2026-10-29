@@ -41,6 +41,9 @@ public final class DrawCommand {
     private String text;
     private RichText richText;
     private boolean textPixelSnap = true;
+    /** Явный прямоугольник brush-заливки текста; действует только при {@link #hasBrushBounds}. */
+    private final MutableRect brushBounds = new MutableRect();
+    private boolean hasBrushBounds;
     private CustomDraw customDraw;
     private ShaderHandle shader;
     private ShaderUniforms shaderUniforms = ShaderUniforms.empty();
@@ -222,6 +225,59 @@ public final class DrawCommand {
         this.bounds.set(x, y, width, height);
         return this;
     }
+
+    /**
+     * Возвращает прямоугольник, относительно которого считаются brush-заливки текста (градиенты).
+     *
+     * <p>Если явный прямоугольник не задан, возвращаются обычные {@link #bounds()}. Явный прямоугольник
+     * нужен, когда один логический текст разбит на несколько команд (строки, run'ы, inline-chunk'и):
+     * тогда все команды обязаны считать градиент по общему прямоугольнику всего текста, иначе он
+     * перезапускается на каждой команде. Координаты задаются в том же пространстве, что и {@link #bounds()}.</p>
+     *
+     * @return прямоугольник brush-заливки; никогда не {@code null}
+     */
+    public RectView brushBounds() {
+        return hasBrushBounds ? brushBounds : bounds;
+    }
+
+    /**
+     * @return {@code true}, если для команды задан явный прямоугольник brush-заливки
+     */
+    public boolean hasBrushBounds() {
+        return hasBrushBounds;
+    }
+
+    /**
+     * Задаёт явный прямоугольник brush-заливки текста.
+     *
+     * @param rect прямоугольник в пространстве {@link #bounds()} или {@code null}, чтобы сбросить
+     * @return эта команда
+     */
+    public DrawCommand brushBounds(RectView rect) {
+        if (rect == null) {
+            hasBrushBounds = false;
+            return this;
+        }
+        brushBounds.set(rect);
+        hasBrushBounds = true;
+        return this;
+    }
+
+    /**
+     * Задаёт явный прямоугольник brush-заливки текста по компонентам.
+     *
+     * @param x левая граница
+     * @param y верхняя граница
+     * @param width ширина
+     * @param height высота
+     * @return эта команда
+     */
+    public DrawCommand brushBounds(float x, float y, float width, float height) {
+        brushBounds.set(x, y, width, height);
+        hasBrushBounds = true;
+        return this;
+    }
+
 
     public MutableRect uv() {
         return uv;
@@ -569,6 +625,7 @@ public final class DrawCommand {
         text = null;
         richText = null;
         textPixelSnap = true;
+        hasBrushBounds = false;
         customDraw = null;
         shader = null;
         shaderUniforms.clear();
@@ -615,6 +672,8 @@ public final class DrawCommand {
         copy.text = text;
         copy.richText = richText;
         copy.textPixelSnap = textPixelSnap;
+        copy.brushBounds.set(brushBounds);
+        copy.hasBrushBounds = hasBrushBounds;
         copy.customDraw = customDraw;
         copy.shader = shader == null ? null : shader.copy();
         copy.shaderUniforms = shaderUniforms == null ? ShaderUniforms.empty() : shaderUniforms.copy();
@@ -648,6 +707,8 @@ public final class DrawCommand {
         target.text = text;
         target.richText = richText;
         target.textPixelSnap = textPixelSnap;
+        target.brushBounds.set(brushBounds);
+        target.hasBrushBounds = hasBrushBounds;
         target.customDraw = customDraw;
         target.shader = shader;
         target.shaderUniforms.copyFrom(shaderUniforms);

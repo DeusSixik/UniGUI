@@ -133,7 +133,7 @@ final class MinecraftMixedTextRenderer {
         if (face instanceof MinecraftFontFace minecraftFace) {
             flushSdf(graphics, pendingSdf, renderingToPremultipliedTarget, guiScale);
             drawVanilla(graphics, command, value, minecraftFace, run.pixelSize(), run.tracking(), run.color(),
-                    run.brush(), command.bounds(), x, top, guiScale);
+                    run.brush(), command.brushBounds(), x, top, guiScale);
         } else {
             Transform segmentTransform = command.transform().copy();
             segmentTransform.pivot().set(
@@ -149,6 +149,8 @@ final class MinecraftMixedTextRenderer {
                             .append(value)
                             .build())
                     .bounds(new MutableRect(x, top, width, metrics.lineHeight()))
+                    // Сегмент — часть исходного текста, градиент должен идти по его общему прямоугольнику.
+                    .brushBounds(command.brushBounds())
                     .paint(command.paint())
                     .transformStack(command.transformStack())
                     .transform(segmentTransform)
@@ -171,7 +173,7 @@ final class MinecraftMixedTextRenderer {
                 DrawCommand command = (DrawCommand) rawPendingSdf[i];
                 TextRun run = command.richText().runs().get(0);
                 drawVanilla(graphics, command, run.text(), fallback, run.pixelSize(), run.tracking(), run.color(),
-                        run.brush(), command.bounds(), command.bounds().x(), command.bounds().y(), guiScale);
+                        run.brush(), command.brushBounds(), command.bounds().x(), command.bounds().y(), guiScale);
             }
         }
         pendingSdf.clear();

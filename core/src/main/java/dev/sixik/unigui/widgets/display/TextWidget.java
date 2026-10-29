@@ -761,6 +761,26 @@ public class TextWidget extends WidgetBase {
         if (clipped) {
             draw.pushTextClip(clipX, clipY, clipWidth, clipHeight);
         }
+        // Перенесённые строки — отдельные команды; градиент должен идти по всему блоку, а не по каждой строке.
+        boolean brushScope = false;
+        if (overflowMode != TextOverflowMode.MARQUEE_ON_HOVER && segments.size() > 1
+                && TextEngine.usesPositionalBrush(effectiveRichText())) {
+            float minX = Float.POSITIVE_INFINITY;
+            float minY = Float.POSITIVE_INFINITY;
+            float maxX = Float.NEGATIVE_INFINITY;
+            float maxY = Float.NEGATIVE_INFINITY;
+            for (Segment segment : segments) {
+                if (segment.text() == null || segment.text().isEmpty()) continue;
+                minX = Math.min(minX, segment.x());
+                minY = Math.min(minY, segment.y());
+                maxX = Math.max(maxX, segment.x() + segment.width());
+                maxY = Math.max(maxY, segment.y() + segment.height());
+            }
+            if (minX <= maxX && minY <= maxY) {
+                context.pushTextBrushBounds(minX, minY, maxX - minX, maxY - minY);
+                brushScope = true;
+            }
+        }
         try {
             for (Segment segment : segments) {
                 if (segment.text() == null || segment.text().isEmpty()) continue;
@@ -769,6 +789,9 @@ public class TextWidget extends WidgetBase {
                         Paint.fill(color));
             }
         } finally {
+            if (brushScope) {
+                context.popTextBrushBounds();
+            }
             if (clipped) {
                 draw.popClip();
             }

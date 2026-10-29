@@ -14,6 +14,8 @@ import dev.sixik.unigui.api.text.InlineContentContext;
 import dev.sixik.unigui.api.text.InlineContentSpan;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.RichTextSpan;
+import dev.sixik.unigui.api.text.SolidTextBrush;
+import dev.sixik.unigui.api.text.TextBrush;
 import dev.sixik.unigui.api.text.TextRun;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -230,7 +232,13 @@ public final class TextEngine {
             drawInline(new DrawScope(context, transform), text, drawX, drawY,
                     Math.max(0.0f, width - (drawX - x)), textHeight, paint);
         } else {
-            context.text(text, drawX, drawY, Math.max(0.0f, width - (drawX - x)), textHeight, paint, transform);
+            // Градиент считается по реальному extent'у текста, а не по оставшейся ширине контейнера.
+            boolean brushScope = pushBrushScope(context, text, drawX, drawY);
+            try {
+                context.text(text, drawX, drawY, Math.max(0.0f, width - (drawX - x)), textHeight, paint, transform);
+            } finally {
+                if (brushScope) context.popTextBrushBounds();
+            }
         }
     }
 
@@ -259,7 +267,13 @@ public final class TextEngine {
                                   Paint paint, float textVisualOffset) {
         if (draw == null || text == null || text.isEmpty()) return;
         if (!text.hasInlineContent()) {
-            draw.text(text, x, y, width, height, paint);
+            RenderContext plainContext = draw.context();
+            boolean plainBrushScope = pushBrushScope(plainContext, text, x, y);
+            try {
+                draw.text(text, x, y, width, height, paint);
+            } finally {
+                if (plainBrushScope) plainContext.popTextBrushBounds();
+            }
             return;
         }
 
@@ -279,6 +293,10 @@ public final class TextEngine {
         float textClipWidth = pinTrailing
                 ? Math.max(0.0f, trailingX - x - trailing.gapWidth())
                 : 0.0f;
+        // Все chunk'и и inline-span'ы одного текста делят общий прямоугольник градиента.
+        boolean brushScope = pushBrushScope(draw.context(), text, x, y,
+                pinTrailing ? width : measureLineWidth(text, defaultFace),
+                Math.max(lineHeight, measureTextHeight(draw.context(), text)));
         boolean textClipPushed = false;
         if (pinTrailing) {
             draw.pushTextClip(x, y, textClipWidth, lineHeight);
@@ -321,6 +339,7 @@ public final class TextEngine {
             }
         } finally {
             if (textClipPushed) draw.popClip();
+            if (brushScope) draw.context().popTextBrushBounds();
         }
     }
 
@@ -355,6 +374,42 @@ public final class TextEngine {
                 ? fallbackLineHeight(run.pixelSize())
                 : positiveLineHeight(face.metrics(run.pixelSize()).lineHeight());
         return Math.max(0.0f, lineHeight - runHeight) * 0.5f;
+    }
+
+    /**
+     * Проверяет, есть ли в тексте run с brush-заливкой, зависящей от положения (градиентом).
+     *
+     * @param text rich-text или {@code null}
+     * @return {@code true}, если нужен общий прямоугольник заливки
+     */
+    public static boolean usesPositionalBrush(RichText text) {
+        if (text == null) return false;
+        List<TextRun> runs = text.runs();
+        for (int i = 0, size = runs.size(); i < size; i++) {
+            TextBrush brush = runs.get(i).brush();
+            if (brush != null && !(brush instanceof SolidTextBrush)) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Открывает общий brush-scope по измеренному extent'у текста, если он нужен и ещё не открыт снаружи.
+     *
+     * @return {@code true}, если scope открыт и вызывающий обязан вызвать {@code popTextBrushBounds()}
+     */
+    private static boolean pushBrushScope(RenderContext context, RichText text, float x, float y) {
+        if (context == null || !usesPositionalBrush(text) || context.textBrushBounds() != null) return false;
+        context.pushTextBrushBounds(x, y,
+                measureLineWidth(context, text), measureTextHeight(context, text));
+        return true;
+    }
+
+    /** Вариант {@link #pushBrushScope(RenderContext, RichText, float, float)} с уже известным extent'ом. */
+    private static boolean pushBrushScope(RenderContext context, RichText text,
+                                          float x, float y, float width, float height) {
+        if (context == null || !usesPositionalBrush(text) || context.textBrushBounds() != null) return false;
+        context.pushTextBrushBounds(x, y, width, height);
+        return true;
     }
 
     public static float alignedStart(float start, float available, float size, Alignment alignment) {

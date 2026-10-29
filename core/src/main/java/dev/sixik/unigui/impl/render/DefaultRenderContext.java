@@ -1,6 +1,7 @@
 package dev.sixik.unigui.impl.render;
 
 import dev.sixik.unigui.api.render.DrawList;
+import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.math.Transform;
 import dev.sixik.unigui.api.render.RenderBackend;
@@ -24,6 +25,8 @@ public final class DefaultRenderContext implements RenderContext {
     private RenderBackend backend;
     private float opacityMultiplier = 1.0f;
     private boolean textPixelSnapEnabled = true;
+    private final MutableRect textBrushBounds = new MutableRect();
+    private int textBrushDepth;
 
     public DefaultRenderContext(DrawList drawList) {
         this.drawList = drawList;
@@ -78,6 +81,23 @@ public final class DefaultRenderContext implements RenderContext {
     @Override
     public boolean textPixelSnapEnabled() {
         return textPixelSnapEnabled;
+    }
+
+    @Override
+    public void pushTextBrushBounds(float x, float y, float width, float height) {
+        // Самый внешний scope описывает весь текст целиком, поэтому вложенные не перекрывают его.
+        if (textBrushDepth == 0) textBrushBounds.set(x, y, width, height);
+        textBrushDepth++;
+    }
+
+    @Override
+    public void popTextBrushBounds() {
+        if (textBrushDepth > 0) textBrushDepth--;
+    }
+
+    @Override
+    public RectView textBrushBounds() {
+        return textBrushDepth > 0 ? textBrushBounds : null;
     }
 
     @Override

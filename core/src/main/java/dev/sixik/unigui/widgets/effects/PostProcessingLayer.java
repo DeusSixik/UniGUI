@@ -187,6 +187,10 @@ public class PostProcessingLayer extends PanelWidget {
     private static void offsetCommand(DrawCommand command, float originX, float originY) {
         RectView bounds = command.bounds();
         command.bounds().set(bounds.x() - originX, bounds.y() - originY, bounds.width(), bounds.height());
+        if (command.hasBrushBounds()) {
+            RectView brush = command.brushBounds();
+            command.brushBounds(brush.x() - originX, brush.y() - originY, brush.width(), brush.height());
+        }
 
         if (command.transformStackSize() == 0) return;
         ObjectArrayList<TransformLayer> shifted = new ObjectArrayList<>(command.transformStackSize());

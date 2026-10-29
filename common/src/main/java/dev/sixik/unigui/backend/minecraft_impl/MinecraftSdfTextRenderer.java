@@ -398,7 +398,7 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
                     InstanceBatch batch = nextBatch(batches, placement.page);
                     addQuad(batch.instances, drawLeft, drawTop, width, height,
                             placement.u0, placement.v0, placement.u1, placement.v1,
-                            command.paint(), runColor, run.brush(), bounds, transformState);
+                            command.paint(), runColor, run.brush(), command.brushBounds(), transformState);
                 }
                 penX += placement.advance * scale;
                 glyphsInLine++;

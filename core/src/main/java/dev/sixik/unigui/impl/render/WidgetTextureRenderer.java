@@ -109,6 +109,10 @@ public final class WidgetTextureRenderer implements AutoCloseable {
             DrawCommand copy = command.copy();
             RectView bounds = copy.bounds();
             copy.bounds().set(bounds.x() - originX, bounds.y() - originY, bounds.width(), bounds.height());
+            if (copy.hasBrushBounds()) {
+                RectView brush = copy.brushBounds();
+                copy.brushBounds(brush.x() - originX, brush.y() - originY, brush.width(), brush.height());
+            }
             offsetDrawList.add(copy);
         }
         return offsetDrawList;

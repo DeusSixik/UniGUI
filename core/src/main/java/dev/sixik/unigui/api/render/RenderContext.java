@@ -66,6 +66,35 @@ public interface RenderContext {
     default void popTextPixelSnap() {
     }
 
+    /**
+     * Временно задаёт общий прямоугольник brush-заливки (градиентов) для text commands.
+     *
+     * <p>Пока scope активен, каждая TEXT-команда без собственного {@link DrawCommand#brushBounds(RectView)}
+     * получает этот прямоугольник. Так текст, разбитый на несколько команд (строки, run'ы, inline-chunk'и),
+     * получает один непрерывный градиент вместо перезапуска на каждой команде. Вложенные scope'ы не
+     * перекрывают внешний: побеждает самый внешний прямоугольник, потому что он описывает весь текст.</p>
+     *
+     * <p>Координаты задаются в том же пространстве, что и bounds text commands.</p>
+     *
+     * @param x левая граница общего текста
+     * @param y верхняя граница общего текста
+     * @param width ширина общего текста
+     * @param height высота общего текста
+     */
+    default void pushTextBrushBounds(float x, float y, float width, float height) {
+    }
+
+    /** Завершает scope, начатый {@link #pushTextBrushBounds(float, float, float, float)}. */
+    default void popTextBrushBounds() {
+    }
+
+    /**
+     * @return активный общий прямоугольник brush-заливки или {@code null}, если scope не открыт
+     */
+    default RectView textBrushBounds() {
+        return null;
+    }
+
     default boolean textPixelSnapEnabled() {
         return true;
     }
@@ -94,6 +123,7 @@ public interface RenderContext {
     default void submit(DrawCommand command) {
         if (command == null) return;
         DrawCommand owned = command.copy();
+        applyTextBrushBounds(owned);
         List<TransformLayer> stack = transformStack();
         if (stack == null || stack.isEmpty()) {
             drawList().addOwned(owned);
@@ -102,9 +132,17 @@ public interface RenderContext {
         drawList().addOwned(owned.prependTransformStack(stack));
     }
 
+    /** Проставляет общий brush-прямоугольник на TEXT-команду, если активен scope и команда не задала свой. */
+    private void applyTextBrushBounds(DrawCommand command) {
+        if (command.type() != DrawCommandType.TEXT || command.hasBrushBounds()) return;
+        RectView shared = textBrushBounds();
+        if (shared != null) command.brushBounds(shared);
+    }
+
     /** Передаёт команду, созданную через DrawList.obtain(), без промежуточной копии. */
     default void submitOwned(DrawCommand command) {
         if (command == null) return;
+        applyTextBrushBounds(command);
         List<TransformLayer> stack = transformStack();
         if (stack != null && !stack.isEmpty()) {
             command.prependTransformStack(stack);

@@ -1281,6 +1281,13 @@ public class MinecraftWidgetScreen extends Screen {
                 command.bounds().y() * scale,
                 command.bounds().width() * scale,
                 command.bounds().height() * scale);
+        if (command.hasBrushBounds()) {
+            copy.brushBounds(
+                    command.brushBounds().x() * scale,
+                    command.brushBounds().y() * scale,
+                    command.brushBounds().width() * scale,
+                    command.brushBounds().height() * scale);
+        }
         copy.radius(command.radius() * scale);
         copy.texturedQuad(
                 command.quadX1() * scale,
