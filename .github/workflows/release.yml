@@ -137,3 +137,32 @@ jobs:
           prerelease: ${{ steps.version.outputs.prerelease == 'true' }}
           files: release-files/*.jar
           fail_on_unmatched_files: true
+
+
+      - name: Publish to CurseForge
+        if: steps.version.outputs.release == 'true'
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          curseforge-id: ${{ secrets.CURSEFORGE_PROJECT_ID }}
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+          
+          files: release-files/*.jar
+          
+          name: UniGUI ${{ steps.version.outputs.version }}
+          version: ${{ steps.version.outputs.version }}
+          version-type: ${{ steps.version.outputs.prerelease == 'true' && 'beta' || 'release' }}
+          
+#          changelog-file: CHANGELOG.md
+          
+          loaders: |
+            fabric
+            forge
+            neoforge
+          
+          game-versions: |
+            1.20.1
+            1.21.1
+          
+          java: |
+            17
+            21

@@ -84,6 +84,48 @@ public final class WidgetStyles {
     }
 
     /**
+     * Стили ползунков и полос прокрутки.
+     */
+    public static final class RangeControls {
+        /**
+         * Стандартное оформление Slider с прежней геометрией.
+         */
+        public static final Style SLIDER = new MutableStyle()
+                .putAll(Surface.UNSURFACED)
+                .put(StyleKeys.TRACK_THICKNESS, 0.0f)
+                .put(StyleKeys.THUMB_THICKNESS, 8.0f)
+                .put(StyleKeys.THUMB_RADIUS, 2.0f);
+
+        /**
+         * Стандартное оформление ScrollBar с прежней геометрией.
+         */
+        public static final Style SCROLL_BAR = new MutableStyle()
+                .putAll(Surface.UNSURFACED)
+                .put(StyleKeys.THUMB_THICKNESS, WidgetState.NORMAL, 3.0f)
+                .put(StyleKeys.THUMB_THICKNESS, WidgetState.HOVERED, 6.0f);
+
+        private RangeControls() {
+        }
+    }
+
+    /**
+     * Стили checked-контролов с самостоятельными индикаторами.
+     */
+    public static final class CheckedControls {
+        /**
+         * Стандартная геометрия RadioButton.
+         */
+        public static final Style RADIO_BUTTON = new MutableStyle()
+                .putAll(Surface.UNSURFACED)
+                .put(StyleKeys.RADIO_OUTER_SIZE, 12.0f)
+                .put(StyleKeys.RADIO_INNER_SIZE, 6.0f)
+                .put(StyleKeys.RADIO_TEXT_GAP, 4.0f);
+
+        private CheckedControls() {
+        }
+    }
+
+    /**
      * Стили многострочных текстовых полей.
      */
     public static final class TextArea {
@@ -170,6 +212,26 @@ public final class WidgetStyles {
      */
     public static final class Navigation {
         /**
+         * Стандартное оформление строк и маркеров TreeView.
+         */
+        public static final Style TREE_VIEW = new MutableStyle()
+                .put(StyleKeys.TREE_ROW_HEIGHT, 28.0f)
+                .put(StyleKeys.TREE_ROW_STYLE, dev.sixik.unigui.api.style.TreeRowStyle.PILL)
+                .put(StyleKeys.TREE_DISCLOSURE_STYLE, dev.sixik.unigui.api.style.TreeDisclosureStyle.CHEVRON)
+                .put(StyleKeys.TREE_ROW_RADIUS, 4.0f)
+                .put(StyleKeys.TREE_ROW_INSET_X, 4.0f)
+                .put(StyleKeys.TREE_ROW_INSET_Y, 1.0f)
+                .put(StyleKeys.TREE_INDENT_WIDTH, 18.0f)
+                .put(StyleKeys.TREE_FOLDER_FILL_ENABLED, false)
+                .put(StyleKeys.TREE_HOVER_COLOR, MutableColor.rgba(0.165f, 0.184f, 0.216f, 1.0f))
+                .put(StyleKeys.TREE_SELECTED_COLOR, MutableColor.rgba(0.149f, 0.251f, 0.369f, 1.0f))
+                .put(StyleKeys.TREE_TEXT_COLOR, MutableColor.rgba(0.604f, 0.643f, 0.690f, 1.0f))
+                .put(StyleKeys.TREE_SELECTED_TEXT_COLOR, MutableColor.rgba(0.910f, 0.933f, 0.957f, 1.0f))
+                .put(StyleKeys.TREE_DISABLED_TEXT_COLOR, MutableColor.rgba(0.373f, 0.404f, 0.447f, 1.0f))
+                .put(StyleKeys.TREE_DISCLOSURE_COLOR, MutableColor.rgba(0.373f, 0.404f, 0.447f, 1.0f))
+                .put(StyleKeys.TREE_ICON_COLOR, MutableColor.rgba(0.604f, 0.643f, 0.690f, 1.0f));
+
+        /**
          * Форма элементов пути навигации; цвета состояний задаются во время работы.
          */
         public static final Style BREADCRUMB_ITEM = new MutableStyle()
@@ -193,11 +255,11 @@ public final class WidgetStyles {
          */
         public static final Style DOCKING_ROOT = new MutableStyle()
                 .put(StyleKeys.BACKGROUND_VISIBLE, true)
-                .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.025f, 0.030f, 0.042f, 0.98f))
+                .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.105f, 0.105f, 0.112f, 1.0f))
                 .put(StyleKeys.BORDER_VISIBLE, true)
-                .put(StyleKeys.BORDER_COLOR, MutableColor.rgba(0.18f, 0.22f, 0.30f, 0.95f))
+                .put(StyleKeys.BORDER_COLOR, MutableColor.rgba(0.070f, 0.070f, 0.075f, 1.0f))
                 .put(StyleKeys.BORDER_WIDTH, 1.0f)
-                .put(StyleKeys.RADIUS, 4.0f);
+                .put(StyleKeys.RADIUS, 0.0f);
 
         /**
          * Стандартная корневая поверхность расширяемой административной консоли.
@@ -227,10 +289,24 @@ public final class WidgetStyles {
                 .put(StyleKeys.BORDER_VISIBLE, false);
 
         /**
+         * Стандартная поверхность списка ComboBox; уступает теме и локальным стилям.
+         */
+        public static final Style DROPDOWN_HOST = new MutableStyle()
+                .put(StyleKeys.BACKGROUND_VISIBLE, true)
+                .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.118f, 0.129f, 0.149f, 0.97f))
+                .put(StyleKeys.BORDER_VISIBLE, true)
+                .put(StyleKeys.BORDER_COLOR, MutableColor.rgba(0.180f, 0.200f, 0.231f, 1.0f))
+                .put(StyleKeys.RADIUS, 8.0f);
+
+        /**
          * Прозрачная поверхность без рамки для строк вариантов {@code ComboBox}.
          */
         public static final Style DROPDOWN_OPTION = new MutableStyle()
                 .put(StyleKeys.BACKGROUND_VISIBLE, true)
+                .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.0f, 0.0f, 0.0f, 0.0f))
+                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.HOVERED, MutableColor.rgba(0.24f, 0.28f, 0.35f, 0.92f))
+                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.PRESSED, MutableColor.rgba(0.24f, 0.28f, 0.35f, 0.92f))
+                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.CHECKED, MutableColor.rgba(0.149f, 0.251f, 0.369f, 1.0f))
                 .put(StyleKeys.BORDER_VISIBLE, false)
                 .put(StyleKeys.RADIUS, 4.0f);
 
@@ -250,9 +326,9 @@ public final class WidgetStyles {
          */
         public static final Style DEFAULT = new MutableStyle()
                 .put(StyleKeys.BACKGROUND_VISIBLE, true)
-                .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.030f, 0.035f, 0.050f, 0.98f))
+                .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.220f, 0.220f, 0.235f, 1.0f))
                 .put(StyleKeys.BORDER_VISIBLE, true)
-                .put(StyleKeys.BORDER_COLOR, MutableColor.rgba(0.25f, 0.78f, 1.0f, 0.85f))
+                .put(StyleKeys.BORDER_COLOR, MutableColor.rgba(0.070f, 0.070f, 0.075f, 1.0f))
                 .put(StyleKeys.RADIUS, 4.0f);
 
         /**

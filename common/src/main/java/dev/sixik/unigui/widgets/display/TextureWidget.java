@@ -21,6 +21,8 @@ import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
+import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.style.WidgetState;
 
 @XmlWidgetName("TextureWidget")
 public class TextureWidget extends WidgetBase {
@@ -30,6 +32,7 @@ public class TextureWidget extends WidgetBase {
         public static final String BACKGROUND_TEXTURE = StyleIds.Key.BACKGROUND_TEXTURE;
         public static final String BACKGROUND_TEXTURE_TINT = StyleIds.Key.BACKGROUND_TEXTURE_TINT;
         public static final String BACKGROUND_TEXTURE_FIT = StyleIds.Key.BACKGROUND_TEXTURE_FIT;
+        public static final String SLICE_BORDERS = StyleIds.Key.SLICE_BORDERS;
         public static final String RADIUS = StyleIds.Key.RADIUS;
 
         private StyleProperties() {
@@ -235,7 +238,8 @@ public class TextureWidget extends WidgetBase {
 
     @Override
     public void render(RenderContext context) {
-        if (texture == null && previousTexture == null) return;
+        if (styleValue(StyleKeys.BACKGROUND_TEXTURE, styleState(), texture) == null
+                && previousTexture == null) return;
         pushOpacity(context);
         try {
             DrawScope draw = new DrawScope(context, transform(), layoutBounds());
@@ -254,20 +258,28 @@ public class TextureWidget extends WidgetBase {
      * @param draw draw scope виджета
      */
     public void renderDefaultVisual(DrawScope draw) {
+        WidgetState state = styleState();
+        TextureHandle effectiveTexture = styleValue(StyleKeys.BACKGROUND_TEXTURE, state, texture);
+        ColorView effectiveTint = styleValue(StyleKeys.BACKGROUND_TEXTURE_TINT, state, tint);
+        ImageFit effectiveFit = styleValue(StyleKeys.BACKGROUND_TEXTURE_FIT, state, fit);
+        SliceBorders effectiveSliceBorders = styleValue(StyleKeys.SLICE_BORDERS, state, sliceBorders);
+        Float styledRadius = styleValue(StyleKeys.RADIUS, state, radius);
+        float effectiveRadius = sanitizeRadius(styledRadius == null ? radius : styledRadius);
         if (previousTexture != null && textureCrossfadeProgress < 1.0f) {
             renderSliced(draw, previousTexture, previousSource, previousFit, previousSliceBorders,
-                    Paint.fill(multipliedAlpha(previousTint, 1.0f - textureCrossfadeProgress)));
+                    effectiveRadius, Paint.fill(multipliedAlpha(previousTint, 1.0f - textureCrossfadeProgress)));
         }
-        if (texture != null) {
-            ColorView effectiveTint = previousTexture == null
-                    ? tint
-                    : multipliedAlpha(tint, textureCrossfadeProgress);
-            renderSliced(draw, texture, source, fit, sliceBorders, Paint.fill(effectiveTint));
+        if (effectiveTexture != null) {
+            ColorView drawTint = previousTexture == null
+                    ? effectiveTint
+                    : multipliedAlpha(effectiveTint, textureCrossfadeProgress);
+            renderSliced(draw, effectiveTexture, source, effectiveFit, effectiveSliceBorders,
+                    effectiveRadius, Paint.fill(drawTint));
         }
     }
 
     private void renderSliced(DrawScope draw, TextureHandle handle, MutableRect uvSource,
-                              ImageFit placementFit, SliceBorders borders, Paint paint) {
+                              ImageFit placementFit, SliceBorders borders, float effectiveRadius, Paint paint) {
         if (placementFit == ImageFit.NINE_SLICE) {
             RectView bounds = layoutBounds();
             draw.nineSlice(borders.slice(handle),
@@ -276,8 +288,12 @@ public class TextureWidget extends WidgetBase {
         }
         TexturePlacement placement = TexturePlacement.fit(handle, uvSource, layoutBounds(), placementFit);
         if (placement != null) {
-            draw.texture(handle, placement, radius, paint);
+            draw.texture(handle, placement, effectiveRadius, paint);
         }
+    }
+
+    private static float sanitizeRadius(Float value) {
+        return value != null && Float.isFinite(value) ? Math.max(0.0f, value) : 0.0f;
     }
 
     private void setTextureCrossfadeProgress(float progress) {

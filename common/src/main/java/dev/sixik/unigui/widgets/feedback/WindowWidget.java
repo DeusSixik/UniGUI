@@ -37,6 +37,7 @@ import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.render.UiIcon;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
@@ -49,7 +50,13 @@ import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.WidgetStyles;
 import dev.sixik.unigui.widgets.containers.ScrollView;
 import dev.sixik.unigui.widgets.containers.StackPanel;
+import dev.sixik.unigui.api.math.ColorView;
+import dev.sixik.unigui.widgets.docking.DockChrome;
+import dev.sixik.unigui.widgets.docking.DockColor;
 import dev.sixik.unigui.widgets.docking.DockPane;
+import dev.sixik.unigui.widgets.docking.DockPolicy;
+import dev.sixik.unigui.widgets.docking.DockTheme;
+import dev.sixik.unigui.widgets.docking.ResizeGripStyle;
 import dev.sixik.unigui.widgets.docking.DockPaneKind;
 import dev.sixik.unigui.widgets.docking.DockingRoot;
 import dev.sixik.unigui.widgets.data.VirtualTableView;
@@ -76,12 +83,15 @@ public class WindowWidget extends Box implements OverlayHostAware {
     private static final float DEFAULT_MIN_WIDTH = 120.0f;
     private static final float DEFAULT_MIN_HEIGHT = 64.0f;
     private static final float RESIZE_HANDLE_SIZE = 6.0f;
+    private static final float CAPTION_BUTTON_SIZE = 16.0f;
 
-    private final Button closeButton = new Button("x");
-    private final Button collapseButton = new Button("-");
-    private final MutableColor headerColor = new MutableColor(0.075f, 0.090f, 0.125f, 0.98f);
-    private final MutableColor headerSeparatorColor = new MutableColor(0.22f, 0.24f, 0.30f, 0.95f);
-    private final MutableColor titleColor = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
+    private final Button closeButton = new Button("");
+    private final Button collapseButton = new Button("");
+    private final MutableColor headerColor = new MutableColor(0.0f, 0.0f, 0.0f, 0.0f);
+    private final MutableColor headerSeparatorColor = new MutableColor(0.0f, 0.0f, 0.0f, 0.0f);
+    private final MutableColor titleColor = new MutableColor(0.0f, 0.0f, 0.0f, 0.0f);
+    private DockTheme theme;
+    private UiIcon icon = UiIcon.NONE;
     private String title = "";
     private RichText richTitle = RichText.plain("");
     private Widget content;
@@ -91,10 +101,19 @@ public class WindowWidget extends Box implements OverlayHostAware {
     private boolean modal;
     private boolean fixedModal;
     private boolean dockRedockLocked;
-    private boolean dockable;
+    private DockPolicy dockPolicy = DockPolicy.FULL;
     private String dockPaneId = "";
     private DockPaneKind dockKind = DockPaneKind.TOOL;
-    private boolean dockingEnabled;
+    private boolean dockHost;
+    private boolean autoDockHost;
+    private DockPane dockSourcePane;
+    private ResizeGripStyle resizeGrip;
+    private boolean resizeGripVisible = true;
+    private boolean gripHovered;
+    private boolean compactDrag;
+    private float compactFullWidth;
+    private float compactFullHeight;
+    private float compactWidth;
     private DockingRoot dockingRoot;
     private int dockPaneSeq;
     private boolean draggable = true;
@@ -134,10 +153,22 @@ public class WindowWidget extends Box implements OverlayHostAware {
         closeButton.textPaddingX(0.0f);
         closeButton.layout(style -> style.size(18.0f, 18.0f).flexGrow(0).flexShrink(0.0f));
         closeButton.onClick(event -> close());
+        closeButton.renderer((draw, widget) -> {
+            RectView b = widget.layoutBounds();
+            float size = Math.min(CAPTION_BUTTON_SIZE, Math.min(b.width(), b.height()));
+            DockChrome.paintCloseButton(draw, theme(), b.x() + (b.width() - size) * 0.5f,
+                    b.y() + (b.height() - size) * 0.5f, size, widget.hovered(), closeButton.pressed());
+        });
         collapseButton.textPaddingX(0.0f);
         collapseButton.layout(style -> style.size(18.0f, 18.0f).flexGrow(0).flexShrink(0.0f));
         collapseButton.visible(false);
         collapseButton.onClick(event -> toggleCollapsed());
+        collapseButton.renderer((draw, widget) -> {
+            RectView b = widget.layoutBounds();
+            float size = Math.min(CAPTION_BUTTON_SIZE, Math.min(b.width(), b.height()));
+            DockChrome.paintCollapseButton(draw, theme(), b.x() + (b.width() - size) * 0.5f,
+                    b.y() + (b.height() - size) * 0.5f, size, widget.hovered(), collapsed);
+        });
         addChild(collapseButton);
         addChild(closeButton);
         headerColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
@@ -232,7 +263,6 @@ public class WindowWidget extends Box implements OverlayHostAware {
     public WindowWidget collapsed(boolean collapsed) {
         if (this.collapsed == collapsed) return this;
         this.collapsed = collapsed;
-        collapseButton.text(collapsed ? "+" : "-");
         if (content instanceof dev.sixik.unigui.impl.widget.WidgetBase base) {
             if (collapsed) {
                 contentVisibilityBeforeCollapse = base.visibility();
@@ -309,6 +339,51 @@ public class WindowWidget extends Box implements OverlayHostAware {
         return this;
     }
 
+    /**
+     * Тема оформления окна: собственная или, если не задана, глобальная {@link DockTheme#defaultTheme()}.
+     *
+     * @return тема, по которой рисуются заголовок, рамка и тень окна
+     */
+    public DockTheme theme() {
+        DockTheme own = theme;
+        return own != null ? own : DockTheme.defaultTheme();
+    }
+
+    /**
+     * Назначает окну собственную тему.
+     *
+     * @param theme тема; {@code null} возвращает окно на глобальную тему
+     * @return это окно для fluent-настройки
+     */
+    public WindowWidget theme(DockTheme theme) {
+        this.theme = theme;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Иконка окна: рисуется в заголовке и становится иконкой вкладки при стыковке.
+     *
+     * @return иконка или {@link UiIcon#NONE}
+     */
+    public UiIcon icon() {
+        return icon;
+    }
+
+    /**
+     * Задаёт иконку окна.
+     *
+     * @param icon иконка; {@code null} убирает иконку
+     * @return это окно для fluent-настройки
+     */
+    public WindowWidget icon(UiIcon icon) {
+        UiIcon normalized = icon == null ? UiIcon.NONE : icon;
+        if (this.icon == normalized) return this;
+        this.icon = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
     public boolean dockRedockLocked() {
         return dockRedockLocked;
     }
@@ -325,34 +400,80 @@ public class WindowWidget extends Box implements OverlayHostAware {
     }
 
     /**
-     * Возвращает, может ли окно докироваться drag-to-dock в {@link DockingRoot}.
+     * Политика участия окна в докинге.
      *
-     * <p>По умолчанию {@code false}: окно остаётся свободным floating-окном.
-     * При включении перетаскивание окна за header над {@link DockingRoot}
-     * показывает drop preview, а release докирует контент окна как
-     * {@code DockPane} и закрывает само окно. Окно-хост
-     * ({@code dockingEnabled(true)}) — всегда dockable: это и есть один флаг
-     * ImGui-стыля (вкл — окно стыкуется с доками и окнами, выкл — свободное).</p>
+     * <p>По умолчанию {@link DockPolicy#FULL}: докинг — свойство любого окна. Перетаскивание заголовка
+     * над {@link DockingRoot} или над другим окном показывает зоны дропа, а окно под курсором на лету
+     * становится окном-хостом с вкладками. Отключается только осознанно, для диалогов и HUD.</p>
+     *
+     * @return текущая политика
      */
-    public boolean dockable() {
-        return dockable || dockingEnabled;
+    public DockPolicy dockPolicy() {
+        return dockPolicy;
     }
 
     /**
-     * Включает или выключает drag-to-dock этого окна в {@link DockingRoot}.
+     * Задаёт политику участия окна в докинге.
      *
-     * @param dockable {@code true}, чтобы разрешить докирование перетаскиванием
+     * @param dockPolicy новая политика; {@code null} означает {@link DockPolicy#FULL}
      * @return это окно для fluent-настройки
      */
-    @XmlAttribute(value = "dockable", category = "Behavior", defaultValue = "false", description = "Whether dragging this window over a DockingRoot docks it as a pane.")
-    public WindowWidget dockable(boolean dockable) {
-        if (this.dockable == dockable) return this;
-        this.dockable = dockable;
-        if (!dockable) {
+    @XmlAttribute(value = "dockPolicy", category = "Behavior", defaultValue = "full", description = "Docking participation: full, guest_only or disabled.")
+    public WindowWidget dockPolicy(DockPolicy dockPolicy) {
+        DockPolicy normalized = dockPolicy == null ? DockPolicy.FULL : dockPolicy;
+        if (this.dockPolicy == normalized) return this;
+        this.dockPolicy = normalized;
+        if (!normalized.canBeDocked() || !normalized.acceptsDrops()) {
             DockingRoot.clearForeignWindowDropPreview(this);
         }
         invalidate(InvalidationFlags.VISUAL);
         return this;
+    }
+
+    /**
+     * Можно ли перетащить это окно в док или на другое окно.
+     *
+     * <p>Истинно по умолчанию; ложно для {@link DockPolicy#DISABLED} и для модальных окон, которые
+     * никогда не стыкуются.</p>
+     *
+     * @return {@code true}, если окно может быть источником дропа
+     */
+    public boolean dockable() {
+        return dockPolicy.canBeDocked() && !modal;
+    }
+
+    /**
+     * Короткая форма {@link #dockPolicy(DockPolicy)}: {@code false} отключает докинг окна совсем,
+     * {@code true} возвращает политику по умолчанию, если докинг был отключён.
+     *
+     * @param dockable {@code true}, чтобы разрешить стыковку окна
+     * @return это окно для fluent-настройки
+     */
+    @XmlAttribute(value = "dockable", category = "Behavior", defaultValue = "true", description = "Whether this window may be docked into a DockingRoot or another window.")
+    public WindowWidget dockable(boolean dockable) {
+        if (dockable) {
+            if (dockPolicy == DockPolicy.DISABLED) dockPolicy(DockPolicy.FULL);
+        } else {
+            dockPolicy(DockPolicy.DISABLED);
+        }
+        return this;
+    }
+
+    /**
+     * Принимает ли окно прямо сейчас дропы других окон и панелей.
+     *
+     * @return {@code true}, если политика разрешает приём, окно открыто, не модальное и не залочено
+     */
+    public boolean acceptsDocking() {
+        return dockPolicy.acceptsDrops() && !modal && !dockRedockLocked && open && dockableContentHost();
+    }
+
+    /**
+     * Контент окна не должен быть чужим {@link DockingRoot}: такой root уже умеет принимать дропы сам, и
+     * заворачивать его в ещё один слой вкладок не нужно.
+     */
+    private boolean dockableContentHost() {
+        return !(content instanceof DockingRoot) || content == dockingRoot;
     }
 
     /**
@@ -410,43 +531,39 @@ public class WindowWidget extends Box implements OverlayHostAware {
     }
 
     /**
-     * Возвращает, является ли окно док-хостом: внутри него живёт свой
-     * {@link DockingRoot} и окно принимает dock drops.
+     * Возвращает, является ли окно сейчас док-хостом: внутри него живёт свой {@link DockingRoot}, а
+     * полоса вкладок заменяет заголовок.
      *
-     * <p>По умолчанию {@code false}: окно — обычный floating-контейнер с
-     * единичным контентом. При включении текущий контент оборачивается в
-     * {@code DockPane}, а сам {@code DockingRoot} становится контентом окна.
-     * После этого на окно можно дропать другие dockable-окна и панели, а само
-     * окно-хост можно дропнуть на другой хост — все его панели смержатся.</p>
+     * <p>Хостом окно становится само, как только на него наводят другое окно, поэтому вручную включать
+     * это нужно только чтобы заранее собрать окно с панелями ({@link #dockTool}, {@link #dockDocument}).</p>
+     *
+     * @return {@code true}, если контент окна — его внутренний docking root
      */
     public boolean dockingEnabled() {
-        return dockingEnabled;
+        return dockHost;
     }
 
     /**
-     * Включает или выключает внутреннюю docking area окна.
+     * Явно включает или выключает режим док-хоста.
      *
-     * <p>Единственный флаг ImGui-стыля: {@code true} — окно стыкуется
-     * (принимает дропы других окон/панелей через зоны креста и само может
-     * быть перетащено на доки и окна-хосты, {@code dockable()} имплицируется),
-     * {@code false} — обычное свободное окно. При включении текущий контент
-     * (если есть) оборачивается в панель с id {@link #dockSourceId()} и
-     * заголовком окна. При выключении одна панель разворачивается обратно
-     * в контент; несколько панелей остаются в root (он остаётся контентом),
-     * но дропы больше не принимаются.</p>
+     * <p>{@code true}: текущий контент (если есть) оборачивается в панель с id {@link #dockSourceId()} и
+     * заголовком окна, внутренний root становится контентом. {@code false}: одна панель разворачивается
+     * обратно в контент, окно перестаёт принимать дропы ({@link DockPolicy#GUEST_ONLY}); несколько панелей
+     * остаются в root, но новые дропы блокируются.</p>
      *
      * @param dockingEnabled {@code true}, чтобы превратить окно в док-хост
      * @return это окно для fluent-настройки
      */
-    @XmlAttribute(value = "dockingEnabled", category = "Behavior", defaultValue = "false", description = "Whether this window hosts an internal docking area and accepts dock drops.")
+    @XmlAttribute(value = "dockingEnabled", category = "Behavior", defaultValue = "false", description = "Whether this window hosts an internal docking area right now.")
     public WindowWidget dockingEnabled(boolean dockingEnabled) {
-        if (this.dockingEnabled == dockingEnabled) return this;
-        this.dockingEnabled = dockingEnabled;
         if (dockingEnabled) {
-            ensureDockingRoot();
-            wrapContentIntoDocking();
+            if (!dockPolicy.acceptsDrops()) dockPolicy = DockPolicy.FULL;
+            autoDockHost = false;
+            enterDockHost();
         } else {
             DockingRoot.clearForeignWindowDropPreview(this);
+            autoDockHost = false;
+            if (dockPolicy == DockPolicy.FULL) dockPolicy = DockPolicy.GUEST_ONLY;
             unwrapDockingRoot();
         }
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
@@ -454,11 +571,67 @@ public class WindowWidget extends Box implements OverlayHostAware {
     }
 
     /**
-     * Внутренний {@link DockingRoot} окна-хоста или {@code null}, если
-     * docking area ни разу не включалась.
+     * Внутренний {@link DockingRoot} окна-хоста или {@code null}, если окно ни разу не было хостом.
      */
     public DockingRoot dockingRoot() {
         return dockingRoot;
+    }
+
+    /**
+     * Превращает окно в док-хост на лету и возвращает его внутренний root.
+     *
+     * <p>Вызывается системой докинга, когда над окном держат другое окно: контент оборачивается в
+     * одну панель, а заголовок окна уступает место полосе вкладок той же высоты, так что раскладка не
+     * прыгает. Если дроп не состоялся, хост снимается обратно ({@link #releaseAutoDockHost()}).</p>
+     *
+     * @return внутренний root или {@code null}, если окно не принимает дропы
+     */
+    public DockingRoot ensureDockHost() {
+        if (dockHost && dockingRoot != null && content == dockingRoot) return dockingRoot;
+        if (!acceptsDocking()) return null;
+        autoDockHost = true;
+        enterDockHost();
+        relayoutNow();
+        return dockingRoot;
+    }
+
+    /**
+     * Откатывает автоматически созданный хост, если в нём осталась только исходная панель.
+     *
+     * <p>Если хост создан явно ({@link #dockingEnabled(boolean)}) или в него уже что-то стыковали,
+     * метод ничего не делает.</p>
+     */
+    public void releaseAutoDockHost() {
+        if (!autoDockHost || !dockHost || dockingRoot == null) return;
+        if (dockingRoot.manager().paneCount() > 1) {
+            autoDockHost = false;
+            return;
+        }
+        autoDockHost = false;
+        unwrapDockingRoot();
+        relayoutNow();
+    }
+
+    /**
+     * Сразу пересчитывает раскладку окна по последним bounds хоста.
+     *
+     * <p>Смена режима «заголовок или вкладки» должна быть видна системе докинга немедленно: превью и
+     * зоны дропа считаются по геометрии внутреннего root, а следующий кадр наступит позже, чем следующее
+     * движение мыши.</p>
+     */
+    private void relayoutNow() {
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        if (hostBounds.width() > 0.0f || hostBounds.height() > 0.0f) {
+            applyQueuedMutations();
+            arrangeInHost(hostBounds);
+        }
+    }
+
+    /**
+     * Закрепляет хост: после реального дропа он больше не откатывается как временный.
+     */
+    public void commitDockHost() {
+        autoDockHost = false;
     }
 
     /**
@@ -469,7 +642,8 @@ public class WindowWidget extends Box implements OverlayHostAware {
      */
     public WindowWidget dockPane(DockPane pane) {
         if (pane == null) return this;
-        if (!dockingEnabled) dockingEnabled(true);
+        if (!dockHost) dockingEnabled(true);
+        autoDockHost = false;
         dockingRoot.addPane(pane);
         return this;
     }
@@ -492,25 +666,27 @@ public class WindowWidget extends Box implements OverlayHostAware {
      * Переносит все панели из чужого окна-хоста в свой docking root табом.
      *
      * <p>Программный мерж (drop-путь идёт через зоны
-     * {@code DockingRoot.dockForeignWindow}). Требует включённой docking area
-     * у приёмника. Источник не закрывается: закрытие решает вызывающий код.
+     * {@code DockingRoot.dockForeignWindow}). Источник не закрывается: закрытие решает вызывающий код.
      * Панели переносятся в порядке обхода дерева источника.</p>
      *
      * @param source окно-хост, чьи панели переносятся
      * @return {@code true}, если перенесена хотя бы одна панель
      */
     public boolean mergeDockingFrom(WindowWidget source) {
-        if (!dockingEnabled || dockingRoot == null || source == null || source == this) return false;
+        if (source == null || source == this) return false;
         DockingRoot sourceRoot = source.dockingRoot;
         if (sourceRoot == null) return false;
+        DockingRoot target = ensureDockHost();
+        if (target == null) return false;
         java.util.List<DockPane> panes = java.util.List.copyOf(sourceRoot.manager().panes());
         if (panes.isEmpty()) return false;
         for (DockPane pane : panes) {
             DockPane detached = sourceRoot.manager().detachPaneForFloating(pane.id());
             if (detached != null) {
-                dockingRoot.manager().addPane(detached);
+                target.manager().addPane(detached);
             }
         }
+        commitDockHost();
         return true;
     }
 
@@ -519,6 +695,13 @@ public class WindowWidget extends Box implements OverlayHostAware {
         dockingRoot = new DockingRoot();
         dockingRoot.windowHost(this);
         dockingRoot.layout(style -> style.sizePercent(100.0f, 100.0f).flexGrow(1.0f).flexShrink(1.0f));
+    }
+
+    private void enterDockHost() {
+        ensureDockingRoot();
+        dockingRoot.theme(theme);
+        wrapContentIntoDocking();
+        dockHost = content == dockingRoot;
     }
 
     private void wrapContentIntoDocking() {
@@ -532,6 +715,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
                 ? DockPane.document(dockSourceId(), richTitle, current)
                 : DockPane.tool(dockSourceId(), richTitle, current);
         pane.closable(closeButtonVisible);
+        pane.icon(icon);
         dockingRoot.addPane(pane);
         content(dockingRoot);
     }
@@ -550,9 +734,59 @@ public class WindowWidget extends Box implements OverlayHostAware {
             content(null);
         }
         // Несколько панелей: root остаётся контентом, но дропы блокируются
-        // через DockingRoot.acceptsDockDrops(), пока флаг выключен.
+        // через DockingRoot.acceptsDockDrops(), пока политика не принимает дропы.
+        dockHost = content == dockingRoot;
     }
 
+    /**
+     * Панель, из которой это окно было вытащено, или {@code null}.
+     *
+     * <p>Нужна, чтобы возврат окна в док восстановил ту же {@link DockPane} со всем её состоянием, а не
+     * собрал новую из контента.</p>
+     *
+     * @return исходная панель или {@code null}
+     */
+    public DockPane dockSourcePane() {
+        return dockSourcePane;
+    }
+
+    /**
+     * Запоминает исходную панель окна.
+     *
+     * @param pane панель, из которой окно вытащено, или {@code null}
+     * @return это окно для fluent-настройки
+     */
+    public WindowWidget dockSourcePane(DockPane pane) {
+        this.dockSourcePane = pane;
+        return this;
+    }
+
+    /**
+     * Окно без собственного заголовка: его роль играет полоса вкладок внутреннего root.
+     *
+     * @return {@code true}, если окно сейчас док-хост
+     */
+    public boolean captionless() {
+        return dockHost && dockingRoot != null && content == dockingRoot;
+    }
+
+    /**
+     * Высота заголовка с учётом режима: у док-хоста заголовка нет, его место занимает полоса вкладок.
+     *
+     * @return высота заголовка в UI-пикселях
+     */
+    private float captionHeight() {
+        return captionless() ? 0.0f : headerHeight;
+    }
+
+    /**
+     * Внутренние отступы контента: у док-хоста вкладки и панели занимают окно целиком.
+     *
+     * @return отступы вокруг контента
+     */
+    private EdgeInsets contentPadding() {
+        return captionless() ? EdgeInsets.ZERO : padding;
+    }
     public WindowWidget openModal() {
         modal(true);
         return open();
@@ -575,6 +809,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
         if (this.open == open) return this;
         this.open = open;
         if (!open) {
+            compactDrag = false;
             stopDragging();
             stopResizing();
             DockingRoot.clearForeignWindowDropPreview(this);
@@ -821,12 +1056,17 @@ public class WindowWidget extends Box implements OverlayHostAware {
         }
 
         applyQueuedMutations();
-        closeButton.visible(closeButtonVisible);
-        if (closeButtonVisible) {
+        EdgeInsets padding = contentPadding();
+        float headerHeight = captionHeight();
+        boolean captionless = captionless();
+        boolean closeShown = closeButtonVisible && !captionless;
+        boolean collapseShown = collapseButtonVisible && !captionless;
+        closeButton.visible(closeShown);
+        if (closeShown) {
             closeButton.measure(new LayoutContext(18.0f, headerHeight));
         }
-        collapseButton.visible(collapseButtonVisible);
-        if (collapseButtonVisible) {
+        collapseButton.visible(collapseShown);
+        if (collapseShown) {
             collapseButton.measure(new LayoutContext(18.0f, headerHeight));
         }
 
@@ -834,16 +1074,17 @@ public class WindowWidget extends Box implements OverlayHostAware {
         float availableContentHeight = context == null ? DEFAULT_HEIGHT : Math.max(0.0f, context.availableHeight() - headerHeight - padding.vertical());
         float contentWidth = 0.0f;
         float contentHeight = 0.0f;
-        if (!collapsed && content != null && content.visibility() != Visibility.COLLAPSED) {
+        if (!collapsed && !compactDrag && content != null && content.visibility() != Visibility.COLLAPSED) {
             content.measure(new LayoutContext(availableContentWidth, availableContentHeight));
             contentWidth = content.desiredSize().width();
             contentHeight = content.desiredSize().height();
         }
 
-        float closeWidth = closeButtonVisible ? closeButton.desiredSize().width() : 0.0f;
-        float collapseWidth = collapseButtonVisible ? collapseButton.desiredSize().width() : 0.0f;
-        float titleWidth = TextEngine.measureLineWidth(title) + padding.left() + padding.right()
-                + closeWidth + collapseWidth + 8.0f;
+        float closeWidth = closeShown ? closeButton.desiredSize().width() : 0.0f;
+        float collapseWidth = collapseShown ? collapseButton.desiredSize().width() : 0.0f;
+        float iconWidth = icon.isNone() ? 0.0f : theme().iconSize() + theme().iconGap();
+        float titleWidth = captionless ? 0.0f : TextEngine.measureLineWidth(title) + iconWidth
+                + padding.left() + padding.right() + closeWidth + collapseWidth + 8.0f;
         float desiredWidth = Math.max(minWindowWidth, Math.max(titleWidth, contentWidth + padding.horizontal()));
         // В collapsed-состоянии окно действительно уменьшается до title bar.
         // minWindowHeight относится к обычному режиму и не должен оставлять
@@ -867,6 +1108,10 @@ public class WindowWidget extends Box implements OverlayHostAware {
         }
 
         applyQueuedMutations();
+        EdgeInsets padding = contentPadding();
+        float headerHeight = captionHeight();
+        boolean closeShown = closeButtonVisible && !captionless();
+        boolean collapseShown = collapseButtonVisible && !captionless();
         hostBounds.set(bounds);
         MutableRect requested = AbsoluteLayoutEngine.resolveRect(
                 this, bounds,
@@ -895,7 +1140,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
         }
         mutableLayoutBounds().set(constrained);
 
-        if (closeButtonVisible) {
+        if (closeShown) {
             float buttonWidth = Math.min(18.0f, Math.max(0.0f, width - padding.horizontal()));
             float buttonHeight = Math.min(18.0f, Math.max(0.0f, headerHeight - 4.0f));
             closeButton.arrange(new MutableRect(
@@ -906,10 +1151,10 @@ public class WindowWidget extends Box implements OverlayHostAware {
         } else {
             closeButton.arrange(new MutableRect(absoluteX, absoluteY, 0.0f, 0.0f));
         }
-        if (collapseButtonVisible) {
+        if (collapseShown) {
             float buttonWidth = Math.min(18.0f, Math.max(0.0f, width - padding.horizontal()));
             float buttonHeight = Math.min(18.0f, Math.max(0.0f, headerHeight - 4.0f));
-            float closeOffset = closeButtonVisible ? buttonWidth + 4.0f : 0.0f;
+            float closeOffset = closeShown ? buttonWidth + 4.0f : 0.0f;
             collapseButton.arrange(new MutableRect(
                     absoluteX + Math.max(0.0f, width - padding.right() - buttonWidth - closeOffset),
                     absoluteY + Math.max(0.0f, (headerHeight - buttonHeight) * 0.5f),
@@ -918,7 +1163,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
             collapseButton.arrange(new MutableRect(absoluteX, absoluteY, 0.0f, 0.0f));
         }
 
-        if (!collapsed && content != null && content.visibility() != Visibility.COLLAPSED) {
+        if (!collapsed && !compactDrag && content != null && content.visibility() != Visibility.COLLAPSED) {
             StackPanel.arrangeChild(content,
                     absoluteX + padding.left(),
                     absoluteY + headerHeight + padding.top(),
@@ -930,9 +1175,27 @@ public class WindowWidget extends Box implements OverlayHostAware {
     @Override
     public void handle(Event event) {
         if (visibility() != Visibility.VISIBLE || !enabled()) return;
+        if (event instanceof PointerPressedEvent capture
+                && capture.phase() == EventPhase.CAPTURE
+                && capture.button() == PointerButton.PRIMARY
+                && effectiveResizable()
+                && !resizing
+                && resizeHandle(capture.rootX(), capture.rootY()) != ResizeHandle.NONE) {
+            // Край и ручка окна важнее любого содержимого: иначе вкладка или разделитель докинга под
+            // краем перехватывали бы нажатие, и окно нельзя было бы растянуть.
+            if (windowManager != null) {
+                windowManager.activate(this);
+            }
+            startResizing(capture, resizeHandle(capture.rootX(), capture.rootY()));
+            event.cancel();
+            return;
+        }
         super.handle(event);
         if (event.isCancelled()) return;
         if (event instanceof PointerEvent pointerEvent && pointerEvent.phase() == EventPhase.CAPTURE) return;
+        if (event instanceof PointerMovedEvent moved) {
+            gripHovered = gripEnabled() && inGrip(moved.rootX(), moved.rootY());
+        }
 
         if (event instanceof PointerPressedEvent pointer
                 && pointer.button() == PointerButton.PRIMARY
@@ -976,24 +1239,133 @@ public class WindowWidget extends Box implements OverlayHostAware {
                 && pointer.pointerId() == dragPointerId) {
             updateDrag(pointer.rootX(), pointer.rootY());
             stopDragging();
-            DockingRoot.finishForeignWindowDrop(this, pointer.rootX(), pointer.rootY());
+            boolean docked = DockingRoot.finishForeignWindowDrop(this, pointer.rootX(), pointer.rootY());
+            // Не пристыковалось — окно принимает свой настоящий размер там, где его отпустили.
+            leaveCompactDrag();
             event.cancel();
+            if (docked) invalidate(InvalidationFlags.VISUAL);
         }
     }
 
     @Override
     public MouseCursor mouseCursorAt(float localX, float localY) {
-        if (!enabled() || !effectiveResizable() || !open) {
-            return super.mouseCursorAt(localX, localY);
-        }
-        ResizeHandle handle = resizeHandle(layoutBounds().x() + localX, layoutBounds().y() + localY);
+        MouseCursor override = mouseCursorOverrideAt(layoutBounds().x() + localX, layoutBounds().y() + localY);
+        return override != null ? override : super.mouseCursorAt(localX, localY);
+    }
+
+    /**
+     * Курсор изменения размера над краем и ручкой окна, даже если их целиком закрывает содержимое
+     * (например, внутренний {@link DockingRoot}).
+     *
+     * <p>Во время растягивания курсор не меняется, даже если указатель ушёл с края.</p>
+     */
+    @Override
+    public MouseCursor mouseCursorOverrideAt(float rootX, float rootY) {
+        if (!enabled() || !open || !effectiveResizable()) return null;
+        ResizeHandle handle = resizing ? resizeHandle : resizeHandle(rootX, rootY);
         return switch (handle) {
             case LEFT, RIGHT -> MouseCursor.RESIZE_HORIZONTAL;
             case TOP, BOTTOM -> MouseCursor.RESIZE_VERTICAL;
-            case TOP_LEFT, BOTTOM_RIGHT -> MouseCursor.RESIZE_HORIZONTAL;
-            case TOP_RIGHT, BOTTOM_LEFT -> MouseCursor.RESIZE_VERTICAL;
-            case NONE -> super.mouseCursorAt(localX, localY);
+            case TOP_LEFT, BOTTOM_RIGHT -> MouseCursor.RESIZE_NWSE;
+            case TOP_RIGHT, BOTTOM_LEFT -> MouseCursor.RESIZE_NESW;
+            case NONE -> null;
         };
+    }
+
+    /**
+     * Рисунок ручки изменения размера: собственный, а если не задан — из {@link #theme()}.
+     *
+     * @return стиль ручки
+     */
+    public ResizeGripStyle resizeGrip() {
+        return resizeGrip != null ? resizeGrip : theme().resizeGrip();
+    }
+
+    /**
+     * Задаёт окну собственный рисунок ручки изменения размера.
+     *
+     * @param resizeGrip стиль ручки; {@code null} возвращает стиль темы
+     * @return это окно для fluent-настройки
+     */
+    public WindowWidget resizeGrip(ResizeGripStyle resizeGrip) {
+        this.resizeGrip = resizeGrip;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Показывается ли ручка изменения размера в правом нижнем углу.
+     *
+     * @return {@code true} по умолчанию
+     */
+    public boolean resizeGripVisible() {
+        return resizeGripVisible;
+    }
+
+    /**
+     * Включает или выключает ручку. Край окна при этом по-прежнему растягивает окно, если оно
+     * {@link #resizable()}.
+     *
+     * @param visible {@code true}, чтобы показывать ручку
+     * @return это окно для fluent-настройки
+     */
+    @XmlAttribute(value = "resizeGripVisible", category = "Appearance", defaultValue = "true", description = "Whether the resize grip is drawn in the bottom-right corner.")
+    public WindowWidget resizeGripVisible(boolean visible) {
+        if (resizeGripVisible == visible) return this;
+        resizeGripVisible = visible;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /** Ручка работает: окно растягивается, развёрнуто, не в режиме призрака и стиль что-то рисует. */
+    private boolean gripEnabled() {
+        return resizeGripVisible && open && !collapsed && !compactDrag && effectiveResizable()
+                && resizeGrip() != ResizeGripStyle.NONE;
+    }
+
+    /** Сторона ручки: не больше трети меньшей стороны окна, чтобы в крошечном окне она не съедала всё. */
+    private float gripSize() {
+        RectView b = layoutBounds();
+        return Math.max(0.0f, Math.min(theme().gripSize(), Math.min(b.width(), b.height()) / 3.0f));
+    }
+
+    private boolean inGrip(float rootX, float rootY) {
+        RectView b = layoutBounds();
+        float size = gripSize();
+        return size > 0.0f && rootX >= b.x() + b.width() - size && rootX <= b.x() + b.width()
+                && rootY >= b.y() + b.height() - size && rootY <= b.y() + b.height();
+    }
+
+    /** Наведён ли указатель на ручку: последнее известное положение и указатель всё ещё в окне. */
+    private boolean gripHoveredNow() {
+        if (!gripHovered) return false;
+        UIContext context = uiContext();
+        Widget hovered = context == null ? null : context.hoverManager().hoveredWidget();
+        for (Widget current = hovered; current != null; current = current.parent()) {
+            if (current == this) return true;
+        }
+        return false;
+    }
+
+    private void paintResizeGrip(DrawScope draw, DockTheme theme) {
+        if (!gripEnabled()) return;
+        RectView b = layoutBounds();
+        float size = gripSize();
+        if (size <= 0.0f) return;
+        DockColor role = resizing ? DockColor.GRIP_ACTIVE : gripHoveredNow() ? DockColor.GRIP_HOVER : DockColor.GRIP;
+        resizeGrip().paint(draw, b.x() + b.width(), b.y() + b.height(), size, theme.windowRadius(),
+                theme.color(role));
+    }
+    @Override
+    protected void renderSurface(RenderContext context) {
+        DockTheme theme = theme();
+        RectView bounds = layoutBounds();
+        if (theme.windowShadowSize() > 0.0f && bounds.width() > 0.0f && bounds.height() > 0.0f) {
+            DrawScope shadow = new DrawScope(context, transform(), bounds);
+            DockChrome.paintShadow(shadow, bounds.x(), bounds.y(), bounds.width(), bounds.height(),
+                    theme.windowRadius(), theme.windowShadowSize(), theme.color(DockColor.WINDOW_SHADOW));
+        }
+        super.renderSurface(context);
     }
 
     @Override
@@ -1012,42 +1384,34 @@ public class WindowWidget extends Box implements OverlayHostAware {
             super.renderContent(context);
             return;
         }
-        float headerHeight = Math.min(this.headerHeight, height);
-        draw.rect(x, y, width, headerHeight, Paint.fill(headerColor));
-        draw.line(x, y + this.headerHeight,
-                x + width, y + this.headerHeight,
-                Paint.stroke(headerSeparatorColor, 1.0f));
-        if (active || dragging) {
-            draw.line(x, y,
-                    x + width, y,
-                    Paint.stroke(titleColor, dragging ? 2.0f : 1.25f));
+        DockTheme theme = theme();
+        boolean captionless = captionless();
+        if (compactDrag) {
+            // Компактное «призрачное» окно: только заголовок и полупрозрачное тело. Контент не рисуем и не
+            // раскладываем — он всё равно не уместился бы в 128 px, а жест — это про перенос окна.
+            draw.roundedRectFilled(x, y, width, height, theme.windowRadius(), theme.color(DockColor.GHOST_FILL));
+            DockChrome.paintCaption(draw, theme, x, y, width, Math.min(headerHeight, height), icon, richTitle,
+                    true, true, padding.left(), padding.right(), null, null, null);
+            draw.roundedRectStroke(x, y, width, height, theme.windowRadius(),
+                    theme.color(DockColor.WINDOW_BORDER_ACTIVE), 1.0f);
+            return;
         }
-        if (resizing) {
-            float marker = 7.0f;
-            draw.line(x + width - marker, y + height,
-                    x + width, y + height - marker,
-                    Paint.stroke(titleColor, 1.5f));
-            draw.line(x + width - marker * 1.8f, y + height,
-                    x + width, y + height - marker * 1.8f,
-                    Paint.stroke(titleColor, 1.0f));
-        }
-
-        float closeReserved = closeButtonVisible ? closeButton.layoutBounds().width() + 6.0f : 0.0f;
-        float collapseReserved = collapseButtonVisible ? collapseButton.layoutBounds().width() + 6.0f : 0.0f;
-        float titleX = x + padding.left();
-        float titleWidth = Math.max(0.0f, width - padding.left() - padding.right()
-                - closeReserved - collapseReserved);
-        draw.pushTextClip(titleX, y, titleWidth, headerHeight);
-        try {
-            if (richTitle != null && !richTitle.isEmpty()) {
-                float drawHeight = Math.min(headerHeight, Math.max(0.0f, TextEngine.measureTextHeight(draw.context(), richTitle)));
-                float drawY = y + Math.max(0.0f, headerHeight - drawHeight) * 0.5f;
-                TextEngine.drawInline(draw, richTitle, titleX, drawY, titleWidth, drawHeight, Paint.fill(titleColor));
-            }
-        } finally {
-            draw.popClip();
+        if (!captionless) {
+            float caption = Math.min(headerHeight, height);
+            float closeReserved = closeButtonVisible ? closeButton.layoutBounds().width() + 6.0f : 0.0f;
+            float collapseReserved = collapseButtonVisible ? collapseButton.layoutBounds().width() + 6.0f : 0.0f;
+            DockChrome.paintCaption(draw, theme, x, y, width, caption, icon, richTitle, active, dragging,
+                    padding.left(), padding.right() + closeReserved + collapseReserved,
+                    headerColor.a() > 0.0f ? headerColor : null,
+                    headerSeparatorColor.a() > 0.0f ? headerSeparatorColor : null,
+                    titleColor.a() > 0.0f ? titleColor : null);
         }
         super.renderContent(context);
+        if (active || dragging) {
+            draw.roundedRectStroke(x, y, width, height, theme.windowRadius(),
+                    theme.color(DockColor.WINDOW_BORDER_ACTIVE), 1.0f);
+        }
+        paintResizeGrip(draw, theme);
     }
 
     private boolean focused() {
@@ -1084,6 +1448,98 @@ public class WindowWidget extends Box implements OverlayHostAware {
         DockingRoot.previewForeignWindowDrop(this, rootX, rootY);
     }
 
+    /**
+     * Принимает активный drag-жест и сразу сжимает окно до компактного «призрака».
+     *
+     * <p>Так ведёт себя вытащенная вкладка в Unity: пока вкладку несут, она маленькое окошко (заголовок
+     * плюс пустое тело), которое не закрывает цель дропа. Настоящий размер окна запоминается и
+     * применяется, как только жест закончился, а окно ни к чему не пристыковалось
+     * ({@link #leaveCompactDrag()}). Если окно пристыковалось, запомненный размер возвращает
+     * {@link #fullWidth()}/{@link #fullHeight()}.</p>
+     *
+     * @param pointerId id указателя жеста
+     * @param rootX X указателя в root-координатах
+     * @param rootY Y указателя в root-координатах
+     * @param width ширина призрака
+     * @param height высота призрака
+     */
+    public void takeoverCompactDrag(int pointerId, float rootX, float rootY, float width, float height) {
+        compactFullWidth = layoutBounds().width();
+        compactFullHeight = layoutBounds().height();
+        if (width > 0.0f && height > 0.0f && compactFullWidth > 0.0f && compactFullHeight > 0.0f
+                && (width < compactFullWidth || height < compactFullHeight)) {
+            compactDrag = true;
+            compactWidth = Math.max(minWindowWidth, width);
+            float compactHeight = Math.max(minWindowHeight, height);
+            float hostX = hostBounds.x();
+            float hostY = hostBounds.y();
+            float grabX = compactWidth * 0.5f;
+            float grabY = Math.min(headerHeight, compactHeight) * 0.5f;
+            float nextX = rootX - hostX - grabX;
+            float nextY = rootY - hostY - grabY;
+            if (constrainToHost && (hostBounds.width() > 0.0f || hostBounds.height() > 0.0f)) {
+                nextX = clamp(nextX, 0.0f, Math.max(0.0f, hostBounds.width() - compactWidth));
+                nextY = clamp(nextY, 0.0f, Math.max(0.0f, hostBounds.height() - compactHeight));
+            }
+            setWindowRect(nextX, nextY, compactWidth, compactHeight);
+            if (hostBounds.width() > 0.0f || hostBounds.height() > 0.0f) {
+                arrangeInHost(hostBounds);
+            }
+        }
+        takeoverDrag(pointerId, rootX, rootY);
+    }
+
+    /**
+     * Выходит из компактного режима: окно становится прежнего размера, а курсор остаётся на заголовке.
+     *
+     * <p>Вызывается после отпускания, если окно не пристыковалось. Горизонтальная точка захвата
+     * сохраняется пропорционально (курсор был в середине призрака — останется в середине окна), окно
+     * при необходимости сдвигается внутрь хоста. Безопасно вызывать вне компактного режима.</p>
+     */
+    public void leaveCompactDrag() {
+        if (!compactDrag) return;
+        compactDrag = false;
+        if (!open) return;
+        float fraction = compactWidth > 0.0f ? dragOffsetX / compactWidth : 0.5f;
+        float grabX = fraction * compactFullWidth;
+        float grabY = Math.min(headerHeight, compactFullHeight) * 0.5f;
+        float nextX = lastDragRootX - hostBounds.x() - grabX;
+        float nextY = lastDragRootY - hostBounds.y() - grabY;
+        if (constrainToHost && (hostBounds.width() > 0.0f || hostBounds.height() > 0.0f)) {
+            nextX = clamp(nextX, 0.0f, Math.max(0.0f, hostBounds.width() - compactFullWidth));
+            nextY = clamp(nextY, 0.0f, Math.max(0.0f, hostBounds.height() - compactFullHeight));
+        }
+        setWindowRect(nextX, nextY, compactFullWidth, compactFullHeight);
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+    }
+
+    /**
+     * Настоящая ширина окна: во время компактного перетаскивания — размер, который вернётся после
+     * отпускания, иначе текущая ширина.
+     *
+     * @return ширина окна без учёта компактного режима
+     */
+    public float fullWidth() {
+        return compactDrag ? compactFullWidth : layoutBounds().width();
+    }
+
+    /**
+     * Настоящая высота окна, см. {@link #fullWidth()}.
+     *
+     * @return высота окна без учёта компактного режима
+     */
+    public float fullHeight() {
+        return compactDrag ? compactFullHeight : layoutBounds().height();
+    }
+
+    /**
+     * Находится ли окно сейчас в компактном режиме «призрака».
+     *
+     * @return {@code true}, пока вытащенную вкладку несут в уменьшенном окне
+     */
+    public boolean compactDrag() {
+        return compactDrag;
+    }
     private void startDragging(PointerPressedEvent pointer) {
         dragging = true;
         dragPointerId = pointer.pointerId();
@@ -1349,6 +1805,10 @@ public class WindowWidget extends Box implements OverlayHostAware {
     private boolean canStartDraggingFrom(PointerPressedEvent pointer) {
         if (pointer.phase() != EventPhase.TARGET && pointer.phase() != EventPhase.BUBBLE) return false;
         if (!contains(layoutBounds(), pointer.rootX(), pointer.rootY())) return false;
+        if (captionless()) {
+            // Окно-хост таскают за пустую часть полосы вкладок (или за единственную вкладку).
+            return dockingRoot.windowDragZoneAt(pointer.rootX(), pointer.rootY());
+        }
         if (isInHeader(pointer.rootX(), pointer.rootY())) return true;
         return !routeContainsInputWidget(pointer.target(), pointer.rootX(), pointer.rootY());
     }
@@ -1405,6 +1865,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
         boolean right = rootX >= bounds.x() + bounds.width() - RESIZE_HANDLE_SIZE && rootX <= bounds.x() + bounds.width();
         boolean top = rootY >= bounds.y() && rootY < bounds.y() + RESIZE_HANDLE_SIZE;
         boolean bottom = rootY >= bounds.y() + bounds.height() - RESIZE_HANDLE_SIZE && rootY <= bounds.y() + bounds.height();
+        if (gripEnabled() && inGrip(rootX, rootY)) return ResizeHandle.BOTTOM_RIGHT;
         if (left && top) return ResizeHandle.TOP_LEFT;
         if (right && top) return ResizeHandle.TOP_RIGHT;
         if (left && bottom) return ResizeHandle.BOTTOM_LEFT;

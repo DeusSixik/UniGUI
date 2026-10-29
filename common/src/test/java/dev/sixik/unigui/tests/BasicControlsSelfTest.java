@@ -88,6 +88,8 @@ import dev.sixik.unigui.api.style.StylePackResult;
 import dev.sixik.unigui.api.style.StylePackXml;
 import dev.sixik.unigui.api.style.ThemeTokens;
 import dev.sixik.unigui.api.style.WidgetState;
+import dev.sixik.unigui.api.style.TreeDisclosureStyle;
+import dev.sixik.unigui.api.style.TreeRowStyle;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.FontMetrics;
@@ -496,6 +498,24 @@ public final class BasicControlsSelfTest {
         marquee.render(new DefaultRenderContext(marqueeDrawList));
         expect(marqueeDrawList.commands().stream().filter(command -> command.type() == DrawCommandType.TEXT).count() == 2,
                 "TextWidget MARQUEE_ON_HOVER should draw a wrapped marquee copy while hovered");
+
+        // Один символ = 6 px, ширина 50: без многоточия влезает 8 символов, с "..." (18 px) - 5.
+        // Убирается на символ больше, чем влезло бы, но не больше, чем нужно под многоточие.
+        TextBlock ellipsis = new TextBlock("abcdefghijklmnop");
+        ellipsis.overflowMode(TextOverflowMode.ELLIPSIS);
+        ellipsis.arrange(new MutableRect(0.0f, 0.0f, 50.0f, 12.0f));
+        DrawList ellipsisDrawList = new DrawList();
+        ellipsis.render(new DefaultRenderContext(ellipsisDrawList));
+        expect(hasText(ellipsisDrawList, "abcde..."),
+                "TextWidget ELLIPSIS should cut overflowing text and finish it with three dots");
+
+        TextBlock fitting = new TextBlock("abcdefg");
+        fitting.overflowMode(TextOverflowMode.ELLIPSIS);
+        fitting.arrange(new MutableRect(0.0f, 0.0f, 50.0f, 12.0f));
+        DrawList fittingDrawList = new DrawList();
+        fitting.render(new DefaultRenderContext(fittingDrawList));
+        expect(hasText(fittingDrawList, "abcdefg"),
+                "TextWidget ELLIPSIS should leave text that fits untouched");
     }
 
     private void testTextClipAddsGlyphBleed() {
@@ -3051,6 +3071,35 @@ public final class BasicControlsSelfTest {
         expect(fittedStyledButton == styledButton.fittedRichText(8.0f, 3.0f, 0.5f)
                         && fittedStyledButton.runs().get(0).pixelSize() < 6.0f,
                 "Button should cache its width-fitted rich text until inputs change");
+
+        Checkbox styledCheckbox = new Checkbox("ready");
+        styledCheckbox.themeEnabled(false);
+        styledCheckbox.style(style -> style
+                .put(StyleKeys.CHECKBOX_BACKGROUND_COLOR, WidgetState.NORMAL, MutableColor.rgba(0.1f, 0.1f, 0.1f, 1.0f))
+                .put(StyleKeys.CHECKBOX_BACKGROUND_COLOR, WidgetState.CHECKED, MutableColor.rgba(0.2f, 0.6f, 0.3f, 1.0f))
+                .put(StyleKeys.BORDER_COLOR, WidgetState.NORMAL, MutableColor.rgba(0.4f, 0.4f, 0.4f, 1.0f))
+                .put(StyleKeys.BORDER_COLOR, WidgetState.HOVERED, MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f))
+                .put(StyleKeys.TEXT_SIZE, 6.0f)
+                .put(StyleKeys.TEXT_TRACKING, 0.5f)
+                .put(StyleKeys.TEXT_TRANSFORM, TextTransform.UPPERCASE));
+        RichText checkboxText = styledCheckbox.renderedRichText();
+        expect(checkboxText.plainText().equals("READY")
+                        && near(checkboxText.runs().get(0).pixelSize(), 6.0f)
+                        && near(checkboxText.runs().get(0).tracking(), 0.5f),
+                "Checkbox should apply typed text style values to its label");
+        styledCheckbox.boxSize(10.0f).checkSize(5.0f).checkAnimation(0.0f).silentChecked(true);
+        styledCheckbox.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 16.0f));
+        DrawList styledCheckboxDrawList = new DrawList();
+        styledCheckbox.render(new DefaultRenderContext(styledCheckboxDrawList));
+        expect(hasFillColor(styledCheckboxDrawList, 0.2f, 0.6f, 0.3f, 1.0f)
+                        && hasText(styledCheckboxDrawList, "READY")
+                        && styledCheckboxDrawList.commands().stream().anyMatch(command ->
+                        command.type() == DrawCommandType.CIRCLE
+                                && command.paint() != null
+                                && !command.paint().isStroke()
+                                && near(command.bounds().width(), styledCheckbox.checkSize())
+                                && near(command.bounds().height(), styledCheckbox.checkSize())),
+                "Checkbox should render a round checked mark inside its square indicator");
 
         Checkbox compactCheckbox = new Checkbox();
         compactCheckbox.richText(compactButtonText);
@@ -6393,6 +6442,11 @@ public final class BasicControlsSelfTest {
                 "Open ComboBox should render all options");
         expect(combo.optionButton(1).checked(),
                 "ComboBox should mark the selected option as checked");
+        expect(near(combo.optionButton(1).background().r(), 0.149f)
+                        && near(combo.optionButton(1).background().g(), 0.251f)
+                        && near(combo.optionButton(1).background().b(), 0.369f)
+                        && !combo.optionButton(1).borderVisible(),
+                "ComboBox checked appearance should come from component state styles");
         combo.optionHoverBackground().set(0.5f, 0.3f, 0.2f, 1.0f);
         expect(near(combo.optionButton(0).hoverBackground().r(), 0.5f)
                         && near(combo.optionButton(0).hoverBackground().g(), 0.3f),
@@ -6592,6 +6646,18 @@ public final class BasicControlsSelfTest {
                         && near(combo.optionsHost().borderColor().b(), 0.231f),
                 "Options host should use radius 8 and a subtle border instead of the legacy cyan frame");
 
+        StylePack dropdownSkin = StylePack.create("dropdown-host-skin")
+                .put(StyleDefinition.of("dropdown.host.square", new MutableStyle()
+                                .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.04f, 0.05f, 0.07f, 1.0f))
+                                .put(StyleKeys.BORDER_COLOR, MutableColor.rgba(0.2f, 0.22f, 0.25f, 1.0f))
+                                .put(StyleKeys.RADIUS, 0.0f))
+                        .target(StyleIds.Widget.BOX)
+                        .styleClass("destiny-dropdown-host"));
+        DefaultUIContext dropdownContext = new DefaultUIContext();
+        dropdownContext.theme(dropdownSkin);
+        combo.optionsHost().styleClass("destiny-dropdown-host");
+        combo.setUiContextInternal(dropdownContext);
+
         DrawList closedDrawList = new DrawList();
         combo.render(new DefaultRenderContext(closedDrawList));
         expect(countCommands(closedDrawList, DrawCommandType.LINE) >= 2,
@@ -6604,6 +6670,10 @@ public final class BasicControlsSelfTest {
         combo.arrange(new MutableRect(0.0f, 0.0f, 200.0f, combo.desiredSize().height()));
         DrawList openDrawList = new DrawList();
         combo.render(new DefaultRenderContext(openDrawList));
+        expect(near(combo.optionsHost().radius(), 0.0f)
+                        && near(combo.optionsHost().background().r(), 0.04f)
+                        && near(combo.optionsHost().background().g(), 0.05f),
+                "ComboBox host should let its StylePack replace component surface defaults");
         expect(hasSelectedPill(openDrawList, combo.optionsHost()),
                 "Selected option should render as an inset pill, not a full-bleed row");
         expect(near(combo.optionButton(0).layoutBounds().height(), 28.0f)
@@ -7037,6 +7107,12 @@ public final class BasicControlsSelfTest {
 
     private void testTreeViewContracts() {
         TreeView tree = new TreeView();
+        tree.style(style -> style
+                .put(StyleKeys.TREE_ROW_HEIGHT, 20.0f)
+                .put(StyleKeys.TREE_ROW_STYLE, TreeRowStyle.FULL_WIDTH)
+                .put(StyleKeys.TREE_DISCLOSURE_STYLE, TreeDisclosureStyle.TRIANGLE)
+                .put(StyleKeys.TREE_INDENT_WIDTH, 14.0f)
+                .put(StyleKeys.TREE_FOLDER_FILL_ENABLED, true));
         TreeViewNode root = tree.addRoot("Root");
         TreeViewNode child = root.addChild("Child");
         TreeViewNode leaf = child.addChild("Leaf");
@@ -7047,6 +7123,12 @@ public final class BasicControlsSelfTest {
 
         tree.measure(new LayoutContext(220.0f, 200.0f));
         tree.arrange(new MutableRect(0.0f, 0.0f, 220.0f, tree.desiredSize().height()));
+        expect(near(root.rowButton().desiredSize().height(), 20.0f),
+                "TreeView row height should resolve from the typed Style API");
+        tree.style(style -> style.put(StyleKeys.TREE_ROW_HEIGHT, 24.0f));
+        tree.measure(new LayoutContext(220.0f, 200.0f));
+        expect(near(root.rowButton().desiredSize().height(), 24.0f),
+                "Changing a layout-affecting TreeView style should remeasure its rows");
         DrawList expandedDrawList = new DrawList();
         tree.render(new DefaultRenderContext(expandedDrawList));
         expect(tree.rootCount() == 2
@@ -7384,7 +7466,45 @@ public final class BasicControlsSelfTest {
         expect(countCommands(switchDrawList, DrawCommandType.ROUNDED_RECT) == 1
                         && countCommands(switchDrawList, DrawCommandType.CIRCLE) == 1
                         && hasText(switchDrawList, "Online"),
-                "ToggleSwitch should render a rounded track, thumb and optional label");
+                "ToggleSwitch should render a rounded track, circular thumb and optional label by default");
+
+        ToggleSwitch styledSwitch = new ToggleSwitch("ready").trackSize(28.0f, 12.0f).thumbSize(8.0f);
+        styledSwitch.themeEnabled(false);
+        styledSwitch.style(style -> style
+                .put(StyleKeys.TRACK_COLOR, WidgetState.NORMAL, MutableColor.rgba(0.1f, 0.2f, 0.3f, 1.0f))
+                .put(StyleKeys.TRACK_COLOR, WidgetState.CHECKED, MutableColor.rgba(0.2f, 0.6f, 0.3f, 1.0f))
+                .put(StyleKeys.BORDER_COLOR, WidgetState.NORMAL, MutableColor.rgba(0.4f, 0.4f, 0.4f, 1.0f))
+                .put(StyleKeys.BORDER_COLOR, WidgetState.HOVERED, MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f))
+                .put(StyleKeys.BORDER_WIDTH, 0.5f)
+                .put(StyleKeys.THUMB_COLOR, WidgetState.NORMAL, MutableColor.rgba(0.7f, 0.7f, 0.7f, 1.0f))
+                .put(StyleKeys.THUMB_COLOR, WidgetState.CHECKED, MutableColor.rgba(0.3f, 0.8f, 0.4f, 1.0f))
+                .put(StyleKeys.THUMB_RADIUS, 0.0f)
+                .put(StyleKeys.TEXT_SIZE, 6.0f)
+                .put(StyleKeys.TEXT_TRACKING, 0.5f)
+                .put(StyleKeys.TEXT_TRANSFORM, TextTransform.UPPERCASE));
+        expect(styledSwitch.renderedRichText().plainText().equals("READY")
+                        && near(styledSwitch.renderedRichText().runs().get(0).pixelSize(), 6.0f)
+                        && near(styledSwitch.renderedRichText().runs().get(0).tracking(), 0.5f),
+                "ToggleSwitch should apply typed text style values to its label");
+        styledSwitch.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 16.0f));
+        DrawList styledSwitchOff = new DrawList();
+        styledSwitch.render(new DefaultRenderContext(styledSwitchOff));
+        expect(hasFillColor(styledSwitchOff, 0.1f, 0.2f, 0.3f, 1.0f)
+                        && hasFillColor(styledSwitchOff, 0.7f, 0.7f, 0.7f, 1.0f)
+                        && countSwitchThumbRects(styledSwitchOff, 8.0f) == 1
+                        && countCommands(styledSwitchOff, DrawCommandType.CIRCLE) == 0
+                        && styledSwitchOff.commands().stream().anyMatch(command ->
+                        command.type() == DrawCommandType.ROUNDED_RECT
+                                && command.paint() != null
+                                && command.paint().isStroke()
+                                && near(command.paint().strokeWidth(), 0.5f)),
+                "ToggleSwitch should render styled OFF track, thumb and outline");
+        styledSwitch.silentChecked(true);
+        DrawList styledSwitchOn = new DrawList();
+        styledSwitch.render(new DefaultRenderContext(styledSwitchOn));
+        expect(hasFillColor(styledSwitchOn, 0.2f, 0.6f, 0.3f, 1.0f)
+                        && hasFillColor(styledSwitchOn, 0.3f, 0.8f, 0.4f, 1.0f),
+                "ToggleSwitch should render state-specific ON track and thumb colors");
         float thumbOff = firstCircleX(switchDrawList);
         uiContext.routedEvents().dispatch(new PointerPressedEvent(toggleSwitch, 8.0f, 8.0f, 8.0f, 8.0f, 0, PointerButton.PRIMARY));
         uiContext.routedEvents().dispatch(new PointerReleasedEvent(toggleSwitch, 8.0f, 8.0f, 8.0f, 8.0f, 0, PointerButton.PRIMARY));
@@ -7659,6 +7779,20 @@ public final class BasicControlsSelfTest {
             if (command.type() == DrawCommandType.CIRCLE) return command.bounds().x();
         }
         return -1.0f;
+    }
+
+    private static int countSwitchThumbRects(DrawList drawList, float size) {
+        int count = 0;
+        for (DrawCommand command : drawList.commands()) {
+            if (command.type() == DrawCommandType.RECT
+                    && command.paint() != null
+                    && !command.paint().isStroke()
+                    && near(command.bounds().width(), size)
+                    && near(command.bounds().height(), size)) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private static boolean hasText(DrawList drawList, String text) {

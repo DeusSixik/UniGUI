@@ -1,20 +1,20 @@
 package dev.sixik.unigui.testmod.client.ui.minecraft;
 
+import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.style.MutableStyle;
 import dev.sixik.unigui.api.style.StyleDefinition;
 import dev.sixik.unigui.api.style.StyleIds;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.StylePack;
+import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.text.TextTransform;
 import dev.sixik.unigui.api.widget.render.WidgetRenderRegistry;
 import dev.sixik.unigui.api.widget.render.WidgetRole;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeButtonRenders;
-import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeCheckboxRenders;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeDropDownRenders;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeScrollBarRenders;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeSliderRenders;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeTooltipRenders;
-import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeToggleSwitchRenders;
 
 /**
  * Локальный StylePack с renderer-переопределениями оформления DestinyLike.
@@ -69,25 +69,9 @@ final class DestinyLikeStyles {
      */
     private static final String ID_DROPDOWN_HEADER = "testmod:destiny/dropdown-header";
     /**
-     * Registry id renderer'а вариантов списка.
-     */
-    private static final String ID_DROPDOWN_OPTION = "testmod:destiny/dropdown-option";
-    /**
-     * Registry id renderer'а поверхности списка.
-     */
-    private static final String ID_DROPDOWN_HOST = "testmod:destiny/dropdown-host";
-    /**
      * Registry id renderer'а ползунка.
      */
     private static final String ID_SLIDER = "testmod:destiny/slider";
-    /**
-     * Registry id renderer'а флажка.
-     */
-    private static final String ID_CHECKBOX = "testmod:destiny/checkbox";
-    /**
-     * Registry id renderer'а переключателя.
-     */
-    private static final String ID_TOGGLE_SWITCH = "testmod:destiny/toggle-switch";
     /**
      * Registry id renderer'а полосы прокрутки.
      */
@@ -113,11 +97,7 @@ final class DestinyLikeStyles {
         WidgetRenderRegistry registry = WidgetRenderRegistry.global();
         registry.register(ID_BUTTON, WidgetRole.BUTTON, DestinyLikeButtonRenders.DEFAULT);
         registry.register(ID_DROPDOWN_HEADER, WidgetRole.BUTTON, DestinyLikeDropDownRenders.HEADER);
-        registry.register(ID_DROPDOWN_OPTION, WidgetRole.TOGGLE_BUTTON, DestinyLikeDropDownRenders.OPTION);
-        registry.register(ID_DROPDOWN_HOST, WidgetRole.PANEL, DestinyLikeDropDownRenders.OPTIONS_HOST);
         registry.register(ID_SLIDER, WidgetRole.SLIDER, DestinyLikeSliderRenders.DEFAULT);
-        registry.register(ID_CHECKBOX, WidgetRole.CHECKBOX, DestinyLikeCheckboxRenders.DOMINION_CHECKBOX_RENDERER);
-        registry.register(ID_TOGGLE_SWITCH, WidgetRole.TOGGLE_SWITCH, DestinyLikeToggleSwitchRenders.DOMINION_TOGGLE_SWITCH_RENDERER);
         registry.register(ID_SCROLLBAR, WidgetRole.PANEL, DestinyLikeScrollBarRenders.DEFAULT);
         registry.register(ID_TOOLTIP, WidgetRole.POPUP, DestinyLikeTooltipRenders.DEFAULT);
 
@@ -128,11 +108,63 @@ final class DestinyLikeStyles {
                                 .put(StyleKeys.TEXT_TRACKING, 0.34f)
                                 .put(StyleKeys.TEXT_TRANSFORM, TextTransform.UPPERCASE)))
                 .put(renderer("button.dropdown.header", StyleIds.Widget.BUTTON, DROPDOWN_HEADER, ID_DROPDOWN_HEADER))
-                .put(renderer("toggle.dropdown.option", StyleIds.Widget.TOGGLE_BUTTON, DROPDOWN_OPTION, ID_DROPDOWN_OPTION))
-                .put(renderer("box.dropdown.host", StyleIds.Widget.BOX, DROPDOWN_HOST, ID_DROPDOWN_HOST))
+                .put(style("toggle.dropdown.option", StyleIds.Widget.TOGGLE_BUTTON, DROPDOWN_OPTION,
+                        new MutableStyle()
+                                .put(StyleKeys.BACKGROUND_VISIBLE, true)
+                                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.NORMAL, MutableColor.rgba255(22, 25, 31, 246))
+                                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.HOVERED, MutableColor.rgba255(39, 43, 52, 246))
+                                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.PRESSED, MutableColor.rgba255(39, 43, 52, 246))
+                                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.CHECKED, MutableColor.rgba255(39, 43, 52, 246))
+                                .put(StyleKeys.BORDER_VISIBLE, false)
+                                .put(StyleKeys.BORDER_VISIBLE, WidgetState.HOVERED, true)
+                                .put(StyleKeys.BORDER_VISIBLE, WidgetState.PRESSED, true)
+                                .put(StyleKeys.BORDER_COLOR, WidgetState.HOVERED, MutableColor.rgba255(238, 241, 247, 255))
+                                .put(StyleKeys.BORDER_COLOR, WidgetState.PRESSED, MutableColor.rgba255(238, 241, 247, 255))
+                                .put(StyleKeys.BORDER_WIDTH, 0.18f)
+                                .put(StyleKeys.RADIUS, 0.0f)
+                                .put(StyleKeys.TEXT_COLOR, MutableColor.rgba255(255, 255, 255, 255))
+                                .put(StyleKeys.TEXT_SIZE, 4.2f)
+                                .put(StyleKeys.TEXT_TRACKING, 0.32f)
+                                .put(StyleKeys.TEXT_TRANSFORM, TextTransform.UPPERCASE)))
+                .put(style("box.dropdown.host", StyleIds.Widget.BOX, DROPDOWN_HOST,
+                        new MutableStyle()
+                                .put(StyleKeys.BACKGROUND_VISIBLE, true)
+                                .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.09f, 0.10f, 0.13f, 0.98f))
+                                .put(StyleKeys.BORDER_VISIBLE, true)
+                                .put(StyleKeys.BORDER_COLOR, MutableColor.rgba(0.41f, 0.43f, 0.48f, 0.88f))
+                                .put(StyleKeys.BORDER_WIDTH, 0.18f)
+                                .put(StyleKeys.RADIUS, 0.0f)))
                 .put(renderer("slider.default", StyleIds.Widget.SLIDER, SLIDER, ID_SLIDER))
-                .put(renderer("checkbox.default", StyleIds.Widget.CHECKBOX, CHECKBOX, ID_CHECKBOX))
-                .put(renderer("toggle-switch.default", StyleIds.Widget.TOGGLE_SWITCH, TOGGLE_SWITCH, ID_TOGGLE_SWITCH))
+                .put(style("checkbox.default", StyleIds.Widget.CHECKBOX, CHECKBOX,
+                        new MutableStyle()
+                                .put(StyleKeys.CHECKBOX_BACKGROUND_COLOR, WidgetState.NORMAL, MutableColor.rgba255(45, 47, 53, 255))
+                                .put(StyleKeys.CHECKBOX_BACKGROUND_COLOR, WidgetState.CHECKED, MutableColor.rgba255(24, 76, 43, 255))
+                                .put(StyleKeys.BORDER_COLOR, WidgetState.NORMAL, MutableColor.rgba255(126, 129, 138, 255))
+                                .put(StyleKeys.BORDER_COLOR, WidgetState.CHECKED, MutableColor.rgba255(90, 165, 106, 255))
+                                .put(StyleKeys.BORDER_COLOR, WidgetState.HOVERED, MutableColor.rgba255(255, 255, 255, 255))
+                                .put(StyleKeys.BORDER_WIDTH, 0.16f)
+                                .put(StyleKeys.RADIUS, 0.0f)
+                                .put(StyleKeys.ACCENT_COLOR, MutableColor.rgba255(90, 165, 106, 255))
+                                .put(StyleKeys.TEXT_COLOR, MutableColor.rgba255(245, 247, 255, 255))
+                                .put(StyleKeys.TEXT_SIZE, 4.4f)
+                                .put(StyleKeys.TEXT_TRACKING, 0.34f)
+                                .put(StyleKeys.TEXT_TRANSFORM, TextTransform.UPPERCASE)))
+                .put(style("toggle-switch.default", StyleIds.Widget.TOGGLE_SWITCH, TOGGLE_SWITCH,
+                        new MutableStyle()
+                                .put(StyleKeys.TRACK_COLOR, WidgetState.NORMAL, MutableColor.rgba255(45, 47, 53, 255))
+                                .put(StyleKeys.TRACK_COLOR, WidgetState.CHECKED, MutableColor.rgba255(24, 76, 43, 255))
+                                .put(StyleKeys.BORDER_COLOR, WidgetState.NORMAL, MutableColor.rgba255(126, 129, 138, 255))
+                                .put(StyleKeys.BORDER_COLOR, WidgetState.CHECKED, MutableColor.rgba255(90, 165, 106, 255))
+                                .put(StyleKeys.BORDER_COLOR, WidgetState.HOVERED, MutableColor.rgba255(255, 255, 255, 255))
+                                .put(StyleKeys.BORDER_WIDTH, 0.16f)
+                                .put(StyleKeys.RADIUS, 0.0f)
+                                .put(StyleKeys.THUMB_COLOR, WidgetState.NORMAL, MutableColor.rgba255(192, 195, 202, 255))
+                                .put(StyleKeys.THUMB_COLOR, WidgetState.CHECKED, MutableColor.rgba255(90, 165, 106, 255))
+                                .put(StyleKeys.THUMB_RADIUS, 0.0f)
+                                .put(StyleKeys.TEXT_COLOR, MutableColor.rgba255(245, 247, 255, 255))
+                                .put(StyleKeys.TEXT_SIZE, 4.4f)
+                                .put(StyleKeys.TEXT_TRACKING, 0.34f)
+                                .put(StyleKeys.TEXT_TRANSFORM, TextTransform.UPPERCASE)))
                 .put(renderer("scrollbar.default", StyleIds.Widget.SCROLL_BAR, SCROLLBAR, ID_SCROLLBAR))
                 .put(renderer("tooltip.default", StyleIds.Widget.TOOLTIP, TOOLTIP, ID_TOOLTIP));
     }
@@ -144,6 +176,12 @@ final class DestinyLikeStyles {
     private static StyleDefinition renderer(String id, String target, String styleClass, String rendererId,
                                             MutableStyle style) {
         return StyleDefinition.custom(id, rendererId, style)
+                .target(target)
+                .styleClass(styleClass);
+    }
+
+    private static StyleDefinition style(String id, String target, String styleClass, MutableStyle style) {
+        return StyleDefinition.of(id, style)
                 .target(target)
                 .styleClass(styleClass);
     }

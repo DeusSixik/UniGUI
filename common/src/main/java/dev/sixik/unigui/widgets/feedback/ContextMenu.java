@@ -124,9 +124,15 @@ public final class ContextMenu extends Box implements OverlayHostAware {
             return item(text);
         }
         RichText normalizedText = text == null ? RichText.plain("▶") : text;
-        int itemIndex = itemButtons.size();
         Button button = new Button(normalizedText);
         button.layout(style -> style.size(132.0f, 20.0f).flexGrow(0).flexShrink(0.0f));
+        return submenu(button, submenu);
+    }
+
+    public ContextMenu submenu(Button button, ContextMenu submenu) {
+        if (button == null) return this;
+        if (submenu == null) return item(button);
+        int itemIndex = itemButtons.size();
         button.onClick(event -> {
             selectItem(itemIndex);
             openSubmenu(itemIndex);
@@ -240,6 +246,9 @@ public final class ContextMenu extends Box implements OverlayHostAware {
         visible(open);
         if (!open) {
             closeSubmenu();
+            if (parent() instanceof OverlayLayer layer) {
+                layer.removeOverlay(this);
+            }
         }
         if (open && selectedItemIndex < 0 && !itemButtons.isEmpty()) {
             selectedItemIndex = 0;

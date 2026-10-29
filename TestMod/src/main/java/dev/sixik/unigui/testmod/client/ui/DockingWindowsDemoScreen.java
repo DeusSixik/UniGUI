@@ -4,6 +4,7 @@ import dev.sixik.unigui.api.core.UnityLikeUIScaleProvider;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.Overflow;
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.render.UiIcon;
 import dev.sixik.unigui.api.render.UiRenderPolicy;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftClipboardService;
@@ -15,7 +16,10 @@ import dev.sixik.unigui.widgets.containers.StackPanel;
 import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.docking.DockArea;
+import dev.sixik.unigui.widgets.docking.DockPane;
 import dev.sixik.unigui.widgets.docking.DockPaneKind;
+import dev.sixik.unigui.widgets.docking.DockPolicy;
+import dev.sixik.unigui.widgets.docking.DockTheme;
 import dev.sixik.unigui.widgets.docking.DockingRoot;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 import dev.sixik.unigui.widgets.feedback.WindowWidget;
@@ -36,13 +40,57 @@ import static dev.sixik.unigui.testmod.client.ui.DemoScaffold.label;
 /**
  * Демо drag-to-dock для {@link WindowWidget}.
  *
- * <p>Слева — {@link DockingRoot} с парой панелей, справа — кнопки спавна
- * свободных окон. Окна с включённым флагом {@code dockable} можно тащить
- * за header над docking root: появится drop preview, а на release контент
- * окна станет dock-панелью и окно закроется.</p>
+ * <p>Слева — {@link DockingRoot} с иконками на вкладках, справа — спавн окон. Докинг —
+ * свойство любого окна по умолчанию: тащите заголовок над workspace или над другим окном
+ * (оно само станет хостом с вкладками). Вкладку можно вытянуть из дока: она превращается в
+ * компактное окно 128x128 и принимает свой размер, если её никуда не пристыковали.</p>
  */
 public final class DockingWindowsDemoScreen {
     private static final MutableColor BG = MutableColor.rgba(0.020f, 0.026f, 0.038f, 1.0f);
+
+    /** Процедурный куб: показывает, что иконка вкладки — обычная лямбда, а не виджет. */
+    private static final UiIcon CUBE_ICON = (draw, x, y, size, tint) -> {
+        float cx = x + size * 0.5f;
+        float cy = y + size * 0.5f;
+        float r = size * 0.46f;
+        MutableColor top = MutableColor.rgba(0.55f, 0.75f, 1.0f, tint.a());
+        MutableColor left = MutableColor.rgba(0.28f, 0.52f, 0.92f, tint.a());
+        MutableColor right = MutableColor.rgba(0.18f, 0.36f, 0.74f, tint.a());
+        draw.pathClear();
+        draw.pathLineTo(cx, cy - r);
+        draw.pathLineTo(cx + r * 0.866f, cy - r * 0.5f);
+        draw.pathLineTo(cx, cy);
+        draw.pathLineTo(cx - r * 0.866f, cy - r * 0.5f);
+        draw.pathFillConvex(top);
+        draw.pathClear();
+        draw.pathLineTo(cx - r * 0.866f, cy - r * 0.5f);
+        draw.pathLineTo(cx, cy);
+        draw.pathLineTo(cx, cy + r);
+        draw.pathLineTo(cx - r * 0.866f, cy + r * 0.5f);
+        draw.pathFillConvex(left);
+        draw.pathClear();
+        draw.pathLineTo(cx, cy);
+        draw.pathLineTo(cx + r * 0.866f, cy - r * 0.5f);
+        draw.pathLineTo(cx + r * 0.866f, cy + r * 0.5f);
+        draw.pathLineTo(cx, cy + r);
+        draw.pathFillConvex(right);
+    };
+
+    /** Монохромная иконка «i»: красится цветом темы (приглушённый на неактивной вкладке). */
+    private static final UiIcon INFO_ICON = (draw, x, y, size, tint) -> {
+        float d = size * 0.86f;
+        draw.circleStroke(x + (size - d) * 0.5f, y + (size - d) * 0.5f, d, d, tint, 1.4f);
+        draw.rectFilled(x + size * 0.46f, y + size * 0.42f, size * 0.1f, size * 0.28f, tint);
+        draw.rectFilled(x + size * 0.46f, y + size * 0.26f, size * 0.1f, size * 0.1f, tint);
+    };
+
+    /** Монохромная иконка «строки лога». */
+    private static final UiIcon LINES_ICON = (draw, x, y, size, tint) -> {
+        for (int i = 0; i < 3; i++) {
+            float ly = y + size * (0.22f + i * 0.26f);
+            draw.rectFilled(x + size * 0.12f, ly, size * (i == 1 ? 0.5f : 0.76f), size * 0.1f, tint);
+        }
+    };
 
     private DockingWindowsDemoScreen() {
     }
@@ -96,10 +144,13 @@ public final class DockingWindowsDemoScreen {
 
     private static Widget viewportBody(Runnable closeAction) {
         DockingRoot docking = new DockingRoot();
-        docking.addDocument("scene", "Scene", paneBody("Scene document. Drag window headers over this area."))
+        docking.addPane(DockPane.document("scene", "Scene",
+                paneBody("Scene document. Drag window headers over this area.")).icon(CUBE_ICON))
                 .addToolPane("inspector", "Inspector", paneBody("Inspector tool pane."), DockArea.RIGHT)
                 .addToolPane("log", "Log", paneBody("Log tool pane."), DockArea.BOTTOM)
                 .selectPane("scene");
+        docking.manager().findPane("inspector").icon(INFO_ICON);
+        docking.manager().findPane("log").icon(LINES_ICON).dirty(true);
         docking.layout(style -> style.sizePercent(100.0f, 100.0f).flexGrow(1.0f).flexShrink(1.0f));
 
         Label status = fullWidth(label("Panes: 3. Drag a dockable window header over the workspace.", TEXT), 20.0f);
@@ -118,11 +169,15 @@ public final class DockingWindowsDemoScreen {
                 .gap(8.0f).flexGrow(0.0f).flexShrink(0.0f));
 
         Label title = fullWidth(label("DOCKING WINDOWS", TEXT), 22.0f);
-        Label hint = fullWidth(label("Drag headers over workspace or host windows. One flag: docking host joins tabs/splits via zones.", DemoScaffold.MUTED), 34.0f);
+        Label hint = fullWidth(label("Every window docks by default: drag a header over the workspace or over another window. Drag a tab out to get a 128x128 ghost.", DemoScaffold.MUTED), 46.0f);
 
-        Checkbox dockableCheck = checkbox("Dockable windows", true);
         Checkbox lockCheck = checkbox("Lock redock", false);
-        Checkbox hostCheck = checkbox("Window is docking host", false);
+        Checkbox guestOnlyCheck = checkbox("Spawn as guest only (no drops accepted)", false);
+        Checkbox classicCheck = checkbox("Classic theme", false);
+        classicCheck.onStateChanged(event -> {
+            DockTheme.defaultTheme(classicCheck.checked() ? DockTheme.classic() : DockTheme.editor());
+            docking.theme(null);
+        });
 
         int[] counter = {1};
         Button spawn = fullWidth(button("Spawn window", () -> {
@@ -131,31 +186,27 @@ public final class DockingWindowsDemoScreen {
             String id = "demo-" + counter[0]++;
             WindowWidget window = new WindowWidget("Demo " + id, paneBody("Content of " + id + "."))
                     .position(260.0f + counter[0] * 14.0f % 160.0f, 90.0f + counter[0] * 11.0f % 120.0f)
-                    .dockable(dockableCheck.checked())
+                    .icon(counter[0] % 2 == 0 ? INFO_ICON : LINES_ICON)
                     .dockPaneId(id)
                     .dockKind(DockPaneKind.TOOL)
+                    .dockPolicy(guestOnlyCheck.checked() ? DockPolicy.GUEST_ONLY : DockPolicy.FULL)
                     .dockRedockLocked(lockCheck.checked())
-                    .dockingEnabled(hostCheck.checked())
                     .closeOnOutsideClick(false);
             window.layout(style -> style.size(220.0f, 130.0f).flexGrow(0.0f).flexShrink(0.0f));
             window.onClosed(event -> status.text("Window closed: " + id
                     + ", panes: " + docking.manager().paneCount()));
-            if (window.dockingEnabled()) {
-                window.dockTool(id + "-notes", "Notes", paneBody("Notes pane of " + id + "."));
-            }
             layer.addOverlay(window);
             window.open();
-            status.text("Spawned " + id + " (dockable=" + window.dockable()
-                    + ", host=" + window.dockingEnabled() + ")");
+            status.text("Spawned " + id + " (policy=" + window.dockPolicy() + ")");
         }), 28.0f);
 
         Button close = fullWidth(button("Close", closeAction), 28.0f);
 
         side.addChild(title);
         side.addChild(hint);
-        side.addChild(dockableCheck);
         side.addChild(lockCheck);
-        side.addChild(hostCheck);
+        side.addChild(guestOnlyCheck);
+        side.addChild(classicCheck);
         side.addChild(spawn);
         side.addChild(status);
         side.addChild(close);

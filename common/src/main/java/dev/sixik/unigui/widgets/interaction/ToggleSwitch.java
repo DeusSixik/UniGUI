@@ -10,6 +10,7 @@ import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.StyleIds;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.Style;
+import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.render.Paint;
@@ -57,6 +58,8 @@ public class ToggleSwitch extends ToggleButton {
     private boolean labelLeft;
     private float switchProgress;
     private final MutableColor trackBlend = new MutableColor();
+    private final MutableColor thumbBlend = new MutableColor();
+    private final MutableColor borderBlend = new MutableColor();
     private TransitionSpec switchAnimation = TransitionSpec.of(DEFAULT_SWITCH_ANIMATION_SECONDS);
 
     public ToggleSwitch() {
@@ -207,9 +210,11 @@ public class ToggleSwitch extends ToggleButton {
             setDesiredSize(0.0f, 0.0f);
             return;
         }
-        float textWidth = Math.max(TextEngine.measureLineWidth(richText()), TextEngine.measureLineWidth(text()));
+        applyTheme();
+        RichText label = renderedRichText();
+        float textWidth = label == null ? 0.0f : TextEngine.measureLineWidth(label);
         float labelWidth = hasLabel() ? labelGap + textWidth : 0.0f;
-        float textHeight = TextEngine.measureTextHeight(richText());
+        float textHeight = TextEngine.measureTextHeight(label);
         setDesiredSize(resolveDesiredSize(context, trackWidth + labelWidth, Math.max(trackHeight, textHeight)));
     }
 
@@ -221,24 +226,49 @@ public class ToggleSwitch extends ToggleButton {
         float y = layoutBounds().y();
         float width = layoutBounds().width();
         float height = layoutBounds().height();
-        boolean hasText = hasLabel();
+        RichText label = renderedRichText();
+        boolean hasText = label != null && !label.isEmpty();
         if (trackWidth > 0.0f && trackHeight > 0.0f && thumbSize > 0.0f) {
             float gap = hasText ? Math.max(0.0f, labelGap) : 0.0f;
-            float textWidth = hasText ? TextEngine.measureLineWidth(draw.context(), richText()) : 0.0f;
-            float textHeight = hasText ? TextEngine.measureTextHeight(draw.context(), richText()) : 0.0f;
+            float textWidth = hasText ? TextEngine.measureLineWidth(draw.context(), label) : 0.0f;
+            float textHeight = hasText ? TextEngine.measureTextHeight(draw.context(), label) : 0.0f;
             float labelWidth = hasText
                     ? Math.min(Math.max(0.0f, textWidth), Math.max(0.0f, width - trackWidth - gap))
                     : 0.0f;
             float trackX = labelLeft ? x + labelWidth + gap : x;
             float trackY = y + Math.max(0.0f, height - trackHeight) * 0.5f;
-            draw.roundedRect(trackX, trackY, trackWidth, trackHeight, trackHeight * 0.5f,
+            Float styledRadius = styleValue(StyleKeys.RADIUS, trackHeight * 0.5f);
+            float radius = styledRadius == null ? trackHeight * 0.5f : Math.max(0.0f, styledRadius);
+            draw.roundedRect(trackX, trackY, trackWidth, trackHeight, radius,
                     Paint.fill(switchTrackColor()));
+            ColorView borderOff = styleValue(StyleKeys.BORDER_COLOR, WidgetState.NORMAL, null);
+            ColorView borderOn = styleValue(StyleKeys.BORDER_COLOR, WidgetState.CHECKED, borderOff);
+            ColorView borderHover = styleValue(StyleKeys.BORDER_COLOR, WidgetState.HOVERED, borderOff);
+            Float borderWidthValue = styleValue(StyleKeys.BORDER_WIDTH, 0.0f);
+            float borderWidth = borderWidthValue == null ? 0.0f : Math.max(0.0f, borderWidthValue);
+            ColorView borderColor = hovered() && enabled() && borderHover != null
+                    ? borderHover
+                    : interpolate(borderBlend, borderOff, borderOn, switchProgress);
+            if (borderWidth > 0.0f && borderColor != null) {
+                draw.roundedRectStroke(trackX, trackY, trackWidth, trackHeight, radius,
+                        borderColor, borderWidth);
+            }
 
             float thumbPadding = Math.max(1.0f, (trackHeight - thumbSize) * 0.5f);
             float thumbTravel = Math.max(0.0f, trackWidth - thumbSize - thumbPadding * 2.0f);
             float thumbX = trackX + thumbPadding + switchProgress * thumbTravel;
             float thumbY = trackY + Math.max(0.0f, trackHeight - thumbSize) * 0.5f;
-            draw.circle(thumbX, thumbY, thumbSize, thumbSize, Paint.fill(thumbColor));
+            Float thumbRadiusValue = styleValue(StyleKeys.THUMB_RADIUS, thumbSize * 0.5f);
+            float thumbRadius = Math.max(0.0f, Math.min(thumbSize * 0.5f,
+                    thumbRadiusValue == null ? thumbSize * 0.5f : thumbRadiusValue));
+            if (thumbRadius >= thumbSize * 0.5f) {
+                draw.circle(thumbX, thumbY, thumbSize, thumbSize, Paint.fill(switchThumbColor()));
+            } else if (thumbRadius <= 0.0f) {
+                draw.rect(thumbX, thumbY, thumbSize, thumbSize, Paint.fill(switchThumbColor()));
+            } else {
+                draw.roundedRect(thumbX, thumbY, thumbSize, thumbSize, thumbRadius,
+                        Paint.fill(switchThumbColor()));
+            }
 
             if (hasText) {
                 float contentX;
@@ -253,7 +283,7 @@ public class ToggleSwitch extends ToggleButton {
                 float drawHeight = Math.min(Math.max(0.0f, height), Math.max(0.0f, textHeight));
                 if (contentWidth > 0.0f && drawHeight > 0.0f) {
                     float drawY = y + Math.max(0.0f, height - drawHeight) * 0.5f;
-                    renderLabel(draw, richText(), contentX, y, contentWidth, height,
+                    renderLabel(draw, label, contentX, y, contentWidth, height,
                             contentX, drawY, contentWidth, drawHeight, textColor());
                 }
             }
@@ -264,12 +294,6 @@ public class ToggleSwitch extends ToggleButton {
     @Override
     protected WidgetRole renderRole() {
         return WidgetRole.TOGGLE_SWITCH;
-    }
-
-    @Override
-    protected void applyTheme() {
-        super.applyTheme();
-        thumbColor.set(styleValue(StyleKeys.THUMB_COLOR, thumbColor));
     }
 
     @Override
@@ -291,21 +315,34 @@ public class ToggleSwitch extends ToggleButton {
      * @return цвет дорожки на текущем кадре
      */
     private ColorView switchTrackColor() {
-        ColorView off = styleValue(StyleKeys.BACKGROUND_COLOR, dev.sixik.unigui.api.style.WidgetState.NORMAL,
-                uncheckedBackground());
-        ColorView on = styleValue(StyleKeys.BACKGROUND_COLOR, dev.sixik.unigui.api.style.WidgetState.CHECKED,
-                checkedBackground());
+        ColorView off = styleValue(StyleKeys.TRACK_COLOR, WidgetState.NORMAL,
+                styleValue(StyleKeys.BACKGROUND_COLOR, WidgetState.NORMAL, uncheckedBackground()));
+        ColorView on = styleValue(StyleKeys.TRACK_COLOR, WidgetState.CHECKED,
+                styleValue(StyleKeys.BACKGROUND_COLOR, WidgetState.CHECKED, checkedBackground()));
         if (off == null) off = uncheckedBackground();
         if (on == null) on = checkedBackground();
-        float progress = switchProgress;
-        if (progress <= 0.0f) return off;
-        if (progress >= 1.0f) return on;
-        trackBlend.set(
-                off.r() + (on.r() - off.r()) * progress,
-                off.g() + (on.g() - off.g()) * progress,
-                off.b() + (on.b() - off.b()) * progress,
-                off.a() + (on.a() - off.a()) * progress);
-        return trackBlend;
+        return interpolate(trackBlend, off, on, switchProgress);
+    }
+
+    private ColorView switchThumbColor() {
+        ColorView off = styleValue(StyleKeys.THUMB_COLOR, WidgetState.NORMAL, thumbColor);
+        ColorView on = styleValue(StyleKeys.THUMB_COLOR, WidgetState.CHECKED, off);
+        return interpolate(thumbBlend, off == null ? thumbColor : off, on == null ? thumbColor : on,
+                switchProgress);
+    }
+
+    private static ColorView interpolate(MutableColor target, ColorView from, ColorView to, float amount) {
+        if (from == null) return to;
+        if (to == null) return from;
+        float progress = clamp01(amount);
+        if (progress <= 0.0f) return from;
+        if (progress >= 1.0f) return to;
+        target.set(
+                from.r() + (to.r() - from.r()) * progress,
+                from.g() + (to.g() - from.g()) * progress,
+                from.b() + (to.b() - from.b()) * progress,
+                from.a() + (to.a() - from.a()) * progress);
+        return target;
     }
 
     private void animateSwitchProgress(boolean checked) {

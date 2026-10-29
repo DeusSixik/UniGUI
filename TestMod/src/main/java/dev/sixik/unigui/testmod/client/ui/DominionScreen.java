@@ -7,16 +7,16 @@ import dev.sixik.unigui.api.event.PointerExitedEvent;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.UiRenderPolicy;
+import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftClipboardService;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftWidgetScreen;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeButtonRenders;
-import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeCheckboxRenders;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeProgressBarRenders;
 import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeRadioButtonRenders;
-import dev.sixik.unigui.testmod.client.ui.renders.DestinyLikeToggleSwitchRenders;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import dev.sixik.unigui.widgets.containers.Box;
@@ -113,9 +113,22 @@ public class DominionScreen {
         toggle.thumbSize(1.7f * 2);
         toggle.labelGap(1.35f);
         toggle.labelLeft(labelLeft);
-        toggle.richText(DestinyLikeToggleSwitchRenders.dominionSwitchText(text));
+        toggle.style(style -> style
+                .put(StyleKeys.TRACK_COLOR, WidgetState.NORMAL, MutableColor.rgba255(45, 47, 53, 255))
+                .put(StyleKeys.TRACK_COLOR, WidgetState.CHECKED, MutableColor.rgba255(24, 76, 43, 255))
+                .put(StyleKeys.BORDER_COLOR, WidgetState.NORMAL, MutableColor.rgba255(126, 129, 138, 255))
+                .put(StyleKeys.BORDER_COLOR, WidgetState.CHECKED, MutableColor.rgba255(90, 165, 106, 255))
+                .put(StyleKeys.BORDER_COLOR, WidgetState.HOVERED, MutableColor.rgba255(255, 255, 255, 255))
+                .put(StyleKeys.BORDER_WIDTH, 0.16f)
+                .put(StyleKeys.RADIUS, 0.0f)
+                .put(StyleKeys.THUMB_COLOR, WidgetState.NORMAL, MutableColor.rgba255(192, 195, 202, 255))
+                .put(StyleKeys.THUMB_COLOR, WidgetState.CHECKED, MutableColor.rgba255(90, 165, 106, 255))
+                .put(StyleKeys.THUMB_RADIUS, 0.0f)
+                .put(StyleKeys.TEXT_COLOR, MutableColor.rgba255(245, 247, 255, 255))
+                .put(StyleKeys.TEXT_SIZE, 4.4f)
+                .put(StyleKeys.TEXT_TRACKING, 0.34f)
+                .put(StyleKeys.TEXT_TRANSFORM, dev.sixik.unigui.api.text.TextTransform.UPPERCASE));
         toggle.switchAnimation(0.0f).silentChecked(checked).switchAnimation(0.16f);
-        toggle.renderer(DestinyLikeToggleSwitchRenders.DOMINION_TOGGLE_SWITCH_RENDERER);
         return toggle;
     }
 
@@ -139,9 +152,20 @@ public class DominionScreen {
         checkbox.boxSize(5.2f);
         checkbox.checkSize(3.4f);
         checkbox.textGap(1.35f);
-        checkbox.richText(DestinyLikeCheckboxRenders.dominionCheckboxText(text));
+        checkbox.style(style -> style
+                .put(StyleKeys.CHECKBOX_BACKGROUND_COLOR, WidgetState.NORMAL, MutableColor.rgba255(45, 47, 53, 255))
+                .put(StyleKeys.CHECKBOX_BACKGROUND_COLOR, WidgetState.CHECKED, MutableColor.rgba255(24, 76, 43, 255))
+                .put(StyleKeys.BORDER_COLOR, WidgetState.NORMAL, MutableColor.rgba255(126, 129, 138, 255))
+                .put(StyleKeys.BORDER_COLOR, WidgetState.CHECKED, MutableColor.rgba255(90, 165, 106, 255))
+                .put(StyleKeys.BORDER_COLOR, WidgetState.HOVERED, MutableColor.rgba255(255, 255, 255, 255))
+                .put(StyleKeys.BORDER_WIDTH, 0.16f)
+                .put(StyleKeys.RADIUS, 0.0f)
+                .put(StyleKeys.ACCENT_COLOR, MutableColor.rgba255(90, 165, 106, 255))
+                .put(StyleKeys.TEXT_COLOR, MutableColor.rgba255(245, 247, 255, 255))
+                .put(StyleKeys.TEXT_SIZE, 4.4f)
+                .put(StyleKeys.TEXT_TRACKING, 0.34f)
+                .put(StyleKeys.TEXT_TRANSFORM, dev.sixik.unigui.api.text.TextTransform.UPPERCASE));
         checkbox.checkAnimation(0.0f).silentChecked(checked).checkAnimation(0.12f);
-        checkbox.renderer(DestinyLikeCheckboxRenders.DOMINION_CHECKBOX_RENDERER);
         return checkbox;
     }
 

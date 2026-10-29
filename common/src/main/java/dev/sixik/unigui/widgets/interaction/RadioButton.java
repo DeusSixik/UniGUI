@@ -78,7 +78,7 @@ public class RadioButton extends Button {
     public RadioButton(String text, String value) {
         super(text);
         this.value = normalize(value);
-        applyComponentStyleDefaults(WidgetStyles.Surface.UNSURFACED);
+        applyComponentStyleDefaults(WidgetStyles.CheckedControls.RADIO_BUTTON);
         checkedColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         onClick(event -> checked(true));
     }
@@ -90,7 +90,7 @@ public class RadioButton extends Button {
     public RadioButton(RichText text, String value) {
         super(text);
         this.value = normalize(value);
-        applyComponentStyleDefaults(WidgetStyles.Surface.UNSURFACED);
+        applyComponentStyleDefaults(WidgetStyles.CheckedControls.RADIO_BUTTON);
         checkedColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         onClick(event -> checked(true));
     }
@@ -102,7 +102,7 @@ public class RadioButton extends Button {
      */
     @Override
     protected Style defaultStyle() {
-        return WidgetStyles.Surface.UNSURFACED;
+        return WidgetStyles.CheckedControls.RADIO_BUTTON;
     }
 
     public String value() {
@@ -230,10 +230,12 @@ public class RadioButton extends Button {
             setDesiredSize(0.0f, 0.0f);
             return;
         }
+        float styledOuterSize = radioOuterSize();
+        float styledTextGap = radioTextGap();
         boolean hasText = !text().isEmpty();
-        float textWidth = hasText ? textGap + TextEngine.measureLineWidth(richText()) : 0.0f;
+        float textWidth = hasText ? styledTextGap + TextEngine.measureLineWidth(richText()) : 0.0f;
         float textHeight = hasText ? TextEngine.measureTextHeight(richText()) : 0.0f;
-        setDesiredSize(resolveDesiredSize(context, outerSize + textWidth, Math.max(outerSize, textHeight)));
+        setDesiredSize(resolveDesiredSize(context, styledOuterSize + textWidth, Math.max(styledOuterSize, textHeight)));
     }
 
     @Override
@@ -272,6 +274,9 @@ public class RadioButton extends Button {
         float y = layoutBounds().y();
         float width = layoutBounds().width();
         float height = layoutBounds().height();
+        float outerSize = radioOuterSize();
+        float innerSize = radioInnerSize();
+        float textGap = radioTextGap();
         boolean hasText = richText() != null && !richText().isEmpty();
 
         float labelGap = hasText ? Math.max(0.0f, textGap) : 0.0f;
@@ -312,6 +317,18 @@ public class RadioButton extends Button {
     @Override
     protected WidgetRole renderRole() {
         return WidgetRole.RADIO_BUTTON;
+    }
+
+    private float radioOuterSize() {
+        return Math.max(1.0f, styleValue(StyleKeys.RADIO_OUTER_SIZE, outerSize));
+    }
+
+    private float radioInnerSize() {
+        return Math.min(radioOuterSize(), Math.max(0.0f, styleValue(StyleKeys.RADIO_INNER_SIZE, innerSize)));
+    }
+
+    private float radioTextGap() {
+        return Math.max(0.0f, styleValue(StyleKeys.RADIO_TEXT_GAP, textGap));
     }
 
     void setGroupInternal(RadioGroup group) {

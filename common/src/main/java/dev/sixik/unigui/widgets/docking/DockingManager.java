@@ -226,7 +226,7 @@ public final class DockingManager {
 
     public boolean closeActivePane() {
         DockPane selected = selectedPane();
-        if (selected == null || !selected.closable()) return false;
+        if (selected == null || !selected.canClose()) return false;
         closePane(selected.id());
         return true;
     }

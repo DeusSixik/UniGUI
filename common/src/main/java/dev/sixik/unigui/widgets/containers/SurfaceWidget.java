@@ -19,6 +19,7 @@ import dev.sixik.unigui.api.render.SliceBorders;
 import dev.sixik.unigui.api.render.TextureFilter;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.TextureLayer;
+import dev.sixik.unigui.api.render.TextureGroup;
 import dev.sixik.unigui.api.render.TexturePlacement;
 import dev.sixik.unigui.api.render.TextureWrap;
 import dev.sixik.unigui.api.render.shaders.ShaderDrawOptions;
@@ -896,6 +897,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
         float height = bounds.height();
         float radius = surface.radius();
         if (surface.backgroundVisible()) {
+            TextureGroup textureGroup = styleValue(StyleKeys.BACKGROUND_TEXTURE_GROUP, styleState(), null);
             switch (surface.effectiveKind()) {
                 case COLOR -> draw.roundedRectFilled(x, y, width, height, radius,
                         surface.background());
@@ -904,8 +906,14 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
                         draw.roundedRectFilled(x, y, width, height, radius,
                                 surface.background());
                     }
-                    TextureHandle texture = surface.backgroundTexture();
-                    if (texture != null) {
+                    if (textureGroup != null) {
+                        for (TextureLayer layer : textureGroup.layers()) {
+                            if (layer != null && layer.visible() && !layer.isEmpty()) {
+                                renderTextureLayer(draw, layer, x, y, width, height, radius);
+                            }
+                        }
+                    } else if (surface.backgroundTexture() != null) {
+                        TextureHandle texture = surface.backgroundTexture();
                         if (surface.backgroundTextureFit() == ImageFit.NINE_SLICE) {
                             draw.nineSlice(surface.sliceBorders().slice(texture),
                                     x, y, width, height,
@@ -983,14 +991,15 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
                                       float x, float y, float width, float height, float radius) {
         if (draw == null || layer == null || layer.isEmpty()) return;
         TextureHandle texture = layer.texture();
+        MutableRect layerBounds = layer.bounds(x, y, width, height);
         if (layer.fit() == ImageFit.NINE_SLICE) {
             draw.nineSlice(layer.sliceBorders().slice(texture),
-                    x, y, width, height,
+                    layerBounds.x(), layerBounds.y(), layerBounds.width(), layerBounds.height(),
                     Paint.fill(layer.tint()));
         } else {
             TexturePlacement placement = TexturePlacement.fit(texture,
                     layer.source(),
-                    new MutableRect(x, y, width, height),
+                    layerBounds,
                     layer.fit());
             draw.textureTinted(texture, placement, radius, layer.tint());
         }

@@ -23,6 +23,7 @@ import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.widgets.interaction.ScrollBar;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+
 import java.util.Collections;
 import java.util.List;
 
@@ -67,6 +68,10 @@ public class ScrollView extends WidgetBase {
     private float contentHeight;
     private float measuredContentWidth;
     private float measuredContentHeight;
+    /**
+     * Ширина, с которой контент был измерен в последний раз; {@code NaN}, если ширина не ограничивалась.
+     */
+    private float measuredForWidth = Float.NaN;
     private float scrollX;
     private float scrollY;
     private float scrollStep = 16.0f;
@@ -193,7 +198,7 @@ public class ScrollView extends WidgetBase {
      * <p>Значения зажимаются к {@code >= 0}. Если размер равен {@code 0}, для
      * соответствующей оси используется measured-size content'а.</p>
      *
-     * @param width ширина scroll content'а
+     * @param width  ширина scroll content'а
      * @param height высота scroll content'а
      * @return этот scroll view для fluent-настройки
      */
@@ -603,6 +608,8 @@ public class ScrollView extends WidgetBase {
                     verticalScrollingEnabled());
             measuredContentWidth = extent.contentWidth();
             measuredContentHeight = extent.contentHeight();
+            measuredForWidth = horizontalScrollingEnabled() || context == null
+                    ? Float.NaN : context.availableWidth();
             float desiredWidth = contentWidth > 0.0f ? contentWidth : measuredContentWidth;
             float desiredHeight = contentHeight > 0.0f ? contentHeight : measuredContentHeight;
             setDesiredSize(resolveDesiredSize(context, desiredWidth, desiredHeight));
@@ -616,7 +623,10 @@ public class ScrollView extends WidgetBase {
     @Override
     public void arrange(RectView bounds) {
         super.arrange(bounds);
+        remeasureContentForViewport();
         updateScrollBarVisibility();
+        // Появившаяся полоса прокрутки сужает viewport, а высота контента с переносами зависит от ширины.
+        remeasureContentForViewport();
         scrollTo(scrollX, scrollY);
         arrangeContent();
         arrangeScrollBars();
@@ -756,6 +766,28 @@ public class ScrollView extends WidgetBase {
         if (layoutBounds().width() <= 0.0f && layoutBounds().height() <= 0.0f) return;
         arrangeContent();
         arrangeScrollBars();
+    }
+
+    /**
+     * Перемеряет контент по ширине, с которой он реально будет выложен.
+     *
+     * <p>Без горизонтальной прокрутки ширина контента равна ширине viewport, но {@link #measure} получает
+     * ширину родителя, которая может отличаться (например, split-панель мерила детей до раздачи долей).
+     * Высота контента с переносами (flex-wrap, текст) зависит от ширины, поэтому при расхождении
+     * extent оказывался занижен: прокрутка и полоса прокрутки не появлялись, а часть контента обрезалась.</p>
+     */
+    private void remeasureContentForViewport() {
+        if (content == null || horizontalScrollingEnabled()) return;
+        float width = viewportWidth();
+        if (width <= 0.0f || Math.abs(width - measuredForWidth) < 0.5f) return;
+        LayoutV3ScrollAdapter.Extent extent = LayoutV3ScrollAdapter.measureContent(
+                content,
+                new LayoutContext(width, Math.max(0.0f, layoutBounds().height())),
+                false,
+                verticalScrollingEnabled());
+        measuredContentWidth = extent.contentWidth();
+        measuredContentHeight = extent.contentHeight();
+        measuredForWidth = width;
     }
 
     private void arrangeContent() {

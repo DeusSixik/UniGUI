@@ -22,6 +22,7 @@ import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.HBox;
 import dev.sixik.unigui.widgets.containers.VBox;
+
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.effects.PostProcessingLayer;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
@@ -31,7 +32,9 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
-/** Диагностическое окно для проверки локального post-processing слоя. */
+/**
+ * Диагностическое окно для проверки локального post-processing слоя.
+ */
 public final class PostProcessingLayerTestScreen {
     private static final MutableColor SCREEN_BG = MutableColor.rgba(0.018f, 0.022f, 0.032f, 1.0f);
     private static final MutableColor PANEL = MutableColor.rgba(0.045f, 0.055f, 0.075f, 0.98f);
@@ -43,6 +46,10 @@ public final class PostProcessingLayerTestScreen {
     private static final MutableColor ORANGE = MutableColor.rgba(1.000f, 0.560f, 0.180f, 1.0f);
     private static final MutableColor GREEN = MutableColor.rgba(0.300f, 0.920f, 0.520f, 1.0f);
     private static final float[] EFFECT_SCALES = {0.5f, 0.75f, 1.0f, 1.5f, 2.0f};
+    private static final float CONTROL_ROW_HEIGHT = 28.0f;
+    private static final float CONTROL_ROW_GAP = 4.0f;
+    private static final float DESCRIPTION_HEIGHT = 34.0f;
+
 
     private PostProcessingLayerTestScreen() {
     }
@@ -102,7 +109,7 @@ public final class PostProcessingLayerTestScreen {
                 .overflow(Overflow.HIDDEN));
 
         PostProcessingLayer effectLayer = new PostProcessingLayer();
-        effectLayer.layout(style -> style.widthPercent(100.0f)
+        effectLayer.layout(style -> style.widthPercent(100.0f).minWidth(0.0f).minHeight(0.0f)
                 .overflow(Overflow.HIDDEN).flexGrow(1.0f).flexShrink(1.0f));
 
         Label effectStatus = label("", TEXT);
@@ -115,22 +122,32 @@ public final class PostProcessingLayerTestScreen {
             clickCount[0]++;
             clickStatus.text("Клики внутри слоя: " + clickCount[0]);
         });
-        innerButton.layout(style -> style.size(190.0f, 30.0f)
+        innerButton.layout(style -> style.widthPercent(80.0f).maxWidth(190.0f).height(30.0f)
                 .align(Alignment.CENTER, Alignment.CENTER).flexGrow(0.0f).flexShrink(0.0f));
         processedSurface.addOverlay(innerButton);
         effectLayer.addChild(processedSurface);
 
+        PostProcessingLayer passthroughLayer = new PostProcessingLayer();
+        passthroughLayer.layout(style -> style.widthPercent(100.0f).minWidth(0.0f).minHeight(0.0f)
+                .overflow(Overflow.HIDDEN).flexGrow(1.0f).flexShrink(1.0f));
+        passthroughLayer.postEffect(UiPostEffects.chain(UiPostEffects.PASSTHROUGH));
+        passthroughLayer.addChild(surface(true));
+
         VBox processedColumn = column("POST EFFECT", CYAN, effectLayer);
+        VBox passthroughColumn = column("PASSTHROUGH FBO", GREEN, passthroughLayer);
         VBox referenceColumn = column("ЭТАЛОН БЕЗ ЭФФЕКТА", ORANGE, surface(false));
         HBox comparison = new HBox();
-        comparison.layout(style -> style.widthPercent(100.0f).flexGrow(1.0f)
+        comparison.layout(style -> style.widthPercent(100.0f).minHeight(0.0f).flexGrow(1.0f)
                 .flexShrink(1.0f).gap(10.0f).alignItems(Align.STRETCH)
                 .overflow(Overflow.HIDDEN));
-        processedColumn.layout(style -> style.flex(1.0f, 1.0f, 0.0f)
+        processedColumn.layout(style -> style.flex(1.0f, 1.0f, 0.0f).minWidth(0.0f).minHeight(0.0f)
                 .align(Alignment.STRETCH, Alignment.STRETCH));
-        referenceColumn.layout(style -> style.flex(1.0f, 1.0f, 0.0f)
+        passthroughColumn.layout(style -> style.flex(1.0f, 1.0f, 0.0f).minWidth(0.0f).minHeight(0.0f)
+                .align(Alignment.STRETCH, Alignment.STRETCH));
+        referenceColumn.layout(style -> style.flex(1.0f, 1.0f, 0.0f).minWidth(0.0f).minHeight(0.0f)
                 .align(Alignment.STRETCH, Alignment.STRETCH));
         comparison.addChild(processedColumn);
+        comparison.addChild(passthroughColumn);
         comparison.addChild(referenceColumn);
 
         EffectPreset[] presets = EffectPreset.values();
@@ -142,43 +159,56 @@ public final class PostProcessingLayerTestScreen {
                     ? UiPostEffectChain.none()
                     : UiPostEffects.chain(preset.effectId));
             effectLayer.effectScale(EFFECT_SCALES[scaleIndex[0]]);
+            passthroughLayer.effectScale(EFFECT_SCALES[scaleIndex[0]]);
             effectStatus.text("Эффект: " + preset.title);
             scaleStatus.text("Разрешение: " + EFFECT_SCALES[scaleIndex[0]] + "x");
         };
 
-        HBox controls = new HBox();
-        controls.layout(style -> style.widthPercent(100.0f).height(32.0f).gap(6.0f)
-                .flexGrow(0.0f).flexShrink(0.0f));
-        effectStatus.layout(style -> style.width(205.0f).heightPercent(100.0f)
-                .flexGrow(0.0f).flexShrink(0.0f));
-        scaleStatus.layout(style -> style.width(130.0f).heightPercent(100.0f)
-                .flexGrow(0.0f).flexShrink(0.0f));
-        clickStatus.layout(style -> style.width(150.0f).heightPercent(100.0f)
+        // Две строки управления фиксированной высоты: высота не зависит от переноса, поэтому кнопки
+        // не перекрываются описанием и не обрезаются контейнером. Подписи сжимаются, кнопки - нет.
+        VBox controls = new VBox();
+        controls.layout(style -> style.widthPercent(100.0f)
+                .height(CONTROL_ROW_HEIGHT * 2.0f + CONTROL_ROW_GAP)
+                .gap(CONTROL_ROW_GAP).flexGrow(0.0f).flexShrink(0.0f));
+        HBox effectRow = controlRow();
+        HBox scaleRow = controlRow();
+
+        effectStatus.layout(style -> style.width(205.0f).minWidth(0.0f).height(CONTROL_ROW_HEIGHT)
                 .flexGrow(1.0f).flexShrink(1.0f));
-        controls.addChild(effectStatus);
-        controls.addChild(button("< ЭФФЕКТ", () -> {
+        scaleStatus.layout(style -> style.width(150.0f).minWidth(0.0f).height(CONTROL_ROW_HEIGHT)
+                .flexGrow(0.0f).flexShrink(1.0f));
+        clickStatus.layout(style -> style.width(170.0f).minWidth(0.0f).height(CONTROL_ROW_HEIGHT)
+                .flexGrow(1.0f).flexShrink(1.0f));
+
+        effectRow.addChild(effectStatus);
+        effectRow.addChild(button("< ЭФФЕКТ", () -> {
             effectIndex[0] = (effectIndex[0] + presets.length - 1) % presets.length;
             refresh.run();
         }));
-        controls.addChild(button("ЭФФЕКТ >", () -> {
+        effectRow.addChild(button("ЭФФЕКТ >", () -> {
             effectIndex[0] = (effectIndex[0] + 1) % presets.length;
             refresh.run();
         }));
-        controls.addChild(scaleStatus);
-        controls.addChild(button("- SCALE", () -> {
+
+        scaleRow.addChild(scaleStatus);
+        scaleRow.addChild(button("- SCALE", () -> {
             scaleIndex[0] = Math.max(0, scaleIndex[0] - 1);
             refresh.run();
         }));
-        controls.addChild(button("+ SCALE", () -> {
+        scaleRow.addChild(button("+ SCALE", () -> {
             scaleIndex[0] = Math.min(EFFECT_SCALES.length - 1, scaleIndex[0] + 1);
             refresh.run();
         }));
-        controls.addChild(clickStatus);
+        scaleRow.addChild(clickStatus);
+
+        controls.addChild(effectRow);
+        controls.addChild(scaleRow);
 
         Label description = label(
-                "Слева обрабатывается только subtree слоя. Угловые метки проверяют bounds и clipping, центральная кнопка - input после offscreen-прохода.",
+                "Слева эффект, в центре тот же offscreen-проход с passthrough, справа прямой рендер.",
                 MUTED);
-        description.layout(style -> style.widthPercent(100.0f).height(20.0f)
+        description.wrap(true);
+        description.layout(style -> style.widthPercent(100.0f).height(DESCRIPTION_HEIGHT)
                 .flexGrow(0.0f).flexShrink(0.0f));
 
         content.addChild(controls);
@@ -201,9 +231,16 @@ public final class PostProcessingLayerTestScreen {
     private static OverlayLayer surface(boolean processed) {
         DiagnosticSurface canvas = new DiagnosticSurface(processed);
         OverlayLayer surface = new OverlayLayer(canvas);
-        surface.layout(style -> style.widthPercent(100.0f).flexGrow(1.0f).flexShrink(1.0f)
-                .overflow(Overflow.HIDDEN));
+        surface.layout(style -> style.widthPercent(100.0f).minWidth(0.0f).minHeight(0.0f)
+                .flexGrow(1.0f).flexShrink(1.0f).overflow(Overflow.HIDDEN));
         return surface;
+    }
+
+    private static HBox controlRow() {
+        HBox row = new HBox();
+        row.layout(style -> style.widthPercent(100.0f).height(CONTROL_ROW_HEIGHT).gap(CONTROL_ROW_GAP)
+                .alignItems(Align.STRETCH).flexGrow(0.0f).flexShrink(0.0f));
+        return row;
     }
 
     private static Label label(String text, MutableColor color) {
@@ -271,7 +308,8 @@ public final class PostProcessingLayerTestScreen {
                 setDesiredSize(0.0f, 0.0f);
                 return;
             }
-            setDesiredSize(resolveDesiredSize(context, 340.0f, 300.0f));
+            // Небольшой desired-размер, чтобы слой мог сжиматься вместе с окном.
+            setDesiredSize(resolveDesiredSize(context, 120.0f, 90.0f));
         }
 
         @Override
@@ -303,18 +341,25 @@ public final class PostProcessingLayerTestScreen {
                 draw.addCircleFilled(x + width - 18.0f, y + height - 18.0f, 7.0f,
                         MutableColor.rgba(0.900f, 0.300f, 0.680f, 1.0f), 20);
 
-                draw.addText("TL 0,0", x + 30.0f, y + 8.0f, 86.0f, 18.0f, TEXT);
-                draw.addText("TR MAX", x + width - 94.0f, y + 8.0f, 76.0f, 18.0f, TEXT);
-                draw.addText("BL 0,MAX", x + 30.0f, y + height - 25.0f, 96.0f, 18.0f, TEXT);
-                draw.addText("BR MAX", x + width - 94.0f, y + height - 25.0f, 76.0f, 18.0f, TEXT);
+                // Подписи углов рисуем только если им хватает места, иначе они налезают друг на друга.
+                if (width >= 240.0f && height >= 80.0f) {
+                    draw.addText("TL 0,0", x + 30.0f, y + 8.0f, 86.0f, 18.0f, TEXT);
+                    draw.addText("TR MAX", x + width - 94.0f, y + 8.0f, 76.0f, 18.0f, TEXT);
+                    draw.addText("BL 0,MAX", x + 30.0f, y + height - 25.0f, 96.0f, 18.0f, TEXT);
+                    draw.addText("BR MAX", x + width - 94.0f, y + height - 25.0f, 76.0f, 18.0f, TEXT);
+                }
 
                 float centerX = x + width * 0.5f;
                 float centerY = y + height * 0.5f;
-                draw.addLine(centerX - 54.0f, centerY, centerX + 54.0f, centerY, CYAN, 2.0f);
-                draw.addLine(centerX, centerY - 42.0f, centerX, centerY + 42.0f, ORANGE, 2.0f);
-                draw.addCircle(centerX, centerY, 62.0f, GREEN, 40, 2.0f);
-                draw.addText(processed ? "LOCAL FBO" : "DIRECT", centerX - 48.0f,
-                        centerY + 72.0f, 96.0f, 18.0f, processed ? CYAN : ORANGE);
+                // Центральный прицел масштабируется под размер слоя и не вылезает за границы.
+                float radius = Math.max(8.0f, Math.min(62.0f, Math.min(width, height) * 0.3f));
+                draw.addLine(centerX - radius * 0.87f, centerY, centerX + radius * 0.87f, centerY, CYAN, 2.0f);
+                draw.addLine(centerX, centerY - radius * 0.68f, centerX, centerY + radius * 0.68f, ORANGE, 2.0f);
+                draw.addCircle(centerX, centerY, radius, GREEN, 40, 2.0f);
+                if (height >= radius * 2.0f + 60.0f) {
+                    draw.addText(processed ? "LOCAL FBO" : "DIRECT", centerX - 48.0f,
+                            centerY + radius + 10.0f, 96.0f, 18.0f, processed ? CYAN : ORANGE);
+                }
             } finally {
                 popOpacity(context);
             }

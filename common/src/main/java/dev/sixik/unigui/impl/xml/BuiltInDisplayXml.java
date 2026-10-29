@@ -73,7 +73,18 @@ final class BuiltInDisplayXml {
                         XmlAttributeDescriptor.of("color")
                                 .category("Appearance")
                                 .defaultValue("#FFFFFFFF")
-                                .description("Path stroke or fill color."));
+                                .description("Path stroke or fill color."))
+                .attribute("stroke", XmlValueParsers.BOOLEAN, Path::stroke,
+                        XmlAttributeDescriptor.of("stroke")
+                                .category("Appearance")
+                                .defaultValue("true")
+                                .description("Whether the path is rendered as a stroke."))
+                .attribute("strokeWidth", XmlValueParsers.FLOAT, Path::strokeWidth,
+                        XmlAttributeDescriptor.of("strokeWidth")
+                                .displayName("Stroke Width")
+                                .category("Appearance")
+                                .defaultValue("1")
+                                .description("Path stroke width in logical pixels."));
     }
 
     private static WidgetXmlType<CachedSubtreeWidget> cachedSubtree(WidgetXmlType<CachedSubtreeWidget> type) {

@@ -15,6 +15,8 @@ import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.shaders.ShaderDrawOptions;
 import dev.sixik.unigui.api.render.shaders.ShaderHandle;
 import dev.sixik.unigui.api.render.shaders.ShaderUniforms;
+import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
@@ -43,30 +45,12 @@ public class ComboBox extends LinearBox {
     private static final float OPTIONS_INSET = 2.0f;
     private static final int DEFAULT_MAX_VISIBLE_OPTIONS = 6;
     /**
-     * Фон хоста опций: --bg-1.
-     */
-    private static final float HOST_BG_R = 0.118f;
-    private static final float HOST_BG_G = 0.129f;
-    private static final float HOST_BG_B = 0.149f;
-    /**
-     * Рамка хоста опций: --border-subtle.
-     */
-    private static final float HOST_BORDER_R = 0.180f;
-    private static final float HOST_BORDER_G = 0.200f;
-    private static final float HOST_BORDER_B = 0.231f;
-    /**
-     * Фон выбранной строки-пилюли: --bg-selected.
-     */
-    private static final float SELECTED_BG_R = 0.149f;
-    private static final float SELECTED_BG_G = 0.251f;
-    private static final float SELECTED_BG_B = 0.369f;
-    /**
      * Горизонтальный отступ строк-пилюль от краёв списка.
      */
     private static final float OPTION_SIDE_MARGIN = 4.0f;
 
     private final Button headerButton = new Button();
-    private final Box optionsHost = new Box();
+    private final Box optionsHost = new ComboBoxOptionsHost();
     private final VBox optionsList = new VBox();
     private final ScrollView optionsScroll = new ScrollView(optionsList);
     private final Popup dropDownPopup = new Popup();
@@ -77,6 +61,7 @@ public class ComboBox extends LinearBox {
      * Цвет подсветки строки при наведении.
      */
     private final MutableColor optionHoverBackground = new MutableColor(0.24f, 0.28f, 0.35f, 0.92f);
+    private boolean customOptionHoverBackground;
     /**
      * Текстура подсветки строки при наведении.
      */
@@ -112,7 +97,10 @@ public class ComboBox extends LinearBox {
 
     public ComboBox() {
         super(Orientation.VERTICAL);
-        optionHoverBackground.onChanged(this::syncOptionHoverAppearance);
+        optionHoverBackground.onChanged(() -> {
+            customOptionHoverBackground = true;
+            syncOptionHoverAppearance();
+        });
         spacing(2.0f);
         focusable(true);
 
@@ -122,11 +110,6 @@ public class ComboBox extends LinearBox {
         headerButton.chevronVisible(true);
         headerButton.onClick(event -> toggle());
 
-        optionsHost.backgroundVisible(true);
-        optionsHost.borderVisible(true);
-        optionsHost.radius(8.0f);
-        optionsHost.background().set(HOST_BG_R, HOST_BG_G, HOST_BG_B, 0.97f);
-        optionsHost.borderColor().set(HOST_BORDER_R, HOST_BORDER_G, HOST_BORDER_B, 1.0f);
         optionsHost.visibility(Visibility.COLLAPSED);
         optionsHost.layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
 
@@ -628,17 +611,11 @@ public class ComboBox extends LinearBox {
         optionButtons.clear();
         for (int index = 0; index < items.size(); index++) {
             final int itemIndex = index;
-            ToggleButton option = new ToggleButton(richItems.get(index));
-            option.style(style -> style.putAll(WidgetStyles.Selection.DROPDOWN_OPTION));
-            // Строка-пилюля: скругление + внутренние отступы от краёв списка,
-            // выбранная подсвечена --bg-selected, остальные прозрачные.
-            // Текст влево с паддингом хедера, высота строки 28px.
-            // Рамки нет (иначе каждая строка — отдельный бокс), скролл —
-            // reserved-полоса, не поверх строк.
+            ToggleButton option = new ComboBoxOptionButton(richItems.get(index));
+            // Отступы сохраняют вид строки-пилюли, а состояние её поверхности
+            // задаётся компонентным или внешним стилем.
             option.textAlignment(Alignment.START);
             option.textPaddingX(12.0f);
-            option.background().set(0.0f, 0.0f, 0.0f, 0.0f);
-            option.hoverBackground(optionHoverBackground);
             option.hoverTexture(optionHoverTexture);
             option.hoverShader(optionHoverShader)
                     .hoverShaderUniforms(optionHoverShaderUniforms)
@@ -683,7 +660,11 @@ public class ComboBox extends LinearBox {
 
     private void syncOptionHoverAppearance() {
         for (ToggleButton option : optionButtons) {
-            option.hoverBackground(optionHoverBackground)
+            if (customOptionHoverBackground) {
+                option.style(style -> style.put(StyleKeys.BACKGROUND_COLOR, WidgetState.HOVERED,
+                        MutableColor.rgba(0.0f, 0.0f, 0.0f, 0.0f)));
+            }
+            option.hoverBackground(customOptionHoverBackground ? optionHoverBackground : null)
                     .hoverTexture(optionHoverTexture)
                     .hoverShader(optionHoverShader)
                     .hoverShaderUniforms(optionHoverShaderUniforms)
@@ -695,11 +676,39 @@ public class ComboBox extends LinearBox {
         for (int i = 0; i < optionButtons.size(); i++) {
             ToggleButton option = optionButtons.get(i);
             option.silentChecked(i == selectedIndex);
-            if (i == selectedIndex) {
-                option.background().set(SELECTED_BG_R, SELECTED_BG_G, SELECTED_BG_B, 1.0f);
-            } else {
-                option.background().set(0.0f, 0.0f, 0.0f, 0.0f);
-            }
+        }
+    }
+
+    private static final class ComboBoxOptionButton extends ToggleButton {
+        private ComboBoxOptionButton(RichText text) {
+            super(text);
+            applyComponentStyleDefaults(WidgetStyles.Selection.DROPDOWN_OPTION);
+        }
+
+        @Override
+        protected String styleType() {
+            return ToggleButton.STYLE_TYPE;
+        }
+
+        @Override
+        protected dev.sixik.unigui.api.style.Style defaultStyle() {
+            return WidgetStyles.Selection.DROPDOWN_OPTION;
+        }
+    }
+
+    private static final class ComboBoxOptionsHost extends Box {
+        private ComboBoxOptionsHost() {
+            applyComponentStyleDefaults(WidgetStyles.Selection.DROPDOWN_HOST);
+        }
+
+        @Override
+        protected String styleType() {
+            return Box.STYLE_TYPE;
+        }
+
+        @Override
+        protected dev.sixik.unigui.api.style.Style defaultStyle() {
+            return WidgetStyles.Selection.DROPDOWN_HOST;
         }
     }
 

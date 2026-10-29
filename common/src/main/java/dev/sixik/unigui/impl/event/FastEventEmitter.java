@@ -24,8 +24,13 @@ public class FastEventEmitter implements EventEmitter {
 
     @Override
     public <T extends Event> EventSubscription on(EventType<T> type, EventListener<? super T> listener) {
+        return on(type, false, listener);
+    }
+
+    @Override
+    public <T extends Event> EventSubscription on(EventType<T> type, boolean receiveCancelled, EventListener<? super T> listener) {
         FastEventBus.EventListener<T> fastListener = event -> {
-            if (!event.isCancelled()) {
+            if (receiveCancelled || !event.isCancelled()) {
                 listener.handle(event);
             }
         };
