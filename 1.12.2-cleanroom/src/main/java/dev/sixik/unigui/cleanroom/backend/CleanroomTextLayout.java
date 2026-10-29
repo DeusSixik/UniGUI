@@ -30,30 +30,42 @@ import java.util.Arrays;
  * <p>An instance owns scratch arrays and is not thread safe.</p>
  */
 final class CleanroomTextLayout {
-    /** Pixel size SDF glyphs are rasterized at, see {@link SdfTextShaderSources#BASE_PIXEL_SIZE}. */
+    /**
+     * Pixel size SDF glyphs are rasterized at, see {@link SdfTextShaderSources#BASE_PIXEL_SIZE}.
+     */
     static final int BASE_PIXEL_SIZE = SdfTextShaderSources.BASE_PIXEL_SIZE;
-    /** Text above this size is not snapped to the pixel grid (it would visibly shift glyph spacing). */
+    /**
+     * Text above this size is not snapped to the pixel grid (it would visibly shift glyph spacing).
+     */
     static final float PIXEL_SNAP_MAX_SIZE = 18.0f;
     private static final float EPSILON = 0.0001f;
 
-    /** A glyph already uploaded to an SDF atlas page. Sizes are in base-size pixels, uv in {@code [0, 1]}. */
+    /**
+     * A glyph already uploaded to an SDF atlas page. Sizes are in base-size pixels, uv in {@code [0, 1]}.
+     */
     record Glyph(Object page, int width, int height, float advance, float bearingX, float bearingY,
                  float u0, float v0, float u1, float v1) {
     }
 
-    /** Source of atlas glyphs, implemented by the OpenGL atlas. */
+    /**
+     * Source of atlas glyphs, implemented by the OpenGL atlas.
+     */
     interface Atlas {
         /**
-         * @param face SDF-capable face
+         * @param face      SDF-capable face
          * @param codePoint character
          * @return placement in the atlas, or {@code null} if the face has no glyph for it
          */
         Glyph glyph(FontFace face, int codePoint);
     }
 
-    /** Receiver of laid-out glyphs. Coordinates are command-local, before the command transform. */
+    /**
+     * Receiver of laid-out glyphs. Coordinates are command-local, before the command transform.
+     */
     interface Sink {
-        /** One SDF glyph quad with its top-left corner at {@code (x, y)}. */
+        /**
+         * One SDF glyph quad with its top-left corner at {@code (x, y)}.
+         */
         void sdfGlyph(Object page, float x, float y, float width, float height,
                       float u0, float v0, float u1, float v1, TextRun run);
 
@@ -72,15 +84,15 @@ final class CleanroomTextLayout {
     /**
      * Lays out one command.
      *
-     * @param command source command (bounds, transform and pixel-snap flag are read)
-     * @param text text to lay out
-     * @param defaultFace face used by runs without one
+     * @param command      source command (bounds, transform and pixel-snap flag are read)
+     * @param text         text to lay out
+     * @param defaultFace  face used by runs without one
      * @param fallbackFace non-SDF face used for SDF runs when {@code atlas} is {@code null}
-     * @param atlas SDF glyph source, {@code null} if SDF rendering is unavailable
-     * @param affine command transform chain collapsed by {@link CleanroomRenderMath#affine}
-     * @param scaleX physical pixels per UI unit along x, used for pixel snapping
-     * @param scaleY physical pixels per UI unit along y
-     * @param sink receiver of glyphs
+     * @param atlas        SDF glyph source, {@code null} if SDF rendering is unavailable
+     * @param affine       command transform chain collapsed by {@link CleanroomRenderMath#affine}
+     * @param scaleX       physical pixels per UI unit along x, used for pixel snapping
+     * @param scaleY       physical pixels per UI unit along y
+     * @param sink         receiver of glyphs
      */
     void layout(DrawCommand command, RichText text, FontFace defaultFace, FontFace fallbackFace, Atlas atlas,
                 float[] affine, float scaleX, float scaleY, Sink sink) {
@@ -176,7 +188,9 @@ final class CleanroomTextLayout {
         segment.setLength(0);
     }
 
-    /** Fills {@link #lineAscent} / {@link #lineHeight}: per line, the tallest face decides. */
+    /**
+     * Fills {@link #lineAscent} / {@link #lineHeight}: per line, the tallest face decides.
+     */
     private void measureLines(RichText text, FontFace defaultFace) {
         lineCount = 0;
         float ascent = 0.0f;
@@ -231,9 +245,9 @@ final class CleanroomTextLayout {
     /**
      * Snaps a local x so its physical position is a whole pixel.
      *
-     * @param x local x
+     * @param x      local x
      * @param affine collapsed transform, {@code a, b, c, d, tx, ty}
-     * @param scale physical pixels per UI unit along x
+     * @param scale  physical pixels per UI unit along x
      * @return snapped local x, or {@code x} unchanged for rotated / skewed transforms
      */
     static float snapX(float x, float[] affine, float scale) {
@@ -246,9 +260,9 @@ final class CleanroomTextLayout {
     /**
      * Snaps a local y so its physical position is a whole pixel.
      *
-     * @param y local y
+     * @param y      local y
      * @param affine collapsed transform, {@code a, b, c, d, tx, ty}
-     * @param scale physical pixels per UI unit along y
+     * @param scale  physical pixels per UI unit along y
      * @return snapped local y, or {@code y} unchanged for rotated / skewed transforms
      */
     static float snapY(float y, float[] affine, float scale) {
@@ -258,7 +272,9 @@ final class CleanroomTextLayout {
         return ((Math.round(screen * s) / s) - affine[5]) / affine[3];
     }
 
-    /** A text with a real position / rotation / scale transform is drawn exactly, never snapped. */
+    /**
+     * A text with a real position / rotation / scale transform is drawn exactly, never snapped.
+     */
     private static boolean hasVisualTransform(DrawCommand command) {
         if (isVisual(command.transform())) return true;
         Object[] layers = command.transformStackElements();

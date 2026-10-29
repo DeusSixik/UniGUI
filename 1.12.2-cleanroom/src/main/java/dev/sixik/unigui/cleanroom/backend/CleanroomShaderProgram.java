@@ -31,8 +31,8 @@ final class CleanroomShaderProgram implements AutoCloseable {
     /**
      * Compiles and links a program, binding attribute {@code names[i]} to location {@code i}.
      *
-     * @param label name used in log messages
-     * @param vertexSource GLSL vertex shader
+     * @param label          name used in log messages
+     * @param vertexSource   GLSL vertex shader
      * @param fragmentSource GLSL fragment shader
      * @param attributeNames attribute names; the array index is the attribute location
      * @return linked program, or {@code null} if compilation or linking failed
@@ -47,10 +47,10 @@ final class CleanroomShaderProgram implements AutoCloseable {
     /**
      * Compiles and links a program with explicit attribute locations.
      *
-     * @param label name used in log messages
-     * @param vertexSource GLSL vertex shader
-     * @param fragmentSource GLSL fragment shader
-     * @param attributeNames attribute names to bind
+     * @param label              name used in log messages
+     * @param vertexSource       GLSL vertex shader
+     * @param fragmentSource     GLSL fragment shader
+     * @param attributeNames     attribute names to bind
      * @param attributeLocations location of each attribute, parallel to {@code attributeNames}
      * @return linked program, or {@code null} if compilation or linking failed
      */
@@ -81,12 +81,16 @@ final class CleanroomShaderProgram implements AutoCloseable {
         return new CleanroomShaderProgram(program, label);
     }
 
-    /** @return OpenGL program object name */
+    /**
+     * @return OpenGL program object name
+     */
     int id() {
         return id;
     }
 
-    /** Makes this program current. */
+    /**
+     * Makes this program current.
+     */
     void use() {
         GL20.glUseProgram(id);
     }
@@ -105,25 +109,33 @@ final class CleanroomShaderProgram implements AutoCloseable {
         return location;
     }
 
-    /** Uploads a {@code float} uniform; silently ignored if the uniform does not exist. */
+    /**
+     * Uploads a {@code float} uniform; silently ignored if the uniform does not exist.
+     */
     void set(String name, float value) {
         int location = uniform(name);
         if (location >= 0) GL20.glUniform1f(location, value);
     }
 
-    /** Uploads an {@code int} uniform; silently ignored if the uniform does not exist. */
+    /**
+     * Uploads an {@code int} uniform; silently ignored if the uniform does not exist.
+     */
     void set(String name, int value) {
         int location = uniform(name);
         if (location >= 0) GL20.glUniform1i(location, value);
     }
 
-    /** Uploads a {@code vec2} uniform; silently ignored if the uniform does not exist. */
+    /**
+     * Uploads a {@code vec2} uniform; silently ignored if the uniform does not exist.
+     */
     void set(String name, float x, float y) {
         int location = uniform(name);
         if (location >= 0) GL20.glUniform2f(location, x, y);
     }
 
-    /** Uploads a {@code vec4} uniform; silently ignored if the uniform does not exist. */
+    /**
+     * Uploads a {@code vec4} uniform; silently ignored if the uniform does not exist.
+     */
     void set(String name, float x, float y, float z, float w) {
         int location = uniform(name);
         if (location >= 0) GL20.glUniform4f(location, x, y, z, w);

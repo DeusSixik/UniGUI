@@ -16,11 +16,15 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
-/** Cleanroom implementation of the neutral screen backend. */
+/**
+ * Cleanroom implementation of the neutral screen backend.
+ */
 public final class CleanroomUiRuntimeBackend implements UniGuiBackend {
     private final Map<UniScreen, CleanroomWidgetScreen> openScreens = new IdentityHashMap<>();
     private final CleanroomLayerRegistry<Object> hudLayers = new CleanroomLayerRegistry<>();
     private final CleanroomLayerRegistry<Object> overlayLayers = new CleanroomLayerRegistry<>();
+    private final CleanroomPointer overlayPointer = new CleanroomPointer();
+    private final CleanroomWheel overlayWheel = new CleanroomWheel();
 
     @Override
     public void openScreen(UniScreen screen) {
@@ -33,16 +37,16 @@ public final class CleanroomUiRuntimeBackend implements UniGuiBackend {
 
         UIContext context = screen.context() == null
                 ? new DefaultUIContext(new ClipboardService() {
-                    @Override
-                    public String getText() {
-                        return GuiScreen.getClipboardString();
-                    }
+            @Override
+            public String getText() {
+                return GuiScreen.getClipboardString();
+            }
 
-                    @Override
-                    public void setText(String text) {
-                        GuiScreen.setClipboardString(text == null ? "" : text);
-                    }
-                })
+            @Override
+            public void setText(String text) {
+                GuiScreen.setClipboardString(text == null ? "" : text);
+            }
+        })
                 : screen.context();
         CleanroomWidgetScreen nativeScreen = new CleanroomWidgetScreen(screen, context, () -> {
             synchronized (openScreens) {
@@ -153,7 +157,23 @@ public final class CleanroomUiRuntimeBackend implements UniGuiBackend {
     }
 
     public void renderScreen(GuiScreen screen, int mouseX, int mouseY, float partialTick) {
+        // Overlay layers get pointer motion once per frame; the game-tick mouse events are only 20 Hz.
+        if (overlayPointer.poll(screen, screen.width, screen.height)) {
+            overlayLayers.mouseMoved(screen, overlayPointer.x(), overlayPointer.y());
+        }
+        int wheel = overlayWheel.poll();
+        if (wheel != 0 && overlayLayers.mouseScrolled(screen, overlayPointer.x(), overlayPointer.y(), wheel / 120.0)) {
+            overlayWheel.markConsumed(wheel, System.nanoTime());
+        }
         overlayLayers.render(screen, screen.width, screen.height, mouseX, mouseY, partialTick);
+    }
+
+    /**
+     * @param eventWheel signed {@code Mouse.getEventDWheel()} from a tick event
+     * @return {@code true} if an overlay layer already scrolled with it during a frame
+     */
+    public boolean wheelAlreadyDelivered(int eventWheel) {
+        return overlayWheel.swallow(eventWheel, System.nanoTime());
     }
 
     public boolean isNativeScreen(Object screen) {

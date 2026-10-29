@@ -6,7 +6,9 @@ import dev.sixik.unigui.api.render.DrawCommand;
 import dev.sixik.unigui.api.render.TransformLayer;
 import net.minecraft.client.renderer.GlStateManager;
 
-/** Applies a command's transform chain to the GL modelview stack, for draws that keep their geometry untransformed. */
+/**
+ * Applies a command's transform chain to the GL modelview stack, for draws that keep their geometry untransformed.
+ */
 final class CleanroomGlTransforms {
     private CleanroomGlTransforms() {
     }

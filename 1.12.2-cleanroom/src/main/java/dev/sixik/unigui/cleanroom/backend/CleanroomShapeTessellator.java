@@ -32,7 +32,9 @@ import java.util.Arrays;
 final class CleanroomShapeTessellator implements PathAntiAliasing.VertexSink {
     private static final float TAU = (float) (Math.PI * 2.0);
     private static final float MIN_STROKE_WIDTH = 1.0f;
-    /** Tolerance of curve flattening in physical pixels. */
+    /**
+     * Tolerance of curve flattening in physical pixels.
+     */
     private static final float CURVE_TOLERANCE_PIXELS = 0.05f;
     private static final int MIN_CURVE_SEGMENTS = 2;
     private static final int MAX_CURVE_SEGMENTS = 96;
@@ -51,7 +53,7 @@ final class CleanroomShapeTessellator implements PathAntiAliasing.VertexSink {
     /**
      * Selects where vertices go.
      *
-     * @param target destination list
+     * @param target        destination list
      * @param pixelsPerUnit physical pixels per UI unit; sizes the anti-aliasing fringe and curve tolerance
      */
     void begin(CleanroomVertexList target, float pixelsPerUnit) {
@@ -83,7 +85,9 @@ final class CleanroomShapeTessellator implements PathAntiAliasing.VertexSink {
         return out.size() - before;
     }
 
-    /** @return {@code true} for the command types {@link #append} understands */
+    /**
+     * @return {@code true} for the command types {@link #append} understands
+     */
     static boolean supports(DrawCommandType type) {
         return type == DrawCommandType.RECT || type == DrawCommandType.ROUNDED_RECT
                 || type == DrawCommandType.LINE || type == DrawCommandType.CIRCLE
@@ -280,7 +284,9 @@ final class CleanroomShapeTessellator implements PathAntiAliasing.VertexSink {
         }
     }
 
-    /** Sends the accumulated sub-path through the anti-aliasing tessellator and clears it. */
+    /**
+     * Sends the accumulated sub-path through the anti-aliasing tessellator and clears it.
+     */
     private void flushPath(Paint paint, boolean closed, float fringe) {
         int count = points.size();
         if (count >= 2) {
@@ -294,7 +300,9 @@ final class CleanroomShapeTessellator implements PathAntiAliasing.VertexSink {
         points.clear();
     }
 
-    /** {@link PathAntiAliasing.VertexSink}: path vertices carry their coverage in the alpha channel. */
+    /**
+     * {@link PathAntiAliasing.VertexSink}: path vertices carry their coverage in the alpha channel.
+     */
     @Override
     public void vertex(float x, float y, float coverage) {
         int alpha = channel(sinkAlpha * coverage);
@@ -371,14 +379,18 @@ final class CleanroomShapeTessellator implements PathAntiAliasing.VertexSink {
         vertex(x, y, 0.0f, 0.0f, color);
     }
 
-    /** Transforms a command-local vertex by the collapsed command transform and stores it. */
+    /**
+     * Transforms a command-local vertex by the collapsed command transform and stores it.
+     */
     private void vertex(float x, float y, float u, float v, int color) {
         out.add(affine[0] * x + affine[2] * y + affine[4], affine[1] * x + affine[3] * y + affine[5], u, v, color);
     }
 
     // ---- geometry helpers ---------------------------------------------------------------------------------
 
-    /** Width of one physical pixel in command-local units, or {@code 0} if the transform is degenerate. */
+    /**
+     * Width of one physical pixel in command-local units, or {@code 0} if the transform is degenerate.
+     */
     private float fringeWidth() {
         float determinant = Math.abs(affine[0] * affine[3] - affine[1] * affine[2]);
         float scale = pixelsPerUnit * (float) Math.sqrt(determinant);
@@ -401,7 +413,9 @@ final class CleanroomShapeTessellator implements PathAntiAliasing.VertexSink {
         }
     }
 
-    /** Points of a closed outline without its repeated first point. */
+    /**
+     * Points of a closed outline without its repeated first point.
+     */
     private static int uniqueClosedCount(Points outline) {
         int count = outline.size();
         return count > 1 && samePoint(outline, 0, count - 1) ? count - 1 : count;
@@ -411,12 +425,16 @@ final class CleanroomShapeTessellator implements PathAntiAliasing.VertexSink {
         return Math.abs(p.x(left) - p.x(right)) < 0.0001f && Math.abs(p.y(left) - p.y(right)) < 0.0001f;
     }
 
-    /** Arc samples per rounded-rectangle corner. */
+    /**
+     * Arc samples per rounded-rectangle corner.
+     */
     static int cornerSegments(float radius) {
         return Math.max(3, Math.min(12, Math.round(radius * 0.4f)));
     }
 
-    /** Samples of a full circle / ellipse outline. */
+    /**
+     * Samples of a full circle / ellipse outline.
+     */
     static int curveSegments(float radius) {
         return Math.max(12, Math.min(64, Math.round(radius * 0.75f)));
     }
@@ -481,7 +499,9 @@ final class CleanroomShapeTessellator implements PathAntiAliasing.VertexSink {
         return Math.max(0, Math.min(255, Math.round(value * 255.0f)));
     }
 
-    /** Reusable polyline of {@code x, y} pairs. */
+    /**
+     * Reusable polyline of {@code x, y} pairs.
+     */
     private static final class Points {
         private float[] values = new float[64];
         private int size;

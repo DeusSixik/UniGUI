@@ -28,7 +28,9 @@ import java.nio.IntBuffer;
  */
 final class CleanroomGlState {
     private static final Logger LOGGER = LogManager.getLogger("unigui");
-    /** Enable with {@code -Dunigui.glDebug=true} to log {@code glGetError} after each UI frame. */
+    /**
+     * Enable with {@code -Dunigui.glDebug=true} to log {@code glGetError} after each UI frame.
+     */
     private static final boolean DEBUG = Boolean.getBoolean("unigui.glDebug");
 
     private final IntBuffer ints = BufferUtils.createIntBuffer(16);
@@ -49,7 +51,9 @@ final class CleanroomGlState {
     private int shadeModel;
     private boolean captured;
 
-    /** Reads the current GL state so that {@link #restore()} can put it back. */
+    /**
+     * Reads the current GL state so that {@link #restore()} can put it back.
+     */
     void capture() {
         blend = GL11.glIsEnabled(GL11.GL_BLEND);
         texture2d = GL11.glIsEnabled(GL11.GL_TEXTURE_2D);
@@ -73,24 +77,34 @@ final class CleanroomGlState {
         captured = true;
     }
 
-    /** Puts back everything read by {@link #capture()}; does nothing if nothing was captured. */
+    /**
+     * Puts back everything read by {@link #capture()}; does nothing if nothing was captured.
+     */
     void restore() {
         if (!captured) return;
         captured = false;
         setBlend(blend);
         GlStateManager.tryBlendFuncSeparate(blendSrcRgb, blendDstRgb, blendSrcAlpha, blendDstAlpha);
-        if (texture2d) GlStateManager.enableTexture2D(); else GlStateManager.disableTexture2D();
-        if (alphaTest) GlStateManager.enableAlpha(); else GlStateManager.disableAlpha();
-        if (depthTest) GlStateManager.enableDepth(); else GlStateManager.disableDepth();
-        if (lighting) GlStateManager.enableLighting(); else GlStateManager.disableLighting();
-        if (cull) GlStateManager.enableCull(); else GlStateManager.disableCull();
+        if (texture2d) GlStateManager.enableTexture2D();
+        else GlStateManager.disableTexture2D();
+        if (alphaTest) GlStateManager.enableAlpha();
+        else GlStateManager.disableAlpha();
+        if (depthTest) GlStateManager.enableDepth();
+        else GlStateManager.disableDepth();
+        if (lighting) GlStateManager.enableLighting();
+        else GlStateManager.disableLighting();
+        if (cull) GlStateManager.enableCull();
+        else GlStateManager.disableCull();
         GlStateManager.shadeModel(shadeModel);
         GlStateManager.color(color[0], color[1], color[2], color[3]);
         GL11.glScissor(scissorBox[0], scissorBox[1], scissorBox[2], scissorBox[3]);
-        if (scissor) GL11.glEnable(GL11.GL_SCISSOR_TEST); else GL11.glDisable(GL11.GL_SCISSOR_TEST);
+        if (scissor) GL11.glEnable(GL11.GL_SCISSOR_TEST);
+        else GL11.glDisable(GL11.GL_SCISSOR_TEST);
     }
 
-    /** Puts GL into the state every UniGUI draw command assumes: alpha blending, smooth shading, no depth, lighting, culling or scissor. */
+    /**
+     * Puts GL into the state every UniGUI draw command assumes: alpha blending, smooth shading, no depth, lighting, culling or scissor.
+     */
     void applyUiDefaults() {
         GlStateManager.matrixMode(GL11.GL_MODELVIEW);
         GlStateManager.enableBlend();
@@ -107,13 +121,17 @@ final class CleanroomGlState {
         GL11.glDisable(GL11.GL_SCISSOR_TEST);
     }
 
-    /** Selects the untextured path: vertex colors only. */
+    /**
+     * Selects the untextured path: vertex colors only.
+     */
     static void flat() {
         GlStateManager.disableTexture2D();
         GlStateManager.disableAlpha();
     }
 
-    /** Selects the textured path: a bound texture modulated by vertex colors, without vanilla's alpha cut-off. */
+    /**
+     * Selects the textured path: a bound texture modulated by vertex colors, without vanilla's alpha cut-off.
+     */
     static void textured() {
         GlStateManager.enableTexture2D();
         GlStateManager.disableAlpha();
@@ -140,7 +158,9 @@ final class CleanroomGlState {
         GL11.glEnable(GL11.GL_SCISSOR_TEST);
     }
 
-    /** Disables the scissor test. */
+    /**
+     * Disables the scissor test.
+     */
     static void disableScissor() {
         GL11.glDisable(GL11.GL_SCISSOR_TEST);
     }
@@ -168,7 +188,9 @@ final class CleanroomGlState {
         private int arrayBuffer;
         private int texture;
 
-        /** Reads the current program, VAO, array buffer and 2D texture bindings. */
+        /**
+         * Reads the current program, VAO, array buffer and 2D texture bindings.
+         */
         void capture() {
             program = GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM);
             vertexArray = GL11.glGetInteger(GL30.GL_VERTEX_ARRAY_BINDING);
@@ -176,7 +198,9 @@ final class CleanroomGlState {
             texture = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
         }
 
-        /** Restores the bindings read by {@link #capture()}. */
+        /**
+         * Restores the bindings read by {@link #capture()}.
+         */
         void restore() {
             GL20.glUseProgram(program);
             GL30.glBindVertexArray(vertexArray);
@@ -186,6 +210,7 @@ final class CleanroomGlState {
     }
 
     private static void setBlend(boolean enabled) {
-        if (enabled) GlStateManager.enableBlend(); else GlStateManager.disableBlend();
+        if (enabled) GlStateManager.enableBlend();
+        else GlStateManager.disableBlend();
     }
 }

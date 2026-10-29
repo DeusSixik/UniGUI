@@ -215,11 +215,14 @@ final class CleanroomWidgetLayer implements CleanroomLayerRegistry.LayerRenderer
     private static int currentModifiers() {
         int modifiers = 0;
         if (org.lwjgl.input.Keyboard.isKeyDown(org.lwjgl.input.Keyboard.KEY_LSHIFT)
-                || org.lwjgl.input.Keyboard.isKeyDown(org.lwjgl.input.Keyboard.KEY_RSHIFT)) modifiers |= KeyModifiers.SHIFT;
+                || org.lwjgl.input.Keyboard.isKeyDown(org.lwjgl.input.Keyboard.KEY_RSHIFT))
+            modifiers |= KeyModifiers.SHIFT;
         if (org.lwjgl.input.Keyboard.isKeyDown(org.lwjgl.input.Keyboard.KEY_LCONTROL)
-                || org.lwjgl.input.Keyboard.isKeyDown(org.lwjgl.input.Keyboard.KEY_RCONTROL)) modifiers |= KeyModifiers.CONTROL;
+                || org.lwjgl.input.Keyboard.isKeyDown(org.lwjgl.input.Keyboard.KEY_RCONTROL))
+            modifiers |= KeyModifiers.CONTROL;
         if (org.lwjgl.input.Keyboard.isKeyDown(org.lwjgl.input.Keyboard.KEY_LMENU)
-                || org.lwjgl.input.Keyboard.isKeyDown(org.lwjgl.input.Keyboard.KEY_RMENU)) modifiers |= KeyModifiers.ALT;
+                || org.lwjgl.input.Keyboard.isKeyDown(org.lwjgl.input.Keyboard.KEY_RMENU))
+            modifiers |= KeyModifiers.ALT;
         return modifiers;
     }
 }

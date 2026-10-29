@@ -34,20 +34,24 @@ public abstract class MixinGuiScreenUniGuiOverlay {
         if (CleanroomClientBootstrap.backend().isNativeScreen(screen) || screen instanceof GuiContainer) return;
         float mouseX = Mouse.getEventX() * width / (float) Math.max(1, Minecraft.getMinecraft().displayWidth);
         float mouseY = height - Mouse.getEventY() * height / (float) Math.max(1, Minecraft.getMinecraft().displayHeight) - 1.0f;
-        if (Mouse.getEventButton() == -1) {
-            CleanroomClientBootstrap.backend().screenMouseMoved(screen, mouseX, mouseY);
-        } else if (Mouse.getEventButtonState()) {
+        // Pointer motion is polled per frame in CleanroomUiRuntimeBackend.renderScreen, not taken from tick events.
+        if (Mouse.getEventButton() != -1 && Mouse.getEventButtonState()) {
             if (CleanroomClientBootstrap.backend().screenMouseClicked(screen, mouseX, mouseY,
                     Mouse.getEventButton())) {
                 ci.cancel();
                 return;
             }
-        } else if (CleanroomClientBootstrap.backend().screenMouseReleased(screen, mouseX, mouseY,
-                Mouse.getEventButton())) {
+        } else if (Mouse.getEventButton() != -1 && CleanroomClientBootstrap.backend().screenMouseReleased(screen,
+                mouseX, mouseY, Mouse.getEventButton())) {
             ci.cancel();
             return;
         }
         int wheel = Mouse.getEventDWheel();
+        // Overlay layers already scrolled with this notch in the frame; do not scroll twice and keep vanilla out.
+        if (wheel != 0 && CleanroomClientBootstrap.backend().wheelAlreadyDelivered(wheel)) {
+            ci.cancel();
+            return;
+        }
         if (wheel != 0 && CleanroomClientBootstrap.backend().screenMouseScrolled(screen,
                 mouseX, mouseY, wheel / 120.0)) ci.cancel();
     }

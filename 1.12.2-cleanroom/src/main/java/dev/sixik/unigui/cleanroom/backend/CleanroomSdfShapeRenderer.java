@@ -55,7 +55,9 @@ final class CleanroomSdfShapeRenderer {
     private CleanroomSdfShapeRenderer() {
     }
 
-    /** @return the process-wide renderer instance */
+    /**
+     * @return the process-wide renderer instance
+     */
     static synchronized CleanroomSdfShapeRenderer shared() {
         if (shared == null) shared = new CleanroomSdfShapeRenderer();
         return shared;
@@ -64,7 +66,7 @@ final class CleanroomSdfShapeRenderer {
     /**
      * Tries to render a batch of shape commands.
      *
-     * @param batch batch from the draw batcher
+     * @param batch   batch from the draw batcher
      * @param opacity extra alpha multiplier of the surface
      * @return {@code true} if the batch was fully drawn; {@code false} if the caller must draw it itself
      */
@@ -124,7 +126,9 @@ final class CleanroomSdfShapeRenderer {
         return true;
     }
 
-    /** Draws each packed instance as one quad with uniforms, reusing the instance data layout. */
+    /**
+     * Draws each packed instance as one quad with uniforms, reusing the instance data layout.
+     */
     private boolean drawBasic(int count) {
         if (!initializeBasic()) return false;
         basicProgram.use();

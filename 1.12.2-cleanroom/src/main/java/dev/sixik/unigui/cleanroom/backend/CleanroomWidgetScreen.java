@@ -4,9 +4,10 @@ import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.FramePhase;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
+import dev.sixik.unigui.api.debug.ProfileScope;
 import dev.sixik.unigui.api.input.InputHandle;
-import dev.sixik.unigui.api.input.KeyboardInputHandler;
 import dev.sixik.unigui.api.input.KeyModifiers;
+import dev.sixik.unigui.api.input.KeyboardInputHandler;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableRect;
@@ -15,11 +16,9 @@ import dev.sixik.unigui.api.render.RenderBackend;
 import dev.sixik.unigui.api.screen.UniScreen;
 import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.cleanroom.backend.CleanroomClientBootstrap;
-import dev.sixik.unigui.api.debug.ProfileScope;
-import dev.sixik.unigui.impl.render.DefaultRenderContext;
 import dev.sixik.unigui.impl.debug.DebugHotkeys;
 import dev.sixik.unigui.impl.debug.DebugOverlayRenderer;
+import dev.sixik.unigui.impl.render.DefaultRenderContext;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
@@ -29,7 +28,9 @@ import org.lwjgl.input.Mouse;
 
 import java.io.IOException;
 
-/** Native 1.12.2 screen that drives a backend-neutral UniGUI widget tree. */
+/**
+ * Native 1.12.2 screen that drives a backend-neutral UniGUI widget tree.
+ */
 final class CleanroomWidgetScreen extends GuiScreen implements CleanroomRenderHost {
     private final UniScreen source;
     private final Widget root;
@@ -37,6 +38,8 @@ final class CleanroomWidgetScreen extends GuiScreen implements CleanroomRenderHo
     private final InputHandle inputHandle;
     private final Runnable closeAction;
     private final String screenTitle;
+    private final CleanroomPointer pointer = new CleanroomPointer();
+    private final CleanroomWheel wheelTracker = new CleanroomWheel();
     private final DrawList drawList = new DrawList();
     private final DefaultRenderContext renderContext = new DefaultRenderContext(drawList);
     private final RenderBackend renderBackend;
@@ -93,6 +96,11 @@ final class CleanroomWidgetScreen extends GuiScreen implements CleanroomRenderHo
         uiContext.dispatcher().drain();
 
         float scale = effectiveUiScale();
+        // Pointer motion is polled per frame; handleMouseInput only runs once per game tick (20 Hz).
+        if (pointer.poll(this, width, height)) {
+            inputHandle.pointerMoved(pointer.x() / scale, pointer.y() / scale, 0);
+        }
+        deliverWheel(scale);
         float logicalWidth = width / scale;
         float logicalHeight = height / scale;
         long now = System.nanoTime();
@@ -134,8 +142,23 @@ final class CleanroomWidgetScreen extends GuiScreen implements CleanroomRenderHo
         frameIndex++;
     }
 
+    /**
+     * Hands the wheel that accumulated since the last frame to the UI; the same events are dropped on the tick.
+     */
+    private void deliverWheel(float scale) {
+        int wheel = wheelTracker.poll();
+        if (wheel == 0) return;
+        float notches = wheel / 120.0f;
+        if (!CleanroomClientBootstrap.backend().screenMouseScrolled(this, pointer.x(), pointer.y(), notches)) {
+            inputHandle.pointerScrolled(pointer.x() / scale, pointer.y() / scale, 0.0f, notches,
+                    currentModifiers(), 0);
+        }
+        wheelTracker.markConsumed(wheel, System.nanoTime());
+    }
+
     private void updateLayout(float logicalWidth, float logicalHeight) {
-        if (layoutInitialized && !InvalidationFlags.has(root.subtreeInvalidationFlags(), InvalidationFlags.LAYOUT)) return;
+        if (layoutInitialized && !InvalidationFlags.has(root.subtreeInvalidationFlags(), InvalidationFlags.LAYOUT))
+            return;
         root.measure(new LayoutContext(logicalWidth, logicalHeight));
         root.arrange(new MutableRect(0.0f, 0.0f, logicalWidth, logicalHeight));
         clearLayoutInvalidation(root);
@@ -169,16 +192,14 @@ final class CleanroomWidgetScreen extends GuiScreen implements CleanroomRenderHo
     public void handleMouseInput() throws IOException {
         float mouseX = Mouse.getEventX() * width / (float) Math.max(1, Minecraft.getMinecraft().displayWidth);
         float mouseY = height - Mouse.getEventY() * height / (float) Math.max(1, Minecraft.getMinecraft().displayHeight) - 1.0f;
-        if (Mouse.getEventButton() == -1) {
-            CleanroomClientBootstrap.backend().screenMouseMoved(this, mouseX, mouseY);
-        }
         int wheel = Mouse.getEventDWheel();
+        // The frame already delivered this notch (see deliverWheel); the tick event is a duplicate.
+        if (wheel != 0 && wheelTracker.swallow(wheel, System.nanoTime())) wheel = 0;
         if (wheel != 0 && CleanroomClientBootstrap.backend().screenMouseScrolled(this,
                 mouseX, mouseY, wheel / 120.0)) return;
         super.handleMouseInput();
         float logicalX = mouseX / effectiveUiScale();
         float logicalY = mouseY / effectiveUiScale();
-        if (Mouse.getEventButton() == -1) inputHandle.pointerMoved(logicalX, logicalY, 0);
         if (wheel != 0) {
             inputHandle.pointerScrolled(logicalX, logicalY, 0.0f, wheel / 120.0f,
                     currentModifiers(), 0);
@@ -263,9 +284,12 @@ final class CleanroomWidgetScreen extends GuiScreen implements CleanroomRenderHo
 
     private static int currentModifiers() {
         int modifiers = 0;
-        if (Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT)) modifiers |= KeyModifiers.SHIFT;
-        if (Keyboard.isKeyDown(Keyboard.KEY_LCONTROL) || Keyboard.isKeyDown(Keyboard.KEY_RCONTROL)) modifiers |= KeyModifiers.CONTROL;
-        if (Keyboard.isKeyDown(Keyboard.KEY_LMENU) || Keyboard.isKeyDown(Keyboard.KEY_RMENU)) modifiers |= KeyModifiers.ALT;
+        if (Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT))
+            modifiers |= KeyModifiers.SHIFT;
+        if (Keyboard.isKeyDown(Keyboard.KEY_LCONTROL) || Keyboard.isKeyDown(Keyboard.KEY_RCONTROL))
+            modifiers |= KeyModifiers.CONTROL;
+        if (Keyboard.isKeyDown(Keyboard.KEY_LMENU) || Keyboard.isKeyDown(Keyboard.KEY_RMENU))
+            modifiers |= KeyModifiers.ALT;
         return modifiers;
     }
 

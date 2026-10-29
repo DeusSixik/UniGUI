@@ -75,7 +75,7 @@ final class CleanroomSdfShapeInstances {
     /**
      * Appends one instance to {@code target}.
      *
-     * @param target destination buffer, must have {@link SdfShapeShaderSources#INSTANCE_FLOATS} floats remaining
+     * @param target  destination buffer, must have {@link SdfShapeShaderSources#INSTANCE_FLOATS} floats remaining
      * @param command shape command
      * @param opacity extra alpha multiplier of the surface
      * @param scratch two-element scratch array

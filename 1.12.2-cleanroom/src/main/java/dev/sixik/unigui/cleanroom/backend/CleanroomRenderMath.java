@@ -16,11 +16,17 @@ import dev.sixik.unigui.impl.render.ScissorStack;
  * scratch objects to keep the render hot path allocation-free.</p>
  */
 final class CleanroomRenderMath {
-    /** OpenGL {@code GL_ONE}; the constants are duplicated to keep this class free of LWJGL class loading. */
+    /**
+     * OpenGL {@code GL_ONE}; the constants are duplicated to keep this class free of LWJGL class loading.
+     */
     static final int GL_ONE = 1;
-    /** OpenGL {@code GL_SRC_ALPHA}. */
+    /**
+     * OpenGL {@code GL_SRC_ALPHA}.
+     */
     static final int GL_SRC_ALPHA = 0x0302;
-    /** OpenGL {@code GL_ONE_MINUS_SRC_ALPHA}. */
+    /**
+     * OpenGL {@code GL_ONE_MINUS_SRC_ALPHA}.
+     */
     static final int GL_ONE_MINUS_SRC_ALPHA = 0x0303;
 
     private CleanroomRenderMath() {
@@ -29,7 +35,7 @@ final class CleanroomRenderMath {
     /**
      * Packs a color into {@code 0xAARRGGBB}.
      *
-     * @param color source color, {@code null} is treated as fully transparent
+     * @param color   source color, {@code null} is treated as fully transparent
      * @param opacity extra alpha multiplier, clamped to {@code [0, 1]}
      * @return packed ARGB color
      */
@@ -56,7 +62,7 @@ final class CleanroomRenderMath {
      * so the result is {@code 2}.</p>
      *
      * @param displayExtent framebuffer extent in physical pixels
-     * @param guiExtent {@code GuiScreen.width} or {@code height} in scaled GUI pixels
+     * @param guiExtent     {@code GuiScreen.width} or {@code height} in scaled GUI pixels
      * @return physical pixels per GUI pixel
      */
     static float framebufferPerGuiPixel(int displayExtent, int guiExtent) {
@@ -70,10 +76,10 @@ final class CleanroomRenderMath {
      * Minecraft GUI scale. Otherwise the Minecraft scale is divided out so the UI is sized in physical
      * pixels, but never below the configured scale ({@code max(1, mcScale)} guard).</p>
      *
-     * @param configured scale requested by the screen or theme
+     * @param configured       scale requested by the screen or theme
      * @param scaleWithGameGui whether Minecraft's GUI Scale is part of the result
-     * @param displayWidth framebuffer width in physical pixels
-     * @param guiWidth scaled GUI width
+     * @param displayWidth     framebuffer width in physical pixels
+     * @param guiWidth         scaled GUI width
      * @return scale applied through {@code glScalef} before drawing
      */
     static float effectiveUiScale(float configured, boolean scaleWithGameGui, int displayWidth, int guiWidth) {
@@ -85,9 +91,9 @@ final class CleanroomRenderMath {
     /**
      * Converts a UI-space extent into physical window pixels along one axis.
      *
-     * @param uiScale value from {@link #effectiveUiScale}
+     * @param uiScale       value from {@link #effectiveUiScale}
      * @param displayExtent framebuffer extent in physical pixels
-     * @param guiExtent scaled GUI extent
+     * @param guiExtent     scaled GUI extent
      * @return physical pixels per UI unit
      */
     static float windowScale(float uiScale, int displayExtent, int guiExtent) {
@@ -98,8 +104,8 @@ final class CleanroomRenderMath {
      * Applies one {@link Transform} to a point, mirroring the GL call order the backend uses:
      * {@code translate(position) translate(pivot) rotate scale translate(-pivot)}.
      *
-     * @param xy in/out point: {@code xy[0]} is x, {@code xy[1]} is y
-     * @param bounds bounds the pivot is relative to
+     * @param xy        in/out point: {@code xy[0]} is x, {@code xy[1]} is y
+     * @param bounds    bounds the pivot is relative to
      * @param transform transform to apply; {@code null} and identity are no-ops
      */
     static void applyTransform(float[] xy, RectView bounds, Transform transform) {
@@ -120,11 +126,11 @@ final class CleanroomRenderMath {
      * stack layer from the last to the first. This is the CPU equivalent of the nested {@code glPushMatrix} state
      * that the immediate-mode path builds, used where vertices are uploaded already transformed.
      *
-     * @param xy in/out point: {@code xy[0]} is x, {@code xy[1]} is y
-     * @param bounds command bounds the command transform pivots around
+     * @param xy               in/out point: {@code xy[0]} is x, {@code xy[1]} is y
+     * @param bounds           command bounds the command transform pivots around
      * @param commandTransform transform stored on the command, may be {@code null}
-     * @param layers backing array of {@code TransformLayer}s
-     * @param layerCount number of valid entries in {@code layers}
+     * @param layers           backing array of {@code TransformLayer}s
+     * @param layerCount       number of valid entries in {@code layers}
      */
     static void transformPoint(float[] xy, RectView bounds, Transform commandTransform, Object[] layers,
                                int layerCount) {
@@ -142,12 +148,12 @@ final class CleanroomRenderMath {
      *
      * <p>Result layout: {@code x' = a*x + c*y + tx}, {@code y' = b*x + d*y + ty}.</p>
      *
-     * @param bounds command bounds the command transform pivots around
+     * @param bounds           command bounds the command transform pivots around
      * @param commandTransform transform stored on the command, may be {@code null}
-     * @param layers backing array of {@code TransformLayer}s
-     * @param layerCount number of valid entries in {@code layers}
-     * @param scratch two-element scratch array
-     * @param out six-element array receiving {@code a, b, c, d, tx, ty}
+     * @param layers           backing array of {@code TransformLayer}s
+     * @param layerCount       number of valid entries in {@code layers}
+     * @param scratch          two-element scratch array
+     * @param out              six-element array receiving {@code a, b, c, d, tx, ty}
      */
     static void affine(RectView bounds, Transform commandTransform, Object[] layers, int layerCount,
                        float[] scratch, float[] out) {
@@ -175,12 +181,12 @@ final class CleanroomRenderMath {
      * transform layer of its stack. The command transform is innermost; stack layers are applied from
      * the last to the first, which matches the order of nested {@code glPushMatrix} state.
      *
-     * @param bounds untransformed clip bounds
+     * @param bounds           untransformed clip bounds
      * @param commandTransform transform stored on the command, may be {@code null}
-     * @param layers backing array of {@code TransformLayer}s (as returned by {@code transformStackElements()})
-     * @param layerCount number of valid entries in {@code layers}
-     * @param scratch two-element scratch array
-     * @param out receives the resulting rectangle
+     * @param layers           backing array of {@code TransformLayer}s (as returned by {@code transformStackElements()})
+     * @param layerCount       number of valid entries in {@code layers}
+     * @param scratch          two-element scratch array
+     * @param out              receives the resulting rectangle
      */
     static void transformedBounds(RectView bounds, Transform commandTransform, Object[] layers, int layerCount,
                                   float[] scratch, MutableRect out) {
@@ -206,7 +212,7 @@ final class CleanroomRenderMath {
      * @param bounds UI-space rectangle
      * @param scaleX physical pixels per UI unit along x
      * @param scaleY physical pixels per UI unit along y
-     * @param out receives the scaled rectangle
+     * @param out    receives the scaled rectangle
      */
     static void scaleRect(RectView bounds, float scaleX, float scaleY, MutableRect out) {
         out.set(bounds.x() * scaleX, bounds.y() * scaleY, bounds.width() * scaleX, bounds.height() * scaleY);
@@ -216,10 +222,10 @@ final class CleanroomRenderMath {
      * Converts a top-left origin window rectangle into {@code glScissor} arguments (bottom-left origin),
      * clamped to the framebuffer.
      *
-     * @param rect rectangle in physical pixels, top-left origin
-     * @param displayWidth framebuffer width
+     * @param rect          rectangle in physical pixels, top-left origin
+     * @param displayWidth  framebuffer width
      * @param displayHeight framebuffer height
-     * @param out four-element array receiving {@code x, y, width, height}
+     * @param out           four-element array receiving {@code x, y, width, height}
      */
     static void glScissor(ScissorStack.Rect rect, int displayWidth, int displayHeight, int[] out) {
         int x1 = clamp(rect.x1(), 0, displayWidth);

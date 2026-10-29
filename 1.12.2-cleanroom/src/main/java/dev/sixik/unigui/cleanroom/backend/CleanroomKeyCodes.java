@@ -3,7 +3,9 @@ package dev.sixik.unigui.cleanroom.backend;
 import dev.sixik.unigui.api.input.KeyCodes;
 import org.lwjgl.input.Keyboard;
 
-/** Converts LWJGL 2 keyboard codes into UniGUI's GLFW-compatible key codes. */
+/**
+ * Converts LWJGL 2 keyboard codes into UniGUI's GLFW-compatible key codes.
+ */
 final class CleanroomKeyCodes {
     private CleanroomKeyCodes() {
     }

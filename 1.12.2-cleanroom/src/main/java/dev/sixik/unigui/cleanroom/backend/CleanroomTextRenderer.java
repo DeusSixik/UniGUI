@@ -18,7 +18,9 @@ import net.minecraft.client.renderer.GlStateManager;
  * SDF runs are drawn with the vanilla font instead of disappearing.</p>
  */
 final class CleanroomTextRenderer implements CleanroomTextLayout.Sink {
-    /** Vanilla {@code FontRenderer} promotes an alpha below 4 to fully opaque, so such text must be skipped. */
+    /**
+     * Vanilla {@code FontRenderer} promotes an alpha below 4 to fully opaque, so such text must be skipped.
+     */
     private static final int MIN_VANILLA_ALPHA = 4;
 
     private final Minecraft minecraft = Minecraft.getMinecraft();
@@ -37,7 +39,9 @@ final class CleanroomTextRenderer implements CleanroomTextLayout.Sink {
         this.host = host;
     }
 
-    /** @param face face used by runs that do not name one; {@code null} restores the vanilla font */
+    /**
+     * @param face face used by runs that do not name one; {@code null} restores the vanilla font
+     */
     void defaultFace(FontFace face) {
         defaultFace = face == null ? MinecraftFonts.defaultFace() : face;
     }

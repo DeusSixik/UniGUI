@@ -16,22 +16,30 @@ final class CleanroomVertexList {
     private int[] argb = new int[256];
     private int count;
 
-    /** Removes all vertices, keeping the capacity. */
+    /**
+     * Removes all vertices, keeping the capacity.
+     */
     void clear() {
         count = 0;
     }
 
-    /** @return number of vertices */
+    /**
+     * @return number of vertices
+     */
     int size() {
         return count;
     }
 
-    /** Appends an untextured vertex. */
+    /**
+     * Appends an untextured vertex.
+     */
     void add(float px, float py, int color) {
         add(px, py, 0.0f, 0.0f, color);
     }
 
-    /** Appends a vertex with texture coordinates. */
+    /**
+     * Appends a vertex with texture coordinates.
+     */
     void add(float px, float py, float pu, float pv, int color) {
         if (count == x.length) grow();
         x[count] = px;

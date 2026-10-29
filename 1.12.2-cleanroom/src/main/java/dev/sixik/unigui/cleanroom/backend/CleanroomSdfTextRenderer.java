@@ -62,13 +62,17 @@ final class CleanroomSdfTextRenderer {
     private CleanroomSdfTextRenderer() {
     }
 
-    /** @return the process-wide renderer */
+    /**
+     * @return the process-wide renderer
+     */
     static synchronized CleanroomSdfTextRenderer shared() {
         if (shared == null) shared = new CleanroomSdfTextRenderer();
         return shared;
     }
 
-    /** @return the glyph source to hand to the layout */
+    /**
+     * @return the glyph source to hand to the layout
+     */
     CleanroomTextLayout.Atlas atlas() {
         return atlas;
     }
@@ -97,10 +101,10 @@ final class CleanroomSdfTextRenderer {
     /**
      * Sets the transform and color context for the quads that follow.
      *
-     * @param affine collapsed command transform {@code a, b, c, d, tx, ty}; the array is kept by reference
+     * @param affine     collapsed command transform {@code a, b, c, d, tx, ty}; the array is kept by reference
      * @param paintColor paint color of the command
-     * @param bounds bounds of the command, the reference frame of gradient brushes
-     * @param opacity extra alpha multiplier of the surface
+     * @param bounds     bounds of the command, the reference frame of gradient brushes
+     * @param opacity    extra alpha multiplier of the surface
      */
     void beginCommand(float[] affine, ColorView paintColor, RectView bounds, float opacity) {
         this.affine = affine;
@@ -112,9 +116,9 @@ final class CleanroomSdfTextRenderer {
     /**
      * Appends one glyph quad in command-local coordinates.
      *
-     * @param page atlas page from {@link CleanroomTextLayout.Glyph#page()}
+     * @param page     atlas page from {@link CleanroomTextLayout.Glyph#page()}
      * @param runColor color of the run, may be {@code null}
-     * @param brush brush of the run, may be {@code null}
+     * @param brush    brush of the run, may be {@code null}
      */
     void quad(Object page, float x, float y, float width, float height, float u0, float v0, float u1, float v1,
               ColorView runColor, TextBrush brush) {
@@ -137,7 +141,9 @@ final class CleanroomSdfTextRenderer {
         out.size = index;
     }
 
-    /** Draws everything accumulated since the last flush and clears it. */
+    /**
+     * Draws everything accumulated since the last flush and clears it.
+     */
     void flush() {
         if (batches.isEmpty()) return;
         bindings.capture();

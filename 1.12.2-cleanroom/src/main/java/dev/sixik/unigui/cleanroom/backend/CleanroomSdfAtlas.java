@@ -39,7 +39,9 @@ final class CleanroomSdfAtlas implements CleanroomTextLayout.Atlas, AutoCloseabl
         return faces.computeIfAbsent(face, ignored -> new FaceAtlas(provider)).glyph(codePoint);
     }
 
-    /** @return texture name of an atlas page object returned in {@link CleanroomTextLayout.Glyph#page()} */
+    /**
+     * @return texture name of an atlas page object returned in {@link CleanroomTextLayout.Glyph#page()}
+     */
     static int textureOf(Object page) {
         return ((Page) page).texture;
     }
@@ -54,7 +56,9 @@ final class CleanroomSdfAtlas implements CleanroomTextLayout.Atlas, AutoCloseabl
         private final SdfGlyphProvider provider;
         private final Map<Integer, CleanroomTextLayout.Glyph> glyphs = new java.util.HashMap<>();
         private final List<Page> pages = new ArrayList<>();
-        /** Marks code points the face has no glyph for, so the rasterizer is not asked again every frame. */
+        /**
+         * Marks code points the face has no glyph for, so the rasterizer is not asked again every frame.
+         */
         private final java.util.Set<Integer> missing = new java.util.HashSet<>();
 
         private FaceAtlas(SdfGlyphProvider provider) {
@@ -170,7 +174,9 @@ final class CleanroomSdfAtlas implements CleanroomTextLayout.Atlas, AutoCloseabl
         return upload;
     }
 
-    /** Pixel-unpack parameters changed for glyph uploads; other code may have set non-default values. */
+    /**
+     * Pixel-unpack parameters changed for glyph uploads; other code may have set non-default values.
+     */
     private record PixelUnpack(int alignment, int rowLength, int skipPixels, int skipRows,
                                int imageHeight, int skipImages, int buffer) {
         private static PixelUnpack capture() {

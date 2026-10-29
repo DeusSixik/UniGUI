@@ -2,7 +2,9 @@ package dev.sixik.unigui.cleanroom.backend;
 
 import net.minecraft.util.ResourceLocation;
 
-/** Maps UniGUI texture ids to Minecraft resource locations. */
+/**
+ * Maps UniGUI texture ids to Minecraft resource locations.
+ */
 final class CleanroomTextures {
     private static final ResourceLocation MISSING = new ResourceLocation("minecraft", "missingno");
 

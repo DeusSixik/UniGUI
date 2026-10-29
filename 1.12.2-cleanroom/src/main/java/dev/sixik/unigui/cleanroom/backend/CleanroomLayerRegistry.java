@@ -96,17 +96,28 @@ final class CleanroomLayerRegistry<C> {
     interface LayerRenderer {
         void render(int width, int height, int mouseX, int mouseY, float partialTick);
 
-        default void mouseMoved(double mouseX, double mouseY) { }
+        default void mouseMoved(double mouseX, double mouseY) {
+        }
 
-        default boolean mouseClicked(double mouseX, double mouseY, int button) { return false; }
+        default boolean mouseClicked(double mouseX, double mouseY, int button) {
+            return false;
+        }
 
-        default boolean mouseReleased(double mouseX, double mouseY, int button) { return false; }
+        default boolean mouseReleased(double mouseX, double mouseY, int button) {
+            return false;
+        }
 
-        default boolean mouseScrolled(double mouseX, double mouseY, double delta) { return false; }
+        default boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+            return false;
+        }
 
-        default boolean keyTyped(char character, int keyCode, int modifiers) { return false; }
+        default boolean keyTyped(char character, int keyCode, int modifiers) {
+            return false;
+        }
 
-        default boolean keyReleased(int keyCode, int modifiers) { return false; }
+        default boolean keyReleased(int keyCode, int modifiers) {
+            return false;
+        }
 
         void close();
     }

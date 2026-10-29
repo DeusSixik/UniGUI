@@ -20,14 +20,14 @@ final class CleanroomTextColors {
     /**
      * Writes {@code r, g, b, a} (each in {@code [0, 1]}) of the color at a position.
      *
-     * @param out destination array
-     * @param offset index of the red channel in {@code out}
-     * @param x position used by gradient brushes
-     * @param y position used by gradient brushes
-     * @param base paint color of the command, may be {@code null}
-     * @param run color of the run, may be {@code null}
-     * @param brush brush of the run, may be {@code null}
-     * @param bounds bounds the gradient is relative to
+     * @param out     destination array
+     * @param offset  index of the red channel in {@code out}
+     * @param x       position used by gradient brushes
+     * @param y       position used by gradient brushes
+     * @param base    paint color of the command, may be {@code null}
+     * @param run     color of the run, may be {@code null}
+     * @param brush   brush of the run, may be {@code null}
+     * @param bounds  bounds the gradient is relative to
      * @param opacity extra alpha multiplier of the surface
      */
     static void rgba(float[] out, int offset, float x, float y, ColorView base, ColorView run, TextBrush brush,
@@ -65,7 +65,7 @@ final class CleanroomTextColors {
     /**
      * Packs {@code r, g, b, a} written by {@link #rgba} into {@code 0xAARRGGBB}.
      *
-     * @param rgba four channels in {@code [0, 1]}
+     * @param rgba   four channels in {@code [0, 1]}
      * @param offset index of the red channel
      * @return packed color
      */
@@ -78,9 +78,9 @@ final class CleanroomTextColors {
      * Most opaque alpha the text can have, as an 8-bit channel. A gradient counts with its more opaque end so that a
      * text fading in from one side is not culled.
      *
-     * @param base paint color
-     * @param run run color
-     * @param brush run brush
+     * @param base    paint color
+     * @param run     run color
+     * @param brush   run brush
      * @param opacity extra alpha multiplier
      * @return alpha in {@code 0..255}
      */

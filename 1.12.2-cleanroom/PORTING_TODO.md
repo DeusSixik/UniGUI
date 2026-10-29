@@ -64,12 +64,12 @@
 - [x] **A1. Способ рисования примитивов — решено: как в `common`.** Основной путь — SDF-шейдеры (`MinecraftSdfShapeRenderer`: один quad на фигуру, форма считается в fragment shader через `fwidth`), запасной — CPU-тесселяция (`MinecraftShapeBatchRenderer`: `POSITION_COLOR`, feather-кольцо). `renderBatch` пробует SDF и при отказе (нет шейдеров, ошибка компиляции, исключение) падает на тесселяцию. Код тесселяции из фазы 1 остаётся как этот fallback.
 - [x] **A2. Какие шейдеры и на каком GL — решено по логу: tier `INSTANCED`.** Шейдеры в `common` — `#version 150`, с VAO и instancing (`glDrawArraysInstanced`, `flat` varyings, `ARB_instanced_arrays` / GL 3.3). Что реально выдаёт Cleanroom — неизвестно, поэтому выбор по лестнице, реализован `CleanroomGlCapabilities` (чистая функция `selectTier`, покрыта тестами, логирует `UniGUI OpenGL: ...` при первом кадре):
 
-  | Tier | Условие | Путь |
-  |------|---------|------|
-  | `INSTANCED` | GL ≥ 3.2, VAO, instanced arrays | те же исходники GLSL 150, что в 1.20, один draw на batch |
-  | `BASIC` | GL ≥ 3.2, VAO | GLSL 150, один quad на команду, uniform'ы на draw |
-  | `LEGACY` | GL ≥ 2.0 | GLSL 1.20: адаптер 150 → 120, fixed-function матрицы, без instancing |
-  | `NONE` | иначе | только тесселяция |
+  | Tier        | Условие                         | Путь                                                                 |
+  |-------------|---------------------------------|----------------------------------------------------------------------|
+  | `INSTANCED` | GL ≥ 3.2, VAO, instanced arrays | те же исходники GLSL 150, что в 1.20, один draw на batch             |
+  | `BASIC`     | GL ≥ 3.2, VAO                   | GLSL 150, один quad на команду, uniform'ы на draw                    |
+  | `LEGACY`    | GL ≥ 2.0                        | GLSL 1.20: адаптер 150 → 120, fixed-function матрицы, без instancing |
+  | `NONE`      | иначе                           | только тесселяция                                                    |
 
   **Факт с dev-машины:** `version=4.6.0 NVIDIA 595.97, renderer=RTX 5070 -> INSTANCED`. Значит шейдеры 1.20 работают как есть. `LEGACY` (адаптер 150 → 120) откладывается до появления реального железа без GLSL 1.50 (Mesa / старый Intel); до тех пор такие машины идут на тесселяцию.
 - [x] **A3. Текст — решено (уточнено по коду).** Шрифт по умолчанию у экрана — **ванильный** (`MinecraftWidgetScreen.defaultFont = MinecraftFonts.defaultFace()`); SDF получают только явные `AwtFontFace` (TestMod, свои TTF). Поэтому в `common` есть `MinecraftMixedTextRenderer`: runs с ванильным и SDF-шрифтом идут в одном `TEXT` в порядке следования. SDF-часть держится на `core` (`DefaultFontRegistry`, `SdfGlyphProvider`, `AwtFontFace`), в `MinecraftSdfTextRenderer` только GL. **Решение:** один смешанный рендерер: чистая раскладка (`CleanroomTextLayout`) + два вывода (ванильный `FontRenderer` и SDF). Ванильный путь определяет вид обычного текста, SDF нужен для кастомных шрифтов; если SDF недоступен, SDF-runs рисуются ванильным шрифтом.

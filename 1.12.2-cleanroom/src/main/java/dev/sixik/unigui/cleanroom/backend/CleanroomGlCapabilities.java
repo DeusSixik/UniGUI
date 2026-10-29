@@ -18,15 +18,25 @@ final class CleanroomGlCapabilities {
     private static final Logger LOGGER = LogManager.getLogger("unigui");
     private static CleanroomGlCapabilities instance;
 
-    /** Render path ladder, from most to least capable. */
+    /**
+     * Render path ladder, from most to least capable.
+     */
     enum ShaderTier {
-        /** GLSL 1.50 shaders with instanced draws (same sources as the 1.20 backend). */
+        /**
+         * GLSL 1.50 shaders with instanced draws (same sources as the 1.20 backend).
+         */
         INSTANCED,
-        /** GLSL 1.50 shaders drawn one quad per command, uniforms per draw. */
+        /**
+         * GLSL 1.50 shaders drawn one quad per command, uniforms per draw.
+         */
         BASIC,
-        /** GLSL 1.20 shaders produced by a dialect adapter; no instancing, no {@code flat} varyings. */
+        /**
+         * GLSL 1.20 shaders produced by a dialect adapter; no instancing, no {@code flat} varyings.
+         */
         LEGACY,
-        /** No usable shader support: vanilla tessellator geometry only. */
+        /**
+         * No usable shader support: vanilla tessellator geometry only.
+         */
         NONE
     }
 
@@ -79,12 +89,16 @@ final class CleanroomGlCapabilities {
         return probed;
     }
 
-    /** @return most capable render path this context supports */
+    /**
+     * @return most capable render path this context supports
+     */
     ShaderTier tier() {
         return tier;
     }
 
-    /** @return raw {@code GL_VERSION} string, for diagnostics */
+    /**
+     * @return raw {@code GL_VERSION} string, for diagnostics
+     */
     String version() {
         return version;
     }
@@ -95,11 +109,11 @@ final class CleanroomGlCapabilities {
      * <p>{@code #version 150} needs GL 3.2. Instancing additionally needs VAOs and either GL 3.3 or
      * {@code ARB_instanced_arrays}. Shader objects (GLSL 1.20 path) need GL 2.0.</p>
      *
-     * @param major context major version
-     * @param minor context minor version
+     * @param major           context major version
+     * @param minor           context minor version
      * @param instancedArrays {@code glVertexAttribDivisor} is available (GL 3.3 or ARB_instanced_arrays)
-     * @param vertexArrays vertex array objects are available
-     * @param shaderObjects GL 2.0 shader objects are available
+     * @param vertexArrays    vertex array objects are available
+     * @param shaderObjects   GL 2.0 shader objects are available
      * @return selected tier
      */
     static ShaderTier selectTier(int major, int minor, boolean instancedArrays, boolean vertexArrays,

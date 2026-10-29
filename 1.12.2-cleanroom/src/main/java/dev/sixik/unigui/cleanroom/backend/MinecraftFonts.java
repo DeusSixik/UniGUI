@@ -3,14 +3,18 @@ package dev.sixik.unigui.cleanroom.backend;
 import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.Fonts;
 
-/** Font faces backed by Minecraft 1.12.2's native FontRenderer. */
+/**
+ * Font faces backed by Minecraft 1.12.2's native FontRenderer.
+ */
 public final class MinecraftFonts {
     private static final MinecraftFontFace DEFAULT = new MinecraftFontFace("minecraft:default");
 
     private MinecraftFonts() {
     }
 
-    /** Returns the Minecraft 1.12.2 vanilla font face. */
+    /**
+     * Returns the Minecraft 1.12.2 vanilla font face.
+     */
     public static MinecraftFontFace defaultFace() {
         return DEFAULT;
     }

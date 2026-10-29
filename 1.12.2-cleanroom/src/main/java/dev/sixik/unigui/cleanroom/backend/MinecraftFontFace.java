@@ -12,7 +12,9 @@ import net.minecraft.client.Minecraft;
  * glyph bitmaps.</p>
  */
 public final class MinecraftFontFace implements FontFace {
-    /** Height of the vanilla glyph box in pixels at scale 1; a run of pixel size 9 is drawn unscaled. */
+    /**
+     * Height of the vanilla glyph box in pixels at scale 1; a run of pixel size 9 is drawn unscaled.
+     */
     public static final float BASE_SIZE = 9.0f;
 
     private final String id;

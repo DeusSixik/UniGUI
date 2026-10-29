@@ -3,13 +3,7 @@ package dev.sixik.unigui.cleanroom.backend;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
-import dev.sixik.unigui.api.render.DrawCommand;
-import dev.sixik.unigui.api.render.DrawCommandType;
-import dev.sixik.unigui.api.render.DrawList;
-import dev.sixik.unigui.api.render.Paint;
-import dev.sixik.unigui.api.render.RenderBackend;
-import dev.sixik.unigui.api.render.RenderTarget;
-import dev.sixik.unigui.api.render.TextureHandle;
+import dev.sixik.unigui.api.render.*;
 import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextRun;
@@ -36,7 +30,9 @@ import java.util.List;
  * and {@code POP_CLIP} restores the parent clip instead of disabling the scissor test.</p>
  */
 final class CleanroomGuiRenderBackend implements RenderBackend {
-    /** Vanilla {@code FontRenderer} treats an alpha below 4 as "no alpha given" and draws opaque text. */
+    /**
+     * Vanilla {@code FontRenderer} treats an alpha below 4 as "no alpha given" and draws opaque text.
+     */
     private static final int MIN_VANILLA_TEXT_ALPHA = 4;
 
     private final Minecraft minecraft = Minecraft.getMinecraft();
@@ -70,7 +66,9 @@ final class CleanroomGuiRenderBackend implements RenderBackend {
         return TextEngine.measureLineWidth(withDefaultFont(text));
     }
 
-    /** Resolves runs without a face to the backend default, so measuring matches what is drawn. */
+    /**
+     * Resolves runs without a face to the backend default, so measuring matches what is drawn.
+     */
     private RichText withDefaultFont(RichText text) {
         RichText.Builder builder = RichText.builder();
         for (TextRun run : text.runs()) {

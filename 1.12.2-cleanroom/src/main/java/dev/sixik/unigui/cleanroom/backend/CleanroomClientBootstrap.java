@@ -4,7 +4,9 @@ import dev.sixik.unigui.api.backend.UniGuiRuntime;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-/** Installs the Minecraft 1.12.2 client runtime bridge. */
+/**
+ * Installs the Minecraft 1.12.2 client runtime bridge.
+ */
 @SideOnly(Side.CLIENT)
 public final class CleanroomClientBootstrap {
     private static volatile CleanroomUiRuntimeBackend backend;
