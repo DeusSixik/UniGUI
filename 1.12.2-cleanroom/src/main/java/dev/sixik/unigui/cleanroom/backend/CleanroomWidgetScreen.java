@@ -20,9 +20,9 @@ import dev.sixik.unigui.impl.render.DefaultRenderContext;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
+import net.minecraft.client.renderer.GlStateManager;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
-import org.lwjgl.opengl.GL11;
 
 import java.io.IOException;
 
@@ -72,9 +72,8 @@ final class CleanroomWidgetScreen extends GuiScreen implements CleanroomRenderHo
     }
 
     @Override
-    public float backendScale() {
-        float guiScale = Minecraft.getMinecraft().displayWidth / (float) Math.max(1, width);
-        return effectiveUiScale() * guiScale;
+    public float uiScale() {
+        return effectiveUiScale();
     }
 
     @Override
@@ -100,15 +99,15 @@ final class CleanroomWidgetScreen extends GuiScreen implements CleanroomRenderHo
         drawList.clear();
         root.render(renderContext);
 
-        GL11.glPushMatrix();
-        GL11.glScalef(scale, scale, 1.0f);
+        GlStateManager.pushMatrix();
+        GlStateManager.scale(scale, scale, 1.0f);
         try {
             if (!screenTitle.isEmpty()) drawCenteredString(fontRenderer, screenTitle, width / 2, 8, 0xFFFFFF);
             renderBackend.beginFrame(new FrameContext(frameIndex, 0.0f, partialTicks, FramePhase.RENDER));
             renderBackend.render(drawList, null);
         } finally {
             renderBackend.endFrame();
-            GL11.glPopMatrix();
+            GlStateManager.popMatrix();
         }
         CleanroomClientBootstrap.backend().renderScreen(this, mouseX, mouseY, partialTicks);
         frameIndex++;
@@ -209,10 +208,8 @@ final class CleanroomWidgetScreen extends GuiScreen implements CleanroomRenderHo
         float configured = source.hasCustomUiScale()
                 ? source.uiScale()
                 : uiContext.scaleProvider().scale();
-        configured = Float.isFinite(configured) && configured > 0.0f ? configured : 1.0f;
-        if (source.scaleWithGameGui()) return configured;
-        float minecraftScale = Minecraft.getMinecraft().displayWidth / (float) Math.max(1, width);
-        return configured / Math.max(1.0f, minecraftScale);
+        return CleanroomRenderMath.effectiveUiScale(configured, source.scaleWithGameGui(),
+                Minecraft.getMinecraft().displayWidth, width);
     }
 
     CleanroomWidgetScreen defaultFont(FontFace font) {

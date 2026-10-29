@@ -11,7 +11,8 @@ import dev.sixik.unigui.api.render.DrawCommandType;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.impl.render.DrawBatch;
 import net.minecraft.client.gui.GuiGraphics;
-import org.intellij.lang.annotations.Language;import org.joml.Matrix4f;
+import dev.sixik.unigui.impl.render.shaders.SdfShapeShaderSources;
+import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.ARBInstancedArrays;
@@ -40,181 +41,20 @@ import java.nio.FloatBuffer;
  */
 final class MinecraftSdfShapeRenderer implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(MinecraftSdfShapeRenderer.class);
-    private static final float AA_PAD = 1.0f;
-    private static final float MIN_STROKE_WIDTH = 0.001f;
+    private static final float AA_PAD = SdfShapeShaderSources.AA_PAD;
+    private static final float MIN_STROKE_WIDTH = SdfShapeShaderSources.MIN_STROKE_WIDTH;
 
-    private static final int SHAPE_ROUNDED_RECT = 0;
-    private static final int SHAPE_ELLIPSE = 1;
-    private static final int SHAPE_LINE = 2;
+    private static final int SHAPE_ROUNDED_RECT = SdfShapeShaderSources.SHAPE_ROUNDED_RECT;
+    private static final int SHAPE_ELLIPSE = SdfShapeShaderSources.SHAPE_ELLIPSE;
+    private static final int SHAPE_LINE = SdfShapeShaderSources.SHAPE_LINE;
 
-    @Language("GLSL")
-    private static final String VERTEX_SOURCE = """
-            #version 150
+    // GLSL sources and instance layout are shared with the other version backends (core).
+    private static final String VERTEX_SOURCE = SdfShapeShaderSources.VERTEX;
+    private static final String FRAGMENT_SOURCE = SdfShapeShaderSources.FRAGMENT;
+    private static final String INSTANCED_FRAGMENT_SOURCE = SdfShapeShaderSources.INSTANCED_FRAGMENT;
+    private static final String INSTANCED_VERTEX_SOURCE = SdfShapeShaderSources.INSTANCED_VERTEX;
 
-            in vec3 Position;
-            in vec2 UV0;
-
-            uniform mat4 ModelViewMat;
-            uniform mat4 ProjMat;
-
-            out vec2 localPos;
-
-            void main() {
-                gl_Position = ProjMat * ModelViewMat * vec4(Position, 1.0);
-                localPos = UV0;
-            }
-            """;
-
-    @Language("GLSL")
-    private static final String FRAGMENT_SOURCE = """
-            #version 150
-
-            in vec2 localPos;
-            out vec4 fragColor;
-
-            uniform vec4 Color;
-            uniform vec2 Size;
-            uniform vec2 LineStart;
-            uniform vec2 LineEnd;
-            uniform float Radius;
-            uniform float StrokeWidth;
-            uniform int ShapeType;
-            uniform int IsStroke;
-
-            float sdRoundedBox(vec2 point, vec2 halfSize, float radius) {
-                float safeRadius = clamp(radius, 0.0, min(halfSize.x, halfSize.y));
-                vec2 q = abs(point) - halfSize + vec2(safeRadius);
-                return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - safeRadius;
-            }
-
-            float sdCircle(vec2 point, float radius) {
-                return length(point) - max(radius, 0.0001);
-            }
-
-            float sdEllipse(vec2 point, vec2 radius) {
-                vec2 safeRadius = max(radius, vec2(0.0001));
-                vec2 normalized = point / safeRadius;
-                return (length(normalized) - 1.0) * min(safeRadius.x, safeRadius.y);
-            }
-
-            float sdSegment(vec2 point, vec2 a, vec2 b) {
-                vec2 pa = point - a;
-                vec2 ba = b - a;
-                float denom = max(dot(ba, ba), 0.0001);
-                float h = clamp(dot(pa, ba) / denom, 0.0, 1.0);
-                return length(pa - ba * h);
-            }
-
-            float aaWidth(float distanceToEdge) {
-                return max(fwidth(distanceToEdge), 0.0001);
-            }
-
-            float edgeCoverage(float distanceToEdge) {
-                float aa = aaWidth(distanceToEdge);
-                return clamp(0.5 - distanceToEdge / aa, 0.0, 1.0);
-            }
-
-            float fillCoverage(float distanceToEdge) {
-                return edgeCoverage(distanceToEdge);
-            }
-
-            float innerStrokeCoverage(float distanceToEdge, float width) {
-                float aa = aaWidth(distanceToEdge);
-                float outer = clamp(0.5 - distanceToEdge / aa, 0.0, 1.0);
-                float inner = clamp(0.5 - (-distanceToEdge - width) / aa, 0.0, 1.0);
-                return outer * inner;
-            }
-
-            void main() {
-                float distanceToEdge;
-                if (ShapeType == 1) {
-                    vec2 radius = Size * 0.5;
-                    vec2 point = localPos - radius;
-                    distanceToEdge = abs(Size.x - Size.y) <= 0.001
-                            ? sdCircle(point, radius.x)
-                            : sdEllipse(point, radius);
-                } else if (ShapeType == 2) {
-                    distanceToEdge = sdSegment(localPos, LineStart, LineEnd) - max(StrokeWidth, 0.0001) * 0.5;
-                } else {
-                    distanceToEdge = sdRoundedBox(localPos - Size * 0.5, Size * 0.5, Radius);
-                }
-
-                float coverage = (ShapeType == 2 || IsStroke == 0)
-                        ? fillCoverage(distanceToEdge)
-                        : innerStrokeCoverage(distanceToEdge, max(StrokeWidth, 0.0001));
-
-                float alpha = Color.a * coverage;
-                if (alpha <= 0.001) {
-                    discard;
-                }
-
-                fragColor = vec4(Color.rgb, alpha);
-            }
-            """;
-
-    /**
-     * Версия фрагментного шейдера для instanced-пути. Все параметры фигуры
-     * приходят из атрибутов экземпляра, поэтому здесь меняются только
-     * объявления uniform на входные varyings.
-     */
-    private static final String INSTANCED_FRAGMENT_SOURCE = FRAGMENT_SOURCE
-            .replace("uniform vec4 Color;", "flat in vec4 Color;")
-            .replace("uniform vec2 Size;", "flat in vec2 Size;")
-            .replace("uniform vec2 LineStart;", "flat in vec2 LineStart;")
-            .replace("uniform vec2 LineEnd;", "flat in vec2 LineEnd;")
-            .replace("uniform float Radius;", "flat in float Radius;")
-            .replace("uniform float StrokeWidth;", "flat in float StrokeWidth;")
-            .replace("uniform int ShapeType;", "flat in int ShapeType;")
-            .replace("uniform int IsStroke;", "flat in int IsStroke;");
-
-    @Language("GLSL")
-    private static final String INSTANCED_VERTEX_SOURCE = """
-            #version 150
-
-            in vec2 Position;
-            in vec3 InstancePosition0;
-            in vec3 InstancePosition1;
-            in vec3 InstancePosition2;
-            in vec3 InstancePosition3;
-            in vec4 InstanceLocalBounds;
-            in vec4 InstanceColor;
-            in vec2 InstanceSize;
-            in vec2 InstanceLineStart;
-            in vec2 InstanceLineEnd;
-            in vec2 InstanceShape;
-            in vec2 InstanceFlags;
-
-            uniform mat4 ModelViewMat;
-            uniform mat4 ProjMat;
-
-            out vec2 localPos;
-            flat out vec4 Color;
-            flat out vec2 Size;
-            flat out vec2 LineStart;
-            flat out vec2 LineEnd;
-            flat out float Radius;
-            flat out float StrokeWidth;
-            flat out int ShapeType;
-            flat out int IsStroke;
-
-            void main() {
-                vec3 left = mix(InstancePosition0, InstancePosition1, Position.y);
-                vec3 right = mix(InstancePosition3, InstancePosition2, Position.y);
-                vec3 position = mix(left, right, Position.x);
-                gl_Position = ProjMat * ModelViewMat * vec4(position, 1.0);
-                localPos = mix(InstanceLocalBounds.xy, InstanceLocalBounds.zw, Position);
-                Color = InstanceColor;
-                Size = InstanceSize;
-                LineStart = InstanceLineStart;
-                LineEnd = InstanceLineEnd;
-                Radius = InstanceShape.x;
-                StrokeWidth = InstanceShape.y;
-                ShapeType = int(InstanceFlags.x + 0.5);
-                IsStroke = int(InstanceFlags.y + 0.5);
-            }
-            """;
-
-    private static final int INSTANCE_FLOATS = 30;
+    private static final int INSTANCE_FLOATS = SdfShapeShaderSources.INSTANCE_FLOATS;
     private static final int INSTANCE_STRIDE_BYTES = INSTANCE_FLOATS * Float.BYTES;
     private static final int INITIAL_INSTANCE_CAPACITY = 256;
 
@@ -435,8 +275,7 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
         int id = GL20.glCreateProgram();
         GL20.glAttachShader(id, vertex);
         GL20.glAttachShader(id, fragment);
-        GL20.glBindAttribLocation(id, 0, "Position");
-        GL20.glBindAttribLocation(id, 1, "UV0");
+        bindAttributes(id, SdfShapeShaderSources.BASIC_ATTRIBUTE_NAMES);
         GL20.glLinkProgram(id);
         GL20.glDeleteShader(vertex);
         GL20.glDeleteShader(fragment);
@@ -468,18 +307,7 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
         int id = GL20.glCreateProgram();
         GL20.glAttachShader(id, vertex);
         GL20.glAttachShader(id, fragment);
-        GL20.glBindAttribLocation(id, 0, "Position");
-        GL20.glBindAttribLocation(id, 1, "InstancePosition0");
-        GL20.glBindAttribLocation(id, 2, "InstancePosition1");
-        GL20.glBindAttribLocation(id, 3, "InstancePosition2");
-        GL20.glBindAttribLocation(id, 4, "InstancePosition3");
-        GL20.glBindAttribLocation(id, 5, "InstanceLocalBounds");
-        GL20.glBindAttribLocation(id, 6, "InstanceColor");
-        GL20.glBindAttribLocation(id, 7, "InstanceSize");
-        GL20.glBindAttribLocation(id, 8, "InstanceLineStart");
-        GL20.glBindAttribLocation(id, 9, "InstanceLineEnd");
-        GL20.glBindAttribLocation(id, 10, "InstanceShape");
-        GL20.glBindAttribLocation(id, 11, "InstanceFlags");
+        bindAttributes(id, SdfShapeShaderSources.INSTANCED_ATTRIBUTE_NAMES);
         GL20.glLinkProgram(id);
         GL20.glDeleteShader(vertex);
         GL20.glDeleteShader(fragment);
@@ -523,6 +351,12 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
         instanceVertexBuffer = vertexBuffer;
         instanceBuffer = buffer;
         return true;
+    }
+
+    private static void bindAttributes(int program, String[] names) {
+        for (int location = 0; location < names.length; location++) {
+            GL20.glBindAttribLocation(program, location, names[location]);
+        }
     }
 
     private static void setupInstanceAttribute(int index, int components, long offset) {

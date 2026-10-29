@@ -20,7 +20,7 @@ import dev.sixik.unigui.impl.render.DefaultRenderContext;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
-import org.lwjgl.opengl.GL11;
+import net.minecraft.client.renderer.GlStateManager;
 
 final class CleanroomWidgetLayer implements CleanroomLayerRegistry.LayerRenderer, CleanroomRenderHost {
     private final UniRenderLayer source;
@@ -76,9 +76,8 @@ final class CleanroomWidgetLayer implements CleanroomLayerRegistry.LayerRenderer
     }
 
     @Override
-    public float backendScale() {
-        Minecraft minecraft = Minecraft.getMinecraft();
-        return effectiveScale() * minecraft.displayWidth / (float) Math.max(1, width);
+    public float uiScale() {
+        return effectiveScale();
     }
 
     @Override
@@ -104,14 +103,14 @@ final class CleanroomWidgetLayer implements CleanroomLayerRegistry.LayerRenderer
         drawList.clear();
         root.render(renderContext);
 
-        GL11.glPushMatrix();
-        GL11.glScalef(scale, scale, 1.0f);
+        GlStateManager.pushMatrix();
+        GlStateManager.scale(scale, scale, 1.0f);
         try {
             renderBackend.beginFrame(new FrameContext(frameIndex, 0.0f, partialTick, FramePhase.RENDER));
             renderBackend.render(drawList, null);
         } finally {
             renderBackend.endFrame();
-            GL11.glPopMatrix();
+            GlStateManager.popMatrix();
         }
         frameIndex++;
     }
@@ -193,10 +192,8 @@ final class CleanroomWidgetLayer implements CleanroomLayerRegistry.LayerRenderer
 
     private float effectiveScale() {
         float configured = source.hasCustomUiScale() ? source.uiScale() : context.scaleProvider().scale();
-        configured = Float.isFinite(configured) && configured > 0.0f ? configured : 1.0f;
-        if (source.scaleWithGameGui()) return configured;
-        float gameScale = Minecraft.getMinecraft().displayWidth / (float) Math.max(1, width);
-        return configured / Math.max(1.0f, gameScale);
+        return CleanroomRenderMath.effectiveUiScale(configured, source.scaleWithGameGui(),
+                Minecraft.getMinecraft().displayWidth, width);
     }
 
     private void attachContext(Widget widget) {

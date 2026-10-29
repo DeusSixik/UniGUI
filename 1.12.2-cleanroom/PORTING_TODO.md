@@ -1,4 +1,4 @@
-# Cleanroom 1.12.2 — план портирования рендера и backend API
+﻿# Cleanroom 1.12.2 — план портирования рендера и backend API
 
 Цель: довести `1.12.2-cleanroom` до функционального паритета с `common` (1.20.1 / 1.21.1) поверх
 нейтрального `core`, не копируя логику в версионный модуль. Эталон — `common/.../backend/minecraft_impl`
@@ -39,24 +39,41 @@
 | D11 | `ComplexUiDemo` и `demo/unity/*` (~7 000 строк) скопированы из `TestMod`. Две копии разойдутся.                                                          | `cleanroom/demo`                        |
 | D12 | `@Mod(version = "1.5.4")` захардкожен, а не берётся из `mod_version`. Release workflow не собирает cleanroom.                                            | `UniGuiCleanroom`, `release.yml`        |
 
+**Статус дефектов (фаза 1):** D1, D2, D3, D4, D5, D9, D10 исправлены. D8 частично: линии теперь рисуются quad'ами нужной толщины, dash остаётся на 2.5. D6, D7 ждут фаз 2 и 4. D11, D12 открыты.
+
+**Изменения поведения в фазе 1** (проверять при ручном прогоне):
+
+- `TEXTURE` и `TEXTURED_QUAD` берут UV как нормализованные `0..1`, как в `common` (раньше `TEXTURED_QUAD` делил на размер текстуры, а `TEXTURE` игнорировал размер региона `uv`).
+- Текст с `alpha < 4` не рисуется: `FontRenderer` трактует такой alpha как «не задан» и рисует непрозрачно.
+- Кольцо `CIRCLE` stroke теперь внутри bounds (как у `RECT`), раньше линия шла по краю. Заливка круга замкнута (раньше терялся последний сектор веера).
+- Clip с rotate / scale превращается в axis-aligned bounding box после всех transform'ов команды и стека.
+- Включить диагностику GL: `-Dunigui.glDebug=true` (логирует `glGetError` после каждого UI-кадра).
+
+**Находки по окружению:**
+
+- Cleanroom 1.12.2 даёт LWJGL **3** под старыми именами пакетов: `GL11.glGetIntegerv/glGetFloatv(int, Buffer)` вместо LWJGL2 `glGetInteger(int, Buffer)`. Писать GL-код по API LWJGL3.
+- Сборка cleanroom-модуля: JDK 25 (`jdk-25.0.4.101-hotspot`), `core` собирается на JDK 21. В `core` добавлена тестовая инфраструктура JUnit (`./gradlew :core:test`).
+- `1.6` закрыта частично: формула масштаба вынесена в `CleanroomRenderMath.effectiveUiScale`, но пересчёт координат мыши по-прежнему дублируется в `CleanroomWidgetScreen` и `CleanroomWidgetLayer` (вынести вместе с 6.6).
+
 ---
 
 ## Архитектурные решения (принять ДО фаз 2, 4, 5)
 
 Это развилки, от которых зависит объём работ. Рекомендация указана, но решение за тобой.
 
-- [ ] **A1. Способ рисования примитивов.**
-  - (a) CPU-тесселяция через `Tessellator` / `BufferBuilder` (`POSITION_COLOR`, `POSITION_TEX_COLOR`). Работает везде, без шейдеров. AA через feather-кольцо с alpha=0.
-  - (b) SDF-шейдеры, как в `MinecraftSdfShapeRenderer`. Лучшее качество, но нужен GLSL и dialect-адаптер.
-  - **Рекомендация:** сначала (a) за интерфейсом `ShapeRenderer`, потом (b) как опциональный апгрейд (задача 2.9).
-- [ ] **A2. GLSL dialect.** Шейдеры core написаны под `#version 150`, а 1.12.2 даёт compat-контекст (на Mesa/Linux может быть только 3.0 или 2.1).
-  - Варианты: требовать GL ≥ 3.2 compat и делать fallback на CPU-путь, либо транслировать 150 → 120 (`in/out` → `attribute/varying`, `texture()` → `texture2D()`, `out vec4` → `gl_FragColor`).
-  - **Рекомендация:** capability-проверка при старте + `ShaderDialectAdapter`, который переписывает 150 → 120 простыми заменами. Шейдеры, не поддающиеся адаптации, отключаются с warning.
-- [ ] **A3. Текст.**
-  - (a) только ванильный `FontRenderer` + масштабирование матрицей;
-  - (b) свой glyph-atlas (`java.awt.Font` или STB) с поддержкой `FontRegistry`;
-  - (c) SDF-текст, как в 1.20.
-  - **Рекомендация:** (a) для паритета «выглядит как ваниль» (фаза 4), (b) для кастомных шрифтов (4.8), (c) только после 2.9.
+- [x] **A1. Способ рисования примитивов — решено: как в `common`.** Основной путь — SDF-шейдеры (`MinecraftSdfShapeRenderer`: один quad на фигуру, форма считается в fragment shader через `fwidth`), запасной — CPU-тесселяция (`MinecraftShapeBatchRenderer`: `POSITION_COLOR`, feather-кольцо). `renderBatch` пробует SDF и при отказе (нет шейдеров, ошибка компиляции, исключение) падает на тесселяцию. Код тесселяции из фазы 1 остаётся как этот fallback.
+- [x] **A2. Какие шейдеры и на каком GL — решено по логу: tier `INSTANCED`.** Шейдеры в `common` — `#version 150`, с VAO и instancing (`glDrawArraysInstanced`, `flat` varyings, `ARB_instanced_arrays` / GL 3.3). Что реально выдаёт Cleanroom — неизвестно, поэтому выбор по лестнице, реализован `CleanroomGlCapabilities` (чистая функция `selectTier`, покрыта тестами, логирует `UniGUI OpenGL: ...` при первом кадре):
+
+  | Tier | Условие | Путь |
+  |------|---------|------|
+  | `INSTANCED` | GL ≥ 3.2, VAO, instanced arrays | те же исходники GLSL 150, что в 1.20, один draw на batch |
+  | `BASIC` | GL ≥ 3.2, VAO | GLSL 150, один quad на команду, uniform'ы на draw |
+  | `LEGACY` | GL ≥ 2.0 | GLSL 1.20: адаптер 150 → 120, fixed-function матрицы, без instancing |
+  | `NONE` | иначе | только тесселяция |
+
+  **Факт с dev-машины:** `version=4.6.0 NVIDIA 595.97, renderer=RTX 5070 -> INSTANCED`. Значит шейдеры 1.20 работают как есть. `LEGACY` (адаптер 150 → 120) откладывается до появления реального железа без GLSL 1.50 (Mesa / старый Intel); до тех пор такие машины идут на тесселяцию.
+- [x] **A3. Текст — решено (уточнено по коду).** Шрифт по умолчанию у экрана — **ванильный** (`MinecraftWidgetScreen.defaultFont = MinecraftFonts.defaultFace()`); SDF получают только явные `AwtFontFace` (TestMod, свои TTF). Поэтому в `common` есть `MinecraftMixedTextRenderer`: runs с ванильным и SDF-шрифтом идут в одном `TEXT` в порядке следования. SDF-часть держится на `core` (`DefaultFontRegistry`, `SdfGlyphProvider`, `AwtFontFace`), в `MinecraftSdfTextRenderer` только GL. **Решение:** один смешанный рендерер: чистая раскладка (`CleanroomTextLayout`) + два вывода (ванильный `FontRenderer` и SDF). Ванильный путь определяет вид обычного текста, SDF нужен для кастомных шрифтов; если SDF недоступен, SDF-runs рисуются ванильным шрифтом.
+- [x] **A6. Общие исходники шейдеров — сделано (частично).** Сейчас GLSL лежит строками внутри `common` (`MinecraftSdfShapeRenderer`, `MinecraftSdfTextRenderer`), и cleanroom пришлось бы копировать их. Предложение: вынести в `core` версионно-нейтральные константы (GLSL-строки, раскладка instance-буфера: `INSTANCE_FLOATS = 30` для фигур и `32` для текста, смещения атрибутов, коды `ShapeType`) плюс `ShaderDialectAdapter` (150 → 120). В `core` нет LWJGL, поэтому только строки и числа, а GL остаётся в версионных модулях. Тогда шейдер правится в одном месте. Сделано: `core/.../impl/render/shaders/SdfShapeShaderSources` и `SdfTextShaderSources` (GLSL, раскладка, имена атрибутов, константы атласа), `common` переведён на них (компилируется на 1.20.1 и 1.21.1), контракт GLSL ↔ раскладка закреплён тестами `SdfShaderSourcesTest`. Не сделано: `ShaderDialectAdapter` (нужен только для `LEGACY`). **Важно:** cleanroom берёт jar `core`, поэтому после любых правок `core` сначала `./gradlew :core:jar` (JDK 21) в корне, потом сборка модуля.
 - [ ] **A4. MC-специфичные виджеты** (`common/.../widgets/minecraft`: item, entity, block, tooltip). Они завязаны на типы 1.20 (`ItemStack`, `Component`). Нужны нейтральные capability-интерфейсы в core (по образцу `UiPostEffectBackend`): `UiItemRenderer`, `UiTooltipService`, `UiEntityPreview`. Иначе каждую версию придётся писать виджеты заново.
 - [ ] **A5. Общее демо.** Вынести `Unity*` и `ComplexUiDemo` из `TestMod` и `cleanroom` в один version-neutral источник (отдельный gradle-модуль `demo` или `core` testFixtures), оставив в версионных модулях только вход (команда / screen opener).
 
@@ -66,14 +83,14 @@
 
 Цель: то, что уже заявлено в README, должно работать детерминированно. Без новых фич.
 
-- [ ] **1.1 GL-state guard.** Класс `CleanroomGlState`: сохранить и восстановить blend, depth, alpha test, lighting, cull, texture2D, scissor, color, matrix mode и стеки матриц. Менять состояние через `GlStateManager`, а не через `GL11` (D5, D9). *Готово, когда:* после `/unigui` ваниль-HUD и чат рисуются без артефактов, `GlStateManager` не расходится с реальным GL (проверка через `GL11.glGetBoolean` в debug-режиме).
-- [ ] **1.2 Scissor stack.** Использовать `core impl/render/ScissorStack` (пересечение вложенных clip). Учитывать `Framebuffer` и HiDPI (`displayWidth/Height` против `ScaledResolution`). Поведение при transform: axis-aligned bounds или предупреждение (D1). Unit-тест на математику пересечения и пересчёт в окно (вынести в `CleanroomRenderMath`).
-- [ ] **1.3 Color и texture state.** Единая точка `bindColor(argb)` / `resetColor()`, `disableTexture2D()` для не-текстурных команд (D2, D3).
-- [ ] **1.4 Tint и blend для текстур.** `Paint.color` → `glColor4f`, `BlendMode` → `blendFunc`, `opacityMultiplier` из `RenderContext` (D4). Тест на таблицу `BlendMode → (src, dst)`.
-- [ ] **1.5 Перейти с `glBegin/glEnd` на `Tessellator`.** Минимум для `LINE`, `CIRCLE`, `TEXTURED_QUAD`. Устраняет зависимость от deprecated immediate mode и готовит батчинг.
-- [ ] **1.6 `CleanroomRenderHost`: единый расчёт масштабов.** Сейчас формулы `backendScale` / `effectiveScale` дублируются в `CleanroomWidgetScreen` и `CleanroomWidgetLayer`. Вынести в `CleanroomRenderMath` (чистые функции, покрытые тестами).
-- [ ] **1.7 Перенести тесты `api.input`, `api.screen` в `core`** (D10).
-- [ ] **1.8 Smoke-тест в клиенте.** Чеклист: `/unigui` открывается, закрывается по Esc, ресайз окна, смена GUI Scale 1–4, fullscreen, HUD-слой + открытый инвентарь. Зафиксировать результат в этом файле.
+- [x] **1.1 GL-state guard.** Класс `CleanroomGlState`: сохранить и восстановить blend, depth, alpha test, lighting, cull, texture2D, scissor, color, matrix mode и стеки матриц. Менять состояние через `GlStateManager`, а не через `GL11` (D5, D9). *Готово, когда:* после `/unigui` ваниль-HUD и чат рисуются без артефактов, `GlStateManager` не расходится с реальным GL (проверка через `GL11.glGetBoolean` в debug-режиме).
+- [x] **1.2 Scissor stack.** Использовать `core impl/render/ScissorStack` (пересечение вложенных clip). Учитывать `Framebuffer` и HiDPI (`displayWidth/Height` против `ScaledResolution`). Поведение при transform: axis-aligned bounds или предупреждение (D1). Unit-тест на математику пересечения и пересчёт в окно (вынести в `CleanroomRenderMath`).
+- [x] **1.3 Color и texture state.** Единая точка `bindColor(argb)` / `resetColor()`, `disableTexture2D()` для не-текстурных команд (D2, D3).
+- [x] **1.4 Tint и blend для текстур.** `Paint.color` → `glColor4f`, `BlendMode` → `blendFunc`, `opacityMultiplier` из `RenderContext` (D4). Тест на таблицу `BlendMode → (src, dst)`.
+- [x] **1.5 Перейти с `glBegin/glEnd` на `Tessellator`.** Минимум для `LINE`, `CIRCLE`, `TEXTURED_QUAD`. Устраняет зависимость от deprecated immediate mode и готовит батчинг.
+- [~] **1.6 `CleanroomRenderHost`: единый расчёт масштабов.** Сейчас формулы `backendScale` / `effectiveScale` дублируются в `CleanroomWidgetScreen` и `CleanroomWidgetLayer`. Вынести в `CleanroomRenderMath` (чистые функции, покрытые тестами).
+- [x] **1.7 Перенести тесты `api.input`, `api.screen` в `core`** (D10).
+- [ ] **1.8 Smoke-тест в клиенте (ручной, нужен запуск `runClient`).** Чеклист: `/unigui` открывается, закрывается по Esc, ресайз окна, смена GUI Scale 1–4, fullscreen, HUD-слой + открытый инвентарь. Зафиксировать результат в этом файле.
 
 **Критерий завершения фазы:** `runClient` без GL-ошибок в `logs/` (включить `-Dorg.lwjgl.util.Debug=true` и проверку `glGetError` после кадра в debug-флаге), скриншоты до и после совпадают.
 
@@ -81,18 +98,28 @@
 
 ## Фаза 2 — Геометрия и примитивы `P1`
 
-Зависит от A1.
+Схема как в `common`: `DrawBatcher` режет draw list на batch'и по типу, `renderBatch` пробует SDF-путь, при отказе рисует CPU-тесселяцией. Фаза 1 уже дала тесселяцию для `RECT` / `LINE` / `CIRCLE`; здесь она дополняется до полного fallback'а, а основным путём становятся шейдеры. Зависит от A2 (tier) и желательно от A6.
 
-- [ ] **2.1 `DrawList` → batch.** Подключить `core impl/render/DrawBatcher` / `SimpleDrawBatcher` (как `renderBatches` в 1.20: сборка по state-ключам: texture, blend, clip). Меньше `bind` и draw-call'ов.
-- [ ] **2.2 `ROUNDED_RECT` fill.** Тесселяция углов (`segments` из команды или авто по `radius`), AA-кольцо (D6).
-- [ ] **2.3 `ROUNDED_RECT` stroke** с толщиной и корректными внутренними/внешними краями.
-- [ ] **2.4 `CIRCLE` / эллипс.** AA, `segments`, stroke через кольцо, а не `GL_LINE_LOOP`.
-- [ ] **2.5 `LINE`.** Толстые линии как quad'ы (а не `glLineWidth`), dash через `Paint.dashLength/dashGap/dashOffset` (D8), caps.
-- [ ] **2.6 `PATH`.** Обход `VectorPath` (`MOVE_TO`, `LINE_TO`, `QUADRATIC_TO`, `CUBIC_TO`, `CLOSE`), flatten кривых, fill (ear-clipping / стенсил) и stroke (miter / round join). Использовать `PathAntiAliasing` из core. Образец: `renderPath` / `renderFilledPath` в 1.20 (строки ~1390–1560).
-- [ ] **2.7 `MESH` и `DrawVertex`.** Цветной и текстурированный меш, per-vertex color (покрывает `addRectFilledMultiColor`, `addRibbon`, градиенты).
-- [ ] **2.8 Clip с transform и скруглением.** Повёрнутый clip через stencil или fallback на bounding rect. Rounded clip — по возможности.
-- [ ] **2.9 *(опц.)* SDF-шейдерный `ShapeRenderer`.** Порт `MinecraftSdfShapeRenderer`, активируется capability-проверкой A2.
-- [ ] **2.10 Тесты.** Чистая геометрия (вершины углов, dash-разбиение, flatten) — в `CleanroomRenderMath` / `GeometryBuilder`, без GL. Для горячего пути (тесселяция rounded rect, dash) добавить JMH рядом с `core/src/jmh`.
+**2A. Инфраструктура batch'ей и шейдеров**
+
+- [x] **2.1 `DrawBatcher` → `renderBatch`.** Подключить `core impl/render/DrawBatcher` / `DrawBatch` (batch по `type()`, `texture()`, `blendMode()`, `isBarrier()`). `PUSH_CLIP` / `POP_CLIP` / `CUSTOM` — barrier-batch'и: перед ними сбрасывается накопленное. Диспетчер как `MinecraftGuiRenderBackend.renderBatch` (строки ~985–1012).
+- [x] **2.2 `CleanroomShaderProgram`.** Компиляция / линковка (`GL20`), привязка attribute location'ов, кэш uniform location'ов (порт `MinecraftUniformLocationCache`), удаление в `close()`. Ошибка компиляции → пометить путь недоступным, один раз залогировать, упасть на fallback (как `unavailable` в `MinecraftSdfShapeRenderer`).
+- [x] **2.3 Матрицы для шейдеров.** `ModelViewMat` / `ProjMat` читаются из GL (`glGetFloatv(GL_MODELVIEW_MATRIX / GL_PROJECTION_MATRIX)`), т.к. в 1.12.2 нет `RenderSystem.getModelViewMatrix()`. Базовая pose = текущий modelview (в нём уже `glScalef(uiScale)`), на CPU применяются только transform'ы команды (`CleanroomRenderMath.applyTransform`, уже есть).
+- [~] **2.4 Save / restore состояния шейдерного прохода.** (сделано: программа, VAO, `GL_ARRAY_BUFFER` через `CleanroomGlState.ShaderBindings`; texture unit добавится с текстовым и текстурным шейдерами.) Расширить `CleanroomGlState`: текущая программа (`GL_CURRENT_PROGRAM`), VAO (`GL_VERTEX_ARRAY_BINDING`), `GL_ARRAY_BUFFER_BINDING`, активный texture unit. Ванилья 1.12.2 VAO не использует, после прохода биндить 0 / сохранённое.
+
+**2B. Фигуры**
+
+- [~] **2.5 SDF-фигуры (`RECT`, `ROUNDED_RECT`, `CIRCLE`, `LINE`)** — написано и покрыто тестами упаковки, **не проверено в игре** (`CleanroomSdfShapeRenderer`, `CleanroomSdfShapeInstances`; `-Dunigui.sdf=false` отключает для сравнения). Порт `MinecraftSdfShapeRenderer`: `needsSdf` (скругление, stroke, дробные bounds, круг, линия), один quad на команду, AA через `fwidth`. Сначала `BASIC` (uniform'ы на draw), затем `INSTANCED` (30 float'ов на экземпляр, порядок команд сохраняется). Закрывает D6 для `ROUNDED_RECT`.
+- [x] **2.6 Fallback-тесселяция фигур** (`CleanroomShapeTessellator` + `CleanroomShapeRenderer`: один `GL_TRIANGLES` draw на batch, CPU-transform через affine команды; `RECT` больше не округляется до целых пикселей, как в 1.20). Доработать код фазы 1 до `MinecraftShapeBatchRenderer`: `ROUNDED_RECT` fill / stroke (сегменты угла по радиусу, feather-кольцо), эллипс, линии с толщиной, один buffer на batch (`POSITION_COLOR`, `GL_TRIANGLES`).
+- [x] **2.7 `LINE`: dash и pixel-center.** (dash режет сам `core` в `RenderContext.line`, backend получает готовые отрезки; pixel-center для тонких осевых линий сделан в тесселяторе.) `Paint.dashLength / dashGap / dashOffset` (в core уже есть `emitDashedLine`, нужно проверить, что backend получает готовые отрезки), выравнивание тонких линий по центру пикселя (`appendLineCommand` в 1.20).
+- [x] **2.8 `PATH`** — написан и покрыт тестами геометрии, **не проверен в игре**. (Заливка `PATH` только выпуклая, вогнутые контуры `core` сам триангулирует в `MESH`.)  Обход `VectorPath`, flatten кривых по допуску в физических пикселях, fill и stroke с AA-бахромой через `PathAntiAliasing` из core. Образец: `MinecraftShapeBatchRenderer.appendPath` и `renderPath` / `renderFilledPath`.
+- [x] **2.9 `MESH` и `DrawVertex`** — цветной и текстурированный (текстура биндится по id, без sampler state до фазы 3), **не проверен в игре**. Цветной и текстурированный меш, per-vertex color (покрывает `addRectFilledMultiColor`, `addRibbon`, градиенты). Образец: `renderMeshBatch`.
+- [~] **2.10 Clip с transform и скруглением.** (сделано: axis-aligned AABB после transform; не сделано: stencil для повёрнутого и скруглённого clip.) Повёрнутый clip: сейчас axis-aligned bounding box (готово в фазе 1). Точный clip через stencil — по желанию; rounded clip — по возможности.
+
+**2C. Проверка**
+
+- [~] **2.11 Тесты без GL.** (сделано: `CleanroomShapeTessellatorTest` — 24, `CleanroomSdfShapeInstancesTest` — 16; не сделано: JMH.) Чистая геометрия (вершины углов, dash-разбиение, flatten, упаковка instance-данных в `FloatBuffer`, выбор SDF / fallback по `needsSdf`) выносится в классы без LWJGL и покрывается JUnit. JMH рядом с `core/src/jmh` для упаковки instance'ов и тесселяции rounded rect.
+- [ ] **2.12 Визуальное сравнение 1.12.2 и 1.20.** Один экран с rounded rect, кругом, линией, stroke'ом на дробных координатах и UI Scale 1–4; скриншоты рядом (часть 8.6).
 
 ---
 
@@ -110,18 +137,18 @@
 
 ## Фаза 4 — Текст `P1`
 
-Зависит от A3.
+Решение A3: SDF-текст — основной путь (как в 1.20), ванильный `FontRenderer` — fallback. Генерация глифов (`DefaultFontRegistry`, `SdfGlyphProvider`, `AwtFontFace`) уже в `core`, в cleanroom нужен только GL.
 
-- [ ] **4.1 Метрики.** `MinecraftFonts.defaultFace()`: убедиться, что `ascent/descent/lineHeight` совпадают с реальной базовой линией `FontRenderer` (сейчас 7/9 и 2/9 — константы). Тест: `measureTextWidth` ≡ сумма `advance`.
-- [ ] **4.2 Размер текста.** Масштабировать матрицей по `TextRun.pixelSize / FONT_HEIGHT` (D7). Pixel snap по `DrawCommand.textPixelSnap()`.
-- [ ] **4.3 Rich text.** Рисовать run за run'ом: цвет, tracking, `TextTransform`, shadow. Образец: `MinecraftMixedTextRenderer` (`lineInfo`, `measure`, `argb`).
-- [ ] **4.4 `TextBrush`.** `SolidTextBrush` — просто цвет. `LinearGradientTextBrush` — цвет на глиф (CPU, по позиции глифа).
-- [ ] **4.5 Layout.** Выяснить, кто делает перенос, выравнивание и `TextOverflowMode` (ellipsis): core (`TextEngine`) или backend. Использовать `measureTextWidth` бэкенда, чтобы переносы совпадали с отрисовкой.
-- [ ] **4.6 Unicode и цветовые коды.** `§`-коды: решить, трактовать ли их как форматирование или как литерал. Юникод / Russian / CJK через `unicodeFlag`.
-- [ ] **4.7 Inline content** (`InlineContentRenderer`, `InlineContentSpan`): иконки и текстуры внутри текста.
-- [ ] **4.8 *(опц.)* Кастомные шрифты** (`FontRegistry`, TTF/OTF из `TestMod/assets/fonts`): glyph-atlas на `java.awt.Font`.
-- [ ] **4.9 *(опц.)* SDF-текст** (порт `MinecraftSdfTextRenderer`).
-- [ ] **4.10 Тесты.** Метрики, переносы, tracking, выбор run'ов — на моках `FontFace` (без Minecraft).
+- [~] **4.1 Метрики ванильного шрифта.** (гарнитура стала именованным классом `MinecraftFontFace`, чтобы рендерер отличал её от SDF; метрики пока прежние 7/9 и 2/9, сверить с картинкой.) `MinecraftFonts.defaultFace()`: убедиться, что `ascent / descent / lineHeight` совпадают с реальной базовой линией `FontRenderer` (сейчас константы 7/9 и 2/9). Тест: `measureTextWidth` ≡ сумма `advance`.
+- [~] **4.2 `CleanroomSdfTextRenderer`** — написан (`CleanroomSdfAtlas` + `CleanroomSdfTextRenderer`), тесты раскладки есть, **в игре не проверен** (`-Dunigui.sdfText=false` отключает SDF-текст). Порт `MinecraftSdfTextRenderer`: атлас-страницы (1024², SPREAD 8, base 48 px), загрузка глифов через `SdfGlyphProvider`, instance-буфер (32 float'а на глиф), шейдер с `fwidth`-AA. Требует tier `INSTANCED` / `BASIC`; для `LEGACY` — отдельная ветка без instancing (quad на глиф через `Tessellator`-подобный буфер) или fallback на 4.3.
+- [x] **4.3 Смешанный рендерер** (`CleanroomTextLayout` + `CleanroomTextRenderer`; порядок runs сохраняется, flush SDF перед каждым ванильным сегментом). Порт `MinecraftMixedTextRenderer`: run'ы с ванильным и SDF-шрифтом в одном `TEXT`-batch'е, порядок сохраняется. `lineInfo`, `measure`, tracking, `TextTransform`, shadow.
+- [x] **4.4 Размер и snap** (ванильный текст масштабируется `pixelSize / 9`, snap по `textPixelSnap` и порогу 18 px; D7 закрыт). `TextRun.pixelSize / FONT_HEIGHT` для ванильного пути (D7); pixel snap по `DrawCommand.textPixelSnap()` и `PIXEL_SNAP_MAX_SIZE` для SDF.
+- [x] **4.5 `TextBrush`** (`CleanroomTextColors`: solid, linear gradient; в SDF цвет на угол глифа, в ванильном пути градиент рисуется по глифам). `SolidTextBrush` — цвет, `LinearGradientTextBrush` — четыре цвета на углы глифа (в SDF-пути это `InstanceColor0..3`, бесплатно).
+- [~] **4.6 Layout.** (`measureTextWidth` теперь через `TextEngine`, как в `common`; перенос и ellipsis делает core.) Выяснить, кто делает перенос, выравнивание и `TextOverflowMode`: core (`TextEngine`) или backend. Использовать `measureTextWidth` бэкенда, чтобы переносы совпадали с отрисовкой.
+- [ ] **4.7 Юникод и цветовые коды.** `§`-коды: форматирование или литерал. Кириллица / CJK: в SDF-пути покрывается шрифтом, в ванильном — `unicodeFlag`.
+- [ ] **4.8 Inline content** (`InlineContentRenderer`, `InlineContentSpan`): иконки и текстуры внутри текста.
+- [ ] **4.9 Кастомные шрифты.** `FontRegistry` и TTF / OTF из `TestMod/assets/fonts` через `AwtFontFace` (core): проверить загрузку ресурса в окружении 1.12.2 (classloader Cleanroom / Foundation).
+- [x] **4.10 Тесты.** (`CleanroomTextLayoutTest` — 14, `CleanroomTextColorsTest` — 8; без GL.) Метрики, переносы, tracking, выбор run'ов, упаковка glyph-instance'ов — на моках `FontFace` без Minecraft.
 
 ---
 
@@ -214,12 +241,12 @@
 | Веха                        | Содержимое                | Результат                                                                                                  |
 |-----------------------------|---------------------------|------------------------------------------------------------------------------------------------------------|
 | **M1 «Стабильная база»**    | 1.1–1.8, A1–A5 решены     | Нет GL-артефактов, вложенные clip работают, тесты в правильном модуле                                      |
-| **M2 «Выглядит как 1.20»**  | 2.1–2.8, 3.1–3.6, 4.1–4.7 | Скругления, пути, меши, rich text, текстуры с tint и фильтрами. `UnityInspectorScreen` визуально совпадает |
-| **M3 «Продвинутый рендер»** | 5.x, 2.9, 4.8–4.9, 6.11   | FBO, шейдеры, post-effects, UiRenderPolicy                                                                 |
+| **M2 «Выглядит как 1.20»**  | 2.1–2.10, 3.1–3.6, 4.1–4.8 | SDF-фигуры и SDF-текст с fallback на тесселяцию, пути, меши, текстуры с tint и фильтрами. `UnityInspectorScreen` визуально совпадает |
+| **M3 «Продвинутый рендер»** | 5.x, 4.9, 6.11            | FBO, пользовательские шейдеры, post-effects, UiRenderPolicy                                                                 |
 | **M4 «Интеграция с игрой»** | 6.x, 7.x                  | Loading, tooltips, world surface, предметы / сущности                                                      |
 | **M5 «Паритет и релиз»**    | 8.x, 9.x, 10.x            | Матрица паритета закрыта, CI собирает 1.12.2                                                               |
 
-Критический путь: **1.1 → 1.2 → 2.1 → 2.2/2.7 → 3.3 → 4.2/4.3 → 5.1 → 5.5**. Задачи 6.x (кроме 6.3, 6.5, 6.11) можно вести параллельно с фазами 2–4.
+Критический путь: **1.1 → 1.2 → A2 (лог GL) → 2.1 → 2.2–2.4 → 2.5 → 4.2 → 4.3 → 5.1 → 5.5**. Задачи 6.x (кроме 6.3, 6.5, 6.11) можно вести параллельно с фазами 2–4.
 
 ---
 
@@ -228,3 +255,4 @@
 - Новая функциональность backend'а начинается с чистой математики в `CleanroomRenderMath` или соседнем классе и unit-теста; GL-код тонкий (по скиллам mandatory-junit-jmh-testing и physics-math-library-consolidation).
 - Версионный код остаётся в `1.12.2-cleanroom`. Всё, что не зависит от Minecraft (батчинг, геометрия, clip-математика, контракты) — переносить в `core`, чтобы остальные версии (в т. ч. будущие) получали это бесплатно.
 - Каждая завершённая задача: отметить `[x]`, дописать дату и коммит; найденные баги добавлять в таблицу дефектов.
+

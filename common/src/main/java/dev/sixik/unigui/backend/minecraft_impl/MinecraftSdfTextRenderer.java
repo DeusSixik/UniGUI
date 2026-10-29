@@ -20,7 +20,7 @@ import dev.sixik.unigui.impl.text.DefaultFontRegistry;
 import dev.sixik.unigui.impl.text.SdfGlyph;
 import dev.sixik.unigui.impl.text.SdfGlyphProvider;
 import net.minecraft.client.gui.GuiGraphics;
-import org.intellij.lang.annotations.Language;
+import dev.sixik.unigui.impl.render.shaders.SdfTextShaderSources;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
@@ -47,11 +47,11 @@ import java.util.Map;
 
 /** GPU-рендерер одноканальных SDF-шрифтов, не зависящий от конкретного backend. */
 public final class MinecraftSdfTextRenderer implements AutoCloseable {
-    private static final int BASE_PIXEL_SIZE = 48;
-    private static final int SPREAD = 8;
-    private static final int ATLAS_PADDING = 2;
-    private static final int ATLAS_SIZE = 1024;
-    private static final int FLOATS_PER_INSTANCE = 32;
+    private static final int BASE_PIXEL_SIZE = SdfTextShaderSources.BASE_PIXEL_SIZE;
+    private static final int SPREAD = SdfTextShaderSources.SPREAD;
+    private static final int ATLAS_PADDING = SdfTextShaderSources.ATLAS_PADDING;
+    private static final int ATLAS_SIZE = SdfTextShaderSources.ATLAS_SIZE;
+    private static final int FLOATS_PER_INSTANCE = SdfTextShaderSources.FLOATS_PER_INSTANCE;
     private static final int INSTANCE_STRIDE_BYTES = FLOATS_PER_INSTANCE * Float.BYTES;
     private static final int QUAD_VERTEX_STRIDE_BYTES = 2 * Float.BYTES;
     private static final boolean DEBUG_GL = Boolean.getBoolean("unigui.sdf.debugGl");
@@ -59,54 +59,9 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
     private static final float MATRIX_EPSILON = 0.0001f;
     private static final Logger LOGGER = LoggerFactory.getLogger(MinecraftSdfTextRenderer.class);
 
-    @Language("GLSL")
-    private static final String VERTEX_SHADER = """
-            #version 150
-            in vec2 Position;
-            in vec3 InstancePosition0;
-            in vec3 InstancePosition1;
-            in vec3 InstancePosition2;
-            in vec3 InstancePosition3;
-            in vec4 InstanceUv;
-            in vec4 InstanceColor0;
-            in vec4 InstanceColor1;
-            in vec4 InstanceColor2;
-            in vec4 InstanceColor3;
-            uniform mat4 ModelViewMat;
-            uniform mat4 ProjMat;
-            out vec2 vertexUV;
-            out vec4 vertexColor;
-            void main() {
-                vec3 left = mix(InstancePosition0, InstancePosition1, Position.y);
-                vec3 right = mix(InstancePosition3, InstancePosition2, Position.y);
-                vec3 position = mix(left, right, Position.x);
-                vertexUV = vec2(
-                        mix(InstanceUv.x, InstanceUv.z, Position.x),
-                        mix(InstanceUv.y, InstanceUv.w, Position.y));
-                vec4 topColor = mix(InstanceColor0, InstanceColor3, Position.x);
-                vec4 bottomColor = mix(InstanceColor1, InstanceColor2, Position.x);
-                vertexColor = mix(topColor, bottomColor, Position.y);
-                gl_Position = ProjMat * ModelViewMat * vec4(position, 1.0);
-            }
-            """;
-
-    @Language("GLSL")
-    private static final String FRAGMENT_SHADER = """
-            #version 150
-            uniform sampler2D GlyphAtlas;
-            uniform float SdfSpread;
-            in vec2 vertexUV;
-            in vec4 vertexColor;
-            out vec4 fragColor;
-            void main() {
-                float distance = texture(GlyphAtlas, vertexUV).r;
-                vec2 unitRange = vec2(SdfSpread) / vec2(textureSize(GlyphAtlas, 0));
-                vec2 screenTexSize = vec2(1.0) / fwidth(vertexUV);
-                float screenPxRange = max(0.5 * dot(unitRange, screenTexSize), 1.0);
-                float alpha = clamp(screenPxRange * (distance - 0.5) + 0.5, 0.0, 1.0);
-                fragColor = vec4(vertexColor.rgb, vertexColor.a * alpha);
-            }
-            """;
+    // GLSL sources and glyph-instance layout are shared with the other version backends (core).
+    private static final String VERTEX_SHADER = SdfTextShaderSources.VERTEX;
+    private static final String FRAGMENT_SHADER = SdfTextShaderSources.FRAGMENT;
 
     private final DefaultFontRegistry fonts;
     private final Map<FontFace, FontAtlas> atlases = new IdentityHashMap<>();
