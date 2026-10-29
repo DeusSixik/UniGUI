@@ -2,7 +2,9 @@ package dev.sixik.unigui.api.screen;
 
 import dev.sixik.unigui.api.backend.UniGuiRuntime;
 import dev.sixik.unigui.api.core.UIContext;
+import dev.sixik.unigui.api.input.KeyboardInputHandler;
 import dev.sixik.unigui.api.render.UiRenderPolicy;
+import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.widget.Widget;
 
 import java.util.Objects;
@@ -18,6 +20,8 @@ public final class UniScreen {
     private float uiScale = Float.NaN;
     private boolean scaleWithGameGui = true;
     private Runnable onClose;
+    private FontFace defaultFont;
+    private KeyboardInputHandler keyboardInputHandler;
 
     public UniScreen(Widget root) {
         this("", root, null);
@@ -81,6 +85,28 @@ public final class UniScreen {
 
     public UniScreen scaleWithGameGui(boolean value) {
         this.scaleWithGameGui = value;
+        return this;
+    }
+
+    /** Returns the screen-level font face, or {@code null} to use the backend default. */
+    public FontFace defaultFont() {
+        return defaultFont;
+    }
+
+    /** Sets the screen-level default font face; {@code null} restores the backend default. */
+    public UniScreen defaultFont(FontFace font) {
+        this.defaultFont = font;
+        return this;
+    }
+
+    /** Returns the optional screen-level keyboard interceptor. */
+    public KeyboardInputHandler keyboardInputHandler() {
+        return keyboardInputHandler;
+    }
+
+    /** Sets an optional screen-level keyboard interceptor. */
+    public UniScreen keyboardInputHandler(KeyboardInputHandler handler) {
+        this.keyboardInputHandler = handler;
         return this;
     }
 

@@ -82,6 +82,7 @@ public class MinecraftWidgetScreen extends Screen {
     private boolean layoutInitialized;
     private ElementsInspector elementsInspector;
     private Runnable closeCallback;
+    private KeyboardInputHandler keyboardInputHandler;
     private boolean layoutChangedThisFrame;
     private float lastLayoutWidth = -1.0f;
     private float lastLayoutHeight = -1.0f;
@@ -301,6 +302,11 @@ public class MinecraftWidgetScreen extends Screen {
             releaseRenderCache();
         }
         invalidateRenderCache();
+        return this;
+    }
+
+    public MinecraftWidgetScreen keyboardInputHandler(KeyboardInputHandler handler) {
+        this.keyboardInputHandler = handler;
         return this;
     }
 
@@ -623,8 +629,10 @@ public class MinecraftWidgetScreen extends Screen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (debugHotkeysEnabled && handleDebugHotkey(keyCode, modifiers)) return true;
         uiContext.keyboard().press(keyCode);
+        if (keyboardInputHandler != null
+                && keyboardInputHandler.keyPressed(keyCode, scanCode, modifiers)) return true;
+        if (debugHotkeysEnabled && handleDebugHotkey(keyCode, modifiers)) return true;
         if (keyCode == KeyCodes.TAB) {
             Widget focused = uiContext.focusManager().focusedWidget();
             if (focused != null && uiContext.routedEvents().dispatch(new KeyPressedEvent(focused, keyCode, scanCode, modifiers))) {
@@ -672,6 +680,8 @@ public class MinecraftWidgetScreen extends Screen {
     @Override
     public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
         uiContext.keyboard().release(keyCode);
+        if (keyboardInputHandler != null
+                && keyboardInputHandler.keyReleased(keyCode, scanCode, modifiers)) return true;
         Widget focused = uiContext.focusManager().focusedWidget();
         if (focused == null) {
             return super.keyReleased(keyCode, scanCode, modifiers);
@@ -680,6 +690,7 @@ public class MinecraftWidgetScreen extends Screen {
     }
     @Override
     public boolean charTyped(char codePoint, int modifiers) {
+        if (keyboardInputHandler != null && keyboardInputHandler.textInput(codePoint, modifiers)) return true;
         Widget focused = uiContext.focusManager().focusedWidget();
         if (focused == null) {
             return super.charTyped(codePoint, modifiers);

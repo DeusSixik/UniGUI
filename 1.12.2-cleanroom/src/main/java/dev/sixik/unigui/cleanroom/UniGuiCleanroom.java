@@ -2,6 +2,8 @@ package dev.sixik.unigui.cleanroom;
 
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
+import net.minecraftforge.fml.relauncher.Side;
+import dev.sixik.unigui.cleanroom.backend.CleanroomClientBootstrap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -25,5 +27,8 @@ public final class UniGuiCleanroom {
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
         LOGGER.info("UniGUI Cleanroom integration initialized");
+        if (event.getSide() == Side.CLIENT) {
+            CleanroomClientBootstrap.install();
+        }
     }
 }

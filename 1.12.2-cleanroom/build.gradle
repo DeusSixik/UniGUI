@@ -27,6 +27,8 @@ java {
 dependencies {
     implementation cleanroom.userdev('0.7.14-alpha')
     implementation files(coreJar)
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 cleanroom {
@@ -62,4 +64,8 @@ tasks.named('jar', Jar) {
         zipTree(coreJar)
     }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
 }

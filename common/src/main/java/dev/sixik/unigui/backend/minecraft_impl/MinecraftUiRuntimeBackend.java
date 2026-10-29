@@ -125,7 +125,8 @@ public final class MinecraftUiRuntimeBackend implements UniGuiBackend {
                 : screen.context();
         MinecraftWidgetScreen nativeScreen = new MinecraftWidgetScreen(
                 Component.literal(screen.title()), screen.root(), context)
-                .renderPolicy(screen.renderPolicy());
+                .renderPolicy(screen.renderPolicy())
+                .keyboardInputHandler(screen.keyboardInputHandler());
         nativeScreen.onRemoved(() -> {
             synchronized (openScreens) {
                 openScreens.remove(screen);
@@ -139,6 +140,7 @@ public final class MinecraftUiRuntimeBackend implements UniGuiBackend {
         } else {
             nativeScreen.scaleWithMinecraftGui(screen.scaleWithGameGui());
         }
+        if (screen.defaultFont() != null) nativeScreen.defaultFont(screen.defaultFont());
         synchronized (openScreens) {
             openScreens.put(screen, nativeScreen);
         }

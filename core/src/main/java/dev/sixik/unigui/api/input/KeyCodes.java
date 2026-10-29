@@ -41,6 +41,14 @@ public final class KeyCodes {
     public static final int F11 = 300;
     public static final int F12 = 301;
     public static final int KEYPAD_ENTER = 335;
+    public static final int LEFT_SHIFT = 340;
+    public static final int LEFT_CONTROL = 341;
+    public static final int LEFT_ALT = 342;
+    public static final int LEFT_SUPER = 343;
+    public static final int RIGHT_SHIFT = 344;
+    public static final int RIGHT_CONTROL = 345;
+    public static final int RIGHT_ALT = 346;
+    public static final int RIGHT_SUPER = 347;
 
     public static boolean isFunctionKey(int keyCode) {
         return keyCode >= 290 && keyCode <= 314;

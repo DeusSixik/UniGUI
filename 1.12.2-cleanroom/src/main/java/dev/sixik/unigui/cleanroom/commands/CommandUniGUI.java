@@ -1,6 +1,6 @@
 package dev.sixik.unigui.cleanroom.commands;
 
-import dev.sixik.unigui.cleanroom.demo.ComplexUiDemo;
+import dev.sixik.unigui.cleanroom.demo.unity.UnityInspectorScreen;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.CommandException;
 import net.minecraft.command.ICommand;
@@ -31,6 +31,6 @@ public class CommandUniGUI extends CommandBase implements ICommand {
 
     @Override
     public void execute(MinecraftServer minecraftServer, ICommandSender iCommandSender, String[] strings) throws CommandException {
-        ComplexUiDemo.openDemo();
+        UnityInspectorScreen.open();
     }
 }

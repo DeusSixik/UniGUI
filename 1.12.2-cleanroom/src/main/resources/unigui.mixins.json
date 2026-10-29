@@ -1,9 +1,13 @@
 {
   "required": true,
   "package": "dev.sixik.unigui.cleanroom.mixin",
-  "compatibilityLevel": "JAVA_25",
+  "compatibilityLevel": "JAVA_8",
   "target": "@env(DEFAULT)",
-  "client": [],
+  "client": [
+    "MixinGuiIngameUniGuiHud",
+    "MixinGuiScreenUniGuiOverlay",
+    "MixinGuiContainerUniGuiOverlay"
+  ],
   "mixins": [
     "MixinServerCommandManager$add_custom_commands"
   ],
