@@ -7,15 +7,12 @@ import dev.sixik.unigui.api.layout.PositionType;
 import dev.sixik.unigui.api.posteffect.UiPostEffects;
 import dev.sixik.unigui.api.screen.UniRenderLayer;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.backend.minecraft_impl.HudRender;
-import dev.sixik.unigui.backend.minecraft_impl.MinecraftRenderLayerRegistration;
-import dev.sixik.unigui.backend.minecraft_impl.MinecraftWidgetRenderLayer;
+import dev.sixik.unigui.api.screen.UniHudRender;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftWidgetScreen;
 import dev.sixik.unigui.backend.minecraft_impl.ScreenOverlayRender;
 import dev.sixik.unigui.api.screen.UniRenderLayerRegistration;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.display.Label;
-import net.minecraft.client.Minecraft;
 
 /**
  * Полный пример подключения UniGUI к двум внешним точкам рендера Minecraft.
@@ -49,10 +46,9 @@ import net.minecraft.client.Minecraft;
  * registration.close();
  * }</pre>
  *
- * @see HudRender
+ * @see UniHudRender
  * @see ScreenOverlayRender
- * @see MinecraftWidgetRenderLayer
- * @see MinecraftRenderLayerRegistration
+ * @see UniRenderLayerRegistration
  */
 public final class OverlayRenderDemo {
     /*
@@ -60,7 +56,7 @@ public final class OverlayRenderDemo {
      * 1) не создавать новый слой при каждом вызове register();
      * 2) иметь возможность корректно освободить UI-ресурсы через close().
      */
-    private static MinecraftRenderLayerRegistration<Minecraft> hudRegistration;
+    private static UniRenderLayerRegistration hudRegistration;
     private static UniRenderLayerRegistration screenOverlayRegistration;
 
     private OverlayRenderDemo() {
@@ -91,20 +87,20 @@ public final class OverlayRenderDemo {
      */
     private static void registerHud() {
         Box hudRoot = transparentRoot(createHudBadge());
-        MinecraftWidgetRenderLayer hudLayer = new MinecraftWidgetRenderLayer(hudRoot);
+        UniRenderLayer hudLayer = new UniRenderLayer(hudRoot);
 
         hudLayer.postEffect(UiPostEffects.CHROMATIC_ABERRATION);
 
         // HUD вызывается из vanilla HUD-прохода до Minecraft Screen.
         // Поэтому он продолжает жить под чатом, инвентарём и другими экранами.
-        hudRegistration = HudRender.register(hudLayer);
+        hudRegistration = UniHudRender.register(hudLayer);
     }
 
     /**
      * Регистрирует слой поверх чужих Minecraft Screen.
      *
-     * <p>Тип контекста здесь {@code Screen}, поэтому predicate получает экран, поверх
-     * которого выполняется рендер. Важно исключить {@link MinecraftWidgetScreen}, если
+     * <p>Predicate получает native screen как {@code Object}. В текущем Minecraft backend
+     * можно исключить {@link MinecraftWidgetScreen}, если
      * overlay не должен появляться поверх экранов, которые уже принадлежат UniGUI.</p>
      *
      * <p>Overlay также получает события мыши и клавиатуры. Если виджет обработал событие,
@@ -124,7 +120,7 @@ public final class OverlayRenderDemo {
     /**
      * Показывает, существуют ли ещё активные регистрации.
      *
-     * <p>Проверка {@link MinecraftRenderLayerRegistration#closed()} нужна на случай,
+     * <p>Проверка {@link UniRenderLayerRegistration#closed()} нужна на случай,
      * если конкретную регистрацию закрыли напрямую, а затем снова вызвали register().</p>
      */
     private static boolean isRegistered() {

@@ -54,16 +54,26 @@ public final class MinecraftUiRuntimeBackend implements UniGuiBackend {
         Objects.requireNonNull(visibility, "visibility");
         MinecraftWidgetRenderLayer nativeLayer = createLayer(layer);
         return switch (target) {
-            case HUD -> wrap(HudRender.register(nativeLayer,
+            case HUD -> wrap(layer, HudRender.register(nativeLayer,
                     client -> visibility.test(client), priority));
-            case SCREEN_OVERLAY -> wrap(ScreenOverlayRender.register(nativeLayer,
+            case SCREEN_OVERLAY -> wrap(layer, ScreenOverlayRender.register(nativeLayer,
                     screen -> visibility.test(screen), priority));
-            case LOADING_SCREEN -> wrap(LoadingScreenRender.register(nativeLayer,
+            case LOADING_SCREEN -> wrap(layer, LoadingScreenRender.register(nativeLayer,
                     client -> visibility.test(client), priority));
         };
     }
 
-    private static <C> LayerHandle wrap(MinecraftRenderLayerRegistration<C> registration) {
+    @Override
+    public void clearLayers(UniRenderTarget target) {
+        switch (target) {
+            case HUD -> HudRender.clear();
+            case SCREEN_OVERLAY -> ScreenOverlayRender.clear();
+            case LOADING_SCREEN -> LoadingScreenRender.clear();
+        }
+    }
+
+    private static <C> LayerHandle wrap(UniRenderLayer layer,
+                                        MinecraftRenderLayerRegistration<C> registration) {
         return new LayerHandle() {
             @Override
             public boolean enabled() {
@@ -98,6 +108,7 @@ public final class MinecraftUiRuntimeBackend implements UniGuiBackend {
             @Override
             public void close() {
                 registration.close();
+                layer.close();
             }
         };
     }
