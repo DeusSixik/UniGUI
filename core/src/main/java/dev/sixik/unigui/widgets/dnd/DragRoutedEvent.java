@@ -6,7 +6,6 @@ import dev.sixik.unigui.api.event.EventPhase;
 import dev.sixik.unigui.api.event.EventType;
 import dev.sixik.unigui.api.event.RoutableWidgetEvent;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.widgets.editor.DragPayload;
 
 import java.util.Objects;
 

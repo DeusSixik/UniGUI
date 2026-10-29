@@ -16,7 +16,6 @@ public final class BuiltInWidgetXmlRegistry {
         BuiltInDataXml.register(registry);
         BuiltInNavigationXml.register(registry);
         BuiltInDockingXml.register(registry);
-        BuiltInEditorXml.register(registry);
         registerAliases(registry);
 
         return registry;

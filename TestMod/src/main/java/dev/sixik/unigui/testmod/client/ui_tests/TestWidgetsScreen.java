@@ -1,7 +1,6 @@
 package dev.sixik.unigui.testmod.client.ui_tests;
 
 import dev.sixik.unigui.api.core.UnityLikeUIScaleProvider;
-import dev.sixik.unigui.api.debug.DebugFlags;
 import dev.sixik.unigui.api.layout.LayoutStyle;
 import dev.sixik.unigui.api.render.UiRenderPolicy;
 import dev.sixik.unigui.api.screen.UniScreen;
@@ -21,8 +20,7 @@ public final class TestWidgetsScreen {
                 .scaleRange(0.75f, 2.0f);
 
         DefaultUIContext context = new DefaultUIContext(new MinecraftClipboardService())
-                .scaleProvider(provider)
-                .enableDebugFlags(DebugFlags.ELEMENTS_INSPECTOR);
+                .scaleProvider(provider);
 
         new UniScreen("", create(), context)
                 .scaleWithGameGui(false)

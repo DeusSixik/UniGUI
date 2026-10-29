@@ -3,8 +3,6 @@ package dev.sixik.unigui.widgets.core;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlAttributeDescriptor;
-import dev.sixik.unigui.api.xml.XmlWidgetElement;
 import dev.sixik.unigui.widgets.caching.CachedSubtreeWidget;
 import dev.sixik.unigui.widgets.containers.Border;
 import dev.sixik.unigui.widgets.containers.Box;
@@ -35,25 +33,6 @@ import dev.sixik.unigui.widgets.display.Sparkline;
 import dev.sixik.unigui.widgets.display.Text;
 import dev.sixik.unigui.widgets.display.TextBlock;
 import dev.sixik.unigui.widgets.display.TextureWidget;
-import dev.sixik.unigui.widgets.editor.AssetBrowserPanel;
-import dev.sixik.unigui.widgets.editor.CommandPalette;
-import dev.sixik.unigui.widgets.editor.DesignCanvasOverlay;
-import dev.sixik.unigui.widgets.editor.DiagnosticsStrip;
-import dev.sixik.unigui.widgets.editor.Dialog;
-import dev.sixik.unigui.widgets.editor.DragSource;
-import dev.sixik.unigui.widgets.editor.DropTarget;
-import dev.sixik.unigui.widgets.editor.ElementsInspector;
-import dev.sixik.unigui.widgets.editor.GridOverlay;
-import dev.sixik.unigui.widgets.editor.PalettePanel;
-import dev.sixik.unigui.widgets.editor.PaneHeader;
-import dev.sixik.unigui.widgets.editor.PropertyFieldRow;
-import dev.sixik.unigui.widgets.editor.PropertyGrid;
-import dev.sixik.unigui.widgets.editor.ProjectPickerPanel;
-import dev.sixik.unigui.widgets.editor.ResizablePanelHeader;
-import dev.sixik.unigui.widgets.editor.SearchBoxWithFilterChips;
-import dev.sixik.unigui.widgets.editor.SelectionOverlay;
-import dev.sixik.unigui.widgets.editor.StatusBar;
-import dev.sixik.unigui.widgets.editor.WidgetPalette;
 import dev.sixik.unigui.widgets.feedback.ContextMenu;
 import dev.sixik.unigui.widgets.feedback.LoadingIndicator;
 import dev.sixik.unigui.widgets.feedback.NotificationView;
@@ -116,10 +95,6 @@ public final class Widgets {
 
     public static FlexBox flexBox() {
         return new FlexBox();
-    }
-
-    public static ElementsInspector elementsInspector() {
-        return new ElementsInspector();
     }
 
     public static Button button(String text) {
@@ -326,82 +301,6 @@ public final class Widgets {
 
     public static ToggleToolButton toggleToolButton(String label) {
         return new ToggleToolButton(label);
-    }
-
-    public static PropertyGrid propertyGrid() {
-        return new PropertyGrid();
-    }
-
-    public static PropertyGrid propertyGrid(XmlWidgetElement element) {
-        return new PropertyGrid().inspect(element);
-    }
-
-    public static PropertyFieldRow propertyFieldRow(XmlAttributeDescriptor descriptor, String value, boolean present) {
-        return new PropertyFieldRow(descriptor, value, present);
-    }
-
-    public static SelectionOverlay selectionOverlay() {
-        return new SelectionOverlay();
-    }
-
-    public static DesignCanvasOverlay designCanvasOverlay() {
-        return new DesignCanvasOverlay();
-    }
-
-    public static GridOverlay gridOverlay() {
-        return new GridOverlay();
-    }
-
-    public static ProjectPickerPanel projectPicker() {
-        return new ProjectPickerPanel();
-    }
-
-    public static StatusBar statusBar() {
-        return new StatusBar();
-    }
-
-    public static DiagnosticsStrip diagnosticsStrip() {
-        return new DiagnosticsStrip();
-    }
-
-    public static WidgetPalette widgetPalette() {
-        return new WidgetPalette();
-    }
-
-    public static PalettePanel palettePanel() {
-        return new PalettePanel();
-    }
-
-    public static CommandPalette commandPalette() {
-        return new CommandPalette();
-    }
-
-    public static AssetBrowserPanel assetBrowser() {
-        return new AssetBrowserPanel();
-    }
-
-    public static SearchBoxWithFilterChips searchBoxWithFilterChips() {
-        return new SearchBoxWithFilterChips();
-    }
-
-    public static Dialog dialog() {
-        return new Dialog();
-    }
-
-    public static PaneHeader paneHeader() {
-        return new PaneHeader();
-    }
-
-    public static ResizablePanelHeader resizablePanelHeader() {
-        return new ResizablePanelHeader();
-    }
-
-    public static DragSource dragSource() {
-        return new DragSource();
-    }
-
-    public static DropTarget dropTarget() {
-        return new DropTarget();
     }
 
     public static Toast toast(String text) {

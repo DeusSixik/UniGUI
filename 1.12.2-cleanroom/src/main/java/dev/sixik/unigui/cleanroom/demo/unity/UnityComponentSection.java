@@ -19,7 +19,7 @@ import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.widgets.display.CanvasWidget;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.dnd.DragController;
-import dev.sixik.unigui.widgets.editor.DragPayload;
+import dev.sixik.unigui.widgets.dnd.DragPayload;
 import dev.sixik.unigui.widgets.feedback.ContextMenu;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 import dev.sixik.unigui.widgets.feedback.Tooltip;

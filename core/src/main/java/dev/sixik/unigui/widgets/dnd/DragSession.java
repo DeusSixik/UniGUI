@@ -9,7 +9,6 @@ import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.containers.ScrollView;
 import dev.sixik.unigui.widgets.core.Orientation;
-import dev.sixik.unigui.widgets.editor.DragPayload;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 
 import java.util.Objects;

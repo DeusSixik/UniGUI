@@ -9,7 +9,6 @@ import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.widgets.containers.PanelWidget;
 import dev.sixik.unigui.widgets.core.Orientation;
-import dev.sixik.unigui.widgets.editor.DragPayload;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;

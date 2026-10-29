@@ -3,7 +3,6 @@ package dev.sixik.unigui.widgets.dnd;
 import dev.sixik.unigui.api.event.EventPhase;
 import dev.sixik.unigui.api.event.EventSubscription;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.widgets.editor.DragPayload;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;

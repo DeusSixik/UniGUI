@@ -9,7 +9,6 @@ import dev.sixik.unigui.api.event.PointerReleasedEvent;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.widgets.core.Orientation;
-import dev.sixik.unigui.widgets.editor.DragPayload;
 
 import java.util.ArrayList;
 import java.util.List;

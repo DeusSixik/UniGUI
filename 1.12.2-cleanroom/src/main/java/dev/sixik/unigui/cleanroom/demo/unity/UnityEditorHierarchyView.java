@@ -13,7 +13,7 @@ import dev.sixik.unigui.widgets.containers.LinearBox;
 import dev.sixik.unigui.widgets.containers.ScrollView;
 import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.widgets.dnd.*;
-import dev.sixik.unigui.widgets.editor.DragPayload;
+import dev.sixik.unigui.widgets.dnd.DragPayload;
 import dev.sixik.unigui.widgets.feedback.ContextMenu;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 import dev.sixik.unigui.widgets.interaction.Button;
