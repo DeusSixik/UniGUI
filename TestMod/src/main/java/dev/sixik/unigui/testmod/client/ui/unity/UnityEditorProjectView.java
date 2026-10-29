@@ -70,7 +70,7 @@ public class UnityEditorProjectView extends LinearBox {
     private final Map<String, List<AssetItem>> folderContents = new HashMap<>();
     private final Map<String, TreeViewNode> treeNodes = new HashMap<>();
     private final Tooltip assetTooltip = new Tooltip();
-    private OverlayLayer gridOverlay;
+    private OverlayLayer rootOverlay;
 
     private TreeViewNode assetsRootNode;
     private TreeViewNode packagesRootNode;
@@ -87,10 +87,22 @@ public class UnityEditorProjectView extends LinearBox {
     }
 
     public UnityEditorProjectView() {
+        this(null);
+    }
+
+    public UnityEditorProjectView(OverlayLayer rootOverlay) {
         super(Orientation.VERTICAL);
+        this.rootOverlay = rootOverlay;
         spacing(0.0f);
         focusable(true);
         layout(style -> style.sizePercent(100.0f, 100.0f).flexGrow(1.0f).flexShrink(1.0f));
+
+        UnityStyles.styleTooltip(assetTooltip);
+        assetTooltip.offset(0.0f, 4.0f);
+        assetTooltip.visible(false);
+        if (rootOverlay != null) {
+            rootOverlay.addOverlay(assetTooltip);
+        }
 
         initSampleData();
 
@@ -217,14 +229,8 @@ public class UnityEditorProjectView extends LinearBox {
             }
         });
 
-        gridOverlay = new OverlayLayer(gridScroll);
-        gridOverlay.layout(style -> style.sizePercent(100.0f, 100.0f));
-        UnityStyles.styleTooltip(assetTooltip);
-        assetTooltip.offset(0.0f, 4.0f);
-        gridOverlay.addOverlay(assetTooltip);
-
         // 4. SplitPanel с перемещаемым разделителем между деревом папок и сеткой ассетов
-        SplitPanel splitPanel = new SplitPanel(folderScroll, gridOverlay);
+        SplitPanel splitPanel = new SplitPanel(folderScroll, gridScroll);
         splitPanel.orientation(Orientation.HORIZONTAL);
         splitPanel.splitRatio(0.24f);
         splitPanel.minFirstSize(80.0f);
@@ -472,8 +478,7 @@ public class UnityEditorProjectView extends LinearBox {
     }
 
     private void openBreadcrumbDropdown(Button anchorBtn, String parentFolder, String currentChild) {
-        OverlayLayer overlay = findOverlayLayer(this);
-        if (overlay == null) overlay = gridOverlay;
+        OverlayLayer overlay = resolveRootOverlay();
         if (overlay == null) return;
 
         if (activeContextMenu != null) {
@@ -538,6 +543,7 @@ public class UnityEditorProjectView extends LinearBox {
     }
 
     private void loadFolder(String folderName) {
+        hideAssetTooltip();
         this.currentFolder = folderName;
         updateBreadcrumbs(folderName);
         assetContent.clearChildren();
@@ -678,6 +684,13 @@ public class UnityEditorProjectView extends LinearBox {
             nameLbl.color(selected ? UnityStyles.TEXT_BOLD : UnityStyles.TEXT_PRIMARY);
             nameLbl.overflowMode(TextOverflowMode.ELLIPSIS);
             nameLbl.layout(style -> style.flexGrow(1.0f).height(LIST_ROW_HEIGHT));
+            nameLbl.on(PointerEnteredEvent.TYPE, e -> {
+                if (nameLbl.isTextTruncated()) {
+                    showAssetTooltip(row, item.name());
+                }
+            });
+            nameLbl.on(PointerExitedEvent.TYPE, e -> hideAssetTooltip());
+            row.on(PointerExitedEvent.TYPE, e -> hideAssetTooltip());
             row.addChild(nameLbl);
         }
 
@@ -767,14 +780,11 @@ public class UnityEditorProjectView extends LinearBox {
             // Тултип с полным названием, если текст обрезается многоточием
             nameLbl.on(PointerEnteredEvent.TYPE, e -> {
                 if (nameLbl.isTextTruncated()) {
-                    assetTooltip.text(item.name());
-                    assetTooltip.anchor(card);
-                    assetTooltip.visible(true);
+                    showAssetTooltip(card, item.name());
                 }
             });
-            nameLbl.on(PointerExitedEvent.TYPE, e -> {
-                assetTooltip.visible(false);
-            });
+            nameLbl.on(PointerExitedEvent.TYPE, e -> hideAssetTooltip());
+            card.on(PointerExitedEvent.TYPE, e -> hideAssetTooltip());
 
             card.addChild(nameLbl);
         }
@@ -804,8 +814,7 @@ public class UnityEditorProjectView extends LinearBox {
      * Открытие меню кнопки "+" (Create) в верхней панели.
      */
     private void openCreateMenu(Button triggerBtn) {
-        OverlayLayer overlay = findOverlayLayer(this);
-        if (overlay == null) overlay = gridOverlay;
+        OverlayLayer overlay = resolveRootOverlay();
         if (overlay == null) return;
 
         if (activeContextMenu != null) {
@@ -843,8 +852,7 @@ public class UnityEditorProjectView extends LinearBox {
      * Полноценное контекстное меню окна Project по правому клику мыши (Скриншот 1).
      */
     private void openProjectContextMenu(float menuX, float menuY, TreeViewNode treeNode, AssetItem assetItem) {
-        OverlayLayer overlay = findOverlayLayer(this);
-        if (overlay == null) overlay = gridOverlay;
+        OverlayLayer overlay = resolveRootOverlay();
         if (overlay == null) return;
 
         if (activeContextMenu != null) {
@@ -1221,12 +1229,60 @@ public class UnityEditorProjectView extends LinearBox {
         }
     }
 
-    private static OverlayLayer findOverlayLayer(Widget start) {
+    private OverlayLayer resolveRootOverlay() {
+        if (rootOverlay != null) {
+            ensureTooltipAttached(rootOverlay);
+            return rootOverlay;
+        }
+        OverlayLayer found = findRootOverlayLayer(this);
+        if (found != null) {
+            rootOverlay = found;
+            ensureTooltipAttached(rootOverlay);
+        }
+        return rootOverlay;
+    }
+
+    private void ensureTooltipAttached(OverlayLayer overlay) {
+        if (overlay != null && assetTooltip.parent() != overlay) {
+            if (assetTooltip.parent() instanceof OverlayLayer oldOverlay) {
+                oldOverlay.removeOverlay(assetTooltip);
+            }
+            overlay.addOverlay(assetTooltip);
+        }
+    }
+
+    private void showAssetTooltip(Widget anchor, String text) {
+        OverlayLayer overlay = resolveRootOverlay();
+        if (overlay != null) {
+            ensureTooltipAttached(overlay);
+            assetTooltip.text(text);
+            assetTooltip.anchor(anchor);
+            assetTooltip.visible(true);
+        }
+    }
+
+    private void hideAssetTooltip() {
+        assetTooltip.visible(false);
+    }
+
+    private static OverlayLayer findRootOverlayLayer(Widget start) {
+        OverlayLayer root = null;
         Widget current = start;
         while (current != null) {
-            if (current instanceof OverlayLayer layer) return layer;
+            if (current instanceof OverlayLayer layer) {
+                root = layer;
+            }
             current = current.parent();
         }
-        return null;
+        return root;
+    }
+
+    @Override
+    public void dispose() {
+        if (rootOverlay != null) {
+            rootOverlay.removeOverlay(assetTooltip);
+        }
+        assetTooltip.dispose();
+        super.dispose();
     }
 }

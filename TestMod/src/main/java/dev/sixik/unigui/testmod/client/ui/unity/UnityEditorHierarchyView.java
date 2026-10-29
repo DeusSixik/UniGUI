@@ -1,6 +1,10 @@
 package dev.sixik.unigui.testmod.client.ui.unity;
 
+import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.api.event.PointerExitedEvent;
+import dev.sixik.unigui.api.event.PointerMovedEvent;
 import dev.sixik.unigui.api.layout.Align;
+import dev.sixik.unigui.api.layout.Overflow;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Widget;
@@ -40,6 +44,10 @@ import java.util.function.Consumer;
  */
 public class UnityEditorHierarchyView extends LinearBox {
     private static final String PAYLOAD_TYPE = "unity.gameobject";
+    /**
+     * Ширина колонки глаза слева от дерева.
+     */
+    private static final float EYE_GUTTER_WIDTH = 16.0f;
     private static final MutableColor INDICATOR_LINE = MutableColor.rgba(0.24f, 0.51f, 0.97f, 1.0f);
     private static final MutableColor HOVER_DROP = MutableColor.rgba(0.24f, 0.51f, 0.97f, 0.35f);
 
@@ -78,6 +86,7 @@ public class UnityEditorHierarchyView extends LinearBox {
     private Consumer<String> selectionListener;
     private BiConsumer<String, GameObjectType> objectSelectionListener;
     private DropIntent currentDropIntent;
+    private TreeView.TreeRowButton eyeGutterRow;
 
     public UnityEditorHierarchyView() {
         super(Orientation.VERTICAL);
@@ -107,16 +116,20 @@ public class UnityEditorHierarchyView extends LinearBox {
 
         // 2. Настройка TreeView со стилями Unity
         UnityStyles.styleTreeView(treeView);
-        treeView.layout(style -> style.widthPercent(100.0f));
+        // Дерево занимает всю ширину прокручиваемой области, но не сжимается: узкая панель прокручивается по X.
+        // Именно widthPercent, а не flexGrow: растущий ребёнок при измерении без ограничения ширины
+        // давал бы 0 в ширину содержимого, и прокручиваться было бы нечему.
+        treeView.layout(style -> style.widthPercent(100.0f).flexGrow(0.0f).flexShrink(0.0f));
 
-        // Кастомный рендерер строк TreeView: базовый визуал строки + иконка видимости на hover
+        // Кастомный рендерер строк TreeView: базовый визуал строки + иконка видимости слева, в отдельной
+        // колонке перед деревом, пока на строку наведён указатель (или он над колонкой напротив строки).
         treeView.renderer((draw, widget) -> {
             if (widget instanceof TreeView.TreeRowButton row) {
                 row.renderRowVisual(draw);
-                RectView b = row.layoutBounds();
-                if (row.hovered()) {
+                if (row.hovered() || row == eyeGutterRow) {
+                    RectView b = row.layoutBounds();
                     float eyeSize = 10.0f;
-                    float eyeX = b.x() + b.width() - 16.0f;
+                    float eyeX = b.x() - EYE_GUTTER_WIDTH + (EYE_GUTTER_WIDTH - eyeSize) * 0.5f;
                     float eyeY = b.y() + (b.height() - eyeSize) * 0.5f;
                     UnityIcons.drawEyeIcon(draw, eyeX, eyeY, eyeSize, UnityStyles.TEXT_MUTED);
                 }
@@ -152,13 +165,61 @@ public class UnityEditorHierarchyView extends LinearBox {
         // Инициализация стандартных объектов сцены
         initSceneObjects();
 
-        ScrollView scroll = new ScrollView(treeView);
+        // Колонка глаза слева от дерева - левый padding содержимого: колонка и дерево прокручиваются вместе,
+        // а указатель над колонкой напротив строки тоже показывает глаз этой строки.
+        HBox scrollContent = new HBox();
+        scrollContent.spacing(0.0f);
+        scrollContent.layout(style -> style.padding(EYE_GUTTER_WIDTH, 0.0f, 0.0f, 0.0f)
+                .flexGrow(0.0f).flexShrink(0.0f));
+        scrollContent.on(PointerMovedEvent.TYPE, e -> {
+            if (e.rootX() < treeView.layoutBounds().x()) {
+                updateEyeGutterRow(e.rootY());
+            } else {
+                setEyeGutterRow(null);
+            }
+        });
+        scrollContent.on(PointerExitedEvent.TYPE, e -> setEyeGutterRow(null));
+        scrollContent.addChild(treeView);
+
+        ScrollView scroll = new ScrollView(scrollContent);
         scroll.overlayScrollBars(false);
-        scroll.layout(style -> style.sizePercent(100.0f, 100.0f).flexGrow(1.0f).flexShrink(1.0f));
+        scroll.scrollStep(18.0f);
+        scroll.scrollbarGap(2.0f);
+        scroll.scrollbarTrackColor().set(UnityStyles.BORDER_DEFAULT);
+        scroll.scrollbarThumbColor().set(UnityStyles.TEXT_MUTED);
+        scroll.verticalScrollBar().thumbHoverColor().set(UnityStyles.TEXT_PRIMARY);
+        scroll.horizontalScrollBar().thumbHoverColor().set(UnityStyles.TEXT_PRIMARY);
+        scroll.layout(style -> style.sizePercent(100.0f, 100.0f).flexGrow(1.0f).flexShrink(1.0f)
+                .overflowX(Overflow.AUTO).overflowY(Overflow.AUTO));
         addChild(scroll);
 
         // Выделение Main Camera по умолчанию
         selectItem(selectedId);
+    }
+
+    /**
+     * Строка напротив указателя, когда он над колонкой глаза: для неё тоже показывается глаз.
+     */
+    private void updateEyeGutterRow(float rootY) {
+        TreeView.TreeRowButton found = null;
+        for (TreeViewNode node : treeView.visibleNodes()) {
+            if (node.rowButton() instanceof TreeView.TreeRowButton row) {
+                RectView b = row.layoutBounds();
+                if (rootY >= b.y() && rootY < b.y() + b.height()) {
+                    found = row;
+                    break;
+                }
+            }
+        }
+        setEyeGutterRow(found);
+    }
+
+    private void setEyeGutterRow(TreeView.TreeRowButton row) {
+        if (eyeGutterRow == row) return;
+        TreeView.TreeRowButton previous = eyeGutterRow;
+        eyeGutterRow = row;
+        if (previous != null) previous.invalidate(InvalidationFlags.VISUAL);
+        if (row != null) row.invalidate(InvalidationFlags.VISUAL);
     }
 
     private void initSceneObjects() {

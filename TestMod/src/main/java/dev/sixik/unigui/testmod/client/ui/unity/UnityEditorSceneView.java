@@ -12,6 +12,7 @@ import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.HBox;
 import dev.sixik.unigui.widgets.containers.LinearBox;
+import dev.sixik.unigui.widgets.containers.StackPanel;
 import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.widgets.display.CanvasWidget;
 import dev.sixik.unigui.widgets.display.Label;
@@ -25,6 +26,7 @@ import dev.sixik.unigui.widgets.interaction.Button;
 public class UnityEditorSceneView extends LinearBox {
     private final CanvasWidget viewportCanvas = new CanvasWidget();
 
+    private UnitySceneToolbar.Tool selectedTool = UnitySceneToolbar.Tool.MOVE;
     private float cameraFov = 60.0f;
     private float camX = 0.0f;
     private float camY = 1.0f;
@@ -41,22 +43,8 @@ public class UnityEditorSceneView extends LinearBox {
         spacing(0.0f);
         layout(style -> style.sizePercent(100.0f, 100.0f).flexGrow(1.0f).flexShrink(1.0f));
 
-        // 1. Панель инструментов Scene View (Shaded, 2D, Light, Gizmos)
-        HBox toolbar = new HBox();
-        toolbar.spacing(6.0f);
-        toolbar.layout(style -> style.widthPercent(100.0f).height(20.0f)
-                .padding(6.0f, 0.0f, 6.0f, 0.0f)
-                .alignItems(Align.CENTER)
-                .flexGrow(0.0f).flexShrink(0.0f));
-
-        toolbar.addChild(createToolBtn("Shaded v"));
-        toolbar.addChild(createToolBtn("2D"));
-        toolbar.addChild(createToolBtn("☀"));
-        toolbar.addChild(createToolBtn("🔊"));
-        toolbar.addChild(createToolBtn("Effects v"));
-        toolbar.addChild(createToolBtn("Gizmos v"));
-
-        addChild(toolbar);
+        // 1. Верхняя строка настроек Scene View (Center/Local, сетка, привязка, режим отображения, Gizmos)
+        addChild(UnitySceneToolbar.createTopBar());
         addChild(UnityStyles.separatorLine());
 
         // 2. Canvas отрисовки 3D вьюпорта
@@ -186,18 +174,14 @@ public class UnityEditorSceneView extends LinearBox {
             }
         });
 
-        addChild(viewportCanvas);
-    }
+        // 3. Видовой экран и плавающая панель инструментов поверх него: панель принадлежит Scene
+        // и ограничена его областью, как в Unity.
+        StackPanel viewportHost = new StackPanel();
+        viewportHost.layout(style -> style.sizePercent(100.0f, 100.0f).flexGrow(1.0f).flexShrink(1.0f));
+        viewportHost.addChild(viewportCanvas);
 
-    private Button createToolBtn(String text) {
-        Button btn = new Button(text);
-        btn.themeEnabled(false);
-        btn.boxVisualEnabled(false);
-        btn.focusRingVisible(false);
-        btn.focusable(false);
-        btn.textColor().set(UnityStyles.TEXT_LABEL);
-        btn.layout(style -> style.height(18.0f).padding(4.0f, 0.0f));
-        return btn;
+        new UnityToolsOverlay(viewportHost, selectedTool, tool -> selectedTool = tool);
+        addChild(viewportHost);
     }
 
     public void updateCameraFov(float fov) {

@@ -450,6 +450,183 @@ public final class UnityIcons {
         draw.addLine(cx + 7.5f, cy + h - 3.5f, cx + w - 3.0f, cy + h - 3.5f, tint, 1.2f);
     };
 
+    // ---- Иконки инструментов Scene View -------------------------------------------------------
+
+    /** Заливка равнобедренного треугольника-наконечника стрелки: остриё в (tipX, tipY), основание перпендикулярно оси. */
+    private static void arrowHead(DrawScope draw, float tipX, float tipY, float dirX, float dirY, float len,
+                                  float halfWidth, ColorView tint) {
+        float baseX = tipX - dirX * len;
+        float baseY = tipY - dirY * len;
+        float nx = -dirY;
+        float ny = dirX;
+        draw.pathClear();
+        draw.pathLineTo(tipX, tipY);
+        draw.pathLineTo(baseX + nx * halfWidth, baseY + ny * halfWidth);
+        draw.pathLineTo(baseX - nx * halfWidth, baseY - ny * halfWidth);
+        draw.pathFillConvex(tint);
+    }
+
+    /** Инструмент View (рука): ладонь и четыре пальца. */
+    public static final UiIcon TOOL_HAND_ICON = (draw, x, y, size, tint) -> {
+        float t = Math.max(1.0f, size * 0.09f);
+        float[] fx = {0.34f, 0.46f, 0.58f, 0.70f};
+        float[] top = {0.22f, 0.12f, 0.14f, 0.26f};
+        for (int i = 0; i < fx.length; i++) {
+            draw.addLine(x + size * fx[i], y + size * top[i], x + size * fx[i], y + size * 0.55f, tint, t);
+        }
+        draw.addLine(x + size * 0.34f, y + size * 0.55f, x + size * 0.20f, y + size * 0.40f, tint, t);
+        draw.pathClear();
+        draw.pathLineTo(x + size * 0.34f, y + size * 0.55f);
+        draw.pathLineTo(x + size * 0.70f, y + size * 0.55f);
+        draw.pathLineTo(x + size * 0.70f, y + size * 0.74f);
+        draw.pathLineTo(x + size * 0.58f, y + size * 0.88f);
+        draw.pathLineTo(x + size * 0.44f, y + size * 0.88f);
+        draw.pathLineTo(x + size * 0.34f, y + size * 0.74f);
+        draw.pathStroke(tint, true, t);
+    };
+
+    /** Инструмент Move: крест с четырьмя стрелками. */
+    public static final UiIcon TOOL_MOVE_ICON = (draw, x, y, size, tint) -> {
+        float cx = x + size * 0.5f;
+        float cy = y + size * 0.5f;
+        float r = size * 0.42f;
+        float t = Math.max(1.0f, size * 0.08f);
+        draw.addLine(cx - r, cy, cx + r, cy, tint, t);
+        draw.addLine(cx, cy - r, cx, cy + r, tint, t);
+        float head = size * 0.20f;
+        float half = size * 0.12f;
+        arrowHead(draw, cx + r, cy, 1.0f, 0.0f, head, half, tint);
+        arrowHead(draw, cx - r, cy, -1.0f, 0.0f, head, half, tint);
+        arrowHead(draw, cx, cy - r, 0.0f, -1.0f, head, half, tint);
+        arrowHead(draw, cx, cy + r, 0.0f, 1.0f, head, half, tint);
+    };
+
+    /** Инструмент Rotate: дуга почти в полный круг со стрелкой. */
+    public static final UiIcon TOOL_ROTATE_ICON = (draw, x, y, size, tint) -> {
+        float cx = x + size * 0.5f;
+        float cy = y + size * 0.5f;
+        float r = size * 0.34f;
+        float t = Math.max(1.0f, size * 0.09f);
+        float start = (float) Math.toRadians(-40.0);
+        float end = (float) Math.toRadians(250.0);
+        draw.pathClear();
+        draw.pathArcTo(cx, cy, r, start, end, 18);
+        draw.pathStroke(tint, false, t);
+        // Стрелка на конце дуги: касательная направлена по ходу угла.
+        float ex = cx + (float) Math.cos(end) * r;
+        float ey = cy + (float) Math.sin(end) * r;
+        float dx = -(float) Math.sin(end);
+        float dy = (float) Math.cos(end);
+        arrowHead(draw, ex + dx * size * 0.10f, ey + dy * size * 0.10f, dx, dy, size * 0.22f, size * 0.12f, tint);
+    };
+
+    /** Инструмент Scale: квадрат с диагональной стрелкой в угол. */
+    public static final UiIcon TOOL_SCALE_ICON = (draw, x, y, size, tint) -> {
+        float t = Math.max(1.0f, size * 0.09f);
+        draw.rectStroke(x + size * 0.14f, y + size * 0.14f, size * 0.46f, size * 0.46f, tint, t);
+        draw.addLine(x + size * 0.34f, y + size * 0.66f, x + size * 0.76f, y + size * 0.24f, tint, t);
+        arrowHead(draw, x + size * 0.88f, y + size * 0.12f, 0.7071f, -0.7071f, size * 0.26f, size * 0.13f, tint);
+    };
+
+    /** Инструмент Rect: рамка с квадратиками в углах. */
+    public static final UiIcon TOOL_RECT_ICON = (draw, x, y, size, tint) -> {
+        float t = Math.max(1.0f, size * 0.08f);
+        float a = size * 0.16f;
+        float b = size * 0.84f;
+        draw.rectStroke(x + a, y + a, b - a, b - a, tint, t);
+        float c = size * 0.16f;
+        draw.rectFilled(x + a - c * 0.5f, y + a - c * 0.5f, c, c, tint);
+        draw.rectFilled(x + b - c * 0.5f, y + a - c * 0.5f, c, c, tint);
+        draw.rectFilled(x + a - c * 0.5f, y + b - c * 0.5f, c, c, tint);
+        draw.rectFilled(x + b - c * 0.5f, y + b - c * 0.5f, c, c, tint);
+    };
+
+    /** Универсальный инструмент Transform: окружность с осями и точкой в центре. */
+    public static final UiIcon TOOL_TRANSFORM_ICON = (draw, x, y, size, tint) -> {
+        float cx = x + size * 0.5f;
+        float cy = y + size * 0.5f;
+        float r = size * 0.30f;
+        float t = Math.max(1.0f, size * 0.08f);
+        draw.circleStroke(cx - r, cy - r, r * 2.0f, r * 2.0f, tint, t);
+        draw.addLine(cx - size * 0.44f, cy, cx + size * 0.44f, cy, tint, t);
+        draw.addLine(cx, cy - size * 0.44f, cx, cy + size * 0.44f, tint, t);
+        draw.rectFilled(cx - size * 0.07f, cy - size * 0.07f, size * 0.14f, size * 0.14f, tint);
+    };
+
+    /** Контурный куб (кнопка выбора режима инструментов). */
+    public static final UiIcon CUBE_OUTLINE_ICON = (draw, x, y, size, tint) -> {
+        float cx = x + size * 0.5f;
+        float cy = y + size * 0.5f;
+        float r = size * 0.40f;
+        float w = r * 0.866f;
+        float t = Math.max(1.0f, size * 0.08f);
+        draw.pathClear();
+        draw.pathLineTo(cx, cy - r);
+        draw.pathLineTo(cx + w, cy - r * 0.5f);
+        draw.pathLineTo(cx + w, cy + r * 0.5f);
+        draw.pathLineTo(cx, cy + r);
+        draw.pathLineTo(cx - w, cy + r * 0.5f);
+        draw.pathLineTo(cx - w, cy - r * 0.5f);
+        draw.pathStroke(tint, true, t);
+        draw.pathClear();
+        draw.pathLineTo(cx - w, cy - r * 0.5f);
+        draw.pathLineTo(cx, cy);
+        draw.pathLineTo(cx + w, cy - r * 0.5f);
+        draw.pathStroke(tint, false, t);
+        draw.addLine(cx, cy, cx, cy + r, tint, t);
+    };
+
+    /** Сетка (Grid Visibility). */
+    public static final UiIcon GRID_ICON = (draw, x, y, size, tint) -> {
+        float t = Math.max(1.0f, size * 0.08f);
+        float a = size * 0.14f;
+        float b = size * 0.86f;
+        for (int i = 0; i < 4; i++) {
+            float p = a + (b - a) * i / 3.0f;
+            draw.addLine(x + p, y + a, x + p, y + b, tint, t);
+            draw.addLine(x + a, y + p, x + b, y + p, tint, t);
+        }
+    };
+
+    /** Солнце (Lighting). */
+    public static final UiIcon SUN_ICON = (draw, x, y, size, tint) -> {
+        float cx = x + size * 0.5f;
+        float cy = y + size * 0.5f;
+        float r = size * 0.17f;
+        float t = Math.max(1.0f, size * 0.08f);
+        draw.circleFilled(cx - r, cy - r, r * 2.0f, r * 2.0f, tint);
+        for (int i = 0; i < 8; i++) {
+            float angle = (float) (Math.PI * 0.25 * i);
+            float cos = (float) Math.cos(angle);
+            float sin = (float) Math.sin(angle);
+            draw.addLine(cx + cos * size * 0.28f, cy + sin * size * 0.28f,
+                    cx + cos * size * 0.42f, cy + sin * size * 0.42f, tint, t);
+        }
+    };
+
+    /** Динамик (Audio). */
+    public static final UiIcon SPEAKER_ICON = (draw, x, y, size, tint) -> {
+        float t = Math.max(1.0f, size * 0.08f);
+        draw.rectFilled(x + size * 0.16f, y + size * 0.38f, size * 0.16f, size * 0.24f, tint);
+        draw.pathClear();
+        draw.pathLineTo(x + size * 0.32f, y + size * 0.38f);
+        draw.pathLineTo(x + size * 0.52f, y + size * 0.22f);
+        draw.pathLineTo(x + size * 0.52f, y + size * 0.78f);
+        draw.pathLineTo(x + size * 0.32f, y + size * 0.62f);
+        draw.pathFillConvex(tint);
+        draw.addLine(x + size * 0.64f, y + size * 0.38f, x + size * 0.72f, y + size * 0.50f, tint, t);
+        draw.addLine(x + size * 0.72f, y + size * 0.50f, x + size * 0.64f, y + size * 0.62f, tint, t);
+    };
+
+    /** Маленький треугольник-стрелка выпадающего списка. */
+    public static void drawDropdownArrow(DrawScope draw, float cx, float cy, float size, ColorView tint) {
+        draw.pathClear();
+        draw.pathLineTo(cx - size * 0.5f, cy - size * 0.25f);
+        draw.pathLineTo(cx + size * 0.5f, cy - size * 0.25f);
+        draw.pathLineTo(cx, cy + size * 0.3f);
+        draw.pathFillConvex(tint);
+    }
+
     public static void drawGameObjectCube(DrawScope draw, float x, float y, float size) {
         float cx = x + size * 0.5f;
         float cy = y + size * 0.5f;

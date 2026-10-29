@@ -97,7 +97,7 @@ public final class UnityInspectorScreen {
         UnityEditorSceneView sceneView = new UnityEditorSceneView();
         UnityEditorGameView gameView = new UnityEditorGameView();
         UnityEditorHierarchyView hierarchyView = new UnityEditorHierarchyView();
-        UnityEditorProjectView projectView = new UnityEditorProjectView();
+        UnityEditorProjectView projectView = new UnityEditorProjectView(overlayLayer);
         UnityEditorConsoleView consoleView = new UnityEditorConsoleView();
         UnityInspectorPanel inspectorPanel = new UnityInspectorPanel(overlayLayer);
 
@@ -329,6 +329,10 @@ public final class UnityInspectorScreen {
         return itemBtn;
     }
 
+    /**
+     * Главная панель Unity: Play/Pause/Step по центру, слои и раскладка справа. Инструменты трансформации,
+     * Center/Local и сетка живут внутри панели Scene ({@link UnitySceneToolbar}), как в оригинале.
+     */
     private static HBox buildToolbar(DockingRoot dockingRoot, Map<String, DockPane> paneRegistry,
                                      OverlayLayer overlayLayer, UnityEditorGameView gameView,
                                      UnityEditorConsoleView consoleView) {
@@ -338,56 +342,6 @@ public final class UnityInspectorScreen {
                 .padding(8.0f, 0.0f, 8.0f, 0.0f)
                 .alignItems(Align.CENTER)
                 .flexGrow(0.0f).flexShrink(0.0f));
-
-        // Инструменты трансформации
-        HBox toolGroup = new HBox();
-        toolGroup.spacing(2.0f);
-        toolGroup.layout(style -> style.height(22.0f).alignItems(Align.CENTER));
-
-        String[] toolNames = new String[]{"✋", "✥", "↻", "⤢", "⬚", "✛"};
-        int[] selectedTool = {1};
-        for (int i = 0; i < toolNames.length; i++) {
-            int idx = i;
-            Button tb = new Button(toolNames[i]);
-            tb.themeEnabled(false);
-            tb.backgroundVisible(true);
-            tb.background().set(idx == selectedTool[0] ? UnityStyles.SELECTION_BLUE : UnityStyles.BG_INPUT);
-            tb.borderVisible(true);
-            tb.borderColor().set(UnityStyles.BORDER_INPUT);
-            tb.radius(2.0f);
-            tb.focusRingVisible(false);
-            tb.focusable(false);
-            tb.textColor().set(UnityStyles.TEXT_PRIMARY);
-            tb.layout(style -> style.size(24.0f, 22.0f));
-            tb.onClick(e -> {
-                selectedTool[0] = idx;
-                for (int j = 0; j < toolGroup.children().size(); j++) {
-                    if (toolGroup.children().get(j) instanceof Button b) {
-                        b.background().set(j == selectedTool[0] ? UnityStyles.SELECTION_BLUE : UnityStyles.BG_INPUT);
-                    }
-                }
-            });
-            toolGroup.addChild(tb);
-        }
-        toolbar.addChild(toolGroup);
-
-        // Переключатели Pivot / Global
-        HBox pivotBox = new HBox();
-        pivotBox.spacing(2.0f);
-        pivotBox.layout(style -> style.height(22.0f).alignItems(Align.CENTER));
-        Button pivotBtn = new Button("Pivot");
-        UnityStyles.styleButton(pivotBtn);
-        pivotBtn.focusRingVisible(false);
-        pivotBtn.focusable(false);
-        pivotBtn.layout(style -> style.height(22.0f).padding(6.0f, 0.0f));
-        Button globalBtn = new Button("Global");
-        UnityStyles.styleButton(globalBtn);
-        globalBtn.focusRingVisible(false);
-        globalBtn.focusable(false);
-        globalBtn.layout(style -> style.height(22.0f).padding(6.0f, 0.0f));
-        pivotBox.addChild(pivotBtn);
-        pivotBox.addChild(globalBtn);
-        toolbar.addChild(pivotBox);
 
         Box spacer1 = new Box();
         spacer1.themeEnabled(false);
