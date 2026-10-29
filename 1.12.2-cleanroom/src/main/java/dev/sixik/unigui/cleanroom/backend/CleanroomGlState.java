@@ -46,6 +46,7 @@ final class CleanroomGlState {
     private int blendDstRgb;
     private int blendSrcAlpha;
     private int blendDstAlpha;
+    private int shadeModel;
     private boolean captured;
 
     /** Reads the current GL state so that {@link #restore()} can put it back. */
@@ -61,6 +62,7 @@ final class CleanroomGlState {
         blendDstRgb = GL11.glGetInteger(GL14.GL_BLEND_DST_RGB);
         blendSrcAlpha = GL11.glGetInteger(GL14.GL_BLEND_SRC_ALPHA);
         blendDstAlpha = GL11.glGetInteger(GL14.GL_BLEND_DST_ALPHA);
+        shadeModel = GL11.glGetInteger(GL11.GL_SHADE_MODEL);
 
         ints.clear();
         GL11.glGetIntegerv(GL11.GL_SCISSOR_BOX, ints);
@@ -82,12 +84,13 @@ final class CleanroomGlState {
         if (depthTest) GlStateManager.enableDepth(); else GlStateManager.disableDepth();
         if (lighting) GlStateManager.enableLighting(); else GlStateManager.disableLighting();
         if (cull) GlStateManager.enableCull(); else GlStateManager.disableCull();
+        GlStateManager.shadeModel(shadeModel);
         GlStateManager.color(color[0], color[1], color[2], color[3]);
         GL11.glScissor(scissorBox[0], scissorBox[1], scissorBox[2], scissorBox[3]);
         if (scissor) GL11.glEnable(GL11.GL_SCISSOR_TEST); else GL11.glDisable(GL11.GL_SCISSOR_TEST);
     }
 
-    /** Puts GL into the state every UniGUI draw command assumes: alpha blending, no depth, lighting, culling or scissor. */
+    /** Puts GL into the state every UniGUI draw command assumes: alpha blending, smooth shading, no depth, lighting, culling or scissor. */
     void applyUiDefaults() {
         GlStateManager.matrixMode(GL11.GL_MODELVIEW);
         GlStateManager.enableBlend();
@@ -97,6 +100,9 @@ final class CleanroomGlState {
         GlStateManager.disableCull();
         GlStateManager.disableAlpha();
         GlStateManager.enableTexture2D();
+        // Vanilla leaves GL_FLAT active in the GUI: a triangle would take the color of its last vertex, which breaks
+        // the per-vertex coverage alpha of anti-aliased paths and gradient meshes.
+        GlStateManager.shadeModel(GL11.GL_SMOOTH);
         GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
         GL11.glDisable(GL11.GL_SCISSOR_TEST);
     }
