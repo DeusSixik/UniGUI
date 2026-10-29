@@ -603,7 +603,7 @@ public class MinecraftWidgetScreen extends Screen {
     private boolean handleMouseScrolled(double mouseX, double mouseY, double delta) {
         float logicalMouseX = toLogicalPixels(mouseX);
         float logicalMouseY = toLogicalPixels(mouseY);
-        return hit(logicalMouseX, logicalMouseY)
+        boolean consumed = hit(logicalMouseX, logicalMouseY)
                 .map(hit -> {
                     ScrollEvent event = new ScrollEvent(
                             hit.widget(),
@@ -617,6 +617,25 @@ public class MinecraftWidgetScreen extends Screen {
                     return uiContext.routedEvents().dispatch(event);
                 })
                 .orElse(false);
+        refreshHoverAfterScroll(logicalMouseX, logicalMouseY);
+        return consumed;
+    }
+
+    /**
+     * Пересчитывает hover под неподвижным курсором после скролла: контент сдвинулся,
+     * а {@code mouseMoved} не придёт, поэтому hover (и Tooltip) иначе остаётся на
+     * элементе, уехавшем из-под курсора.
+     */
+    private void refreshHoverAfterScroll(float logicalMouseX, float logicalMouseY) {
+        if (uiContext.capturedPointer(0) != null) return;
+        Optional<HitTestResult> hit = hit(logicalMouseX, logicalMouseY);
+        if (hit.isEmpty()) {
+            uiContext.hoverManager().clearHover();
+            return;
+        }
+        HitTestResult result = hit.get();
+        uiContext.hoverManager().updateHover(result.widget(),
+                logicalMouseX, logicalMouseY, result.localX(), result.localY(), 0);
     }
 
     private static int currentKeyModifiers() {

@@ -81,8 +81,32 @@ public final class InputHandle {
         Optional<HitTestResult> hit = context.hitTester().hitTest(root, x, y);
         if (hit.isEmpty()) return false;
         HitTestResult result = hit.get();
-        return context.routedEvents().dispatch(new ScrollEvent(result.widget(), x, y,
+        boolean consumed = context.routedEvents().dispatch(new ScrollEvent(result.widget(), x, y,
                 result.localX(), result.localY(), deltaX, deltaY, modifiers));
+        refreshHover(x, y, pointerId);
+        return consumed;
+    }
+
+    /**
+     * Пересчитывает hover под неподвижным курсором.
+     *
+     * <p>Скролл двигает контент под мышью без {@code PointerMoved}, поэтому без
+     * пересчёта hover (и всё, что от него зависит, например Tooltip) остаётся
+     * на элементе, который уехал из-под курсора.</p>
+     *
+     * @param x координата курсора в root-пространстве
+     * @param y координата курсора в root-пространстве
+     * @param pointerId идентификатор указателя
+     */
+    private void refreshHover(float x, float y, int pointerId) {
+        if (context.capturedPointer(pointerId) != null) return;
+        Optional<HitTestResult> hit = context.hitTester().hitTest(root, x, y);
+        if (hit.isEmpty()) {
+            context.hoverManager().clearHover();
+            return;
+        }
+        HitTestResult result = hit.get();
+        context.hoverManager().updateHover(result.widget(), x, y, result.localX(), result.localY(), pointerId);
     }
 
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
