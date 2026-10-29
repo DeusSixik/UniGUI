@@ -555,4 +555,205 @@ public final class UnityStyles {
         tooltip.textColor().set(TEXT_PRIMARY);
         tooltip.offset(4.0f, 6.0f);
     }
+
+    /**
+     * Сегментная кнопка пути в строке хлебных крошек Unity.
+     */
+    public static class BreadcrumbSegmentButton extends Button {
+        private boolean current;
+
+        public BreadcrumbSegmentButton(String text, boolean current) {
+            super(text);
+            this.current = current;
+            themeEnabled(false);
+            textPadding(4.0f, 2.0f);
+        }
+
+        public boolean isCurrent() {
+            return current;
+        }
+
+        public void setCurrent(boolean current) {
+            this.current = current;
+        }
+    }
+
+    /**
+     * Рендерер сегментов пути (хлебных крошек) в стиле Unity:
+     * - текущая папка выделяется более ярким шрифтом (TEXT_BOLD)
+     * - промежуточные папки отображаются цветом TEXT_PRIMARY
+     * - при наведении или нажатии отображается аккуратный закруглённый hover-фон
+     */
+    public static final WidgetRender BREADCRUMB_SEGMENT_RENDERER = WidgetRender.of(Button.class, (draw, btn) -> {
+        RectView b = btn.layoutBounds();
+        float x = b.x();
+        float y = b.y();
+        float w = b.width();
+        float h = b.height();
+        if (w <= 0.0f || h <= 0.0f) return;
+
+        boolean isCurrent = (btn instanceof BreadcrumbSegmentButton sb) && sb.isCurrent();
+
+        if (btn.pressed()) {
+            draw.roundedRectFilled(x, y + 1.0f, w, h - 2.0f, 2.0f, BG_DROPDOWN_ITEM_PRESS);
+        } else if (btn.hovered()) {
+            draw.roundedRectFilled(x, y + 1.0f, w, h - 2.0f, 2.0f, MutableColor.rgba(1.0f, 1.0f, 1.0f, 0.08f));
+        }
+
+        ColorView textColor;
+        if (isCurrent) {
+            textColor = TEXT_BOLD;
+        } else if (btn.hovered() || btn.pressed()) {
+            textColor = TEXT_BOLD;
+        } else {
+            textColor = TEXT_PRIMARY;
+        }
+
+        RichText rt = RichText.plain(btn.text());
+        float textWidth = TextEngine.measureLineWidth(draw.context(), rt);
+        float textHeight = TextEngine.measureTextHeight(draw.context(), rt);
+        float textX = x + Math.max(0.0f, w - textWidth) * 0.5f;
+        float textY = y + Math.max(0.0f, h - textHeight) * 0.5f;
+
+        draw.pushTextClip(x, y, w, h);
+        try {
+            TextEngine.drawInline(draw, rt, textX, textY, w, textHeight, Paint.fill(textColor));
+        } finally {
+            draw.popClip();
+        }
+    });
+
+    /**
+     * Рендерер кнопки-стрелочки шеврона (>) в хлебных крошках Unity:
+     * - процедурная стрелочка вправо правильных пропорций Unity
+     * - при наведении подсвечивается ярким цветом и полупрозрачным фоном
+     */
+    public static final WidgetRender BREADCRUMB_CHEVRON_RENDERER = WidgetRender.of(Button.class, (draw, btn) -> {
+        RectView b = btn.layoutBounds();
+        float x = b.x();
+        float y = b.y();
+        float w = b.width();
+        float h = b.height();
+        if (w <= 0.0f || h <= 0.0f) return;
+
+        if (btn.pressed()) {
+            draw.roundedRectFilled(x, y + 1.0f, w, h - 2.0f, 2.0f, BG_DROPDOWN_ITEM_PRESS);
+        } else if (btn.hovered()) {
+            draw.roundedRectFilled(x, y + 1.0f, w, h - 2.0f, 2.0f, MutableColor.rgba(1.0f, 1.0f, 1.0f, 0.08f));
+        }
+
+        ColorView chevronColor = (btn.hovered() || btn.pressed()) ? TEXT_BOLD : TEXT_MUTED;
+        float cx = x + w * 0.5f;
+        float cy = y + h * 0.5f;
+
+        draw.pathClear();
+        draw.pathLineTo(cx - 1.5f, cy - 3.5f);
+        draw.pathLineTo(cx + 2.0f, cy);
+        draw.pathLineTo(cx - 1.5f, cy + 3.5f);
+        draw.pathStroke(chevronColor, false, 1.4f);
+    });
+
+    /**
+     * Элемент выпадающего меню хлебных крошек с отметкой активной папки (галочка в голубом квадрате).
+     */
+    public static class BreadcrumbMenuItem extends Button {
+        private boolean checked;
+
+        public BreadcrumbMenuItem(String text, boolean checked) {
+            super(text);
+            this.checked = checked;
+        }
+
+        public boolean isChecked() {
+            return checked;
+        }
+
+        public void setChecked(boolean checked) {
+            this.checked = checked;
+        }
+    }
+
+    /**
+     * Рендерер элементов выпадающего меню хлебных крошек (Скриншот 2):
+     * - при наведении синяя подсветка SELECTION_BLUE
+     * - слева слот для чекбокса
+     * - если элемент выбран (находится на текущем пути), рисуется голубой квадратик (#90C8F6)
+     *   с тёмной галочкой внутри (✓)
+     */
+    public static final WidgetRender BREADCRUMB_DROPDOWN_ITEM_RENDERER = WidgetRender.of(Button.class, (draw, btn) -> {
+        RectView b = btn.layoutBounds();
+        float x = b.x();
+        float y = b.y();
+        float w = b.width();
+        float h = b.height();
+        if (w <= 0.0f || h <= 0.0f) return;
+
+        boolean enabled = btn.enabled();
+        boolean hovered = btn.hovered() && enabled;
+        boolean pressed = btn.pressed() && enabled;
+
+        if (pressed) {
+            draw.roundedRectFilled(x, y, w, h, 2.0f, BG_DROPDOWN_ITEM_PRESS);
+        } else if (hovered) {
+            draw.roundedRectFilled(x, y, w, h, 2.0f, SELECTION_BLUE);
+        }
+
+        boolean isChecked = (btn instanceof BreadcrumbMenuItem item) && item.isChecked();
+        float slotWidth = 24.0f;
+
+        if (isChecked) {
+            float boxSize = 12.0f;
+            float boxX = x + 6.0f;
+            float boxY = y + Math.max(0.0f, h - boxSize) * 0.5f;
+
+            // Голубой квадрат (#90C8F6)
+            ColorView boxBg = MutableColor.rgba255(144, 200, 246, 255);
+            draw.roundedRectFilled(boxX, boxY, boxSize, boxSize, 2.0f, boxBg);
+
+            // Тёмная галочка внутри квадрата (✓)
+            ColorView checkColor = MutableColor.rgba255(32, 32, 32, 255);
+            draw.pathClear();
+            draw.pathLineTo(boxX + 2.8f, boxY + 5.8f);
+            draw.pathLineTo(boxX + 4.8f, boxY + 8.4f);
+            draw.pathLineTo(boxX + 9.2f, boxY + 3.2f);
+            draw.pathStroke(checkColor, false, 1.3f);
+        }
+
+        ColorView textColor;
+        if (!enabled) {
+            textColor = TEXT_MUTED;
+        } else if (hovered || pressed) {
+            textColor = TEXT_BOLD;
+        } else {
+            textColor = TEXT_PRIMARY;
+        }
+
+        RichText rt = RichText.plain(btn.text());
+        float textX = x + slotWidth;
+        float contentWidth = Math.max(0.0f, w - (slotWidth + 8.0f));
+        float textHeight = TextEngine.measureTextHeight(draw.context(), rt);
+        float drawY = y + Math.max(0.0f, h - textHeight) * 0.5f;
+
+        draw.pushTextClip(textX, y, contentWidth, h);
+        try {
+            TextEngine.drawInline(draw, rt, textX, drawY, contentWidth, textHeight, Paint.fill(textColor));
+        } finally {
+            draw.popClip();
+        }
+    });
+
+    /**
+     * Добавление элемента в выпадающее меню хлебных крошек.
+     */
+    public static Button addBreadcrumbDropdownItem(ContextMenu menu, String folderName, boolean isChecked, float menuWidth, Runnable action) {
+        BreadcrumbMenuItem btn = new BreadcrumbMenuItem(folderName, isChecked);
+        btn.themeEnabled(false);
+        btn.renderer(BREADCRUMB_DROPDOWN_ITEM_RENDERER);
+        if (action != null) {
+            btn.onClick(e -> action.run());
+        }
+        menu.item(btn);
+        btn.layout(style -> style.size(menuWidth, 20.0f).flexGrow(0.0f).flexShrink(0.0f));
+        return btn;
+    }
 }

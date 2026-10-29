@@ -40,8 +40,10 @@ import dev.sixik.unigui.widgets.navigation.TreeViewNode;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Панель Project в стиле редактора Unity:
@@ -54,7 +56,7 @@ import java.util.Map;
  * </ul>
  */
 public class UnityEditorProjectView extends LinearBox {
-    private final Label breadcrumbLabel = new Label("Assets > Scenes >");
+    private final HBox breadcrumbsBar = new HBox();
     private final Label statusLabel = new Label("2 items");
     private final TreeView folderTreeView = new TreeView();
     private final VBox assetContent = new VBox();
@@ -103,9 +105,9 @@ public class UnityEditorProjectView extends LinearBox {
         createBtn.onClick(e -> openCreateMenu(createBtn));
         topBar.addChild(createBtn);
 
-        breadcrumbLabel.color(UnityStyles.TEXT_PRIMARY);
-        breadcrumbLabel.layout(style -> style.height(20.0f).padding(4.0f, 0.0f));
-        topBar.addChild(breadcrumbLabel);
+        breadcrumbsBar.spacing(0.0f);
+        breadcrumbsBar.layout(style -> style.height(20.0f).alignItems(Align.CENTER).flexGrow(0.0f).flexShrink(0.0f));
+        topBar.addChild(breadcrumbsBar);
 
         Box spacer = new Box();
         spacer.themeEnabled(false);
@@ -405,10 +407,150 @@ public class UnityEditorProjectView extends LinearBox {
         treeNodes.put("Packages", packagesRootNode);
     }
 
+    /**
+     * Обновляет панель хлебных крошек в соответствии с текущей выбранной папкой:
+     * - при нажатии на сегмент пути переходим в эту папку;
+     * - текущая папка отображается более ярким/жирным шрифтом (TEXT_BOLD);
+     * - при нажатии на стрелочку шеврона (>) открывается выпадающий список подпапок;
+     * - активная в пути подпапка отмечена галочкой (✓) в голубом квадрате.
+     */
+    private void updateBreadcrumbs(String folderName) {
+        breadcrumbsBar.clearChildren();
+
+        List<String> path = new ArrayList<>();
+        TreeViewNode node = treeNodes.get(folderName);
+        if (node != null) {
+            TreeViewNode cur = node;
+            while (cur != null) {
+                path.add(0, cur.text());
+                cur = cur.parent();
+            }
+        } else {
+            if (!"Assets".equalsIgnoreCase(folderName)) {
+                path.add("Assets");
+            }
+            path.add(folderName);
+        }
+
+        for (int i = 0; i < path.size(); i++) {
+            String seg = path.get(i);
+            boolean isLast = (i == path.size() - 1);
+            String nextChild = !isLast ? path.get(i + 1) : null;
+
+            Button segBtn = createBreadcrumbSegmentButton(seg, isLast);
+            breadcrumbsBar.addChild(segBtn);
+
+            List<String> subs = getSubfolders(seg);
+            if (!isLast || !subs.isEmpty()) {
+                Button chevronBtn = createBreadcrumbChevronButton(seg, nextChild);
+                breadcrumbsBar.addChild(chevronBtn);
+            }
+        }
+    }
+
+    private Button createBreadcrumbSegmentButton(String folderName, boolean isLast) {
+        UnityStyles.BreadcrumbSegmentButton btn = new UnityStyles.BreadcrumbSegmentButton(folderName, isLast);
+        btn.renderer(UnityStyles.BREADCRUMB_SEGMENT_RENDERER);
+        btn.layout(style -> style.height(20.0f).flexGrow(0.0f).flexShrink(0.0f));
+        btn.onClick(e -> {
+            loadFolder(folderName);
+            TreeViewNode node = treeNodes.get(folderName);
+            if (node != null) {
+                folderTreeView.silentSelect(node);
+            }
+        });
+        return btn;
+    }
+
+    private Button createBreadcrumbChevronButton(String parentFolder, String nextChild) {
+        Button btn = new Button();
+        btn.themeEnabled(false);
+        btn.renderer(UnityStyles.BREADCRUMB_CHEVRON_RENDERER);
+        btn.layout(style -> style.size(14.0f, 20.0f).flexGrow(0.0f).flexShrink(0.0f));
+        btn.onClick(e -> openBreadcrumbDropdown(btn, parentFolder, nextChild));
+        return btn;
+    }
+
+    private void openBreadcrumbDropdown(Button anchorBtn, String parentFolder, String currentChild) {
+        OverlayLayer overlay = findOverlayLayer(this);
+        if (overlay == null) overlay = gridOverlay;
+        if (overlay == null) return;
+
+        if (activeContextMenu != null) {
+            activeContextMenu.close();
+            activeContextMenu = null;
+        }
+
+        List<String> subfolders = getSubfolders(parentFolder);
+        if (subfolders.isEmpty()) return;
+
+        RectView b = anchorBtn.layoutBounds();
+        float menuX = b.x();
+        float menuY = b.y() + b.height() + 2.0f;
+
+        float maxItemWidth = 120.0f;
+        for (String sub : subfolders) {
+            float textW = sub.length() * 7.5f + 40.0f;
+            if (textW > maxItemWidth) maxItemWidth = textW;
+        }
+        float menuWidth = Math.max(140.0f, maxItemWidth);
+
+        ContextMenu menu = new ContextMenu();
+        UnityStyles.styleContextMenu(menu);
+
+        for (String subfolder : subfolders) {
+            boolean isChecked = subfolder.equalsIgnoreCase(currentChild);
+            UnityStyles.addBreadcrumbDropdownItem(menu, subfolder, isChecked, menuWidth, () -> {
+                loadFolder(subfolder);
+                TreeViewNode subNode = treeNodes.get(subfolder);
+                if (subNode != null) {
+                    folderTreeView.silentSelect(subNode);
+                }
+            });
+        }
+
+        activeContextMenu = menu;
+        menu.openAt(menuX, menuY);
+        overlay.addOverlay(menu);
+    }
+
+    private List<String> getSubfolders(String parentFolder) {
+        Set<String> subfolderSet = new LinkedHashSet<>();
+        TreeViewNode node = treeNodes.get(parentFolder);
+        if (node != null) {
+            for (TreeViewNode child : node.children()) {
+                if (child.folder()) {
+                    subfolderSet.add(child.text());
+                }
+            }
+        }
+        List<AssetItem> items = folderContents.get(parentFolder);
+        if (items != null) {
+            for (AssetItem item : items) {
+                if ("folder".equalsIgnoreCase(item.type())) {
+                    subfolderSet.add(item.name());
+                }
+            }
+        }
+        List<String> list = new ArrayList<>(subfolderSet);
+        list.sort(String.CASE_INSENSITIVE_ORDER);
+        return list;
+    }
+
     private void loadFolder(String folderName) {
         this.currentFolder = folderName;
-        breadcrumbLabel.text("Assets > " + folderName + " >");
+        updateBreadcrumbs(folderName);
         assetContent.clearChildren();
+
+        TreeViewNode treeNode = treeNodes.get(folderName);
+        if (treeNode != null && folderTreeView.selectedNode() != treeNode) {
+            TreeViewNode cur = treeNode.parent();
+            while (cur != null) {
+                cur.expanded(true);
+                cur = cur.parent();
+            }
+            folderTreeView.silentSelect(treeNode);
+        }
 
         List<AssetItem> items = new ArrayList<>();
         for (AssetItem item : folderContents.getOrDefault(folderName, List.of())) {
