@@ -26,6 +26,14 @@ tasks.register("layoutV3SelfTest", JavaExec) {
     mainClass = "dev.sixik.unigui.tests.LayoutV3SelfTest"
 }
 
+tasks.register("uniApiSelfTest", JavaExec) {
+    group = "verification"
+    description = "Checks Minecraft-independent UniGUI facade and resource identifiers."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.UniApiSelfTest"
+}
+
 tasks.register("flexSolverParitySelfTest", JavaExec) {
     group = "verification"
     description = "Runs live-vs-snapshot flex solver parity assertions."
@@ -289,6 +297,7 @@ tasks.register("dumpXmlWidgetReference", JavaExec) {
 }
 
 tasks.named("test") {
+    dependsOn tasks.named("uniApiSelfTest")
     dependsOn tasks.named("layoutV3SelfTest")
     dependsOn tasks.named("flexSolverParitySelfTest")
     dependsOn tasks.named("flexConformanceSelfTest")

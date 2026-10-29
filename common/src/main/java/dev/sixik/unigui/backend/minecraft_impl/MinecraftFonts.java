@@ -2,12 +2,16 @@ package dev.sixik.unigui.backend.minecraft_impl;
 
 import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.Fonts;
+import dev.sixik.unigui.api.resource.UniResource;
+import dev.sixik.unigui.api.resource.UniResources;
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-/** Factory and default-face helpers for Minecraft resource-pack fonts. */
+/**
+ * Factory and default-face helpers for Minecraft resource-pack fonts.
+ */
 public final class MinecraftFonts {
     private static final Map<ResourceLocation, MinecraftFontFace> FACES = new ConcurrentHashMap<>();
 
@@ -22,6 +26,14 @@ public final class MinecraftFonts {
         ResourceLocation parsed = ResourceLocation.tryParse(location);
         if (parsed == null) throw new IllegalArgumentException("Invalid Minecraft font location: " + location);
         return face(parsed);
+    }
+
+    public static MinecraftFontFace face(UniResource resource) {
+        return FACES.computeIfAbsent(MinecraftResourceCompat.toMinecraft(resource), MinecraftFontFace::new);
+    }
+
+    public static MinecraftFontFace faceId(String location) {
+        return face(UniResources.parse(location));
     }
 
     public static MinecraftFontFace defaultFace() {

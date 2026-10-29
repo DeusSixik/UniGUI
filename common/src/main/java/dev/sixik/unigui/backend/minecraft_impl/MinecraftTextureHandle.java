@@ -2,6 +2,7 @@ package dev.sixik.unigui.backend.minecraft_impl;
 
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.TextureOptions;
+import dev.sixik.unigui.api.resource.UniResource;
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.Objects;
@@ -14,6 +15,14 @@ public final class MinecraftTextureHandle implements TextureHandle {
 
     public MinecraftTextureHandle(ResourceLocation location, int width, int height) {
         this(location, width, height, TextureOptions.defaults());
+    }
+
+    public MinecraftTextureHandle(UniResource resource, int width, int height) {
+        this(MinecraftResourceCompat.toMinecraft(Objects.requireNonNull(resource, "resource")), width, height);
+    }
+
+    public MinecraftTextureHandle(UniResource resource, int width, int height, TextureOptions options) {
+        this(MinecraftResourceCompat.toMinecraft(Objects.requireNonNull(resource, "resource")), width, height, options);
     }
 
     public MinecraftTextureHandle(ResourceLocation location, int width, int height, TextureOptions options) {

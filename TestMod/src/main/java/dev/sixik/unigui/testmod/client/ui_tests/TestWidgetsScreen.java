@@ -4,15 +4,13 @@ import dev.sixik.unigui.api.core.UnityLikeUIScaleProvider;
 import dev.sixik.unigui.api.debug.DebugFlags;
 import dev.sixik.unigui.api.layout.LayoutStyle;
 import dev.sixik.unigui.api.render.UiRenderPolicy;
+import dev.sixik.unigui.api.screen.UniScreen;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftClipboardService;
-import dev.sixik.unigui.backend.minecraft_impl.MinecraftWidgetScreen;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.display.TextWidget;
-import net.minecraft.client.Minecraft;
-import net.minecraft.network.chat.Component;
 
 public final class TestWidgetsScreen {
 
@@ -26,12 +24,10 @@ public final class TestWidgetsScreen {
                 .scaleProvider(provider)
                 .enableDebugFlags(DebugFlags.ELEMENTS_INSPECTOR);
 
-        MinecraftWidgetScreen screen = new MinecraftWidgetScreen(Component.empty(), create(), context);
-        screen.scaleWithMinecraftGui(false);
-        screen.useVanillaDefaultFont();
-        screen.renderPolicy(UiRenderPolicy.continuous());
-
-        Minecraft.getInstance().setScreen(screen);
+        new UniScreen("", create(), context)
+                .scaleWithGameGui(false)
+                .renderPolicy(UiRenderPolicy.continuous())
+                .openGui();
     }
 
     private static Widget create() {

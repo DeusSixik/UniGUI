@@ -81,6 +81,7 @@ public class MinecraftWidgetScreen extends Screen {
     private MouseCursor activeMouseCursor = MouseCursor.DEFAULT;
     private boolean layoutInitialized;
     private ElementsInspector elementsInspector;
+    private Runnable closeCallback;
     private boolean layoutChangedThisFrame;
     private float lastLayoutWidth = -1.0f;
     private float lastLayoutHeight = -1.0f;
@@ -109,6 +110,11 @@ public class MinecraftWidgetScreen extends Screen {
         this.root = Objects.requireNonNull(root, "root");
         this.uiContext = uiContext == null ? new DefaultUIContext() : uiContext;
         attachContext(root);
+    }
+
+    MinecraftWidgetScreen onRemoved(Runnable callback) {
+        closeCallback = callback;
+        return this;
     }
 
     private static Widget xmlScreenRoot(XmlWidgetScreen<? extends Widget> xmlScreen) {
@@ -699,6 +705,9 @@ public class MinecraftWidgetScreen extends Screen {
             xmlScreenOwner.close();
             xmlScreenOwner = null;
         }
+        Runnable callback = closeCallback;
+        closeCallback = null;
+        if (callback != null) callback.run();
     }
 
     private CacheRenderDecision cacheRenderDecision(long nowNanos, boolean profileDetails) {

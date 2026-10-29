@@ -2,6 +2,10 @@ package dev.sixik.unigui.backend.minecraft_impl;
 
 import dev.sixik.unigui.api.core.UIContext;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.screen.UniRenderLayer;
+import dev.sixik.unigui.api.screen.UniRenderLayerRegistration;
+import dev.sixik.unigui.api.screen.UniRenderTarget;
+import dev.sixik.unigui.api.backend.UniGuiRuntime;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
@@ -36,6 +40,18 @@ public final class HudRender {
 
     public static MinecraftRenderLayerRegistration<Minecraft> register(MinecraftWidgetRenderLayer layer) {
         return register(layer, client -> true, 0);
+    }
+
+    public static UniRenderLayerRegistration register(UniRenderLayer layer) {
+        return register(layer, ignored -> true, 0);
+    }
+
+    public static UniRenderLayerRegistration register(
+            UniRenderLayer layer,
+            java.util.function.Predicate<? super Object> visibility,
+            int priority) {
+        return new UniRenderLayerRegistration(layer, UniGuiRuntime.backend().registerLayer(
+                layer, UniRenderTarget.HUD, visibility::test, priority));
     }
 
     public static MinecraftRenderLayerRegistration<Minecraft> register(
