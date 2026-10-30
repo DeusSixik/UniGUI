@@ -1,5 +1,7 @@
 package dev.sixik.unigui.impl.text;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+
 import dev.sixik.unigui.api.text.FontMetrics;
 
 import java.awt.Color;
@@ -21,6 +23,12 @@ import java.util.concurrent.ConcurrentHashMap;
  * Font face backed by Java font data, independent from Minecraft's font stack.
  * It rasterizes glyph masks only when an SDF atlas requests them.
  */
+@AiDoc(
+        summary = "AWT-backed implementation of FontFace and SdfGlyphProvider for standalone desktop and server-side execution.",
+        purpose = "Provides font rasterization and signed-distance-field glyph generation using java.awt.Font.",
+        useWhen = {"Executing UniGUI in non-Minecraft or desktop environments."},
+        related = {"FontFace", "DefaultFontRegistry"}
+)
 public final class AwtFontFace implements SdfGlyphProvider {
     private static final float UNIT_PIXEL_SIZE = 64.0f;
     private static final int SDF_SUPERSAMPLE = 4;

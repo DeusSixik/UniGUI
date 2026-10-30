@@ -1,5 +1,7 @@
 package dev.sixik.unigui.api.render;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+
 import java.util.Objects;
 
 /**
@@ -8,6 +10,27 @@ import java.util.Objects;
  * <p>Класс удобен для адаптеров backend'а, тестов и inline texture resolver'ов: он хранит id,
  * размеры, optional native handle и {@link TextureOptions}, не навязывая конкретный тип ресурса.</p>
  */
+@AiDoc(
+        summary = "Standard immutable implementation of TextureHandle for tests, dynamic texture providers, and backend adapters.",
+        purpose = "Provides a concrete, unmodifiable TextureHandle instance encapsulating id, dimensions, optional native handle, and TextureOptions.",
+        useWhen = {
+                "Instantiate TextureHandle instances in platform backend adapters or test harnesses.",
+                "Wrap custom dynamic procedural textures with known pixel dimensions.",
+                "Derive texture variations with altered sampling using `withOptions(TextureOptions)`."
+        },
+        criticalRules = {
+                "Dimensions must be non-negative integers.",
+                "`withOptions(TextureOptions)` returns a new instance preserving id and nativeHandle."
+        },
+        related = {"TextureHandle", "TextureOptions", "RenderBackend"},
+        examples = {
+                @AiDoc.Example(
+                        title = "Create simple texture handle",
+                        order = 10,
+                        code = """
+                                TextureHandle handle = new SimpleTextureHandle("mod:icon", 16, 16, nativeTex, TextureOptions.defaults());
+                                """)
+        })
 public final class SimpleTextureHandle implements TextureHandle {
     private final String id;
     private final int width;

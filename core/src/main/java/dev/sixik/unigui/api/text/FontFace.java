@@ -1,5 +1,7 @@
 package dev.sixik.unigui.api.text;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+
 /**
  * Backend-independent handle одного font face.
  *
@@ -10,6 +12,12 @@ package dev.sixik.unigui.api.text;
  * @see FontRegistry
  * @see FontMetrics
  */
+@AiDoc(
+        summary = "Font face abstraction providing glyph rasterization and typographic metrics (ascent, descent, line height).",
+        purpose = "Decouples text rendering and layout from underlying graphics APIs or desktop font systems.",
+        useWhen = {"Measuring text bounds or configuring custom fonts for RichText and TextRun."},
+        related = {"FontMetrics", "FontRegistry", "RichText", "TextEngine"}
+)
 public interface FontFace {
     /**
      * Возвращает стабильный id шрифта.

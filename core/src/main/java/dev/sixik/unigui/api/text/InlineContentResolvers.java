@@ -1,5 +1,7 @@
 package dev.sixik.unigui.api.text;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+
 import dev.sixik.unigui.api.render.TextureHandle;
 
 import java.util.Locale;
@@ -24,6 +26,12 @@ import java.util.Locale;
  * <p>Это не единственный допустимый синтаксис. Модовые integrations могут регистрировать свои resolver'ы,
  * например для item icons или SDM shop assets.</p>
  */
+@AiDoc(
+        summary = "Global registry and scope management for active InlineContentResolver instances.",
+        purpose = "Provides thread-local or global resolver scopes for string marker expansion.",
+        useWhen = {"Configuring or invoking the active inline content resolver."},
+        related = {"InlineContentResolver", "RichText"}
+)
 public final class InlineContentResolvers {
     private static final float DEFAULT_ICON_SIZE = TextRun.DEFAULT_PIXEL_SIZE;
     private static final ThreadLocal<InlineContentResolver> CURRENT = new ThreadLocal<>();

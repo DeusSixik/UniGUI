@@ -1,5 +1,6 @@
 package dev.sixik.unigui.api.render;
 
+import dev.sixik.unigui.api.docs.AiDoc;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -13,6 +14,19 @@ import java.util.Objects;
  * commands. {@link DrawList} держит один shared path builder для ImGui-like API, а виджеты могут
  * создавать отдельные {@code VectorPath} объекты для повторного использования.</p>
  */
+@AiDoc(
+        summary = "Mutable 2D vector path builder supporting lines, quadratic/cubic beziers, arcs, rects, and subpath closing.",
+        purpose = "Records sequence of path instructions for vector rendering, stroke outlining, or geometry tessellation.",
+        useWhen = {
+                "Constructing arbitrary 2D vector shapes via DrawScope or DrawList#path.",
+                "Defining complex clipping paths or custom icons."
+        },
+        criticalRules = {
+                "VectorPath does not perform its own tessellation; commands are submitted to DrawList as PATH commands.",
+                "When using the shared DrawList#path builder, invoke DrawList#pathClear() after use."
+        },
+        related = {"DrawList", "DrawCommand", "DrawScope"}
+)
 public final class VectorPath {
     private final ObjectArrayList<Element> elements = new ObjectArrayList<>();
     private final List<Element> elementsView = Collections.unmodifiableList(elements);

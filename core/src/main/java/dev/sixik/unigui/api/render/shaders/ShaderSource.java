@@ -1,5 +1,7 @@
 package dev.sixik.unigui.api.render.shaders;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+
 import java.util.Objects;
 
 /**
@@ -8,6 +10,18 @@ import java.util.Objects;
  * <p>Fragment source обязателен, vertex source опционален. Если vertex source отсутствует,
  * backend может использовать свой стандартный UI quad vertex shader.</p>
  */
+@AiDoc(
+        summary = "Resolved GLSL source code container for a ShaderHandle, bundling optional vertex and mandatory fragment shaders.",
+        purpose = "Supplies normalized GLSL source text and unique integer IDs to backend shader compilers.",
+        useWhen = {
+                "Return from `ShaderProvider#load(ShaderHandle)` with loaded GLSL source text.",
+                "Construct via `ShaderSource.fragment(id, fragCode)` or `ShaderSource.source(id, vertCode, fragCode)`."
+        },
+        criticalRules = {
+                "Fragment shader source must not be blank.",
+                "If vertex shader source is null, backends supply their standard 2D UI vertex shader."
+        },
+        related = {"ShaderHandle", "ShaderProvider", "ShaderProviders"})
 public final class ShaderSource {
     private final String id;
     private final String vertexSource;

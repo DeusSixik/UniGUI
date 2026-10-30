@@ -1,5 +1,6 @@
 package dev.sixik.unigui.api.render;
 
+import dev.sixik.unigui.api.docs.AiDoc;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
@@ -14,6 +15,18 @@ import java.util.Objects;
  * размазывания настроек по параллельным массивам. {@code null}-текстура —
  * пустой слой, рендер его пропускает.</p>
  */
+@AiDoc(
+        summary = "Mutable single-layer texture descriptor bundling texture handle, UV bounds, tint color, ImageFit, and slice borders.",
+        purpose = "Encapsulates complete rendering parameters for a single layer in multi-textured widget surfaces.",
+        useWhen = {
+                "Configure visual layers for composite widget backgrounds in `TextureGroup` or `Surface`.",
+                "Adjust tint color, insets, and nine-slice borders on an individual surface layer."
+        },
+        criticalRules = {
+                "Null texture represents an empty/invisible layer skipped during rendering.",
+                "`fit` determines how the layer conforms to the widget layout bounds."
+        },
+        related = {"TextureGroup", "TextureHandle", "ImageFit", "SliceBorders", "ColorView"})
 public final class TextureLayer {
     private TextureHandle texture;
     private final MutableRect source = new MutableRect(0.0f, 0.0f, 1.0f, 1.0f);

@@ -1,5 +1,7 @@
 package dev.sixik.unigui.api.text;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
@@ -14,6 +16,12 @@ import java.util.Map;
  *
  * @see Fonts#global()
  */
+@AiDoc(
+        summary = "Registry interface for registering, loading, and looking up FontFace instances by unique identifiers.",
+        purpose = "Manages the lifecycle and discovery of fonts across UI screens and widgets.",
+        useWhen = {"Registering custom TTF/Type1 fonts or querying registered fonts."},
+        related = {"FontFace", "DefaultFontRegistry", "Fonts"}
+)
 public interface FontRegistry {
     /**
      * Загружает font face из файла.

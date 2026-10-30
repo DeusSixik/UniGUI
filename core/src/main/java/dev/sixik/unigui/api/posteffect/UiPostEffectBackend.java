@@ -1,5 +1,6 @@
 package dev.sixik.unigui.api.posteffect;
 
+import dev.sixik.unigui.api.docs.AiDoc;
 import dev.sixik.unigui.api.render.DrawList;
 import dev.sixik.unigui.api.render.RenderBackend;
 import dev.sixik.unigui.api.render.RenderTarget;
@@ -11,6 +12,12 @@ import dev.sixik.unigui.api.render.RenderTarget;
  * только с прямым render path. Вызов через {@link UiPostEffectRenderer} автоматически откатится к
  * обычному {@link RenderBackend#render(DrawList, RenderTarget)}, если backend не поддерживает эффекты.</p>
  */
+@AiDoc(
+        summary = "Optional capability interface for RenderBackend implementations that execute post-processing pipelines.",
+        purpose = "Allows graphics backends to declare support for multi-pass shaders and offscreen ping-pong buffers.",
+        useWhen = {"Implementing custom graphics backends with post-processing support."},
+        related = {"RenderBackend", "UiPostEffectRenderer", "UiPostEffectChain"}
+)
 public interface UiPostEffectBackend {
     /** @return {@code true}, если backend может выполнить post-processing pass'ы */
     default boolean supportsPostEffects() {
@@ -30,5 +37,4 @@ public interface UiPostEffectBackend {
         }
         throw new UnsupportedOperationException("Post effects are not supported by this backend");
     }
-
 }

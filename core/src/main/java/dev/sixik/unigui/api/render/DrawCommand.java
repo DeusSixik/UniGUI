@@ -1,5 +1,6 @@
 package dev.sixik.unigui.api.render;
 
+import dev.sixik.unigui.api.docs.AiDoc;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.RectView;
@@ -25,6 +26,19 @@ import java.util.Map;
  * <p>Команда копирует mutable данные при записи: {@link Paint}, {@link VectorPath}, {@link DrawMesh},
  * {@link Transform} и shader options не должны протекать наружу после попадания в draw list.</p>
  */
+@AiDoc(
+        summary = "Backend-neutral draw command recorded into a DrawList representing a single procedural drawing primitive, image, text run, mesh, or clip state.",
+        purpose = "Decouples widget rendering logic from the physical RenderBackend, encapsulating geometry bounds, paints, transforms, UVs, and shader bindings.",
+        useWhen = {
+                "Low-level rendering routines assemble custom GPU commands.",
+                "Custom RenderBackends iterate over DrawList commands to execute drawing."
+        },
+        criticalRules = {
+                "DrawCommand defensively copies mutable references (paints, meshes, transforms) upon recording.",
+                "Commands retrieved via DrawList#obtain must not be retained beyond DrawList#clear()."
+        },
+        related = {"DrawCommandType", "DrawList", "Paint", "Transform", "DrawMesh", "TextureHandle", "VectorPath"}
+)
 public final class DrawCommand {
     private DrawCommandType type;
     private final MutableRect bounds = new MutableRect();

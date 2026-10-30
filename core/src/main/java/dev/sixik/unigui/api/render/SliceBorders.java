@@ -1,5 +1,7 @@
 package dev.sixik.unigui.api.render;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+
 import java.util.Objects;
 
 /**
@@ -16,6 +18,28 @@ import java.util.Objects;
  * @see NineSlice
  * @see ImageFit#NINE_SLICE
  */
+@AiDoc(
+        summary = "Immutable nine-slice border inset metrics measured in native texture pixels.",
+        purpose = "Specifies unscaled corner dimensions for nine-slice panel rendering.",
+        useWhen = {
+                "Define nine-slice border insets for widget visual surfaces via `SliceBorders.all(border)` or `SliceBorders.symmetric(h, v)`.",
+                "Build a NineSlice directly from borders using `slice(TextureHandle)`."
+        },
+        criticalRules = {
+                "Values are in raw texture pixels, not screen UI pixels.",
+                "Negative insets are sanitized to 0.0.",
+                "Zero borders (`isZero()`) degrade nine-slice rendering to a simple stretch."
+        },
+        related = {"NineSlice", "ImageFit", "TextureHandle", "DrawScope"},
+        examples = {
+                @AiDoc.Example(
+                        title = "Create uniform slice borders",
+                        order = 10,
+                        code = """
+                                SliceBorders borders = SliceBorders.all(6.0f);
+                                NineSlice slice = borders.slice(texture);
+                                """)
+        })
 public record SliceBorders(float left, float top, float right, float bottom) {
     /** Нулевые рамки: nine-slice вырождается в stretch. */
     public static final SliceBorders ZERO = new SliceBorders(0.0f, 0.0f, 0.0f, 0.0f);

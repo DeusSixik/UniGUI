@@ -1,5 +1,7 @@
 package dev.sixik.unigui.api.text;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+
 /**
  * Immutable метрики шрифта для одного requested pixel size.
  *
@@ -11,6 +13,12 @@ package dev.sixik.unigui.api.text;
  * @param lineGap дополнительный интервал между строками
  * @param lineHeight итоговая высота строки
  */
+@AiDoc(
+        summary = "Immutable typographic metrics descriptor (ascent, descent, line gap, line height) for a font face at a given size.",
+        purpose = "Used by TextEngine and layout routines to compute vertical text positioning.",
+        useWhen = {"Performing vertical text alignment, baseline positioning, or multi-line layout."},
+        related = {"FontFace", "TextEngine"}
+)
 public record FontMetrics(float ascent, float descent, float lineGap, float lineHeight) {
     /** Нормализует метрики в конечные неотрицательные значения. */
     public FontMetrics {

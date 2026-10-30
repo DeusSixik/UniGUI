@@ -1,5 +1,12 @@
 package dev.sixik.unigui.api.posteffect;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.render.shaders.ShaderHandle;
 import dev.sixik.unigui.api.render.shaders.ShaderProvider;
 import dev.sixik.unigui.api.render.shaders.ShaderProviders;
@@ -16,6 +23,34 @@ import java.util.Optional;
  * готовый минимальный набор: passthrough, tint, vignette, barrel distortion, chromatic aberration и
  * scanline.</p>
  */
+@WikiPage(
+        title = "UiPostEffects",
+        slug = "ui-post-effects",
+        category = "<key:ui.post.effects.category>",
+        summary = "<key:ui.post.effects.summary>",
+        order = 10
+)
+@WikiSection(
+        title = "<key:ui.post.effects.section.overview.title>",
+        markdown = "<key:ui.post.effects.section.overview.body>",
+        order = 10
+)
+@WikiSection(
+        title = "<key:ui.post.effects.section.usage.title>",
+        markdown = "<key:ui.post.effects.section.usage.body>",
+        order = 20
+)
+@WikiExample(
+        title = "<key:ui.post.effects.example.vignette.title>",
+        code = "<key:ui.post.effects.example.vignette.code>",
+        order = 30
+)
+@AiDoc(
+        summary = "Standard catalog of built-in post-processing effects, GLSL shaders, and helper factory methods.",
+        purpose = "Provides presets for vignette, tint, scanline, barrel distortion, chromatic aberration, and passthrough.",
+        useWhen = {"Applying common post-processing filters to UniRenderLayer or creating built-in effect chains."},
+        related = {"UiPostEffectChain", "UiPostEffectDefinition", "UiPostEffectRegistry"}
+)
 public final class UiPostEffects {
     public static final String PASSTHROUGH = "unigui:passthrough";
     public static final String TINT = "unigui:tint";
@@ -35,6 +70,10 @@ public final class UiPostEffects {
      *
      * <p>Метод idempotent: его безопасно вызывать из backend constructor'а, editor startup и тестов.</p>
      */
+    @WikiMethod(
+            title = "<key:ui.post.effects.method.ensure_registered.title>",
+            summary = "<key:ui.post.effects.method.ensure_registered.summary>"
+    )
     public static synchronized void ensureRegistered() {
         UiPostEffectRegistry registry = UiPostEffectRegistry.global();
         registry.register(passthrough());
@@ -50,6 +89,11 @@ public final class UiPostEffects {
     }
 
     /** @return definition эффекта без визуального изменения */
+    @WikiMethod(
+            title = "<key:ui.post.effects.method.passthrough.title>",
+            summary = "<key:ui.post.effects.method.passthrough.summary>"
+    )
+    @WikiReturn("<key:ui.post.effects.method.passthrough.return>")
     public static UiPostEffectDefinition passthrough() {
         return UiPostEffectDefinition.create(PASSTHROUGH)
                 .pass(UiPostEffectPass.shader(PASSTHROUGH).blendMode(UiPostEffectBlendMode.REPLACE))
@@ -57,6 +101,11 @@ public final class UiPostEffects {
     }
 
     /** @return definition эффекта цветового tint'а */
+    @WikiMethod(
+            title = "<key:ui.post.effects.method.tint.title>",
+            summary = "<key:ui.post.effects.method.tint.summary>"
+    )
+    @WikiReturn("<key:ui.post.effects.method.tint.return>")
     public static UiPostEffectDefinition tint() {
         return UiPostEffectDefinition.create(TINT)
                 .pass(UiPostEffectPass.shader(TINT).uniforms(uniforms -> uniforms
@@ -66,6 +115,11 @@ public final class UiPostEffects {
     }
 
     /** @return definition виньетки по краям слоя */
+    @WikiMethod(
+            title = "<key:ui.post.effects.method.vignette.title>",
+            summary = "<key:ui.post.effects.method.vignette.summary>"
+    )
+    @WikiReturn("<key:ui.post.effects.method.vignette.return>")
     public static UiPostEffectDefinition vignette() {
         return UiPostEffectDefinition.create(VIGNETTE)
                 .pass(UiPostEffectPass.shader(VIGNETTE).uniforms(uniforms -> uniforms
@@ -77,6 +131,11 @@ public final class UiPostEffects {
                 .build();
     }
     /** @return definition barrel distortion для helmet/visor эффектов */
+    @WikiMethod(
+            title = "<key:ui.post.effects.method.barrel_distortion.title>",
+            summary = "<key:ui.post.effects.method.barrel_distortion.summary>"
+    )
+    @WikiReturn("<key:ui.post.effects.method.barrel_distortion.return>")
     public static UiPostEffectDefinition barrelDistortion() {
         return UiPostEffectDefinition.create(BARREL_DISTORTION)
                 .pass(UiPostEffectPass.shader(BARREL_DISTORTION).uniforms(uniforms -> uniforms
@@ -87,6 +146,11 @@ public final class UiPostEffects {
     }
 
     /** @return definition chromatic aberration */
+    @WikiMethod(
+            title = "<key:ui.post.effects.method.chromatic_aberration.title>",
+            summary = "<key:ui.post.effects.method.chromatic_aberration.summary>"
+    )
+    @WikiReturn("<key:ui.post.effects.method.chromatic_aberration.return>")
     public static UiPostEffectDefinition chromaticAberration() {
         return UiPostEffectDefinition.create(CHROMATIC_ABERRATION)
                 .pass(UiPostEffectPass.shader(CHROMATIC_ABERRATION).uniforms(uniforms -> uniforms
@@ -96,6 +160,11 @@ public final class UiPostEffects {
     }
 
     /** @return definition scanline эффекта */
+    @WikiMethod(
+            title = "<key:ui.post.effects.method.scanline.title>",
+            summary = "<key:ui.post.effects.method.scanline.summary>"
+    )
+    @WikiReturn("<key:ui.post.effects.method.scanline.return>")
     public static UiPostEffectDefinition scanline() {
         return UiPostEffectDefinition.create(SCANLINE)
                 .pass(UiPostEffectPass.shader(SCANLINE).uniforms(uniforms -> uniforms
@@ -106,17 +175,35 @@ public final class UiPostEffects {
     }
 
     /** @return chain на зарегистрированный standard effect */
-    public static UiPostEffectChain chain(String effectId) {
+    @WikiMethod(
+            title = "<key:ui.post.effects.method.chain.title>",
+            summary = "<key:ui.post.effects.method.chain.summary>"
+    )
+    @WikiReturn("<key:ui.post.effects.method.chain.return>")
+    public static UiPostEffectChain chain(
+            @WikiParameter(description = "<key:ui.post.effects.method.chain.effect_id>") String effectId) {
         ensureRegistered();
         return UiPostEffectChain.of(effectId);
     }
 
     /** @return shader handle на встроенный PostEffect shader */
-    public static ShaderHandle shader(String effectId) {
+    @WikiMethod(
+            title = "<key:ui.post.effects.method.shader.title>",
+            summary = "<key:ui.post.effects.method.shader.summary>"
+    )
+    @WikiReturn("<key:ui.post.effects.method.shader.return>")
+    public static ShaderHandle shader(
+            @WikiParameter(description = "<key:ui.post.effects.method.shader.effect_id>") String effectId) {
         ensureRegistered();
         return ShaderHandle.resource(effectId);
     }
 
+    @AiDoc(
+            summary = "Internal shader provider serving GLSL fragment shader sources for built-in effects.",
+            purpose = "Compiles fragment shaders for vignette, chromatic aberration, scanlines, and distortion.",
+            useWhen = {"Interacting with built-in shader source loading."},
+            related = {"UiPostEffects", "ShaderProvider"}
+    )
     private static final class BuiltinShaderProvider implements ShaderProvider {
         private static final Map<String, String> SOURCES = Map.of(
                 PASSTHROUGH, source("""

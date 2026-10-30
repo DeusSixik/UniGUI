@@ -1,5 +1,6 @@
 package dev.sixik.unigui.api.render.shaders;
 
+import dev.sixik.unigui.api.docs.AiDoc;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -12,6 +13,17 @@ import java.util.Set;
  * так и {@code namespace:path}, добавляет стандартные {@code shaders/} и extension варианты и убирает
  * дубликаты с сохранением порядка.</p>
  */
+@AiDoc(
+        summary = "Resource path normalizer and candidate generator for resolving shader assets across classpath and mod namespaces.",
+        purpose = "Generates standard asset candidate paths (e.g. .fsh, .vsh, .json) for namespaced and vanilla shader identifiers.",
+        useWhen = {
+                "Generate candidate paths when implementing custom ShaderProvider loaders.",
+                "Parse namespaced shader identifiers via `ShaderResourcePaths.parse(id)`."
+        },
+        criticalRules = {
+                "Preserves order and eliminates duplicates when building candidate lookup lists."
+        },
+        related = {"ClasspathShaderProvider", "ShaderProvider", "ShaderHandle"})
 public final class ShaderResourcePaths {
     private ShaderResourcePaths() {
     }

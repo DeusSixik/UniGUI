@@ -1,5 +1,7 @@
 package dev.sixik.unigui.api.text;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+
 /**
  * Преобразует строку в {@link RichText}, опционально заменяя marker'ы на inline-content.
  *
@@ -11,6 +13,12 @@ package dev.sixik.unigui.api.text;
  * @see InlineContentResolvers
  * @see InlineContentSpan
  */
+@AiDoc(
+        summary = "Parser interface converting string placeholders (like {icon:id}) into RichText with inline spans.",
+        purpose = "Enables declarative string-based syntax for embedding icons across XML and code.",
+        useWhen = {"Resolving string markers into rich text via RichText.resolve(String)."},
+        related = {"InlineContentResolvers", "RichText"}
+)
 @FunctionalInterface
 public interface InlineContentResolver {
     /** Resolver по умолчанию: строка остаётся обычным plain {@link RichText}. */

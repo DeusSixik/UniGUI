@@ -1,5 +1,7 @@
 package dev.sixik.unigui.api.text;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+
 import dev.sixik.unigui.impl.text.DefaultFontRegistry;
 
 /**
@@ -10,6 +12,12 @@ import dev.sixik.unigui.impl.text.DefaultFontRegistry;
  * registry могут использоваться реализациями text backend'а, но публичный код обычно начинает
  * отсюда.</p>
  */
+@AiDoc(
+        summary = "Well-known standard font identifier constants and registry lookup shortcuts.",
+        purpose = "Provides convenient static access to standard UI font identifiers.",
+        useWhen = {"Referencing standard system fonts like DEFAULT, MONO, or TITLE."},
+        related = {"FontFace", "FontRegistry"}
+)
 public final class Fonts {
     private Fonts() {
     }

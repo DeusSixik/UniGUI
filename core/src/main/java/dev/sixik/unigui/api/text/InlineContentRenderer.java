@@ -1,5 +1,7 @@
 package dev.sixik.unigui.api.text;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+
 import dev.sixik.unigui.api.render.DrawScope;
 
 /**
@@ -21,6 +23,12 @@ import dev.sixik.unigui.api.render.DrawScope;
  * @see InlineContentSpan
  * @see InlineContentContext
  */
+@AiDoc(
+        summary = "Procedural rendering callback for drawing InlineContentSpan instances.",
+        purpose = "Receives calculated bounding coordinates during layout and executes drawing via DrawScope.",
+        useWhen = {"Implementing custom drawing for inline items (e.g. animated icons or item stacks)."},
+        related = {"InlineContentSpan", "DrawScope", "InlineContentContext"}
+)
 @FunctionalInterface
 public interface InlineContentRenderer {
     /** Renderer-заглушка для безопасного отсутствия визуального вывода. */
