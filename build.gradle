@@ -90,6 +90,7 @@ subprojects {
 
     tasks.withType(JavaCompile).configureEach {
         options.release = (versionProperty('java_version') ?: '17') as int
+        options.compilerArgs << "-parameters"
     }
 
     if (project.name != 'core') {

@@ -19,5 +19,9 @@ public @interface WikiMethod {
 
     String markdown() default "";
 
+    String section() default "";
+
+    int sectionOrder() default 0;
+
     int order() default 0;
 }

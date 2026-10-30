@@ -298,15 +298,26 @@ h2::before {
   background-color: var(--unity-blue);
 }
 
-/* API Method Signature - Unity Inspector Component Header */
+/* Section Subheadings inside API */
 h3 {
-  font-size: 1.1rem;
-  font-weight: 600 !important;
-  color: var(--unity-text-h3) !important;
-  margin-top: 1.6rem !important;
+  font-size: 1.18rem;
+  font-weight: 700 !important;
+  color: var(--unity-text-h2) !important;
+  margin-top: 2.2rem !important;
+  border-bottom: 1px solid var(--unity-border-dark);
+  padding-bottom: 0.35rem;
 }
 
-h3 code {
+/* API Method Signature - Unity Inspector Component Header */
+h4 {
+  font-size: 1.05rem;
+  font-weight: 600 !important;
+  color: var(--unity-text-h3) !important;
+  margin-top: 1.8rem !important;
+}
+
+h3 code,
+h4 code {
   background-color: var(--unigui-badge-bg) !important;
   color: var(--unigui-badge-color) !important;
   border: 1px solid var(--unigui-badge-border) !important;
@@ -439,7 +450,8 @@ h3 code {
    Home Page Cards List - Linear & Stable (Zero Layout Shift)
    ========================================================================== */
 
-.md-content__inner > ul {
+.md-content__inner:has(> #unigui-wiki, > #unigui, > h1:first-child[id*="unigui"]) > ul,
+.wiki-cards {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
@@ -448,7 +460,8 @@ h3 code {
   margin: 1rem 0 2rem 0 !important;
 }
 
-.md-content__inner > ul > li {
+.md-content__inner:has(> #unigui-wiki, > #unigui, > h1:first-child[id*="unigui"]) > ul > li,
+.wiki-cards > li {
   margin: 0 !important;
   padding: 0.9rem 1.2rem;
   background-color: var(--unigui-card-bg);
@@ -457,15 +470,20 @@ h3 code {
   transition: background-color 0.15s ease, border-color 0.15s ease;
   display: flex;
   flex-direction: column;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--md-default-fg-color--light);
 }
 
-.md-content__inner > ul > li:hover {
+.md-content__inner:has(> #unigui-wiki, > #unigui, > h1:first-child[id*="unigui"]) > ul > li:hover,
+.wiki-cards > li:hover {
   background-color: var(--unity-bg-hover);
   border-color: var(--unigui-card-hover-border);
 }
 
 /* Card Link Title */
-.md-content__inner > ul > li > a {
+.md-content__inner:has(> #unigui-wiki, > #unigui, > h1:first-child[id*="unigui"]) > ul > li > a,
+.wiki-cards > li > a {
   font-size: 1.02rem;
   font-weight: 700;
   color: var(--unigui-card-title) !important;
@@ -476,7 +494,8 @@ h3 code {
   margin-bottom: 0.35rem;
 }
 
-.md-content__inner > ul > li > a::after {
+.md-content__inner:has(> #unigui-wiki, > #unigui, > h1:first-child[id*="unigui"]) > ul > li > a::after,
+.wiki-cards > li > a::after {
   content: "→";
   font-size: 1rem;
   color: var(--unity-blue);
@@ -484,15 +503,31 @@ h3 code {
   transition: transform 0.15s ease;
 }
 
-.md-content__inner > ul > li:hover > a::after {
+.md-content__inner:has(> #unigui-wiki, > #unigui, > h1:first-child[id*="unigui"]) > ul > li:hover > a::after,
+.wiki-cards > li:hover > a::after {
   transform: translateX(4px);
   color: var(--unity-blue-hover);
 }
 
-.md-content__inner > ul > li {
-  font-size: 0.88rem;
-  line-height: 1.5;
-  color: var(--md-default-fg-color--light);
+/* Standard bullet and numbered lists inside content */
+.md-typeset ul:not(.wiki-cards) {
+  margin: 0.8rem 0 1rem 0;
+  padding-left: 1.5rem;
+}
+
+.md-typeset ul:not(.wiki-cards) > li {
+  margin-bottom: 0.4rem;
+  line-height: 1.65;
+}
+
+.md-typeset ol {
+  margin: 0.8rem 0 1rem 0;
+  padding-left: 1.5rem;
+}
+
+.md-typeset ol > li {
+  margin-bottom: 0.4rem;
+  line-height: 1.65;
 }
 
 /* Back to top button */
@@ -507,4 +542,142 @@ h3 code {
 .md-top:hover {
   background-color: var(--unity-blue-selected);
   color: #ffffff;
+}
+
+/* ==========================================================================
+   API Member Cards (CraftTweaker Framed Method Blocks)
+   Individual framed cards for each documented method in API reference
+   ========================================================================== */
+
+.api-member-card {
+  position: relative;
+  background-color: var(--unity-bg-panel);
+  border: 1px solid var(--unity-border);
+  border-radius: 6px;
+  padding: 1.25rem 1.4rem;
+  margin: 1.5rem 0 1.75rem 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+[data-md-color-scheme="slate"] .api-member-card {
+  background-color: #1a1a1c;
+  border-color: #333336;
+}
+
+[data-md-color-scheme="default"] .api-member-card {
+  background-color: #ffffff;
+  border-color: #d0d7de;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.api-member-card:hover {
+  border-color: var(--unity-border-light);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+[data-md-color-scheme="slate"] .api-member-card:hover {
+  border-color: #48484e;
+}
+
+[data-md-color-scheme="default"] .api-member-card:hover {
+  border-color: #b1b8be;
+}
+
+/* Method Signature Heading inside card */
+.api-member-card > h3:first-child,
+.api-member-card > h4:first-child {
+  margin-top: 0 !important;
+  margin-bottom: 0.9rem !important;
+  padding-bottom: 0.75rem !important;
+  border-bottom: 1px solid var(--unity-border);
+  font-size: 1.05rem !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  scroll-margin-top: 4.5rem;
+}
+
+[data-md-color-scheme="slate"] .api-member-card > h3:first-child,
+[data-md-color-scheme="slate"] .api-member-card > h4:first-child {
+  border-bottom-color: #2b2b2e;
+}
+
+[data-md-color-scheme="default"] .api-member-card > h3:first-child,
+[data-md-color-scheme="default"] .api-member-card > h4:first-child {
+  border-bottom-color: #e5e8ec;
+}
+
+/* Method Signature Badge inside card header */
+.api-member-card > h3:first-child code,
+.api-member-card > h4:first-child code {
+  font-size: 0.95rem !important;
+  background-color: var(--unity-bg-toolbar) !important;
+  color: var(--unity-text-title) !important;
+  border: 1px solid var(--unity-border-light) !important;
+  border-left: 3px solid var(--unity-blue) !important;
+  border-radius: 4px !important;
+  padding: 0.25rem 0.65rem !important;
+  font-weight: 600 !important;
+}
+
+[data-md-color-scheme="slate"] .api-member-card > h3:first-child code,
+[data-md-color-scheme="slate"] .api-member-card > h4:first-child code {
+  background-color: #26262a !important;
+  border-color: #3e3e44 !important;
+  color: #f0f0f0 !important;
+}
+
+[data-md-color-scheme="default"] .api-member-card > h3:first-child code,
+[data-md-color-scheme="default"] .api-member-card > h4:first-child code {
+  background-color: #f3f4f6 !important;
+  border-color: #d1d5db !important;
+  color: #111827 !important;
+}
+
+/* Method title and summary paragraphs inside card */
+.api-member-card > p {
+  margin-top: 0.4rem;
+  margin-bottom: 0.75rem;
+  line-height: 1.6;
+}
+
+.api-member-card > p > strong:only-child,
+.api-member-card > p:first-of-type > strong {
+  color: var(--unity-text-h2);
+  font-size: 0.98rem;
+  display: inline-block;
+  margin-bottom: 0.15rem;
+}
+
+/* Table styling inside API card */
+.api-member-card table:not([class]) {
+  margin: 0.85rem 0 1rem 0 !important;
+  width: 100% !important;
+  border-collapse: collapse;
+}
+
+.api-member-card table:not([class]) th {
+  background-color: var(--unity-bg-toolbar) !important;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.45rem 0.8rem !important;
+}
+
+[data-md-color-scheme="slate"] .api-member-card table:not([class]) th {
+  background-color: #242428 !important;
+  border-color: #333336 !important;
+}
+
+.api-member-card table:not([class]) td {
+  padding: 0.5rem 0.8rem !important;
+  font-size: 0.88rem;
+}
+
+/* Returns / Throws line inside card */
+.api-member-card > p:last-child {
+  margin-bottom: 0 !important;
 }
