@@ -7,7 +7,9 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Repeatable;
 import java.lang.annotation.Target;
 
-/** Adds a source example to a generated wiki page. */
+/**
+ * Adds a source example to a generated wiki page.
+ */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE, ElementType.METHOD, ElementType.CONSTRUCTOR})

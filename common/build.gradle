@@ -291,6 +291,12 @@ tasks.register("dumpXmlWidgetReference", JavaExec) {
 def wikiOutputDirectory = providers.gradleProperty("wikiOutputDir")
         .map { file(it) }
         .orElse(layout.buildDirectory.dir("generated/wiki").map { it.asFile })
+def wikiLanguageDirectory = providers.gradleProperty("wikiLangDir")
+        .map { file(it) }
+        .orElse(providers.provider { rootProject.file("docs/lang") })
+def wikiAssetsDirectory = providers.gradleProperty("wikiAssetsDir")
+        .map { file(it) }
+        .orElse(providers.provider { rootProject.file("docs/assets") })
 
 tasks.register("generateWiki", JavaExec) {
     group = "documentation"
@@ -298,7 +304,11 @@ tasks.register("generateWiki", JavaExec) {
     dependsOn tasks.named("testClasses")
     classpath = sourceSets.test.runtimeClasspath
     mainClass = "dev.sixik.unigui.tests.WikiMarkdownGenerator"
-    args wikiOutputDirectory.get().absolutePath
+    args wikiOutputDirectory.get().absolutePath,
+            wikiLanguageDirectory.get().absolutePath,
+            wikiAssetsDirectory.get().absolutePath
+    inputs.dir(wikiLanguageDirectory)
+    inputs.dir(wikiAssetsDirectory)
     outputs.dir(wikiOutputDirectory)
 }
 

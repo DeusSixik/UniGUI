@@ -1,0 +1,21 @@
+{
+  "wiki.index.title": "UniGUI Wiki",
+  "wiki.api.title": "API",
+  "wiki.api.parameter": "Parameter",
+  "wiki.api.type": "Type",
+  "wiki.api.description": "Description",
+  "wiki.api.returns": "Returns",
+  "wiki.api.throws": "Throws",
+  "virtual.list.view.category": "Widgets/Data",
+  "virtual.list.view.summary": "Virtualized presentation of large item sets as a responsive grid or list.",
+  "virtual.list.view.section.when.title": "When to use",
+  "virtual.list.view.section.when.body": "Use `VirtualListView` when a collection contains hundreds or thousands of similar entries. The factory creates only visible items and a small overscan; ordinary forms are better built with `VBox` or `LinearBox`.",
+  "virtual.list.view.section.style.title": "Layout and StylePack",
+  "virtual.list.view.section.style.body": "The viewport respects `layoutStyle().padding()`, `rowGap()`, and `columnGap()`. The same parameters can be configured through `StyleKeys.VIRTUAL_LIST_*` in a `StylePack`.",
+  "virtual.list.view.example.grid.title": "Responsive grid",
+  "virtual.list.view.item.factory.title": "Item factory",
+  "virtual.list.view.item.factory.summary": "Sets the factory that creates a UI widget for an item index.",
+  "virtual.list.view.item.factory.return": "this VirtualListView for fluent configuration",
+  "virtual.list.view.item.factory.example.title": "Connect a model",
+  "virtual.list.view.item.factory.parameter": "Function from item index to Widget; null restores the default Label factory."
+}

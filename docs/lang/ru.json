@@ -1,0 +1,21 @@
+{
+  "wiki.index.title": "Вики UniGUI",
+  "wiki.api.title": "API",
+  "wiki.api.parameter": "Параметр",
+  "wiki.api.type": "Тип",
+  "wiki.api.description": "Описание",
+  "wiki.api.returns": "Возвращает",
+  "wiki.api.throws": "Исключения",
+  "virtual.list.view.category": "Виджеты/Данные",
+  "virtual.list.view.summary": "Виртуализированное представление больших наборов элементов в виде адаптивной сетки или списка.",
+  "virtual.list.view.section.when.title": "Когда использовать",
+  "virtual.list.view.section.when.body": "Используй `VirtualListView`, когда набор содержит сотни или тысячи однотипных записей. Фабрика создаёт только видимые элементы и небольшой overscan; обычные формы лучше строить на `VBox` или `LinearBox`.",
+  "virtual.list.view.section.style.title": "Layout и StylePack",
+  "virtual.list.view.section.style.body": "Viewport учитывает `layoutStyle().padding()`, `rowGap()` и `columnGap()`. Те же параметры можно задавать через `StyleKeys.VIRTUAL_LIST_*` в `StylePack`.",
+  "virtual.list.view.example.grid.title": "Адаптивная сетка",
+  "virtual.list.view.item.factory.title": "Фабрика элементов",
+  "virtual.list.view.item.factory.summary": "Устанавливает фабрику, создающую UI-виджет по индексу элемента данных.",
+  "virtual.list.view.item.factory.return": "этот VirtualListView для fluent-настройки",
+  "virtual.list.view.item.factory.example.title": "Подключение модели",
+  "virtual.list.view.item.factory.parameter": "Функция index → Widget; null восстанавливает фабрику Label по умолчанию."
+}

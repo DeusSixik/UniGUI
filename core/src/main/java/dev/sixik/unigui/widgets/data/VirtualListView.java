@@ -82,21 +82,19 @@ import java.util.function.IntFunction;
 @WikiPage(
         title = "VirtualListView",
         slug = "virtual-list-view",
-        category = "Data",
-        summary = "Виртуализированное представление больших наборов элементов в виде адаптивной сетки или списка.",
+        category = "<key:virtual.list.view.category>",
+        summary = "<key:virtual.list.view.summary>",
         order = 10)
 @WikiSection(
-        title = "Когда использовать",
+        title = "<key:virtual.list.view.section.when.title>",
         order = 10,
-        markdown = "Используй `VirtualListView`, когда набор содержит сотни или тысячи однотипных записей. "
-                + "Фабрика создаёт только видимые элементы и небольшой overscan; обычные формы лучше строить на `VBox`/`LinearBox`.")
+        markdown = "<key:virtual.list.view.section.when.body>")
 @WikiSection(
-        title = "Layout и StylePack",
+        title = "<key:virtual.list.view.section.style.title>",
         order = 20,
-        markdown = "Viewport учитывает `layoutStyle().padding()`, `rowGap()` и `columnGap()`. "
-                + "Те же параметры можно задавать через `StyleKeys.VIRTUAL_LIST_*` в `StylePack`.")
+        markdown = "<key:virtual.list.view.section.style.body>")
 @WikiExample(
-        title = "Responsive grid",
+        title = "<key:virtual.list.view.example.grid.title>",
         order = 10,
         code = """
                 VirtualListView view = new VirtualListView()
@@ -112,10 +110,32 @@ import java.util.function.IntFunction;
                         .rowGap(12.0f));
                 """)
 @AiDoc(
-        summary = "Виртуализирует большой набор виджетов с переключаемыми GRID и LIST режимами.",
-        useWhen = {"Список содержит много однотипных записей.", "Нужна смена grid/list без перестройки модели данных."},
-        constraints = "Передавайте число элементов через itemCount; itemFactory получает индекс элемента, не номер строки.",
-        related = {"VirtualTableView", "GridBox", "ScrollView"})
+        summary = "Виртуализирует большой набор элементов данных с переключаемыми GRID и LIST режимами.",
+        purpose = "Показывает элементы модели только в видимой области и сохраняет стабильные индексы модели в режимах списка и сетки.",
+        useWhen = {"Коллекция содержит много однотипных записей.", "Нужно переключать список и адаптивную сетку без изменения модели данных."},
+        criticalRules = {
+                "`itemFactory` получает абсолютный индекс элемента данных, а не номер строки сетки.",
+                "Не добавляйте дочерние элементы вручную: содержимое создаётся через `itemFactory` и управляется виртуализатором.",
+                "Устанавливайте актуальный `itemCount`; при его изменении и переключении режима виджет инвалидирует layout и визуальный слой.",
+                "Offscreen-кэш сохраняет виджеты по тому же индексу и не переиспользует экземпляр для другого индекса."
+        },
+        related = {"VirtualTableView", "GridBox", "ScrollView"},
+        examples = @AiDoc.Example(
+                title = "Адаптивная сетка",
+                order = 10,
+                code = """
+                        VirtualListView view = new VirtualListView()
+                                .viewMode(VirtualListView.ViewMode.GRID)
+                                .gridCellWidth(120.0f)
+                                .gridCellHeight(144.0f)
+                                .itemCount(entries.size())
+                                .itemFactory(index -> createEntryCard(entries.get(index)));
+
+                        view.layout(style -> style
+                                .padding(12.0f)
+                                .columnGap(8.0f)
+                                .rowGap(12.0f));
+                        """))
 public class VirtualListView extends WidgetBase {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.VIRTUAL_LIST_VIEW;
 
@@ -194,6 +214,8 @@ public class VirtualListView extends WidgetBase {
         return effectiveViewMode() == VirtualListViewMode.GRID ? ViewMode.GRID : ViewMode.LIST;
     }
 
+    @AiDoc(section = "Core Configuration & Builder Methods", sectionOrder = 10, order = 10,
+            summary = "Переключает виртуальные элементы между режимами `LIST` и `GRID`.")
     @XmlAttribute(value = "viewMode", category = "Layout", defaultValue = "list", description = "Virtual item presentation mode: list or grid.")
     public VirtualListView viewMode(ViewMode viewMode) {
         ViewMode normalized = viewMode == null ? ViewMode.LIST : viewMode;
@@ -202,6 +224,8 @@ public class VirtualListView extends WidgetBase {
         return this;
     }
 
+    @AiDoc(section = "Core Configuration & Builder Methods", sectionOrder = 10, order = 20,
+            summary = "Короткая форма переключения: `true` включает `GRID`, `false` — `LIST`.")
     public VirtualListView grid(boolean grid) {
         return viewMode(grid ? ViewMode.GRID : ViewMode.LIST);
     }
@@ -210,6 +234,8 @@ public class VirtualListView extends WidgetBase {
         return sanitizePositive(styleValue(StyleKeys.VIRTUAL_LIST_GRID_CELL_WIDTH, 96.0f), 96.0f);
     }
 
+    @AiDoc(section = "Core Configuration & Builder Methods", sectionOrder = 10, order = 50,
+            summary = "Задаёт предпочитаемую ширину ячейки; в адаптивном режиме по ней рассчитывается число колонок.")
     @XmlAttribute(value = "gridCellWidth", category = "Layout", defaultValue = "96", description = "Preferred grid cell width used for responsive column auto-fit.")
     public VirtualListView gridCellWidth(float width) {
         float normalized = Float.isFinite(width) ? Math.max(1.0f, width) : 96.0f;
@@ -221,6 +247,8 @@ public class VirtualListView extends WidgetBase {
         return sanitizePositive(styleValue(StyleKeys.VIRTUAL_LIST_GRID_CELL_HEIGHT, 96.0f), 96.0f);
     }
 
+    @AiDoc(section = "Core Configuration & Builder Methods", sectionOrder = 10, order = 60,
+            summary = "Задаёт фиксированную высоту строки сетки в UI-пикселях.")
     @XmlAttribute(value = "gridCellHeight", category = "Layout", defaultValue = "96", description = "Fixed height of a virtual grid row.")
     public VirtualListView gridCellHeight(float height) {
         float normalized = Float.isFinite(height) ? Math.max(1.0f, height) : 96.0f;
@@ -231,6 +259,8 @@ public class VirtualListView extends WidgetBase {
     /**
      * Sets a fixed column count; zero restores width-based auto-fit.
      */
+    @AiDoc(section = "Core Configuration & Builder Methods", sectionOrder = 10, order = 70,
+            summary = "Задаёт число колонок; `0` включает адаптивный подбор по доступной ширине.")
     @XmlAttribute(value = "gridColumns", category = "Layout", defaultValue = "0", description = "Fixed grid column count; zero fits columns to available width.")
     public VirtualListView gridColumns(int columns) {
         int normalized = Math.max(0, columns);
@@ -253,6 +283,8 @@ public class VirtualListView extends WidgetBase {
         return itemCount;
     }
 
+    @AiDoc(section = "Core Configuration & Builder Methods", sectionOrder = 10, order = 30,
+            summary = "Устанавливает общее количество элементов модели. Значение `0` оставляет список пустым.")
     @XmlAttribute(value = "itemCount", category = "Data", defaultValue = "0", description = "Number of virtual items exposed by the view.")
     public VirtualListView itemCount(int itemCount) {
         int normalizedCount = Math.max(0, itemCount);
@@ -330,6 +362,8 @@ public class VirtualListView extends WidgetBase {
         return sanitizePositive(styleValue(StyleKeys.VIRTUAL_LIST_ITEM_HEIGHT, 18.0f), 18.0f);
     }
 
+    @AiDoc(section = "Core Configuration & Builder Methods", sectionOrder = 10, order = 80,
+            summary = "Задаёт фиксированную высоту строки списка в UI-пикселях.")
     @XmlAttribute(value = "itemHeight", category = "Layout", defaultValue = "18", description = "Fixed row height used by virtualization.")
     public VirtualListView itemHeight(float itemHeight) {
         float normalized = Float.isFinite(itemHeight) ? Math.max(1.0f, itemHeight) : 18.0f;
@@ -341,6 +375,8 @@ public class VirtualListView extends WidgetBase {
         return Math.max(0, styleValue(StyleKeys.VIRTUAL_LIST_OVERSCAN, 1));
     }
 
+    @AiDoc(section = "Core Configuration & Builder Methods", sectionOrder = 10, order = 90,
+            summary = "Задаёт количество дополнительных строк, реализуемых до и после видимой области.")
     @XmlAttribute(value = "overscan", category = "Behavior", defaultValue = "1", description = "Extra rows realized above and below the viewport.")
     public VirtualListView overscan(int overscan) {
         style(value -> value.put(StyleKeys.VIRTUAL_LIST_OVERSCAN, Math.max(0, overscan)));
@@ -350,18 +386,21 @@ public class VirtualListView extends WidgetBase {
     @AiDoc(
             summary = "Создаёт виджет для указанного индекса данных.",
             purpose = "Позволяет держать модель данных отдельно от временно реализованных UI-элементов.",
-            constraints = "В GRID режиме индекс означает элемент, а не строку сетки.")
+            constraints = "В GRID режиме индекс означает элемент, а не строку сетки; null восстанавливает фабрику Label по индексу.",
+            section = "Core Configuration & Builder Methods",
+            sectionOrder = 10,
+            order = 40)
     @WikiMethod(
-            title = "Фабрика элементов",
-            summary = "Устанавливает фабрику, создающую UI-виджет по индексу элемента данных.",
+            title = "<key:virtual.list.view.item.factory.title>",
+            summary = "<key:virtual.list.view.item.factory.summary>",
             order = 20)
-    @WikiReturn("этот VirtualListView для fluent-настройки")
+    @WikiReturn("<key:virtual.list.view.item.factory.return>")
     @WikiExample(
-            title = "Подключение модели",
+            title = "<key:virtual.list.view.item.factory.example.title>",
             code = "view.itemFactory(index -> createCard(entries.get(index)));",
             order = 10)
     public VirtualListView itemFactory(
-            @WikiParameter(name = "itemFactory", description = "Функция index → Widget; null восстанавливает Label по умолчанию.")
+            @WikiParameter(name = "itemFactory", description = "<key:virtual.list.view.item.factory.parameter>")
             IntFunction<? extends Widget> itemFactory) {
         this.itemFactory = itemFactory == null ? index -> new Label(String.valueOf(index)) : itemFactory;
         clearRealized();
@@ -373,6 +412,8 @@ public class VirtualListView extends WidgetBase {
         return Math.max(0, styleValue(StyleKeys.VIRTUAL_LIST_OFFSCREEN_CACHE_SIZE, 0));
     }
 
+    @AiDoc(section = "Core Configuration & Builder Methods", sectionOrder = 10, order = 100,
+            summary = "Ограничивает количество offscreen-виджетов, сохраняемых для повторного показа на том же индексе; `0` отключает кэширование.")
     @XmlAttribute(value = "offscreenCacheSize", category = "Behavior", defaultValue = "0", description = "Maximum number of recycled offscreen row widgets retained.")
     public VirtualListView offscreenCacheSize(int offscreenCacheSize) {
         int normalized = Math.max(0, offscreenCacheSize);
@@ -380,10 +421,14 @@ public class VirtualListView extends WidgetBase {
         return this;
     }
 
+    @AiDoc(section = "Scrolling & Position", sectionOrder = 30, order = 10,
+            summary = "Возвращает текущую вертикальную позицию прокрутки в UI-пикселях.")
     public float scrollY() {
         return virtualizer.scrollOffset();
     }
 
+    @AiDoc(section = "Scrolling & Position", sectionOrder = 30, order = 50,
+            summary = "Задаёт шаг вертикальной прокрутки в UI-пикселях на единицу wheel/page delta.")
     @XmlAttribute(value = "scrollStep", category = "Behavior", defaultValue = "16", description = "UI pixels scrolled per wheel/page delta unit.")
     public VirtualListView scrollStep(float scrollStep) {
         float normalized = Float.isFinite(scrollStep) ? Math.max(1.0f, scrollStep) : 16.0f;
@@ -391,6 +436,8 @@ public class VirtualListView extends WidgetBase {
         return this;
     }
 
+    @AiDoc(section = "Scrolling & Position", sectionOrder = 30, order = 60,
+            summary = "Возвращает настроенный шаг прокрутки в UI-пикселях.")
     public float scrollStep() {
         return sanitizePositive(styleValue(StyleKeys.VIRTUAL_LIST_SCROLL_STEP, 16.0f), 16.0f);
     }
@@ -440,6 +487,8 @@ public class VirtualListView extends WidgetBase {
         return selection.mode();
     }
 
+    @AiDoc(section = "Selection & Navigation", sectionOrder = 20, order = 10,
+            summary = "Задаёт режим выбора `SINGLE` или `MULTIPLE`.")
     @XmlAttribute(value = "selectionMode", category = "Behavior", defaultValue = "single", description = "Selection mode used by list rows.")
     public VirtualListView selectionMode(SelectionMode mode) {
         List<Integer> oldSelection = selection.selectedIndices();
@@ -449,10 +498,14 @@ public class VirtualListView extends WidgetBase {
         return this;
     }
 
+    @AiDoc(section = "Selection & Navigation", sectionOrder = 20, order = 20,
+            summary = "Возвращает выбранный индекс или `-1`, если элемент не выбран.")
     public int selectedIndex() {
         return selection.selectedIndex();
     }
 
+    @AiDoc(section = "Selection & Navigation", sectionOrder = 20, order = 30,
+            summary = "Возвращает список выбранных индексов модели.")
     public List<Integer> selectedIndices() {
         return selection.selectedIndices();
     }
@@ -461,10 +514,14 @@ public class VirtualListView extends WidgetBase {
         return selection.isSelected(index);
     }
 
+    @AiDoc(section = "Selection & Navigation", sectionOrder = 20, order = 70,
+            summary = "Возвращает индекс строки, активной для клавиатурной навигации, или `-1`.")
     public int activeIndex() {
         return activeIndex;
     }
 
+    @AiDoc(section = "Selection & Navigation", sectionOrder = 20, order = 80,
+            summary = "Устанавливает активный индекс клавиатурной навигации и прокручивает его в видимую область.")
     @XmlAttribute(value = "activeIndex", category = "Behavior", defaultValue = "-1", description = "Initial keyboard/navigation active row index.")
     public VirtualListView activeIndex(int index) {
         if (index >= 0 && itemCount <= 0) {
@@ -480,6 +537,8 @@ public class VirtualListView extends WidgetBase {
         return this;
     }
 
+    @AiDoc(section = "Selection & Navigation", sectionOrder = 20, order = 40,
+            summary = "Выбирает индекс и делает его активным для навигации.")
     public VirtualListView selectIndex(int index) {
         List<Integer> oldSelection = selection.selectedIndices();
         activeIndex = clampIndexOrNone(index);
@@ -489,6 +548,8 @@ public class VirtualListView extends WidgetBase {
         return this;
     }
 
+    @AiDoc(section = "Selection & Navigation", sectionOrder = 20, order = 50,
+            summary = "Переключает состояние выбора указанного индекса.")
     public VirtualListView toggleIndex(int index) {
         List<Integer> oldSelection = selection.selectedIndices();
         emitSelectionChangeIfChanged(oldSelection, selection.toggle(index));
@@ -496,6 +557,8 @@ public class VirtualListView extends WidgetBase {
         return this;
     }
 
+    @AiDoc(section = "Selection & Navigation", sectionOrder = 20, order = 60,
+            summary = "Сбрасывает выбранные индексы.")
     public VirtualListView clearSelection() {
         List<Integer> oldSelection = selection.selectedIndices();
         emitSelectionChangeIfChanged(oldSelection, selection.clear());
@@ -503,6 +566,8 @@ public class VirtualListView extends WidgetBase {
         return this;
     }
 
+    @AiDoc(section = "Selection & Navigation", sectionOrder = 20, order = 90,
+            summary = "Подписывает обработчик на событие изменения выбора и возвращает подписку для отмены.")
     public EventSubscription onSelectionChanged(EventListener<? super SelectionChangedEvent> listener) {
         return on(SelectionChangedEvent.TYPE, listener);
     }
@@ -522,6 +587,8 @@ public class VirtualListView extends WidgetBase {
         return renderPhase;
     }
 
+    @AiDoc(section = "Scrolling & Position", sectionOrder = 30, order = 20,
+            summary = "Устанавливает вертикальное смещение прокрутки; значение ограничивается доступным диапазоном.")
     public VirtualListView scrollTo(float y) {
         syncVirtualizerConfiguration();
         updateVirtualizerViewport();
@@ -533,6 +600,8 @@ public class VirtualListView extends WidgetBase {
         return this;
     }
 
+    @AiDoc(section = "Scrolling & Position", sectionOrder = 30, order = 30,
+            summary = "Изменяет вертикальное смещение относительно текущего положения.")
     public VirtualListView scrollBy(float dy) {
         return scrollTo(virtualizer.scrollOffset() + dy);
     }

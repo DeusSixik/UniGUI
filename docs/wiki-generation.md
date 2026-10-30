@@ -7,10 +7,12 @@ The generator runs as a build tool; annotations do not trigger work during appli
 @WikiPage(
         title = "VirtualListView",
         slug = "virtual-list-view",
-        category = "Data",
-        summary = "Virtualized list and responsive grid.")
+        category = "<key:virtual.list.view.category>",
+        summary = "<key:virtual.list.view.summary>")
 @WikiIcon(src = "assets/widgets/virtual-list.svg", alt = "Rows and grid cells")
-@WikiGif(src = "assets/demos/virtual-list-grid.gif", alt = "Resizing the virtual grid")
+@WikiGif(
+        src = "<key:virtual.list.view.gif.resize>",
+        alt = "<key:virtual.list.view.gif.resize.alt>")
 @WikiSection(title = "Overview", markdown = "Authored Markdown content.", order = 10)
 @WikiExample(title = "Create a grid", code = "new VirtualListView().grid(true);")
 public class VirtualListView { ... }
@@ -21,7 +23,30 @@ content sections, or examples. Methods and constructors are published with `@Wik
 Use `@WikiParameter` on parameters, `@WikiReturn` on a non-void method, and repeatable
 `@WikiThrows` for exception contracts. `@WikiExample` can be placed on either a type or
 an individual documented member. Media `src` values are site-relative paths and are
-emitted as-is; the generator does not copy or validate assets.
+resolved per locale. Files from `docs/assets` are copied once into the shared generated
+`assets` directory and are not duplicated per language.
+
+## Localization
+
+Language files live in `docs/lang/<locale>.json` and use the same flat JSON format as
+Minecraft language files. English (`en.json`) is mandatory and is the fallback locale.
+
+```json
+{
+  "virtual.list.view.category": "Widgets/Data",
+  "virtual.list.view.summary": "Virtualized list and responsive grid",
+  "virtual.list.view.gif.resize": "assets/demos/virtual-list-grid.gif",
+  "virtual.list.view.gif.resize.alt": "Resizing the virtual grid"
+}
+```
+
+Any display string or media path in a wiki annotation can contain `<key:...>`. `slug`
+remains a stable non-localized URL identifier. When a key is missing in a non-English
+locale, generation logs a warning and uses English. When the key is absent from English,
+generation fails. The English category determines the shared directory path, while the
+displayed category can be translated. Slash-separated category segments are slugified
+individually, so `Widgets/Data` produces `widgets/data/virtual-list-view.md`. Asset links
+include one `../` for each category segment, plus one for the locale directory.
 
 Generate Markdown for the current Minecraft profile:
 
@@ -30,12 +55,30 @@ Generate Markdown for the current Minecraft profile:
 ```
 
 By default, output is written under `build/stonecutter/1.20.1/common/generated/wiki`.
-The directory contains `index.md` and one page per annotated type in `pages/`. To write
+The directory contains shared `assets` and one tree per locale:
+
+```text
+wiki/
+├── assets/
+├── en/
+│   ├── index.md
+│   └── widgets/
+│       └── data/virtual-list-view.md
+└── ru/
+    ├── index.md
+    └── widgets/
+        └── data/virtual-list-view.md
+```
+
+To write
 directly into a site's content directory, set `wikiOutputDir`:
 
 ```powershell
 ./gradlew :1.20.1:common:generateWiki -PwikiOutputDir=../site/content/unigui
 ```
+
+Input directories can also be replaced with `-PwikiLangDir=...` and
+`-PwikiAssetsDir=...`.
 
 The output directory is not cleaned by the generator. Point it at a build-owned or
 site-generated directory so removed annotations do not leave stale published pages.
@@ -44,7 +87,33 @@ site-generated directory so removed annotations do not leave stale published pag
 
 `@AiDoc` is intentionally independent from wiki annotations. It never appears in website
 wiki pages, and a type does not need `@WikiPage` to participate in the AI collection.
-`@AiDoc` can be applied to types, public methods, and public constructors.
+`@AiDoc` can be applied to types, public methods, and public constructors. Type-level
+metadata supports a purpose, use cases, critical rules/gotchas, related APIs, and examples.
+Method-level `section`, `sectionOrder`, and `order` group and sort curated API entries.
+The generator writes Java signatures and return types from reflection, and uses
+`@XmlAttribute` descriptions/defaults where available. Only explicitly `@AiDoc`-annotated
+public methods are included, so prose stays reviewed rather than inferred from names.
+
+```java
+@AiDoc(
+        purpose = "Displays a large model as a virtual list or grid.",
+        criticalRules = {
+                "itemFactory receives the absolute model index, not a grid row.",
+                "Do not add children manually; items are managed by the virtualizer."
+        },
+        related = {"GridBox", "ScrollView"},
+        examples = @AiDoc.Example(
+                title = "Build a grid",
+                code = "view.grid(true).itemCount(entries.size());"))
+public class VirtualListView { ... }
+
+@AiDoc(
+        section = "Core Configuration & Builder Methods",
+        sectionOrder = 10,
+        order = 20,
+        summary = "Enables the responsive grid when true.")
+public VirtualListView grid(boolean enabled) { ... }
+```
 
 ```powershell
 ./gradlew :1.20.1:common:generateAiDocs
