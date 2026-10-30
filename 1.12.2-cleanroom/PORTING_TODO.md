@@ -174,7 +174,9 @@
 - [ ] **6.3 Loading-screen слои** (`UniRenderTarget.LOADING_SCREEN`, сейчас `UnsupportedOperationException`). На 1.12.2 нет `LoadingOverlay`. Решить, что считается loading: `GuiDownloadTerrain`, `LoadingScreenRenderer` («Loading level», «Saving»), ресурс-релоад. Early-window FML вне зоны. Перенести `LoadingScreenContext`.
 - [ ] **6.4 Tooltip order.** Аналог `MixinGuiGraphicsTooltipOrder`: отложенный рендер ванильных тултипов поверх overlay (`DeferredMinecraftTooltips`).
 - [ ] **6.5 World UI surface** (`MinecraftWorldUiSurface`): панели в мире через `RenderWorldLastEvent` + projection / unproject, ввод по лучу.
-- [ ] **6.6 Ввод.**
+- [~] **6.6 Ввод.**
+  - [x] движение мыши и колесо берутся каждый кадр, а не на тике 20 Гц (`CleanroomPointer`, `CleanroomWheel`); нажатия остаются на событиях;
+  - [x] форма курсора ОС (`CleanroomMouseCursors`): `CursorResolver` из core -> `SDL_CreateSystemCursor`/`SDL_SetCursor` (Cleanroom работает на LWJGL 3.4 + SDL3, не GLFW; `lwjgly` стандартных форм не даёт). Сброс при закрытии экрана и в мире без экрана; **не проверено в игре**;
   - key repeat (`Keyboard.enableRepeatEvents(true)` на время фокуса в текстовом поле);
   - `mouseClickMove` / drag;
   - double-click;

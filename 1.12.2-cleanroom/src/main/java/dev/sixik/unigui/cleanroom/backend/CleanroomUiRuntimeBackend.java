@@ -3,6 +3,7 @@ package dev.sixik.unigui.cleanroom.backend;
 import dev.sixik.unigui.api.backend.UniGuiBackend;
 import dev.sixik.unigui.api.core.UIContext;
 import dev.sixik.unigui.api.input.ClipboardService;
+import dev.sixik.unigui.api.input.MouseCursor;
 import dev.sixik.unigui.api.screen.UniScreen;
 import dev.sixik.unigui.api.screen.UniRenderLayer;
 import dev.sixik.unigui.api.screen.UniRenderTarget;
@@ -24,6 +25,8 @@ public final class CleanroomUiRuntimeBackend implements UniGuiBackend {
     private final CleanroomLayerRegistry<Object> hudLayers = new CleanroomLayerRegistry<>();
     private final CleanroomLayerRegistry<Object> overlayLayers = new CleanroomLayerRegistry<>();
     private final CleanroomPointer overlayPointer = new CleanroomPointer();
+    private final CleanroomMouseCursors cursors = new CleanroomMouseCursors();
+    private MouseCursor overlayCursor;
     private final CleanroomWheel overlayWheel = new CleanroomWheel();
 
     @Override
@@ -153,6 +156,8 @@ public final class CleanroomUiRuntimeBackend implements UniGuiBackend {
     }
 
     public void renderHud(int width, int height, int mouseX, int mouseY, float partialTick) {
+        // In the world with no screen open nothing else would take a resize or hand cursor back.
+        if (Minecraft.getMinecraft().currentScreen == null) cursors.reset();
         hudLayers.render(Minecraft.getMinecraft(), width, height, mouseX, mouseY, partialTick);
     }
 
@@ -166,6 +171,24 @@ public final class CleanroomUiRuntimeBackend implements UniGuiBackend {
             overlayWheel.markConsumed(wheel, System.nanoTime());
         }
         overlayLayers.render(screen, screen.width, screen.height, mouseX, mouseY, partialTick);
+        overlayCursor = overlayLayers.mouseCursor(screen, overlayPointer.x(), overlayPointer.y());
+        // A native screen merges its own cursor in applyNativeScreenCursor; other screens only have overlays.
+        if (!isNativeScreen(screen)) cursors.apply(overlayCursor);
+    }
+
+    /**
+     * Applies the cursor of a native UniGUI screen, unless an overlay layer above it wants another one.
+     *
+     * @param own cursor of the screen's widget tree, {@code null} if nothing is under the pointer
+     */
+    void applyNativeScreenCursor(MouseCursor own) {
+        cursors.apply(overlayCursor != null ? overlayCursor : own);
+    }
+
+    /** Restores the system arrow; used when a screen closes. */
+    void resetCursor() {
+        overlayCursor = null;
+        cursors.reset();
     }
 
     /**

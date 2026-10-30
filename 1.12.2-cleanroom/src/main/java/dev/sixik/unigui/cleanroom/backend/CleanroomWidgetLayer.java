@@ -8,6 +8,7 @@ import dev.sixik.unigui.api.backend.UniGuiBackend;
 import dev.sixik.unigui.api.input.ClipboardService;
 import dev.sixik.unigui.api.input.InputHandle;
 import dev.sixik.unigui.api.input.KeyModifiers;
+import dev.sixik.unigui.api.input.MouseCursor;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableRect;
@@ -136,6 +137,12 @@ final class CleanroomWidgetLayer implements CleanroomLayerRegistry.LayerRenderer
     public void mouseMoved(double mouseX, double mouseY) {
         float scale = effectiveScale();
         inputHandle.pointerMoved((float) mouseX / scale, (float) mouseY / scale, 0);
+    }
+
+    @Override
+    public MouseCursor mouseCursor(double mouseX, double mouseY) {
+        float scale = effectiveScale();
+        return CleanroomMouseCursors.resolve(root, context, (float) mouseX / scale, (float) mouseY / scale);
     }
 
     @Override

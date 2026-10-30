@@ -139,6 +139,9 @@ final class CleanroomWidgetScreen extends GuiScreen implements CleanroomRenderHo
         uiContext.debugCounters().recordFrameTotalMillis(lastFrameTotalMillis);
         uiContext.keyboard().endFrame();
         CleanroomClientBootstrap.backend().renderScreen(this, mouseX, mouseY, partialTicks);
+        // Resolved every frame, not only on movement: layout changes and drags move widgets under a still cursor.
+        CleanroomClientBootstrap.backend().applyNativeScreenCursor(
+                CleanroomMouseCursors.resolve(root, uiContext, pointer.x() / scale, pointer.y() / scale));
         frameIndex++;
     }
 
@@ -242,6 +245,7 @@ final class CleanroomWidgetScreen extends GuiScreen implements CleanroomRenderHo
     public void onGuiClosed() {
         if (closed) return;
         closed = true;
+        CleanroomClientBootstrap.backend().resetCursor();
         inputHandle.clear();
         root.dispose();
         closeAction.run();
