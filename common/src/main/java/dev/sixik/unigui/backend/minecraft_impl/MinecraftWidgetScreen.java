@@ -81,6 +81,7 @@ public class MinecraftWidgetScreen extends Screen {
     private boolean layoutInitialized;
     private Runnable closeCallback;
     private KeyboardInputHandler keyboardInputHandler;
+    private boolean pauseGame = true;
     private boolean layoutChangedThisFrame;
     private float lastLayoutWidth = -1.0f;
     private float lastLayoutHeight = -1.0f;
@@ -306,6 +307,17 @@ public class MinecraftWidgetScreen extends Screen {
     public MinecraftWidgetScreen keyboardInputHandler(KeyboardInputHandler handler) {
         this.keyboardInputHandler = handler;
         return this;
+    }
+
+    /** Sets whether the game pauses (single player) while this screen is open. */
+    public MinecraftWidgetScreen pauseGame(boolean value) {
+        this.pauseGame = value;
+        return this;
+    }
+
+    @Override
+    public boolean isPauseScreen() {
+        return pauseGame;
     }
 
     /** Forces the cached UI to be rebuilt on the next Minecraft frame. */

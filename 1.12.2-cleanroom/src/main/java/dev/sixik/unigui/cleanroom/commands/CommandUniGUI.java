@@ -1,5 +1,6 @@
 package dev.sixik.unigui.cleanroom.commands;
 
+import dev.sixik.unigui.cleanroom.demo.IntegrationLab;
 import dev.sixik.unigui.cleanroom.demo.PostEffectLab;
 import dev.sixik.unigui.cleanroom.demo.TextureLab;
 import dev.sixik.unigui.cleanroom.demo.unity.UnityInspectorScreen;
@@ -18,7 +19,7 @@ public class CommandUniGUI extends CommandBase implements ICommand {
 
     @Override
     public String getUsage(ICommandSender iCommandSender) {
-        return "/unigui [textures|posteffect]";
+        return "/unigui [textures|posteffect|lab <" + IntegrationLab.USAGE + ">]";
     }
 
     @Override
@@ -39,6 +40,11 @@ public class CommandUniGUI extends CommandBase implements ICommand {
         }
         if (strings.length > 0 && "posteffect".equalsIgnoreCase(strings[0])) {
             iCommandSender.sendMessage(new net.minecraft.util.text.TextComponentString(PostEffectLab.next()));
+            return;
+        }
+        if (strings.length > 1 && "lab".equalsIgnoreCase(strings[0])) {
+            iCommandSender.sendMessage(new net.minecraft.util.text.TextComponentString(
+                    IntegrationLab.run(strings[1].toLowerCase(java.util.Locale.ROOT))));
             return;
         }
         UnityInspectorScreen.open();

@@ -4,9 +4,10 @@
   "compatibilityLevel": "JAVA_8",
   "target": "@env(DEFAULT)",
   "client": [
-    "MixinGuiIngameUniGuiHud",
     "MixinGuiScreenUniGuiOverlay",
-    "MixinGuiContainerUniGuiOverlay"
+    "MixinGuiContainerUniGuiOverlay",
+    "MixinGuiUtilsTooltipOrder",
+    "MixinLoadingScreenRenderer"
   ],
   "mixins": [
     "MixinServerCommandManager$add_custom_commands"

@@ -5,7 +5,7 @@
 (`MinecraftGuiRenderBackend` и соседние ~9 000 строк). Текущая реализация — `cleanroom/backend/*`
 (~1 300 строк, immediate-mode GL11).
 
-Легенда: `[x]` сделано, `[ ]` не сделано, `[~]` сделано частично или с дефектами.
+Легенда: `[x]` сделано, `[ ]` не сделано, `[~]` сделано частично или с дефектами, `[-]` не делаем (нет данных в core или платформа не даёт).
 Приоритеты: **P0** блокирует остальное, **P1** нужно для паритета, **P2** качество и оптимизация, **P3** по желанию.
 
 ---
@@ -171,26 +171,25 @@
 
 ## Фаза 6 — Интеграция с рантаймом 1.12.2 `P1`
 
-- [ ] **6.1 HUD.** Сейчас хук на `GuiIngame` через миксин. Проверить: порядок относительно hotbar, чата и debug-экрана; отсутствие рендера при `hideGUI` (F1); кадры в паузе и в меню; `RenderGameOverlayEvent` как альтернатива миксину (проще для совместимости с другими модами).
-- [ ] **6.2 Screen overlay.** `UniScreenOverlayRender` для `GuiScreen` и `GuiContainer`; блокировка pointer'а (аналог `ScreenOverlayRender.PointerBlocker`); `isTextInputActive` — гасить hotkey'и инвентаря (E, цифры) при фокусе в `TextField`.
-- [ ] **6.3 Loading-screen слои** (`UniRenderTarget.LOADING_SCREEN`, сейчас `UnsupportedOperationException`). На 1.12.2 нет `LoadingOverlay`. Решить, что считается loading: `GuiDownloadTerrain`, `LoadingScreenRenderer` («Loading level», «Saving»), ресурс-релоад. Early-window FML вне зоны. Перенести `LoadingScreenContext`.
-- [ ] **6.4 Tooltip order.** Аналог `MixinGuiGraphicsTooltipOrder`: отложенный рендер ванильных тултипов поверх overlay (`DeferredMinecraftTooltips`).
-- [ ] **6.5 World UI surface** (`MinecraftWorldUiSurface`): панели в мире через `RenderWorldLastEvent` + projection / unproject, ввод по лучу.
-- [~] **6.6 Ввод.**
+- [x] **6.1 HUD.** **Найден дефект:** `GuiIngameForge.renderGameOverlay` переопределяет метод `GuiIngame` и не вызывает `super`, поэтому миксин на `GuiIngame.renderGameOverlay` под Forge/Cleanroom не срабатывал и HUD-слои не рисовались. Теперь `RenderGameOverlayEvent.Post` с `ElementType.ALL` (`CleanroomClientEvents.onHud`): это последнее, что стреляет `GuiIngameForge` (после хотбара, чата и списка игроков); при `hideGUI` (F1) не рисуется. Миксин `MixinGuiIngameUniGuiHud` удалён. **Не проверено в игре** (`/unigui lab hud`).
+- [x] **6.2 Screen overlay.** Рисование перенесено с миксина `GuiScreen.drawScreen` TAIL на `GuiScreenEvent.DrawScreenEvent.Post` (LOWEST): оно стреляет после всей цепочки `drawScreen` реального класса, а не из середины (например, `InventoryEffectRenderer` и креатив-вкладки рисуют уже после `GuiContainer.drawScreen`). Ввод: **найден второй дефект**: в 1.12.2 `GuiContainer` не переопределяет `handleMouseInput`, старый миксин на него молча не применялся (Mixin без `require` игнорирует пропавшую цель), а миксин `GuiScreen` пропускал контейнеры, то есть мышь оверлея на экранах-контейнерах не работала. Теперь один миксин `GuiScreen.handleMouseInput` для всех экранов; клавиатура через `GuiScreen.handleKeyboardInput` (нажатие, повтор и отпускание), потому что `GuiContainer.keyTyped` не вызывает `super` (там E и цифры хотбара). Все инъекции с `require = 1`. Блокировка pointer'а: `CleanroomUiRuntimeBackend.addPointerBlocker` (аналог `ScreenOverlayRender.PointerBlocker`) + миксин на `GuiContainer.isPointInRegion` (hover слота, тултип и клик по слоту). `isTextInputActive(screen)` есть; с фокусом в `TextInput`/`TextArea` слой съедает E и цифры, потому что `keyTyped` оверлея идёт раньше ванили. **Не проверено в игре** (`/unigui lab overlay`).
+- [x] **6.3 Loading-screen слои** (`UniRenderTarget.LOADING_SCREEN`). На 1.12.2 нет `LoadingOverlay`, поэтому «загрузка» это: `LoadingScreenRenderer` («Loading level» / «Saving level», миксин `MixinLoadingScreenRenderer`: слои рисуются прямо перед `updateDisplay`, после фона и полосы ванили) и экран `GuiDownloadTerrain` (через `DrawScreenEvent.Post`). Состояние в `CleanroomLoadingScreen.context()` (вид, заголовок, сообщение, прогресс 0..1 или -1). Ресурс-релоад после старта ничего не показывает; startup splash вне зоны. Ошибка в слое отключает их до конца сессии и логируется. **Не проверено в игре** (`/unigui lab loading`).
+- [x] **6.4 Tooltip order.** `MixinGuiUtilsTooltipOrder` перехватывает самую общую перегрузку `GuiUtils.drawHoveringText(ItemStack, ...)` (в неё сходятся `GuiScreen.drawHoveringText` и `renderToolTip`), `CleanroomTooltips` складывает вызовы в очередь между `DrawScreenEvent.Pre` и `Post` и проигрывает их после оверлея в исходном порядке. Включается только если у экрана есть видимый оверлей. Тултипы, которые мод рисует напрямую своим кодом без `GuiUtils`, остаются под оверлеем. **Не проверено в игре**.
+- [x] **6.5 World UI surface** (`MinecraftWorldUiSurface`): **пропущено.** В 1.20 это не проекция UI в мир, а offscreen-поверхность «UI -> texture» без ввода, и класс помечен `@Deprecated` («огромный пласт работы, пока заброшено»). Основа для порта (`CleanroomRenderTarget`, `render(drawList, target)`, пост-эффекты) уже есть, поэтому вернуться к этому можно за небольшой объём, если появится потребность.
+- [x] **6.6 Ввод.**
   - [x] движение мыши и колесо берутся каждый кадр, а не на тике 20 Гц (`CleanroomPointer`, `CleanroomWheel`); нажатия остаются на событиях;
   - [x] форма курсора ОС (`CleanroomMouseCursors`): `CursorResolver` из core -> `SDL_CreateSystemCursor`/`SDL_SetCursor` (Cleanroom работает на LWJGL 3.4 + SDL3, не GLFW; `lwjgly` стандартных форм не даёт). Сброс при закрытии экрана и в мире без экрана; **не проверено в игре**;
-  - key repeat (`Keyboard.enableRepeatEvents(true)` на время фокуса в текстовом поле);
-  - `mouseClickMove` / drag;
-  - double-click;
-  - горизонтальный scroll (если доступен);
-  - IME и composition;
-  - порядок `keyTyped` и `handleKeyboardInput` без двойной обработки.
-- [ ] **6.7 Паузы и закрытие.** `doesGuiPauseGame`, `onGuiClosed`, restoring grab курсора, `Esc` / `E` для `UniScreen`. Добавить в `UniScreen` настройку «pause game», если её нет.
-- [ ] **6.8 Debug-хоткеи** (`MinecraftDebugHotkeys`, `DebugOverlayRenderer`, inspector).
-- [ ] **6.9 Clipboard.** Сейчас `GuiScreen.getClipboardString()`. Вынести в `CleanroomClipboardService` (общая реализация для screen и layer, сейчас дублируется анонимным классом в двух местах).
-- [ ] **6.10 Resource reload и lifecycle.** Корректное закрытие всех экранов и слоёв при выходе из мира и закрытии клиента.
-- [ ] **6.11 `UiRenderPolicy`** (`CONTINUOUS`, `ON_DIRTY`, `FIXED_FPS`, `vsync`): сейчас игнорируется. Реализовать кэш последнего кадра в FBO (после 5.x).
-
+  - [x] key repeat: нативный экран включает `Keyboard.enableRepeatEvents(true)` в `initGui` и выключает в `onGuiClosed`; оверлей включает его, пока в слое фокус в текстовом поле, и возвращает как было (`CleanroomKeyRepeat`: не трогает повтор, который включил сам экран);
+  - [x] `mouseClickMove` / drag: отдельный вход не нужен, захваченный виджет получает `pointerMoved` из покадрового опроса `CleanroomPointer`;
+  - [x] порядок `keyTyped` и `handleKeyboardInput`: нажатие обрабатывается один раз (оверлей до экрана, отпускание в `handleKeyboardInput`), отладочные хоткеи не срабатывают на повторах (`DebugHotkeys` различает первое нажатие);
+  - [-] double-click: в core нет счётчика кликов в `PointerPressedEvent`, делать нечего на уровне backend'а;
+  - [-] горизонтальный scroll: LWJGL2-совместимый слой `lwjgly` даёт только вертикальное колесо;
+  - [-] IME и composition: недоступно через `lwjgly`.
+- [x] **6.7 Паузы и закрытие.** В `UniScreen` добавлено `pauseGame(boolean)` / `pauseGame()` (по умолчанию `true`, как у ванильных экранов; доки en/ru добавлены), нативный экран отдаёт его через `doesGuiPauseGame`; то же подключено в `common` (`MinecraftWidgetScreen.isPauseScreen`, 1.20.1 компилируется). `onGuiClosed` чистит hover/focus/клавиши/capture, возвращает курсор и повтор клавиш. `Esc` закрывает через `GuiScreen.keyTyped`, захват курсора мыши возвращает ваниль в `displayGuiScreen(null)`; `E` экран-не-контейнер не закрывает (как в ваниле). **Не проверено в игре** (`/unigui lab pause`, `/unigui lab nopause`).
+- [x] **6.8 Debug-хоткеи.** Слои теперь рисуют `DebugOverlayRenderer` и обрабатывают `DebugHotkeys`, если `UniRenderLayer.debugHotkeysEnabled()`; нативный экран делал это и раньше. Инспектор остаётся в демо `demo/unity`.
+- [x] **6.9 Clipboard.** `CleanroomClipboardService` (общий для экрана, слоя и backend'а), анонимные классы удалены.
+- [x] **6.10 Resource reload и lifecycle.** Вынос из мира закрывает текущий экран ванилью (`onGuiClosed` освобождает FBO, программы и кэш); слои принадлежат моду и переживают смену мира, их GL-объекты закрываются на клиентском потоке; перезагрузка ресурсов сбрасывает кэши текстур и шейдеров (фазы 3 и 5). Отдельных хуков не потребовалось.
+- [x] **6.11 `UiRenderPolicy`** (`CONTINUOUS`, `ON_DIRTY`, `FIXED_FPS`, `vsync`). `CleanroomRenderCache` рисует дерево в окно-размерную текстуру только когда решает `CleanroomRenderPolicies.decide` (порт решения из 1.20, покрыт тестами), в остальных кадрах рисует один textured quad; отладочный оверлей и пост-эффекты остаются живыми. Работает для `UniScreen` и `UniRenderLayer`. **Не проверено в игре** (`/unigui lab policy`).
 ---
 
 ## Фаза 7 — Minecraft-виджеты и интеграции `P2`

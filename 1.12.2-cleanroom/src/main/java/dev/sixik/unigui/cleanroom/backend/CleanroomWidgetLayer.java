@@ -5,7 +5,6 @@ import dev.sixik.unigui.api.core.FramePhase;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
 import dev.sixik.unigui.api.backend.UniGuiBackend;
-import dev.sixik.unigui.api.input.ClipboardService;
 import dev.sixik.unigui.api.input.InputHandle;
 import dev.sixik.unigui.api.input.KeyModifiers;
 import dev.sixik.unigui.api.input.MouseCursor;
@@ -15,13 +14,17 @@ import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.posteffect.UiPostEffectRenderer;
 import dev.sixik.unigui.api.render.DrawList;
 import dev.sixik.unigui.api.render.RenderBackend;
+import dev.sixik.unigui.api.render.UiRenderPolicy;
 import dev.sixik.unigui.api.screen.UniRenderLayer;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
+import dev.sixik.unigui.impl.debug.DebugHotkeys;
+import dev.sixik.unigui.impl.debug.DebugOverlayRenderer;
 import dev.sixik.unigui.impl.render.DefaultRenderContext;
 import dev.sixik.unigui.impl.widget.WidgetBase;
+import dev.sixik.unigui.widgets.interaction.TextArea;
+import dev.sixik.unigui.widgets.interaction.TextInput;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.renderer.GlStateManager;
 
 final class CleanroomWidgetLayer implements CleanroomLayerRegistry.LayerRenderer, CleanroomRenderHost {
@@ -32,6 +35,7 @@ final class CleanroomWidgetLayer implements CleanroomLayerRegistry.LayerRenderer
     private final DrawList drawList = new DrawList();
     private final DefaultRenderContext renderContext = new DefaultRenderContext(drawList);
     private final RenderBackend renderBackend;
+    private final CleanroomRenderCache renderCache;
     private UniGuiBackend.LayerHandle registration;
     private boolean layoutInitialized;
     private boolean closed;
@@ -45,19 +49,12 @@ final class CleanroomWidgetLayer implements CleanroomLayerRegistry.LayerRenderer
     CleanroomWidgetLayer(UniRenderLayer source) {
         this.source = source;
         this.root = source.root();
-        this.context = source.context() == null ? new DefaultUIContext(new ClipboardService() {
-            @Override
-            public String getText() {
-                return GuiScreen.getClipboardString();
-            }
-
-            @Override
-            public void setText(String text) {
-                GuiScreen.setClipboardString(text == null ? "" : text);
-            }
-        }) : source.context();
+        this.context = source.context() == null
+                ? new DefaultUIContext(new CleanroomClipboardService())
+                : source.context();
         this.inputHandle = new InputHandle(root, context);
         this.renderBackend = new CleanroomGuiRenderBackend(this);
+        this.renderCache = new CleanroomRenderCache(renderBackend);
         this.renderContext.backend(renderBackend);
         attachContext(root);
     }
@@ -101,9 +98,16 @@ final class CleanroomWidgetLayer implements CleanroomLayerRegistry.LayerRenderer
                 : Math.min(0.25f, (now - lastFrameNanos) / 1_000_000_000.0f);
         lastFrameNanos = now;
         root.tick(new FrameContext(frameIndex, delta, partialTick, FramePhase.ANIMATION));
-        updateLayout(logicalWidth, logicalHeight);
+        boolean layoutChanged = updateLayout(logicalWidth, logicalHeight);
         drawList.clear();
-        root.render(renderContext);
+        UiRenderPolicy policy = source.renderPolicy();
+        if (CleanroomRenderPolicies.usesCache(policy.mode())) {
+            renderCache.render(policy, root, renderContext, layoutChanged, logicalWidth, logicalHeight, now);
+        } else {
+            renderCache.close();
+            root.render(renderContext);
+        }
+        DebugOverlayRenderer.render(renderContext, context, logicalWidth, logicalHeight);
 
         GlStateManager.pushMatrix();
         GlStateManager.scale(scale, scale, 1.0f);
@@ -118,16 +122,18 @@ final class CleanroomWidgetLayer implements CleanroomLayerRegistry.LayerRenderer
         frameIndex++;
     }
 
-    private void updateLayout(float logicalWidth, float logicalHeight) {
+    /** @return {@code true} if layout ran */
+    private boolean updateLayout(float logicalWidth, float logicalHeight) {
         boolean sizeChanged = lastLayoutWidth != logicalWidth || lastLayoutHeight != logicalHeight;
         if (layoutInitialized && !sizeChanged
-                && !InvalidationFlags.has(root.subtreeInvalidationFlags(), InvalidationFlags.LAYOUT)) return;
+                && !InvalidationFlags.has(root.subtreeInvalidationFlags(), InvalidationFlags.LAYOUT)) return false;
         root.measure(new LayoutContext(logicalWidth, logicalHeight));
         root.arrange(new MutableRect(0.0f, 0.0f, logicalWidth, logicalHeight));
         clearLayoutInvalidation(root);
         lastLayoutWidth = logicalWidth;
         lastLayoutHeight = logicalHeight;
         layoutInitialized = true;
+        return true;
     }
 
     private static void clearLayoutInvalidation(Widget widget) {
@@ -145,6 +151,12 @@ final class CleanroomWidgetLayer implements CleanroomLayerRegistry.LayerRenderer
     public MouseCursor mouseCursor(double mouseX, double mouseY) {
         float scale = effectiveScale();
         return CleanroomMouseCursors.resolve(root, context, (float) mouseX / scale, (float) mouseY / scale);
+    }
+
+    @Override
+    public boolean textInputFocused() {
+        Widget focused = context.focusManager().focusedWidget();
+        return focused instanceof TextInput || focused instanceof TextArea;
     }
 
     @Override
@@ -171,6 +183,9 @@ final class CleanroomWidgetLayer implements CleanroomLayerRegistry.LayerRenderer
     @Override
     public boolean keyTyped(char character, int keyCode, int modifiers) {
         int coreKey = CleanroomKeyCodes.toCore(keyCode);
+        if (coreKey >= 0 && source.debugHotkeysEnabled() && DebugHotkeys.handle(context, coreKey, modifiers)) {
+            return true;
+        }
         return inputHandle.keyTyped(character, coreKey, 0, modifiers);
     }
 
@@ -184,6 +199,10 @@ final class CleanroomWidgetLayer implements CleanroomLayerRegistry.LayerRenderer
     public void close() {
         if (closed) return;
         closed = true;
+        Minecraft minecraft = Minecraft.getMinecraft();
+        // A layer may be closed from any thread, GL objects only from the client one.
+        if (minecraft.isCallingFromMinecraftThread()) renderCache.close();
+        else minecraft.addScheduledTask(renderCache::close);
         ((CleanroomGuiRenderBackend) renderBackend).close();
         inputHandle.clear();
         root.dispose();
@@ -193,6 +212,7 @@ final class CleanroomWidgetLayer implements CleanroomLayerRegistry.LayerRenderer
 
     void invalidate() {
         layoutInitialized = false;
+        renderCache.invalidate();
         root.invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
     }
 

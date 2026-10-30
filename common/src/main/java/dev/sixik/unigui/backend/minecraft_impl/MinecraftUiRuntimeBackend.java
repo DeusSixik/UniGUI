@@ -126,7 +126,8 @@ public final class MinecraftUiRuntimeBackend implements UniGuiBackend {
         MinecraftWidgetScreen nativeScreen = new MinecraftWidgetScreen(
                 Component.literal(screen.title()), screen.root(), context)
                 .renderPolicy(screen.renderPolicy())
-                .keyboardInputHandler(screen.keyboardInputHandler());
+                .keyboardInputHandler(screen.keyboardInputHandler())
+                .pauseGame(screen.pauseGame());
         nativeScreen.onRemoved(() -> {
             synchronized (openScreens) {
                 openScreens.remove(screen);

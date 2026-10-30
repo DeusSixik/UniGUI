@@ -50,6 +50,22 @@ final class CleanroomLayerRegistry<C> {
         return null;
     }
 
+    /** @return {@code true} if at least one layer is visible for the context */
+    boolean hasVisible(C context) {
+        for (Entry<?> entry : snapshot) {
+            if (entry.visible(context)) return true;
+        }
+        return false;
+    }
+
+    /** @return {@code true} if a visible layer has a text field in focus */
+    boolean textInputFocused(C context) {
+        for (Entry<?> entry : snapshot) {
+            if (entry.visible(context) && entry.renderer.textInputFocused()) return true;
+        }
+        return false;
+    }
+
     boolean mouseClicked(C context, double mouseX, double mouseY, int button) {
         Entry<?>[] current = snapshot;
         for (int i = current.length - 1; i >= 0; i--) {
@@ -117,6 +133,11 @@ final class CleanroomLayerRegistry<C> {
         /** @return cursor for a pointer over this layer, or {@code null} if no widget of the layer is under it */
         default MouseCursor mouseCursor(double mouseX, double mouseY) {
             return null;
+        }
+
+        /** @return {@code true} if a text field of this layer holds the keyboard focus */
+        default boolean textInputFocused() {
+            return false;
         }
 
         default boolean mouseClicked(double mouseX, double mouseY, int button) {
