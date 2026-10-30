@@ -3,6 +3,13 @@ package dev.sixik.unigui.widgets.data;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.event.Event;
 import dev.sixik.unigui.api.event.EventListener;
 import dev.sixik.unigui.api.event.EventPhase;
@@ -72,6 +79,43 @@ import java.util.function.IntFunction;
  * }</pre>
  */
 @XmlWidgetName("VirtualListView")
+@WikiPage(
+        title = "VirtualListView",
+        slug = "virtual-list-view",
+        category = "Data",
+        summary = "Виртуализированное представление больших наборов элементов в виде адаптивной сетки или списка.",
+        order = 10)
+@WikiSection(
+        title = "Когда использовать",
+        order = 10,
+        markdown = "Используй `VirtualListView`, когда набор содержит сотни или тысячи однотипных записей. "
+                + "Фабрика создаёт только видимые элементы и небольшой overscan; обычные формы лучше строить на `VBox`/`LinearBox`.")
+@WikiSection(
+        title = "Layout и StylePack",
+        order = 20,
+        markdown = "Viewport учитывает `layoutStyle().padding()`, `rowGap()` и `columnGap()`. "
+                + "Те же параметры можно задавать через `StyleKeys.VIRTUAL_LIST_*` в `StylePack`.")
+@WikiExample(
+        title = "Responsive grid",
+        order = 10,
+        code = """
+                VirtualListView view = new VirtualListView()
+                        .viewMode(VirtualListView.ViewMode.GRID)
+                        .gridCellWidth(120.0f)
+                        .gridCellHeight(144.0f)
+                        .itemCount(entries.size())
+                        .itemFactory(index -> createEntryCard(entries.get(index)));
+
+                view.layout(style -> style
+                        .padding(12.0f)
+                        .columnGap(8.0f)
+                        .rowGap(12.0f));
+                """)
+@AiDoc(
+        summary = "Виртуализирует большой набор виджетов с переключаемыми GRID и LIST режимами.",
+        useWhen = {"Список содержит много однотипных записей.", "Нужна смена grid/list без перестройки модели данных."},
+        constraints = "Передавайте число элементов через itemCount; itemFactory получает индекс элемента, не номер строки.",
+        related = {"VirtualTableView", "GridBox", "ScrollView"})
 public class VirtualListView extends WidgetBase {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.VIRTUAL_LIST_VIEW;
 
@@ -303,7 +347,22 @@ public class VirtualListView extends WidgetBase {
         return this;
     }
 
-    public VirtualListView itemFactory(IntFunction<? extends Widget> itemFactory) {
+    @AiDoc(
+            summary = "Создаёт виджет для указанного индекса данных.",
+            purpose = "Позволяет держать модель данных отдельно от временно реализованных UI-элементов.",
+            constraints = "В GRID режиме индекс означает элемент, а не строку сетки.")
+    @WikiMethod(
+            title = "Фабрика элементов",
+            summary = "Устанавливает фабрику, создающую UI-виджет по индексу элемента данных.",
+            order = 20)
+    @WikiReturn("этот VirtualListView для fluent-настройки")
+    @WikiExample(
+            title = "Подключение модели",
+            code = "view.itemFactory(index -> createCard(entries.get(index)));",
+            order = 10)
+    public VirtualListView itemFactory(
+            @WikiParameter(name = "itemFactory", description = "Функция index → Widget; null восстанавливает Label по умолчанию.")
+            IntFunction<? extends Widget> itemFactory) {
         this.itemFactory = itemFactory == null ? index -> new Label(String.valueOf(index)) : itemFactory;
         clearRealized();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);

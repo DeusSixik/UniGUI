@@ -12,11 +12,17 @@ sourceSets {
 
 dependencies {
     api project(':core')
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
     // We depend on Fabric Loader here to use the Fabric @Environment annotations,
     // which get remapped to the correct annotations on each platform.
     // Do NOT use other classes from Fabric Loader.
     modCompileOnly "net.fabricmc:fabric-loader:${versionProject.fabric_loader_version}"
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
 }
 
 tasks.register("layoutV3SelfTest", JavaExec) {
@@ -280,6 +286,34 @@ tasks.register("dumpXmlWidgetReference", JavaExec) {
     classpath = sourceSets.test.runtimeClasspath
     mainClass = "dev.sixik.unigui.tests.XmlWidgetReferenceDump"
     args rootProject.file("XML_WIDGET_REFERENCE.md").absolutePath
+}
+
+def wikiOutputDirectory = providers.gradleProperty("wikiOutputDir")
+        .map { file(it) }
+        .orElse(layout.buildDirectory.dir("generated/wiki").map { it.asFile })
+
+tasks.register("generateWiki", JavaExec) {
+    group = "documentation"
+    description = "Generates site-ready Markdown wiki pages from @WikiPage annotations."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.WikiMarkdownGenerator"
+    args wikiOutputDirectory.get().absolutePath
+    outputs.dir(wikiOutputDirectory)
+}
+
+def aiDocsOutputDirectory = providers.gradleProperty("aiDocsOutputDir")
+        .map { file(it) }
+        .orElse(layout.buildDirectory.dir("generated/ai-docs").map { it.asFile })
+
+tasks.register("generateAiDocs", JavaExec) {
+    group = "documentation"
+    description = "Generates a separate Markdown collection exclusively from @AiDoc annotations."
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.sixik.unigui.tests.AiMarkdownGenerator"
+    args aiDocsOutputDirectory.get().absolutePath
+    outputs.dir(aiDocsOutputDirectory)
 }
 
 tasks.named("test") {
