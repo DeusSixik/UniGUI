@@ -83,6 +83,39 @@ Input directories can also be replaced with `-PwikiLangDir=...` and
 The output directory is not cleaned by the generator. Point it at a build-owned or
 site-generated directory so removed annotations do not leave stale published pages.
 
+## Documentation Site (MkDocs)
+
+The project includes an automatic documentation website based on **Material for MkDocs**
+with bilingual support (English and Russian).
+
+### Local Preview
+
+1. Install Python dependencies:
+   ```powershell
+   pip install -r requirements-docs.txt
+   ```
+2. Generate Markdown files and start the local development server:
+   ```powershell
+   ./gradlew :1.20.1:common:generateWiki
+   python -m mkdocs serve
+   ```
+3. Open `http://127.0.0.1:8000/` in your browser. Live reloading is active as docs are generated.
+
+### Building Static Site
+
+```powershell
+python -m mkdocs build
+```
+Build output is generated into the `site/` directory.
+
+### GitHub Pages Deployment
+
+Deployment is automated via `.github/workflows/deploy-docs.yml`. On every push to
+`Main_other` or `main`, GitHub Actions automatically:
+1. Runs `./gradlew :1.20.1:common:generateWiki`
+2. Builds the website with MkDocs
+3. Publishes it directly to GitHub Pages.
+
 ## AI documentation
 
 `@AiDoc` is intentionally independent from wiki annotations. It never appears in website

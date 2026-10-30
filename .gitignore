@@ -138,3 +138,7 @@ profile-2916-2916___dev.architectury.transformer.Tran.jfr
 /net
 gradle.properties
 /ISF/logs
+
+# MkDocs
+site/
+.cache/
