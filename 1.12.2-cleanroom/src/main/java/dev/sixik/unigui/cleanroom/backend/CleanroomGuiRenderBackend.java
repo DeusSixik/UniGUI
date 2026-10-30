@@ -13,6 +13,7 @@ import dev.sixik.unigui.impl.render.SimpleDrawBatcher;
 import dev.sixik.unigui.impl.text.TextEngine;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;
+import org.lwjgl.opengl.GL11;
 
 import java.util.List;
 
@@ -32,6 +33,7 @@ final class CleanroomGuiRenderBackend implements RenderBackend {
 
     private final Minecraft minecraft = Minecraft.getMinecraft();
     private final CleanroomRenderHost screen;
+    private final Pass pass = new Pass();
     private final CleanroomGlState glState = new CleanroomGlState();
     private final DrawBatcher batcher = SimpleDrawBatcher.INSTANCE;
     private final ScissorStack scissorStack = new ScissorStack();
@@ -42,11 +44,12 @@ final class CleanroomGuiRenderBackend implements RenderBackend {
     private final CleanroomTextRenderer textRenderer;
     private final CleanroomShapeRenderer shapeRenderer;
     private FontFace defaultFont = MinecraftFonts.defaultFace();
+    private boolean frameActive;
 
     CleanroomGuiRenderBackend(CleanroomRenderHost screen) {
         this.screen = screen;
-        this.textRenderer = new CleanroomTextRenderer(screen);
-        this.shapeRenderer = new CleanroomShapeRenderer(screen);
+        this.textRenderer = new CleanroomTextRenderer(pass);
+        this.shapeRenderer = new CleanroomShapeRenderer(pass);
     }
 
     @Override
@@ -91,6 +94,7 @@ final class CleanroomGuiRenderBackend implements RenderBackend {
 
     @Override
     public void beginFrame(FrameContext frame) {
+        frameActive = true;
         CleanroomGlCapabilities.get();
         glState.capture();
         glState.applyUiDefaults();
@@ -98,8 +102,81 @@ final class CleanroomGuiRenderBackend implements RenderBackend {
     }
 
     @Override
+    public RenderTarget createRenderTarget(int width, int height, RenderTargetOptions options) {
+        return new CleanroomRenderTarget(width, height, options);
+    }
+
+    @Override
     public void render(DrawList drawList, RenderTarget target) {
-        if (drawList == null || drawList.size() == 0) return;
+        if (target == null) {
+            if (drawList == null || drawList.size() == 0) return;
+            renderBatches(drawList);
+            return;
+        }
+        if (!(target instanceof CleanroomRenderTarget own)) {
+            throw new IllegalArgumentException("Unsupported render target for the Cleanroom backend: "
+                    + target.getClass().getName());
+        }
+        // A window-sized target holds the same picture as the screen, so it keeps the screen's unit scale; any other
+        // target is addressed in its own pixels.
+        boolean windowSized = own.width() == screen.framebufferWidth();
+        renderToTarget(drawList, own, windowSized ? screen.pixelsPerUnitX() : 1.0f,
+                windowSized ? screen.pixelsPerUnitY() : 1.0f);
+    }
+
+    /**
+     * Draws a list into an offscreen target.
+     *
+     * <p>The target gets a top-left origin orthographic projection of {@code width / scaleX} by
+     * {@code height / scaleY} units and an identity modelview, so the list is laid out in units and the framebuffer
+     * holds {@code scale} pixels per unit. The previous framebuffer, viewport, matrices and depth state are restored.
+     * Clipping, anti-aliasing and glyph sizes use the target's pixel density through {@link Pass}.</p>
+     *
+     * @param drawList commands to draw; may be empty, the target is still cleared if its options ask for it
+     * @param target destination
+     * @param scaleX pixels per unit along x
+     * @param scaleY pixels per unit along y
+     */
+    void renderToTarget(DrawList drawList, CleanroomRenderTarget target, float scaleX, float scaleY) {
+        if (target.isDisposed()) throw new IllegalStateException("Cannot render into a disposed target");
+        float unitX = scaleX > 0.0f && Float.isFinite(scaleX) ? scaleX : 1.0f;
+        float unitY = scaleY > 0.0f && Float.isFinite(scaleY) ? scaleY : 1.0f;
+        CleanroomRenderTarget.Guard guard = CleanroomRenderTarget.Guard.capture();
+        // Widgets may render into a target while the draw list is still being built, before beginFrame: bring GL to
+        // the UI defaults for the pass and give the caller its state back.
+        boolean standalone = !frameActive;
+        if (standalone) {
+            glState.capture();
+            glState.applyUiDefaults();
+        }
+        scissorStack.clear();
+        CleanroomGlState.disableScissor();
+        pass.begin(target, unitX, unitY);
+        float depth = Math.max(1000.0f, Math.max(target.width(), target.height()));
+        GlStateManager.matrixMode(GL11.GL_PROJECTION);
+        GlStateManager.pushMatrix();
+        GlStateManager.loadIdentity();
+        GlStateManager.ortho(0.0, target.width() / unitX, target.height() / unitY, 0.0, -depth, depth);
+        GlStateManager.matrixMode(GL11.GL_MODELVIEW);
+        GlStateManager.pushMatrix();
+        GlStateManager.loadIdentity();
+        try {
+            target.bindWrite();
+            if (drawList != null && drawList.size() > 0) renderBatches(drawList);
+        } finally {
+            GlStateManager.popMatrix();
+            GlStateManager.matrixMode(GL11.GL_PROJECTION);
+            GlStateManager.popMatrix();
+            GlStateManager.matrixMode(GL11.GL_MODELVIEW);
+            scissorStack.clear();
+            CleanroomGlState.disableScissor();
+            pass.end();
+            if (standalone) glState.restore();
+            guard.restore();
+        }
+    }
+
+    private void renderBatches(DrawList drawList) {
         List<DrawBatch> batches = batcher.batch(drawList);
         for (int i = 0, size = batches.size(); i < size; i++) {
             renderBatch(batches.get(i));
@@ -112,7 +189,7 @@ final class CleanroomGuiRenderBackend implements RenderBackend {
      */
     private void renderBatch(DrawBatch batch) {
         if (!batch.isBarrier() && CleanroomSdfShapeInstances.supports(batch.type())
-                && CleanroomSdfShapeRenderer.shared().render(batch, screen.opacity())) {
+                && CleanroomSdfShapeRenderer.shared().render(batch, pass.opacity())) {
             return;
         }
         if (!batch.isBarrier()) {
@@ -163,6 +240,7 @@ final class CleanroomGuiRenderBackend implements RenderBackend {
 
     @Override
     public void endFrame() {
+        frameActive = false;
         scissorStack.clear();
         CleanroomGlState.disableScissor();
         CleanroomGlState.checkError("UniGUI frame");
@@ -198,11 +276,7 @@ final class CleanroomGuiRenderBackend implements RenderBackend {
     private void pushClip(DrawCommand command) {
         CleanroomRenderMath.transformedBounds(command.bounds(), command.transform(),
                 command.transformStackElements(), command.transformStackSize(), transformScratch, clipUi);
-        int displayWidth = minecraft.displayWidth;
-        int displayHeight = minecraft.displayHeight;
-        float scaleX = CleanroomRenderMath.windowScale(screen.uiScale(), displayWidth, screen.logicalWidth());
-        float scaleY = CleanroomRenderMath.windowScale(screen.uiScale(), displayHeight, screen.logicalHeight());
-        CleanroomRenderMath.scaleRect(clipUi, scaleX, scaleY, clipWindow);
+        CleanroomRenderMath.scaleRect(clipUi, pass.pixelsPerUnitX(), pass.pixelsPerUnitY(), clipWindow);
         applyScissor(scissorStack.push(clipWindow));
     }
 
@@ -215,7 +289,67 @@ final class CleanroomGuiRenderBackend implements RenderBackend {
             CleanroomGlState.disableScissor();
             return;
         }
-        CleanroomRenderMath.glScissor(rect, minecraft.displayWidth, minecraft.displayHeight, scissorBox);
+        CleanroomRenderMath.glScissor(rect, pass.framebufferWidth(), pass.framebufferHeight(), scissorBox);
         CleanroomGlState.scissor(scissorBox);
+    }
+
+    /**
+     * The surface of the pass in progress: the screen the backend belongs to, or a render target while one is being
+     * drawn. Renderers read their pixel density and framebuffer size from here, so they need no knowledge of targets.
+     */
+    private final class Pass implements CleanroomRenderHost {
+        private CleanroomRenderTarget target;
+        private float scaleX = 1.0f;
+        private float scaleY = 1.0f;
+
+        private void begin(CleanroomRenderTarget target, float scaleX, float scaleY) {
+            this.target = target;
+            this.scaleX = scaleX;
+            this.scaleY = scaleY;
+        }
+
+        private void end() {
+            target = null;
+        }
+
+        @Override
+        public int logicalWidth() {
+            return target == null ? screen.logicalWidth() : Math.max(1, Math.round(target.width() / scaleX));
+        }
+
+        @Override
+        public int logicalHeight() {
+            return target == null ? screen.logicalHeight() : Math.max(1, Math.round(target.height() / scaleY));
+        }
+
+        @Override
+        public float uiScale() {
+            return target == null ? screen.uiScale() : 1.0f;
+        }
+
+        @Override
+        public float opacity() {
+            return screen.opacity();
+        }
+
+        @Override
+        public int framebufferWidth() {
+            return target == null ? screen.framebufferWidth() : target.width();
+        }
+
+        @Override
+        public int framebufferHeight() {
+            return target == null ? screen.framebufferHeight() : target.height();
+        }
+
+        @Override
+        public float pixelsPerUnitX() {
+            return target == null ? screen.pixelsPerUnitX() : scaleX;
+        }
+
+        @Override
+        public float pixelsPerUnitY() {
+            return target == null ? screen.pixelsPerUnitY() : scaleY;
+        }
     }
 }

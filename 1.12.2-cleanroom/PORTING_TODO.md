@@ -158,10 +158,10 @@
 
 Зависит от A2.
 
-- [ ] **5.1 `CleanroomRenderTarget`.** Обёртка над `net.minecraft.client.shader.Framebuffer`: `RenderTarget.width/height/colorTexture()`, `ManagedRenderTarget.resize/isDisposed/close`. Depth по `RenderTargetOptions.useDepth`, clear по `clearBeforeRender`.
-- [ ] **5.2 `createRenderTarget` + `RenderTargetCache`** (core). Ресайз при смене размера окна.
-- [ ] **5.3 `render(drawList, target)`.** Привязка FBO, проекция под размеры target'а, сохранение и восстановление viewport и ortho-матрицы (образец: `applyRenderTargetProjection`).
-- [ ] **5.4 Текстурный handle для target'а.** `colorTexture()` должен биндиться обычным путём из фазы 3.
+- [x] **5.1 `CleanroomRenderTarget`** (обёртка над `Framebuffer`; create/resize/close завёрнуты в `Guard`, который возвращает привязанный FBO, viewport и depth, потому что ванильные методы биндят FBO 0 и включают depth). **Не проверено в игре**. Исходная формулировка: Обёртка над `net.minecraft.client.shader.Framebuffer`: `RenderTarget.width/height/colorTexture()`, `ManagedRenderTarget.resize/isDisposed/close`. Depth по `RenderTargetOptions.useDepth`, clear по `clearBeforeRender`.
+- [x] **5.2 `createRenderTarget` + `RenderTargetCache`** (`createRenderTarget` в бэкенде; ресайз делает `RenderTargetCache` пересозданием). Исходная формулировка: (core). Ресайз при смене размера окна.
+- [x] **5.3 `render(drawList, target)`** (ortho top-left `w/scale x h/scale`, identity modelview, `Pass` подставляет рендерерам плотность пикселей и размер FBO: scissor, AA-кайма, размер глифов считаются по target; вне кадра GL приводится к UI-defaults и возвращается). **Не проверено в игре**. Исходная формулировка: Привязка FBO, проекция под размеры target'а, сохранение и восстановление viewport и ortho-матрицы (образец: `applyRenderTargetProjection`).
+- [x] **5.4 Текстурный handle для target'а** (`ColorTextureHandle`: GL-имя биндится напрямую, V переворачивается, источник premultiplied; `TextureLab` рисует offscreen-сцену). Исходная формулировка: `colorTexture()` должен биндиться обычным путём из фазы 3.
 - [ ] **5.5 `CleanroomShaderProvider` + `ShaderHandle`.** Компиляция через `OpenGlHelper`/`ARBShaderObjects`/GL20, кэш uniform location (`MinecraftUniformLocationCache`), `ShaderUniforms`, `ShaderDrawOptions`, текстурные слоты `shaderTextures` (A2).
 - [ ] **5.6 Команда `SHADER`** (quad с шейдером) + загрузка из ресурсов (`ShaderResourcePaths`, `ClasspathShaderProvider`).
 - [ ] **5.7 `UiPostEffectBackend`.** `supportsPostEffects`, `renderWithPostEffect` (ping-pong FBO, bloom, blur). Проверка на `TestMod/SolarNavigationPostEffects`, `PostProcessingLayerTestScreen`, `retro_terminal*.fsh`.

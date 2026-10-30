@@ -7,6 +7,7 @@ import dev.sixik.unigui.api.render.TextureOptions;
 import dev.sixik.unigui.impl.render.DrawBatch;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BufferBuilder;
+import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.texture.ITextureObject;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
@@ -66,6 +67,7 @@ final class CleanroomShapeRenderer {
     void renderTextured(DrawBatch batch) {
         vertices.clear();
         tessellator.begin(vertices, pixelsPerUnit());
+        tessellator.flipV(flipsV(batch.texture()));
         Object[] commands = batch.commandElements();
         for (int i = 0, size = batch.size(); i < size; i++) {
             tessellator.append((DrawCommand) commands[i], host.opacity());
@@ -81,12 +83,19 @@ final class CleanroomShapeRenderer {
     void renderTexturedCommand(DrawCommand command) {
         vertices.clear();
         tessellator.begin(vertices, pixelsPerUnit());
+        tessellator.flipV(flipsV(command.texture()));
         tessellator.append(command, host.opacity());
         draw(command.paint().blendMode(), command.texture());
     }
 
+    /** Render target colors are stored bottom row first and must be drawn with V flipped. */
+    private static boolean flipsV(TextureHandle texture) {
+        return texture != null && texture.nativeHandle() instanceof CleanroomRenderTarget.ColorTextureHandle target
+                && target.flipY();
+    }
+
     private float pixelsPerUnit() {
-        return CleanroomRenderMath.windowScale(host.uiScale(), minecraft.displayWidth, host.logicalWidth());
+        return host.pixelsPerUnitX();
     }
 
     private void draw(BlendMode blend, TextureHandle texture) {
@@ -95,9 +104,15 @@ final class CleanroomShapeRenderer {
         boolean textured = texture != null;
         CleanroomGlState.blend(blend, textured && texture.options().premultipliedAlpha());
         if (textured) {
-            ResourceLocation location = CleanroomTextures.location(texture);
-            minecraft.getTextureManager().bindTexture(location);
-            prepareBoundTexture(location, texture.options());
+            if (texture.nativeHandle() instanceof CleanroomRenderTarget.ColorTextureHandle target) {
+                if (target.isDisposed()) return;
+                GlStateManager.bindTexture(target.textureId());
+                sampler.apply(texture.options());
+            } else {
+                ResourceLocation location = CleanroomTextures.location(texture);
+                minecraft.getTextureManager().bindTexture(location);
+                prepareBoundTexture(location, texture.options());
+            }
             CleanroomGlState.textured();
         } else {
             CleanroomGlState.flat();

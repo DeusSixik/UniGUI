@@ -1,6 +1,17 @@
 package dev.sixik.unigui.cleanroom.demo;
 
+import dev.sixik.unigui.api.core.FrameContext;
+import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.layout.Alignment;
+import dev.sixik.unigui.api.layout.LayoutContext;
+import dev.sixik.unigui.api.render.DrawList;
+import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.render.RenderTargetOptions;
+import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.impl.render.DefaultRenderContext;
+import dev.sixik.unigui.impl.render.WidgetTextureRenderer;
+import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.TextureFilter;
@@ -82,10 +93,56 @@ public final class TextureLab {
         bottom.addChild(tile(new TextureWidget(noise), "mipmaps: 64 px noise, smooth"));
         bottom.addChild(tile(new TextureWidget(((CleanroomTextureHandle) noise).withOptions(TextureOptions.nearest())),
                 "nearest: same noise, grainy"));
+        bottom.addChild(tile(new TargetTile(), "render target: drawn offscreen each frame"));
         content.addChild(bottom);
 
         root.addChild(content);
         return root;
+    }
+
+    /**
+     * Draws a small scene into an offscreen render target every frame and shows it as an image. Expected: a blue
+     * rounded square with an orange disc, a white diagonal, a rotating line and the text "FBO", sharp and upright.
+     */
+    private static final class TargetTile extends WidgetBase {
+        private static final int SIZE = 128;
+        private final DrawList sceneList = new DrawList();
+        private WidgetTextureRenderer renderer;
+        private float phase;
+
+        @Override
+        public void measure(LayoutContext context) {
+            setDesiredSize(resolveDesiredSize(context, TILE, TILE));
+        }
+
+        @Override
+        public void tick(FrameContext frame) {
+            super.tick(frame);
+            phase += frame == null ? 1.0f / 60.0f : Math.max(0.0f, frame.deltaSeconds());
+            invalidate(InvalidationFlags.VISUAL);
+        }
+
+        @Override
+        public void render(RenderContext context) {
+            if (visibility() != Visibility.VISIBLE || context == null || context.backend() == null) return;
+            if (renderer == null) renderer = new WidgetTextureRenderer(context.backend());
+
+            sceneList.clear();
+            DefaultRenderContext scene = new DefaultRenderContext(sceneList).backend(context.backend());
+            scene.roundedRect(0.0f, 0.0f, SIZE, SIZE, 20.0f, Paint.fill(MutableColor.rgba(0.15f, 0.35f, 0.85f, 1.0f)));
+            scene.circle(14.0f, 14.0f, 56.0f, 56.0f, Paint.fill(MutableColor.rgba(1.0f, 0.6f, 0.15f, 1.0f)));
+            scene.line(0.0f, 0.0f, SIZE, SIZE, Paint.stroke(MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f), 2.0f));
+            float cx = SIZE * 0.5f;
+            float cy = SIZE * 0.5f;
+            scene.line(cx, cy, cx + (float) Math.cos(phase * 2.0f) * 50.0f, cy + (float) Math.sin(phase * 2.0f) * 50.0f,
+                    Paint.stroke(MutableColor.rgba(0.2f, 1.0f, 0.4f, 1.0f), 3.0f));
+            scene.text("FBO", 40.0f, 100.0f, 60.0f, 14.0f, Paint.fill(MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f)));
+
+            var texture = renderer.renderDrawListToTexture(sceneList, SIZE, SIZE, RenderTargetOptions.COLOR);
+            var bounds = layoutBounds();
+            context.texture(texture, bounds.x(), bounds.y(), bounds.width(), bounds.height(),
+                    Paint.fill(MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f)));
+        }
     }
 
     private static HBox row() {
@@ -94,7 +151,7 @@ public final class TextureLab {
         return row;
     }
 
-    private static Widget tile(TextureWidget image, String text) {
+    private static Widget tile(WidgetBase image, String text) {
         image.layout(style -> style.size(TILE, TILE).flexGrow(0.0f).flexShrink(0.0f));
         VBox tile = new VBox();
         tile.spacing(4.0f);

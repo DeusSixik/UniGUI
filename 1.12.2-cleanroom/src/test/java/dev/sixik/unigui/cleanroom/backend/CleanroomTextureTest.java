@@ -227,6 +227,30 @@ class CleanroomTextureTest {
     }
 
     @Test
+    void flipV_mirrorsTheImageVertically() {
+        out.clear();
+        tessellator.begin(out, 1.0f);
+        tessellator.flipV(true);
+        tessellator.append(image(10, 20, 40, 8), 1.0f);
+        for (int i = 0; i < out.size(); i++) {
+            if (Math.abs(out.y(i) - 20) < EPS) assertEquals(0.75f, out.v(i), EPS, "top edge samples the UV bottom");
+            if (Math.abs(out.y(i) - 28) < EPS) assertEquals(0.5f, out.v(i), EPS, "bottom edge samples the UV top");
+        }
+    }
+
+    @Test
+    void begin_resetsTheFlip() {
+        out.clear();
+        tessellator.begin(out, 1.0f);
+        tessellator.flipV(true);
+        tessellator.begin(out, 1.0f);
+        tessellator.append(image(0, 0, 8, 8), 1.0f);
+        for (int i = 0; i < out.size(); i++) {
+            if (Math.abs(out.y(i)) < EPS) assertEquals(0.5f, out.v(i), EPS);
+        }
+    }
+
+    @Test
     void roundedImage_cornersAreCutOff() {
         append(image(0, 0, 40, 40).radius(10.0f));
         for (int i = 0; i < out.size(); i++) {

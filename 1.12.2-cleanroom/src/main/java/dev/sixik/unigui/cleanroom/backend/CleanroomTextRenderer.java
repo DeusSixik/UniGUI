@@ -94,8 +94,8 @@ final class CleanroomTextRenderer implements CleanroomTextLayout.Sink {
         current = command;
         if (sdfActive) sdf.beginCommand(affine, command.paint().color(), command.brushBounds(), host.opacity());
 
-        float scaleX = CleanroomRenderMath.windowScale(host.uiScale(), minecraft.displayWidth, host.logicalWidth());
-        float scaleY = CleanroomRenderMath.windowScale(host.uiScale(), minecraft.displayHeight, host.logicalHeight());
+        float scaleX = host.pixelsPerUnitX();
+        float scaleY = host.pixelsPerUnitY();
         layout.layout(command, text, defaultFace, MinecraftFonts.defaultFace(),
                 sdfActive ? sdf.atlas() : null, affine, scaleX, scaleY, this);
     }
