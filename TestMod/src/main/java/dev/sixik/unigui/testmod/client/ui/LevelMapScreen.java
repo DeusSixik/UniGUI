@@ -14,7 +14,7 @@ import dev.sixik.unigui.backend.minecraft_impl.MinecraftClipboardService;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftWidgetScreen;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.testmod.client.ui.map.StationMapConnection;
-import dev.sixik.unigui.testmod.client.ui.map.StationMapData;
+import dev.sixik.unigui.demo.ui.map.StationMapData;
 import dev.sixik.unigui.testmod.client.ui.map.StationMapPiece;
 import dev.sixik.unigui.testmod.client.ui.map.StationMapSnapshot;
 import dev.sixik.unigui.widgets.containers.Box;

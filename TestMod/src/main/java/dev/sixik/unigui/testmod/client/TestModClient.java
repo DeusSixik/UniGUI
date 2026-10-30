@@ -1,25 +1,26 @@
 package dev.sixik.unigui.testmod.client;
 
-import dev.sixik.unigui.testmod.client.ui.DominionScreen;
-import dev.sixik.unigui.testmod.client.ui.DockingWindowsDemoScreen;
-import dev.sixik.unigui.testmod.client.ui.MarkerCullingDemoScreen;
-import dev.sixik.unigui.testmod.client.ui.MarkerScalingDemoScreen;
-import dev.sixik.unigui.testmod.client.ui.ForkInSocketMinigameScreen;
+import dev.sixik.unigui.demo.ui.DominionScreen;
+import dev.sixik.unigui.demo.ui.DockingWindowsDemoScreen;
+import dev.sixik.unigui.demo.ui.MarkerCullingDemoScreen;
+import dev.sixik.unigui.demo.ui.MarkerScalingDemoScreen;
+import dev.sixik.unigui.demo.ui.ForkInSocketMinigameScreen;
 import dev.sixik.unigui.testmod.client.ui.LevelMapScreen;
 import dev.sixik.unigui.testmod.client.ui.LoadingScreenDemo;
-import dev.sixik.unigui.testmod.client.ui.OverlayRenderDemo;
-import dev.sixik.unigui.testmod.client.ui.PlugSocketMinigameScreen;
-import dev.sixik.unigui.testmod.client.ui.PostProcessingLayerTestScreen;
-import dev.sixik.unigui.testmod.client.ui.RetroTerminalScreen;
-import dev.sixik.unigui.testmod.client.ui.RibbonRoadsDemoScreen;
+import dev.sixik.unigui.demo.ui.OverlayRenderDemo;
+import dev.sixik.unigui.demo.ui.PlugSocketMinigameScreen;
+import dev.sixik.unigui.demo.ui.PostProcessingLayerTestScreen;
+import dev.sixik.unigui.demo.ui.RetroTerminalScreen;
+import dev.sixik.unigui.demo.ui.RibbonRoadsDemoScreen;
 import dev.sixik.unigui.testmod.client.ui.SolarNavigationScreen;
-import dev.sixik.unigui.testmod.client.ui.SpannerRhythmMinigameScreen;
-import dev.sixik.unigui.testmod.client.ui.SyncBatteryMinigameScreen;
-import dev.sixik.unigui.testmod.client.ui.TutorialScreen;
-import dev.sixik.unigui.testmod.client.ui.unity.UnityInspectorScreen;
-import dev.sixik.unigui.testmod.client.ui.WrenchNutMinigameScreen;
-import dev.sixik.unigui.testmod.client.ui.WireConnectionMinigameScreen;
-import dev.sixik.unigui.testmod.client.ui_tests.TestWidgetsScreen;
+import dev.sixik.unigui.demo.ui.SpannerRhythmMinigameScreen;
+import dev.sixik.unigui.demo.ui.SyncBatteryMinigameScreen;
+import dev.sixik.unigui.demo.ui.TutorialScreen;
+import dev.sixik.unigui.demo.ui.unity.UnityInspectorScreen;
+import dev.sixik.unigui.demo.ui.WrenchNutMinigameScreen;
+import dev.sixik.unigui.demo.ui.WireConnectionMinigameScreen;
+import dev.sixik.unigui.demo.ui_tests.TestWidgetsScreen;
+import dev.sixik.unigui.demo.ui.DemoAssets;
 import net.fabricmc.api.ClientModInitializer;
 
 /**
@@ -28,6 +29,7 @@ import net.fabricmc.api.ClientModInitializer;
 public final class TestModClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
+        DemoAssets.provider(MinecraftDemoAssets::load);
 //        LoadingScreenDemo.register();
 //        OverlayRenderDemo.register();
     }
@@ -96,7 +98,7 @@ public final class TestModClient implements ClientModInitializer {
     }
 
     public static void openTutorial() {
-        TutorialScreen.open();
+        TutorialScreen.createScreen(LevelMapScreen::open).openGui();
     }
 
     public static void openUnityInspector() {
