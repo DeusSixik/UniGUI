@@ -24,6 +24,7 @@ public final class FastEventBus {
 
     /**
      * Класс-маркер для события. Заменяет {@code Class<?>} и служит ключом.
+     *
      * @param <T> Тип данных события
      */
     public static class EventType<T> {

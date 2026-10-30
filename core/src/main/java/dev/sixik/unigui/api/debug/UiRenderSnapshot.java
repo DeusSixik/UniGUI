@@ -85,35 +85,117 @@ public final class UiRenderSnapshot {
         this.maxBatchSize = Math.max(0, maxBatchSize);
     }
 
-    public int commandCount(DrawCommandType type) { return value(commandCounts, type); }
-    public int batchCount(DrawCommandType type) { return value(batchCounts, type); }
-    public int batchCommandTotal(DrawCommandType type) { return value(batchCommandTotals, type); }
-    public int estimatedDrawCalls(DrawCommandType type) { return value(estimatedDrawCalls, type); }
-    public int estimatedVertices(DrawCommandType type) { return value(estimatedVertices, type); }
-    public int estimatedIndices(DrawCommandType type) { return value(estimatedIndices, type); }
-    public int textGlyphs() { return textGlyphs; }
-    public int textCommands() { return textCommands; }
-    public int textureCommands() { return textureCommands; }
-    public int textureSwitches() { return textureSwitches; }
-    public int shaderUniforms() { return shaderUniforms; }
-    public int shaderTextures() { return shaderTextures; }
-    public long sdfPasses() { return sdfPasses; }
-    public long sdfCommands() { return sdfCommands; }
-    public long sdfDrawCalls() { return sdfDrawCalls; }
-    public long sdfUniformUploads() { return sdfUniformUploads; }
-    public long sdfFlushes() { return sdfFlushes; }
-    public float sdfMillis() { return sdfNanos / 1_000_000.0f; }
-    public int meshVertices() { return meshVertices; }
-    public int pathElements() { return pathElements; }
-    public int transformCommands() { return transformCommands; }
-    public int clipCommands() { return clipCommands; }
-    public int barrierBatches() { return barrierBatches; }
-    public int singletonBatches() { return singletonBatches; }
-    public int maxBatchSize() { return maxBatchSize; }
+    public int commandCount(DrawCommandType type) {
+        return value(commandCounts, type);
+    }
 
-    public int totalEstimatedDrawCalls() { return sum(estimatedDrawCalls); }
-    public int totalEstimatedVertices() { return sum(estimatedVertices); }
-    public int totalEstimatedIndices() { return sum(estimatedIndices); }
+    public int batchCount(DrawCommandType type) {
+        return value(batchCounts, type);
+    }
+
+    public int batchCommandTotal(DrawCommandType type) {
+        return value(batchCommandTotals, type);
+    }
+
+    public int estimatedDrawCalls(DrawCommandType type) {
+        return value(estimatedDrawCalls, type);
+    }
+
+    public int estimatedVertices(DrawCommandType type) {
+        return value(estimatedVertices, type);
+    }
+
+    public int estimatedIndices(DrawCommandType type) {
+        return value(estimatedIndices, type);
+    }
+
+    public int textGlyphs() {
+        return textGlyphs;
+    }
+
+    public int textCommands() {
+        return textCommands;
+    }
+
+    public int textureCommands() {
+        return textureCommands;
+    }
+
+    public int textureSwitches() {
+        return textureSwitches;
+    }
+
+    public int shaderUniforms() {
+        return shaderUniforms;
+    }
+
+    public int shaderTextures() {
+        return shaderTextures;
+    }
+
+    public long sdfPasses() {
+        return sdfPasses;
+    }
+
+    public long sdfCommands() {
+        return sdfCommands;
+    }
+
+    public long sdfDrawCalls() {
+        return sdfDrawCalls;
+    }
+
+    public long sdfUniformUploads() {
+        return sdfUniformUploads;
+    }
+
+    public long sdfFlushes() {
+        return sdfFlushes;
+    }
+
+    public float sdfMillis() {
+        return sdfNanos / 1_000_000.0f;
+    }
+
+    public int meshVertices() {
+        return meshVertices;
+    }
+
+    public int pathElements() {
+        return pathElements;
+    }
+
+    public int transformCommands() {
+        return transformCommands;
+    }
+
+    public int clipCommands() {
+        return clipCommands;
+    }
+
+    public int barrierBatches() {
+        return barrierBatches;
+    }
+
+    public int singletonBatches() {
+        return singletonBatches;
+    }
+
+    public int maxBatchSize() {
+        return maxBatchSize;
+    }
+
+    public int totalEstimatedDrawCalls() {
+        return sum(estimatedDrawCalls);
+    }
+
+    public int totalEstimatedVertices() {
+        return sum(estimatedVertices);
+    }
+
+    public int totalEstimatedIndices() {
+        return sum(estimatedIndices);
+    }
 
     private static int[] copy(int[] values) {
         return values == null ? new int[DrawCommandType.values().length] : Arrays.copyOf(values, values.length);
