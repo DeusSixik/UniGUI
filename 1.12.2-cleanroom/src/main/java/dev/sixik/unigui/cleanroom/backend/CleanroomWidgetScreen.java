@@ -246,6 +246,7 @@ final class CleanroomWidgetScreen extends GuiScreen implements CleanroomRenderHo
         if (closed) return;
         closed = true;
         CleanroomClientBootstrap.backend().resetCursor();
+        ((CleanroomGuiRenderBackend) renderBackend).close();
         inputHandle.clear();
         root.dispose();
         closeAction.run();

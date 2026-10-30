@@ -134,6 +134,24 @@ final class CleanroomShaderProgram implements AutoCloseable {
     }
 
     /**
+     * Uploads a {@code vec3} uniform; silently ignored if the uniform does not exist.
+     */
+    void set(String name, float x, float y, float z) {
+        int location = uniform(name);
+        if (location >= 0) GL20.glUniform3f(location, x, y, z);
+    }
+
+    /**
+     * Uploads a column-major {@code mat4} uniform; silently ignored if the uniform does not exist.
+     *
+     * @param values buffer with 16 floats at its position
+     */
+    void setMatrix(String name, java.nio.FloatBuffer values) {
+        int location = uniform(name);
+        if (location >= 0) GL20.glUniformMatrix4fv(location, false, values);
+    }
+
+    /**
      * Uploads a {@code vec4} uniform; silently ignored if the uniform does not exist.
      */
     void set(String name, float x, float y, float z, float w) {

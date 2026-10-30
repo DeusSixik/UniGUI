@@ -12,6 +12,7 @@ import dev.sixik.unigui.api.input.MouseCursor;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableRect;
+import dev.sixik.unigui.api.posteffect.UiPostEffectRenderer;
 import dev.sixik.unigui.api.render.DrawList;
 import dev.sixik.unigui.api.render.RenderBackend;
 import dev.sixik.unigui.api.screen.UniRenderLayer;
@@ -108,7 +109,8 @@ final class CleanroomWidgetLayer implements CleanroomLayerRegistry.LayerRenderer
         GlStateManager.scale(scale, scale, 1.0f);
         try {
             renderBackend.beginFrame(new FrameContext(frameIndex, 0.0f, partialTick, FramePhase.RENDER));
-            renderBackend.render(drawList, null);
+            UiPostEffectRenderer.render(renderBackend, drawList,
+                    ((CleanroomGuiRenderBackend) renderBackend).postEffectBounds(), source.postEffect());
         } finally {
             renderBackend.endFrame();
             GlStateManager.popMatrix();
@@ -182,6 +184,7 @@ final class CleanroomWidgetLayer implements CleanroomLayerRegistry.LayerRenderer
     public void close() {
         if (closed) return;
         closed = true;
+        ((CleanroomGuiRenderBackend) renderBackend).close();
         inputHandle.clear();
         root.dispose();
         if (registration != null && !registration.closed()) registration.close();

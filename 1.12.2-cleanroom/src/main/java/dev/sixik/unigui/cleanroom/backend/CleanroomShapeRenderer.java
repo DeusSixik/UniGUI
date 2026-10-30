@@ -102,6 +102,7 @@ final class CleanroomShapeRenderer {
         int count = vertices.size();
         if (count == 0) return;
         boolean textured = texture != null;
+        int samplerDepth = sampler.depth();
         CleanroomGlState.blend(blend, textured && texture.options().premultipliedAlpha());
         if (textured) {
             if (texture.nativeHandle() instanceof CleanroomRenderTarget.ColorTextureHandle target) {
@@ -133,7 +134,7 @@ final class CleanroomShapeRenderer {
             }
         }
         vanilla.draw();
-        if (textured) sampler.restore();
+        sampler.restoreTo(samplerDepth);
     }
 
     /** Generates missing mipmaps for the texture just bound and applies its sampling options. */

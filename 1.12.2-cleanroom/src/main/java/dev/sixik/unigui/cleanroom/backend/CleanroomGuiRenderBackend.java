@@ -1,6 +1,16 @@
 package dev.sixik.unigui.cleanroom.backend;
 
 import dev.sixik.unigui.api.core.FrameContext;
+import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.posteffect.UiLayerBounds;
+import dev.sixik.unigui.api.posteffect.UiPostEffectBackend;
+import dev.sixik.unigui.api.posteffect.UiPostEffectBlendMode;
+import dev.sixik.unigui.api.posteffect.UiPostEffectChain;
+import dev.sixik.unigui.api.posteffect.UiPostEffectPass;
+import dev.sixik.unigui.api.posteffect.UiPostEffectRegistry;
+import dev.sixik.unigui.api.posteffect.UiPostEffects;
+import dev.sixik.unigui.api.render.shaders.ShaderDrawOptions;
+import dev.sixik.unigui.impl.render.RenderTargetCache;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.render.*;
 import dev.sixik.unigui.api.text.FontFace;
@@ -12,6 +22,9 @@ import dev.sixik.unigui.impl.render.ScissorStack;
 import dev.sixik.unigui.impl.render.SimpleDrawBatcher;
 import dev.sixik.unigui.impl.text.TextEngine;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.OpenGlHelper;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import net.minecraft.client.renderer.GlStateManager;
 import org.lwjgl.opengl.GL11;
 
@@ -25,7 +38,13 @@ import java.util.List;
  * (see {@link CleanroomGlState}). Clip commands are kept on a {@link ScissorStack}, so nested clips intersect
  * and {@code POP_CLIP} restores the parent clip instead of disabling the scissor test.</p>
  */
-final class CleanroomGuiRenderBackend implements RenderBackend {
+final class CleanroomGuiRenderBackend implements RenderBackend, UiPostEffectBackend, AutoCloseable {
+    private static final Logger LOGGER = LogManager.getLogger("unigui");
+    private static final RenderTargetOptions POST_EFFECT_LAYER_TARGET =
+            new RenderTargetOptions(false, true, "post_effect_layer");
+    private static final RenderTargetOptions POST_EFFECT_PING_TARGET =
+            new RenderTargetOptions(false, true, "post_effect_ping");
+
     /**
      * Vanilla {@code FontRenderer} treats an alpha below 4 as "no alpha given" and draws opaque text.
      */
@@ -43,6 +62,13 @@ final class CleanroomGuiRenderBackend implements RenderBackend {
     private final int[] scissorBox = new int[4];
     private final CleanroomTextRenderer textRenderer;
     private final CleanroomShapeRenderer shapeRenderer;
+    private final CleanroomShaderQuadRenderer shaderRenderer = new CleanroomShaderQuadRenderer();
+    private final RenderTargetCache postEffectLayerTargets = new RenderTargetCache(this);
+    private final RenderTargetCache postEffectPingTargets = new RenderTargetCache(this);
+    private final DrawList postEffectPassList = new DrawList();
+    private final DrawList postEffectCompositeList = new DrawList();
+    private boolean shaderDrawn;
+    private boolean postEffectsBroken;
     private FontFace defaultFont = MinecraftFonts.defaultFace();
     private boolean frameActive;
 
@@ -176,6 +202,127 @@ final class CleanroomGuiRenderBackend implements RenderBackend {
         }
     }
 
+    // ---- post effects -------------------------------------------------------------------------------------------
+
+    @Override
+    public boolean supportsPostEffects() {
+        return !postEffectsBroken && OpenGlHelper.isFramebufferEnabled() && CleanroomShaderQuadRenderer.supported();
+    }
+
+    /**
+     * @return bounds of the whole window in draw-list units, with the pixel density as scale: a layer target made from
+     *         them has exactly the window's pixel size
+     */
+    UiLayerBounds postEffectBounds() {
+        float scaleX = screen.pixelsPerUnitX();
+        return new UiLayerBounds(0.0f, 0.0f, screen.framebufferWidth() / scaleX,
+                screen.framebufferHeight() / screen.pixelsPerUnitY(), scaleX);
+    }
+
+    /**
+     * Renders a list through a chain of full-viewport shader passes: the list is drawn into a layer target, every
+     * pass reads the previous result and writes the other of two ping-pong targets, and the last result is drawn
+     * over {@code target} (the window if {@code null}) as one image. A chain that cannot run (no shaders, a pass that
+     * failed, an exception) shows the unprocessed layer or, as the last resort, draws the list directly.
+     */
+    @Override
+    public void renderWithPostEffect(DrawList drawList, UiLayerBounds bounds, UiPostEffectChain chain,
+                                     RenderTarget target) {
+        UiPostEffects.ensureRegistered();
+        UiLayerBounds layerBounds = bounds == null ? postEffectBounds() : bounds;
+        float layerScale = layerBounds.safeScale();
+        if (drawList == null || chain == null || chain.isNone() || !supportsPostEffects()) {
+            renderDirect(drawList, target, layerScale);
+            return;
+        }
+        List<UiPostEffectPass> passes = chain.resolve(UiPostEffectRegistry.global());
+        if (passes.isEmpty()) {
+            renderDirect(drawList, target, layerScale);
+            return;
+        }
+        try {
+            int targetWidth = layerBounds.targetWidth();
+            int targetHeight = layerBounds.targetHeight();
+            float scaleX = targetWidth / layerBounds.safeWidth();
+            float scaleY = targetHeight / layerBounds.safeHeight();
+            CleanroomRenderTarget layer = (CleanroomRenderTarget) postEffectLayerTargets.acquire(
+                    targetWidth, targetHeight, POST_EFFECT_LAYER_TARGET);
+            CleanroomRenderTarget ping = (CleanroomRenderTarget) postEffectPingTargets.acquire(
+                    targetWidth, targetHeight, POST_EFFECT_PING_TARGET);
+            renderToTarget(drawList, layer, scaleX, scaleY);
+            CleanroomRenderTarget current = layer;
+            if (!isPassthroughOnly(passes)) {
+                for (UiPostEffectPass effect : passes) {
+                    CleanroomRenderTarget destination = current == layer ? ping : layer;
+                    if (!renderPostEffectPass(effect, current, destination)) break;
+                    current = destination;
+                }
+            }
+            compositePostEffect(current, layerBounds, target, scaleX, scaleY);
+        } catch (RuntimeException failure) {
+            LOGGER.error("UniGUI post effects failed and are disabled; drawing without them", failure);
+            postEffectsBroken = true;
+            renderDirect(drawList, target, layerScale);
+        }
+    }
+
+    private void renderDirect(DrawList drawList, RenderTarget target, float scale) {
+        if (target instanceof CleanroomRenderTarget own) renderToTarget(drawList, own, scale, scale);
+        else render(drawList, target);
+    }
+
+    private static boolean isPassthroughOnly(List<UiPostEffectPass> passes) {
+        if (passes.size() != 1) return false;
+        UiPostEffectPass only = passes.get(0);
+        return only != null && UiPostEffects.PASSTHROUGH.equals(only.shaderId())
+                && only.blendMode() == UiPostEffectBlendMode.REPLACE
+                && only.uniforms().isEmpty() && only.textures().isEmpty();
+    }
+
+    /** Runs one effect pass: a full-viewport shader over {@code source}, written to {@code destination}. */
+    private boolean renderPostEffectPass(UiPostEffectPass effect, CleanroomRenderTarget source,
+                                         CleanroomRenderTarget destination) {
+        if (effect == null) return false;
+        DrawCommand command = DrawCommand.shader(effect.shader(),
+                        new MutableRect(0.0f, 0.0f, destination.width(), destination.height()),
+                        effect.uniforms().resolve())
+                .texture(source.colorTexture())
+                .shaderTextures(effect.textures())
+                .shaderOptions(ShaderDrawOptions.defaults()
+                        .blend(effect.blendMode().blendEnabled())
+                        .squareVertexOffset(0.0f));
+        postEffectPassList.clear();
+        postEffectPassList.add(command);
+        shaderDrawn = false;
+        // Passes work in the destination's pixels, not in the layer's units.
+        renderToTarget(postEffectPassList, destination, 1.0f, 1.0f);
+        return shaderDrawn;
+    }
+
+    private void compositePostEffect(CleanroomRenderTarget source, UiLayerBounds bounds, RenderTarget target,
+                                     float scaleX, float scaleY) {
+        postEffectCompositeList.clear();
+        postEffectCompositeList.add(DrawCommand.texture(source.colorTexture(),
+                new MutableRect(bounds.x(), bounds.y(), bounds.safeWidth(), bounds.safeHeight()),
+                Paint.fill(new MutableColor(1.0f, 1.0f, 1.0f, 1.0f))));
+        if (target instanceof CleanroomRenderTarget own) renderToTarget(postEffectCompositeList, own, scaleX, scaleY);
+        else renderBatches(postEffectCompositeList);
+    }
+
+    /** Releases the GL objects this backend owns: post-effect targets and shader programs. */
+    @Override
+    public void close() {
+        // GL objects can only be deleted on the client thread; a layer may be closed from anywhere.
+        if (minecraft.isCallingFromMinecraftThread()) releaseGlObjects();
+        else minecraft.addScheduledTask(this::releaseGlObjects);
+    }
+
+    private void releaseGlObjects() {
+        postEffectLayerTargets.close();
+        postEffectPingTargets.close();
+        shaderRenderer.close();
+    }
+
     private void renderBatches(DrawList drawList) {
         List<DrawBatch> batches = batcher.batch(drawList);
         for (int i = 0, size = batches.size(); i < size; i++) {
@@ -267,8 +414,12 @@ final class CleanroomGuiRenderBackend implements RenderBackend {
             case PUSH_CLIP, POP_CLIP -> {
                 // Handled in render() before any matrix state is touched.
             }
-            case SHADER, DRAW_CMD -> {
-                // Shader quads and raw draw commands are added with the shader / render-target phase.
+            case SHADER -> shaderDrawn = shaderRenderer.render(command,
+                    pass.framebufferWidth() / pass.pixelsPerUnitX(),
+                    pass.framebufferHeight() / pass.pixelsPerUnitY(),
+                    pass.pixelsPerUnitX());
+            case DRAW_CMD -> {
+                // Raw draw commands carry backend-specific payloads that have no 1.12.2 counterpart yet.
             }
         }
     }

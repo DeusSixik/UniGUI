@@ -94,6 +94,7 @@ public final class TextureLab {
         bottom.addChild(tile(new TextureWidget(((CleanroomTextureHandle) noise).withOptions(TextureOptions.nearest())),
                 "nearest: same noise, grainy"));
         bottom.addChild(tile(new TargetTile(), "render target: drawn offscreen each frame"));
+        bottom.addChild(tile(new ShaderTile(), "shader: animated plasma in a sub-rectangle"));
         content.addChild(bottom);
 
         root.addChild(content);
@@ -142,6 +143,59 @@ public final class TextureLab {
             var bounds = layoutBounds();
             context.texture(texture, bounds.x(), bounds.y(), bounds.width(), bounds.height(),
                     Paint.fill(MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f)));
+        }
+    }
+
+    /**
+     * A {@code SHADER} command with its own vertex shader that places the quad from {@code SquareVertex} and
+     * {@code ScreenSize}. Expected: a smoothly animated colorful pattern that fills exactly the tile.
+     */
+    private static final class ShaderTile extends WidgetBase {
+        private static final String VERTEX = """
+                #version 150
+                in vec3 Position;
+                uniform vec2 ScreenSize;
+                uniform vec4 SquareVertex;
+                out vec2 uv;
+                void main() {
+                    vec2 corner = vec2(Position.x * 0.5 + 0.5, 0.5 - Position.y * 0.5);
+                    vec2 p = mix(SquareVertex.xy, SquareVertex.zw, corner);
+                    gl_Position = vec4(p.x / ScreenSize.x * 2.0 - 1.0, 1.0 - p.y / ScreenSize.y * 2.0, 0.0, 1.0);
+                    uv = corner;
+                }
+                """;
+        private static final String FRAGMENT = """
+                #version 150
+                uniform float Time;
+                in vec2 uv;
+                out vec4 FragColor;
+                void main() {
+                    float v = sin(uv.x * 10.0 + Time * 2.0) + sin(uv.y * 10.0 - Time * 1.5)
+                            + sin((uv.x + uv.y) * 8.0 + Time);
+                    vec3 color = 0.5 + 0.5 * vec3(sin(v), sin(v + 2.1), sin(v + 4.2));
+                    FragColor = vec4(color, 1.0);
+                }
+                """;
+        private static final dev.sixik.unigui.api.render.shaders.ShaderHandle SHADER =
+                dev.sixik.unigui.api.render.shaders.ShaderHandle.source("unigui:lab_plasma", VERTEX, FRAGMENT);
+
+        @Override
+        public void measure(LayoutContext context) {
+            setDesiredSize(resolveDesiredSize(context, TILE, TILE));
+        }
+
+        @Override
+        public void tick(FrameContext frame) {
+            super.tick(frame);
+            invalidate(InvalidationFlags.VISUAL);
+        }
+
+        @Override
+        public void render(RenderContext context) {
+            if (visibility() != Visibility.VISIBLE || context == null) return;
+            var bounds = layoutBounds();
+            context.shader(SHADER, bounds.x(), bounds.y(), bounds.width(), bounds.height(),
+                    dev.sixik.unigui.api.render.shaders.ShaderUniforms.create());
         }
     }
 
