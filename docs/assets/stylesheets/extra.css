@@ -596,8 +596,31 @@ h4 code {
   line-height: 1.4 !important;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: flex-start;
   scroll-margin-top: 4.5rem;
+}
+
+.api-member-card > h3:first-child .headerlink,
+.api-member-card > h4:first-child .headerlink {
+  margin-left: auto;
+}
+
+.api-member-card .api-class-prefix {
+  font-family: var(--md-code-font-family, monospace);
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--unity-text-muted, #8b949e);
+  letter-spacing: -0.01em;
+}
+
+[data-md-color-scheme="slate"] .api-member-card .api-class-prefix {
+  color: #8b949e;
+}
+
+[data-md-color-scheme="default"] .api-member-card .api-class-prefix {
+  color: #57606a;
 }
 
 [data-md-color-scheme="slate"] .api-member-card > h3:first-child,

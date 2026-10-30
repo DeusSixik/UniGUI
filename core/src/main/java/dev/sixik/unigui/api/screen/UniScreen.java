@@ -64,6 +64,7 @@ public final class UniScreen {
     private UiRenderPolicy renderPolicy = UiRenderPolicy.continuous();
     private float uiScale = Float.NaN;
     private boolean scaleWithGameGui = true;
+    private boolean pauseGame = true;
     private Runnable onClose;
     private FontFace defaultFont;
     private KeyboardInputHandler keyboardInputHandler;
@@ -189,6 +190,26 @@ public final class UniScreen {
     public UniScreen scaleWithGameGui(
             @WikiParameter(description = "<key:uni.screen.method.scale_with_game_gui_set.value>") boolean value) {
         this.scaleWithGameGui = value;
+        return this;
+    }
+
+    @WikiMethod(
+            title = "<key:uni.screen.method.pause_game_get.title>",
+            summary = "<key:uni.screen.method.pause_game_get.summary>"
+    )
+    @WikiReturn("<key:uni.screen.method.pause_game_get.return>")
+    public boolean pauseGame() {
+        return pauseGame;
+    }
+
+    @WikiMethod(
+            title = "<key:uni.screen.method.pause_game_set.title>",
+            summary = "<key:uni.screen.method.pause_game_set.summary>"
+    )
+    @WikiReturn("<key:uni.screen.method.pause_game_set.return>")
+    public UniScreen pauseGame(
+            @WikiParameter(description = "<key:uni.screen.method.pause_game_set.value>") boolean value) {
+        this.pauseGame = value;
         return this;
     }
 

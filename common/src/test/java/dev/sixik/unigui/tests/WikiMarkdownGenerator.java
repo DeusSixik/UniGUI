@@ -7,6 +7,7 @@ import dev.sixik.unigui.api.docs.WikiExample;
 import dev.sixik.unigui.api.docs.WikiGif;
 
 import dev.sixik.unigui.api.docs.WikiIcon;
+import dev.sixik.unigui.api.docs.WikiLink;
 
 import dev.sixik.unigui.api.docs.WikiMethod;
 
@@ -119,6 +120,16 @@ public final class WikiMarkdownGenerator {
 
 
     static String renderPage(Class<?> type, WikiLocalization localization, String locale, String assetPrefix) {
+
+        return renderPage(type, List.of(type), localization, locale, assetPrefix);
+
+    }
+
+
+
+    private static String renderPage(Class<?> type, List<Class<?>> pages, WikiLocalization localization,
+
+                                     String locale, String assetPrefix) {
 
         WikiPage page = type.getAnnotation(WikiPage.class);
 
@@ -242,9 +253,11 @@ public final class WikiMarkdownGenerator {
 
 
 
+        appendLinks(markdown, type, pages, localization, locale);
+
         appendDocumentedMethods(markdown, type, localization, locale);
 
-        return markdown.toString();
+        return linkWikiReferences(markdown.toString(), type, pages, localization, locale);
 
     }
 
@@ -420,7 +433,7 @@ public final class WikiMarkdownGenerator {
 
                 Files.writeString(pageDirectory.resolve(page.slug() + ".md"),
 
-                        renderPage(type, localization, locale, "../".repeat(categoryDepth + 1)), StandardCharsets.UTF_8);
+                        renderPage(type, pages, localization, locale, "../".repeat(categoryDepth + 1)), StandardCharsets.UTF_8);
 
 
 
@@ -447,6 +460,348 @@ public final class WikiMarkdownGenerator {
             Files.writeString(localeDirectory.resolve("index.md"), index.toString(), StandardCharsets.UTF_8);
 
         }
+
+    }
+
+
+
+    private static void appendLinks(StringBuilder markdown, Class<?> type, List<Class<?>> pages,
+
+                                    WikiLocalization localization, String locale) {
+
+        WikiLink[] links = type.getAnnotationsByType(WikiLink.class);
+
+        if (links.length == 0) return;
+
+        List<WikiLink> ordered = new ArrayList<>(List.of(links));
+
+        ordered.sort(Comparator.comparingInt(WikiLink::order).thenComparing(WikiLink::label));
+
+        markdown.append("## ")
+
+                .append(localization.resolve("<key:wiki.links.title>", locale, "wiki.links.title"))
+
+                .append("\n\n");
+
+        for (int index = 0; index < ordered.size(); index++) {
+
+            WikiLink link = ordered.get(index);
+
+            String context = type.getName() + ".link[" + index + "]";
+
+            String label = localization.resolve(link.label(), locale, context + ".label").trim();
+
+            String target = resolveLinkTarget(type, link.target(), pages, localization, locale, context);
+
+            String description = localization.resolve(link.description(), locale, context + ".description").trim();
+
+            markdown.append("- [").append(markdownText(label)).append("](<")
+
+                    .append(markdownPath(target)).append(">)");
+
+            if (!description.isBlank()) markdown.append(": ").append(description);
+
+            markdown.append('\n');
+
+        }
+
+        markdown.append('\n');
+
+    }
+
+
+
+    private static String resolveLinkTarget(Class<?> source, String target, List<Class<?>> pages,
+
+                                            WikiLocalization localization, String locale, String context) {
+
+        String resolved = localization.resolve(target, locale, context + ".target").trim();
+
+        if (resolved.startsWith("page:")) {
+
+            String slug = resolved.substring("page:".length()).trim();
+
+            Class<?> destination = findPageTarget(slug, pages, localization, locale, source);
+
+            return relativePageLink(source, destination, localization);
+
+        }
+
+        try {
+
+            java.net.URI uri = java.net.URI.create(resolved);
+
+            String scheme = uri.getScheme();
+
+            boolean webUrl = scheme != null && (scheme.equalsIgnoreCase("https") || scheme.equalsIgnoreCase("http"));
+
+            boolean emailUrl = scheme != null && scheme.equalsIgnoreCase("mailto");
+
+            if (!uri.isAbsolute() || !(webUrl && uri.getHost() != null || emailUrl)) {
+
+                throw new IllegalArgumentException("Wiki link target must be an http(s), mailto, or page:<slug> URL: "
+
+                        + resolved + " on " + source.getName());
+
+            }
+
+        } catch (IllegalArgumentException exception) {
+
+            throw new IllegalArgumentException("Invalid wiki link target '" + resolved + "' on " + source.getName(), exception);
+
+        }
+
+        return resolved;
+
+    }
+
+
+
+    private static String linkWikiReferences(String markdown, Class<?> source, List<Class<?>> pages,
+
+                                            WikiLocalization localization, String locale) {
+
+        int frontMatterEnd = markdown.indexOf("\n---\n\n");
+
+        if (frontMatterEnd < 0) return markdown;
+
+        int contentStart = frontMatterEnd + "\n---\n\n".length();
+
+        String content = markdown.substring(contentStart);
+
+        List<String> protectedParts = new ArrayList<>();
+
+        java.util.regex.Pattern protectedPattern = java.util.regex.Pattern.compile(
+
+                "(?s)```.*?```|~~~.*?~~~|(?<!`)`+[^`]*`+(?!`)|!?\\[[^\\]]*\\]\\([^\\n)]*\\)|<(?!link:path:)[^>]+>");
+
+        java.util.regex.Matcher protectedMatcher = protectedPattern.matcher(content);
+
+        StringBuffer masked = new StringBuffer();
+
+        while (protectedMatcher.find()) {
+
+            int index = protectedParts.size();
+
+            protectedParts.add(protectedMatcher.group());
+
+            protectedMatcher.appendReplacement(masked, java.util.regex.Matcher.quoteReplacement("\u0001" + index + "\u0002"));
+
+        }
+
+        protectedMatcher.appendTail(masked);
+
+        String linked = replaceExplicitLinkTokens(masked.toString(), source, pages, localization, locale);
+
+        linked = autoLinkPageTitles(linked, source, pages, localization, locale);
+
+        for (int index = 0; index < protectedParts.size(); index++) {
+
+            linked = linked.replace("\u0001" + index + "\u0002", protectedParts.get(index));
+
+        }
+
+        return markdown.substring(0, contentStart) + linked;
+
+    }
+
+
+
+    private static String replaceExplicitLinkTokens(String markdown, Class<?> source, List<Class<?>> pages,
+
+                                                    WikiLocalization localization, String locale) {
+
+        java.util.regex.Pattern tokenPattern = java.util.regex.Pattern.compile("<link:path:([^<>]+)>");
+
+        java.util.regex.Matcher matcher = tokenPattern.matcher(markdown);
+
+        StringBuffer result = new StringBuffer();
+
+        while (matcher.find()) {
+
+            String target = matcher.group(1).trim();
+
+            Class<?> destination = findPageTarget(target, pages, localization, locale, source);
+
+            String title = localization.resolve(destination.getAnnotation(WikiPage.class).title(), locale,
+
+                    destination.getName() + ".title");
+
+            String link = "[" + markdownText(title) + "](<"
+
+                    + markdownPath(relativePageLink(source, destination, localization)) + ">)";
+
+            matcher.appendReplacement(result, java.util.regex.Matcher.quoteReplacement(link));
+
+        }
+
+        matcher.appendTail(result);
+
+        return result.toString();
+
+    }
+
+
+
+    private static String autoLinkPageTitles(String markdown, Class<?> source, List<Class<?>> pages,
+
+                                             WikiLocalization localization, String locale) {
+
+        Map<String, Class<?>> aliases = new LinkedHashMap<>();
+
+        Set<String> ambiguous = new HashSet<>();
+
+        for (Class<?> pageType : pages) {
+
+            if (pageType == source) continue;
+
+            WikiPage page = pageType.getAnnotation(WikiPage.class);
+
+            addPageAlias(aliases, ambiguous, localization.resolve(page.title(), locale, pageType.getName() + ".title"), pageType);
+
+            addPageAlias(aliases, ambiguous, localization.resolve(page.title(), WikiLocalization.DEFAULT_LOCALE,
+
+                    pageType.getName() + ".title"), pageType);
+
+        }
+
+        List<String> titles = aliases.keySet().stream().filter(alias -> !ambiguous.contains(alias))
+
+                .sorted(Comparator.comparingInt(String::length).reversed()).toList();
+
+        List<String> existingLinks = new ArrayList<>();
+
+        java.util.regex.Matcher existingLinkMatcher = java.util.regex.Pattern
+
+                .compile("!?\\[[^\\]]*\\]\\([^\\n)]*\\)").matcher(markdown);
+
+        StringBuffer maskedLinks = new StringBuffer();
+
+        while (existingLinkMatcher.find()) {
+
+            int index = existingLinks.size();
+
+            existingLinks.add(existingLinkMatcher.group());
+
+            existingLinkMatcher.appendReplacement(maskedLinks,
+
+                    java.util.regex.Matcher.quoteReplacement("\u0003" + index + "\u0004"));
+
+        }
+
+        existingLinkMatcher.appendTail(maskedLinks);
+
+        String linked = maskedLinks.toString();
+
+        if (!titles.isEmpty()) {
+
+            String alternatives = titles.stream().map(java.util.regex.Pattern::quote)
+
+                    .collect(java.util.stream.Collectors.joining("|"));
+
+            java.util.regex.Pattern titlePattern = java.util.regex.Pattern.compile(
+
+                    "(?<![\\p{L}\\p{N}_])(" + alternatives + ")(?![\\p{L}\\p{N}_])");
+
+            java.util.regex.Matcher matcher = titlePattern.matcher(linked);
+
+            StringBuffer result = new StringBuffer();
+
+            while (matcher.find()) {
+
+                Class<?> destination = aliases.get(matcher.group(1));
+
+                String link = "[" + markdownText(matcher.group(1)) + "](<"
+
+                        + markdownPath(relativePageLink(source, destination, localization)) + ">)";
+
+                matcher.appendReplacement(result, java.util.regex.Matcher.quoteReplacement(link));
+
+            }
+
+            matcher.appendTail(result);
+
+            linked = result.toString();
+
+        }
+
+        for (int index = 0; index < existingLinks.size(); index++) {
+
+            linked = linked.replace("\u0003" + index + "\u0004", existingLinks.get(index));
+
+        }
+
+        return linked;
+
+    }
+
+
+
+    private static void addPageAlias(Map<String, Class<?>> aliases, Set<String> ambiguous,
+
+                                     String alias, Class<?> page) {
+
+        if (alias == null || alias.isBlank()) return;
+
+        Class<?> previous = aliases.putIfAbsent(alias, page);
+
+        if (previous != null && previous != page) ambiguous.add(alias);
+
+    }
+
+
+
+    private static Class<?> findPageTarget(String target, List<Class<?>> pages, WikiLocalization localization,
+
+                                           String locale, Class<?> source) {
+
+        List<Class<?>> matches = pages.stream().filter(candidate -> {
+
+            WikiPage page = candidate.getAnnotation(WikiPage.class);
+
+            return page.slug().equals(target)
+
+                    || localization.resolve(page.title(), locale, candidate.getName() + ".title").equals(target)
+
+                    || localization.resolve(page.title(), WikiLocalization.DEFAULT_LOCALE,
+
+                    candidate.getName() + ".title").equals(target);
+
+        }).toList();
+
+        if (matches.size() != 1) {
+
+            throw new IllegalArgumentException((matches.isEmpty() ? "Unknown" : "Ambiguous") + " wiki page link '"
+
+                    + target + "' on " + source.getName() + "; use a unique page slug or title.");
+
+        }
+
+        return matches.get(0);
+
+    }
+
+
+
+    private static String relativePageLink(Class<?> source, Class<?> destination, WikiLocalization localization) {
+
+        String sourceCategory = categoryPath(localization.resolve(source.getAnnotation(WikiPage.class).category(),
+
+                WikiLocalization.DEFAULT_LOCALE, source.getName() + ".category"));
+
+        String destinationCategory = categoryPath(localization.resolve(
+
+                destination.getAnnotation(WikiPage.class).category(), WikiLocalization.DEFAULT_LOCALE,
+
+                destination.getName() + ".category"));
+
+        Path sourceFile = Path.of(sourceCategory).resolve(source.getAnnotation(WikiPage.class).slug() + ".md");
+
+        Path destinationFile = Path.of(destinationCategory)
+
+                .resolve(destination.getAnnotation(WikiPage.class).slug() + ".md");
+
+        return sourceFile.getParent().relativize(destinationFile).toString().replace('\\', '/');
 
     }
 
@@ -494,7 +849,7 @@ public final class WikiMarkdownGenerator {
 
                     .thenComparing(WikiMarkdownGenerator::memberSignature));
 
-            for (Executable member : members) appendDocumentedMember(markdown, member, 3, localization, locale);
+            for (Executable member : members) appendDocumentedMember(markdown, type, member, 3, localization, locale);
 
             return;
 
@@ -578,7 +933,7 @@ public final class WikiMarkdownGenerator {
 
             for (Executable member : entry.getValue()) {
 
-                appendDocumentedMember(markdown, member, 4, localization, locale);
+                appendDocumentedMember(markdown, type, member, 4, localization, locale);
 
             }
 
@@ -602,13 +957,40 @@ public final class WikiMarkdownGenerator {
 
                                                WikiLocalization localization, String locale) {
 
+        appendDocumentedMember(markdown, member.getDeclaringClass(), member, headingLevel, localization, locale);
+
+    }
+
+
+
+    private static void appendDocumentedMember(StringBuilder markdown, Class<?> type, Executable member, int headingLevel,
+
+                                               WikiLocalization localization, String locale) {
+
         markdown.append("<div class=\"api-member-card\" markdown=\"1\">\n\n");
 
         WikiMethod doc = member.getAnnotation(WikiMethod.class);
 
-        String context = member.getDeclaringClass().getName() + "#" + memberSignature(member);
+        String sig = memberSignature(member);
 
-        markdown.append("#".repeat(headingLevel)).append(" `").append(memberSignature(member)).append("`\n\n");
+        String anchor = slugifyAnchor(sig);
+
+        String context = member.getDeclaringClass().getName() + "#" + sig;
+
+        String className = type.getSimpleName();
+
+        boolean isConstructor = member instanceof Constructor;
+
+        markdown.append("#".repeat(headingLevel)).append(" ");
+
+        if (!isConstructor) {
+
+            markdown.append("<span class=\"api-class-prefix\">").append(className).append("::</span>");
+
+        }
+
+        markdown.append("`").append(sig).append("` {: #").append(anchor)
+                .append(" data-toc-label=\"").append(escapeAttribute(sig)).append("\" }\n\n");
 
         String title = localization.resolve(doc.title(), locale, context + ".title");
 
@@ -956,6 +1338,10 @@ public final class WikiMarkdownGenerator {
 
         return value.replace("|", "\\|").replace("\r", " ").replace("\n", " ");
 
+    }
+
+    private static String escapeAttribute(String value) {
+        return value.replace("&", "&amp;").replace("\"", "&quot;").replace("<", "&lt;").replace(">", "&gt;");
     }
 
 

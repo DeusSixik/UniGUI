@@ -32,6 +32,7 @@ final class WikiLocalization {
     static WikiLocalization literalOnly() {
         return new WikiLocalization(Map.of(DEFAULT_LOCALE, Map.of(
                 "wiki.index.title", "UniGUI Wiki",
+                "wiki.links.title", "Related links",
                 "wiki.api.title", "API",
                 "wiki.api.parameter", "Parameter",
                 "wiki.api.type", "Type",

@@ -45,8 +45,12 @@ theme:
 extra_css:
   - assets/stylesheets/extra.css
 
+extra_javascript:
+  - assets/javascripts/search-enhancer.js
+
 plugins:
   - search:
+      separator: '[\s\-,.:;?&@#|/()]+'
       lang:
         - en
         - ru

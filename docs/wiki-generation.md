@@ -26,6 +26,27 @@ an individual documented member. Media `src` values are site-relative paths and 
 resolved per locale. Files from `docs/assets` are copied once into the shared generated
 `assets` directory and are not duplicated per language.
 
+Use repeatable `@WikiLink` to add a related-links section. External targets must use
+`https://`, `http://`, or `mailto:`. Link another generated page with `page:<slug>`; the
+generator resolves it against the page catalog and emits a relative link to the matching
+locale and nested category. `label`, `target`, and `description` can use localization keys.
+Authored Markdown in `@WikiSection` and `@WikiMethod(markdown = ...)` also supports normal
+Markdown links. In generated page text, a title matching another Wiki page is also
+automatically linked; code spans, code fences, and existing Markdown links are left alone.
+When automatic matching would be ambiguous, use `<link:path:<slug>>` in a localized value to
+select the target explicitly. For example, `<link:path:vector-path>` or
+`<link:path:VectorPath>` resolves by slug or page title and renders using the localized page
+title. The site uses MkDocs Material, which renders these links without extra setup.
+
+```java
+@WikiLink(
+        label = "<key:virtual.list.view.link.layout.label>",
+        target = "page:layout-style",
+        description = "<key:virtual.list.view.link.layout.description>")
+@WikiLink(label = "Project repository", target = "https://github.com/DeusSixik/UniGUI")
+public class VirtualListView { ... }
+```
+
 ## Localization
 
 Language files live in `docs/lang/<locale>.json` and use the same flat JSON format as
