@@ -48,18 +48,20 @@ final class CleanroomShaderQuadRenderer implements AutoCloseable {
     private static final long START_NANOS = System.nanoTime();
     private static final String[] ATTRIBUTES = {"Position"};
 
-    /** The 1.20 default vertex shader: one quad over the whole framebuffer, {@code uv} in -1..1. */
+    /**
+     * The 1.20 default vertex shader: one quad over the whole framebuffer, {@code uv} in -1..1.
+     */
     static final String DEFAULT_VERTEX_SOURCE = """
             #version 150
-
+            
             in vec3 Position;
-
+            
             out vec2 screenPos;
             out vec2 guiPos;
             out vec2 uv;
-
+            
             uniform vec2 ScreenSize;
-
+            
             void main() {
                 gl_Position = vec4(Position.xy, 0.0, 1.0);
                 uv = Position.xy;
@@ -92,10 +94,10 @@ final class CleanroomShaderQuadRenderer implements AutoCloseable {
     /**
      * Draws one shader command.
      *
-     * @param command command of type {@code SHADER}
-     * @param screenWidth viewport width in draw-list units (feeds {@code ScreenSize})
+     * @param command      command of type {@code SHADER}
+     * @param screenWidth  viewport width in draw-list units (feeds {@code ScreenSize})
      * @param screenHeight viewport height in draw-list units
-     * @param guiScale physical pixels per draw-list unit (feeds {@code GuiScale})
+     * @param guiScale     physical pixels per draw-list unit (feeds {@code GuiScale})
      * @return {@code true} if something was drawn
      */
     boolean render(DrawCommand command, float screenWidth, float screenHeight, float guiScale) {
@@ -225,7 +227,7 @@ final class CleanroomShaderQuadRenderer implements AutoCloseable {
      * Binds a texture on a unit and applies its sampling options.
      *
      * @return {@code 1} if the texture must be sampled upside down (render target), {@code 0} if not, {@code -1} if
-     *         the texture could not be bound
+     * the texture could not be bound
      */
     private int bindTexture(Minecraft minecraft, int unit, TextureHandle texture) {
         GlStateManager.setActiveTexture(GL13.GL_TEXTURE0 + unit);

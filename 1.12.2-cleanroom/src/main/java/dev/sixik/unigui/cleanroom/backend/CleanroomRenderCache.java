@@ -13,7 +13,6 @@ import dev.sixik.unigui.impl.render.DefaultRenderContext;
 import dev.sixik.unigui.impl.render.WidgetTextureRenderer;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import net.minecraft.client.Minecraft;
-import org.lwjgl.opengl.Display;
 
 /**
  * Keeps the last frame of a retained UI in a window-sized texture, so a screen with a non-continuous
@@ -32,6 +31,8 @@ final class CleanroomRenderCache implements AutoCloseable {
     private int width;
     private int height;
     private long lastRenderNanos;
+    private long lastFrameNanos;
+    private long frameNanos;
 
     CleanroomRenderCache(RenderBackend backend) {
         this.backend = backend;
@@ -41,32 +42,47 @@ final class CleanroomRenderCache implements AutoCloseable {
     /**
      * Adds this frame's picture of {@code root} to {@code frame}: a cache texture, redrawn first if the policy says so.
      *
-     * @param policy render policy, not {@code CONTINUOUS}
-     * @param root widget tree
-     * @param frame draw list of the frame; receives one texture command
-     * @param frameContext render context writing into {@code frame}
+     * @param policy        render policy, not {@code CONTINUOUS}
+     * @param root          widget tree
+     * @param frame         draw list of the frame; receives one texture command
+     * @param frameContext  render context writing into {@code frame}
      * @param layoutChanged {@code true} if layout ran this frame
-     * @param logicalWidth width of the UI in layout units
+     * @param logicalWidth  width of the UI in layout units
      * @param logicalHeight height of the UI in layout units
-     * @param nowNanos current time
+     * @param nowNanos      current time
      */
     void render(UiRenderPolicy policy, Widget root, DefaultRenderContext frameContext, boolean layoutChanged,
                 float logicalWidth, float logicalHeight, long nowNanos) {
         Minecraft minecraft = Minecraft.getMinecraft();
         int targetWidth = Math.max(1, minecraft.displayWidth);
         int targetHeight = Math.max(1, minecraft.displayHeight);
+        trackFrameTime(nowNanos);
         CleanroomRenderPolicies.Decision decision = CleanroomRenderPolicies.decide(
-                policy.mode(), CleanroomRenderPolicies.intervalNanos(policy, refreshRate()), texture != null,
+                policy.mode(), CleanroomRenderPolicies.intervalNanos(policy, CleanroomDisplay.refreshRate()),
+                texture != null,
                 width != targetWidth || height != targetHeight, layoutChanged,
                 root.subtreeInvalidationFlags() != InvalidationFlags.NONE, () -> animationsRunning(root),
-                nowNanos, lastRenderNanos);
+                nowNanos, lastRenderNanos, frameNanos);
         if (decision.action() == CleanroomRenderPolicies.Action.REFRESH) refresh(root, targetWidth, targetHeight);
         if (texture != null) {
             frameContext.texture(texture, 0.0f, 0.0f, logicalWidth, logicalHeight, Paint.fill(TINT));
         }
     }
 
-    /** Throws the cached picture away; the next frame redraws it. */
+    /**
+     * Smoothed time between frames, so one slow frame does not change the cadence.
+     */
+    private void trackFrameTime(long nowNanos) {
+        if (lastFrameNanos != 0L) {
+            long delta = Math.max(0L, nowNanos - lastFrameNanos);
+            frameNanos = frameNanos == 0L ? delta : frameNanos + (delta - frameNanos) / 8L;
+        }
+        lastFrameNanos = nowNanos;
+    }
+
+    /**
+     * Throws the cached picture away; the next frame redraws it.
+     */
     void invalidate() {
         texture = null;
         lastRenderNanos = 0L;
@@ -105,14 +121,6 @@ final class CleanroomRenderCache implements AutoCloseable {
             widget.clearInvalidation(InvalidationFlags.ALL);
         }
         for (Widget child : widget.children()) clearInvalidation(child);
-    }
-
-    private static int refreshRate() {
-        try {
-            return Display.getDisplayMode().getFrequency();
-        } catch (RuntimeException | LinkageError e) {
-            return 0;
-        }
     }
 
     @Override

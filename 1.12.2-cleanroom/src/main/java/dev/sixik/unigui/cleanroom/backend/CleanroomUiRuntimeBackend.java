@@ -154,7 +154,9 @@ public final class CleanroomUiRuntimeBackend implements UniGuiBackend {
         hudLayers.render(Minecraft.getMinecraft(), width, height, mouseX, mouseY, partialTick);
     }
 
-    /** Draws loading-screen layers; the caller has already set up the scaled GUI projection. */
+    /**
+     * Draws loading-screen layers; the caller has already set up the scaled GUI projection.
+     */
     public void renderLoading(int width, int height, float partialTick) {
         loadingLayers.render(Minecraft.getMinecraft(), width, height, 0, 0, partialTick);
     }
@@ -184,7 +186,9 @@ public final class CleanroomUiRuntimeBackend implements UniGuiBackend {
         cursors.apply(overlayCursor != null ? overlayCursor : own);
     }
 
-    /** Restores the system arrow; used when a screen closes. */
+    /**
+     * Restores the system arrow; used when a screen closes.
+     */
     void resetCursor() {
         overlayCursor = null;
         cursors.reset();
@@ -208,22 +212,30 @@ public final class CleanroomUiRuntimeBackend implements UniGuiBackend {
         return pointerBlockers.add(blocker);
     }
 
-    /** @return {@code true} if a registered blocker covers the pointer position of the screen */
+    /**
+     * @return {@code true} if a registered blocker covers the pointer position of the screen
+     */
     public boolean blocksPointer(GuiScreen screen, double mouseX, double mouseY) {
         return pointerBlockers.blocks(screen, mouseX, mouseY);
     }
 
-    /** @return {@code true} if any overlay layer is drawn over the screen */
+    /**
+     * @return {@code true} if any overlay layer is drawn over the screen
+     */
     public boolean hasVisibleOverlay(GuiScreen screen) {
         return screen != null && !isNativeScreen(screen) && overlayLayers.hasVisible(screen);
     }
 
-    /** @return {@code true} if an overlay layer over the screen has a text field in focus */
+    /**
+     * @return {@code true} if an overlay layer over the screen has a text field in focus
+     */
     public boolean isTextInputActive(GuiScreen screen) {
         return screen != null && overlayLayers.textInputFocused(screen);
     }
 
-    /** Gives held-key repeat back; called when the current screen changes. */
+    /**
+     * Gives held-key repeat back; called when the current screen changes.
+     */
     public void releaseKeyRepeat() {
         keyRepeat.release();
     }

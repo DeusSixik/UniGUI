@@ -11,15 +11,23 @@ import java.util.function.BooleanSupplier;
  * the UI into a texture only when needed and draw that texture every frame.</p>
  */
 public final class CleanroomRenderPolicies {
-    /** What to do with the cache texture this frame. */
+    /**
+     * What to do with the cache texture this frame.
+     */
     public enum Action {
-        /** Draw the cached texture as is. */
+        /**
+         * Draw the cached texture as is.
+         */
         SKIP,
-        /** Redraw the UI into the cache first. */
+        /**
+         * Redraw the UI into the cache first.
+         */
         REFRESH
     }
 
-    /** The action and a short reason, used as a profiler scope name. */
+    /**
+     * The action and a short reason, used as a profiler scope name.
+     */
     public record Decision(Action action, String reason) {
         private static final Decision STABLE = new Decision(Action.SKIP, "stable");
 
@@ -42,20 +50,25 @@ public final class CleanroomRenderPolicies {
     /**
      * Chooses between reusing and rebuilding the cache.
      *
-     * @param mode policy mode
-     * @param intervalNanos redraw interval for the timed modes (already resolved for {@code VSYNC})
-     * @param hasTexture {@code true} if a cache texture exists
-     * @param sizeChanged {@code true} if the window size differs from the cache size
-     * @param layoutChanged {@code true} if layout ran this frame
-     * @param dirty {@code true} if any widget in the tree is invalidated
+     * @param mode              policy mode
+     * @param intervalNanos     redraw interval for the timed modes (already resolved for {@code VSYNC})
+     * @param hasTexture        {@code true} if a cache texture exists
+     * @param sizeChanged       {@code true} if the window size differs from the cache size
+     * @param layoutChanged     {@code true} if layout ran this frame
+     * @param dirty             {@code true} if any widget in the tree is invalidated
      * @param animationsRunning evaluated lazily, only for {@code ON_DIRTY} when nothing else forces a redraw
-     * @param nowNanos current time
-     * @param lastRenderNanos time of the last cache redraw, {@code 0} if never
+     * @param nowNanos          current time
+     * @param lastRenderNanos   time of the last cache redraw, {@code 0} if never
+     * @param frameNanos        typical time between game frames, {@code 0} if unknown. A timed mode redraws when the next
+     *                          frame would be farther from the target time than this one, which keeps the cadence regular
+     *                          when the interval is not a multiple of the frame time; without it a frame arriving a
+     *                          fraction of a millisecond early skips a whole refresh and the load becomes uneven
      * @return the decision
      */
     public static Decision decide(UiRenderPolicy.Mode mode, long intervalNanos, boolean hasTexture,
                                   boolean sizeChanged, boolean layoutChanged, boolean dirty,
-                                  BooleanSupplier animationsRunning, long nowNanos, long lastRenderNanos) {
+                                  BooleanSupplier animationsRunning, long nowNanos, long lastRenderNanos,
+                                  long frameNanos) {
         if (mode == UiRenderPolicy.Mode.CONTINUOUS) return Decision.STABLE;
         if (!hasTexture) return Decision.refresh("cold");
         if (sizeChanged) return Decision.refresh("resize");
@@ -65,14 +78,15 @@ public final class CleanroomRenderPolicies {
             if (animationsRunning.getAsBoolean()) return Decision.refresh("animations");
             return Decision.STABLE;
         }
-        return lastRenderNanos == 0L || nowNanos - lastRenderNanos >= intervalNanos
+        long half = Math.max(0L, Math.min(frameNanos, intervalNanos)) / 2L;
+        return lastRenderNanos == 0L || nowNanos - lastRenderNanos + half >= intervalNanos
                 ? Decision.refresh("interval") : Decision.STABLE;
     }
 
     /**
      * Resolves the redraw interval of a policy.
      *
-     * @param policy policy
+     * @param policy        policy
      * @param refreshRateHz monitor refresh rate, used for {@code VSYNC}; non-positive means unknown (60)
      * @return interval in nanoseconds, at least 1
      */

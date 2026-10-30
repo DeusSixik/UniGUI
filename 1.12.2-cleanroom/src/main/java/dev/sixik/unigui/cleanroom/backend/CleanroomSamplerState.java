@@ -23,7 +23,9 @@ import org.lwjgl.opengl.GL33;
  * first, or all at once with {@link #restoreTo(int)}. Render thread only.</p>
  */
 final class CleanroomSamplerState {
-    /** {@link TextureOptions#packed()} uses ten bits. */
+    /**
+     * {@link TextureOptions#packed()} uses ten bits.
+     */
     private static final int KEY_COUNT = 1 << 10;
 
     private final int[] samplers = new int[KEY_COUNT];
@@ -47,7 +49,7 @@ final class CleanroomSamplerState {
     /**
      * Applies the options to the texture bound on a unit. Without sampler objects that unit must be the active one.
      *
-     * @param unit texture unit index, 0 for {@code GL_TEXTURE0}
+     * @param unit    texture unit index, 0 for {@code GL_TEXTURE0}
      * @param options sampling options; {@code null} or default does nothing
      * @return {@code true} if something was changed and {@link #restore()} must be called
      */
@@ -72,12 +74,16 @@ final class CleanroomSamplerState {
         return true;
     }
 
-    /** @return the number of applications waiting for {@link #restore()}; pass it to {@link #restoreTo(int)} */
+    /**
+     * @return the number of applications waiting for {@link #restore()}; pass it to {@link #restoreTo(int)}
+     */
     int depth() {
         return depth;
     }
 
-    /** Undoes the last {@link #apply} that changed something; does nothing if none is pending. */
+    /**
+     * Undoes the last {@link #apply} that changed something; does nothing if none is pending.
+     */
     void restore() {
         if (depth == 0) return;
         int entry = --depth;
@@ -121,7 +127,9 @@ final class CleanroomSamplerState {
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, wrap(normalized.wrapT()));
     }
 
-    /** Generates the mipmap chain of the texture bound on unit 0. */
+    /**
+     * Generates the mipmap chain of the texture bound on unit 0.
+     */
     static void generateMipmaps() {
         GL30.glGenerateMipmap(GL11.GL_TEXTURE_2D);
     }

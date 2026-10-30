@@ -20,18 +20,24 @@ public final class CleanroomTooltips {
     private CleanroomTooltips() {
     }
 
-    /** Starts queueing tooltip draws; a previous unfinished deferral is discarded. */
+    /**
+     * Starts queueing tooltip draws; a previous unfinished deferral is discarded.
+     */
     public static void begin() {
         QUEUE.clear();
         deferring = true;
     }
 
-    /** Stops queueing; queued draws stay until {@link #flush()}. */
+    /**
+     * Stops queueing; queued draws stay until {@link #flush()}.
+     */
     public static void end() {
         deferring = false;
     }
 
-    /** @return {@code true} while tooltip draws are being queued */
+    /**
+     * @return {@code true} while tooltip draws are being queued
+     */
     public static boolean deferring() {
         return deferring;
     }
@@ -48,7 +54,9 @@ public final class CleanroomTooltips {
         return true;
     }
 
-    /** Runs the queued draws in order; deferral must already be off. */
+    /**
+     * Runs the queued draws in order; deferral must already be off.
+     */
     public static void flush() {
         if (QUEUE.isEmpty()) return;
         Runnable[] pending = QUEUE.toArray(new Runnable[0]);
@@ -56,7 +64,9 @@ public final class CleanroomTooltips {
         for (Runnable draw : pending) draw.run();
     }
 
-    /** Drops queued draws without running them (screen failed or closed mid-frame). */
+    /**
+     * Drops queued draws without running them (screen failed or closed mid-frame).
+     */
     public static void discard() {
         deferring = false;
         QUEUE.clear();

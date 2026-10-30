@@ -12,7 +12,9 @@ package dev.sixik.unigui.cleanroom.backend;
  * across glyphs it draws one by one. SDF faces apply the colour and ignore the styles.</p>
  */
 final class CleanroomLegacyFormatting {
-    /** The section sign that introduces a code. */
+    /**
+     * The section sign that introduces a code.
+     */
     static final char SIGN = '\u00a7';
 
     private static final int[] PALETTE = {
@@ -37,7 +39,9 @@ final class CleanroomLegacyFormatting {
         return text.charAt(index) == SIGN && index + 1 < text.length();
     }
 
-    /** @return {@code text} without codes (the sign and the character after it) */
+    /**
+     * @return {@code text} without codes (the sign and the character after it)
+     */
     static String strip(String text) {
         if (text == null || text.indexOf(SIGN) < 0) return text;
         StringBuilder out = new StringBuilder(text.length());
@@ -68,7 +72,9 @@ final class CleanroomLegacyFormatting {
         private int color = -1;
         private int styles;
 
-        /** Clears colour and styles. */
+        /**
+         * Clears colour and styles.
+         */
         void reset() {
             color = -1;
             styles = 0;
@@ -92,12 +98,16 @@ final class CleanroomLegacyFormatting {
             }
         }
 
-        /** @return colour index {@code 0..15}, or {@code -1} if the base colour applies */
+        /**
+         * @return colour index {@code 0..15}, or {@code -1} if the base colour applies
+         */
         int color() {
             return color;
         }
 
-        /** @return {@code true} if nothing is active */
+        /**
+         * @return {@code true} if nothing is active
+         */
         boolean isDefault() {
             return color < 0 && styles == 0;
         }

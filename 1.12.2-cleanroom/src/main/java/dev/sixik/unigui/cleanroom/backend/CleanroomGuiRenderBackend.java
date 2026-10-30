@@ -161,9 +161,9 @@ final class CleanroomGuiRenderBackend implements RenderBackend, UiPostEffectBack
      * Clipping, anti-aliasing and glyph sizes use the target's pixel density through {@link Pass}.</p>
      *
      * @param drawList commands to draw; may be empty, the target is still cleared if its options ask for it
-     * @param target destination
-     * @param scaleX pixels per unit along x
-     * @param scaleY pixels per unit along y
+     * @param target   destination
+     * @param scaleX   pixels per unit along x
+     * @param scaleY   pixels per unit along y
      */
     void renderToTarget(DrawList drawList, CleanroomRenderTarget target, float scaleX, float scaleY) {
         if (target.isDisposed()) throw new IllegalStateException("Cannot render into a disposed target");
@@ -213,7 +213,7 @@ final class CleanroomGuiRenderBackend implements RenderBackend, UiPostEffectBack
 
     /**
      * @return bounds of the whole window in draw-list units, with the pixel density as scale: a layer target made from
-     *         them has exactly the window's pixel size
+     * them has exactly the window's pixel size
      */
     UiLayerBounds postEffectBounds() {
         float scaleX = screen.pixelsPerUnitX();
@@ -281,7 +281,9 @@ final class CleanroomGuiRenderBackend implements RenderBackend, UiPostEffectBack
                 && only.uniforms().isEmpty() && only.textures().isEmpty();
     }
 
-    /** Runs one effect pass: a full-viewport shader over {@code source}, written to {@code destination}. */
+    /**
+     * Runs one effect pass: a full-viewport shader over {@code source}, written to {@code destination}.
+     */
     private boolean renderPostEffectPass(UiPostEffectPass effect, CleanroomRenderTarget source,
                                          CleanroomRenderTarget destination) {
         if (effect == null) return false;
@@ -311,7 +313,9 @@ final class CleanroomGuiRenderBackend implements RenderBackend, UiPostEffectBack
         else renderBatches(postEffectCompositeList);
     }
 
-    /** Releases the GL objects this backend owns: post-effect targets and shader programs. */
+    /**
+     * Releases the GL objects this backend owns: post-effect targets and shader programs.
+     */
     @Override
     public void close() {
         // GL objects can only be deleted on the client thread; a layer may be closed from anywhere.

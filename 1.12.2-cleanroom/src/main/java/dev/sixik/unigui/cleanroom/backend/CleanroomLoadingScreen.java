@@ -11,39 +11,57 @@ package dev.sixik.unigui.cleanroom.backend;
  * <p>A layer reads the current state through {@link #context()}; it is {@code null} when nothing is loading.</p>
  */
 public final class CleanroomLoadingScreen {
-    /** Which vanilla screen is on. */
+    /**
+     * Which vanilla screen is on.
+     */
     public enum Kind {
-        /** "Loading level" progress screen of the integrated server. */
+        /**
+         * "Loading level" progress screen of the integrated server.
+         */
         LEVEL_LOADING,
-        /** "Saving level" progress screen. */
+        /**
+         * "Saving level" progress screen.
+         */
         LEVEL_SAVING,
-        /** The terrain download screen shown while joining a world. */
+        /**
+         * The terrain download screen shown while joining a world.
+         */
         TERRAIN_DOWNLOAD
     }
 
-    /** Read-only view of the loading state. */
+    /**
+     * Read-only view of the loading state.
+     */
     public static final class Context {
         private volatile Kind kind;
         private volatile String title = "";
         private volatile String message = "";
         private volatile int progress = -1;
 
-        /** @return which vanilla screen is active */
+        /**
+         * @return which vanilla screen is active
+         */
         public Kind kind() {
             return kind;
         }
 
-        /** @return headline of the screen, for example "Loading level" */
+        /**
+         * @return headline of the screen, for example "Loading level"
+         */
         public String title() {
             return title;
         }
 
-        /** @return second line of the screen, for example "Preparing spawn area", may be empty */
+        /**
+         * @return second line of the screen, for example "Preparing spawn area", may be empty
+         */
         public String message() {
             return message;
         }
 
-        /** @return progress in {@code 0.0..1.0}, or {@code -1} if vanilla does not report one */
+        /**
+         * @return progress in {@code 0.0..1.0}, or {@code -1} if vanilla does not report one
+         */
         public float progress() {
             int percent = progress;
             return percent < 0 ? -1.0f : Math.min(100, percent) / 100.0f;
@@ -56,12 +74,16 @@ public final class CleanroomLoadingScreen {
     private CleanroomLoadingScreen() {
     }
 
-    /** @return the active loading state, or {@code null} if no loading screen is shown */
+    /**
+     * @return the active loading state, or {@code null} if no loading screen is shown
+     */
     public static Context context() {
         return active ? CONTEXT : null;
     }
 
-    /** @return {@code true} while a loading screen is shown */
+    /**
+     * @return {@code true} while a loading screen is shown
+     */
     public static boolean isLoading() {
         return active;
     }
@@ -86,7 +108,9 @@ public final class CleanroomLoadingScreen {
         active = false;
     }
 
-    /** @return the kind of the active screen, {@code null} if none */
+    /**
+     * @return the kind of the active screen, {@code null} if none
+     */
     static Kind kind() {
         return active ? CONTEXT.kind : null;
     }

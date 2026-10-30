@@ -13,7 +13,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * @param <S> screen type; {@code GuiScreen} in the game, anything in tests
  */
 public final class CleanroomPointerBlockers<S> {
-    /** Decides whether the pointer at the given screen position is covered by an overlay. */
+    /**
+     * Decides whether the pointer at the given screen position is covered by an overlay.
+     */
     @FunctionalInterface
     public interface Blocker<S> {
         /**
@@ -38,7 +40,9 @@ public final class CleanroomPointerBlockers<S> {
         return () -> blockers.remove(blocker);
     }
 
-    /** @return {@code true} if any registered blocker covers the point; always {@code false} without a screen */
+    /**
+     * @return {@code true} if any registered blocker covers the point; always {@code false} without a screen
+     */
     public boolean blocks(S screen, double mouseX, double mouseY) {
         if (screen == null) return false;
         for (Blocker<S> blocker : blockers) {
@@ -47,7 +51,9 @@ public final class CleanroomPointerBlockers<S> {
         return false;
     }
 
-    /** Removes all blockers. */
+    /**
+     * Removes all blockers.
+     */
     public void clear() {
         blockers.clear();
     }

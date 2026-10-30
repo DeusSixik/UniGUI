@@ -43,19 +43,25 @@ public final class CleanroomLoadingHooks {
         }
     }
 
-    /** Draws the loading layers over the level loading / saving screen, just before the buffer swap. */
+    /**
+     * Draws the loading layers over the level loading / saving screen, just before the buffer swap.
+     */
     public static void renderLevelLoading() {
         if (!CleanroomLoadingScreen.isLoading()) return;
         render();
     }
 
-    /** Called every frame the terrain download screen is current. */
+    /**
+     * Called every frame the terrain download screen is current.
+     */
     public static void terrainDownload(int width, int height, float partialTick) {
         CleanroomLoadingScreen.begin(CleanroomLoadingScreen.Kind.TERRAIN_DOWNLOAD, "");
         draw(width, height, partialTick);
     }
 
-    /** Called when the current screen changes: leaving the terrain screen ends its loading state. */
+    /**
+     * Called when the current screen changes: leaving the terrain screen ends its loading state.
+     */
     public static void screenChanged() {
         if (CleanroomLoadingScreen.kind() == CleanroomLoadingScreen.Kind.TERRAIN_DOWNLOAD) {
             CleanroomLoadingScreen.end();

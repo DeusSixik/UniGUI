@@ -108,7 +108,9 @@ final class CleanroomShapeTessellator implements PathAntiAliasing.VertexSink {
                 || type == DrawCommandType.PATH || type == DrawCommandType.MESH;
     }
 
-    /** @return {@code true} for the textured command types {@link #append} understands */
+    /**
+     * @return {@code true} for the textured command types {@link #append} understands
+     */
     static boolean supportsTexture(DrawCommandType type) {
         return type == DrawCommandType.TEXTURE || type == DrawCommandType.TEXTURED_QUAD;
     }
@@ -333,7 +335,9 @@ final class CleanroomShapeTessellator implements PathAntiAliasing.VertexSink {
         }
     }
 
-    /** A free quad with its own UV at each corner (rotated or skewed images), drawn as two triangles. */
+    /**
+     * A free quad with its own UV at each corner (rotated or skewed images), drawn as two triangles.
+     */
     private void appendTexturedQuad(DrawCommand command, float opacity) {
         int color = argb(command.paint().color(), opacity);
         if ((color >>> 24) == 0) return;
@@ -351,7 +355,9 @@ final class CleanroomShapeTessellator implements PathAntiAliasing.VertexSink {
         vertex(command.quadX4(), command.quadY4(), command.quadU4(), v4, color);
     }
 
-    /** Emits a vertex whose UV is the position inside {@code bounds} mapped onto the {@code uv} rectangle. */
+    /**
+     * Emits a vertex whose UV is the position inside {@code bounds} mapped onto the {@code uv} rectangle.
+     */
     private void texturedVertex(RectView bounds, RectView uv, float x, float y, int color) {
         float horizontal = (x - bounds.x()) / bounds.width();
         float vertical = (y - bounds.y()) / bounds.height();

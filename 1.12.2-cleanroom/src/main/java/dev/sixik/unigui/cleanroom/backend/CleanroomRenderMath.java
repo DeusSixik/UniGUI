@@ -251,10 +251,10 @@ final class CleanroomRenderMath {
     /**
      * Source factor for the color channels when the source pixels may already be multiplied by their alpha.
      *
-     * @param mode requested blend mode, {@code null} means {@link BlendMode#NORMAL}
+     * @param mode                requested blend mode, {@code null} means {@link BlendMode#NORMAL}
      * @param premultipliedSource {@code true} if the texture stores premultiplied alpha
      * @return {@code GL_ONE} for a premultiplied source in normal blending (multiplying again would darken the
-     *         edges), otherwise the same as {@link #blendSrcRgb(BlendMode)}
+     * edges), otherwise the same as {@link #blendSrcRgb(BlendMode)}
      */
     static int blendSrcRgb(BlendMode mode, boolean premultipliedSource) {
         return premultipliedSource && mode != BlendMode.ADDITIVE ? GL_ONE : GL_SRC_ALPHA;

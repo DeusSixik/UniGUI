@@ -32,8 +32,8 @@ public final class CleanroomRenderTarget implements ManagedRenderTarget {
     private boolean disposed;
 
     /**
-     * @param width width in pixels, at least 1
-     * @param height height in pixels, at least 1
+     * @param width   width in pixels, at least 1
+     * @param height  height in pixels, at least 1
      * @param options target options, {@code null} means {@link RenderTargetOptions#COLOR}
      * @throws UnsupportedOperationException if framebuffer objects are disabled
      */
@@ -106,7 +106,9 @@ public final class CleanroomRenderTarget implements ManagedRenderTarget {
         return options;
     }
 
-    /** @return the GL name of the color texture */
+    /**
+     * @return the GL name of the color texture
+     */
     int textureId() {
         ensureAlive();
         return framebuffer.framebufferTexture;
@@ -145,7 +147,9 @@ public final class CleanroomRenderTarget implements ManagedRenderTarget {
             this.depth = depth;
         }
 
-        /** @return a guard holding the current state */
+        /**
+         * @return a guard holding the current state
+         */
         static Guard capture() {
             IntBuffer viewport = org.lwjgl.BufferUtils.createIntBuffer(16);
             GL11.glGetIntegerv(GL11.GL_VIEWPORT, viewport);
@@ -153,11 +157,14 @@ public final class CleanroomRenderTarget implements ManagedRenderTarget {
             return new Guard(binding, viewport, GL11.glIsEnabled(GL11.GL_DEPTH_TEST));
         }
 
-        /** Puts the captured state back. */
+        /**
+         * Puts the captured state back.
+         */
         void restore() {
             OpenGlHelper.glBindFramebuffer(OpenGlHelper.GL_FRAMEBUFFER, framebuffer);
             GlStateManager.viewport(viewport[0], viewport[1], viewport[2], viewport[3]);
-            if (depth) GlStateManager.enableDepth(); else GlStateManager.disableDepth();
+            if (depth) GlStateManager.enableDepth();
+            else GlStateManager.disableDepth();
         }
     }
 
@@ -196,17 +203,23 @@ public final class CleanroomRenderTarget implements ManagedRenderTarget {
             return OPTIONS;
         }
 
-        /** @return the GL texture name */
+        /**
+         * @return the GL texture name
+         */
         public int textureId() {
             return owner.textureId();
         }
 
-        /** @return {@code true} once the target was closed; drawing a disposed target is skipped */
+        /**
+         * @return {@code true} once the target was closed; drawing a disposed target is skipped
+         */
         public boolean isDisposed() {
             return owner.disposed;
         }
 
-        /** @return {@code true}: framebuffer rows run bottom to top, so V must be flipped when drawing */
+        /**
+         * @return {@code true}: framebuffer rows run bottom to top, so V must be flipped when drawing
+         */
         public boolean flipY() {
             return true;
         }

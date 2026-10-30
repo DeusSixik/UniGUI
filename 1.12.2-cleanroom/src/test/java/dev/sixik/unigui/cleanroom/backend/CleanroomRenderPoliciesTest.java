@@ -13,7 +13,7 @@ class CleanroomRenderPoliciesTest {
     private static CleanroomRenderPolicies.Decision decide(UiRenderPolicy.Mode mode, boolean hasTexture,
                                                            boolean size, boolean layout, boolean dirty,
                                                            boolean animating, long now, long last) {
-        return CleanroomRenderPolicies.decide(mode, 100L, hasTexture, size, layout, dirty, () -> animating, now, last);
+        return CleanroomRenderPolicies.decide(mode, 100L, hasTexture, size, layout, dirty, () -> animating, now, last, 0L);
     }
 
     @Test
@@ -47,13 +47,13 @@ class CleanroomRenderPoliciesTest {
                 () -> {
                     checks.incrementAndGet();
                     return true;
-                }, 10, 5);
+                }, 10, 5, 0L);
         assertEquals(0, checks.get(), "the tree walk is skipped when the dirty flag already decides");
         CleanroomRenderPolicies.decide(UiRenderPolicy.Mode.ON_DIRTY, 100L, true, false, false, false,
                 () -> {
                     checks.incrementAndGet();
                     return false;
-                }, 10, 5);
+                }, 10, 5, 0L);
         assertEquals(1, checks.get());
     }
 
@@ -63,6 +63,40 @@ class CleanroomRenderPoliciesTest {
         assertEquals(CleanroomRenderPolicies.Action.SKIP,
                 decide(UiRenderPolicy.Mode.FIXED_FPS, true, false, true, true, true, 150, 100).action());
         assertEquals("interval", decide(UiRenderPolicy.Mode.VSYNC, true, false, false, false, false, 200, 100).reason());
+    }
+
+    /**
+     * Frames come every 8.0 / 8.4 ms (about 120 fps) and the interval is 1/60 s. The sum of two frames is 16.4 ms,
+     * just under the interval: a plain "elapsed >= interval" test skips the second frame and refreshes on the third,
+     * which makes the load uneven. With the frame time known the cadence is a regular one refresh in two frames.
+     */
+    @Test
+    void timedModeKeepsARegularCadenceWhenFramesArriveJustEarly() {
+        long interval = 16_666_667L;
+        long[] deltas = {8_000_000L, 8_400_000L};
+        for (long frameNanos : new long[] {0L, 8_200_000L}) {
+            long now = 1_000_000_000L;
+            long last = 0L;
+            int framesSince = 0;
+            java.util.List<Integer> gaps = new java.util.ArrayList<>();
+            for (int frame = 0; frame < 400; frame++) {
+                now += deltas[frame % 2];
+                framesSince++;
+                var decision = CleanroomRenderPolicies.decide(UiRenderPolicy.Mode.VSYNC, interval, true, false,
+                        false, false, () -> false, now, last, frameNanos);
+                if (decision.action() == CleanroomRenderPolicies.Action.REFRESH) {
+                    if (last != 0L) gaps.add(framesSince);
+                    last = now;
+                    framesSince = 0;
+                }
+            }
+            boolean regular = gaps.stream().allMatch(gap -> gap == 2);
+            if (frameNanos == 0L) {
+                assertFalse(regular, "without the frame time the cadence is uneven (the bug this guards against)");
+            } else {
+                assertTrue(regular, "gaps were " + gaps.subList(0, Math.min(12, gaps.size())));
+            }
+        }
     }
 
     @Test

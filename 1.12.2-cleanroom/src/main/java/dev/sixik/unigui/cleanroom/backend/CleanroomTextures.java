@@ -28,7 +28,7 @@ final class CleanroomTextures {
     /**
      * @param texture handle of any kind; {@code null} gives the missing texture
      * @return resource location to bind. {@link CleanroomTextureHandle} carries its location, other handles are
-     *         parsed from their id once and cached
+     * parsed from their id once and cached
      */
     static ResourceLocation location(TextureHandle texture) {
         if (texture == null) return MISSING;
@@ -56,7 +56,9 @@ final class CleanroomTextures {
         return MIPMAPPED.add(glTextureId);
     }
 
-    /** Forgets a GL texture, for example when it is deleted. */
+    /**
+     * Forgets a GL texture, for example when it is deleted.
+     */
     static void forgetMipmapped(int glTextureId) {
         MIPMAPPED.remove(glTextureId);
     }

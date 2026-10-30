@@ -19,8 +19,8 @@ public final class CleanroomTextureHandle implements TextureHandle {
 
     /**
      * @param location texture location, for example {@code modid:textures/gui/icon.png}
-     * @param width texture width in pixels
-     * @param height texture height in pixels
+     * @param width    texture width in pixels
+     * @param height   texture height in pixels
      */
     public CleanroomTextureHandle(ResourceLocation location, int width, int height) {
         this(location, width, height, TextureOptions.defaults());
@@ -28,9 +28,9 @@ public final class CleanroomTextureHandle implements TextureHandle {
 
     /**
      * @param location texture location
-     * @param width texture width in pixels
-     * @param height texture height in pixels
-     * @param options sampling options, {@code null} means {@link TextureOptions#defaults()}
+     * @param width    texture width in pixels
+     * @param height   texture height in pixels
+     * @param options  sampling options, {@code null} means {@link TextureOptions#defaults()}
      */
     public CleanroomTextureHandle(ResourceLocation location, int width, int height, TextureOptions options) {
         this.location = Objects.requireNonNull(location, "location");
@@ -39,7 +39,9 @@ public final class CleanroomTextureHandle implements TextureHandle {
         this.options = options == null ? TextureOptions.defaults() : options;
     }
 
-    /** @return the Minecraft location of the texture */
+    /**
+     * @return the Minecraft location of the texture
+     */
     public ResourceLocation location() {
         return location;
     }

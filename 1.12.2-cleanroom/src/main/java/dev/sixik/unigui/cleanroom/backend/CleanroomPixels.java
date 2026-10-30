@@ -3,7 +3,9 @@ package dev.sixik.unigui.cleanroom.backend;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 
-/** Pixel format conversions for texture uploads. No OpenGL, no Minecraft. */
+/**
+ * Pixel format conversions for texture uploads. No OpenGL, no Minecraft.
+ */
 final class CleanroomPixels {
     private CleanroomPixels() {
     }
@@ -12,9 +14,9 @@ final class CleanroomPixels {
      * Converts tightly packed RGBA bytes (red first, rows top to bottom) into the {@code 0xAARRGGBB} ints vanilla's
      * {@code TextureUtil.uploadTexture} expects. The buffer's position and limit are not changed.
      *
-     * @param width image width in pixels, positive
+     * @param width  image width in pixels, positive
      * @param height image height in pixels, positive
-     * @param rgba at least {@code width * height * 4} readable bytes starting at the buffer's position
+     * @param rgba   at least {@code width * height * 4} readable bytes starting at the buffer's position
      * @return a new array of {@code width * height} ARGB pixels
      * @throws IllegalArgumentException for a non-positive size or a buffer that is too short
      */

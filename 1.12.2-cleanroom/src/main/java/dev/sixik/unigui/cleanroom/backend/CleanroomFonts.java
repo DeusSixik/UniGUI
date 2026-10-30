@@ -27,17 +27,29 @@ import java.util.Objects;
  * fonts are registered on demand instead of at startup.</p>
  */
 public final class CleanroomFonts {
-    /** Fonts that ship inside the UniGUI jar ({@code assets/unigui/fonts}). */
+    /**
+     * Fonts that ship inside the UniGUI jar ({@code assets/unigui/fonts}).
+     */
     public enum Builtin {
-        /** Cuprum Bold, a narrow technical sans. */
+        /**
+         * Cuprum Bold, a narrow technical sans.
+         */
         CUPRUM_BOLD("unigui:cuprum_bold", "Cuprum-Bold.ttf"),
-        /** Monocraft, a monospaced font in the Minecraft style. */
+        /**
+         * Monocraft, a monospaced font in the Minecraft style.
+         */
         MONOCRAFT("unigui:monocraft", "monocraft.ttf"),
-        /** Oswald Regular, a condensed grotesque. */
+        /**
+         * Oswald Regular, a condensed grotesque.
+         */
         OSWALD("unigui:oswald", "Oswald-Regular.ttf"),
-        /** Perfect DOS VGA 437, a bitmap-style DOS font. */
+        /**
+         * Perfect DOS VGA 437, a bitmap-style DOS font.
+         */
         PERFECT_DOS_VGA("unigui:perfect_dos_vga", "perfectdosvga437.ttf"),
-        /** Play Regular, a rounded display sans. */
+        /**
+         * Play Regular, a rounded display sans.
+         */
         PLAY("unigui:play", "play_regular.ttf");
 
         private final String id;
@@ -48,12 +60,16 @@ public final class CleanroomFonts {
             this.location = new ResourceLocation("unigui", "fonts/" + file);
         }
 
-        /** @return registry id of the face */
+        /**
+         * @return registry id of the face
+         */
         public String id() {
             return id;
         }
 
-        /** @return resource the face is loaded from */
+        /**
+         * @return resource the face is loaded from
+         */
         public ResourceLocation location() {
             return location;
         }

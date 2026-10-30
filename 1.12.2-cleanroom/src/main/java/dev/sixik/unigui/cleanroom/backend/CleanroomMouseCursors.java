@@ -33,12 +33,12 @@ final class CleanroomMouseCursors {
     /**
      * Finds the cursor a widget tree wants at a point.
      *
-     * @param root root widget of the tree
+     * @param root    root widget of the tree
      * @param context context that owns the hit tester and pointer capture
-     * @param x pointer x in the root's coordinates
-     * @param y pointer y in the root's coordinates
+     * @param x       pointer x in the root's coordinates
+     * @param y       pointer y in the root's coordinates
      * @return the cursor of the captured widget (a drag keeps its cursor), of the widget under the pointer, or
-     *         {@code null} if the pointer is over nothing
+     * {@code null} if the pointer is over nothing
      */
     static MouseCursor resolve(Widget root, UIContext context, float x, float y) {
         Widget captured = context.capturedPointer(0);
@@ -72,7 +72,9 @@ final class CleanroomMouseCursors {
         }
     }
 
-    /** Puts the system arrow back, for example when a screen closes. */
+    /**
+     * Puts the system arrow back, for example when a screen closes.
+     */
     void reset() {
         apply(MouseCursor.DEFAULT);
     }

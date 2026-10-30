@@ -88,7 +88,9 @@ final class CleanroomShapeRenderer {
         draw(command.paint().blendMode(), command.texture());
     }
 
-    /** Render target colors are stored bottom row first and must be drawn with V flipped. */
+    /**
+     * Render target colors are stored bottom row first and must be drawn with V flipped.
+     */
     private static boolean flipsV(TextureHandle texture) {
         return texture != null && texture.nativeHandle() instanceof CleanroomRenderTarget.ColorTextureHandle target
                 && target.flipY();
@@ -137,7 +139,9 @@ final class CleanroomShapeRenderer {
         sampler.restoreTo(samplerDepth);
     }
 
-    /** Generates missing mipmaps for the texture just bound and applies its sampling options. */
+    /**
+     * Generates missing mipmaps for the texture just bound and applies its sampling options.
+     */
     private void prepareBoundTexture(ResourceLocation location, TextureOptions options) {
         if (options.mipmaps()) {
             ITextureObject object = minecraft.getTextureManager().getTexture(location);

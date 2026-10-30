@@ -10,7 +10,9 @@ import java.util.function.BooleanSupplier;
  * neither disable the repeat the screen asked for nor leave it enabled on a screen that did not.</p>
  */
 final class CleanroomKeyRepeat {
-    /** Access to the global repeat flag; replaced by a fake in tests. */
+    /**
+     * Access to the global repeat flag; replaced by a fake in tests.
+     */
     interface Repeat {
         boolean enabled();
 
@@ -40,19 +42,25 @@ final class CleanroomKeyRepeat {
         }
     }
 
-    /** Switches repeats back off if this object was the one that switched them on. */
+    /**
+     * Switches repeats back off if this object was the one that switched them on.
+     */
     void release() {
         if (!ownedByUs) return;
         ownedByUs = false;
         repeat.enabled(false);
     }
 
-    /** @return {@code true} while this object holds the repeat flag */
+    /**
+     * @return {@code true} while this object holds the repeat flag
+     */
     boolean owns() {
         return ownedByUs;
     }
 
-    /** Convenience for building the global accessor from a getter and a setter. */
+    /**
+     * Convenience for building the global accessor from a getter and a setter.
+     */
     static Repeat of(BooleanSupplier getter, java.util.function.Consumer<Boolean> setter) {
         return new Repeat() {
             @Override

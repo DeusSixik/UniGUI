@@ -122,7 +122,9 @@ final class CleanroomWidgetLayer implements CleanroomLayerRegistry.LayerRenderer
         frameIndex++;
     }
 
-    /** @return {@code true} if layout ran */
+    /**
+     * @return {@code true} if layout ran
+     */
     private boolean updateLayout(float logicalWidth, float logicalHeight) {
         boolean sizeChanged = lastLayoutWidth != logicalWidth || lastLayoutHeight != logicalHeight;
         if (layoutInitialized && !sizeChanged

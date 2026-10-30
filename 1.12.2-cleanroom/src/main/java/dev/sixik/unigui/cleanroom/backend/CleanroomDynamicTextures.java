@@ -34,10 +34,10 @@ public final class CleanroomDynamicTextures {
     /**
      * Registers a new texture.
      *
-     * @param id texture id, {@code modid:path}
-     * @param width width in pixels
-     * @param height height in pixels
-     * @param rgba at least {@code width * height * 4} bytes of RGBA pixels; copied, the buffer stays yours
+     * @param id      texture id, {@code modid:path}
+     * @param width   width in pixels
+     * @param height  height in pixels
+     * @param rgba    at least {@code width * height * 4} bytes of RGBA pixels; copied, the buffer stays yours
      * @param options sampling options, {@code null} means defaults
      * @return handle to draw the texture with
      * @throws IllegalStateException if {@code id} is already registered
@@ -55,10 +55,10 @@ public final class CleanroomDynamicTextures {
      * Registers a texture or replaces the pixels of an existing one. Replacing with the same size uploads into the
      * existing GL texture, so handles drawn earlier keep working.
      *
-     * @param id texture id, {@code modid:path}
-     * @param width width in pixels
-     * @param height height in pixels
-     * @param rgba at least {@code width * height * 4} bytes of RGBA pixels; copied
+     * @param id      texture id, {@code modid:path}
+     * @param width   width in pixels
+     * @param height  height in pixels
+     * @param rgba    at least {@code width * height * 4} bytes of RGBA pixels; copied
      * @param options sampling options, {@code null} means defaults
      * @return handle to draw the texture with
      */
@@ -91,7 +91,9 @@ public final class CleanroomDynamicTextures {
         return true;
     }
 
-    /** Frees every registered texture. */
+    /**
+     * Frees every registered texture.
+     */
     public static synchronized void clear() {
         Registered[] all = REGISTRY.values().toArray(new Registered[0]);
         REGISTRY.clear();
@@ -100,7 +102,9 @@ public final class CleanroomDynamicTextures {
         });
     }
 
-    /** @return number of registered textures */
+    /**
+     * @return number of registered textures
+     */
     public static synchronized int size() {
         return REGISTRY.size();
     }

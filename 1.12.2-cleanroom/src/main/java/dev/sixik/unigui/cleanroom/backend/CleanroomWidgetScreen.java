@@ -176,7 +176,9 @@ final class CleanroomWidgetScreen extends GuiScreen implements CleanroomRenderHo
         wheelTracker.markConsumed(wheel, System.nanoTime());
     }
 
-    /** @return {@code true} if layout ran */
+    /**
+     * @return {@code true} if layout ran
+     */
     private boolean updateLayout(float logicalWidth, float logicalHeight) {
         if (layoutInitialized && !InvalidationFlags.has(root.subtreeInvalidationFlags(), InvalidationFlags.LAYOUT))
             return false;
