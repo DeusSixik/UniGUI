@@ -111,6 +111,84 @@ class CleanroomTextLayoutTest {
             : new CleanroomTextLayout.Glyph(page, 24, 40, 30.0f, 2.0f, -36.0f, 0.1f, 0.2f, 0.3f, 0.4f);
 
     @Test
+    void legacyCodes_takeNoSpaceAndStayInsideTheSegment() {
+        Recorder recorder = new Recorder();
+        run(command("a\u00a7cb", 0, 0), RichText.of("a\u00a7cb", vanillaFace, 10.0f), null, recorder);
+
+        assertEquals(1, recorder.vanilla.size());
+        assertEquals("a\u00a7cb", recorder.vanilla.get(0).text());
+        // Only the two glyphs advance the pen: a following run starts 12 units in, not 24.
+        Recorder next = new Recorder();
+        TextRun coded = new TextRun("a\u00a7cb", vanillaFace, 10.0f);
+        TextRun after = new TextRun("z", fallbackFace, 10.0f);
+        run(command("x", 0, 0), RichText.ofSpans(java.util.List.of(coded, after)), null, next);
+        assertEquals(2, next.vanilla.size());
+        assertEquals(12.0f, next.vanilla.get(1).x(), EPS);
+    }
+
+    @Test
+    void legacyCodes_carryAcrossGlyphsDrawnOneByOne() {
+        Recorder recorder = new Recorder();
+        TextRun tracked = new TextRun("\u00a7c\u00a7lab", vanillaFace, 10.0f, null, 1.0f);
+        run(command("x", 0, 0), RichText.ofSpans(java.util.List.of(tracked)), null, recorder);
+
+        assertEquals(2, recorder.vanilla.size());
+        assertEquals("\u00a7c\u00a7la", recorder.vanilla.get(0).text());
+        assertEquals("\u00a7c\u00a7lb", recorder.vanilla.get(1).text());
+        // Two glyphs and one tracking gap: the codes added nothing to the position.
+        assertEquals(6.0f + 10.0f, recorder.vanilla.get(1).x(), EPS);
+    }
+
+    @Test
+    void legacyCodes_carryOverANewlineInsideARun() {
+        Recorder recorder = new Recorder();
+        run(command("x", 0, 0), RichText.of("\u00a7ca\nb", vanillaFace, 10.0f), null, recorder);
+
+        assertEquals(2, recorder.vanilla.size());
+        assertEquals("\u00a7ca", recorder.vanilla.get(0).text());
+        assertEquals("\u00a7cb", recorder.vanilla.get(1).text());
+    }
+
+    @Test
+    void legacyCodes_resetAtTheStartOfEachRun() {
+        Recorder recorder = new Recorder();
+        TextRun first = new TextRun("\u00a7ca", vanillaFace, 10.0f);
+        TextRun second = new TextRun("b", vanillaFace, 10.0f);
+        run(command("x", 0, 0), RichText.ofSpans(java.util.List.of(first, second)), null, recorder);
+
+        assertEquals("b", recorder.vanilla.get(1).text());
+    }
+
+    @Test
+    void legacyCodes_onlyCodesDrawNothing() {
+        Recorder recorder = new Recorder();
+        run(command("x", 0, 0), RichText.of("\u00a7c\u00a7l", vanillaFace, 10.0f), null, recorder);
+        assertTrue(recorder.order.isEmpty());
+    }
+
+    @Test
+    void legacyCodes_colourSdfGlyphsAndSkipStyles() {
+        java.util.List<TextRun> runs = new ArrayList<>();
+        CleanroomTextLayout.Sink sink = new CleanroomTextLayout.Sink() {
+            @Override
+            public void sdfGlyph(Object p, float x, float y, float w, float h, float u0, float v0, float u1, float v1,
+                                 TextRun run) {
+                runs.add(run);
+            }
+
+            @Override
+            public void vanilla(String text, FontFace face, TextRun run, float x, float top, boolean perGlyph) {
+            }
+        };
+        run(command("x", 0, 0), RichText.of("a\u00a7cb\u00a7lc\u00a7rd", new SdfFace(), 10.0f), atlas, sink);
+
+        assertEquals(4, runs.size());
+        assertEquals(null, runs.get(0).brush());
+        assertTrue(runs.get(1).brush() instanceof dev.sixik.unigui.api.text.SolidTextBrush);
+        assertTrue(runs.get(2).brush() instanceof dev.sixik.unigui.api.text.SolidTextBrush, "styles keep the colour");
+        assertEquals(null, runs.get(3).brush(), "reset returns to the run colour");
+    }
+    @Test
     void vanillaRun_sitsAtBoundsAndAdvancesByFaceMetrics() {
         Recorder recorder = new Recorder();
         run(command("ab", 5, 7), RichText.of("ab", vanillaFace, 10.0f), null, recorder);

@@ -1,5 +1,6 @@
 package dev.sixik.unigui.cleanroom.backend;
 
+import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.math.Transform;
 import dev.sixik.unigui.api.render.DrawCommand;
@@ -8,6 +9,8 @@ import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.FontMetrics;
 import dev.sixik.unigui.api.text.LinearGradientTextBrush;
 import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.text.SolidTextBrush;
+import dev.sixik.unigui.api.text.TextTransform;
 import dev.sixik.unigui.api.text.TextRun;
 import dev.sixik.unigui.impl.render.shaders.SdfTextShaderSources;
 import dev.sixik.unigui.impl.text.SdfGlyphProvider;
@@ -80,6 +83,8 @@ final class CleanroomTextLayout {
     private float[] lineHeight = new float[8];
     private int lineCount;
     private final StringBuilder segment = new StringBuilder();
+    private final CleanroomLegacyFormatting.State format = new CleanroomLegacyFormatting.State();
+    private boolean segmentHasGlyph;
 
     /**
      * Lays out one command.
@@ -120,11 +125,35 @@ final class CleanroomTextLayout {
             boolean snapVanilla = !sdf && canSnap(command, visualTransform, size);
             FontMetrics drawMetrics = sdf ? null : drawFace.metrics(size);
             segment.setLength(0);
+            segmentHasGlyph = false;
             float segmentX = 0.0f;
             float segmentTop = 0.0f;
+            format.reset();
+            // SDF runs get the code colour through a derived run; it is rebuilt only when a code changes it.
+            TextRun glyphRun = run;
 
             String value = run.text();
             for (int index = 0; index < value.length(); ) {
+                if (CleanroomLegacyFormatting.isCode(value, index)) {
+                    char code = value.charAt(index + 1);
+                    index += 2;
+                    if (!sdf) {
+                        // The vanilla font draws codes itself. Per-glyph strings get the state as a prefix instead.
+                        if (!perGlyph) {
+                            if (segment.length() == 0) {
+                                segmentX = penX;
+                                segmentTop = baseline - drawMetrics.ascent();
+                                format.appendPrefix(segment);
+                            }
+                            segment.append(CleanroomLegacyFormatting.SIGN).append(code);
+                        }
+                        format.apply(code);
+                    } else {
+                        format.apply(code);
+                        glyphRun = format.color() < 0 ? run : colored(run, format.color());
+                    }
+                    continue;
+                }
                 int codePoint = value.codePointAt(index);
                 index += Character.charCount(codePoint);
                 if (codePoint == '\n') {
@@ -160,14 +189,16 @@ final class CleanroomTextLayout {
                         top += lineSnapY;
                     }
                     sink.sdfGlyph(glyph.page(), left, top, glyph.width() * sdfScale, glyph.height() * sdfScale,
-                            glyph.u0(), glyph.v0(), glyph.u1(), glyph.v1(), run);
+                            glyph.u0(), glyph.v0(), glyph.u1(), glyph.v1(), glyphRun);
                     penX += glyph.advance() * sdfScale;
                 } else {
                     if (segment.length() == 0) {
                         segmentX = penX;
                         segmentTop = baseline - drawMetrics.ascent();
+                        format.appendPrefix(segment);
                     }
                     segment.appendCodePoint(codePoint);
+                    segmentHasGlyph = true;
                     penX += Math.max(0.0f, drawFace.advance(codePoint, size));
                     if (perGlyph) {
                         flushSegment(sink, drawFace, run, segmentX, segmentTop, true, snapVanilla, affine, scaleX, scaleY);
@@ -181,7 +212,13 @@ final class CleanroomTextLayout {
 
     private void flushSegment(Sink sink, FontFace face, TextRun run, float x, float top, boolean perGlyph,
                               boolean snap, float[] affine, float scaleX, float scaleY) {
-        if (segment.length() == 0) return;
+        // A segment made only of codes draws nothing.
+        if (segment.length() == 0 || !segmentHasGlyph) {
+            segment.setLength(0);
+            segmentHasGlyph = false;
+            return;
+        }
+        segmentHasGlyph = false;
         float drawX = snap ? snapX(x, affine, scaleX) : x;
         float drawY = snap ? snapY(top, affine, scaleY) : top;
         sink.vanilla(segment.toString(), face, run, drawX, drawY, perGlyph);
@@ -222,6 +259,18 @@ final class CleanroomTextLayout {
         lineAscent[lineCount] = ascent;
         lineHeight[lineCount] = height;
         lineCount++;
+    }
+
+    /**
+     * Copy of {@code run} whose colour is the code colour: a solid brush replaces RGB and keeps the alpha of the
+     * paint and the run, which is what the vanilla font does.
+     */
+    private static TextRun colored(TextRun run, int colorIndex) {
+        int rgb = CleanroomLegacyFormatting.rgb(colorIndex);
+        MutableColor color = MutableColor.rgba(((rgb >> 16) & 255) / 255.0f, ((rgb >> 8) & 255) / 255.0f,
+                (rgb & 255) / 255.0f, 1.0f);
+        return new TextRun("", run.font(), run.pixelSize(), run.color(), new SolidTextBrush(color), run.tracking(),
+                TextTransform.NONE);
     }
 
     private static float positive(float value) {

@@ -20,6 +20,8 @@ public final class CleanroomClientBootstrap {
         if (current != null) return;
         current = new CleanroomUiRuntimeBackend();
         backend = current;
+        // The vanilla font is the default face (A3); registering custom fonts must not replace it.
+        MinecraftFonts.useVanillaAsDefault();
         UniGuiRuntime.install(current);
         MinecraftForge.EVENT_BUS.register(new CleanroomClientEvents());
     }

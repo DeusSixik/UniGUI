@@ -81,7 +81,8 @@ final class CleanroomGuiRenderBackend implements RenderBackend, UiPostEffectBack
     @Override
     public float measureTextWidth(String text) {
         if (text == null || text.isEmpty()) return 0.0f;
-        return TextEngine.measureLineWidth(RichText.of(text, defaultFont, TextRun.DEFAULT_PIXEL_SIZE));
+        return TextEngine.measureLineWidth(RichText.of(CleanroomLegacyFormatting.strip(text), defaultFont,
+                TextRun.DEFAULT_PIXEL_SIZE));
     }
 
     @Override
@@ -91,7 +92,8 @@ final class CleanroomGuiRenderBackend implements RenderBackend, UiPostEffectBack
     }
 
     /**
-     * Resolves runs without a face to the backend default, so measuring matches what is drawn.
+     * Resolves runs without a face to the backend default and drops formatting codes, so measuring matches what is
+     * drawn: the codes take no space.
      */
     private RichText withDefaultFont(RichText text) {
         RichText.Builder builder = RichText.builder();
@@ -102,7 +104,7 @@ final class CleanroomGuiRenderBackend implements RenderBackend, UiPostEffectBack
                     .brush(run.brush())
                     .tracking(run.tracking())
                     .transform(run.transform())
-                    .append(run.text());
+                    .append(CleanroomLegacyFormatting.strip(run.text()));
         }
         return builder.build();
     }
