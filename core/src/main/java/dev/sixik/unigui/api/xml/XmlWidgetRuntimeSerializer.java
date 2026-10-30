@@ -304,6 +304,15 @@ public final class XmlWidgetRuntimeSerializer {
         } else if (widget instanceof ScrollView scrollView) {
             writeFloat(element, "scrollStep", scrollView.scrollStep(), 16.0f);
             writeFloat(element, "scrollbarGap", scrollView.scrollbarGap(), dev.sixik.unigui.widgets.interaction.ScrollBar.DEFAULT_GAP);
+        } else if (widget instanceof dev.sixik.unigui.widgets.data.VirtualListView virtualList) {
+            if (virtualList.viewMode() != dev.sixik.unigui.widgets.data.VirtualListView.ViewMode.LIST) {
+                element.attribute("viewMode", enumValue(virtualList.viewMode()));
+            }
+            if (virtualList.configuredGridColumns() != 0) {
+                element.attribute("gridColumns", String.valueOf(virtualList.configuredGridColumns()));
+            }
+            writeFloat(element, "gridCellWidth", virtualList.gridCellWidth(), 96.0f);
+            writeFloat(element, "gridCellHeight", virtualList.gridCellHeight(), 96.0f);
         }
     }
 

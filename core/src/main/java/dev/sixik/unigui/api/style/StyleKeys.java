@@ -1,6 +1,7 @@
 package dev.sixik.unigui.api.style;
 
 import dev.sixik.unigui.api.animation.AnimationEasing;
+import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.render.ImageFit;
 import dev.sixik.unigui.api.render.SliceBorders;
@@ -212,6 +213,67 @@ public final class StyleKeys {
      * Толщина обводки векторного Path.
      */
     public static final StyleKey<Float> PATH_STROKE_WIDTH = StyleKey.of(StyleIds.Key.PATH_STROKE_WIDTH, Float.class);
+
+    /**
+     * Режим линейного списка либо сетки для VirtualListView.
+     */
+    public static final StyleKey<VirtualListViewMode> VIRTUAL_LIST_VIEW_MODE =
+            StyleKey.of(StyleIds.Key.VIRTUAL_LIST_VIEW_MODE, VirtualListViewMode.class);
+    /**
+     * Высота одного элемента в режиме списка.
+     */
+    public static final StyleKey<Float> VIRTUAL_LIST_ITEM_HEIGHT =
+            StyleKey.of(StyleIds.Key.VIRTUAL_LIST_ITEM_HEIGHT, Float.class);
+    /**
+     * Предпочтительная ширина grid-ячейки для автоматического расчёта колонок.
+     */
+    public static final StyleKey<Float> VIRTUAL_LIST_GRID_CELL_WIDTH =
+            StyleKey.of(StyleIds.Key.VIRTUAL_LIST_GRID_CELL_WIDTH, Float.class);
+    /**
+     * Фиксированная высота grid-ячейки.
+     */
+    public static final StyleKey<Float> VIRTUAL_LIST_GRID_CELL_HEIGHT =
+            StyleKey.of(StyleIds.Key.VIRTUAL_LIST_GRID_CELL_HEIGHT, Float.class);
+    /**
+     * Фиксированное число grid-колонок; ноль включает адаптивный auto-fit.
+     */
+    public static final StyleKey<Integer> VIRTUAL_LIST_GRID_COLUMNS =
+            StyleKey.of(StyleIds.Key.VIRTUAL_LIST_GRID_COLUMNS, Integer.class);
+    /**
+     * Вертикальный промежуток между строками.
+     */
+    public static final StyleKey<Float> VIRTUAL_LIST_ROW_GAP =
+            StyleKey.of(StyleIds.Key.VIRTUAL_LIST_ROW_GAP, Float.class);
+    /**
+     * Горизонтальный промежуток между grid-ячейками.
+     */
+    public static final StyleKey<Float> VIRTUAL_LIST_COLUMN_GAP =
+            StyleKey.of(StyleIds.Key.VIRTUAL_LIST_COLUMN_GAP, Float.class);
+    /**
+     * Внутренние отступы виртуального viewport.
+     */
+    public static final StyleKey<EdgeInsets> VIRTUAL_LIST_PADDING =
+            StyleKey.of(StyleIds.Key.VIRTUAL_LIST_PADDING, EdgeInsets.class);
+    /**
+     * Число дополнительных виртуальных строк за границами viewport.
+     */
+    public static final StyleKey<Integer> VIRTUAL_LIST_OVERSCAN =
+            StyleKey.of(StyleIds.Key.VIRTUAL_LIST_OVERSCAN, Integer.class);
+    /**
+     * Максимальное число сохранённых невидимых item-виджетов.
+     */
+    public static final StyleKey<Integer> VIRTUAL_LIST_OFFSCREEN_CACHE_SIZE =
+            StyleKey.of(StyleIds.Key.VIRTUAL_LIST_OFFSCREEN_CACHE_SIZE, Integer.class);
+    /**
+     * Шаг вертикальной прокрутки в UI-пикселях.
+     */
+    public static final StyleKey<Float> VIRTUAL_LIST_SCROLL_STEP =
+            StyleKey.of(StyleIds.Key.VIRTUAL_LIST_SCROLL_STEP, Float.class);
+    /**
+     * Нужно ли поглощать wheel-событие на границе прокрутки.
+     */
+    public static final StyleKey<Boolean> VIRTUAL_LIST_CONSUME_WHEEL_AT_BOUNDS =
+            StyleKey.of(StyleIds.Key.VIRTUAL_LIST_CONSUME_WHEEL_AT_BOUNDS, Boolean.class);
 
     /**
      * Высота строки TreeView.

@@ -3661,18 +3661,19 @@ public final class BasicControlsSelfTest {
         expect(itemPicker.resultGrid().itemCount() == 1
                         && itemPicker.resultGrid().realizedCount() == 1
                         && itemPicker.resultGrid().children().get(0).children().isEmpty(),
-                "MinecraftItemPickerWidget modal grid should virtualize filtered item icons into optimized visible rows");
+                "MinecraftItemPickerWidget modal grid should virtualize filtered item icons as individual cells");
 
-        Widget itemRow = itemPicker.resultGrid().children().get(0);
-        float itemX = itemRow.layoutBounds().x() + 2.0f;
-        float itemY = itemRow.layoutBounds().y() + 2.0f;
-        itemRow.handle(new PointerEnteredEvent(itemRow, itemX, itemY, 2.0f, 2.0f, 0));
+        Widget itemTile = itemPicker.resultGrid().children().get(0);
+        float itemX = itemTile.layoutBounds().x() + itemTile.layoutBounds().width() * 0.5f;
+        float itemY = itemTile.layoutBounds().y() + 19.0f;
+        itemTile.handle(new PointerEnteredEvent(itemTile, itemX, itemY,
+                itemTile.layoutBounds().width() * 0.5f, 19.0f, 0));
         Widget itemTooltipAnchor = itemPicker.idTooltip().anchor();
         expect(itemTooltipAnchor != null
-                        && itemTooltipAnchor != itemRow
+                        && itemTooltipAnchor != itemTile
                         && itemTooltipAnchor.hovered()
-                        && near(itemTooltipAnchor.layoutBounds().x(), itemRow.layoutBounds().x())
-                        && near(itemTooltipAnchor.layoutBounds().y(), itemY)
+                        && near(itemTooltipAnchor.layoutBounds().x(), itemX - 17.0f)
+                        && near(itemTooltipAnchor.layoutBounds().y(), itemY - 17.0f)
                         && itemPicker.idTooltip().text().equals(diamondId.toString()),
                 "MinecraftItemPickerWidget item icon tooltip should expose the full registry id from a tile anchor");
 
@@ -3681,7 +3682,9 @@ public final class BasicControlsSelfTest {
             itemChanges.count++;
             itemChanges.lastSelection = event.newSelection();
         });
-        itemRow.handle(new PointerPressedEvent(itemRow, itemX, itemY, 2.0f, 2.0f, 0, PointerButton.PRIMARY));
+        itemTile.handle(new PointerPressedEvent(itemTile, itemX, itemY,
+                itemTile.layoutBounds().width() * 0.5f, 19.0f,
+                0, PointerButton.PRIMARY));
         expect(itemPicker.selectedId().equals(diamondId)
                         && itemPicker.selectedItem() == diamond
                         && itemPicker.selectedStack().getItem() == diamond
@@ -3704,18 +3707,18 @@ public final class BasicControlsSelfTest {
         itemPicker.open();
         itemPickerLayer.measure(new LayoutContext(520.0f, 460.0f));
         itemPickerLayer.arrange(new MutableRect(0.0f, 0.0f, 520.0f, 460.0f));
-        Widget multiItemRow = itemPicker.resultGrid().children().get(0);
-        float thirdItemLocalX = 78.0f;
-        float thirdItemRootX = multiItemRow.layoutBounds().x() + thirdItemLocalX;
-        float thirdItemRootY = multiItemRow.layoutBounds().y() + 2.0f;
-        multiItemRow.handle(new PointerMovedEvent(multiItemRow, thirdItemRootX, thirdItemRootY, thirdItemLocalX, 2.0f, 0));
+        Widget thirdItemTile = itemPicker.resultGrid().children().get(2);
+        float thirdItemRootX = thirdItemTile.layoutBounds().x() + thirdItemTile.layoutBounds().width() * 0.5f;
+        float thirdItemRootY = thirdItemTile.layoutBounds().y() + thirdItemTile.layoutBounds().height() * 0.5f;
+        thirdItemTile.handle(new PointerMovedEvent(thirdItemTile, thirdItemRootX, thirdItemRootY,
+                thirdItemTile.layoutBounds().width() * 0.5f, thirdItemTile.layoutBounds().height() * 0.5f, 0));
         Widget rightItemTooltipAnchor = itemPicker.idTooltip().anchor();
         expect(rightItemTooltipAnchor != null
-                        && rightItemTooltipAnchor != multiItemRow
+                        && rightItemTooltipAnchor != thirdItemTile
                         && rightItemTooltipAnchor.hovered()
-                        && rightItemTooltipAnchor.layoutBounds().x() > multiItemRow.layoutBounds().x() + 60.0f
+                        && rightItemTooltipAnchor.layoutBounds().x() > itemTooltipAnchor.layoutBounds().x() + 60.0f
                         && itemPicker.idTooltip().text().equals(copperId.toString()),
-                "SearchableGridPickerWidget should position tooltip anchor on the hovered tile, not the row");
+                "SearchableGridPickerWidget should position tooltip anchor on the hovered virtual cell");
         itemPicker.close();
 
         ResourceLocation stoneTexture = ResourceLocation.tryBuild("minecraft", "textures/block/stone.png");
@@ -3746,18 +3749,19 @@ public final class BasicControlsSelfTest {
         expect(texturePicker.resultGrid().itemCount() == 1
                         && texturePicker.resultGrid().realizedCount() == 1
                         && texturePicker.resultGrid().children().get(0).children().isEmpty(),
-                "MinecraftTexturePickerWidget modal grid should virtualize filtered texture icons into optimized visible rows");
+                "MinecraftTexturePickerWidget modal grid should virtualize filtered texture icons as individual cells");
 
-        Widget textureRow = texturePicker.resultGrid().children().get(0);
-        float textureX = textureRow.layoutBounds().x() + 2.0f;
-        float textureY = textureRow.layoutBounds().y() + 2.0f;
-        textureRow.handle(new PointerEnteredEvent(textureRow, textureX, textureY, 2.0f, 2.0f, 0));
+        Widget textureTile = texturePicker.resultGrid().children().get(0);
+        float textureX = textureTile.layoutBounds().x() + textureTile.layoutBounds().width() * 0.5f;
+        float textureY = textureTile.layoutBounds().y() + 19.0f;
+        textureTile.handle(new PointerEnteredEvent(textureTile, textureX, textureY,
+                textureTile.layoutBounds().width() * 0.5f, 19.0f, 0));
         Widget textureTooltipAnchor = texturePicker.idTooltip().anchor();
         expect(textureTooltipAnchor != null
-                        && textureTooltipAnchor != textureRow
+                        && textureTooltipAnchor != textureTile
                         && textureTooltipAnchor.hovered()
-                        && near(textureTooltipAnchor.layoutBounds().x(), textureRow.layoutBounds().x())
-                        && near(textureTooltipAnchor.layoutBounds().y(), textureY)
+                        && near(textureTooltipAnchor.layoutBounds().x(), textureX - 17.0f)
+                        && near(textureTooltipAnchor.layoutBounds().y(), textureY - 17.0f)
                         && texturePicker.idTooltip().text().equals(stoneTexture.toString()),
                 "MinecraftTexturePickerWidget texture icon tooltip should expose the full texture id from a tile anchor");
 
@@ -3766,7 +3770,9 @@ public final class BasicControlsSelfTest {
             textureChanges.count++;
             textureChanges.lastSelection = event.newSelection();
         });
-        textureRow.handle(new PointerPressedEvent(textureRow, textureX, textureY, 2.0f, 2.0f, 0, PointerButton.PRIMARY));
+        textureTile.handle(new PointerPressedEvent(textureTile, textureX, textureY,
+                textureTile.layoutBounds().width() * 0.5f, 19.0f,
+                0, PointerButton.PRIMARY));
         expect(texturePicker.selectedId().equals(stoneTexture)
                         && texturePicker.selectedTexture().location().equals(stoneTexture)
                         && texturePicker.selectedPreview().texture() == texturePicker.selectedTexture()
@@ -3804,14 +3810,16 @@ public final class BasicControlsSelfTest {
         itemLayer.measure(new LayoutContext(520.0f, 460.0f));
         itemLayer.arrange(new MutableRect(0.0f, 0.0f, 520.0f, 460.0f));
         int wideItemColumns = itemPicker.gridColumns();
-        int wideItemRows = itemPicker.resultGrid().itemCount();
+        int wideItemHeight = Math.round(itemPicker.resultGrid().contentHeight());
+        int wideItemCount = itemPicker.resultGrid().itemCount();
 
         itemPicker.dialog().layout(style -> style.size(180.0f, 420.0f).flexGrow(0).flexShrink(0.0f));
         itemLayer.measure(new LayoutContext(520.0f, 460.0f));
         itemLayer.arrange(new MutableRect(0.0f, 0.0f, 520.0f, 460.0f));
         expect(itemPicker.gridColumns() < wideItemColumns
-                        && itemPicker.resultGrid().itemCount() > wideItemRows,
-                "MinecraftItemPickerWidget grid should recompute columns and row count after dialog resize");
+                        && itemPicker.resultGrid().contentHeight() > wideItemHeight
+                        && itemPicker.resultGrid().itemCount() == wideItemCount,
+                "MinecraftItemPickerWidget grid should reflow columns without changing logical item count");
 
         java.util.List<ResourceLocation> manyTextures = new java.util.ArrayList<>();
         for (int i = 0; i < 24; i++) {
@@ -3824,14 +3832,16 @@ public final class BasicControlsSelfTest {
         textureLayer.measure(new LayoutContext(520.0f, 460.0f));
         textureLayer.arrange(new MutableRect(0.0f, 0.0f, 520.0f, 460.0f));
         int wideTextureColumns = texturePicker.gridColumns();
-        int wideTextureRows = texturePicker.resultGrid().itemCount();
+        int wideTextureHeight = Math.round(texturePicker.resultGrid().contentHeight());
+        int wideTextureCount = texturePicker.resultGrid().itemCount();
 
         texturePicker.dialog().layout(style -> style.size(180.0f, 420.0f).flexGrow(0).flexShrink(0.0f));
         textureLayer.measure(new LayoutContext(520.0f, 460.0f));
         textureLayer.arrange(new MutableRect(0.0f, 0.0f, 520.0f, 460.0f));
         expect(texturePicker.gridColumns() < wideTextureColumns
-                        && texturePicker.resultGrid().itemCount() > wideTextureRows,
-                "MinecraftTexturePickerWidget grid should recompute columns and row count after dialog resize");
+                        && texturePicker.resultGrid().contentHeight() > wideTextureHeight
+                        && texturePicker.resultGrid().itemCount() == wideTextureCount,
+                "MinecraftTexturePickerWidget grid should reflow columns without changing logical item count");
     }
 
     private void testOverlayLayerAndTooltipBasics() {

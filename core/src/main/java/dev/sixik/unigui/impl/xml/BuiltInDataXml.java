@@ -14,7 +14,7 @@ final class BuiltInDataXml {
 
     static void register(WidgetXmlRegistry registry) {
         BuiltInWidgetXmlSupport.commonWidget(registry.register("VirtualListView", VirtualListView::new), VirtualListView.class)
-                .describe("Virtual List View", "Data", "Virtualized list for large item sets.");
+                .describe("Virtual List View", "Data", "Virtualized list or responsive grid for large item sets.");
         BuiltInWidgetXmlSupport.commonWidget(registry.register("VirtualTableView", VirtualTableView::new), VirtualTableView.class)
                 .describe("Virtual Table View", "Data", "Virtualized table for property grids, diagnostics and data views.")
                 .attribute("columns", XmlValueParsers.STRING, BuiltInDataXml::columns,

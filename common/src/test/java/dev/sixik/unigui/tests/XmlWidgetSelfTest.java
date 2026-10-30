@@ -1930,10 +1930,15 @@ public final class XmlWidgetSelfTest {
                 "Expanded annotated registry should expose NodeGraph gridSize metadata");
 
         VirtualListView list = XMLWidget.create("""
-                <VirtualListView itemCount="12" itemHeight="22" overscan="3" selectionMode="multiple" />
+                <VirtualListView itemCount="12" itemHeight="22" overscan="3" selectionMode="multiple"
+                                 viewMode="grid" gridCellWidth="40" gridCellHeight="48" gridColumns="3" />
                 """, VirtualListView.class, registry);
         expect(list.itemCount() == 12
                         && near(list.itemHeight(), 22.0f)
+                        && list.viewMode() == VirtualListView.ViewMode.GRID
+                        && near(list.gridCellWidth(), 40.0f)
+                        && near(list.gridCellHeight(), 48.0f)
+                        && list.gridColumns() == 3
                         && list.overscan() == 3
                         && list.selectionMode() == SelectionMode.MULTIPLE,
                 "Annotation-backed VirtualListView XML attributes should apply");

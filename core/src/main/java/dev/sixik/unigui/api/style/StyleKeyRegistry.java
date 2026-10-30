@@ -1,6 +1,7 @@
 package dev.sixik.unigui.api.style;
 
 import dev.sixik.unigui.api.animation.AnimationEasing;
+import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.ImageFit;
@@ -47,6 +48,12 @@ public final class StyleKeyRegistry {
     public static StyleKeyRegistry builtIns() {
         StyleValueCodec<ColorView> color = StyleValueCodec.color();
         StyleValueCodec<Float> number = StyleValueCodec.floatingPoint();
+        StyleValueCodec<Integer> integer = StyleValueCodec.of(value -> {
+            if (value == null || value.isBlank()) {
+                throw new IllegalArgumentException("Expected integer value.");
+            }
+            return Integer.parseInt(value.trim());
+        }, String::valueOf);
         StyleValueCodec<ImageFit> imageFit = StyleValueCodec.enumCodec(ImageFit.class);
         StyleValueCodec<Boolean> bool = StyleValueCodec.of(value -> {
             if ("true".equalsIgnoreCase(value)) return true;
@@ -70,6 +77,10 @@ public final class StyleKeyRegistry {
                 StyleKeyRegistry::formatTextureGroup);
         StyleValueCodec<AnimationEasing> easing = StyleValueCodec.enumCodec(AnimationEasing.class);
         StyleValueCodec<BackgroundKind> backgroundKind = StyleValueCodec.enumCodec(BackgroundKind.class);
+        StyleValueCodec<VirtualListViewMode> virtualListViewMode = StyleValueCodec.enumCodec(VirtualListViewMode.class);
+        StyleValueCodec<EdgeInsets> edgeInsets = StyleValueCodec.of(
+                dev.sixik.unigui.api.xml.XmlValueParsers.INSETS::parse,
+                value -> value.top() + " " + value.right() + " " + value.bottom() + " " + value.left());
         StyleValueCodec<TreeRowStyle> treeRowStyle = StyleValueCodec.enumCodec(TreeRowStyle.class);
         StyleValueCodec<TreeDisclosureStyle> treeDisclosureStyle = StyleValueCodec.enumCodec(TreeDisclosureStyle.class);
         StyleValueCodec<ShaderHandle> shader = StyleValueCodec.of(
@@ -95,6 +106,18 @@ public final class StyleKeyRegistry {
                 .register(new StylePropertyDescriptor<>(StyleKeys.PATH_COLOR, "Path color", "Path", null, color, "Vector path fill or stroke color."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.PATH_STROKE, "Path stroke", "Path", null, bool, "Whether a vector path is rendered as a stroke."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.PATH_STROKE_WIDTH, "Path stroke width", "Path", null, number, "Vector path stroke width in logical pixels."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.VIRTUAL_LIST_VIEW_MODE, "View mode", "VirtualListView", VirtualListViewMode.LIST, virtualListViewMode, "Whether virtual items are arranged as a list or grid."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.VIRTUAL_LIST_ITEM_HEIGHT, "Item height", "VirtualListView", 18.0f, number, "Height of one item in list mode."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.VIRTUAL_LIST_GRID_CELL_WIDTH, "Grid cell width", "VirtualListView", 96.0f, number, "Preferred grid cell width used by responsive auto-fit."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.VIRTUAL_LIST_GRID_CELL_HEIGHT, "Grid cell height", "VirtualListView", 96.0f, number, "Fixed grid cell height."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.VIRTUAL_LIST_GRID_COLUMNS, "Grid columns", "VirtualListView", 0, integer, "Fixed grid column count; zero enables responsive auto-fit."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.VIRTUAL_LIST_ROW_GAP, "Row gap", "VirtualListView", 0.0f, number, "Vertical gap between virtual rows."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.VIRTUAL_LIST_COLUMN_GAP, "Column gap", "VirtualListView", 0.0f, number, "Horizontal gap between grid cells."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.VIRTUAL_LIST_PADDING, "Padding", "VirtualListView", EdgeInsets.ZERO, edgeInsets, "Viewport padding in CSS order: top right bottom left."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.VIRTUAL_LIST_OVERSCAN, "Overscan", "VirtualListView", 1, integer, "Extra virtual rows realized before and after the viewport."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.VIRTUAL_LIST_OFFSCREEN_CACHE_SIZE, "Offscreen cache size", "VirtualListView", 0, integer, "Maximum number of offscreen item widgets retained by index."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.VIRTUAL_LIST_SCROLL_STEP, "Scroll step", "VirtualListView", 16.0f, number, "UI pixels scrolled per wheel delta unit."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.VIRTUAL_LIST_CONSUME_WHEEL_AT_BOUNDS, "Consume wheel at bounds", "VirtualListView", true, bool, "Whether the view retains wheel ownership at scroll bounds."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.TREE_ROW_HEIGHT, "Tree row height", "TreeView", 28.0f, number, "Height of each visible tree row in logical pixels."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.TREE_ROW_STYLE, "Tree row style", "TreeView", TreeRowStyle.PILL, treeRowStyle, "Whether row highlight is inset or full-width."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.TREE_DISCLOSURE_STYLE, "Tree disclosure style", "TreeView", TreeDisclosureStyle.CHEVRON, treeDisclosureStyle, "Shape of the branch expansion marker."))

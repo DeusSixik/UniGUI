@@ -14,7 +14,10 @@ import dev.sixik.unigui.api.event.SelectionChangedEvent;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.input.KeyModifiers;
 import dev.sixik.unigui.api.input.PointerButton;
+import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.LayoutContext;
+import dev.sixik.unigui.api.layout.LayoutStyle;
+import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
@@ -23,33 +26,59 @@ import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.selection.IndexSelectionModel;
 import dev.sixik.unigui.api.selection.SelectionMode;
+import dev.sixik.unigui.api.style.MutableStyle;
+import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.style.VirtualListViewMode;
+import dev.sixik.unigui.api.style.WidgetState;
+import dev.sixik.unigui.api.virtualization.FixedRowVirtualizer;
+import dev.sixik.unigui.api.virtualization.VirtualRange;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.render.WidgetRender;
-import dev.sixik.unigui.api.virtualization.FixedRowVirtualizer;
-import dev.sixik.unigui.api.virtualization.VirtualRange;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
-import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap;
-import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
-import it.unimi.dsi.fastutil.objects.ObjectIterator;
-
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.function.IntFunction;
 import dev.sixik.unigui.widgets.containers.StackPanel;
 import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.interaction.ScrollBar;
+import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.objects.ObjectIterator;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.IntFunction;
 
 /**
- * Fixed-row-height virtualized list for large scrollable datasets.
+ * Виртуализированное представление большого набора элементов в виде списка или сетки.
+ *
+ * <p>Геометрия и поведение могут задаваться общим {@code StylePack} через ключи
+ * {@link StyleKeys#VIRTUAL_LIST_VIEW_MODE}, {@link StyleKeys#VIRTUAL_LIST_GRID_CELL_WIDTH},
+ * {@link StyleKeys#VIRTUAL_LIST_GRID_CELL_HEIGHT} и остальные
+ * {@code VIRTUAL_LIST_*} свойства. Fluent-методы записывают те же ключи в inline-style
+ * конкретного экземпляра и поэтому имеют приоритет над темой.</p>
+ *
+ * <pre>{@code
+ * StylePack pack = StylePack.create("files")
+ *         .putStyle(VirtualListView.STYLE_TYPE, new MutableStyle()
+ *                 .put(StyleKeys.VIRTUAL_LIST_VIEW_MODE, VirtualListViewMode.GRID)
+ *                 .put(StyleKeys.VIRTUAL_LIST_GRID_CELL_WIDTH, 120.0f)
+ *                 .put(StyleKeys.VIRTUAL_LIST_GRID_CELL_HEIGHT, 140.0f)
+ *                 .put(StyleKeys.VIRTUAL_LIST_COLUMN_GAP, 8.0f));
+ * }</pre>
  */
 @XmlWidgetName("VirtualListView")
 public class VirtualListView extends WidgetBase {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.VIRTUAL_LIST_VIEW;
+
+    public enum ViewMode {
+        GRID,
+        LIST
+    }
 
     private static final float SCROLLBAR_WIDTH = ScrollBar.DEFAULT_SIZE;
     private static final float SCROLLBAR_GAP = ScrollBar.DEFAULT_GAP;
@@ -69,9 +98,7 @@ public class VirtualListView extends WidgetBase {
     private boolean childrenViewIncludesVerticalScrollBar;
     private IntFunction<? extends Widget> itemFactory = index -> new Label(String.valueOf(index));
     private RenderPhase renderPhase = RenderPhase.BACKGROUND;
-    private float scrollStep = 16.0f;
-    private int offscreenCacheSize;
-    private boolean consumeWheelAtScrollBounds = true;
+    private int gridColumns = 1;
     private int activeIndex = -1;
     private int pendingActiveIndex = -1;
 
@@ -81,15 +108,114 @@ public class VirtualListView extends WidgetBase {
         verticalScrollBar.onValueChanged(event -> scrollTo(event.newValue()));
     }
 
-    public int itemCount() {
-        return virtualizer.itemCount();
+    @Override
+    protected String styleType() {
+        return STYLE_TYPE;
     }
 
-    @XmlAttribute(value = "itemCount", category = "Data", defaultValue = "0", description = "Number of virtual rows exposed by the list.")
+    @Override
+    public VirtualListView layout(Consumer<LayoutStyle> update) {
+        super.layout(update);
+        return this;
+    }
+
+    @Override
+    public VirtualListView style(String declarations) {
+        super.style(declarations);
+        syncVirtualizerConfiguration();
+        trimRecycled();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    @Override
+    public VirtualListView style(Consumer<MutableStyle> update) {
+        super.style(update);
+        syncVirtualizerConfiguration();
+        trimRecycled();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    @Override
+    public VirtualListView styleClear() {
+        super.styleClear();
+        syncVirtualizerConfiguration();
+        trimRecycled();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public ViewMode viewMode() {
+        return effectiveViewMode() == VirtualListViewMode.GRID ? ViewMode.GRID : ViewMode.LIST;
+    }
+
+    @XmlAttribute(value = "viewMode", category = "Layout", defaultValue = "list", description = "Virtual item presentation mode: list or grid.")
+    public VirtualListView viewMode(ViewMode viewMode) {
+        ViewMode normalized = viewMode == null ? ViewMode.LIST : viewMode;
+        style(value -> value.put(StyleKeys.VIRTUAL_LIST_VIEW_MODE,
+                normalized == ViewMode.GRID ? VirtualListViewMode.GRID : VirtualListViewMode.LIST));
+        return this;
+    }
+
+    public VirtualListView grid(boolean grid) {
+        return viewMode(grid ? ViewMode.GRID : ViewMode.LIST);
+    }
+
+    public float gridCellWidth() {
+        return sanitizePositive(styleValue(StyleKeys.VIRTUAL_LIST_GRID_CELL_WIDTH, 96.0f), 96.0f);
+    }
+
+    @XmlAttribute(value = "gridCellWidth", category = "Layout", defaultValue = "96", description = "Preferred grid cell width used for responsive column auto-fit.")
+    public VirtualListView gridCellWidth(float width) {
+        float normalized = Float.isFinite(width) ? Math.max(1.0f, width) : 96.0f;
+        style(value -> value.put(StyleKeys.VIRTUAL_LIST_GRID_CELL_WIDTH, normalized));
+        return this;
+    }
+
+    public float gridCellHeight() {
+        return sanitizePositive(styleValue(StyleKeys.VIRTUAL_LIST_GRID_CELL_HEIGHT, 96.0f), 96.0f);
+    }
+
+    @XmlAttribute(value = "gridCellHeight", category = "Layout", defaultValue = "96", description = "Fixed height of a virtual grid row.")
+    public VirtualListView gridCellHeight(float height) {
+        float normalized = Float.isFinite(height) ? Math.max(1.0f, height) : 96.0f;
+        style(value -> value.put(StyleKeys.VIRTUAL_LIST_GRID_CELL_HEIGHT, normalized));
+        return this;
+    }
+
+    /**
+     * Sets a fixed column count; zero restores width-based auto-fit.
+     */
+    @XmlAttribute(value = "gridColumns", category = "Layout", defaultValue = "0", description = "Fixed grid column count; zero fits columns to available width.")
+    public VirtualListView gridColumns(int columns) {
+        int normalized = Math.max(0, columns);
+        style(value -> value.put(StyleKeys.VIRTUAL_LIST_GRID_COLUMNS, normalized));
+        return this;
+    }
+
+    public int gridColumns() {
+        return viewMode() == ViewMode.GRID ? gridColumns : 1;
+    }
+
+    /**
+     * Returns the configured fixed count, or zero while responsive auto-fit is enabled.
+     */
+    public int configuredGridColumns() {
+        return Math.max(0, styleValue(StyleKeys.VIRTUAL_LIST_GRID_COLUMNS, 0));
+    }
+
+    public int itemCount() {
+        return itemCount;
+    }
+
+    @XmlAttribute(value = "itemCount", category = "Data", defaultValue = "0", description = "Number of virtual items exposed by the view.")
     public VirtualListView itemCount(int itemCount) {
-        if (virtualizer.itemCount() == Math.max(0, itemCount)) return this;
+        int normalizedCount = Math.max(0, itemCount);
+        if (this.itemCount == normalizedCount) return this;
         List<Integer> oldSelection = selection.selectedIndices();
-        virtualizer.itemCount(itemCount);
+        this.itemCount = normalizedCount;
+        syncVirtualizerConfiguration();
         if (pendingActiveIndex >= 0) {
             activeIndex = clampIndexOrNone(pendingActiveIndex);
             if (activeIndex >= 0) {
@@ -100,36 +226,80 @@ public class VirtualListView extends WidgetBase {
         }
         pruneRealized();
         pruneRecycled();
-        emitSelectionChangeIfChanged(oldSelection, selection.retainWithin(virtualizer.itemCount()));
+        emitSelectionChangeIfChanged(oldSelection, selection.retainWithin(this.itemCount));
         scrollTo(virtualizer.scrollOffset());
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
 
+    private int itemCount;
+
+    private void syncVirtualizerConfiguration() {
+        virtualizer.overscan(overscan());
+        if (viewMode() == ViewMode.GRID) {
+            int configuredColumns = configuredGridColumns();
+            gridColumns = configuredColumns > 0 ? configuredColumns : calculateGridColumns();
+            virtualizer.itemExtent(gridCellHeight() + effectiveRowGap());
+            virtualizer.itemCount(itemCount == 0 ? 0 : (itemCount - 1) / gridColumns + 1);
+        } else {
+            gridColumns = 1;
+            virtualizer.itemExtent(rowExtent());
+            virtualizer.itemCount(itemCount);
+        }
+    }
+
+    private VirtualListViewMode effectiveViewMode() {
+        return styleValue(StyleKeys.VIRTUAL_LIST_VIEW_MODE, VirtualListViewMode.LIST);
+    }
+
+    private float effectiveRowGap() {
+        return sanitizeNonNegative(styleValue(
+                StyleKeys.VIRTUAL_LIST_ROW_GAP, layoutStyle().rowGap()), layoutStyle().rowGap());
+    }
+
+    private float effectiveColumnGap() {
+        return sanitizeNonNegative(styleValue(
+                StyleKeys.VIRTUAL_LIST_COLUMN_GAP, layoutStyle().columnGap()), layoutStyle().columnGap());
+    }
+
+    private EdgeInsets effectivePadding() {
+        return styleValue(StyleKeys.VIRTUAL_LIST_PADDING, layoutStyle().padding());
+    }
+
+    private int rowCount() {
+        return virtualizer.itemCount();
+    }
+
+    private float rowExtent() {
+        return (viewMode() == ViewMode.GRID ? gridCellHeight() : itemHeight()) + effectiveRowGap();
+    }
+
+    private int calculateGridColumns() {
+        EdgeInsets padding = effectivePadding();
+        float width = Math.max(0.0f, layoutBounds().width() - padding.horizontal()
+                - (virtualizer.maxScrollOffset() > 0.0f ? SCROLLBAR_WIDTH + SCROLLBAR_GAP : 0.0f));
+        float gap = effectiveColumnGap();
+        return Math.max(1, (int) Math.floor((width + gap) / (gridCellWidth() + gap)));
+    }
+
     public float itemHeight() {
-        return virtualizer.itemExtent();
+        return sanitizePositive(styleValue(StyleKeys.VIRTUAL_LIST_ITEM_HEIGHT, 18.0f), 18.0f);
     }
 
     @XmlAttribute(value = "itemHeight", category = "Layout", defaultValue = "18", description = "Fixed row height used by virtualization.")
     public VirtualListView itemHeight(float itemHeight) {
-        float previous = virtualizer.itemExtent();
-        virtualizer.itemExtent(itemHeight);
-        if (previous == virtualizer.itemExtent()) return this;
-        scrollTo(virtualizer.scrollOffset());
-        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        float normalized = Float.isFinite(itemHeight) ? Math.max(1.0f, itemHeight) : 18.0f;
+        style(value -> value.put(StyleKeys.VIRTUAL_LIST_ITEM_HEIGHT, normalized));
         return this;
     }
 
     public int overscan() {
-        return virtualizer.overscan();
+        return Math.max(0, styleValue(StyleKeys.VIRTUAL_LIST_OVERSCAN, 1));
     }
 
     @XmlAttribute(value = "overscan", category = "Behavior", defaultValue = "1", description = "Extra rows realized above and below the viewport.")
     public VirtualListView overscan(int overscan) {
-        int previous = virtualizer.overscan();
-        virtualizer.overscan(overscan);
-        if (previous == virtualizer.overscan()) return this;
-        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        style(value -> value.put(StyleKeys.VIRTUAL_LIST_OVERSCAN, Math.max(0, overscan)));
         return this;
     }
 
@@ -141,15 +311,13 @@ public class VirtualListView extends WidgetBase {
     }
 
     public int offscreenCacheSize() {
-        return offscreenCacheSize;
+        return Math.max(0, styleValue(StyleKeys.VIRTUAL_LIST_OFFSCREEN_CACHE_SIZE, 0));
     }
 
     @XmlAttribute(value = "offscreenCacheSize", category = "Behavior", defaultValue = "0", description = "Maximum number of recycled offscreen row widgets retained.")
     public VirtualListView offscreenCacheSize(int offscreenCacheSize) {
         int normalized = Math.max(0, offscreenCacheSize);
-        if (this.offscreenCacheSize == normalized) return this;
-        this.offscreenCacheSize = normalized;
-        trimRecycled();
+        style(value -> value.put(StyleKeys.VIRTUAL_LIST_OFFSCREEN_CACHE_SIZE, normalized));
         return this;
     }
 
@@ -159,27 +327,34 @@ public class VirtualListView extends WidgetBase {
 
     @XmlAttribute(value = "scrollStep", category = "Behavior", defaultValue = "16", description = "UI pixels scrolled per wheel/page delta unit.")
     public VirtualListView scrollStep(float scrollStep) {
-        this.scrollStep = Float.isFinite(scrollStep) ? Math.max(1.0f, scrollStep) : 16.0f;
-        syncScrollBar();
+        float normalized = Float.isFinite(scrollStep) ? Math.max(1.0f, scrollStep) : 16.0f;
+        style(value -> value.put(StyleKeys.VIRTUAL_LIST_SCROLL_STEP, normalized));
         return this;
     }
 
+    public float scrollStep() {
+        return sanitizePositive(styleValue(StyleKeys.VIRTUAL_LIST_SCROLL_STEP, 16.0f), 16.0f);
+    }
+
     public boolean consumeWheelAtScrollBounds() {
-        return consumeWheelAtScrollBounds;
+        return styleValue(StyleKeys.VIRTUAL_LIST_CONSUME_WHEEL_AT_BOUNDS, true);
     }
 
     @XmlAttribute(value = "consumeWheelAtScrollBounds", category = "Behavior", defaultValue = "true", description = "Whether wheel events are consumed at scroll range boundaries.")
     public VirtualListView consumeWheelAtScrollBounds(boolean consumeWheelAtScrollBounds) {
-        this.consumeWheelAtScrollBounds = consumeWheelAtScrollBounds;
+        style(value -> value.put(StyleKeys.VIRTUAL_LIST_CONSUME_WHEEL_AT_BOUNDS, consumeWheelAtScrollBounds));
         return this;
     }
 
     public float contentHeight() {
-        return virtualizer.contentExtent();
+        syncVirtualizerConfiguration();
+        int rows = rowCount();
+        return Math.max(0.0f, rows * rowExtent() - (rows > 0 ? effectiveRowGap() : 0.0f));
     }
 
     public float maxScrollY() {
-        return Math.max(0.0f, contentHeight() - Math.max(0.0f, layoutBounds().height()));
+        EdgeInsets padding = effectivePadding();
+        return Math.max(0.0f, contentHeight() - Math.max(0.0f, layoutBounds().height() - padding.vertical()));
     }
 
     public int firstVisibleIndex() {
@@ -191,7 +366,11 @@ public class VirtualListView extends WidgetBase {
     }
 
     public VirtualRange realizedRange() {
-        return virtualizer.visibleRange();
+        syncVirtualizerConfiguration();
+        VirtualRange rows = virtualizer.visibleRange();
+        if (viewMode() != ViewMode.GRID) return rows;
+        return new VirtualRange(Math.min(itemCount, rows.firstIndex() * gridColumns),
+                Math.min(itemCount, rows.lastIndexExclusive() * gridColumns));
     }
 
     public int realizedCount() {
@@ -229,7 +408,7 @@ public class VirtualListView extends WidgetBase {
 
     @XmlAttribute(value = "activeIndex", category = "Behavior", defaultValue = "-1", description = "Initial keyboard/navigation active row index.")
     public VirtualListView activeIndex(int index) {
-        if (index >= 0 && virtualizer.itemCount() <= 0) {
+        if (index >= 0 && itemCount <= 0) {
             pendingActiveIndex = index;
         } else {
             pendingActiveIndex = -1;
@@ -285,6 +464,7 @@ public class VirtualListView extends WidgetBase {
     }
 
     public VirtualListView scrollTo(float y) {
+        syncVirtualizerConfiguration();
         updateVirtualizerViewport();
         float before = virtualizer.scrollOffset();
         virtualizer.scrollOffset(y);
@@ -301,6 +481,8 @@ public class VirtualListView extends WidgetBase {
     @Override
     public void setUiContextInternal(UIContext uiContext) {
         super.setUiContextInternal(uiContext);
+        syncVirtualizerConfiguration();
+        trimRecycled();
         verticalScrollBar.setParentInternal(this);
         verticalScrollBar.setUiContextInternal(uiContext);
         for (Widget item : realized.values()) {
@@ -335,19 +517,23 @@ public class VirtualListView extends WidgetBase {
             setDesiredSize(0.0f, 0.0f);
             return;
         }
+        syncVirtualizerConfiguration();
         float desiredWidth = 0.0f;
         for (Widget item : realizedWidgetSnapshot()) {
             item.measure(context);
             desiredWidth = Math.max(desiredWidth, StackPanel.preferredWidth(item, 0.0f));
         }
-        float desiredHeight = Math.min(contentHeight(), Math.max(0.0f, virtualizer.itemExtent() * 8.0f));
-        setDesiredSize(resolveDesiredSize(context, desiredWidth, desiredHeight));
+        EdgeInsets padding = effectivePadding();
+        float desiredHeight = Math.min(contentHeight(), Math.max(0.0f, rowExtent() * 8.0f));
+        setDesiredSize(resolveDesiredSize(context,
+                desiredWidth + padding.horizontal(), desiredHeight + padding.vertical()));
     }
 
     @Override
     public void arrange(RectView bounds) {
         super.arrange(bounds);
         if (visibility() == Visibility.COLLAPSED) return;
+        syncVirtualizerConfiguration();
         updateVirtualizerViewport();
         virtualizer.scrollOffset(virtualizer.scrollOffset());
         updateRealizedWindow();
@@ -376,7 +562,9 @@ public class VirtualListView extends WidgetBase {
         try {
             WidgetRender custom = customRender();
             DrawScope draw = new DrawScope(context, transform(), layoutBounds());
-            draw.pushClip(layoutBounds().x(), layoutBounds().y(), viewportWidth(), layoutBounds().height());
+            EdgeInsets padding = effectivePadding();
+            draw.pushClip(layoutBounds().x() + padding.left(), layoutBounds().y() + padding.top(),
+                    viewportWidth(), Math.max(0.0f, layoutBounds().height() - padding.vertical()));
             renderPhase = RenderPhase.BACKGROUND;
             if (custom != null) {
                 custom.render(draw, this);
@@ -416,13 +604,17 @@ public class VirtualListView extends WidgetBase {
             boolean selected = selection.isSelected(index);
             boolean active = index == activeIndex;
             if (phase == RenderPhase.BACKGROUND && selected) {
+                ColorView selectedColor = styleValue(
+                        StyleKeys.ACCENT_COLOR, WidgetState.CHECKED, SELECTED_ROW_COLOR);
                 draw.rect(item.layoutBounds().x(), item.layoutBounds().y(),
                         item.layoutBounds().width(), item.layoutBounds().height(),
-                        Paint.fill(SELECTED_ROW_COLOR));
+                        Paint.fill(selectedColor));
             } else if (phase == RenderPhase.FOREGROUND && focused && active) {
+                ColorView activeColor = styleValue(
+                        StyleKeys.FOCUS_RING_COLOR, WidgetState.FOCUSED, ACTIVE_ROW_COLOR);
                 draw.rect(item.layoutBounds().x(), item.layoutBounds().y(),
                         item.layoutBounds().width(), item.layoutBounds().height(),
-                        Paint.stroke(ACTIVE_ROW_COLOR, 1.0f));
+                        Paint.stroke(activeColor, 1.0f));
             }
         }
     }
@@ -438,10 +630,10 @@ public class VirtualListView extends WidgetBase {
         if (event.isCancelled()) return;
         if (event instanceof ScrollEvent scroll && scroll.phase() != EventPhase.CAPTURE) {
             float before = virtualizer.scrollOffset();
-            scrollBy(-scroll.deltaY() * scrollStep);
+            scrollBy(-scroll.deltaY() * scrollStep());
             if (before != virtualizer.scrollOffset()) {
                 event.cancel();
-            } else if (consumeWheelAtScrollBounds && scroll.deltaY() != 0.0f && maxScrollY() > 0.0f) {
+            } else if (consumeWheelAtScrollBounds() && scroll.deltaY() != 0.0f && maxScrollY() > 0.0f) {
                 event.cancel();
             }
         } else if (event instanceof KeyPressedEvent key && key.phase() != EventPhase.CAPTURE) {
@@ -451,11 +643,11 @@ public class VirtualListView extends WidgetBase {
         } else if (event instanceof PointerPressedEvent pointer
                 && pointer.phase() != EventPhase.CAPTURE
                 && pointer.button() == PointerButton.PRIMARY
-                && localX(pointer) >= 0.0f
-                && localX(pointer) < viewportWidth()
-                && localY(pointer) >= 0.0f
-                && localY(pointer) < layoutBounds().height()) {
-            int index = indexAt(localY(pointer));
+                && localX(pointer) >= effectivePadding().left()
+                && localX(pointer) < effectivePadding().left() + viewportWidth()
+                && localY(pointer) >= effectivePadding().top()
+                && localY(pointer) < layoutBounds().height() - effectivePadding().bottom()) {
+            int index = indexAt(localX(pointer), localY(pointer));
             if (index >= 0) {
                 requestFocus();
                 activeIndex = index;
@@ -473,9 +665,11 @@ public class VirtualListView extends WidgetBase {
 
     private void updateRealizedWindow() {
         updateVirtualizerViewport();
-        VirtualRange range = realizedRange();
-        int first = range.firstIndex();
-        int last = range.lastIndexExclusive();
+        VirtualRange range = virtualizer.visibleRange();
+        int first = viewMode() == ViewMode.GRID ? range.firstIndex() * gridColumns : range.firstIndex();
+        int last = viewMode() == ViewMode.GRID
+                ? Math.min(itemCount, range.lastIndexExclusive() * gridColumns)
+                : range.lastIndexExclusive();
         boolean changed = false;
 
         ObjectIterator<Int2ObjectMap.Entry<Widget>> iterator = realized.int2ObjectEntrySet().iterator();
@@ -521,7 +715,7 @@ public class VirtualListView extends WidgetBase {
     }
 
     private void recycleItem(int index, Widget item) {
-        if (offscreenCacheSize <= 0 || index < 0 || index >= virtualizer.itemCount()) {
+        if (offscreenCacheSize() <= 0 || index < 0 || index >= itemCount) {
             item.dispose();
             return;
         }
@@ -533,32 +727,43 @@ public class VirtualListView extends WidgetBase {
     }
 
     private void arrangeItems() {
-        float x = layoutBounds().x();
+        EdgeInsets padding = effectivePadding();
+        float x = layoutBounds().x() + padding.left();
         float width = viewportWidth();
         ensureRealizedSnapshot();
         for (int i = 0; i < realizedWidgetSnapshot.length; i++) {
             int index = realizedIndexSnapshot[i];
             Widget item = realizedWidgetSnapshot[i];
-            float y = layoutBounds().y() + virtualizer.itemOffset(index);
-            StackPanel.arrangeChild(item, x, y, width, virtualizer.itemExtent());
+            int row = viewMode() == ViewMode.GRID ? index / gridColumns : index;
+            int column = viewMode() == ViewMode.GRID ? index % gridColumns : 0;
+            float y = layoutBounds().y() + padding.top() + virtualizer.itemOffset(row);
+            if (viewMode() == ViewMode.GRID) {
+                float gap = effectiveColumnGap();
+                float cellWidth = Math.max(0.0f, (width - Math.max(0, gridColumns - 1) * gap) / gridColumns);
+                StackPanel.arrangeChild(item, x + column * (cellWidth + gap), y, cellWidth, gridCellHeight());
+            } else {
+                StackPanel.arrangeChild(item, x, y, width, itemHeight());
+            }
         }
     }
 
     private void arrangeScrollBar() {
         if (!hasVerticalScrollBar()) return;
+        EdgeInsets padding = effectivePadding();
         verticalScrollBar.arrange(new MutableRect(
-                layoutBounds().x() + layoutBounds().width() - SCROLLBAR_WIDTH,
-                layoutBounds().y(),
+                layoutBounds().x() + layoutBounds().width() - padding.right() - SCROLLBAR_WIDTH,
+                layoutBounds().y() + padding.top(),
                 SCROLLBAR_WIDTH,
-                layoutBounds().height()));
+                Math.max(0.0f, layoutBounds().height() - padding.vertical())));
         syncScrollBar();
     }
 
     private void syncScrollBar() {
+        EdgeInsets padding = effectivePadding();
         verticalScrollBar
                 .range(0.0f, maxScrollY())
-                .pageSize(Math.max(1.0f, layoutBounds().height()))
-                .step(scrollStep)
+                .pageSize(Math.max(1.0f, layoutBounds().height() - padding.vertical()))
+                .step(scrollStep())
                 .silentValue(virtualizer.scrollOffset());
     }
 
@@ -567,7 +772,8 @@ public class VirtualListView extends WidgetBase {
     }
 
     private float viewportWidth() {
-        return Math.max(0.0f, layoutBounds().width()
+        EdgeInsets padding = effectivePadding();
+        return Math.max(0.0f, layoutBounds().width() - padding.horizontal()
                 - (hasVerticalScrollBar() ? SCROLLBAR_WIDTH + SCROLLBAR_GAP : 0.0f));
     }
 
@@ -576,7 +782,7 @@ public class VirtualListView extends WidgetBase {
         ObjectIterator<Int2ObjectMap.Entry<Widget>> iterator = realized.int2ObjectEntrySet().iterator();
         while (iterator.hasNext()) {
             Int2ObjectMap.Entry<Widget> entry = iterator.next();
-            if (entry.getIntKey() >= virtualizer.itemCount()) {
+            if (entry.getIntKey() >= itemCount) {
                 detachItem(entry.getValue());
                 entry.getValue().dispose();
                 iterator.remove();
@@ -592,7 +798,7 @@ public class VirtualListView extends WidgetBase {
         ObjectIterator<Int2ObjectMap.Entry<Widget>> iterator = recycled.int2ObjectEntrySet().iterator();
         while (iterator.hasNext()) {
             Int2ObjectMap.Entry<Widget> entry = iterator.next();
-            if (entry.getIntKey() >= virtualizer.itemCount()) {
+            if (entry.getIntKey() >= itemCount) {
                 entry.getValue().dispose();
                 iterator.remove();
             }
@@ -601,12 +807,13 @@ public class VirtualListView extends WidgetBase {
     }
 
     private void trimRecycled() {
-        if (offscreenCacheSize <= 0) {
+        int cacheSize = offscreenCacheSize();
+        if (cacheSize <= 0) {
             clearRecycled();
             return;
         }
         ObjectIterator<Int2ObjectMap.Entry<Widget>> iterator = recycled.int2ObjectEntrySet().iterator();
-        while (recycled.size() > offscreenCacheSize && iterator.hasNext()) {
+        while (recycled.size() > cacheSize && iterator.hasNext()) {
             Int2ObjectMap.Entry<Widget> entry = iterator.next();
             entry.getValue().dispose();
             iterator.remove();
@@ -637,7 +844,9 @@ public class VirtualListView extends WidgetBase {
 
     private void ensureRealizedSnapshot() {
         if (!realizedSnapshotDirty) return;
-        int size = realized.size();
+        int[] sortedIndices = realized.keySet().toIntArray();
+        Arrays.sort(sortedIndices);
+        int size = sortedIndices.length;
         if (realizedIndexSnapshot.length != size) {
             realizedIndexSnapshot = new int[size];
         }
@@ -645,11 +854,9 @@ public class VirtualListView extends WidgetBase {
             realizedWidgetSnapshot = new Widget[size];
         }
         int i = 0;
-        ObjectIterator<Int2ObjectMap.Entry<Widget>> iterator = realized.int2ObjectEntrySet().iterator();
-        while (iterator.hasNext()) {
-            Int2ObjectMap.Entry<Widget> entry = iterator.next();
-            realizedIndexSnapshot[i] = entry.getIntKey();
-            realizedWidgetSnapshot[i] = entry.getValue();
+        for (int index : sortedIndices) {
+            realizedIndexSnapshot[i] = index;
+            realizedWidgetSnapshot[i] = realized.get(index);
             i++;
         }
         realizedSnapshotDirty = false;
@@ -675,12 +882,27 @@ public class VirtualListView extends WidgetBase {
     }
 
     private void updateVirtualizerViewport() {
-        virtualizer.viewportExtent(Math.max(0.0f, layoutBounds().height()));
+        virtualizer.itemExtent(rowExtent());
+        virtualizer.viewportExtent(Math.max(0.0f, layoutBounds().height() - effectivePadding().vertical()));
     }
 
-    private int indexAt(float localY) {
-        int index = (int) Math.floor((localY + virtualizer.scrollOffset()) / virtualizer.itemExtent());
-        return index >= 0 && index < virtualizer.itemCount() ? index : -1;
+    private int indexAt(float localX, float localY) {
+        EdgeInsets padding = effectivePadding();
+        float contentY = localY - padding.top();
+        if (contentY < 0.0f) return -1;
+        int row = (int) Math.floor((contentY + virtualizer.scrollOffset()) / rowExtent());
+        float rowPosition = (contentY + virtualizer.scrollOffset()) - row * rowExtent();
+        float itemExtent = viewMode() == ViewMode.GRID ? gridCellHeight() : itemHeight();
+        if (rowPosition < 0.0f || rowPosition >= itemExtent) return -1;
+        if (viewMode() != ViewMode.GRID) return row >= 0 && row < itemCount ? row : -1;
+        float contentX = localX - padding.left();
+        float gap = effectiveColumnGap();
+        float cellWidth = Math.max(1.0f, (viewportWidth() - Math.max(0, gridColumns - 1) * gap) / gridColumns);
+        int column = (int) Math.floor(contentX / (cellWidth + gap));
+        if (contentX < 0.0f || column < 0 || column >= gridColumns
+                || contentX - column * (cellWidth + gap) >= cellWidth) return -1;
+        int index = row * gridColumns + column;
+        return index >= 0 && index < itemCount ? index : -1;
     }
 
     private float localX(PointerPressedEvent pointer) {
@@ -706,14 +928,16 @@ public class VirtualListView extends WidgetBase {
     }
 
     private boolean handleKey(int keyCode, int modifiers) {
-        if (virtualizer.itemCount() <= 0) return false;
+        if (itemCount <= 0) return false;
         int target = switch (keyCode) {
-            case KeyCodes.UP -> navigationBaseIndex() - 1;
-            case KeyCodes.DOWN -> navigationBaseIndex() + 1;
+            case KeyCodes.UP -> navigationBaseIndex() - (viewMode() == ViewMode.GRID ? gridColumns : 1);
+            case KeyCodes.DOWN -> navigationBaseIndex() + (viewMode() == ViewMode.GRID ? gridColumns : 1);
+            case KeyCodes.LEFT -> navigationBaseIndex() - 1;
+            case KeyCodes.RIGHT -> navigationBaseIndex() + 1;
             case KeyCodes.HOME -> 0;
-            case KeyCodes.END -> virtualizer.itemCount() - 1;
-            case KeyCodes.PAGE_UP -> navigationBaseIndex() - pageRowCount();
-            case KeyCodes.PAGE_DOWN -> navigationBaseIndex() + pageRowCount();
+            case KeyCodes.END -> itemCount - 1;
+            case KeyCodes.PAGE_UP -> navigationBaseIndex() - pageItemCount();
+            case KeyCodes.PAGE_DOWN -> navigationBaseIndex() + pageItemCount();
             case KeyCodes.SPACE, KeyCodes.ENTER, KeyCodes.KEYPAD_ENTER -> {
                 selectActive(KeyModifiers.has(modifiers, KeyModifiers.CONTROL), KeyModifiers.has(modifiers, KeyModifiers.SHIFT));
                 yield activeIndex;
@@ -755,33 +979,37 @@ public class VirtualListView extends WidgetBase {
     }
 
     private int navigationBaseIndex() {
-        if (activeIndex >= 0 && activeIndex < virtualizer.itemCount()) return activeIndex;
+        if (activeIndex >= 0 && activeIndex < itemCount) return activeIndex;
         int selected = selection.selectedIndex();
-        if (selected >= 0 && selected < virtualizer.itemCount()) return selected;
-        return Math.min(Math.max(0, firstVisibleIndex()), Math.max(0, virtualizer.itemCount() - 1));
+        if (selected >= 0 && selected < itemCount) return selected;
+        return Math.min(Math.max(0, firstVisibleIndex()), Math.max(0, itemCount - 1));
     }
 
-    private int pageRowCount() {
-        float extent = Math.max(1.0f, virtualizer.itemExtent());
-        return Math.max(1, (int) Math.floor(Math.max(extent, layoutBounds().height()) / extent));
+    private int pageItemCount() {
+        float extent = Math.max(1.0f, rowExtent());
+        int rows = Math.max(1, (int) Math.floor(Math.max(extent,
+                layoutBounds().height() - effectivePadding().vertical()) / extent));
+        return rows * (viewMode() == ViewMode.GRID ? gridColumns : 1);
     }
 
     private void ensureActiveVisible() {
         if (activeIndex < 0) return;
         updateVirtualizerViewport();
-        float itemTop = activeIndex * virtualizer.itemExtent();
-        float itemBottom = itemTop + virtualizer.itemExtent();
+        int row = viewMode() == ViewMode.GRID ? activeIndex / gridColumns : activeIndex;
+        float itemTop = row * rowExtent();
+        float itemBottom = itemTop + rowExtent() - effectiveRowGap();
         float viewportTop = virtualizer.scrollOffset();
-        float viewportBottom = viewportTop + Math.max(0.0f, layoutBounds().height());
+        float viewportBottom = viewportTop + Math.max(0.0f,
+                layoutBounds().height() - effectivePadding().vertical());
         if (itemTop < viewportTop) {
             scrollTo(itemTop);
         } else if (itemBottom > viewportBottom) {
-            scrollTo(itemBottom - Math.max(0.0f, layoutBounds().height()));
+            scrollTo(itemBottom - Math.max(0.0f, layoutBounds().height() - effectivePadding().vertical()));
         }
     }
 
     private int clampIndexOrNone(int index) {
-        return index >= 0 && index < virtualizer.itemCount() ? index : -1;
+        return index >= 0 && index < itemCount ? index : -1;
     }
 
     private void requestFocus() {
@@ -800,5 +1028,13 @@ public class VirtualListView extends WidgetBase {
         if (changed) {
             emit(new SelectionChangedEvent(this, oldSelection, selection.selectedIndices()));
         }
+    }
+
+    private static float sanitizePositive(Float value, float fallback) {
+        return value != null && Float.isFinite(value) ? Math.max(1.0f, value) : fallback;
+    }
+
+    private static float sanitizeNonNegative(Float value, float fallback) {
+        return value != null && Float.isFinite(value) ? Math.max(0.0f, value) : fallback;
     }
 }

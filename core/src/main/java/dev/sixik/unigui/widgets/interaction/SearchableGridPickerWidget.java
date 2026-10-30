@@ -18,7 +18,6 @@ import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.math.MutableColor;
-import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.text.RichText;
@@ -47,15 +46,14 @@ import dev.sixik.unigui.widgets.feedback.WindowWidget;
  * Generic searchable modal grid picker.
  *
  * <p>The widget owns the common UI shell: selected preview, open button, modal dialog,
- * search field, virtualized icon grid, tooltip, filtering, selection, and row recycling.
+ * search field, virtualized icon grid, tooltip, filtering, selection, and item recycling.
  * Subclasses only provide entry-specific text, selected-preview updates and icon drawing.</p>
  */
 public abstract class SearchableGridPickerWidget<T> extends LinearBox {
     protected static final float SUMMARY_HEIGHT = 38.0f;
     protected static final float DEFAULT_TILE_SIZE = 34.0f;
     protected static final float DEFAULT_TILE_GAP = 4.0f;
-    protected static final int DEFAULT_GRID_COLUMNS = 10;
-    protected static final int DEFAULT_ROW_CACHE_SIZE = 192;
+    protected static final int DEFAULT_ITEM_CACHE_SIZE = 192;
     protected static final float DEFAULT_DIALOG_WIDTH = 430.0f;
     protected static final float DEFAULT_DIALOG_HEIGHT = 420.0f;
 
@@ -67,13 +65,7 @@ public abstract class SearchableGridPickerWidget<T> extends LinearBox {
     private final WidgetBase selectedPreview;
     private final Button openButton;
     private final SearchField searchField = new SearchField();
-    private final VirtualListView resultGrid = new VirtualListView() {
-        @Override
-        public void arrange(RectView bounds) {
-            syncGridColumnsForWidth(bounds.width());
-            super.arrange(bounds);
-        }
-    };
+    private final VirtualListView resultGrid = new VirtualListView();
     private final Label emptyLabel;
     private final Tooltip idTooltip = new Tooltip();
     private final TileTooltipAnchor tileTooltipAnchor = new TileTooltipAnchor();
@@ -91,7 +83,6 @@ public abstract class SearchableGridPickerWidget<T> extends LinearBox {
     private OverlayLayer explicitOverlayLayer;
     private OverlayLayer attachedOverlayLayer;
     private T selectedEntry;
-    private int gridColumns = DEFAULT_GRID_COLUMNS;
 
     protected SearchableGridPickerWidget(String dialogTitle,
                                          WidgetBase selectedPreview,
@@ -251,7 +242,7 @@ public abstract class SearchableGridPickerWidget<T> extends LinearBox {
     }
 
     public int gridColumns() {
-        return gridColumns;
+        return resultGrid.gridColumns();
     }
 
     public SearchableGridPickerWidget<T> entries(Collection<T> entries) {
@@ -377,12 +368,15 @@ public abstract class SearchableGridPickerWidget<T> extends LinearBox {
         searchField.layout(style -> style.widthPercent(100.0f).height(22.0f).flexShrink(0.0f));
         searchField.onTextChanged(event -> applyFilter());
 
-        resultGrid.itemHeight(rowHeight)
+        resultGrid.viewMode(VirtualListView.ViewMode.GRID)
+                .gridCellWidth(tileSize)
+                .gridCellHeight(rowHeight)
                 .overscan(2)
-                .offscreenCacheSize(DEFAULT_ROW_CACHE_SIZE)
+                .offscreenCacheSize(DEFAULT_ITEM_CACHE_SIZE)
                 .consumeWheelAtScrollBounds(false)
-                .itemFactory(GridRow::new);
-        resultGrid.layout(style -> style.widthPercent(100.0f).height(326.0f).flexGrow(1.0f).flexShrink(1.0f));
+                .itemFactory(GridTile::new);
+        resultGrid.layout(style -> style.widthPercent(100.0f).height(326.0f)
+                .columnGap(tileGap).rowGap(tileGap).flexGrow(1.0f).flexShrink(1.0f));
 
         emptyLabel.layout(style -> style.widthPercent(100.0f).height(20.0f).flexGrow(0).flexShrink(0.0f));
         emptyLabel.visible(false);
@@ -403,6 +397,8 @@ public abstract class SearchableGridPickerWidget<T> extends LinearBox {
                 filteredEntries.add(entry);
             }
         }
+        tileTooltipAnchor.hide();
+        idTooltip.anchor(null).richText(RichText.plain(""));
         syncGridRows();
         resultGrid.visible(!filteredEntries.isEmpty());
         emptyLabel.visible(filteredEntries.isEmpty());
@@ -411,25 +407,8 @@ public abstract class SearchableGridPickerWidget<T> extends LinearBox {
     }
 
     private void syncGridRows() {
-        resultGrid.itemCount(rowCount(filteredEntries.size()));
+        resultGrid.itemCount(filteredEntries.size());
         resultGrid.invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
-    }
-
-    private void syncGridColumnsForWidth(float width) {
-        int nextColumns = columnsForWidth(width);
-        if (nextColumns == gridColumns) return;
-        gridColumns = nextColumns;
-        syncGridRows();
-    }
-
-    private int rowCount(int itemCount) {
-        int normalizedColumns = Math.max(1, gridColumns);
-        return Math.max(0, (itemCount + normalizedColumns - 1) / normalizedColumns);
-    }
-
-    private int columnsForWidth(float width) {
-        if (!Float.isFinite(width) || width <= 0.0f) return DEFAULT_GRID_COLUMNS;
-        return Math.max(1, (int) Math.floor((width + tileGap) / (tileSize + tileGap)));
     }
 
     private void updateSelectedSummary() {
@@ -532,12 +511,12 @@ public abstract class SearchableGridPickerWidget<T> extends LinearBox {
             return active;
         }
     }
-    private final class GridRow extends WidgetBase {
-        private final int rowIndex;
-        private int hoverColumn = -1;
+    private final class GridTile extends WidgetBase {
+        private final int entryIndex;
+        private boolean hot;
 
-        private GridRow(int rowIndex) {
-            this.rowIndex = rowIndex;
+        private GridTile(int entryIndex) {
+            this.entryIndex = entryIndex;
         }
 
         @Override
@@ -554,8 +533,7 @@ public abstract class SearchableGridPickerWidget<T> extends LinearBox {
                 setDesiredSize(LayoutSize.ZERO);
                 return;
             }
-            float width = Math.max(0.0f, gridColumns * tileSize + Math.max(0, gridColumns - 1) * tileGap);
-            setDesiredSize(resolveDesiredSize(context, width, rowHeight));
+            setDesiredSize(resolveDesiredSize(context, tileSize, rowHeight));
         }
 
         @Override
@@ -563,8 +541,8 @@ public abstract class SearchableGridPickerWidget<T> extends LinearBox {
             if (visibility() != Visibility.VISIBLE) return;
             pushOpacity(context);
             try {
-                renderTiles(context);
-                renderIcons(context);
+                renderTile(context);
+                renderIcon(context);
             } finally {
                 popOpacity(context);
             }
@@ -582,8 +560,9 @@ public abstract class SearchableGridPickerWidget<T> extends LinearBox {
                 clearHover();
             } else if (event instanceof PointerPressedEvent pointer
                     && pointer.phase() == EventPhase.TARGET
-                    && pointer.button() == PointerButton.PRIMARY) {
-                T entry = entryAt(columnAt(pointer));
+                    && pointer.button() == PointerButton.PRIMARY
+                    && contains(pointer)) {
+                T entry = entry();
                 if (entry != null) {
                     selectEntry(entry, true, true);
                     event.cancel();
@@ -591,39 +570,23 @@ public abstract class SearchableGridPickerWidget<T> extends LinearBox {
             }
         }
 
-        private void renderTiles(RenderContext context) {
-            float rowX = layoutBounds().x();
-            float tileY = layoutBounds().y() + (rowHeight - tileSize) * 0.5f;
-            for (int column = 0; column < gridColumns; column++) {
-                T entry = entryAt(column);
-                if (entry == null) break;
-                float tileX = rowX + column * (tileSize + tileGap);
-                boolean hot = hovered() && hoverColumn == column;
-                context.roundedRect(tileX, tileY, tileSize, tileSize, 3.0f,
-                        Paint.fill(hot ? TILE_HOVER_BACKGROUND : TILE_BACKGROUND));
-                context.roundedRect(tileX, tileY, tileSize, tileSize, 3.0f,
-                        Paint.stroke(hot ? TILE_HOVER_BORDER : TILE_BORDER, 1.0f));
-            }
+        private void renderTile(RenderContext context) {
+            float tileX = tileX();
+            float tileY = tileY();
+            context.roundedRect(tileX, tileY, tileSize, tileSize, 3.0f,
+                    Paint.fill(hot ? TILE_HOVER_BACKGROUND : TILE_BACKGROUND));
+            context.roundedRect(tileX, tileY, tileSize, tileSize, 3.0f,
+                    Paint.stroke(hot ? TILE_HOVER_BORDER : TILE_BORDER, 1.0f));
         }
 
-        private void renderIcons(RenderContext context) {
-            float rowX = layoutBounds().x();
-            float tileY = layoutBounds().y() + (rowHeight - tileSize) * 0.5f;
+        private void renderIcon(RenderContext context) {
+            T entry = entry();
+            if (entry == null) return;
             float iconInset = (tileSize - iconSize) * 0.5f;
             float capturedOpacity = context.opacityMultiplier();
-            for (int column = 0; column < gridColumns; column++) {
-                T entry = entryAt(column);
-                if (entry == null) break;
-                float tileX = rowX + column * (tileSize + tileGap);
-                renderEntryIcon(
-                        context,
-                        entry,
-                        tileX + iconInset,
-                        tileY + iconInset,
-                        iconSize,
-                        capturedOpacity,
-                        this::repaint);
-            }
+            renderEntryIcon(context, entry,
+                    tileX() + iconInset, tileY() + iconInset,
+                    iconSize, capturedOpacity, this::repaint);
         }
 
         private void repaint() {
@@ -631,15 +594,14 @@ public abstract class SearchableGridPickerWidget<T> extends LinearBox {
         }
 
         private void updateHover(PointerEvent pointer) {
-            int pointerColumn = columnAt(pointer);
-            int nextColumn = entryAt(pointerColumn) == null ? -1 : pointerColumn;
-            if (hoverColumn != nextColumn) {
-                hoverColumn = nextColumn;
+            boolean nextHot = contains(pointer);
+            if (hot != nextHot) {
+                hot = nextHot;
                 invalidate(InvalidationFlags.VISUAL);
             }
-            T entry = entryAt(hoverColumn);
+            T entry = hot ? entry() : null;
             if (entry != null) {
-                tileTooltipAnchor.show(tileX(hoverColumn), tileY(), tileSize, tileSize);
+                tileTooltipAnchor.show(tileX(), tileY(), tileSize, tileSize);
                 idTooltip.anchor(tileTooltipAnchor).richText(tooltipText(entry));
                 idTooltip.invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
             } else {
@@ -649,41 +611,33 @@ public abstract class SearchableGridPickerWidget<T> extends LinearBox {
         }
 
         private void clearHover() {
-            if (hoverColumn != -1) {
-                hoverColumn = -1;
+            if (hot) {
+                hot = false;
                 invalidate(InvalidationFlags.VISUAL);
             }
             tileTooltipAnchor.hide();
             idTooltip.anchor(null).richText(RichText.plain(""));
         }
 
-        private float tileX(int column) {
-            return layoutBounds().x() + column * (tileSize + tileGap);
+        private float tileX() {
+            return layoutBounds().x() + (layoutBounds().width() - tileSize) * 0.5f;
         }
 
         private float tileY() {
             return layoutBounds().y() + (rowHeight - tileSize) * 0.5f;
         }
 
-        private int columnAt(PointerEvent pointer) {
-            float localX = pointer.rootX() - layoutBounds().x();
-            float localY = pointer.rootY() - layoutBounds().y();
-            if (localY < (rowHeight - tileSize) * 0.5f || localY >= (rowHeight + tileSize) * 0.5f) {
-                return -1;
-            }
-            if (localX < 0.0f) return -1;
-            int column = (int) Math.floor(localX / (tileSize + tileGap));
-            float tileStart = column * (tileSize + tileGap);
-            if (column < 0 || column >= gridColumns || localX < tileStart || localX >= tileStart + tileSize) {
-                return -1;
-            }
-            return column;
+        private boolean contains(PointerEvent pointer) {
+            float x = pointer.rootX();
+            float y = pointer.rootY();
+            return x >= tileX() && x < tileX() + tileSize
+                    && y >= tileY() && y < tileY() + tileSize;
         }
 
-        private T entryAt(int column) {
-            if (column < 0 || column >= gridColumns) return null;
-            int index = rowIndex * gridColumns + column;
-            return index >= 0 && index < filteredEntries.size() ? filteredEntries.get(index) : null;
+        private T entry() {
+            return entryIndex >= 0 && entryIndex < filteredEntries.size()
+                    ? filteredEntries.get(entryIndex)
+                    : null;
         }
     }
 }
