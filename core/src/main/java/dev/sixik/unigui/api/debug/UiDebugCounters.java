@@ -1,7 +1,18 @@
 package dev.sixik.unigui.api.debug;
 
+import dev.sixik.unigui.api.docs.AiDoc;
 import dev.sixik.unigui.api.render.DrawCommandType;
 
+@AiDoc(
+        summary = "Optional sink used by render and cache code to collect debug metrics.",
+        purpose = "Lets custom backends report comparable frame, batching, geometry, shader, and texture-cache metrics to the built-in debug tooling.",
+        useWhen = "Integrate a custom render backend or cache implementation with `UIContext.debugCounters()`.",
+        criticalRules = {
+                "Call `beginFrame` once before recording metrics for a new frame.",
+                "Record non-negative counts for work actually submitted; snapshots sanitize invalid values but cannot repair double-counting.",
+                "Use `NOOP` when collection is disabled instead of adding null checks to hot paths."
+        },
+        related = {"UiDebugSnapshot", "UiRenderSnapshot", "DrawCommandType"})
 public interface UiDebugCounters {
     UiDebugCounters NOOP = new UiDebugCounters() {
     };
@@ -57,10 +68,14 @@ public interface UiDebugCounters {
     default void recordTextureRender() {
     }
 
+    @AiDoc(section = "Snapshots", sectionOrder = 20, order = 10,
+            summary = "Returns frame-level timing, command, batch, and texture-cache metrics.")
     default UiDebugSnapshot snapshot() {
         return UiDebugSnapshot.EMPTY;
     }
 
+    @AiDoc(section = "Snapshots", sectionOrder = 20, order = 20,
+            summary = "Returns detailed draw-list and backend-work metrics for the latest frame.")
     default UiRenderSnapshot renderSnapshot() {
         return UiRenderSnapshot.EMPTY;
     }

@@ -1,5 +1,12 @@
 package dev.sixik.unigui.api.style;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -10,6 +17,41 @@ import java.util.function.Consumer;
  * <p>Токены являются последним style-fallback: правило {@link StylePack} и локальный стиль
  * имеют приоритет. Снимок безопасно переиспользовать в нескольких UI-деревьях.</p>
  */
+@AiDoc(
+        summary = "Immutable design-token snapshot for colors, shapes, typography, and spacing.",
+        purpose = "Supplies consistent theme defaults as the lowest-priority active layer of a `Theme` or `StylePack`.",
+        useWhen = {
+                "Create a coherent palette and geometry baseline shared by many widget styles.",
+                "Read token groups directly for custom widget or renderer behavior."
+        },
+        criticalRules = {
+                "Tokens are fallback values: StylePack rules and local widget styles take priority.",
+                "`EMPTY` is inactive and contributes no values; `defaults()` creates an active neutral dark token set.",
+                "Built snapshots are immutable; derive a new group with `toBuilder` and build a new `ThemeTokens` instance.",
+                "Only keys mapped by `ThemeTokens` are supplied through `asStyle`; unknown keys preserve the caller fallback."
+        },
+        related = {"Theme", "StylePack", "ThemeColors", "ThemeShapes", "ThemeTypography", "ThemeSpacing"},
+        examples = @AiDoc.Example(
+                title = "Create custom theme tokens",
+                code = """
+                        ThemeTokens tokens = ThemeTokens.builder()
+                                .colors(colors -> colors.accent(accentColor))
+                                .shapes(shapes -> shapes.radiusMd(6.0f))
+                                .spacing(spacing -> spacing.controlGap(6.0f))
+                                .build();
+                        """))
+@WikiPage(
+        title = "ThemeTokens",
+        slug = "theme-tokens",
+        category = "<key:style.category>",
+        summary = "<key:theme.tokens.summary>",
+        order = 50)
+@WikiSection(title = "<key:theme.tokens.section.overview.title>",
+        markdown = "<key:theme.tokens.section.overview.body>", order = 10)
+@WikiSection(title = "<key:theme.tokens.section.priority.title>",
+        markdown = "<key:theme.tokens.section.priority.body>", order = 20)
+@WikiExample(title = "<key:theme.tokens.example.custom.title>",
+        code = "<key:theme.tokens.example.custom.code>", order = 10)
 public final class ThemeTokens {
     private static final AtomicLong NEXT_VERSION = new AtomicLong();
 
@@ -50,6 +92,11 @@ public final class ThemeTokens {
     /**
      * @return builder нового активного снимка токенов
      */
+    @AiDoc(section = "Creation", sectionOrder = 10, order = 10,
+            summary = "Starts a builder for an active immutable token snapshot.")
+    @WikiMethod(title = "builder()", summary = "<key:theme.tokens.method.builder.summary>",
+            section = "<key:theme.tokens.api.section.creation>", sectionOrder = 10, order = 10)
+    @WikiReturn("<key:theme.tokens.method.builder.return>")
     public static Builder builder() {
         return new Builder();
     }
@@ -57,6 +104,11 @@ public final class ThemeTokens {
     /**
      * @return стандартный активный снимок с нейтральной тёмной палитрой
      */
+    @AiDoc(section = "Creation", sectionOrder = 10, order = 20,
+            summary = "Creates the active neutral dark default token set.")
+    @WikiMethod(title = "defaults()", summary = "<key:theme.tokens.method.defaults.summary>",
+            section = "<key:theme.tokens.api.section.creation>", sectionOrder = 10, order = 20)
+    @WikiReturn("<key:theme.tokens.method.defaults.return>")
     public static ThemeTokens defaults() {
         return builder().build();
     }
@@ -101,6 +153,11 @@ public final class ThemeTokens {
      *
      * @return неизменяемый стиль токенов или {@link Style#EMPTY} для пустого снимка
      */
+    @AiDoc(section = "Integration", sectionOrder = 20, order = 10,
+            summary = "Exposes mapped tokens as a read-only style layer for cascade composition.")
+    @WikiMethod(title = "asStyle()", summary = "<key:theme.tokens.method.as_style.summary>",
+            section = "<key:theme.tokens.api.section.integration>", sectionOrder = 20, order = 10)
+    @WikiReturn("<key:theme.tokens.method.as_style.return>")
     public Style asStyle() {
         return style;
     }

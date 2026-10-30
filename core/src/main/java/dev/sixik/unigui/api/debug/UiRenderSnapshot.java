@@ -1,5 +1,6 @@
 package dev.sixik.unigui.api.debug;
 
+import dev.sixik.unigui.api.docs.AiDoc;
 import dev.sixik.unigui.api.render.DrawCommandType;
 
 import java.util.Arrays;
@@ -12,6 +13,16 @@ import java.util.Arrays;
  * для поиска мест, где имеет смысл добавлять batching, кэширование или
  * instancing.</p>
  */
+@AiDoc(
+        summary = "Detailed read-only breakdown of draw-list structure and estimated backend work for one frame.",
+        purpose = "Supports batching, geometry, shader, texture-switch, and SDF performance analysis beyond the compact `UiDebugSnapshot`.",
+        useWhen = "Diagnose why command count does not translate into efficient backend batches or draw calls.",
+        criticalRules = {
+                "Per-command-type accessors return zero for null types and for arrays shorter than the enum.",
+                "Estimated draw calls, vertices, and indices describe expected backend work, not guaranteed GPU measurements.",
+                "SDF milliseconds are derived from recorded nanoseconds and represent SDF runtime only."
+        },
+        related = {"UiDebugCounters", "UiDebugSnapshot", "DrawCommandType"})
 public final class UiRenderSnapshot {
     public static final UiRenderSnapshot EMPTY = new UiRenderSnapshot(
             new int[DrawCommandType.values().length],

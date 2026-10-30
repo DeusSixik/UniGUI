@@ -1,6 +1,13 @@
 package dev.sixik.unigui.api.style;
 
-
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+import dev.sixik.unigui.api.docs.WikiThrows;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -23,6 +30,45 @@ import java.util.Set;
  * Значения резолвятся через {@link StyleSelector}.
  * когда для типа виджета зарегистрирован декларативный render-plan builder.</p>
  */
+@AiDoc(
+        summary = "Named theme containing reusable style rules, widget bindings, design tokens, and animation presets.",
+        purpose = "Acts as both a `Theme` and an editable style-sheet model for Java or XML-defined UI styling.",
+        useWhen = {
+                "Install a set of reusable styles on `UIContext.theme(...)`.",
+                "Resolve selectors and explicit style ids for a concrete widget.",
+                "Load or edit a complete XML `<StylePack>` including animations and renderer bindings."
+        },
+        criticalRules = {
+                "Use `Style.from` for a single `<Style>`; use `StylePack.from` for a full `<StylePack>` document.",
+                "Later matching definitions override earlier ones regardless of selector specificity.",
+                "`bind(widgetType, styleId)` supplies a base definition; matching selector rules can still layer over it.",
+                "`resolveStyleFor` layers tokens, fallback, and matching definitions in that order.",
+                "Adding or removing rules increments the pack version; returned maps and definition lists are snapshots."
+        },
+        related = {"Theme", "Style", "MutableStyle", "StyleDefinition", "StyleAnimationDefinition", "ThemeTokens"},
+        examples = @AiDoc.Example(
+                title = "Build and install a style pack",
+                code = """
+                        StylePack pack = StylePack.create("app")
+                                .put(StyleDefinition.of("button.primary", primaryStyle)
+                                        .target(Button.STYLE_TYPE)
+                                        .styleClass("primary"));
+                        context.theme(pack);
+                        """))
+@WikiPage(
+        title = "StylePack",
+        slug = "style-pack",
+        category = "<key:style.category>",
+        summary = "<key:style.pack.summary>",
+        order = 40)
+@WikiSection(title = "<key:style.pack.section.overview.title>",
+        markdown = "<key:style.pack.section.overview.body>", order = 10)
+@WikiSection(title = "<key:style.pack.section.cascade.title>",
+        markdown = "<key:style.pack.section.cascade.body>", order = 20)
+@WikiExample(title = "<key:style.pack.example.java.title>",
+        code = "<key:style.pack.example.java.code>", order = 10)
+@WikiExample(title = "<key:style.pack.example.xml.title>",
+        code = "<key:style.pack.example.xml.code>", language = "xml", order = 20)
 public final class StylePack implements Theme {
     private String id;
     private final Map<String, StyleDefinition> styles = new LinkedHashMap<>();
@@ -48,7 +94,13 @@ public final class StylePack implements Theme {
      * @param id id pack'а
      * @return новый {@code StylePack}
      */
-    public static StylePack create(String id) {
+    @AiDoc(section = "Creation", sectionOrder = 10, order = 10,
+            summary = "Creates an empty mutable style pack with a normalized id.")
+    @WikiMethod(title = "create(String)", summary = "<key:style.pack.method.create.summary>",
+            section = "<key:style.pack.api.section.creation>", sectionOrder = 10, order = 10)
+    @WikiReturn("<key:style.pack.method.create.return>")
+    public static StylePack create(
+            @WikiParameter(name = "id", description = "<key:style.pack.method.create.id>") String id) {
         return new StylePack(id);
     }
 
@@ -61,7 +113,13 @@ public final class StylePack implements Theme {
      * @param xml XML-документ StylePack
      * @return загруженный style pack
      */
-    public static StylePack from(String xml) {
+    @AiDoc(section = "Creation", sectionOrder = 10, order = 20,
+            summary = "Parses a complete XML style pack with the built-in property registry.")
+    @WikiMethod(title = "from(String)", summary = "<key:style.pack.method.from.summary>",
+            section = "<key:style.pack.api.section.creation>", sectionOrder = 10, order = 20)
+    @WikiReturn("<key:style.pack.method.from.return>")
+    public static StylePack from(
+            @WikiParameter(name = "xml", description = "<key:style.pack.method.from.xml>") String xml) {
         return StylePackXml.parse(xml);
     }
 
@@ -233,7 +291,14 @@ public final class StylePack implements Theme {
      * @param definition definition стиля
      * @return этот pack для fluent-настройки
      */
-    public StylePack put(StyleDefinition definition) {
+    @AiDoc(section = "Style Rules", sectionOrder = 20, order = 10,
+            summary = "Adds or replaces one named immutable style definition.")
+    @WikiMethod(title = "put(StyleDefinition)", summary = "<key:style.pack.method.put.summary>",
+            section = "<key:style.pack.api.section.rules>", sectionOrder = 20, order = 10)
+    @WikiReturn("<key:style.pack.method.fluent.return>")
+    @WikiThrows(type = NullPointerException.class, description = "<key:style.pack.method.put.null_throws>")
+    public StylePack put(
+            @WikiParameter(name = "definition", description = "<key:style.pack.method.put.definition>") StyleDefinition definition) {
         Objects.requireNonNull(definition, "definition");
         styles.put(definition.id(), definition);
         version++;
@@ -285,7 +350,14 @@ public final class StylePack implements Theme {
      * @param styleId    id стиля
      * @return этот pack для fluent-настройки
      */
-    public StylePack bind(String widgetType, String styleId) {
+    @AiDoc(section = "Style Rules", sectionOrder = 20, order = 20,
+            summary = "Binds a widget style type to a base definition id; an empty id removes the binding.")
+    @WikiMethod(title = "bind(String, String)", summary = "<key:style.pack.method.bind.summary>",
+            section = "<key:style.pack.api.section.rules>", sectionOrder = 20, order = 20)
+    @WikiReturn("<key:style.pack.method.fluent.return>")
+    public StylePack bind(
+            @WikiParameter(name = "widgetType", description = "<key:style.pack.method.bind.widget_type>") String widgetType,
+            @WikiParameter(name = "styleId", description = "<key:style.pack.method.bind.style_id>") String styleId) {
         String normalizedWidgetType = normalizeOptional(widgetType, "");
         String normalizedStyleId = normalizeOptional(styleId, "");
         if (normalizedWidgetType.isEmpty()) return this;
@@ -336,7 +408,14 @@ public final class StylePack implements Theme {
      * @param animation определение анимации
      * @return этот pack для fluent-настройки
      */
-    public StylePack putAnimation(StyleAnimationDefinition animation) {
+    @AiDoc(section = "Animations", sectionOrder = 30, order = 10,
+            summary = "Adds or replaces one named animation preset.")
+    @WikiMethod(title = "putAnimation(StyleAnimationDefinition)", summary = "<key:style.pack.method.put_animation.summary>",
+            section = "<key:style.pack.api.section.animations>", sectionOrder = 30, order = 10)
+    @WikiReturn("<key:style.pack.method.fluent.return>")
+    @WikiThrows(type = NullPointerException.class, description = "<key:style.pack.method.put_animation.null_throws>")
+    public StylePack putAnimation(
+            @WikiParameter(name = "animation", description = "<key:style.pack.method.put_animation.animation>") StyleAnimationDefinition animation) {
         Objects.requireNonNull(animation, "animation");
         animations.put(animation.id(), animation);
         version++;
@@ -379,7 +458,15 @@ public final class StylePack implements Theme {
      * @param styleClasses  style classes виджета
      * @return итоговый стиль из fallback и подходящее definitions
      */
-    public Style resolveStyleFor(String widgetType, String widgetStyleId, Collection<String> styleClasses) {
+    @AiDoc(section = "Resolution", sectionOrder = 40, order = 10,
+            summary = "Resolves tokens, fallback, bindings, explicit style id, and selector rules into one style.")
+    @WikiMethod(title = "resolveStyleFor(String, String, Collection)", summary = "<key:style.pack.method.resolve.summary>",
+            section = "<key:style.pack.api.section.resolution>", sectionOrder = 40, order = 10)
+    @WikiReturn("<key:style.pack.method.resolve.return>")
+    public Style resolveStyleFor(
+            @WikiParameter(name = "widgetType", description = "<key:style.pack.method.resolve.widget_type>") String widgetType,
+            @WikiParameter(name = "widgetStyleId", description = "<key:style.pack.method.resolve.style_id>") String widgetStyleId,
+            @WikiParameter(name = "styleClasses", description = "<key:style.pack.method.resolve.classes>") Collection<String> styleClasses) {
         List<Style> layers = new ArrayList<>();
         if (tokens.asStyle() != Style.EMPTY) layers.add(tokens.asStyle());
         Style fallbackStyle = fallback();

@@ -1,5 +1,13 @@
 package dev.sixik.unigui.api.style;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+import dev.sixik.unigui.api.docs.WikiThrows;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 
 import java.util.Collections;
@@ -18,6 +26,38 @@ import java.util.Objects;
  * @see StyleKey
  * @see WidgetState
  */
+@AiDoc(
+        summary = "Fluent mutable implementation used to build typed styles and state overrides.",
+        purpose = "Builds or edits a style in Java while validating each value against its `StyleKey` type.",
+        useWhen = {
+                "Create a reusable style for a `StyleDefinition`, theme, or widget.",
+                "Override a property for hover, pressed, selected, disabled, or another widget state."
+        },
+        criticalRules = {
+                "Use `put(key, value)` for `NORMAL`; use the state overload only for an override.",
+                "The value must be null or an instance of `key.type()`, otherwise `put` throws `IllegalArgumentException`.",
+                "Every write increments `version`; use `putAll` instead of mutating maps returned by `values`.",
+                "A renderer set directly on a widget still has priority over a renderer stored in its style."
+        },
+        related = {"Style", "StyleKeys", "WidgetState", "StyleDefinition", "WidgetRenderRegistry"},
+        examples = @AiDoc.Example(
+                title = "Build state-aware colors",
+                code = """
+                        Style buttonStyle = new MutableStyle()
+                                .put(StyleKeys.BACKGROUND_COLOR, normalColor)
+                                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.HOVERED, hoverColor)
+                                .put(StyleKeys.TEXT_COLOR, textColor);
+                        """))
+@WikiPage(
+        title = "MutableStyle",
+        slug = "mutable-style",
+        category = "<key:style.category>",
+        summary = "<key:mutable.style.summary>",
+        order = 20)
+@WikiSection(title = "<key:mutable.style.section.overview.title>",
+        markdown = "<key:mutable.style.section.overview.body>", order = 10)
+@WikiExample(title = "<key:mutable.style.example.states.title>",
+        code = "<key:mutable.style.example.states.code>", order = 10)
 public final class MutableStyle implements Style {
     private final EnumMap<WidgetState, Map<StyleKey<?>, Object>> values = new EnumMap<>(WidgetState.class);
     private long version;
@@ -30,7 +70,15 @@ public final class MutableStyle implements Style {
      * @return этот стиль для fluent-настройки
      * @param <T> Java-тип свойства
      */
-    public <T> MutableStyle put(StyleKey<T> key, T value) {
+    @AiDoc(section = "Properties", sectionOrder = 10, order = 10,
+            summary = "Stores a typed property for the `NORMAL` widget state.")
+    @WikiMethod(title = "put(StyleKey, T)", summary = "<key:mutable.style.method.put.summary>",
+            section = "<key:mutable.style.api.section.properties>", sectionOrder = 10, order = 10)
+    @WikiReturn("<key:mutable.style.method.fluent.return>")
+    @WikiThrows(type = IllegalArgumentException.class, description = "<key:mutable.style.method.put.type_throws>")
+    public <T> MutableStyle put(
+            @WikiParameter(name = "key", description = "<key:mutable.style.method.put.key>") StyleKey<T> key,
+            @WikiParameter(name = "value", description = "<key:mutable.style.method.put.value>") T value) {
         return put(key, WidgetState.NORMAL, value);
     }
 
@@ -43,7 +91,16 @@ public final class MutableStyle implements Style {
      * @return этот стиль для fluent-настройки
      * @param <T> Java-тип свойства
      */
-    public <T> MutableStyle put(StyleKey<T> key, WidgetState state, T value) {
+    @AiDoc(section = "Properties", sectionOrder = 10, order = 20,
+            summary = "Stores a typed property override for one widget state.")
+    @WikiMethod(title = "put(StyleKey, WidgetState, T)", summary = "<key:mutable.style.method.put_state.summary>",
+            section = "<key:mutable.style.api.section.properties>", sectionOrder = 10, order = 20)
+    @WikiReturn("<key:mutable.style.method.fluent.return>")
+    @WikiThrows(type = IllegalArgumentException.class, description = "<key:mutable.style.method.put.type_throws>")
+    public <T> MutableStyle put(
+            @WikiParameter(name = "key", description = "<key:mutable.style.method.put.key>") StyleKey<T> key,
+            @WikiParameter(name = "state", description = "<key:mutable.style.method.put_state.state>") WidgetState state,
+            @WikiParameter(name = "value", description = "<key:mutable.style.method.put.value>") T value) {
         Objects.requireNonNull(key, "key");
         Objects.requireNonNull(state, "state");
         if (value != null && !key.type().isInstance(value)) {
@@ -90,7 +147,13 @@ public final class MutableStyle implements Style {
      * @param source исходный стиль; null и пустой стиль игнорируются
      * @return этот стиль для fluent-настройки
      */
-    public MutableStyle putAll(Style source) {
+    @AiDoc(section = "Composition", sectionOrder = 20, order = 10,
+            summary = "Copies all normal and state-specific values from another style.")
+    @WikiMethod(title = "putAll(Style)", summary = "<key:mutable.style.method.put_all.summary>",
+            section = "<key:mutable.style.api.section.composition>", sectionOrder = 20, order = 10)
+    @WikiReturn("<key:mutable.style.method.fluent.return>")
+    public MutableStyle putAll(
+            @WikiParameter(name = "source", description = "<key:mutable.style.method.put_all.source>") Style source) {
         if (source == null || source == Style.EMPTY) return this;
         for (Map.Entry<WidgetState, Map<StyleKey<?>, Object>> stateEntry : source.values().entrySet()) {
             for (Map.Entry<StyleKey<?>, Object> entry : stateEntry.getValue().entrySet()) {
@@ -122,7 +185,13 @@ public final class MutableStyle implements Style {
      * @param rendererId id renderer'а в registry
      * @return этот стиль для fluent-настройки
      */
-    public MutableStyle rendererId(String rendererId) {
+    @AiDoc(section = "Rendering", sectionOrder = 30, order = 10,
+            summary = "Selects a renderer registered by stable string id.")
+    @WikiMethod(title = "rendererId(String)", summary = "<key:mutable.style.method.renderer_id.summary>",
+            section = "<key:mutable.style.api.section.rendering>", sectionOrder = 30, order = 10)
+    @WikiReturn("<key:mutable.style.method.fluent.return>")
+    public MutableStyle rendererId(
+            @WikiParameter(name = "rendererId", description = "<key:mutable.style.method.renderer_id.id>") String rendererId) {
         return put(StyleKeys.RENDERER, rendererId == null ? "" : rendererId.trim());
     }
 

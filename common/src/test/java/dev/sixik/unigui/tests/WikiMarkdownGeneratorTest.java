@@ -131,6 +131,28 @@ class WikiMarkdownGeneratorTest {
     }
 
     @Test
+    void writePages_autoLinkedSignatureTypes_preservesHeadingAttributeList() throws IOException {
+        Path assets = temporaryDirectory.resolve("signature-assets");
+        Path output = temporaryDirectory.resolve("signature-output");
+        Files.createDirectories(assets);
+
+        WikiMarkdownGenerator.writePages(
+                output,
+                List.of(SignatureStylePack.class, Style.class, StyleDefinition.class),
+                WikiLocalization.literalOnly(),
+                assets);
+
+        String markdown = Files.readString(output.resolve("en/api/signature-style-pack.md"));
+        assertTrue(markdown.contains("Uses [Style](<style.md>) and [StyleDefinition](<style-definition.md>)."));
+        assertTrue(markdown.contains(
+                "`put(StyleDefinition)` {: #putstyledefinition data-toc-label=\"put(StyleDefinition)\" }"));
+        assertTrue(markdown.contains(
+                "`of(String, Style)` {: #ofstring-style data-toc-label=\"of(String, Style)\" }"));
+        assertTrue(!markdown.contains("data-toc-label=\"put([StyleDefinition]"));
+        assertTrue(!markdown.contains("data-toc-label=\"of(String, [Style]"));
+    }
+
+    @Test
     void localization_missingRussianKey_warnsAndFallsBackToEnglish() throws IOException {
         Path languages = temporaryDirectory.resolve("fallback-lang");
         Files.createDirectories(languages);
@@ -197,5 +219,27 @@ class WikiMarkdownGeneratorTest {
 
     @WikiPage(title = "<key:page.details.title>", slug = "details", category = "Widgets/Components")
     static class RelatedPage {
+    }
+
+    @WikiPage(
+            title = "SignatureStylePack",
+            slug = "signature-style-pack",
+            summary = "Uses Style and StyleDefinition.")
+    static class SignatureStylePack {
+        @WikiMethod
+        public void put(StyleDefinition definition) {
+        }
+
+        @WikiMethod
+        public void of(String id, Style style) {
+        }
+    }
+
+    @WikiPage(title = "Style", slug = "style")
+    static class Style {
+    }
+
+    @WikiPage(title = "StyleDefinition", slug = "style-definition")
+    static class StyleDefinition {
     }
 }

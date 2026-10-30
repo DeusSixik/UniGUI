@@ -573,7 +573,7 @@ public final class WikiMarkdownGenerator {
 
         java.util.regex.Pattern protectedPattern = java.util.regex.Pattern.compile(
 
-                "(?s)```.*?```|~~~.*?~~~|(?<!`)`+[^`]*`+(?!`)|!?\\[[^\\]]*\\]\\([^\\n)]*\\)|<(?!link:path:)[^>]+>");
+                "(?s)```.*?```|~~~.*?~~~|(?<!`)`+[^`]*`+(?!`)|!?\\[[^\\]]*\\]\\([^\\n)]*\\)|<(?!link:path:)[^>]+>|\\{:[^}\\n]*}");
 
         java.util.regex.Matcher protectedMatcher = protectedPattern.matcher(content);
 
