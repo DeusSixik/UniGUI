@@ -44,10 +44,21 @@ final class CleanroomResourceShaderProvider implements ShaderProvider {
     private static String read(ShaderResourcePaths.NamespacedPath candidate) {
         try {
             ResourceLocation location = new ResourceLocation(candidate.namespace(), candidate.path());
-            try (IResource resource = Minecraft.getMinecraft().getResourceManager().getResource(location);
-                 InputStream stream = resource.getInputStream()) {
-                return new String(readAll(stream), StandardCharsets.UTF_8);
+            String source = read(location);
+            if (source != null) return source;
+            if ("unigui_testmod".equals(candidate.namespace())) {
+                return read(new ResourceLocation("unigui", candidate.path()));
             }
+            return null;
+        } catch (IOException | RuntimeException missing) {
+            return null;
+        }
+    }
+
+    private static String read(ResourceLocation location) throws IOException {
+        try (IResource resource = Minecraft.getMinecraft().getResourceManager().getResource(location);
+             InputStream stream = resource.getInputStream()) {
+            return new String(readAll(stream), StandardCharsets.UTF_8);
         } catch (IOException | RuntimeException missing) {
             return null;
         }

@@ -1,6 +1,7 @@
 package dev.sixik.unigui.cleanroom.backend;
 
 import dev.sixik.unigui.api.backend.UniGuiRuntime;
+import dev.sixik.unigui.demo.ui.DemoAssets;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -22,6 +23,7 @@ public final class CleanroomClientBootstrap {
         backend = current;
         // The vanilla font is the default face (A3); registering custom fonts must not replace it.
         MinecraftFonts.useVanillaAsDefault();
+        DemoAssets.provider(CleanroomDemoAssets::load);
         UniGuiRuntime.install(current);
         MinecraftForge.EVENT_BUS.register(new CleanroomClientEvents());
     }

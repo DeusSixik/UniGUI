@@ -4,7 +4,6 @@ import dev.sixik.unigui.cleanroom.demo.IntegrationLab;
 import dev.sixik.unigui.cleanroom.demo.PostEffectLab;
 import dev.sixik.unigui.cleanroom.demo.TextLab;
 import dev.sixik.unigui.cleanroom.demo.TextureLab;
-import dev.sixik.unigui.cleanroom.demo.unity.UnityInspectorScreen;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.CommandException;
 import net.minecraft.command.ICommand;
@@ -20,7 +19,7 @@ public class CommandUniGUI extends CommandBase implements ICommand {
 
     @Override
     public String getUsage(ICommandSender iCommandSender) {
-        return "/unigui [textures|text|posteffect|lab <" + IntegrationLab.USAGE + ">]";
+        return "/unigui [textures|text|posteffect|lab <" + IntegrationLab.USAGE + ">|demo <name>]";
     }
 
     @Override
@@ -47,11 +46,19 @@ public class CommandUniGUI extends CommandBase implements ICommand {
             iCommandSender.sendMessage(new net.minecraft.util.text.TextComponentString(PostEffectLab.next()));
             return;
         }
+        if (strings.length > 0 && "demo".equalsIgnoreCase(strings[0])) {
+            String demoName = strings.length > 1 ? strings[1] : null;
+            if (!CleanroomDemoLauncher.open(demoName)) {
+                iCommandSender.sendMessage(new net.minecraft.util.text.TextComponentString(
+                        "Unknown demo. Available: " + String.join(", ", CleanroomDemoLauncher.names())));
+            }
+            return;
+        }
         if (strings.length > 1 && "lab".equalsIgnoreCase(strings[0])) {
             iCommandSender.sendMessage(new net.minecraft.util.text.TextComponentString(
                     IntegrationLab.run(strings[1].toLowerCase(java.util.Locale.ROOT))));
             return;
         }
-        UnityInspectorScreen.open();
+
     }
 }

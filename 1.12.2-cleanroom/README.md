@@ -5,15 +5,15 @@ This is an isolated CleanroomGradle build because CleanroomGradle requires a new
 ## Requirements
 
 - JDK 25 to run this build.
-- JDK 21 to build the shared `core` project with the root Gradle wrapper.
+- JDK 21 to build the shared `core` and `demo` projects with the root Gradle wrapper.
 - Foojay toolchain resolution downloads JDK 8 for the Cleanroom reobfuscation task.
 
 ## Build and run
 
-From the repository root, build the shared core first:
+From the repository root, build the shared core and portable demo first:
 
 ```powershell
-./gradlew.bat :core:jar
+./gradlew.bat :core:jar :demo:jar
 ```
 
 Then switch the Gradle JVM to JDK 25 and run this module's wrapper from this directory:
@@ -24,6 +24,12 @@ Then switch the Gradle JVM to JDK 25 and run this module's wrapper from this dir
 ```
 
 The produced mod jar includes the core jar, including its bundled fastutil dependency.
+
+The produced mod jar also embeds the portable `demo` library. After joining a world, use
+`/unigui demo <name>` to activate an example. Available names are `widgets`, `docking`, `dominion`,
+`retro`, `ribbon`, `tutorial`, `unity`, `overlay`, `plug`, `wrench`, `wire`, `sync`, `spanner`, `fork`,
+`postprocess`, `culling`, and `scaling`. The Cleanroom host supplies the texture provider;
+the demo classes themselves remain Minecraft-independent and can be reused by another host.
 
 ## 1.12.2 backend status
 
