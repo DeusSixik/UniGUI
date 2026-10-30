@@ -79,6 +79,8 @@ final class CleanroomShapeTessellator implements PathAntiAliasing.VertexSink {
             case CIRCLE -> appendCircle(command, opacity);
             case PATH -> appendPath(command, opacity);
             case MESH -> appendMesh(command, opacity);
+            case TEXTURE -> appendTexture(command, opacity);
+            case TEXTURED_QUAD -> appendTexturedQuad(command, opacity);
             default -> {
             }
         }
@@ -92,6 +94,11 @@ final class CleanroomShapeTessellator implements PathAntiAliasing.VertexSink {
         return type == DrawCommandType.RECT || type == DrawCommandType.ROUNDED_RECT
                 || type == DrawCommandType.LINE || type == DrawCommandType.CIRCLE
                 || type == DrawCommandType.PATH || type == DrawCommandType.MESH;
+    }
+
+    /** @return {@code true} for the textured command types {@link #append} understands */
+    static boolean supportsTexture(DrawCommandType type) {
+        return type == DrawCommandType.TEXTURE || type == DrawCommandType.TEXTURED_QUAD;
     }
 
     // ---- shapes -------------------------------------------------------------------------------------------
@@ -272,6 +279,65 @@ final class CleanroomShapeTessellator implements PathAntiAliasing.VertexSink {
             }
         }
         flushPath(paint, false, fringe);
+    }
+
+    /**
+     * An image: bounds filled with the command's UV rectangle, tinted by the paint color. A radius rounds the corners
+     * by turning the quad into a fan over the rounded outline, with UVs interpolated from the position.
+     */
+    private void appendTexture(DrawCommand command, float opacity) {
+        RectView bounds = command.bounds();
+        float width = bounds.width();
+        float height = bounds.height();
+        if (Math.abs(width) <= 0.0001f || Math.abs(height) <= 0.0001f) return;
+        int color = argb(command.paint().color(), opacity);
+        if ((color >>> 24) == 0) return;
+        RectView uv = command.uv();
+
+        float x1 = Math.min(bounds.x(), bounds.x() + width);
+        float y1 = Math.min(bounds.y(), bounds.y() + height);
+        float x2 = Math.max(bounds.x(), bounds.x() + width);
+        float y2 = Math.max(bounds.y(), bounds.y() + height);
+        float radius = clamp(Math.abs(command.radius()), 0.0f, Math.min(x2 - x1, y2 - y1) * 0.5f);
+        if (radius <= 0.5f) {
+            texturedVertex(bounds, uv, x1, y1, color);
+            texturedVertex(bounds, uv, x1, y2, color);
+            texturedVertex(bounds, uv, x2, y2, color);
+            texturedVertex(bounds, uv, x1, y1, color);
+            texturedVertex(bounds, uv, x2, y2, color);
+            texturedVertex(bounds, uv, x2, y1, color);
+            return;
+        }
+        points.clear();
+        roundedOutline(points, x1, y1, x2, y2, radius, cornerSegments(radius));
+        float centerX = (x1 + x2) * 0.5f;
+        float centerY = (y1 + y2) * 0.5f;
+        int count = points.size();
+        for (int i = 0; i < count; i++) {
+            int next = (i + 1) % count;
+            texturedVertex(bounds, uv, centerX, centerY, color);
+            texturedVertex(bounds, uv, points.x(i), points.y(i), color);
+            texturedVertex(bounds, uv, points.x(next), points.y(next), color);
+        }
+    }
+
+    /** A free quad with its own UV at each corner (rotated or skewed images), drawn as two triangles. */
+    private void appendTexturedQuad(DrawCommand command, float opacity) {
+        int color = argb(command.paint().color(), opacity);
+        if ((color >>> 24) == 0) return;
+        vertex(command.quadX1(), command.quadY1(), command.quadU1(), command.quadV1(), color);
+        vertex(command.quadX2(), command.quadY2(), command.quadU2(), command.quadV2(), color);
+        vertex(command.quadX3(), command.quadY3(), command.quadU3(), command.quadV3(), color);
+        vertex(command.quadX1(), command.quadY1(), command.quadU1(), command.quadV1(), color);
+        vertex(command.quadX3(), command.quadY3(), command.quadU3(), command.quadV3(), color);
+        vertex(command.quadX4(), command.quadY4(), command.quadU4(), command.quadV4(), color);
+    }
+
+    /** Emits a vertex whose UV is the position inside {@code bounds} mapped onto the {@code uv} rectangle. */
+    private void texturedVertex(RectView bounds, RectView uv, float x, float y, int color) {
+        float horizontal = (x - bounds.x()) / bounds.width();
+        float vertical = (y - bounds.y()) / bounds.height();
+        vertex(x, y, uv.x() + uv.width() * horizontal, uv.y() + uv.height() * vertical, color);
     }
 
     private void appendMesh(DrawCommand command, float opacity) {

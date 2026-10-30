@@ -2,7 +2,6 @@ package dev.sixik.unigui.cleanroom.backend;
 
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.math.MutableRect;
-import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.*;
 import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.RichText;
@@ -13,18 +12,14 @@ import dev.sixik.unigui.impl.render.ScissorStack;
 import dev.sixik.unigui.impl.render.SimpleDrawBatcher;
 import dev.sixik.unigui.impl.text.TextEngine;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.client.renderer.Tessellator;
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
-import org.lwjgl.opengl.GL11;
 
 import java.util.List;
 
 /**
  * Immediate-mode renderer for the Minecraft 1.12.2 GUI pipeline.
  *
- * <p>All geometry goes through the vanilla {@link Tessellator} with per-vertex colors, so no draw leaks a
+ * <p>All geometry goes through the vanilla {@link net.minecraft.client.renderer.Tessellator} with per-vertex colors, so no draw leaks a
  * current color into the next one, and all state changes go through {@link GlStateManager}
  * (see {@link CleanroomGlState}). Clip commands are kept on a {@link ScissorStack}, so nested clips intersect
  * and {@code POP_CLIP} restores the parent clip instead of disabling the scissor test.</p>
@@ -126,8 +121,8 @@ final class CleanroomGuiRenderBackend implements RenderBackend {
                 textRenderer.render(batch);
                 return;
             }
-            if (type == DrawCommandType.MESH) {
-                shapeRenderer.renderMeshes(batch);
+            if (type == DrawCommandType.MESH || CleanroomShapeTessellator.supportsTexture(type)) {
+                shapeRenderer.renderTextured(batch);
                 return;
             }
             if (CleanroomShapeTessellator.supports(type)) {
@@ -179,18 +174,15 @@ final class CleanroomGuiRenderBackend implements RenderBackend {
      * font), so only these commands expect the command transform to be on the modelview stack.
      */
     private static boolean usesGlTransform(DrawCommandType type) {
-        return type == DrawCommandType.TEXTURE || type == DrawCommandType.TEXTURED_QUAD
-                || type == DrawCommandType.CUSTOM;
+        return type == DrawCommandType.CUSTOM;
     }
 
     private void renderCommand(DrawCommand command) {
         CleanroomGlState.blend(command.paint().blendMode());
         switch (command.type()) {
             case RECT, ROUNDED_RECT, LINE, CIRCLE, PATH -> shapeRenderer.renderShape(command);
-            case MESH -> shapeRenderer.renderMesh(command);
+            case MESH, TEXTURE, TEXTURED_QUAD -> shapeRenderer.renderTexturedCommand(command);
             case TEXT -> textRenderer.render(command);
-            case TEXTURE -> drawTexture(command);
-            case TEXTURED_QUAD -> drawTexturedQuad(command);
             case CUSTOM -> {
                 if (command.customDraw() != null) command.customDraw().draw(this);
             }
@@ -201,52 +193,6 @@ final class CleanroomGuiRenderBackend implements RenderBackend {
                 // Shader quads and raw draw commands are added with the shader / render-target phase.
             }
         }
-    }
-
-    private void drawTexture(DrawCommand command) {
-        TextureHandle texture = command.texture();
-        if (texture == null) return;
-        int tint = CleanroomRenderMath.argb(command.paint().color(), screen.opacity());
-        if ((tint >>> 24) == 0) return;
-        RectView bounds = command.bounds();
-        RectView uv = command.uv();
-        float x1 = bounds.x();
-        float y1 = bounds.y();
-        float x2 = x1 + bounds.width();
-        float y2 = y1 + bounds.height();
-        float u1 = uv.x();
-        float v1 = uv.y();
-        float u2 = u1 + uv.width();
-        float v2 = v1 + uv.height();
-
-        minecraft.getTextureManager().bindTexture(CleanroomTextures.location(texture.id()));
-        CleanroomGlState.textured();
-        Tessellator tessellator = Tessellator.getInstance();
-        BufferBuilder buffer = tessellator.getBuffer();
-        buffer.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX_COLOR);
-        texturedVertex(buffer, x1, y1, u1, v1, tint);
-        texturedVertex(buffer, x1, y2, u1, v2, tint);
-        texturedVertex(buffer, x2, y2, u2, v2, tint);
-        texturedVertex(buffer, x2, y1, u2, v1, tint);
-        tessellator.draw();
-    }
-
-    private void drawTexturedQuad(DrawCommand command) {
-        TextureHandle texture = command.texture();
-        if (texture == null) return;
-        int tint = CleanroomRenderMath.argb(command.paint().color(), screen.opacity());
-        if ((tint >>> 24) == 0) return;
-
-        minecraft.getTextureManager().bindTexture(CleanroomTextures.location(texture.id()));
-        CleanroomGlState.textured();
-        Tessellator tessellator = Tessellator.getInstance();
-        BufferBuilder buffer = tessellator.getBuffer();
-        buffer.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX_COLOR);
-        texturedVertex(buffer, command.quadX1(), command.quadY1(), command.quadU1(), command.quadV1(), tint);
-        texturedVertex(buffer, command.quadX2(), command.quadY2(), command.quadU2(), command.quadV2(), tint);
-        texturedVertex(buffer, command.quadX3(), command.quadY3(), command.quadU3(), command.quadV3(), tint);
-        texturedVertex(buffer, command.quadX4(), command.quadY4(), command.quadU4(), command.quadV4(), tint);
-        tessellator.draw();
     }
 
     private void pushClip(DrawCommand command) {
@@ -271,9 +217,5 @@ final class CleanroomGuiRenderBackend implements RenderBackend {
         }
         CleanroomRenderMath.glScissor(rect, minecraft.displayWidth, minecraft.displayHeight, scissorBox);
         CleanroomGlState.scissor(scissorBox);
-    }
-
-    private static void texturedVertex(BufferBuilder buffer, float x, float y, float u, float v, int argb) {
-        buffer.pos(x, y, 0.0).tex(u, v).color(argb >> 16 & 0xFF, argb >> 8 & 0xFF, argb & 0xFF, argb >>> 24).endVertex();
     }
 }

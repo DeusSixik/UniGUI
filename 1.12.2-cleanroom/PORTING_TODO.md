@@ -125,13 +125,15 @@
 
 ## Фаза 3 — Текстуры `P1`
 
-- [ ] **3.1 `CleanroomTextureRegistry`.** `TextureHandle.id()` → `ResourceLocation` + кэш размеров. Проверка существования ресурса, `missingno` fallback с warning один раз.
-- [ ] **3.2 Динамические текстуры.** Порт `UniGuiTextures`: `register(id, w, h, RGBA ByteBuffer, options)`, `replace`, `unregister`, `clear`. На 1.12.2 — `DynamicTexture` / `TextureUtil.uploadTextureImageAllocate`. Нужен для генерации карт, FBO-превью, `TextureManagementSelfTest`.
-- [ ] **3.3 `TextureOptions`.** `minFilter/magFilter` (NEAREST/LINEAR), `wrapS/T`, mipmaps, `premultipliedAlpha` → `glTexParameteri` (D4). Состояние сэмплера кэшируется на текстуру (образец: `MinecraftTextureSamplerState`).
-- [ ] **3.4 Размещение.** Проверить, кто раскрывает `TexturePlacement`, `ImageFit`, `NineSlice`, `SliceBorders`: если core выдаёт готовые `TEXTURE` / `TEXTURED_QUAD` — ничего не нужно, если нет — реализовать в backend. Покрыть тестом UV-математику.
-- [ ] **3.5 Rounded texture** (`addImageRounded`, `texture(..., radius, ...)`): клип углов через меш (зависит от 2.7).
-- [ ] **3.6 Пакетная отрисовка текстур** по `TextureHandle` (образец: `MinecraftTextureBatchRenderer`).
-- [ ] **3.7 Освобождение GL-ресурсов** при `UniScreen.close`, смене ресурспака (`IResourceManagerReloadListener`), выходе из мира.
+Ручная проверка: `/unigui textures` открывает `TextureLab` (dynamic, nearest/linear, repeat/mirrored, mipmaps, скругление, tint, vanilla-ресурс; у каждой плитки подпись с ожидаемым видом).
+
+- [x] **3.1 Handle и расположение** (`CleanroomTextureHandle` — аналог `MinecraftTextureHandle` с `withOptions`; `CleanroomTextures.location` кэширует разбор id; отсутствующий ресурс: `TextureManager` сам пишет в лог и биндит `missingno`). Исходная формулировка: `CleanroomTextureRegistry`. `TextureHandle.id()` → `ResourceLocation` + кэш размеров. Проверка существования ресурса, `missingno` fallback с warning один раз.
+- [x] **3.2 Динамические текстуры** (`CleanroomDynamicTextures`: `register/replace/get/unregister/clear/size`; RGBA -> ARGB `CleanroomPixels`; текстура хранит пиксели и переживает resource reload; загрузка в GL на клиентском потоке, из другого потока ставится в очередь). **Не проверено в игре**. Исходная формулировка: Порт `UniGuiTextures`: `register(id, w, h, RGBA ByteBuffer, options)`, `replace`, `unregister`, `clear`. На 1.12.2 — `DynamicTexture` / `TextureUtil.uploadTextureImageAllocate`. Нужен для генерации карт, FBO-превью, `TextureManagementSelfTest`.
+- [x] **3.3 `TextureOptions`** (`CleanroomSamplerState`: sampler-объекты GL 3.3 по `packed()`-ключу, без них `glTexParameteri` с откатом; default-options ничего не меняют, как в 1.20; mipmap-фильтр без `mipmaps()` понижается до базового, чтобы не было чёрной текстуры; `premultipliedAlpha` -> `GL_ONE` как источник). **Не проверено в игре**. Исходная формулировка: `minFilter/magFilter` (NEAREST/LINEAR), `wrapS/T`, mipmaps, `premultipliedAlpha` → `glTexParameteri` (D4). Состояние сэмплера кэшируется на текстуру (образец: `MinecraftTextureSamplerState`).
+- [x] **3.4 Размещение** (core выдаёт готовые `TEXTURE` / `TEXTURED_QUAD` с `uv`, backend только раскладывает; UV покрыты тестами). Исходная формулировка: Проверить, кто раскрывает `TexturePlacement`, `ImageFit`, `NineSlice`, `SliceBorders`: если core выдаёт готовые `TEXTURE` / `TEXTURED_QUAD` — ничего не нужно, если нет — реализовать в backend. Покрыть тестом UV-математику.
+- [x] **3.5 Rounded texture** (веер по скруглённому контуру, UV из позиции; `CleanroomShapeTessellator.appendTexture`). Исходная формулировка: (`addImageRounded`, `texture(..., radius, ...)`): клип углов через меш (зависит от 2.7).
+- [x] **3.6 Пакетная отрисовка текстур** (один bind, один sampler, один draw на batch; CPU-трансформ, GL-matrix для текстур больше не используется). Исходная формулировка: по `TextureHandle` (образец: `MinecraftTextureBatchRenderer`).
+- [~] **3.7 Освобождение GL-ресурсов** (сделано: `unregister`/`clear`, сброс записи mipmap при resource reload; не сделано: автоматическое освобождение при закрытии экрана). Исходная формулировка: при `UniScreen.close`, смене ресурспака (`IResourceManagerReloadListener`), выходе из мира.
 
 ---
 

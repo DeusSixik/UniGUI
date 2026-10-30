@@ -142,6 +142,12 @@ final class CleanroomGlState {
      *
      * @param mode requested mode, {@code null} means {@link BlendMode#NORMAL}
      */
+    static void blend(BlendMode mode, boolean premultipliedSource) {
+        GlStateManager.tryBlendFuncSeparate(
+                CleanroomRenderMath.blendSrcRgb(mode, premultipliedSource), CleanroomRenderMath.blendDstRgb(mode),
+                CleanroomRenderMath.blendSrcAlpha(mode), CleanroomRenderMath.blendDstAlpha(mode));
+    }
+
     static void blend(BlendMode mode) {
         GlStateManager.tryBlendFuncSeparate(
                 CleanroomRenderMath.blendSrcRgb(mode), CleanroomRenderMath.blendDstRgb(mode),

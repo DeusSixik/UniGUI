@@ -1,5 +1,6 @@
 package dev.sixik.unigui.cleanroom.commands;
 
+import dev.sixik.unigui.cleanroom.demo.TextureLab;
 import dev.sixik.unigui.cleanroom.demo.unity.UnityInspectorScreen;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.CommandException;
@@ -16,7 +17,7 @@ public class CommandUniGUI extends CommandBase implements ICommand {
 
     @Override
     public String getUsage(ICommandSender iCommandSender) {
-        return "/unigui";
+        return "/unigui [textures]";
     }
 
     @Override
@@ -31,6 +32,10 @@ public class CommandUniGUI extends CommandBase implements ICommand {
 
     @Override
     public void execute(MinecraftServer minecraftServer, ICommandSender iCommandSender, String[] strings) throws CommandException {
+        if (strings.length > 0 && "textures".equalsIgnoreCase(strings[0])) {
+            TextureLab.open();
+            return;
+        }
         UnityInspectorScreen.open();
     }
 }
