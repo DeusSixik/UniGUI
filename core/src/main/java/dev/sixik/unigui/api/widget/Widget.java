@@ -65,7 +65,7 @@ import java.util.function.Consumer;
                 @AiDoc.Example(
                         title = "Subscribe to a click event",
                         order = 10,
-                        code = "Widget button = ...;\nbutton.on(ClickEvent.class, e -> {\n    System.out.println(\"Clicked: \" + e.target().id());\n});"),
+                        code = "Widget button = ...;\nbutton.on(ButtonClickEvent.TYPE, e -> {\n    System.out.println(\"Clicked: \" + e.target().id());\n});"),
                 @AiDoc.Example(
                         title = "Custom widget skeleton",
                         order = 20,
