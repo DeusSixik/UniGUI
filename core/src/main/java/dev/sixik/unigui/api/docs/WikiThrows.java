@@ -7,7 +7,9 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Repeatable;
 import java.lang.annotation.Target;
 
-/** Describes an exception contract of a documented wiki method or constructor. */
+/**
+ * Describes an exception contract of a documented wiki method or constructor.
+ */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})

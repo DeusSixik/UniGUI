@@ -227,10 +227,10 @@ public final class WikiMarkdownGenerator {
                                                 WikiLocalization localization, String locale) {
         List<Executable> members = new ArrayList<>();
         for (Constructor<?> constructor : type.getDeclaredConstructors()) {
-            if (constructor.isAnnotationPresent(WikiMethod.class)) members.add(constructor);
+            if (!constructor.isSynthetic() && constructor.isAnnotationPresent(WikiMethod.class)) members.add(constructor);
         }
         for (Method method : type.getDeclaredMethods()) {
-            if (method.isAnnotationPresent(WikiMethod.class)) members.add(method);
+            if (!method.isBridge() && !method.isSynthetic() && method.isAnnotationPresent(WikiMethod.class)) members.add(method);
         }
         members.sort(Comparator
                 .comparingInt((Executable member) -> member.getAnnotation(WikiMethod.class).order())

@@ -10,39 +10,40 @@ site_dir: site
 
 theme:
   name: material
+  logo: assets/icon.png
+  favicon: assets/icon.png
   language: en
   palette:
-    # Light theme
-    - scheme: default
-      primary: indigo
-      accent: indigo
-      toggle:
-        icon: material/brightness-7
-        name: Switch to dark mode
-    # Dark theme
+    # Dark theme (Unity Pro - default)
     - scheme: slate
-      primary: indigo
-      accent: indigo
+      primary: grey
+      accent: light-blue
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
-  font:
-    text: Roboto
-    code: JetBrains Mono
+    # Light theme (Unity Classic)
+    - scheme: default
+      primary: grey
+      accent: light-blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+  font: false
   features:
     - navigation.tracking
     - navigation.tabs
-    - navigation.tabs.sticky
-    - navigation.sections
-    - navigation.expand
     - navigation.path
     - navigation.top
+    - navigation.footer
     - search.suggest
     - search.highlight
     - search.share
     - content.code.copy
     - content.code.annotate
     - content.tabs.link
+
+extra_css:
+  - assets/stylesheets/extra.css
 
 plugins:
   - search:

@@ -1,5 +1,13 @@
 package dev.sixik.unigui.api.layout;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -72,6 +80,85 @@ import dev.sixik.unigui.widgets.core.Orientation;
  * @see Justify
  * @see PositionType
  */
+@AiDoc(
+        summary = "Fluent rules used by the layout system to measure and place a widget.",
+        purpose = "Defines size requests, spacing, flex/grid layout, positioning, and overflow without manually calculating screen coordinates.",
+        useWhen = {
+                "Configure a widget through `widget.layout(style -> ...)`.",
+                "Implement a custom container or update several layout properties as one batch."
+        },
+        criticalRules = {
+                "`width` and `height` are requested sizes, not guaranteed final sizes: the parent, flex/grid rules, and min/max constraints may change them.",
+                "`fill()` requests 100% width and height; `expand()` takes remaining space only on the flex parent's main axis.",
+                "`margin` is outside the widget and separates it from siblings; `padding` is inside and reduces content space.",
+                "Grow/shrink are flex-distribution weights, not percentages or standalone dimensions.",
+                "`justifyContent` works on the main axis, `alignItems` on the cross axis; `alignContent` matters only when wrapping creates multiple lines.",
+                "In this implementation `PositionType.FIXED` is relative to the nearest layout host, not the screen or window.",
+                "The CSS-like properties are a UniGUI layout subset and do not promise full CSS compatibility."
+        },
+        related = {"WidgetBase", "SizeValue", "EdgeInsets", "GridTrack", "FlexDirection", "PositionType"},
+        examples = {
+                @AiDoc.Example(
+                        title = "Fixed header and expanding content",
+                        order = 10,
+                        code = """
+                                VBox root = new VBox();
+                                Label header = new Label("Files");
+                                VBox content = new VBox();
+
+                                header.layout(style -> style.height(24.0f).flexNone());
+                                content.layout(style -> style.expand().padding(12.0f));
+                                root.addChild(header);
+                                root.addChild(content);
+                                """),
+                @AiDoc.Example(
+                        title = "Grid with fixed and flexible columns",
+                        order = 20,
+                        code = """
+                                LayoutStyle grid = new LayoutStyle()
+                                        .gridTemplateColumns(GridTrack.px(96.0f), GridTrack.fr(1.0f))
+                                        .gridAutoRowsOf(GridTrack.auto())
+                                        .gap(8.0f, 12.0f);
+                                """)
+        })
+@WikiPage(
+        title = "<key:layout.style.title>",
+        slug = "layout-style",
+        category = "<key:layout.style.category>",
+        summary = "<key:layout.style.summary>",
+        order = 20)
+@WikiSection(
+        title = "<key:layout.style.section.overview.title>",
+        markdown = "<key:layout.style.section.overview.body>",
+        order = 10)
+@WikiSection(
+        title = "<key:layout.style.section.size.title>",
+        markdown = "<key:layout.style.section.size.body>",
+        order = 20)
+@WikiSection(
+        title = "<key:layout.style.section.spacing.title>",
+        markdown = "<key:layout.style.section.spacing.body>",
+        order = 30)
+@WikiSection(
+        title = "<key:layout.style.section.flex.title>",
+        markdown = "<key:layout.style.section.flex.body>",
+        order = 40)
+@WikiSection(
+        title = "<key:layout.style.section.grid.title>",
+        markdown = "<key:layout.style.section.grid.body>",
+        order = 50)
+@WikiSection(
+        title = "<key:layout.style.section.update.title>",
+        markdown = "<key:layout.style.section.update.body>",
+        order = 60)
+@WikiExample(
+        title = "<key:layout.style.example.panel.title>",
+        code = "<key:layout.style.example.panel.code>",
+        order = 10)
+@WikiExample(
+        title = "<key:layout.style.example.grid.title>",
+        code = "<key:layout.style.example.grid.code>",
+        order = 20)
 public final class LayoutStyle {
     /**
      * Callback, который уведомляет владельца об изменении правил компоновки.
@@ -296,7 +383,17 @@ public final class LayoutStyle {
      * @param update блок изменений
      * @return этот стиль для fluent-настройки
      */
-    public LayoutStyle update(Consumer<LayoutStyle> update) {
+    @WikiMethod(
+            title = "<key:layout.style.method.update.title>",
+            summary = "<key:layout.style.method.update.summary>",
+            markdown = "<key:layout.style.method.update.markdown>",
+            order = 10)
+    @WikiReturn("<key:layout.style.method.fluent.return>")
+    @AiDoc(section = "Batching & Copies", sectionOrder = 10, order = 10,
+            summary = "Applies several changes and invokes the change callback at most once after the outer block completes.")
+    public LayoutStyle update(
+            @WikiParameter(name = "update", description = "<key:layout.style.method.update.parameter>")
+            Consumer<LayoutStyle> update) {
         if (update == null) return this;
         updateDepth++;
         try {
@@ -316,6 +413,8 @@ public final class LayoutStyle {
      *
      * @return новый {@code LayoutStyle} с теми же значениями, но без callback'а изменения
      */
+    @AiDoc(section = "Batching & Copies", sectionOrder = 10, order = 20,
+            summary = "Returns an independent copy of the settings without the owner's change callback.")
     public LayoutStyle copy() {
         return new LayoutStyle().copyFrom(this);
     }
@@ -330,6 +429,8 @@ public final class LayoutStyle {
      * @param other источник настроек
      * @return этот стиль для fluent-настройки
      */
+    @AiDoc(section = "Batching & Copies", sectionOrder = 10, order = 30,
+            summary = "Copies all layout properties from another style while preserving this object's callback.")
     public LayoutStyle copyFrom(LayoutStyle other) {
         LayoutStyle source = other == null ? new LayoutStyle() : other;
         return update(style -> {
@@ -405,6 +506,8 @@ public final class LayoutStyle {
      * @param position режим позиционирования; {@code null} нормализуется в {@link PositionType#RELATIVE}
      * @return этот стиль для fluent-настройки
      */
+    @AiDoc(section = "Size & Position", sectionOrder = 20, order = 10,
+            summary = "Selects normal-flow participation (`RELATIVE`/`STATIC`) or out-of-flow positioning (`ABSOLUTE`/`FIXED`).")
     public LayoutStyle position(PositionType position) {
         PositionType normalized = position == null ? PositionType.RELATIVE : position;
         if (this.position == normalized) return this;
@@ -479,6 +582,8 @@ public final class LayoutStyle {
      * @param height желаемая высота; {@code null} означает {@code auto}
      * @return этот стиль для fluent-настройки
      */
+    @AiDoc(section = "Size & Position", sectionOrder = 20, order = 20,
+            summary = "Sets width and height as `auto`, pixels, percentages, or intrinsic `SizeValue` values.")
     public LayoutStyle size(SizeValue width, SizeValue height) {
         return update(style -> {
             style.width(width);
@@ -493,7 +598,17 @@ public final class LayoutStyle {
      * @param height высота в пикселях или {@link LayoutConstraints#AUTO}
      * @return этот стиль для fluent-настройки
      */
-    public LayoutStyle size(float width, float height) {
+    @WikiMethod(
+            title = "<key:layout.style.method.size.title>",
+            summary = "<key:layout.style.method.size.summary>",
+            markdown = "<key:layout.style.method.size.markdown>",
+            order = 20)
+    @WikiReturn("<key:layout.style.method.fluent.return>")
+    @AiDoc(section = "Size & Position", sectionOrder = 20, order = 30,
+            summary = "Sets width and height in UI pixels; legacy `AUTO` is converted to `auto`.")
+    public LayoutStyle size(
+            @WikiParameter(name = "width", description = "<key:layout.style.method.size.width>") float width,
+            @WikiParameter(name = "height", description = "<key:layout.style.method.size.height>") float height) {
         return update(style -> {
             style.width(width);
             style.height(height);
@@ -507,6 +622,8 @@ public final class LayoutStyle {
      * @param heightPercent высота в процентах
      * @return этот стиль для fluent-настройки
      */
+    @AiDoc(section = "Size & Position", sectionOrder = 20, order = 40,
+            summary = "Sets width and height as percentages of the parent's available size.")
     public LayoutStyle sizePercent(float widthPercent, float heightPercent) {
         return size(SizeValue.percent(widthPercent), SizeValue.percent(heightPercent));
     }
@@ -522,6 +639,8 @@ public final class LayoutStyle {
      * @param height высота в пикселях
      * @return этот стиль для fluent-настройки
      */
+    @AiDoc(section = "Size & Position", sectionOrder = 20, order = 50,
+            summary = "Sets the size and disables flex growth and shrink for a fixed element.")
     public LayoutStyle fixed(float width, float height) {
         return update(style -> {
             style.size(width, height);
@@ -540,6 +659,8 @@ public final class LayoutStyle {
      *
      * @return этот стиль для fluent-настройки
      */
+    @AiDoc(section = "Size & Position", sectionOrder = 20, order = 60,
+            summary = "Requests 100% of the available width and height; this is not the same as `expand()`.")
     public LayoutStyle fill() {
         return sizePercent(100.0f, 100.0f);
     }
@@ -837,6 +958,8 @@ public final class LayoutStyle {
      * @param margin внешний отступ; {@code null} нормализуется в {@link EdgeInsets#ZERO}
      * @return этот стиль для fluent-настройки
      */
+    @AiDoc(section = "Spacing & Overflow", sectionOrder = 30, order = 10,
+            summary = "Sets outer spacing that separates the widget from siblings without moving its inner content.")
     public LayoutStyle margin(EdgeInsets margin) {
         EdgeInsets normalized = margin == null ? EdgeInsets.ZERO : margin;
         if (this.margin.equals(normalized)) return this;
@@ -954,6 +1077,8 @@ public final class LayoutStyle {
      * @param padding внутренний отступ; {@code null} нормализуется в {@link EdgeInsets#ZERO}
      * @return этот стиль для fluent-настройки
      */
+    @AiDoc(section = "Spacing & Overflow", sectionOrder = 30, order = 20,
+            summary = "Sets inner spacing between the container bounds and its content.")
     public LayoutStyle padding(EdgeInsets padding) {
         EdgeInsets normalized = padding == null ? EdgeInsets.ZERO : padding;
         if (this.padding.equals(normalized)) return this;
@@ -968,7 +1093,13 @@ public final class LayoutStyle {
      * @param all отступ слева, сверху, справа и снизу
      * @return этот стиль для fluent-настройки
      */
-    public LayoutStyle padding(float all) {
+    @WikiMethod(
+            title = "<key:layout.style.method.padding.title>",
+            summary = "<key:layout.style.method.padding.summary>",
+            order = 30)
+    @WikiReturn("<key:layout.style.method.fluent.return>")
+    public LayoutStyle padding(
+            @WikiParameter(name = "all", description = "<key:layout.style.method.padding.parameter>") float all) {
         return padding(EdgeInsets.all(all));
     }
 
@@ -1015,6 +1146,8 @@ public final class LayoutStyle {
      * @param overflowX режим overflow; {@code null} нормализуется в {@link Overflow#VISIBLE}
      * @return этот стиль для fluent-настройки
      */
+    @AiDoc(section = "Spacing & Overflow", sectionOrder = 30, order = 30,
+            summary = "Controls content that exceeds the width (`VISIBLE`, `HIDDEN`, or `AUTO`).")
     public LayoutStyle overflowX(Overflow overflowX) {
         Overflow normalized = overflowX == null ? Overflow.VISIBLE : overflowX;
         if (this.overflowX == normalized) return this;
@@ -1041,6 +1174,8 @@ public final class LayoutStyle {
      * @param overflowY режим overflow; {@code null} нормализуется в {@link Overflow#VISIBLE}
      * @return этот стиль для fluent-настройки
      */
+    @AiDoc(section = "Spacing & Overflow", sectionOrder = 30, order = 40,
+            summary = "Controls content that exceeds the height; scrolling is implemented by `ScrollView`.")
     public LayoutStyle overflowY(Overflow overflowY) {
         Overflow normalized = overflowY == null ? Overflow.VISIBLE : overflowY;
         if (this.overflowY == normalized) return this;
@@ -1055,6 +1190,8 @@ public final class LayoutStyle {
      * @param overflow режим overflow для обеих осей
      * @return этот стиль для fluent-настройки
      */
+    @AiDoc(section = "Spacing & Overflow", sectionOrder = 30, order = 50,
+            summary = "Sets overflow behavior for both axes at once.")
     public LayoutStyle overflow(Overflow overflow) {
         return update(style -> {
             style.overflowX(overflow);
@@ -1174,6 +1311,8 @@ public final class LayoutStyle {
      * @param gap промежуток в пикселях
      * @return этот стиль для fluent-настройки
      */
+    @AiDoc(section = "Flex Layout", sectionOrder = 40, order = 20,
+            summary = "Sets the same gap between rows and columns.")
     public LayoutStyle gap(float gap) {
         return update(style -> {
             style.rowGap(gap);
@@ -1192,6 +1331,8 @@ public final class LayoutStyle {
      * @param spacing расстояние в логических пикселях; отрицательные и неконечные значения нормализуются в ноль
      * @return этот стиль для fluent-настройки
      */
+    @AiDoc(section = "Flex Layout", sectionOrder = 40, order = 30,
+            summary = "Sets spacing along the selected orientation and clears the cross-axis gap.")
     public LayoutStyle spacing(Orientation orientation, float spacing) {
         Orientation resolved = orientation == null ? Orientation.VERTICAL : orientation;
         return update(style -> {
@@ -1210,6 +1351,8 @@ public final class LayoutStyle {
      * @param columnGap расстояние между flex-колонками или элементами строки
      * @return этот стиль для fluent-настройки
      */
+    @AiDoc(section = "Flex Layout", sectionOrder = 40, order = 40,
+            summary = "Sets row and column gaps independently.")
     public LayoutStyle gap(float rowGap, float columnGap) {
         return update(style -> {
             style.rowGap(rowGap);
@@ -1351,7 +1494,19 @@ public final class LayoutStyle {
      * @param basis  базовый размер на главной оси
      * @return этот стиль для fluent-настройки
      */
-    public LayoutStyle flex(float grow, float shrink, SizeValue basis) {
+    @WikiMethod(
+            title = "<key:layout.style.method.flex.title>",
+            summary = "<key:layout.style.method.flex.summary>",
+            markdown = "<key:layout.style.method.flex.markdown>",
+            order = 40)
+    @WikiReturn("<key:layout.style.method.fluent.return>")
+    @AiDoc(section = "Flex Layout", sectionOrder = 40, order = 50,
+            summary = "Sets flex grow/shrink and the base size before free-space distribution.",
+            criticalRules = "Grow and shrink are weights; `basis` is not the final width or height.")
+    public LayoutStyle flex(
+            @WikiParameter(name = "grow", description = "<key:layout.style.method.flex.grow>") float grow,
+            @WikiParameter(name = "shrink", description = "<key:layout.style.method.flex.shrink>") float shrink,
+            @WikiParameter(name = "basis", description = "<key:layout.style.method.flex.basis>") SizeValue basis) {
         return update(style -> {
             style.flexGrow(grow);
             style.flexShrink(shrink);
@@ -1392,6 +1547,8 @@ public final class LayoutStyle {
      * @param ratio соотношение ширины к высоте, например {@code 16.0f / 9.0f}
      * @return этот стиль для fluent-настройки
      */
+    @AiDoc(section = "Grid & Alignment", sectionOrder = 50, order = 10,
+            summary = "Sets a positive width-to-height ratio when one axis remains `auto`.")
     public LayoutStyle aspectRatio(float ratio) {
         float normalized = Float.isFinite(ratio) && ratio > 0.0f ? ratio : Float.NaN;
         if (Float.compare(this.aspectRatio, normalized) == 0) return this;
@@ -1423,7 +1580,17 @@ public final class LayoutStyle {
      * @param tracks треки; {@code null} означает пустой шаблон
      * @return этот стиль для fluent-настройки
      */
-    public LayoutStyle gridTemplateColumns(List<GridTrack> tracks) {
+    @WikiMethod(
+            title = "<key:layout.style.method.grid.columns.title>",
+            summary = "<key:layout.style.method.grid.columns.summary>",
+            markdown = "<key:layout.style.method.grid.columns.markdown>",
+            order = 50)
+    @WikiReturn("<key:layout.style.method.fluent.return>")
+    @AiDoc(section = "Grid & Alignment", sectionOrder = 50, order = 20,
+            summary = "Sets an explicit column template from `GridTrack`; an empty list keeps automatic sizing.")
+    public LayoutStyle gridTemplateColumns(
+            @WikiParameter(name = "tracks", description = "<key:layout.style.method.grid.tracks>")
+            List<GridTrack> tracks) {
         List<GridTrack> normalized = tracks == null ? List.of() : List.copyOf(tracks);
         if (this.gridTemplateColumns.equals(normalized)) return this;
         this.gridTemplateColumns = normalized;
@@ -1462,6 +1629,8 @@ public final class LayoutStyle {
      * @param tracks треки; {@code null} означает пустой шаблон
      * @return этот стиль для fluent-настройки
      */
+    @AiDoc(section = "Grid & Alignment", sectionOrder = 50, order = 30,
+            summary = "Sets an explicit row template from `GridTrack`.")
     public LayoutStyle gridTemplateRows(List<GridTrack> tracks) {
         List<GridTrack> normalized = tracks == null ? List.of() : List.copyOf(tracks);
         if (this.gridTemplateRows.equals(normalized)) return this;
@@ -1499,6 +1668,8 @@ public final class LayoutStyle {
      * @param tracks треки; {@code null} означает пустой список
      * @return этот стиль для fluent-настройки
      */
+    @AiDoc(section = "Grid & Alignment", sectionOrder = 50, order = 40,
+            summary = "Sets sizes for automatically created columns when explicit columns are exhausted.")
     public LayoutStyle gridAutoColumns(List<GridTrack> tracks) {
         List<GridTrack> normalized = tracks == null ? List.of() : List.copyOf(tracks);
         if (this.gridAutoColumns.equals(normalized)) return this;
@@ -1536,6 +1707,8 @@ public final class LayoutStyle {
      * @param tracks треки; {@code null} означает пустой список
      * @return этот стиль для fluent-настройки
      */
+    @AiDoc(section = "Grid & Alignment", sectionOrder = 50, order = 50,
+            summary = "Sets sizes for automatically created rows when explicit rows are exhausted.")
     public LayoutStyle gridAutoRows(List<GridTrack> tracks) {
         List<GridTrack> normalized = tracks == null ? List.of() : List.copyOf(tracks);
         if (this.gridAutoRows.equals(normalized)) return this;
@@ -1573,6 +1746,8 @@ public final class LayoutStyle {
      * @param flow направление; {@code null} нормализуется в {@link GridAutoFlow#ROW}
      * @return этот стиль для fluent-настройки
      */
+    @AiDoc(section = "Grid & Alignment", sectionOrder = 50, order = 60,
+            summary = "Selects the direction used to find free cells during auto-placement.")
     public LayoutStyle gridAutoFlow(GridAutoFlow flow) {
         GridAutoFlow normalized = flow == null ? GridAutoFlow.ROW : flow;
         if (this.gridAutoFlow == normalized) return this;
@@ -1628,6 +1803,8 @@ public final class LayoutStyle {
      * @param span  span, значения меньше 1 нормализуются в 1
      * @return этот стиль для fluent-настройки
      */
+    @AiDoc(section = "Grid & Alignment", sectionOrder = 50, order = 70,
+            summary = "Pins a child to a grid column and sets its span; `start <= 0` means auto-placement.")
     public LayoutStyle gridColumn(int start, int span) {
         return update(style -> {
             if (style.gridColumnStart != start) {
@@ -1653,6 +1830,8 @@ public final class LayoutStyle {
      * @param span  span, значения меньше 1 нормализуются в 1
      * @return этот стиль для fluent-настройки
      */
+    @AiDoc(section = "Grid & Alignment", sectionOrder = 50, order = 80,
+            summary = "Pins a child to a grid row and sets its span; `start <= 0` means auto-placement.")
     public LayoutStyle gridRow(int start, int span) {
         return update(style -> {
             if (style.gridRowStart != start) {
@@ -1689,6 +1868,8 @@ public final class LayoutStyle {
      * @param zIndex z-index
      * @return этот стиль для fluent-настройки
      */
+    @AiDoc(section = "Grid & Alignment", sectionOrder = 50, order = 90,
+            summary = "Sets draw order among siblings; lower values are drawn earlier.")
     public LayoutStyle zIndex(int zIndex) {
         if (this.zIndex == zIndex) return this;
         this.zIndex = zIndex;
@@ -1703,6 +1884,8 @@ public final class LayoutStyle {
      * @param wrap      режим переноса
      * @return этот стиль для fluent-настройки
      */
+    @AiDoc(section = "Flex Layout", sectionOrder = 40, order = 10,
+            summary = "Sets the flex container's main axis and wrapping mode together.")
     public LayoutStyle flexFlow(FlexDirection direction, FlexWrap wrap) {
         return update(style -> {
             style.flexDirection(direction);
@@ -1724,6 +1907,8 @@ public final class LayoutStyle {
      * Разрешает виджету расти и сжиматься, начиная с заданного размера или
      * размера содержимого (эквивалент {@code grow = 1, shrink = 1, basis = auto}).
      */
+    @AiDoc(section = "Flex Layout", sectionOrder = 40, order = 60,
+            summary = "Enables `grow = 1`, `shrink = 1`, and `basis = auto`.")
     public LayoutStyle flexAuto() {
         return flex(1.0f, 1.0f, SizeValue.auto());
     }
@@ -1732,6 +1917,8 @@ public final class LayoutStyle {
      * Оставляет размер по настройке или содержимому, запрещает рост и разрешает
      * сжатие при нехватке места (эквивалент {@code 0 1 auto}).
      */
+    @AiDoc(section = "Flex Layout", sectionOrder = 40, order = 70,
+            summary = "Keeps the base size and allows only flex shrink (`0 1 auto`).")
     public LayoutStyle flexInitial() {
         return flex(0.0f, 1.0f, SizeValue.auto());
     }
@@ -1740,6 +1927,8 @@ public final class LayoutStyle {
      * Оставляет размер по настройке или содержимому и запрещает flex-рост
      * и flex-сжатие (эквивалент {@code 0 0 auto}).
      */
+    @AiDoc(section = "Flex Layout", sectionOrder = 40, order = 80,
+            summary = "Disables flex growth and shrink (`0 0 auto`).")
     public LayoutStyle flexNone() {
         return flex(0.0f, 0.0f, SizeValue.auto());
     }
@@ -1752,6 +1941,8 @@ public final class LayoutStyle {
      *
      * @return этот стиль для fluent-настройки
      */
+    @AiDoc(section = "Flex Layout", sectionOrder = 40, order = 90,
+            summary = "Takes remaining free space on the main axis (`1 1 0px`).")
     public LayoutStyle expand() {
         return flex(1.0f, 1.0f, SizeValue.px(0.0f));
     }
@@ -1785,6 +1976,8 @@ public final class LayoutStyle {
      * @param alignItems выравнивание детей; {@code null} нормализуется в {@link Align#STRETCH}
      * @return этот стиль для fluent-настройки
      */
+    @AiDoc(section = "Grid & Alignment", sectionOrder = 50, order = 100,
+            summary = "Aligns a container's children on the cross axis.")
     public LayoutStyle alignItems(Align alignItems) {
         Align normalized = alignItems == null ? Align.STRETCH : alignItems;
         if (this.alignItems == normalized) return this;
@@ -1812,6 +2005,8 @@ public final class LayoutStyle {
      * @param alignSelf выравнивание виджета; {@code null} нормализуется в {@link Align#AUTO}
      * @return этот стиль для fluent-настройки
      */
+    @AiDoc(section = "Grid & Alignment", sectionOrder = 50, order = 110,
+            summary = "Overrides the parent's cross-axis alignment for this child.")
     public LayoutStyle alignSelf(Align alignSelf) {
         Align normalized = alignSelf == null ? Align.AUTO : alignSelf;
         Alignment nextHorizontal;
@@ -1852,6 +2047,9 @@ public final class LayoutStyle {
      * @param alignContent распределение линий; {@code null} нормализуется в {@link AlignContent#STRETCH}
      * @return этот стиль для fluent-настройки
      */
+    @AiDoc(section = "Grid & Alignment", sectionOrder = 50, order = 120,
+            summary = "Distributes multiple wrapped lines on the cross axis.",
+            criticalRules = "Has no visible effect when wrapping produces only one line.")
     public LayoutStyle alignContent(AlignContent alignContent) {
         AlignContent normalized = alignContent == null ? AlignContent.STRETCH : alignContent;
         if (this.alignContent == normalized) return this;
@@ -1878,6 +2076,8 @@ public final class LayoutStyle {
      * @param justifyContent распределение; {@code null} нормализуется в {@link Justify#START}
      * @return этот стиль для fluent-настройки
      */
+    @AiDoc(section = "Grid & Alignment", sectionOrder = 50, order = 130,
+            summary = "Distributes a container's children on the main axis.")
     public LayoutStyle justifyContent(Justify justifyContent) {
         Justify normalized = justifyContent == null ? Justify.START : justifyContent;
         if (this.justifyContent == normalized) return this;
@@ -1893,6 +2093,13 @@ public final class LayoutStyle {
      *
      * @return этот стиль для fluent-настройки
      */
+    @WikiMethod(
+            title = "<key:layout.style.method.center.title>",
+            summary = "<key:layout.style.method.center.summary>",
+            order = 60)
+    @WikiReturn("<key:layout.style.method.fluent.return>")
+    @AiDoc(section = "Grid & Alignment", sectionOrder = 50, order = 140,
+            summary = "Centers a container's children on both the main and cross axes.")
     public LayoutStyle center() {
         return update(style -> {
             style.alignItems(Align.CENTER);
@@ -1905,6 +2112,8 @@ public final class LayoutStyle {
      *
      * @return этот стиль для fluent-настройки
      */
+    @AiDoc(section = "Grid & Alignment", sectionOrder = 50, order = 150,
+            summary = "Centers this flex item on its parent's cross axis.")
     public LayoutStyle centerSelf() {
         return alignSelf(Align.CENTER);
     }
@@ -2041,6 +2250,8 @@ public final class LayoutStyle {
      * @param bottom отступ снизу
      * @return этот стиль для fluent-настройки
      */
+    @AiDoc(section = "Size & Position", sectionOrder = 20, order = 70,
+            summary = "Sets distances to all parent edges, typically for `ABSOLUTE` positioning.")
     public LayoutStyle inset(SizeValue left, SizeValue top, SizeValue right, SizeValue bottom) {
         return update(style -> {
             style.left(left);

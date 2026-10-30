@@ -7,7 +7,9 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Repeatable;
 import java.lang.annotation.Target;
 
-/** Adds authored Markdown content to a generated wiki page. */
+/**
+ * Adds authored Markdown content to a generated wiki page.
+ */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)

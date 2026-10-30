@@ -57,9 +57,15 @@ public final class AiMarkdownGenerator {
         StringBuilder markdown = new StringBuilder(4096)
                 .append("# `").append(type.getSimpleName()).append('`');
         Class<?> parent = type.getSuperclass();
+        List<String> relationships = new ArrayList<>();
         if (parent != null && parent != Object.class) {
-            markdown.append(" (extends `").append(parent.getSimpleName()).append("`)");
+            relationships.add("extends `" + parent.getSimpleName() + "`");
         }
+        for (Class<?> implemented : type.getInterfaces()) {
+            relationships.add((type.isInterface() ? "extends" : "implements")
+                    + " `" + implemented.getSimpleName() + "`");
+        }
+        if (!relationships.isEmpty()) markdown.append(" (").append(String.join(", ", relationships)).append(')');
         markdown.append("\n\n");
         if (typeDoc != null) appendTypeDoc(markdown, typeDoc);
         appendMemberSections(markdown, members);
@@ -97,7 +103,12 @@ public final class AiMarkdownGenerator {
             }
         }
         for (Method method : type.getDeclaredMethods()) {
-            if (Modifier.isPublic(method.getModifiers()) && method.isAnnotationPresent(AiDoc.class)) members.add(method);
+            if (Modifier.isPublic(method.getModifiers())
+                    && !method.isBridge()
+                    && !method.isSynthetic()
+                    && method.isAnnotationPresent(AiDoc.class)) {
+                members.add(method);
+            }
         }
         members.sort(Comparator
                 .comparingInt((Executable member) -> member.getAnnotation(AiDoc.class).sectionOrder())

@@ -1,6 +1,13 @@
 package dev.sixik.unigui.impl.widget;
 
 import dev.sixik.unigui.api.animation.AnimatedProperty;
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.animation.AnimationClock;
 import dev.sixik.unigui.api.animation.AnimationEasing;
 import dev.sixik.unigui.api.animation.Easing;
@@ -79,6 +86,82 @@ import java.util.function.Consumer;
 
 @XmlLayoutAttributes
 @XmlStyleAttributes
+@AiDoc(
+        summary = "Base implementation for UniGUI widgets and the bridge between widget state, layout, styles, rendering, input, and animation.",
+        purpose = "Provides common fluent configuration and lifecycle behavior so concrete widgets can focus on their own content, measurement, and visual rendering.",
+        useWhen = {
+                "Implement a custom widget that should participate in the standard UniGUI layout, style, event, and animation pipelines.",
+                "Configure an existing widget through common identity, visibility, focus, style, transform, or caching APIs."
+        },
+        criticalRules = {
+                "Subclass `WidgetBase`; do not instantiate it directly because it is abstract and owns framework lifecycle state.",
+                "Use `layout(style -> ...)` for layout properties and `style(...)` for visual/style properties; they update different systems.",
+                "Changing layout-related state must invalidate `LAYOUT`; visual-only changes should invalidate `VISUAL`.",
+                "`Visibility.HIDDEN` keeps layout space but suppresses rendering and input; `Visibility.COLLAPSED` removes the widget from layout as well.",
+                "A per-instance `renderer` replaces the widget's standard visual; children are still handled by the framework.",
+                "Retained render caching is intended for stable leaf visuals; widgets with children fall back to normal child traversal.",
+                "`styleScope(true)` limits inherited local-style lookup at that widget boundary; it does not remove the global theme.",
+                "Call `super` lifecycle behavior when overriding framework methods unless the concrete widget deliberately replaces that contract."
+        },
+        related = {"Widget", "LayoutStyle", "StylePack", "MutableStyle", "TransitionSpec", "EventSubscription"},
+        examples = {
+                @AiDoc.Example(
+                        title = "Configure a widget",
+                        order = 10,
+                        code = """
+                                WidgetBase widget = new Label("Hello")
+                                        .id("greeting")
+                                        .styleId("card")
+                                        .addStyleClass("interactive")
+                                        .layout(style -> style
+                                                .padding(12.0f)
+                                                .width(240.0f)
+                                                .flexNone());
+                                """),
+                @AiDoc.Example(
+                        title = "Animate a visual property",
+                        order = 20,
+                        code = """
+                                widget
+                                        .opacity(0.0f)
+                                        .animateOpacity(1.0f, 0.20f)
+                                        .animateScale(1.0f, 1.0f, 0.20f);
+                                """)
+        })
+@WikiPage(
+        title = "<key:widget.base.title>",
+        slug = "widget-base",
+        category = "<key:widget.base.category>",
+        summary = "<key:widget.base.summary>",
+        order = 30)
+@WikiSection(
+        title = "<key:widget.base.section.overview.title>",
+        markdown = "<key:widget.base.section.overview.body>",
+        order = 10)
+@WikiSection(
+        title = "<key:widget.base.section.style.title>",
+        markdown = "<key:widget.base.section.style.body>",
+        order = 20)
+@WikiSection(
+        title = "<key:widget.base.section.state.title>",
+        markdown = "<key:widget.base.section.state.body>",
+        order = 30)
+@WikiSection(
+        title = "<key:widget.base.section.animation.title>",
+        markdown = "<key:widget.base.section.animation.body>",
+        order = 40)
+@WikiSection(
+        title = "<key:widget.base.section.render.title>",
+        markdown = "<key:widget.base.section.render.body>",
+        order = 50)
+@WikiExample(
+        title = "<key:widget.base.example.configure.title>",
+        code = "<key:widget.base.example.configure.code>",
+        order = 10)
+@WikiExample(
+        title = "<key:widget.base.example.animation.title>",
+        code = "<key:widget.base.example.animation.code>",
+        order = 20)
 public abstract class WidgetBase implements Widget {
     /**
      * Общие animation property id, доступные всем виджетам.
@@ -400,6 +483,8 @@ public abstract class WidgetBase implements Widget {
      */
     @Override
     @XmlAttribute(value = "id", category = "Common", description = "Runtime/debug/editor identifier for code-behind lookup.")
+    @AiDoc(section = "Identity & Style Selectors", sectionOrder = 10, order = 10,
+            summary = "Assigns the runtime/editor identifier used by code-behind and lookup systems.")
     public WidgetBase id(String id) {
         String normalized = id == null ? "" : id;
         if (this.id.equals(normalized)) return this;
@@ -420,6 +505,8 @@ public abstract class WidgetBase implements Widget {
      */
     @Override
     @XmlAttribute(value = "style", category = "Common", description = "Explicit StylePack style id applied to this widget.")
+    @AiDoc(section = "Identity & Style Selectors", sectionOrder = 10, order = 20,
+            summary = "Selects the explicit `StylePack` style id for this widget.")
     public WidgetBase styleId(String styleId) {
         String normalized = styleId == null ? "" : styleId.trim();
         if (this.styleId.equals(normalized)) return this;
@@ -442,6 +529,8 @@ public abstract class WidgetBase implements Widget {
      */
     @Override
     @XmlAttribute(value = "class", category = "Common", description = "Space-separated StylePack classes applied to this widget.")
+    @AiDoc(section = "Identity & Style Selectors", sectionOrder = 10, order = 30,
+            summary = "Replaces the widget's space-separated style-class set.")
     public WidgetBase styleClass(String styleClasses) {
         LinkedHashSet<String> parsed = parseStyleClasses(styleClasses);
         if (this.styleClasses.equals(parsed)) return this;
@@ -464,6 +553,8 @@ public abstract class WidgetBase implements Widget {
      * Добавляет один style class.
      */
     @Override
+    @AiDoc(section = "Identity & Style Selectors", sectionOrder = 10, order = 40,
+            summary = "Adds one normalized style class without removing existing classes.")
     public WidgetBase addStyleClass(String styleClass) {
         String normalized = normalizeStyleClass(styleClass);
         if (normalized.isEmpty() || !styleClasses.add(normalized)) return this;
@@ -476,6 +567,8 @@ public abstract class WidgetBase implements Widget {
      * Удаляет один style class.
      */
     @Override
+    @AiDoc(section = "Identity & Style Selectors", sectionOrder = 10, order = 50,
+            summary = "Removes one normalized style class if it is present.")
     public WidgetBase removeStyleClass(String styleClass) {
         String normalized = normalizeStyleClass(styleClass);
         if (normalized.isEmpty() || !styleClasses.remove(normalized)) return this;
@@ -488,6 +581,8 @@ public abstract class WidgetBase implements Widget {
      * Проверяет наличие style class.
      */
     @Override
+    @AiDoc(section = "Identity & Style Selectors", sectionOrder = 10, order = 60,
+            summary = "Checks whether the widget has a normalized style class.")
     public boolean hasStyleClass(String styleClass) {
         String normalized = normalizeStyleClass(styleClass);
         return !normalized.isEmpty() && styleClasses.contains(normalized);
@@ -500,7 +595,18 @@ public abstract class WidgetBase implements Widget {
      * объявления используют форму {@code property: value; property: value}.</p>
      */
     @Override
-    public WidgetBase style(String declarations) {
+    @WikiMethod(
+            title = "<key:widget.base.method.style.title>",
+            summary = "<key:widget.base.method.style.summary>",
+            markdown = "<key:widget.base.method.style.markdown>",
+            order = 10)
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Inline Styling & Layout", sectionOrder = 20, order = 10,
+            summary = "Parses inline style declarations; a string without `:` or `;` is treated as a style id.",
+            criticalRules = "Parsing diagnostics are retained in `styleDiagnostics()` and do not silently disappear.")
+    public WidgetBase style(
+            @WikiParameter(name = "declarations", description = "<key:widget.base.method.style.parameter>")
+            String declarations) {
         String normalized = declarations == null ? "" : declarations.trim();
         if (normalized.isEmpty()) return this;
         if (normalized.indexOf(':') < 0 && normalized.indexOf(';') < 0) {
@@ -521,6 +627,8 @@ public abstract class WidgetBase implements Widget {
      * Добавляет типизированные значения в тот же набор встроенных стилей.
      */
     @Override
+    @AiDoc(section = "Inline Styling & Layout", sectionOrder = 20, order = 20,
+            summary = "Applies typed inline style values through a `MutableStyle` callback.")
     public WidgetBase style(Consumer<MutableStyle> update) {
         if (update == null) return this;
         update.accept(inlineStyle());
@@ -533,6 +641,8 @@ public abstract class WidgetBase implements Widget {
      *
      * @return этот виджет
      */
+    @AiDoc(section = "Inline Styling & Layout", sectionOrder = 20, order = 30,
+            summary = "Clears only the widget's inline style and parser diagnostics; external style scopes remain active.")
     @Override
     public WidgetBase styleClear() {
         if (inlineStyle == null && styleDiagnostics.isEmpty()) return this;
@@ -630,6 +740,9 @@ public abstract class WidgetBase implements Widget {
      * @param easing          функция плавности; {@code null} означает линейный easing
      * @return этот виджет
      */
+    @AiDoc(section = "Transforms & Animation", sectionOrder = 40, order = 10,
+            summary = "Enables FLIP animation for subsequent layout-driven position changes.",
+            criticalRules = "Only x/y movement is animated; layout size changes are not interpolated.")
     public WidgetBase layoutTransition(float durationSeconds, Easing easing) {
         layoutTransitionSpec = TransitionSpec.of(durationSeconds, easing);
         return layoutTransitionsEnabled(true);
@@ -693,6 +806,8 @@ public abstract class WidgetBase implements Widget {
         return transformOrigin;
     }
 
+    @AiDoc(section = "Transforms & Animation", sectionOrder = 40, order = 20,
+            summary = "Selects a named transform pivot; `CUSTOM` preserves the raw pixel pivot.")
     public WidgetBase transformOrigin(TransformOrigin origin) {
         TransformOrigin normalized = origin == null ? TransformOrigin.CUSTOM : origin;
         if (transformOrigin == normalized) return this;
@@ -706,6 +821,8 @@ public abstract class WidgetBase implements Widget {
         return this;
     }
 
+    @AiDoc(section = "Transforms & Animation", sectionOrder = 40, order = 30,
+            summary = "Sets a custom transform pivot in local pixels and cancels active pivot animations.")
     public WidgetBase transformPivot(float x, float y) {
         transformOrigin = TransformOrigin.CUSTOM;
         animations.stopScoped(SCOPE_PROPERTY, AnimatedProperty.PIVOT_X, false);
@@ -729,6 +846,8 @@ public abstract class WidgetBase implements Widget {
     }
 
     @XmlAttribute(value = "rotation", category = "Appearance", defaultValue = "0", description = "Rotation in degrees applied to the widget transform.")
+    @AiDoc(section = "Transforms & Animation", sectionOrder = 40, order = 40,
+            summary = "Sets rotation in degrees immediately and stops active rotation animations.")
     public WidgetBase rotationDegrees(float degrees) {
         animations.stopScoped(SCOPE_PROPERTY, AnimatedProperty.ROTATION_DEGREES, false);
         animations.stopScoped(SCOPE_SPRING_PROPERTY, AnimatedProperty.ROTATION_DEGREES, false);
@@ -755,6 +874,8 @@ public abstract class WidgetBase implements Widget {
      * Возвращает текущую прозрачность виджета.
      */
     @XmlAttribute(value = "opacity", category = "Appearance", defaultValue = "1", description = "Widget opacity clamped between 0 and 1.")
+    @AiDoc(section = "Transforms & Animation", sectionOrder = 40, order = 50,
+            summary = "Sets opacity immediately after clamping it to the 0..1 range.")
     public WidgetBase opacity(float opacity) {
         animations.stopScoped(SCOPE_PROPERTY, AnimatedProperty.OPACITY, false);
         animations.stopScoped(SCOPE_SPRING_PROPERTY, AnimatedProperty.OPACITY, false);
@@ -772,6 +893,8 @@ public abstract class WidgetBase implements Widget {
     /**
      * Обновляет или выполняет операцию {@code animateOpacity}, меняющую состояние виджета.
      */
+    @AiDoc(section = "Transforms & Animation", sectionOrder = 40, order = 60,
+            summary = "Transitions opacity to a target value using the supplied timing specification.")
     public WidgetBase animateOpacity(float targetOpacity, TransitionSpec spec) {
         return animate(AnimatedProperty.OPACITY, clamp01(targetOpacity), spec);
     }
@@ -786,6 +909,8 @@ public abstract class WidgetBase implements Widget {
     /**
      * Обновляет или выполняет операцию {@code animatePosition}, меняющую состояние виджета.
      */
+    @AiDoc(section = "Transforms & Animation", sectionOrder = 40, order = 70,
+            summary = "Animates visual transform position without changing layout bounds.")
     public WidgetBase animatePosition(float x, float y, TransitionSpec spec) {
         animate(AnimatedProperty.POSITION_X, sanitizeFinite(x), spec);
         animate(AnimatedProperty.POSITION_Y, sanitizeFinite(y), spec);
@@ -816,6 +941,8 @@ public abstract class WidgetBase implements Widget {
     /**
      * Обновляет или выполняет операцию {@code animateScale}, меняющую состояние виджета.
      */
+    @AiDoc(section = "Transforms & Animation", sectionOrder = 40, order = 80,
+            summary = "Animates transform scale on the x and y axes.")
     public WidgetBase animateScale(float x, float y, TransitionSpec spec) {
         animate(AnimatedProperty.SCALE_X, sanitizeFinite(x, 1.0f), spec);
         animate(AnimatedProperty.SCALE_Y, sanitizeFinite(y, 1.0f), spec);
@@ -967,6 +1094,8 @@ public abstract class WidgetBase implements Widget {
      * @param damping     затухание пружины
      * @return этот виджет
      */
+    @AiDoc(section = "Transforms & Animation", sectionOrder = 40, order = 90,
+            summary = "Runs or retargets a spring animation for a built-in animated property.")
     public WidgetBase animateSpring(AnimatedProperty property, float targetValue,
                                     float stiffness, float damping) {
         if (property == null) return this;
@@ -1051,7 +1180,22 @@ public abstract class WidgetBase implements Widget {
     /**
      * Обновляет или выполняет операцию {@code animate}, меняющую состояние виджета.
      */
-    public WidgetBase animate(AnimatedProperty property, float targetValue, TransitionSpec spec) {
+    @WikiMethod(
+            title = "<key:widget.base.method.animate.title>",
+            summary = "<key:widget.base.method.animate.summary>",
+            markdown = "<key:widget.base.method.animate.markdown>",
+            order = 40)
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Transforms & Animation", sectionOrder = 40, order = 100,
+            summary = "Runs or retargets a transition for a built-in animated property.",
+            criticalRules = "Rotation uses shortest-path angle interpolation; non-positive duration applies the value immediately.")
+    public WidgetBase animate(
+            @WikiParameter(name = "property", description = "<key:widget.base.method.animate.property>")
+            AnimatedProperty property,
+            @WikiParameter(name = "targetValue", description = "<key:widget.base.method.animate.target>")
+            float targetValue,
+            @WikiParameter(name = "spec", description = "<key:widget.base.method.animate.spec>")
+            TransitionSpec spec) {
         if (property == null) return this;
         animations.stopScoped(SCOPE_SPRING_PROPERTY, property, false);
         if (usesCustomPivot(property)) {
@@ -1095,6 +1239,8 @@ public abstract class WidgetBase implements Widget {
     /**
      * Возвращает текущее значение или выполняет операцию {@code stopAnimations} для виджета.
      */
+    @AiDoc(section = "Transforms & Animation", sectionOrder = 40, order = 110,
+            summary = "Stops every animation owned by the widget and removes temporary effect offsets.")
     public WidgetBase stopAnimations() {
         restoreTransformEffectOffset();
         animations.clear();
@@ -1130,6 +1276,9 @@ public abstract class WidgetBase implements Widget {
      * @param resolver   resolver встроенных и пользовательских свойств; {@code null} использует built-ins
      * @return запущенный player
      */
+    @AiDoc(section = "Transforms & Animation", sectionOrder = 40, order = 120,
+            summary = "Starts a storyboard against the widget tree; a stable key replaces a previous storyboard with the same key.",
+            criticalRules = "Call from the UI thread after constructing the target widget tree.")
     public StoryboardPlayer playStoryboard(Object key,
                                            Storyboard storyboard,
                                            PropertyPathResolver resolver) {
@@ -1192,6 +1341,9 @@ public abstract class WidgetBase implements Widget {
     /**
      * Возвращает изменяемый стиль layout для fluent-настройки размеров и ограничений.
      */
+    @AiDoc(section = "Inline Styling & Layout", sectionOrder = 20, order = 40,
+            summary = "Returns the live `LayoutStyle` owned by this widget.",
+            criticalRules = "Mutating the returned style updates layout constraints and invalidates layout/visual state through its callback.")
     public LayoutStyle layoutStyle() {
         return layoutStyle;
     }
@@ -1207,7 +1359,16 @@ public abstract class WidgetBase implements Widget {
      *         .overflowX(Overflow.HIDDEN));
      * }</pre>
      */
-    public WidgetBase layout(Consumer<LayoutStyle> update) {
+    @WikiMethod(
+            title = "<key:widget.base.method.layout.title>",
+            summary = "<key:widget.base.method.layout.summary>",
+            order = 20)
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Inline Styling & Layout", sectionOrder = 20, order = 50,
+            summary = "Applies one or more layout changes through a batched `LayoutStyle` callback.")
+    public WidgetBase layout(
+            @WikiParameter(name = "update", description = "<key:widget.base.method.layout.parameter>")
+            Consumer<LayoutStyle> update) {
         layoutStyle.update(update);
         return this;
     }
@@ -1245,7 +1406,18 @@ public abstract class WidgetBase implements Widget {
      * Возвращает или обновляет режим видимости виджета.
      */
     @XmlAttribute(value = "visibility", category = "Behavior", defaultValue = "visible", description = "Visibility mode: visible, hidden or collapsed.")
-    public WidgetBase visibility(Visibility visibility) {
+    @WikiMethod(
+            title = "<key:widget.base.method.visibility.title>",
+            summary = "<key:widget.base.method.visibility.summary>",
+            markdown = "<key:widget.base.method.visibility.markdown>",
+            order = 30)
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "State & Interaction", sectionOrder = 30, order = 10,
+            summary = "Sets `VISIBLE`, `HIDDEN`, or `COLLAPSED` and invalidates layout when the layout footprint changes.",
+            criticalRules = "`HIDDEN` preserves layout space; `COLLAPSED` removes the widget from layout.")
+    public WidgetBase visibility(
+            @WikiParameter(name = "visibility", description = "<key:widget.base.method.visibility.parameter>")
+            Visibility visibility) {
         Visibility next = visibility == null ? Visibility.VISIBLE : visibility;
         if (this.visibility == next) return this;
         boolean wasCollapsed = this.visibility == Visibility.COLLAPSED;
@@ -1269,6 +1441,8 @@ public abstract class WidgetBase implements Widget {
      * Возвращает или задаёт простую видимость виджета через режим {@code Visibility}.
      */
     @XmlAttribute(value = "visible", category = "Behavior", defaultValue = "true", description = "Whether the widget is visible without collapsing layout space.")
+    @AiDoc(section = "State & Interaction", sectionOrder = 30, order = 20,
+            summary = "Convenience toggle between `VISIBLE` and `HIDDEN`; it never selects `COLLAPSED`.")
     public WidgetBase visible(boolean visible) {
         return visibility(visible ? Visibility.VISIBLE : Visibility.HIDDEN);
     }
@@ -1285,6 +1459,8 @@ public abstract class WidgetBase implements Widget {
      * Возвращает или задаёт доступность виджета для пользовательского ввода.
      */
     @XmlAttribute(value = "enabled", category = "Behavior", defaultValue = "true", description = "Whether the widget can receive user interaction.")
+    @AiDoc(section = "State & Interaction", sectionOrder = 30, order = 30,
+            summary = "Enables or disables user interaction and exposes the disabled style state.")
     public WidgetBase enabled(boolean enabled) {
         if (this.enabled == enabled) return this;
         this.enabled = enabled;
@@ -1310,6 +1486,8 @@ public abstract class WidgetBase implements Widget {
     /**
      * Возвращает или задаёт курсор мыши для виджета.
      */
+    @AiDoc(section = "State & Interaction", sectionOrder = 30, order = 40,
+            summary = "Sets the cursor used while the enabled, visible widget is under the pointer.")
     public WidgetBase mouseCursor(MouseCursor mouseCursor) {
         this.mouseCursor = mouseCursor == null ? MouseCursor.DEFAULT : mouseCursor;
         return this;
@@ -1334,6 +1512,8 @@ public abstract class WidgetBase implements Widget {
     /**
      * Возвращает или задаёт возможность виджета получать фокус.
      */
+    @AiDoc(section = "State & Interaction", sectionOrder = 30, order = 50,
+            summary = "Enables keyboard focus for the widget.")
     public WidgetBase focusable(boolean focusable) {
         if (this.focusable == focusable) return this;
         this.focusable = focusable;
@@ -1352,6 +1532,8 @@ public abstract class WidgetBase implements Widget {
     /**
      * Возвращает или задаёт режим отдельной области фокусировки для виджета.
      */
+    @AiDoc(section = "State & Interaction", sectionOrder = 30, order = 60,
+            summary = "Makes this widget a boundary for keyboard focus traversal.")
     public WidgetBase focusScope(boolean focusScope) {
         if (this.focusScope == focusScope) return this;
         this.focusScope = focusScope;
@@ -1370,6 +1552,8 @@ public abstract class WidgetBase implements Widget {
     /**
      * Возвращает или задаёт порядок обхода фокуса для виджета.
      */
+    @AiDoc(section = "State & Interaction", sectionOrder = 30, order = 70,
+            summary = "Sets the relative order used by keyboard focus traversal.")
     public WidgetBase focusOrder(int focusOrder) {
         if (this.focusOrder == focusOrder) return this;
         this.focusOrder = focusOrder;
@@ -1388,6 +1572,8 @@ public abstract class WidgetBase implements Widget {
     /**
      * Возвращает или задаёт область локального применения стилей.
      */
+    @AiDoc(section = "State & Interaction", sectionOrder = 30, order = 80,
+            summary = "Limits local style lookup to this widget subtree when enabled; global theme lookup still applies.")
     public WidgetBase styleScope(boolean styleScope) {
         if (this.styleScope == styleScope) return this;
         this.styleScope = styleScope;
@@ -1398,6 +1584,8 @@ public abstract class WidgetBase implements Widget {
     /**
      * Возвращает или задаёт локальный стиль для указанного типа виджета.
      */
+    @AiDoc(section = "Inline Styling & Layout", sectionOrder = 20, order = 60,
+            summary = "Adds or removes a local style override for a widget type.")
     public WidgetBase localStyle(String widgetType, Style style) {
         if (widgetType == null || widgetType.isEmpty()) return this;
         if (style == null || style == Style.EMPTY) {
@@ -1471,7 +1659,18 @@ public abstract class WidgetBase implements Widget {
      * @param renderer custom renderer or {@code null} for the standard visual
      * @return this widget
      */
-    public WidgetBase renderer(WidgetRender renderer) {
+    @WikiMethod(
+            title = "<key:widget.base.method.renderer.title>",
+            summary = "<key:widget.base.method.renderer.summary>",
+            markdown = "<key:widget.base.method.renderer.markdown>",
+            order = 50)
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Rendering & Caching", sectionOrder = 50, order = 10,
+            summary = "Sets a per-instance renderer that replaces the widget's standard visual.",
+            criticalRules = "The custom renderer replaces background/content drawing, but framework child traversal still occurs.")
+    public WidgetBase renderer(
+            @WikiParameter(name = "renderer", description = "<key:widget.base.method.renderer.parameter>")
+            WidgetRender renderer) {
         if (this.renderer == renderer) return this;
         this.renderer = renderer;
         invalidate(InvalidationFlags.VISUAL);
@@ -1636,7 +1835,16 @@ public abstract class WidgetBase implements Widget {
     }
 
     @Override
-    public void invalidate(int flags) {
+    @WikiMethod(
+            title = "<key:widget.base.method.invalidate.title>",
+            summary = "<key:widget.base.method.invalidate.summary>",
+            markdown = "<key:widget.base.method.invalidate.markdown>",
+            order = 60)
+    @AiDoc(section = "Invalidation & Lifecycle", sectionOrder = 70, order = 10,
+            summary = "Marks widget state dirty, invalidates its retained render cache, and propagates subtree flags to ancestors.")
+    public void invalidate(
+            @WikiParameter(name = "flags", description = "<key:widget.base.method.invalidate.parameter>")
+            int flags) {
         if (flags == InvalidationFlags.NONE) return;
         invalidationFlags |= flags;
         renderCacheDirty = true;
@@ -1665,6 +1873,9 @@ public abstract class WidgetBase implements Widget {
      *
      * @param flags bitmask, который был обработан runtime'ом
      */
+    @AiDoc(section = "Invalidation & Lifecycle", sectionOrder = 70, order = 20,
+            summary = "Clears processed flags without recomputing ancestors; intended only for runtime full-tree passes.",
+            criticalRules = "Application and widget code should normally use `clearInvalidation`; incorrect direct clearing can leave ancestor state stale.")
     public void clearInvalidationDirect(int flags) {
         if (flags == InvalidationFlags.NONE) return;
         invalidationFlags &= ~flags;
@@ -1742,6 +1953,8 @@ public abstract class WidgetBase implements Widget {
      * @param context constraints, scale и служебные данные layout pass
      */
     @Override
+    @AiDoc(section = "Rendering & Caching", sectionOrder = 50, order = 20,
+            summary = "Reuses the measured desired size when constraints match and the subtree has no pending layout invalidation.")
     public void measureCached(LayoutContext context) {
         float availableWidth = context == null ? Float.POSITIVE_INFINITY : context.availableWidth();
         float availableHeight = context == null ? Float.POSITIVE_INFINITY : context.availableHeight();
@@ -1836,6 +2049,9 @@ public abstract class WidgetBase implements Widget {
      * @param enabled {@code true}, чтобы переиспользовать стабильный render-фрагмент
      * @return этот виджет
      */
+    @AiDoc(section = "Rendering & Caching", sectionOrder = 50, order = 30,
+            summary = "Enables or disables retained draw-command caching.",
+            criticalRules = "The current retained cache is effective for leaf widgets; widgets with children use normal rendering.")
     public WidgetBase renderCachingEnabled(boolean enabled) {
         if (renderCachingEnabled == enabled) return this;
         renderCachingEnabled = enabled;
@@ -1856,6 +2072,8 @@ public abstract class WidgetBase implements Widget {
      *
      * @return этот виджет
      */
+    @AiDoc(section = "Rendering & Caching", sectionOrder = 50, order = 40,
+            summary = "Marks the retained draw-command fragment stale without modifying public invalidation flags.")
     public WidgetBase invalidateRenderCache() {
         renderCacheDirty = true;
         return this;
@@ -2012,11 +2230,15 @@ public abstract class WidgetBase implements Widget {
      * Регистрирует обработчик события и возвращает подписку для последующего снятия.
      */
     @Override
+    @AiDoc(section = "Events", sectionOrder = 60, order = 10,
+            summary = "Registers a typed event listener and returns a subscription used to unsubscribe.")
     public <T extends Event> EventSubscription on(EventType<T> type, EventListener<? super T> listener) {
         return events.on(type, listener);
     }
 
     @Override
+    @AiDoc(section = "Events", sectionOrder = 60, order = 20,
+            summary = "Registers a typed listener with explicit control over receiving cancelled events.")
     public <T extends Event> EventSubscription on(EventType<T> type, boolean receiveCancelled, EventListener<? super T> listener) {
         return events.on(type, receiveCancelled, listener);
     }
@@ -2025,6 +2247,8 @@ public abstract class WidgetBase implements Widget {
      * Отправляет событие подписчикам этого виджета.
      */
     @Override
+    @AiDoc(section = "Events", sectionOrder = 60, order = 30,
+            summary = "Dispatches an event to listeners registered on this widget.")
     public void emit(Event event) {
         events.emit(event);
     }

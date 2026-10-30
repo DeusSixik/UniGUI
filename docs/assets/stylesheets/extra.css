@@ -1,0 +1,510 @@
+/* ==========================================================================
+   UniGUI Wiki - Unity Editor Theme Palette
+   Authentic dark-charcoal & slate tones from Unity Pro Editor
+   Full contrast & readability support for both Dark and Light themes
+   Zero Layout Shift & Instant Render (Rock-solid layout)
+   ========================================================================== */
+
+:root {
+  --md-text-font: "Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto", sans-serif;
+  --md-code-font: "Cascadia Code", "Consolas", "JetBrains Mono", monospace;
+}
+
+/* --- Unity Pro Dark Theme (Default) --- */
+:root,
+[data-md-color-scheme="slate"] {
+  /* Unity Editor Base Grays */
+  --unity-bg-canvas: #222222;        /* Main background / Workspace */
+  --unity-bg-panel: #282828;         /* Panels (Inspector, Hierarchy) */
+  --unity-bg-toolbar: #383838;       /* Toolbar / Panel headers */
+  --unity-bg-tab: #303030;           /* Inactive dock tab */
+  --unity-bg-tab-active: #242424;    /* Active dock tab */
+  --unity-bg-input: #1a1a1a;         /* Property field / Code well */
+  --unity-bg-hover: #353535;         /* Hover state */
+  
+  /* Unity Borders */
+  --unity-border: #383838;           /* Standard panel border */
+  --unity-border-dark: #191919;      /* Inset border / Deep divider */
+  --unity-border-light: #444444;     /* Highlight border */
+
+  /* Unity Signature Selection & Accent Blues */
+  --unity-blue: #3a79b8;             /* Unity highlight blue */
+  --unity-blue-hover: #4a8cd0;       /* Unity bright hover blue */
+  --unity-blue-selected: #2c5d88;    /* Unity dark selection blue */
+  --unity-blue-subtle: rgba(58, 121, 184, 0.2);
+
+  /* Unity Status Colors (Console / Diagnostics) */
+  --unity-green: #62b543;            /* Play mode / Info */
+  --unity-yellow: #f0b429;           /* Warning */
+  --unity-red: #e55353;              /* Error */
+
+  /* Typography Colors */
+  --unity-text-title: #ffffff;
+  --unity-text-h2: #e8e8e8;
+  --unity-text-h3: #d8d8d8;
+  --unity-text-body: #d4d4d4;
+  --unity-text-muted: #949494;
+  --unity-text-dim: #686868;
+  --unity-table-th-text: #b8b8b8;
+  --unity-table-alt: rgba(255, 255, 255, 0.02);
+
+  /* Material Theme Core Overrides */
+  --md-default-bg-color: var(--unity-bg-canvas);
+  --md-default-bg-color--light: var(--unity-bg-panel);
+  --md-default-bg-color--lighter: var(--unity-bg-toolbar);
+  --md-default-fg-color: var(--unity-text-body);
+  --md-default-fg-color--light: var(--unity-text-muted);
+  --md-default-fg-color--lighter: var(--unity-text-dim);
+
+  --md-primary-fg-color: var(--unity-bg-toolbar);
+  --md-accent-fg-color: var(--unity-blue);
+
+  /* Custom Component Tokens */
+  --unigui-card-bg: var(--unity-bg-panel);
+  --unigui-card-border: var(--unity-border);
+  --unigui-card-hover-border: var(--unity-blue);
+  --unigui-card-title: #ffffff;
+  --unigui-badge-bg: var(--unity-blue-subtle);
+  --unigui-badge-color: #8bc0f8;
+  --unigui-badge-border: rgba(58, 121, 184, 0.4);
+}
+
+/* --- Unity Light Theme (Classic Editor) --- */
+[data-md-color-scheme="default"] {
+  --unity-bg-canvas: #f1f2f4;
+  --unity-bg-panel: #ffffff;
+  --unity-bg-toolbar: #e2e4e8;
+  --unity-bg-tab: #d8dbdf;
+  --unity-bg-tab-active: #ffffff;
+  --unity-bg-input: #f8fafc;
+  --unity-bg-hover: #ebeef2;
+  
+  --unity-border: #cbd0d8;
+  --unity-border-dark: #b0b7c2;
+  --unity-border-light: #e8ecf0;
+
+  --unity-blue: #1e5a96;
+  --unity-blue-hover: #14406d;
+  --unity-blue-selected: #2563eb;
+  --unity-blue-subtle: rgba(30, 90, 150, 0.08);
+
+  --unity-green: #15803d;
+  --unity-yellow: #b45309;
+  --unity-red: #b91c1c;
+
+  /* High Contrast Typography Colors for Light Mode */
+  --unity-text-title: #0f172a;
+  --unity-text-h2: #1e293b;
+  --unity-text-h3: #334155;
+  --unity-text-body: #1e293b;
+  --unity-text-muted: #475569;
+  --unity-text-dim: #64748b;
+  --unity-table-th-text: #1e293b;
+  --unity-table-alt: #f8fafc;
+
+  --md-default-bg-color: var(--unity-bg-canvas);
+  --md-default-bg-color--light: var(--unity-bg-panel);
+  --md-default-bg-color--lighter: var(--unity-bg-toolbar);
+  --md-default-fg-color: var(--unity-text-body);
+  --md-default-fg-color--light: var(--unity-text-muted);
+  --md-default-fg-color--lighter: var(--unity-text-dim);
+
+  --md-primary-fg-color: var(--unity-bg-toolbar);
+  --md-accent-fg-color: var(--unity-blue);
+
+  --unigui-card-bg: #ffffff;
+  --unigui-card-border: #cbd0d8;
+  --unigui-card-hover-border: var(--unity-blue);
+  --unigui-card-title: #0f172a;
+  --unigui-badge-bg: var(--unity-blue-subtle);
+  --unigui-badge-color: #0369a1;
+  --unigui-badge-border: rgba(3, 105, 161, 0.3);
+}
+
+/* ==========================================================================
+   Header & Unity Toolbar Styling
+   ========================================================================== */
+
+.md-header {
+  background-color: var(--unity-bg-toolbar) !important;
+  color: var(--md-default-fg-color) !important;
+  border-bottom: 1px solid var(--unity-border-dark);
+}
+
+[data-md-color-scheme="default"] .md-header {
+  color: #1e293b !important;
+}
+
+.md-header__title,
+.md-header__button,
+.md-header__topic {
+  color: var(--md-default-fg-color) !important;
+}
+
+[data-md-color-scheme="default"] .md-header__title,
+[data-md-color-scheme="default"] .md-header__button,
+[data-md-color-scheme="default"] .md-header__topic {
+  color: #1e293b !important;
+}
+
+.md-header__button.md-logo img {
+  height: 1.85rem;
+  width: auto;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.md-header__button.md-logo:hover img {
+  transform: scale(1.05);
+  border-color: var(--unity-blue);
+}
+
+/* Search Box - Unity Console / Search Field Style */
+.md-search__inner {
+  background-color: var(--unity-bg-input);
+  border: 1px solid var(--unity-border);
+  border-radius: 4px;
+}
+
+.md-search__input {
+  color: var(--md-default-fg-color) !important;
+}
+
+.md-search__input::placeholder {
+  color: var(--md-default-fg-color--lighter);
+}
+
+/* ==========================================================================
+   Tabs Bar - Unity Docking Window Tabs (Scene, Game, Inspector)
+   ========================================================================== */
+
+.md-tabs {
+  background-color: var(--unity-bg-toolbar) !important;
+  border-bottom: 1px solid var(--unity-border-dark);
+  padding: 0 0.5rem;
+}
+
+.md-tabs__link {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--md-default-fg-color--light) !important;
+  background-color: var(--unity-bg-tab);
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+  margin-right: 2px;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--unity-border-dark);
+  border-top: 2px solid transparent;
+  border-bottom: none;
+  position: relative;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.md-tabs__link:hover {
+  background-color: var(--unity-bg-hover);
+  color: var(--unity-text-title) !important;
+}
+
+/* Active Tab: Matches canvas background with Unity blue top accent */
+.md-tabs__item--active .md-tabs__link {
+  background-color: var(--unity-bg-canvas) !important;
+  color: var(--unity-text-title) !important;
+  border-top-color: var(--unity-blue);
+}
+
+/* ==========================================================================
+   Sidebar Navigation - Unity Hierarchy / Project Tree Style
+   ========================================================================== */
+
+.md-sidebar--primary {
+  background-color: var(--unity-bg-panel);
+  border-right: 1px solid var(--unity-border);
+}
+
+.md-nav__link {
+  font-size: 0.84rem;
+  color: var(--md-default-fg-color--light) !important;
+  border-radius: 3px;
+  padding: 0.3rem 0.55rem;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.md-nav__link:hover {
+  background-color: var(--unity-bg-hover);
+  color: var(--unity-text-title) !important;
+}
+
+/* Selected item in hierarchy */
+.md-nav__link--active {
+  background-color: var(--unity-blue-selected) !important;
+  color: #ffffff !important;
+  font-weight: 600;
+}
+
+/* Unity Foldout Chevron in Navigation Groups */
+.md-nav__item--nested > .md-nav__link > .md-nav__icon {
+  color: var(--md-default-fg-color--light);
+  transition: transform 0.2s ease, color 0.15s ease;
+}
+
+.md-nav__item--nested > .md-nav__link:hover > .md-nav__icon {
+  color: var(--unity-blue-hover);
+}
+
+/* Group Header Label hover effect */
+.md-nav__item--nested > .md-nav__link {
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ==========================================================================
+   Headings & Content Typography
+   ========================================================================== */
+
+.md-content {
+  background-color: var(--unity-bg-canvas);
+}
+
+/* Main Page Title */
+.md-content__inner > h1:first-of-type {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--unity-text-title);
+  border-bottom: 1px solid var(--unity-border);
+  padding-bottom: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+/* Unity Section Headers (like Inspector Foldouts) */
+h2 {
+  font-size: 1.3rem;
+  font-weight: 700 !important;
+  color: var(--unity-text-h2) !important;
+  border-bottom: 1px solid var(--unity-border);
+  padding-bottom: 0.4rem;
+  margin-top: 2rem !important;
+  position: relative;
+}
+
+h2::before {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 32px;
+  height: 2px;
+  background-color: var(--unity-blue);
+}
+
+/* API Method Signature - Unity Inspector Component Header */
+h3 {
+  font-size: 1.1rem;
+  font-weight: 600 !important;
+  color: var(--unity-text-h3) !important;
+  margin-top: 1.6rem !important;
+}
+
+h3 code {
+  background-color: var(--unigui-badge-bg) !important;
+  color: var(--unigui-badge-color) !important;
+  border: 1px solid var(--unigui-badge-border) !important;
+  border-left: 3px solid var(--unity-blue) !important;
+  padding: 0.25rem 0.6rem !important;
+  border-radius: 4px !important;
+  font-size: 0.9em !important;
+  font-weight: 600 !important;
+}
+
+/* Lead Summary Paragraph */
+.md-content__inner > p:first-of-type {
+  font-size: 1.08rem;
+  line-height: 1.65;
+  color: var(--md-default-fg-color--light);
+}
+
+/* ==========================================================================
+   API Reference Tables - Unity Inspector Property Drawers
+   ========================================================================== */
+
+.md-typeset table:not([class]) {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--unity-border);
+  background-color: var(--unity-bg-panel);
+  margin: 1.25rem 0;
+}
+
+.md-typeset table:not([class]) th {
+  background-color: var(--unity-bg-toolbar);
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--unity-table-th-text) !important;
+  border-bottom: 1px solid var(--unity-border-dark);
+  padding: 0.65rem 0.95rem;
+}
+
+.md-typeset table:not([class]) td {
+  padding: 0.65rem 0.95rem;
+  border-top: 1px solid var(--unity-border);
+  font-size: 0.88rem;
+  color: var(--unity-text-body);
+  vertical-align: middle;
+}
+
+.md-typeset table:not([class]) tr:nth-child(even) {
+  background-color: var(--unity-table-alt);
+}
+
+.md-typeset table:not([class]) tbody tr:hover {
+  background-color: var(--unity-bg-hover);
+}
+
+/* Parameter Type Tag - Unity Property Enum/Class Pill */
+.md-typeset table:not([class]) td:nth-child(2) code {
+  background-color: var(--unigui-badge-bg);
+  color: var(--unigui-badge-color);
+  border: 1px solid var(--unigui-badge-border);
+  border-radius: 4px;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.82em;
+  font-weight: 500;
+}
+
+/* ==========================================================================
+   Code Blocks - Visual Studio / Rider in Unity
+   ========================================================================== */
+
+.md-typeset pre > code {
+  border: 1px solid var(--unity-border);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+[data-md-color-scheme="slate"] .md-typeset pre > code {
+  background-color: var(--unity-bg-input) !important;
+}
+
+.md-clipboard {
+  color: var(--md-default-fg-color--light);
+  transition: color 0.15s ease;
+}
+
+.md-clipboard:hover {
+  color: var(--unity-blue) !important;
+}
+
+/* Inline Code */
+.md-typeset :not(pre) > code {
+  background-color: var(--unigui-badge-bg);
+  color: var(--unigui-badge-color);
+  border: 1px solid var(--unigui-badge-border);
+  border-radius: 4px;
+  padding: 0.15rem 0.4rem;
+  font-size: 0.875em;
+  font-weight: 500;
+}
+
+/* ==========================================================================
+   Admonitions (Callouts) - Unity Console Info/Warning/Error Style
+   ========================================================================== */
+
+.md-typeset .admonition {
+  border-radius: 6px;
+  background-color: var(--unity-bg-panel);
+  border: 1px solid var(--unity-border);
+  border-left-width: 4px;
+}
+
+.md-typeset .admonition.note {
+  border-left-color: var(--unity-blue);
+}
+
+.md-typeset .admonition.tip {
+  border-left-color: var(--unity-green);
+}
+
+.md-typeset .admonition.warning {
+  border-left-color: var(--unity-yellow);
+}
+
+/* ==========================================================================
+   Home Page Cards List - Linear & Stable (Zero Layout Shift)
+   ========================================================================== */
+
+.md-content__inner > ul {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  list-style: none !important;
+  padding-left: 0 !important;
+  margin: 1rem 0 2rem 0 !important;
+}
+
+.md-content__inner > ul > li {
+  margin: 0 !important;
+  padding: 0.9rem 1.2rem;
+  background-color: var(--unigui-card-bg);
+  border: 1px solid var(--unigui-card-border);
+  border-radius: 4px;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.md-content__inner > ul > li:hover {
+  background-color: var(--unity-bg-hover);
+  border-color: var(--unigui-card-hover-border);
+}
+
+/* Card Link Title */
+.md-content__inner > ul > li > a {
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: var(--unigui-card-title) !important;
+  text-decoration: none !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.35rem;
+}
+
+.md-content__inner > ul > li > a::after {
+  content: "→";
+  font-size: 1rem;
+  color: var(--unity-blue);
+  opacity: 0.8;
+  transition: transform 0.15s ease;
+}
+
+.md-content__inner > ul > li:hover > a::after {
+  transform: translateX(4px);
+  color: var(--unity-blue-hover);
+}
+
+.md-content__inner > ul > li {
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--md-default-fg-color--light);
+}
+
+/* Back to top button */
+.md-top {
+  border-radius: 4px;
+  background-color: var(--unity-bg-toolbar);
+  border: 1px solid var(--unity-border-dark);
+  color: var(--md-default-fg-color);
+  transition: background-color 0.15s ease;
+}
+
+.md-top:hover {
+  background-color: var(--unity-blue-selected);
+  color: #ffffff;
+}
