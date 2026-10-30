@@ -1,0 +1,71 @@
+plugins {
+    id 'java'
+    id 'com.cleanroommc.cleanroomgradle'
+}
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://maven.cleanroommc.com' }
+}
+
+def rootProperties = new Properties()
+file('../gradle.properties').withInputStream { rootProperties.load(it) }
+def coreJar = file("../core/build/libs/${rootProperties.getProperty('archives_name')}-core-${rootProperties.getProperty('mod_version')}.jar")
+
+base {
+    archivesName = 'unigui-cleanroom-1.12.2'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+dependencies {
+    implementation cleanroom.userdev('0.7.14-alpha')
+    implementation files(coreJar)
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+cleanroom {
+    runs {
+        all {
+            configure {
+                systemProperty 'crl.dev.mixin', 'unigui.mixins.json'
+            }
+        }
+
+        client {
+            configure {
+                username = 'Developer'
+            }
+        }
+    }
+}
+
+// Foundation (Cleanroom's LaunchClassLoader) is parent-first. In dev the mod's build/classes
+// directory is also on the system classpath, so mod classes get loaded by the AppClassLoader
+// and end up with a different copy of net.minecraft.* than the one Mixin patches.
+// This makes Foundation load everything itself (same workaround as the official CleanroomModTemplate).
+tasks.withType(JavaExec).configureEach {
+    systemProperty 'foundation.loadsall', 'true'
+}
+
+tasks.named('jar', Jar) {
+    manifest {
+        attributes 'MixinConfigs': 'unigui.mixins.json'
+    }
+
+    from {
+        zipTree(coreJar)
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+}

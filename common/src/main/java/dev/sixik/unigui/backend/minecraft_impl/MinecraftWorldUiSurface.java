@@ -40,6 +40,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * должен рисоваться уже готовый texture id на quad-е блока, без fullscreen pass'ов внутри
  * world shader pipeline.</p>
  */
+@Deprecated(since = "Нужно проделать огромный пласт работы, по этому это пока заброшено")
 public final class MinecraftWorldUiSurface implements AutoCloseable {
     private static final AtomicInteger SURFACE_IDS = new AtomicInteger();
     private static final RenderTargetOptions DEFAULT_TARGET_OPTIONS =

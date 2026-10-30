@@ -18,7 +18,7 @@ import dev.sixik.unigui.widgets.dnd.DragGhost;
 import dev.sixik.unigui.widgets.dnd.DragLeaveEvent;
 import dev.sixik.unigui.widgets.dnd.DragOverEvent;
 import dev.sixik.unigui.widgets.dnd.DragSession;
-import dev.sixik.unigui.widgets.editor.DragPayload;
+import dev.sixik.unigui.widgets.dnd.DragPayload;
 import dev.sixik.unigui.widgets.feedback.ContextMenu;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 import dev.sixik.unigui.widgets.interaction.Button;

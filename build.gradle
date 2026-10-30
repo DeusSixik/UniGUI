@@ -39,8 +39,12 @@ allprojects {
 }
 
 subprojects {
-    apply plugin: 'dev.architectury.loom'
-    apply plugin: 'architectury-plugin'
+    if (project.name == 'core') {
+        apply plugin: 'java-library'
+    } else {
+        apply plugin: 'dev.architectury.loom'
+        apply plugin: 'architectury-plugin'
+    }
     apply plugin: 'maven-publish'
 
     ext.versionProject = versionProject
@@ -60,8 +64,10 @@ subprojects {
     }
 
     dependencies {
-        minecraft "net.minecraft:minecraft:${versionProperty('minecraft_version')}"
-        mappings loom.officialMojangMappings()
+        if (project.name != 'core') {
+            minecraft "net.minecraft:minecraft:${versionProperty('minecraft_version')}"
+            mappings loom.officialMojangMappings()
+        }
     }
 
     java {
@@ -70,7 +76,9 @@ subprojects {
         // If you remove this line, sources will not be generated.
         withSourcesJar()
 
-        def javaVersion = JavaVersion.toVersion(versionProperty('java_version') ?: '17')
+        def javaVersion = project.name == 'core'
+                ? JavaVersion.VERSION_17
+                : JavaVersion.toVersion(versionProperty('java_version') ?: '17')
 
         sourceCompatibility = javaVersion
         targetCompatibility = javaVersion
@@ -84,19 +92,21 @@ subprojects {
         options.release = (versionProperty('java_version') ?: '17') as int
     }
 
-    tasks.withType(net.fabricmc.loom.task.launch.GenerateRemapClasspathTask).configureEach {
-        remapClasspathFile.set(layout.buildDirectory.file('loom-cache/remapClasspath.txt'))
-    }
+    if (project.name != 'core') {
+        tasks.withType(net.fabricmc.loom.task.launch.GenerateRemapClasspathTask).configureEach {
+            remapClasspathFile.set(layout.buildDirectory.file('loom-cache/remapClasspath.txt'))
+        }
 
-    tasks.withType(net.fabricmc.loom.task.launch.GenerateLog4jConfigTask).configureEach {
-        outputFile.set(layout.buildDirectory.file('loom-cache/log4j.xml'))
-    }
+        tasks.withType(net.fabricmc.loom.task.launch.GenerateLog4jConfigTask).configureEach {
+            outputFile.set(layout.buildDirectory.file('loom-cache/log4j.xml'))
+        }
 
-    tasks.withType(net.fabricmc.loom.task.launch.GenerateDLIConfigTask).configureEach {
-        dependsOn tasks.named('generateRemapClasspath')
-        remapClasspathFile.set(layout.buildDirectory.file('loom-cache/remapClasspath.txt'))
-        if (hasProperty('devLauncherConfig')) {
-            devLauncherConfig.set(layout.buildDirectory.file('loom-cache/launch.cfg'))
+        tasks.withType(net.fabricmc.loom.task.launch.GenerateDLIConfigTask).configureEach {
+            dependsOn tasks.named('generateRemapClasspath')
+            remapClasspathFile.set(layout.buildDirectory.file('loom-cache/remapClasspath.txt'))
+            if (hasProperty('devLauncherConfig')) {
+                devLauncherConfig.set(layout.buildDirectory.file('loom-cache/launch.cfg'))
+            }
         }
     }
 

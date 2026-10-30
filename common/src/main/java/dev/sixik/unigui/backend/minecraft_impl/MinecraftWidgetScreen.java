@@ -29,7 +29,6 @@ import dev.sixik.unigui.impl.render.SimpleDrawBatcher;
 import dev.sixik.unigui.impl.render.WidgetTextureRenderer;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.containers.PanelWidget;
-import dev.sixik.unigui.widgets.editor.ElementsInspector;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 import dev.sixik.unigui.widgets.minecraft.MinecraftScaledCustomDraw;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -80,7 +79,8 @@ public class MinecraftWidgetScreen extends Screen {
     private final Map<MouseCursor, Long> nativeCursors = new EnumMap<>(MouseCursor.class);
     private MouseCursor activeMouseCursor = MouseCursor.DEFAULT;
     private boolean layoutInitialized;
-    private ElementsInspector elementsInspector;
+    private Runnable closeCallback;
+    private KeyboardInputHandler keyboardInputHandler;
     private boolean layoutChangedThisFrame;
     private float lastLayoutWidth = -1.0f;
     private float lastLayoutHeight = -1.0f;
@@ -109,6 +109,11 @@ public class MinecraftWidgetScreen extends Screen {
         this.root = Objects.requireNonNull(root, "root");
         this.uiContext = uiContext == null ? new DefaultUIContext() : uiContext;
         attachContext(root);
+    }
+
+    MinecraftWidgetScreen onRemoved(Runnable callback) {
+        closeCallback = callback;
+        return this;
     }
 
     private static Widget xmlScreenRoot(XmlWidgetScreen<? extends Widget> xmlScreen) {
@@ -213,7 +218,7 @@ public class MinecraftWidgetScreen extends Screen {
     /**
      * Включает или выключает отладочные хоткеи экрана.
      *
-     * <p>Выключено по умолчанию: комбинации {@code Ctrl+Shift+P} (тоггл профайлера)
+     * <p>Выключено по умолчанию: комбинация {@code Ctrl+Shift+P} (тоггл профайлера)
      * и {@code Ctrl+Shift+Plus/Minus} (scale дебаг-оверлея) могут конфликтовать
      * с вводом в текстовых полях модов.</p>
      *
@@ -298,6 +303,11 @@ public class MinecraftWidgetScreen extends Screen {
         return this;
     }
 
+    public MinecraftWidgetScreen keyboardInputHandler(KeyboardInputHandler handler) {
+        this.keyboardInputHandler = handler;
+        return this;
+    }
+
     /** Forces the cached UI to be rebuilt on the next Minecraft frame. */
     public MinecraftWidgetScreen invalidateRenderCache() {
         cachedTexture = null;
@@ -318,8 +328,6 @@ public class MinecraftWidgetScreen extends Screen {
         lastFrameStartNanos = uiCpuStartNanos;
         FrameContext animationFrame = new FrameContext(frameIndex, deltaSeconds, partialTick, FramePhase.ANIMATION);
         FrameContext renderFrame = new FrameContext(frameIndex, 0.0f, partialTick, FramePhase.RENDER);
-
-        syncElementsInspector();
 
         uiContext.profiler().beginFrame(frameIndex);
         uiContext.debugCounters().beginFrame(frameIndex);
@@ -493,10 +501,6 @@ public class MinecraftWidgetScreen extends Screen {
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         float logicalMouseX = toLogicalPixels(mouseX);
         float logicalMouseY = toLogicalPixels(mouseY);
-        if (elementsInspector != null && elementsInspector.picker()
-                && !elementsInspector.containsPoint(logicalMouseX, logicalMouseY)) {
-            if (elementsInspector.pick(logicalMouseX, logicalMouseY)) return true;
-        }
         return hit(logicalMouseX, logicalMouseY)
                 .map(hit -> {
                     Widget focusTarget = nearestFocusable(hit.widget());
@@ -591,7 +595,7 @@ public class MinecraftWidgetScreen extends Screen {
     private boolean handleMouseScrolled(double mouseX, double mouseY, double delta) {
         float logicalMouseX = toLogicalPixels(mouseX);
         float logicalMouseY = toLogicalPixels(mouseY);
-        return hit(logicalMouseX, logicalMouseY)
+        boolean consumed = hit(logicalMouseX, logicalMouseY)
                 .map(hit -> {
                     ScrollEvent event = new ScrollEvent(
                             hit.widget(),
@@ -605,6 +609,25 @@ public class MinecraftWidgetScreen extends Screen {
                     return uiContext.routedEvents().dispatch(event);
                 })
                 .orElse(false);
+        refreshHoverAfterScroll(logicalMouseX, logicalMouseY);
+        return consumed;
+    }
+
+    /**
+     * Пересчитывает hover под неподвижным курсором после скролла: контент сдвинулся,
+     * а {@code mouseMoved} не придёт, поэтому hover (и Tooltip) иначе остаётся на
+     * элементе, уехавшем из-под курсора.
+     */
+    private void refreshHoverAfterScroll(float logicalMouseX, float logicalMouseY) {
+        if (uiContext.capturedPointer(0) != null) return;
+        Optional<HitTestResult> hit = hit(logicalMouseX, logicalMouseY);
+        if (hit.isEmpty()) {
+            uiContext.hoverManager().clearHover();
+            return;
+        }
+        HitTestResult result = hit.get();
+        uiContext.hoverManager().updateHover(result.widget(),
+                logicalMouseX, logicalMouseY, result.localX(), result.localY(), 0);
     }
 
     private static int currentKeyModifiers() {
@@ -617,6 +640,11 @@ public class MinecraftWidgetScreen extends Screen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (keyboardInputHandler != null
+                && keyboardInputHandler.keyPressed(keyCode, scanCode, modifiers)) {
+            uiContext.keyboard().press(keyCode);
+            return true;
+        }
         if (debugHotkeysEnabled && handleDebugHotkey(keyCode, modifiers)) return true;
         uiContext.keyboard().press(keyCode);
         if (keyCode == KeyCodes.TAB) {
@@ -666,6 +694,8 @@ public class MinecraftWidgetScreen extends Screen {
     @Override
     public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
         uiContext.keyboard().release(keyCode);
+        if (keyboardInputHandler != null
+                && keyboardInputHandler.keyReleased(keyCode, scanCode, modifiers)) return true;
         Widget focused = uiContext.focusManager().focusedWidget();
         if (focused == null) {
             return super.keyReleased(keyCode, scanCode, modifiers);
@@ -674,6 +704,7 @@ public class MinecraftWidgetScreen extends Screen {
     }
     @Override
     public boolean charTyped(char codePoint, int modifiers) {
+        if (keyboardInputHandler != null && keyboardInputHandler.textInput(codePoint, modifiers)) return true;
         Widget focused = uiContext.focusManager().focusedWidget();
         if (focused == null) {
             return super.charTyped(codePoint, modifiers);
@@ -699,6 +730,9 @@ public class MinecraftWidgetScreen extends Screen {
             xmlScreenOwner.close();
             xmlScreenOwner = null;
         }
+        Runnable callback = closeCallback;
+        closeCallback = null;
+        if (callback != null) callback.run();
     }
 
     private CacheRenderDecision cacheRenderDecision(long nowNanos, boolean profileDetails) {
@@ -909,32 +943,6 @@ public class MinecraftWidgetScreen extends Screen {
 
     private Optional<HitTestResult> hit(float mouseX, float mouseY) {
         return uiContext.hitTester().hitTest(root, mouseX, mouseY);
-    }
-
-    private void syncElementsInspector() {
-        boolean enabled = DebugFlags.has(uiContext.debugFlags(), DebugFlags.ELEMENTS_INSPECTOR);
-        if (enabled && elementsInspector == null) {
-            elementsInspector = new ElementsInspector();
-            if (root instanceof OverlayLayer overlays) {
-                Widget inspectedRoot = overlays.content() == null ? root : overlays.content();
-                elementsInspector.attach(overlays, inspectedRoot).open();
-            } else if (root instanceof PanelWidget panel) {
-                elementsInspector.inspect(root).open();
-                panel.addChild(elementsInspector);
-                panel.applyQueuedMutations();
-            } else {
-                elementsInspector = null;
-            }
-        } else if (!enabled && elementsInspector != null) {
-            elementsInspector.close();
-            if (elementsInspector.parent() instanceof OverlayLayer overlays) {
-                overlays.removeOverlay(elementsInspector);
-            } else if (elementsInspector.parent() instanceof PanelWidget panel) {
-                panel.removeChild(elementsInspector);
-                panel.applyQueuedMutations();
-            }
-            elementsInspector = null;
-        }
     }
 
     private HitTestResult localPoint(Widget widget, float rootX, float rootY) {
@@ -1239,6 +1247,13 @@ public class MinecraftWidgetScreen extends Screen {
                 command.bounds().y() * scale,
                 command.bounds().width() * scale,
                 command.bounds().height() * scale);
+        if (command.hasBrushBounds()) {
+            copy.brushBounds(
+                    command.brushBounds().x() * scale,
+                    command.brushBounds().y() * scale,
+                    command.brushBounds().width() * scale,
+                    command.brushBounds().height() * scale);
+        }
         copy.radius(command.radius() * scale);
         copy.texturedQuad(
                 command.quadX1() * scale,

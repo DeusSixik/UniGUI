@@ -5,16 +5,14 @@ import dev.sixik.unigui.api.animation.TransitionSpec;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.PositionType;
 import dev.sixik.unigui.api.posteffect.UiPostEffects;
+import dev.sixik.unigui.api.screen.UniRenderLayer;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.backend.minecraft_impl.HudRender;
-import dev.sixik.unigui.backend.minecraft_impl.MinecraftRenderLayerRegistration;
-import dev.sixik.unigui.backend.minecraft_impl.MinecraftWidgetRenderLayer;
+import dev.sixik.unigui.api.screen.UniHudRender;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftWidgetScreen;
 import dev.sixik.unigui.backend.minecraft_impl.ScreenOverlayRender;
+import dev.sixik.unigui.api.screen.UniRenderLayerRegistration;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.display.Label;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.Screen;
 
 /**
  * Полный пример подключения UniGUI к двум внешним точкам рендера Minecraft.
@@ -41,18 +39,16 @@ import net.minecraft.client.gui.screens.Screen;
  * <h2>Минимальный шаблон</h2>
  * <pre>{@code
  * Box root = new Box();
- * MinecraftRenderLayerRegistration<Screen> registration =
- *         ScreenOverlayRender.register(root);
- * registration.visibleWhen(screen -> screen instanceof InventoryScreen);
+ * UniRenderLayerRegistration registration = ScreenOverlayRender.register(
+ *         new UniRenderLayer(root), screen -> screen instanceof InventoryScreen, 0);
  *
  * // Когда UI больше не нужен:
  * registration.close();
  * }</pre>
  *
- * @see HudRender
+ * @see UniHudRender
  * @see ScreenOverlayRender
- * @see MinecraftWidgetRenderLayer
- * @see MinecraftRenderLayerRegistration
+ * @see UniRenderLayerRegistration
  */
 public final class OverlayRenderDemo {
     /*
@@ -60,8 +56,8 @@ public final class OverlayRenderDemo {
      * 1) не создавать новый слой при каждом вызове register();
      * 2) иметь возможность корректно освободить UI-ресурсы через close().
      */
-    private static MinecraftRenderLayerRegistration<Minecraft> hudRegistration;
-    private static MinecraftRenderLayerRegistration<Screen> screenOverlayRegistration;
+    private static UniRenderLayerRegistration hudRegistration;
+    private static UniRenderLayerRegistration screenOverlayRegistration;
 
     private OverlayRenderDemo() {
     }
@@ -91,20 +87,20 @@ public final class OverlayRenderDemo {
      */
     private static void registerHud() {
         Box hudRoot = transparentRoot(createHudBadge());
-        MinecraftWidgetRenderLayer hudLayer = new MinecraftWidgetRenderLayer(hudRoot);
+        UniRenderLayer hudLayer = new UniRenderLayer(hudRoot);
 
         hudLayer.postEffect(UiPostEffects.CHROMATIC_ABERRATION);
 
         // HUD вызывается из vanilla HUD-прохода до Minecraft Screen.
         // Поэтому он продолжает жить под чатом, инвентарём и другими экранами.
-        hudRegistration = HudRender.register(hudLayer);
+        hudRegistration = UniHudRender.register(hudLayer);
     }
 
     /**
      * Регистрирует слой поверх чужих Minecraft Screen.
      *
-     * <p>Тип контекста здесь {@code Screen}, поэтому predicate получает экран, поверх
-     * которого выполняется рендер. Важно исключить {@link MinecraftWidgetScreen}, если
+     * <p>Predicate получает native screen как {@code Object}. В текущем Minecraft backend
+     * можно исключить {@link MinecraftWidgetScreen}, если
      * overlay не должен появляться поверх экранов, которые уже принадлежат UniGUI.</p>
      *
      * <p>Overlay также получает события мыши и клавиатуры. Если виджет обработал событие,
@@ -112,7 +108,7 @@ public final class OverlayRenderDemo {
      */
     private static void registerScreenOverlay() {
         Box overlayRoot = transparentRoot(createScreenOverlayBadge());
-        MinecraftWidgetRenderLayer overlayLayer = new MinecraftWidgetRenderLayer(overlayRoot);
+        UniRenderLayer overlayLayer = new UniRenderLayer(overlayRoot);
 
         screenOverlayRegistration = ScreenOverlayRender.register(
                 overlayLayer,
@@ -124,7 +120,7 @@ public final class OverlayRenderDemo {
     /**
      * Показывает, существуют ли ещё активные регистрации.
      *
-     * <p>Проверка {@link MinecraftRenderLayerRegistration#closed()} нужна на случай,
+     * <p>Проверка {@link UniRenderLayerRegistration#closed()} нужна на случай,
      * если конкретную регистрацию закрыли напрямую, а затем снова вызвали register().</p>
      */
     private static boolean isRegistered() {

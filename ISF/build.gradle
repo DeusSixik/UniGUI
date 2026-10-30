@@ -68,6 +68,8 @@ sourceSets {
 dependencies {
     forge "net.minecraftforge:forge:${versionProject.forge_version}"
 
+    uniguiCommon(project(path: ':core')) { transitive false }
+
     uniguiCommon(project(path: "${versionProject.path}:common", configuration: 'namedElements')) {
         transitive false
     }

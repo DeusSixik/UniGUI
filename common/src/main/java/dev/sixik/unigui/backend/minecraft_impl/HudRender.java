@@ -10,7 +10,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import java.util.function.Predicate;
 
 /**
- * Глобальная точка регистрации UniGUI-слоёв поверх игрового HUD.
+ * Minecraft-specific HUD hook. User-facing registration lives in {@code UniHudRender}.
  *
  * <pre>{@code
  * MinecraftRenderLayerRegistration<Minecraft> hud = HudRender.register(root);

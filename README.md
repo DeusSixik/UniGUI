@@ -162,6 +162,8 @@ TestMod/    Fabric sandbox: title-screen buttons and the demo screens
 
 Deeper design notes live under [`docs/`](docs): architecture, XML, text and the code editor, render state, HUD and post effects.
 
+Wiki pages for the website are generated from API annotations as Markdown. See [`docs/wiki-generation.md`](docs/wiki-generation.md) for annotations, media paths and the Gradle task.
+
 ## License
 
 [LGPL-3.0](LICENSE)
