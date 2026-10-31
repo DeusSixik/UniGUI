@@ -1,6 +1,7 @@
 package dev.sixik.unigui.cleanroom.commands;
 
 import dev.sixik.unigui.cleanroom.demo.IntegrationLab;
+import dev.sixik.unigui.cleanroom.demo.MinecraftLab;
 import dev.sixik.unigui.cleanroom.demo.PostEffectLab;
 import dev.sixik.unigui.cleanroom.demo.TextLab;
 import dev.sixik.unigui.cleanroom.demo.TextureLab;
@@ -19,7 +20,7 @@ public class CommandUniGUI extends CommandBase implements ICommand {
 
     @Override
     public String getUsage(ICommandSender iCommandSender) {
-        return "/unigui [textures|text|posteffect|lab <" + IntegrationLab.USAGE + ">|demo <name>]";
+        return "/unigui [textures|text|minecraft|posteffect|lab <" + IntegrationLab.USAGE + ">|demo <name>]";
     }
 
     @Override
@@ -36,6 +37,10 @@ public class CommandUniGUI extends CommandBase implements ICommand {
     public void execute(MinecraftServer minecraftServer, ICommandSender iCommandSender, String[] strings) throws CommandException {
         if (strings.length > 0 && "textures".equalsIgnoreCase(strings[0])) {
             TextureLab.open();
+            return;
+        }
+        if (strings.length > 0 && "minecraft".equalsIgnoreCase(strings[0])) {
+            MinecraftLab.open();
             return;
         }
         if (strings.length > 0 && "text".equalsIgnoreCase(strings[0])) {

@@ -74,7 +74,7 @@
   **Факт с dev-машины:** `version=4.6.0 NVIDIA 595.97, renderer=RTX 5070 -> INSTANCED`. Значит шейдеры 1.20 работают как есть. `LEGACY` (адаптер 150 → 120) откладывается до появления реального железа без GLSL 1.50 (Mesa / старый Intel); до тех пор такие машины идут на тесселяцию.
 - [x] **A3. Текст — решено (уточнено по коду).** Шрифт по умолчанию у экрана — **ванильный** (`MinecraftWidgetScreen.defaultFont = MinecraftFonts.defaultFace()`); SDF получают только явные `AwtFontFace` (TestMod, свои TTF). Поэтому в `common` есть `MinecraftMixedTextRenderer`: runs с ванильным и SDF-шрифтом идут в одном `TEXT` в порядке следования. SDF-часть держится на `core` (`DefaultFontRegistry`, `SdfGlyphProvider`, `AwtFontFace`), в `MinecraftSdfTextRenderer` только GL. **Решение:** один смешанный рендерер: чистая раскладка (`CleanroomTextLayout`) + два вывода (ванильный `FontRenderer` и SDF). Ванильный путь определяет вид обычного текста, SDF нужен для кастомных шрифтов; если SDF недоступен, SDF-runs рисуются ванильным шрифтом.
 - [x] **A6. Общие исходники шейдеров — сделано (частично).** Сейчас GLSL лежит строками внутри `common` (`MinecraftSdfShapeRenderer`, `MinecraftSdfTextRenderer`), и cleanroom пришлось бы копировать их. Предложение: вынести в `core` версионно-нейтральные константы (GLSL-строки, раскладка instance-буфера: `INSTANCE_FLOATS = 30` для фигур и `32` для текста, смещения атрибутов, коды `ShapeType`) плюс `ShaderDialectAdapter` (150 → 120). В `core` нет LWJGL, поэтому только строки и числа, а GL остаётся в версионных модулях. Тогда шейдер правится в одном месте. Сделано: `core/.../impl/render/shaders/SdfShapeShaderSources` и `SdfTextShaderSources` (GLSL, раскладка, имена атрибутов, константы атласа), `common` переведён на них (компилируется на 1.20.1 и 1.21.1), контракт GLSL ↔ раскладка закреплён тестами `SdfShaderSourcesTest`. Не сделано: `ShaderDialectAdapter` (нужен только для `LEGACY`). **Важно:** cleanroom берёт jar `core`, поэтому после любых правок `core` сначала `./gradlew :core:jar` (JDK 21) в корне, потом сборка модуля.
-- [ ] **A4. MC-специфичные виджеты** (`common/.../widgets/minecraft`: item, entity, block, tooltip). Они завязаны на типы 1.20 (`ItemStack`, `Component`). Нужны нейтральные capability-интерфейсы в core (по образцу `UiPostEffectBackend`): `UiItemRenderer`, `UiTooltipService`, `UiEntityPreview`. Иначе каждую версию придётся писать виджеты заново.
+- [x] **A4. MC-специфичные виджеты — решено: как в 1.20 / 1.21.** Версионные виджеты с теми же именами в модуле cleanroom, без нейтральных интерфейсов в core (см. фазу 7).
 - [ ] **A5. Общее демо.** Вынести `Unity*` и `ComplexUiDemo` из `TestMod` и `cleanroom` в один version-neutral источник (отдельный gradle-модуль `demo` или `core` testFixtures), оставив в версионных модулях только вход (команда / screen opener).
 
 ---
@@ -194,19 +194,20 @@
 
 ## Фаза 7 — Minecraft-виджеты и интеграции `P2`
 
-Зависит от A4.
+Решение A4 (принято по запросу): **как в 1.20 / 1.21, версионные виджеты с теми же именами**, без новых capability-интерфейсов в core. Виджеты лежат в модуле cleanroom в пакете `dev.sixik.unigui.widgets.minecraft` (имена классов и методов те же, типы Minecraft 1.12.2: `ItemStack`, `Block`, `EntityEntry`, строки с `§` вместо `Component`). Нейтральные `UiItemRenderer` / `UiTooltipService` / `UiEntityPreview` остаются идеей на будущее, если понадобится один код для всех версий. Бэкенд (`CleanroomGuiRenderBackend`) стал `public` и получил методы, аналогичные `MinecraftGuiRenderBackend`: `renderItemPreview`, `renderItemPreviewLazy`, `cachedItemPreviewTexture`, `clearItemPreviewCache`, `renderEntityPreview`, `renderVanillaTooltip`, `renderNested`.
 
-- [ ] **7.1 Нейтральные capability-интерфейсы в core:** `UiItemRenderer`, `UiTooltipService`, `UiEntityPreview`. Реализации в `common` (1.20/1.21) и `cleanroom`.
-- [ ] **7.2 Item preview.** `RenderItem.renderItemAndEffectIntoGUI` + `RenderHelper.enableGUIStandardItemLighting`, overlay (`renderItemOverlayIntoGUI`), кэш иконок в FBO (порт `FastItemRenderer`). `MinecraftRendererPlatformHook.hasCustomItemRenderer` → TESR / custom IBakedModel.
-- [ ] **7.3 Vanilla tooltip.** `GuiScreen.drawHoveringText` / `GuiUtils.drawHoveringText` (Forge), `renderToolTip(ItemStack, x, y)`.
-- [ ] **7.4 Entity preview.** `GuiInventory.drawEntityOnScreen`.
-- [ ] **7.5 Block preview.**
-- [ ] **7.6 Item и Texture picker, `MinecraftItemTooltip`.**
-- [ ] **7.7 XML built-ins** (`MinecraftXmlBuiltIns`, `MinecraftXmlRegistryContributor`) на нейтральных типах.
-- [ ] **7.8 Container-экраны.** Проверка слотов `GuiContainer` под overlay'ем (Z-order между слотами, ванильным курсором-предметом и UniGUI).
+Все пункты **не проверены в игре**. Проверка: `/unigui minecraft` (подписанные строки), `/unigui lab overlay` (превью над слотами инвентаря).
+
+- [x] **7.1 Архитектура.** См. A4 выше. Вместо интерфейсов в core: публичные методы бэкенда + `CleanroomVanillaDraw` (рисование предметов, сущностей, тултипов ванильным кодом с возвратом GL в состояние UI: `CleanroomGlState.afterVanilla`, очистка глубины до и после, зачистка матричного стека при исключении, сломанный предмет логируется один раз и пропускается).
+- [x] **7.2 Item preview** (`MinecraftItemPreviewWidget`, `MinecraftBlockPreviewWidget`). `CleanroomItemIcons`: иконка предмета один раз рисуется ванильным `RenderItem` в собственный FBO (16..256 px, кратно 16, 3D-модели от 32) и дальше выводится обычным textured quad (с alpha). Кэшируются только стабильные предметы: не зачарованные, без анимированных спрайтов (проверяются квады модели: часы, компас, magma и т.д.), без `isBuiltInRenderer` и без своего `TileEntityItemStackRenderer`; остальные идут через live-путь каждый кадр. Ключ: предмет + metadata + NBT (у предметов с прочностью metadata не входит в ключ, полоска рисуется отдельно). Count и полоска прочности: иконка из кэша + `renderItemOverlayIntoGUI` вживую. LRU 512 иконок, до 12 запечённых иконок за кадр, сброс при перезагрузке ресурсов. Ограничение: ванильный рендер предмета не умеет alpha, поэтому прозрачность действует только на кэшированные иконки. Block preview: блок через его предмет, `block(Block, metadata)` для 1.12.2.
+- [x] **7.3 Vanilla tooltip** (`MinecraftTooltipRenderers`, `MinecraftItemTooltip`). `GuiUtils.drawHoveringText` (Forge: события `RenderTooltipEvent`, моды видят тултип) и `stack.getTooltip` с цветом редкости, `advancedItemTooltips` учитывается. Строки это `String` с `§`; для `ITextComponent` есть `vanillaComponents`. **Нет** аналога `acceptsGrid` / `TooltipComponent` (в 1.12.2 таких компонентов нет).
+- [x] **7.4 Entity preview** (`MinecraftEntityPreviewWidget`). `GuiInventory.drawEntityOnScreen`; сущность создаётся из `EntityEntry` в текущем мире и кэшируется в виджете (слабая ссылка на мир), либо передаётся готовая (`entity(EntityLivingBase)`, например игрок). Масштаб подбирается по высоте и ширине сущности. Не получилось нарисовать: голова игрока. Прозрачность не поддерживается.
+- [x] **7.5 Block preview.** См. 7.2.
+- [x] **7.6 Item и Texture picker.** `MinecraftItemPickerWidget`: одна запись на вариант (в 1.12.2 у предмета есть metadata и NBT-варианты: цвета шерсти, зелья, книги), поиск по id, пути и локализованному имени; `ItemEntry(id, item, metadata, tag)`. `MinecraftTexturePickerWidget`: в 1.12.2 менеджер ресурсов не умеет перечислять файлы, поэтому `CleanroomResourceListing` сканирует `assets/*/textures/**.png` в jar игры, модах и активных ресурспаках (кэш до перезагрузки ресурсов).
+- [x] **7.7 XML built-ins.** `MinecraftXmlBuiltIns`, `MinecraftXmlRegistryContributor`, `BuiltInMinecraftXml` перенесены; регистрация через `META-INF/services` (тест проверяет, что contributor найден и все пять виджетов зарегистрированы). Идентификаторы 1.12.2: `minecraft:wool@5` (metadata после `@`), `entityType` берётся из `ForgeRegistries.ENTITIES`.
+- [x] **7.8 Container-экраны.** Превью чистят буфер глубины до и после себя, поэтому предметы слотов и мира не закрывают их и не закрываются ими; наведение на слот под панелью гасит блокировщик pointer'а (фаза 6.2). `MinecraftZLayer` перенесён (в 1.12.2 UI рисуется без теста глубины, слой сохраняет порядок и сдвиг по z). Остальные виджеты `MinecraftWidgets` (`itemPreview`, `blockPreview`, `entityPreview`, `texture`, пикеры).
 
 ---
-
 ## Фаза 8 — Демо, паритет, тесты `P1`
 
 - [ ] **8.1 A5: единый источник демо.** Убрать дубли `cleanroom/demo/*` ↔ `TestMod` (D11).
@@ -221,14 +222,15 @@
 
 ## Фаза 9 — Производительность `P2`
 
-- [ ] **9.1 Профиль кадра:** число draw-call'ов, `bind`, смен state на кадр для `UnityInspectorScreen` (счётчик в debug-оверлее).
-- [ ] **9.2 Zero-alloc на hot path.** Без `new` на кадр в `render` (переиспользуемые буферы вершин, примитивные массивы вместо `List<Float>`).
-- [ ] **9.3 JMH** для тесселяции и батчера (`core/src/jmh`).
-- [ ] **9.4 Кэш статичных слоёв в FBO** (связано с 6.11).
-- [ ] **9.5 GPU-таймеры** (`lastFrameGpuMillis` аналог через `GL_TIME_ELAPSED`, если расширение доступно).
+Подход: без замеров в игре ничего не «оптимизируется на глаз». Сначала измерение (тест на аллокации и JMH с gc-профайлером), потом правки там, где цифры показали проблему. Запуск бенчмарков: `./gradlew jmh` в `1.12.2-cleanroom` (отчёт `build/reports/jmh/results.txt`, профайлер gc печатает B/op).
+
+- [x] **9.1 Профиль кадра.** Оверлей профайлера (`DebugFlags.PROFILER_OVERLAY`) в 1.12.2 показывал нули: счётчики никто не заполнял. Теперь `CleanroomProfiling` + `CleanroomDrawStats` (порт статистики из 1.20): команды по типам, батчи, оценка draw call'ов и вершин, переключения текстур, глифы, клипы, uniform'ы шейдеров; считается до добавления самого оверлея в список. `CleanroomSdfStats` даёт фактические проходы, команды, draw call'ы, загрузки uniform'ов, flush'и и время SDF-рендереров (включено только при открытом оверлее, иначе одна проверка). Кэш кадра (`UiRenderPolicy`) считает hit / miss с причиной / render. Работает для `UniScreen` и для слоёв. **Не проверено в игре.**
+- [x] **9.2 Zero-alloc на hot path.** Измерено (`CleanroomAllocationTest`, счётчик аллокаций потока, бюджет 1 байт на вызов): тесселятор (rect, stroke, скруглённый, круг, линия, path с кривыми Безье) уже не создавал мусора; нашли и исправили: итераторы по `text.runs()` в раскладке текста (индексные циклы), боксинг `Integer` и замыкание `computeIfAbsent` на каждый глиф в SDF-атласе (теперь `Int2ObjectOpenHashMap` / `IntOpenHashSet` и кэш последней гарнитуры), итератор в `CleanroomSdfTextRenderer.flush`, одно-символьные строки при рисовании по глифам (tracking, градиент: 1032 -> 0 B/op), `RichText` из простой строки на каждую команду `TEXT` (кэш на 512 строк), `new FontMetrics` и `new String` на каждый глиф в `MinecraftFontFace` (кэш метрик, `getCharWidth`). **Остаётся:** одна строка на ванильный сегмент текста (64 B, `FontRenderer.drawString` принимает только `String`) и список батчей, который создаёт `SimpleDrawBatcher` (core, один раз на кадр).
+- [x] **9.3 JMH** (`src/jmh`, плагин `me.champeau.jmh` подключён к модулю). Результаты на dev-машине (JDK 25, 3 итерации): тесселяция rect 24 ns, rect stroke 43, линия 24, скруглённый 304, круг (24 сегмента) 454, path fill 1170, path stroke 2046; упаковка 256 фигур в буфер SDF-инстансов 5.1 µs; раскладка строки из 43 символов: SDF 119 ns, ванильный шрифт 195 ns, с `§`-кодами 203, с tracking 331 ns. Все пути: 0 B/op, кроме ванильного сегмента (64 B).
+- [x] **9.4 Кэш статичного слоя в FBO.** Сделано в 6.11 (`CleanroomRenderCache`).
+- [x] **9.5 GPU-таймер.** `CleanroomGpuTimer`: запрос `GL_TIME_ELAPSED` (OpenGL 3.3 или `ARB_timer_query`) вокруг прохода UI, результат читается на следующем кадре, поэтому конвейер не стопорится; один общий запрос на все экраны и слои, вложенный запрос отклоняется. Включается только при открытом оверлее. Нет расширения или ошибка: таймер отключается, оверлей показывает `n/a`. Значение это GPU-время предыдущего кадра. **Не проверено в игре.**
 
 ---
-
 ## Фаза 10 — Сборка и релиз `P2`
 
 - [ ] **10.1 Версия из `gradle.properties`:** `@Mod(version)`, `mcmod.info` через `processResources` (D12).

@@ -119,6 +119,7 @@ final class CleanroomWidgetScreen extends GuiScreen implements CleanroomRenderHo
         lastFrameNanos = now;
         uiContext.profiler().beginFrame(frameIndex);
         uiContext.debugCounters().beginFrame(frameIndex);
+        boolean stats = CleanroomProfiling.beginFrame(uiContext);
         uiContext.debugCounters().recordFrameCpuMillis(lastFrameCpuMillis);
         uiContext.debugCounters().recordFrameTotalMillis(lastFrameTotalMillis);
         try (ProfileScope ignored = uiContext.profiler().scope("animation")) {
@@ -132,12 +133,15 @@ final class CleanroomWidgetScreen extends GuiScreen implements CleanroomRenderHo
         try (ProfileScope ignored = uiContext.profiler().scope("buildDrawList")) {
             UiRenderPolicy policy = source.renderPolicy();
             if (CleanroomRenderPolicies.usesCache(policy.mode())) {
-                renderCache.render(policy, root, renderContext, layoutChanged, logicalWidth, logicalHeight, now);
+                renderCache.render(policy, root, renderContext, layoutChanged, logicalWidth, logicalHeight, now,
+                        CleanroomProfiling.counters(uiContext, stats));
             } else {
                 renderCache.close();
                 root.render(renderContext);
             }
         }
+        // Counted before the overlay is appended: it should not measure itself.
+        if (stats) CleanroomProfiling.recordDrawList(uiContext, drawList);
         DebugOverlayRenderer.render(renderContext, uiContext, logicalWidth, logicalHeight);
         lastFrameCpuMillis = (System.nanoTime() - now) / 1_000_000.0f;
 

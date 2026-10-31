@@ -16,6 +16,7 @@ import dev.sixik.unigui.impl.render.shaders.SdfTextShaderSources;
 import dev.sixik.unigui.impl.text.SdfGlyphProvider;
 
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * Positions the glyphs of one text command and hands them to a {@link Sink}.
@@ -114,7 +115,10 @@ final class CleanroomTextLayout {
         float lineSnapX = 0.0f;
         float lineSnapY = 0.0f;
 
-        for (TextRun run : text.runs()) {
+        // Indexed loops: an iterator over the run list would allocate on every text command of every frame.
+        List<TextRun> runs = text.runs();
+        for (int runIndex = 0, runCount = runs.size(); runIndex < runCount; runIndex++) {
+            TextRun run = runs.get(runIndex);
             FontFace face = run.font() == null ? defaultFace : run.font();
             boolean sdf = atlas != null && face instanceof SdfGlyphProvider;
             FontFace drawFace = face instanceof SdfGlyphProvider && !sdf ? fallbackFace : face;
@@ -221,7 +225,9 @@ final class CleanroomTextLayout {
         segmentHasGlyph = false;
         float drawX = snap ? snapX(x, affine, scaleX) : x;
         float drawY = snap ? snapY(top, affine, scaleY) : top;
-        sink.vanilla(segment.toString(), face, run, drawX, drawY, perGlyph);
+        // Glyph-by-glyph drawing (tracking, gradients) would otherwise make a one-character String per glyph per frame.
+        String text = segment.length() == 1 ? singleChar(segment.charAt(0)) : segment.toString();
+        sink.vanilla(text, face, run, drawX, drawY, perGlyph);
         segment.setLength(0);
     }
 
@@ -232,7 +238,9 @@ final class CleanroomTextLayout {
         lineCount = 0;
         float ascent = 0.0f;
         float height = 0.0f;
-        for (TextRun run : text.runs()) {
+        List<TextRun> runs = text.runs();
+        for (int runIndex = 0, runCount = runs.size(); runIndex < runCount; runIndex++) {
+            TextRun run = runs.get(runIndex);
             FontFace face = run.font() == null ? defaultFace : run.font();
             FontMetrics metrics = face.metrics(run.pixelSize());
             ascent = Math.max(ascent, metrics.ascent());
@@ -271,6 +279,23 @@ final class CleanroomTextLayout {
                 (rgb & 255) / 255.0f, 1.0f);
         return new TextRun("", run.font(), run.pixelSize(), run.color(), new SolidTextBrush(color), run.tracking(),
                 TextTransform.NONE);
+    }
+
+    private static final String[] SINGLE_CHARS = new String[0x800];
+
+    /**
+     * @param c a character
+     * @return its one-character string; shared for Latin, Greek and Cyrillic, so drawing text glyph by glyph makes
+     * no garbage
+     */
+    static String singleChar(char c) {
+        if (c >= SINGLE_CHARS.length) return String.valueOf(c);
+        String cached = SINGLE_CHARS[c];
+        if (cached == null) {
+            cached = String.valueOf(c);
+            SINGLE_CHARS[c] = cached;
+        }
+        return cached;
     }
 
     private static float positive(float value) {

@@ -146,6 +146,9 @@ final class CleanroomSdfTextRenderer {
      */
     void flush() {
         if (batches.isEmpty()) return;
+        long started = CleanroomSdfStats.start();
+        int glyphs = 0;
+        int draws = 0;
         bindings.capture();
         try {
             CleanroomGlState.blend(BlendMode.NORMAL);
@@ -155,13 +158,18 @@ final class CleanroomSdfTextRenderer {
             program.set("GlyphAtlas", 0);
             GL30.glBindVertexArray(vao);
             GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, instanceBuffer);
-            for (InstanceBatch batch : batches) {
+            for (int i = 0, size = batches.size(); i < size; i++) {
+                InstanceBatch batch = batches.get(i);
                 if (batch.instances.size == 0) continue;
                 GlStateManager.bindTexture(CleanroomSdfAtlas.textureOf(batch.page));
                 FloatBuffer data = stage(batch.instances);
                 GL15.glBufferData(GL15.GL_ARRAY_BUFFER, data, GL15.GL_STREAM_DRAW);
-                GL31.glDrawArraysInstanced(GL11.GL_TRIANGLES, 0, 6, batch.instances.size / FLOATS);
+                int count = batch.instances.size / FLOATS;
+                GL31.glDrawArraysInstanced(GL11.GL_TRIANGLES, 0, 6, count);
+                glyphs += count;
+                draws++;
             }
+            CleanroomSdfStats.record(started, glyphs, draws, 4, draws > 0);
         } catch (Throwable failure) {
             LOGGER.error("UniGUI SDF text draw failed; SDF text is disabled", failure);
             unavailable = true;

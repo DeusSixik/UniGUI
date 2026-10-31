@@ -28,16 +28,32 @@ public final class MinecraftFontFace implements FontFace {
         return id;
     }
 
+    // The layout asks for the metrics of every run of every text command each frame: remember the last answer.
+    private float lastMetricsSize = Float.NaN;
+    private int lastMetricsFontHeight = -1;
+    private FontMetrics lastMetrics;
+
     @Override
     public FontMetrics metrics(float pixelSize) {
-        float height = Minecraft.getMinecraft().fontRenderer.FONT_HEIGHT * normalizedSize(pixelSize) / BASE_SIZE;
-        return new FontMetrics(height * (7.0f / 9.0f), height * (2.0f / 9.0f), 0.0f, height);
+        int fontHeight = Minecraft.getMinecraft().fontRenderer.FONT_HEIGHT;
+        float size = normalizedSize(pixelSize);
+        FontMetrics cached = lastMetrics;
+        if (cached != null && size == lastMetricsSize && fontHeight == lastMetricsFontHeight) return cached;
+        float height = fontHeight * size / BASE_SIZE;
+        cached = new FontMetrics(height * (7.0f / 9.0f), height * (2.0f / 9.0f), 0.0f, height);
+        lastMetrics = cached;
+        lastMetricsSize = size;
+        lastMetricsFontHeight = fontHeight;
+        return cached;
     }
 
     @Override
     public float advance(int codePoint, float pixelSize) {
-        String value = new String(Character.toChars(codePoint));
-        int width = Minecraft.getMinecraft().fontRenderer.getStringWidth(value);
+        // Called for every glyph of every vanilla text each frame: ask for the width of the char itself instead of
+        // building a one-character string. Code points outside the BMP are not drawable by this font anyway.
+        int width = codePoint <= Character.MAX_VALUE
+                ? Minecraft.getMinecraft().fontRenderer.getCharWidth((char) codePoint)
+                : Minecraft.getMinecraft().fontRenderer.getStringWidth(new String(Character.toChars(codePoint)));
         return width * normalizedSize(pixelSize) / BASE_SIZE;
     }
 

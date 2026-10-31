@@ -12,6 +12,9 @@ import org.lwjgl.opengl.GL15;
 import org.lwjgl.opengl.GL21;
 import org.lwjgl.opengl.GL30;
 
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
@@ -31,12 +34,26 @@ final class CleanroomSdfAtlas implements CleanroomTextLayout.Atlas, AutoCloseabl
     private static final int PADDING = SdfTextShaderSources.ATLAS_PADDING;
 
     private final Map<FontFace, FaceAtlas> faces = new IdentityHashMap<>();
+    private FontFace lastFace;
+    private FaceAtlas lastAtlas;
     private ByteBuffer upload = BufferUtils.createByteBuffer(64 * 64);
 
     @Override
     public CleanroomTextLayout.Glyph glyph(FontFace face, int codePoint) {
-        if (!(face instanceof SdfGlyphProvider provider)) return null;
-        return faces.computeIfAbsent(face, ignored -> new FaceAtlas(provider)).glyph(codePoint);
+        // Called once per glyph per frame: no boxing, no capturing lambda, and the face of the previous glyph is
+        // remembered because a text is almost always one face.
+        FaceAtlas atlas = lastAtlas;
+        if (atlas == null || lastFace != face) {
+            atlas = faces.get(face);
+            if (atlas == null) {
+                if (!(face instanceof SdfGlyphProvider provider)) return null;
+                atlas = new FaceAtlas(provider);
+                faces.put(face, atlas);
+            }
+            lastFace = face;
+            lastAtlas = atlas;
+        }
+        return atlas.glyph(codePoint);
     }
 
     /**
@@ -50,16 +67,18 @@ final class CleanroomSdfAtlas implements CleanroomTextLayout.Atlas, AutoCloseabl
     public void close() {
         for (FaceAtlas atlas : faces.values()) atlas.close();
         faces.clear();
+        lastFace = null;
+        lastAtlas = null;
     }
 
     private final class FaceAtlas {
         private final SdfGlyphProvider provider;
-        private final Map<Integer, CleanroomTextLayout.Glyph> glyphs = new java.util.HashMap<>();
+        private final Int2ObjectOpenHashMap<CleanroomTextLayout.Glyph> glyphs = new Int2ObjectOpenHashMap<>();
         private final List<Page> pages = new ArrayList<>();
         /**
          * Marks code points the face has no glyph for, so the rasterizer is not asked again every frame.
          */
-        private final java.util.Set<Integer> missing = new java.util.HashSet<>();
+        private final IntOpenHashSet missing = new IntOpenHashSet();
 
         private FaceAtlas(SdfGlyphProvider provider) {
             this.provider = provider;

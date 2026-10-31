@@ -1,6 +1,7 @@
 package dev.sixik.unigui.cleanroom.backend;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.api.debug.UiDebugCounters;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawList;
 import dev.sixik.unigui.api.render.Paint;
@@ -52,7 +53,7 @@ final class CleanroomRenderCache implements AutoCloseable {
      * @param nowNanos      current time
      */
     void render(UiRenderPolicy policy, Widget root, DefaultRenderContext frameContext, boolean layoutChanged,
-                float logicalWidth, float logicalHeight, long nowNanos) {
+                float logicalWidth, float logicalHeight, long nowNanos, UiDebugCounters counters) {
         Minecraft minecraft = Minecraft.getMinecraft();
         int targetWidth = Math.max(1, minecraft.displayWidth);
         int targetHeight = Math.max(1, minecraft.displayHeight);
@@ -63,7 +64,13 @@ final class CleanroomRenderCache implements AutoCloseable {
                 width != targetWidth || height != targetHeight, layoutChanged,
                 root.subtreeInvalidationFlags() != InvalidationFlags.NONE, () -> animationsRunning(root),
                 nowNanos, lastRenderNanos, frameNanos);
-        if (decision.action() == CleanroomRenderPolicies.Action.REFRESH) refresh(root, targetWidth, targetHeight);
+        if (decision.action() == CleanroomRenderPolicies.Action.REFRESH) {
+            if (counters != null) counters.recordTextureCacheMiss(decision.reason());
+            refresh(root, targetWidth, targetHeight);
+            if (counters != null) counters.recordTextureRender();
+        } else if (counters != null) {
+            counters.recordTextureCacheHit();
+        }
         if (texture != null) {
             frameContext.texture(texture, 0.0f, 0.0f, logicalWidth, logicalHeight, Paint.fill(TINT));
         }
