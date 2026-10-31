@@ -1,5 +1,13 @@
 package dev.sixik.unigui.widgets.interaction;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
@@ -35,6 +43,30 @@ import dev.sixik.unigui.api.widget.render.WidgetRole;
  * renderer draws a progress fill over the button surface and then renders the
  * usual centered button label.</p>
  */
+@AiDoc(
+        summary = "Confirmation button requiring sustained pointer press before executing action.",
+        purpose = "Prevents catastrophic or irreversible actions by requiring continuous hold with visual feedback.",
+        useWhen = {"Deleting data, spending non-refundable currency, or executing critical admin actions."},
+        related = {"Button"}
+)
+@WikiPage(
+        title = "<key:hold.button.title>",
+        slug = "hold-button",
+        category = "<key:core.widgets.interaction.category>",
+        summary = "<key:hold.button.summary>",
+        order = 20
+)
+@WikiSection(
+        title = "<key:hold.button.section.overview.title>",
+        markdown = "<key:hold.button.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:hold.button.example.basic.title>",
+        code = "<key:hold.button.example.basic.code>",
+        order = 10
+)
+@WikiLink(label = "Button", target = "page:button")
 @XmlWidgetName("HoldButton")
 public class HoldButton extends Button {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.HOLD_BUTTON;
@@ -118,6 +150,7 @@ public class HoldButton extends Button {
         return this;
     }
 
+    @WikiMethod(order = 20, title = "<key:hold.button.method.on_hold_completed.title>", summary = "<key:hold.button.method.on_hold_completed.summary>")
     public EventSubscription onHoldCompleted(EventListener<? super HoldCompletedEvent> listener) {
         return on(HoldCompletedEvent.TYPE, listener);
     }

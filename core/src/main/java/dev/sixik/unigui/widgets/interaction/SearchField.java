@@ -1,5 +1,13 @@
 package dev.sixik.unigui.widgets.interaction;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.event.Event;
 import dev.sixik.unigui.api.event.EventListener;
@@ -26,6 +34,30 @@ import dev.sixik.unigui.api.style.StyleIds;
 import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.widgets.WidgetStyles;
 
+@AiDoc(
+        summary = "Search input box with icon, clear button, and debounced query dispatch.",
+        purpose = "Standard search box component optimizing real-time filtering without lag.",
+        useWhen = {"Filtering lists, tables, catalogs, or searching items."},
+        related = {"TextInput", "TextField"}
+)
+@WikiPage(
+        title = "<key:search.field.title>",
+        slug = "search-field",
+        category = "<key:core.widgets.interaction.category>",
+        summary = "<key:search.field.summary>",
+        order = 150
+)
+@WikiSection(
+        title = "<key:search.field.section.overview.title>",
+        markdown = "<key:search.field.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:search.field.example.basic.title>",
+        code = "<key:search.field.example.basic.code>",
+        order = 10
+)
+@WikiLink(label = "TextInput", target = "page:text-input")
 @XmlWidgetName("SearchField")
 public class SearchField extends TextInput {
     public static final String STYLE_TYPE = StyleIds.Widget.SEARCH_FIELD;
@@ -99,6 +131,8 @@ public class SearchField extends TextInput {
         return this;
     }
 
+    @WikiMethod(order = 20, title = "<key:search.field.method.clear.title>", summary = "<key:search.field.method.clear.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
     public SearchField clear() {
         text("");
         return this;

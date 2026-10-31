@@ -1,5 +1,14 @@
 package dev.sixik.unigui.widgets.containers;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
@@ -44,6 +53,37 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * @see StackPanel
  * @see Box
  */
+@AiDoc(
+        summary = "Base container for multi-child widgets managing hierarchy, deferred mutations, and rendering order.",
+        purpose = "Manages child collections with a thread-safe mutation queue, cached snapshot arrays for hot loops, "
+                + "and coordinate/UIContext propagation. Provides default stack/overlay layout.",
+        useWhen = {
+                "Extend to implement custom multi-child containers.",
+                "Safely add, remove, or clear children during event handling or rendering without concurrent modification."
+        },
+        criticalRules = {
+                "Mutations (addChild, removeChild, clearChildren) are deferred and applied via applyQueuedMutations().",
+                "Subclasses overriding measure/arrange/renderChildren should call applyQueuedMutations() first.",
+                "childSnapshot() provides an allocation-free array view of children for hot tick/render loops."
+        },
+        related = {"StackPanel", "Box", "SurfaceWidget", "WidgetBase"},
+        examples = @AiDoc.Example(
+                title = "Basic container usage",
+                code = "PanelWidget panel = new PanelWidget();\npanel.addChild(new Label(\"Item\"));"))
+@WikiPage(
+        title = "<key:panel.widget.title>",
+        slug = "panel-widget",
+        category = "<key:panel.widget.category>",
+        summary = "<key:panel.widget.summary>",
+        order = 10)
+@WikiSection(title = "<key:panel.widget.section.overview.title>",
+        markdown = "<key:panel.widget.section.overview.body>", order = 10)
+@WikiSection(title = "<key:panel.widget.section.mutations.title>",
+        markdown = "<key:panel.widget.section.mutations.body>", order = 20)
+@WikiExample(title = "<key:panel.widget.example.basic.title>",
+        code = "<key:panel.widget.example.basic.code>", order = 10)
+@WikiLink(label = "SurfaceWidget", target = "page:surface-widget")
+@WikiLink(label = "StackPanel", target = "page:stack-panel")
 @XmlWidgetName("Panel")
 public class PanelWidget extends WidgetBase {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.PANEL_WIDGET;
@@ -68,7 +108,9 @@ public class PanelWidget extends WidgetBase {
      *
      * @param child виджет для добавления; {@code null} игнорируется
      */
-    public void addChild(Widget child) {
+    @WikiMethod(order = 10, title = "<key:panel.widget.method.add_child.title>", summary = "<key:panel.widget.method.add_child.summary>")
+    @AiDoc(section = "Children", sectionOrder = 10, order = 10, summary = "Enqueues child widget addition to hierarchy.")
+    public void addChild(@WikiParameter(description = "<key:panel.widget.method.add_child.param.child>") Widget child) {
         if (child == null) return;
         mutations.add(new ChildMutation(ChildMutationType.ADD, child));
         invalidate(InvalidationFlags.LAYOUT);
@@ -82,7 +124,10 @@ public class PanelWidget extends WidgetBase {
      * @param index желаемая позиция вставки
      * @param child виджет для вставки; {@code null} игнорируется
      */
-    public void insertChild(int index, Widget child) {
+    @WikiMethod(order = 20, title = "<key:panel.widget.method.insert_child.title>", summary = "<key:panel.widget.method.insert_child.summary>")
+    @AiDoc(section = "Children", sectionOrder = 10, order = 20, summary = "Enqueues child widget insertion at specific index.")
+    public void insertChild(@WikiParameter(description = "<key:panel.widget.method.insert_child.param.index>") int index,
+                            @WikiParameter(description = "<key:panel.widget.method.add_child.param.child>") Widget child) {
         if (child == null) return;
         mutations.add(new ChildMutation(ChildMutationType.INSERT, child, index));
         invalidate(InvalidationFlags.LAYOUT);
@@ -97,7 +142,9 @@ public class PanelWidget extends WidgetBase {
      *
      * @param child виджет для удаления; {@code null} игнорируется
      */
-    public void removeChild(Widget child) {
+    @WikiMethod(order = 30, title = "<key:panel.widget.method.remove_child.title>", summary = "<key:panel.widget.method.remove_child.summary>")
+    @AiDoc(section = "Children", sectionOrder = 10, order = 30, summary = "Enqueues child removal and detachment.")
+    public void removeChild(@WikiParameter(description = "<key:panel.widget.method.remove_child.param.child>") Widget child) {
         if (child == null) return;
         mutations.add(new ChildMutation(ChildMutationType.REMOVE, child));
         invalidate(InvalidationFlags.LAYOUT);
@@ -106,6 +153,8 @@ public class PanelWidget extends WidgetBase {
     /**
      * Удаляет и dispose'ит всех детей контейнера.
      */
+    @WikiMethod(order = 40, title = "<key:panel.widget.method.clear_children.title>", summary = "<key:panel.widget.method.clear_children.summary>")
+    @AiDoc(section = "Children", sectionOrder = 10, order = 40, summary = "Enqueues removal and disposal of all child widgets.")
     public void clearChildren() {
         mutations.add(new ChildMutation(ChildMutationType.CLEAR, null));
         invalidate(InvalidationFlags.LAYOUT);
@@ -147,6 +196,9 @@ public class PanelWidget extends WidgetBase {
      * @return список детей в порядке layout/render обхода
      */
     @Override
+    @WikiMethod(order = 50, title = "<key:widget.method.children.title>", summary = "<key:widget.method.children.summary>")
+    @WikiReturn("<key:widget.method.children.return>")
+    @AiDoc(section = "Children", sectionOrder = 10, order = 50, summary = "Returns unmodifiable view of active child widgets.")
     public List<Widget> children() {
         return childrenView;
     }

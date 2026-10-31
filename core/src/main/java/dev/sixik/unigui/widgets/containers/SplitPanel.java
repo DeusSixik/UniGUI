@@ -1,5 +1,14 @@
 package dev.sixik.unigui.widgets.containers;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
@@ -34,6 +43,37 @@ import dev.sixik.unigui.widgets.core.Orientation;
  *         .minSecondSize(160.0f);
  * }</pre>
  */
+@AiDoc(
+        summary = "Two-pane container separated by an interactive draggable splitter for dynamic resizing.",
+        purpose = "Allows users to adjust relative dimensions of two adjacent panes along a horizontal or vertical axis.",
+        useWhen = {
+                "Building master-detail layouts, collapsible sidebars, or split code/preview windows.",
+                "Let users interactively drag a divider handle to resize two adjacent content panes."
+        },
+        criticalRules = {
+                "Manages two child slots (first and second) with an internal Splitter widget between them.",
+                "splitRatio is normalized between 0.0 and 1.0, respecting minFirstSize and minSecondSize limits.",
+                "Orientation.HORIZONTAL places the first pane on the left; Orientation.VERTICAL places it on top."
+        },
+        related = {"PanelWidget", "DockPanel", "HBox"},
+        examples = @AiDoc.Example(
+                title = "Horizontal split panel",
+                code = "SplitPanel split = new SplitPanel(treeWidget, editorWidget)\n        .orientation(Orientation.HORIZONTAL)\n        .splitRatio(0.28f)\n        .minFirstSize(120.0f);"))
+@WikiPage(
+        title = "<key:split.panel.title>",
+        slug = "split-panel",
+        category = "<key:split.panel.category>",
+        summary = "<key:split.panel.summary>",
+        order = 130)
+@WikiSection(title = "<key:split.panel.section.overview.title>",
+        markdown = "<key:split.panel.section.overview.body>", order = 10)
+@WikiSection(title = "<key:split.panel.section.resizing.title>",
+        markdown = "<key:split.panel.section.resizing.body>", order = 20)
+@WikiExample(title = "<key:split.panel.example.basic.title>",
+        code = "<key:split.panel.example.basic.code>", order = 10)
+@WikiLink(label = "PanelWidget", target = "page:panel-widget")
+@WikiLink(label = "DockPanel", target = "page:dock-panel")
+@WikiLink(label = "HBox", target = "page:hbox")
 @XmlWidgetName("SplitPanel")
 public class SplitPanel extends PanelWidget {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.SPLIT_PANEL;
@@ -83,7 +123,10 @@ public class SplitPanel extends PanelWidget {
      * @param first новый первый виджет или {@code null}
      * @return эта split-панель для fluent-настройки
      */
-    public SplitPanel first(Widget first) {
+    @WikiMethod(order = 10, title = "<key:split.panel.method.first.title>", summary = "<key:split.panel.method.first>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Panes", sectionOrder = 10, order = 10, summary = "Sets widget in first slot (left or top).")
+    public SplitPanel first(@WikiParameter(description = "<key:split.panel.param.first>") Widget first) {
         if (this.first == first || first == splitter) return this;
         if (this.first != null) {
             super.removeChild(this.first);
@@ -112,7 +155,10 @@ public class SplitPanel extends PanelWidget {
      * @param second новый второй виджет или {@code null}
      * @return эта split-панель для fluent-настройки
      */
-    public SplitPanel second(Widget second) {
+    @WikiMethod(order = 20, title = "<key:split.panel.method.second.title>", summary = "<key:split.panel.method.second>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Panes", sectionOrder = 10, order = 20, summary = "Sets widget in second slot (right or bottom).")
+    public SplitPanel second(@WikiParameter(description = "<key:split.panel.param.second>") Widget second) {
         if (this.second == second || second == splitter) return this;
         if (this.second != null) {
             super.removeChild(this.second);
@@ -151,7 +197,10 @@ public class SplitPanel extends PanelWidget {
      * @return эта split-панель для fluent-настройки
      */
     @XmlAttribute(value = "orientation", category = "Layout", defaultValue = "horizontal", description = "Split axis; horizontal places slots left/right, vertical places top/bottom.")
-    public SplitPanel orientation(Orientation orientation) {
+    @WikiMethod(order = 30, title = "<key:split.panel.method.orientation.title>", summary = "<key:split.panel.method.orientation>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Layout", sectionOrder = 20, order = 30, summary = "Sets split orientation (HORIZONTAL or VERTICAL).")
+    public SplitPanel orientation(@WikiParameter(description = "<key:split.panel.param.orientation>") Orientation orientation) {
         Orientation normalized = orientation == null ? Orientation.HORIZONTAL : orientation;
         if (this.orientation == normalized) return this;
         this.orientation = normalized;
@@ -178,7 +227,10 @@ public class SplitPanel extends PanelWidget {
      * @param splitRatio новая доля первого слота
      * @return эта split-панель для fluent-настройки
      */
-    public SplitPanel splitRatio(float splitRatio) {
+    @WikiMethod(order = 40, title = "<key:split.panel.method.split_ratio.title>", summary = "<key:split.panel.method.split_ratio>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Layout", sectionOrder = 20, order = 40, summary = "Sets split fraction for first slot (0.0 to 1.0).")
+    public SplitPanel splitRatio(@WikiParameter(description = "<key:split.panel.param.split_ratio>") float splitRatio) {
         float normalized = clamp01(splitRatio);
         if (this.splitRatio == normalized) return this;
         this.splitRatio = normalized;
@@ -240,7 +292,10 @@ public class SplitPanel extends PanelWidget {
      * @return эта split-панель для fluent-настройки
      */
     @XmlAttribute(value = "minFirstSize", category = "Layout", defaultValue = "32", description = "Minimum size of the first slot on the split axis.")
-    public SplitPanel minFirstSize(float minFirstSize) {
+    @WikiMethod(order = 50, title = "<key:split.panel.method.min_first_size.title>", summary = "<key:split.panel.method.min_first_size>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Constraints", sectionOrder = 30, order = 50, summary = "Sets minimum pixel size for first pane.")
+    public SplitPanel minFirstSize(@WikiParameter(description = "<key:split.panel.param.min_first_size>") float minFirstSize) {
         this.minFirstSize = sanitizeMin(minFirstSize);
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
@@ -262,7 +317,10 @@ public class SplitPanel extends PanelWidget {
      * @return эта split-панель для fluent-настройки
      */
     @XmlAttribute(value = "minSecondSize", category = "Layout", defaultValue = "32", description = "Minimum size of the second slot on the split axis.")
-    public SplitPanel minSecondSize(float minSecondSize) {
+    @WikiMethod(order = 60, title = "<key:split.panel.method.min_second_size.title>", summary = "<key:split.panel.method.min_second_size>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Constraints", sectionOrder = 30, order = 60, summary = "Sets minimum pixel size for second pane.")
+    public SplitPanel minSecondSize(@WikiParameter(description = "<key:split.panel.param.min_second_size>") float minSecondSize) {
         this.minSecondSize = sanitizeMin(minSecondSize);
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;

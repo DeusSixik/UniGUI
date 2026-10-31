@@ -4,8 +4,36 @@ import dev.sixik.unigui.api.math.MutableColor;
 
 import java.util.ArrayList;
 import java.util.List;
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 
 /** Built-in tokenizer presets for {@link CodeEditor}. */
+@AiDoc(
+        summary = "Factory registry supplying tokenizers and validators for language presets.",
+        purpose = "Provides static helper methods to apply preconfigured language presets to CodeEditor.",
+        useWhen = {
+                "Setting up tokenizers and validators for known languages.",
+                "Extending or retrieving built-in tokenizer implementations."
+        },
+        criticalRules = {
+                "apply() registers default styles and tokenizers on the specified CodeEditor."
+        },
+        related = {"CodeLanguagePreset", "CodeEditor", "CodeTokenizer"})
+@WikiPage(
+        title = "<key:code.language.presets.title>",
+        slug = "code-language-presets",
+        category = "<key:core.widgets.interaction.category>",
+        summary = "<key:code.language.presets.summary>",
+        order = 290)
+@WikiSection(
+        title = "<key:code.language.presets.section.overview.title>",
+        markdown = "<key:code.language.presets.section.overview.body>",
+        order = 10)
 public final class CodeLanguagePresets {
     private static final CodeTokenizer XAML_TOKENIZER = new XamlTokenizer();
 
@@ -20,6 +48,9 @@ public final class CodeLanguagePresets {
     private CodeLanguagePresets() {
     }
 
+    @WikiMethod(
+            title = "<key:code.language.presets.method.apply.title>",
+            summary = "<key:code.language.presets.method.apply.summary>")
     public static void apply(CodeEditor editor, CodeLanguagePreset preset) {
         if (editor == null) return;
         CodeLanguagePreset normalized = preset == null ? CodeLanguagePreset.NONE : preset;

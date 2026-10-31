@@ -1,5 +1,14 @@
 package dev.sixik.unigui.widgets.containers;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Widget;
@@ -24,6 +33,37 @@ import dev.sixik.unigui.widgets.display.Label;
  *         .rowHeight(24.0f);
  * }</pre>
  */
+@AiDoc(
+        summary = "Specialized settings row holding a label on the left and an interactive control on the right.",
+        purpose = "Streamlines creating options dialogs, settings panes, and parameter forms with automatic label focus forwarding.",
+        useWhen = {
+                "Building configuration forms with key-value or label-control rows.",
+                "Creating preferences screens where clicking on the label should automatically focus the control widget."
+        },
+        criticalRules = {
+                "The left slot is reserved for an integrated Label, while the right slot holds the interactive control widget.",
+                "Clicking the label automatically focuses the right-side control via label.focusTarget(control).",
+                "For multiple widgets per side, use PanelRowWidget directly instead of SettingRow."
+        },
+        related = {"PanelRowWidget", "VBox", "Box"},
+        examples = @AiDoc.Example(
+                title = "Setting row for slider control",
+                code = "SettingRow row = new SettingRow(\"Master Volume\", volumeSlider).controlWidth(120.0f);"))
+@WikiPage(
+        title = "<key:setting.row.title>",
+        slug = "setting-row",
+        category = "<key:setting.row.category>",
+        summary = "<key:setting.row.summary>",
+        order = 150)
+@WikiSection(title = "<key:setting.row.section.overview.title>",
+        markdown = "<key:setting.row.section.overview.body>", order = 10)
+@WikiSection(title = "<key:setting.row.section.focus.title>",
+        markdown = "<key:setting.row.section.focus.body>", order = 20)
+@WikiExample(title = "<key:setting.row.example.basic.title>",
+        code = "<key:setting.row.example.basic.code>", order = 10)
+@WikiLink(label = "PanelRowWidget", target = "page:panel-row-widget")
+@WikiLink(label = "VBox", target = "page:vbox")
+@WikiLink(label = "Box", target = "page:box")
 @XmlWidgetName("SettingRow")
 public class SettingRow extends PanelRowWidget {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.SETTING_ROW;
@@ -76,6 +116,9 @@ public class SettingRow extends PanelRowWidget {
      *
      * @return live label строки
      */
+    @WikiMethod(order = 10, title = "<key:setting.row.method.label.title>", summary = "<key:setting.row.method.label>")
+    @WikiReturn("<key:setting.row.method.label.return>")
+    @AiDoc(section = "Components", sectionOrder = 10, order = 10, summary = "Returns the live Label instance.")
     public Label label() {
         return label;
     }
@@ -96,7 +139,10 @@ public class SettingRow extends PanelRowWidget {
      * @return эта строка для fluent-настройки
      */
     @XmlAttribute(value = "labelText", category = "Content", defaultValue = "", description = "Plain text shown in the setting label.")
-    public SettingRow labelText(String labelText) {
+    @WikiMethod(order = 20, title = "<key:setting.row.method.label_text.title>", summary = "<key:setting.row.method.label_text>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Components", sectionOrder = 10, order = 20, summary = "Sets plain text for setting label.")
+    public SettingRow labelText(@WikiParameter(description = "<key:setting.row.param.label_text>") String labelText) {
         label.text(labelText);
         return this;
     }
@@ -136,7 +182,10 @@ public class SettingRow extends PanelRowWidget {
      * @param control новый control или {@code null}
      * @return эта строка для fluent-настройки
      */
-    public SettingRow control(Widget control) {
+    @WikiMethod(order = 30, title = "<key:setting.row.method.control.title>", summary = "<key:setting.row.method.control>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Components", sectionOrder = 10, order = 30, summary = "Sets right-side control widget and wires focus redirection.")
+    public SettingRow control(@WikiParameter(description = "<key:setting.row.param.control>") Widget control) {
         if (this.control == control) return this;
         this.control = control;
         label.focusTarget(control);
@@ -174,7 +223,10 @@ public class SettingRow extends PanelRowWidget {
      * @return эта строка для fluent-настройки
      */
     @XmlAttribute(value = "controlWidth", category = "Layout", defaultValue = "auto", description = "Preferred width of the right-side control group.")
-    public SettingRow controlWidth(float controlWidth) {
+    @WikiMethod(order = 40, title = "<key:setting.row.method.control_width.title>", summary = "<key:setting.row.method.control_width>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Sizing", sectionOrder = 20, order = 40, summary = "Sets preferred width for right control group.")
+    public SettingRow controlWidth(@WikiParameter(description = "<key:setting.row.param.control_width>") float controlWidth) {
         rightWidth(controlWidth);
         return this;
     }

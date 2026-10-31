@@ -12,7 +12,40 @@ import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.api.style.StyleIds;
 import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 
+@AiDoc(
+        summary = "Vector path widget drawing complex custom 2D shapes, bezier curves, and polylines.",
+        purpose = "Displays complex procedural vector shapes defined by VectorPath geometry.",
+        useWhen = {
+                "Drawing vector icons, custom arrows, stars, or polygon emblems.",
+                "Mathematical curve plotting and dynamic vector lines."
+        },
+        criticalRules = {
+                "VectorPath must be immutable or re-assigned to update visual geometry.",
+                "strokeWidth applies when stroke() is enabled."
+        },
+        related = {"Shape", "VectorPath", "MutableColor"})
+@WikiPage(
+        title = "<key:path.widget.title>",
+        slug = "path",
+        category = "<key:core.widgets.display.category>",
+        summary = "<key:path.widget.summary>",
+        order = 80)
+@WikiSection(
+        title = "<key:path.widget.section.overview.title>",
+        markdown = "<key:path.widget.section.overview.body>",
+        order = 10)
+@WikiExample(
+        title = "<key:path.widget.example.basic.title>",
+        code = "<key:path.widget.example.basic.code>",
+        order = 10)
 @XmlWidgetName("Path")
 public final class Path extends WidgetBase {
     public static final String STYLE_TYPE = StyleIds.Widget.PATH;
@@ -49,6 +82,9 @@ public final class Path extends WidgetBase {
     }
 
     @XmlAttribute(value = "stroke", category = "Appearance", defaultValue = "true", description = "Whether the vector path is stroked instead of filled.")
+    @WikiMethod(
+            title = "<key:path.widget.method.stroke.title>",
+            summary = "<key:path.widget.method.stroke.summary>")
     public Path stroke(boolean stroke) {
         if (this.stroke == stroke) return this;
         this.stroke = stroke;
@@ -61,6 +97,9 @@ public final class Path extends WidgetBase {
     }
 
     @XmlAttribute(value = "strokeWidth", category = "Appearance", defaultValue = "1", description = "Path stroke width in UI pixels.")
+    @WikiMethod(
+            title = "<key:path.widget.method.stroke_width.title>",
+            summary = "<key:path.widget.method.stroke_width.summary>")
     public Path strokeWidth(float strokeWidth) {
         float normalized = Float.isFinite(strokeWidth) ? Math.max(0.0f, strokeWidth) : 0.0f;
         if (this.strokeWidth == normalized) return this;

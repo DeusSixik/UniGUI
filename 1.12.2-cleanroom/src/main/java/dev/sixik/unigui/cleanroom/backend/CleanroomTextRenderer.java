@@ -22,6 +22,10 @@ final class CleanroomTextRenderer implements CleanroomTextLayout.Sink {
      * Vanilla {@code FontRenderer} promotes an alpha below 4 to fully opaque, so such text must be skipped.
      */
     private static final int MIN_VANILLA_ALPHA = 4;
+    /**
+     * Distinct plain strings kept per renderer; the map is cleared when it fills up (counters change every frame).
+     */
+    private static final int PLAIN_TEXT_CACHE_LIMIT = 512;
 
     private final Minecraft minecraft = Minecraft.getMinecraft();
     private final CleanroomRenderHost host;
@@ -30,6 +34,7 @@ final class CleanroomTextRenderer implements CleanroomTextLayout.Sink {
     private final float[] transformScratch = new float[2];
     private final float[] affine = new float[6];
     private final float[] rgba = new float[4];
+    private final java.util.HashMap<String, RichText> plainTexts = new java.util.HashMap<>();
     private FontFace defaultFace = MinecraftFonts.defaultFace();
 
     private DrawCommand current;
@@ -43,7 +48,9 @@ final class CleanroomTextRenderer implements CleanroomTextLayout.Sink {
      * @param face face used by runs that do not name one; {@code null} restores the vanilla font
      */
     void defaultFace(FontFace face) {
-        defaultFace = face == null ? MinecraftFonts.defaultFace() : face;
+        FontFace next = face == null ? MinecraftFonts.defaultFace() : face;
+        if (next != defaultFace) plainTexts.clear();
+        defaultFace = next;
     }
 
     /**
@@ -104,7 +111,14 @@ final class CleanroomTextRenderer implements CleanroomTextLayout.Sink {
         if (command.richText() != null) return command.richText();
         String plain = command.text();
         if (plain == null || plain.isEmpty()) return null;
-        return RichText.of(plain, defaultFace, TextRun.DEFAULT_PIXEL_SIZE);
+        // A plain string is turned into a RichText (a run, lists, a copy of the text) on every draw otherwise; UI
+        // labels repeat every frame, so the result is reused. RichText is immutable.
+        RichText cached = plainTexts.get(plain);
+        if (cached != null) return cached;
+        if (plainTexts.size() >= PLAIN_TEXT_CACHE_LIMIT) plainTexts.clear();
+        cached = RichText.of(plain, defaultFace, TextRun.DEFAULT_PIXEL_SIZE);
+        plainTexts.put(plain, cached);
+        return cached;
     }
 
     @Override

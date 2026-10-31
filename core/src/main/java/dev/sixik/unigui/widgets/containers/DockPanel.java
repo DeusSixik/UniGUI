@@ -1,5 +1,14 @@
 package dev.sixik.unigui.widgets.containers;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
@@ -37,6 +46,37 @@ import java.util.Map;
  * root.addChild(content); // заполнит остаток при lastChildFill(true)
  * }</pre>
  */
+@AiDoc(
+        summary = "Edge-docking layout container that aligns child widgets along outer boundaries (left, right, top, bottom).",
+        purpose = "Creates classic desktop application shells with top menu/toolbars, sidebars, bottom status bars, and central expanding workspace.",
+        useWhen = {
+                "Arrange peripheral controls around a central main content area.",
+                "Build application window chrome: header bar on top, footer at bottom, side navigation panels."
+        },
+        criticalRules = {
+                "Children are laid out sequentially along their assigned DockSide, each consuming available space along that edge.",
+                "When lastChildFill is true (default), the final child widget occupies the entire remaining interior area.",
+                "For complex IDE docking (tear-off windows, tabs, split docking zones), use DockingRoot and DockingManager instead of DockPanel."
+        },
+        related = {"PanelWidget", "SplitPanel", "Box"},
+        examples = @AiDoc.Example(
+                title = "Docking application shell",
+                code = "DockPanel shell = new DockPanel();\nshell.addChild(toolbar, DockSide.TOP);\nshell.addChild(sidebar, DockSide.LEFT);\nshell.addChild(mainView);"))
+@WikiPage(
+        title = "<key:dock.panel.title>",
+        slug = "dock-panel",
+        category = "<key:dock.panel.category>",
+        summary = "<key:dock.panel.summary>",
+        order = 120)
+@WikiSection(title = "<key:dock.panel.section.overview.title>",
+        markdown = "<key:dock.panel.section.overview.body>", order = 10)
+@WikiSection(title = "<key:dock.panel.section.fill.title>",
+        markdown = "<key:dock.panel.section.fill.body>", order = 20)
+@WikiExample(title = "<key:dock.panel.example.shell.title>",
+        code = "<key:dock.panel.example.shell.code>", order = 10)
+@WikiLink(label = "PanelWidget", target = "page:panel-widget")
+@WikiLink(label = "SplitPanel", target = "page:split-panel")
+@WikiLink(label = "Box", target = "page:box")
 @XmlWidgetName("DockPanel")
 public final class DockPanel extends PanelWidget {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.DOCK_PANEL;
@@ -50,7 +90,10 @@ public final class DockPanel extends PanelWidget {
      * @param child дочерний виджет; {@code null} игнорируется
      * @param dockSide сторона приклеивания; {@code null} трактуется как {@link DockSide#LEFT}
      */
-    public void addChild(Widget child, DockSide dockSide) {
+    @WikiMethod(order = 10, title = "<key:dock.panel.method.add_child.title>", summary = "<key:dock.panel.method.add_child>")
+    @AiDoc(section = "Layout", sectionOrder = 10, order = 10, summary = "Adds a child widget docked to a specific edge.")
+    public void addChild(@WikiParameter(description = "<key:dock.panel.param.child>") Widget child,
+                         @WikiParameter(description = "<key:dock.panel.param.dock_side>") DockSide dockSide) {
         if (child == null) return;
         docks.put(child, dockSide == null ? DockSide.LEFT : dockSide);
         super.addChild(child);
@@ -73,7 +116,11 @@ public final class DockPanel extends PanelWidget {
      * @param dockSide новая сторона; {@code null} трактуется как {@link DockSide#LEFT}
      * @return этот контейнер для fluent-настройки
      */
-    public DockPanel dockSide(Widget child, DockSide dockSide) {
+    @WikiMethod(order = 20, title = "<key:dock.panel.method.dock_side.title>", summary = "<key:dock.panel.method.dock_side>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Layout", sectionOrder = 10, order = 20, summary = "Sets dock side for an existing or future child.")
+    public DockPanel dockSide(@WikiParameter(description = "<key:dock.panel.param.child>") Widget child,
+                              @WikiParameter(description = "<key:dock.panel.param.dock_side>") DockSide dockSide) {
         if (child == null) return this;
         DockSide normalized = dockSide == null ? DockSide.LEFT : dockSide;
         if (dockSide(child) == normalized) return this;
@@ -98,7 +145,10 @@ public final class DockPanel extends PanelWidget {
      * @return этот контейнер для fluent-настройки
      */
     @XmlAttribute(value = "lastChildFill", category = "Layout", defaultValue = "true", description = "Whether the last child fills the remaining dock area.")
-    public DockPanel lastChildFill(boolean lastChildFill) {
+    @WikiMethod(order = 30, title = "<key:dock.panel.method.last_child_fill.title>", summary = "<key:dock.panel.method.last_child_fill>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Layout", sectionOrder = 10, order = 30, summary = "Controls whether the last child expands to occupy remaining space.")
+    public DockPanel lastChildFill(@WikiParameter(description = "<key:dock.panel.param.last_child_fill>") boolean lastChildFill) {
         if (this.lastChildFill == lastChildFill) return this;
         this.lastChildFill = lastChildFill;
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);

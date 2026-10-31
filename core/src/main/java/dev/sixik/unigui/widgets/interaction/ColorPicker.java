@@ -34,7 +34,40 @@ import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.feedback.Popup;
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 
+@AiDoc(
+        summary = "Interactive color selection control providing RGBA sliders, hex input, and popup palette.",
+        purpose = "Allows users to inspect and adjust RGB or RGBA color channels visually in an interactive popup.",
+        useWhen = {
+                "Custom theme customization and color configuration screens.",
+                "Particle or render effect tint pickers."
+        },
+        criticalRules = {
+                "Supports packed 32-bit ARGB values and floating-point ColorView instances.",
+                "Emits ColorChangedEvent when channels or hex strings are edited."
+        },
+        related = {"ColorView", "MutableColor", "Slider", "Popup"})
+@WikiPage(
+        title = "<key:color.picker.title>",
+        slug = "color-picker",
+        category = "<key:core.widgets.interaction.category>",
+        summary = "<key:color.picker.summary>",
+        order = 220)
+@WikiSection(
+        title = "<key:color.picker.section.overview.title>",
+        markdown = "<key:color.picker.section.overview.body>",
+        order = 10)
+@WikiExample(
+        title = "<key:color.picker.example.basic.title>",
+        code = "<key:color.picker.example.basic.code>",
+        order = 10)
 @XmlWidgetName("ColorPicker")
 public final class ColorPicker extends LinearBox {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.COLOR_PICKER;
@@ -112,10 +145,16 @@ public final class ColorPicker extends LinearBox {
         type(Type.HSV);
     }
 
+    @WikiMethod(
+            title = "<key:color.picker.method.color.title>",
+            summary = "<key:color.picker.method.color.summary>")
     public ColorView color() {
         return color;
     }
 
+    @WikiMethod(
+            title = "<key:color.picker.method.argb.title>",
+            summary = "<key:color.picker.method.argb.summary>")
     public int argb() {
         return (channel(color.a()) << 24)
                 | (channel(color.r()) << 16)
@@ -124,6 +163,9 @@ public final class ColorPicker extends LinearBox {
     }
 
     @XmlAttribute(value = "color", category = "Appearance", defaultValue = "#FFFFFFFF", description = "Selected color parsed from XML color syntax.")
+    @WikiMethod(
+            title = "<key:color.picker.method.set_color.title>",
+            summary = "<key:color.picker.method.set_color.summary>")
     public ColorPicker color(ColorView color) {
         if (color != null) {
             setColor(color.r(), color.g(), color.b(), color.a(), false);
@@ -132,6 +174,9 @@ public final class ColorPicker extends LinearBox {
     }
 
     @XmlAttribute(value = "argb", category = "Appearance", defaultValue = "-1", description = "Selected color as packed ARGB integer.")
+    @WikiMethod(
+            title = "<key:color.picker.method.set_argb.title>",
+            summary = "<key:color.picker.method.set_argb.summary>")
     public ColorPicker argb(int argb) {
         return rgba255(
                 (argb >>> 16) & 0xFF,
@@ -140,6 +185,9 @@ public final class ColorPicker extends LinearBox {
                 (argb >>> 24) & 0xFF);
     }
 
+    @WikiMethod(
+            title = "<key:color.picker.method.rgba255.title>",
+            summary = "<key:color.picker.method.rgba255.summary>")
     public ColorPicker rgba255(int red, int green, int blue, int alpha) {
         setColor(
                 clamp255(red) / 255.0f,
@@ -150,11 +198,17 @@ public final class ColorPicker extends LinearBox {
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:color.picker.method.type.title>",
+            summary = "<key:color.picker.method.type.summary>")
     public Type type() {
         return type;
     }
 
     @XmlAttribute(value = "type", category = "Behavior", defaultValue = "hsv", description = "Visible picker editing mode.")
+    @WikiMethod(
+            title = "<key:color.picker.method.set_type.title>",
+            summary = "<key:color.picker.method.set_type.summary>")
     public ColorPicker type(Type type) {
         Type normalized = type == null ? Type.HSV : type;
         this.type = normalized;
@@ -166,6 +220,9 @@ public final class ColorPicker extends LinearBox {
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:color.picker.method.preview.title>",
+            summary = "<key:color.picker.method.preview.summary>")
     public Button preview() {
         return preview;
     }
@@ -182,6 +239,9 @@ public final class ColorPicker extends LinearBox {
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:color.picker.method.popup.title>",
+            summary = "<key:color.picker.method.popup.summary>")
     public Popup popup() {
         return popup;
     }
@@ -193,6 +253,9 @@ public final class ColorPicker extends LinearBox {
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:color.picker.method.on_color_changed.title>",
+            summary = "<key:color.picker.method.on_color_changed.summary>")
     public EventSubscription onColorChanged(EventListener<? super ColorChangedEvent> listener) {
         return on(ColorChangedEvent.TYPE, listener);
     }

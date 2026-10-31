@@ -22,6 +22,8 @@ import dev.sixik.unigui.impl.render.ScissorStack;
 import dev.sixik.unigui.impl.render.SimpleDrawBatcher;
 import dev.sixik.unigui.impl.text.TextEngine;
 import net.minecraft.client.Minecraft;
+import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.item.ItemStack;
 import net.minecraft.client.renderer.OpenGlHelper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -38,10 +40,10 @@ import java.util.List;
  * (see {@link CleanroomGlState}). Clip commands are kept on a {@link ScissorStack}, so nested clips intersect
  * and {@code POP_CLIP} restores the parent clip instead of disabling the scissor test.</p>
  */
-final class CleanroomGuiRenderBackend implements RenderBackend, UiPostEffectBackend, AutoCloseable {
+public final class CleanroomGuiRenderBackend implements RenderBackend, UiPostEffectBackend, AutoCloseable {
     private static final Logger LOGGER = LogManager.getLogger("unigui");
     private static final RenderTargetOptions POST_EFFECT_LAYER_TARGET =
-            new RenderTargetOptions(false, true, "post_effect_layer");
+            new RenderTargetOptions(true, true, "post_effect_layer");
     private static final RenderTargetOptions POST_EFFECT_PING_TARGET =
             new RenderTargetOptions(false, true, "post_effect_ping");
 
@@ -71,6 +73,7 @@ final class CleanroomGuiRenderBackend implements RenderBackend, UiPostEffectBack
     private boolean postEffectsBroken;
     private FontFace defaultFont = MinecraftFonts.defaultFace();
     private boolean frameActive;
+    private boolean gpuTimed;
 
     CleanroomGuiRenderBackend(CleanroomRenderHost screen) {
         this.screen = screen;
@@ -123,6 +126,8 @@ final class CleanroomGuiRenderBackend implements RenderBackend, UiPostEffectBack
     @Override
     public void beginFrame(FrameContext frame) {
         frameActive = true;
+        gpuTimed = CleanroomGpuTimer.begin();
+        CleanroomItemIcons.shared().beginFrame();
         CleanroomGlCapabilities.get();
         glState.capture();
         glState.applyUiDefaults();
@@ -202,6 +207,127 @@ final class CleanroomGuiRenderBackend implements RenderBackend, UiPostEffectBack
             if (standalone) glState.restore();
             guard.restore();
         }
+    }
+
+    // ---- Minecraft content: items, entities, tooltips -----------------------------------------------------------
+
+    /**
+     * Draws an item stack, scaled to a square.
+     *
+     * <p>Items with a stable picture come from a baked icon texture (see {@link CleanroomItemIcons}); the rest are
+     * drawn live by the vanilla item renderer. Vanilla cannot draw an item translucent, so {@code opacity} only
+     * affects baked icons; a live item is opaque unless {@code opacity} is {@code 0}.</p>
+     *
+     * @param stack       stack to draw
+     * @param x           left edge in the current coordinate space
+     * @param y           top edge
+     * @param size        edge of the square
+     * @param opacity     {@code 0..1} alpha for baked icons
+     * @param decorations whether to add the count and the durability bar
+     */
+    public void renderItemPreview(ItemStack stack, float x, float y, float size, float opacity,
+                                  boolean decorations) {
+        if (stack == null || stack.isEmpty() || !(size > 0.0f) || !(opacity > 0.0f)) return;
+        TextureHandle icon = CleanroomItemIcons.shared().bakeIfBudget(stack, size * pass.pixelsPerUnitX());
+        if (icon != null) {
+            drawIcon(icon, x, y, size, opacity);
+            if (decorations) CleanroomVanillaDraw.overlay(stack, x, y, size);
+            return;
+        }
+        CleanroomVanillaDraw.item(stack, x, y, size, decorations);
+    }
+
+    /**
+     * Like {@link #renderItemPreview} without decorations, but for lists: a cacheable item whose icon does not fit in
+     * this frame's bake budget is not drawn at all.
+     *
+     * @return {@code false} if nothing was drawn and the caller should try again next frame
+     */
+    public boolean renderItemPreviewLazy(ItemStack stack, float x, float y, float size, float opacity) {
+        if (stack == null || stack.isEmpty() || !(size > 0.0f)) return false;
+        CleanroomItemIcons icons = CleanroomItemIcons.shared();
+        TextureHandle icon = icons.bakeIfBudget(stack, size * pass.pixelsPerUnitX());
+        if (icon != null) {
+            drawIcon(icon, x, y, size, opacity);
+            return true;
+        }
+        if (icons.cacheable(stack)) return false;
+        CleanroomVanillaDraw.item(stack, x, y, size, false);
+        return true;
+    }
+
+    /**
+     * @param stack stack to look up
+     * @param size  on-screen edge of the item in UI units
+     * @return the baked icon if it exists already (never bakes), otherwise {@code null}
+     */
+    public TextureHandle cachedItemPreviewTexture(ItemStack stack, float size) {
+        return CleanroomItemIcons.shared().cached(stack, size * pass.pixelsPerUnitX());
+    }
+
+    /**
+     * Drops every baked item icon.
+     */
+    public void clearItemPreviewCache() {
+        CleanroomItemIcons.shared().clear();
+    }
+
+    /**
+     * Draws a living entity in the pose of the inventory screen.
+     *
+     * @return {@code false} if the entity could not be drawn
+     */
+    public boolean renderEntityPreview(EntityLivingBase entity, float x, float y, float size, float lookX,
+                                       float lookY, float opacity) {
+        if (!(opacity > 0.0f)) return true;
+        return CleanroomVanillaDraw.entity(entity, x, y, size, lookX, lookY);
+    }
+
+    /**
+     * Draws a vanilla tooltip for text lines.
+     *
+     * @param lines text lines, formatting codes allowed
+     * @param x     anchor x; the box sits 12 units to its right
+     * @param y     anchor y; the box sits 12 units above it
+     */
+    public void renderVanillaTooltip(List<String> lines, float x, float y) {
+        CleanroomVanillaDraw.tooltip(lines, ItemStack.EMPTY, Math.round(x), Math.round(y), tooltipWidth(),
+                tooltipHeight());
+    }
+
+    /**
+     * Draws the vanilla tooltip of an item stack (name, lore, mod additions, advanced flags).
+     */
+    public void renderVanillaTooltip(ItemStack stack, float x, float y) {
+        if (stack == null || stack.isEmpty()) return;
+        CleanroomVanillaDraw.tooltip(CleanroomVanillaDraw.itemTooltipLines(stack), stack, Math.round(x),
+                Math.round(y), tooltipWidth(), tooltipHeight());
+    }
+
+    /**
+     * Draws a draw list nested in the current commands, for example inside a custom draw.
+     *
+     * @param drawList        commands to draw
+     * @param coordinateScale unused on 1.12.2: the modelview matrix already carries the scale
+     */
+    public void renderNested(DrawList drawList, float coordinateScale) {
+        if (drawList == null || drawList.size() == 0) return;
+        renderBatches(drawList);
+    }
+
+    private int tooltipWidth() {
+        return Math.round(pass.logicalWidth() / Math.max(0.01f, pass.uiScale()));
+    }
+
+    private int tooltipHeight() {
+        return Math.round(pass.logicalHeight() / Math.max(0.01f, pass.uiScale()));
+    }
+
+    private void drawIcon(TextureHandle icon, float x, float y, float size, float opacity) {
+        DrawCommand command = DrawCommand.texture(icon, new MutableRect(x, y, size, size),
+                Paint.fill(new MutableColor(1.0f, 1.0f, 1.0f, Math.max(0.0f, Math.min(1.0f, opacity)))));
+        CleanroomGlState.blend(command.paint().blendMode());
+        shapeRenderer.renderTexturedCommand(command);
     }
 
     // ---- post effects -------------------------------------------------------------------------------------------
@@ -394,6 +520,10 @@ final class CleanroomGuiRenderBackend implements RenderBackend, UiPostEffectBack
     @Override
     public void endFrame() {
         frameActive = false;
+        if (gpuTimed) {
+            gpuTimed = false;
+            CleanroomGpuTimer.end();
+        }
         scissorStack.clear();
         CleanroomGlState.disableScissor();
         CleanroomGlState.checkError("UniGUI frame");

@@ -51,6 +51,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 
 /**
  * Виджет административной консоли с историей вывода, строкой ввода команд и popup-меню автодополнения.
@@ -78,6 +85,32 @@ import java.util.Objects;
  * @see CompletionItem
  * @see CommandInvocation
  */
+@AiDoc(
+        summary = "Interactive developer and administrative console widget with command execution and log output.",
+        purpose = "Provides an in-game terminal for debugging, command dispatching, and formatted log viewing.",
+        useWhen = {
+                "Developer debugging overlays or admin control screens.",
+                "Custom command-line interfaces within Minecraft GUIs."
+        },
+        criticalRules = {
+                "Integrates with AdminCommandRegistry for command definitions and autocompletion.",
+                "Stores history of executed commands accessible via Up and Down arrow keys."
+        },
+        related = {"AdminCommandRegistry", "Box", "TextField"})
+@WikiPage(
+        title = "<key:admin.console.title>",
+        slug = "admin-console",
+        category = "<key:core.widgets.interaction.category>",
+        summary = "<key:admin.console.summary>",
+        order = 380)
+@WikiSection(
+        title = "<key:admin.console.section.overview.title>",
+        markdown = "<key:admin.console.section.overview.body>",
+        order = 10)
+@WikiExample(
+        title = "<key:admin.console.example.basic.title>",
+        code = "<key:admin.console.example.basic.code>",
+        order = 10)
 @XmlWidgetName("AdminConsole")
 public class AdminConsole extends Box {
     protected static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
@@ -231,6 +264,9 @@ public class AdminConsole extends Box {
      *
      * @return реестр команд и аргументов
      */
+    @WikiMethod(
+            title = "<key:admin.console.method.command_registry.title>",
+            summary = "<key:admin.console.method.command_registry.summary>")
     public AdminCommandRegistry commandRegistry() {
         return commandRegistry;
     }
@@ -240,6 +276,9 @@ public class AdminConsole extends Box {
      *
      * @return текст input-поля
      */
+    @WikiMethod(
+            title = "<key:admin.console.method.input_text.title>",
+            summary = "<key:admin.console.method.input_text.summary>")
     public String inputText() {
         return inputField.text();
     }
@@ -262,6 +301,9 @@ public class AdminConsole extends Box {
      * @param title новый заголовок, {@code null} заменяется на значение по умолчанию
      * @return эта консоль для fluent-настройки
      */
+    @WikiMethod(
+            title = "<key:admin.console.method.title.title>",
+            summary = "<key:admin.console.method.title.summary>")
     public AdminConsole title(String title) {
         this.title = normalize(title, "Admin Console");
         this.titleRichText = RichText.resolve(this.title);
@@ -282,6 +324,9 @@ public class AdminConsole extends Box {
      * @param prompt текст prompt, например {@code ">"} или {@code "/"}
      * @return эта консоль для fluent-настройки
      */
+    @WikiMethod(
+            title = "<key:admin.console.method.prompt.title>",
+            summary = "<key:admin.console.method.prompt.summary>")
     public AdminConsole prompt(String prompt) {
         this.prompt = normalize(prompt, ">");
         this.promptRichText = RichText.resolve(this.prompt);

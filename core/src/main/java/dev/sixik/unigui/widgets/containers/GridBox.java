@@ -1,5 +1,14 @@
 package dev.sixik.unigui.widgets.containers;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.layout.GridAutoFlow;
 import dev.sixik.unigui.api.layout.GridTrack;
@@ -25,6 +34,33 @@ import dev.sixik.unigui.impl.layout.v3.LayoutV3GridAdapter;
  * {@code LayoutConstraints}/{@code LayoutStyle}; сам контейнер отвечает только
  * за разбиение доступной области на ячейки.</p>
  */
+@AiDoc(
+        summary = "Multi-column grid container placing children into uniform cells or custom track templates.",
+        purpose = "Arranges children row by row into uniform columns or CSS Grid tracks with independent horizontal/vertical spacing.",
+        useWhen = {
+                "Display items in a grid: inventory slots, gallery tiles, or tabular control panels.",
+                "Define custom column/row sizing tracks using GridTrack templates."
+        },
+        criticalRules = {
+                "columns() must be >= 1.",
+                "Custom gridColumns(GridTrack...) overrides uniform column division."
+        },
+        related = {"LayoutStyle", "FlexBox", "PanelWidget"},
+        examples = @AiDoc.Example(
+                title = "3-column grid",
+                code = "GridBox grid = new GridBox().columns(3).spacing(8.0f);"))
+@WikiPage(
+        title = "<key:grid.box.title>",
+        slug = "grid-box",
+        category = "<key:grid.box.category>",
+        summary = "<key:grid.box.summary>",
+        order = 80)
+@WikiSection(title = "<key:grid.box.section.overview.title>",
+        markdown = "<key:grid.box.section.overview.body>", order = 10)
+@WikiExample(title = "<key:grid.box.example.basic.title>",
+        code = "<key:grid.box.example.basic.code>", order = 10)
+@WikiLink(label = "LayoutStyle", target = "page:layout-style")
+@WikiLink(label = "FlexBox", target = "page:flex-box")
 @XmlWidgetName("GridBox")
 public final class GridBox extends PanelWidget {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.GRID_BOX;
@@ -49,7 +85,10 @@ public final class GridBox extends PanelWidget {
      * @return эта сетка для fluent-настройки
      */
     @XmlAttribute(value = "columns", category = "Layout", defaultValue = "1", description = "Number of grid columns.")
-    public GridBox columns(int columns) {
+    @WikiMethod(order = 10, title = "<key:grid.box.method.columns.title>", summary = "<key:grid.box.method.columns.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Layout", sectionOrder = 10, order = 10, summary = "Sets fixed number of columns for grid arrangement.")
+    public GridBox columns(@WikiParameter(description = "<key:grid.box.method.columns.param>") int columns) {
         int normalized = Math.max(1, columns);
         if (this.columns == normalized) return this;
         this.columns = normalized;
@@ -113,7 +152,10 @@ public final class GridBox extends PanelWidget {
      * @return эта сетка для fluent-настройки
      */
     @XmlAttribute(value = "horizontalSpacing", category = "Layout", defaultValue = "0", description = "Horizontal gap between grid columns.")
-    public GridBox horizontalSpacing(float horizontalSpacing) {
+    @WikiMethod(order = 30, title = "<key:grid.box.method.horizontal_spacing.title>", summary = "<key:grid.box.method.horizontal_spacing.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Layout", sectionOrder = 10, order = 30, summary = "Sets horizontal gap between columns.")
+    public GridBox horizontalSpacing(@WikiParameter(description = "<key:grid.box.method.horizontal_spacing.param>") float horizontalSpacing) {
         if (this.horizontalSpacing == horizontalSpacing) return this;
         this.horizontalSpacing = horizontalSpacing;
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
@@ -136,7 +178,10 @@ public final class GridBox extends PanelWidget {
      * @return эта сетка для fluent-настройки
      */
     @XmlAttribute(value = "verticalSpacing", category = "Layout", defaultValue = "0", description = "Vertical gap between grid rows.")
-    public GridBox verticalSpacing(float verticalSpacing) {
+    @WikiMethod(order = 40, title = "<key:grid.box.method.vertical_spacing.title>", summary = "<key:grid.box.method.vertical_spacing.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Layout", sectionOrder = 10, order = 40, summary = "Sets vertical gap between rows.")
+    public GridBox verticalSpacing(@WikiParameter(description = "<key:grid.box.method.vertical_spacing.param>") float verticalSpacing) {
         if (this.verticalSpacing == verticalSpacing) return this;
         this.verticalSpacing = verticalSpacing;
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
@@ -149,7 +194,10 @@ public final class GridBox extends PanelWidget {
      * @param spacing расстояние между ячейками в пикселях UI-пространства
      * @return эта сетка для fluent-настройки
      */
-    public GridBox spacing(float spacing) {
+    @WikiMethod(order = 20, title = "<key:grid.box.method.spacing.title>", summary = "<key:grid.box.method.spacing.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Layout", sectionOrder = 10, order = 20, summary = "Sets uniform row and column spacing in UI pixels.")
+    public GridBox spacing(@WikiParameter(description = "<key:grid.box.method.spacing.param>") float spacing) {
         return horizontalSpacing(spacing).verticalSpacing(spacing);
     }
 

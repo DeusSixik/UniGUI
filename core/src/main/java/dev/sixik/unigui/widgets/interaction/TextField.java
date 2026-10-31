@@ -1,5 +1,13 @@
 package dev.sixik.unigui.widgets.interaction;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.input.TextEditorModel;
 import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.widgets.WidgetStyles;
@@ -15,6 +23,31 @@ import dev.sixik.unigui.api.style.StyleIds;
  * chrome and uses the TEXT_FIELD renderer type. Prefer TextField for normal
  * user-facing form controls; use TextInput when a raw/editor-base control is needed.</p>
  */
+@AiDoc(
+        summary = "Standard user-facing single-line text input field.",
+        purpose = "Default component for textual user input in forms and dialogs.",
+        useWhen = {"Collecting usernames, emails, names, and general text strings."},
+        related = {"TextInput", "TextArea", "NumberField"}
+)
+@WikiPage(
+        title = "<key:text.field.title>",
+        slug = "text-field",
+        category = "<key:core.widgets.interaction.category>",
+        summary = "<key:text.field.summary>",
+        order = 120
+)
+@WikiSection(
+        title = "<key:text.field.section.overview.title>",
+        markdown = "<key:text.field.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:text.field.example.basic.title>",
+        code = "<key:text.field.example.basic.code>",
+        order = 10
+)
+@WikiLink(label = "TextInput", target = "page:text-input")
+@WikiLink(label = "TextArea", target = "page:text-area")
 @XmlWidgetName("TextField")
 public class TextField extends TextInput {
     public static final String STYLE_TYPE = StyleIds.Widget.TEXT_FIELD;

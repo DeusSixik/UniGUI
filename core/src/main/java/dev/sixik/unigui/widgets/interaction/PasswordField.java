@@ -1,5 +1,13 @@
 package dev.sixik.unigui.widgets.interaction;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
@@ -8,6 +16,30 @@ import dev.sixik.unigui.api.style.StyleIds;
 import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.widgets.WidgetStyles;
 
+@AiDoc(
+        summary = "Masked text field obscuring input with bullet or asterisk characters.",
+        purpose = "Provides secure input for sensitive information like passwords or PINs.",
+        useWhen = {"Login screens, API key input, secret tokens."},
+        related = {"TextInput", "TextField"}
+)
+@WikiPage(
+        title = "<key:password.field.title>",
+        slug = "password-field",
+        category = "<key:core.widgets.interaction.category>",
+        summary = "<key:password.field.summary>",
+        order = 140
+)
+@WikiSection(
+        title = "<key:password.field.section.overview.title>",
+        markdown = "<key:password.field.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:password.field.example.basic.title>",
+        code = "<key:password.field.example.basic.code>",
+        order = 10
+)
+@WikiLink(label = "TextInput", target = "page:text-input")
 @XmlWidgetName("PasswordField")
 public class PasswordField extends TextInput {
     public static final String STYLE_TYPE = StyleIds.Widget.PASSWORD_FIELD;
@@ -38,7 +70,9 @@ public class PasswordField extends TextInput {
         return mask;
     }
 
-    public PasswordField mask(char mask) {
+    @WikiMethod(order = 10, title = "<key:password.field.method.mask.title>", summary = "<key:password.field.method.mask.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public PasswordField mask(@WikiParameter(description = "<key:password.field.param.mask>") char mask) {
         this.mask = mask == 0 ? '\u2022' : mask;
         invalidate(InvalidationFlags.VISUAL);
         return this;

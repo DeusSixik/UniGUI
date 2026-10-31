@@ -2,6 +2,7 @@ package dev.sixik.unigui.cleanroom.backend;
 
 import dev.sixik.unigui.api.render.BlendMode;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.RenderHelper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.lwjgl.BufferUtils;
@@ -119,6 +120,36 @@ final class CleanroomGlState {
         GlStateManager.shadeModel(GL11.GL_SMOOTH);
         GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
         GL11.glDisable(GL11.GL_SCISSOR_TEST);
+    }
+
+    /**
+     * Brings GL back to the UI state after vanilla drawing code (items, entities, tooltips), which leaves lighting,
+     * depth test, rescale-normal, color material and its own blend function enabled.
+     */
+    static void afterVanilla() {
+        GlStateManager.matrixMode(GL11.GL_MODELVIEW);
+        RenderHelper.disableStandardItemLighting();
+        GlStateManager.disableRescaleNormal();
+        GlStateManager.disableColorMaterial();
+        GlStateManager.disableLighting();
+        GlStateManager.disableDepth();
+        GlStateManager.depthFunc(GL11.GL_LEQUAL);
+        GlStateManager.depthMask(true);
+        GlStateManager.enableBlend();
+        blend(BlendMode.NORMAL);
+        GlStateManager.disableAlpha();
+        GlStateManager.enableTexture2D();
+        GlStateManager.shadeModel(GL11.GL_SMOOTH);
+        GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
+    }
+
+    /**
+     * Clears the depth buffer of the bound framebuffer (inside the scissor box, if one is active), so that depth
+     * written by earlier items or by the world can neither hide nor be hidden by the next 3D preview.
+     */
+    static void clearDepth() {
+        GlStateManager.depthMask(true);
+        GlStateManager.clear(GL11.GL_DEPTH_BUFFER_BIT);
     }
 
     /**

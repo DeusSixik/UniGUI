@@ -37,7 +37,40 @@ import dev.sixik.unigui.impl.widget.WidgetBase;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.List;
 import java.util.Objects;
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 
+@AiDoc(
+        summary = "Abstract foundation widget for text rendering components supporting plain strings, RichText, fonts, colors, and gradients.",
+        purpose = "Provides shared font selection, text measurement, color brushes, and gradient styling for text widgets.",
+        useWhen = {
+                "Base class for custom text rendering components.",
+                "Applying common text styling (fonts, size, gradients) across text views."
+        },
+        criticalRules = {
+                "Supports both plain text String and styled RichText models.",
+                "Automatically invalidates layout on font or content changes."
+        },
+        related = {"Label", "Text", "TextBlock", "RichTextView", "FontFace"})
+@WikiPage(
+        title = "<key:text.widget.title>",
+        slug = "text-widget",
+        category = "<key:core.widgets.display.category>",
+        summary = "<key:text.widget.summary>",
+        order = 10)
+@WikiSection(
+        title = "<key:text.widget.section.overview.title>",
+        markdown = "<key:text.widget.section.overview.body>",
+        order = 10)
+@WikiExample(
+        title = "<key:text.widget.example.basic.title>",
+        code = "<key:text.widget.example.basic.code>",
+        order = 10)
 @XmlWidgetName("TextWidget")
 public class TextWidget extends WidgetBase {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TEXT_WIDGET;
@@ -95,6 +128,9 @@ public class TextWidget extends WidgetBase {
     }
 
     @XmlAttribute(value = "text", category = "Content", defaultValue = "", description = "Plain text content displayed by the widget.")
+    @WikiMethod(
+            title = "<key:text.widget.method.text.title>",
+            summary = "<key:text.widget.method.text.summary>")
     public TextWidget text(String text) {
         String normalized = normalize(text);
         RichText normalizedRichText = RichText.resolve(normalized);
@@ -110,6 +146,9 @@ public class TextWidget extends WidgetBase {
         return richText;
     }
 
+    @WikiMethod(
+            title = "<key:text.widget.method.rich_text.title>",
+            summary = "<key:text.widget.method.rich_text.summary>")
     public TextWidget richText(RichText richText) {
         RichText normalized = richText == null ? RichText.plain("") : richText;
         if (Objects.equals(this.richText, normalized)) return this;
@@ -121,6 +160,9 @@ public class TextWidget extends WidgetBase {
     }
 
     /** Selects a face for the current plain text while preserving the normal TextWidget API. */
+    @WikiMethod(
+            title = "<key:text.widget.method.font.title>",
+            summary = "<key:text.widget.method.font.summary>")
     public TextWidget font(FontFace font, float pixelSize) {
         return richText(RichText.of(text, font, pixelSize));
     }
@@ -131,6 +173,9 @@ public class TextWidget extends WidgetBase {
      * @param brush brush или {@code null}, чтобы вернуть обычную solid-заливку
      * @return этот widget для fluent-настройки
      */
+    @WikiMethod(
+            title = "<key:text.widget.method.text_brush.title>",
+            summary = "<key:text.widget.method.text_brush.summary>")
     public TextWidget textBrush(TextBrush brush) {
         return richText(effectiveRichText().withBrush(brush));
     }
@@ -158,6 +203,9 @@ public class TextWidget extends WidgetBase {
      * @param angleDegrees угол направления в градусах
      * @return этот widget для fluent-настройки
      */
+    @WikiMethod(
+            title = "<key:text.widget.method.text_gradient.title>",
+            summary = "<key:text.widget.method.text_gradient.summary>")
     public TextWidget textGradient(ColorView startColor, ColorView endColor, float angleDegrees) {
         return textBrush(TextBrush.linearGradient(startColor, endColor, angleDegrees));
     }

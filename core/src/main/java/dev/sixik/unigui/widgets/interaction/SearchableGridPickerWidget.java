@@ -41,6 +41,13 @@ import dev.sixik.unigui.widgets.data.VirtualListView;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.feedback.Tooltip;
 import dev.sixik.unigui.widgets.feedback.WindowWidget;
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 
 /**
  * Generic searchable modal grid picker.
@@ -49,6 +56,32 @@ import dev.sixik.unigui.widgets.feedback.WindowWidget;
  * search field, virtualized icon grid, tooltip, filtering, selection, and item recycling.
  * Subclasses only provide entry-specific text, selected-preview updates and icon drawing.</p>
  */
+@AiDoc(
+        summary = "Abstract searchable dialog picker displaying items in a virtualized grid with preview, filter, and tooltip.",
+        purpose = "Provides a foundation for complex modal pickers (items, blocks, icons, emojis) with search and virtualized rendering.",
+        useWhen = {
+                "Building modal pickers for large catalogs of items or icons.",
+                "Subclasses customize item rendering, search keys, and tooltip texts."
+        },
+        criticalRules = {
+                "VirtualListView handles efficient recycling of grid cell elements.",
+                "Search query automatically filters entries in real time."
+        },
+        related = {"VirtualListView", "SearchField", "WindowWidget", "OverlayLayer"})
+@WikiPage(
+        title = "<key:searchable.grid.picker.title>",
+        slug = "searchable-grid-picker-widget",
+        category = "<key:core.widgets.interaction.category>",
+        summary = "<key:searchable.grid.picker.summary>",
+        order = 250)
+@WikiSection(
+        title = "<key:searchable.grid.picker.section.overview.title>",
+        markdown = "<key:searchable.grid.picker.section.overview.body>",
+        order = 10)
+@WikiExample(
+        title = "<key:searchable.grid.picker.example.basic.title>",
+        code = "<key:searchable.grid.picker.example.basic.code>",
+        order = 10)
 public abstract class SearchableGridPickerWidget<T> extends LinearBox {
     protected static final float SUMMARY_HEIGHT = 38.0f;
     protected static final float DEFAULT_TILE_SIZE = 34.0f;
@@ -135,18 +168,30 @@ public abstract class SearchableGridPickerWidget<T> extends LinearBox {
         buildDialog(sanitizePositive(dialogWidth, DEFAULT_DIALOG_WIDTH), sanitizePositive(dialogHeight, DEFAULT_DIALOG_HEIGHT));
     }
 
+    @WikiMethod(
+            title = "<key:searchable.grid.picker.method.open_button.title>",
+            summary = "<key:searchable.grid.picker.method.open_button.summary>")
     public Button openButton() {
         return openButton;
     }
 
+    @WikiMethod(
+            title = "<key:searchable.grid.picker.method.search_field.title>",
+            summary = "<key:searchable.grid.picker.method.search_field.summary>")
     public SearchField searchField() {
         return searchField;
     }
 
+    @WikiMethod(
+            title = "<key:searchable.grid.picker.method.selected_preview.title>",
+            summary = "<key:searchable.grid.picker.method.selected_preview.summary>")
     public WidgetBase selectedPreview() {
         return selectedPreview;
     }
 
+    @WikiMethod(
+            title = "<key:searchable.grid.picker.method.result_grid.title>",
+            summary = "<key:searchable.grid.picker.method.result_grid.summary>")
     public VirtualListView resultGrid() {
         return resultGrid;
     }
@@ -155,6 +200,9 @@ public abstract class SearchableGridPickerWidget<T> extends LinearBox {
         return resultGrid;
     }
 
+    @WikiMethod(
+            title = "<key:searchable.grid.picker.method.dialog.title>",
+            summary = "<key:searchable.grid.picker.method.dialog.summary>")
     public WindowWidget dialog() {
         return dialog;
     }
@@ -167,10 +215,16 @@ public abstract class SearchableGridPickerWidget<T> extends LinearBox {
         return idTooltip;
     }
 
+    @WikiMethod(
+            title = "<key:searchable.grid.picker.method.opened.title>",
+            summary = "<key:searchable.grid.picker.method.opened.summary>")
     public boolean opened() {
         return dialog.opened();
     }
 
+    @WikiMethod(
+            title = "<key:searchable.grid.picker.method.open.title>",
+            summary = "<key:searchable.grid.picker.method.open.summary>")
     public SearchableGridPickerWidget<T> open() {
         syncDialogAttachment();
         if (attachedOverlayLayer != null) {
@@ -179,6 +233,9 @@ public abstract class SearchableGridPickerWidget<T> extends LinearBox {
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:searchable.grid.picker.method.close.title>",
+            summary = "<key:searchable.grid.picker.method.close.summary>")
     public SearchableGridPickerWidget<T> close() {
         dialog.close();
         return this;
@@ -200,14 +257,23 @@ public abstract class SearchableGridPickerWidget<T> extends LinearBox {
         return attachedOverlayLayer;
     }
 
+    @WikiMethod(
+            title = "<key:searchable.grid.picker.method.get_entries.title>",
+            summary = "<key:searchable.grid.picker.method.get_entries.summary>")
     public List<T> entries() {
         return List.copyOf(entries);
     }
 
+    @WikiMethod(
+            title = "<key:searchable.grid.picker.method.entry_count.title>",
+            summary = "<key:searchable.grid.picker.method.entry_count.summary>")
     public int entryCount() {
         return entries.size();
     }
 
+    @WikiMethod(
+            title = "<key:searchable.grid.picker.method.filtered_entries.title>",
+            summary = "<key:searchable.grid.picker.method.filtered_entries.summary>")
     public List<T> filteredEntries() {
         return List.copyOf(filteredEntries);
     }
@@ -216,19 +282,31 @@ public abstract class SearchableGridPickerWidget<T> extends LinearBox {
         return filteredEntries.size();
     }
 
+    @WikiMethod(
+            title = "<key:searchable.grid.picker.method.query.title>",
+            summary = "<key:searchable.grid.picker.method.query.summary>")
     public String query() {
         return searchField.text();
     }
 
+    @WikiMethod(
+            title = "<key:searchable.grid.picker.method.set_query.title>",
+            summary = "<key:searchable.grid.picker.method.set_query.summary>")
     public SearchableGridPickerWidget<T> query(String query) {
         searchField.text(query);
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:searchable.grid.picker.method.clear_query.title>",
+            summary = "<key:searchable.grid.picker.method.clear_query.summary>")
     public SearchableGridPickerWidget<T> clearQuery() {
         return query("");
     }
 
+    @WikiMethod(
+            title = "<key:searchable.grid.picker.method.selected_entry.title>",
+            summary = "<key:searchable.grid.picker.method.selected_entry.summary>")
     public Optional<T> selectedEntry() {
         return Optional.ofNullable(selectedEntry);
     }
@@ -245,6 +323,9 @@ public abstract class SearchableGridPickerWidget<T> extends LinearBox {
         return resultGrid.gridColumns();
     }
 
+    @WikiMethod(
+            title = "<key:searchable.grid.picker.method.entries.title>",
+            summary = "<key:searchable.grid.picker.method.entries.summary>")
     public SearchableGridPickerWidget<T> entries(Collection<T> entries) {
         T previous = selectedEntry;
         this.entries.clear();
@@ -262,6 +343,9 @@ public abstract class SearchableGridPickerWidget<T> extends LinearBox {
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:searchable.grid.picker.method.select_index.title>",
+            summary = "<key:searchable.grid.picker.method.select_index.summary>")
     public SearchableGridPickerWidget<T> selectIndex(int index) {
         T entry = index >= 0 && index < entries.size() ? entries.get(index) : null;
         selectEntry(entry, true, false);
@@ -276,11 +360,17 @@ public abstract class SearchableGridPickerWidget<T> extends LinearBox {
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:searchable.grid.picker.method.clear_selection.title>",
+            summary = "<key:searchable.grid.picker.method.clear_selection.summary>")
     public SearchableGridPickerWidget<T> clearSelection() {
         selectEntry(null, true, false);
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:searchable.grid.picker.method.on_selection_changed.title>",
+            summary = "<key:searchable.grid.picker.method.on_selection_changed.summary>")
     public EventSubscription onSelectionChanged(EventListener<? super SelectionChangedEvent> listener) {
         return on(SelectionChangedEvent.TYPE, listener);
     }
@@ -641,4 +731,3 @@ public abstract class SearchableGridPickerWidget<T> extends LinearBox {
         }
     }
 }
-

@@ -38,8 +38,41 @@ import dev.sixik.unigui.widgets.containers.WrapPanel;
 import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.feedback.Popup;
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 
 @XmlWidgetName("DatePicker")
+@AiDoc(
+        summary = "Date selection control featuring an ISO date text field and an interactive calendar popup.",
+        purpose = "Enables visual calendar picking and ISO string parsing for date values.",
+        useWhen = {
+                "Log or event filtering by calendar date.",
+                "Birthday, expiration date, or schedule input forms."
+        },
+        criticalRules = {
+                "Values are stored as java.time.LocalDate instances.",
+                "Typing valid ISO-8601 strings in the field automatically updates the selected date."
+        },
+        related = {"TextField", "Popup", "LinearBox"})
+@WikiPage(
+        title = "<key:date.picker.title>",
+        slug = "date-picker",
+        category = "<key:core.widgets.interaction.category>",
+        summary = "<key:date.picker.summary>",
+        order = 230)
+@WikiSection(
+        title = "<key:date.picker.section.overview.title>",
+        markdown = "<key:date.picker.section.overview.body>",
+        order = 10)
+@WikiExample(
+        title = "<key:date.picker.example.basic.title>",
+        code = "<key:date.picker.example.basic.code>",
+        order = 10)
 public final class DatePicker extends LinearBox {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.DATE_PICKER;
 
@@ -108,26 +141,41 @@ public final class DatePicker extends LinearBox {
         rebuildCalendar();
     }
 
+    @WikiMethod(
+            title = "<key:date.picker.method.value.title>",
+            summary = "<key:date.picker.method.value.summary>")
     public LocalDate value() {
         return value;
     }
 
+    @WikiMethod(
+            title = "<key:date.picker.method.set_value.title>",
+            summary = "<key:date.picker.method.set_value.summary>")
     public DatePicker value(LocalDate value) {
         setValue(value, false, true);
         return this;
     }
 
     @XmlAttribute(value = "value", category = "Behavior", defaultValue = "today", description = "Selected date in ISO-8601 YYYY-MM-DD format.")
+    @WikiMethod(
+            title = "<key:date.picker.method.set_value_str.title>",
+            summary = "<key:date.picker.method.set_value_str.summary>")
     public DatePicker value(String value) {
         LocalDate parsed = value == null || value.isBlank() ? LocalDate.now() : LocalDate.parse(value);
         setValue(parsed, false, true);
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:date.picker.method.field.title>",
+            summary = "<key:date.picker.method.field.summary>")
     public TextField field() {
         return field;
     }
 
+    @WikiMethod(
+            title = "<key:date.picker.method.popup.title>",
+            summary = "<key:date.picker.method.popup.summary>")
     public Popup popup() {
         return popup;
     }
@@ -139,6 +187,9 @@ public final class DatePicker extends LinearBox {
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:date.picker.method.on_date_changed.title>",
+            summary = "<key:date.picker.method.on_date_changed.summary>")
     public EventSubscription onDateChanged(EventListener<? super DateChangedEvent> listener) {
         return on(DateChangedEvent.TYPE, listener);
     }

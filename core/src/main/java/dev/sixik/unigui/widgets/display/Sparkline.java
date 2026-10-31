@@ -31,7 +31,40 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 
+@AiDoc(
+        summary = "Compact mini trendline and telemetry chart widget with fill gradient and hover data points.",
+        purpose = "Displays high-density numerical trends in compact telemetry graphs.",
+        useWhen = {
+                "Server TPS, player ping, FPS history, or memory usage monitors.",
+                "Compact metric dashboards embedded into status bars."
+        },
+        criticalRules = {
+                "values accepts List of Numbers and scales them automatically between min and max.",
+                "Hovering near a data point highlights the value and displays an interactive tooltip."
+        },
+        related = {"Chart", "WidgetBase"})
+@WikiPage(
+        title = "<key:sparkline.title>",
+        slug = "sparkline",
+        category = "<key:core.widgets.display.category>",
+        summary = "<key:sparkline.summary>",
+        order = 130)
+@WikiSection(
+        title = "<key:sparkline.section.overview.title>",
+        markdown = "<key:sparkline.section.overview.body>",
+        order = 10)
+@WikiExample(
+        title = "<key:sparkline.example.basic.title>",
+        code = "<key:sparkline.example.basic.code>",
+        order = 10)
 @XmlWidgetName("Sparkline")
 public class Sparkline extends WidgetBase {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.SPARKLINE;
@@ -77,6 +110,9 @@ public class Sparkline extends WidgetBase {
         tooltipBorder.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
     }
 
+    @WikiMethod(
+            title = "<key:sparkline.method.values.title>",
+            summary = "<key:sparkline.method.values.summary>")
     public Sparkline values(List<? extends Number> values) {
         this.values.clear();
         if (values != null) {
@@ -93,14 +129,23 @@ public class Sparkline extends WidgetBase {
         return Collections.unmodifiableList(values);
     }
 
+    @WikiMethod(
+            title = "<key:sparkline.method.line_color.title>",
+            summary = "<key:sparkline.method.line_color.summary>")
     public MutableColor lineColor() {
         return lineColor;
     }
 
+    @WikiMethod(
+            title = "<key:sparkline.method.fill_color.title>",
+            summary = "<key:sparkline.method.fill_color.summary>")
     public MutableColor fillColor() {
         return fillColor;
     }
 
+    @WikiMethod(
+            title = "<key:sparkline.method.point_color.title>",
+            summary = "<key:sparkline.method.point_color.summary>")
     public MutableColor pointColor() {
         return pointColor;
     }

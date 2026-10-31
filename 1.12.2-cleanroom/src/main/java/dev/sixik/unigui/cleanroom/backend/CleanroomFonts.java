@@ -28,13 +28,13 @@ import java.util.Objects;
  */
 public final class CleanroomFonts {
     /**
-     * Fonts that ship inside the UniGUI jar ({@code assets/unigui/fonts}).
+     * Fonts that ship inside the UniGUI jar ({@code assets/unigui/fonts}). File names are lowercase because 1.12.2 lowercases the path of every {@code ResourceLocation}.
      */
     public enum Builtin {
         /**
          * Cuprum Bold, a narrow technical sans.
          */
-        CUPRUM_BOLD("unigui:cuprum_bold", "Cuprum-Bold.ttf"),
+        CUPRUM_BOLD("unigui:cuprum_bold", "cuprum-bold.ttf"),
         /**
          * Monocraft, a monospaced font in the Minecraft style.
          */
@@ -42,7 +42,7 @@ public final class CleanroomFonts {
         /**
          * Oswald Regular, a condensed grotesque.
          */
-        OSWALD("unigui:oswald", "Oswald-Regular.ttf"),
+        OSWALD("unigui:oswald", "oswald-regular.ttf"),
         /**
          * Perfect DOS VGA 437, a bitmap-style DOS font.
          */

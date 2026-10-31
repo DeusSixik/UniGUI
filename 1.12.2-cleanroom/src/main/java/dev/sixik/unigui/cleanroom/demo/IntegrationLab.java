@@ -21,11 +21,17 @@ import dev.sixik.unigui.cleanroom.backend.CleanroomLoadingScreen;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.impl.input.MemoryClipboardService;
 import dev.sixik.unigui.impl.widget.WidgetBase;
+import dev.sixik.unigui.widgets.containers.HBox;
 import dev.sixik.unigui.widgets.containers.StackPanel;
 import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.interaction.Button;
 import dev.sixik.unigui.widgets.interaction.TextField;
+import dev.sixik.unigui.widgets.minecraft.MinecraftBlockPreviewWidget;
+import dev.sixik.unigui.widgets.minecraft.MinecraftItemPreviewWidget;
+import net.minecraft.init.Blocks;
+import net.minecraft.init.Items;
+import net.minecraft.item.ItemStack;
 import net.minecraft.client.Minecraft;
 
 /**
@@ -41,7 +47,9 @@ public final class IntegrationLab {
     private IntegrationLab() {
     }
 
-    /** Names accepted by {@link #run}. */
+    /**
+     * Names accepted by {@link #run}.
+     */
     public static final String USAGE = "hud|overlay|loading|pause|nopause|policy";
 
     /**
@@ -108,7 +116,7 @@ public final class IntegrationLab {
 
         VBox panel = new VBox();
         panel.spacing(4.0f);
-        panel.layout(style -> style.size(150.0f, 84.0f).align(Alignment.START, Alignment.CENTER)
+        panel.layout(style -> style.size(150.0f, 116.0f).align(Alignment.START, Alignment.CENTER)
                 .margin(6.0f, 0.0f, 0.0f, 0.0f));
         panel.addChild(new Label("UniGUI overlay"));
         TextField field = new TextField();
@@ -120,6 +128,18 @@ public final class IntegrationLab {
         button.layout(style -> style.height(18.0f));
         button.onClick(event -> button.text("clicks: " + (++clicks[0])));
         panel.addChild(button);
+        // Item and block previews drawn over the vanilla slots below: they must stay above the slot items.
+        HBox previews = new HBox();
+        previews.spacing(2.0f);
+        MinecraftItemPreviewWidget sword = new MinecraftItemPreviewWidget("", new ItemStack(Items.DIAMOND_SWORD));
+        sword.labelVisible(false);
+        sword.previewSize(24.0f);
+        MinecraftBlockPreviewWidget grass = new MinecraftBlockPreviewWidget("", Blocks.GRASS);
+        grass.labelVisible(false);
+        grass.previewSize(24.0f);
+        previews.addChild(sword);
+        previews.addChild(grass);
+        panel.addChild(previews);
         root.addChild(panel);
 
         overlay = UniScreenOverlayRender.register(new UniRenderLayer(root));
@@ -185,7 +205,9 @@ public final class IntegrationLab {
                 .renderPolicy(UiRenderPolicy.onDirty()).openGui();
     }
 
-    /** Draws a frame with a title and the live loading / world state. */
+    /**
+     * Draws a frame with a title and the live loading / world state.
+     */
     private static final class StatusPanel extends WidgetBase {
         private final String title;
 
@@ -223,7 +245,9 @@ public final class IntegrationLab {
         }
     }
 
-    /** Progress bar for the loading screen: kind, message and a filled bar. */
+    /**
+     * Progress bar for the loading screen: kind, message and a filled bar.
+     */
     private static final class LoadingBar extends WidgetBase {
         @Override
         public void measure(LayoutContext context) {
@@ -256,7 +280,9 @@ public final class IntegrationLab {
         }
     }
 
-    /** Counts how many times the widget was asked to draw itself. */
+    /**
+     * Counts how many times the widget was asked to draw itself.
+     */
     private static final class RedrawCounter extends WidgetBase {
         private int redraws;
 

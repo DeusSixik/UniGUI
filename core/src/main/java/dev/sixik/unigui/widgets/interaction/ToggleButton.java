@@ -1,5 +1,13 @@
 package dev.sixik.unigui.widgets.interaction;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.event.*;
 import dev.sixik.unigui.api.input.KeyCodes;
@@ -13,6 +21,31 @@ import dev.sixik.unigui.api.widget.render.WidgetRole;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 
+@AiDoc(
+        summary = "Two-state push button maintaining an active checked boolean state.",
+        purpose = "Allows toggling modes, features, or options with persistent visual selection feedback.",
+        useWhen = {"Enabling/disabling an option or setting mode in toolbars and dialogs."},
+        related = {"Button", "ToggleToolButton", "ToggleSwitch", "Checkbox"}
+)
+@WikiPage(
+        title = "<key:toggle.button.title>",
+        slug = "toggle-button",
+        category = "<key:core.widgets.interaction.category>",
+        summary = "<key:toggle.button.summary>",
+        order = 50
+)
+@WikiSection(
+        title = "<key:toggle.button.section.overview.title>",
+        markdown = "<key:toggle.button.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:toggle.button.example.basic.title>",
+        code = "<key:toggle.button.example.basic.code>",
+        order = 10
+)
+@WikiLink(label = "Button", target = "page:button")
+@WikiLink(label = "ToggleSwitch", target = "page:toggle-switch")
 @XmlWidgetName("ToggleButton")
 public class ToggleButton extends Button {
     /** Style type id для StylePack selector/binding. */
@@ -94,6 +127,7 @@ public class ToggleButton extends Button {
         return uncheckedBackground;
     }
 
+    @WikiMethod(order = 20, title = "<key:toggle.button.method.on_checked_changed.title>", summary = "<key:toggle.button.method.on_checked_changed.summary>")
     public EventSubscription onCheckedChanged(EventListener<? super CheckedChangedEvent> listener) {
         return on(CheckedChangedEvent.TYPE, listener);
     }

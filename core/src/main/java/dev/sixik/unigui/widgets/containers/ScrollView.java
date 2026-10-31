@@ -1,5 +1,14 @@
 package dev.sixik.unigui.widgets.containers;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
@@ -54,6 +63,37 @@ import java.util.List;
  * @see ScrollBar
  * @see Overflow
  */
+@AiDoc(
+        summary = "Scrollable viewport container that hosts a single child content widget with horizontal and vertical scrolling support.",
+        purpose = "Displays large content inside a constrained viewing region, managing scroll offsets, clamping, wheel inputs, and scrollbar rendering.",
+        useWhen = {
+                "Child content may exceed visible container boundaries: item lists, text views, large canvas boards.",
+                "Require customizable overlay or reserved scrollbars with smooth wheel scrolling and Shift-axis toggling."
+        },
+        criticalRules = {
+                "A ScrollView hosts exactly one content widget set via content(Widget).",
+                "Scrolling axes are controlled by layoutStyle().overflowX/Y(...), with Overflow.AUTO showing bars when content overflows, and Overflow.HIDDEN disabling that axis.",
+                "By default overlayScrollBars is enabled, meaning scrollbars float over content rather than shrinking the viewport."
+        },
+        related = {"Box", "VBox", "PanelWidget"},
+        examples = @AiDoc.Example(
+                title = "Create ScrollView with vertical auto scroll",
+                code = "ScrollView scroll = new ScrollView(largeWidget).scrollStep(18.0f);\nscroll.layout(style -> style.overflowX(Overflow.HIDDEN).overflowY(Overflow.AUTO));"))
+@WikiPage(
+        title = "<key:scroll.view.title>",
+        slug = "scroll-view",
+        category = "<key:scroll.view.category>",
+        summary = "<key:scroll.view.summary>",
+        order = 110)
+@WikiSection(title = "<key:scroll.view.section.overview.title>",
+        markdown = "<key:scroll.view.section.overview.body>", order = 10)
+@WikiSection(title = "<key:scroll.view.section.bars.title>",
+        markdown = "<key:scroll.view.section.bars.body>", order = 20)
+@WikiExample(title = "<key:scroll.view.example.basic.title>",
+        code = "<key:scroll.view.example.basic.code>", order = 10)
+@WikiLink(label = "Box", target = "page:box")
+@WikiLink(label = "VBox", target = "page:vbox")
+@WikiLink(label = "PanelWidget", target = "page:panel-widget")
 @XmlWidgetName("ScrollView")
 public class ScrollView extends WidgetBase {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.SCROLL_VIEW;
@@ -153,7 +193,10 @@ public class ScrollView extends WidgetBase {
      * @return этот scroll view для fluent-настройки
      * @throws IllegalArgumentException если передан сам {@code ScrollView}
      */
-    public ScrollView content(Widget content) {
+    @WikiMethod(order = 10, title = "<key:scroll.view.method.content.title>", summary = "<key:scroll.view.method.content>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Content", sectionOrder = 10, order = 10, summary = "Sets the single content widget inside this scroll viewport.")
+    public ScrollView content(@WikiParameter(description = "<key:scroll.view.param.content>") Widget content) {
         if (this.content == content) return this;
         if (content == this) throw new IllegalArgumentException("ScrollView cannot contain itself");
         detachContent();
@@ -247,7 +290,10 @@ public class ScrollView extends WidgetBase {
      * @return этот scroll view для fluent-настройки
      */
     @XmlAttribute(value = "scrollStep", category = "Behavior", defaultValue = "16", description = "UI pixels scrolled per wheel/page delta unit.")
-    public ScrollView scrollStep(float scrollStep) {
+    @WikiMethod(order = 40, title = "<key:scroll.view.method.scroll_step.title>", summary = "<key:scroll.view.method.scroll_step>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Behavior", sectionOrder = 30, order = 40, summary = "Sets scroll step multiplier in pixels per wheel unit.")
+    public ScrollView scrollStep(@WikiParameter(description = "<key:scroll.view.param.scroll_step>") float scrollStep) {
         this.scrollStep = Math.max(1.0f, scrollStep);
         return this;
     }
@@ -397,7 +443,11 @@ public class ScrollView extends WidgetBase {
      * @param y желаемый вертикальный offset
      * @return этот scroll view для fluent-настройки
      */
-    public ScrollView scrollTo(float x, float y) {
+    @WikiMethod(order = 20, title = "<key:scroll.view.method.scroll_to.title>", summary = "<key:scroll.view.method.scroll_to>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Navigation", sectionOrder = 20, order = 20, summary = "Scrolls to absolute coordinates clamped to valid bounds.")
+    public ScrollView scrollTo(@WikiParameter(description = "<key:scroll.view.param.scroll_x>") float x,
+                               @WikiParameter(description = "<key:scroll.view.param.scroll_y>") float y) {
         float clampedX = clamp(x, 0.0f, maxScrollX());
         float clampedY = clamp(y, 0.0f, maxScrollY());
         if (scrollX == clampedX && scrollY == clampedY) return this;
@@ -419,7 +469,11 @@ public class ScrollView extends WidgetBase {
      * @param dy изменение вертикального offset'а
      * @return этот scroll view для fluent-настройки
      */
-    public ScrollView scrollBy(float dx, float dy) {
+    @WikiMethod(order = 30, title = "<key:scroll.view.method.scroll_by.title>", summary = "<key:scroll.view.method.scroll_by>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Navigation", sectionOrder = 20, order = 30, summary = "Scrolls relatively by dx and dy offsets.")
+    public ScrollView scrollBy(@WikiParameter(description = "<key:scroll.view.param.scroll_dx>") float dx,
+                               @WikiParameter(description = "<key:scroll.view.param.scroll_dy>") float dy) {
         return scrollTo(scrollX + dx, scrollY + dy);
     }
 
@@ -491,7 +545,10 @@ public class ScrollView extends WidgetBase {
      * @return этот scroll view для fluent-настройки
      */
     @XmlAttribute(value = "overlayScrollBars", category = "Behavior", defaultValue = "true", description = "Whether scrollbars float above content without reserving layout space.")
-    public ScrollView overlayScrollBars(boolean overlayScrollBars) {
+    @WikiMethod(order = 50, title = "<key:scroll.view.method.overlay_scrollbars.title>", summary = "<key:scroll.view.method.overlay_scrollbars>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Appearance", sectionOrder = 40, order = 50, summary = "Toggles overlay vs reserved scrollbar mode.")
+    public ScrollView overlayScrollBars(@WikiParameter(description = "<key:scroll.view.param.overlay_scrollbars>") boolean overlayScrollBars) {
         if (this.overlayScrollBars == overlayScrollBars) return this;
         this.overlayScrollBars = overlayScrollBars;
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);

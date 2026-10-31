@@ -125,11 +125,23 @@ final class CleanroomShapeRenderer {
         BufferBuilder buffer = vanilla.getBuffer();
         buffer.begin(GL11.GL_TRIANGLES, textured ? DefaultVertexFormats.POSITION_TEX_COLOR
                 : DefaultVertexFormats.POSITION_COLOR);
+        // With GL_ONE as the source factor the vertex alpha scales only the alpha channel: a premultiplied texture
+        // drawn with a translucent tint would stay fully visible unless the tint color is premultiplied as well.
+        boolean premultiplied = textured && texture.options().premultipliedAlpha();
         for (int i = 0; i < count; i++) {
             int argb = vertices.argb(i);
             if (textured) {
+                int alpha = argb >>> 24;
+                int r = argb >> 16 & 0xFF;
+                int g = argb >> 8 & 0xFF;
+                int b = argb & 0xFF;
+                if (premultiplied && alpha < 255) {
+                    r = (r * alpha + 127) / 255;
+                    g = (g * alpha + 127) / 255;
+                    b = (b * alpha + 127) / 255;
+                }
                 buffer.pos(vertices.x(i), vertices.y(i), 0.0).tex(vertices.u(i), vertices.v(i))
-                        .color(argb >> 16 & 0xFF, argb >> 8 & 0xFF, argb & 0xFF, argb >>> 24).endVertex();
+                        .color(r, g, b, alpha).endVertex();
             } else {
                 buffer.pos(vertices.x(i), vertices.y(i), 0.0)
                         .color(argb >> 16 & 0xFF, argb >> 8 & 0xFF, argb & 0xFF, argb >>> 24).endVertex();

@@ -89,6 +89,7 @@ final class CleanroomWidgetLayer implements CleanroomLayerRegistry.LayerRenderer
                     Minecraft.getMinecraft().displayHeight);
         }
         float scale = effectiveScale();
+        boolean stats = CleanroomProfiling.beginFrame(context);
         float logicalWidth = this.width / scale;
         float logicalHeight = this.height / scale;
         context.dispatcher().drain();
@@ -102,11 +103,13 @@ final class CleanroomWidgetLayer implements CleanroomLayerRegistry.LayerRenderer
         drawList.clear();
         UiRenderPolicy policy = source.renderPolicy();
         if (CleanroomRenderPolicies.usesCache(policy.mode())) {
-            renderCache.render(policy, root, renderContext, layoutChanged, logicalWidth, logicalHeight, now);
+            renderCache.render(policy, root, renderContext, layoutChanged, logicalWidth, logicalHeight, now,
+                    CleanroomProfiling.counters(context, stats));
         } else {
             renderCache.close();
             root.render(renderContext);
         }
+        if (stats) CleanroomProfiling.recordDrawList(context, drawList);
         DebugOverlayRenderer.render(renderContext, context, logicalWidth, logicalHeight);
 
         GlStateManager.pushMatrix();

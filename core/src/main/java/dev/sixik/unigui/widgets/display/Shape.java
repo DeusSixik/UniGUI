@@ -12,7 +12,40 @@ import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
 import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 
+@AiDoc(
+        summary = "Vector geometric shape widget supporting rectangles, rounded rectangles, circles, ovals, and strokes.",
+        purpose = "Renders hardware-accelerated 2D geometric primitives with antialiasing and customizable strokes.",
+        useWhen = {
+                "Drawing notification badges, circular avatars, or ornamental frames.",
+                "Custom geometric accents without importing external PNG texture files."
+        },
+        criticalRules = {
+                "type selects geometric primitive (RECTANGLE, ROUNDED_RECT, CIRCLE, OVAL).",
+                "stroke toggles between outline drawing and filled geometry."
+        },
+        related = {"Path", "MutableColor", "WidgetBase"})
+@WikiPage(
+        title = "<key:shape.title>",
+        slug = "shape",
+        category = "<key:core.widgets.display.category>",
+        summary = "<key:shape.summary>",
+        order = 70)
+@WikiSection(
+        title = "<key:shape.section.overview.title>",
+        markdown = "<key:shape.section.overview.body>",
+        order = 10)
+@WikiExample(
+        title = "<key:shape.example.basic.title>",
+        code = "<key:shape.example.basic.code>",
+        order = 10)
 @XmlWidgetName("Shape")
 public class Shape extends WidgetBase {
     public static final String STYLE_TYPE = StyleIds.Widget.SHAPE;
@@ -57,6 +90,9 @@ public class Shape extends WidgetBase {
     }
 
     @XmlAttribute(value = "type", category = "Appearance", defaultValue = "rect", description = "Shape primitive type.")
+    @WikiMethod(
+            title = "<key:shape.method.type.title>",
+            summary = "<key:shape.method.type.summary>")
     public Shape type(Type type) {
         Type normalized = type == null ? Type.RECT : type;
         if (this.type == normalized) return this;
@@ -70,6 +106,9 @@ public class Shape extends WidgetBase {
     }
 
     @XmlAttribute(value = "color", category = "Appearance", defaultValue = "#FFFFFFFF", description = "Shape fill or stroke color parsed from XML color syntax.")
+    @WikiMethod(
+            title = "<key:shape.method.color.title>",
+            summary = "<key:shape.method.color.summary>")
     public Shape color(ColorView color) {
         if (color != null) this.color.set(color);
         return this;
@@ -80,6 +119,9 @@ public class Shape extends WidgetBase {
     }
 
     @XmlAttribute(value = "stroke", category = "Appearance", defaultValue = "false", description = "Whether the shape is rendered as a stroke instead of a fill.")
+    @WikiMethod(
+            title = "<key:shape.method.stroke.title>",
+            summary = "<key:shape.method.stroke.summary>")
     public Shape stroke(boolean stroke) {
         if (this.stroke == stroke) return this;
         this.stroke = stroke;
@@ -92,6 +134,9 @@ public class Shape extends WidgetBase {
     }
 
     @XmlAttribute(value = "strokeWidth", category = "Appearance", defaultValue = "1", description = "Stroke width in UI pixels.")
+    @WikiMethod(
+            title = "<key:shape.method.stroke_width.title>",
+            summary = "<key:shape.method.stroke_width.summary>")
     public Shape strokeWidth(float strokeWidth) {
         float normalized = Float.isFinite(strokeWidth) ? Math.max(0.0f, strokeWidth) : 0.0f;
         if (this.strokeWidth == normalized) return this;

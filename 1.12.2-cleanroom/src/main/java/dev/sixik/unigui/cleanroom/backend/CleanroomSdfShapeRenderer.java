@@ -75,6 +75,7 @@ final class CleanroomSdfShapeRenderer {
         ShaderTier tier = CleanroomGlCapabilities.get().tier();
         if (tier != ShaderTier.INSTANCED && tier != ShaderTier.BASIC) return false;
 
+        long started = CleanroomSdfStats.start();
         int count = pack(batch, opacity);
         if (count == 0) return true;
 
@@ -82,9 +83,17 @@ final class CleanroomSdfShapeRenderer {
         try {
             CleanroomGlState.blend(batch.blendMode());
             if (tier == ShaderTier.INSTANCED && !instancedUnavailable) {
-                if (drawInstanced(count)) return true;
+                if (drawInstanced(count)) {
+                    CleanroomSdfStats.record(started, count, 1, 2, true);
+                    return true;
+                }
             }
-            if (!basicUnavailable) return drawBasic(count);
+            if (!basicUnavailable) {
+                boolean drawn = drawBasic(count);
+                // Per shape: eight uniforms and one buffer upload, plus the shared matrices.
+                if (drawn) CleanroomSdfStats.record(started, count, count, count * 8 + 2, true);
+                return drawn;
+            }
             return false;
         } catch (Throwable failure) {
             LOGGER.error("UniGUI SDF shape renderer failed; falling back to tessellated shapes", failure);

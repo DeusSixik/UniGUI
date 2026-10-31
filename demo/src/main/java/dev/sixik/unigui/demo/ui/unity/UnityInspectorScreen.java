@@ -6,6 +6,7 @@ import dev.sixik.unigui.api.layout.Overflow;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.UiRenderPolicy;
 import dev.sixik.unigui.api.screen.UniScreen;
+import dev.sixik.unigui.api.text.Fonts;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.widgets.containers.Box;
@@ -56,7 +57,7 @@ public final class UnityInspectorScreen {
         });
         screen[0] = new UniScreen("Unity Inspector Demo", root, context)
                 .scaleWithGameGui(false)
-                .renderPolicy(UiRenderPolicy.vsync());
+                .renderPolicy(UiRenderPolicy.vsync()).defaultFont(Fonts.defaultFace());
         return screen[0];
     }
 
