@@ -107,6 +107,14 @@ jobs:
           ./gradlew build --no-daemon
 
 
+      - name: Build GTNH 1.7.10
+        shell: bash
+        run: |
+          chmod +x 1.7.10-gtnh/gradlew
+          cd 1.7.10-gtnh
+          ./gradlew build --no-daemon
+
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -117,6 +125,7 @@ jobs:
             build/stonecutter/*/forge/libs/*.jar
             build/stonecutter/*/neoforge/libs/*.jar
             1.12.2-cleanroom/build/libs/unigui-cleanroom-1.12.2-${{ steps.version.outputs.version }}.jar
+            1.7.10-gtnh/build/libs/unigui-gtnh-1.7.10-${{ steps.version.outputs.version }}.jar
           retention-days: 14
 
 
@@ -126,7 +135,7 @@ jobs:
         run: |
           mkdir -p release-files
           shopt -s nullglob
-          mkdir -p release-files/modern release-files/cleanroom
+          mkdir -p release-files/modern release-files/cleanroom release-files/gtnh
           for f in \
               build/stonecutter/*/fabric/libs/*.jar \
               build/stonecutter/*/forge/libs/*.jar \
@@ -138,6 +147,7 @@ jobs:
             cp "$f" release-files/modern/
           done
           cp "1.12.2-cleanroom/build/libs/unigui-cleanroom-1.12.2-${{ steps.version.outputs.version }}.jar" release-files/cleanroom/
+          cp "1.7.10-gtnh/build/libs/unigui-gtnh-1.7.10-${{ steps.version.outputs.version }}.jar" release-files/gtnh/
           count=$(find release-files -name '*.jar' | wc -l)
           if [ "$count" -eq 0 ]; then
             echo "No release jars collected" >&2
@@ -204,6 +214,24 @@ jobs:
           curseforge-game-versions: 1.12.2
 
 
+      - name: Publish GTNH 1.7.10 to CurseForge
+        if: steps.version.outputs.release == 'true'
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          curseforge-id: ${{ secrets.CURSEFORGE_PROJECT_ID }}
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+
+          files: release-files/gtnh/*.jar
+
+          curseforge-name: UniGUI ${{ steps.version.outputs.version }} for Minecraft 1.7.10 (GTNH)
+          curseforge-version: ${{ steps.version.outputs.version }}-gtnh-1.7.10
+          curseforge-version-type: ${{ steps.version.outputs.prerelease == 'true' && 'beta' || 'release' }}
+          curseforge-loaders: forge
+          curseforge-game-versions: 1.7.10
+          curseforge-dependencies: |
+            998880(required)
+
+
       - name: Publish modern versions to Modrinth
         if: steps.version.outputs.release == 'true'
         uses: Kir-Antipov/mc-publish@v3.3
@@ -239,3 +267,21 @@ jobs:
           modrinth-version-type: ${{ steps.version.outputs.prerelease == 'true' && 'beta' || 'release' }}
           modrinth-loaders: forge
           modrinth-game-versions: 1.12.2
+
+
+      - name: Publish GTNH 1.7.10 to Modrinth
+        if: steps.version.outputs.release == 'true'
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+
+          files: release-files/gtnh/*.jar
+
+          modrinth-name: UniGUI ${{ steps.version.outputs.version }} for Minecraft 1.7.10 (GTNH)
+          modrinth-version: ${{ steps.version.outputs.version }}-gtnh-1.7.10
+          modrinth-version-type: ${{ steps.version.outputs.prerelease == 'true' && 'beta' || 'release' }}
+          modrinth-loaders: forge
+          modrinth-game-versions: 1.7.10
+          modrinth-dependencies: |
+            eC4lt4Oy(required)
