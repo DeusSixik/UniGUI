@@ -2,6 +2,10 @@ package dev.sixik.unigui.demo.ui;
 
 import dev.sixik.unigui.api.core.UIScaleProvider;
 import dev.sixik.unigui.api.core.UnityLikeUIScaleProvider;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiIcon;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.layout.Align;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.EdgeInsets;
@@ -28,10 +32,62 @@ import dev.sixik.unigui.widgets.feedback.Popup;
 import dev.sixik.unigui.widgets.interaction.AdminCommandRegistry;
 import dev.sixik.unigui.widgets.interaction.AdminConsole;
 import dev.sixik.unigui.widgets.interaction.Button;
+
 import java.util.List;
 
+@WikiPage(
+        title = "<key:retro.terminal.title>",
+        slug = "retro-terminal",
+        category = "<key:retro.terminal.category>",
+        summary = "<key:retro.terminal.summary>",
+        order = 10)
+@WikiIcon(src = "assets/demos/retro-terminal/00-screen.png", alt = "<key:retro.terminal.icon.alt>")
+@WikiSection(
+        title = "<key:retro.terminal.section.result.title>",
+        markdown = "<key:retro.terminal.section.result.body>",
+        order = 10)
+@WikiSection(
+        title = "<key:retro.terminal.section.screen.title>",
+        markdown = "<key:retro.terminal.section.screen.body>",
+        order = 20)
+@WikiSection(
+        title = "<key:retro.terminal.section.tree.title>",
+        markdown = "<key:retro.terminal.section.tree.body>",
+        order = 30)
+@WikiSection(
+        title = "<key:retro.terminal.section.console.title>",
+        markdown = "<key:retro.terminal.section.console.body>",
+        order = 40)
+@WikiSection(
+        title = "<key:retro.terminal.section.commands.title>",
+        markdown = "<key:retro.terminal.section.commands.body>",
+        order = 50)
+@WikiSection(
+        title = "<key:retro.terminal.section.effects.title>",
+        markdown = "<key:retro.terminal.section.effects.body>",
+        order = 60)
+@WikiExample(
+        title = "<key:retro.terminal.example.screen.title>",
+        code = "<key:retro.terminal.example.screen.code>",
+        order = 10)
+@WikiExample(
+        title = "<key:retro.terminal.example.tree.title>",
+        code = "<key:retro.terminal.example.tree.code>",
+        order = 20)
+@WikiExample(
+        title = "<key:retro.terminal.example.console.title>",
+        code = "<key:retro.terminal.example.console.code>",
+        order = 30)
+@WikiExample(
+        title = "<key:retro.terminal.example.commands.title>",
+        code = "<key:retro.terminal.example.commands.code>",
+        order = 40)
+@WikiExample(
+        title = "<key:retro.terminal.example.effects.title>",
+        code = "<key:retro.terminal.example.effects.code>",
+        order = 50)
 public final class RetroTerminalScreen {
-private static final List<String> SAMPLE_PLAYERS = List.of("Steve", "Alex", "Sixik", "Engineer", "Navigator");
+    private static final List<String> SAMPLE_PLAYERS = List.of("Steve", "Alex", "Sixik", "Engineer", "Navigator");
     private static final List<String> COORDINATES = List.of("0", "64", "128", "-128", "256", "~", "~-1", "~1");
 
     private RetroTerminalScreen() {
@@ -54,7 +110,6 @@ private static final List<String> SAMPLE_PLAYERS = List.of("Steve", "Alex", "Six
         RetroConsole console = new RetroConsole();
         PostProcessingLayer processedRoot = new PostProcessingLayer();
         processedRoot.layout(style -> style.sizePercent(100.0f, 100.0f));
-        processedRoot.postEffect(retroEffect(scaleProvider));
         processedRoot.addChild(root(console));
         UniScreen screen = new UniScreen("Retro Terminal", processedRoot, context)
                 .scaleWithGameGui(false)

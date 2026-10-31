@@ -75,6 +75,13 @@ Generate Markdown for the current Minecraft profile:
 ./gradlew :1.20.1:common:generateWiki
 ```
 
+The `common:generateWiki` task also compiles and scans the portable `demo` module. Any
+`@WikiPage`, `@WikiSection`, `@WikiExample`, `@WikiMethod`, or `@WikiLink` declared under
+`demo/src/main/java` is merged into the same localized Wiki collection as the core/common
+pages. Demo pages use the same `docs/lang` translations and `docs/assets` directory, so
+links can cross between core and demo pages. The same classpath merge is used by
+`common:generateAiDocs` for `@AiDoc` entries.
+
 By default, output is written under `build/stonecutter/1.20.1/common/generated/wiki`.
 The directory contains shared `assets` and one tree per locale:
 

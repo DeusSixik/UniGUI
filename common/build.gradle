@@ -302,13 +302,16 @@ tasks.register("generateWiki", JavaExec) {
     group = "documentation"
     description = "Generates site-ready Markdown wiki pages from @WikiPage annotations."
     dependsOn tasks.named("testClasses")
+    dependsOn project(":demo").tasks.named("classes")
     classpath = sourceSets.test.runtimeClasspath
+    classpath += project(":demo").sourceSets.main.runtimeClasspath
     mainClass = "dev.sixik.unigui.tests.WikiMarkdownGenerator"
     args wikiOutputDirectory.get().absolutePath,
             wikiLanguageDirectory.get().absolutePath,
             wikiAssetsDirectory.get().absolutePath
     inputs.dir(wikiLanguageDirectory)
     inputs.dir(wikiAssetsDirectory)
+    inputs.files(project(":demo").sourceSets.main.output)
     outputs.dir(wikiOutputDirectory)
 }
 
@@ -320,9 +323,12 @@ tasks.register("generateAiDocs", JavaExec) {
     group = "documentation"
     description = "Generates a separate Markdown collection exclusively from @AiDoc annotations."
     dependsOn tasks.named("testClasses")
+    dependsOn project(":demo").tasks.named("classes")
     classpath = sourceSets.test.runtimeClasspath
+    classpath += project(":demo").sourceSets.main.runtimeClasspath
     mainClass = "dev.sixik.unigui.tests.AiMarkdownGenerator"
     args aiDocsOutputDirectory.get().absolutePath
+    inputs.files(project(":demo").sourceSets.main.output)
     outputs.dir(aiDocsOutputDirectory)
 }
 
