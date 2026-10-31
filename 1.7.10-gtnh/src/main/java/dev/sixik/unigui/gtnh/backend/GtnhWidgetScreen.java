@@ -1,0 +1,328 @@
+package dev.sixik.unigui.gtnh.backend;
+
+import dev.sixik.unigui.api.core.FrameContext;
+import dev.sixik.unigui.api.core.FramePhase;
+import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.api.core.UIContext;
+import dev.sixik.unigui.api.debug.ProfileScope;
+import dev.sixik.unigui.api.input.InputHandle;
+import dev.sixik.unigui.api.input.KeyModifiers;
+import dev.sixik.unigui.api.input.KeyboardInputHandler;
+import dev.sixik.unigui.api.input.PointerButton;
+import dev.sixik.unigui.api.layout.LayoutContext;
+import dev.sixik.unigui.api.math.MutableRect;
+import dev.sixik.unigui.api.render.DrawList;
+import dev.sixik.unigui.api.render.RenderBackend;
+import dev.sixik.unigui.api.render.UiRenderPolicy;
+import dev.sixik.unigui.api.screen.UniScreen;
+import dev.sixik.unigui.api.text.FontFace;
+import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.impl.debug.DebugHotkeys;
+import dev.sixik.unigui.impl.debug.DebugOverlayRenderer;
+import dev.sixik.unigui.impl.render.DefaultRenderContext;
+import dev.sixik.unigui.impl.widget.WidgetBase;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiScreen;
+import org.lwjgl.opengl.GL11;
+import org.lwjglx.input.Keyboard;
+import org.lwjglx.input.Mouse;
+
+/**
+ * Native 1.7.10 screen that drives a backend-neutral UniGUI widget tree.
+ */
+final class GtnhWidgetScreen extends GuiScreen implements GtnhRenderHost {
+    private final UniScreen source;
+    private final Widget root;
+    private final UIContext uiContext;
+    private final InputHandle inputHandle;
+    private final Runnable closeAction;
+    private final String screenTitle;
+    private final GtnhPointer pointer = new GtnhPointer();
+    private final GtnhWheel wheelTracker = new GtnhWheel();
+    private final DrawList drawList = new DrawList();
+    private final DefaultRenderContext renderContext = new DefaultRenderContext(drawList);
+    private final RenderBackend renderBackend;
+    private final GtnhRenderCache renderCache;
+    private FontFace defaultFont;
+    private KeyboardInputHandler keyboardInputHandler;
+    private boolean layoutInitialized;
+    private boolean closed;
+    private long frameIndex;
+    private long lastFrameNanos;
+    private float lastFrameCpuMillis;
+    private float lastFrameTotalMillis;
+
+    GtnhWidgetScreen(UniScreen source, UIContext uiContext, Runnable closeAction) {
+        this.source = source;
+        this.root = source.root();
+        this.uiContext = uiContext;
+        this.inputHandle = new InputHandle(root, uiContext);
+        this.closeAction = closeAction;
+        this.screenTitle = source.title();
+        this.renderBackend = new GtnhGuiRenderBackend(this);
+        this.renderCache = new GtnhRenderCache(renderBackend);
+        this.renderContext.backend(renderBackend);
+        attachContext(root);
+    }
+
+    @Override
+    public int logicalWidth() {
+        return width;
+    }
+
+    @Override
+    public int logicalHeight() {
+        return height;
+    }
+
+    @Override
+    public float opacity() {
+        return 1.0f;
+    }
+
+    @Override
+    public float uiScale() {
+        return effectiveUiScale();
+    }
+
+    @Override
+    public void initGui() {
+        layoutInitialized = false;
+        // Held keys repeat in text fields; the window default is off in 1.7.10.
+        Keyboard.enableRepeatEvents(true);
+    }
+
+    @Override
+    public boolean doesGuiPauseGame() {
+        return source.pauseGame();
+    }
+
+    @Override
+    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
+        drawDefaultBackground();
+        super.drawScreen(mouseX, mouseY, partialTicks);
+        uiContext.dispatcher().drain();
+
+        float scale = effectiveUiScale();
+        // Pointer motion is polled per frame; handleMouseInput only runs once per game tick (20 Hz).
+        if (pointer.poll(this, width, height)) {
+            inputHandle.pointerMoved(pointer.x() / scale, pointer.y() / scale, 0);
+        }
+        deliverWheel(scale);
+        float logicalWidth = width / scale;
+        float logicalHeight = height / scale;
+        long now = System.nanoTime();
+        float delta = lastFrameNanos == 0L ? 1.0f / 60.0f
+            : Math.min(0.25f, (now - lastFrameNanos) / 1_000_000_000.0f);
+        lastFrameNanos = now;
+        uiContext.profiler().beginFrame(frameIndex);
+        uiContext.debugCounters().beginFrame(frameIndex);
+        boolean stats = GtnhProfiling.beginFrame(uiContext);
+        uiContext.debugCounters().recordFrameCpuMillis(lastFrameCpuMillis);
+        uiContext.debugCounters().recordFrameTotalMillis(lastFrameTotalMillis);
+        try (ProfileScope ignored = uiContext.profiler().scope("animation")) {
+            root.tick(new FrameContext(frameIndex, delta, partialTicks, FramePhase.ANIMATION));
+        }
+        boolean layoutChanged;
+        try (ProfileScope ignored = uiContext.profiler().scope("layout")) {
+            layoutChanged = updateLayout(logicalWidth, logicalHeight);
+        }
+        drawList.clear();
+        try (ProfileScope ignored = uiContext.profiler().scope("buildDrawList")) {
+            UiRenderPolicy policy = source.renderPolicy();
+            if (GtnhRenderPolicies.usesCache(policy.mode())) {
+                renderCache.render(policy, root, renderContext, layoutChanged, logicalWidth, logicalHeight, now,
+                    GtnhProfiling.counters(uiContext, stats));
+            } else {
+                renderCache.close();
+                root.render(renderContext);
+            }
+        }
+        // Counted before the overlay is appended: it should not measure itself.
+        if (stats) GtnhProfiling.recordDrawList(uiContext, drawList);
+        DebugOverlayRenderer.render(renderContext, uiContext, logicalWidth, logicalHeight);
+        lastFrameCpuMillis = (System.nanoTime() - now) / 1_000_000.0f;
+
+        GL11.glPushMatrix();
+        GL11.glScalef(scale, scale, 1.0f);
+        try {
+            if (!screenTitle.isEmpty()) drawCenteredString(fontRendererObj, screenTitle, width / 2, 8, 0xFFFFFF);
+            renderBackend.beginFrame(new FrameContext(frameIndex, 0.0f, partialTicks, FramePhase.RENDER));
+            renderBackend.render(drawList, null);
+        } finally {
+            renderBackend.endFrame();
+            GL11.glPopMatrix();
+        }
+        lastFrameTotalMillis = (System.nanoTime() - now) / 1_000_000.0f;
+        uiContext.debugCounters().recordFrameCpuMillis(lastFrameCpuMillis);
+        uiContext.debugCounters().recordFrameTotalMillis(lastFrameTotalMillis);
+        uiContext.keyboard().endFrame();
+        GtnhClientBootstrap.backend().renderScreen(this, mouseX, mouseY, partialTicks);
+        // Resolved every frame, not only on movement: layout changes and drags move widgets under a still cursor.
+        GtnhClientBootstrap.backend().applyNativeScreenCursor(
+            GtnhMouseCursors.resolve(root, uiContext, pointer.x() / scale, pointer.y() / scale));
+        frameIndex++;
+    }
+
+    /**
+     * Hands the wheel that accumulated since the last frame to the UI; the same events are dropped on the tick.
+     */
+    private void deliverWheel(float scale) {
+        int wheel = wheelTracker.poll();
+        if (wheel == 0) return;
+        float notches = GtnhWheel.notches(wheel);
+        if (!GtnhClientBootstrap.backend().screenMouseScrolled(this, pointer.x(), pointer.y(), notches)) {
+            inputHandle.pointerScrolled(pointer.x() / scale, pointer.y() / scale, 0.0f, notches,
+                currentModifiers(), 0);
+        }
+        wheelTracker.markConsumed(wheel, System.nanoTime());
+    }
+
+    /**
+     * @return {@code true} if layout ran
+     */
+    private boolean updateLayout(float logicalWidth, float logicalHeight) {
+        if (layoutInitialized && !InvalidationFlags.has(root.subtreeInvalidationFlags(), InvalidationFlags.LAYOUT))
+            return false;
+        root.measure(new LayoutContext(logicalWidth, logicalHeight));
+        root.arrange(new MutableRect(0.0f, 0.0f, logicalWidth, logicalHeight));
+        clearLayoutInvalidation(root);
+        layoutInitialized = true;
+        return true;
+    }
+
+    private static void clearLayoutInvalidation(Widget widget) {
+        widget.clearInvalidation(InvalidationFlags.LAYOUT);
+        for (Widget child : widget.children()) clearLayoutInvalidation(child);
+    }
+
+    @Override
+    protected void mouseClicked(int mouseX, int mouseY, int button) {
+        if (GtnhClientBootstrap.backend().screenMouseClicked(this, mouseX, mouseY, button)) return;
+        float x = mouseX / effectiveUiScale();
+        float y = mouseY / effectiveUiScale();
+        boolean consumed = inputHandle.pointerPressed(x, y, 0, pointerButton(button));
+        if (!consumed) super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    protected void mouseMovedOrUp(int mouseX, int mouseY, int state) {
+        // 1.7.10 reports plain motion here too (state -1); the frame polls the pointer, so only releases matter.
+        if (state < 0) return;
+        if (GtnhClientBootstrap.backend().screenMouseReleased(this, mouseX, mouseY, state)) return;
+        float x = mouseX / effectiveUiScale();
+        float y = mouseY / effectiveUiScale();
+        inputHandle.pointerReleased(x, y, 0, pointerButton(state));
+        super.mouseMovedOrUp(mouseX, mouseY, state);
+    }
+
+    @Override
+    public void handleMouseInput() {
+        float mouseX = Mouse.getEventX() * width / (float) Math.max(1, Minecraft.getMinecraft().displayWidth);
+        float mouseY = height - Mouse.getEventY() * height / (float) Math.max(1, Minecraft.getMinecraft().displayHeight) - 1.0f;
+        int wheel = Mouse.getEventDWheel();
+        // The frame already delivered this notch (see deliverWheel); the tick event is a duplicate.
+        if (wheel != 0 && wheelTracker.swallow(wheel, System.nanoTime())) wheel = 0;
+        if (wheel != 0 && GtnhClientBootstrap.backend().screenMouseScrolled(this,
+            mouseX, mouseY, GtnhWheel.notches(wheel))) return;
+        super.handleMouseInput();
+        float logicalX = mouseX / effectiveUiScale();
+        float logicalY = mouseY / effectiveUiScale();
+        if (wheel != 0) {
+            inputHandle.pointerScrolled(logicalX, logicalY, 0.0f, GtnhWheel.notches(wheel),
+                currentModifiers(), 0);
+        }
+    }
+
+    @Override
+    public void handleKeyboardInput() {
+        super.handleKeyboardInput();
+        int keyCode = Keyboard.getEventKey();
+        int coreKeyCode = GtnhKeyCodes.toCore(keyCode);
+        int modifiers = currentModifiers();
+        if (keyCode != Keyboard.KEY_NONE && !Keyboard.getEventKeyState() && coreKeyCode >= 0
+            && keyboardInputHandler != null
+            && keyboardInputHandler.keyReleased(coreKeyCode, 0, modifiers)) return;
+        if (keyCode != Keyboard.KEY_NONE && !Keyboard.getEventKeyState() && coreKeyCode >= 0) {
+            inputHandle.keyReleased(coreKeyCode, 0, currentModifiers());
+        }
+    }
+
+    @Override
+    protected void keyTyped(char typedChar, int keyCode) {
+        int key = GtnhKeyCodes.toCore(keyCode);
+        int modifiers = currentModifiers();
+        boolean keyConsumed = false;
+        if (keyboardInputHandler != null) {
+            keyConsumed = key >= 0 && keyboardInputHandler.keyPressed(key, 0, modifiers);
+            if (typedChar >= 32 && keyboardInputHandler.textInput(typedChar, modifiers)) return;
+        }
+        if (key >= 0 && DebugHotkeys.handle(uiContext, key, modifiers)) return;
+        if (GtnhClientBootstrap.backend().screenKeyTyped(this, typedChar, keyCode, modifiers)) return;
+        boolean inputConsumed = false;
+        if (!keyConsumed && key >= 0) inputConsumed = inputHandle.keyPressed(key, 0, modifiers);
+        if (typedChar >= 32) inputConsumed = inputHandle.textInput(typedChar, modifiers) || inputConsumed;
+        if (inputConsumed || keyConsumed) return;
+        super.keyTyped(typedChar, keyCode);
+    }
+
+    @Override
+    public void onGuiClosed() {
+        if (closed) return;
+        closed = true;
+        Keyboard.enableRepeatEvents(false);
+        GtnhClientBootstrap.backend().resetCursor();
+        renderCache.close();
+        ((GtnhGuiRenderBackend) renderBackend).close();
+        inputHandle.clear();
+        root.dispose();
+        closeAction.run();
+    }
+
+    private float effectiveUiScale() {
+        float configured = source.hasCustomUiScale()
+            ? source.uiScale()
+            : uiContext.scaleProvider().scale();
+        return GtnhRenderMath.effectiveUiScale(configured, source.scaleWithGameGui(),
+            Minecraft.getMinecraft().displayWidth, width);
+    }
+
+    GtnhWidgetScreen defaultFont(FontFace font) {
+        defaultFont = font == null ? MinecraftFonts.defaultFace() : font;
+        ((GtnhGuiRenderBackend) renderBackend).defaultFont(defaultFont);
+        return this;
+    }
+
+    GtnhWidgetScreen keyboardInputHandler(KeyboardInputHandler handler) {
+        keyboardInputHandler = handler;
+        return this;
+    }
+
+    private void attachContext(Widget widget) {
+        if (widget instanceof WidgetBase base) base.setUiContextInternal(uiContext);
+        for (Widget child : widget.children()) attachContext(child);
+    }
+
+    private static PointerButton pointerButton(int button) {
+        return switch (button) {
+            case 0 -> PointerButton.PRIMARY;
+            case 1 -> PointerButton.SECONDARY;
+            case 2 -> PointerButton.MIDDLE;
+            case 3 -> PointerButton.BACK;
+            case 4 -> PointerButton.FORWARD;
+            default -> PointerButton.UNKNOWN;
+        };
+    }
+
+    private static int currentModifiers() {
+        int modifiers = 0;
+        if (Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT))
+            modifiers |= KeyModifiers.SHIFT;
+        if (Keyboard.isKeyDown(Keyboard.KEY_LCONTROL) || Keyboard.isKeyDown(Keyboard.KEY_RCONTROL))
+            modifiers |= KeyModifiers.CONTROL;
+        if (Keyboard.isKeyDown(Keyboard.KEY_LMENU) || Keyboard.isKeyDown(Keyboard.KEY_RMENU))
+            modifiers |= KeyModifiers.ALT;
+        return modifiers;
+    }
+
+}

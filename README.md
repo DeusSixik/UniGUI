@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://www.minecraft.net/">
-    <img src="https://img.shields.io/badge/Minecraft-1.12.2%20|%201.20.1%20|%201.21.1-5D9E3D?style=for-the-badge&logo=minecraft&logoColor=white" alt="Minecraft versions">  </a>
+    <img src="https://img.shields.io/badge/Minecraft-1.7.10%20|1.12.2%20|%201.20.1%20|%201.21.1-5D9E3D?style=for-the-badge&logo=minecraft&logoColor=white" alt="Minecraft versions">  </a>
   <a href="https://fabricmc.net/">
     <img src="https://img.shields.io/badge/Fabric%20|%20Forge%20|%20NeoForge-Supported-6366f1?style=for-the-badge&logo=java&logoColor=white" alt="Loaders">
   </a>

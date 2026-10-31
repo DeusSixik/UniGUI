@@ -9,7 +9,8 @@ import org.apache.logging.log4j.Logger;
 /**
  * GTNH (Minecraft 1.7.10) entry point of the UniGUI module.
  */
-@Mod(modid = UniGuiGtnh.MOD_ID, name = "UniGUI", version = Tags.VERSION, acceptedMinecraftVersions = "[1.7.10]")
+@Mod(modid = UniGuiGtnh.MOD_ID, name = "UniGUI", version = Tags.VERSION, acceptedMinecraftVersions = "[1.7.10]",
+        dependencies = "required-after:lwjgl3ify")
 public final class UniGuiGtnh {
 
     /**

@@ -1,5 +1,6 @@
 # User-specific stuff
-.idea/
+.idea/*
+!.idea/gradle.xml
 
 *.iml
 *.ipr
@@ -142,3 +143,4 @@ gradle.properties
 # MkDocs
 site/
 .cache/
+/1.12.2-cleanroom/.idea

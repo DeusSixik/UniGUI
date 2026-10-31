@@ -59,6 +59,8 @@ dependencies {
     // Provides @Lwjgl3Aware and the org.lwjglx shim classes; the runtime copy is added by RetroFuturaGradle's
     // runClient17/21/25 tasks and by lwjgl3ify itself in a real instance.
     compileOnly('com.github.GTNewHorizons:lwjgl3ify:3.0.33:dev') { transitive = false }
+    // Key code constants of org.lwjglx.input.Keyboard are inlined at compile time, the class is not needed at run time.
+    testCompileOnly('com.github.GTNewHorizons:lwjgl3ify:3.0.33:dev') { transitive = false }
 
     implementation files(coreJar)
     implementation files(demoJar)
@@ -74,6 +76,8 @@ class InjectLwjgl3Aware implements Action<Task> {
         if (!classesDir.isDirectory()) return
         classesDir.eachFileRecurse { File file ->
             if (!file.name.endsWith('.class') || file.name == 'module-info.class') return
+            // Mixin classes are templates merged into Minecraft classes; they never touch LWJGL.
+            if (file.path.replace('\\', '/').contains('/mixins/')) return
             ClassReader reader = new ClassReader(file.bytes)
             if (isAware(reader)) return
             ClassWriter writer = new ClassWriter(reader, 0)
@@ -121,6 +125,29 @@ tasks.named('jar') {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
+// Demo textures live in the demo jar under assets/unigui_testmod; the backend resolves them as assets/unigui.
+tasks.named('processResources') {
+    from({ zipTree(demoJar) }) {
+        include 'assets/unigui_testmod/**'
+        eachFile { details ->
+            details.path = details.path.replaceFirst('^assets/unigui_testmod/', 'assets/unigui/')
+        }
+        includeEmptyDirs = false
+    }
+}
+
 tasks.withType(Test).configureEach {
     useJUnitPlatform()
+}
+
+// Development aids for runClient*: `-PuniguiAutoOpen=widgets` opens a demo screen a few seconds after start-up,
+// and GL errors are logged after every UI frame.
+def uniguiAutoOpen = project.findProperty('uniguiAutoOpen')
+if (uniguiAutoOpen) {
+    minecraft {
+        extraRunJvmArguments.add("-Dunigui.autoOpen=${uniguiAutoOpen}")
+        extraRunJvmArguments.add('-Dunigui.glDebug=true')
+        // -PuniguiAutoOpenViaCommand=true opens it the way a chat command does (command, then the chat closes).
+        if (project.findProperty('uniguiAutoOpenViaCommand')) extraRunJvmArguments.add('-Dunigui.autoOpenViaCommand=true')
+    }
 }
