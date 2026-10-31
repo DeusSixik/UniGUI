@@ -49,6 +49,7 @@ tasks.withType(Test).configureEach {
 
 tasks.withType(JavaCompile).configureEach {
     options.release = 17
+    options.compilerArgs << "-parameters"
 }
 
 tasks.named('jar', Jar).configure {

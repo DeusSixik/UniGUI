@@ -1,5 +1,6 @@
 package dev.sixik.unigui.api.render.shaders;
 
+import dev.sixik.unigui.api.docs.AiDoc;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -14,6 +15,18 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * вручную зарегистрированные providers, ServiceLoader providers и classpath fallback. Ошибки
  * отдельных providers намеренно подавляются, чтобы один сломанный provider не ломал весь UI.</p>
  */
+@AiDoc(
+        summary = "Global registry and resolution dispatcher for ShaderProvider implementations.",
+        purpose = "Coordinates shader lookup across embedded sources, registered mod providers, ServiceLoader discoveries, and classpath assets.",
+        useWhen = {
+                "Register custom shader providers at runtime with `ShaderProviders.register(provider)`.",
+                "Resolve shader source for a ShaderHandle via `ShaderProviders.resolve(handle)`."
+        },
+        criticalRules = {
+                "Resolution order: 1) Embedded source in ShaderHandle, 2) Preferred providers, 3) Manually registered providers, 4) ServiceLoader, 5) Classpath fallback.",
+                "Exceptions thrown by individual providers are suppressed to prevent crashing the entire UI."
+        },
+        related = {"ShaderProvider", "ShaderHandle", "ShaderSource"})
 public final class ShaderProviders {
     private static final CopyOnWriteArrayList<ShaderProvider> REGISTERED = new CopyOnWriteArrayList<>();
     private static final CopyOnWriteArrayList<ShaderProvider> SERVICES = new CopyOnWriteArrayList<>();

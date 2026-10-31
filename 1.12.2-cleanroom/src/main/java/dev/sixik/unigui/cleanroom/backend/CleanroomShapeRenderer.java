@@ -3,11 +3,15 @@ package dev.sixik.unigui.cleanroom.backend;
 import dev.sixik.unigui.api.render.BlendMode;
 import dev.sixik.unigui.api.render.DrawCommand;
 import dev.sixik.unigui.api.render.TextureHandle;
+import dev.sixik.unigui.api.render.TextureOptions;
 import dev.sixik.unigui.impl.render.DrawBatch;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BufferBuilder;
+import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.Tessellator;
+import net.minecraft.client.renderer.texture.ITextureObject;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
+import net.minecraft.util.ResourceLocation;
 import org.lwjgl.opengl.GL11;
 
 /**
@@ -21,6 +25,7 @@ final class CleanroomShapeRenderer {
     private final CleanroomRenderHost host;
     private final CleanroomShapeTessellator tessellator = new CleanroomShapeTessellator();
     private final CleanroomVertexList vertices = new CleanroomVertexList();
+    private final CleanroomSamplerState sampler = new CleanroomSamplerState();
 
     CleanroomShapeRenderer(CleanroomRenderHost host) {
         this.host = host;
@@ -54,13 +59,15 @@ final class CleanroomShapeRenderer {
     }
 
     /**
-     * Draws a batch of {@code MESH} commands that share one texture (or none).
+     * Draws a batch of commands that share one texture (or none): {@code MESH}, {@code TEXTURE} and
+     * {@code TEXTURED_QUAD}. One bind, one sampler state and one draw call for all of them.
      *
-     * @param batch mesh batch
+     * @param batch batch of textured commands
      */
-    void renderMeshes(DrawBatch batch) {
+    void renderTextured(DrawBatch batch) {
         vertices.clear();
         tessellator.begin(vertices, pixelsPerUnit());
+        tessellator.flipV(flipsV(batch.texture()));
         Object[] commands = batch.commandElements();
         for (int i = 0, size = batch.size(); i < size; i++) {
             tessellator.append((DrawCommand) commands[i], host.opacity());
@@ -69,28 +76,46 @@ final class CleanroomShapeRenderer {
     }
 
     /**
-     * Draws a single mesh command.
+     * Draws a single textured command ({@code MESH}, {@code TEXTURE} or {@code TEXTURED_QUAD}).
      *
-     * @param command mesh command
+     * @param command command to draw
      */
-    void renderMesh(DrawCommand command) {
+    void renderTexturedCommand(DrawCommand command) {
         vertices.clear();
         tessellator.begin(vertices, pixelsPerUnit());
+        tessellator.flipV(flipsV(command.texture()));
         tessellator.append(command, host.opacity());
         draw(command.paint().blendMode(), command.texture());
     }
 
+    /**
+     * Render target colors are stored bottom row first and must be drawn with V flipped.
+     */
+    private static boolean flipsV(TextureHandle texture) {
+        return texture != null && texture.nativeHandle() instanceof CleanroomRenderTarget.ColorTextureHandle target
+                && target.flipY();
+    }
+
     private float pixelsPerUnit() {
-        return CleanroomRenderMath.windowScale(host.uiScale(), minecraft.displayWidth, host.logicalWidth());
+        return host.pixelsPerUnitX();
     }
 
     private void draw(BlendMode blend, TextureHandle texture) {
         int count = vertices.size();
         if (count == 0) return;
-        CleanroomGlState.blend(blend);
         boolean textured = texture != null;
+        int samplerDepth = sampler.depth();
+        CleanroomGlState.blend(blend, textured && texture.options().premultipliedAlpha());
         if (textured) {
-            minecraft.getTextureManager().bindTexture(CleanroomTextures.location(texture.id()));
+            if (texture.nativeHandle() instanceof CleanroomRenderTarget.ColorTextureHandle target) {
+                if (target.isDisposed()) return;
+                GlStateManager.bindTexture(target.textureId());
+                sampler.apply(texture.options());
+            } else {
+                ResourceLocation location = CleanroomTextures.location(texture);
+                minecraft.getTextureManager().bindTexture(location);
+                prepareBoundTexture(location, texture.options());
+            }
             CleanroomGlState.textured();
         } else {
             CleanroomGlState.flat();
@@ -111,5 +136,19 @@ final class CleanroomShapeRenderer {
             }
         }
         vanilla.draw();
+        sampler.restoreTo(samplerDepth);
+    }
+
+    /**
+     * Generates missing mipmaps for the texture just bound and applies its sampling options.
+     */
+    private void prepareBoundTexture(ResourceLocation location, TextureOptions options) {
+        if (options.mipmaps()) {
+            ITextureObject object = minecraft.getTextureManager().getTexture(location);
+            if (object != null && CleanroomTextures.markMipmapped(object.getGlTextureId())) {
+                CleanroomSamplerState.generateMipmaps();
+            }
+        }
+        sampler.apply(options);
     }
 }

@@ -1,5 +1,7 @@
 package dev.sixik.unigui.api.render;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+
 /**
  * Тип команды в retained draw list.
  *
@@ -7,6 +9,19 @@ package dev.sixik.unigui.api.render;
  * нужно интерпретировать: bounds/paint для прямоугольника, texture/uv для изображения,
  * shader/uniforms для shader-команды и так далее.</p>
  */
+@AiDoc(
+        summary = "Enumeration of draw command categories recorded into DrawList.",
+        purpose = "Informs RenderBackend which payload fields in DrawCommand (bounds, paint, texture, uv, shader, path, mesh) must be processed.",
+        useWhen = {
+                "Differentiating command processing inside a RenderBackend drawing loop.",
+                "Instantiating or recycling DrawCommand objects via DrawList#obtain(DrawCommandType)."
+        },
+        criticalRules = {
+                "Backends must exhaustively handle or gracefully ignore all command types.",
+                "PUSH_CLIP and POP_CLIP commands must always be processed in matching pairs."
+        },
+        related = {"DrawCommand", "DrawList", "RenderBackend"}
+)
 public enum DrawCommandType {
     /** Прямоугольник без скругления. */
     RECT,

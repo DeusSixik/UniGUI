@@ -1,5 +1,12 @@
 package dev.sixik.unigui.impl.text;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.Transform;
@@ -32,6 +39,51 @@ import java.util.List;
  * <p>Важно: inline-content здесь не превращается в widget. Это только часть текстового потока,
  * поэтому он наследует clip/transform родительского текста и не получает input events.</p>
  */
+@AiDoc(
+        summary = "Core text layout, line-wrapping, dimension measurement, and inline-content rendering engine.",
+        purpose = "Centralizes character metrics, word wrapping, alignment offsets, and atomic inline content positioning across all widgets.",
+        useWhen = {
+                "Calculating preferred or min-content size for text-containing widgets in layout phases.",
+                "Wrapping multi-line rich text blocks to fit constrained widths.",
+                "Drawing formatted text with alignment or mixed inline content into RenderContext or DrawScope."
+        },
+        criticalRules = {
+                "TextEngine is stateless; all state is passed via RenderContext, DrawScope, or parameter arguments.",
+                "Plain rich text is dispatched directly to RenderBackend; rich text with inline content is decomposed into local atomic layout boxes.",
+                "minContentWidth returns the length of the longest unbreakable word."
+        },
+        related = {"RichText", "FontFace", "RenderContext", "DrawScope", "InlineContentSpan"}
+)
+@WikiPage(
+        title = "<key:text.engine.title>",
+        slug = "text-engine",
+        category = "<key:text.engine.category>",
+        summary = "<key:text.engine.summary>",
+        order = 30)
+@WikiSection(
+        title = "<key:text.engine.section.overview.title>",
+        markdown = "<key:text.engine.section.overview.body>",
+        order = 10)
+@WikiSection(
+        title = "<key:text.engine.section.measurement.title>",
+        markdown = "<key:text.engine.section.measurement.body>",
+        order = 20)
+@WikiSection(
+        title = "<key:text.engine.section.wrapping.title>",
+        markdown = "<key:text.engine.section.wrapping.body>",
+        order = 30)
+@WikiSection(
+        title = "<key:text.engine.section.rendering.title>",
+        markdown = "<key:text.engine.section.rendering.body>",
+        order = 40)
+@WikiExample(
+        title = "<key:text.engine.example.wrap.title>",
+        code = "<key:text.engine.example.wrap.code>",
+        order = 10)
+@WikiExample(
+        title = "<key:text.engine.example.draw.title>",
+        code = "<key:text.engine.example.draw.code>",
+        order = 20)
 public final class TextEngine {
     public static final float APPROX_CHAR_WIDTH = 6.0f;
     public static final float LINE_HEIGHT = 10.0f;
@@ -39,7 +91,14 @@ public final class TextEngine {
     private TextEngine() {
     }
 
-    public static float measureLineWidth(String text) {
+    @WikiMethod(
+            title = "<key:text.engine.method.measure_line_width_str.title>",
+            summary = "<key:text.engine.method.measure_line_width_str.summary>",
+            order = 10)
+    @WikiReturn("<key:text.engine.method.measure_line_width_str.return>")
+    public static float measureLineWidth(
+            @WikiParameter(name = "text", description = "<key:text.engine.method.measure_line_width_str.text>")
+            String text) {
         if (text == null || text.isEmpty()) return 0.0f;
         return text.codePointCount(0, text.length()) * APPROX_CHAR_WIDTH;
     }
@@ -50,7 +109,14 @@ public final class TextEngine {
      * @param text rich text или {@code null}
      * @return ширина самого длинного слова
      */
-    public static float minContentWidth(RichText text) {
+    @WikiMethod(
+            title = "<key:text.engine.method.min_content_width.title>",
+            summary = "<key:text.engine.method.min_content_width.summary>",
+            order = 20)
+    @WikiReturn("<key:text.engine.method.min_content_width.return>")
+    public static float minContentWidth(
+            @WikiParameter(name = "text", description = "<key:text.engine.method.min_content_width.text>")
+            RichText text) {
         if (text == null || text.isEmpty()) return 0.0f;
         float longest = 0.0f;
         for (String word : text.plainText().split("\\s+")) {
@@ -61,13 +127,31 @@ public final class TextEngine {
         return longest;
     }
 
-    public static float measureLineWidth(RenderContext context, String text) {
+    @WikiMethod(
+            title = "<key:text.engine.method.measure_line_width_ctx_str.title>",
+            summary = "<key:text.engine.method.measure_line_width_ctx_str.summary>",
+            order = 30)
+    @WikiReturn("<key:text.engine.method.measure_line_width_ctx_str.return>")
+    public static float measureLineWidth(
+            @WikiParameter(name = "context", description = "<key:text.engine.method.measure_line_width_ctx_str.context>")
+            RenderContext context,
+            @WikiParameter(name = "text", description = "<key:text.engine.method.measure_line_width_ctx_str.text>")
+            String text) {
         if (text == null || text.isEmpty()) return 0.0f;
         RenderBackend backend = context == null ? null : context.backend();
         return backend == null ? measureLineWidth(text) : Math.max(0.0f, backend.measureTextWidth(text));
     }
 
-    public static float measureLineWidth(RenderContext context, RichText text) {
+    @WikiMethod(
+            title = "<key:text.engine.method.measure_line_width_ctx_rich.title>",
+            summary = "<key:text.engine.method.measure_line_width_ctx_rich.summary>",
+            order = 40)
+    @WikiReturn("<key:text.engine.method.measure_line_width_ctx_rich.return>")
+    public static float measureLineWidth(
+            @WikiParameter(name = "context", description = "<key:text.engine.method.measure_line_width_ctx_rich.context>")
+            RenderContext context,
+            @WikiParameter(name = "text", description = "<key:text.engine.method.measure_line_width_ctx_rich.text>")
+            RichText text) {
         if (text == null || text.isEmpty()) return 0.0f;
         RenderBackend backend = context == null ? null : context.backend();
         if (backend == null || text.hasInlineContent()) {
@@ -78,7 +162,14 @@ public final class TextEngine {
         return Math.max(0.0f, backend.measureTextWidth(text));
     }
 
-    public static float measureLineWidth(RichText text) {
+    @WikiMethod(
+            title = "<key:text.engine.method.measure_line_width_rich.title>",
+            summary = "<key:text.engine.method.measure_line_width_rich.summary>",
+            order = 50)
+    @WikiReturn("<key:text.engine.method.measure_line_width_rich.return>")
+    public static float measureLineWidth(
+            @WikiParameter(name = "text", description = "<key:text.engine.method.measure_line_width_rich.text>")
+            RichText text) {
         return measureLineWidth(text, null);
     }
 
@@ -112,7 +203,14 @@ public final class TextEngine {
         return Math.max(maximum, current);
     }
 
-    public static float measureTextHeight(RichText text) {
+    @WikiMethod(
+            title = "<key:text.engine.method.measure_text_height_rich.title>",
+            summary = "<key:text.engine.method.measure_text_height_rich.summary>",
+            order = 60)
+    @WikiReturn("<key:text.engine.method.measure_text_height_rich.return>")
+    public static float measureTextHeight(
+            @WikiParameter(name = "text", description = "<key:text.engine.method.measure_text_height_rich.text>")
+            RichText text) {
         return measureTextHeight(text, null);
     }
 
@@ -123,7 +221,16 @@ public final class TextEngine {
      * layout-коду без render context, но при отрисовке высота должна совпадать
      * с метриками шрифта, который действительно выберет backend.</p>
      */
-    public static float measureTextHeight(RenderContext context, RichText text) {
+    @WikiMethod(
+            title = "<key:text.engine.method.measure_text_height_ctx_rich.title>",
+            summary = "<key:text.engine.method.measure_text_height_ctx_rich.summary>",
+            order = 70)
+    @WikiReturn("<key:text.engine.method.measure_text_height_ctx_rich.return>")
+    public static float measureTextHeight(
+            @WikiParameter(name = "context", description = "<key:text.engine.method.measure_text_height_ctx_rich.context>")
+            RenderContext context,
+            @WikiParameter(name = "text", description = "<key:text.engine.method.measure_text_height_ctx_rich.text>")
+            RichText text) {
         RenderBackend backend = context == null ? null : context.backend();
         FontFace defaultFace = backend == null ? null : backend.defaultTextFace();
         return measureTextHeight(text, defaultFace);
@@ -156,11 +263,31 @@ public final class TextEngine {
         return total + positiveLineHeight(lineHeight);
     }
 
-    public static List<RichText> wrapLines(RichText text, float maxWidth) {
+    @WikiMethod(
+            title = "<key:text.engine.method.wrap_lines_rich.title>",
+            summary = "<key:text.engine.method.wrap_lines_rich.summary>",
+            order = 80)
+    @WikiReturn("<key:text.engine.method.wrap_lines_rich.return>")
+    public static List<RichText> wrapLines(
+            @WikiParameter(name = "text", description = "<key:text.engine.method.wrap_lines_rich.text>")
+            RichText text,
+            @WikiParameter(name = "maxWidth", description = "<key:text.engine.method.wrap_lines_rich.max_width>")
+            float maxWidth) {
         return wrapLines(null, text, maxWidth);
     }
 
-    public static List<RichText> wrapLines(RenderContext context, RichText text, float maxWidth) {
+    @WikiMethod(
+            title = "<key:text.engine.method.wrap_lines_ctx_rich.title>",
+            summary = "<key:text.engine.method.wrap_lines_ctx_rich.summary>",
+            order = 90)
+    @WikiReturn("<key:text.engine.method.wrap_lines_ctx_rich.return>")
+    public static List<RichText> wrapLines(
+            @WikiParameter(name = "context", description = "<key:text.engine.method.wrap_lines_ctx_rich.context>")
+            RenderContext context,
+            @WikiParameter(name = "text", description = "<key:text.engine.method.wrap_lines_ctx_rich.text>")
+            RichText text,
+            @WikiParameter(name = "maxWidth", description = "<key:text.engine.method.wrap_lines_ctx_rich.max_width>")
+            float maxWidth) {
         List<RichText> lines = new ObjectArrayList<>();
         if (text == null || text.isEmpty()) return lines;
         if (!Float.isFinite(maxWidth) || maxWidth <= 0.0f) {
@@ -182,45 +309,119 @@ public final class TextEngine {
         return lines;
     }
 
-    public static float lineHeight(RichText line) {
+    @WikiMethod(
+            title = "<key:text.engine.method.line_height_rich.title>",
+            summary = "<key:text.engine.method.line_height_rich.summary>",
+            order = 100)
+    @WikiReturn("<key:text.engine.method.line_height_rich.return>")
+    public static float lineHeight(
+            @WikiParameter(name = "line", description = "<key:text.engine.method.line_height_rich.line>")
+            RichText line) {
         return line == null || line.isEmpty()
                 ? LINE_HEIGHT
                 : Math.max(LINE_HEIGHT, measureTextHeight(line));
     }
 
-    public static float lineHeight(RenderContext context, RichText line) {
+    @WikiMethod(
+            title = "<key:text.engine.method.line_height_ctx_rich.title>",
+            summary = "<key:text.engine.method.line_height_ctx_rich.summary>",
+            order = 110)
+    @WikiReturn("<key:text.engine.method.line_height_ctx_rich.return>")
+    public static float lineHeight(
+            @WikiParameter(name = "context", description = "<key:text.engine.method.line_height_ctx_rich.context>")
+            RenderContext context,
+            @WikiParameter(name = "line", description = "<key:text.engine.method.line_height_ctx_rich.line>")
+            RichText line) {
         return line == null || line.isEmpty()
                 ? LINE_HEIGHT
                 : Math.max(LINE_HEIGHT, measureTextHeight(context, line));
     }
 
-    public static float linesHeight(List<RichText> lines) {
+    @WikiMethod(
+            title = "<key:text.engine.method.lines_height_list.title>",
+            summary = "<key:text.engine.method.lines_height_list.summary>",
+            order = 120)
+    @WikiReturn("<key:text.engine.method.lines_height_list.return>")
+    public static float linesHeight(
+            @WikiParameter(name = "lines", description = "<key:text.engine.method.lines_height_list.lines>")
+            List<RichText> lines) {
         if (lines == null || lines.isEmpty()) return 0.0f;
         float height = 0.0f;
         for (RichText line : lines) height += lineHeight(line);
         return height;
     }
 
-    public static float linesHeight(RenderContext context, List<RichText> lines) {
+    @WikiMethod(
+            title = "<key:text.engine.method.lines_height_ctx_list.title>",
+            summary = "<key:text.engine.method.lines_height_ctx_list.summary>",
+            order = 130)
+    @WikiReturn("<key:text.engine.method.lines_height_ctx_list.return>")
+    public static float linesHeight(
+            @WikiParameter(name = "context", description = "<key:text.engine.method.lines_height_ctx_list.context>")
+            RenderContext context,
+            @WikiParameter(name = "lines", description = "<key:text.engine.method.lines_height_ctx_list.lines>")
+            List<RichText> lines) {
         if (lines == null || lines.isEmpty()) return 0.0f;
         float height = 0.0f;
         for (RichText line : lines) height += lineHeight(context, line);
         return height;
     }
 
-    public static void draw(RenderContext context, String text,
-                            float x, float y, float width, float height,
-                            Paint paint, Transform transform,
-                            Alignment horizontalAlignment, Alignment verticalAlignment) {
+    @WikiMethod(
+            title = "<key:text.engine.method.draw_str.title>",
+            summary = "<key:text.engine.method.draw_str.summary>",
+            order = 140)
+    public static void draw(
+            @WikiParameter(name = "context", description = "<key:text.engine.method.draw_str.context>")
+            RenderContext context,
+            @WikiParameter(name = "text", description = "<key:text.engine.method.draw_str.text>")
+            String text,
+            @WikiParameter(name = "x", description = "<key:text.engine.method.draw_str.x>")
+            float x,
+            @WikiParameter(name = "y", description = "<key:text.engine.method.draw_str.y>")
+            float y,
+            @WikiParameter(name = "width", description = "<key:text.engine.method.draw_str.width>")
+            float width,
+            @WikiParameter(name = "height", description = "<key:text.engine.method.draw_str.height>")
+            float height,
+                            @WikiParameter(name = "paint", description = "<key:text.engine.method.draw_str.paint>")
+            Paint paint,
+            @WikiParameter(name = "transform", description = "<key:text.engine.method.draw_str.transform>")
+            Transform transform,
+            @WikiParameter(name = "horizontalAlignment", description = "<key:text.engine.method.draw_str.h_align>")
+            Alignment horizontalAlignment,
+            @WikiParameter(name = "verticalAlignment", description = "<key:text.engine.method.draw_str.v_align>")
+            Alignment verticalAlignment) {
         if (text == null || text.isEmpty()) return;
         // String API тоже проходит через resolver, чтобы XML/модовый scope мог подменить marker'ы.
         draw(context, RichText.resolve(text), x, y, width, height, paint, transform, horizontalAlignment, verticalAlignment);
     }
 
-    public static void draw(RenderContext context, RichText text,
-                            float x, float y, float width, float height,
-                            Paint paint, Transform transform,
-                            Alignment horizontalAlignment, Alignment verticalAlignment) {
+    @WikiMethod(
+            title = "<key:text.engine.method.draw_rich.title>",
+            summary = "<key:text.engine.method.draw_rich.summary>",
+            order = 150)
+    public static void draw(
+            @WikiParameter(name = "context", description = "<key:text.engine.method.draw_rich.context>")
+            RenderContext context,
+            @WikiParameter(name = "text", description = "<key:text.engine.method.draw_rich.text>")
+            RichText text,
+            @WikiParameter(name = "x", description = "<key:text.engine.method.draw_rich.x>")
+            float x,
+            @WikiParameter(name = "y", description = "<key:text.engine.method.draw_rich.y>")
+            float y,
+            @WikiParameter(name = "width", description = "<key:text.engine.method.draw_rich.width>")
+            float width,
+            @WikiParameter(name = "height", description = "<key:text.engine.method.draw_rich.height>")
+            float height,
+            @WikiParameter(name = "paint", description = "<key:text.engine.method.draw_rich.paint>")
+            Paint paint,
+            @WikiParameter(name = "transform", description = "<key:text.engine.method.draw_rich.transform>")
+            Transform transform,
+            @WikiParameter(name = "horizontalAlignment", description = "<key:text.engine.method.draw_rich.h_align>")
+            Alignment horizontalAlignment,
+            @WikiParameter(name = "verticalAlignment", description = "<key:text.engine.method.draw_rich.v_align>")
+            Alignment verticalAlignment) {
         if (context == null || text == null || text.isEmpty()) return;
 
         float textWidth = Math.min(Math.max(0.0f, width), measureLineWidth(context, text));
@@ -251,9 +452,25 @@ public final class TextEngine {
      * остаётся задачей будущего editor layout. Если inline-span выше шрифта, обычные glyph'ы
      * автоматически центрируются внутри общей line box.</p>
      */
-    public static void drawInline(DrawScope draw, RichText text,
-                                  float x, float y, float width, float height,
-                                  Paint paint) {
+    @WikiMethod(
+            title = "<key:text.engine.method.draw_inline.title>",
+            summary = "<key:text.engine.method.draw_inline.summary>",
+            order = 160)
+    public static void drawInline(
+            @WikiParameter(name = "draw", description = "<key:text.engine.method.draw_inline.draw>")
+            DrawScope draw,
+            @WikiParameter(name = "text", description = "<key:text.engine.method.draw_inline.text>")
+            RichText text,
+            @WikiParameter(name = "x", description = "<key:text.engine.method.draw_inline.x>")
+            float x,
+            @WikiParameter(name = "y", description = "<key:text.engine.method.draw_inline.y>")
+            float y,
+            @WikiParameter(name = "width", description = "<key:text.engine.method.draw_inline.width>")
+            float width,
+            @WikiParameter(name = "height", description = "<key:text.engine.method.draw_inline.height>")
+            float height,
+            @WikiParameter(name = "paint", description = "<key:text.engine.method.draw_inline.paint>")
+            Paint paint) {
         drawInline(draw, text, x, y, width, height, paint,
                 Float.NaN);
     }
@@ -262,9 +479,27 @@ public final class TextEngine {
      * Рисует mixed RichText, позволяя сдвинуть только обычные glyph'ы вниз.
      * Inline-content сохраняет собственное выравнивание по line box.
      */
-    public static void drawInline(DrawScope draw, RichText text,
-                                  float x, float y, float width, float height,
-                                  Paint paint, float textVisualOffset) {
+    @WikiMethod(
+            title = "<key:text.engine.method.draw_inline_offset.title>",
+            summary = "<key:text.engine.method.draw_inline_offset.summary>",
+            order = 170)
+    public static void drawInline(
+            @WikiParameter(name = "draw", description = "<key:text.engine.method.draw_inline_offset.draw>")
+            DrawScope draw,
+            @WikiParameter(name = "text", description = "<key:text.engine.method.draw_inline_offset.text>")
+            RichText text,
+            @WikiParameter(name = "x", description = "<key:text.engine.method.draw_inline_offset.x>")
+            float x,
+            @WikiParameter(name = "y", description = "<key:text.engine.method.draw_inline_offset.y>")
+            float y,
+            @WikiParameter(name = "width", description = "<key:text.engine.method.draw_inline_offset.width>")
+            float width,
+            @WikiParameter(name = "height", description = "<key:text.engine.method.draw_inline_offset.height>")
+            float height,
+            @WikiParameter(name = "paint", description = "<key:text.engine.method.draw_inline_offset.paint>")
+            Paint paint,
+            @WikiParameter(name = "textVisualOffset", description = "<key:text.engine.method.draw_inline_offset.offset>")
+            float textVisualOffset) {
         if (draw == null || text == null || text.isEmpty()) return;
         if (!text.hasInlineContent()) {
             RenderContext plainContext = draw.context();
@@ -382,7 +617,14 @@ public final class TextEngine {
      * @param text rich-text или {@code null}
      * @return {@code true}, если нужен общий прямоугольник заливки
      */
-    public static boolean usesPositionalBrush(RichText text) {
+    @WikiMethod(
+            title = "<key:text.engine.method.uses_positional_brush.title>",
+            summary = "<key:text.engine.method.uses_positional_brush.summary>",
+            order = 180)
+    @WikiReturn("<key:text.engine.method.uses_positional_brush.return>")
+    public static boolean usesPositionalBrush(
+            @WikiParameter(name = "text", description = "<key:text.engine.method.uses_positional_brush.text>")
+            RichText text) {
         if (text == null) return false;
         List<TextRun> runs = text.runs();
         for (int i = 0, size = runs.size(); i < size; i++) {
@@ -412,7 +654,20 @@ public final class TextEngine {
         return true;
     }
 
-    public static float alignedStart(float start, float available, float size, Alignment alignment) {
+    @WikiMethod(
+            title = "<key:text.engine.method.aligned_start.title>",
+            summary = "<key:text.engine.method.aligned_start.summary>",
+            order = 190)
+    @WikiReturn("<key:text.engine.method.aligned_start.return>")
+    public static float alignedStart(
+            @WikiParameter(name = "start", description = "<key:text.engine.method.aligned_start.start>")
+            float start,
+            @WikiParameter(name = "available", description = "<key:text.engine.method.aligned_start.available>")
+            float available,
+            @WikiParameter(name = "size", description = "<key:text.engine.method.aligned_start.size>")
+            float size,
+            @WikiParameter(name = "alignment", description = "<key:text.engine.method.aligned_start.alignment>")
+            Alignment alignment) {
         return switch (alignment == null ? Alignment.START : alignment) {
             case CENTER -> start + Math.max(0.0f, available - size) * 0.5f;
             case END -> start + Math.max(0.0f, available - size);

@@ -1,5 +1,7 @@
 package dev.sixik.unigui.api.text;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+
 /**
  * Атомарный non-text span внутри {@link RichText}.
  *
@@ -18,6 +20,12 @@ package dev.sixik.unigui.api.text;
  * @param alignment вертикальное выравнивание внутри строки
  * @param renderer renderer, который получит финальные bounds после layout
  */
+@AiDoc(
+        summary = "Atomic non-text layout item (icon, texture, badge) embedded in a RichText sequence.",
+        purpose = "Participates in line breaking and text alignment, providing fallback plain text.",
+        useWhen = {"Embedding inline graphics into text without creating separate widget nodes."},
+        related = {"RichText", "InlineContentRenderer", "InlineContentAlignment"}
+)
 public record InlineContentSpan(
         String id,
         String fallbackText,

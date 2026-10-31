@@ -1,5 +1,7 @@
 package dev.sixik.unigui.api.render.shaders;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+
 import java.util.Arrays;
 
 /**
@@ -8,6 +10,18 @@ import java.util.Arrays;
  * <p>Uniform хранит тип и либо float-array payload, либо int payload. Массивы копируются при создании
  * и чтении, чтобы draw-команда не зависела от внешнего mutable массива.</p>
  */
+@AiDoc(
+        summary = "Immutable container holding a single typed shader parameter payload (float, int, vector, or mat4).",
+        purpose = "Wraps typed shader uniform values with defensive copying so graphics draw commands remain immutable.",
+        useWhen = {
+                "Construct individual uniforms using `ShaderUniform.float1()`, `vec2()`, `vec3()`, `vec4()`, or `mat4()`.",
+                "Inspect uniform types and raw float arrays when writing custom graphics backend adapters."
+        },
+        criticalRules = {
+                "Array values are defensively copied on creation and extraction.",
+                "`mat4` requires an array of exactly 16 float values."
+        },
+        related = {"ShaderUniforms", "ShaderHandle", "DrawScope"})
 public final class ShaderUniform {
     /** Поддерживаемые типы shader uniform. */
     public enum Type {

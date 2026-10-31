@@ -1,5 +1,7 @@
 package dev.sixik.unigui.api.text;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+
 import dev.sixik.unigui.api.math.ColorView;
 import java.util.Locale;
 
@@ -18,6 +20,12 @@ import java.util.Locale;
  * @param tracking дополнительный отступ между glyph'ами в UI-пикселях
  * @param transform transform текста перед сохранением run'а
  */
+@AiDoc(
+        summary = "Homogeneously styled contiguous substring within a RichText instance.",
+        purpose = "Combines a text string with font face, pixel size, color, brush, tracking, and text transform.",
+        useWhen = {"Inspecting individual styled segments of a RichText model."},
+        related = {"RichText", "RichTextSpan", "FontFace", "TextBrush"}
+)
 public record TextRun(String text, FontFace font, float pixelSize, ColorView color, TextBrush brush,
                       float tracking, TextTransform transform) implements RichTextSpan {
     /** Стандартный размер текста для plain widgets и fallback-измерений. */

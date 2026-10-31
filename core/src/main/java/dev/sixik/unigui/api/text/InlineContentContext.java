@@ -1,5 +1,7 @@
 package dev.sixik.unigui.api.text;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.Paint;
@@ -17,6 +19,12 @@ import dev.sixik.unigui.api.render.Paint;
  * @param lineHeight высота строки, в которую помещён span
  * @param paint базовый paint текущего текста; renderer может использовать его цвет как tint
  */
+@AiDoc(
+        summary = "Layout context passed to InlineContentRenderer containing final screen bounds and color tint.",
+        purpose = "Supplies exact coordinates and visual properties computed by TextEngine.",
+        useWhen = {"Drawing inline content inside an InlineContentRenderer implementation."},
+        related = {"InlineContentRenderer", "InlineContentSpan"}
+)
 public record InlineContentContext(
         InlineContentSpan span,
         RectView bounds,

@@ -1,5 +1,7 @@
 package dev.sixik.unigui.api.text;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+
 import dev.sixik.unigui.api.math.ColorView;
 
 /**
@@ -12,6 +14,12 @@ import dev.sixik.unigui.api.math.ColorView;
  * <p>На backend'ах без поддержки brush значение деградирует до обычного цвета paint/run.
  * Minecraft backend поддерживает {@link LinearGradientTextBrush} для SDF и vanilla font path.</p>
  */
+@AiDoc(
+        summary = "Procedural fill brush for styling text glyphs with solid colors, multi-color linear gradients, or custom shaders.",
+        purpose = "Allows rich visual fills on text without altering glyph geometry.",
+        useWhen = {"Applying gradients or textured fills across RichText runs."},
+        related = {"SolidTextBrush", "LinearGradientTextBrush", "RichText"}
+)
 public interface TextBrush {
     /**
      * Создаёт независимую копию brush'а для immutable rich-text snapshot'ов.

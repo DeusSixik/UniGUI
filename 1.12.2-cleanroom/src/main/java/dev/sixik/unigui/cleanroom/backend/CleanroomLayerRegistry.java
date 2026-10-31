@@ -1,6 +1,7 @@
 package dev.sixik.unigui.cleanroom.backend;
 
 import dev.sixik.unigui.api.backend.UniGuiBackend;
+import dev.sixik.unigui.api.input.MouseCursor;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -31,6 +32,40 @@ final class CleanroomLayerRegistry<C> {
         for (int i = current.length - 1; i >= 0; i--) {
             Entry<?> entry = current[i];
             if (entry.visible(context)) entry.renderer.mouseMoved(mouseX, mouseY);
+        }
+        return false;
+    }
+
+    /**
+     * @return the cursor wanted by the topmost visible layer that has a widget under the pointer, or {@code null}
+     */
+    MouseCursor mouseCursor(C context, double mouseX, double mouseY) {
+        Entry<?>[] current = snapshot;
+        for (int i = current.length - 1; i >= 0; i--) {
+            Entry<?> entry = current[i];
+            if (!entry.visible(context)) continue;
+            MouseCursor cursor = entry.renderer.mouseCursor(mouseX, mouseY);
+            if (cursor != null) return cursor;
+        }
+        return null;
+    }
+
+    /**
+     * @return {@code true} if at least one layer is visible for the context
+     */
+    boolean hasVisible(C context) {
+        for (Entry<?> entry : snapshot) {
+            if (entry.visible(context)) return true;
+        }
+        return false;
+    }
+
+    /**
+     * @return {@code true} if a visible layer has a text field in focus
+     */
+    boolean textInputFocused(C context) {
+        for (Entry<?> entry : snapshot) {
+            if (entry.visible(context) && entry.renderer.textInputFocused()) return true;
         }
         return false;
     }
@@ -97,6 +132,20 @@ final class CleanroomLayerRegistry<C> {
         void render(int width, int height, int mouseX, int mouseY, float partialTick);
 
         default void mouseMoved(double mouseX, double mouseY) {
+        }
+
+        /**
+         * @return cursor for a pointer over this layer, or {@code null} if no widget of the layer is under it
+         */
+        default MouseCursor mouseCursor(double mouseX, double mouseY) {
+            return null;
+        }
+
+        /**
+         * @return {@code true} if a text field of this layer holds the keyboard focus
+         */
+        default boolean textInputFocused() {
+            return false;
         }
 
         default boolean mouseClicked(double mouseX, double mouseY, int button) {

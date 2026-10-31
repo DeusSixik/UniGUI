@@ -1,5 +1,7 @@
 package dev.sixik.unigui.api.text;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+
 /**
  * Вертикальное выравнивание атомарного inline-контента внутри строки текста.
  *
@@ -10,6 +12,12 @@ package dev.sixik.unigui.api.text;
  * @see InlineContentSpan
  * @see InlineContentContext
  */
+@AiDoc(
+        summary = "Vertical alignment mode for inline content spans relative to text line height.",
+        purpose = "Controls whether inline icons align to line TOP, CENTER, BOTTOM, or BASELINE.",
+        useWhen = {"Configuring vertical alignment of inline content in RichText."},
+        related = {"InlineContentSpan", "TextEngine"}
+)
 public enum InlineContentAlignment {
     /** Центрирует inline-контент по высоте строки. */
     CENTER,

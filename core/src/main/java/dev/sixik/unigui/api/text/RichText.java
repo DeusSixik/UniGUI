@@ -1,5 +1,12 @@
 package dev.sixik.unigui.api.text;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.TextureHandle;
@@ -38,6 +45,84 @@ import java.util.List;
  * @see InlineContentSpan
  * @see InlineContentResolvers
  */
+@AiDoc(
+        summary = "Immutable multi-style rich text model supporting styled runs, fonts, brushes, gradients, and inline content spans.",
+        purpose = "Provides a unified, immutable representation of text and embedded inline atoms (icons, badges, images) for UI layout, line wrapping, and rendering.",
+        useWhen = {
+                "Rendering formatted labels, buttons, tooltips, or chat logs with mixed fonts, sizes, and colors.",
+                "Embedding icons, badges, or procedural inline graphics directly into continuous text flows.",
+                "Applying multi-stop gradients or custom brushes across text runs."
+        },
+        criticalRules = {
+                "RichText is strictly immutable. Methods like withBrush, withTextStyle, append, and slice return new instances.",
+                "Inline content spans participate in line wrapping and alignment but do not receive direct UI input events.",
+                "Plain string operations can use RichText.plain(String) or RichText.resolve(String) for automatic icon marker resolution."
+        },
+        related = {"TextRun", "RichTextSpan", "InlineContentSpan", "FontFace", "TextBrush", "TextEngine"},
+        examples = {
+                @AiDoc.Example(
+                        title = "Building Rich Text with Text and Inline Icons",
+                        order = 10,
+                        code = """
+                                RichText text = RichText.builder()
+                                        .append("Status: ")
+                                        .icon("icon:ok", checkTexture, 12.0f)
+                                        .color(ColorView.rgb(80, 220, 100))
+                                        .append(" All systems online")
+                                        .build();
+                                """),
+                @AiDoc.Example(
+                        title = "Applying Linear Gradient Across Text",
+                        order = 20,
+                        code = """
+                                RichText gradientTitle = RichText.gradient(
+                                        "UniGUI Engine",
+                                        Fonts.TITLE,
+                                        18.0f,
+                                        ColorView.rgb(255, 100, 100),
+                                        ColorView.rgb(100, 150, 255),
+                                        45.0f
+                                );
+                                """)
+        })
+@WikiPage(
+        title = "<key:rich.text.title>",
+        slug = "rich-text",
+        category = "<key:rich.text.category>",
+        summary = "<key:rich.text.summary>",
+        order = 10)
+@WikiSection(
+        title = "<key:rich.text.section.overview.title>",
+        markdown = "<key:rich.text.section.overview.body>",
+        order = 10)
+@WikiSection(
+        title = "<key:rich.text.section.spans.title>",
+        markdown = "<key:rich.text.section.spans.body>",
+        order = 20)
+@WikiSection(
+        title = "<key:rich.text.section.inline.title>",
+        markdown = "<key:rich.text.section.inline.body>",
+        order = 30)
+@WikiSection(
+        title = "<key:rich.text.section.brushes.title>",
+        markdown = "<key:rich.text.section.brushes.body>",
+        order = 40)
+@WikiSection(
+        title = "<key:rich.text.section.transform.title>",
+        markdown = "<key:rich.text.section.transform.body>",
+        order = 50)
+@WikiSection(
+        title = "<key:rich.text.section.builder.title>",
+        markdown = "<key:rich.text.section.builder.body>",
+        order = 60)
+@WikiExample(
+        title = "<key:rich.text.example.mixed.title>",
+        code = "<key:rich.text.example.mixed.code>",
+        order = 10)
+@WikiExample(
+        title = "<key:rich.text.example.gradient.title>",
+        code = "<key:rich.text.example.gradient.code>",
+        order = 20)
 public final class RichText {
     private final List<RichTextSpan> spans;
     private final List<TextRun> runs;
@@ -82,7 +167,14 @@ public final class RichText {
      * @param text исходный текст
      * @return rich-text из одного {@link TextRun}
      */
-    public static RichText plain(String text) {
+    @WikiMethod(
+            title = "<key:rich.text.method.plain.title>",
+            summary = "<key:rich.text.method.plain.summary>",
+            order = 10)
+    @WikiReturn("<key:rich.text.method.plain.return>")
+    public static RichText plain(
+            @WikiParameter(name = "text", description = "<key:rich.text.method.plain.text>")
+            String text) {
         return new RichText(List.of(new TextRun(text, null, TextRun.DEFAULT_PIXEL_SIZE)));
     }
 
@@ -96,7 +188,14 @@ public final class RichText {
      * @param text исходная строка
      * @return rich-text после resolver'а
      */
-    public static RichText resolve(String text) {
+    @WikiMethod(
+            title = "<key:rich.text.method.resolve.title>",
+            summary = "<key:rich.text.method.resolve.summary>",
+            order = 20)
+    @WikiReturn("<key:rich.text.method.resolve.return>")
+    public static RichText resolve(
+            @WikiParameter(name = "text", description = "<key:rich.text.method.resolve.text>")
+            String text) {
         return InlineContentResolvers.resolve(text);
     }
 
@@ -108,7 +207,18 @@ public final class RichText {
      * @param pixelSize размер текста в UI-пикселях
      * @return rich-text из одного {@link TextRun}
      */
-    public static RichText of(String text, FontFace font, float pixelSize) {
+    @WikiMethod(
+            title = "<key:rich.text.method.of_font.title>",
+            summary = "<key:rich.text.method.of_font.summary>",
+            order = 30)
+    @WikiReturn("<key:rich.text.method.of_font.return>")
+    public static RichText of(
+            @WikiParameter(name = "text", description = "<key:rich.text.method.of_font.text>")
+            String text,
+            @WikiParameter(name = "font", description = "<key:rich.text.method.of_font.font>")
+            FontFace font,
+            @WikiParameter(name = "pixelSize", description = "<key:rich.text.method.of_font.pixel_size>")
+            float pixelSize) {
         return new RichText(List.of(new TextRun(text, font, pixelSize)));
     }
 
@@ -121,7 +231,20 @@ public final class RichText {
      * @param color цвет run'а или {@code null}, чтобы renderer использовал paint виджета
      * @return rich-text из одного {@link TextRun}
      */
-    public static RichText of(String text, FontFace font, float pixelSize, ColorView color) {
+    @WikiMethod(
+            title = "<key:rich.text.method.of_color.title>",
+            summary = "<key:rich.text.method.of_color.summary>",
+            order = 40)
+    @WikiReturn("<key:rich.text.method.of_color.return>")
+    public static RichText of(
+            @WikiParameter(name = "text", description = "<key:rich.text.method.of_color.text>")
+            String text,
+            @WikiParameter(name = "font", description = "<key:rich.text.method.of_color.font>")
+            FontFace font,
+            @WikiParameter(name = "pixelSize", description = "<key:rich.text.method.of_color.pixel_size>")
+            float pixelSize,
+            @WikiParameter(name = "color", description = "<key:rich.text.method.of_color.color>")
+            ColorView color) {
         return new RichText(List.of(new TextRun(text, font, pixelSize, color)));
     }
 
@@ -134,7 +257,20 @@ public final class RichText {
      * @param brush brush-заливка текста или {@code null} для обычного цвета
      * @return rich-text из одного {@link TextRun}
      */
-    public static RichText brushed(String text, FontFace font, float pixelSize, TextBrush brush) {
+    @WikiMethod(
+            title = "<key:rich.text.method.brushed.title>",
+            summary = "<key:rich.text.method.brushed.summary>",
+            order = 50)
+    @WikiReturn("<key:rich.text.method.brushed.return>")
+    public static RichText brushed(
+            @WikiParameter(name = "text", description = "<key:rich.text.method.brushed.text>")
+            String text,
+            @WikiParameter(name = "font", description = "<key:rich.text.method.brushed.font>")
+            FontFace font,
+            @WikiParameter(name = "pixelSize", description = "<key:rich.text.method.brushed.pixel_size>")
+            float pixelSize,
+            @WikiParameter(name = "brush", description = "<key:rich.text.method.brushed.brush>")
+            TextBrush brush) {
         return new RichText(List.of(new TextRun(text, font, pixelSize, null, brush)));
     }
 
@@ -149,8 +285,24 @@ public final class RichText {
      * @param angleDegrees угол направления в градусах
      * @return rich-text с {@link LinearGradientTextBrush}
      */
-    public static RichText gradient(String text, FontFace font, float pixelSize,
-                                    ColorView startColor, ColorView endColor, float angleDegrees) {
+    @WikiMethod(
+            title = "<key:rich.text.method.gradient.title>",
+            summary = "<key:rich.text.method.gradient.summary>",
+            order = 60)
+    @WikiReturn("<key:rich.text.method.gradient.return>")
+    public static RichText gradient(
+            @WikiParameter(name = "text", description = "<key:rich.text.method.gradient.text>")
+            String text,
+            @WikiParameter(name = "font", description = "<key:rich.text.method.gradient.font>")
+            FontFace font,
+            @WikiParameter(name = "pixelSize", description = "<key:rich.text.method.gradient.pixel_size>")
+            float pixelSize,
+            @WikiParameter(name = "startColor", description = "<key:rich.text.method.gradient.start_color>")
+            ColorView startColor,
+            @WikiParameter(name = "endColor", description = "<key:rich.text.method.gradient.end_color>")
+            ColorView endColor,
+            @WikiParameter(name = "angleDegrees", description = "<key:rich.text.method.gradient.angle_degrees>")
+            float angleDegrees) {
         return brushed(text, font, pixelSize, TextBrush.linearGradient(startColor, endColor, angleDegrees));
     }
 
@@ -160,13 +312,25 @@ public final class RichText {
      * @param spans текстовые и inline span'ы
      * @return нормализованный immutable rich-text
      */
-    public static RichText ofSpans(List<? extends RichTextSpan> spans) {
+    @WikiMethod(
+            title = "<key:rich.text.method.of_spans.title>",
+            summary = "<key:rich.text.method.of_spans.summary>",
+            order = 70)
+    @WikiReturn("<key:rich.text.method.of_spans.return>")
+    public static RichText ofSpans(
+            @WikiParameter(name = "spans", description = "<key:rich.text.method.of_spans.spans>")
+            List<? extends RichTextSpan> spans) {
         return new RichText(spans, true);
     }
 
     /**
      * @return builder для fluent-сборки mixed text + inline content
      */
+    @WikiMethod(
+            title = "<key:rich.text.method.builder.title>",
+            summary = "<key:rich.text.method.builder.summary>",
+            order = 80)
+    @WikiReturn("<key:rich.text.method.builder.return>")
     public static Builder builder() {
         return new Builder();
     }
@@ -176,6 +340,11 @@ public final class RichText {
      *
      * @return immutable список {@link TextRun}; inline span'ы сюда не попадают
      */
+    @WikiMethod(
+            title = "<key:rich.text.method.runs.title>",
+            summary = "<key:rich.text.method.runs.summary>",
+            order = 90)
+    @WikiReturn("<key:rich.text.method.runs.return>")
     public List<TextRun> runs() {
         return runs;
     }
@@ -185,6 +354,11 @@ public final class RichText {
      *
      * @return immutable список {@link TextRun} и {@link InlineContentSpan}
      */
+    @WikiMethod(
+            title = "<key:rich.text.method.spans.title>",
+            summary = "<key:rich.text.method.spans.summary>",
+            order = 100)
+    @WikiReturn("<key:rich.text.method.spans.return>")
     public List<RichTextSpan> spans() {
         return spans;
     }
@@ -194,6 +368,11 @@ public final class RichText {
      *
      * @return текстовые run'ы плюс fallback text inline-span'ов
      */
+    @WikiMethod(
+            title = "<key:rich.text.method.plain_text.title>",
+            summary = "<key:rich.text.method.plain_text.summary>",
+            order = 110)
+    @WikiReturn("<key:rich.text.method.plain_text.return>")
     public String plainText() {
         return plainText;
     }
@@ -201,6 +380,11 @@ public final class RichText {
     /**
      * @return {@code true}, если значение содержит хотя бы один inline-span
      */
+    @WikiMethod(
+            title = "<key:rich.text.method.has_inline_content.title>",
+            summary = "<key:rich.text.method.has_inline_content.summary>",
+            order = 120)
+    @WikiReturn("<key:rich.text.method.has_inline_content.return>")
     public boolean hasInlineContent() {
         return hasInlineContent;
     }
@@ -208,6 +392,11 @@ public final class RichText {
     /**
      * @return {@code true}, если после нормализации не осталось span'ов
      */
+    @WikiMethod(
+            title = "<key:rich.text.method.is_empty.title>",
+            summary = "<key:rich.text.method.is_empty.summary>",
+            order = 130)
+    @WikiReturn("<key:rich.text.method.is_empty.return>")
     public boolean isEmpty() {
         return spans.isEmpty();
     }
@@ -221,7 +410,14 @@ public final class RichText {
      * @param brush новый brush для всех {@link TextRun}
      * @return новое immutable rich-text значение
      */
-    public RichText withBrush(TextBrush brush) {
+    @WikiMethod(
+            title = "<key:rich.text.method.with_brush.title>",
+            summary = "<key:rich.text.method.with_brush.summary>",
+            order = 140)
+    @WikiReturn("<key:rich.text.method.with_brush.return>")
+    public RichText withBrush(
+            @WikiParameter(name = "brush", description = "<key:rich.text.method.with_brush.brush>")
+            TextBrush brush) {
         if (spans.isEmpty()) return this;
         ObjectArrayList<RichTextSpan> updated = new ObjectArrayList<>(spans.size());
         for (RichTextSpan span : spans) {
@@ -250,7 +446,18 @@ public final class RichText {
      * @param transform новое преобразование или {@code null}, чтобы сохранить transform run'а
      * @return обновлённый immutable rich-text или текущий объект, если переопределений нет
      */
-    public RichText withTextStyle(Float pixelSize, Float tracking, TextTransform transform) {
+    @WikiMethod(
+            title = "<key:rich.text.method.with_text_style.title>",
+            summary = "<key:rich.text.method.with_text_style.summary>",
+            order = 150)
+    @WikiReturn("<key:rich.text.method.with_text_style.return>")
+    public RichText withTextStyle(
+            @WikiParameter(name = "pixelSize", description = "<key:rich.text.method.with_text_style.pixel_size>")
+            Float pixelSize,
+            @WikiParameter(name = "tracking", description = "<key:rich.text.method.with_text_style.tracking>")
+            Float tracking,
+            @WikiParameter(name = "transform", description = "<key:rich.text.method.with_text_style.transform>")
+            TextTransform transform) {
         if (spans.isEmpty() || (pixelSize == null && tracking == null && transform == null)) return this;
         ObjectArrayList<RichTextSpan> updated = new ObjectArrayList<>(spans.size());
         for (RichTextSpan span : spans) {
@@ -273,7 +480,18 @@ public final class RichText {
     /**
      * Возвращает копию rich-text с линейным градиентом на всех текстовых run'ах.
      */
-    public RichText withLinearGradient(ColorView startColor, ColorView endColor, float angleDegrees) {
+    @WikiMethod(
+            title = "<key:rich.text.method.with_linear_gradient.title>",
+            summary = "<key:rich.text.method.with_linear_gradient.summary>",
+            order = 160)
+    @WikiReturn("<key:rich.text.method.with_linear_gradient.return>")
+    public RichText withLinearGradient(
+            @WikiParameter(name = "startColor", description = "<key:rich.text.method.with_linear_gradient.start_color>")
+            ColorView startColor,
+            @WikiParameter(name = "endColor", description = "<key:rich.text.method.with_linear_gradient.end_color>")
+            ColorView endColor,
+            @WikiParameter(name = "angleDegrees", description = "<key:rich.text.method.with_linear_gradient.angle_degrees>")
+            float angleDegrees) {
         return withBrush(TextBrush.linearGradient(startColor, endColor, angleDegrees));
     }
 
@@ -283,7 +501,14 @@ public final class RichText {
      * @param other добавляемый rich-text или {@code null}
      * @return новое immutable значение; текущий объект не изменяется
      */
-    public RichText append(RichText other) {
+    @WikiMethod(
+            title = "<key:rich.text.method.append.title>",
+            summary = "<key:rich.text.method.append.summary>",
+            order = 170)
+    @WikiReturn("<key:rich.text.method.append.return>")
+    public RichText append(
+            @WikiParameter(name = "other", description = "<key:rich.text.method.append.other>")
+            RichText other) {
         if (other == null || other.isEmpty()) return this;
         List<RichTextSpan> combined = new ObjectArrayList<>(spans.size() + other.spans.size());
         combined.addAll(spans);
@@ -303,7 +528,16 @@ public final class RichText {
      * @param endExclusive конец среза исключительно
      * @return новый rich-text с выбранным диапазоном
      */
-    public RichText slice(int startInclusive, int endExclusive) {
+    @WikiMethod(
+            title = "<key:rich.text.method.slice.title>",
+            summary = "<key:rich.text.method.slice.summary>",
+            order = 180)
+    @WikiReturn("<key:rich.text.method.slice.return>")
+    public RichText slice(
+            @WikiParameter(name = "startInclusive", description = "<key:rich.text.method.slice.start_inclusive>")
+            int startInclusive,
+            @WikiParameter(name = "endExclusive", description = "<key:rich.text.method.slice.end_exclusive>")
+            int endExclusive) {
         int start = Math.max(0, Math.min(startInclusive, plainText.length()));
         int end = Math.max(start, Math.min(endExclusive, plainText.length()));
         if (start == 0 && end == plainText.length()) return this;
@@ -379,6 +613,19 @@ public final class RichText {
      * Они применяются к последующим {@link #append(String)}. Inline-span'ы добавляются как отдельные
      * атомы и не наследуют эти параметры, кроме тех случаев, когда renderer сам использует paint.</p>
      */
+    @AiDoc(
+            summary = "Fluent builder for assembling multi-style RichText with text runs and inline content atoms.",
+            purpose = "Maintains persistent style attributes (font, size, color, brush, tracking, transform) that apply across chained append() calls, alongside dedicated icon() and inline() helpers.",
+            useWhen = {
+                    "Constructing formatted text containing multiple colors, fonts, or inline graphic spans.",
+                    "Embedding icons or procedural badges into rich text."
+            },
+            criticalRules = {
+                    "Style attributes set on the builder apply only to subsequent append() calls; they do not retroactively alter previously added spans.",
+                    "Inline spans do not inherit text styling attributes except when the inline renderer explicitly utilizes the context color tint."
+            },
+            related = {"RichText", "TextRun", "InlineContentSpan", "FontFace"}
+    )
     public static final class Builder {
         private final List<RichTextSpan> spans = new ObjectArrayList<>();
         private FontFace font;

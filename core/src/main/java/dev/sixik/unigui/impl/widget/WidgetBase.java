@@ -1,6 +1,13 @@
 package dev.sixik.unigui.impl.widget;
 
 import dev.sixik.unigui.api.animation.AnimatedProperty;
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.animation.AnimationClock;
 import dev.sixik.unigui.api.animation.AnimationEasing;
 import dev.sixik.unigui.api.animation.Easing;
@@ -79,6 +86,82 @@ import java.util.function.Consumer;
 
 @XmlLayoutAttributes
 @XmlStyleAttributes
+@AiDoc(
+        summary = "Base implementation for UniGUI widgets and the bridge between widget state, layout, styles, rendering, input, and animation.",
+        purpose = "Provides common fluent configuration and lifecycle behavior so concrete widgets can focus on their own content, measurement, and visual rendering.",
+        useWhen = {
+                "Implement a custom widget that should participate in the standard UniGUI layout, style, event, and animation pipelines.",
+                "Configure an existing widget through common identity, visibility, focus, style, transform, or caching APIs."
+        },
+        criticalRules = {
+                "Subclass `WidgetBase`; do not instantiate it directly because it is abstract and owns framework lifecycle state.",
+                "Use `layout(style -> ...)` for layout properties and `style(...)` for visual/style properties; they update different systems.",
+                "Changing layout-related state must invalidate `LAYOUT`; visual-only changes should invalidate `VISUAL`.",
+                "`Visibility.HIDDEN` keeps layout space but suppresses rendering and input; `Visibility.COLLAPSED` removes the widget from layout as well.",
+                "A per-instance `renderer` replaces the widget's standard visual; children are still handled by the framework.",
+                "Retained render caching is intended for stable leaf visuals; widgets with children fall back to normal child traversal.",
+                "`styleScope(true)` limits inherited local-style lookup at that widget boundary; it does not remove the global theme.",
+                "Call `super` lifecycle behavior when overriding framework methods unless the concrete widget deliberately replaces that contract."
+        },
+        related = {"Widget", "LayoutStyle", "StylePack", "MutableStyle", "TransitionSpec", "EventSubscription"},
+        examples = {
+                @AiDoc.Example(
+                        title = "Configure a widget",
+                        order = 10,
+                        code = """
+                                WidgetBase widget = new Label("Hello")
+                                        .id("greeting")
+                                        .styleId("card")
+                                        .addStyleClass("interactive")
+                                        .layout(style -> style
+                                                .padding(12.0f)
+                                                .width(240.0f)
+                                                .flexNone());
+                                """),
+                @AiDoc.Example(
+                        title = "Animate a visual property",
+                        order = 20,
+                        code = """
+                                widget
+                                        .opacity(0.0f)
+                                        .animateOpacity(1.0f, 0.20f)
+                                        .animateScale(1.0f, 1.0f, 0.20f);
+                                """)
+        })
+@WikiPage(
+        title = "<key:widget.base.title>",
+        slug = "widget-base",
+        category = "<key:widget.base.category>",
+        summary = "<key:widget.base.summary>",
+        order = 30)
+@WikiSection(
+        title = "<key:widget.base.section.overview.title>",
+        markdown = "<key:widget.base.section.overview.body>",
+        order = 10)
+@WikiSection(
+        title = "<key:widget.base.section.style.title>",
+        markdown = "<key:widget.base.section.style.body>",
+        order = 20)
+@WikiSection(
+        title = "<key:widget.base.section.state.title>",
+        markdown = "<key:widget.base.section.state.body>",
+        order = 30)
+@WikiSection(
+        title = "<key:widget.base.section.animation.title>",
+        markdown = "<key:widget.base.section.animation.body>",
+        order = 40)
+@WikiSection(
+        title = "<key:widget.base.section.render.title>",
+        markdown = "<key:widget.base.section.render.body>",
+        order = 50)
+@WikiExample(
+        title = "<key:widget.base.example.configure.title>",
+        code = "<key:widget.base.example.configure.code>",
+        order = 10)
+@WikiExample(
+        title = "<key:widget.base.example.animation.title>",
+        code = "<key:widget.base.example.animation.code>",
+        order = 20)
 public abstract class WidgetBase implements Widget {
     /**
      * Общие animation property id, доступные всем виджетам.
@@ -345,6 +428,9 @@ public abstract class WidgetBase implements Widget {
      * Возвращает UI-контекст, к которому привязан виджет.
      */
     @Override
+    @WikiMethod(section = "<key:widget.base.api.section.lifecycle>", sectionOrder = 60, order = 80,
+            title = "<key:widget.base.method.ui_context.title>", summary = "<key:widget.base.method.ui_context.summary>")
+    @WikiReturn("<key:widget.base.method.ui_context.return>")
     public UIContext uiContext() {
         return uiContext;
     }
@@ -362,6 +448,9 @@ public abstract class WidgetBase implements Widget {
      * Возвращает родительский виджет в UI-дереве.
      */
     @Override
+    @WikiMethod(section = "<key:widget.base.api.section.lifecycle>", sectionOrder = 60, order = 70,
+            title = "<key:widget.base.method.parent.title>", summary = "<key:widget.base.method.parent.summary>")
+    @WikiReturn("<key:widget.base.method.parent.return>")
     public Widget parent() {
         return parent;
     }
@@ -383,6 +472,9 @@ public abstract class WidgetBase implements Widget {
      * Возвращает дочерние виджеты, участвующие в layout, input и render-проходах.
      */
     @Override
+    @WikiMethod(section = "<key:widget.base.api.section.lifecycle>", sectionOrder = 60, order = 72,
+            title = "<key:widget.base.method.children.title>", summary = "<key:widget.base.method.children.summary>")
+    @WikiReturn("<key:widget.base.method.children.return>")
     public List<Widget> children() {
         return Collections.emptyList();
     }
@@ -391,6 +483,9 @@ public abstract class WidgetBase implements Widget {
      * Возвращает runtime/editor id виджета.
      */
     @Override
+    @WikiMethod(section = "<key:widget.base.api.section.identity>", sectionOrder = 10, order = 12,
+            title = "<key:widget.base.method.get_id.title>", summary = "<key:widget.base.method.get_id.summary>")
+    @WikiReturn("<key:widget.base.method.get_id.return>")
     public String id() {
         return id;
     }
@@ -400,7 +495,12 @@ public abstract class WidgetBase implements Widget {
      */
     @Override
     @XmlAttribute(value = "id", category = "Common", description = "Runtime/debug/editor identifier for code-behind lookup.")
-    public WidgetBase id(String id) {
+    @AiDoc(section = "Identity & Style Selectors", sectionOrder = 10, order = 10,
+            summary = "Assigns the runtime/editor identifier used by code-behind and lookup systems.")
+    @WikiMethod(section = "<key:widget.base.api.section.identity>", sectionOrder = 10, order = 10,
+            title = "<key:widget.base.method.id.title>", summary = "<key:widget.base.method.id.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase id(@WikiParameter(name = "id", description = "<key:widget.base.method.id.parameter>") String id) {
         String normalized = id == null ? "" : id;
         if (this.id.equals(normalized)) return this;
         this.id = normalized;
@@ -411,6 +511,9 @@ public abstract class WidgetBase implements Widget {
      * Возвращает явный id стиля виджета.
      */
     @Override
+    @WikiMethod(section = "<key:widget.base.api.section.identity>", sectionOrder = 10, order = 22,
+            title = "<key:widget.base.method.get_style_id.title>", summary = "<key:widget.base.method.get_style_id.summary>")
+    @WikiReturn("<key:widget.base.method.get_style_id.return>")
     public String styleId() {
         return styleId;
     }
@@ -420,7 +523,12 @@ public abstract class WidgetBase implements Widget {
      */
     @Override
     @XmlAttribute(value = "style", category = "Common", description = "Explicit StylePack style id applied to this widget.")
-    public WidgetBase styleId(String styleId) {
+    @AiDoc(section = "Identity & Style Selectors", sectionOrder = 10, order = 20,
+            summary = "Selects the explicit `StylePack` style id for this widget.")
+    @WikiMethod(section = "<key:widget.base.api.section.identity>", sectionOrder = 10, order = 20,
+            title = "<key:widget.base.method.style_id.title>", summary = "<key:widget.base.method.style_id.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase styleId(@WikiParameter(name = "styleId", description = "<key:widget.base.method.style_id.parameter>") String styleId) {
         String normalized = styleId == null ? "" : styleId.trim();
         if (this.styleId.equals(normalized)) return this;
         this.styleId = normalized;
@@ -433,6 +541,9 @@ public abstract class WidgetBase implements Widget {
      * Возвращает style classes виджета.
      */
     @Override
+    @WikiMethod(section = "<key:widget.base.api.section.identity>", sectionOrder = 10, order = 48,
+            title = "<key:widget.base.method.get_style_classes.title>", summary = "<key:widget.base.method.get_style_classes.summary>")
+    @WikiReturn("<key:widget.base.method.get_style_classes.return>")
     public List<String> styleClasses() {
         return List.copyOf(styleClasses);
     }
@@ -442,7 +553,12 @@ public abstract class WidgetBase implements Widget {
      */
     @Override
     @XmlAttribute(value = "class", category = "Common", description = "Space-separated StylePack classes applied to this widget.")
-    public WidgetBase styleClass(String styleClasses) {
+    @AiDoc(section = "Identity & Style Selectors", sectionOrder = 10, order = 30,
+            summary = "Replaces the widget's space-separated style-class set.")
+    @WikiMethod(section = "<key:widget.base.api.section.identity>", sectionOrder = 10, order = 40,
+            title = "<key:widget.base.method.style_class.title>", summary = "<key:widget.base.method.style_class.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase styleClass(@WikiParameter(name = "styleClasses", description = "<key:widget.base.method.style_class.parameter>") String styleClasses) {
         LinkedHashSet<String> parsed = parseStyleClasses(styleClasses);
         if (this.styleClasses.equals(parsed)) return this;
         this.styleClasses.clear();
@@ -464,7 +580,12 @@ public abstract class WidgetBase implements Widget {
      * Добавляет один style class.
      */
     @Override
-    public WidgetBase addStyleClass(String styleClass) {
+    @AiDoc(section = "Identity & Style Selectors", sectionOrder = 10, order = 40,
+            summary = "Adds one normalized style class without removing existing classes.")
+    @WikiMethod(section = "<key:widget.base.api.section.identity>", sectionOrder = 10, order = 42,
+            title = "<key:widget.base.method.add_style_class.title>", summary = "<key:widget.base.method.add_style_class.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase addStyleClass(@WikiParameter(name = "styleClass", description = "<key:widget.base.method.add_style_class.parameter>") String styleClass) {
         String normalized = normalizeStyleClass(styleClass);
         if (normalized.isEmpty() || !styleClasses.add(normalized)) return this;
         styleSelectorVersion++;
@@ -476,7 +597,12 @@ public abstract class WidgetBase implements Widget {
      * Удаляет один style class.
      */
     @Override
-    public WidgetBase removeStyleClass(String styleClass) {
+    @AiDoc(section = "Identity & Style Selectors", sectionOrder = 10, order = 50,
+            summary = "Removes one normalized style class if it is present.")
+    @WikiMethod(section = "<key:widget.base.api.section.identity>", sectionOrder = 10, order = 44,
+            title = "<key:widget.base.method.remove_style_class.title>", summary = "<key:widget.base.method.remove_style_class.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase removeStyleClass(@WikiParameter(name = "styleClass", description = "<key:widget.base.method.remove_style_class.parameter>") String styleClass) {
         String normalized = normalizeStyleClass(styleClass);
         if (normalized.isEmpty() || !styleClasses.remove(normalized)) return this;
         styleSelectorVersion++;
@@ -488,7 +614,12 @@ public abstract class WidgetBase implements Widget {
      * Проверяет наличие style class.
      */
     @Override
-    public boolean hasStyleClass(String styleClass) {
+    @AiDoc(section = "Identity & Style Selectors", sectionOrder = 10, order = 60,
+            summary = "Checks whether the widget has a normalized style class.")
+    @WikiMethod(section = "<key:widget.base.api.section.identity>", sectionOrder = 10, order = 46,
+            title = "<key:widget.base.method.has_style_class.title>", summary = "<key:widget.base.method.has_style_class.summary>")
+    @WikiReturn("<key:widget.base.method.has_style_class.return>")
+    public boolean hasStyleClass(@WikiParameter(name = "styleClass", description = "<key:widget.base.method.has_style_class.parameter>") String styleClass) {
         String normalized = normalizeStyleClass(styleClass);
         return !normalized.isEmpty() && styleClasses.contains(normalized);
     }
@@ -500,7 +631,18 @@ public abstract class WidgetBase implements Widget {
      * объявления используют форму {@code property: value; property: value}.</p>
      */
     @Override
-    public WidgetBase style(String declarations) {
+    @AiDoc(section = "Inline Styling & Layout", sectionOrder = 20, order = 10,
+            summary = "Parses inline style declarations; a string without `:` or `;` is treated as a style id.",
+            criticalRules = "Parsing diagnostics are retained in `styleDiagnostics()` and do not silently disappear.")
+    @WikiMethod(
+            section = "<key:widget.base.api.section.identity>",
+            sectionOrder = 10,
+            order = 30,
+            title = "<key:widget.base.method.style.title>",
+            summary = "<key:widget.base.method.style.summary>",
+            markdown = "<key:widget.base.method.style.markdown>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase style(@WikiParameter(name = "declarations", description = "<key:widget.base.method.style.parameter>") String declarations) {
         String normalized = declarations == null ? "" : declarations.trim();
         if (normalized.isEmpty()) return this;
         if (normalized.indexOf(':') < 0 && normalized.indexOf(';') < 0) {
@@ -521,7 +663,12 @@ public abstract class WidgetBase implements Widget {
      * Добавляет типизированные значения в тот же набор встроенных стилей.
      */
     @Override
-    public WidgetBase style(Consumer<MutableStyle> update) {
+    @AiDoc(section = "Inline Styling & Layout", sectionOrder = 20, order = 20,
+            summary = "Applies typed inline style values through a `MutableStyle` callback.")
+    @WikiMethod(section = "<key:widget.base.api.section.identity>", sectionOrder = 10, order = 32,
+            title = "<key:widget.base.method.style_consumer.title>", summary = "<key:widget.base.method.style_consumer.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase style(@WikiParameter(name = "update", description = "<key:widget.base.method.style_consumer.parameter>") Consumer<MutableStyle> update) {
         if (update == null) return this;
         update.accept(inlineStyle());
         invalidate(InvalidationFlags.VISUAL);
@@ -534,6 +681,11 @@ public abstract class WidgetBase implements Widget {
      * @return этот виджет
      */
     @Override
+    @AiDoc(section = "Inline Styling & Layout", sectionOrder = 20, order = 30,
+            summary = "Clears only the widget's inline style and parser diagnostics; external style scopes remain active.")
+    @WikiMethod(section = "<key:widget.base.api.section.identity>", sectionOrder = 10, order = 35,
+            title = "<key:widget.base.method.style_clear.title>", summary = "<key:widget.base.method.style_clear.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
     public WidgetBase styleClear() {
         if (inlineStyle == null && styleDiagnostics.isEmpty()) return this;
         if (inlineStyle != null && localStyles.get(Theme.WILDCARD) == inlineStyle) {
@@ -546,6 +698,9 @@ public abstract class WidgetBase implements Widget {
     }
 
     @Override
+    @WikiMethod(section = "<key:widget.base.api.section.identity>", sectionOrder = 10, order = 38,
+            title = "<key:widget.base.method.style_diagnostics.title>", summary = "<key:widget.base.method.style_diagnostics.summary>")
+    @WikiReturn("<key:widget.base.method.style_diagnostics.return>")
     public List<XmlWidgetDiagnostic> styleDiagnostics() {
         return styleDiagnostics;
     }
@@ -562,6 +717,9 @@ public abstract class WidgetBase implements Widget {
      * Возвращает текущие границы виджета после layout-прохода.
      */
     @Override
+    @WikiMethod(section = "<key:widget.base.api.section.layout>", sectionOrder = 20, order = 20,
+            title = "<key:widget.base.method.layout_bounds.title>", summary = "<key:widget.base.method.layout_bounds.summary>")
+    @WikiReturn("<key:widget.base.method.layout_bounds.return>")
     public RectView layoutBounds() {
         return layoutBounds;
     }
@@ -572,6 +730,9 @@ public abstract class WidgetBase implements Widget {
      * <p>Переходы выключены по умолчанию. Размер виджета не анимируется: FLIP
      * применяется только когда меняются координаты {@code x} или {@code y}.</p>
      */
+    @WikiMethod(section = "<key:widget.base.api.section.layout>", sectionOrder = 20, order = 46,
+            title = "<key:widget.base.method.get_layout_transitions_enabled.title>", summary = "<key:widget.base.method.get_layout_transitions_enabled.summary>")
+    @WikiReturn("<key:widget.base.method.get_layout_transitions_enabled.return>")
     public boolean layoutTransitionsEnabled() {
         return layoutTransitionsEnabled;
     }
@@ -584,7 +745,10 @@ public abstract class WidgetBase implements Widget {
      */
     @XmlAttribute(value = "layoutTransitionsEnabled", category = "Animation", defaultValue = "false",
             description = "Включает FLIP-переходы при перемещении виджета layout-системой.")
-    public WidgetBase layoutTransitionsEnabled(boolean enabled) {
+    @WikiMethod(section = "<key:widget.base.api.section.layout>", sectionOrder = 20, order = 45,
+            title = "<key:widget.base.method.layout_transitions_enabled.title>", summary = "<key:widget.base.method.layout_transitions_enabled.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase layoutTransitionsEnabled(@WikiParameter(name = "enabled", description = "<key:widget.base.method.layout_transitions_enabled.parameter>") boolean enabled) {
         if (layoutTransitionsEnabled == enabled) return this;
         layoutTransitionsEnabled = enabled;
         if (!enabled) {
@@ -619,7 +783,10 @@ public abstract class WidgetBase implements Widget {
      * @param durationSeconds длительность перехода в секундах
      * @return этот виджет
      */
-    public WidgetBase layoutTransition(float durationSeconds) {
+    @WikiMethod(section = "<key:widget.base.api.section.layout>", sectionOrder = 20, order = 40,
+            title = "<key:widget.base.method.layout_transition.title>", summary = "<key:widget.base.method.layout_transition.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase layoutTransition(@WikiParameter(name = "durationSeconds", description = "<key:widget.base.method.layout_transition.duration>") float durationSeconds) {
         return layoutTransition(durationSeconds, AnimationEasing.EASE_OUT);
     }
 
@@ -630,7 +797,13 @@ public abstract class WidgetBase implements Widget {
      * @param easing          функция плавности; {@code null} означает линейный easing
      * @return этот виджет
      */
-    public WidgetBase layoutTransition(float durationSeconds, Easing easing) {
+    @AiDoc(section = "Transforms & Animation", sectionOrder = 40, order = 10,
+            summary = "Enables FLIP animation for subsequent layout-driven position changes.",
+            criticalRules = "Only x/y movement is animated; layout size changes are not interpolated.")
+    @WikiMethod(section = "<key:widget.base.api.section.layout>", sectionOrder = 20, order = 42,
+            title = "<key:widget.base.method.layout_transition_easing.title>", summary = "<key:widget.base.method.layout_transition_easing.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase layoutTransition(@WikiParameter(name = "durationSeconds", description = "<key:widget.base.method.layout_transition.duration>") float durationSeconds, @WikiParameter(name = "easing", description = "<key:widget.base.method.layout_transition.easing>") Easing easing) {
         layoutTransitionSpec = TransitionSpec.of(durationSeconds, easing);
         return layoutTransitionsEnabled(true);
     }
@@ -649,6 +822,9 @@ public abstract class WidgetBase implements Widget {
      * Возвращает размер, который виджет запросил на этапе измерения.
      */
     @Override
+    @WikiMethod(section = "<key:widget.base.api.section.layout>", sectionOrder = 20, order = 30,
+            title = "<key:widget.base.method.desired_size.title>", summary = "<key:widget.base.method.desired_size.summary>")
+    @WikiReturn("<key:widget.base.method.desired_size.return>")
     public LayoutSize desiredSize() {
         return desiredSize;
     }
@@ -685,6 +861,9 @@ public abstract class WidgetBase implements Widget {
      * Возвращает трансформацию, применяемую к виджету при отрисовке.
      */
     @Override
+    @WikiMethod(section = "<key:widget.base.api.section.animation>", sectionOrder = 40, order = 29,
+            title = "<key:widget.base.method.get_transform.title>", summary = "<key:widget.base.method.get_transform.summary>")
+    @WikiReturn("<key:widget.base.method.get_transform.return>")
     public Transform transform() {
         return transform;
     }
@@ -693,7 +872,12 @@ public abstract class WidgetBase implements Widget {
         return transformOrigin;
     }
 
-    public WidgetBase transformOrigin(TransformOrigin origin) {
+    @AiDoc(section = "Transforms & Animation", sectionOrder = 40, order = 20,
+            summary = "Selects a named transform pivot; `CUSTOM` preserves the raw pixel pivot.")
+    @WikiMethod(section = "<key:widget.base.api.section.animation>", sectionOrder = 40, order = 25,
+            title = "<key:widget.base.method.transform_origin.title>", summary = "<key:widget.base.method.transform_origin.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase transformOrigin(@WikiParameter(name = "origin", description = "<key:widget.base.method.transform_origin.parameter>") TransformOrigin origin) {
         TransformOrigin normalized = origin == null ? TransformOrigin.CUSTOM : origin;
         if (transformOrigin == normalized) return this;
         transformOrigin = normalized;
@@ -706,7 +890,12 @@ public abstract class WidgetBase implements Widget {
         return this;
     }
 
-    public WidgetBase transformPivot(float x, float y) {
+    @AiDoc(section = "Transforms & Animation", sectionOrder = 40, order = 30,
+            summary = "Sets a custom transform pivot in local pixels and cancels active pivot animations.")
+    @WikiMethod(section = "<key:widget.base.api.section.animation>", sectionOrder = 40, order = 28,
+            title = "<key:widget.base.method.transform_pivot.title>", summary = "<key:widget.base.method.transform_pivot.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase transformPivot(@WikiParameter(name = "x", description = "<key:widget.base.method.transform_pivot.x>") float x, @WikiParameter(name = "y", description = "<key:widget.base.method.transform_pivot.y>") float y) {
         transformOrigin = TransformOrigin.CUSTOM;
         animations.stopScoped(SCOPE_PROPERTY, AnimatedProperty.PIVOT_X, false);
         animations.stopScoped(SCOPE_PROPERTY, AnimatedProperty.PIVOT_Y, false);
@@ -729,7 +918,12 @@ public abstract class WidgetBase implements Widget {
     }
 
     @XmlAttribute(value = "rotation", category = "Appearance", defaultValue = "0", description = "Rotation in degrees applied to the widget transform.")
-    public WidgetBase rotationDegrees(float degrees) {
+    @AiDoc(section = "Transforms & Animation", sectionOrder = 40, order = 40,
+            summary = "Sets rotation in degrees immediately and stops active rotation animations.")
+    @WikiMethod(section = "<key:widget.base.api.section.animation>", sectionOrder = 40, order = 20,
+            title = "<key:widget.base.method.rotation_degrees.title>", summary = "<key:widget.base.method.rotation_degrees.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase rotationDegrees(@WikiParameter(name = "degrees", description = "<key:widget.base.method.rotation_degrees.parameter>") float degrees) {
         animations.stopScoped(SCOPE_PROPERTY, AnimatedProperty.ROTATION_DEGREES, false);
         animations.stopScoped(SCOPE_SPRING_PROPERTY, AnimatedProperty.ROTATION_DEGREES, false);
         setAnimatedValue(AnimatedProperty.ROTATION_DEGREES, sanitizeFinite(degrees));
@@ -747,6 +941,9 @@ public abstract class WidgetBase implements Widget {
     /**
      * Возвращает текущую прозрачность виджета.
      */
+    @WikiMethod(section = "<key:widget.base.api.section.animation>", sectionOrder = 40, order = 12,
+            title = "<key:widget.base.method.get_opacity.title>", summary = "<key:widget.base.method.get_opacity.summary>")
+    @WikiReturn("<key:widget.base.method.get_opacity.return>")
     public float opacity() {
         return opacity;
     }
@@ -755,7 +952,12 @@ public abstract class WidgetBase implements Widget {
      * Возвращает текущую прозрачность виджета.
      */
     @XmlAttribute(value = "opacity", category = "Appearance", defaultValue = "1", description = "Widget opacity clamped between 0 and 1.")
-    public WidgetBase opacity(float opacity) {
+    @AiDoc(section = "Transforms & Animation", sectionOrder = 40, order = 50,
+            summary = "Sets opacity immediately after clamping it to the 0..1 range.")
+    @WikiMethod(section = "<key:widget.base.api.section.animation>", sectionOrder = 40, order = 10,
+            title = "<key:widget.base.method.opacity.title>", summary = "<key:widget.base.method.opacity.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase opacity(@WikiParameter(name = "opacity", description = "<key:widget.base.method.opacity.parameter>") float opacity) {
         animations.stopScoped(SCOPE_PROPERTY, AnimatedProperty.OPACITY, false);
         animations.stopScoped(SCOPE_SPRING_PROPERTY, AnimatedProperty.OPACITY, false);
         setAnimatedValue(AnimatedProperty.OPACITY, clamp01(opacity));
@@ -765,13 +967,18 @@ public abstract class WidgetBase implements Widget {
     /**
      * Обновляет или выполняет операцию {@code animateOpacity}, меняющую состояние виджета.
      */
-    public WidgetBase animateOpacity(float targetOpacity, float durationSeconds) {
+    @WikiMethod(section = "<key:widget.base.api.section.animation>", sectionOrder = 40, order = 40,
+            title = "<key:widget.base.method.animate_opacity.title>", summary = "<key:widget.base.method.animate_opacity.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase animateOpacity(@WikiParameter(name = "targetOpacity", description = "<key:widget.base.method.animate_opacity.target>") float targetOpacity, @WikiParameter(name = "durationSeconds", description = "<key:widget.base.method.animate.duration>") float durationSeconds) {
         return animateOpacity(targetOpacity, TransitionSpec.of(durationSeconds));
     }
 
     /**
      * Обновляет или выполняет операцию {@code animateOpacity}, меняющую состояние виджета.
      */
+    @AiDoc(section = "Transforms & Animation", sectionOrder = 40, order = 60,
+            summary = "Transitions opacity to a target value using the supplied timing specification.")
     public WidgetBase animateOpacity(float targetOpacity, TransitionSpec spec) {
         return animate(AnimatedProperty.OPACITY, clamp01(targetOpacity), spec);
     }
@@ -779,20 +986,28 @@ public abstract class WidgetBase implements Widget {
     /**
      * Обновляет или выполняет операцию {@code animatePosition}, меняющую состояние виджета.
      */
-    public WidgetBase animatePosition(float x, float y, float durationSeconds) {
+    @WikiMethod(section = "<key:widget.base.api.section.animation>", sectionOrder = 40, order = 50,
+            title = "<key:widget.base.method.animate_position.title>", summary = "<key:widget.base.method.animate_position.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase animatePosition(@WikiParameter(name = "x", description = "<key:widget.base.method.animate_position.x>") float x, @WikiParameter(name = "y", description = "<key:widget.base.method.animate_position.y>") float y, @WikiParameter(name = "durationSeconds", description = "<key:widget.base.method.animate.duration>") float durationSeconds) {
         return animatePosition(x, y, TransitionSpec.of(durationSeconds));
     }
 
     /**
      * Обновляет или выполняет операцию {@code animatePosition}, меняющую состояние виджета.
      */
+    @AiDoc(section = "Transforms & Animation", sectionOrder = 40, order = 70,
+            summary = "Animates visual transform position without changing layout bounds.")
     public WidgetBase animatePosition(float x, float y, TransitionSpec spec) {
         animate(AnimatedProperty.POSITION_X, sanitizeFinite(x), spec);
         animate(AnimatedProperty.POSITION_Y, sanitizeFinite(y), spec);
         return this;
     }
 
-    public WidgetBase animatePositionFrom(float startX, float startY, float endX, float endY, float durationSeconds) {
+    @WikiMethod(section = "<key:widget.base.api.section.animation>", sectionOrder = 40, order = 55,
+            title = "<key:widget.base.method.animate_position_from.title>", summary = "<key:widget.base.method.animate_position_from.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase animatePositionFrom(@WikiParameter(name = "startX", description = "<key:widget.base.method.animate_position_from.start_x>") float startX, @WikiParameter(name = "startY", description = "<key:widget.base.method.animate_position_from.start_y>") float startY, @WikiParameter(name = "endX", description = "<key:widget.base.method.animate_position_from.end_x>") float endX, @WikiParameter(name = "endY", description = "<key:widget.base.method.animate_position_from.end_y>") float endY, @WikiParameter(name = "durationSeconds", description = "<key:widget.base.method.animate.duration>") float durationSeconds) {
         return animatePositionFrom(startX, startY, endX, endY, TransitionSpec.of(durationSeconds));
     }
 
@@ -809,20 +1024,28 @@ public abstract class WidgetBase implements Widget {
     /**
      * Обновляет или выполняет операцию {@code animateScale}, меняющую состояние виджета.
      */
-    public WidgetBase animateScale(float x, float y, float durationSeconds) {
+    @WikiMethod(section = "<key:widget.base.api.section.animation>", sectionOrder = 40, order = 60,
+            title = "<key:widget.base.method.animate_scale.title>", summary = "<key:widget.base.method.animate_scale.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase animateScale(@WikiParameter(name = "x", description = "<key:widget.base.method.animate_scale.x>") float x, @WikiParameter(name = "y", description = "<key:widget.base.method.animate_scale.y>") float y, @WikiParameter(name = "durationSeconds", description = "<key:widget.base.method.animate.duration>") float durationSeconds) {
         return animateScale(x, y, TransitionSpec.of(durationSeconds));
     }
 
     /**
      * Обновляет или выполняет операцию {@code animateScale}, меняющую состояние виджета.
      */
+    @AiDoc(section = "Transforms & Animation", sectionOrder = 40, order = 80,
+            summary = "Animates transform scale on the x and y axes.")
     public WidgetBase animateScale(float x, float y, TransitionSpec spec) {
         animate(AnimatedProperty.SCALE_X, sanitizeFinite(x, 1.0f), spec);
         animate(AnimatedProperty.SCALE_Y, sanitizeFinite(y, 1.0f), spec);
         return this;
     }
 
-    public WidgetBase shake(float amplitude, float durationSeconds) {
+    @WikiMethod(section = "<key:widget.base.api.section.animation>", sectionOrder = 40, order = 70,
+            title = "<key:widget.base.method.shake.title>", summary = "<key:widget.base.method.shake.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase shake(@WikiParameter(name = "amplitude", description = "<key:widget.base.method.shake.amplitude>") float amplitude, @WikiParameter(name = "durationSeconds", description = "<key:widget.base.method.animate.duration>") float durationSeconds) {
         return shake(amplitude, 0.0f, durationSeconds, 4);
     }
 
@@ -840,6 +1063,9 @@ public abstract class WidgetBase implements Widget {
         return this;
     }
 
+    @WikiMethod(section = "<key:widget.base.api.section.animation>", sectionOrder = 40, order = 75,
+            title = "<key:widget.base.method.stop_shake.title>", summary = "<key:widget.base.method.stop_shake.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
     public WidgetBase stopShakeAnimations() {
         restoreTransformEffectOffset();
         animations.stopAllOf(ShakeAnimation.class);
@@ -967,8 +1193,12 @@ public abstract class WidgetBase implements Widget {
      * @param damping     затухание пружины
      * @return этот виджет
      */
-    public WidgetBase animateSpring(AnimatedProperty property, float targetValue,
-                                    float stiffness, float damping) {
+    @AiDoc(section = "Transforms & Animation", sectionOrder = 40, order = 90,
+            summary = "Runs or retargets a spring animation for a built-in animated property.")
+    @WikiMethod(section = "<key:widget.base.api.section.animation>", sectionOrder = 40, order = 80,
+            title = "<key:widget.base.method.animate_spring.title>", summary = "<key:widget.base.method.animate_spring.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase animateSpring(@WikiParameter(name = "property", description = "<key:widget.base.method.animate.property>") AnimatedProperty property, @WikiParameter(name = "targetValue", description = "<key:widget.base.method.animate.target>") float targetValue, @WikiParameter(name = "stiffness", description = "<key:widget.base.method.animate_spring.stiffness>") float stiffness, @WikiParameter(name = "damping", description = "<key:widget.base.method.animate_spring.damping>") float damping) {
         if (property == null) return this;
         if (usesCustomPivot(property)) transformOrigin = TransformOrigin.CUSTOM;
         float target = normalizedValue(property, targetValue);
@@ -994,7 +1224,10 @@ public abstract class WidgetBase implements Widget {
         return animateColor(color, new MutableColor(r, g, b, a), spec);
     }
 
-    public WidgetBase animateColor(MutableColor color, ColorView targetColor, float durationSeconds) {
+    @WikiMethod(section = "<key:widget.base.api.section.animation>", sectionOrder = 40, order = 85,
+            title = "<key:widget.base.method.animate_color.title>", summary = "<key:widget.base.method.animate_color.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase animateColor(@WikiParameter(name = "color", description = "<key:widget.base.method.animate_color.color>") MutableColor color, @WikiParameter(name = "targetColor", description = "<key:widget.base.method.animate_color.target>") ColorView targetColor, @WikiParameter(name = "durationSeconds", description = "<key:widget.base.method.animate.duration>") float durationSeconds) {
         return animateColor(color, targetColor, TransitionSpec.of(durationSeconds));
     }
 
@@ -1036,6 +1269,9 @@ public abstract class WidgetBase implements Widget {
         return this;
     }
 
+    @WikiMethod(section = "<key:widget.base.api.section.animation>", sectionOrder = 40, order = 88,
+            title = "<key:widget.base.method.stop_color_animations.title>", summary = "<key:widget.base.method.stop_color_animations.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
     public WidgetBase stopColorAnimations() {
         animations.stopScope(SCOPE_COLOR);
         return this;
@@ -1044,14 +1280,28 @@ public abstract class WidgetBase implements Widget {
     /**
      * Обновляет или выполняет операцию {@code animate}, меняющую состояние виджета.
      */
-    public WidgetBase animate(AnimatedProperty property, float targetValue, float durationSeconds) {
+    @WikiMethod(section = "<key:widget.base.api.section.animation>", sectionOrder = 40, order = 30,
+            title = "<key:widget.base.method.animate_duration.title>", summary = "<key:widget.base.method.animate_duration.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase animate(@WikiParameter(name = "property", description = "<key:widget.base.method.animate.property>") AnimatedProperty property, @WikiParameter(name = "targetValue", description = "<key:widget.base.method.animate.target>") float targetValue, @WikiParameter(name = "durationSeconds", description = "<key:widget.base.method.animate.duration>") float durationSeconds) {
         return animate(property, targetValue, TransitionSpec.of(durationSeconds));
     }
 
     /**
      * Обновляет или выполняет операцию {@code animate}, меняющую состояние виджета.
      */
-    public WidgetBase animate(AnimatedProperty property, float targetValue, TransitionSpec spec) {
+    @AiDoc(section = "Transforms & Animation", sectionOrder = 40, order = 100,
+            summary = "Runs or retargets a transition for a built-in animated property.",
+            criticalRules = "Rotation uses shortest-path angle interpolation; non-positive duration applies the value immediately.")
+    @WikiMethod(
+            section = "<key:widget.base.api.section.animation>",
+            sectionOrder = 40,
+            order = 32,
+            title = "<key:widget.base.method.animate.title>",
+            summary = "<key:widget.base.method.animate.summary>",
+            markdown = "<key:widget.base.method.animate.markdown>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase animate(@WikiParameter(name = "property", description = "<key:widget.base.method.animate.property>") AnimatedProperty property, @WikiParameter(name = "targetValue", description = "<key:widget.base.method.animate.target>") float targetValue, @WikiParameter(name = "spec", description = "<key:widget.base.method.animate.spec>") TransitionSpec spec) {
         if (property == null) return this;
         animations.stopScoped(SCOPE_SPRING_PROPERTY, property, false);
         if (usesCustomPivot(property)) {
@@ -1084,7 +1334,10 @@ public abstract class WidgetBase implements Widget {
     /**
      * Обновляет или выполняет операцию {@code stopAnimation}, меняющую состояние виджета.
      */
-    public WidgetBase stopAnimation(AnimatedProperty property) {
+    @WikiMethod(section = "<key:widget.base.api.section.animation>", sectionOrder = 40, order = 100,
+            title = "<key:widget.base.method.stop_animation.title>", summary = "<key:widget.base.method.stop_animation.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase stopAnimation(@WikiParameter(name = "property", description = "<key:widget.base.method.animate.property>") AnimatedProperty property) {
         if (property != null) {
             animations.stopScoped(SCOPE_PROPERTY, property, false);
             animations.stopScoped(SCOPE_SPRING_PROPERTY, property, false);
@@ -1095,6 +1348,11 @@ public abstract class WidgetBase implements Widget {
     /**
      * Возвращает текущее значение или выполняет операцию {@code stopAnimations} для виджета.
      */
+    @AiDoc(section = "Transforms & Animation", sectionOrder = 40, order = 110,
+            summary = "Stops every animation owned by the widget and removes temporary effect offsets.")
+    @WikiMethod(section = "<key:widget.base.api.section.animation>", sectionOrder = 40, order = 102,
+            title = "<key:widget.base.method.stop_animations.title>", summary = "<key:widget.base.method.stop_animations.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
     public WidgetBase stopAnimations() {
         restoreTransformEffectOffset();
         animations.clear();
@@ -1111,14 +1369,20 @@ public abstract class WidgetBase implements Widget {
      * @param storyboard описание анимации
      * @return запущенный player для pause/seek/restart
      */
-    public StoryboardPlayer playStoryboard(Storyboard storyboard) {
+    @WikiMethod(section = "<key:widget.base.api.section.animation>", sectionOrder = 40, order = 90,
+            title = "<key:widget.base.method.play_storyboard.title>", summary = "<key:widget.base.method.play_storyboard.summary>")
+    @WikiReturn("<key:widget.base.method.play_storyboard.return>")
+    public StoryboardPlayer playStoryboard(@WikiParameter(name = "storyboard", description = "<key:widget.base.method.play_storyboard.storyboard>") Storyboard storyboard) {
         return playStoryboard(null, storyboard, null);
     }
 
     /**
      * Запускает storyboard под стабильным ключом, заменяя предыдущую анимацию с тем же ключом.
      */
-    public StoryboardPlayer playStoryboard(Object key, Storyboard storyboard) {
+    @WikiMethod(section = "<key:widget.base.api.section.animation>", sectionOrder = 40, order = 92,
+            title = "<key:widget.base.method.play_storyboard_key.title>", summary = "<key:widget.base.method.play_storyboard_key.summary>")
+    @WikiReturn("<key:widget.base.method.play_storyboard.return>")
+    public StoryboardPlayer playStoryboard(@WikiParameter(name = "key", description = "<key:widget.base.method.play_storyboard_key.key>") Object key, @WikiParameter(name = "storyboard", description = "<key:widget.base.method.play_storyboard.storyboard>") Storyboard storyboard) {
         return playStoryboard(key, storyboard, null);
     }
 
@@ -1130,6 +1394,9 @@ public abstract class WidgetBase implements Widget {
      * @param resolver   resolver встроенных и пользовательских свойств; {@code null} использует built-ins
      * @return запущенный player
      */
+    @AiDoc(section = "Transforms & Animation", sectionOrder = 40, order = 120,
+            summary = "Starts a storyboard against the widget tree; a stable key replaces a previous storyboard with the same key.",
+            criticalRules = "Call from the UI thread after constructing the target widget tree.")
     public StoryboardPlayer playStoryboard(Object key,
                                            Storyboard storyboard,
                                            PropertyPathResolver resolver) {
@@ -1145,7 +1412,10 @@ public abstract class WidgetBase implements Widget {
     /**
      * Останавливает storyboard, запущенный с указанным ключом.
      */
-    public WidgetBase stopStoryboard(Object key) {
+    @WikiMethod(section = "<key:widget.base.api.section.animation>", sectionOrder = 40, order = 95,
+            title = "<key:widget.base.method.stop_storyboard.title>", summary = "<key:widget.base.method.stop_storyboard.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase stopStoryboard(@WikiParameter(name = "key", description = "<key:widget.base.method.play_storyboard_key.key>") Object key) {
         if (key != null) animations.stop(key);
         return this;
     }
@@ -1153,7 +1423,10 @@ public abstract class WidgetBase implements Widget {
     /**
      * Обновляет или выполняет операцию {@code animationRunning}, меняющую состояние виджета.
      */
-    public boolean animationRunning(AnimatedProperty property) {
+    @WikiMethod(section = "<key:widget.base.api.section.animation>", sectionOrder = 40, order = 105,
+            title = "<key:widget.base.method.animation_running.title>", summary = "<key:widget.base.method.animation_running.summary>")
+    @WikiReturn("<key:widget.base.method.animation_running.return>")
+    public boolean animationRunning(@WikiParameter(name = "property", description = "<key:widget.base.method.animate.property>") AnimatedProperty property) {
         return property != null && (animations.getScoped(SCOPE_PROPERTY, property, false) != null
                 || animations.getScoped(SCOPE_SPRING_PROPERTY, property, false) != null);
     }
@@ -1161,6 +1434,9 @@ public abstract class WidgetBase implements Widget {
     /**
      * Возвращает текущее значение или выполняет операцию {@code animationsRunning} для виджета.
      */
+    @WikiMethod(section = "<key:widget.base.api.section.animation>", sectionOrder = 40, order = 106,
+            title = "<key:widget.base.method.animations_running.title>", summary = "<key:widget.base.method.animations_running.summary>")
+    @WikiReturn("<key:widget.base.method.animations_running.return>")
     public boolean animationsRunning() {
         return animations.hasActiveAnimations();
     }
@@ -1169,6 +1445,9 @@ public abstract class WidgetBase implements Widget {
      * Возвращает флаги инвалидации самого виджета.
      */
     @Override
+    @WikiMethod(section = "<key:widget.base.api.section.lifecycle>", sectionOrder = 60, order = 40,
+            title = "<key:widget.base.method.invalidation_flags.title>", summary = "<key:widget.base.method.invalidation_flags.summary>")
+    @WikiReturn("<key:widget.base.method.invalidation_flags.return>")
     public int invalidationFlags() {
         return invalidationFlags;
     }
@@ -1177,6 +1456,9 @@ public abstract class WidgetBase implements Widget {
      * Возвращает агрегированные флаги инвалидации виджета и всех его потомков.
      */
     @Override
+    @WikiMethod(section = "<key:widget.base.api.section.lifecycle>", sectionOrder = 60, order = 42,
+            title = "<key:widget.base.method.subtree_invalidation_flags.title>", summary = "<key:widget.base.method.subtree_invalidation_flags.summary>")
+    @WikiReturn("<key:widget.base.method.subtree_invalidation_flags.return>")
     public int subtreeInvalidationFlags() {
         return subtreeInvalidationFlags;
     }
@@ -1192,6 +1474,12 @@ public abstract class WidgetBase implements Widget {
     /**
      * Возвращает изменяемый стиль layout для fluent-настройки размеров и ограничений.
      */
+    @AiDoc(section = "Inline Styling & Layout", sectionOrder = 20, order = 40,
+            summary = "Returns the live `LayoutStyle` owned by this widget.",
+            criticalRules = "Mutating the returned style updates layout constraints and invalidates layout/visual state through its callback.")
+    @WikiMethod(section = "<key:widget.base.api.section.layout>", sectionOrder = 20, order = 12,
+            title = "<key:widget.base.method.get_layout_style.title>", summary = "<key:widget.base.method.get_layout_style.summary>")
+    @WikiReturn("<key:widget.base.method.get_layout_style.return>")
     public LayoutStyle layoutStyle() {
         return layoutStyle;
     }
@@ -1207,7 +1495,16 @@ public abstract class WidgetBase implements Widget {
      *         .overflowX(Overflow.HIDDEN));
      * }</pre>
      */
-    public WidgetBase layout(Consumer<LayoutStyle> update) {
+    @AiDoc(section = "Inline Styling & Layout", sectionOrder = 20, order = 50,
+            summary = "Applies one or more layout changes through a batched `LayoutStyle` callback.")
+    @WikiMethod(
+            section = "<key:widget.base.api.section.layout>",
+            sectionOrder = 20,
+            order = 10,
+            title = "<key:widget.base.method.layout.title>",
+            summary = "<key:widget.base.method.layout.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase layout(@WikiParameter(name = "update", description = "<key:widget.base.method.layout.parameter>") Consumer<LayoutStyle> update) {
         layoutStyle.update(update);
         return this;
     }
@@ -1237,6 +1534,9 @@ public abstract class WidgetBase implements Widget {
      * Возвращает или обновляет режим видимости виджета.
      */
     @Override
+    @WikiMethod(section = "<key:widget.base.api.section.state>", sectionOrder = 30, order = 12,
+            title = "<key:widget.base.method.get_visibility.title>", summary = "<key:widget.base.method.get_visibility.summary>")
+    @WikiReturn("<key:widget.base.method.get_visibility.return>")
     public Visibility visibility() {
         return visibility;
     }
@@ -1245,7 +1545,18 @@ public abstract class WidgetBase implements Widget {
      * Возвращает или обновляет режим видимости виджета.
      */
     @XmlAttribute(value = "visibility", category = "Behavior", defaultValue = "visible", description = "Visibility mode: visible, hidden or collapsed.")
-    public WidgetBase visibility(Visibility visibility) {
+    @AiDoc(section = "State & Interaction", sectionOrder = 30, order = 10,
+            summary = "Sets `VISIBLE`, `HIDDEN`, or `COLLAPSED` and invalidates layout when the layout footprint changes.",
+            criticalRules = "`HIDDEN` preserves layout space; `COLLAPSED` removes the widget from layout.")
+    @WikiMethod(
+            section = "<key:widget.base.api.section.state>",
+            sectionOrder = 30,
+            order = 10,
+            title = "<key:widget.base.method.visibility.title>",
+            summary = "<key:widget.base.method.visibility.summary>",
+            markdown = "<key:widget.base.method.visibility.markdown>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase visibility(@WikiParameter(name = "visibility", description = "<key:widget.base.method.visibility.parameter>") Visibility visibility) {
         Visibility next = visibility == null ? Visibility.VISIBLE : visibility;
         if (this.visibility == next) return this;
         boolean wasCollapsed = this.visibility == Visibility.COLLAPSED;
@@ -1261,6 +1572,9 @@ public abstract class WidgetBase implements Widget {
      * Возвращает или задаёт простую видимость виджета через режим {@code Visibility}.
      */
     @Override
+    @WikiMethod(section = "<key:widget.base.api.section.state>", sectionOrder = 30, order = 22,
+            title = "<key:widget.base.method.get_visible.title>", summary = "<key:widget.base.method.get_visible.summary>")
+    @WikiReturn("<key:widget.base.method.get_visible.return>")
     public boolean visible() {
         return visibility == Visibility.VISIBLE;
     }
@@ -1269,7 +1583,12 @@ public abstract class WidgetBase implements Widget {
      * Возвращает или задаёт простую видимость виджета через режим {@code Visibility}.
      */
     @XmlAttribute(value = "visible", category = "Behavior", defaultValue = "true", description = "Whether the widget is visible without collapsing layout space.")
-    public WidgetBase visible(boolean visible) {
+    @AiDoc(section = "State & Interaction", sectionOrder = 30, order = 20,
+            summary = "Convenience toggle between `VISIBLE` and `HIDDEN`; it never selects `COLLAPSED`.")
+    @WikiMethod(section = "<key:widget.base.api.section.state>", sectionOrder = 30, order = 20,
+            title = "<key:widget.base.method.visible.title>", summary = "<key:widget.base.method.visible.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase visible(@WikiParameter(name = "visible", description = "<key:widget.base.method.visible.parameter>") boolean visible) {
         return visibility(visible ? Visibility.VISIBLE : Visibility.HIDDEN);
     }
 
@@ -1277,6 +1596,9 @@ public abstract class WidgetBase implements Widget {
      * Возвращает или задаёт доступность виджета для пользовательского ввода.
      */
     @Override
+    @WikiMethod(section = "<key:widget.base.api.section.state>", sectionOrder = 30, order = 32,
+            title = "<key:widget.base.method.get_enabled.title>", summary = "<key:widget.base.method.get_enabled.summary>")
+    @WikiReturn("<key:widget.base.method.get_enabled.return>")
     public boolean enabled() {
         return enabled;
     }
@@ -1285,7 +1607,12 @@ public abstract class WidgetBase implements Widget {
      * Возвращает или задаёт доступность виджета для пользовательского ввода.
      */
     @XmlAttribute(value = "enabled", category = "Behavior", defaultValue = "true", description = "Whether the widget can receive user interaction.")
-    public WidgetBase enabled(boolean enabled) {
+    @AiDoc(section = "State & Interaction", sectionOrder = 30, order = 30,
+            summary = "Enables or disables user interaction and exposes the disabled style state.")
+    @WikiMethod(section = "<key:widget.base.api.section.state>", sectionOrder = 30, order = 30,
+            title = "<key:widget.base.method.enabled.title>", summary = "<key:widget.base.method.enabled.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase enabled(@WikiParameter(name = "enabled", description = "<key:widget.base.method.enabled.parameter>") boolean enabled) {
         if (this.enabled == enabled) return this;
         this.enabled = enabled;
         invalidate(InvalidationFlags.VISUAL);
@@ -1296,6 +1623,9 @@ public abstract class WidgetBase implements Widget {
      * Возвращает состояние наведения указателя на виджет.
      */
     @Override
+    @WikiMethod(section = "<key:widget.base.api.section.state>", sectionOrder = 30, order = 35,
+            title = "<key:widget.base.method.hovered.title>", summary = "<key:widget.base.method.hovered.summary>")
+    @WikiReturn("<key:widget.base.method.hovered.return>")
     public boolean hovered() {
         return hovered;
     }
@@ -1303,6 +1633,9 @@ public abstract class WidgetBase implements Widget {
     /**
      * Возвращает или задаёт курсор мыши для виджета.
      */
+    @WikiMethod(section = "<key:widget.base.api.section.state>", sectionOrder = 30, order = 42,
+            title = "<key:widget.base.method.get_mouse_cursor.title>", summary = "<key:widget.base.method.get_mouse_cursor.summary>")
+    @WikiReturn("<key:widget.base.method.get_mouse_cursor.return>")
     public MouseCursor mouseCursor() {
         return mouseCursor;
     }
@@ -1310,7 +1643,12 @@ public abstract class WidgetBase implements Widget {
     /**
      * Возвращает или задаёт курсор мыши для виджета.
      */
-    public WidgetBase mouseCursor(MouseCursor mouseCursor) {
+    @AiDoc(section = "State & Interaction", sectionOrder = 30, order = 40,
+            summary = "Sets the cursor used while the enabled, visible widget is under the pointer.")
+    @WikiMethod(section = "<key:widget.base.api.section.state>", sectionOrder = 30, order = 40,
+            title = "<key:widget.base.method.mouse_cursor.title>", summary = "<key:widget.base.method.mouse_cursor.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase mouseCursor(@WikiParameter(name = "mouseCursor", description = "<key:widget.base.method.mouse_cursor.parameter>") MouseCursor mouseCursor) {
         this.mouseCursor = mouseCursor == null ? MouseCursor.DEFAULT : mouseCursor;
         return this;
     }
@@ -1319,7 +1657,10 @@ public abstract class WidgetBase implements Widget {
      * Возвращает курсор мыши для указанной локальной точки виджета.
      */
     @Override
-    public MouseCursor mouseCursorAt(float localX, float localY) {
+    @WikiMethod(section = "<key:widget.base.api.section.state>", sectionOrder = 30, order = 44,
+            title = "<key:widget.base.method.mouse_cursor_at.title>", summary = "<key:widget.base.method.mouse_cursor_at.summary>")
+    @WikiReturn("<key:widget.base.method.mouse_cursor_at.return>")
+    public MouseCursor mouseCursorAt(@WikiParameter(name = "localX", description = "<key:widget.base.method.mouse_cursor_at.x>") float localX, @WikiParameter(name = "localY", description = "<key:widget.base.method.mouse_cursor_at.y>") float localY) {
         return enabled && visibility == Visibility.VISIBLE ? mouseCursor : MouseCursor.DEFAULT;
     }
 
@@ -1327,6 +1668,9 @@ public abstract class WidgetBase implements Widget {
      * Возвращает или задаёт возможность виджета получать фокус.
      */
     @Override
+    @WikiMethod(section = "<key:widget.base.api.section.state>", sectionOrder = 30, order = 52,
+            title = "<key:widget.base.method.get_focusable.title>", summary = "<key:widget.base.method.get_focusable.summary>")
+    @WikiReturn("<key:widget.base.method.get_focusable.return>")
     public boolean focusable() {
         return focusable;
     }
@@ -1334,7 +1678,12 @@ public abstract class WidgetBase implements Widget {
     /**
      * Возвращает или задаёт возможность виджета получать фокус.
      */
-    public WidgetBase focusable(boolean focusable) {
+    @AiDoc(section = "State & Interaction", sectionOrder = 30, order = 50,
+            summary = "Enables keyboard focus for the widget.")
+    @WikiMethod(section = "<key:widget.base.api.section.state>", sectionOrder = 30, order = 50,
+            title = "<key:widget.base.method.focusable.title>", summary = "<key:widget.base.method.focusable.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase focusable(@WikiParameter(name = "focusable", description = "<key:widget.base.method.focusable.parameter>") boolean focusable) {
         if (this.focusable == focusable) return this;
         this.focusable = focusable;
         invalidate(InvalidationFlags.VISUAL);
@@ -1345,6 +1694,9 @@ public abstract class WidgetBase implements Widget {
      * Возвращает или задаёт режим отдельной области фокусировки для виджета.
      */
     @Override
+    @WikiMethod(section = "<key:widget.base.api.section.state>", sectionOrder = 30, order = 62,
+            title = "<key:widget.base.method.get_focus_scope.title>", summary = "<key:widget.base.method.get_focus_scope.summary>")
+    @WikiReturn("<key:widget.base.method.get_focus_scope.return>")
     public boolean focusScope() {
         return focusScope;
     }
@@ -1352,7 +1704,12 @@ public abstract class WidgetBase implements Widget {
     /**
      * Возвращает или задаёт режим отдельной области фокусировки для виджета.
      */
-    public WidgetBase focusScope(boolean focusScope) {
+    @AiDoc(section = "State & Interaction", sectionOrder = 30, order = 60,
+            summary = "Makes this widget a boundary for keyboard focus traversal.")
+    @WikiMethod(section = "<key:widget.base.api.section.state>", sectionOrder = 30, order = 60,
+            title = "<key:widget.base.method.focus_scope.title>", summary = "<key:widget.base.method.focus_scope.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase focusScope(@WikiParameter(name = "focusScope", description = "<key:widget.base.method.focus_scope.parameter>") boolean focusScope) {
         if (this.focusScope == focusScope) return this;
         this.focusScope = focusScope;
         invalidate(InvalidationFlags.VISUAL);
@@ -1363,6 +1720,9 @@ public abstract class WidgetBase implements Widget {
      * Возвращает или задаёт порядок обхода фокуса для виджета.
      */
     @Override
+    @WikiMethod(section = "<key:widget.base.api.section.state>", sectionOrder = 30, order = 72,
+            title = "<key:widget.base.method.get_focus_order.title>", summary = "<key:widget.base.method.get_focus_order.summary>")
+    @WikiReturn("<key:widget.base.method.get_focus_order.return>")
     public int focusOrder() {
         return focusOrder;
     }
@@ -1370,7 +1730,12 @@ public abstract class WidgetBase implements Widget {
     /**
      * Возвращает или задаёт порядок обхода фокуса для виджета.
      */
-    public WidgetBase focusOrder(int focusOrder) {
+    @AiDoc(section = "State & Interaction", sectionOrder = 30, order = 70,
+            summary = "Sets the relative order used by keyboard focus traversal.")
+    @WikiMethod(section = "<key:widget.base.api.section.state>", sectionOrder = 30, order = 70,
+            title = "<key:widget.base.method.focus_order.title>", summary = "<key:widget.base.method.focus_order.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase focusOrder(@WikiParameter(name = "focusOrder", description = "<key:widget.base.method.focus_order.parameter>") int focusOrder) {
         if (this.focusOrder == focusOrder) return this;
         this.focusOrder = focusOrder;
         invalidate(InvalidationFlags.VISUAL);
@@ -1381,6 +1746,9 @@ public abstract class WidgetBase implements Widget {
      * Возвращает или задаёт область локального применения стилей.
      */
     @Override
+    @WikiMethod(section = "<key:widget.base.api.section.identity>", sectionOrder = 10, order = 52,
+            title = "<key:widget.base.method.get_style_scope.title>", summary = "<key:widget.base.method.get_style_scope.summary>")
+    @WikiReturn("<key:widget.base.method.get_style_scope.return>")
     public boolean styleScope() {
         return styleScope;
     }
@@ -1388,7 +1756,12 @@ public abstract class WidgetBase implements Widget {
     /**
      * Возвращает или задаёт область локального применения стилей.
      */
-    public WidgetBase styleScope(boolean styleScope) {
+    @AiDoc(section = "State & Interaction", sectionOrder = 30, order = 80,
+            summary = "Limits local style lookup to this widget subtree when enabled; global theme lookup still applies.")
+    @WikiMethod(section = "<key:widget.base.api.section.identity>", sectionOrder = 10, order = 50,
+            title = "<key:widget.base.method.style_scope.title>", summary = "<key:widget.base.method.style_scope.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase styleScope(@WikiParameter(name = "styleScope", description = "<key:widget.base.method.style_scope.parameter>") boolean styleScope) {
         if (this.styleScope == styleScope) return this;
         this.styleScope = styleScope;
         invalidate(InvalidationFlags.VISUAL);
@@ -1398,7 +1771,12 @@ public abstract class WidgetBase implements Widget {
     /**
      * Возвращает или задаёт локальный стиль для указанного типа виджета.
      */
-    public WidgetBase localStyle(String widgetType, Style style) {
+    @AiDoc(section = "Inline Styling & Layout", sectionOrder = 20, order = 60,
+            summary = "Adds or removes a local style override for a widget type.")
+    @WikiMethod(section = "<key:widget.base.api.section.identity>", sectionOrder = 10, order = 60,
+            title = "<key:widget.base.method.local_style.title>", summary = "<key:widget.base.method.local_style.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase localStyle(@WikiParameter(name = "widgetType", description = "<key:widget.base.method.local_style.widget_type>") String widgetType, @WikiParameter(name = "style", description = "<key:widget.base.method.local_style.style>") Style style) {
         if (widgetType == null || widgetType.isEmpty()) return this;
         if (style == null || style == Style.EMPTY) {
             localStyles.remove(widgetType);
@@ -1413,7 +1791,10 @@ public abstract class WidgetBase implements Widget {
      * Возвращает или задаёт локальный стиль для указанного типа виджета.
      */
     @Override
-    public Style localStyle(String widgetType) {
+    @WikiMethod(section = "<key:widget.base.api.section.identity>", sectionOrder = 10, order = 62,
+            title = "<key:widget.base.method.get_local_style.title>", summary = "<key:widget.base.method.get_local_style.summary>")
+    @WikiReturn("<key:widget.base.method.get_local_style.return>")
+    public Style localStyle(@WikiParameter(name = "widgetType", description = "<key:widget.base.method.get_local_style.widget_type>") String widgetType) {
         if (widgetType == null || widgetType.isEmpty()) return Style.EMPTY;
         Style style = localStyles.get(widgetType);
         if (style != null) return style;
@@ -1461,6 +1842,9 @@ public abstract class WidgetBase implements Widget {
      *
      * @return custom renderer or {@code null} for the standard visual
      */
+    @WikiMethod(section = "<key:widget.base.api.section.render>", sectionOrder = 50, order = 12,
+            title = "<key:widget.base.method.get_renderer.title>", summary = "<key:widget.base.method.get_renderer.summary>")
+    @WikiReturn("<key:widget.base.method.get_renderer.return>")
     public WidgetRender renderer() {
         return renderer;
     }
@@ -1471,7 +1855,18 @@ public abstract class WidgetBase implements Widget {
      * @param renderer custom renderer or {@code null} for the standard visual
      * @return this widget
      */
-    public WidgetBase renderer(WidgetRender renderer) {
+    @AiDoc(section = "Rendering & Caching", sectionOrder = 50, order = 10,
+            summary = "Sets a per-instance renderer that replaces the widget's standard visual.",
+            criticalRules = "The custom renderer replaces background/content drawing, but framework child traversal still occurs.")
+    @WikiMethod(
+            section = "<key:widget.base.api.section.render>",
+            sectionOrder = 50,
+            order = 10,
+            title = "<key:widget.base.method.renderer.title>",
+            summary = "<key:widget.base.method.renderer.summary>",
+            markdown = "<key:widget.base.method.renderer.markdown>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase renderer(@WikiParameter(name = "renderer", description = "<key:widget.base.method.renderer.parameter>") WidgetRender renderer) {
         if (this.renderer == renderer) return this;
         this.renderer = renderer;
         invalidate(InvalidationFlags.VISUAL);
@@ -1593,10 +1988,10 @@ public abstract class WidgetBase implements Widget {
      * Читает значение стиля с учётом defaults виджета, темы и локальных style-scope.
      * Display-примитивы используют этот общий путь так же, как поверхности контейнеров.
      *
-     * @param key ключ свойства
-     * @param state состояние виджета
+     * @param key      ключ свойства
+     * @param state    состояние виджета
      * @param fallback значение при отсутствии объявления
-     * @param <S> тип свойства
+     * @param <S>      тип свойства
      * @return разрешённое значение свойства
      */
     protected <S> S styleValue(StyleKey<S> key,
@@ -1616,7 +2011,9 @@ public abstract class WidgetBase implements Widget {
         return value;
     }
 
-    /** Читает значение стиля для текущего состояния виджета. */
+    /**
+     * Читает значение стиля для текущего состояния виджета.
+     */
     protected <S> S styleValue(StyleKey<S> key, S fallback) {
         return styleValue(key, styleState(), fallback);
     }
@@ -1636,7 +2033,16 @@ public abstract class WidgetBase implements Widget {
     }
 
     @Override
-    public void invalidate(int flags) {
+    @AiDoc(section = "Invalidation & Lifecycle", sectionOrder = 70, order = 10,
+            summary = "Marks widget state dirty, invalidates its retained render cache, and propagates subtree flags to ancestors.")
+    @WikiMethod(
+            section = "<key:widget.base.api.section.lifecycle>",
+            sectionOrder = 60,
+            order = 30,
+            title = "<key:widget.base.method.invalidate.title>",
+            summary = "<key:widget.base.method.invalidate.summary>",
+            markdown = "<key:widget.base.method.invalidate.markdown>")
+    public void invalidate(@WikiParameter(name = "flags", description = "<key:widget.base.method.invalidate.parameter>") int flags) {
         if (flags == InvalidationFlags.NONE) return;
         invalidationFlags |= flags;
         renderCacheDirty = true;
@@ -1647,7 +2053,9 @@ public abstract class WidgetBase implements Widget {
      * Снимает указанные флаги инвалидации после успешного обновления.
      */
     @Override
-    public void clearInvalidation(int flags) {
+    @WikiMethod(section = "<key:widget.base.api.section.lifecycle>", sectionOrder = 60, order = 35,
+            title = "<key:widget.base.method.clear_invalidation.title>", summary = "<key:widget.base.method.clear_invalidation.summary>")
+    public void clearInvalidation(@WikiParameter(name = "flags", description = "<key:widget.base.method.invalidate.parameter>") int flags) {
         if (flags == InvalidationFlags.NONE) return;
         invalidationFlags &= ~flags;
         recomputeSubtreeInvalidation();
@@ -1665,6 +2073,9 @@ public abstract class WidgetBase implements Widget {
      *
      * @param flags bitmask, который был обработан runtime'ом
      */
+    @AiDoc(section = "Invalidation & Lifecycle", sectionOrder = 70, order = 20,
+            summary = "Clears processed flags without recomputing ancestors; intended only for runtime full-tree passes.",
+            criticalRules = "Application and widget code should normally use `clearInvalidation`; incorrect direct clearing can leave ancestor state stale.")
     public void clearInvalidationDirect(int flags) {
         if (flags == InvalidationFlags.NONE) return;
         invalidationFlags &= ~flags;
@@ -1719,7 +2130,9 @@ public abstract class WidgetBase implements Widget {
      * Измеряет желаемый размер виджета с учётом переданного layout-контекста.
      */
     @Override
-    public void measure(LayoutContext context) {
+    @WikiMethod(section = "<key:widget.base.api.section.render>", sectionOrder = 50, order = 40,
+            title = "<key:widget.base.method.measure.title>", summary = "<key:widget.base.method.measure.summary>")
+    public void measure(@WikiParameter(name = "context", description = "<key:widget.base.method.measure.context>") LayoutContext context) {
         if (visibility == Visibility.COLLAPSED) {
             setDesiredSize(LayoutSize.ZERO);
             return;
@@ -1742,7 +2155,11 @@ public abstract class WidgetBase implements Widget {
      * @param context constraints, scale и служебные данные layout pass
      */
     @Override
-    public void measureCached(LayoutContext context) {
+    @AiDoc(section = "Rendering & Caching", sectionOrder = 50, order = 20,
+            summary = "Reuses the measured desired size when constraints match and the subtree has no pending layout invalidation.")
+    @WikiMethod(section = "<key:widget.base.api.section.render>", sectionOrder = 50, order = 42,
+            title = "<key:widget.base.method.measure_cached.title>", summary = "<key:widget.base.method.measure_cached.summary>")
+    public void measureCached(@WikiParameter(name = "context", description = "<key:widget.base.method.measure.context>") LayoutContext context) {
         float availableWidth = context == null ? Float.POSITIVE_INFINITY : context.availableWidth();
         float availableHeight = context == null ? Float.POSITIVE_INFINITY : context.availableHeight();
         if (measureCacheValid
@@ -1809,7 +2226,9 @@ public abstract class WidgetBase implements Widget {
      * Размещает виджет в рассчитанных границах и обновляет его layout-состояние.
      */
     @Override
-    public void arrange(RectView bounds) {
+    @WikiMethod(section = "<key:widget.base.api.section.render>", sectionOrder = 50, order = 50,
+            title = "<key:widget.base.method.arrange.title>", summary = "<key:widget.base.method.arrange.summary>")
+    public void arrange(@WikiParameter(name = "bounds", description = "<key:widget.base.method.arrange.bounds>") RectView bounds) {
         layoutBounds.set(bounds);
         if (!layoutBoundsObserved) {
             previousLayoutX = layoutBounds.x();
@@ -1823,7 +2242,9 @@ public abstract class WidgetBase implements Widget {
      * Отрисовывает виджет в текущем render-контексте.
      */
     @Override
-    public void render(RenderContext context) {
+    @WikiMethod(section = "<key:widget.base.api.section.render>", sectionOrder = 50, order = 30,
+            title = "<key:widget.base.method.render.title>", summary = "<key:widget.base.method.render.summary>")
+    public void render(@WikiParameter(name = "context", description = "<key:widget.base.method.render.context>") RenderContext context) {
     }
 
     /**
@@ -1836,7 +2257,13 @@ public abstract class WidgetBase implements Widget {
      * @param enabled {@code true}, чтобы переиспользовать стабильный render-фрагмент
      * @return этот виджет
      */
-    public WidgetBase renderCachingEnabled(boolean enabled) {
+    @AiDoc(section = "Rendering & Caching", sectionOrder = 50, order = 30,
+            summary = "Enables or disables retained draw-command caching.",
+            criticalRules = "The current retained cache is effective for leaf widgets; widgets with children use normal rendering.")
+    @WikiMethod(section = "<key:widget.base.api.section.render>", sectionOrder = 50, order = 20,
+            title = "<key:widget.base.method.render_caching_enabled.title>", summary = "<key:widget.base.method.render_caching_enabled.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public WidgetBase renderCachingEnabled(@WikiParameter(name = "enabled", description = "<key:widget.base.method.render_caching_enabled.parameter>") boolean enabled) {
         if (renderCachingEnabled == enabled) return this;
         renderCachingEnabled = enabled;
         renderCacheDirty = true;
@@ -1847,6 +2274,9 @@ public abstract class WidgetBase implements Widget {
     /**
      * @return {@code true}, если для виджета разрешён retained-кэш
      */
+    @WikiMethod(section = "<key:widget.base.api.section.render>", sectionOrder = 50, order = 22,
+            title = "<key:widget.base.method.get_render_caching_enabled.title>", summary = "<key:widget.base.method.get_render_caching_enabled.summary>")
+    @WikiReturn("<key:widget.base.method.get_render_caching_enabled.return>")
     public boolean renderCachingEnabled() {
         return renderCachingEnabled;
     }
@@ -1856,6 +2286,11 @@ public abstract class WidgetBase implements Widget {
      *
      * @return этот виджет
      */
+    @AiDoc(section = "Rendering & Caching", sectionOrder = 50, order = 40,
+            summary = "Marks the retained draw-command fragment stale without modifying public invalidation flags.")
+    @WikiMethod(section = "<key:widget.base.api.section.render>", sectionOrder = 50, order = 25,
+            title = "<key:widget.base.method.invalidate_render_cache.title>", summary = "<key:widget.base.method.invalidate_render_cache.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
     public WidgetBase invalidateRenderCache() {
         renderCacheDirty = true;
         return this;
@@ -1898,7 +2333,9 @@ public abstract class WidgetBase implements Widget {
      * воспроизводятся через кадровый пул целевого {@link DrawList}.</p>
      */
     @Override
-    public void renderCached(RenderContext context) {
+    @WikiMethod(section = "<key:widget.base.api.section.render>", sectionOrder = 50, order = 32,
+            title = "<key:widget.base.method.render_cached.title>", summary = "<key:widget.base.method.render_cached.summary>")
+    public void renderCached(@WikiParameter(name = "context", description = "<key:widget.base.method.render.context>") RenderContext context) {
         if (context == null) return;
         if (!renderCachingEnabled || renderingCache) {
             render(context);
@@ -1947,7 +2384,9 @@ public abstract class WidgetBase implements Widget {
      * Обновляет состояние виджета на каждом кадре.
      */
     @Override
-    public void tick(FrameContext frame) {
+    @WikiMethod(section = "<key:widget.base.api.section.lifecycle>", sectionOrder = 60, order = 50,
+            title = "<key:widget.base.method.tick.title>", summary = "<key:widget.base.method.tick.summary>")
+    public void tick(@WikiParameter(name = "frame", description = "<key:widget.base.method.tick.frame>") FrameContext frame) {
         tickAnimations(frame);
     }
 
@@ -1955,6 +2394,8 @@ public abstract class WidgetBase implements Widget {
      * Освобождает retained-команды перед удалением виджета из UI-дерева.
      */
     @Override
+    @WikiMethod(section = "<key:widget.base.api.section.lifecycle>", sectionOrder = 60, order = 60,
+            title = "<key:widget.base.method.dispose.title>", summary = "<key:widget.base.method.dispose.summary>")
     public void dispose() {
         restoreTransformEffectOffset();
         animations.clear();
@@ -1990,7 +2431,9 @@ public abstract class WidgetBase implements Widget {
      * Обрабатывает входящее UI-событие и обновляет состояние виджета при необходимости.
      */
     @Override
-    public void handle(Event event) {
+    @WikiMethod(section = "<key:widget.base.api.section.lifecycle>", sectionOrder = 60, order = 25,
+            title = "<key:widget.base.method.handle.title>", summary = "<key:widget.base.method.handle.summary>")
+    public void handle(@WikiParameter(name = "event", description = "<key:widget.base.method.emit.event>") Event event) {
         if (event instanceof PointerEnteredEvent entered && entered.phase() == EventPhase.TARGET) {
             setHovered(true);
         } else if (event instanceof PointerExitedEvent exited && exited.phase() == EventPhase.TARGET) {
@@ -2012,12 +2455,22 @@ public abstract class WidgetBase implements Widget {
      * Регистрирует обработчик события и возвращает подписку для последующего снятия.
      */
     @Override
-    public <T extends Event> EventSubscription on(EventType<T> type, EventListener<? super T> listener) {
+    @AiDoc(section = "Events", sectionOrder = 60, order = 10,
+            summary = "Registers a typed event listener and returns a subscription used to unsubscribe.")
+    @WikiMethod(section = "<key:widget.base.api.section.lifecycle>", sectionOrder = 60, order = 10,
+            title = "<key:widget.base.method.on.title>", summary = "<key:widget.base.method.on.summary>")
+    @WikiReturn("<key:widget.base.method.on.return>")
+    public <T extends Event> EventSubscription on(@WikiParameter(name = "type", description = "<key:widget.base.method.on.type>") EventType<T> type, @WikiParameter(name = "listener", description = "<key:widget.base.method.on.listener>") EventListener<? super T> listener) {
         return events.on(type, listener);
     }
 
     @Override
-    public <T extends Event> EventSubscription on(EventType<T> type, boolean receiveCancelled, EventListener<? super T> listener) {
+    @AiDoc(section = "Events", sectionOrder = 60, order = 20,
+            summary = "Registers a typed listener with explicit control over receiving cancelled events.")
+    @WikiMethod(section = "<key:widget.base.api.section.lifecycle>", sectionOrder = 60, order = 12,
+            title = "<key:widget.base.method.on_cancelled.title>", summary = "<key:widget.base.method.on_cancelled.summary>")
+    @WikiReturn("<key:widget.base.method.on.return>")
+    public <T extends Event> EventSubscription on(@WikiParameter(name = "type", description = "<key:widget.base.method.on.type>") EventType<T> type, @WikiParameter(name = "receiveCancelled", description = "<key:widget.base.method.on_cancelled.receive_cancelled>") boolean receiveCancelled, @WikiParameter(name = "listener", description = "<key:widget.base.method.on.listener>") EventListener<? super T> listener) {
         return events.on(type, receiveCancelled, listener);
     }
 
@@ -2025,7 +2478,11 @@ public abstract class WidgetBase implements Widget {
      * Отправляет событие подписчикам этого виджета.
      */
     @Override
-    public void emit(Event event) {
+    @AiDoc(section = "Events", sectionOrder = 60, order = 30,
+            summary = "Dispatches an event to listeners registered on this widget.")
+    @WikiMethod(section = "<key:widget.base.api.section.lifecycle>", sectionOrder = 60, order = 20,
+            title = "<key:widget.base.method.emit.title>", summary = "<key:widget.base.method.emit.summary>")
+    public void emit(@WikiParameter(name = "event", description = "<key:widget.base.method.emit.event>") Event event) {
         events.emit(event);
     }
 

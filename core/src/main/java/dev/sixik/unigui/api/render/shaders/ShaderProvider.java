@@ -1,5 +1,7 @@
 package dev.sixik.unigui.api.render.shaders;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+
 import java.util.Optional;
 
 /**
@@ -9,6 +11,18 @@ import java.util.Optional;
  * или обнаружить через Java {@link java.util.ServiceLoader}, добавив файл
  * {@code META-INF/services/dev.sixik.unigui.api.render.shaders.ShaderProvider}.</p>
  */
+@AiDoc(
+        summary = "SPI interface resolving shader source code (vertex/fragment GLSL) for named shader handles.",
+        purpose = "Decouples shader resource loading from graphics drivers, allowing mods or plugins to supply custom GLSL sources.",
+        useWhen = {
+                "Implement a custom shader loader to supply shaders from JAR resources, assets folders, or remote endpoints.",
+                "Register via Java ServiceLoader (`META-INF/services`) or `ShaderProviders#register(ShaderProvider)`."
+        },
+        criticalRules = {
+                "Prefer overriding `loadOrNull(ShaderHandle)` in high-frequency rendering paths to avoid `Optional` allocation.",
+                "Return null or Optional.empty() if this provider does not recognize the requested shader ID."
+        },
+        related = {"ShaderProviders", "ShaderHandle", "ShaderSource"})
 public interface ShaderProvider {
     /**
      * Загружает source для shader handle.

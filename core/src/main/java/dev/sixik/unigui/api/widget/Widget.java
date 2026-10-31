@@ -3,6 +3,11 @@ package dev.sixik.unigui.api.widget;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.event.Event;
 import dev.sixik.unigui.api.event.EventEmitter;
 import dev.sixik.unigui.api.input.MouseCursor;
@@ -39,6 +44,50 @@ import java.util.function.Consumer;
  * <p>Изменения состояния должны помечать нужные {@link InvalidationFlags}. Это позволяет runtime
  * не пересчитывать layout или render cache без необходимости.</p>
  */
+@AiDoc(
+        summary = "Root interface for all UI tree elements: defines the lifecycle, layout, input, style, and render contracts.",
+        purpose = "Defines the pipeline entry points (measure -> arrange -> handle -> tick -> render) that the runtime calls each frame for every widget.",
+        useWhen = {
+                "Implement a new visual element by extending WidgetBase and overriding pipeline hooks.",
+                "Traverse or inspect the UI tree via parent() and children().",
+                "Subscribe to routed events through the inherited EventEmitter API.",
+                "Programmatically invalidate layout or render state after a property change."
+        },
+        criticalRules = {
+                "State changes must mark InvalidationFlags; the runtime skips recalculation of clean subtrees.",
+                "measure() sets desiredSize(); arrange() applies final bounds; calling order matters.",
+                "parent() returns null for root or not-yet-attached widgets.",
+                "children() order defines layout/render order and hit-testing sequence.",
+                "dispose() must release only resources the widget itself owns."
+        },
+        related = {"WidgetBase", "EventEmitter", "LayoutContext", "RenderContext", "FrameContext", "InvalidationFlags"},
+        examples = {
+                @AiDoc.Example(
+                        title = "Subscribe to a click event",
+                        order = 10,
+                        code = "Widget button = ...;\nbutton.on(ButtonClickEvent.TYPE, e -> {\n    System.out.println(\"Clicked: \" + e.target().id());\n});"),
+                @AiDoc.Example(
+                        title = "Custom widget skeleton",
+                        order = 20,
+                        code = "public class MyWidget extends WidgetBase {\n    @Override\n    public void measure(LayoutContext ctx) {\n        setDesiredSize(100, 50);\n    }\n\n    @Override\n    public void render(RenderContext ctx) {\n        ctx.fillRect(layoutBounds(), 0xFFAABBCC);\n    }\n}")
+        })
+@WikiPage(
+        title = "<key:widget.title>",
+        slug = "widget",
+        category = "<key:widget.category>",
+        summary = "<key:widget.summary>",
+        order = 10)
+@WikiSection(title = "<key:widget.section.overview.title>", markdown = "<key:widget.section.overview.body>", order = 10)
+@WikiSection(title = "<key:widget.section.lifecycle.title>", markdown = "<key:widget.section.lifecycle.body>", order = 20)
+@WikiSection(title = "<key:widget.section.tree.title>", markdown = "<key:widget.section.tree.body>", order = 30)
+@WikiSection(title = "<key:widget.section.style.title>", markdown = "<key:widget.section.style.body>", order = 40)
+@WikiSection(title = "<key:widget.section.focus.title>", markdown = "<key:widget.section.focus.body>", order = 50)
+@WikiSection(title = "<key:widget.section.invalidation.title>", markdown = "<key:widget.section.invalidation.body>", order = 60)
+@WikiExample(title = "<key:widget.example.events.title>", code = "<key:widget.example.events.code>", order = 10)
+@WikiExample(title = "<key:widget.example.skeleton.title>", code = "<key:widget.example.skeleton.code>", order = 20)
+@WikiLink(label = "WidgetBase", target = "page:widget-base")
+@WikiLink(label = "EventEmitter", target = "page:event-emitter")
+@WikiLink(label = "LayoutStyle", target = "page:layout-style")
 public interface Widget extends EventEmitter {
     /**
      * Возвращает runtime-контекст, к которому привязан виджет.

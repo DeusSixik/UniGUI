@@ -1,6 +1,7 @@
 package dev.sixik.unigui.api.style;
 
 import dev.sixik.unigui.api.animation.TransitionSpec;
+import dev.sixik.unigui.api.docs.AiDoc;
 
 /**
  * Декларативный шаг анимации одного свойства стиля или виджета.
@@ -15,6 +16,17 @@ import dev.sixik.unigui.api.animation.TransitionSpec;
  * @param toValue конечное значение; пустая строка допустима для адаптеров, где это имеет смысл
  * @param transition настройки длительности, easing и повторов
  */
+@AiDoc(
+        summary = "Declarative transition of one named widget or style property between string-encoded values.",
+        purpose = "Describes one editable step inside a `StyleAnimationDefinition` without hard-coding a Java value type.",
+        useWhen = "Animate a property supported by the target widget's runtime animation adapter.",
+        criticalRules = {
+                "`propertyName` must be non-blank and should use a constant from `StyleAnimationIds.Property` or the target widget.",
+                "Values are strings interpreted by the target property's adapter; use the format expected by that property.",
+                "Use `CURRENT` or `currentTo` to start from the current runtime value.",
+                "A null transition is normalized to `TransitionSpec.DEFAULT`; a blank `toValue` remains adapter-dependent."
+        },
+        related = {"StyleAnimationDefinition", "StyleAnimationIds", "TransitionSpec"})
 public record StylePropertyTween(String propertyName,
                                  String fromValue,
                                  String toValue,
@@ -49,6 +61,8 @@ public record StylePropertyTween(String propertyName,
      * @param transition настройки перехода
      * @return новый tween с {@link #CURRENT} в качестве стартовой точки
      */
+    @AiDoc(section = "Creation", sectionOrder = 10, order = 10,
+            summary = "Creates a tween whose starting value is read from the current runtime property value.")
     public static StylePropertyTween currentTo(String propertyName, String toValue, TransitionSpec transition) {
         return new StylePropertyTween(propertyName, CURRENT, toValue, transition);
     }

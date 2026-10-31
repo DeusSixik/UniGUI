@@ -1,5 +1,13 @@
 package dev.sixik.unigui.api.style;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 import java.util.Map;
 
 /**
@@ -21,6 +29,40 @@ import java.util.Map;
  * @see ResolvedStyle
  * @see StylePack
  */
+@AiDoc(
+        summary = "Read-only, typed style values with optional widget-state overrides.",
+        purpose = "Represents one style layer that widgets, themes, and style packs can query without casting arbitrary maps.",
+        useWhen = {
+                "Read a visual property with an explicit fallback.",
+                "Parse a standalone XML `<Style>` element or inline style declaration."
+        },
+        criticalRules = {
+                "Always query with the matching `StyleKey<T>`; the key defines the Java value type.",
+                "State lookup may fall back to `WidgetState.NORMAL`, then to the caller-supplied fallback.",
+                "`Style.from` parses one `<Style>` only; use `StylePack.from` for definitions, selectors, bindings, and animations.",
+                "Treat maps returned by `values` as read-only snapshots."
+        },
+        related = {"MutableStyle", "StyleKey", "StyleKeys", "WidgetState", "StylePack"},
+        examples = @AiDoc.Example(
+                title = "Read a state-aware value",
+                code = """
+                        ColorView color = style.get(
+                                StyleKeys.TEXT_COLOR,
+                                WidgetState.HOVERED,
+                                fallbackColor);
+                        """))
+@WikiPage(
+        title = "Style",
+        slug = "style",
+        category = "<key:style.category>",
+        summary = "<key:style.summary>",
+        order = 10)
+@WikiSection(title = "<key:style.section.overview.title>",
+        markdown = "<key:style.section.overview.body>", order = 10)
+@WikiSection(title = "<key:style.section.cascade.title>",
+        markdown = "<key:style.section.cascade.body>", order = 20)
+@WikiExample(title = "<key:style.example.inline.title>",
+        code = "<key:style.example.inline.code>", order = 10)
 public interface Style {
     /** Пустой стиль, который всегда возвращает переданный fallback. */
     Style EMPTY = new Style() {
@@ -36,7 +78,12 @@ public interface Style {
      * @param xml XML с корневым элементом {@code <Style>}
      * @return загруженный стиль
      */
-    static Style from(String xml) {
+    @AiDoc(section = "Parsing", sectionOrder = 10, order = 10,
+            summary = "Parses one XML `<Style>` element with the built-in property registry.")
+    @WikiMethod(title = "from(String)", summary = "<key:style.method.from.summary>",
+            section = "<key:style.api.section.creation>", sectionOrder = 10, order = 10)
+    @WikiReturn("<key:style.method.from.return>")
+    static Style from(@WikiParameter(name = "xml", description = "<key:style.method.from.xml>") String xml) {
         return StylePackXml.parseStyle(xml);
     }
 
@@ -47,7 +94,14 @@ public interface Style {
      * @param registry registry известных style-свойств
      * @return загруженный стиль
      */
-    static Style from(String xml, StyleKeyRegistry registry) {
+    @AiDoc(section = "Parsing", sectionOrder = 10, order = 20,
+            summary = "Parses one XML `<Style>` element with a custom property registry.")
+    @WikiMethod(title = "from(String, StyleKeyRegistry)", summary = "<key:style.method.from_registry.summary>",
+            section = "<key:style.api.section.creation>", sectionOrder = 10, order = 20)
+    @WikiReturn("<key:style.method.from.return>")
+    static Style from(
+            @WikiParameter(name = "xml", description = "<key:style.method.from.xml>") String xml,
+            @WikiParameter(name = "registry", description = "<key:style.method.from_registry.registry>") StyleKeyRegistry registry) {
         return StylePackXml.parseStyle(xml, registry);
     }
 
@@ -59,7 +113,12 @@ public interface Style {
      * @param text объявления встроенного стиля
      * @return разобранный стиль
      */
-    static Style fromText(String text) {
+    @AiDoc(section = "Parsing", sectionOrder = 10, order = 30,
+            summary = "Parses semicolon-separated inline declarations and skips invalid entries.")
+    @WikiMethod(title = "fromText(String)", summary = "<key:style.method.from_text.summary>",
+            section = "<key:style.api.section.creation>", sectionOrder = 10, order = 30)
+    @WikiReturn("<key:style.method.from_text.return>")
+    static Style fromText(@WikiParameter(name = "text", description = "<key:style.method.from_text.text>") String text) {
         return StyleTextParser.parse(text);
     }
 
@@ -87,7 +146,15 @@ public interface Style {
      * @return найденное значение или {@code fallback}
      * @param <T> Java-тип свойства
      */
-    default <T> T get(StyleKey<T> key, WidgetState state, T fallback) {
+    @AiDoc(section = "Reading", sectionOrder = 20, order = 10,
+            summary = "Reads a typed property for a widget state, using the supplied fallback when absent.")
+    @WikiMethod(title = "get(StyleKey, WidgetState, T)", summary = "<key:style.method.get.summary>",
+            section = "<key:style.api.section.reading>", sectionOrder = 20, order = 10)
+    @WikiReturn("<key:style.method.get.return>")
+    default <T> T get(
+            @WikiParameter(name = "key", description = "<key:style.method.get.key>") StyleKey<T> key,
+            @WikiParameter(name = "state", description = "<key:style.method.get.state>") WidgetState state,
+            @WikiParameter(name = "fallback", description = "<key:style.method.get.fallback>") T fallback) {
         return fallback;
     }
 

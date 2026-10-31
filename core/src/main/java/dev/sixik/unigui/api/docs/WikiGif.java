@@ -7,7 +7,9 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Repeatable;
 import java.lang.annotation.Target;
 
-/** Associates an animated demonstration asset with a generated wiki page. */
+/**
+ * Associates an animated demonstration asset with a generated wiki page.
+ */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)

@@ -23,4 +23,32 @@ interface CleanroomRenderHost {
      * @return extra alpha multiplier for the whole surface
      */
     float opacity();
+
+    /**
+     * @return width in physical pixels of the framebuffer being drawn to (the window, or a render target)
+     */
+    default int framebufferWidth() {
+        return net.minecraft.client.Minecraft.getMinecraft().displayWidth;
+    }
+
+    /**
+     * @return height in physical pixels of the framebuffer being drawn to
+     */
+    default int framebufferHeight() {
+        return net.minecraft.client.Minecraft.getMinecraft().displayHeight;
+    }
+
+    /**
+     * @return physical pixels per draw-list unit along x (sizes anti-aliasing fringes, glyph atlas levels and clips)
+     */
+    default float pixelsPerUnitX() {
+        return CleanroomRenderMath.windowScale(uiScale(), framebufferWidth(), logicalWidth());
+    }
+
+    /**
+     * @return physical pixels per draw-list unit along y
+     */
+    default float pixelsPerUnitY() {
+        return CleanroomRenderMath.windowScale(uiScale(), framebufferHeight(), logicalHeight());
+    }
 }

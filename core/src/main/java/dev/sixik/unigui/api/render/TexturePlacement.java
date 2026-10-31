@@ -1,5 +1,6 @@
 package dev.sixik.unigui.api.render;
 
+import dev.sixik.unigui.api.docs.AiDoc;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 
@@ -21,6 +22,28 @@ import java.util.Objects;
  * @param uWidth ширина source UV области
  * @param vHeight высота source UV области
  */
+@AiDoc(
+        summary = "Immutable computed destination coordinates and normalized source UV boundaries resulting from an ImageFit calculation.",
+        purpose = "Pre-calculates final screen bounds and UV texture coordinates for immediate draw command dispatch.",
+        useWhen = {
+                "Position an image within widget bounds while honoring aspect ratio via `fit(TextureHandle, RectView, ImageFit)`.",
+                "Extract fitted screen coordinates and UV rect to pass directly into `DrawScope#texture`."
+        },
+        criticalRules = {
+                "Screen coordinates (`x`, `y`, `width`, `height`) are in UI points, while UV parameters (`u`, `v`, `uWidth`, `vHeight`) are normalized `0.0..1.0`.",
+                "`ImageFit.CONTAIN` centers the image inside destination bounds, letterboxing or pillarboxing empty space.",
+                "`ImageFit.COVER` centers and crops the image UVs to completely fill destination bounds without distortion."
+        },
+        related = {"ImageFit", "TextureHandle", "RectView", "DrawScope"},
+        examples = {
+                @AiDoc.Example(
+                        title = "Compute letterboxed texture placement",
+                        order = 10,
+                        code = """
+                                TexturePlacement p = TexturePlacement.fit(icon, widget.layoutBounds(), ImageFit.CONTAIN);
+                                scope.texture(icon, p.x(), p.y(), p.width(), p.height(), p.u(), p.v(), p.uWidth(), p.vHeight(), Paint.NONE);
+                                """)
+        })
 public record TexturePlacement(float x, float y, float width, float height,
                                float u, float v, float uWidth, float vHeight) {
     /**

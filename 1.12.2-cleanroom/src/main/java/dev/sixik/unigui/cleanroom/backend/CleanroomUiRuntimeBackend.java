@@ -2,13 +2,14 @@ package dev.sixik.unigui.cleanroom.backend;
 
 import dev.sixik.unigui.api.backend.UniGuiBackend;
 import dev.sixik.unigui.api.core.UIContext;
-import dev.sixik.unigui.api.input.ClipboardService;
+import dev.sixik.unigui.api.input.MouseCursor;
 import dev.sixik.unigui.api.screen.UniScreen;
 import dev.sixik.unigui.api.screen.UniRenderLayer;
 import dev.sixik.unigui.api.screen.UniRenderTarget;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
+import org.lwjgl.input.Keyboard;
 
 import java.util.IdentityHashMap;
 import java.util.Map;
@@ -23,8 +24,14 @@ public final class CleanroomUiRuntimeBackend implements UniGuiBackend {
     private final Map<UniScreen, CleanroomWidgetScreen> openScreens = new IdentityHashMap<>();
     private final CleanroomLayerRegistry<Object> hudLayers = new CleanroomLayerRegistry<>();
     private final CleanroomLayerRegistry<Object> overlayLayers = new CleanroomLayerRegistry<>();
+    private final CleanroomLayerRegistry<Object> loadingLayers = new CleanroomLayerRegistry<>();
     private final CleanroomPointer overlayPointer = new CleanroomPointer();
+    private final CleanroomMouseCursors cursors = new CleanroomMouseCursors();
+    private MouseCursor overlayCursor;
     private final CleanroomWheel overlayWheel = new CleanroomWheel();
+    private final CleanroomPointerBlockers<GuiScreen> pointerBlockers = new CleanroomPointerBlockers<>();
+    private final CleanroomKeyRepeat keyRepeat = new CleanroomKeyRepeat(CleanroomKeyRepeat.of(
+            Keyboard::areRepeatEventsEnabled, Keyboard::enableRepeatEvents));
 
     @Override
     public void openScreen(UniScreen screen) {
@@ -36,17 +43,7 @@ public final class CleanroomUiRuntimeBackend implements UniGuiBackend {
         }
 
         UIContext context = screen.context() == null
-                ? new DefaultUIContext(new ClipboardService() {
-            @Override
-            public String getText() {
-                return GuiScreen.getClipboardString();
-            }
-
-            @Override
-            public void setText(String text) {
-                GuiScreen.setClipboardString(text == null ? "" : text);
-            }
-        })
+                ? new DefaultUIContext(new CleanroomClipboardService())
                 : screen.context();
         CleanroomWidgetScreen nativeScreen = new CleanroomWidgetScreen(screen, context, () -> {
             synchronized (openScreens) {
@@ -80,10 +77,6 @@ public final class CleanroomUiRuntimeBackend implements UniGuiBackend {
         Objects.requireNonNull(layer, "layer");
         Objects.requireNonNull(target, "target");
         Objects.requireNonNull(visibility, "visibility");
-        if (target == UniRenderTarget.LOADING_SCREEN) {
-            throw new UnsupportedOperationException("Cleanroom 1.12.2 loading-screen layers are not supported yet");
-        }
-
         CleanroomWidgetLayer nativeLayer = new CleanroomWidgetLayer(layer);
         AtomicReference<LayerHandle> handleRef = new AtomicReference<>();
         layer.attachRuntimeControl(new UniRenderLayer.RuntimeLayerControl() {
@@ -99,7 +92,11 @@ public final class CleanroomUiRuntimeBackend implements UniGuiBackend {
                 nativeLayer.invalidate();
             }
         });
-        CleanroomLayerRegistry<Object> registry = target == UniRenderTarget.HUD ? hudLayers : overlayLayers;
+        CleanroomLayerRegistry<Object> registry = switch (target) {
+            case HUD -> hudLayers;
+            case SCREEN_OVERLAY -> overlayLayers;
+            case LOADING_SCREEN -> loadingLayers;
+        };
         LayerHandle handle = registry.add(nativeLayer, visibility, priority);
         handleRef.set(handle);
         nativeLayer.registration(handle);
@@ -147,13 +144,21 @@ public final class CleanroomUiRuntimeBackend implements UniGuiBackend {
         switch (target) {
             case HUD -> hudLayers.clear();
             case SCREEN_OVERLAY -> overlayLayers.clear();
-            case LOADING_SCREEN -> throw new UnsupportedOperationException(
-                    "Cleanroom 1.12.2 loading-screen layers are not supported yet");
+            case LOADING_SCREEN -> loadingLayers.clear();
         }
     }
 
     public void renderHud(int width, int height, int mouseX, int mouseY, float partialTick) {
+        // In the world with no screen open nothing else would take a resize or hand cursor back.
+        if (Minecraft.getMinecraft().currentScreen == null) cursors.reset();
         hudLayers.render(Minecraft.getMinecraft(), width, height, mouseX, mouseY, partialTick);
+    }
+
+    /**
+     * Draws loading-screen layers; the caller has already set up the scaled GUI projection.
+     */
+    public void renderLoading(int width, int height, float partialTick) {
+        loadingLayers.render(Minecraft.getMinecraft(), width, height, 0, 0, partialTick);
     }
 
     public void renderScreen(GuiScreen screen, int mouseX, int mouseY, float partialTick) {
@@ -166,6 +171,27 @@ public final class CleanroomUiRuntimeBackend implements UniGuiBackend {
             overlayWheel.markConsumed(wheel, System.nanoTime());
         }
         overlayLayers.render(screen, screen.width, screen.height, mouseX, mouseY, partialTick);
+        keyRepeat.update(overlayLayers.textInputFocused(screen));
+        overlayCursor = overlayLayers.mouseCursor(screen, overlayPointer.x(), overlayPointer.y());
+        // A native screen merges its own cursor in applyNativeScreenCursor; other screens only have overlays.
+        if (!isNativeScreen(screen)) cursors.apply(overlayCursor);
+    }
+
+    /**
+     * Applies the cursor of a native UniGUI screen, unless an overlay layer above it wants another one.
+     *
+     * @param own cursor of the screen's widget tree, {@code null} if nothing is under the pointer
+     */
+    void applyNativeScreenCursor(MouseCursor own) {
+        cursors.apply(overlayCursor != null ? overlayCursor : own);
+    }
+
+    /**
+     * Restores the system arrow; used when a screen closes.
+     */
+    void resetCursor() {
+        overlayCursor = null;
+        cursors.reset();
     }
 
     /**
@@ -174,6 +200,44 @@ public final class CleanroomUiRuntimeBackend implements UniGuiBackend {
      */
     public boolean wheelAlreadyDelivered(int eventWheel) {
         return overlayWheel.swallow(eventWheel, System.nanoTime());
+    }
+
+    /**
+     * Registers a callback that tells the vanilla container screen that an overlay covers the cursor, so the slot
+     * below does not highlight, show a tooltip or take a click.
+     *
+     * @return handle that removes the callback when closed
+     */
+    public AutoCloseable addPointerBlocker(CleanroomPointerBlockers.Blocker<GuiScreen> blocker) {
+        return pointerBlockers.add(blocker);
+    }
+
+    /**
+     * @return {@code true} if a registered blocker covers the pointer position of the screen
+     */
+    public boolean blocksPointer(GuiScreen screen, double mouseX, double mouseY) {
+        return pointerBlockers.blocks(screen, mouseX, mouseY);
+    }
+
+    /**
+     * @return {@code true} if any overlay layer is drawn over the screen
+     */
+    public boolean hasVisibleOverlay(GuiScreen screen) {
+        return screen != null && !isNativeScreen(screen) && overlayLayers.hasVisible(screen);
+    }
+
+    /**
+     * @return {@code true} if an overlay layer over the screen has a text field in focus
+     */
+    public boolean isTextInputActive(GuiScreen screen) {
+        return screen != null && overlayLayers.textInputFocused(screen);
+    }
+
+    /**
+     * Gives held-key repeat back; called when the current screen changes.
+     */
+    public void releaseKeyRepeat() {
+        keyRepeat.release();
     }
 
     public boolean isNativeScreen(Object screen) {

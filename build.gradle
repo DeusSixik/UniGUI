@@ -39,7 +39,8 @@ allprojects {
 }
 
 subprojects {
-    if (project.name == 'core') {
+    def minecraftIndependent = project.name in ['core', 'demo']
+    if (minecraftIndependent) {
         apply plugin: 'java-library'
     } else {
         apply plugin: 'dev.architectury.loom'
@@ -64,7 +65,7 @@ subprojects {
     }
 
     dependencies {
-        if (project.name != 'core') {
+        if (!minecraftIndependent) {
             minecraft "net.minecraft:minecraft:${versionProperty('minecraft_version')}"
             mappings loom.officialMojangMappings()
         }
@@ -76,7 +77,7 @@ subprojects {
         // If you remove this line, sources will not be generated.
         withSourcesJar()
 
-        def javaVersion = project.name == 'core'
+        def javaVersion = minecraftIndependent
                 ? JavaVersion.VERSION_17
                 : JavaVersion.toVersion(versionProperty('java_version') ?: '17')
 
@@ -90,9 +91,10 @@ subprojects {
 
     tasks.withType(JavaCompile).configureEach {
         options.release = (versionProperty('java_version') ?: '17') as int
+        options.compilerArgs << "-parameters"
     }
 
-    if (project.name != 'core') {
+    if (!minecraftIndependent) {
         tasks.withType(net.fabricmc.loom.task.launch.GenerateRemapClasspathTask).configureEach {
             remapClasspathFile.set(layout.buildDirectory.file('loom-cache/remapClasspath.txt'))
         }

@@ -1,5 +1,6 @@
 package dev.sixik.unigui.api.render;
 
+import dev.sixik.unigui.api.docs.AiDoc;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
 
@@ -15,6 +16,19 @@ import dev.sixik.unigui.api.math.MutableColor;
  * @param v V-координата текстуры
  * @param color цвет вершины
  */
+@AiDoc(
+        summary = "Individual vertex descriptor combining position (x, y), texture coordinates (u, v), and vertex tint color.",
+        purpose = "Constitutes the basic building block of DrawMesh geometry.",
+        useWhen = {
+                "Constructing custom meshes or triangle lists.",
+                "Consuming vertex output from RibbonMesh tessellation."
+        },
+        criticalRules = {
+                "Vertex colors are defensively snapshotted upon creation to prevent external mutation.",
+                "UV coordinates default to 0.0 when using the position-and-color constructor."
+        },
+        related = {"DrawMesh", "DrawPoint", "RibbonMesh"}
+)
 public record DrawVertex(float x, float y, float u, float v, ColorView color) {
     /** Нормализует цвет вершины в immutable snapshot. */
     public DrawVertex {

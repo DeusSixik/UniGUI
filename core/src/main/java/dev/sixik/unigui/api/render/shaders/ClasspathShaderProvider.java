@@ -1,5 +1,7 @@
 package dev.sixik.unigui.api.render.shaders;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
@@ -11,6 +13,17 @@ import java.util.Optional;
  * <p>Provider ищет fragment/vertex sources по candidates из {@link ShaderResourcePaths}. Он нужен как
  * дефолтный fallback для модов и приложений, которые кладут shader resources рядом с Java assets.</p>
  */
+@AiDoc(
+        summary = "Standard ShaderProvider resolving shader source files from the Java application classpath.",
+        purpose = "Serves as the default fallback provider searching JAR asset directories for vertex (.vsh) and fragment (.fsh) shaders.",
+        useWhen = {
+                "Load shaders packaged directly into mod JAR files in assets directories.",
+                "Instantiate with a custom ClassLoader to isolate resource lookups."
+        },
+        criticalRules = {
+                "Resolves candidate paths following standard resource conventions (e.g. `assets/<namespace>/shaders/core/<name>.fsh`)."
+        },
+        related = {"ShaderProvider", "ShaderProviders", "ShaderHandle"})
 public final class ClasspathShaderProvider implements ShaderProvider {
     private final ClassLoader classLoader;
 

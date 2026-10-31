@@ -1,5 +1,7 @@
 package dev.sixik.unigui.api.style;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,6 +38,32 @@ import java.util.List;
  * @see StyleAnimationIds
  * @see StyleDefinition#eventAnimation(String, String)
  */
+@AiDoc(
+        summary = "Immutable named animation preset made of declarative property tweens.",
+        purpose = "Stores reusable animation data in a `StylePack` so style events can reference it by stable id.",
+        useWhen = "Create an animation preset for `StylePack.putAnimation` and bind it through `StyleDefinition.eventAnimation`.",
+        criticalRules = {
+                "The definition only describes animation data; it does not start an animation by itself.",
+                "The id must be non-blank and unique within its style pack.",
+                "Null tweens are ignored and the stored tween list is immutable.",
+                "Property and event ids should come from `StyleAnimationIds` or the target widget's animation constants."
+        },
+        related = {"StylePack", "StyleDefinition", "StylePropertyTween", "StyleAnimationIds"},
+        examples = @AiDoc.Example(
+                title = "Create and bind a press preset",
+                code = """
+                        StyleAnimationDefinition press = StyleAnimationDefinition.of(
+                                "button.press",
+                                StylePropertyTween.currentTo(
+                                        Button.AnimationProperties.SCALE,
+                                        "0.96",
+                                        TransitionSpec.of(0.12f, AnimationEasing.EASE_OUT).yoyo()));
+
+                        pack.putAnimation(press)
+                                .put(buttonDefinition.eventAnimation(
+                                        Button.AnimationEvents.ON_CLICK,
+                                        press.id()));
+                        """))
 public record StyleAnimationDefinition(String id, List<StylePropertyTween> tweens) {
     /** Нормализует id и удаляет null-элементы из списка tween'ов. */
     public StyleAnimationDefinition {
@@ -53,6 +81,8 @@ public record StyleAnimationDefinition(String id, List<StylePropertyTween> tween
      * @param tweens шаги анимации
      * @return новый {@code StyleAnimationDefinition}
      */
+    @AiDoc(section = "Creation", sectionOrder = 10, order = 10,
+            summary = "Creates an immutable named preset from zero or more non-null property tweens.")
     public static StyleAnimationDefinition of(String id, StylePropertyTween... tweens) {
         if (tweens == null || tweens.length == 0) {
             return new StyleAnimationDefinition(id, List.of());
@@ -70,6 +100,8 @@ public record StyleAnimationDefinition(String id, List<StylePropertyTween> tween
      * @param tween новый шаг анимации; {@code null} игнорируется
      * @return новый preset или текущий объект, если tween пустой
      */
+    @AiDoc(section = "Composition", sectionOrder = 20, order = 10,
+            summary = "Returns a new preset with one additional tween; null leaves the preset unchanged.")
     public StyleAnimationDefinition withTween(StylePropertyTween tween) {
         if (tween == null) return this;
         List<StylePropertyTween> next = new ArrayList<>(tweens);

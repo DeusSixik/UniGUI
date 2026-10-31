@@ -1,5 +1,7 @@
 package dev.sixik.unigui.api.text;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.RectView;
 
@@ -15,6 +17,12 @@ import dev.sixik.unigui.api.math.RectView;
  * @param endColor цвет в конце направления
  * @param angleDegrees угол направления в градусах; {@code 0} слева направо, {@code 90} сверху вниз
  */
+@AiDoc(
+        summary = "Linear multi-stop or two-color gradient implementation of TextBrush.",
+        purpose = "Interpolates colors along a directional angle across text extent coordinates.",
+        useWhen = {"Rendering gradient text headers, titles, or badges."},
+        related = {"TextBrush", "RichText"}
+)
 public record LinearGradientTextBrush(ColorView startColor, ColorView endColor, float angleDegrees) implements TextBrush {
     public LinearGradientTextBrush {
         startColor = TextBrush.snapshotOrWhite(startColor);

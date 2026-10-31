@@ -5,7 +5,6 @@ on:
     branches:
       - Main_other
       - main
-      - sixik
     paths:
       - 'common/**'
       - 'core/**'

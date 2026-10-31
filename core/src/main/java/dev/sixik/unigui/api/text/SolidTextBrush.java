@@ -1,5 +1,7 @@
 package dev.sixik.unigui.api.text;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+
 import dev.sixik.unigui.api.math.ColorView;
 
 /**
@@ -10,6 +12,12 @@ import dev.sixik.unigui.api.math.ColorView;
  *
  * @param color immutable snapshot цвета brush'а
  */
+@AiDoc(
+        summary = "Solid single-color implementation of TextBrush.",
+        purpose = "Fills text runs with a uniform color.",
+        useWhen = {"Supplying a solid color brush to RichText."},
+        related = {"TextBrush", "RichText"}
+)
 public record SolidTextBrush(ColorView color) implements TextBrush {
     public SolidTextBrush {
         color = TextBrush.snapshotOrWhite(color);

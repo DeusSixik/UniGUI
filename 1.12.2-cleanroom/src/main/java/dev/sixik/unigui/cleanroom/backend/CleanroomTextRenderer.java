@@ -94,8 +94,8 @@ final class CleanroomTextRenderer implements CleanroomTextLayout.Sink {
         current = command;
         if (sdfActive) sdf.beginCommand(affine, command.paint().color(), command.brushBounds(), host.opacity());
 
-        float scaleX = CleanroomRenderMath.windowScale(host.uiScale(), minecraft.displayWidth, host.logicalWidth());
-        float scaleY = CleanroomRenderMath.windowScale(host.uiScale(), minecraft.displayHeight, host.logicalHeight());
+        float scaleX = host.pixelsPerUnitX();
+        float scaleY = host.pixelsPerUnitY();
         layout.layout(command, text, defaultFace, MinecraftFonts.defaultFace(),
                 sdfActive ? sdf.atlas() : null, affine, scaleX, scaleY, this);
     }
@@ -127,7 +127,8 @@ final class CleanroomTextRenderer implements CleanroomTextLayout.Sink {
         float size = run.pixelSize();
         float scale = Math.max(1.0f, size) / MinecraftFontFace.BASE_SIZE;
         // A glyph is colored at its center, a longer segment at its start, like the 1.20 backend.
-        float colorX = perGlyph ? x + face.advance(text.codePointAt(0), size) * 0.5f : x;
+        // A per-glyph string may start with the formatting prefix; the glyph itself is the last code point.
+        float colorX = perGlyph ? x + face.advance(text.codePointBefore(text.length()), size) * 0.5f : x;
         CleanroomTextColors.rgba(rgba, 0, colorX, top + size * 0.5f, current.paint().color(), run.color(),
                 run.brush(), current.brushBounds(), host.opacity());
         int color = CleanroomTextColors.pack(rgba, 0);

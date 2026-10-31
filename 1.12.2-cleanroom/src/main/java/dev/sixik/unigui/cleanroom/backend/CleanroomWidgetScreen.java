@@ -13,6 +13,7 @@ import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.render.DrawList;
 import dev.sixik.unigui.api.render.RenderBackend;
+import dev.sixik.unigui.api.render.UiRenderPolicy;
 import dev.sixik.unigui.api.screen.UniScreen;
 import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.widget.Widget;
@@ -43,6 +44,7 @@ final class CleanroomWidgetScreen extends GuiScreen implements CleanroomRenderHo
     private final DrawList drawList = new DrawList();
     private final DefaultRenderContext renderContext = new DefaultRenderContext(drawList);
     private final RenderBackend renderBackend;
+    private final CleanroomRenderCache renderCache;
     private FontFace defaultFont;
     private KeyboardInputHandler keyboardInputHandler;
     private boolean layoutInitialized;
@@ -60,6 +62,7 @@ final class CleanroomWidgetScreen extends GuiScreen implements CleanroomRenderHo
         this.closeAction = closeAction;
         this.screenTitle = source.title();
         this.renderBackend = new CleanroomGuiRenderBackend(this);
+        this.renderCache = new CleanroomRenderCache(renderBackend);
         this.renderContext.backend(renderBackend);
         attachContext(root);
     }
@@ -87,6 +90,13 @@ final class CleanroomWidgetScreen extends GuiScreen implements CleanroomRenderHo
     @Override
     public void initGui() {
         layoutInitialized = false;
+        // Held keys repeat in text fields; the window default is off in 1.12.2.
+        Keyboard.enableRepeatEvents(true);
+    }
+
+    @Override
+    public boolean doesGuiPauseGame() {
+        return source.pauseGame();
     }
 
     @Override
@@ -114,12 +124,19 @@ final class CleanroomWidgetScreen extends GuiScreen implements CleanroomRenderHo
         try (ProfileScope ignored = uiContext.profiler().scope("animation")) {
             root.tick(new FrameContext(frameIndex, delta, partialTicks, FramePhase.ANIMATION));
         }
+        boolean layoutChanged;
         try (ProfileScope ignored = uiContext.profiler().scope("layout")) {
-            updateLayout(logicalWidth, logicalHeight);
+            layoutChanged = updateLayout(logicalWidth, logicalHeight);
         }
         drawList.clear();
         try (ProfileScope ignored = uiContext.profiler().scope("buildDrawList")) {
-            root.render(renderContext);
+            UiRenderPolicy policy = source.renderPolicy();
+            if (CleanroomRenderPolicies.usesCache(policy.mode())) {
+                renderCache.render(policy, root, renderContext, layoutChanged, logicalWidth, logicalHeight, now);
+            } else {
+                renderCache.close();
+                root.render(renderContext);
+            }
         }
         DebugOverlayRenderer.render(renderContext, uiContext, logicalWidth, logicalHeight);
         lastFrameCpuMillis = (System.nanoTime() - now) / 1_000_000.0f;
@@ -139,6 +156,9 @@ final class CleanroomWidgetScreen extends GuiScreen implements CleanroomRenderHo
         uiContext.debugCounters().recordFrameTotalMillis(lastFrameTotalMillis);
         uiContext.keyboard().endFrame();
         CleanroomClientBootstrap.backend().renderScreen(this, mouseX, mouseY, partialTicks);
+        // Resolved every frame, not only on movement: layout changes and drags move widgets under a still cursor.
+        CleanroomClientBootstrap.backend().applyNativeScreenCursor(
+                CleanroomMouseCursors.resolve(root, uiContext, pointer.x() / scale, pointer.y() / scale));
         frameIndex++;
     }
 
@@ -156,13 +176,17 @@ final class CleanroomWidgetScreen extends GuiScreen implements CleanroomRenderHo
         wheelTracker.markConsumed(wheel, System.nanoTime());
     }
 
-    private void updateLayout(float logicalWidth, float logicalHeight) {
+    /**
+     * @return {@code true} if layout ran
+     */
+    private boolean updateLayout(float logicalWidth, float logicalHeight) {
         if (layoutInitialized && !InvalidationFlags.has(root.subtreeInvalidationFlags(), InvalidationFlags.LAYOUT))
-            return;
+            return false;
         root.measure(new LayoutContext(logicalWidth, logicalHeight));
         root.arrange(new MutableRect(0.0f, 0.0f, logicalWidth, logicalHeight));
         clearLayoutInvalidation(root);
         layoutInitialized = true;
+        return true;
     }
 
     private static void clearLayoutInvalidation(Widget widget) {
@@ -242,6 +266,10 @@ final class CleanroomWidgetScreen extends GuiScreen implements CleanroomRenderHo
     public void onGuiClosed() {
         if (closed) return;
         closed = true;
+        Keyboard.enableRepeatEvents(false);
+        CleanroomClientBootstrap.backend().resetCursor();
+        renderCache.close();
+        ((CleanroomGuiRenderBackend) renderBackend).close();
         inputHandle.clear();
         root.dispose();
         closeAction.run();

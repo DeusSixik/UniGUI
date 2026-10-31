@@ -1,5 +1,12 @@
 package dev.sixik.unigui.api.render;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.math.ColorView;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
@@ -34,6 +41,96 @@ import java.util.List;
  * draw.addMesh(road, roadTexture);
  * }</pre>
  */
+@AiDoc(
+        summary = "Procedural textured ribbon mesh generator along polylines for rendering roads, cables, traces, pipelines, and graph edges.",
+        purpose = "Expands a sequence of 2D centerline points into a triangulated strip with miter joins, butt caps, circular joint dots, UV mapping, and viewport clipping.",
+        useWhen = {
+                "Draw continuous textured connections like power cables, pipes, or wiring between nodes.",
+                "Render procedural roads, circuit loops, or curved graph traces with seamless texture tiling.",
+                "Generate custom triangulated meshes with miter corner clamping and joint smoothing."
+        },
+        criticalRules = {
+                "Degenerate segments (zero length or NaN) are safely skipped. Paths with fewer than 2 valid points return an empty mesh.",
+                "Set textureLength equal to the desired world-space length of one texture tile to prevent stretching when using REPEAT wrapping.",
+                "Use swapUv(true) for vertical stripe textures (where gradient/pattern runs vertically) to rotate the texture 90 degrees along the path.",
+                "For sharp turns or loops where miter joins clamp severely, enable jointDots(true) to cover seam gaps with circular disks."
+        },
+        related = {"RibbonOptions", "DrawMesh", "DrawPoint", "DrawVertex", "DrawScope", "TextureHandle"},
+        examples = {
+                @AiDoc.Example(
+                        title = "Building a Textured Power Cable",
+                        order = 10,
+                        code = """
+                                List<DrawPoint> path = List.of(
+                                        new DrawPoint(20.0f, 40.0f),
+                                        new DrawPoint(80.0f, 90.0f),
+                                        new DrawPoint(160.0f, 60.0f)
+                                );
+                                DrawMesh cable = RibbonMesh.builder(path)
+                                        .width(8.0f)
+                                        .textureLength(32.0f)
+                                        .swapUv(true)
+                                        .build(ColorView.WHITE);
+                                scope.addMesh(cable, cableTexture);
+                                """),
+                @AiDoc.Example(
+                        title = "Closed Circuit Loop with Joint Disks",
+                        order = 20,
+                        code = """
+                                List<DrawPoint> corners = List.of(
+                                        new DrawPoint(50.0f, 50.0f),
+                                        new DrawPoint(250.0f, 50.0f),
+                                        new DrawPoint(200.0f, 180.0f),
+                                        new DrawPoint(80.0f, 150.0f)
+                                );
+                                DrawMesh track = RibbonMesh.builder(corners)
+                                        .width(16.0f)
+                                        .textureLength(48.0f)
+                                        .closed(true)
+                                        .jointDots(true)
+                                        .jointSegments(16)
+                                        .build(ColorView.rgb(200, 200, 200));
+                                scope.addMesh(track, roadTexture);
+                                """)
+        })
+@WikiPage(
+        title = "<key:ribbon.mesh.title>",
+        slug = "ribbon-mesh",
+        category = "<key:ribbon.mesh.category>",
+        summary = "<key:ribbon.mesh.summary>",
+        order = 40)
+@WikiSection(
+        title = "<key:ribbon.mesh.section.overview.title>",
+        markdown = "<key:ribbon.mesh.section.overview.body>",
+        order = 10)
+@WikiSection(
+        title = "<key:ribbon.mesh.section.geometry.title>",
+        markdown = "<key:ribbon.mesh.section.geometry.body>",
+        order = 20)
+@WikiSection(
+        title = "<key:ribbon.mesh.section.uv.title>",
+        markdown = "<key:ribbon.mesh.section.uv.body>",
+        order = 30)
+@WikiSection(
+        title = "<key:ribbon.mesh.section.joints.title>",
+        markdown = "<key:ribbon.mesh.section.joints.body>",
+        order = 40)
+@WikiSection(
+        title = "<key:ribbon.mesh.section.culling.title>",
+        markdown = "<key:ribbon.mesh.section.culling.body>",
+        order = 50)
+@WikiSection(
+        title = "<key:ribbon.mesh.section.builder.title>",
+        markdown = "<key:ribbon.mesh.section.builder.body>",
+        order = 60)
+@WikiExample(
+        title = "<key:ribbon.mesh.example.cable.title>",
+        code = "<key:ribbon.mesh.example.cable.code>",
+        order = 10)
+@WikiExample(
+        title = "<key:ribbon.mesh.example.track.title>",
+        code = "<key:ribbon.mesh.example.track.code>",
+        order = 20)
 public final class RibbonMesh {
     /** Максимальная длина miter на стыках в половинах ширины ленты. */
     public static final float DEFAULT_MITER_LIMIT = 4.0f;
@@ -47,7 +144,14 @@ public final class RibbonMesh {
      * @param points центральная полилиния в координатах назначения; {@code null} точки игнорируются
      * @return новый builder
      */
-    public static Builder builder(List<DrawPoint> points) {
+    @WikiMethod(
+            title = "<key:ribbon.mesh.method.builder.title>",
+            summary = "<key:ribbon.mesh.method.builder.summary>",
+            order = 10)
+    @WikiReturn("<key:ribbon.mesh.method.builder.return>")
+    public static Builder builder(
+            @WikiParameter(name = "points", description = "<key:ribbon.mesh.method.builder.points>")
+            List<DrawPoint> points) {
         return new Builder(points);
     }
 
@@ -60,11 +164,38 @@ public final class RibbonMesh {
      * @param tint цвет вершин
      * @return mesh ленты; пустой, если путь вырожден
      */
-    public static DrawMesh ribbon(List<DrawPoint> points, float width, float textureLength, ColorView tint) {
+    @WikiMethod(
+            title = "<key:ribbon.mesh.method.ribbon.title>",
+            summary = "<key:ribbon.mesh.method.ribbon.summary>",
+            order = 20)
+    @WikiReturn("<key:ribbon.mesh.method.ribbon.return>")
+    public static DrawMesh ribbon(
+            @WikiParameter(name = "points", description = "<key:ribbon.mesh.method.ribbon.points>")
+            List<DrawPoint> points,
+            @WikiParameter(name = "width", description = "<key:ribbon.mesh.method.ribbon.width>")
+            float width,
+            @WikiParameter(name = "textureLength", description = "<key:ribbon.mesh.method.ribbon.texture_length>")
+            float textureLength,
+            @WikiParameter(name = "tint", description = "<key:ribbon.mesh.method.ribbon.tint>")
+            ColorView tint) {
         return builder(points).width(width).textureLength(textureLength).build(tint);
     }
 
     /** Fluent builder ленты. */
+    @AiDoc(
+            summary = "Fluent builder for configuring and assembling polyline ribbon meshes.",
+            purpose = "Provides parameter chaining for width, texture tile length, miter clamping, loop closure, UV swapping, joint disks, and viewport culling.",
+            useWhen = {
+                    "Configure detailed procedural mesh parameters before tessellation.",
+                    "Apply RibbonOptions configurations or individual builder setters."
+            },
+            criticalRules = {
+                    "Non-positive or NaN widths produce an empty DrawMesh.",
+                    "Negative or NaN texture lengths are normalized to 1.0.",
+                    "Culling skips off-screen segments while continuously advancing path distance t to preserve texture alignment."
+            },
+            related = {"RibbonMesh", "RibbonOptions", "DrawMesh", "DrawPoint"}
+    )
     public static final class Builder {
         private final List<DrawPoint> points;
         private float width = 8.0f;

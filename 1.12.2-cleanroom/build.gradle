@@ -11,6 +11,7 @@ repositories {
 def rootProperties = new Properties()
 file('../gradle.properties').withInputStream { rootProperties.load(it) }
 def coreJar = file("../core/build/libs/${rootProperties.getProperty('archives_name')}-core-${rootProperties.getProperty('mod_version')}.jar")
+def demoJar = file("../demo/build/libs/${rootProperties.getProperty('archives_name')}-demo-${rootProperties.getProperty('mod_version')}.jar")
 
 base {
     archivesName = 'unigui-cleanroom-1.12.2'
@@ -27,6 +28,7 @@ java {
 dependencies {
     implementation cleanroom.userdev('0.7.14-alpha')
     implementation files(coreJar)
+    implementation files(demoJar)
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
@@ -63,7 +65,20 @@ tasks.named('jar', Jar) {
     from {
         zipTree(coreJar)
     }
+    from {
+        zipTree(demoJar)
+    }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+tasks.named('processResources') {
+    from(zipTree(demoJar)) {
+        include 'assets/unigui_testmod/**'
+        eachFile { details ->
+            details.path = details.path.replaceFirst('^assets/unigui_testmod/', 'assets/unigui/')
+        }
+        includeEmptyDirs = false
+    }
 }
 
 tasks.withType(Test).configureEach {
