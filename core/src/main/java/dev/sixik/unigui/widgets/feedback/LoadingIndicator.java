@@ -1,5 +1,15 @@
 package dev.sixik.unigui.widgets.feedback;
 
+
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.layout.LayoutContext;
@@ -24,6 +34,32 @@ import dev.sixik.unigui.widgets.WidgetStyles;
  * progress range. Use {@link ProgressBar#indeterminate(boolean)} when the UI
  * represents progress for a ranged operation, but the current value is unknown.</p>
  */
+@AiDoc(summary = "Multi-mode loading and progress feedback widget supporting spinner, bar, pulse, and dot animations.")
+@WikiPage(
+        title = "LoadingIndicator",
+        slug = "loading-indicator",
+        category = "<key:feedback.category>",
+        summary = "<key:loading.indicator.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:loading.indicator.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:loading.indicator.example.basic.title>",
+        code = "LoadingIndicator indicator = new LoadingIndicator();\nindicator.mode(LoadingIndicator.Mode.SPINNER).start();"
+)
+@WikiLink(
+        label = "Spinner",
+        target = "page:spinner",
+        description = "<key:spinner.summary>"
+)
+@WikiLink(
+        label = "ProgressBar",
+        target = "page:progress-bar",
+        description = "<key:progress.bar.summary>"
+)
 @XmlWidgetName("LoadingIndicator")
 public class LoadingIndicator extends Box {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.LOADING_INDICATOR;
@@ -51,6 +87,8 @@ public class LoadingIndicator extends Box {
     private float preferredWidth = Float.NaN;
     private float preferredHeight = Float.NaN;
 
+        @AiDoc(summary = "Constructs a LoadingIndicator initialized with SPINNER mode and default styling.")
+    @WikiMethod(summary = "<key:loading.indicator.method.ctorDefault>")
     public LoadingIndicator() {
         boxVisualEnabled(false);
         applyComponentStyleDefaults(WidgetStyles.Surface.UNSURFACED);
@@ -69,12 +107,21 @@ public class LoadingIndicator extends Box {
         return WidgetStyles.Surface.UNSURFACED;
     }
 
+        @AiDoc(summary = "Returns the active display mode (SPINNER, BAR, PULSE, DOTS, etc.).")
+    @WikiMethod(summary = "<key:loading.indicator.method.modeGet>")
+    @WikiReturn("<key:loading.indicator.return.mode>")
     public Mode mode() {
         return mode;
     }
 
     @XmlAttribute(value = "mode", category = "Behavior", defaultValue = "spinner", description = "Indicator rendering mode.")
-    public LoadingIndicator mode(Mode mode) {
+        @AiDoc(summary = "Sets the loading indicator display mode.")
+    @WikiMethod(summary = "<key:loading.indicator.method.modeSet>")
+    @WikiReturn("<key:loading.indicator.return.this>")
+    public LoadingIndicator mode(
+            @WikiParameter(description = "<key:loading.indicator.param.mode>")
+            Mode mode
+    ) {
         Mode normalized = mode == null ? Mode.SPINNER : mode;
         if (this.mode == normalized) return this;
         this.mode = normalized;
@@ -82,32 +129,56 @@ public class LoadingIndicator extends Box {
         return this;
     }
 
+        @AiDoc(summary = "Returns true if the animation is currently running.")
+    @WikiMethod(summary = "<key:loading.indicator.method.runningGet>")
+    @WikiReturn("<key:loading.indicator.return.running>")
     public boolean running() {
         return running;
     }
 
     @XmlAttribute(value = "running", category = "Behavior", defaultValue = "true", description = "Whether the indicator animation advances over time.")
-    public LoadingIndicator running(boolean running) {
+        @AiDoc(summary = "Starts or stops the animation.")
+    @WikiMethod(summary = "<key:loading.indicator.method.runningSet>")
+    @WikiReturn("<key:loading.indicator.return.this>")
+    public LoadingIndicator running(
+            @WikiParameter(description = "<key:loading.indicator.param.running>")
+            boolean running
+    ) {
         if (this.running == running) return this;
         this.running = running;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 
+        @AiDoc(summary = "Starts the indicator animation.")
+    @WikiMethod(summary = "<key:loading.indicator.method.start>")
+    @WikiReturn("<key:loading.indicator.return.this>")
     public LoadingIndicator start() {
         return running(true);
     }
 
+        @AiDoc(summary = "Stops the indicator animation.")
+    @WikiMethod(summary = "<key:loading.indicator.method.stop>")
+    @WikiReturn("<key:loading.indicator.return.this>")
     public LoadingIndicator stop() {
         return running(false);
     }
 
+        @AiDoc(summary = "Returns the current animation phase normalized between 0.0 and 1.0.")
+    @WikiMethod(summary = "<key:loading.indicator.method.phaseGet>")
+    @WikiReturn("<key:loading.indicator.return.phase>")
     public float phase() {
         return phase;
     }
 
     @XmlAttribute(value = "phase", category = "Behavior", defaultValue = "0", description = "Initial animation phase in the 0..1 range.")
-    public LoadingIndicator phase(float phase) {
+        @AiDoc(summary = "Manually sets the animation phase value.")
+    @WikiMethod(summary = "<key:loading.indicator.method.phaseSet>")
+    @WikiReturn("<key:loading.indicator.return.this>")
+    public LoadingIndicator phase(
+            @WikiParameter(description = "<key:loading.indicator.param.phase>")
+            float phase
+    ) {
         float normalized = wrap01(phase);
         if (this.phase == normalized) return this;
         this.phase = normalized;
@@ -116,12 +187,21 @@ public class LoadingIndicator extends Box {
         return this;
     }
 
+        @AiDoc(summary = "Returns the animation speed multiplier.")
+    @WikiMethod(summary = "<key:loading.indicator.method.speedGet>")
+    @WikiReturn("<key:loading.indicator.return.speed>")
     public float speed() {
         return speed;
     }
 
     @XmlAttribute(value = "speed", category = "Behavior", defaultValue = "1", description = "Animation speed multiplier.")
-    public LoadingIndicator speed(float speed) {
+        @AiDoc(summary = "Sets the animation speed multiplier.")
+    @WikiMethod(summary = "<key:loading.indicator.method.speedSet>")
+    @WikiReturn("<key:loading.indicator.return.this>")
+    public LoadingIndicator speed(
+            @WikiParameter(description = "<key:loading.indicator.param.speed>")
+            float speed
+    ) {
         float normalized = Float.isFinite(speed) ? Math.max(0.0f, speed) : 1.0f;
         if (this.speed == normalized) return this;
         this.speed = normalized;
@@ -129,12 +209,21 @@ public class LoadingIndicator extends Box {
         return this;
     }
 
+        @AiDoc(summary = "Returns the segment count for segmented styles.")
+    @WikiMethod(summary = "<key:loading.indicator.method.segmentsGet>")
+    @WikiReturn("<key:loading.indicator.return.segments>")
     public int segments() {
         return segments;
     }
 
     @XmlAttribute(value = "segments", category = "Appearance", defaultValue = "8", description = "Segment count for segmented spinner styles.")
-    public LoadingIndicator segments(int segments) {
+        @AiDoc(summary = "Sets the segment count for segmented styles.")
+    @WikiMethod(summary = "<key:loading.indicator.method.segmentsSet>")
+    @WikiReturn("<key:loading.indicator.return.this>")
+    public LoadingIndicator segments(
+            @WikiParameter(description = "<key:loading.indicator.param.segments>")
+            int segments
+    ) {
         int normalized = Math.max(3, Math.min(96, segments));
         if (this.segments == normalized) return this;
         this.segments = normalized;
@@ -142,12 +231,21 @@ public class LoadingIndicator extends Box {
         return this;
     }
 
+        @AiDoc(summary = "Returns the active spinner style preset.")
+    @WikiMethod(summary = "<key:loading.indicator.method.spinnerStyleGet>")
+    @WikiReturn("<key:loading.indicator.return.spinnerStyle>")
     public Spinner.Style spinnerStyle() {
         return spinnerStyle;
     }
 
     @XmlAttribute(value = "spinnerStyle", category = "Appearance", defaultValue = "default", description = "Visual style used when mode is spinner.")
-    public LoadingIndicator spinnerStyle(Spinner.Style spinnerStyle) {
+        @AiDoc(summary = "Sets the spinner style preset.")
+    @WikiMethod(summary = "<key:loading.indicator.method.spinnerStyleSet>")
+    @WikiReturn("<key:loading.indicator.return.this>")
+    public LoadingIndicator spinnerStyle(
+            @WikiParameter(description = "<key:loading.indicator.param.spinnerStyle>")
+            Spinner.Style spinnerStyle
+    ) {
         Spinner.Style normalized = spinnerStyle == null ? Spinner.Style.DEFAULT : spinnerStyle;
         if (this.spinnerStyle == normalized) return this;
         this.spinnerStyle = normalized;
@@ -156,12 +254,21 @@ public class LoadingIndicator extends Box {
         return this;
     }
 
+        @AiDoc(summary = "Returns the total dot count for dotted styles.")
+    @WikiMethod(summary = "<key:loading.indicator.method.dotsGet>")
+    @WikiReturn("<key:loading.indicator.return.dots>")
     public int dots() {
         return dots;
     }
 
     @XmlAttribute(value = "dots", category = "Appearance", defaultValue = "8", description = "Dot count for dotted loading styles.")
-    public LoadingIndicator dots(int dots) {
+        @AiDoc(summary = "Sets the total dot count for dotted styles.")
+    @WikiMethod(summary = "<key:loading.indicator.method.dotsSet>")
+    @WikiReturn("<key:loading.indicator.return.this>")
+    public LoadingIndicator dots(
+            @WikiParameter(description = "<key:loading.indicator.param.dots>")
+            int dots
+    ) {
         int normalized = Math.max(2, Math.min(32, dots));
         if (this.dots == normalized) return this;
         this.dots = normalized;
@@ -169,12 +276,21 @@ public class LoadingIndicator extends Box {
         return this;
     }
 
+        @AiDoc(summary = "Returns the active highlighted dot count.")
+    @WikiMethod(summary = "<key:loading.indicator.method.activeDotsGet>")
+    @WikiReturn("<key:loading.indicator.return.activeDots>")
     public int activeDots() {
         return activeDots;
     }
 
     @XmlAttribute(value = "activeDots", category = "Appearance", defaultValue = "4", description = "Number of highlighted dots in dotted styles.")
-    public LoadingIndicator activeDots(int activeDots) {
+        @AiDoc(summary = "Sets the active highlighted dot count.")
+    @WikiMethod(summary = "<key:loading.indicator.method.activeDotsSet>")
+    @WikiReturn("<key:loading.indicator.return.this>")
+    public LoadingIndicator activeDots(
+            @WikiParameter(description = "<key:loading.indicator.param.activeDots>")
+            int activeDots
+    ) {
         int normalized = Math.max(1, Math.min(32, activeDots));
         if (this.activeDots == normalized) return this;
         this.activeDots = normalized;
@@ -182,12 +298,21 @@ public class LoadingIndicator extends Box {
         return this;
     }
 
+        @AiDoc(summary = "Returns the arc count for multi-arc styles.")
+    @WikiMethod(summary = "<key:loading.indicator.method.arcsGet>")
+    @WikiReturn("<key:loading.indicator.return.arcs>")
     public int arcs() {
         return arcs;
     }
 
     @XmlAttribute(value = "arcs", category = "Appearance", defaultValue = "3", description = "Arc count for multi-arc spinner styles.")
-    public LoadingIndicator arcs(int arcs) {
+        @AiDoc(summary = "Sets the arc count for multi-arc styles.")
+    @WikiMethod(summary = "<key:loading.indicator.method.arcsSet>")
+    @WikiReturn("<key:loading.indicator.return.this>")
+    public LoadingIndicator arcs(
+            @WikiParameter(description = "<key:loading.indicator.param.arcs>")
+            int arcs
+    ) {
         int normalized = Math.max(1, Math.min(12, arcs));
         if (this.arcs == normalized) return this;
         this.arcs = normalized;
@@ -195,12 +320,21 @@ public class LoadingIndicator extends Box {
         return this;
     }
 
+        @AiDoc(summary = "Returns the stroke thickness in UI pixels.")
+    @WikiMethod(summary = "<key:loading.indicator.method.thicknessGet>")
+    @WikiReturn("<key:loading.indicator.return.thickness>")
     public float thickness() {
         return thickness;
     }
 
     @XmlAttribute(value = "thickness", category = "Appearance", defaultValue = "3", description = "Stroke thickness in UI pixels.")
-    public LoadingIndicator thickness(float thickness) {
+        @AiDoc(summary = "Sets the stroke thickness in UI pixels.")
+    @WikiMethod(summary = "<key:loading.indicator.method.thicknessSet>")
+    @WikiReturn("<key:loading.indicator.return.this>")
+    public LoadingIndicator thickness(
+            @WikiParameter(description = "<key:loading.indicator.param.thickness>")
+            float thickness
+    ) {
         float normalized = Float.isFinite(thickness) ? Math.max(1.0f, thickness) : 3.0f;
         if (this.thickness == normalized) return this;
         this.thickness = normalized;
@@ -208,12 +342,21 @@ public class LoadingIndicator extends Box {
         return this;
     }
 
+        @AiDoc(summary = "Returns the explicit indicator radius in UI pixels, or 0 if auto-computed.")
+    @WikiMethod(summary = "<key:loading.indicator.method.radiusGet>")
+    @WikiReturn("<key:loading.indicator.return.radius>")
     public float radius() {
         return radius;
     }
 
     @XmlAttribute(value = "radius", category = "Appearance", defaultValue = "0", description = "Explicit indicator radius; 0 derives it from bounds.")
-    public LoadingIndicator radius(float radius) {
+        @AiDoc(summary = "Sets an explicit indicator radius in UI pixels.")
+    @WikiMethod(summary = "<key:loading.indicator.method.radiusSet>")
+    @WikiReturn("<key:loading.indicator.return.this>")
+    public LoadingIndicator radius(
+            @WikiParameter(description = "<key:loading.indicator.param.radius>")
+            float radius
+    ) {
         float normalized = Float.isFinite(radius) ? Math.max(0.0f, radius) : 0.0f;
         if (this.radius == normalized) return this;
         this.radius = normalized;
@@ -221,12 +364,21 @@ public class LoadingIndicator extends Box {
         return this;
     }
 
+        @AiDoc(summary = "Returns the arc sweep angle in radians.")
+    @WikiMethod(summary = "<key:loading.indicator.method.angleGet>")
+    @WikiReturn("<key:loading.indicator.return.angle>")
     public float angle() {
         return angle;
     }
 
     @XmlAttribute(value = "angle", category = "Appearance", defaultValue = "4.555", description = "Arc sweep angle in radians for arc-based styles.")
-    public LoadingIndicator angle(float radians) {
+        @AiDoc(summary = "Sets the arc sweep angle in radians.")
+    @WikiMethod(summary = "<key:loading.indicator.method.angleSet>")
+    @WikiReturn("<key:loading.indicator.return.this>")
+    public LoadingIndicator angle(
+            @WikiParameter(description = "<key:loading.indicator.param.radians>")
+            float radians
+    ) {
         float normalized = Float.isFinite(radians) ? Math.max(0.0f, radians) : (float) (Math.PI * 1.45);
         if (this.angle == normalized) return this;
         this.angle = normalized;
@@ -234,17 +386,32 @@ public class LoadingIndicator extends Box {
         return this;
     }
 
-    public LoadingIndicator indicatorSize(float size) {
+        @AiDoc(summary = "Sets both preferred width and height simultaneously in UI pixels.")
+    @WikiMethod(summary = "<key:loading.indicator.method.indicatorSize>")
+    @WikiReturn("<key:loading.indicator.return.this>")
+    public LoadingIndicator indicatorSize(
+            @WikiParameter(description = "<key:loading.indicator.param.size>")
+            float size
+    ) {
         float normalized = positiveOr(size, DEFAULT_PREFERRED_SIZE);
         return preferredSize(normalized, normalized);
     }
 
+        @AiDoc(summary = "Returns the preferred indicator width.")
+    @WikiMethod(summary = "<key:loading.indicator.method.preferredWidthGet>")
+    @WikiReturn("<key:loading.indicator.return.preferredWidth>")
     public float preferredWidth() {
         return effectivePreferredWidth();
     }
 
     @XmlAttribute(value = "preferredWidth", category = "Layout", defaultValue = "24", description = "Intrinsic indicator width before layout constraints are applied.")
-    public LoadingIndicator preferredWidth(float preferredWidth) {
+        @AiDoc(summary = "Sets the preferred indicator width in UI pixels.")
+    @WikiMethod(summary = "<key:loading.indicator.method.preferredWidthSet>")
+    @WikiReturn("<key:loading.indicator.return.this>")
+    public LoadingIndicator preferredWidth(
+            @WikiParameter(description = "<key:loading.indicator.param.preferredWidth>")
+            float preferredWidth
+    ) {
         float normalized = positiveOr(preferredWidth, defaultPreferredWidth());
         if (this.preferredWidth == normalized) return this;
         this.preferredWidth = normalized;
@@ -252,12 +419,21 @@ public class LoadingIndicator extends Box {
         return this;
     }
 
+        @AiDoc(summary = "Returns the preferred indicator height.")
+    @WikiMethod(summary = "<key:loading.indicator.method.preferredHeightGet>")
+    @WikiReturn("<key:loading.indicator.return.preferredHeight>")
     public float preferredHeight() {
         return effectivePreferredHeight();
     }
 
     @XmlAttribute(value = "preferredHeight", category = "Layout", defaultValue = "24", description = "Intrinsic indicator height before layout constraints are applied.")
-    public LoadingIndicator preferredHeight(float preferredHeight) {
+        @AiDoc(summary = "Sets the preferred indicator height in UI pixels.")
+    @WikiMethod(summary = "<key:loading.indicator.method.preferredHeightSet>")
+    @WikiReturn("<key:loading.indicator.return.this>")
+    public LoadingIndicator preferredHeight(
+            @WikiParameter(description = "<key:loading.indicator.param.preferredHeight>")
+            float preferredHeight
+    ) {
         float normalized = positiveOr(preferredHeight, defaultPreferredHeight());
         if (this.preferredHeight == normalized) return this;
         this.preferredHeight = normalized;
@@ -265,10 +441,21 @@ public class LoadingIndicator extends Box {
         return this;
     }
 
-    public LoadingIndicator preferredSize(float width, float height) {
+        @AiDoc(summary = "Sets independent preferred width and height.")
+    @WikiMethod(summary = "<key:loading.indicator.method.preferredSize>")
+    @WikiReturn("<key:loading.indicator.return.this>")
+    public LoadingIndicator preferredSize(
+            @WikiParameter(description = "<key:loading.indicator.param.width>")
+            float width,
+            @WikiParameter(description = "<key:loading.indicator.param.height>")
+            float height
+    ) {
         return preferredWidth(width).preferredHeight(height);
     }
 
+        @AiDoc(summary = "Resets dimensions to the default preferred size for the current mode.")
+    @WikiMethod(summary = "<key:loading.indicator.method.useDefaultPreferredSize>")
+    @WikiReturn("<key:loading.indicator.return.this>")
     public LoadingIndicator useDefaultPreferredSize() {
         if (Float.isNaN(preferredWidth) && Float.isNaN(preferredHeight)) return this;
         preferredWidth = Float.NaN;
@@ -277,14 +464,23 @@ public class LoadingIndicator extends Box {
         return this;
     }
 
+        @AiDoc(summary = "Returns the primary accent color.")
+    @WikiMethod(summary = "<key:loading.indicator.method.accentColor>")
+    @WikiReturn("<key:loading.indicator.return.accentColor>")
     public MutableColor accentColor() {
         return accentColor;
     }
 
+        @AiDoc(summary = "Returns the secondary highlight color.")
+    @WikiMethod(summary = "<key:loading.indicator.method.secondaryColor>")
+    @WikiReturn("<key:loading.indicator.return.secondaryColor>")
     public MutableColor secondaryColor() {
         return secondaryColor;
     }
 
+        @AiDoc(summary = "Returns the background track color.")
+    @WikiMethod(summary = "<key:loading.indicator.method.trackColor>")
+    @WikiReturn("<key:loading.indicator.return.trackColor>")
     public MutableColor trackColor() {
         return trackColor;
     }

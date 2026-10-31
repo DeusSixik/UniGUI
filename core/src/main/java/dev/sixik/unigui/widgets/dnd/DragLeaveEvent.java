@@ -11,8 +11,7 @@ import dev.sixik.unigui.api.widget.Widget;
 /**
  * Указатель покинул drop-зону или сессия отменена, пока зона была активной целью.
  */
-@AiDoc(
-        description = "Routed event notified when the drag pointer exits a drop zone or when the gesture is aborted."
+@AiDoc(summary = "Routed event notified when the drag pointer exits a drop zone or when the gesture is aborted."
 )
 @WikiPage(
         title = "DragLeaveEvent",

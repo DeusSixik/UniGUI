@@ -5,8 +5,7 @@ import dev.sixik.unigui.api.docs.WikiLink;
 import dev.sixik.unigui.api.docs.WikiPage;
 import dev.sixik.unigui.api.docs.WikiSection;
 
-@AiDoc(
-        description = "Classification of a docking pane: DOCUMENT (primary central workspace content) or TOOL (dockable side utility tool window)."
+@AiDoc(summary = "Classification of a docking pane: DOCUMENT (primary central workspace content) or TOOL (dockable side utility tool window)."
 )
 @WikiPage(
         title = "DockPaneKind",
@@ -30,8 +29,6 @@ import dev.sixik.unigui.api.docs.WikiSection;
         description = "<key:docking.root.summary>"
 )
 public enum DockPaneKind {
-    @AiDoc(description = "Primary editor or document pane occupying the central workspace area.")
     DOCUMENT,
-    @AiDoc(description = "Utility tool window pane docked to perimeter sides or tabbed.")
     TOOL
 }

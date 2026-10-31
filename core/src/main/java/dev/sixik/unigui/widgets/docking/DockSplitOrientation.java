@@ -8,8 +8,7 @@ import dev.sixik.unigui.api.docs.WikiReturn;
 import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.widgets.core.Orientation;
 
-@AiDoc(
-        description = "Split layout orientation between adjacent dock nodes: HORIZONTAL (side-by-side) or VERTICAL (stacked top/bottom)."
+@AiDoc(summary = "Split layout orientation between adjacent dock nodes: HORIZONTAL (side-by-side) or VERTICAL (stacked top/bottom)."
 )
 @WikiPage(
         title = "DockSplitOrientation",
@@ -33,13 +32,11 @@ import dev.sixik.unigui.widgets.core.Orientation;
         description = "<key:docking.root.summary>"
 )
 public enum DockSplitOrientation {
-    @AiDoc(description = "Horizontal split: child nodes are positioned side-by-side.")
     HORIZONTAL,
-    @AiDoc(description = "Vertical split: child nodes are positioned top-to-bottom.")
     VERTICAL;
 
-    @AiDoc(description = "Converts the dock split orientation to the core widget Orientation enum.")
-    @WikiMethod(description = "<key:dock.split.orientation.method.toWidgetOrientation>")
+    @AiDoc(summary = "Converts the dock split orientation to the core widget Orientation enum.")
+    @WikiMethod(summary = "<key:dock.split.orientation.method.toWidgetOrientation>")
     @WikiReturn("<key:dock.split.orientation.return.orientation>")
     public Orientation toWidgetOrientation() {
         return this == HORIZONTAL ? Orientation.HORIZONTAL : Orientation.VERTICAL;

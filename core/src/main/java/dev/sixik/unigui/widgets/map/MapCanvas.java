@@ -1,5 +1,15 @@
 package dev.sixik.unigui.widgets.map;
 
+
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
@@ -55,6 +65,42 @@ import dev.sixik.unigui.widgets.interaction.Button;
  *         .pivot(0.5f, 0.5f);
  * }</pre>
  */
+@AiDoc(summary = "Interactive 2D map widget extending WorldCanvas with map sizing, texture and grid layers, coordinate projection, and marker handles.")
+@WikiPage(
+        title = "MapCanvas",
+        slug = "map-canvas",
+        category = "<key:map.category>",
+        summary = "<key:map.canvas.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:map.canvas.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:map.canvas.example.basic.title>",
+        code = "MapCanvas map = new MapCanvas()\n    .mapSize(2048, 1024)\n    .viewport(0, 0, 1.0f);\nmap.addMarker(\"spawn\", 512, 256, \"Spawn\");"
+)
+@WikiLink(
+        label = "WorldCanvas",
+        target = "page:world-canvas",
+        description = "<key:world.canvas.summary>"
+)
+@WikiLink(
+        label = "MapProjection",
+        target = "page:map-projection",
+        description = "<key:map.projection.summary>"
+)
+@WikiLink(
+        label = "MapMarker",
+        target = "page:map-marker",
+        description = "<key:map.marker.summary>"
+)
+@WikiLink(
+        label = "MapMarkerHandle",
+        target = "page:map-marker-handle",
+        description = "<key:map.marker.handle.summary>"
+)
 @XmlWidgetName("MapCanvas")
 public class MapCanvas extends WorldCanvas {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.MAP_CANVAS;
@@ -81,6 +127,8 @@ public class MapCanvas extends WorldCanvas {
     /**
      * Создает карту без texture с дефолтным размером {@code 1024 x 512}.
      */
+        @AiDoc(summary = "Constructs an empty MapCanvas with default 1024x512 map dimensions.")
+    @WikiMethod(summary = "<key:map.canvas.method.ctorDefault>")
     public MapCanvas() {
         tint.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         backgroundColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
@@ -98,7 +146,12 @@ public class MapCanvas extends WorldCanvas {
     /**
      * Создает карту с texture. Размер карты берется из texture.
      */
-    public MapCanvas(TextureHandle texture) {
+        @AiDoc(summary = "Constructs a MapCanvas displaying the given texture with dimensions derived from the texture.")
+    @WikiMethod(summary = "<key:map.canvas.method.ctorTexture>")
+    public MapCanvas(
+            @WikiParameter(description = "<key:map.canvas.param.texture>")
+            TextureHandle texture
+    ) {
         this();
         texture(texture);
         if (texture != null) {
@@ -109,7 +162,16 @@ public class MapCanvas extends WorldCanvas {
     /**
      * Создает карту с texture и явным размером в map-координатах.
      */
-    public MapCanvas(TextureHandle texture, float mapWidth, float mapHeight) {
+        @AiDoc(summary = "Constructs a MapCanvas displaying a texture with explicit map width and height dimensions.")
+    @WikiMethod(summary = "<key:map.canvas.method.ctorTextureSize>")
+    public MapCanvas(
+            @WikiParameter(description = "<key:map.canvas.param.texture>")
+            TextureHandle texture,
+            @WikiParameter(description = "<key:map.canvas.param.mapWidth>")
+            float mapWidth,
+            @WikiParameter(description = "<key:map.canvas.param.mapHeight>")
+            float mapHeight
+    ) {
         this();
         texture(texture);
         mapSize(mapWidth, mapHeight);
@@ -119,7 +181,13 @@ public class MapCanvas extends WorldCanvas {
      * Fluent override для установки готового viewport.
      */
     @Override
-    public MapCanvas viewport(Viewport2D viewport) {
+        @AiDoc(summary = "Sets the 2D pan and zoom viewport model.")
+    @WikiMethod(summary = "<key:map.canvas.method.viewportModel>")
+    @WikiReturn("<key:map.canvas.return.this>")
+    public MapCanvas viewport(
+            @WikiParameter(description = "<key:map.canvas.param.viewport>")
+            Viewport2D viewport
+    ) {
         super.viewport(viewport);
         return this;
     }
@@ -128,7 +196,15 @@ public class MapCanvas extends WorldCanvas {
      * Fluent override для изменения pan offset без изменения zoom.
      */
     @Override
-    public MapCanvas viewport(float x, float y) {
+        @AiDoc(summary = "Sets viewport center coordinates while maintaining current zoom.")
+    @WikiMethod(summary = "<key:map.canvas.method.viewportCoords>")
+    @WikiReturn("<key:map.canvas.return.this>")
+    public MapCanvas viewport(
+            @WikiParameter(description = "<key:map.canvas.param.x>")
+            float x,
+            @WikiParameter(description = "<key:map.canvas.param.y>")
+            float y
+    ) {
         super.viewport(x, y);
         return this;
     }
@@ -140,7 +216,17 @@ public class MapCanvas extends WorldCanvas {
      * масштаб map-координат в экранные пиксели.</p>
      */
     @Override
-    public MapCanvas viewport(float x, float y, float zoom) {
+        @AiDoc(summary = "Sets viewport center coordinates and zoom level simultaneously.")
+    @WikiMethod(summary = "<key:map.canvas.method.viewportCoordsZoom>")
+    @WikiReturn("<key:map.canvas.return.this>")
+    public MapCanvas viewport(
+            @WikiParameter(description = "<key:map.canvas.param.x>")
+            float x,
+            @WikiParameter(description = "<key:map.canvas.param.y>")
+            float y,
+            @WikiParameter(description = "<key:map.canvas.param.zoom>")
+            float zoom
+    ) {
         super.viewport(x, y, zoom);
         return this;
     }
@@ -149,7 +235,15 @@ public class MapCanvas extends WorldCanvas {
      * Fluent override для ограничения zoom.
      */
     @Override
-    public MapCanvas zoomRange(float minZoom, float maxZoom) {
+        @AiDoc(summary = "Sets the allowed minimum and maximum zoom scale bounds.")
+    @WikiMethod(summary = "<key:map.canvas.method.zoomRange>")
+    @WikiReturn("<key:map.canvas.return.this>")
+    public MapCanvas zoomRange(
+            @WikiParameter(description = "<key:map.canvas.param.minZoom>")
+            float minZoom,
+            @WikiParameter(description = "<key:map.canvas.param.maxZoom>")
+            float maxZoom
+    ) {
         super.zoomRange(minZoom, maxZoom);
         return this;
     }
@@ -159,7 +253,13 @@ public class MapCanvas extends WorldCanvas {
     */
     @Override
     @XmlAttribute(value = "wheelPanStep", category = "Behavior", defaultValue = "32", description = "Viewport pan distance applied per wheel delta unit.")
-    public MapCanvas wheelPanStep(float wheelPanStep) {
+        @AiDoc(summary = "Sets the distance panned per mouse wheel click.")
+    @WikiMethod(summary = "<key:map.canvas.method.wheelPanStep>")
+    @WikiReturn("<key:map.canvas.return.this>")
+    public MapCanvas wheelPanStep(
+            @WikiParameter(description = "<key:map.canvas.param.wheelPanStep>")
+            float wheelPanStep
+    ) {
         super.wheelPanStep(wheelPanStep);
         return this;
     }
@@ -169,7 +269,13 @@ public class MapCanvas extends WorldCanvas {
     */
     @Override
     @XmlAttribute(value = "zoomStep", category = "Behavior", defaultValue = "1.1", description = "Multiplicative zoom factor applied per wheel delta unit.")
-    public MapCanvas zoomStep(float zoomStep) {
+        @AiDoc(summary = "Sets the zoom factor multiplier applied per mouse wheel step.")
+    @WikiMethod(summary = "<key:map.canvas.method.zoomStep>")
+    @WikiReturn("<key:map.canvas.return.this>")
+    public MapCanvas zoomStep(
+            @WikiParameter(description = "<key:map.canvas.param.zoomStep>")
+            float zoomStep
+    ) {
         super.zoomStep(zoomStep);
         return this;
     }
@@ -177,6 +283,9 @@ public class MapCanvas extends WorldCanvas {
     /**
      * Texture, которая рисуется как поверхность карты; может быть {@code null}.
      */
+        @AiDoc(summary = "Returns the texture handle of the rendered map background.")
+    @WikiMethod(summary = "<key:map.canvas.method.textureGet>")
+    @WikiReturn("<key:map.canvas.return.texture>")
     public TextureHandle texture() {
         return texture;
     }
@@ -188,7 +297,13 @@ public class MapCanvas extends WorldCanvas {
      * {@link #mapColor()}.</p>
      */
     @XmlAttribute(value = "texture", category = "Assets", defaultValue = "", description = "Texture resource id rendered as the map surface.")
-    public MapCanvas texture(TextureHandle texture) {
+        @AiDoc(summary = "Sets the map background texture handle.")
+    @WikiMethod(summary = "<key:map.canvas.method.textureSet>")
+    @WikiReturn("<key:map.canvas.return.this>")
+    public MapCanvas texture(
+            @WikiParameter(description = "<key:map.canvas.param.texture>")
+            TextureHandle texture
+    ) {
         if (this.texture == texture) return this;
         this.texture = texture;
         invalidate(InvalidationFlags.VISUAL);
@@ -198,6 +313,9 @@ public class MapCanvas extends WorldCanvas {
     /**
      * UV/source rectangle texture. По умолчанию используется вся texture: {@code 0,0,1,1}.
      */
+        @AiDoc(summary = "Returns the normalized UV source rectangle of the map texture.")
+    @WikiMethod(summary = "<key:map.canvas.method.sourceGet>")
+    @WikiReturn("<key:map.canvas.return.source>")
     public MutableRect source() {
         return source;
     }
@@ -205,7 +323,19 @@ public class MapCanvas extends WorldCanvas {
     /**
      * Задает UV/source rectangle texture.
      */
-    public MapCanvas source(float u, float v, float width, float height) {
+        @AiDoc(summary = "Sets the normalized UV sub-region of the texture to display.")
+    @WikiMethod(summary = "<key:map.canvas.method.sourceSet>")
+    @WikiReturn("<key:map.canvas.return.this>")
+    public MapCanvas source(
+            @WikiParameter(description = "<key:map.canvas.param.u>")
+            float u,
+            @WikiParameter(description = "<key:map.canvas.param.v>")
+            float v,
+            @WikiParameter(description = "<key:map.canvas.param.width>")
+            float width,
+            @WikiParameter(description = "<key:map.canvas.param.height>")
+            float height
+    ) {
         source.set(u, v, width, height);
         return this;
     }
@@ -213,6 +343,9 @@ public class MapCanvas extends WorldCanvas {
     /**
      * Tint для texture карты.
      */
+        @AiDoc(summary = "Returns the mutable tint color applied to the map texture.")
+    @WikiMethod(summary = "<key:map.canvas.method.tint>")
+    @WikiReturn("<key:map.canvas.return.mutableColor>")
     public MutableColor tint() {
         return tint;
     }
@@ -220,6 +353,9 @@ public class MapCanvas extends WorldCanvas {
     /**
      * Цвет фона всего виджета карты за пределами поверхности карты.
      */
+        @AiDoc(summary = "Returns the mutable background fill color rendered outside map bounds.")
+    @WikiMethod(summary = "<key:map.canvas.method.backgroundColor>")
+    @WikiReturn("<key:map.canvas.return.mutableColor>")
     public MutableColor backgroundColor() {
         return backgroundColor;
     }
@@ -227,6 +363,9 @@ public class MapCanvas extends WorldCanvas {
     /**
      * Цвет поверхности карты, если texture не задана.
      */
+        @AiDoc(summary = "Returns the mutable fallback fill color used when no texture is loaded.")
+    @WikiMethod(summary = "<key:map.canvas.method.mapColor>")
+    @WikiReturn("<key:map.canvas.return.mutableColor>")
     public MutableColor mapColor() {
         return mapColor;
     }
@@ -234,6 +373,9 @@ public class MapCanvas extends WorldCanvas {
     /**
      * Цвет рамки поверхности карты.
      */
+        @AiDoc(summary = "Returns the mutable border line color surrounding the map boundaries.")
+    @WikiMethod(summary = "<key:map.canvas.method.borderColor>")
+    @WikiReturn("<key:map.canvas.return.mutableColor>")
     public MutableColor borderColor() {
         return borderColor;
     }
@@ -241,6 +383,9 @@ public class MapCanvas extends WorldCanvas {
     /**
      * Цвет debug/grid линий.
      */
+        @AiDoc(summary = "Returns the mutable line color of the coordinate grid overlay.")
+    @WikiMethod(summary = "<key:map.canvas.method.gridColor>")
+    @WikiReturn("<key:map.canvas.return.mutableColor>")
     public MutableColor gridColor() {
         return gridColor;
     }
@@ -248,6 +393,9 @@ public class MapCanvas extends WorldCanvas {
     /**
      * Ширина карты в map-координатах.
      */
+        @AiDoc(summary = "Returns the width dimension of the map in map coordinate units.")
+    @WikiMethod(summary = "<key:map.canvas.method.mapWidthGet>")
+    @WikiReturn("<key:map.canvas.return.dimension>")
     public float mapWidth() {
         return mapWidth;
     }
@@ -255,6 +403,9 @@ public class MapCanvas extends WorldCanvas {
     /**
      * Высота карты в map-координатах.
      */
+        @AiDoc(summary = "Returns the height dimension of the map in map coordinate units.")
+    @WikiMethod(summary = "<key:map.canvas.method.mapHeightGet>")
+    @WikiReturn("<key:map.canvas.return.dimension>")
     public float mapHeight() {
         return mapHeight;
     }
@@ -266,7 +417,15 @@ public class MapCanvas extends WorldCanvas {
      * задает внутреннюю координатную систему карты. Например, texture 4096x2048
      * обычно удобно использовать как {@code mapSize(4096, 2048)}.</p>
      */
-    public MapCanvas mapSize(float width, float height) {
+        @AiDoc(summary = "Sets the dimensions of the map in map coordinate units.")
+    @WikiMethod(summary = "<key:map.canvas.method.mapSize>")
+    @WikiReturn("<key:map.canvas.return.this>")
+    public MapCanvas mapSize(
+            @WikiParameter(description = "<key:map.canvas.param.width>")
+            float width,
+            @WikiParameter(description = "<key:map.canvas.param.height>")
+            float height
+    ) {
         float nextWidth = sanitizePositive(width, DEFAULT_MAP_WIDTH);
         float nextHeight = sanitizePositive(height, DEFAULT_MAP_HEIGHT);
         if (mapWidth == nextWidth && mapHeight == nextHeight) return this;
@@ -280,6 +439,9 @@ public class MapCanvas extends WorldCanvas {
     /**
      * Проекция внешних world координат в координаты карты.
      */
+        @AiDoc(summary = "Returns the active MapProjection used for external coordinate conversion.")
+    @WikiMethod(summary = "<key:map.canvas.method.projectionGet>")
+    @WikiReturn("<key:map.canvas.return.projection>")
     public MapProjection projection() {
         return projection;
     }
@@ -288,7 +450,13 @@ public class MapCanvas extends WorldCanvas {
      * Устанавливает проекцию для {@link #addProjectedMarkerWidget(String, float, float, Widget)}
      * и {@link #externalToMapX(float)} / {@link #externalToMapY(float)}.
      */
-    public MapCanvas projection(MapProjection projection) {
+        @AiDoc(summary = "Sets the coordinate projection converting world points to map space.")
+    @WikiMethod(summary = "<key:map.canvas.method.projectionSet>")
+    @WikiReturn("<key:map.canvas.return.this>")
+    public MapCanvas projection(
+            @WikiParameter(description = "<key:map.canvas.param.projection>")
+            MapProjection projection
+    ) {
         this.projection = projection == null ? MapProjection.identity() : projection;
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
@@ -297,6 +465,9 @@ public class MapCanvas extends WorldCanvas {
     /**
      * Видимость фона всего canvas за пределами поверхности карты.
      */
+        @AiDoc(summary = "Returns true if the outer background canvas fill is rendered.")
+    @WikiMethod(summary = "<key:map.canvas.method.backgroundVisibleGet>")
+    @WikiReturn("<key:map.canvas.return.visible>")
     public boolean backgroundVisible() {
         return backgroundVisible;
     }
@@ -305,7 +476,13 @@ public class MapCanvas extends WorldCanvas {
      * Включает/выключает фон всего canvas за пределами поверхности карты.
      */
     @XmlAttribute(value = "backgroundVisible", category = "Appearance", defaultValue = "true", description = "Whether the map canvas background is rendered behind the map surface.")
-    public MapCanvas backgroundVisible(boolean backgroundVisible) {
+        @AiDoc(summary = "Enables or disables outer canvas background rendering.")
+    @WikiMethod(summary = "<key:map.canvas.method.backgroundVisibleSet>")
+    @WikiReturn("<key:map.canvas.return.this>")
+    public MapCanvas backgroundVisible(
+            @WikiParameter(description = "<key:map.canvas.param.visible>")
+            boolean backgroundVisible
+    ) {
         if (this.backgroundVisible == backgroundVisible) return this;
         this.backgroundVisible = backgroundVisible;
         invalidate(InvalidationFlags.VISUAL);
@@ -315,6 +492,9 @@ public class MapCanvas extends WorldCanvas {
     /**
      * Видимость рамки поверхности карты.
      */
+        @AiDoc(summary = "Returns true if the border rectangle around map boundaries is rendered.")
+    @WikiMethod(summary = "<key:map.canvas.method.mapBorderVisibleGet>")
+    @WikiReturn("<key:map.canvas.return.visible>")
     public boolean mapBorderVisible() {
         return mapBorderVisible;
     }
@@ -323,7 +503,13 @@ public class MapCanvas extends WorldCanvas {
      * Включает/выключает рамку поверхности карты.
      */
     @XmlAttribute(value = "mapBorderVisible", category = "Appearance", defaultValue = "true", description = "Whether the map surface border is rendered.")
-    public MapCanvas mapBorderVisible(boolean mapBorderVisible) {
+        @AiDoc(summary = "Enables or disables the border outline around the map perimeter.")
+    @WikiMethod(summary = "<key:map.canvas.method.mapBorderVisibleSet>")
+    @WikiReturn("<key:map.canvas.return.this>")
+    public MapCanvas mapBorderVisible(
+            @WikiParameter(description = "<key:map.canvas.param.visible>")
+            boolean mapBorderVisible
+    ) {
         if (this.mapBorderVisible == mapBorderVisible) return this;
         this.mapBorderVisible = mapBorderVisible;
         invalidate(InvalidationFlags.VISUAL);
@@ -333,6 +519,9 @@ public class MapCanvas extends WorldCanvas {
     /**
      * Видимость встроенной grid-сетки карты.
      */
+        @AiDoc(summary = "Returns true if the overlay grid lines are rendered.")
+    @WikiMethod(summary = "<key:map.canvas.method.gridVisibleGet>")
+    @WikiReturn("<key:map.canvas.return.visible>")
     public boolean gridVisible() {
         return gridVisible;
     }
@@ -341,7 +530,13 @@ public class MapCanvas extends WorldCanvas {
      * Включает/выключает встроенную grid-сетку.
      */
     @XmlAttribute(value = "gridVisible", category = "Appearance", defaultValue = "true", description = "Whether the built-in map grid is rendered.")
-    public MapCanvas gridVisible(boolean gridVisible) {
+        @AiDoc(summary = "Enables or disables coordinate grid lines across the map.")
+    @WikiMethod(summary = "<key:map.canvas.method.gridVisibleSet>")
+    @WikiReturn("<key:map.canvas.return.this>")
+    public MapCanvas gridVisible(
+            @WikiParameter(description = "<key:map.canvas.param.visible>")
+            boolean gridVisible
+    ) {
         if (this.gridVisible == gridVisible) return this;
         this.gridVisible = gridVisible;
         invalidate(InvalidationFlags.VISUAL);
@@ -351,6 +546,9 @@ public class MapCanvas extends WorldCanvas {
     /**
      * Размер клетки grid в map-координатах.
      */
+        @AiDoc(summary = "Returns the distance between grid lines in map units.")
+    @WikiMethod(summary = "<key:map.canvas.method.gridSizeGet>")
+    @WikiReturn("<key:map.canvas.return.dimension>")
     public float gridSize() {
         return gridSize;
     }
@@ -359,7 +557,13 @@ public class MapCanvas extends WorldCanvas {
      * Задает размер клетки grid в map-координатах.
      */
     @XmlAttribute(value = "gridSize", category = "Appearance", defaultValue = "128", description = "Map-space size of one rendered grid cell.")
-    public MapCanvas gridSize(float gridSize) {
+        @AiDoc(summary = "Sets the cell spacing distance for the coordinate grid overlay.")
+    @WikiMethod(summary = "<key:map.canvas.method.gridSizeSet>")
+    @WikiReturn("<key:map.canvas.return.this>")
+    public MapCanvas gridSize(
+            @WikiParameter(description = "<key:map.canvas.param.gridSize>")
+            float gridSize
+    ) {
         float next = sanitizePositive(gridSize, 128.0f);
         if (this.gridSize == next) return this;
         this.gridSize = next;
@@ -374,7 +578,13 @@ public class MapCanvas extends WorldCanvas {
      * Если выключено, карту можно свободно двигать как бесконечный canvas.</p>
      */
     @XmlAttribute(value = "clampToMapBounds", category = "Behavior", defaultValue = "false", description = "Whether pan/zoom is constrained to the map surface bounds.")
-    public MapCanvas clampToMapBounds(boolean clamp) {
+        @AiDoc(summary = "Clamps pan navigation within the map area bounds.")
+    @WikiMethod(summary = "<key:map.canvas.method.clampToMapBounds>")
+    @WikiReturn("<key:map.canvas.return.this>")
+    public MapCanvas clampToMapBounds(
+            @WikiParameter(description = "<key:map.canvas.param.clamp>")
+            boolean clamp
+    ) {
         worldBounds(0.0f, 0.0f, mapWidth, mapHeight);
         clampToWorldBounds(clamp);
         return this;
@@ -387,7 +597,19 @@ public class MapCanvas extends WorldCanvas {
      * магазины, составные виджеты и т.п. Виджет останется screen-space элементом,
      * а позиция будет привязана к map-координате.</p>
      */
-    public <T extends Widget> MapMarkerHandle<T> addMarkerWidget(String id, float mapX, float mapY, T widget) {
+        @AiDoc(summary = "Adds an arbitrary UI widget as a map marker at map coordinates.")
+    @WikiMethod(summary = "<key:map.canvas.method.addMarkerWidget>")
+    @WikiReturn("<key:map.canvas.return.markerHandle>")
+    public <T extends Widget> MapMarkerHandle<T> addMarkerWidget(
+            @WikiParameter(description = "<key:map.canvas.param.id>")
+            String id,
+            @WikiParameter(description = "<key:map.canvas.param.mapX>")
+            float mapX,
+            @WikiParameter(description = "<key:map.canvas.param.mapY>")
+            float mapY,
+            @WikiParameter(description = "<key:map.canvas.param.widget>")
+            T widget
+    ) {
         AnchorWidget anchor = anchorLayer().add(id, mapX, mapY, widget)
                 .pivot(0.5f, 0.5f);
         MapMarkerHandle<T> handle = new MapMarkerHandle<>(this, anchor, widget);
@@ -402,7 +624,19 @@ public class MapCanvas extends WorldCanvas {
      * <p>Координаты проходят через {@link #projection()}. Используй этот метод,
      * если твои данные живут в координатах игры, а не в пикселях карты.</p>
      */
-    public <T extends Widget> MapMarkerHandle<T> addProjectedMarkerWidget(String id, float worldX, float worldY, T widget) {
+        @AiDoc(summary = "Adds an arbitrary UI widget as a marker using external world coordinates projected to map space.")
+    @WikiMethod(summary = "<key:map.canvas.method.addProjectedMarkerWidget>")
+    @WikiReturn("<key:map.canvas.return.markerHandle>")
+    public <T extends Widget> MapMarkerHandle<T> addProjectedMarkerWidget(
+            @WikiParameter(description = "<key:map.canvas.param.id>")
+            String id,
+            @WikiParameter(description = "<key:map.canvas.param.worldX>")
+            float worldX,
+            @WikiParameter(description = "<key:map.canvas.param.worldY>")
+            float worldY,
+            @WikiParameter(description = "<key:map.canvas.param.widget>")
+            T widget
+    ) {
         ViewportPoint point = projection.project(worldX, worldY);
         return addMarkerWidget(id, point.x(), point.y(), widget);
     }
@@ -410,14 +644,38 @@ public class MapCanvas extends WorldCanvas {
     /**
      * Добавляет {@link MapMarker} в координатах карты.
      */
-    public MapMarkerHandle<MapMarker> addMarker(String id, float mapX, float mapY, MapMarker marker) {
+        @AiDoc(summary = "Adds a MapMarker shell at map coordinates.")
+    @WikiMethod(summary = "<key:map.canvas.method.addMarkerInstance>")
+    @WikiReturn("<key:map.canvas.return.markerHandle>")
+    public MapMarkerHandle<MapMarker> addMarker(
+            @WikiParameter(description = "<key:map.canvas.param.id>")
+            String id,
+            @WikiParameter(description = "<key:map.canvas.param.mapX>")
+            float mapX,
+            @WikiParameter(description = "<key:map.canvas.param.mapY>")
+            float mapY,
+            @WikiParameter(description = "<key:map.canvas.param.marker>")
+            MapMarker marker
+    ) {
         return addMarkerWidget(id, mapX, mapY, marker == null ? new MapMarker() : marker);
     }
 
     /**
      * Добавляет {@link MapMarker} во внешних world координатах через {@link #projection()}.
      */
-    public MapMarkerHandle<MapMarker> addProjectedMarker(String id, float worldX, float worldY, MapMarker marker) {
+        @AiDoc(summary = "Adds a MapMarker shell using external world coordinates projected to map space.")
+    @WikiMethod(summary = "<key:map.canvas.method.addProjectedMarkerInstance>")
+    @WikiReturn("<key:map.canvas.return.markerHandle>")
+    public MapMarkerHandle<MapMarker> addProjectedMarker(
+            @WikiParameter(description = "<key:map.canvas.param.id>")
+            String id,
+            @WikiParameter(description = "<key:map.canvas.param.worldX>")
+            float worldX,
+            @WikiParameter(description = "<key:map.canvas.param.worldY>")
+            float worldY,
+            @WikiParameter(description = "<key:map.canvas.param.marker>")
+            MapMarker marker
+    ) {
         return addProjectedMarkerWidget(id, worldX, worldY, marker == null ? new MapMarker() : marker);
     }
 
@@ -427,7 +685,13 @@ public class MapCanvas extends WorldCanvas {
      * <p>Если anchor был удален напрямую через {@link #anchorLayer()}, устаревший
      * handle будет автоматически вычищен из внутреннего списка маркеров.</p>
      */
-    public MapMarkerHandle<?> marker(String id) {
+        @AiDoc(summary = "Finds an existing marker handle by its string identifier, or returns null if not found.")
+    @WikiMethod(summary = "<key:map.canvas.method.marker>")
+    @WikiReturn("<key:map.canvas.return.markerHandle>")
+    public MapMarkerHandle<?> marker(
+            @WikiParameter(description = "<key:map.canvas.param.id>")
+            String id
+    ) {
         String normalized = normalizeId(id);
         AnchorWidget anchor = anchorLayer().anchor(normalized);
         Object[] raw = markers.elements();
@@ -446,7 +710,17 @@ public class MapCanvas extends WorldCanvas {
     /**
      * Перемещает маркер в координатах карты.
      */
-    public boolean moveMarker(String id, float mapX, float mapY) {
+        @AiDoc(summary = "Moves an existing marker to new map coordinates.")
+    @WikiMethod(summary = "<key:map.canvas.method.moveMarker>")
+    @WikiReturn("<key:map.canvas.return.success>")
+    public boolean moveMarker(
+            @WikiParameter(description = "<key:map.canvas.param.id>")
+            String id,
+            @WikiParameter(description = "<key:map.canvas.param.mapX>")
+            float mapX,
+            @WikiParameter(description = "<key:map.canvas.param.mapY>")
+            float mapY
+    ) {
         MapMarkerHandle<?> handle = marker(id);
         if (handle == null) return false;
         handle.position(mapX, mapY);
@@ -456,7 +730,17 @@ public class MapCanvas extends WorldCanvas {
     /**
      * Перемещает маркер во внешних world координатах через {@link #projection()}.
      */
-    public boolean moveProjectedMarker(String id, float worldX, float worldY) {
+        @AiDoc(summary = "Moves an existing marker to new external world coordinates projected to map space.")
+    @WikiMethod(summary = "<key:map.canvas.method.moveProjectedMarker>")
+    @WikiReturn("<key:map.canvas.return.success>")
+    public boolean moveProjectedMarker(
+            @WikiParameter(description = "<key:map.canvas.param.id>")
+            String id,
+            @WikiParameter(description = "<key:map.canvas.param.worldX>")
+            float worldX,
+            @WikiParameter(description = "<key:map.canvas.param.worldY>")
+            float worldY
+    ) {
         MapMarkerHandle<?> handle = marker(id);
         if (handle == null) return false;
         handle.projectedPosition(worldX, worldY);
@@ -466,7 +750,13 @@ public class MapCanvas extends WorldCanvas {
     /**
      * Удаляет маркер по id.
      */
-    public boolean removeMarker(String id) {
+        @AiDoc(summary = "Removes a marker by its string identifier.")
+    @WikiMethod(summary = "<key:map.canvas.method.removeMarker>")
+    @WikiReturn("<key:map.canvas.return.success>")
+    public boolean removeMarker(
+            @WikiParameter(description = "<key:map.canvas.param.id>")
+            String id
+    ) {
         MapMarkerHandle<?> handle = marker(id);
         boolean removed = anchorLayer().remove(id);
         if (removed && handle != null) {
@@ -479,14 +769,26 @@ public class MapCanvas extends WorldCanvas {
     /**
      * Переводит внешний world X в координату карты.
      */
-    public float externalToMapX(float worldX) {
+        @AiDoc(summary = "Converts an external world X coordinate to map X space using the current projection.")
+    @WikiMethod(summary = "<key:map.canvas.method.externalToMapX>")
+    @WikiReturn("<key:map.canvas.return.coordinate>")
+    public float externalToMapX(
+            @WikiParameter(description = "<key:map.canvas.param.worldX>")
+            float worldX
+    ) {
         return projection.mapX(worldX);
     }
 
     /**
      * Переводит внешний world Y в координату карты.
      */
-    public float externalToMapY(float worldY) {
+        @AiDoc(summary = "Converts an external world Y coordinate to map Y space using the current projection.")
+    @WikiMethod(summary = "<key:map.canvas.method.externalToMapY>")
+    @WikiReturn("<key:map.canvas.return.coordinate>")
+    public float externalToMapY(
+            @WikiParameter(description = "<key:map.canvas.param.worldY>")
+            float worldY
+    ) {
         return projection.mapY(worldY);
     }
 

@@ -32,8 +32,7 @@ import java.util.Locale;
  * {@code DLS&lt;n&gt;} prefix and add an explicit decode branch. Unsupported,
  * malformed or missing data decodes to an empty snapshot instead of throwing.</p>
  */
-@AiDoc(
-        description = "Compact string serializer and deserializer (DLS1 format) for persisting docking layouts across application restarts."
+@AiDoc(summary = "Compact string serializer and deserializer (DLS1 format) for persisting docking layouts across application restarts."
 )
 @WikiPage(
         title = "DockLayoutSnapshotCodec",
@@ -72,8 +71,8 @@ public final class DockLayoutSnapshotCodec {
     /**
      * Encodes a snapshot as the compact {@code DLS1} string format.
      */
-    @AiDoc(description = "Serializes a DockLayoutSnapshot into a compact DLS1-encoded string.")
-    @WikiMethod(description = "<key:dock.layout.snapshot.codec.method.encode>")
+    @AiDoc(summary = "Serializes a DockLayoutSnapshot into a compact DLS1-encoded string.")
+    @WikiMethod(summary = "<key:dock.layout.snapshot.codec.method.encode>")
     @WikiReturn("<key:dock.layout.snapshot.codec.return.encoded>")
     public static String encode(
             @WikiParameter(description = "<key:dock.layout.snapshot.codec.param.snapshot>")
@@ -89,8 +88,8 @@ public final class DockLayoutSnapshotCodec {
      * <p>Unknown versions and malformed payloads fail closed to an empty
      * snapshot so user preferences cannot break docking initialization.</p>
      */
-    @AiDoc(description = "Deserializes a DLS1-encoded string back into a DockLayoutSnapshot, falling back cleanly to an empty snapshot on errors.")
-    @WikiMethod(description = "<key:dock.layout.snapshot.codec.method.decode>")
+    @AiDoc(summary = "Deserializes a DLS1-encoded string back into a DockLayoutSnapshot, falling back cleanly to an empty snapshot on errors.")
+    @WikiMethod(summary = "<key:dock.layout.snapshot.codec.method.decode>")
     @WikiReturn("<key:dock.layout.snapshot.codec.return.snapshot>")
     public static DockLayoutSnapshot decode(
             @WikiParameter(description = "<key:dock.layout.snapshot.codec.param.encoded>")

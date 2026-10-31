@@ -1,5 +1,15 @@
 package dev.sixik.unigui.widgets.world;
 
+
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
@@ -79,6 +89,42 @@ import java.util.List;
  * @see AnchorLayer
  * @see dev.sixik.unigui.widgets.map.MapCanvas
  */
+@AiDoc(summary = "Infinite 2D/3D world canvas supporting camera pan and zoom, coordinate transformations, background world layers, and pinned screen-space anchor widgets.")
+@WikiPage(
+        title = "WorldCanvas",
+        slug = "world-canvas",
+        category = "<key:world.category>",
+        summary = "<key:world.canvas.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:world.canvas.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:world.canvas.example.basic.title>",
+        code = "WorldCanvas canvas = new WorldCanvas()\n    .viewport(0, 0, 1.0f)\n    .zoomRange(0.1f, 5.0f);\ncanvas.anchorLayer().add(\"marker\", 100, 200, new Button(\"POI\"));"
+)
+@WikiLink(
+        label = "MapCanvas",
+        target = "page:map-canvas",
+        description = "<key:map.canvas.summary>"
+)
+@WikiLink(
+        label = "AnchorLayer",
+        target = "page:anchor-layer",
+        description = "<key:anchor.layer.summary>"
+)
+@WikiLink(
+        label = "RibbonLayer",
+        target = "page:ribbon-layer",
+        description = "<key:ribbon.layer.summary>"
+)
+@WikiLink(
+        label = "WorldLayer",
+        target = "page:world-layer",
+        description = "<key:world.layer.summary>"
+)
 @XmlWidgetName("WorldCanvas")
 public class WorldCanvas extends WidgetBase {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.WORLD_CANVAS;
@@ -129,6 +175,9 @@ public class WorldCanvas extends WidgetBase {
      *
      * @return текущий {@link Viewport2D}
      */
+        @AiDoc(summary = "Returns the active 2D viewport model.")
+    @WikiMethod(summary = "<key:world.canvas.method.viewportGet>")
+    @WikiReturn("<key:world.canvas.return.viewport>")
     public Viewport2D viewport() {
         return viewport;
     }
@@ -143,7 +192,13 @@ public class WorldCanvas extends WidgetBase {
      * @param viewport новая модель viewport'а
      * @return этот canvas для fluent-настройки
      */
-    public WorldCanvas viewport(Viewport2D viewport) {
+        @AiDoc(summary = "Sets the 2D pan and zoom viewport model.")
+    @WikiMethod(summary = "<key:world.canvas.method.viewportModel>")
+    @WikiReturn("<key:world.canvas.return.this>")
+    public WorldCanvas viewport(
+            @WikiParameter(description = "<key:world.canvas.param.viewport>")
+            Viewport2D viewport
+    ) {
         Viewport2D next = viewport == null ? new Viewport2D() : viewport;
         if (this.viewport == next) return this;
         float oldX = this.viewport.x();
@@ -164,7 +219,15 @@ public class WorldCanvas extends WidgetBase {
      * @param y смещение по Y в screen-space
      * @return этот canvas для fluent-настройки
      */
-    public WorldCanvas viewport(float x, float y) {
+        @AiDoc(summary = "Sets viewport center coordinates while maintaining current zoom.")
+    @WikiMethod(summary = "<key:world.canvas.method.viewportCoords>")
+    @WikiReturn("<key:world.canvas.return.this>")
+    public WorldCanvas viewport(
+            @WikiParameter(description = "<key:world.canvas.param.x>")
+            float x,
+            @WikiParameter(description = "<key:world.canvas.param.y>")
+            float y
+    ) {
         return viewport(x, y, viewport.zoom());
     }
 
@@ -179,7 +242,17 @@ public class WorldCanvas extends WidgetBase {
      * @param zoom масштаб мира относительно экрана
      * @return этот canvas для fluent-настройки
      */
-    public WorldCanvas viewport(float x, float y, float zoom) {
+        @AiDoc(summary = "Sets viewport center coordinates and zoom level simultaneously.")
+    @WikiMethod(summary = "<key:world.canvas.method.viewportCoordsZoom>")
+    @WikiReturn("<key:world.canvas.return.this>")
+    public WorldCanvas viewport(
+            @WikiParameter(description = "<key:world.canvas.param.x>")
+            float x,
+            @WikiParameter(description = "<key:world.canvas.param.y>")
+            float y,
+            @WikiParameter(description = "<key:world.canvas.param.zoom>")
+            float zoom
+    ) {
         float oldX = viewport.x();
         float oldY = viewport.y();
         float oldZoom = viewport.zoom();
@@ -198,7 +271,15 @@ public class WorldCanvas extends WidgetBase {
      * @param maxZoom максимальный zoom, не меньше {@code minZoom}
      * @return этот canvas для fluent-настройки
      */
-    public WorldCanvas zoomRange(float minZoom, float maxZoom) {
+        @AiDoc(summary = "Sets the allowed minimum and maximum zoom scale bounds.")
+    @WikiMethod(summary = "<key:world.canvas.method.zoomRange>")
+    @WikiReturn("<key:world.canvas.return.this>")
+    public WorldCanvas zoomRange(
+            @WikiParameter(description = "<key:world.canvas.param.minZoom>")
+            float minZoom,
+            @WikiParameter(description = "<key:world.canvas.param.maxZoom>")
+            float maxZoom
+    ) {
         float oldX = viewport.x();
         float oldY = viewport.y();
         float oldZoom = viewport.zoom();
@@ -221,7 +302,19 @@ public class WorldCanvas extends WidgetBase {
      * @param height высота мира
      * @return этот canvas для fluent-настройки
      */
-    public WorldCanvas worldBounds(float x, float y, float width, float height) {
+        @AiDoc(summary = "Sets the rectangular world bounds constraining camera movement.")
+    @WikiMethod(summary = "<key:world.canvas.method.worldBounds>")
+    @WikiReturn("<key:world.canvas.return.this>")
+    public WorldCanvas worldBounds(
+            @WikiParameter(description = "<key:world.canvas.param.x>")
+            float x,
+            @WikiParameter(description = "<key:world.canvas.param.y>")
+            float y,
+            @WikiParameter(description = "<key:world.canvas.param.width>")
+            float width,
+            @WikiParameter(description = "<key:world.canvas.param.height>")
+            float height
+    ) {
         viewport.worldBounds(x, y, width, height);
         clampViewport();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
@@ -233,6 +326,9 @@ public class WorldCanvas extends WidgetBase {
      *
      * @return этот canvas для fluent-настройки
      */
+        @AiDoc(summary = "Clears world boundaries allowing infinite camera panning.")
+    @WikiMethod(summary = "<key:world.canvas.method.clearWorldBounds>")
+    @WikiReturn("<key:world.canvas.return.this>")
     public WorldCanvas clearWorldBounds() {
         viewport.clearWorldBounds();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
@@ -248,7 +344,13 @@ public class WorldCanvas extends WidgetBase {
      * @return этот canvas для fluent-настройки
      */
     @XmlAttribute(value = "clampToWorldBounds", category = "Behavior", defaultValue = "false", description = "Whether pan/zoom is constrained to configured world bounds.")
-    public WorldCanvas clampToWorldBounds(boolean clampToWorldBounds) {
+        @AiDoc(summary = "Enables or disables clamping of camera pan within world boundaries.")
+    @WikiMethod(summary = "<key:world.canvas.method.clampToWorldBounds>")
+    @WikiReturn("<key:world.canvas.return.this>")
+    public WorldCanvas clampToWorldBounds(
+            @WikiParameter(description = "<key:world.canvas.param.clamp>")
+            boolean clampToWorldBounds
+    ) {
         viewport.clampToWorldBounds(clampToWorldBounds);
         clampViewport();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
@@ -263,6 +365,9 @@ public class WorldCanvas extends WidgetBase {
      *
      * @return слой якорей этого canvas'а
      */
+        @AiDoc(summary = "Returns the AnchorLayer managing world-pinned UI widgets.")
+    @WikiMethod(summary = "<key:world.canvas.method.anchorLayer>")
+    @WikiReturn("<key:world.canvas.return.anchorLayer>")
     public AnchorLayer anchorLayer() {
         return anchorLayer;
     }
@@ -272,6 +377,9 @@ public class WorldCanvas extends WidgetBase {
      *
      * @return неизменяемое представление слоёв мира
      */
+        @AiDoc(summary = "Returns an unmodifiable list of all registered world rendering layers.")
+    @WikiMethod(summary = "<key:world.canvas.method.worldLayers>")
+    @WikiReturn("<key:world.canvas.return.worldLayers>")
     public List<WorldLayer> worldLayers() {
         return worldLayersView;
     }
@@ -286,7 +394,13 @@ public class WorldCanvas extends WidgetBase {
      * @param layer слой для добавления
      * @return этот canvas для fluent-настройки
      */
-    public WorldCanvas addWorldLayer(WorldLayer layer) {
+        @AiDoc(summary = "Registers a new world rendering layer.")
+    @WikiMethod(summary = "<key:world.canvas.method.addWorldLayer>")
+    @WikiReturn("<key:world.canvas.return.this>")
+    public WorldCanvas addWorldLayer(
+            @WikiParameter(description = "<key:world.canvas.param.layer>")
+            WorldLayer layer
+    ) {
         if (layer == null) return this;
         worldLayers.add(layer);
         worldLayerSnapshotDirty = true;
@@ -300,7 +414,13 @@ public class WorldCanvas extends WidgetBase {
      * @param layer слой для удаления
      * @return этот canvas для fluent-настройки
      */
-    public WorldCanvas removeWorldLayer(WorldLayer layer) {
+        @AiDoc(summary = "Removes a registered world rendering layer.")
+    @WikiMethod(summary = "<key:world.canvas.method.removeWorldLayer>")
+    @WikiReturn("<key:world.canvas.return.this>")
+    public WorldCanvas removeWorldLayer(
+            @WikiParameter(description = "<key:world.canvas.param.layer>")
+            WorldLayer layer
+    ) {
         if (layer == null || !worldLayers.remove(layer)) return this;
         worldLayerSnapshotDirty = true;
         invalidate(InvalidationFlags.VISUAL);
@@ -315,6 +435,9 @@ public class WorldCanvas extends WidgetBase {
      *
      * @return этот canvas для fluent-настройки
      */
+        @AiDoc(summary = "Clears all registered world rendering layers.")
+    @WikiMethod(summary = "<key:world.canvas.method.clearWorldLayers>")
+    @WikiReturn("<key:world.canvas.return.this>")
     public WorldCanvas clearWorldLayers() {
         if (worldLayers.isEmpty()) return this;
         worldLayers.clear();
@@ -328,6 +451,9 @@ public class WorldCanvas extends WidgetBase {
      *
      * @return {@code true}, если world layers и anchors режутся по layout bounds
      */
+        @AiDoc(summary = "Returns true if canvas rendering is clipped to widget layout bounds.")
+    @WikiMethod(summary = "<key:world.canvas.method.clippingEnabledGet>")
+    @WikiReturn("<key:world.canvas.return.flag>")
     public boolean clippingEnabled() {
         return clippingEnabled;
     }
@@ -342,7 +468,13 @@ public class WorldCanvas extends WidgetBase {
      * @return этот canvas для fluent-настройки
      */
     @XmlAttribute(value = "clippingEnabled", category = "Behavior", defaultValue = "true", description = "Whether world layers and anchors are clipped to canvas bounds.")
-    public WorldCanvas clippingEnabled(boolean clippingEnabled) {
+        @AiDoc(summary = "Enables or disables clipping of rendering to widget layout bounds.")
+    @WikiMethod(summary = "<key:world.canvas.method.clippingEnabledSet>")
+    @WikiReturn("<key:world.canvas.return.this>")
+    public WorldCanvas clippingEnabled(
+            @WikiParameter(description = "<key:world.canvas.param.clippingEnabled>")
+            boolean clippingEnabled
+    ) {
         if (this.clippingEnabled == clippingEnabled) return this;
         this.clippingEnabled = clippingEnabled;
         invalidate(InvalidationFlags.VISUAL);
@@ -354,6 +486,9 @@ public class WorldCanvas extends WidgetBase {
      *
      * @return {@code true}, если canvas реагирует на {@link #panButton()}
      */
+        @AiDoc(summary = "Returns true if mouse dragging can pan the camera viewport.")
+    @WikiMethod(summary = "<key:world.canvas.method.panningEnabledGet>")
+    @WikiReturn("<key:world.canvas.return.flag>")
     public boolean panningEnabled() {
         return panningEnabled;
     }
@@ -365,7 +500,13 @@ public class WorldCanvas extends WidgetBase {
      * @return этот canvas для fluent-настройки
      */
     @XmlAttribute(value = "panningEnabled", category = "Behavior", defaultValue = "true", description = "Whether pointer drag can pan the viewport.")
-    public WorldCanvas panningEnabled(boolean panningEnabled) {
+        @AiDoc(summary = "Enables or disables pointer dragging to pan the viewport.")
+    @WikiMethod(summary = "<key:world.canvas.method.panningEnabledSet>")
+    @WikiReturn("<key:world.canvas.return.this>")
+    public WorldCanvas panningEnabled(
+            @WikiParameter(description = "<key:world.canvas.param.panningEnabled>")
+            boolean panningEnabled
+    ) {
         this.panningEnabled = panningEnabled;
         return this;
     }
@@ -375,6 +516,9 @@ public class WorldCanvas extends WidgetBase {
      *
      * @return {@code true}, если zoom жестом разрешён
      */
+        @AiDoc(summary = "Returns true if mouse wheel zooming is enabled.")
+    @WikiMethod(summary = "<key:world.canvas.method.zoomEnabledGet>")
+    @WikiReturn("<key:world.canvas.return.flag>")
     public boolean zoomEnabled() {
         return zoomEnabled;
     }
@@ -386,7 +530,13 @@ public class WorldCanvas extends WidgetBase {
      * @return этот canvas для fluent-настройки
      */
     @XmlAttribute(value = "zoomEnabled", category = "Behavior", defaultValue = "true", description = "Whether Ctrl-wheel zoom gestures are enabled.")
-    public WorldCanvas zoomEnabled(boolean zoomEnabled) {
+        @AiDoc(summary = "Enables or disables mouse wheel zooming.")
+    @WikiMethod(summary = "<key:world.canvas.method.zoomEnabledSet>")
+    @WikiReturn("<key:world.canvas.return.this>")
+    public WorldCanvas zoomEnabled(
+            @WikiParameter(description = "<key:world.canvas.param.zoomEnabled>")
+            boolean zoomEnabled
+    ) {
         this.zoomEnabled = zoomEnabled;
         return this;
     }
@@ -396,6 +546,9 @@ public class WorldCanvas extends WidgetBase {
      *
      * @return {@code true}, если scroll двигает viewport
      */
+        @AiDoc(summary = "Returns true if mouse wheel scrolling pans the camera.")
+    @WikiMethod(summary = "<key:world.canvas.method.wheelPanningEnabledGet>")
+    @WikiReturn("<key:world.canvas.return.flag>")
     public boolean wheelPanningEnabled() {
         return wheelPanningEnabled;
     }
@@ -409,7 +562,13 @@ public class WorldCanvas extends WidgetBase {
      * @return этот canvas для fluent-настройки
      */
     @XmlAttribute(value = "wheelPanningEnabled", category = "Behavior", defaultValue = "true", description = "Whether wheel gestures pan the viewport.")
-    public WorldCanvas wheelPanningEnabled(boolean wheelPanningEnabled) {
+        @AiDoc(summary = "Enables or disables mouse wheel scrolling to pan the camera.")
+    @WikiMethod(summary = "<key:world.canvas.method.wheelPanningEnabledSet>")
+    @WikiReturn("<key:world.canvas.return.this>")
+    public WorldCanvas wheelPanningEnabled(
+            @WikiParameter(description = "<key:world.canvas.param.wheelPanningEnabled>")
+            boolean wheelPanningEnabled
+    ) {
         this.wheelPanningEnabled = wheelPanningEnabled;
         return this;
     }
@@ -419,6 +578,9 @@ public class WorldCanvas extends WidgetBase {
      *
      * @return {@code true}, если scroll внутри hovered canvas отменяется
      */
+        @AiDoc(summary = "Returns true if mouse wheel events are consumed when hovered over this canvas.")
+    @WikiMethod(summary = "<key:world.canvas.method.consumeWheelWhileHoveredGet>")
+    @WikiReturn("<key:world.canvas.return.flag>")
     public boolean consumeWheelWhileHovered() {
         return consumeWheelWhileHovered;
     }
@@ -433,7 +595,13 @@ public class WorldCanvas extends WidgetBase {
      * @return этот canvas для fluent-настройки
      */
     @XmlAttribute(value = "consumeWheelWhileHovered", category = "Behavior", defaultValue = "true", description = "Whether wheel events are consumed while the canvas is hovered.")
-    public WorldCanvas consumeWheelWhileHovered(boolean consumeWheelWhileHovered) {
+        @AiDoc(summary = "Sets whether mouse wheel events are swallowed when hovered.")
+    @WikiMethod(summary = "<key:world.canvas.method.consumeWheelWhileHoveredSet>")
+    @WikiReturn("<key:world.canvas.return.this>")
+    public WorldCanvas consumeWheelWhileHovered(
+            @WikiParameter(description = "<key:world.canvas.param.consumeWheelWhileHovered>")
+            boolean consumeWheelWhileHovered
+    ) {
         this.consumeWheelWhileHovered = consumeWheelWhileHovered;
         return this;
     }
@@ -443,6 +611,9 @@ public class WorldCanvas extends WidgetBase {
      *
      * @return шаг pan в screen-space пикселях
      */
+        @AiDoc(summary = "Returns the distance panned per wheel scroll click.")
+    @WikiMethod(summary = "<key:world.canvas.method.wheelPanStepGet>")
+    @WikiReturn("<key:world.canvas.return.step>")
     public float wheelPanStep() {
         return wheelPanStep;
     }
@@ -454,7 +625,13 @@ public class WorldCanvas extends WidgetBase {
      * @return этот canvas для fluent-настройки
      */
     @XmlAttribute(value = "wheelPanStep", category = "Behavior", defaultValue = "32", description = "Viewport pan distance applied per wheel delta unit.")
-    public WorldCanvas wheelPanStep(float wheelPanStep) {
+        @AiDoc(summary = "Sets the distance panned per wheel scroll click.")
+    @WikiMethod(summary = "<key:world.canvas.method.wheelPanStepSet>")
+    @WikiReturn("<key:world.canvas.return.this>")
+    public WorldCanvas wheelPanStep(
+            @WikiParameter(description = "<key:world.canvas.param.wheelPanStep>")
+            float wheelPanStep
+    ) {
         this.wheelPanStep = Float.isFinite(wheelPanStep) ? Math.max(0.0f, wheelPanStep) : 32.0f;
         return this;
     }
@@ -464,6 +641,9 @@ public class WorldCanvas extends WidgetBase {
      *
      * @return множитель зума на один шаг колеса
      */
+        @AiDoc(summary = "Returns the zoom multiplier applied per wheel tick.")
+    @WikiMethod(summary = "<key:world.canvas.method.zoomStepGet>")
+    @WikiReturn("<key:world.canvas.return.step>")
     public float zoomStep() {
         return zoomStep;
     }
@@ -477,7 +657,13 @@ public class WorldCanvas extends WidgetBase {
      * @return этот canvas для fluent-настройки
      */
     @XmlAttribute(value = "zoomStep", category = "Behavior", defaultValue = "1.1", description = "Multiplicative zoom factor applied per wheel delta unit.")
-    public WorldCanvas zoomStep(float zoomStep) {
+        @AiDoc(summary = "Sets the zoom multiplier applied per wheel tick.")
+    @WikiMethod(summary = "<key:world.canvas.method.zoomStepSet>")
+    @WikiReturn("<key:world.canvas.return.this>")
+    public WorldCanvas zoomStep(
+            @WikiParameter(description = "<key:world.canvas.param.zoomStep>")
+            float zoomStep
+    ) {
         this.zoomStep = Float.isFinite(zoomStep) && zoomStep > 0.0f ? zoomStep : 1.1f;
         return this;
     }
@@ -487,6 +673,9 @@ public class WorldCanvas extends WidgetBase {
      *
      * @return текущая кнопка pan
      */
+        @AiDoc(summary = "Returns the mouse pointer button used to drag and pan.")
+    @WikiMethod(summary = "<key:world.canvas.method.panButtonGet>")
+    @WikiReturn("<key:world.canvas.return.panButton>")
     public PointerButton panButton() {
         return panButton;
     }
@@ -498,7 +687,13 @@ public class WorldCanvas extends WidgetBase {
      * @return этот canvas для fluent-настройки
      */
     @XmlAttribute(value = "panButton", category = "Behavior", defaultValue = "primary", description = "Pointer button that starts drag panning.")
-    public WorldCanvas panButton(PointerButton panButton) {
+        @AiDoc(summary = "Sets the mouse pointer button used to drag and pan.")
+    @WikiMethod(summary = "<key:world.canvas.method.panButtonSet>")
+    @WikiReturn("<key:world.canvas.return.this>")
+    public WorldCanvas panButton(
+            @WikiParameter(description = "<key:world.canvas.param.panButton>")
+            PointerButton panButton
+    ) {
         this.panButton = panButton == null ? PointerButton.PRIMARY : panButton;
         return this;
     }
@@ -508,6 +703,9 @@ public class WorldCanvas extends WidgetBase {
      *
      * @return preferred ширина в screen-space пикселях
      */
+        @AiDoc(summary = "Returns the preferred layout width of the canvas.")
+    @WikiMethod(summary = "<key:world.canvas.method.preferredWidthGet>")
+    @WikiReturn("<key:world.canvas.return.dimension>")
     public float preferredWidth() {
         return preferredWidth;
     }
@@ -519,7 +717,13 @@ public class WorldCanvas extends WidgetBase {
      * @return этот canvas для fluent-настройки
      */
     @XmlAttribute(value = "preferredWidth", category = "Layout", defaultValue = "320", description = "Intrinsic canvas width before layout constraints are applied.")
-    public WorldCanvas preferredWidth(float preferredWidth) {
+        @AiDoc(summary = "Sets the preferred layout width of the canvas.")
+    @WikiMethod(summary = "<key:world.canvas.method.preferredWidthSet>")
+    @WikiReturn("<key:world.canvas.return.this>")
+    public WorldCanvas preferredWidth(
+            @WikiParameter(description = "<key:world.canvas.param.preferredWidth>")
+            float preferredWidth
+    ) {
         float normalized = positiveOr(preferredWidth, DEFAULT_PREFERRED_WIDTH);
         if (this.preferredWidth == normalized) return this;
         this.preferredWidth = normalized;
@@ -532,6 +736,9 @@ public class WorldCanvas extends WidgetBase {
      *
      * @return preferred высота в screen-space пикселях
      */
+        @AiDoc(summary = "Returns the preferred layout height of the canvas.")
+    @WikiMethod(summary = "<key:world.canvas.method.preferredHeightGet>")
+    @WikiReturn("<key:world.canvas.return.dimension>")
     public float preferredHeight() {
         return preferredHeight;
     }
@@ -543,7 +750,13 @@ public class WorldCanvas extends WidgetBase {
      * @return этот canvas для fluent-настройки
      */
     @XmlAttribute(value = "preferredHeight", category = "Layout", defaultValue = "240", description = "Intrinsic canvas height before layout constraints are applied.")
-    public WorldCanvas preferredHeight(float preferredHeight) {
+        @AiDoc(summary = "Sets the preferred layout height of the canvas.")
+    @WikiMethod(summary = "<key:world.canvas.method.preferredHeightSet>")
+    @WikiReturn("<key:world.canvas.return.this>")
+    public WorldCanvas preferredHeight(
+            @WikiParameter(description = "<key:world.canvas.param.preferredHeight>")
+            float preferredHeight
+    ) {
         float normalized = positiveOr(preferredHeight, DEFAULT_PREFERRED_HEIGHT);
         if (this.preferredHeight == normalized) return this;
         this.preferredHeight = normalized;
@@ -558,7 +771,15 @@ public class WorldCanvas extends WidgetBase {
      * @param height preferred высота
      * @return этот canvas для fluent-настройки
      */
-    public WorldCanvas preferredSize(float width, float height) {
+        @AiDoc(summary = "Sets the preferred width and height of the canvas simultaneously.")
+    @WikiMethod(summary = "<key:world.canvas.method.preferredSize>")
+    @WikiReturn("<key:world.canvas.return.this>")
+    public WorldCanvas preferredSize(
+            @WikiParameter(description = "<key:world.canvas.param.width>")
+            float width,
+            @WikiParameter(description = "<key:world.canvas.param.height>")
+            float height
+    ) {
         return preferredWidth(width).preferredHeight(height);
     }
 
@@ -571,7 +792,13 @@ public class WorldCanvas extends WidgetBase {
      * @param worldX X в координатах мира
      * @return X в root-space
      */
-    public float worldToRootX(float worldX) {
+        @AiDoc(summary = "Transforms a world X coordinate to screen root X coordinate space.")
+    @WikiMethod(summary = "<key:world.canvas.method.worldToRootX>")
+    @WikiReturn("<key:world.canvas.return.coordinate>")
+    public float worldToRootX(
+            @WikiParameter(description = "<key:world.canvas.param.worldX>")
+            float worldX
+    ) {
         return layoutBounds().x() + viewport.worldToScreenX(worldX);
     }
 
@@ -581,7 +808,13 @@ public class WorldCanvas extends WidgetBase {
      * @param worldY Y в координатах мира
      * @return Y в root-space
      */
-    public float worldToRootY(float worldY) {
+        @AiDoc(summary = "Transforms a world Y coordinate to screen root Y coordinate space.")
+    @WikiMethod(summary = "<key:world.canvas.method.worldToRootY>")
+    @WikiReturn("<key:world.canvas.return.coordinate>")
+    public float worldToRootY(
+            @WikiParameter(description = "<key:world.canvas.param.worldY>")
+            float worldY
+    ) {
         return layoutBounds().y() + viewport.worldToScreenY(worldY);
     }
 
@@ -591,7 +824,13 @@ public class WorldCanvas extends WidgetBase {
      * @param rootX X в координатах root UI
      * @return X в координатах мира
      */
-    public float rootToWorldX(float rootX) {
+        @AiDoc(summary = "Transforms a screen root X coordinate back to world X coordinate space.")
+    @WikiMethod(summary = "<key:world.canvas.method.rootToWorldX>")
+    @WikiReturn("<key:world.canvas.return.coordinate>")
+    public float rootToWorldX(
+            @WikiParameter(description = "<key:world.canvas.param.rootX>")
+            float rootX
+    ) {
         return viewport.screenToWorldX(rootX - layoutBounds().x());
     }
 
@@ -601,7 +840,13 @@ public class WorldCanvas extends WidgetBase {
      * @param rootY Y в координатах root UI
      * @return Y в координатах мира
      */
-    public float rootToWorldY(float rootY) {
+        @AiDoc(summary = "Transforms a screen root Y coordinate back to world Y coordinate space.")
+    @WikiMethod(summary = "<key:world.canvas.method.rootToWorldY>")
+    @WikiReturn("<key:world.canvas.return.coordinate>")
+    public float rootToWorldY(
+            @WikiParameter(description = "<key:world.canvas.param.rootY>")
+            float rootY
+    ) {
         return viewport.screenToWorldY(rootY - layoutBounds().y());
     }
 
@@ -613,7 +858,13 @@ public class WorldCanvas extends WidgetBase {
      * @param worldX X в координатах мира
      * @return X внутри canvas'а
      */
-    public float worldToLocalX(float worldX) {
+        @AiDoc(summary = "Transforms a world X coordinate to widget local X coordinate space.")
+    @WikiMethod(summary = "<key:world.canvas.method.worldToLocalX>")
+    @WikiReturn("<key:world.canvas.return.coordinate>")
+    public float worldToLocalX(
+            @WikiParameter(description = "<key:world.canvas.param.worldX>")
+            float worldX
+    ) {
         return viewport.worldToScreenX(worldX);
     }
 
@@ -623,7 +874,13 @@ public class WorldCanvas extends WidgetBase {
      * @param worldY Y в координатах мира
      * @return Y внутри canvas'а
      */
-    public float worldToLocalY(float worldY) {
+        @AiDoc(summary = "Transforms a world Y coordinate to widget local Y coordinate space.")
+    @WikiMethod(summary = "<key:world.canvas.method.worldToLocalY>")
+    @WikiReturn("<key:world.canvas.return.coordinate>")
+    public float worldToLocalY(
+            @WikiParameter(description = "<key:world.canvas.param.worldY>")
+            float worldY
+    ) {
         return viewport.worldToScreenY(worldY);
     }
 
@@ -633,7 +890,13 @@ public class WorldCanvas extends WidgetBase {
      * @param localX X внутри canvas'а
      * @return X в координатах мира
      */
-    public float localToWorldX(float localX) {
+        @AiDoc(summary = "Transforms a widget local X coordinate back to world X coordinate space.")
+    @WikiMethod(summary = "<key:world.canvas.method.localToWorldX>")
+    @WikiReturn("<key:world.canvas.return.coordinate>")
+    public float localToWorldX(
+            @WikiParameter(description = "<key:world.canvas.param.localX>")
+            float localX
+    ) {
         return viewport.screenToWorldX(localX);
     }
 
@@ -643,7 +906,13 @@ public class WorldCanvas extends WidgetBase {
      * @param localY Y внутри canvas'а
      * @return Y в координатах мира
      */
-    public float localToWorldY(float localY) {
+        @AiDoc(summary = "Transforms a widget local Y coordinate back to world Y coordinate space.")
+    @WikiMethod(summary = "<key:world.canvas.method.localToWorldY>")
+    @WikiReturn("<key:world.canvas.return.coordinate>")
+    public float localToWorldY(
+            @WikiParameter(description = "<key:world.canvas.param.localY>")
+            float localY
+    ) {
         return viewport.screenToWorldY(localY);
     }
 
@@ -657,7 +926,13 @@ public class WorldCanvas extends WidgetBase {
      * @param listener слушатель события
      * @return подписка, которую можно отменить
      */
-    public EventSubscription onViewportChanged(EventListener<? super ViewportChangedEvent> listener) {
+    @AiDoc(summary = "Registers a listener invoked whenever the viewport position or zoom changes.")
+    @WikiMethod(summary = "<key:world.canvas.method.onViewportChanged>")
+    @WikiReturn("<key:world.canvas.return.subscription>")
+    public EventSubscription onViewportChanged(
+            @WikiParameter(description = "<key:world.canvas.param.listener>")
+            EventListener<? super ViewportChangedEvent> listener
+    ) {
         return on(ViewportChangedEvent.TYPE, listener);
     }
 

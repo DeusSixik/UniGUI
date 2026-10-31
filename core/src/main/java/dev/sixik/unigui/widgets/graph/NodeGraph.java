@@ -1,5 +1,15 @@
 package dev.sixik.unigui.widgets.graph;
 
+
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
@@ -60,6 +70,37 @@ import java.util.List;
 import java.util.Objects;
 import dev.sixik.unigui.widgets.containers.StackPanel;
 
+@AiDoc(summary = "Interactive 2D node graph canvas supporting movable nodes, pin connections, pan, zoom, grid snapping, and selection.")
+@WikiPage(
+        title = "NodeGraph",
+        slug = "node-graph",
+        category = "<key:graph.category>",
+        summary = "<key:node.graph.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:node.graph.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:node.graph.example.basic.title>",
+        code = "NodeGraph graph = new NodeGraph();\nNodeGraphItem itemA = graph.addItem(\"nodeA\", new Label(\"A\"), 50, 50);\nitemA.addPort(\"out\", NodeGraphPortKind.OUTPUT, NodeGraphPortSide.RIGHT, 10);\nNodeGraphItem itemB = graph.addItem(\"nodeB\", new Label(\"B\"), 200, 50);\nitemB.addPort(\"in\", NodeGraphPortKind.INPUT, NodeGraphPortSide.LEFT, 10);\ngraph.addConnection(\"c1\", \"nodeA\", \"out\", \"nodeB\", \"in\");"
+)
+@WikiLink(
+        label = "GraphView",
+        target = "page:graph-view",
+        description = "<key:graph.view.summary>"
+)
+@WikiLink(
+        label = "NodeGraphItem",
+        target = "page:node-graph-item",
+        description = "<key:node.graph.item.summary>"
+)
+@WikiLink(
+        label = "NodeGraphConnection",
+        target = "page:node-graph-connection",
+        description = "<key:node.graph.connection.summary>"
+)
 @XmlWidgetName("NodeGraph")
 public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapper, RenderedBoundsMapper {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.NODE_GRAPH;
@@ -132,6 +173,8 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     private ConnectionDragState connectionDragState;
     private LassoState lassoState;
 
+    @AiDoc(summary = "Constructs a new NodeGraph instance with default viewport, grid, and themes.")
+    @WikiMethod(summary = "<key:node.graph.method.ctorDefault>")
     public NodeGraph() {
         backgroundColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         gridColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
@@ -151,13 +194,19 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         focusable(true);
     }
 
-    public NodeGraphItem addItem(String id, Widget content, float x, float y) {
+    @AiDoc(summary = "Creates and places a new node item with the given ID, content widget, and canvas coordinates.")
+    @WikiMethod(summary = "<key:node.graph.method.addItemFull>")
+    @WikiReturn("<key:node.graph.return.createdItem>")
+    public NodeGraphItem addItem(@WikiParameter(name = "id", description = "<key:node.graph.param.itemId>") String id, @WikiParameter(name = "content", description = "<key:node.graph.param.content>") Widget content, @WikiParameter(name = "x", description = "<key:node.graph.param.x>") float x, @WikiParameter(name = "y", description = "<key:node.graph.param.y>") float y) {
         NodeGraphItem item = new NodeGraphItem(id, content, x, y);
         addItem(item);
         return item;
     }
 
-    public NodeGraph addItem(NodeGraphItem item) {
+    @AiDoc(summary = "Adds an existing node item to the graph.")
+    @WikiMethod(summary = "<key:node.graph.method.addItem>")
+    @WikiReturn("<key:node.graph.return.self>")
+    public NodeGraph addItem(@WikiParameter(name = "item", description = "<key:node.graph.param.item>") NodeGraphItem item) {
         if (item == null || items.contains(item)) return this;
         if (item.owner() != null && item.owner() != this) {
             throw new IllegalArgumentException("NodeGraphItem already belongs to another NodeGraph");
@@ -171,7 +220,10 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return this;
     }
 
-    public NodeGraph removeItem(NodeGraphItem item) {
+    @AiDoc(summary = "Removes the specified node item and all its connected lines.")
+    @WikiMethod(summary = "<key:node.graph.method.removeItem>")
+    @WikiReturn("<key:node.graph.return.self>")
+    public NodeGraph removeItem(@WikiParameter(name = "item", description = "<key:node.graph.param.item>") NodeGraphItem item) {
         if (item == null || !items.remove(item)) return this;
         logicalItems.remove(item);
         markItemsDirty();
@@ -184,11 +236,17 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return this;
     }
 
-    public NodeGraph removeItem(String id) {
+    @AiDoc(summary = "Removes the node item with the specified ID.")
+    @WikiMethod(summary = "<key:node.graph.method.removeItemId>")
+    @WikiReturn("<key:node.graph.return.self>")
+    public NodeGraph removeItem(@WikiParameter(name = "id", description = "<key:node.graph.param.itemId>") String id) {
         NodeGraphItem item = item(id);
         return item == null ? this : removeItem(item);
     }
 
+    @AiDoc(summary = "Removes all items and connections from the graph.")
+    @WikiMethod(summary = "<key:node.graph.method.clearItems>")
+    @WikiReturn("<key:node.graph.return.self>")
     public NodeGraph clearItems() {
         for (NodeGraphItem item : itemSnapshot()) {
             detach(item);
@@ -212,12 +270,18 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return this;
     }
 
+    @AiDoc(summary = "Returns inner padding around item content widgets.")
+    @WikiMethod(summary = "<key:node.graph.method.itemContentPaddingGet>")
+    @WikiReturn("<key:node.graph.return.padding>")
     public float itemContentPadding() {
         return itemContentPadding;
     }
 
     @XmlAttribute(value = "itemContentPadding", category = "Layout", defaultValue = "0", description = "Padding applied around item content during node layout.")
-    public NodeGraph itemContentPadding(float padding) {
+    @AiDoc(summary = "Sets inner padding around item content widgets.")
+    @WikiMethod(summary = "<key:node.graph.method.itemContentPaddingSet>")
+    @WikiReturn("<key:node.graph.return.self>")
+    public NodeGraph itemContentPadding(@WikiParameter(name = "padding", description = "<key:node.graph.param.padding>") float padding) {
         float normalized = Float.isFinite(padding) ? Math.max(0.0f, padding) : DEFAULT_ITEM_CONTENT_PADDING;
         if (itemContentPadding == normalized) return this;
         itemContentPadding = normalized;
@@ -225,11 +289,17 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return this;
     }
 
+    @AiDoc(summary = "Returns an unmodifiable list of all node items.")
+    @WikiMethod(summary = "<key:node.graph.method.items>")
+    @WikiReturn("<key:node.graph.return.items>")
     public List<NodeGraphItem> items() {
         return itemsView;
     }
 
-    public NodeGraphItem item(String id) {
+    @AiDoc(summary = "Returns the item with the given ID, or null if not found.")
+    @WikiMethod(summary = "<key:node.graph.method.item>")
+    @WikiReturn("<key:node.graph.return.item>")
+    public NodeGraphItem item(@WikiParameter(name = "id", description = "<key:node.graph.param.itemId>") String id) {
         if (id == null) return null;
         Object[] rawItems = items.elements();
         for (int itemIndex = 0, itemSize = items.size(); itemIndex < itemSize; itemIndex++) {
@@ -239,26 +309,38 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return null;
     }
 
-    public NodeGraphPort port(NodeGraphPortRef ref) {
+    @AiDoc(summary = "Resolves a port reference to its corresponding port object.")
+    @WikiMethod(summary = "<key:node.graph.method.port>")
+    @WikiReturn("<key:node.graph.return.port>")
+    public NodeGraphPort port(@WikiParameter(name = "ref", description = "<key:node.graph.param.portRef>") NodeGraphPortRef ref) {
         if (ref == null || ref.empty()) return null;
         NodeGraphItem item = item(ref.itemId());
         return item == null ? null : item.port(ref.portId());
     }
 
-    public NodeGraphConnection addConnection(String id,
-                                             String fromItemId, String fromPortId,
-                                             String toItemId, String toPortId) {
+    @AiDoc(summary = "Creates and adds a connection between specified item and port IDs.")
+    @WikiMethod(summary = "<key:node.graph.method.addConnectionIds>")
+    @WikiReturn("<key:node.graph.return.createdConnection>")
+    public NodeGraphConnection addConnection(@WikiParameter(name = "id", description = "<key:node.graph.param.connectionId>") String id,
+                                             @WikiParameter(name = "fromItemId", description = "<key:node.graph.param.fromItemId>") String fromItemId, @WikiParameter(name = "fromPortId", description = "<key:node.graph.param.fromPortId>") String fromPortId,
+                                             @WikiParameter(name = "toItemId", description = "<key:node.graph.param.toItemId>") String toItemId, @WikiParameter(name = "toPortId", description = "<key:node.graph.param.toPortId>") String toPortId) {
         return addConnection(new NodeGraphConnection(
                 normalizeConnectionId(id),
                 new NodeGraphPortRef(fromItemId, fromPortId),
                 new NodeGraphPortRef(toItemId, toPortId)));
     }
 
-    public NodeGraphConnection addConnection(String id, NodeGraphPortRef from, NodeGraphPortRef to) {
+    @AiDoc(summary = "Creates and adds a connection between port references.")
+    @WikiMethod(summary = "<key:node.graph.method.addConnectionRefs>")
+    @WikiReturn("<key:node.graph.return.createdConnection>")
+    public NodeGraphConnection addConnection(@WikiParameter(name = "id", description = "<key:node.graph.param.connectionId>") String id, @WikiParameter(name = "from", description = "<key:node.graph.param.fromRef>") NodeGraphPortRef from, @WikiParameter(name = "to", description = "<key:node.graph.param.toRef>") NodeGraphPortRef to) {
         return addConnection(new NodeGraphConnection(normalizeConnectionId(id), from, to));
     }
 
-    public NodeGraphConnection addConnection(NodeGraphConnection connection) {
+    @AiDoc(summary = "Adds an existing connection instance to the graph.")
+    @WikiMethod(summary = "<key:node.graph.method.addConnectionInstance>")
+    @WikiReturn("<key:node.graph.return.createdConnection>")
+    public NodeGraphConnection addConnection(@WikiParameter(name = "connection", description = "<key:node.graph.param.connection>") NodeGraphConnection connection) {
         if (connection == null) return null;
         if (connection.owner() != null && connection.owner() != this) {
             throw new IllegalArgumentException("NodeGraphConnection already belongs to another NodeGraph");
@@ -278,12 +360,18 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return connection;
     }
 
-    public NodeGraph removeConnection(String id) {
+    @AiDoc(summary = "Removes the connection with the given ID.")
+    @WikiMethod(summary = "<key:node.graph.method.removeConnectionId>")
+    @WikiReturn("<key:node.graph.return.self>")
+    public NodeGraph removeConnection(@WikiParameter(name = "id", description = "<key:node.graph.param.connectionId>") String id) {
         NodeGraphConnection connection = connection(id);
         return connection == null ? this : removeConnection(connection);
     }
 
-    public NodeGraph removeConnection(NodeGraphConnection connection) {
+    @AiDoc(summary = "Removes the specified connection instance.")
+    @WikiMethod(summary = "<key:node.graph.method.removeConnection>")
+    @WikiReturn("<key:node.graph.return.self>")
+    public NodeGraph removeConnection(@WikiParameter(name = "connection", description = "<key:node.graph.param.connection>") NodeGraphConnection connection) {
         if (connection == null || !connections.remove(connection)) return this;
         markConnectionsDirty();
         detach(connection);
@@ -292,6 +380,9 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return this;
     }
 
+    @AiDoc(summary = "Removes all currently selected connections.")
+    @WikiMethod(summary = "<key:node.graph.method.removeSelectedConnections>")
+    @WikiReturn("<key:node.graph.return.self>")
     public NodeGraph removeSelectedConnections() {
         for (NodeGraphConnection connection : connectionSnapshot()) {
             if (connection.selected()) {
@@ -301,7 +392,10 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return this;
     }
 
-    public NodeGraphConnection connection(String id) {
+    @AiDoc(summary = "Returns the connection with the given ID, or null if not found.")
+    @WikiMethod(summary = "<key:node.graph.method.connection>")
+    @WikiReturn("<key:node.graph.return.connection>")
+    public NodeGraphConnection connection(@WikiParameter(name = "id", description = "<key:node.graph.param.connectionId>") String id) {
         if (id == null) return null;
         Object[] rawConnections = connections.elements();
         for (int connectionIndex = 0, connectionSize = connections.size(); connectionIndex < connectionSize; connectionIndex++) {
@@ -311,11 +405,17 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return null;
     }
 
+    @AiDoc(summary = "Returns an unmodifiable list of all connections.")
+    @WikiMethod(summary = "<key:node.graph.method.connections>")
+    @WikiReturn("<key:node.graph.return.connections>")
     public List<NodeGraphConnection> connections() {
         return connectionsView;
     }
 
-    public boolean hasConnection(NodeGraphPortRef from, NodeGraphPortRef to) {
+    @AiDoc(summary = "Returns true if a connection already exists between the given ports.")
+    @WikiMethod(summary = "<key:node.graph.method.hasConnection>")
+    @WikiReturn("<key:node.graph.return.hasConnection>")
+    public boolean hasConnection(@WikiParameter(name = "from", description = "<key:node.graph.param.fromRef>") NodeGraphPortRef from, @WikiParameter(name = "to", description = "<key:node.graph.param.toRef>") NodeGraphPortRef to) {
         Object[] rawConnections = connections.elements();
         for (int connectionIndex = 0, connectionSize = connections.size(); connectionIndex < connectionSize; connectionIndex++) {
             NodeGraphConnection connection = (NodeGraphConnection) rawConnections[connectionIndex];
@@ -326,12 +426,18 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return false;
     }
 
-    public NodeGraphConnectionValidation validateConnection(NodeGraphPortRef from, NodeGraphPortRef to) {
+    @AiDoc(summary = "Validates whether a connection can be established according to the active connection policy.")
+    @WikiMethod(summary = "<key:node.graph.method.validateConnection>")
+    @WikiReturn("<key:node.graph.return.validation>")
+    public NodeGraphConnectionValidation validateConnection(@WikiParameter(name = "from", description = "<key:node.graph.param.fromRef>") NodeGraphPortRef from, @WikiParameter(name = "to", description = "<key:node.graph.param.toRef>") NodeGraphPortRef to) {
         NodeGraphConnectionPolicy policy = connectionPolicy == null ? NodeGraphConnectionPolicy.DEFAULT : connectionPolicy;
         NodeGraphConnectionValidation validation = policy.validate(this, from, to);
         return validation == null ? NodeGraphConnectionValidation.invalid("Connection rejected") : validation;
     }
 
+    @AiDoc(summary = "Captures a full serializable snapshot of the node graph.")
+    @WikiMethod(summary = "<key:node.graph.method.snapshot>")
+    @WikiReturn("<key:node.graph.return.snapshot>")
     public NodeGraphSnapshot snapshot() {
         List<NodeGraphItemSnapshot> itemSnapshots = new ObjectArrayList<>(items.size());
         Object[] rawItems = items.elements();
@@ -387,7 +493,10 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
                 selectedConnectionIds());
     }
 
-    public NodeGraph restoreSnapshot(NodeGraphSnapshot snapshot, NodeGraphWidgetResolver resolver) {
+    @AiDoc(summary = "Restores graph items, connections, and viewport from a serialized snapshot using a widget resolver.")
+    @WikiMethod(summary = "<key:node.graph.method.restoreSnapshot>")
+    @WikiReturn("<key:node.graph.return.self>")
+    public NodeGraph restoreSnapshot(@WikiParameter(name = "snapshot", description = "<key:node.graph.param.snapshot>") NodeGraphSnapshot snapshot, @WikiParameter(name = "resolver", description = "<key:node.graph.param.resolver>") NodeGraphWidgetResolver resolver) {
         if (snapshot == null) return this;
         NodeGraphWidgetResolver safeResolver = resolver == null ? (itemId, contentType) -> null : resolver;
         clearItems();
@@ -538,72 +647,123 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         }
     }
 
+    @AiDoc(summary = "Returns the background fill color of the canvas.")
+    @WikiMethod(summary = "<key:node.graph.method.backgroundColor>")
+    @WikiReturn("<key:node.graph.return.color>")
     public MutableColor backgroundColor() {
         return backgroundColor;
     }
 
+    @AiDoc(summary = "Returns the minor grid lines color.")
+    @WikiMethod(summary = "<key:node.graph.method.gridColor>")
+    @WikiReturn("<key:node.graph.return.color>")
     public MutableColor gridColor() {
         return gridColor;
     }
 
+    @AiDoc(summary = "Returns the major grid lines color.")
+    @WikiMethod(summary = "<key:node.graph.method.majorGridColor>")
+    @WikiReturn("<key:node.graph.return.color>")
     public MutableColor majorGridColor() {
         return majorGridColor;
     }
 
+    @AiDoc(summary = "Returns default border color for node items.")
+    @WikiMethod(summary = "<key:node.graph.method.itemBorderColor>")
+    @WikiReturn("<key:node.graph.return.color>")
     public MutableColor itemBorderColor() {
         return itemBorderColor;
     }
 
+    @AiDoc(summary = "Returns hover border color for node items.")
+    @WikiMethod(summary = "<key:node.graph.method.hoveredItemBorderColor>")
+    @WikiReturn("<key:node.graph.return.color>")
     public MutableColor hoveredItemBorderColor() {
         return hoveredItemBorderColor;
     }
 
+    @AiDoc(summary = "Returns selected border color for node items.")
+    @WikiMethod(summary = "<key:node.graph.method.selectedItemBorderColor>")
+    @WikiReturn("<key:node.graph.return.color>")
     public MutableColor selectedItemBorderColor() {
         return selectedItemBorderColor;
     }
 
+    @AiDoc(summary = "Returns default fill color for pin ports.")
+    @WikiMethod(summary = "<key:node.graph.method.portColor>")
+    @WikiReturn("<key:node.graph.return.color>")
     public MutableColor portColor() {
         return portColor;
     }
 
+    @AiDoc(summary = "Returns hover fill color for pin ports.")
+    @WikiMethod(summary = "<key:node.graph.method.hoveredPortColor>")
+    @WikiReturn("<key:node.graph.return.color>")
     public MutableColor hoveredPortColor() {
         return hoveredPortColor;
     }
 
+    @AiDoc(summary = "Returns default line color for connections.")
+    @WikiMethod(summary = "<key:node.graph.method.connectionColor>")
+    @WikiReturn("<key:node.graph.return.color>")
     public MutableColor connectionColor() {
         return connectionColor;
     }
 
+    @AiDoc(summary = "Returns highlight line color for selected connections.")
+    @WikiMethod(summary = "<key:node.graph.method.selectedConnectionColor>")
+    @WikiReturn("<key:node.graph.return.color>")
     public MutableColor selectedConnectionColor() {
         return selectedConnectionColor;
     }
 
+    @AiDoc(summary = "Returns preview line color for valid drag connections.")
+    @WikiMethod(summary = "<key:node.graph.method.connectionPreviewColor>")
+    @WikiReturn("<key:node.graph.return.color>")
     public MutableColor connectionPreviewColor() {
         return connectionPreviewColor;
     }
 
+    @AiDoc(summary = "Returns preview line color for invalid drag connections.")
+    @WikiMethod(summary = "<key:node.graph.method.invalidConnectionPreviewColor>")
+    @WikiReturn("<key:node.graph.return.color>")
     public MutableColor invalidConnectionPreviewColor() {
         return invalidConnectionPreviewColor;
     }
 
+    @AiDoc(summary = "Returns fill color for rubber-band selection rectangles.")
+    @WikiMethod(summary = "<key:node.graph.method.selectionBoxFillColor>")
+    @WikiReturn("<key:node.graph.return.color>")
     public MutableColor selectionBoxFillColor() {
         return selectionBoxFillColor;
     }
 
+    @AiDoc(summary = "Returns border color for rubber-band selection rectangles.")
+    @WikiMethod(summary = "<key:node.graph.method.selectionBoxBorderColor>")
+    @WikiReturn("<key:node.graph.return.color>")
     public MutableColor selectionBoxBorderColor() {
         return selectionBoxBorderColor;
     }
 
+    @AiDoc(summary = "Returns color of resize grip handles.")
+    @WikiMethod(summary = "<key:node.graph.method.resizeHandleColor>")
+    @WikiReturn("<key:node.graph.return.color>")
     public MutableColor resizeHandleColor() {
         return resizeHandleColor;
     }
 
+    @AiDoc(summary = "Returns the preferred width of this graph.")
+    @WikiMethod(summary = "<key:node.graph.method.preferredWidthGet>")
+    @WikiReturn("<key:node.graph.return.preferredWidth>")
     public float preferredWidth() {
         return preferredWidth;
     }
 
     @XmlAttribute(value = "preferredWidth", category = "Layout", defaultValue = "320", description = "Intrinsic node graph width before layout constraints are applied.")
-    public NodeGraph preferredWidth(float preferredWidth) {
+    @AiDoc(summary = "Sets the preferred width of this graph.")
+    @WikiMethod(summary = "<key:node.graph.method.preferredWidthSet>")
+    @WikiReturn("<key:node.graph.return.self>")
+    public NodeGraph preferredWidth(@WikiParameter(name = "preferredWidth", description = "<key:node.graph.param.preferredWidth>") float preferredWidth) {
         float normalized = positiveOr(preferredWidth, DEFAULT_PREFERRED_WIDTH);
         if (this.preferredWidth == normalized) return this;
         this.preferredWidth = normalized;
@@ -611,12 +771,18 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return this;
     }
 
+    @AiDoc(summary = "Returns the preferred height of this graph.")
+    @WikiMethod(summary = "<key:node.graph.method.preferredHeightGet>")
+    @WikiReturn("<key:node.graph.return.preferredHeight>")
     public float preferredHeight() {
         return preferredHeight;
     }
 
     @XmlAttribute(value = "preferredHeight", category = "Layout", defaultValue = "200", description = "Intrinsic node graph height before layout constraints are applied.")
-    public NodeGraph preferredHeight(float preferredHeight) {
+    @AiDoc(summary = "Sets the preferred height of this graph.")
+    @WikiMethod(summary = "<key:node.graph.method.preferredHeightSet>")
+    @WikiReturn("<key:node.graph.return.self>")
+    public NodeGraph preferredHeight(@WikiParameter(name = "preferredHeight", description = "<key:node.graph.param.preferredHeight>") float preferredHeight) {
         float normalized = positiveOr(preferredHeight, DEFAULT_PREFERRED_HEIGHT);
         if (this.preferredHeight == normalized) return this;
         this.preferredHeight = normalized;
@@ -624,25 +790,40 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return this;
     }
 
-    public NodeGraph preferredSize(float width, float height) {
+    @AiDoc(summary = "Sets both preferred width and height dimensions.")
+    @WikiMethod(summary = "<key:node.graph.method.preferredSize>")
+    @WikiReturn("<key:node.graph.return.self>")
+    public NodeGraph preferredSize(@WikiParameter(name = "width", description = "<key:node.graph.param.preferredWidth>") float width, @WikiParameter(name = "height", description = "<key:node.graph.param.preferredHeight>") float height) {
         return preferredWidth(width).preferredHeight(height);
     }
 
+    @AiDoc(summary = "Returns the active connection validation policy.")
+    @WikiMethod(summary = "<key:node.graph.method.connectionPolicyGet>")
+    @WikiReturn("<key:node.graph.return.connectionPolicy>")
     public NodeGraphConnectionPolicy connectionPolicy() {
         return connectionPolicy;
     }
 
-    public NodeGraph connectionPolicy(NodeGraphConnectionPolicy connectionPolicy) {
+    @AiDoc(summary = "Sets the connection validation policy.")
+    @WikiMethod(summary = "<key:node.graph.method.connectionPolicySet>")
+    @WikiReturn("<key:node.graph.return.self>")
+    public NodeGraph connectionPolicy(@WikiParameter(name = "connectionPolicy", description = "<key:node.graph.param.connectionPolicy>") NodeGraphConnectionPolicy connectionPolicy) {
         this.connectionPolicy = connectionPolicy == null ? NodeGraphConnectionPolicy.DEFAULT : connectionPolicy;
         return this;
     }
 
+    @AiDoc(summary = "Returns current selection mode: NONE, SINGLE, or MULTIPLE.")
+    @WikiMethod(summary = "<key:node.graph.method.selectionModeGet>")
+    @WikiReturn("<key:node.graph.return.selectionMode>")
     public NodeGraphSelectionMode selectionMode() {
         return selectionMode;
     }
 
     @XmlAttribute(value = "selectionMode", category = "Behavior", defaultValue = "single", description = "Selection mode used by node graph items.")
-    public NodeGraph selectionMode(NodeGraphSelectionMode selectionMode) {
+    @AiDoc(summary = "Sets selection mode.")
+    @WikiMethod(summary = "<key:node.graph.method.selectionModeSet>")
+    @WikiReturn("<key:node.graph.return.self>")
+    public NodeGraph selectionMode(@WikiParameter(name = "selectionMode", description = "<key:node.graph.param.selectionMode>") NodeGraphSelectionMode selectionMode) {
         NodeGraphSelectionMode next = selectionMode == null ? NodeGraphSelectionMode.SINGLE : selectionMode;
         if (this.selectionMode == next) return this;
         List<String> oldSelection = selectedItemIds();
@@ -657,15 +838,24 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return this;
     }
 
+    @AiDoc(summary = "Returns current viewport pan position and zoom factor.")
+    @WikiMethod(summary = "<key:node.graph.method.viewportGet>")
+    @WikiReturn("<key:node.graph.return.viewport>")
     public NodeGraphViewport viewport() {
         return new NodeGraphViewport(viewportX(), viewportY(), zoom());
     }
 
-    public NodeGraph viewport(float x, float y) {
+    @AiDoc(summary = "Sets viewport pan position without altering zoom.")
+    @WikiMethod(summary = "<key:node.graph.method.viewportPan>")
+    @WikiReturn("<key:node.graph.return.self>")
+    public NodeGraph viewport(@WikiParameter(name = "x", description = "<key:node.graph.param.viewportX>") float x, @WikiParameter(name = "y", description = "<key:node.graph.param.viewportY>") float y) {
         return viewport(x, y, zoom());
     }
 
-    public NodeGraph viewport(float x, float y, float zoom) {
+    @AiDoc(summary = "Sets viewport pan position and zoom factor.")
+    @WikiMethod(summary = "<key:node.graph.method.viewportFull>")
+    @WikiReturn("<key:node.graph.return.self>")
+    public NodeGraph viewport(@WikiParameter(name = "x", description = "<key:node.graph.param.viewportX>") float x, @WikiParameter(name = "y", description = "<key:node.graph.param.viewportY>") float y, @WikiParameter(name = "zoom", description = "<key:node.graph.param.zoom>") float zoom) {
         float oldX = viewportX();
         float oldY = viewportY();
         float oldZoom = zoom();
@@ -676,12 +866,18 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return this;
     }
 
+    @AiDoc(summary = "Returns the grid cell step size in pixels.")
+    @WikiMethod(summary = "<key:node.graph.method.gridSizeGet>")
+    @WikiReturn("<key:node.graph.return.gridSize>")
     public float gridSize() {
         return gridSize;
     }
 
     @XmlAttribute(value = "gridSize", category = "Appearance", defaultValue = "24", description = "World-space spacing between rendered grid lines.")
-    public NodeGraph gridSize(float gridSize) {
+    @AiDoc(summary = "Sets the grid cell step size in pixels.")
+    @WikiMethod(summary = "<key:node.graph.method.gridSizeSet>")
+    @WikiReturn("<key:node.graph.return.self>")
+    public NodeGraph gridSize(@WikiParameter(name = "gridSize", description = "<key:node.graph.param.gridSize>") float gridSize) {
         float next = Float.isFinite(gridSize) ? Math.max(2.0f, gridSize) : 24.0f;
         if (this.gridSize == next) return this;
         this.gridSize = next;
@@ -689,54 +885,84 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return this;
     }
 
+    @AiDoc(summary = "Returns true if canvas rendering is clipped to widget bounds.")
+    @WikiMethod(summary = "<key:node.graph.method.clippingEnabledGet>")
+    @WikiReturn("<key:node.graph.return.clippingEnabled>")
     public boolean clippingEnabled() {
         return clippingEnabled;
     }
 
     @XmlAttribute(value = "clippingEnabled", category = "Behavior", defaultValue = "true", description = "Whether graph content is clipped to widget bounds.")
-    public NodeGraph clippingEnabled(boolean clippingEnabled) {
+    @AiDoc(summary = "Sets whether canvas rendering is clipped to widget bounds.")
+    @WikiMethod(summary = "<key:node.graph.method.clippingEnabledSet>")
+    @WikiReturn("<key:node.graph.return.self>")
+    public NodeGraph clippingEnabled(@WikiParameter(name = "clippingEnabled", description = "<key:node.graph.param.clippingEnabled>") boolean clippingEnabled) {
         if (this.clippingEnabled == clippingEnabled) return this;
         this.clippingEnabled = clippingEnabled;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 
+    @AiDoc(summary = "Returns true if item dragging is enabled.")
+    @WikiMethod(summary = "<key:node.graph.method.itemDraggingEnabledGet>")
+    @WikiReturn("<key:node.graph.return.enabled>")
     public boolean itemDraggingEnabled() {
         return itemDraggingEnabled;
     }
 
     @XmlAttribute(value = "itemDraggingEnabled", category = "Behavior", defaultValue = "true", description = "Whether node items can be moved by pointer dragging.")
-    public NodeGraph itemDraggingEnabled(boolean itemDraggingEnabled) {
+    @AiDoc(summary = "Sets whether item dragging is enabled.")
+    @WikiMethod(summary = "<key:node.graph.method.itemDraggingEnabledSet>")
+    @WikiReturn("<key:node.graph.return.self>")
+    public NodeGraph itemDraggingEnabled(@WikiParameter(name = "itemDraggingEnabled", description = "<key:node.graph.param.enabled>") boolean itemDraggingEnabled) {
         this.itemDraggingEnabled = itemDraggingEnabled;
         return this;
     }
 
+    @AiDoc(summary = "Returns true if canvas panning via mouse drag is enabled.")
+    @WikiMethod(summary = "<key:node.graph.method.panningEnabledGet>")
+    @WikiReturn("<key:node.graph.return.enabled>")
     public boolean panningEnabled() {
         return panningEnabled;
     }
 
     @XmlAttribute(value = "panningEnabled", category = "Behavior", defaultValue = "true", description = "Whether pointer gestures can pan the graph viewport.")
-    public NodeGraph panningEnabled(boolean panningEnabled) {
+    @AiDoc(summary = "Sets whether canvas panning is enabled.")
+    @WikiMethod(summary = "<key:node.graph.method.panningEnabledSet>")
+    @WikiReturn("<key:node.graph.return.self>")
+    public NodeGraph panningEnabled(@WikiParameter(name = "panningEnabled", description = "<key:node.graph.param.enabled>") boolean panningEnabled) {
         this.panningEnabled = panningEnabled;
         return this;
     }
 
+    @AiDoc(summary = "Returns true if canvas zooming via mouse wheel is enabled.")
+    @WikiMethod(summary = "<key:node.graph.method.zoomEnabledGet>")
+    @WikiReturn("<key:node.graph.return.enabled>")
     public boolean zoomEnabled() {
         return zoomEnabled;
     }
 
     @XmlAttribute(value = "zoomEnabled", category = "Behavior", defaultValue = "true", description = "Whether wheel gestures can zoom the graph viewport.")
-    public NodeGraph zoomEnabled(boolean zoomEnabled) {
+    @AiDoc(summary = "Sets whether canvas zooming is enabled.")
+    @WikiMethod(summary = "<key:node.graph.method.zoomEnabledSet>")
+    @WikiReturn("<key:node.graph.return.self>")
+    public NodeGraph zoomEnabled(@WikiParameter(name = "zoomEnabled", description = "<key:node.graph.param.enabled>") boolean zoomEnabled) {
         this.zoomEnabled = zoomEnabled;
         return this;
     }
 
+    @AiDoc(summary = "Returns true if node item content widgets scale with zoom.")
+    @WikiMethod(summary = "<key:node.graph.method.scaleContentWithZoomGet>")
+    @WikiReturn("<key:node.graph.return.enabled>")
     public boolean scaleContentWithZoom() {
         return scaleContentWithZoom;
     }
 
     @XmlAttribute(value = "scaleContentWithZoom", category = "Behavior", defaultValue = "true", description = "Whether embedded item widgets scale with viewport zoom.")
-    public NodeGraph scaleContentWithZoom(boolean scaleContentWithZoom) {
+    @AiDoc(summary = "Sets whether node item content widgets scale with zoom.")
+    @WikiMethod(summary = "<key:node.graph.method.scaleContentWithZoomSet>")
+    @WikiReturn("<key:node.graph.return.self>")
+    public NodeGraph scaleContentWithZoom(@WikiParameter(name = "scaleContentWithZoom", description = "<key:node.graph.param.enabled>") boolean scaleContentWithZoom) {
         if (this.scaleContentWithZoom == scaleContentWithZoom) return this;
         this.scaleContentWithZoom = scaleContentWithZoom;
         arrangeItems();
@@ -744,7 +970,10 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return this;
     }
 
-    public NodeGraph zoomRange(float minZoom, float maxZoom) {
+    @AiDoc(summary = "Configures minimum and maximum allowed zoom levels.")
+    @WikiMethod(summary = "<key:node.graph.method.zoomRange>")
+    @WikiReturn("<key:node.graph.return.self>")
+    public NodeGraph zoomRange(@WikiParameter(name = "minZoom", description = "<key:node.graph.param.minZoom>") float minZoom, @WikiParameter(name = "maxZoom", description = "<key:node.graph.param.maxZoom>") float maxZoom) {
         float oldX = viewportX();
         float oldY = viewportY();
         float oldZoom = zoom();
@@ -757,112 +986,184 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return this;
     }
 
+    @AiDoc(summary = "Returns minimum zoom scale factor.")
+    @WikiMethod(summary = "<key:node.graph.method.minZoom>")
+    @WikiReturn("<key:node.graph.return.minZoom>")
     public float minZoom() {
         return viewport.minZoom();
     }
 
+    @AiDoc(summary = "Returns maximum zoom scale factor.")
+    @WikiMethod(summary = "<key:node.graph.method.maxZoom>")
+    @WikiReturn("<key:node.graph.return.maxZoom>")
     public float maxZoom() {
         return viewport.maxZoom();
     }
 
+    @AiDoc(summary = "Returns true if rubber-band lasso box selection is enabled.")
+    @WikiMethod(summary = "<key:node.graph.method.lassoSelectionEnabledGet>")
+    @WikiReturn("<key:node.graph.return.enabled>")
     public boolean lassoSelectionEnabled() {
         return lassoSelectionEnabled;
     }
 
     @XmlAttribute(value = "lassoSelectionEnabled", category = "Behavior", defaultValue = "true", description = "Whether pointer drag can create lasso item selections.")
-    public NodeGraph lassoSelectionEnabled(boolean lassoSelectionEnabled) {
+    @AiDoc(summary = "Sets whether rubber-band lasso selection is enabled.")
+    @WikiMethod(summary = "<key:node.graph.method.lassoSelectionEnabledSet>")
+    @WikiReturn("<key:node.graph.return.self>")
+    public NodeGraph lassoSelectionEnabled(@WikiParameter(name = "lassoSelectionEnabled", description = "<key:node.graph.param.enabled>") boolean lassoSelectionEnabled) {
         this.lassoSelectionEnabled = lassoSelectionEnabled;
         return this;
     }
 
+    @AiDoc(summary = "Returns true if interactive resizing of resizable items is enabled.")
+    @WikiMethod(summary = "<key:node.graph.method.resizeEnabledGet>")
+    @WikiReturn("<key:node.graph.return.enabled>")
     public boolean resizeEnabled() {
         return resizeEnabled;
     }
 
     @XmlAttribute(value = "resizeEnabled", category = "Behavior", defaultValue = "true", description = "Whether selected node items can be resized.")
-    public NodeGraph resizeEnabled(boolean resizeEnabled) {
+    @AiDoc(summary = "Sets whether interactive item resizing is enabled.")
+    @WikiMethod(summary = "<key:node.graph.method.resizeEnabledSet>")
+    @WikiReturn("<key:node.graph.return.self>")
+    public NodeGraph resizeEnabled(@WikiParameter(name = "resizeEnabled", description = "<key:node.graph.param.enabled>") boolean resizeEnabled) {
         this.resizeEnabled = resizeEnabled;
         return this;
     }
 
+    @AiDoc(summary = "Returns true if keyboard shortcuts (Delete, arrows) are enabled.")
+    @WikiMethod(summary = "<key:node.graph.method.keyboardEditingEnabledGet>")
+    @WikiReturn("<key:node.graph.return.enabled>")
     public boolean keyboardEditingEnabled() {
         return keyboardEditingEnabled;
     }
 
     @XmlAttribute(value = "keyboardEditingEnabled", category = "Behavior", defaultValue = "true", description = "Whether keyboard shortcuts can edit node graph selections.")
-    public NodeGraph keyboardEditingEnabled(boolean keyboardEditingEnabled) {
+    @AiDoc(summary = "Sets whether keyboard editing shortcuts are enabled.")
+    @WikiMethod(summary = "<key:node.graph.method.keyboardEditingEnabledSet>")
+    @WikiReturn("<key:node.graph.return.self>")
+    public NodeGraph keyboardEditingEnabled(@WikiParameter(name = "keyboardEditingEnabled", description = "<key:node.graph.param.enabled>") boolean keyboardEditingEnabled) {
         this.keyboardEditingEnabled = keyboardEditingEnabled;
         return this;
     }
 
+    @AiDoc(summary = "Returns true if mouse wheel events are consumed while hovering the canvas.")
+    @WikiMethod(summary = "<key:node.graph.method.consumeWheelWhileHoveredGet>")
+    @WikiReturn("<key:node.graph.return.enabled>")
     public boolean consumeWheelWhileHovered() {
         return consumeWheelWhileHovered;
     }
 
     @XmlAttribute(value = "consumeWheelWhileHovered", category = "Behavior", defaultValue = "true", description = "Whether wheel events are consumed while the graph is hovered.")
-    public NodeGraph consumeWheelWhileHovered(boolean consumeWheelWhileHovered) {
+    @AiDoc(summary = "Sets whether mouse wheel events are consumed when hovered.")
+    @WikiMethod(summary = "<key:node.graph.method.consumeWheelWhileHoveredSet>")
+    @WikiReturn("<key:node.graph.return.self>")
+    public NodeGraph consumeWheelWhileHovered(@WikiParameter(name = "consumeWheelWhileHovered", description = "<key:node.graph.param.enabled>") boolean consumeWheelWhileHovered) {
         this.consumeWheelWhileHovered = consumeWheelWhileHovered;
         return this;
     }
 
+    @AiDoc(summary = "Returns true if mouse wheel pans instead of zooming.")
+    @WikiMethod(summary = "<key:node.graph.method.wheelPanningEnabledGet>")
+    @WikiReturn("<key:node.graph.return.enabled>")
     public boolean wheelPanningEnabled() {
         return wheelPanningEnabled;
     }
 
     @XmlAttribute(value = "wheelPanningEnabled", category = "Behavior", defaultValue = "true", description = "Whether non-zoom wheel gestures pan the graph viewport.")
-    public NodeGraph wheelPanningEnabled(boolean wheelPanningEnabled) {
+    @AiDoc(summary = "Sets whether mouse wheel pans instead of zooming.")
+    @WikiMethod(summary = "<key:node.graph.method.wheelPanningEnabledSet>")
+    @WikiReturn("<key:node.graph.return.self>")
+    public NodeGraph wheelPanningEnabled(@WikiParameter(name = "wheelPanningEnabled", description = "<key:node.graph.param.enabled>") boolean wheelPanningEnabled) {
         this.wheelPanningEnabled = wheelPanningEnabled;
         return this;
     }
 
+    @AiDoc(summary = "Returns the pixel step distance per wheel tick during wheel panning.")
+    @WikiMethod(summary = "<key:node.graph.method.wheelPanStepGet>")
+    @WikiReturn("<key:node.graph.return.wheelPanStep>")
     public float wheelPanStep() {
         return wheelPanStep;
     }
 
     @XmlAttribute(value = "wheelPanStep", category = "Behavior", defaultValue = "32", description = "Viewport pan distance applied per wheel delta unit.")
-    public NodeGraph wheelPanStep(float wheelPanStep) {
+    @AiDoc(summary = "Sets the pixel step distance per wheel tick.")
+    @WikiMethod(summary = "<key:node.graph.method.wheelPanStepSet>")
+    @WikiReturn("<key:node.graph.return.self>")
+    public NodeGraph wheelPanStep(@WikiParameter(name = "wheelPanStep", description = "<key:node.graph.param.wheelPanStep>") float wheelPanStep) {
         this.wheelPanStep = Float.isFinite(wheelPanStep) ? Math.max(1.0f, wheelPanStep) : 32.0f;
         return this;
     }
 
+    @AiDoc(summary = "Returns true if selecting an item moves it to the top of the z-order.")
+    @WikiMethod(summary = "<key:node.graph.method.bringToFrontOnSelectGet>")
+    @WikiReturn("<key:node.graph.return.enabled>")
     public boolean bringToFrontOnSelect() {
         return bringToFrontOnSelect;
     }
 
     @XmlAttribute(value = "bringToFrontOnSelect", category = "Behavior", defaultValue = "true", description = "Whether selecting an item moves it above sibling nodes.")
-    public NodeGraph bringToFrontOnSelect(boolean bringToFrontOnSelect) {
+    @AiDoc(summary = "Sets whether selecting an item moves it to the front.")
+    @WikiMethod(summary = "<key:node.graph.method.bringToFrontOnSelectSet>")
+    @WikiReturn("<key:node.graph.return.self>")
+    public NodeGraph bringToFrontOnSelect(@WikiParameter(name = "bringToFrontOnSelect", description = "<key:node.graph.param.enabled>") boolean bringToFrontOnSelect) {
         this.bringToFrontOnSelect = bringToFrontOnSelect;
         return this;
     }
 
+    @AiDoc(summary = "Returns the ID of the currently hovered node item, or empty string if none.")
+    @WikiMethod(summary = "<key:node.graph.method.hoveredItemId>")
+    @WikiReturn("<key:node.graph.return.hoveredItemId>")
     public String hoveredItemId() {
         return hoveredItemId;
     }
 
+    @AiDoc(summary = "Returns reference to the currently hovered port, or null if none.")
+    @WikiMethod(summary = "<key:node.graph.method.hoveredPort>")
+    @WikiReturn("<key:node.graph.return.hoveredPort>")
     public NodeGraphPortRef hoveredPort() {
         return hoveredPort;
     }
 
+    @AiDoc(summary = "Returns the ID of the currently hovered connection, or empty string if none.")
+    @WikiMethod(summary = "<key:node.graph.method.hoveredConnectionId>")
+    @WikiReturn("<key:node.graph.return.hoveredConnectionId>")
     public String hoveredConnectionId() {
         return hoveredConnectionId;
     }
 
+    @AiDoc(summary = "Returns the ID of the item currently being dragged, or empty string if none.")
+    @WikiMethod(summary = "<key:node.graph.method.draggingItemId>")
+    @WikiReturn("<key:node.graph.return.draggingItemId>")
     public String draggingItemId() {
         return dragState != null && dragState.kind == DragKind.ITEM ? dragState.item.id() : "";
     }
 
+    @AiDoc(summary = "Returns true if a new connection is currently being dragged from a port.")
+    @WikiMethod(summary = "<key:node.graph.method.connectionDragging>")
+    @WikiReturn("<key:node.graph.return.enabled>")
     public boolean connectionDragging() {
         return connectionDragState != null;
     }
 
+    @AiDoc(summary = "Returns true if the viewport canvas is currently being panned.")
+    @WikiMethod(summary = "<key:node.graph.method.panning>")
+    @WikiReturn("<key:node.graph.return.enabled>")
     public boolean panning() {
         return dragState != null && dragState.kind == DragKind.PAN;
     }
 
+    @AiDoc(summary = "Returns true if a rubber-band lasso selection box is actively being dragged.")
+    @WikiMethod(summary = "<key:node.graph.method.lassoSelecting>")
+    @WikiReturn("<key:node.graph.return.enabled>")
     public boolean lassoSelecting() {
         return lassoState != null;
     }
 
+    @AiDoc(summary = "Returns an unmodifiable list of IDs of currently selected items.")
+    @WikiMethod(summary = "<key:node.graph.method.selectedItemIds>")
+    @WikiReturn("<key:node.graph.return.selectedItemIds>")
     public List<String> selectedItemIds() {
         List<String> selected = new ObjectArrayList<>();
         Object[] rawLogicalItems = logicalItems.elements();
@@ -875,16 +1176,25 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return List.copyOf(selected);
     }
 
-    public NodeGraph selectItem(String id) {
+    @AiDoc(summary = "Selects the item with the given ID exclusively.")
+    @WikiMethod(summary = "<key:node.graph.method.selectItemId>")
+    @WikiReturn("<key:node.graph.return.self>")
+    public NodeGraph selectItem(@WikiParameter(name = "id", description = "<key:node.graph.param.itemId>") String id) {
         NodeGraphItem item = item(id);
         return item == null ? this : selectItem(item);
     }
 
-    public NodeGraph selectItem(NodeGraphItem item) {
+    @AiDoc(summary = "Selects the specified item exclusively.")
+    @WikiMethod(summary = "<key:node.graph.method.selectItem>")
+    @WikiReturn("<key:node.graph.return.self>")
+    public NodeGraph selectItem(@WikiParameter(name = "item", description = "<key:node.graph.param.item>") NodeGraphItem item) {
         return selectItem(item, false);
     }
 
-    public NodeGraph selectItem(NodeGraphItem item, boolean additive) {
+    @AiDoc(summary = "Selects the item with optional additive toggle behaviour.")
+    @WikiMethod(summary = "<key:node.graph.method.selectItemAdditive>")
+    @WikiReturn("<key:node.graph.return.self>")
+    public NodeGraph selectItem(@WikiParameter(name = "item", description = "<key:node.graph.param.item>") NodeGraphItem item, @WikiParameter(name = "additive", description = "<key:node.graph.param.additive>") boolean additive) {
         if (item == null || !items.contains(item) || selectionMode == NodeGraphSelectionMode.NONE || !item.selectable()) {
             return this;
         }
@@ -903,6 +1213,9 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return this;
     }
 
+    @AiDoc(summary = "Deselects all currently selected items.")
+    @WikiMethod(summary = "<key:node.graph.method.clearSelection>")
+    @WikiReturn("<key:node.graph.return.self>")
     public NodeGraph clearSelection() {
         List<String> oldSelection = selectedItemIds();
         clearSelectionInternal(false);
@@ -911,6 +1224,9 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return this;
     }
 
+    @AiDoc(summary = "Returns an unmodifiable list of IDs of currently selected connections.")
+    @WikiMethod(summary = "<key:node.graph.method.selectedConnectionIds>")
+    @WikiReturn("<key:node.graph.return.selectedConnectionIds>")
     public List<String> selectedConnectionIds() {
         List<String> selected = new ObjectArrayList<>();
         Object[] rawConnections = connections.elements();
@@ -923,12 +1239,18 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return List.copyOf(selected);
     }
 
-    public NodeGraph selectConnection(String id) {
+    @AiDoc(summary = "Selects the connection with the given ID.")
+    @WikiMethod(summary = "<key:node.graph.method.selectConnectionId>")
+    @WikiReturn("<key:node.graph.return.self>")
+    public NodeGraph selectConnection(@WikiParameter(name = "id", description = "<key:node.graph.param.connectionId>") String id) {
         NodeGraphConnection connection = connection(id);
         return connection == null ? this : selectConnection(connection);
     }
 
-    public NodeGraph selectConnection(NodeGraphConnection connection) {
+    @AiDoc(summary = "Selects the specified connection.")
+    @WikiMethod(summary = "<key:node.graph.method.selectConnection>")
+    @WikiReturn("<key:node.graph.return.self>")
+    public NodeGraph selectConnection(@WikiParameter(name = "connection", description = "<key:node.graph.param.connection>") NodeGraphConnection connection) {
         if (connection == null || !connections.contains(connection)) return this;
         List<String> oldSelection = selectedConnectionIds();
         clearConnectionSelectionInternal();
@@ -938,6 +1260,9 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return this;
     }
 
+    @AiDoc(summary = "Deselects all currently selected connections.")
+    @WikiMethod(summary = "<key:node.graph.method.clearConnectionSelection>")
+    @WikiReturn("<key:node.graph.return.self>")
     public NodeGraph clearConnectionSelection() {
         List<String> oldSelection = selectedConnectionIds();
         clearConnectionSelectionInternal();
@@ -946,59 +1271,101 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return this;
     }
 
-    public EventSubscription onItemMoveStarted(EventListener<? super NodeGraphItemMoveStartedEvent> listener) {
+    @AiDoc(summary = "Registers a listener called when item drag movement begins.")
+    @WikiMethod(summary = "<key:node.graph.method.onItemMoveStarted>")
+    @WikiReturn("<key:node.graph.return.subscription>")
+    public EventSubscription onItemMoveStarted(@WikiParameter(name = "listener", description = "<key:node.graph.param.listener>") EventListener<? super NodeGraphItemMoveStartedEvent> listener) {
         return on(NodeGraphItemMoveStartedEvent.TYPE, listener);
     }
 
-    public EventSubscription onItemMoved(EventListener<? super NodeGraphItemMovedEvent> listener) {
+    @AiDoc(summary = "Registers a listener called as an item is dragged across the canvas.")
+    @WikiMethod(summary = "<key:node.graph.method.onItemMoved>")
+    @WikiReturn("<key:node.graph.return.subscription>")
+    public EventSubscription onItemMoved(@WikiParameter(name = "listener", description = "<key:node.graph.param.listener>") EventListener<? super NodeGraphItemMovedEvent> listener) {
         return on(NodeGraphItemMovedEvent.TYPE, listener);
     }
 
-    public EventSubscription onItemMoveEnded(EventListener<? super NodeGraphItemMoveEndedEvent> listener) {
+    @AiDoc(summary = "Registers a listener called when item drag movement finishes.")
+    @WikiMethod(summary = "<key:node.graph.method.onItemMoveEnded>")
+    @WikiReturn("<key:node.graph.return.subscription>")
+    public EventSubscription onItemMoveEnded(@WikiParameter(name = "listener", description = "<key:node.graph.param.listener>") EventListener<? super NodeGraphItemMoveEndedEvent> listener) {
         return on(NodeGraphItemMoveEndedEvent.TYPE, listener);
     }
 
-    public EventSubscription onItemRemoved(EventListener<? super NodeGraphItemRemovedEvent> listener) {
+    @AiDoc(summary = "Registers a listener called when a node item is removed.")
+    @WikiMethod(summary = "<key:node.graph.method.onItemRemoved>")
+    @WikiReturn("<key:node.graph.return.subscription>")
+    public EventSubscription onItemRemoved(@WikiParameter(name = "listener", description = "<key:node.graph.param.listener>") EventListener<? super NodeGraphItemRemovedEvent> listener) {
         return on(NodeGraphItemRemovedEvent.TYPE, listener);
     }
 
-    public EventSubscription onItemResizeStarted(EventListener<? super NodeGraphItemResizeStartedEvent> listener) {
+    @AiDoc(summary = "Registers a listener called when item resizing begins.")
+    @WikiMethod(summary = "<key:node.graph.method.onItemResizeStarted>")
+    @WikiReturn("<key:node.graph.return.subscription>")
+    public EventSubscription onItemResizeStarted(@WikiParameter(name = "listener", description = "<key:node.graph.param.listener>") EventListener<? super NodeGraphItemResizeStartedEvent> listener) {
         return on(NodeGraphItemResizeStartedEvent.TYPE, listener);
     }
 
-    public EventSubscription onItemResized(EventListener<? super NodeGraphItemResizedEvent> listener) {
+    @AiDoc(summary = "Registers a listener called as an item is being resized.")
+    @WikiMethod(summary = "<key:node.graph.method.onItemResized>")
+    @WikiReturn("<key:node.graph.return.subscription>")
+    public EventSubscription onItemResized(@WikiParameter(name = "listener", description = "<key:node.graph.param.listener>") EventListener<? super NodeGraphItemResizedEvent> listener) {
         return on(NodeGraphItemResizedEvent.TYPE, listener);
     }
 
-    public EventSubscription onItemResizeEnded(EventListener<? super NodeGraphItemResizeEndedEvent> listener) {
+    @AiDoc(summary = "Registers a listener called when item resizing ends.")
+    @WikiMethod(summary = "<key:node.graph.method.onItemResizeEnded>")
+    @WikiReturn("<key:node.graph.return.subscription>")
+    public EventSubscription onItemResizeEnded(@WikiParameter(name = "listener", description = "<key:node.graph.param.listener>") EventListener<? super NodeGraphItemResizeEndedEvent> listener) {
         return on(NodeGraphItemResizeEndedEvent.TYPE, listener);
     }
 
-    public EventSubscription onSelectionChanged(EventListener<? super NodeGraphItemSelectionChangedEvent> listener) {
+    @AiDoc(summary = "Registers a listener called when item selection changes.")
+    @WikiMethod(summary = "<key:node.graph.method.onSelectionChanged>")
+    @WikiReturn("<key:node.graph.return.subscription>")
+    public EventSubscription onSelectionChanged(@WikiParameter(name = "listener", description = "<key:node.graph.param.listener>") EventListener<? super NodeGraphItemSelectionChangedEvent> listener) {
         return on(NodeGraphItemSelectionChangedEvent.TYPE, listener);
     }
 
-    public EventSubscription onViewportChanged(EventListener<? super NodeGraphViewportChangedEvent> listener) {
+    @AiDoc(summary = "Registers a listener called when viewport pan or zoom changes.")
+    @WikiMethod(summary = "<key:node.graph.method.onViewportChanged>")
+    @WikiReturn("<key:node.graph.return.subscription>")
+    public EventSubscription onViewportChanged(@WikiParameter(name = "listener", description = "<key:node.graph.param.listener>") EventListener<? super NodeGraphViewportChangedEvent> listener) {
         return on(NodeGraphViewportChangedEvent.TYPE, listener);
     }
 
-    public EventSubscription onConnectionCreated(EventListener<? super NodeGraphConnectionCreatedEvent> listener) {
+    @AiDoc(summary = "Registers a listener called when a new connection is created.")
+    @WikiMethod(summary = "<key:node.graph.method.onConnectionCreated>")
+    @WikiReturn("<key:node.graph.return.subscription>")
+    public EventSubscription onConnectionCreated(@WikiParameter(name = "listener", description = "<key:node.graph.param.listener>") EventListener<? super NodeGraphConnectionCreatedEvent> listener) {
         return on(NodeGraphConnectionCreatedEvent.TYPE, listener);
     }
 
-    public EventSubscription onConnectionRemoved(EventListener<? super NodeGraphConnectionRemovedEvent> listener) {
+    @AiDoc(summary = "Registers a listener called when a connection is deleted.")
+    @WikiMethod(summary = "<key:node.graph.method.onConnectionRemoved>")
+    @WikiReturn("<key:node.graph.return.subscription>")
+    public EventSubscription onConnectionRemoved(@WikiParameter(name = "listener", description = "<key:node.graph.param.listener>") EventListener<? super NodeGraphConnectionRemovedEvent> listener) {
         return on(NodeGraphConnectionRemovedEvent.TYPE, listener);
     }
 
-    public EventSubscription onConnectionDragStarted(EventListener<? super NodeGraphConnectionDragStartedEvent> listener) {
+    @AiDoc(summary = "Registers a listener called when a connection drag starts from a port.")
+    @WikiMethod(summary = "<key:node.graph.method.onConnectionDragStarted>")
+    @WikiReturn("<key:node.graph.return.subscription>")
+    public EventSubscription onConnectionDragStarted(@WikiParameter(name = "listener", description = "<key:node.graph.param.listener>") EventListener<? super NodeGraphConnectionDragStartedEvent> listener) {
         return on(NodeGraphConnectionDragStartedEvent.TYPE, listener);
     }
 
-    public EventSubscription onConnectionDragEnded(EventListener<? super NodeGraphConnectionDragEndedEvent> listener) {
+    @AiDoc(summary = "Registers a listener called when connection drag interaction completes or cancels.")
+    @WikiMethod(summary = "<key:node.graph.method.onConnectionDragEnded>")
+    @WikiReturn("<key:node.graph.return.subscription>")
+    public EventSubscription onConnectionDragEnded(@WikiParameter(name = "listener", description = "<key:node.graph.param.listener>") EventListener<? super NodeGraphConnectionDragEndedEvent> listener) {
         return on(NodeGraphConnectionDragEndedEvent.TYPE, listener);
     }
 
-    public EventSubscription onConnectionSelectionChanged(EventListener<? super NodeGraphConnectionSelectionChangedEvent> listener) {
+    @AiDoc(summary = "Registers a listener called when connection selection state changes.")
+    @WikiMethod(summary = "<key:node.graph.method.onConnectionSelectionChanged>")
+    @WikiReturn("<key:node.graph.return.subscription>")
+    public EventSubscription onConnectionSelectionChanged(@WikiParameter(name = "listener", description = "<key:node.graph.param.listener>") EventListener<? super NodeGraphConnectionSelectionChangedEvent> listener) {
         return on(NodeGraphConnectionSelectionChangedEvent.TYPE, listener);
     }
 

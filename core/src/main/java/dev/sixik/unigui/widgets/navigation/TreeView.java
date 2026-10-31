@@ -1,5 +1,15 @@
 package dev.sixik.unigui.widgets.navigation;
 
+
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.event.*;
@@ -37,6 +47,27 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.function.Consumer;
 
+@AiDoc(summary = "Hierarchical tree container rendering collapsable nodes with custom icons, inline editing, and selection.")
+@WikiPage(
+        title = "TreeView",
+        slug = "tree-view",
+        category = "<key:navigation.category>",
+        summary = "<key:tree.view.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:tree.view.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:tree.view.example.basic.title>",
+        code = "TreeView tree = new TreeView();\nTreeViewNode root = tree.addRoot(\"Project\");\nroot.addChild(\"src\");\nroot.addChild(\"build.gradle\");"
+)
+@WikiLink(
+        label = "TreeList",
+        target = "page:tree-list",
+        description = "<key:tree.list.summary>"
+)
 @XmlWidgetName("TreeView")
 public class TreeView extends LinearBox {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TREE_VIEW;
@@ -69,15 +100,23 @@ public class TreeView extends LinearBox {
     private TreeViewNode editingNode;
     private TextInput editingInput;
 
+    @AiDoc(summary = "Returns the node currently being edited in-place, or null if not editing.")
+    @WikiMethod(summary = "<key:tree.view.method.editingNode>")
+    @WikiReturn("<key:tree.view.return.editingNode>")
     public TreeViewNode editingNode() {
         return editingNode;
     }
 
+    @AiDoc(summary = "Returns true if an inline node label edit operation is active.")
+    @WikiMethod(summary = "<key:tree.view.method.isEditing>")
+    @WikiReturn("<key:tree.view.return.isEditing>")
     public boolean isEditing() {
         return editingNode != null;
     }
 
-    public void startEditing(TreeViewNode node, Consumer<TextInput> config, Consumer<String> onCommit) {
+    @AiDoc(summary = "Starts inline text editing for the specified node with custom text input configuration and commit callback.")
+    @WikiMethod(summary = "<key:tree.view.method.startEditingConfig>")
+    public void startEditing(@WikiParameter(name = "node", description = "<key:tree.view.param.node>") TreeViewNode node, @WikiParameter(name = "config", description = "<key:tree.view.param.config>") java.util.function.Consumer<dev.sixik.unigui.widgets.interaction.TextInput> config, @WikiParameter(name = "onCommit", description = "<key:tree.view.param.onCommit>") java.util.function.Consumer<String> onCommit) {
         if (node == null || node.rowButton() == null) return;
         cancelEditing();
 
@@ -133,10 +172,14 @@ public class TreeView extends LinearBox {
         }
     }
 
-    public void startEditing(TreeViewNode node, Consumer<String> onCommit) {
+    @AiDoc(summary = "Starts inline text editing for the specified node with default input configuration.")
+    @WikiMethod(summary = "<key:tree.view.method.startEditing>")
+    public void startEditing(@WikiParameter(name = "node", description = "<key:tree.view.param.node>") TreeViewNode node, @WikiParameter(name = "onCommit", description = "<key:tree.view.param.onCommit>") java.util.function.Consumer<String> onCommit) {
         startEditing(node, null, onCommit);
     }
 
+    @AiDoc(summary = "Commits and closes the active inline node edit session.")
+    @WikiMethod(summary = "<key:tree.view.method.stopEditing>")
     public void stopEditing() {
         if (editingNode != null && editingInput != null) {
             if (editingNode.rowButton() instanceof TreeRowButton row) {
@@ -148,6 +191,8 @@ public class TreeView extends LinearBox {
         }
     }
 
+    @AiDoc(summary = "Cancels the active inline node edit session without committing changes.")
+    @WikiMethod(summary = "<key:tree.view.method.cancelEditing>")
     public void cancelEditing() {
         stopEditing();
     }
@@ -157,6 +202,9 @@ public class TreeView extends LinearBox {
      *
      * @return текущий режим
      */
+    @AiDoc(summary = "Returns the current tree icon display mode.")
+    @WikiMethod(summary = "<key:tree.view.method.iconModeGet>")
+    @WikiReturn("<key:tree.view.return.iconMode>")
     public TreeIconMode iconMode() {
         return iconMode;
     }
@@ -171,7 +219,10 @@ public class TreeView extends LinearBox {
      * @param iconMode режим или {@code null} (трактуется как {@link TreeIconMode#NONE})
      * @return это дерево
      */
-    public TreeView iconMode(TreeIconMode iconMode) {
+    @AiDoc(summary = "Sets the tree icon display mode.")
+    @WikiMethod(summary = "<key:tree.view.method.iconModeSet>")
+    @WikiReturn("<key:tree.view.return.self>")
+    public TreeView iconMode(@WikiParameter(name = "iconMode", description = "<key:tree.view.param.iconMode>") TreeIconMode iconMode) {
         TreeIconMode normalized = iconMode == null ? TreeIconMode.NONE : iconMode;
         if (this.iconMode == normalized) return this;
         this.iconMode = normalized;
@@ -184,6 +235,8 @@ public class TreeView extends LinearBox {
         return this;
     }
 
+    @AiDoc(summary = "Constructs an empty TreeView container.")
+    @WikiMethod(summary = "<key:tree.view.method.ctorDefault>")
     public TreeView() {
         super(Orientation.VERTICAL);
         spacing(1.0f);
@@ -247,44 +300,71 @@ public class TreeView extends LinearBox {
         return styleValue(StyleKeys.TREE_ICON_COLOR, (ColorView) null);
     }
 
-    public TreeView onRowCreated(Consumer<TreeRowButton> listener) {
+    @AiDoc(summary = "Registers a listener invoked whenever a row button is instantiated or re-bound.")
+    @WikiMethod(summary = "<key:tree.view.method.onRowCreatedSet>")
+    @WikiReturn("<key:tree.view.return.self>")
+    public TreeView onRowCreated(@WikiParameter(name = "listener", description = "<key:tree.view.param.listener>") java.util.function.Consumer<TreeRowButton> listener) {
         this.onRowCreated = listener;
         return this;
     }
 
-    public Consumer<TreeRowButton> onRowCreated() {
+    @AiDoc(summary = "Returns the row creation callback listener.")
+    @WikiMethod(summary = "<key:tree.view.method.onRowCreatedGet>")
+    @WikiReturn("<key:tree.view.return.listener>")
+    public java.util.function.Consumer<TreeRowButton> onRowCreated() {
         return onRowCreated;
     }
 
+    @AiDoc(summary = "Returns an unmodifiable list of top-level root nodes.")
+    @WikiMethod(summary = "<key:tree.view.method.roots>")
+    @WikiReturn("<key:tree.view.return.roots>")
     public List<TreeViewNode> roots() {
         return Collections.unmodifiableList(roots);
     }
 
-    public TreeViewNode root(int index) {
+    @AiDoc(summary = "Returns the root node at the specified index.")
+    @WikiMethod(summary = "<key:tree.view.method.rootIndex>")
+    @WikiReturn("<key:tree.view.return.rootNode>")
+    public TreeViewNode root(@WikiParameter(name = "index", description = "<key:tree.view.param.index>") int index) {
         return roots.get(index);
     }
 
+    @AiDoc(summary = "Returns the total number of root nodes.")
+    @WikiMethod(summary = "<key:tree.view.method.rootCount>")
+    @WikiReturn("<key:tree.view.return.rootCount>")
     public int rootCount() {
         return roots.size();
     }
 
+    @AiDoc(summary = "Returns an unmodifiable list of currently visible (flattened) tree nodes.")
+    @WikiMethod(summary = "<key:tree.view.method.visibleNodes>")
+    @WikiReturn("<key:tree.view.return.visibleNodes>")
     public List<TreeViewNode> visibleNodes() {
         return Collections.unmodifiableList(visibleNodes);
     }
 
-    public TreeViewNode addRoot(String text) {
+    @AiDoc(summary = "Creates and appends a new root node with plain text label.")
+    @WikiMethod(summary = "<key:tree.view.method.addRootText>")
+    @WikiReturn("<key:tree.view.return.node>")
+    public TreeViewNode addRoot(@WikiParameter(name = "text", description = "<key:tree.view.param.text>") String text) {
         TreeViewNode node = new TreeViewNode(text);
         addRoot(node);
         return node;
     }
 
-    public TreeViewNode addRoot(RichText text) {
+    @AiDoc(summary = "Creates and appends a new root node with RichText label.")
+    @WikiMethod(summary = "<key:tree.view.method.addRootRich>")
+    @WikiReturn("<key:tree.view.return.node>")
+    public TreeViewNode addRoot(@WikiParameter(name = "text", description = "<key:tree.view.param.richText>") dev.sixik.unigui.api.text.RichText text) {
         TreeViewNode node = new TreeViewNode(text);
         addRoot(node);
         return node;
     }
 
-    public TreeView insertRoot(int index, TreeViewNode node) {
+    @AiDoc(summary = "Inserts a root node at the specified index.")
+    @WikiMethod(summary = "<key:tree.view.method.insertRoot>")
+    @WikiReturn("<key:tree.view.return.self>")
+    public TreeView insertRoot(@WikiParameter(name = "index", description = "<key:tree.view.param.index>") int index, @WikiParameter(name = "node", description = "<key:tree.view.param.node>") TreeViewNode node) {
         if (node == null) return this;
         if (node.parentInternal() != null) {
             node.parentInternal().removeChild(node);
@@ -300,7 +380,10 @@ public class TreeView extends LinearBox {
         return this;
     }
 
-    public TreeView addRoot(TreeViewNode node) {
+    @AiDoc(summary = "Appends an existing node as a root.")
+    @WikiMethod(summary = "<key:tree.view.method.addRootNode>")
+    @WikiReturn("<key:tree.view.return.self>")
+    public TreeView addRoot(@WikiParameter(name = "node", description = "<key:tree.view.param.node>") TreeViewNode node) {
         if (node == null || roots.contains(node)) return this;
         if (node.parentInternal() != null) {
             node.parentInternal().removeChild(node);
@@ -313,7 +396,10 @@ public class TreeView extends LinearBox {
         return this;
     }
 
-    public TreeView removeRoot(TreeViewNode node) {
+    @AiDoc(summary = "Removes the specified root node from the tree.")
+    @WikiMethod(summary = "<key:tree.view.method.removeRoot>")
+    @WikiReturn("<key:tree.view.return.self>")
+    public TreeView removeRoot(@WikiParameter(name = "node", description = "<key:tree.view.param.node>") TreeViewNode node) {
         if (node == null || !roots.remove(node)) return this;
         onNodeRemoved(node);
         node.attach(null, null);
@@ -321,6 +407,9 @@ public class TreeView extends LinearBox {
         return this;
     }
 
+    @AiDoc(summary = "Removes all root nodes from the tree.")
+    @WikiMethod(summary = "<key:tree.view.method.clearRoots>")
+    @WikiReturn("<key:tree.view.return.self>")
     public TreeView clearRoots() {
         if (roots.isEmpty()) return this;
         for (TreeViewNode root : List.copyOf(roots)) {
@@ -332,11 +421,17 @@ public class TreeView extends LinearBox {
         return this;
     }
 
+    @AiDoc(summary = "Begins a batch update session, suppressing layout recalculations until endBatch is called.")
+    @WikiMethod(summary = "<key:tree.view.method.beginBatch>")
+    @WikiReturn("<key:tree.view.return.self>")
     public TreeView beginBatch() {
         batchDepth++;
         return this;
     }
 
+    @AiDoc(summary = "Ends a batch update session, triggering row rebuilding if mutations occurred.")
+    @WikiMethod(summary = "<key:tree.view.method.endBatch>")
+    @WikiReturn("<key:tree.view.return.self>")
     public TreeView endBatch() {
         if (batchDepth <= 0) return this;
         batchDepth--;
@@ -347,47 +442,77 @@ public class TreeView extends LinearBox {
         return this;
     }
 
+    @AiDoc(summary = "Returns true if batch mode is currently active.")
+    @WikiMethod(summary = "<key:tree.view.method.isBatching>")
+    @WikiReturn("<key:tree.view.return.isBatching>")
     public boolean isBatching() {
         return batchDepth > 0;
     }
 
+    @AiDoc(summary = "Returns the currently selected tree node, or null if none.")
+    @WikiMethod(summary = "<key:tree.view.method.selectedNode>")
+    @WikiReturn("<key:tree.view.return.selectedNode>")
     public TreeViewNode selectedNode() {
         return selectedNode;
     }
 
+    @AiDoc(summary = "Returns the visible index of the currently selected node.")
+    @WikiMethod(summary = "<key:tree.view.method.selectedIndexGet>")
+    @WikiReturn("<key:tree.view.return.selectedIndex>")
     public int selectedIndex() {
         return visibleNodes.indexOf(selectedNode);
     }
 
+    @AiDoc(summary = "Returns the hierarchical index path of the currently selected node.")
+    @WikiMethod(summary = "<key:tree.view.method.selectedPath>")
+    @WikiReturn("<key:tree.view.return.selectedPath>")
     public List<Integer> selectedPath() {
         return pathOf(selectedNode);
     }
 
-    public TreeView select(TreeViewNode node) {
+    @AiDoc(summary = "Selects the specified node and fires a selection change event.")
+    @WikiMethod(summary = "<key:tree.view.method.select>")
+    @WikiReturn("<key:tree.view.return.self>")
+    public TreeView select(@WikiParameter(name = "node", description = "<key:tree.view.param.node>") TreeViewNode node) {
         setSelectedNode(node, true);
         return this;
     }
 
-    public TreeView silentSelect(TreeViewNode node) {
+    @AiDoc(summary = "Selects the specified node without emitting a selection change event.")
+    @WikiMethod(summary = "<key:tree.view.method.silentSelect>")
+    @WikiReturn("<key:tree.view.return.self>")
+    public TreeView silentSelect(@WikiParameter(name = "node", description = "<key:tree.view.param.node>") TreeViewNode node) {
         setSelectedNode(node, false);
         return this;
     }
 
+    @AiDoc(summary = "Clears any current node selection.")
+    @WikiMethod(summary = "<key:tree.view.method.clearSelection>")
+    @WikiReturn("<key:tree.view.return.self>")
     public TreeView clearSelection() {
         setSelectedNode(null, true);
         return this;
     }
 
-    public VBox rowsHost() {
+    @AiDoc(summary = "Returns the vertical container hosting row button widgets.")
+    @WikiMethod(summary = "<key:tree.view.method.rowsHost>")
+    @WikiReturn("<key:tree.view.return.rowsHost>")
+    public dev.sixik.unigui.widgets.containers.VBox rowsHost() {
         return rowsHost;
     }
 
+    @AiDoc(summary = "Returns the text hover scrolling speed in pixels per second for overflowing node labels.")
+    @WikiMethod(summary = "<key:tree.view.method.rowTextHoverScrollSpeedGet>")
+    @WikiReturn("<key:tree.view.return.hoverScrollSpeed>")
     public float rowTextHoverScrollSpeed() {
         return rowTextHoverScrollSpeed;
     }
 
     @XmlAttribute(value = "rowTextHoverScrollSpeed", category = "Behavior", defaultValue = "24", description = "Text marquee speed for overflowing hovered tree rows.")
-    public TreeView rowTextHoverScrollSpeed(float pixelsPerSecond) {
+    @AiDoc(summary = "Sets the text hover scrolling speed in pixels per second.")
+    @WikiMethod(summary = "<key:tree.view.method.rowTextHoverScrollSpeedSet>")
+    @WikiReturn("<key:tree.view.return.self>")
+    public TreeView rowTextHoverScrollSpeed(@WikiParameter(name = "pixelsPerSecond", description = "<key:tree.view.param.speed>") float pixelsPerSecond) {
         float normalized = Float.isFinite(pixelsPerSecond) ? Math.max(0.0f, pixelsPerSecond) : ROW_TEXT_HOVER_SCROLL_SPEED;
         if (rowTextHoverScrollSpeed == normalized) return this;
         rowTextHoverScrollSpeed = normalized;
@@ -395,16 +520,25 @@ public class TreeView extends LinearBox {
         return this;
     }
 
+    @AiDoc(summary = "Returns the text hover scrolling speed.")
+    @WikiMethod(summary = "<key:tree.view.method.hoverScrollSpeedGet>")
+    @WikiReturn("<key:tree.view.return.hoverScrollSpeed>")
     public float hoverScrollSpeed() {
         return rowTextHoverScrollSpeed();
     }
 
     @XmlAttribute(value = "hoverScrollSpeed", category = "Behavior", defaultValue = "24", description = "Alias for rowTextHoverScrollSpeed.")
-    public TreeView hoverScrollSpeed(float pixelsPerSecond) {
+    @AiDoc(summary = "Sets the text hover scrolling speed.")
+    @WikiMethod(summary = "<key:tree.view.method.hoverScrollSpeedSet>")
+    @WikiReturn("<key:tree.view.return.self>")
+    public TreeView hoverScrollSpeed(@WikiParameter(name = "pixelsPerSecond", description = "<key:tree.view.param.speed>") float pixelsPerSecond) {
         return rowTextHoverScrollSpeed(pixelsPerSecond);
     }
 
-    public EventSubscription onSelectionChanged(EventListener<? super SelectionChangedEvent> listener) {
+    @AiDoc(summary = "Registers a listener called when node selection changes.")
+    @WikiMethod(summary = "<key:tree.view.method.onSelectionChanged>")
+    @WikiReturn("<key:tree.view.return.subscription>")
+    public EventSubscription onSelectionChanged(@WikiParameter(name = "listener", description = "<key:tree.view.param.listener>") EventListener<? super dev.sixik.unigui.api.event.SelectionChangedEvent> listener) {
         return on(SelectionChangedEvent.TYPE, listener);
     }
 
@@ -736,6 +870,7 @@ public class TreeView extends LinearBox {
         }
     }
 
+    @AiDoc(summary = "Row button component rendering an individual tree node line.")
     public static final class TreeRowButton extends Button {
         private final TreeView tree;
         private final TreeViewNode node;
@@ -765,14 +900,17 @@ public class TreeView extends LinearBox {
             richText(rowText());
         }
 
+        @AiDoc(summary = "Returns the owning TreeView container.")
         public TreeView tree() {
             return tree;
         }
 
+        @AiDoc(summary = "Returns the associated TreeViewNode.")
         public TreeViewNode node() {
             return node;
         }
 
+        @AiDoc(summary = "Returns the indent depth level of this row.")
         public int depth() {
             return depth;
         }
@@ -1098,6 +1236,7 @@ public class TreeView extends LinearBox {
     /**
      * Режим иконок для узлов без собственной текстуры или отрисовки.
      */
+    @AiDoc(summary = "Defines how icons are rendered in tree view rows.")
     public enum TreeIconMode {
         /**
          * Папка у ветки, файл у листа.

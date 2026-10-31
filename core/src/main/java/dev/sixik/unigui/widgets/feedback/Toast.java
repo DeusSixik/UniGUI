@@ -1,5 +1,14 @@
 package dev.sixik.unigui.widgets.feedback;
 
+
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.layout.Alignment;
@@ -24,6 +33,32 @@ import dev.sixik.unigui.widgets.WidgetStyles;
  * short-lived and bottom-right positioned, while NotificationView remains a
  * richer/persistent notification surface.</p>
  */
+@AiDoc(summary = "Lightweight transient message overlay that auto-dismisses after a configurable duration.")
+@WikiPage(
+        title = "Toast",
+        slug = "toast",
+        category = "<key:feedback.category>",
+        summary = "<key:toast.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:toast.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:toast.example.basic.title>",
+        code = "Toast toast = new Toast(\"Settings saved successfully!\");\ntoast.duration(3.0f).show();"
+)
+@WikiLink(
+        label = "NotificationView",
+        target = "page:notification-view",
+        description = "<key:notification.view.summary>"
+)
+@WikiLink(
+        label = "OverlayLayer",
+        target = "page:overlay-layer",
+        description = "<key:overlay.layer.summary>"
+)
 @XmlWidgetName("Toast")
 public final class Toast extends Box implements OverlayHostAware {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TOAST;
@@ -36,6 +71,8 @@ public final class Toast extends Box implements OverlayHostAware {
     private float height = 34.0f;
     private float margin = 10.0f;
 
+        @AiDoc(summary = "Constructs an empty Toast widget initialized with default styling.")
+    @WikiMethod(summary = "<key:toast.method.ctorDefault>")
     public Toast() {
         applyComponentStyleDefaults(WidgetStyles.Toast.DEFAULT);
         layout(style -> style.position(PositionType.ABSOLUTE).overflow(Overflow.HIDDEN));
@@ -54,55 +91,104 @@ public final class Toast extends Box implements OverlayHostAware {
         return WidgetStyles.Toast.DEFAULT;
     }
 
-    public Toast(String text) {
+        @AiDoc(summary = "Constructs a Toast with the specified message text.")
+    @WikiMethod(summary = "<key:toast.method.ctorText>")
+    public Toast(
+            @WikiParameter(description = "<key:toast.param.text>")
+            String text
+    ) {
         this();
         text(text);
     }
 
+        @AiDoc(summary = "Returns the toast message text.")
+    @WikiMethod(summary = "<key:toast.method.textGet>")
+    @WikiReturn("<key:toast.return.text>")
     public String text() {
         return message.text();
     }
 
     @XmlAttribute(value = "text", category = "Content", defaultValue = "", description = "Toast message text.")
-    public Toast text(String text) {
+        @AiDoc(summary = "Sets the toast message text.")
+    @WikiMethod(summary = "<key:toast.method.textSet>")
+    @WikiReturn("<key:toast.return.this>")
+    public Toast text(
+            @WikiParameter(description = "<key:toast.param.text>")
+            String text
+    ) {
         message.text(text);
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
 
     @XmlAttribute(value = "duration", category = "Behavior", defaultValue = "2.5", description = "Toast lifetime in seconds; 0 keeps it open.")
-    public Toast duration(float seconds) {
+        @AiDoc(summary = "Sets the toast lifetime in seconds before auto-dismissal (0 keeps it open indefinitely).")
+    @WikiMethod(summary = "<key:toast.method.durationSet>")
+    @WikiReturn("<key:toast.return.this>")
+    public Toast duration(
+            @WikiParameter(description = "<key:toast.param.duration>")
+            float seconds
+    ) {
         lifeSeconds = Float.isFinite(seconds) ? Math.max(0.0f, seconds) : 2.5f;
         return this;
     }
 
+        @AiDoc(summary = "Returns the toast lifetime in seconds.")
+    @WikiMethod(summary = "<key:toast.method.durationGet>")
+    @WikiReturn("<key:toast.return.duration>")
     public float duration() {
         return lifeSeconds;
     }
 
-    public Toast preferredSize(float width, float height) {
+        @AiDoc(summary = "Sets the preferred dimensions of the toast card in UI pixels.")
+    @WikiMethod(summary = "<key:toast.method.preferredSize>")
+    @WikiReturn("<key:toast.return.this>")
+    public Toast preferredSize(
+            @WikiParameter(description = "<key:toast.param.width>")
+            float width,
+            @WikiParameter(description = "<key:toast.param.height>")
+            float height
+    ) {
         this.width = Float.isFinite(width) ? Math.max(1.0f, width) : 180.0f;
         this.height = Float.isFinite(height) ? Math.max(1.0f, height) : 34.0f;
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
 
+        @AiDoc(summary = "Returns the margin distance from host edges in UI pixels.")
+    @WikiMethod(summary = "<key:toast.method.marginGet>")
+    @WikiReturn("<key:toast.return.margin>")
     public float margin() {
         return margin;
     }
 
     @XmlAttribute(value = "margin", category = "Layout", defaultValue = "10", description = "Distance from host edges in UI pixels.")
-    public Toast margin(float margin) {
+        @AiDoc(summary = "Sets the margin distance from host edges in UI pixels.")
+    @WikiMethod(summary = "<key:toast.method.marginSet>")
+    @WikiReturn("<key:toast.return.this>")
+    public Toast margin(
+            @WikiParameter(description = "<key:toast.param.margin>")
+            float margin
+    ) {
         this.margin = Float.isFinite(margin) ? Math.max(0.0f, margin) : 10.0f;
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
 
-    public Toast toast(String text) {
+        @AiDoc(summary = "Updates message text and immediately displays the toast with animation.")
+    @WikiMethod(summary = "<key:toast.method.toast>")
+    @WikiReturn("<key:toast.return.this>")
+    public Toast toast(
+            @WikiParameter(description = "<key:toast.param.text>")
+            String text
+    ) {
         text(text);
         return show();
     }
 
+        @AiDoc(summary = "Shows the toast and resets its elapsed time counter.")
+    @WikiMethod(summary = "<key:toast.method.show>")
+    @WikiReturn("<key:toast.return.this>")
     public Toast show() {
         open = true;
         elapsedSeconds = 0.0f;
@@ -112,6 +198,9 @@ public final class Toast extends Box implements OverlayHostAware {
         return this;
     }
 
+        @AiDoc(summary = "Hides the toast immediately.")
+    @WikiMethod(summary = "<key:toast.method.hide>")
+    @WikiReturn("<key:toast.return.this>")
     public Toast hide() {
         open = false;
         visible(false);
@@ -119,6 +208,9 @@ public final class Toast extends Box implements OverlayHostAware {
         return this;
     }
 
+        @AiDoc(summary = "Returns true if the toast is currently visible and active.")
+    @WikiMethod(summary = "<key:toast.method.opened>")
+    @WikiReturn("<key:toast.return.opened>")
     public boolean opened() {
         return open;
     }
@@ -150,7 +242,12 @@ public final class Toast extends Box implements OverlayHostAware {
     }
 
     @Override
-    public void arrangeInHost(RectView hostBounds) {
+        @AiDoc(summary = "Positions the toast anchored to the bottom-right corner of the host container.")
+    @WikiMethod(summary = "<key:toast.method.arrangeInHost>")
+    public void arrangeInHost(
+            @WikiParameter(description = "<key:toast.param.hostBounds>")
+            RectView hostBounds
+    ) {
         if (!open || visibility() == Visibility.COLLAPSED) {
             mutableLayoutBounds().set(hostBounds.x(), hostBounds.y(), 0.0f, 0.0f);
             return;

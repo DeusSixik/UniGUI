@@ -2,40 +2,25 @@ package dev.sixik.unigui.widgets.interaction;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
-import dev.sixik.unigui.api.event.Event;
-import dev.sixik.unigui.api.event.EventListener;
-import dev.sixik.unigui.api.event.EventPhase;
-import dev.sixik.unigui.api.event.EventSubscription;
-import dev.sixik.unigui.api.event.KeyPressedEvent;
-import dev.sixik.unigui.api.event.PointerEvent;
-import dev.sixik.unigui.api.event.PointerMovedEvent;
-import dev.sixik.unigui.api.event.PointerPressedEvent;
-import dev.sixik.unigui.api.event.PointerReleasedEvent;
-import dev.sixik.unigui.api.event.SliderValueChangedEvent;
+import dev.sixik.unigui.api.docs.*;
+import dev.sixik.unigui.api.event.*;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
-import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
-import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.Style;
+import dev.sixik.unigui.api.style.StyleAnimationIds;
+import dev.sixik.unigui.api.style.StyleIds;
+import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.utils.reactive.*;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.render.WidgetRole;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
-import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.WidgetStyles;
-import dev.sixik.unigui.api.style.StyleAnimationIds;
-import dev.sixik.unigui.api.style.StyleIds;
-import dev.sixik.unigui.api.docs.AiDoc;
-import dev.sixik.unigui.api.docs.WikiExample;
-import dev.sixik.unigui.api.docs.WikiMethod;
-import dev.sixik.unigui.api.docs.WikiPage;
-import dev.sixik.unigui.api.docs.WikiParameter;
-import dev.sixik.unigui.api.docs.WikiReturn;
-import dev.sixik.unigui.api.docs.WikiSection;
+import dev.sixik.unigui.widgets.containers.Box;
 
 @AiDoc(
         summary = "Range slider control allowing continuous or stepped value adjustment with draggable thumb.",
@@ -281,6 +266,20 @@ public class Slider extends Box {
             summary = "<key:slider.method.on_value_changed.summary>")
     public EventSubscription onValueChanged(EventListener<? super SliderValueChangedEvent> listener) {
         return on(SliderValueChangedEvent.TYPE, listener);
+    }
+
+    @Override
+    protected <T> SignalSubscription createBinding(BindingData<T> key, T signal) {
+        if (key == BindingKeys.SLIDER_VALUE) {
+            FloatSignal value = BindingKeys.SLIDER_VALUE.cast(signal);
+            SignalSubscription signalSubscription = value.subscribe(this::value);
+            EventSubscription widgetSubscription = onValueChanged(event -> value.set(event.newValue()));
+            return () -> {
+                widgetSubscription.close();
+                signalSubscription.close();
+            };
+        }
+        return super.createBinding(key, signal);
     }
 
     @Override

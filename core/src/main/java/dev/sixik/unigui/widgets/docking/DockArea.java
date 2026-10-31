@@ -20,8 +20,7 @@ import dev.sixik.unigui.widgets.containers.DockSide;
  * <p>{@link #CENTER} and {@link #TAB} both mean tab insertion today. CENTER is
  * the geometric central drop zone, while TAB is the explicit tab-strip semantic.</p>
  */
-@AiDoc(
-        description = "Target destination zone for docking operations: edge splits (LEFT, RIGHT, TOP, BOTTOM), tab groupings (CENTER, TAB), or detached floating windows (FLOAT)."
+@AiDoc(summary = "Target destination zone for docking operations: edge splits (LEFT, RIGHT, TOP, BOTTOM), tab groupings (CENTER, TAB), or detached floating windows (FLOAT)."
 )
 @WikiPage(
         title = "DockArea",
@@ -45,23 +44,16 @@ import dev.sixik.unigui.widgets.containers.DockSide;
         description = "<key:docking.manager.summary>"
 )
 public enum DockArea {
-    @AiDoc(description = "Dock to the left side by creating a horizontal split with the target.")
     LEFT,
-    @AiDoc(description = "Dock to the right side by creating a horizontal split with the target.")
     RIGHT,
-    @AiDoc(description = "Dock above the target by creating a vertical split.")
     TOP,
-    @AiDoc(description = "Dock below the target by creating a vertical split.")
     BOTTOM,
-    @AiDoc(description = "Dock into the central area as an added tab.")
     CENTER,
-    @AiDoc(description = "Dock explicitly into the tab strip of the target leaf.")
     TAB,
-    @AiDoc(description = "Detach the pane into an independent floating window.")
     FLOAT;
 
-    @AiDoc(description = "Returns the split orientation corresponding to edge areas, or null for non-split areas.")
-    @WikiMethod(description = "<key:dock.area.method.splitOrientation>")
+    @AiDoc(summary = "Returns the split orientation corresponding to edge areas, or null for non-split areas.")
+    @WikiMethod(summary = "<key:dock.area.method.splitOrientation>")
     @WikiReturn("<key:dock.area.return.splitOrientation>")
     public DockSplitOrientation splitOrientation() {
         return switch (this) {
@@ -71,8 +63,8 @@ public enum DockArea {
         };
     }
 
-    @AiDoc(description = "Returns true if the area places the new pane before the existing target node.")
-    @WikiMethod(description = "<key:dock.area.method.insertsBeforeTarget>")
+    @AiDoc(summary = "Returns true if the area places the new pane before the existing target node.")
+    @WikiMethod(summary = "<key:dock.area.method.insertsBeforeTarget>")
     @WikiReturn("<key:dock.area.return.insertsBeforeTarget>")
     public boolean insertsBeforeTarget() {
         return this == LEFT || this == TOP;

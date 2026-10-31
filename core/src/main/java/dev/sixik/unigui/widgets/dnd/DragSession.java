@@ -36,8 +36,7 @@ import java.util.Objects;
  *   <li>отправляет {@link DragLeaveEvent} зоне, которую указатель покинул.</li>
  * </ol>
  */
-@AiDoc(
-        description = "Live state and controller of an active drag gesture, managing pointer coordinates, active drop target, ghost positioning, insertion indicators, and autoscrolling."
+@AiDoc(summary = "Live state and controller of an active drag gesture, managing pointer coordinates, active drop target, ghost positioning, insertion indicators, and autoscrolling."
 )
 @WikiPage(
         title = "DragSession",
@@ -115,8 +114,8 @@ public final class DragSession {
     /**
      * @return payload перетаскиваемого объекта
      */
-    @AiDoc(description = "Returns the payload associated with this drag session.")
-    @WikiMethod(description = "<key:drag.session.method.payload>")
+    @AiDoc(summary = "Returns the payload associated with this drag session.")
+    @WikiMethod(summary = "<key:drag.session.method.payload>")
     @WikiReturn("<key:drag.session.return.payload>")
     public DragPayload payload() {
         return payload;
@@ -125,8 +124,8 @@ public final class DragSession {
     /**
      * @return виджет, за который тянут (на нём висит {@link DragController})
      */
-    @AiDoc(description = "Returns the handle widget initiating the drag.")
-    @WikiMethod(description = "<key:drag.session.method.handle>")
+    @AiDoc(summary = "Returns the handle widget initiating the drag.")
+    @WikiMethod(summary = "<key:drag.session.method.handle>")
     @WikiReturn("<key:drag.session.return.handle>")
     public Widget handle() {
         return handle;
@@ -135,8 +134,8 @@ public final class DragSession {
     /**
      * @return виджет, который логически перемещается (по умолчанию совпадает с {@link #handle()})
      */
-    @AiDoc(description = "Returns the widget that is logically moved.")
-    @WikiMethod(description = "<key:drag.session.method.dragged>")
+    @AiDoc(summary = "Returns the widget that is logically moved.")
+    @WikiMethod(summary = "<key:drag.session.method.dragged>")
     @WikiReturn("<key:drag.session.return.dragged>")
     public Widget dragged() {
         return dragged;
@@ -145,8 +144,8 @@ public final class DragSession {
     /**
      * @return корень дерева, в котором ищутся drop-зоны
      */
-    @AiDoc(description = "Returns the topmost root widget of the hierarchy.")
-    @WikiMethod(description = "<key:drag.session.method.root>")
+    @AiDoc(summary = "Returns the topmost root widget of the hierarchy.")
+    @WikiMethod(summary = "<key:drag.session.method.root>")
     @WikiReturn("<key:drag.session.return.root>")
     public Widget root() {
         return root;
@@ -155,22 +154,22 @@ public final class DragSession {
     /**
      * @return UI context сессии
      */
-    @AiDoc(description = "Returns the UI context for this session.")
-    @WikiMethod(description = "<key:drag.session.method.uiContext>")
+    @AiDoc(summary = "Returns the UI context for this session.")
+    @WikiMethod(summary = "<key:drag.session.method.uiContext>")
     @WikiReturn("<key:drag.session.return.uiContext>")
     public UIContext uiContext() {
         return context;
     }
 
-    @AiDoc(description = "Returns the current pointer X coordinate in root space.")
-    @WikiMethod(description = "<key:drag.session.method.pointerX>")
+    @AiDoc(summary = "Returns the current pointer X coordinate in root space.")
+    @WikiMethod(summary = "<key:drag.session.method.pointerX>")
     @WikiReturn("<key:drag.session.return.pointerX>")
     public float pointerX() {
         return pointerX;
     }
 
-    @AiDoc(description = "Returns the current pointer Y coordinate in root space.")
-    @WikiMethod(description = "<key:drag.session.method.pointerY>")
+    @AiDoc(summary = "Returns the current pointer Y coordinate in root space.")
+    @WikiMethod(summary = "<key:drag.session.method.pointerY>")
     @WikiReturn("<key:drag.session.return.pointerY>")
     public float pointerY() {
         return pointerY;
@@ -179,8 +178,8 @@ public final class DragSession {
     /**
      * @return X нажатия, с которого начался жест
      */
-    @AiDoc(description = "Returns the initial press X coordinate.")
-    @WikiMethod(description = "<key:drag.session.method.pressX>")
+    @AiDoc(summary = "Returns the initial press X coordinate.")
+    @WikiMethod(summary = "<key:drag.session.method.pressX>")
     @WikiReturn("<key:drag.session.return.pressX>")
     public float pressX() {
         return pressX;
@@ -189,8 +188,8 @@ public final class DragSession {
     /**
      * @return Y нажатия, с которого начался жест
      */
-    @AiDoc(description = "Returns the initial press Y coordinate.")
-    @WikiMethod(description = "<key:drag.session.method.pressY>")
+    @AiDoc(summary = "Returns the initial press Y coordinate.")
+    @WikiMethod(summary = "<key:drag.session.method.pressY>")
     @WikiReturn("<key:drag.session.return.pressY>")
     public float pressY() {
         return pressY;
@@ -199,8 +198,8 @@ public final class DragSession {
     /**
      * @return сдвиг указателя от точки нажатия по X
      */
-    @AiDoc(description = "Returns the pointer movement delta along the X axis.")
-    @WikiMethod(description = "<key:drag.session.method.deltaX>")
+    @AiDoc(summary = "Returns the pointer movement delta along the X axis.")
+    @WikiMethod(summary = "<key:drag.session.method.deltaX>")
     @WikiReturn("<key:drag.session.return.deltaX>")
     public float deltaX() {
         return pointerX - pressX;
@@ -209,8 +208,8 @@ public final class DragSession {
     /**
      * @return сдвиг указателя от точки нажатия по Y
      */
-    @AiDoc(description = "Returns the pointer movement delta along the Y axis.")
-    @WikiMethod(description = "<key:drag.session.method.deltaY>")
+    @AiDoc(summary = "Returns the pointer movement delta along the Y axis.")
+    @WikiMethod(summary = "<key:drag.session.method.deltaY>")
     @WikiReturn("<key:drag.session.return.deltaY>")
     public float deltaY() {
         return pointerY - pressY;
@@ -219,8 +218,8 @@ public final class DragSession {
     /**
      * @return сдвиг ghost'а по X с учётом блокировки оси и компенсации прокрутки контейнера
      */
-    @AiDoc(description = "Returns the ghost X offset accounting for axis locking and container scroll compensation.")
-    @WikiMethod(description = "<key:drag.session.method.ghostOffsetX>")
+    @AiDoc(summary = "Returns the ghost X offset accounting for axis locking and container scroll compensation.")
+    @WikiMethod(summary = "<key:drag.session.method.ghostOffsetX>")
     @WikiReturn("<key:drag.session.return.ghostOffsetX>")
     public float ghostOffsetX() {
         return ghostOffsetX(ghostWidget != null ? ghostWidget : handle, initialGhostX);
@@ -229,8 +228,8 @@ public final class DragSession {
     /**
      * @return сдвиг ghost'а по Y с учётом блокировки оси и компенсации прокрутки контейнера
      */
-    @AiDoc(description = "Returns the ghost Y offset accounting for axis locking and container scroll compensation.")
-    @WikiMethod(description = "<key:drag.session.method.ghostOffsetY>")
+    @AiDoc(summary = "Returns the ghost Y offset accounting for axis locking and container scroll compensation.")
+    @WikiMethod(summary = "<key:drag.session.method.ghostOffsetY>")
     @WikiReturn("<key:drag.session.return.ghostOffsetY>")
     public float ghostOffsetY() {
         return ghostOffsetY(ghostWidget != null ? ghostWidget : handle, initialGhostY);
@@ -240,8 +239,8 @@ public final class DragSession {
      * Возвращает сдвиг ghost'а по X для указанного виджета с учётом блокировки оси
      * и компенсации смещения самого виджета (например, при скролле).
      */
-    @AiDoc(description = "Calculates the ghost X offset for a specific widget with initial coordinate compensation.")
-    @WikiMethod(description = "<key:drag.session.method.ghostOffsetXWidget>")
+    @AiDoc(summary = "Calculates the ghost X offset for a specific widget with initial coordinate compensation.")
+    @WikiMethod(summary = "<key:drag.session.method.ghostOffsetXWidget>")
     @WikiReturn("<key:drag.session.return.ghostOffsetX>")
     public float ghostOffsetX(
             @WikiParameter(description = "<key:drag.session.param.widget>")
@@ -257,8 +256,8 @@ public final class DragSession {
      * Возвращает сдвиг ghost'а по Y для указанного виджета с учётом блокировки оси
      * и компенсации смещения самого виджета (например, при скролле).
      */
-    @AiDoc(description = "Calculates the ghost Y offset for a specific widget with initial coordinate compensation.")
-    @WikiMethod(description = "<key:drag.session.method.ghostOffsetYWidget>")
+    @AiDoc(summary = "Calculates the ghost Y offset for a specific widget with initial coordinate compensation.")
+    @WikiMethod(summary = "<key:drag.session.method.ghostOffsetYWidget>")
     @WikiReturn("<key:drag.session.return.ghostOffsetY>")
     public float ghostOffsetY(
             @WikiParameter(description = "<key:drag.session.param.widget>")
@@ -273,8 +272,8 @@ public final class DragSession {
     /**
      * @return {@code true}, пока жест идёт
      */
-    @AiDoc(description = "Returns true while the drag session is actively ongoing.")
-    @WikiMethod(description = "<key:drag.session.method.active>")
+    @AiDoc(summary = "Returns true while the drag session is actively ongoing.")
+    @WikiMethod(summary = "<key:drag.session.method.active>")
     @WikiReturn("<key:drag.session.return.active>")
     public boolean active() {
         return active;
@@ -283,8 +282,8 @@ public final class DragSession {
     /**
      * @return текущая drop-зона, которая приняла payload, или {@code null}
      */
-    @AiDoc(description = "Returns the currently hovered drop zone that accepted the payload, or null.")
-    @WikiMethod(description = "<key:drag.session.method.dropTarget>")
+    @AiDoc(summary = "Returns the currently hovered drop zone that accepted the payload, or null.")
+    @WikiMethod(summary = "<key:drag.session.method.dropTarget>")
     @WikiReturn("<key:drag.session.return.dropTarget>")
     public Widget dropTarget() {
         return dropTarget;
@@ -293,8 +292,8 @@ public final class DragSession {
     /**
      * @return ghost сессии
      */
-    @AiDoc(description = "Returns the visual drag ghost used in this session.")
-    @WikiMethod(description = "<key:drag.session.method.ghost>")
+    @AiDoc(summary = "Returns the visual drag ghost used in this session.")
+    @WikiMethod(summary = "<key:drag.session.method.ghost>")
     @WikiReturn("<key:drag.session.return.ghost>")
     public DragGhost ghost() {
         return ghost;
@@ -303,8 +302,8 @@ public final class DragSession {
     /**
      * Отменяет жест: зона получает {@link DragLeaveEvent}, drop не происходит.
      */
-    @AiDoc(description = "Cancels the active drag gesture.")
-    @WikiMethod(description = "<key:drag.session.method.cancel>")
+    @AiDoc(summary = "Cancels the active drag gesture.")
+    @WikiMethod(summary = "<key:drag.session.method.cancel>")
     public void cancel() {
         controller.cancel();
     }
@@ -320,8 +319,8 @@ public final class DragSession {
      * @param height высота
      * @param color  цвет индикатора
      */
-    @AiDoc(description = "Displays a drop insertion indicator rectangle in the overlay layer.")
-    @WikiMethod(description = "<key:drag.session.method.showIndicator>")
+    @AiDoc(summary = "Displays a drop insertion indicator rectangle in the overlay layer.")
+    @WikiMethod(summary = "<key:drag.session.method.showIndicator>")
     public void showIndicator(
             @WikiParameter(description = "<key:drag.session.param.indicatorX>")
             float x,
@@ -345,8 +344,8 @@ public final class DragSession {
     /**
      * Скрывает индикатор вставки.
      */
-    @AiDoc(description = "Hides the drop insertion indicator.")
-    @WikiMethod(description = "<key:drag.session.method.clearIndicator>")
+    @AiDoc(summary = "Hides the drop insertion indicator.")
+    @WikiMethod(summary = "<key:drag.session.method.clearIndicator>")
     public void clearIndicator() {
         indicatorVisible = false;
     }
@@ -354,43 +353,43 @@ public final class DragSession {
     /**
      * @return {@code true}, если индикатор вставки сейчас показан
      */
-    @AiDoc(description = "Returns true if the insertion indicator is currently visible.")
-    @WikiMethod(description = "<key:drag.session.method.indicatorVisible>")
+    @AiDoc(summary = "Returns true if the insertion indicator is currently visible.")
+    @WikiMethod(summary = "<key:drag.session.method.indicatorVisible>")
     @WikiReturn("<key:drag.session.return.indicatorVisible>")
     public boolean indicatorVisible() {
         return indicatorVisible;
     }
 
-    @AiDoc(description = "Returns the insertion indicator X coordinate.")
-    @WikiMethod(description = "<key:drag.session.method.indicatorX>")
+    @AiDoc(summary = "Returns the insertion indicator X coordinate.")
+    @WikiMethod(summary = "<key:drag.session.method.indicatorX>")
     @WikiReturn("<key:drag.session.return.indicatorX>")
     public float indicatorX() {
         return indicatorX;
     }
 
-    @AiDoc(description = "Returns the insertion indicator Y coordinate.")
-    @WikiMethod(description = "<key:drag.session.method.indicatorY>")
+    @AiDoc(summary = "Returns the insertion indicator Y coordinate.")
+    @WikiMethod(summary = "<key:drag.session.method.indicatorY>")
     @WikiReturn("<key:drag.session.return.indicatorY>")
     public float indicatorY() {
         return indicatorY;
     }
 
-    @AiDoc(description = "Returns the insertion indicator width.")
-    @WikiMethod(description = "<key:drag.session.method.indicatorWidth>")
+    @AiDoc(summary = "Returns the insertion indicator width.")
+    @WikiMethod(summary = "<key:drag.session.method.indicatorWidth>")
     @WikiReturn("<key:drag.session.return.indicatorWidth>")
     public float indicatorWidth() {
         return indicatorWidth;
     }
 
-    @AiDoc(description = "Returns the insertion indicator height.")
-    @WikiMethod(description = "<key:drag.session.method.indicatorHeight>")
+    @AiDoc(summary = "Returns the insertion indicator height.")
+    @WikiMethod(summary = "<key:drag.session.method.indicatorHeight>")
     @WikiReturn("<key:drag.session.return.indicatorHeight>")
     public float indicatorHeight() {
         return indicatorHeight;
     }
 
-    @AiDoc(description = "Returns the insertion indicator color.")
-    @WikiMethod(description = "<key:drag.session.method.indicatorColor>")
+    @AiDoc(summary = "Returns the insertion indicator color.")
+    @WikiMethod(summary = "<key:drag.session.method.indicatorColor>")
     @WikiReturn("<key:drag.session.return.indicatorColor>")
     public ColorView indicatorColor() {
         return indicatorColor;

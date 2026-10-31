@@ -18,8 +18,7 @@ import dev.sixik.unigui.api.widget.Widget;
  * активной целью сессии и останавливает всплытие, поэтому побеждает ближайшая к указателю зона.
  * Зона, которая payload не принимает, ничего не делает, и событие уходит к родителям.</p>
  */
-@AiDoc(
-        description = "Routed event probing candidate drop zones beneath the pointer during drag movement and animation ticks."
+@AiDoc(summary = "Routed event probing candidate drop zones beneath the pointer during drag movement and animation ticks."
 )
 @WikiPage(
         title = "DragOverEvent",
@@ -58,8 +57,8 @@ public final class DragOverEvent extends DragRoutedEvent {
      *
      * @param zone виджет-drop-зона, который получит {@link DragDropEvent} при отпускании
      */
-    @AiDoc(description = "Designates the specified widget as the active drop target and stops further event bubbling.")
-    @WikiMethod(description = "<key:drag.over.event.method.accept>")
+    @AiDoc(summary = "Designates the specified widget as the active drop target and stops further event bubbling.")
+    @WikiMethod(summary = "<key:drag.over.event.method.accept>")
     public void accept(
             @WikiParameter(description = "<key:drag.over.event.param.zone>")
             Widget zone

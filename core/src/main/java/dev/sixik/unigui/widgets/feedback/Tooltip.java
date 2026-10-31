@@ -1,5 +1,15 @@
 package dev.sixik.unigui.widgets.feedback;
 
+
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.event.EventSubscription;
@@ -28,6 +38,32 @@ import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.WidgetStyles;
 
 @XmlWidgetName("Tooltip")
+@AiDoc(summary = "Hover-activated informative tooltip box displaying text or RichText formatted content anchored to a widget.")
+@WikiPage(
+        title = "Tooltip",
+        slug = "tooltip",
+        category = "<key:feedback.category>",
+        summary = "<key:tooltip.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:tooltip.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:tooltip.example.basic.title>",
+        code = "Tooltip tooltip = new Tooltip(button, \"Click to save progress\");"
+)
+@WikiLink(
+        label = "Popup",
+        target = "page:popup",
+        description = "<key:popup.summary>"
+)
+@WikiLink(
+        label = "OverlayLayer",
+        target = "page:overlay-layer",
+        description = "<key:overlay.layer.summary>"
+)
 public class Tooltip extends Box implements OverlayHostAware {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TOOLTIP;
 
@@ -49,6 +85,8 @@ public class Tooltip extends Box implements OverlayHostAware {
     private float lastAnchorWidth = Float.NaN;
     private float lastAnchorHeight = Float.NaN;
 
+        @AiDoc(summary = "Constructs an empty Tooltip.")
+    @WikiMethod(summary = "<key:tooltip.method.ctorDefault>")
     public Tooltip() {
         applyComponentStyleDefaults(WidgetStyles.Tooltip.DEFAULT);
         enabled(false);
@@ -79,23 +117,46 @@ public class Tooltip extends Box implements OverlayHostAware {
         return STYLE_TYPE;
     }
 
-    public Tooltip(Widget anchor, String text) {
+        @AiDoc(summary = "Constructs a Tooltip anchored to a widget with plain text.")
+    @WikiMethod(summary = "<key:tooltip.method.ctorAnchorText>")
+    public Tooltip(
+            @WikiParameter(description = "<key:tooltip.param.anchor>")
+            Widget anchor,
+            @WikiParameter(description = "<key:tooltip.param.text>")
+            String text
+    ) {
         this();
         anchor(anchor);
         text(text);
     }
 
-    public Tooltip(Widget anchor, RichText text) {
+        @AiDoc(summary = "Constructs a Tooltip anchored to a widget with RichText.")
+    @WikiMethod(summary = "<key:tooltip.method.ctorAnchorRich>")
+    public Tooltip(
+            @WikiParameter(description = "<key:tooltip.param.anchor>")
+            Widget anchor,
+            @WikiParameter(description = "<key:tooltip.param.richText>")
+            RichText text
+    ) {
         this();
         anchor(anchor);
         richText(text);
     }
 
+        @AiDoc(summary = "Returns the anchor widget this tooltip observes.")
+    @WikiMethod(summary = "<key:tooltip.method.anchorGet>")
+    @WikiReturn("<key:tooltip.return.anchor>")
     public Widget anchor() {
         return anchor;
     }
 
-    public Tooltip anchor(Widget anchor) {
+        @AiDoc(summary = "Sets the anchor widget this tooltip observes.")
+    @WikiMethod(summary = "<key:tooltip.method.anchorSet>")
+    @WikiReturn("<key:tooltip.return.this>")
+    public Tooltip anchor(
+            @WikiParameter(description = "<key:tooltip.param.anchor>")
+            Widget anchor
+    ) {
         if (this.anchor == anchor) return this;
         unsubscribeFromAnchor();
         this.anchor = anchor;
@@ -108,12 +169,21 @@ public class Tooltip extends Box implements OverlayHostAware {
         return this;
     }
 
+        @AiDoc(summary = "Returns the tooltip plain text.")
+    @WikiMethod(summary = "<key:tooltip.method.textGet>")
+    @WikiReturn("<key:tooltip.return.text>")
     public String text() {
         return text;
     }
 
     @XmlAttribute(value = "text", category = "Content", defaultValue = "", description = "Plain tooltip text.")
-    public Tooltip text(String text) {
+        @AiDoc(summary = "Sets the tooltip plain text.")
+    @WikiMethod(summary = "<key:tooltip.method.textSet>")
+    @WikiReturn("<key:tooltip.return.this>")
+    public Tooltip text(
+            @WikiParameter(description = "<key:tooltip.param.text>")
+            String text
+    ) {
         String normalized = text == null ? "" : text;
         RichText normalizedRichText = RichText.resolve(normalized);
         if (Objects.equals(this.richText, normalizedRichText)) return this;
@@ -123,11 +193,20 @@ public class Tooltip extends Box implements OverlayHostAware {
         return this;
     }
 
+        @AiDoc(summary = "Returns the formatted RichText content.")
+    @WikiMethod(summary = "<key:tooltip.method.richTextGet>")
+    @WikiReturn("<key:tooltip.return.richText>")
     public RichText richText() {
         return richText;
     }
 
-    public Tooltip richText(RichText richText) {
+        @AiDoc(summary = "Sets the formatted RichText content.")
+    @WikiMethod(summary = "<key:tooltip.method.richTextSet>")
+    @WikiReturn("<key:tooltip.return.this>")
+    public Tooltip richText(
+            @WikiParameter(description = "<key:tooltip.param.richText>")
+            RichText richText
+    ) {
         RichText normalized = richText == null ? RichText.plain("") : richText;
         if (Objects.equals(this.richText, normalized)) return this;
         this.richText = normalized;
@@ -136,7 +215,15 @@ public class Tooltip extends Box implements OverlayHostAware {
         return this;
     }
 
-    public Tooltip offset(float x, float y) {
+        @AiDoc(summary = "Sets cursor displacement offset in UI pixels.")
+    @WikiMethod(summary = "<key:tooltip.method.offset>")
+    @WikiReturn("<key:tooltip.return.this>")
+    public Tooltip offset(
+            @WikiParameter(description = "<key:tooltip.param.x>")
+            float x,
+            @WikiParameter(description = "<key:tooltip.param.y>")
+            float y
+    ) {
         float normalizedX = Float.isFinite(x) ? x : 8.0f;
         float normalizedY = Float.isFinite(y) ? y : 10.0f;
         if (offsetX == normalizedX && offsetY == normalizedY) return this;
@@ -146,12 +233,21 @@ public class Tooltip extends Box implements OverlayHostAware {
         return this;
     }
 
+        @AiDoc(summary = "Returns the maximum tooltip wrap width.")
+    @WikiMethod(summary = "<key:tooltip.method.maxWidthGet>")
+    @WikiReturn("<key:tooltip.return.maxWidth>")
     public float maxWidth() {
         return maxWidth;
     }
 
     @XmlAttribute(value = "maxWidth", category = "Layout", defaultValue = "220", description = "Maximum tooltip width in UI pixels.")
-    public Tooltip maxWidth(float maxWidth) {
+        @AiDoc(summary = "Sets the maximum tooltip wrap width.")
+    @WikiMethod(summary = "<key:tooltip.method.maxWidthSet>")
+    @WikiReturn("<key:tooltip.return.this>")
+    public Tooltip maxWidth(
+            @WikiParameter(description = "<key:tooltip.param.maxWidth>")
+            float maxWidth
+    ) {
         float normalized = Float.isFinite(maxWidth) ? Math.max(HORIZONTAL_PADDING * 2.0f + TextEngine.APPROX_CHAR_WIDTH, maxWidth) : DEFAULT_MAX_WIDTH;
         if (this.maxWidth == normalized) return this;
         this.maxWidth = normalized;
@@ -159,10 +255,16 @@ public class Tooltip extends Box implements OverlayHostAware {
         return this;
     }
 
+        @AiDoc(summary = "Returns the mutable text foreground color.")
+    @WikiMethod(summary = "<key:tooltip.method.textColor>")
+    @WikiReturn("<key:tooltip.return.textColor>")
     public MutableColor textColor() {
         return textColor;
     }
 
+        @AiDoc(summary = "Returns true if the tooltip is currently visible.")
+    @WikiMethod(summary = "<key:tooltip.method.showing>")
+    @WikiReturn("<key:tooltip.return.showing>")
     public boolean showing() {
         return visibility() == Visibility.VISIBLE && anchor != null && isAnchorHovered(anchor)
                 && isEffectivelyVisible(anchor) && !text.isEmpty();
@@ -230,7 +332,12 @@ public class Tooltip extends Box implements OverlayHostAware {
     }
 
     @Override
-    public void arrangeInHost(RectView bounds) {
+        @AiDoc(summary = "Clamps and positions the tooltip relative to pointer within host bounds.")
+    @WikiMethod(summary = "<key:tooltip.method.arrangeInHost>")
+    public void arrangeInHost(
+            @WikiParameter(description = "<key:tooltip.param.bounds>")
+            RectView bounds
+    ) {
         if (visibility() == Visibility.COLLAPSED || anchor == null) {
             mutableLayoutBounds().set(bounds.x(), bounds.y(), 0.0f, 0.0f);
             return;

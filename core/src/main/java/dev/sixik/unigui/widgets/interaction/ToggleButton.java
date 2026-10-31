@@ -5,8 +5,6 @@ import dev.sixik.unigui.api.docs.WikiExample;
 import dev.sixik.unigui.api.docs.WikiLink;
 import dev.sixik.unigui.api.docs.WikiMethod;
 import dev.sixik.unigui.api.docs.WikiPage;
-import dev.sixik.unigui.api.docs.WikiParameter;
-import dev.sixik.unigui.api.docs.WikiReturn;
 import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.event.*;
@@ -138,8 +136,8 @@ public class ToggleButton extends Button {
 
     @Override
     protected <T> SignalSubscription createBinding(BindingData<T> key, T source) {
-        if (key == BindingKeys.CHECKED) {
-            BooleanSignal checked = BindingKeys.CHECKED.cast(source);
+        if (key == BindingKeys.TOGGLE_BUTTON_CHECKED) {
+            BooleanSignal checked = BindingKeys.TOGGLE_BUTTON_CHECKED.cast(source);
             SignalSubscription signalSubscription = checked.subscribe(this::checked);
             EventSubscription widgetSubscription = onCheckedChanged(event -> checked.set(event.newValue()));
             return () -> {

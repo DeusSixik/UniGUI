@@ -14,8 +14,7 @@ import dev.sixik.unigui.api.widget.Widget;
  * <p>Событие доставляется напрямую зоне, которая последней приняла {@link DragOverEvent}.
  * К этому моменту указатель уже проверен в финальной точке отпускания.</p>
  */
-@AiDoc(
-        description = "Routed event delivered to the target drop zone when the pointer is released with an accepted payload."
+@AiDoc(summary = "Routed event delivered to the target drop zone when the pointer is released with an accepted payload."
 )
 @WikiPage(
         title = "DragDropEvent",

@@ -17,8 +17,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
  * @param preview short label used by drag previews
  * @param data optional in-process data
  */
-@AiDoc(
-        description = "Immutable transfer payload conveying identifier, type, preview text, and optional user object between drag source and drop target."
+@AiDoc(summary = "Immutable transfer payload conveying identifier, type, preview text, and optional user object between drag source and drop target."
 )
 @WikiPage(
         title = "DragPayload",
@@ -76,8 +75,8 @@ public record DragPayload(
      * @param type тип для фильтрации drop-target'ом; пустое значение становится {@code generic}
      * @param preview подпись drag-preview; пустое значение заменяется идентификатором
      */
-    @AiDoc(description = "Constructs a drag payload without extra object data.")
-    @WikiMethod(description = "<key:drag.payload.method.ctor.basic>")
+    @AiDoc(summary = "Constructs a drag payload without extra object data.")
+    @WikiMethod(summary = "<key:drag.payload.method.ctor.basic>")
     public DragPayload(
             @WikiParameter(description = "<key:drag.payload.param.id>")
             String id,
@@ -97,8 +96,8 @@ public record DragPayload(
      * @param preview подпись drag-preview
      * @return нормализованный неизменяемый payload
      */
-    @AiDoc(description = "Factory method to create a payload without extra data.")
-    @WikiMethod(description = "<key:drag.payload.method.of.basic>")
+    @AiDoc(summary = "Factory method to create a payload without extra data.")
+    @WikiMethod(summary = "<key:drag.payload.method.of.basic>")
     @WikiReturn("<key:drag.payload.return.payload>")
     public static DragPayload of(
             @WikiParameter(description = "<key:drag.payload.param.id>")
@@ -120,8 +119,8 @@ public record DragPayload(
      * @param data произвольные данные либо {@code null}
      * @return нормализованный неизменяемый payload
      */
-    @AiDoc(description = "Factory method to create a payload with arbitrary in-process data.")
-    @WikiMethod(description = "<key:drag.payload.method.of.data>")
+    @AiDoc(summary = "Factory method to create a payload with arbitrary in-process data.")
+    @WikiMethod(summary = "<key:drag.payload.method.of.data>")
     @WikiReturn("<key:drag.payload.return.payload>")
     public static DragPayload of(
             @WikiParameter(description = "<key:drag.payload.param.id>")
@@ -142,8 +141,8 @@ public record DragPayload(
      * @param expectedType точный ожидаемый тип или {@code *} для любого типа
      * @return {@code true}, если тип совпадает либо используется wildcard
      */
-    @AiDoc(description = "Checks whether the payload type matches the expected filter.")
-    @WikiMethod(description = "<key:drag.payload.method.matchesType>")
+    @AiDoc(summary = "Checks whether the payload type matches the expected filter.")
+    @WikiMethod(summary = "<key:drag.payload.method.matchesType>")
     @WikiReturn("<key:drag.payload.return.matchesType>")
     public boolean matchesType(
             @WikiParameter(description = "<key:drag.payload.param.expectedType>")
@@ -158,8 +157,8 @@ public record DragPayload(
      *
      * @return {@code true}, если {@link #data()} не равен {@code null}
      */
-    @AiDoc(description = "Checks whether this payload carries attached data.")
-    @WikiMethod(description = "<key:drag.payload.method.hasData>")
+    @AiDoc(summary = "Checks whether this payload carries attached data.")
+    @WikiMethod(summary = "<key:drag.payload.method.hasData>")
     @WikiReturn("<key:drag.payload.return.hasData>")
     public boolean hasData() {
         return data != null;
@@ -172,8 +171,8 @@ public record DragPayload(
      * @param <T> ожидаемый тип данных
      * @return приведённые данные либо {@code null}, если данных нет или тип не совпал
      */
-    @AiDoc(description = "Returns the attached data cast to the specified class, or null if absent or type mismatch.")
-    @WikiMethod(description = "<key:drag.payload.method.dataClass>")
+    @AiDoc(summary = "Returns the attached data cast to the specified class, or null if absent or type mismatch.")
+    @WikiMethod(summary = "<key:drag.payload.method.dataClass>")
     @WikiReturn("<key:drag.payload.return.dataClass>")
     public <T> T data(
             @WikiParameter(description = "<key:drag.payload.param.dataClass>")

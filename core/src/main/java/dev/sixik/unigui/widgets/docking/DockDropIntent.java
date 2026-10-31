@@ -10,8 +10,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 
-@AiDoc(
-        description = "Resolved docking drop intention capturing the target area, preview bounds, and source/target pane identifiers."
+@AiDoc(summary = "Resolved docking drop intention capturing the target area, preview bounds, and source/target pane identifiers."
 )
 @WikiPage(
         title = "DockDropIntent",
@@ -73,15 +72,15 @@ public record DockDropIntent(
         }
     }
 
-    @AiDoc(description = "Returns an invalid empty drop intent representing no drop target.")
-    @WikiMethod(description = "<key:dock.drop.intent.method.none>")
+    @AiDoc(summary = "Returns an invalid empty drop intent representing no drop target.")
+    @WikiMethod(summary = "<key:dock.drop.intent.method.none>")
     @WikiReturn("<key:dock.drop.intent.return.intent>")
     public static DockDropIntent none() {
         return NONE;
     }
 
-    @AiDoc(description = "Creates a valid dock drop intent for the specified area and bounds.")
-    @WikiMethod(description = "<key:dock.drop.intent.method.of>")
+    @AiDoc(summary = "Creates a valid dock drop intent for the specified area and bounds.")
+    @WikiMethod(summary = "<key:dock.drop.intent.method.of>")
     @WikiReturn("<key:dock.drop.intent.return.intent>")
     public static DockDropIntent of(
             @WikiParameter(description = "<key:dock.drop.intent.param.sourcePaneId>")
@@ -102,8 +101,8 @@ public record DockDropIntent(
                 bounds.x(), bounds.y(), bounds.width(), bounds.height(), pointerX, pointerY);
     }
 
-    @AiDoc(description = "Creates a floating tear-off drop intent around the pointer.")
-    @WikiMethod(description = "<key:dock.drop.intent.method.floating>")
+    @AiDoc(summary = "Creates a floating tear-off drop intent around the pointer.")
+    @WikiMethod(summary = "<key:dock.drop.intent.method.floating>")
     @WikiReturn("<key:dock.drop.intent.return.intent>")
     public static DockDropIntent floating(
             @WikiParameter(description = "<key:dock.drop.intent.param.sourcePaneId>")
@@ -117,22 +116,22 @@ public record DockDropIntent(
                 pointerX - 80.0f, pointerY - 11.0f, 160.0f, 96.0f, pointerX, pointerY);
     }
 
-    @AiDoc(description = "Returns true if this intent detaches the pane into a floating window.")
-    @WikiMethod(description = "<key:dock.drop.intent.method.isFloating>")
+    @AiDoc(summary = "Returns true if this intent detaches the pane into a floating window.")
+    @WikiMethod(summary = "<key:dock.drop.intent.method.isFloating>")
     @WikiReturn("<key:dock.drop.intent.return.isFloating>")
     public boolean floating() {
         return valid && area == DockArea.FLOAT;
     }
 
-    @AiDoc(description = "Returns true if this intent adds the pane as a tab.")
-    @WikiMethod(description = "<key:dock.drop.intent.method.isTabbed>")
+    @AiDoc(summary = "Returns true if this intent adds the pane as a tab.")
+    @WikiMethod(summary = "<key:dock.drop.intent.method.isTabbed>")
     @WikiReturn("<key:dock.drop.intent.return.isTabbed>")
     public boolean tabbed() {
         return valid && (area == DockArea.CENTER || area == DockArea.TAB);
     }
 
-    @AiDoc(description = "Returns true if this intent splits an existing node.")
-    @WikiMethod(description = "<key:dock.drop.intent.method.isSplit>")
+    @AiDoc(summary = "Returns true if this intent splits an existing node.")
+    @WikiMethod(summary = "<key:dock.drop.intent.method.isSplit>")
     @WikiReturn("<key:dock.drop.intent.return.isSplit>")
     public boolean split() {
         return valid && area != DockArea.CENTER && area != DockArea.TAB && area != DockArea.FLOAT;

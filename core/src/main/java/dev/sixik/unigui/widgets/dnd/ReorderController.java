@@ -53,8 +53,7 @@ import java.util.function.Predicate;
  * (или лежит в нём глубже), перестановка применяется автоматически ({@link #autoApply(boolean)}).
  * Для внешнего payload индекс вставки только сообщается в событии.</p>
  */
-@AiDoc(
-        description = "Drag reordering controller attachable to container widgets (e.g. VBox, HBox, PanelWidget) supporting insertion lines and automated DOM reordering."
+@AiDoc(summary = "Drag reordering controller attachable to container widgets (e.g. VBox, HBox, PanelWidget) supporting insertion lines and automated DOM reordering."
 )
 @WikiPage(
         title = "ReorderController",
@@ -101,12 +100,12 @@ public final class ReorderController {
      * @param fromIndex прежний индекс или {@code -1} для внешнего payload
      * @param toIndex   новый индекс среди детей контейнера (после удаления для внутреннего переноса)
      */
-    @AiDoc(description = "Event record describing reorder source, destination indices, and dragged item.")
+    @AiDoc(summary = "Event record describing reorder source, destination indices, and dragged item.")
     public record ReorderEvent(Widget container, DragPayload payload, Widget item, int fromIndex, int toIndex) {
         /**
          * @return {@code true}, если переносили ребёнка этого же контейнера
          */
-        @AiDoc(description = "Returns true if the dragged item was an internal child of this container.")
+        @AiDoc(summary = "Returns true if the dragged item was an internal child of this container.")
         public boolean internal() {
             return fromIndex >= 0;
         }
@@ -139,8 +138,8 @@ public final class ReorderController {
      * @param container контейнер, дети которого переупорядочиваются
      * @return контроллер для fluent-настройки
      */
-    @AiDoc(description = "Attaches a ReorderController to the specified container widget.")
-    @WikiMethod(description = "<key:reorder.controller.method.attach>")
+    @AiDoc(summary = "Attaches a ReorderController to the specified container widget.")
+    @WikiMethod(summary = "<key:reorder.controller.method.attach>")
     @WikiReturn("<key:reorder.controller.return.controller>")
     public static ReorderController attach(
             @WikiParameter(description = "<key:reorder.controller.param.container>")
@@ -152,8 +151,8 @@ public final class ReorderController {
     /**
      * Направление списка (по умолчанию вертикальное).
      */
-    @AiDoc(description = "Configures orientation (VERTICAL or HORIZONTAL) for reordering calculations.")
-    @WikiMethod(description = "<key:reorder.controller.method.orientation>")
+    @AiDoc(summary = "Configures orientation (VERTICAL or HORIZONTAL) for reordering calculations.")
+    @WikiMethod(summary = "<key:reorder.controller.method.orientation>")
     @WikiReturn("<key:reorder.controller.return.this>")
     public ReorderController orientation(
             @WikiParameter(description = "<key:reorder.controller.param.orientation>")
@@ -166,8 +165,8 @@ public final class ReorderController {
     /**
      * Принимаемые типы payload через запятую, {@code |} или пробел; {@code *} принимает всё.
      */
-    @AiDoc(description = "Restricts accepted payload types by comma/pipe/whitespace delimited string (* accepts all).")
-    @WikiMethod(description = "<key:reorder.controller.method.acceptsTypes>")
+    @AiDoc(summary = "Restricts accepted payload types by comma/pipe/whitespace delimited string (* accepts all).")
+    @WikiMethod(summary = "<key:reorder.controller.method.acceptsTypes>")
     @WikiReturn("<key:reorder.controller.return.this>")
     public ReorderController accepts(
             @WikiParameter(description = "<key:reorder.controller.param.types>")
@@ -188,8 +187,8 @@ public final class ReorderController {
     /**
      * Дополнительная проверка payload.
      */
-    @AiDoc(description = "Adds custom predicate validation rule for reorder payloads.")
-    @WikiMethod(description = "<key:reorder.controller.method.acceptsValidator>")
+    @AiDoc(summary = "Adds custom predicate validation rule for reorder payloads.")
+    @WikiMethod(summary = "<key:reorder.controller.method.acceptsValidator>")
     @WikiReturn("<key:reorder.controller.return.this>")
     public ReorderController accepts(
             @WikiParameter(description = "<key:reorder.controller.param.validator>")
@@ -202,8 +201,8 @@ public final class ReorderController {
     /**
      * Принимать только элементы этого контейнера (без внешних payload).
      */
-    @AiDoc(description = "Restricts reordering to internal children of this container only.")
-    @WikiMethod(description = "<key:reorder.controller.method.internalOnly>")
+    @AiDoc(summary = "Restricts reordering to internal children of this container only.")
+    @WikiMethod(summary = "<key:reorder.controller.method.internalOnly>")
     @WikiReturn("<key:reorder.controller.return.this>")
     public ReorderController internalOnly(
             @WikiParameter(description = "<key:reorder.controller.param.internalOnly>")
@@ -216,8 +215,8 @@ public final class ReorderController {
     /**
      * Применять перестановку к {@link PanelWidget} автоматически (по умолчанию да).
      */
-    @AiDoc(description = "Enables or disables automatic repositioning of children when container is a PanelWidget.")
-    @WikiMethod(description = "<key:reorder.controller.method.autoApply>")
+    @AiDoc(summary = "Enables or disables automatic repositioning of children when container is a PanelWidget.")
+    @WikiMethod(summary = "<key:reorder.controller.method.autoApply>")
     @WikiReturn("<key:reorder.controller.return.this>")
     public ReorderController autoApply(
             @WikiParameter(description = "<key:reorder.controller.param.autoApply>")
@@ -230,8 +229,8 @@ public final class ReorderController {
     /**
      * Какие дети считаются элементами списка (по умолчанию все, кроме COLLAPSED).
      */
-    @AiDoc(description = "Configures a predicate filter selecting which child widgets participate in reordering.")
-    @WikiMethod(description = "<key:reorder.controller.method.itemFilter>")
+    @AiDoc(summary = "Configures a predicate filter selecting which child widgets participate in reordering.")
+    @WikiMethod(summary = "<key:reorder.controller.method.itemFilter>")
     @WikiReturn("<key:reorder.controller.return.this>")
     public ReorderController itemFilter(
             @WikiParameter(description = "<key:reorder.controller.param.itemFilter>")
@@ -248,8 +247,8 @@ public final class ReorderController {
      * @param thickness толщина в пикселях
      * @param inset     отступ линии от краёв контейнера
      */
-    @AiDoc(description = "Customizes appearance of the insertion line indicator.")
-    @WikiMethod(description = "<key:reorder.controller.method.indicator>")
+    @AiDoc(summary = "Customizes appearance of the insertion line indicator.")
+    @WikiMethod(summary = "<key:reorder.controller.method.indicator>")
     @WikiReturn("<key:reorder.controller.return.this>")
     public ReorderController indicator(
             @WikiParameter(description = "<key:reorder.controller.param.color>")
@@ -265,8 +264,8 @@ public final class ReorderController {
         return this;
     }
 
-    @AiDoc(description = "Enables or disables this reorder controller.")
-    @WikiMethod(description = "<key:reorder.controller.method.enabled>")
+    @AiDoc(summary = "Enables or disables this reorder controller.")
+    @WikiMethod(summary = "<key:reorder.controller.method.enabled>")
     @WikiReturn("<key:reorder.controller.return.this>")
     public ReorderController enabled(
             @WikiParameter(description = "<key:reorder.controller.param.enabled>")
@@ -279,8 +278,8 @@ public final class ReorderController {
     /**
      * Слушатель перестановки с полным событием.
      */
-    @AiDoc(description = "Registers a listener receiving full ReorderEvent details.")
-    @WikiMethod(description = "<key:reorder.controller.method.onReorderEvent>")
+    @AiDoc(summary = "Registers a listener receiving full ReorderEvent details.")
+    @WikiMethod(summary = "<key:reorder.controller.method.onReorderEvent>")
     @WikiReturn("<key:reorder.controller.return.this>")
     public ReorderController onReorder(
             @WikiParameter(description = "<key:reorder.controller.param.eventListener>")
@@ -293,8 +292,8 @@ public final class ReorderController {
     /**
      * Слушатель перестановки: {@code (fromIndex, toIndex)}. Для внешнего payload {@code fromIndex = -1}.
      */
-    @AiDoc(description = "Registers a listener receiving indices: fromIndex and toIndex.")
-    @WikiMethod(description = "<key:reorder.controller.method.onReorderIndices>")
+    @AiDoc(summary = "Registers a listener receiving indices: fromIndex and toIndex.")
+    @WikiMethod(summary = "<key:reorder.controller.method.onReorderIndices>")
     @WikiReturn("<key:reorder.controller.return.this>")
     public ReorderController onReorder(
             @WikiParameter(description = "<key:reorder.controller.param.indicesListener>")
@@ -308,8 +307,8 @@ public final class ReorderController {
     /**
      * @return контейнер
      */
-    @AiDoc(description = "Returns the container widget managed by this controller.")
-    @WikiMethod(description = "<key:reorder.controller.method.container>")
+    @AiDoc(summary = "Returns the container widget managed by this controller.")
+    @WikiMethod(summary = "<key:reorder.controller.method.container>")
     @WikiReturn("<key:reorder.controller.return.container>")
     public Widget container() {
         return container;
@@ -318,8 +317,8 @@ public final class ReorderController {
     /**
      * Снимает контроллер с контейнера.
      */
-    @AiDoc(description = "Detaches event listeners from the container.")
-    @WikiMethod(description = "<key:reorder.controller.method.detach>")
+    @AiDoc(summary = "Detaches event listeners from the container.")
+    @WikiMethod(summary = "<key:reorder.controller.method.detach>")
     public void detach() {
         for (EventSubscription subscription : subscriptions) subscription.unsubscribe();
         subscriptions.clear();

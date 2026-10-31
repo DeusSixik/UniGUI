@@ -1,5 +1,15 @@
 package dev.sixik.unigui.widgets.world;
 
+
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.widget.Widget;
 
@@ -19,6 +29,32 @@ import java.util.List;
  * и {@link dev.sixik.unigui.widgets.map.MapMarkerHandle}, но прямой доступ к
  * {@code anchorLayer()} полезен для generic {@link WorldCanvas}.</p>
  */
+@AiDoc(summary = "Layer managing screen-space UI widgets pinned to 3D/2D world coordinates inside WorldCanvas.")
+@WikiPage(
+        title = "AnchorLayer",
+        slug = "anchor-layer",
+        category = "<key:world.category>",
+        summary = "<key:anchor.layer.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:anchor.layer.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:anchor.layer.example.basic.title>",
+        code = "AnchorWidget anchor = canvas.anchorLayer().add(\"flag\", worldX, worldY, new Button(\"Waypoint\"))\n    .screenSize(80.0f, 24.0f)\n    .pivot(0.5f, 1.0f);"
+)
+@WikiLink(
+        label = "WorldCanvas",
+        target = "page:world-canvas",
+        description = "<key:world.canvas.summary>"
+)
+@WikiLink(
+        label = "AnchorWidget",
+        target = "page:anchor-widget",
+        description = "<key:anchor.widget.summary>"
+)
 public final class AnchorLayer {
     private final WorldCanvas owner;
     private final ObjectArrayList<AnchorWidget> anchors = new ObjectArrayList<>();
@@ -42,7 +78,19 @@ public final class AnchorLayer {
      * @param widget обычный UI-виджет, который будет отрендерен поверх слоев
      * @return созданный anchor для настройки размера, pivot, видимости и culling
      */
-    public AnchorWidget add(String id, float worldX, float worldY, Widget widget) {
+        @AiDoc(summary = "Adds a UI widget anchored to the specified world coordinates.")
+    @WikiMethod(summary = "<key:anchor.layer.method.add>")
+    @WikiReturn("<key:anchor.layer.return.anchorWidget>")
+    public AnchorWidget add(
+            @WikiParameter(description = "<key:anchor.layer.param.id>")
+            String id,
+            @WikiParameter(description = "<key:anchor.layer.param.worldX>")
+            float worldX,
+            @WikiParameter(description = "<key:anchor.layer.param.worldY>")
+            float worldY,
+            @WikiParameter(description = "<key:anchor.layer.param.widget>")
+            Widget widget
+    ) {
         if (widget == null) {
             throw new IllegalArgumentException("Anchor widget cannot be null");
         }
@@ -65,7 +113,13 @@ public final class AnchorLayer {
      * @param id id, переданный в {@link #add(String, float, float, Widget)}
      * @return anchor или {@code null}, если id пустой/не найден
      */
-    public AnchorWidget anchor(String id) {
+        @AiDoc(summary = "Finds an AnchorWidget by its string identifier, or returns null if not found.")
+    @WikiMethod(summary = "<key:anchor.layer.method.anchor>")
+    @WikiReturn("<key:anchor.layer.return.anchorWidget>")
+    public AnchorWidget anchor(
+            @WikiParameter(description = "<key:anchor.layer.param.id>")
+            String id
+    ) {
         String normalizedId = normalizeId(id);
         Object[] raw = anchors.elements();
         for (int i = 0, size = anchors.size(); i < size; i++) {
@@ -78,7 +132,13 @@ public final class AnchorLayer {
     /**
      * Удаляет anchor по id вместе с его виджетом из {@link WorldCanvas}.
      */
-    public boolean remove(String id) {
+        @AiDoc(summary = "Removes an anchored widget by its string identifier.")
+    @WikiMethod(summary = "<key:anchor.layer.method.removeById>")
+    @WikiReturn("<key:anchor.layer.return.success>")
+    public boolean remove(
+            @WikiParameter(description = "<key:anchor.layer.param.id>")
+            String id
+    ) {
         AnchorWidget anchor = anchor(id);
         return anchor != null && remove(anchor);
     }
@@ -86,7 +146,13 @@ public final class AnchorLayer {
     /**
      * Удаляет конкретный anchor вместе с его виджетом из {@link WorldCanvas}.
      */
-    public boolean remove(AnchorWidget anchor) {
+        @AiDoc(summary = "Removes the specified AnchorWidget from this layer.")
+    @WikiMethod(summary = "<key:anchor.layer.method.removeByAnchor>")
+    @WikiReturn("<key:anchor.layer.return.success>")
+    public boolean remove(
+            @WikiParameter(description = "<key:anchor.layer.param.anchor>")
+            AnchorWidget anchor
+    ) {
         if (anchor == null || !anchors.remove(anchor)) return false;
         snapshotDirty = true;
         anchor.owner(null);
@@ -98,6 +164,8 @@ public final class AnchorLayer {
     /**
      * Удаляет все anchors и отсоединяет их виджеты от {@link WorldCanvas}.
      */
+        @AiDoc(summary = "Removes and detaches all anchors from this layer.")
+    @WikiMethod(summary = "<key:anchor.layer.method.clear>")
     public void clear() {
         Object[] raw = anchors.elements();
         for (int i = 0, size = anchors.size(); i < size; i++) {
@@ -113,6 +181,9 @@ public final class AnchorLayer {
     /**
      * Возвращает read-only список anchors.
      */
+        @AiDoc(summary = "Returns an unmodifiable list of all active anchors in this layer.")
+    @WikiMethod(summary = "<key:anchor.layer.method.anchors>")
+    @WikiReturn("<key:anchor.layer.return.anchors>")
     public List<AnchorWidget> anchors() {
         return anchorsView;
     }
@@ -120,6 +191,9 @@ public final class AnchorLayer {
     /**
      * Количество anchors в слое.
      */
+        @AiDoc(summary = "Returns the count of active anchors in this layer.")
+    @WikiMethod(summary = "<key:anchor.layer.method.size>")
+    @WikiReturn("<key:anchor.layer.return.count>")
     public int size() {
         return anchors.size();
     }

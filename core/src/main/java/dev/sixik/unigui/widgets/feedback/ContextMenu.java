@@ -1,5 +1,15 @@
 package dev.sixik.unigui.widgets.feedback;
 
+
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.event.ContextMenuItemSelectedEvent;
 import dev.sixik.unigui.api.event.Event;
@@ -32,6 +42,32 @@ import dev.sixik.unigui.widgets.interaction.Button;
 import dev.sixik.unigui.widgets.WidgetStyles;
 
 @XmlWidgetName("ContextMenu")
+@AiDoc(summary = "Hierarchical popup context menu supporting actions, submenus, separators, and keyboard navigation.")
+@WikiPage(
+        title = "ContextMenu",
+        slug = "context-menu",
+        category = "<key:feedback.category>",
+        summary = "<key:context.menu.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:context.menu.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:context.menu.example.basic.title>",
+        code = "ContextMenu menu = new ContextMenu();\nmenu.item(\"Copy\", () -> copy()).separator().item(\"Paste\", () -> paste());\nmenu.openAt(mouseX, mouseY);"
+)
+@WikiLink(
+        label = "Popup",
+        target = "page:popup",
+        description = "<key:popup.summary>"
+)
+@WikiLink(
+        label = "OverlayLayer",
+        target = "page:overlay-layer",
+        description = "<key:overlay.layer.summary>"
+)
 public final class ContextMenu extends Box implements OverlayHostAware {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.CONTEXT_MENU;
 
@@ -48,6 +84,8 @@ public final class ContextMenu extends Box implements OverlayHostAware {
     private int selectedItemIndex = -1;
     private int pendingSelectedItemIndex = -1;
 
+        @AiDoc(summary = "Constructs an empty ContextMenu.")
+    @WikiMethod(summary = "<key:context.menu.method.ctorDefault>")
     public ContextMenu() {
         applyComponentStyleDefaults(WidgetStyles.ContextMenu.DEFAULT);
         layout(style -> style.position(PositionType.ABSOLUTE).overflow(Overflow.VISIBLE));
@@ -68,21 +106,49 @@ public final class ContextMenu extends Box implements OverlayHostAware {
         return WidgetStyles.ContextMenu.DEFAULT;
     }
 
-    public ContextMenu item(String text) {
+        @AiDoc(summary = "Adds a menu item with plain text.")
+    @WikiMethod(summary = "<key:context.menu.method.itemText>")
+    @WikiReturn("<key:context.menu.return.this>")
+    public ContextMenu item(
+            @WikiParameter(description = "<key:context.menu.param.text>")
+            String text
+    ) {
         return item(RichText.resolve(text), null);
     }
 
-    public ContextMenu item(RichText text) {
+        @AiDoc(summary = "Adds a menu item with RichText.")
+    @WikiMethod(summary = "<key:context.menu.method.itemRich>")
+    @WikiReturn("<key:context.menu.return.this>")
+    public ContextMenu item(
+            @WikiParameter(description = "<key:context.menu.param.richText>")
+            RichText text
+    ) {
         return item(text, null);
     }
 
     /** Prefer {@link #onItemSelected(EventListener)} for public UI actions. */
-    public ContextMenu item(String text, Runnable action) {
+        @AiDoc(summary = "Adds a menu item with plain text and click callback.")
+    @WikiMethod(summary = "<key:context.menu.method.itemTextAction>")
+    @WikiReturn("<key:context.menu.return.this>")
+    public ContextMenu item(
+            @WikiParameter(description = "<key:context.menu.param.text>")
+            String text,
+            @WikiParameter(description = "<key:context.menu.param.action>")
+            Runnable action
+    ) {
         return item(RichText.resolve(text), action);
     }
 
     /** Prefer {@link #onItemSelected(EventListener)} for public UI actions. */
-    public ContextMenu item(RichText text, Runnable action) {
+        @AiDoc(summary = "Adds a menu item with RichText and click callback.")
+    @WikiMethod(summary = "<key:context.menu.method.itemRichAction>")
+    @WikiReturn("<key:context.menu.return.this>")
+    public ContextMenu item(
+            @WikiParameter(description = "<key:context.menu.param.richText>")
+            RichText text,
+            @WikiParameter(description = "<key:context.menu.param.action>")
+            Runnable action
+    ) {
         RichText normalizedText = text == null ? RichText.plain("") : text;
         Button button = new Button(normalizedText);
         if (action != null) {
@@ -91,7 +157,13 @@ public final class ContextMenu extends Box implements OverlayHostAware {
         return item(button);
     }
 
-    public ContextMenu item(Button button) {
+        @AiDoc(summary = "Adds a preconfigured Button widget as a menu item.")
+    @WikiMethod(summary = "<key:context.menu.method.itemButton>")
+    @WikiReturn("<key:context.menu.return.this>")
+    public ContextMenu item(
+            @WikiParameter(description = "<key:context.menu.param.button>")
+            Button button
+    ) {
         if (button == null) return this;
         int itemIndex = itemButtons.size();
         button.layout(style -> style.size(132.0f, 20.0f).flexGrow(0).flexShrink(0.0f));
@@ -114,12 +186,28 @@ public final class ContextMenu extends Box implements OverlayHostAware {
         return this;
     }
 
-    public ContextMenu submenu(String text, ContextMenu submenu) {
+        @AiDoc(summary = "Adds a cascading submenu item with plain text.")
+    @WikiMethod(summary = "<key:context.menu.method.submenuText>")
+    @WikiReturn("<key:context.menu.return.this>")
+    public ContextMenu submenu(
+            @WikiParameter(description = "<key:context.menu.param.text>")
+            String text,
+            @WikiParameter(description = "<key:context.menu.param.submenu>")
+            ContextMenu submenu
+    ) {
         String label = text == null ? "" : text;
         return submenu(RichText.plain(label + " ▶"), submenu);
     }
 
-    public ContextMenu submenu(RichText text, ContextMenu submenu) {
+        @AiDoc(summary = "Adds a cascading submenu item with RichText.")
+    @WikiMethod(summary = "<key:context.menu.method.submenuRich>")
+    @WikiReturn("<key:context.menu.return.this>")
+    public ContextMenu submenu(
+            @WikiParameter(description = "<key:context.menu.param.richText>")
+            RichText text,
+            @WikiParameter(description = "<key:context.menu.param.submenu>")
+            ContextMenu submenu
+    ) {
         if (submenu == null) {
             return item(text);
         }
@@ -129,7 +217,15 @@ public final class ContextMenu extends Box implements OverlayHostAware {
         return submenu(button, submenu);
     }
 
-    public ContextMenu submenu(Button button, ContextMenu submenu) {
+        @AiDoc(summary = "Adds a cascading submenu item with a custom button.")
+    @WikiMethod(summary = "<key:context.menu.method.submenuButton>")
+    @WikiReturn("<key:context.menu.return.this>")
+    public ContextMenu submenu(
+            @WikiParameter(description = "<key:context.menu.param.button>")
+            Button button,
+            @WikiParameter(description = "<key:context.menu.param.submenu>")
+            ContextMenu submenu
+    ) {
         if (button == null) return this;
         if (submenu == null) return item(button);
         int itemIndex = itemButtons.size();
@@ -155,11 +251,20 @@ public final class ContextMenu extends Box implements OverlayHostAware {
         return this;
     }
 
+        @AiDoc(summary = "Adds a visual divider separator line.")
+    @WikiMethod(summary = "<key:context.menu.method.separatorDefault>")
+    @WikiReturn("<key:context.menu.return.this>")
     public ContextMenu separator() {
         return separator(new Separator());
     }
 
-    public ContextMenu separator(Separator separator) {
+        @AiDoc(summary = "Adds a custom Separator widget.")
+    @WikiMethod(summary = "<key:context.menu.method.separatorCustom>")
+    @WikiReturn("<key:context.menu.return.this>")
+    public ContextMenu separator(
+            @WikiParameter(description = "<key:context.menu.param.separator>")
+            Separator separator
+    ) {
         Separator normalized = separator == null ? new Separator() : separator;
         normalized.layout(style -> style.size(132.0f, 1.0f).margin(2.0f, 3.0f).flexGrow(0).flexShrink(0.0f));
         itemsHost.addChild(normalized);
@@ -168,23 +273,41 @@ public final class ContextMenu extends Box implements OverlayHostAware {
         return this;
     }
 
+        @AiDoc(summary = "Returns the total number of menu items.")
+    @WikiMethod(summary = "<key:context.menu.method.itemCount>")
+    @WikiReturn("<key:context.menu.return.itemCount>")
     public int itemCount() {
         return itemButtons.size();
     }
 
-    public Button itemButton(int index) {
+        @AiDoc(summary = "Returns the button widget for the item at the specified index.")
+    @WikiMethod(summary = "<key:context.menu.method.itemButtonGet>")
+    @WikiReturn("<key:context.menu.return.button>")
+    public Button itemButton(
+            @WikiParameter(description = "<key:context.menu.param.index>")
+            int index
+    ) {
         if (index < 0 || index >= itemButtons.size()) {
             throw new IndexOutOfBoundsException("Context menu item index out of range: " + index);
         }
         return itemButtons.get(index);
     }
 
+        @AiDoc(summary = "Returns the index of the currently hovered or keyboard-selected item.")
+    @WikiMethod(summary = "<key:context.menu.method.selectedItemIndex>")
+    @WikiReturn("<key:context.menu.return.index>")
     public int selectedItemIndex() {
         return selectedItemIndex;
     }
 
     @XmlAttribute(value = "selectedItem", category = "Behavior", defaultValue = "0", description = "Initially selected menu item index.")
-    public ContextMenu selectItem(int index) {
+        @AiDoc(summary = "Selects the item at the specified index.")
+    @WikiMethod(summary = "<key:context.menu.method.selectItem>")
+    @WikiReturn("<key:context.menu.return.this>")
+    public ContextMenu selectItem(
+            @WikiParameter(description = "<key:context.menu.param.index>")
+            int index
+    ) {
         if (itemButtons.isEmpty()) {
             selectedItemIndex = -1;
             pendingSelectedItemIndex = Math.max(0, index);
@@ -217,30 +340,61 @@ public final class ContextMenu extends Box implements OverlayHostAware {
         return on(ContextMenuItemSelectedEvent.TYPE, listener);
     }
 
+        @AiDoc(summary = "Returns true if this menu is open.")
+    @WikiMethod(summary = "<key:context.menu.method.opened>")
+    @WikiReturn("<key:context.menu.return.opened>")
     public boolean opened() {
         return open;
     }
 
-    public ContextMenu openAt(float x, float y) {
+        @AiDoc(summary = "Opens the menu positioned at the specified root coordinates.")
+    @WikiMethod(summary = "<key:context.menu.method.openAt>")
+    @WikiReturn("<key:context.menu.return.this>")
+    public ContextMenu openAt(
+            @WikiParameter(description = "<key:context.menu.param.x>")
+            float x,
+            @WikiParameter(description = "<key:context.menu.param.y>")
+            float y
+    ) {
         this.x = Float.isFinite(x) ? x : 0.0f;
         this.y = Float.isFinite(y) ? y : 0.0f;
         return open(true);
     }
 
+        @AiDoc(summary = "Opens the menu at its last configured position.")
+    @WikiMethod(summary = "<key:context.menu.method.open>")
+    @WikiReturn("<key:context.menu.return.this>")
     public ContextMenu open() {
         return open(true);
     }
 
+        @AiDoc(summary = "Closes the menu and any active submenus.")
+    @WikiMethod(summary = "<key:context.menu.method.close>")
+    @WikiReturn("<key:context.menu.return.this>")
     public ContextMenu close() {
         return open(false);
     }
 
-    public ContextMenu toggle(float x, float y) {
+        @AiDoc(summary = "Toggles open/closed state at the specified coordinates.")
+    @WikiMethod(summary = "<key:context.menu.method.toggleAt>")
+    @WikiReturn("<key:context.menu.return.this>")
+    public ContextMenu toggle(
+            @WikiParameter(description = "<key:context.menu.param.x>")
+            float x,
+            @WikiParameter(description = "<key:context.menu.param.y>")
+            float y
+    ) {
         return open ? close() : openAt(x, y);
     }
 
     @XmlAttribute(value = "open", category = "Behavior", defaultValue = "false", description = "Whether the context menu is visible.")
-    public ContextMenu open(boolean open) {
+        @AiDoc(summary = "Sets the open state.")
+    @WikiMethod(summary = "<key:context.menu.method.openState>")
+    @WikiReturn("<key:context.menu.return.this>")
+    public ContextMenu open(
+            @WikiParameter(description = "<key:context.menu.param.open>")
+            boolean open
+    ) {
         if (this.open == open) return this;
         this.open = open;
         visible(open);
@@ -257,12 +411,21 @@ public final class ContextMenu extends Box implements OverlayHostAware {
         return this;
     }
 
+        @AiDoc(summary = "Returns true if clicking outside automatically dismisses the menu.")
+    @WikiMethod(summary = "<key:context.menu.method.closeOnOutsideClickGet>")
+    @WikiReturn("<key:context.menu.return.closeOnOutsideClick>")
     public boolean closeOnOutsideClick() {
         return closeOnOutsideClick;
     }
 
     @XmlAttribute(value = "closeOnOutsideClick", category = "Behavior", defaultValue = "true", description = "Whether outside pointer presses close the menu.")
-    public ContextMenu closeOnOutsideClick(boolean closeOnOutsideClick) {
+        @AiDoc(summary = "Sets whether clicking outside closes the menu.")
+    @WikiMethod(summary = "<key:context.menu.method.closeOnOutsideClickSet>")
+    @WikiReturn("<key:context.menu.return.this>")
+    public ContextMenu closeOnOutsideClick(
+            @WikiParameter(description = "<key:context.menu.param.closeOnOutsideClick>")
+            boolean closeOnOutsideClick
+    ) {
         this.closeOnOutsideClick = closeOnOutsideClick;
         for (ContextMenu submenu : itemSubmenus) {
             if (submenu != null) {
@@ -293,7 +456,13 @@ public final class ContextMenu extends Box implements OverlayHostAware {
     }
 
     @XmlAttribute(value = "padding", category = "Layout", defaultValue = "3", description = "Inner padding around menu items.")
-    public ContextMenu padding(EdgeInsets padding) {
+        @AiDoc(summary = "Sets interior padding around the menu items.")
+    @WikiMethod(summary = "<key:context.menu.method.padding>")
+    @WikiReturn("<key:context.menu.return.this>")
+    public ContextMenu padding(
+            @WikiParameter(description = "<key:context.menu.param.padding>")
+            EdgeInsets padding
+    ) {
         this.padding = padding == null ? EdgeInsets.all(0.0f) : padding;
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
@@ -356,7 +525,12 @@ public final class ContextMenu extends Box implements OverlayHostAware {
     }
 
     @Override
-    public void arrangeInHost(RectView hostBounds) {
+        @AiDoc(summary = "Arranges the menu within host boundaries, flipping placement if screen edges are exceeded.")
+    @WikiMethod(summary = "<key:context.menu.method.arrangeInHost>")
+    public void arrangeInHost(
+            @WikiParameter(description = "<key:context.menu.param.hostBounds>")
+            RectView hostBounds
+    ) {
         if (!open || visibility() == Visibility.COLLAPSED) {
             mutableLayoutBounds().set(hostBounds.x(), hostBounds.y(), 0.0f, 0.0f);
             return;

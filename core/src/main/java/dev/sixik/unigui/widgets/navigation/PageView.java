@@ -1,5 +1,15 @@
 package dev.sixik.unigui.widgets.navigation;
 
+
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.event.EventListener;
 import dev.sixik.unigui.api.event.EventSubscription;
@@ -26,6 +36,27 @@ import dev.sixik.unigui.widgets.containers.PanelWidget;
  * it does not add previous/next buttons, indicator text, cyclic transition chrome or
  * timer behavior.</p>
  */
+@AiDoc(summary = "Retained page container that keeps exactly one page visible at a time.")
+@WikiPage(
+        title = "PageView",
+        slug = "page-view",
+        category = "<key:navigation.category>",
+        summary = "<key:page.view.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:page.view.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:page.view.example.basic.title>",
+        code = "PageView pageView = new PageView();\npageView.addPage(new Label(\"Page 1\"));\npageView.addPage(new Label(\"Page 2\"));\npageView.selectedIndex(0);"
+)
+@WikiLink(
+        label = "TabControl",
+        target = "page:tab-control",
+        description = "<key:tab.control.summary>"
+)
 @XmlWidgetName("PageView")
 public class PageView extends PanelWidget {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.PAGE_VIEW;
@@ -34,11 +65,17 @@ public class PageView extends PanelWidget {
     private int selectedIndex;
     private boolean hasArrangedBounds;
 
-    public PageView addPage(Widget page) {
+        @AiDoc(summary = "Appends a page widget to the end of the page list.")
+    @WikiMethod(summary = "<key:page.view.method.addPage>")
+    @WikiReturn("<key:page.view.return.self>")
+    public PageView addPage(@WikiParameter(name = "page", description = "<key:page.view.param.page>") Widget page) {
         return insertPage(pages.size(), page);
     }
 
-    public PageView insertPage(int index, Widget page) {
+        @AiDoc(summary = "Inserts a page widget at the specified index.")
+    @WikiMethod(summary = "<key:page.view.method.insertPage>")
+    @WikiReturn("<key:page.view.return.self>")
+    public PageView insertPage(@WikiParameter(name = "index", description = "<key:page.view.param.index>") int index, @WikiParameter(name = "page", description = "<key:page.view.param.page>") Widget page) {
         if (page == null) return this;
         int insertIndex = Math.max(0, Math.min(index, pages.size()));
         pages.add(insertIndex, page);
@@ -54,7 +91,10 @@ public class PageView extends PanelWidget {
         return this;
     }
 
-    public PageView removePage(int index) {
+        @AiDoc(summary = "Removes the page at the specified index.")
+    @WikiMethod(summary = "<key:page.view.method.removePageIndex>")
+    @WikiReturn("<key:page.view.return.self>")
+    public PageView removePage(@WikiParameter(name = "index", description = "<key:page.view.param.index>") int index) {
         if (index < 0 || index >= pages.size()) return this;
         int oldSelection = selectedIndex;
         Widget removed = pages.remove(index);
@@ -76,10 +116,16 @@ public class PageView extends PanelWidget {
         return this;
     }
 
-    public PageView removePage(Widget page) {
+        @AiDoc(summary = "Removes the specified page widget.")
+    @WikiMethod(summary = "<key:page.view.method.removePageWidget>")
+    @WikiReturn("<key:page.view.return.self>")
+    public PageView removePage(@WikiParameter(name = "page", description = "<key:page.view.param.page>") Widget page) {
         return removePage(pages.indexOf(page));
     }
 
+        @AiDoc(summary = "Removes all pages from the container.")
+    @WikiMethod(summary = "<key:page.view.method.clearPages>")
+    @WikiReturn("<key:page.view.return.self>")
     public PageView clearPages() {
         if (pages.isEmpty()) return this;
         int oldSelection = selectedIndex;
@@ -91,40 +137,64 @@ public class PageView extends PanelWidget {
         return this;
     }
 
+        @AiDoc(summary = "Returns an unmodifiable list of all contained page widgets.")
+    @WikiMethod(summary = "<key:page.view.method.pages>")
+    @WikiReturn("<key:page.view.return.pages>")
     public List<Widget> pages() {
         return Collections.unmodifiableList(pages);
     }
 
+        @AiDoc(summary = "Returns the total number of pages.")
+    @WikiMethod(summary = "<key:page.view.method.pageCount>")
+    @WikiReturn("<key:page.view.return.pageCount>")
     public int pageCount() {
         return pages.size();
     }
 
+        @AiDoc(summary = "Returns the currently selected active page widget, or null if none.")
+    @WikiMethod(summary = "<key:page.view.method.selectedPage>")
+    @WikiReturn("<key:page.view.return.selectedPage>")
     public Widget selectedPage() {
         return pages.isEmpty() ? null : pages.get(selectedIndex);
     }
 
+        @AiDoc(summary = "Returns the 0-based index of the currently selected page.")
+    @WikiMethod(summary = "<key:page.view.method.selectedIndexGet>")
+    @WikiReturn("<key:page.view.return.selectedIndex>")
     public int selectedIndex() {
         return selectedIndex;
     }
 
-    public PageView selectedIndex(int selectedIndex) {
+        @AiDoc(summary = "Selects the active page by index, firing a selection change event.")
+    @WikiMethod(summary = "<key:page.view.method.selectedIndexSet>")
+    @WikiReturn("<key:page.view.return.self>")
+    public PageView selectedIndex(@WikiParameter(name = "selectedIndex", description = "<key:page.view.param.selectedIndex>") int selectedIndex) {
         setSelectedIndex(selectedIndex, true);
         return this;
     }
 
+    @AiDoc(summary = "Silently selects a page index without emitting selection change events.")
+    @WikiMethod(summary = "<key:page.view.method.silentSelectedIndex>")
+    @WikiReturn("<key:page.view.return.self>")
     @XmlAttribute(value = "selectedIndex", category = "Behavior", defaultValue = "0", description = "Initial selected page index without emitting change events during XML load.")
-    public PageView silentSelectedIndex(int selectedIndex) {
+    public PageView silentSelectedIndex(@WikiParameter(name = "selectedIndex", description = "<key:page.view.param.selectedIndex>") int selectedIndex) {
         setSelectedIndex(selectedIndex, false);
         return this;
     }
 
-    public PageView selectRelative(int delta) {
+        @AiDoc(summary = "Shifts current page selection by the specified relative delta offset.")
+    @WikiMethod(summary = "<key:page.view.method.selectRelative>")
+    @WikiReturn("<key:page.view.return.self>")
+    public PageView selectRelative(@WikiParameter(name = "delta", description = "<key:page.view.param.delta>") int delta) {
         if (pages.isEmpty()) return this;
         int next = Math.max(0, Math.min(pages.size() - 1, selectedIndex + delta));
         return selectedIndex(next);
     }
 
-    public EventSubscription onSelectionChanged(EventListener<? super SelectionChangedEvent> listener) {
+        @AiDoc(summary = "Registers a listener invoked when the selected page index changes.")
+    @WikiMethod(summary = "<key:page.view.method.onSelectionChanged>")
+    @WikiReturn("<key:page.view.return.subscription>")
+    public EventSubscription onSelectionChanged(@WikiParameter(name = "listener", description = "<key:page.view.param.listener>") EventListener<? super SelectionChangedEvent> listener) {
         return on(SelectionChangedEvent.TYPE, listener);
     }
 

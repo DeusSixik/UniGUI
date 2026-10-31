@@ -1,5 +1,15 @@
 package dev.sixik.unigui.widgets.world;
 
+
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.widget.Widget;
 
@@ -14,6 +24,32 @@ import dev.sixik.unigui.api.widget.Widget;
  * размер и интерактивность остаются screen-space. Поэтому иконка не обязана
  * масштабироваться вместе с картой, если ты задал {@link #screenSize(float, float)}.</p>
  */
+@AiDoc(summary = "Spatial anchor pinning a screen-space UI widget to 3D/2D world coordinates with zoom scaling, pivot, and viewport culling.")
+@WikiPage(
+        title = "AnchorWidget",
+        slug = "anchor-widget",
+        category = "<key:world.category>",
+        summary = "<key:anchor.widget.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:anchor.widget.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:anchor.widget.example.basic.title>",
+        code = "AnchorWidget anchor = canvas.anchorLayer().add(\"pin\", 100, 200, new Button(\"Marker\"))\n    .screenSize(64, 24)\n    .pivot(0.5f, 1.0f);"
+)
+@WikiLink(
+        label = "AnchorLayer",
+        target = "page:anchor-layer",
+        description = "<key:anchor.layer.summary>"
+)
+@WikiLink(
+        label = "WorldCanvas",
+        target = "page:world-canvas",
+        description = "<key:world.canvas.summary>"
+)
 public final class AnchorWidget {
     private final String id;
     private final Widget widget;
@@ -48,6 +84,9 @@ public final class AnchorWidget {
     /**
      * Уникальный id anchor внутри {@link AnchorLayer}; может быть пустым.
      */
+        @AiDoc(summary = "Returns the unique identifier of this anchor within its layer.")
+    @WikiMethod(summary = "<key:anchor.widget.method.id>")
+    @WikiReturn("<key:anchor.widget.return.id>")
     public String id() {
         return id;
     }
@@ -55,6 +94,9 @@ public final class AnchorWidget {
     /**
      * Виджет, который реально рендерится и получает события.
      */
+        @AiDoc(summary = "Returns the underlying UI widget hosted and positioned by this anchor.")
+    @WikiMethod(summary = "<key:anchor.widget.method.widget>")
+    @WikiReturn("<key:anchor.widget.return.widget>")
     public Widget widget() {
         return widget;
     }
@@ -62,6 +104,9 @@ public final class AnchorWidget {
     /**
      * X в world/map координатах.
      */
+        @AiDoc(summary = "Returns the anchor world X coordinate.")
+    @WikiMethod(summary = "<key:anchor.widget.method.worldX>")
+    @WikiReturn("<key:anchor.widget.return.coordinate>")
     public float worldX() {
         return worldX;
     }
@@ -69,6 +114,9 @@ public final class AnchorWidget {
     /**
      * Y в world/map координатах.
      */
+        @AiDoc(summary = "Returns the anchor world Y coordinate.")
+    @WikiMethod(summary = "<key:anchor.widget.method.worldY>")
+    @WikiReturn("<key:anchor.widget.return.coordinate>")
     public float worldY() {
         return worldY;
     }
@@ -76,7 +124,15 @@ public final class AnchorWidget {
     /**
      * Перемещает anchor в world/map координатах.
      */
-    public AnchorWidget worldPosition(float x, float y) {
+        @AiDoc(summary = "Updates the anchor position in world coordinates.")
+    @WikiMethod(summary = "<key:anchor.widget.method.worldPosition>")
+    @WikiReturn("<key:anchor.widget.return.this>")
+    public AnchorWidget worldPosition(
+            @WikiParameter(description = "<key:anchor.widget.param.x>")
+            float x,
+            @WikiParameter(description = "<key:anchor.widget.param.y>")
+            float y
+    ) {
         float nextX = sanitize(x);
         float nextY = sanitize(y);
         if (worldX == nextX && worldY == nextY) return this;
@@ -89,6 +145,9 @@ public final class AnchorWidget {
     /**
      * Фиксированная экранная ширина виджета или {@code -1}, если используется desired size.
      */
+        @AiDoc(summary = "Returns the fixed screen width in pixels, or -1 if using desired size.")
+    @WikiMethod(summary = "<key:anchor.widget.method.screenWidth>")
+    @WikiReturn("<key:anchor.widget.return.size>")
     public float screenWidth() {
         return screenWidth;
     }
@@ -96,6 +155,9 @@ public final class AnchorWidget {
     /**
      * Фиксированная экранная высота виджета или {@code -1}, если используется desired size.
      */
+        @AiDoc(summary = "Returns the fixed screen height in pixels, or -1 if using desired size.")
+    @WikiMethod(summary = "<key:anchor.widget.method.screenHeight>")
+    @WikiReturn("<key:anchor.widget.return.size>")
     public float screenHeight() {
         return screenHeight;
     }
@@ -106,7 +168,15 @@ public final class AnchorWidget {
      * <p>Это главный способ сделать маркер карты читаемым при любом zoom.
      * Передай отрицательное/NaN значение, чтобы вернуться к desired size.</p>
      */
-    public AnchorWidget screenSize(float width, float height) {
+        @AiDoc(summary = "Sets fixed screen dimensions in UI pixels for this anchor.")
+    @WikiMethod(summary = "<key:anchor.widget.method.screenSize>")
+    @WikiReturn("<key:anchor.widget.return.this>")
+    public AnchorWidget screenSize(
+            @WikiParameter(description = "<key:anchor.widget.param.width>")
+            float width,
+            @WikiParameter(description = "<key:anchor.widget.param.height>")
+            float height
+    ) {
         float nextWidth = sanitizeSize(width, -1.0f);
         float nextHeight = sanitizeSize(height, -1.0f);
         if (screenWidth == nextWidth && screenHeight == nextHeight) return this;
@@ -119,6 +189,9 @@ public final class AnchorWidget {
     /**
      * Минимальная экранная ширина после zoom-scaling или {@code -1}, если пол не задан.
      */
+        @AiDoc(summary = "Returns the minimum screen width constraint after zoom scaling.")
+    @WikiMethod(summary = "<key:anchor.widget.method.minScreenWidth>")
+    @WikiReturn("<key:anchor.widget.return.size>")
     public float minScreenWidth() {
         return minScreenWidth;
     }
@@ -126,6 +199,9 @@ public final class AnchorWidget {
     /**
      * Минимальная экранная высота после zoom-scaling или {@code -1}, если пол не задан.
      */
+        @AiDoc(summary = "Returns the minimum screen height constraint after zoom scaling.")
+    @WikiMethod(summary = "<key:anchor.widget.method.minScreenHeight>")
+    @WikiReturn("<key:anchor.widget.return.size>")
     public float minScreenHeight() {
         return minScreenHeight;
     }
@@ -133,6 +209,9 @@ public final class AnchorWidget {
     /**
      * Максимальная экранная ширина после zoom-scaling или {@code -1}, если потолок не задан.
      */
+        @AiDoc(summary = "Returns the maximum screen width constraint after zoom scaling.")
+    @WikiMethod(summary = "<key:anchor.widget.method.maxScreenWidth>")
+    @WikiReturn("<key:anchor.widget.return.size>")
     public float maxScreenWidth() {
         return maxScreenWidth;
     }
@@ -140,6 +219,9 @@ public final class AnchorWidget {
     /**
      * Максимальная экранная высота после zoom-scaling или {@code -1}, если потолок не задан.
      */
+        @AiDoc(summary = "Returns the maximum screen height constraint after zoom scaling.")
+    @WikiMethod(summary = "<key:anchor.widget.method.maxScreenHeight>")
+    @WikiReturn("<key:anchor.widget.return.size>")
     public float maxScreenHeight() {
         return maxScreenHeight;
     }
@@ -154,7 +236,15 @@ public final class AnchorWidget {
      * <p>Если задан и пол, и {@link #maxScreenSize(float, float) потолок}, а пол
      * больше потолка — побеждает потолок.</p>
      */
-    public AnchorWidget minScreenSize(float width, float height) {
+        @AiDoc(summary = "Sets minimum screen dimensions to prevent over-shrinking at low zoom.")
+    @WikiMethod(summary = "<key:anchor.widget.method.minScreenSize>")
+    @WikiReturn("<key:anchor.widget.return.this>")
+    public AnchorWidget minScreenSize(
+            @WikiParameter(description = "<key:anchor.widget.param.width>")
+            float width,
+            @WikiParameter(description = "<key:anchor.widget.param.height>")
+            float height
+    ) {
         float nextWidth = sanitizeSize(width, -1.0f);
         float nextHeight = sanitizeSize(height, -1.0f);
         if (minScreenWidth == nextWidth && minScreenHeight == nextHeight) return this;
@@ -171,7 +261,15 @@ public final class AnchorWidget {
      * сильном приближении маркер не раздуется больше заданного размера.
      * Отрицательное/NaN значение убирает потолок.</p>
      */
-    public AnchorWidget maxScreenSize(float width, float height) {
+        @AiDoc(summary = "Sets maximum screen dimensions to prevent over-expanding at high zoom.")
+    @WikiMethod(summary = "<key:anchor.widget.method.maxScreenSize>")
+    @WikiReturn("<key:anchor.widget.return.this>")
+    public AnchorWidget maxScreenSize(
+            @WikiParameter(description = "<key:anchor.widget.param.width>")
+            float width,
+            @WikiParameter(description = "<key:anchor.widget.param.height>")
+            float height
+    ) {
         float nextWidth = sanitizeSize(width, -1.0f);
         float nextHeight = sanitizeSize(height, -1.0f);
         if (maxScreenWidth == nextWidth && maxScreenHeight == nextHeight) return this;
@@ -184,6 +282,9 @@ public final class AnchorWidget {
     /**
      * Включено ли масштабирование размера от zoom viewport'а.
      */
+        @AiDoc(summary = "Returns true if widget dimensions scale proportionally with viewport zoom.")
+    @WikiMethod(summary = "<key:anchor.widget.method.zoomScalingGet>")
+    @WikiReturn("<key:anchor.widget.return.zoomScaling>")
     public boolean zoomScaling() {
         return zoomScaling;
     }
@@ -194,6 +295,9 @@ public final class AnchorWidget {
      * <p>Базовый размер — это {@link #screenSize(float, float)} или desired size
      * виджета, если screenSize не задан.</p>
      */
+        @AiDoc(summary = "Returns the reference zoom factor where widget renders at base screen size.")
+    @WikiMethod(summary = "<key:anchor.widget.method.referenceZoom>")
+    @WikiReturn("<key:anchor.widget.return.zoom>")
     public float referenceZoom() {
         return referenceZoom;
     }
@@ -212,7 +316,15 @@ public final class AnchorWidget {
      * @param zoomScaling {@code true}, чтобы размер следовал за zoom
      * @param referenceZoom zoom, при котором размер равен базовому; неположительные/NaN нормализуются к {@code 1}
      */
-    public AnchorWidget zoomScaling(boolean zoomScaling, float referenceZoom) {
+        @AiDoc(summary = "Configures dynamic scaling of widget dimensions based on viewport zoom.")
+    @WikiMethod(summary = "<key:anchor.widget.method.zoomScalingSet>")
+    @WikiReturn("<key:anchor.widget.return.this>")
+    public AnchorWidget zoomScaling(
+            @WikiParameter(description = "<key:anchor.widget.param.zoomScaling>")
+            boolean zoomScaling,
+            @WikiParameter(description = "<key:anchor.widget.param.referenceZoom>")
+            float referenceZoom
+    ) {
         float nextReference = Float.isFinite(referenceZoom) && referenceZoom > 0.0f ? referenceZoom : 1.0f;
         if (this.zoomScaling == zoomScaling && this.referenceZoom == nextReference) return this;
         this.zoomScaling = zoomScaling;
@@ -224,6 +336,9 @@ public final class AnchorWidget {
     /**
      * Горизонтальный pivot: {@code 0} — левый край, {@code 0.5} — центр, {@code 1} — правый край.
      */
+        @AiDoc(summary = "Returns the normalized horizontal pivot coordinate (0.0=left, 0.5=center, 1.0=right).")
+    @WikiMethod(summary = "<key:anchor.widget.method.pivotX>")
+    @WikiReturn("<key:anchor.widget.return.pivot>")
     public float pivotX() {
         return pivotX;
     }
@@ -231,6 +346,9 @@ public final class AnchorWidget {
     /**
      * Вертикальный pivot: {@code 0} — верх, {@code 0.5} — центр, {@code 1} — низ.
      */
+        @AiDoc(summary = "Returns the normalized vertical pivot coordinate (0.0=top, 0.5=center, 1.0=bottom).")
+    @WikiMethod(summary = "<key:anchor.widget.method.pivotY>")
+    @WikiReturn("<key:anchor.widget.return.pivot>")
     public float pivotY() {
         return pivotY;
     }
@@ -238,7 +356,15 @@ public final class AnchorWidget {
     /**
      * Настраивает точку виджета, которая должна попасть в world/map позицию anchor.
      */
-    public AnchorWidget pivot(float x, float y) {
+        @AiDoc(summary = "Configures the normalized pivot point aligned to the anchor world position.")
+    @WikiMethod(summary = "<key:anchor.widget.method.pivot>")
+    @WikiReturn("<key:anchor.widget.return.this>")
+    public AnchorWidget pivot(
+            @WikiParameter(description = "<key:anchor.widget.param.x>")
+            float x,
+            @WikiParameter(description = "<key:anchor.widget.param.y>")
+            float y
+    ) {
         float nextX = clamp01(x);
         float nextY = clamp01(y);
         if (pivotX == nextX && pivotY == nextY) return this;
@@ -251,6 +377,9 @@ public final class AnchorWidget {
     /**
      * Минимальный zoom, при котором anchor видим.
      */
+        @AiDoc(summary = "Returns the lower zoom threshold for anchor visibility.")
+    @WikiMethod(summary = "<key:anchor.widget.method.minVisibleZoom>")
+    @WikiReturn("<key:anchor.widget.return.zoom>")
     public float minVisibleZoom() {
         return minVisibleZoom;
     }
@@ -258,6 +387,9 @@ public final class AnchorWidget {
     /**
      * Максимальный zoom, при котором anchor видим.
      */
+        @AiDoc(summary = "Returns the upper zoom threshold for anchor visibility.")
+    @WikiMethod(summary = "<key:anchor.widget.method.maxVisibleZoom>")
+    @WikiReturn("<key:anchor.widget.return.zoom>")
     public float maxVisibleZoom() {
         return maxVisibleZoom;
     }
@@ -268,7 +400,15 @@ public final class AnchorWidget {
      * <p>Удобно для LOD: например, на дальнем zoom показывать только крупные
      * области, а при приближении включать магазины, NPC, мелкие POI.</p>
      */
-    public AnchorWidget visibleZoomRange(float minZoom, float maxZoom) {
+        @AiDoc(summary = "Restricts anchor visibility to a specified viewport zoom range.")
+    @WikiMethod(summary = "<key:anchor.widget.method.visibleZoomRange>")
+    @WikiReturn("<key:anchor.widget.return.this>")
+    public AnchorWidget visibleZoomRange(
+            @WikiParameter(description = "<key:anchor.widget.param.minZoom>")
+            float minZoom,
+            @WikiParameter(description = "<key:anchor.widget.param.maxZoom>")
+            float maxZoom
+    ) {
         float nextMin = Float.isFinite(minZoom) && minZoom >= 0.0f ? minZoom : 0.0f;
         float nextMax = Float.isFinite(maxZoom) && maxZoom >= nextMin ? maxZoom : Float.POSITIVE_INFINITY;
         if (minVisibleZoom == nextMin && maxVisibleZoom == nextMax) return this;
@@ -281,6 +421,9 @@ public final class AnchorWidget {
     /**
      * Явная видимость anchor без учета zoom/culling.
      */
+        @AiDoc(summary = "Returns the manual visibility state of this anchor.")
+    @WikiMethod(summary = "<key:anchor.widget.method.visibleGet>")
+    @WikiReturn("<key:anchor.widget.return.visible>")
     public boolean visible() {
         return visible;
     }
@@ -288,7 +431,13 @@ public final class AnchorWidget {
     /**
      * Включает или выключает anchor вручную.
      */
-    public AnchorWidget visible(boolean visible) {
+        @AiDoc(summary = "Manually sets the visibility state of this anchor.")
+    @WikiMethod(summary = "<key:anchor.widget.method.visibleSet>")
+    @WikiReturn("<key:anchor.widget.return.this>")
+    public AnchorWidget visible(
+            @WikiParameter(description = "<key:anchor.widget.param.visible>")
+            boolean visible
+    ) {
         if (this.visible == visible) return this;
         this.visible = visible;
         invalidateLayout();
@@ -298,6 +447,9 @@ public final class AnchorWidget {
     /**
      * Нужно ли автоматически скрывать anchor, если он вне видимой области canvas.
      */
+        @AiDoc(summary = "Returns true if this anchor is automatically culled when outside the canvas viewport.")
+    @WikiMethod(summary = "<key:anchor.widget.method.cullOutsideViewportGet>")
+    @WikiReturn("<key:anchor.widget.return.cull>")
     public boolean cullOutsideViewport() {
         return cullOutsideViewport;
     }
@@ -308,7 +460,13 @@ public final class AnchorWidget {
      * <p>Для обычных маркеров лучше оставить {@code true}. Для больших popup-like
      * элементов, которые могут частично выходить за карту, можно поставить {@code false}.</p>
      */
-    public AnchorWidget cullOutsideViewport(boolean cullOutsideViewport) {
+        @AiDoc(summary = "Enables or disables automatic culling when outside the visible viewport.")
+    @WikiMethod(summary = "<key:anchor.widget.method.cullOutsideViewportSet>")
+    @WikiReturn("<key:anchor.widget.return.this>")
+    public AnchorWidget cullOutsideViewport(
+            @WikiParameter(description = "<key:anchor.widget.param.cullOutsideViewport>")
+            boolean cullOutsideViewport
+    ) {
         if (this.cullOutsideViewport == cullOutsideViewport) return this;
         this.cullOutsideViewport = cullOutsideViewport;
         invalidateLayout();
@@ -318,6 +476,9 @@ public final class AnchorWidget {
     /**
      * Итоговая видимость после zoom/culling/layout проверки.
      */
+        @AiDoc(summary = "Returns true if the anchor is currently visible after zoom, culling, and layout passes.")
+    @WikiMethod(summary = "<key:anchor.widget.method.arrangedVisible>")
+    @WikiReturn("<key:anchor.widget.return.visible>")
     public boolean arrangedVisible() {
         return arrangedVisible;
     }
@@ -325,6 +486,9 @@ public final class AnchorWidget {
     /**
      * Последняя рассчитанная root X позиция world-точки anchor.
      */
+        @AiDoc(summary = "Returns the latest projected screen root X coordinate of the anchor point.")
+    @WikiMethod(summary = "<key:anchor.widget.method.projectedRootX>")
+    @WikiReturn("<key:anchor.widget.return.coordinate>")
     public float projectedRootX() {
         return projectedRootX;
     }
@@ -332,6 +496,9 @@ public final class AnchorWidget {
     /**
      * Последняя рассчитанная root Y позиция world-точки anchor.
      */
+        @AiDoc(summary = "Returns the latest projected screen root Y coordinate of the anchor point.")
+    @WikiMethod(summary = "<key:anchor.widget.method.projectedRootY>")
+    @WikiReturn("<key:anchor.widget.return.coordinate>")
     public float projectedRootY() {
         return projectedRootY;
     }

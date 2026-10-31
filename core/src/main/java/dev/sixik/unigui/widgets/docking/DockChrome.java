@@ -20,8 +20,7 @@ import java.util.List;
  * что оба выглядят одинаково. Геометрия вкладки (иконка, текст, крестик) считается теми же функциями,
  * которые использует хит-тест, поэтому нарисованное и кликабельное не расходятся.</p>
  */
-@AiDoc(
-        description = "Utility drawing engine responsible for rendering docking chrome: tab strips, tab items, close/collapse buttons, and window frames based on DockTheme."
+@AiDoc(summary = "Utility drawing engine responsible for rendering docking chrome: tab strips, tab items, close/collapse buttons, and window frames based on DockTheme."
 )
 public final class DockChrome {
     private static final float HALF_PI = (float) (Math.PI * 0.5);

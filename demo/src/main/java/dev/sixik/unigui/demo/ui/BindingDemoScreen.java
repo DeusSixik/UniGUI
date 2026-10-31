@@ -43,9 +43,9 @@ public final class BindingDemoScreen {
         shell.content(workspace);
 
         Checkbox checkbox = new Checkbox("Enabled");
-        checkbox.bind(BindingKeys.CHECKED, sharedChecked);
+        checkbox.bind(BindingKeys.TOGGLE_BUTTON_CHECKED, sharedChecked);
         ToggleButton toggle = new ToggleButton("Enabled");
-        toggle.bind(BindingKeys.CHECKED, sharedChecked);
+        toggle.bind(BindingKeys.TOGGLE_BUTTON_CHECKED, sharedChecked);
         shell.add(checkbox);
         shell.add(toggle);
         shell.add(fullWidth(button("Set text from model", () -> sharedText.set("Updated by model")), 28.0f));

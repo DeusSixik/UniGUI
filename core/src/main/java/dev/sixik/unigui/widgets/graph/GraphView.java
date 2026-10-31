@@ -1,5 +1,15 @@
 package dev.sixik.unigui.widgets.graph;
 
+
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
 import dev.sixik.unigui.api.event.Event;
@@ -29,6 +39,27 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.List;
 import java.util.function.Function;
 
+@AiDoc(summary = "Static or interactive diagram graph widget displaying connected nodes, edges, labels, and tooltips with custom renderers.")
+@WikiPage(
+        title = "GraphView",
+        slug = "graph-view",
+        category = "<key:graph.category>",
+        summary = "<key:graph.view.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:graph.view.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:graph.view.example.basic.title>",
+        code = "GraphView graph = new GraphView();\ngraph.addNode(\"a\", 0.2f, 0.5f);\ngraph.addNode(\"b\", 0.8f, 0.5f);\ngraph.addEdge(\"a\", \"b\");"
+)
+@WikiLink(
+        label = "NodeGraph",
+        target = "page:node-graph",
+        description = "<key:node.graph.summary>"
+)
 @XmlWidgetName("GraphView")
 public final class GraphView extends WidgetBase {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.GRAPH_VIEW;
@@ -58,6 +89,8 @@ public final class GraphView extends WidgetBase {
     private float preferredWidth = DEFAULT_PREFERRED_WIDTH;
     private float preferredHeight = DEFAULT_PREFERRED_HEIGHT;
 
+    @AiDoc(summary = "Constructs a GraphView diagram widget with default styles.")
+    @WikiMethod(summary = "<key:graph.view.method.ctorDefault>")
     public GraphView() {
         nodeColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         hoveredNodeColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
@@ -67,18 +100,27 @@ public final class GraphView extends WidgetBase {
         tooltipBorder.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
     }
 
-    public GraphView addNode(String id, float x, float y) {
+    @AiDoc(summary = "Adds a node with ID and normalized (0..1) or absolute coordinates.")
+    @WikiMethod(summary = "<key:graph.view.method.addNode>")
+    @WikiReturn("<key:graph.view.return.self>")
+    public GraphView addNode(@WikiParameter(name = "id", description = "<key:graph.view.param.nodeId>") String id, @WikiParameter(name = "x", description = "<key:graph.view.param.x>") float x, @WikiParameter(name = "y", description = "<key:graph.view.param.y>") float y) {
         nodes.add(new Node(id, x, y));
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
 
-    public GraphView addEdge(String from, String to) {
+    @AiDoc(summary = "Adds a directed edge connection between two node IDs.")
+    @WikiMethod(summary = "<key:graph.view.method.addEdge>")
+    @WikiReturn("<key:graph.view.return.self>")
+    public GraphView addEdge(@WikiParameter(name = "from", description = "<key:graph.view.param.fromNode>") String from, @WikiParameter(name = "to", description = "<key:graph.view.param.toNode>") String to) {
         edges.add(new Edge(from, to));
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 
+    @AiDoc(summary = "Clears all nodes and edges from the diagram.")
+    @WikiMethod(summary = "<key:graph.view.method.clearGraph>")
+    @WikiReturn("<key:graph.view.return.self>")
     public GraphView clearGraph() {
         nodes.clear();
         edges.clear();
@@ -87,32 +129,53 @@ public final class GraphView extends WidgetBase {
         return this;
     }
 
+    @AiDoc(summary = "Returns the default node circle fill color.")
+    @WikiMethod(summary = "<key:graph.view.method.nodeColor>")
+    @WikiReturn("<key:graph.view.return.color>")
     public MutableColor nodeColor() {
         return nodeColor;
     }
 
+    @AiDoc(summary = "Returns the hover fill color for nodes.")
+    @WikiMethod(summary = "<key:graph.view.method.hoveredNodeColor>")
+    @WikiReturn("<key:graph.view.return.color>")
     public MutableColor hoveredNodeColor() {
         return hoveredNodeColor;
     }
 
+    @AiDoc(summary = "Returns the connection edge line color.")
+    @WikiMethod(summary = "<key:graph.view.method.edgeColor>")
+    @WikiReturn("<key:graph.view.return.color>")
     public MutableColor edgeColor() {
         return edgeColor;
     }
 
+    @AiDoc(summary = "Returns the node label text color.")
+    @WikiMethod(summary = "<key:graph.view.method.labelColor>")
+    @WikiReturn("<key:graph.view.return.color>")
     public MutableColor labelColor() {
         return labelColor;
     }
 
+    @AiDoc(summary = "Returns the background fill color of node tooltip popups.")
+    @WikiMethod(summary = "<key:graph.view.method.tooltipBackground>")
+    @WikiReturn("<key:graph.view.return.color>")
     public MutableColor tooltipBackground() {
         return tooltipBackground;
     }
 
+    @AiDoc(summary = "Returns the border outline color of node tooltip popups.")
+    @WikiMethod(summary = "<key:graph.view.method.tooltipBorder>")
+    @WikiReturn("<key:graph.view.return.color>")
     public MutableColor tooltipBorder() {
         return tooltipBorder;
     }
 
     @XmlAttribute(value = "nodeLabelsVisible", category = "Appearance", defaultValue = "true", description = "Whether node labels are rendered.")
-    public GraphView nodeLabelsVisible(boolean nodeLabelsVisible) {
+    @AiDoc(summary = "Sets whether text labels are rendered alongside node points.")
+    @WikiMethod(summary = "<key:graph.view.method.nodeLabelsVisible>")
+    @WikiReturn("<key:graph.view.return.self>")
+    public GraphView nodeLabelsVisible(@WikiParameter(name = "nodeLabelsVisible", description = "<key:graph.view.param.nodeLabelsVisible>") boolean nodeLabelsVisible) {
         if (this.nodeLabelsVisible == nodeLabelsVisible) return this;
         this.nodeLabelsVisible = nodeLabelsVisible;
         invalidate(InvalidationFlags.VISUAL);
@@ -120,48 +183,72 @@ public final class GraphView extends WidgetBase {
     }
 
     @XmlAttribute(value = "nodeLabelPlacement", category = "Appearance", defaultValue = "right", description = "Placement of labels relative to graph nodes.")
-    public GraphView nodeLabelPlacement(NodeLabelPlacement nodeLabelPlacement) {
+    @AiDoc(summary = "Sets relative placement of text labels around node points.")
+    @WikiMethod(summary = "<key:graph.view.method.nodeLabelPlacement>")
+    @WikiReturn("<key:graph.view.return.self>")
+    public GraphView nodeLabelPlacement(@WikiParameter(name = "nodeLabelPlacement", description = "<key:graph.view.param.nodeLabelPlacement>") NodeLabelPlacement nodeLabelPlacement) {
         this.nodeLabelPlacement = nodeLabelPlacement == null ? NodeLabelPlacement.RIGHT : nodeLabelPlacement;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 
-    public GraphView nodeLabelProvider(Function<NodePoint, String> nodeLabelProvider) {
+    @AiDoc(summary = "Configures a function returning the text label for a given node point.")
+    @WikiMethod(summary = "<key:graph.view.method.nodeLabelProvider>")
+    @WikiReturn("<key:graph.view.return.self>")
+    public GraphView nodeLabelProvider(@WikiParameter(name = "nodeLabelProvider", description = "<key:graph.view.param.nodeLabelProvider>") java.util.function.Function<NodePoint, String> nodeLabelProvider) {
         this.nodeLabelProvider = nodeLabelProvider == null ? NodePoint::id : nodeLabelProvider;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 
-    public GraphView nodeTooltipProvider(Function<NodePoint, String> nodeTooltipProvider) {
+    @AiDoc(summary = "Configures a function returning tooltip text for hovered nodes.")
+    @WikiMethod(summary = "<key:graph.view.method.nodeTooltipProvider>")
+    @WikiReturn("<key:graph.view.return.self>")
+    public GraphView nodeTooltipProvider(@WikiParameter(name = "nodeTooltipProvider", description = "<key:graph.view.param.nodeTooltipProvider>") java.util.function.Function<NodePoint, String> nodeTooltipProvider) {
         this.nodeTooltipProvider = nodeTooltipProvider == null ? node -> node.id() : nodeTooltipProvider;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 
-    public GraphView nodeRenderer(GraphNodeRenderer nodeRenderer) {
+    @AiDoc(summary = "Sets a custom renderer callback for drawing node points.")
+    @WikiMethod(summary = "<key:graph.view.method.nodeRenderer>")
+    @WikiReturn("<key:graph.view.return.self>")
+    public GraphView nodeRenderer(@WikiParameter(name = "nodeRenderer", description = "<key:graph.view.param.nodeRenderer>") GraphNodeRenderer nodeRenderer) {
         this.nodeRenderer = nodeRenderer;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 
-    public GraphView nodeLabelRenderer(GraphNodeLabelRenderer nodeLabelRenderer) {
+    @AiDoc(summary = "Sets a custom renderer callback for drawing node labels.")
+    @WikiMethod(summary = "<key:graph.view.method.nodeLabelRenderer>")
+    @WikiReturn("<key:graph.view.return.self>")
+    public GraphView nodeLabelRenderer(@WikiParameter(name = "nodeLabelRenderer", description = "<key:graph.view.param.nodeLabelRenderer>") GraphNodeLabelRenderer nodeLabelRenderer) {
         this.nodeLabelRenderer = nodeLabelRenderer;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 
-    public GraphView nodeTooltipRenderer(GraphNodeTooltipRenderer nodeTooltipRenderer) {
+    @AiDoc(summary = "Sets a custom renderer callback for drawing node hover tooltips.")
+    @WikiMethod(summary = "<key:graph.view.method.nodeTooltipRenderer>")
+    @WikiReturn("<key:graph.view.return.self>")
+    public GraphView nodeTooltipRenderer(@WikiParameter(name = "nodeTooltipRenderer", description = "<key:graph.view.param.nodeTooltipRenderer>") GraphNodeTooltipRenderer nodeTooltipRenderer) {
         this.nodeTooltipRenderer = nodeTooltipRenderer;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 
+    @AiDoc(summary = "Returns the preferred width of this graph view.")
+    @WikiMethod(summary = "<key:graph.view.method.preferredWidthGet>")
+    @WikiReturn("<key:graph.view.return.preferredWidth>")
     public float preferredWidth() {
         return preferredWidth;
     }
 
     @XmlAttribute(value = "preferredWidth", category = "Layout", defaultValue = "240", description = "Intrinsic graph width before layout constraints are applied.")
-    public GraphView preferredWidth(float preferredWidth) {
+    @AiDoc(summary = "Sets the preferred width of this graph view.")
+    @WikiMethod(summary = "<key:graph.view.method.preferredWidthSet>")
+    @WikiReturn("<key:graph.view.return.self>")
+    public GraphView preferredWidth(@WikiParameter(name = "preferredWidth", description = "<key:graph.view.param.preferredWidth>") float preferredWidth) {
         float normalized = positiveOr(preferredWidth, DEFAULT_PREFERRED_WIDTH);
         if (this.preferredWidth == normalized) return this;
         this.preferredWidth = normalized;
@@ -169,12 +256,18 @@ public final class GraphView extends WidgetBase {
         return this;
     }
 
+    @AiDoc(summary = "Returns the preferred height of this graph view.")
+    @WikiMethod(summary = "<key:graph.view.method.preferredHeightGet>")
+    @WikiReturn("<key:graph.view.return.preferredHeight>")
     public float preferredHeight() {
         return preferredHeight;
     }
 
     @XmlAttribute(value = "preferredHeight", category = "Layout", defaultValue = "130", description = "Intrinsic graph height before layout constraints are applied.")
-    public GraphView preferredHeight(float preferredHeight) {
+    @AiDoc(summary = "Sets the preferred height of this graph view.")
+    @WikiMethod(summary = "<key:graph.view.method.preferredHeightSet>")
+    @WikiReturn("<key:graph.view.return.self>")
+    public GraphView preferredHeight(@WikiParameter(name = "preferredHeight", description = "<key:graph.view.param.preferredHeight>") float preferredHeight) {
         float normalized = positiveOr(preferredHeight, DEFAULT_PREFERRED_HEIGHT);
         if (this.preferredHeight == normalized) return this;
         this.preferredHeight = normalized;
@@ -182,11 +275,17 @@ public final class GraphView extends WidgetBase {
         return this;
     }
 
-    public GraphView preferredSize(float width, float height) {
+    @AiDoc(summary = "Sets both preferred width and height dimensions.")
+    @WikiMethod(summary = "<key:graph.view.method.preferredSize>")
+    @WikiReturn("<key:graph.view.return.self>")
+    public GraphView preferredSize(@WikiParameter(name = "width", description = "<key:graph.view.param.preferredWidth>") float width, @WikiParameter(name = "height", description = "<key:graph.view.param.preferredHeight>") float height) {
         return preferredWidth(width).preferredHeight(height);
     }
 
-    public EventSubscription onNodeClick(EventListener<? super GraphNodeClickEvent> listener) {
+    @AiDoc(summary = "Registers a listener called when a node point is clicked.")
+    @WikiMethod(summary = "<key:graph.view.method.onNodeClick>")
+    @WikiReturn("<key:graph.view.return.subscription>")
+    public EventSubscription onNodeClick(@WikiParameter(name = "listener", description = "<key:graph.view.param.listener>") EventListener<? super GraphNodeClickEvent> listener) {
         return on(GraphNodeClickEvent.TYPE, listener);
     }
 
@@ -385,6 +484,7 @@ public final class GraphView extends WidgetBase {
         return Float.isFinite(value) && value > 0.0f ? value : fallback;
     }
 
+    @AiDoc(summary = "Specifies relative label placement position around a node: TOP, BOTTOM, LEFT, RIGHT, or CENTER.")
     public enum NodeLabelPlacement {
         NONE,
         CENTER,
@@ -393,26 +493,32 @@ public final class GraphView extends WidgetBase {
         BELOW
     }
 
+    @AiDoc(summary = "Represents a point node with normalized or world coordinates in a GraphView diagram.")
     public record Node(String id, float x, float y) {
     }
 
+    @AiDoc(summary = "Represents an edge connection link between two node identifiers.")
     public record Edge(String from, String to) {
     }
 
+    @AiDoc(summary = "Geometry point data for a rendered node with hover state.")
     public record NodePoint(int index, String id, float normalizedX, float normalizedY, float x, float y, boolean hovered) {
     }
 
     @FunctionalInterface
+    @AiDoc(summary = "Callback interface for custom rendering of graph node points.")
     public interface GraphNodeRenderer {
         void render(DrawScope draw, NodePoint node);
     }
 
     @FunctionalInterface
+    @AiDoc(summary = "Callback interface for custom rendering of graph node text labels.")
     public interface GraphNodeLabelRenderer {
         void render(DrawScope draw, NodePoint node);
     }
 
     @FunctionalInterface
+    @AiDoc(summary = "Callback interface for custom rendering of graph node tooltip popups.")
     public interface GraphNodeTooltipRenderer {
         void render(DrawScope draw, NodePoint node);
     }

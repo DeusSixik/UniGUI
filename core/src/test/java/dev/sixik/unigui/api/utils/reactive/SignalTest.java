@@ -32,8 +32,8 @@ class SignalTest {
         BooleanSignal first = new BooleanSignal(false);
         BooleanSignal second = new BooleanSignal(true);
         ToggleButton button = new ToggleButton();
-        button.bind(BindingKeys.CHECKED, first);
-        button.bind(BindingKeys.CHECKED, second);
+        button.bind(BindingKeys.TOGGLE_BUTTON_CHECKED, first);
+        button.bind(BindingKeys.TOGGLE_BUTTON_CHECKED, second);
 
         assertEquals(false, first.get());
         assertEquals(true, button.checked());

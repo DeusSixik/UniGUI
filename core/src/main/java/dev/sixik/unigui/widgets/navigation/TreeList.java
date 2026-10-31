@@ -1,13 +1,47 @@
 package dev.sixik.unigui.widgets.navigation;
 
+
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 
 
+@AiDoc(summary = "Specialized TreeView for hierarchical path navigation and directory listing.")
+@WikiPage(
+        title = "TreeList",
+        slug = "tree-list",
+        category = "<key:navigation.category>",
+        summary = "<key:tree.list.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:tree.list.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:tree.list.example.basic.title>",
+        code = "TreeList treeList = new TreeList();\ntreeList.addPath(\"src\", \"main\", \"java\");\ntreeList.addPath(\"src\", \"test\", \"java\");"
+)
+@WikiLink(
+        label = "TreeView",
+        target = "page:tree-view",
+        description = "<key:tree.view.summary>"
+)
 @XmlWidgetName("TreeList")
 public class TreeList extends TreeView {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TREE_LIST;
 
-    public TreeList addPath(String... labels) {
+        @AiDoc(summary = "Adds a path of node labels to the tree hierarchy, creating intermediate folders if necessary.")
+    @WikiMethod(summary = "<key:tree.list.method.addPath>")
+    @WikiReturn("<key:tree.list.return.self>")
+    public TreeList addPath(@WikiParameter(name = "labels", description = "<key:tree.list.param.labels>") String... labels) {
         if (labels == null || labels.length == 0) return this;
         beginBatch();
         try {

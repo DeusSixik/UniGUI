@@ -1,5 +1,15 @@
 package dev.sixik.unigui.widgets.navigation;
 
+
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.text.RichText;
@@ -10,6 +20,27 @@ import java.util.List;
 import java.util.Objects;
 import dev.sixik.unigui.widgets.interaction.Button;
 
+@AiDoc(summary = "Hierarchical node item in a TreeView holding text, custom icon, expansion state, and child nodes.")
+@WikiPage(
+        title = "TreeViewNode",
+        slug = "tree-view-node",
+        category = "<key:navigation.category>",
+        summary = "<key:tree.view.node.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:tree.view.node.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:tree.view.node.example.basic.title>",
+        code = "TreeViewNode node = new TreeViewNode(\"Folder\");\nnode.folder(true).expanded(true);\nnode.addChild(\"file.txt\");"
+)
+@WikiLink(
+        label = "TreeView",
+        target = "page:tree-view",
+        description = "<key:tree.view.summary>"
+)
 public final class TreeViewNode {
     private final List<TreeViewNode> children = new ObjectArrayList<>();
     private String text;
@@ -27,27 +58,39 @@ public final class TreeViewNode {
     private boolean iconSuppressed;
     private Button rowButton;
 
+    @AiDoc(summary = "Constructs an empty TreeViewNode with empty label.")
+    @WikiMethod(summary = "<key:tree.view.node.method.ctorDefault>")
     public TreeViewNode() {
         this("");
     }
 
-    public TreeViewNode(String text) {
+    @AiDoc(summary = "Constructs a TreeViewNode with a plain text label.")
+    @WikiMethod(summary = "<key:tree.view.node.method.ctorText>")
+    public TreeViewNode(@WikiParameter(name = "text", description = "<key:tree.view.node.param.text>") String text) {
         this.text = normalize(text);
         this.richText = RichText.resolve(this.text);
         this.value = this.text;
     }
 
-    public TreeViewNode(RichText text) {
+    @AiDoc(summary = "Constructs a TreeViewNode with a RichText label.")
+    @WikiMethod(summary = "<key:tree.view.node.method.ctorRich>")
+    public TreeViewNode(@WikiParameter(name = "text", description = "<key:tree.view.node.param.richText>") dev.sixik.unigui.api.text.RichText text) {
         this.richText = text == null ? RichText.plain("") : text;
         this.text = this.richText.plainText();
         this.value = this.text;
     }
 
+    @AiDoc(summary = "Returns the plain text representation of this node label.")
+    @WikiMethod(summary = "<key:tree.view.node.method.textGet>")
+    @WikiReturn("<key:tree.view.node.return.text>")
     public String text() {
         return text;
     }
 
-    public TreeViewNode text(String text) {
+    @AiDoc(summary = "Sets the plain text label of this node.")
+    @WikiMethod(summary = "<key:tree.view.node.method.textSet>")
+    @WikiReturn("<key:tree.view.node.return.self>")
+    public TreeViewNode text(@WikiParameter(name = "text", description = "<key:tree.view.node.param.text>") String text) {
         String normalized = normalize(text);
         if (Objects.equals(this.text, normalized)) return this;
         this.text = normalized;
@@ -56,11 +99,17 @@ public final class TreeViewNode {
         return this;
     }
 
-    public RichText richText() {
+    @AiDoc(summary = "Returns the RichText representation of this node label.")
+    @WikiMethod(summary = "<key:tree.view.node.method.richTextGet>")
+    @WikiReturn("<key:tree.view.node.return.richText>")
+    public dev.sixik.unigui.api.text.RichText richText() {
         return richText;
     }
 
-    public TreeViewNode richText(RichText text) {
+    @AiDoc(summary = "Sets the RichText label of this node.")
+    @WikiMethod(summary = "<key:tree.view.node.method.richTextSet>")
+    @WikiReturn("<key:tree.view.node.return.self>")
+    public TreeViewNode richText(@WikiParameter(name = "text", description = "<key:tree.view.node.param.richText>") dev.sixik.unigui.api.text.RichText text) {
         RichText normalized = text == null ? RichText.plain("") : text;
         if (Objects.equals(this.richText, normalized)) return this;
         this.richText = normalized;
@@ -69,69 +118,114 @@ public final class TreeViewNode {
         return this;
     }
 
+    @AiDoc(summary = "Returns the semantic identifier string value of this node.")
+    @WikiMethod(summary = "<key:tree.view.node.method.valueGet>")
+    @WikiReturn("<key:tree.view.node.return.value>")
     public String value() {
         return value;
     }
 
-    public TreeViewNode value(String value) {
+    @AiDoc(summary = "Sets the semantic identifier string value of this node.")
+    @WikiMethod(summary = "<key:tree.view.node.method.valueSet>")
+    @WikiReturn("<key:tree.view.node.return.self>")
+    public TreeViewNode value(@WikiParameter(name = "value", description = "<key:tree.view.node.param.value>") String value) {
         this.value = normalize(value);
         return this;
     }
 
+    @AiDoc(summary = "Returns the parent node in the hierarchy, or null if root.")
+    @WikiMethod(summary = "<key:tree.view.node.method.parent>")
+    @WikiReturn("<key:tree.view.node.return.parent>")
     public TreeViewNode parent() {
         return parent;
     }
 
+    @AiDoc(summary = "Returns the TreeView that owns this node.")
+    @WikiMethod(summary = "<key:tree.view.node.method.owner>")
+    @WikiReturn("<key:tree.view.node.return.owner>")
     public TreeView owner() {
         return owner;
     }
 
+    @AiDoc(summary = "Returns an unmodifiable list of child nodes.")
+    @WikiMethod(summary = "<key:tree.view.node.method.children>")
+    @WikiReturn("<key:tree.view.node.return.children>")
     public List<TreeViewNode> children() {
         return Collections.unmodifiableList(children);
     }
 
-    public TreeViewNode child(int index) {
+    @AiDoc(summary = "Returns the child node at the specified index.")
+    @WikiMethod(summary = "<key:tree.view.node.method.childIndex>")
+    @WikiReturn("<key:tree.view.node.return.childNode>")
+    public TreeViewNode child(@WikiParameter(name = "index", description = "<key:tree.view.node.param.index>") int index) {
         return children.get(index);
     }
 
+    @AiDoc(summary = "Returns the number of child nodes under this node.")
+    @WikiMethod(summary = "<key:tree.view.node.method.childCount>")
+    @WikiReturn("<key:tree.view.node.return.childCount>")
     public int childCount() {
         return children.size();
     }
 
+    @AiDoc(summary = "Returns true if this node has one or more children.")
+    @WikiMethod(summary = "<key:tree.view.node.method.hasChildren>")
+    @WikiReturn("<key:tree.view.node.return.hasChildren>")
     public boolean hasChildren() {
         return !children.isEmpty();
     }
 
+    @AiDoc(summary = "Returns true if this node is explicitly designated as a folder.")
+    @WikiMethod(summary = "<key:tree.view.node.method.folderGet>")
+    @WikiReturn("<key:tree.view.node.return.isFolder>")
     public boolean folder() {
         return isFolder || hasChildren();
     }
 
-    public TreeViewNode folder(boolean isFolder) {
+    @AiDoc(summary = "Designates whether this node represents a folder item.")
+    @WikiMethod(summary = "<key:tree.view.node.method.folderSet>")
+    @WikiReturn("<key:tree.view.node.return.self>")
+    public TreeViewNode folder(@WikiParameter(name = "isFolder", description = "<key:tree.view.node.param.isFolder>") boolean isFolder) {
         this.isFolder = isFolder;
         notifyVisualChanged();
         return this;
     }
 
+    @AiDoc(summary = "Returns true if this node is configured to display as an empty folder.")
+    @WikiMethod(summary = "<key:tree.view.node.method.emptyFolderGet>")
+    @WikiReturn("<key:tree.view.node.return.emptyFolder>")
     public boolean emptyFolder() {
         return emptyFolder != null ? emptyFolder : !hasChildren();
     }
 
-    public TreeViewNode emptyFolder(boolean emptyFolder) {
+    @AiDoc(summary = "Sets whether this node displays folder semantics even without children.")
+    @WikiMethod(summary = "<key:tree.view.node.method.emptyFolderSet>")
+    @WikiReturn("<key:tree.view.node.return.self>")
+    public TreeViewNode emptyFolder(@WikiParameter(name = "emptyFolder", description = "<key:tree.view.node.param.emptyFolder>") boolean emptyFolder) {
         this.emptyFolder = emptyFolder;
         notifyVisualChanged();
         return this;
     }
 
+    @AiDoc(summary = "Returns true if this node is currently expanded.")
+    @WikiMethod(summary = "<key:tree.view.node.method.expandedGet>")
+    @WikiReturn("<key:tree.view.node.return.expanded>")
     public boolean expanded() {
         return expanded;
     }
 
-    public TreeViewNode expanded(boolean expanded) {
+    @AiDoc(summary = "Expands or collapses this node, rebuilding tree rows.")
+    @WikiMethod(summary = "<key:tree.view.node.method.expandedSet>")
+    @WikiReturn("<key:tree.view.node.return.self>")
+    public TreeViewNode expanded(@WikiParameter(name = "expanded", description = "<key:tree.view.node.param.expanded>") boolean expanded) {
         setExpanded(expanded);
         return this;
     }
 
-    public TreeViewNode silentExpanded(boolean expanded) {
+    @AiDoc(summary = "Sets the expanded state without triggering row rebuilds.")
+    @WikiMethod(summary = "<key:tree.view.node.method.silentExpanded>")
+    @WikiReturn("<key:tree.view.node.return.self>")
+    public TreeViewNode silentExpanded(@WikiParameter(name = "expanded", description = "<key:tree.view.node.param.expanded>") boolean expanded) {
         if (this.expanded == expanded) return this;
         this.expanded = expanded;
         if (owner != null) {
@@ -140,6 +234,9 @@ public final class TreeViewNode {
         return this;
     }
 
+    @AiDoc(summary = "Toggles the expanded state of this node.")
+    @WikiMethod(summary = "<key:tree.view.node.method.toggleExpanded>")
+    @WikiReturn("<key:tree.view.node.return.self>")
     public TreeViewNode toggleExpanded() {
         return expanded(!expanded);
     }
@@ -149,6 +246,9 @@ public final class TreeViewNode {
      *
      * @return текстура иконки или {@code null}, если строка рисует векторный глиф
      */
+    @AiDoc(summary = "Returns the texture handle icon for this node.")
+    @WikiMethod(summary = "<key:tree.view.node.method.iconGet>")
+    @WikiReturn("<key:tree.view.node.return.icon>")
     public TextureHandle icon() {
         return icon;
     }
@@ -162,7 +262,10 @@ public final class TreeViewNode {
      * @param icon текстура иконки или {@code null}
      * @return этот узел
      */
-    public TreeViewNode icon(TextureHandle icon) {
+    @AiDoc(summary = "Sets the texture icon for this node.")
+    @WikiMethod(summary = "<key:tree.view.node.method.iconSet>")
+    @WikiReturn("<key:tree.view.node.return.self>")
+    public TreeViewNode icon(@WikiParameter(name = "icon", description = "<key:tree.view.node.param.icon>") TextureHandle icon) {
         if (this.icon == icon && !iconSuppressed) return this;
         this.icon = icon;
         this.iconSuppressed = false;
@@ -175,6 +278,9 @@ public final class TreeViewNode {
      *
      * @return отрисовка или {@code null}
      */
+    @AiDoc(summary = "Returns the custom icon draw callback.")
+    @WikiMethod(summary = "<key:tree.view.node.method.iconDrawGet>")
+    @WikiReturn("<key:tree.view.node.return.iconDraw>")
     public IconDraw iconDraw() {
         return iconDraw;
     }
@@ -188,7 +294,10 @@ public final class TreeViewNode {
      * @param iconDraw отрисовка или {@code null}
      * @return этот узел
      */
-    public TreeViewNode iconDraw(IconDraw iconDraw) {
+    @AiDoc(summary = "Sets a custom icon draw callback.")
+    @WikiMethod(summary = "<key:tree.view.node.method.iconDrawSet>")
+    @WikiReturn("<key:tree.view.node.return.self>")
+    public TreeViewNode iconDraw(@WikiParameter(name = "iconDraw", description = "<key:tree.view.node.param.iconDraw>") IconDraw iconDraw) {
         if (this.iconDraw == iconDraw && !iconSuppressed) return this;
         this.iconDraw = iconDraw;
         this.iconSuppressed = false;
@@ -201,6 +310,9 @@ public final class TreeViewNode {
      *
      * @return {@code true}, если строка не резервирует слот иконки
      */
+    @AiDoc(summary = "Returns true if icon rendering is explicitly suppressed for this node.")
+    @WikiMethod(summary = "<key:tree.view.node.method.iconSuppressed>")
+    @WikiReturn("<key:tree.view.node.return.iconSuppressed>")
     public boolean iconSuppressed() {
         return iconSuppressed;
     }
@@ -210,6 +322,9 @@ public final class TreeViewNode {
      *
      * @return этот узел
      */
+    @AiDoc(summary = "Explicitly suppresses icon rendering on this node.")
+    @WikiMethod(summary = "<key:tree.view.node.method.noIcon>")
+    @WikiReturn("<key:tree.view.node.return.self>")
     public TreeViewNode noIcon() {
         if (iconSuppressed && icon == null && iconDraw == null) return this;
         icon = null;
@@ -219,11 +334,17 @@ public final class TreeViewNode {
         return this;
     }
 
+    @AiDoc(summary = "Returns true if this node can be selected by user interaction.")
+    @WikiMethod(summary = "<key:tree.view.node.method.selectableGet>")
+    @WikiReturn("<key:tree.view.node.return.selectable>")
     public boolean selectable() {
         return selectable;
     }
 
-    public TreeViewNode selectable(boolean selectable) {
+    @AiDoc(summary = "Sets whether this node can be selected.")
+    @WikiMethod(summary = "<key:tree.view.node.method.selectableSet>")
+    @WikiReturn("<key:tree.view.node.return.self>")
+    public TreeViewNode selectable(@WikiParameter(name = "selectable", description = "<key:tree.view.node.param.selectable>") boolean selectable) {
         if (this.selectable == selectable) return this;
         this.selectable = selectable;
         if (!selectable && owner != null && owner.selectedNode() == this) {
@@ -233,6 +354,9 @@ public final class TreeViewNode {
         return this;
     }
 
+    @AiDoc(summary = "Returns the nesting depth of this node from the root.")
+    @WikiMethod(summary = "<key:tree.view.node.method.depth>")
+    @WikiReturn("<key:tree.view.node.return.depth>")
     public int depth() {
         int depth = 0;
         TreeViewNode current = parent;
@@ -243,38 +367,59 @@ public final class TreeViewNode {
         return depth;
     }
 
-    public Button rowButton() {
+    @AiDoc(summary = "Returns the button widget rendering this node row, or null if not currently visible.")
+    @WikiMethod(summary = "<key:tree.view.node.method.rowButton>")
+    @WikiReturn("<key:tree.view.node.return.rowButton>")
+    public dev.sixik.unigui.widgets.interaction.Button rowButton() {
         return rowButton;
     }
 
-    public TreeViewNode addChild(String text) {
+    @AiDoc(summary = "Creates and appends a child node with plain text label.")
+    @WikiMethod(summary = "<key:tree.view.node.method.addChildText>")
+    @WikiReturn("<key:tree.view.node.return.childNode>")
+    public TreeViewNode addChild(@WikiParameter(name = "text", description = "<key:tree.view.node.param.text>") String text) {
         TreeViewNode child = new TreeViewNode(text);
         addChild(child);
         return child;
     }
 
-    public TreeViewNode addChild(RichText text) {
+    @AiDoc(summary = "Creates and appends a child node with RichText label.")
+    @WikiMethod(summary = "<key:tree.view.node.method.addChildRich>")
+    @WikiReturn("<key:tree.view.node.return.childNode>")
+    public TreeViewNode addChild(@WikiParameter(name = "text", description = "<key:tree.view.node.param.richText>") dev.sixik.unigui.api.text.RichText text) {
         TreeViewNode child = new TreeViewNode(text);
         addChild(child);
         return child;
     }
 
+    @AiDoc(summary = "Returns the arbitrary user data object attached to this node.")
+    @WikiMethod(summary = "<key:tree.view.node.method.userDataGet>")
+    @WikiReturn("<key:tree.view.node.return.userData>")
     public Object userData() {
         return userData;
     }
 
-    public TreeViewNode userData(Object userData) {
+    @AiDoc(summary = "Attaches arbitrary user data to this node.")
+    @WikiMethod(summary = "<key:tree.view.node.method.userDataSet>")
+    @WikiReturn("<key:tree.view.node.return.self>")
+    public TreeViewNode userData(@WikiParameter(name = "userData", description = "<key:tree.view.node.param.userData>") Object userData) {
         this.userData = userData;
         return this;
     }
 
     @SuppressWarnings("unchecked")
-    public <T> T userData(Class<T> type) {
+    @AiDoc(summary = "Returns typed user data attached to this node, or null if cast fails.")
+    @WikiMethod(summary = "<key:tree.view.node.method.userDataTyped>")
+    @WikiReturn("<key:tree.view.node.return.typedUserData>")
+    public <T> T userData(@WikiParameter(name = "type", description = "<key:tree.view.node.param.type>") Class<T> type) {
         if (type == null || userData == null) return null;
         return type.isInstance(userData) ? (T) userData : null;
     }
 
-    public TreeViewNode insertChild(int index, TreeViewNode child) {
+    @AiDoc(summary = "Inserts a child node at the given index.")
+    @WikiMethod(summary = "<key:tree.view.node.method.insertChild>")
+    @WikiReturn("<key:tree.view.node.return.self>")
+    public TreeViewNode insertChild(@WikiParameter(name = "index", description = "<key:tree.view.node.param.index>") int index, @WikiParameter(name = "child", description = "<key:tree.view.node.param.child>") TreeViewNode child) {
         if (child == null || child == this || isAncestor(child)) return this;
         child.detachFromCurrentContainer();
         int clamped = Math.max(0, Math.min(children.size(), index));
@@ -284,7 +429,10 @@ public final class TreeViewNode {
         return this;
     }
 
-    public TreeViewNode addChild(TreeViewNode child) {
+    @AiDoc(summary = "Appends an existing node as a child.")
+    @WikiMethod(summary = "<key:tree.view.node.method.addChildNode>")
+    @WikiReturn("<key:tree.view.node.return.self>")
+    public TreeViewNode addChild(@WikiParameter(name = "child", description = "<key:tree.view.node.param.child>") TreeViewNode child) {
         if (child == null || child == this || isAncestor(child)) return this;
         child.detachFromCurrentContainer();
         children.add(child);
@@ -293,7 +441,10 @@ public final class TreeViewNode {
         return this;
     }
 
-    public TreeViewNode removeChild(TreeViewNode child) {
+    @AiDoc(summary = "Removes the specified child node from this node.")
+    @WikiMethod(summary = "<key:tree.view.node.method.removeChild>")
+    @WikiReturn("<key:tree.view.node.return.self>")
+    public TreeViewNode removeChild(@WikiParameter(name = "child", description = "<key:tree.view.node.param.child>") TreeViewNode child) {
         if (child == null || !children.remove(child)) return this;
         if (owner != null) {
             owner.onNodeRemoved(child);
@@ -303,6 +454,9 @@ public final class TreeViewNode {
         return this;
     }
 
+    @AiDoc(summary = "Removes all child nodes from this node.")
+    @WikiMethod(summary = "<key:tree.view.node.method.clearChildren>")
+    @WikiReturn("<key:tree.view.node.return.self>")
     public TreeViewNode clearChildren() {
         if (children.isEmpty()) return this;
         if (owner != null) {
@@ -355,7 +509,10 @@ public final class TreeViewNode {
         }
     }
 
-    public boolean isAncestor(TreeViewNode candidate) {
+    @AiDoc(summary = "Returns true if this node is an ancestor of the candidate node.")
+    @WikiMethod(summary = "<key:tree.view.node.method.isAncestor>")
+    @WikiReturn("<key:tree.view.node.return.isAncestor>")
+    public boolean isAncestor(@WikiParameter(name = "candidate", description = "<key:tree.view.node.param.candidate>") TreeViewNode candidate) {
         TreeViewNode current = this;
         while (current != null) {
             if (current == candidate) return true;
@@ -386,6 +543,7 @@ public final class TreeViewNode {
      * <p>Вызывается каждый кадр строки. Реализация не должна аллоцировать.</p>
      */
     @FunctionalInterface
+    @AiDoc(summary = "Callback interface for custom drawing of tree node icons.")
     public interface IconDraw {
         /**
          * Рисует иконку.

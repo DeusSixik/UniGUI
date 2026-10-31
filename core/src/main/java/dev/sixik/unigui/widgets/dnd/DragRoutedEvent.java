@@ -21,8 +21,7 @@ import java.util.Objects;
  * <p>Все события несут {@link DragSession}: payload, позицию указателя и источник читаются из неё,
  * поэтому копии события при маршрутизации (capture/target/bubble) остаются лёгкими.</p>
  */
-@AiDoc(
-        description = "Abstract base class for routed drag-and-drop events conveying the active DragSession across widget hierarchies."
+@AiDoc(summary = "Abstract base class for routed drag-and-drop events conveying the active DragSession across widget hierarchies."
 )
 @WikiPage(
         title = "DragRoutedEvent",
@@ -57,32 +56,32 @@ public abstract class DragRoutedEvent extends BaseEvent implements RoutableWidge
     }
 
     @Override
-    @AiDoc(description = "Returns the event type token.")
-    @WikiMethod(description = "<key:drag.routed.event.method.type>")
+    @AiDoc(summary = "Returns the event type token.")
+    @WikiMethod(summary = "<key:drag.routed.event.method.type>")
     @WikiReturn("<key:drag.routed.event.return.type>")
     public EventType<? extends Event> type() {
         return type;
     }
 
     @Override
-    @AiDoc(description = "Returns the original target widget where the event was initiated.")
-    @WikiMethod(description = "<key:drag.routed.event.method.target>")
+    @AiDoc(summary = "Returns the original target widget where the event was initiated.")
+    @WikiMethod(summary = "<key:drag.routed.event.method.target>")
     @WikiReturn("<key:drag.routed.event.return.target>")
     public Widget target() {
         return target;
     }
 
     @Override
-    @AiDoc(description = "Returns the current widget handling the event during dispatch.")
-    @WikiMethod(description = "<key:drag.routed.event.method.currentTarget>")
+    @AiDoc(summary = "Returns the current widget handling the event during dispatch.")
+    @WikiMethod(summary = "<key:drag.routed.event.method.currentTarget>")
     @WikiReturn("<key:drag.routed.event.return.currentTarget>")
     public Widget currentTarget() {
         return currentTarget;
     }
 
     @Override
-    @AiDoc(description = "Returns the current routing phase (capture, target, bubble).")
-    @WikiMethod(description = "<key:drag.routed.event.method.phase>")
+    @AiDoc(summary = "Returns the current routing phase (capture, target, bubble).")
+    @WikiMethod(summary = "<key:drag.routed.event.method.phase>")
     @WikiReturn("<key:drag.routed.event.return.phase>")
     public EventPhase phase() {
         return phase;
@@ -91,8 +90,8 @@ public abstract class DragRoutedEvent extends BaseEvent implements RoutableWidge
     /**
      * @return активная drag-сессия
      */
-    @AiDoc(description = "Returns the active DragSession associated with this event.")
-    @WikiMethod(description = "<key:drag.routed.event.method.session>")
+    @AiDoc(summary = "Returns the active DragSession associated with this event.")
+    @WikiMethod(summary = "<key:drag.routed.event.method.session>")
     @WikiReturn("<key:drag.routed.event.return.session>")
     public DragSession session() {
         return session;
@@ -101,8 +100,8 @@ public abstract class DragRoutedEvent extends BaseEvent implements RoutableWidge
     /**
      * @return payload перетаскиваемого объекта
      */
-    @AiDoc(description = "Convenience shortcut returning the payload from the active drag session.")
-    @WikiMethod(description = "<key:drag.routed.event.method.payload>")
+    @AiDoc(summary = "Convenience shortcut returning the payload from the active drag session.")
+    @WikiMethod(summary = "<key:drag.routed.event.method.payload>")
     @WikiReturn("<key:drag.routed.event.return.payload>")
     public DragPayload payload() {
         return session.payload();
@@ -111,8 +110,8 @@ public abstract class DragRoutedEvent extends BaseEvent implements RoutableWidge
     /**
      * @return X указателя в координатах корня
      */
-    @AiDoc(description = "Returns the pointer X coordinate in root UI space.")
-    @WikiMethod(description = "<key:drag.routed.event.method.rootX>")
+    @AiDoc(summary = "Returns the pointer X coordinate in root UI space.")
+    @WikiMethod(summary = "<key:drag.routed.event.method.rootX>")
     @WikiReturn("<key:drag.routed.event.return.rootX>")
     public float rootX() {
         return session.pointerX();
@@ -121,8 +120,8 @@ public abstract class DragRoutedEvent extends BaseEvent implements RoutableWidge
     /**
      * @return Y указателя в координатах корня
      */
-    @AiDoc(description = "Returns the pointer Y coordinate in root UI space.")
-    @WikiMethod(description = "<key:drag.routed.event.method.rootY>")
+    @AiDoc(summary = "Returns the pointer Y coordinate in root UI space.")
+    @WikiMethod(summary = "<key:drag.routed.event.method.rootY>")
     @WikiReturn("<key:drag.routed.event.return.rootY>")
     public float rootY() {
         return session.pointerY();

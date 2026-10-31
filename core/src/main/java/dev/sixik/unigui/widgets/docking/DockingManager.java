@@ -26,8 +26,7 @@ import java.util.Set;
  * owning {@link DockingRoot} about structural changes. It does not render pane
  * chrome, drop previews or transient drag state; those remain in DockingRoot.</p>
  */
-@AiDoc(
-        description = "Non-visual layout controller managing the hierarchical docking tree, pane additions, splits, tab reordering, and snapshot serialization/restoration."
+@AiDoc(summary = "Non-visual layout controller managing the hierarchical docking tree, pane additions, splits, tab reordering, and snapshot serialization/restoration."
 )
 @WikiPage(
         title = "DockingManager",
@@ -68,29 +67,29 @@ public final class DockingManager {
         this.owner = Objects.requireNonNull(owner, "owner");
     }
 
-    @AiDoc(description = "Returns the root DockNode of the docking hierarchy.")
-    @WikiMethod(description = "<key:docking.manager.method.rootNode>")
+    @AiDoc(summary = "Returns the root DockNode of the docking hierarchy.")
+    @WikiMethod(summary = "<key:docking.manager.method.rootNode>")
     @WikiReturn("<key:docking.manager.return.rootNode>")
     public DockNode rootNode() {
         return root;
     }
 
-    @AiDoc(description = "Returns true if the docking manager contains no panes.")
-    @WikiMethod(description = "<key:docking.manager.method.empty>")
+    @AiDoc(summary = "Returns true if the docking manager contains no panes.")
+    @WikiMethod(summary = "<key:docking.manager.method.empty>")
     @WikiReturn("<key:docking.manager.return.empty>")
     public boolean empty() {
         return paneCount() == 0;
     }
 
-    @AiDoc(description = "Returns the total number of registered dock panes.")
-    @WikiMethod(description = "<key:docking.manager.method.paneCount>")
+    @AiDoc(summary = "Returns the total number of registered dock panes.")
+    @WikiMethod(summary = "<key:docking.manager.method.paneCount>")
     @WikiReturn("<key:docking.manager.return.paneCount>")
     public int paneCount() {
         return panes().size();
     }
 
-    @AiDoc(description = "Returns an immutable list of all panes across all leaves.")
-    @WikiMethod(description = "<key:docking.manager.method.panes>")
+    @AiDoc(summary = "Returns an immutable list of all panes across all leaves.")
+    @WikiMethod(summary = "<key:docking.manager.method.panes>")
     @WikiReturn("<key:docking.manager.return.panes>")
     public List<DockPane> panes() {
         List<DockPane> result = new ObjectArrayList<>();
@@ -98,8 +97,8 @@ public final class DockingManager {
         return List.copyOf(result);
     }
 
-    @AiDoc(description = "Checks whether a pane with the given ID exists in the docking tree.")
-    @WikiMethod(description = "<key:docking.manager.method.containsPane>")
+    @AiDoc(summary = "Checks whether a pane with the given ID exists in the docking tree.")
+    @WikiMethod(summary = "<key:docking.manager.method.containsPane>")
     @WikiReturn("<key:docking.manager.return.containsPane>")
     public boolean containsPane(
             @WikiParameter(description = "<key:docking.manager.param.paneId>")
@@ -108,8 +107,8 @@ public final class DockingManager {
         return findPane(paneId) != null;
     }
 
-    @AiDoc(description = "Finds a DockPane by its identifier, or null if not found.")
-    @WikiMethod(description = "<key:docking.manager.method.findPane>")
+    @AiDoc(summary = "Finds a DockPane by its identifier, or null if not found.")
+    @WikiMethod(summary = "<key:docking.manager.method.findPane>")
     @WikiReturn("<key:docking.manager.return.foundPane>")
     public DockPane findPane(
             @WikiParameter(description = "<key:docking.manager.param.paneId>")
@@ -118,8 +117,8 @@ public final class DockingManager {
         return root.findPane(paneId);
     }
 
-    @AiDoc(description = "Returns the currently active selected dock pane.")
-    @WikiMethod(description = "<key:docking.manager.method.selectedPane>")
+    @AiDoc(summary = "Returns the currently active selected dock pane.")
+    @WikiMethod(summary = "<key:docking.manager.method.selectedPane>")
     @WikiReturn("<key:docking.manager.return.selectedPane>")
     public DockPane selectedPane() {
         DockPane active = findPane(activePaneId);
@@ -130,8 +129,8 @@ public final class DockingManager {
         return selected;
     }
 
-    @AiDoc(description = "Returns the leaf node hosting the currently active pane.")
-    @WikiMethod(description = "<key:docking.manager.method.selectedLeaf>")
+    @AiDoc(summary = "Returns the leaf node hosting the currently active pane.")
+    @WikiMethod(summary = "<key:docking.manager.method.selectedLeaf>")
     @WikiReturn("<key:docking.manager.return.selectedLeaf>")
     public DockNode selectedLeaf() {
         LeafRef active = findLeafContaining(root, null, false, activePaneId);
@@ -139,15 +138,15 @@ public final class DockingManager {
         return firstSelectedLeaf(root);
     }
 
-    @AiDoc(description = "Captures an immutable snapshot of the current docking layout.")
-    @WikiMethod(description = "<key:docking.manager.method.snapshot>")
+    @AiDoc(summary = "Captures an immutable snapshot of the current docking layout.")
+    @WikiMethod(summary = "<key:docking.manager.method.snapshot>")
     @WikiReturn("<key:docking.manager.return.snapshot>")
     public DockLayoutSnapshot snapshot() {
         return DockLayoutSnapshot.from(root, activePaneId);
     }
 
-    @AiDoc(description = "Restores docking layout from a snapshot using the provided pane registry.")
-    @WikiMethod(description = "<key:docking.manager.method.restore>")
+    @AiDoc(summary = "Restores docking layout from a snapshot using the provided pane registry.")
+    @WikiMethod(summary = "<key:docking.manager.method.restore>")
     @WikiReturn("<key:docking.manager.return.restoreResult>")
     public RestoreResult restore(
             @WikiParameter(description = "<key:docking.manager.param.snapshot>")
@@ -181,8 +180,8 @@ public final class DockingManager {
         return new RestoreResult(stats.restoredPaneIds.size(), stats.missingPaneIds.size());
     }
 
-    @AiDoc(description = "Adds a pane to the preferred leaf node.")
-    @WikiMethod(description = "<key:docking.manager.method.addPane>")
+    @AiDoc(summary = "Adds a pane to the preferred leaf node.")
+    @WikiMethod(summary = "<key:docking.manager.method.addPane>")
     @WikiReturn("<key:docking.manager.return.this>")
     public DockingManager addPane(
             @WikiParameter(description = "<key:docking.manager.param.pane>")
@@ -200,8 +199,8 @@ public final class DockingManager {
         return this;
     }
 
-    @AiDoc(description = "Adds a pane as a tab into the leaf containing targetPaneId.")
-    @WikiMethod(description = "<key:docking.manager.method.tabPane>")
+    @AiDoc(summary = "Adds a pane as a tab into the leaf containing targetPaneId.")
+    @WikiMethod(summary = "<key:docking.manager.method.tabPane>")
     @WikiReturn("<key:docking.manager.return.this>")
     public DockingManager tabPane(
             @WikiParameter(description = "<key:docking.manager.param.targetPaneId>")
@@ -224,8 +223,8 @@ public final class DockingManager {
         return this;
     }
 
-    @AiDoc(description = "Splits the leaf containing targetPaneId along the specified area with 0.5 ratio.")
-    @WikiMethod(description = "<key:docking.manager.method.splitPaneDefaultRatio>")
+    @AiDoc(summary = "Splits the leaf containing targetPaneId along the specified area with 0.5 ratio.")
+    @WikiMethod(summary = "<key:docking.manager.method.splitPaneDefaultRatio>")
     @WikiReturn("<key:docking.manager.return.this>")
     public DockingManager splitPane(
             @WikiParameter(description = "<key:docking.manager.param.targetPaneId>")
@@ -249,8 +248,8 @@ public final class DockingManager {
      * @param beforePaneId id панели, на чью позицию встаём
      * @return {@code true}, если порядок изменился
      */
-    @AiDoc(description = "Reorders a pane before another tab in the same leaf during live drag reordering.")
-    @WikiMethod(description = "<key:docking.manager.method.reorderPane>")
+    @AiDoc(summary = "Reorders a pane before another tab in the same leaf during live drag reordering.")
+    @WikiMethod(summary = "<key:docking.manager.method.reorderPane>")
     @WikiReturn("<key:docking.manager.return.reorderResult>")
     public boolean reorderPane(
             @WikiParameter(description = "<key:docking.manager.param.paneId>")
@@ -268,8 +267,8 @@ public final class DockingManager {
         return moved;
     }
 
-    @AiDoc(description = "Splits the leaf containing targetPaneId along the specified area with a custom split ratio.")
-    @WikiMethod(description = "<key:docking.manager.method.splitPaneRatio>")
+    @AiDoc(summary = "Splits the leaf containing targetPaneId along the specified area with a custom split ratio.")
+    @WikiMethod(summary = "<key:docking.manager.method.splitPaneRatio>")
     @WikiReturn("<key:docking.manager.return.this>")
     public DockingManager splitPane(
             @WikiParameter(description = "<key:docking.manager.param.targetPaneId>")
@@ -310,8 +309,8 @@ public final class DockingManager {
         return this;
     }
 
-    @AiDoc(description = "Selects and activates the pane with the specified ID.")
-    @WikiMethod(description = "<key:docking.manager.method.selectPane>")
+    @AiDoc(summary = "Selects and activates the pane with the specified ID.")
+    @WikiMethod(summary = "<key:docking.manager.method.selectPane>")
     @WikiReturn("<key:docking.manager.return.this>")
     public DockingManager selectPane(
             @WikiParameter(description = "<key:docking.manager.param.paneId>")
@@ -330,8 +329,8 @@ public final class DockingManager {
         return this;
     }
 
-    @AiDoc(description = "Selects the next tab in the active leaf.")
-    @WikiMethod(description = "<key:docking.manager.method.selectNextTab>")
+    @AiDoc(summary = "Selects the next tab in the active leaf.")
+    @WikiMethod(summary = "<key:docking.manager.method.selectNextTab>")
     @WikiReturn("<key:docking.manager.return.tabChanged>")
     public boolean selectNextTab() {
         DockNode leaf = selectedLeaf();
@@ -346,8 +345,8 @@ public final class DockingManager {
         return false;
     }
 
-    @AiDoc(description = "Selects the previous tab in the active leaf.")
-    @WikiMethod(description = "<key:docking.manager.method.selectPreviousTab>")
+    @AiDoc(summary = "Selects the previous tab in the active leaf.")
+    @WikiMethod(summary = "<key:docking.manager.method.selectPreviousTab>")
     @WikiReturn("<key:docking.manager.return.tabChanged>")
     public boolean selectPreviousTab() {
         DockNode leaf = selectedLeaf();
@@ -362,8 +361,8 @@ public final class DockingManager {
         return false;
     }
 
-    @AiDoc(description = "Closes the currently active pane if permitted by close guards.")
-    @WikiMethod(description = "<key:docking.manager.method.closeActivePane>")
+    @AiDoc(summary = "Closes the currently active pane if permitted by close guards.")
+    @WikiMethod(summary = "<key:docking.manager.method.closeActivePane>")
     @WikiReturn("<key:docking.manager.return.closed>")
     public boolean closeActivePane() {
         DockPane selected = selectedPane();
@@ -372,8 +371,8 @@ public final class DockingManager {
         return true;
     }
 
-    @AiDoc(description = "Moves an existing pane to a new dock area relative to targetPaneId.")
-    @WikiMethod(description = "<key:docking.manager.method.dockPane>")
+    @AiDoc(summary = "Moves an existing pane to a new dock area relative to targetPaneId.")
+    @WikiMethod(summary = "<key:docking.manager.method.dockPane>")
     @WikiReturn("<key:docking.manager.return.docked>")
     public boolean dockPane(
             @WikiParameter(description = "<key:docking.manager.param.paneId>")
@@ -433,8 +432,8 @@ public final class DockingManager {
         return "";
     }
 
-    @AiDoc(description = "Closes and removes the pane with the specified ID.")
-    @WikiMethod(description = "<key:docking.manager.method.closePane>")
+    @AiDoc(summary = "Closes and removes the pane with the specified ID.")
+    @WikiMethod(summary = "<key:docking.manager.method.closePane>")
     @WikiReturn("<key:docking.manager.return.this>")
     public DockingManager closePane(
             @WikiParameter(description = "<key:docking.manager.param.paneId>")
@@ -450,8 +449,8 @@ public final class DockingManager {
         return this;
     }
 
-    @AiDoc(description = "Detaches the pane into a new independent WindowWidget.")
-    @WikiMethod(description = "<key:docking.manager.method.floatPane>")
+    @AiDoc(summary = "Detaches the pane into a new independent WindowWidget.")
+    @WikiMethod(summary = "<key:docking.manager.method.floatPane>")
     @WikiReturn("<key:docking.manager.return.floatingWindow>")
     public WindowWidget floatPane(
             @WikiParameter(description = "<key:docking.manager.param.paneId>")
@@ -466,8 +465,8 @@ public final class DockingManager {
         return window;
     }
 
-    @AiDoc(description = "Detaches a pane from the dock tree for floating without creating the window directly.")
-    @WikiMethod(description = "<key:docking.manager.method.detachPaneForFloating>")
+    @AiDoc(summary = "Detaches a pane from the dock tree for floating without creating the window directly.")
+    @WikiMethod(summary = "<key:docking.manager.method.detachPaneForFloating>")
     @WikiReturn("<key:docking.manager.return.detachedPane>")
     public DockPane detachPaneForFloating(
             @WikiParameter(description = "<key:docking.manager.param.paneId>")
@@ -608,7 +607,7 @@ public final class DockingManager {
     private record LeafRef(DockNode node, DockNode parent, boolean firstChild) {
     }
 
-    @AiDoc(description = "Statistics of restored layout execution detailing restored and missing pane counts.")
+    @AiDoc(summary = "Statistics of restored layout execution detailing restored and missing pane counts.")
     public record RestoreResult(int restoredPaneCount, int missingPaneCount) {
     }
 

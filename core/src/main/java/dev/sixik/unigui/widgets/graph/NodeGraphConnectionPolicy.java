@@ -2,6 +2,28 @@ package dev.sixik.unigui.widgets.graph;
 
 
 
+
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
+@AiDoc(summary = "Strategy interface defining rules and compatibility validation for forming connections between ports.")
+@WikiPage(
+        title = "NodeGraphConnectionPolicy",
+        slug = "node-graph-connection-policy",
+        category = "<key:graph.category>",
+        summary = "<key:node.graph.connection.policy.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:node.graph.connection.policy.section.overview.body>",
+        order = 10
+)
 @FunctionalInterface
 public interface NodeGraphConnectionPolicy {
     NodeGraphConnectionPolicy DEFAULT = (graph, from, to) -> {
@@ -34,7 +56,10 @@ public interface NodeGraphConnectionPolicy {
         return NodeGraphConnectionValidation.accepted();
     };
 
-    NodeGraphConnectionValidation validate(NodeGraph graph, NodeGraphPortRef from, NodeGraphPortRef to);
+    @AiDoc(summary = "Validates whether a connection can be established between source and target ports.")
+    @WikiMethod(summary = "<key:node.graph.connection.policy.method.validate>")
+    @WikiReturn("<key:node.graph.connection.policy.return.validation>")
+    NodeGraphConnectionValidation validate(@WikiParameter(name = "graph", description = "<key:node.graph.connection.policy.param.graph>") NodeGraph graph, @WikiParameter(name = "from", description = "<key:node.graph.connection.policy.param.from>") NodeGraphPortRef from, @WikiParameter(name = "to", description = "<key:node.graph.connection.policy.param.to>") NodeGraphPortRef to);
 
     private static boolean canStart(NodeGraphPortKind kind) {
         return kind == NodeGraphPortKind.OUTPUT || kind == NodeGraphPortKind.BIDIRECTIONAL;

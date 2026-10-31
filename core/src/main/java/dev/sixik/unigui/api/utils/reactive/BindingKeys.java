@@ -47,7 +47,11 @@ public final class BindingKeys {
 
     public static final BindingData<DoubleSignal> NUMBER_FIELD_VALUE = new BindingData<>(DoubleSignal.class);
 
-    public static final BindingData<BooleanSignal> CHECKED = new BindingData<>(BooleanSignal.class);
+    public static final BindingData<BooleanSignal> TOGGLE_BUTTON_CHECKED = new BindingData<>(BooleanSignal.class);
+
+    public static final BindingData<IntegerSignal> COMBO_BOX_INDEX = new BindingData<>(IntegerSignal.class);
+
+    public static final BindingData<FloatSignal> SLIDER_VALUE = new BindingData<>(FloatSignal.class);
 
     private BindingKeys() {
     }

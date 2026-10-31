@@ -1,5 +1,15 @@
 package dev.sixik.unigui.widgets.navigation;
 
+
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.editor.CommandManager;
 import dev.sixik.unigui.api.event.Event;
@@ -26,6 +36,32 @@ import java.util.Collections;
 import java.util.List;
 
 /** Horizontal application menu bar backed by {@link CommandManager}. */
+@AiDoc(summary = "Desktop-style top menu bar displaying menus, keyboard shortcuts, command execution, and popup dropdowns.")
+@WikiPage(
+        title = "MenuBar",
+        slug = "menu-bar",
+        category = "<key:navigation.category>",
+        summary = "<key:menu.bar.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:menu.bar.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:menu.bar.example.basic.title>",
+        code = "MenuBar menuBar = new MenuBar();\nmenuBar.menu(fileMenu).menu(editMenu);"
+)
+@WikiLink(
+        label = "Menu",
+        target = "page:menu",
+        description = "<key:menu.summary>"
+)
+@WikiLink(
+        label = "MenuItem",
+        target = "page:menu-item",
+        description = "<key:menu.item.summary>"
+)
 @XmlWidgetName("MenuBar")
 public final class MenuBar extends LinearBox {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.MENU_BAR;
@@ -38,6 +74,8 @@ public final class MenuBar extends LinearBox {
     private EventSubscription commandSubscription;
     private int openedMenuIndex = -1;
 
+        @AiDoc(summary = "Constructs an empty top-level MenuBar.")
+    @WikiMethod(summary = "<key:menu.bar.method.ctorDefault>")
     public MenuBar() {
         super(Orientation.HORIZONTAL);
         focusable(true);
@@ -46,11 +84,20 @@ public final class MenuBar extends LinearBox {
         subscribeToCommandManager();
     }
 
+        @AiDoc(summary = "Returns the CommandManager used to resolve commands and shortcut bindings.")
+    @WikiMethod(summary = "<key:menu.bar.method.commandManagerGet>")
+    @WikiReturn("<key:menu.bar.return.commandManager>")
     public CommandManager commandManager() {
         return commandManager;
     }
 
-    public MenuBar commandManager(CommandManager commandManager) {
+        @AiDoc(summary = "Sets the CommandManager used to execute menu commands.")
+    @WikiMethod(summary = "<key:menu.bar.method.commandManagerSet>")
+    @WikiReturn("<key:menu.bar.return.this>")
+    public MenuBar commandManager(
+            @WikiParameter(description = "<key:menu.bar.param.commandManager>")
+            CommandManager commandManager
+    ) {
         CommandManager next = commandManager == null ? new CommandManager() : commandManager;
         if (this.commandManager == next) return this;
         if (commandSubscription != null) commandSubscription.unsubscribe();
@@ -60,28 +107,52 @@ public final class MenuBar extends LinearBox {
         return this;
     }
 
+        @AiDoc(summary = "Returns an unmodifiable list of top-level menus.")
+    @WikiMethod(summary = "<key:menu.bar.method.menusGet>")
+    @WikiReturn("<key:menu.bar.return.menus>")
     public List<Menu> menus() {
         return menusView;
     }
 
+        @AiDoc(summary = "Returns the number of top-level menus in the menu bar.")
+    @WikiMethod(summary = "<key:menu.bar.method.menuCount>")
+    @WikiReturn("<key:menu.bar.return.count>")
     public int menuCount() {
         return menus.size();
     }
 
-    public Menu menu(String label) {
+        @AiDoc(summary = "Finds a top-level menu by its label, or returns null if not found.")
+    @WikiMethod(summary = "<key:menu.bar.method.menuByLabel>")
+    @WikiReturn("<key:menu.bar.return.menu>")
+    public Menu menu(
+            @WikiParameter(description = "<key:menu.bar.param.label>")
+            String label
+    ) {
         Menu menu = new Menu(label);
         menu(menu);
         return menu;
     }
 
-    public MenuBar menu(Menu menu) {
+        @AiDoc(summary = "Appends a top-level Menu to the menu bar.")
+    @WikiMethod(summary = "<key:menu.bar.method.addMenu>")
+    @WikiReturn("<key:menu.bar.return.this>")
+    public MenuBar menu(
+            @WikiParameter(description = "<key:menu.bar.param.menu>")
+            Menu menu
+    ) {
         if (menu == null) return this;
         menus.add(menu);
         rebuildHeaders();
         return this;
     }
 
-    public MenuBar menus(List<Menu> menus) {
+        @AiDoc(summary = "Replaces the entire list of top-level menus.")
+    @WikiMethod(summary = "<key:menu.bar.method.menusSet>")
+    @WikiReturn("<key:menu.bar.return.this>")
+    public MenuBar menus(
+            @WikiParameter(description = "<key:menu.bar.param.menus>")
+            List<Menu> menus
+    ) {
         this.menus.clear();
         if (menus != null) {
             for (Menu menu : menus) {
@@ -92,23 +163,38 @@ public final class MenuBar extends LinearBox {
         return this;
     }
 
+        @AiDoc(summary = "Removes all menus from the menu bar.")
+    @WikiMethod(summary = "<key:menu.bar.method.clearMenus>")
+    @WikiReturn("<key:menu.bar.return.this>")
     public MenuBar clearMenus() {
         menus.clear();
         rebuildHeaders();
         return this;
     }
 
+        @AiDoc(summary = "Returns the index of the currently opened dropdown menu, or -1 if closed.")
+    @WikiMethod(summary = "<key:menu.bar.method.openedMenuIndex>")
+    @WikiReturn("<key:menu.bar.return.index>")
     public int openedMenuIndex() {
         syncOpenedMenuState();
         return openedMenuIndex;
     }
 
+        @AiDoc(summary = "Returns the active dropdown ContextMenu popup widget, or null if closed.")
+    @WikiMethod(summary = "<key:menu.bar.method.openedPopup>")
+    @WikiReturn("<key:menu.bar.return.popup>")
     public ContextMenu openedPopup() {
         syncOpenedMenuState();
         return openedPopup(true);
     }
 
-    public MenuBar openMenu(int index) {
+        @AiDoc(summary = "Opens the dropdown menu at the specified index.")
+    @WikiMethod(summary = "<key:menu.bar.method.openMenu>")
+    @WikiReturn("<key:menu.bar.return.this>")
+    public MenuBar openMenu(
+            @WikiParameter(description = "<key:menu.bar.param.index>")
+            int index
+    ) {
         if (index < 0 || index >= menus.size()) {
             closeOpenMenu();
             return this;
@@ -128,6 +214,9 @@ public final class MenuBar extends LinearBox {
         return this;
     }
 
+        @AiDoc(summary = "Closes the active dropdown menu.")
+    @WikiMethod(summary = "<key:menu.bar.method.closeOpenMenu>")
+    @WikiReturn("<key:menu.bar.return.this>")
     public MenuBar closeOpenMenu() {
         ContextMenu popup = openedPopup();
         if (popup != null) popup.close();

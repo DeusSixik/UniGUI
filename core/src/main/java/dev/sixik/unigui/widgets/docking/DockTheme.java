@@ -21,8 +21,7 @@ import java.util.Objects;
  * (прежний сине-голубой стиль). Свою тему собирают вызовом {@link #copy()} от готовой и точечной
  * настройкой.</p>
  */
-@AiDoc(
-        description = "Styling theme for the docking system configuring palette colors (DockColor), tab geometry, split handles, shadows, and window resize grips."
+@AiDoc(summary = "Styling theme for the docking system configuring palette colors (DockColor), tab geometry, split handles, shadows, and window resize grips."
 )
 @WikiPage(
         title = "DockTheme",
@@ -86,8 +85,8 @@ public final class DockTheme {
      *
      * @return текущая тема по умолчанию (никогда не {@code null})
      */
-    @AiDoc(description = "Returns the global default docking theme.")
-    @WikiMethod(description = "<key:dock.theme.method.defaultThemeGet>")
+    @AiDoc(summary = "Returns the global default docking theme.")
+    @WikiMethod(summary = "<key:dock.theme.method.defaultThemeGet>")
     @WikiReturn("<key:dock.theme.return.theme>")
     public static DockTheme defaultTheme() {
         return defaultTheme;
@@ -98,8 +97,8 @@ public final class DockTheme {
      *
      * @param theme новая тема; {@code null} возвращает {@link #editor()}
      */
-    @AiDoc(description = "Replaces the global default docking theme.")
-    @WikiMethod(description = "<key:dock.theme.method.defaultThemeSet>")
+    @AiDoc(summary = "Replaces the global default docking theme.")
+    @WikiMethod(summary = "<key:dock.theme.method.defaultThemeSet>")
     public static void defaultTheme(
             @WikiParameter(description = "<key:dock.theme.param.theme>")
             DockTheme theme
@@ -113,8 +112,8 @@ public final class DockTheme {
      *
      * @return новый экземпляр темы
      */
-    @AiDoc(description = "Creates a modern dark editor docking theme instance.")
-    @WikiMethod(description = "<key:dock.theme.method.editor>")
+    @AiDoc(summary = "Creates a modern dark editor docking theme instance.")
+    @WikiMethod(summary = "<key:dock.theme.method.editor>")
     @WikiReturn("<key:dock.theme.return.theme>")
     public static DockTheme editor() {
         DockTheme t = new DockTheme();
@@ -170,8 +169,8 @@ public final class DockTheme {
      *
      * @return новый экземпляр темы
      */
-    @AiDoc(description = "Creates a classic blue-tinted docking theme instance.")
-    @WikiMethod(description = "<key:dock.theme.method.classic>")
+    @AiDoc(summary = "Creates a classic blue-tinted docking theme instance.")
+    @WikiMethod(summary = "<key:dock.theme.method.classic>")
     @WikiReturn("<key:dock.theme.return.theme>")
     public static DockTheme classic() {
         DockTheme t = new DockTheme();
@@ -232,8 +231,8 @@ public final class DockTheme {
      *
      * @return копия темы
      */
-    @AiDoc(description = "Clones this theme into an independent mutable copy.")
-    @WikiMethod(description = "<key:dock.theme.method.copy>")
+    @AiDoc(summary = "Clones this theme into an independent mutable copy.")
+    @WikiMethod(summary = "<key:dock.theme.method.copy>")
     @WikiReturn("<key:dock.theme.return.theme>")
     public DockTheme copy() {
         DockTheme copy = new DockTheme();
@@ -267,8 +266,8 @@ public final class DockTheme {
      * @param role роль цвета
      * @return живой цвет темы; изменения видны на следующем кадре
      */
-    @AiDoc(description = "Returns the live mutable color corresponding to the specified role.")
-    @WikiMethod(description = "<key:dock.theme.method.colorGet>")
+    @AiDoc(summary = "Returns the live mutable color corresponding to the specified role.")
+    @WikiMethod(summary = "<key:dock.theme.method.colorGet>")
     @WikiReturn("<key:dock.theme.return.mutableColor>")
     public MutableColor color(
             @WikiParameter(description = "<key:dock.theme.param.role>")
@@ -284,8 +283,8 @@ public final class DockTheme {
      * @param color новый цвет
      * @return эта тема для fluent-настройки
      */
-    @AiDoc(description = "Sets the color assigned to a specific role.")
-    @WikiMethod(description = "<key:dock.theme.method.colorSet>")
+    @AiDoc(summary = "Sets the color assigned to a specific role.")
+    @WikiMethod(summary = "<key:dock.theme.method.colorSet>")
     @WikiReturn("<key:dock.theme.return.this>")
     public DockTheme color(
             @WikiParameter(description = "<key:dock.theme.param.role>")
@@ -302,8 +301,8 @@ public final class DockTheme {
     }
 
     /** @return высота полосы вкладок и заголовка окна в UI-пикселях */
-    @AiDoc(description = "Returns the height of tab strips and window title bars in pixels.")
-    @WikiMethod(description = "<key:dock.theme.method.tabHeightGet>")
+    @AiDoc(summary = "Returns the height of tab strips and window title bars in pixels.")
+    @WikiMethod(summary = "<key:dock.theme.method.tabHeightGet>")
     @WikiReturn("<key:dock.theme.return.tabHeight>")
     public float tabHeight() {
         return tabHeight;
@@ -313,8 +312,8 @@ public final class DockTheme {
      * @param tabHeight высота полосы вкладок, не меньше 14
      * @return эта тема
      */
-    @AiDoc(description = "Sets the height of tab strips and title bars.")
-    @WikiMethod(description = "<key:dock.theme.method.tabHeightSet>")
+    @AiDoc(summary = "Sets the height of tab strips and title bars.")
+    @WikiMethod(summary = "<key:dock.theme.method.tabHeightSet>")
     @WikiReturn("<key:dock.theme.return.this>")
     public DockTheme tabHeight(
             @WikiParameter(description = "<key:dock.theme.param.tabHeight>")
@@ -325,8 +324,8 @@ public final class DockTheme {
     }
 
     /** @return радиус верхних углов вкладки */
-    @AiDoc(description = "Returns the top corner radius of tabs.")
-    @WikiMethod(description = "<key:dock.theme.method.tabRadiusGet>")
+    @AiDoc(summary = "Returns the top corner radius of tabs.")
+    @WikiMethod(summary = "<key:dock.theme.method.tabRadiusGet>")
     @WikiReturn("<key:dock.theme.return.tabRadius>")
     public float tabRadius() {
         return tabRadius;
@@ -336,8 +335,8 @@ public final class DockTheme {
      * @param tabRadius радиус верхних углов вкладки, не меньше 0
      * @return эта тема
      */
-    @AiDoc(description = "Sets the top corner radius of tabs.")
-    @WikiMethod(description = "<key:dock.theme.method.tabRadiusSet>")
+    @AiDoc(summary = "Sets the top corner radius of tabs.")
+    @WikiMethod(summary = "<key:dock.theme.method.tabRadiusSet>")
     @WikiReturn("<key:dock.theme.return.this>")
     public DockTheme tabRadius(
             @WikiParameter(description = "<key:dock.theme.param.tabRadius>")
@@ -348,8 +347,8 @@ public final class DockTheme {
     }
 
     /** @return внутренний горизонтальный отступ вкладки */
-    @AiDoc(description = "Returns the horizontal inner padding of tabs.")
-    @WikiMethod(description = "<key:dock.theme.method.tabPaddingXGet>")
+    @AiDoc(summary = "Returns the horizontal inner padding of tabs.")
+    @WikiMethod(summary = "<key:dock.theme.method.tabPaddingXGet>")
     @WikiReturn("<key:dock.theme.return.tabPaddingX>")
     public float tabPaddingX() {
         return tabPaddingX;
@@ -359,8 +358,8 @@ public final class DockTheme {
      * @param tabPaddingX внутренний отступ вкладки слева и справа, не меньше 0
      * @return эта тема
      */
-    @AiDoc(description = "Sets the horizontal inner padding of tabs.")
-    @WikiMethod(description = "<key:dock.theme.method.tabPaddingXSet>")
+    @AiDoc(summary = "Sets the horizontal inner padding of tabs.")
+    @WikiMethod(summary = "<key:dock.theme.method.tabPaddingXSet>")
     @WikiReturn("<key:dock.theme.return.this>")
     public DockTheme tabPaddingX(
             @WikiParameter(description = "<key:dock.theme.param.tabPaddingX>")
@@ -371,8 +370,8 @@ public final class DockTheme {
     }
 
     /** @return сторона квадрата иконки вкладки */
-    @AiDoc(description = "Returns the tab icon dimension in pixels.")
-    @WikiMethod(description = "<key:dock.theme.method.iconSizeGet>")
+    @AiDoc(summary = "Returns the tab icon dimension in pixels.")
+    @WikiMethod(summary = "<key:dock.theme.method.iconSizeGet>")
     @WikiReturn("<key:dock.theme.return.iconSize>")
     public float iconSize() {
         return iconSize;
@@ -382,8 +381,8 @@ public final class DockTheme {
      * @param iconSize сторона иконки вкладки, не меньше 8
      * @return эта тема
      */
-    @AiDoc(description = "Sets the tab icon size.")
-    @WikiMethod(description = "<key:dock.theme.method.iconSizeSet>")
+    @AiDoc(summary = "Sets the tab icon size.")
+    @WikiMethod(summary = "<key:dock.theme.method.iconSizeSet>")
     @WikiReturn("<key:dock.theme.return.this>")
     public DockTheme iconSize(
             @WikiParameter(description = "<key:dock.theme.param.iconSize>")
@@ -394,16 +393,16 @@ public final class DockTheme {
     }
 
     /** @return зазор между иконкой и текстом вкладки */
-    @AiDoc(description = "Returns the gap between tab icon and title text.")
-    @WikiMethod(description = "<key:dock.theme.method.iconGapGet>")
+    @AiDoc(summary = "Returns the gap between tab icon and title text.")
+    @WikiMethod(summary = "<key:dock.theme.method.iconGapGet>")
     @WikiReturn("<key:dock.theme.return.iconGap>")
     public float iconGap() {
         return iconGap;
     }
 
     /** @return сторона квадратной кнопки закрытия вкладки */
-    @AiDoc(description = "Returns the size of the tab close button.")
-    @WikiMethod(description = "<key:dock.theme.method.closeSizeGet>")
+    @AiDoc(summary = "Returns the size of the tab close button.")
+    @WikiMethod(summary = "<key:dock.theme.method.closeSizeGet>")
     @WikiReturn("<key:dock.theme.return.closeSize>")
     public float closeSize() {
         return closeSize;
@@ -413,8 +412,8 @@ public final class DockTheme {
      * @param closeSize сторона кнопки закрытия, не меньше 8
      * @return эта тема
      */
-    @AiDoc(description = "Sets the size of the tab close button.")
-    @WikiMethod(description = "<key:dock.theme.method.closeSizeSet>")
+    @AiDoc(summary = "Sets the size of the tab close button.")
+    @WikiMethod(summary = "<key:dock.theme.method.closeSizeSet>")
     @WikiReturn("<key:dock.theme.return.this>")
     public DockTheme closeSize(
             @WikiParameter(description = "<key:dock.theme.param.closeSize>")
@@ -425,16 +424,16 @@ public final class DockTheme {
     }
 
     /** @return зазор между текстом и кнопкой закрытия */
-    @AiDoc(description = "Returns the gap between tab text and close button.")
-    @WikiMethod(description = "<key:dock.theme.method.closeGapGet>")
+    @AiDoc(summary = "Returns the gap between tab text and close button.")
+    @WikiMethod(summary = "<key:dock.theme.method.closeGapGet>")
     @WikiReturn("<key:dock.theme.return.closeGap>")
     public float closeGap() {
         return closeGap;
     }
 
     /** @return минимальная ширина вкладки */
-    @AiDoc(description = "Returns the minimum width of a tab.")
-    @WikiMethod(description = "<key:dock.theme.method.tabMinWidthGet>")
+    @AiDoc(summary = "Returns the minimum width of a tab.")
+    @WikiMethod(summary = "<key:dock.theme.method.tabMinWidthGet>")
     @WikiReturn("<key:dock.theme.return.tabMinWidth>")
     public float tabMinWidth() {
         return tabMinWidth;
@@ -444,8 +443,8 @@ public final class DockTheme {
      * @param tabMinWidth минимальная ширина вкладки, не меньше 24
      * @return эта тема
      */
-    @AiDoc(description = "Sets the minimum tab width.")
-    @WikiMethod(description = "<key:dock.theme.method.tabMinWidthSet>")
+    @AiDoc(summary = "Sets the minimum tab width.")
+    @WikiMethod(summary = "<key:dock.theme.method.tabMinWidthSet>")
     @WikiReturn("<key:dock.theme.return.this>")
     public DockTheme tabMinWidth(
             @WikiParameter(description = "<key:dock.theme.param.tabMinWidth>")
@@ -457,8 +456,8 @@ public final class DockTheme {
     }
 
     /** @return максимальная ширина вкладки */
-    @AiDoc(description = "Returns the maximum width of a tab.")
-    @WikiMethod(description = "<key:dock.theme.method.tabMaxWidthGet>")
+    @AiDoc(summary = "Returns the maximum width of a tab.")
+    @WikiMethod(summary = "<key:dock.theme.method.tabMaxWidthGet>")
     @WikiReturn("<key:dock.theme.return.tabMaxWidth>")
     public float tabMaxWidth() {
         return tabMaxWidth;
@@ -468,8 +467,8 @@ public final class DockTheme {
      * @param tabMaxWidth максимальная ширина вкладки, не меньше минимальной
      * @return эта тема
      */
-    @AiDoc(description = "Sets the maximum tab width.")
-    @WikiMethod(description = "<key:dock.theme.method.tabMaxWidthSet>")
+    @AiDoc(summary = "Sets the maximum tab width.")
+    @WikiMethod(summary = "<key:dock.theme.method.tabMaxWidthSet>")
     @WikiReturn("<key:dock.theme.return.this>")
     public DockTheme tabMaxWidth(
             @WikiParameter(description = "<key:dock.theme.param.tabMaxWidth>")
@@ -480,8 +479,8 @@ public final class DockTheme {
     }
 
     /** @return толщина акцентной линии выбранной вкладки */
-    @AiDoc(description = "Returns the thickness of the active tab accent stripe.")
-    @WikiMethod(description = "<key:dock.theme.method.accentThicknessGet>")
+    @AiDoc(summary = "Returns the thickness of the active tab accent stripe.")
+    @WikiMethod(summary = "<key:dock.theme.method.accentThicknessGet>")
     @WikiReturn("<key:dock.theme.return.accentThickness>")
     public float accentThickness() {
         return accentThickness;
@@ -491,8 +490,8 @@ public final class DockTheme {
      * @param accentThickness толщина акцентной линии, не меньше 0
      * @return эта тема
      */
-    @AiDoc(description = "Sets the thickness of the active tab accent stripe.")
-    @WikiMethod(description = "<key:dock.theme.method.accentThicknessSet>")
+    @AiDoc(summary = "Sets the thickness of the active tab accent stripe.")
+    @WikiMethod(summary = "<key:dock.theme.method.accentThicknessSet>")
     @WikiReturn("<key:dock.theme.return.this>")
     public DockTheme accentThickness(
             @WikiParameter(description = "<key:dock.theme.param.accentThickness>")
@@ -503,8 +502,8 @@ public final class DockTheme {
     }
 
     /** @return толщина разделителя панелей */
-    @AiDoc(description = "Returns the thickness of split handles between docked leaves.")
-    @WikiMethod(description = "<key:dock.theme.method.splitThicknessGet>")
+    @AiDoc(summary = "Returns the thickness of split handles between docked leaves.")
+    @WikiMethod(summary = "<key:dock.theme.method.splitThicknessGet>")
     @WikiReturn("<key:dock.theme.return.splitThickness>")
     public float splitThickness() {
         return splitThickness;
@@ -514,8 +513,8 @@ public final class DockTheme {
      * @param splitThickness толщина разделителя панелей, не меньше 1
      * @return эта тема
      */
-    @AiDoc(description = "Sets the thickness of split handles.")
-    @WikiMethod(description = "<key:dock.theme.method.splitThicknessSet>")
+    @AiDoc(summary = "Sets the thickness of split handles.")
+    @WikiMethod(summary = "<key:dock.theme.method.splitThicknessSet>")
     @WikiReturn("<key:dock.theme.return.this>")
     public DockTheme splitThickness(
             @WikiParameter(description = "<key:dock.theme.param.splitThickness>")
@@ -526,8 +525,8 @@ public final class DockTheme {
     }
 
     /** @return стиль отрисовки разделителя панелей */
-    @AiDoc(description = "Returns the split handle visual style (BLOCK or SEAM).")
-    @WikiMethod(description = "<key:dock.theme.method.splitStyleGet>")
+    @AiDoc(summary = "Returns the split handle visual style (BLOCK or SEAM).")
+    @WikiMethod(summary = "<key:dock.theme.method.splitStyleGet>")
     @WikiReturn("<key:dock.theme.return.splitStyle>")
     public DockingRoot.SplitHandleStyle splitStyle() {
         return splitStyle;
@@ -537,8 +536,8 @@ public final class DockTheme {
      * @param splitStyle стиль разделителя; {@code null} означает {@code SEAM}
      * @return эта тема
      */
-    @AiDoc(description = "Sets the split handle visual style.")
-    @WikiMethod(description = "<key:dock.theme.method.splitStyleSet>")
+    @AiDoc(summary = "Sets the split handle visual style.")
+    @WikiMethod(summary = "<key:dock.theme.method.splitStyleSet>")
     @WikiReturn("<key:dock.theme.return.this>")
     public DockTheme splitStyle(
             @WikiParameter(description = "<key:dock.theme.param.splitStyle>")
@@ -549,8 +548,8 @@ public final class DockTheme {
     }
 
     /** @return ширина мягкой тени плавающего окна; 0 отключает тень */
-    @AiDoc(description = "Returns the blur size of floating window drop shadows.")
-    @WikiMethod(description = "<key:dock.theme.method.windowShadowSizeGet>")
+    @AiDoc(summary = "Returns the blur size of floating window drop shadows.")
+    @WikiMethod(summary = "<key:dock.theme.method.windowShadowSizeGet>")
     @WikiReturn("<key:dock.theme.return.windowShadowSize>")
     public float windowShadowSize() {
         return windowShadowSize;
@@ -560,8 +559,8 @@ public final class DockTheme {
      * @param windowShadowSize ширина тени плавающего окна, не меньше 0
      * @return эта тема
      */
-    @AiDoc(description = "Sets the blur size of floating window drop shadows (0 to disable).")
-    @WikiMethod(description = "<key:dock.theme.method.windowShadowSizeSet>")
+    @AiDoc(summary = "Sets the blur size of floating window drop shadows (0 to disable).")
+    @WikiMethod(summary = "<key:dock.theme.method.windowShadowSizeSet>")
     @WikiReturn("<key:dock.theme.return.this>")
     public DockTheme windowShadowSize(
             @WikiParameter(description = "<key:dock.theme.param.windowShadowSize>")
@@ -572,8 +571,8 @@ public final class DockTheme {
     }
 
     /** @return радиус скругления плавающего окна */
-    @AiDoc(description = "Returns the corner radius of floating dock windows.")
-    @WikiMethod(description = "<key:dock.theme.method.windowRadiusGet>")
+    @AiDoc(summary = "Returns the corner radius of floating dock windows.")
+    @WikiMethod(summary = "<key:dock.theme.method.windowRadiusGet>")
     @WikiReturn("<key:dock.theme.return.windowRadius>")
     public float windowRadius() {
         return windowRadius;
@@ -583,8 +582,8 @@ public final class DockTheme {
      * @param windowRadius радиус скругления окна, не меньше 0
      * @return эта тема
      */
-    @AiDoc(description = "Sets the corner radius of floating dock windows.")
-    @WikiMethod(description = "<key:dock.theme.method.windowRadiusSet>")
+    @AiDoc(summary = "Sets the corner radius of floating dock windows.")
+    @WikiMethod(summary = "<key:dock.theme.method.windowRadiusSet>")
     @WikiReturn("<key:dock.theme.return.this>")
     public DockTheme windowRadius(
             @WikiParameter(description = "<key:dock.theme.param.windowRadius>")
@@ -595,16 +594,16 @@ public final class DockTheme {
     }
 
     /** @return ширина компактного окна, пока вкладку вытягивают из дока */
-    @AiDoc(description = "Returns the tear-off preview window width.")
-    @WikiMethod(description = "<key:dock.theme.method.tearOffWidthGet>")
+    @AiDoc(summary = "Returns the tear-off preview window width.")
+    @WikiMethod(summary = "<key:dock.theme.method.tearOffWidthGet>")
     @WikiReturn("<key:dock.theme.return.tearOffWidth>")
     public float tearOffWidth() {
         return tearOffWidth;
     }
 
     /** @return высота компактного окна, пока вкладку вытягивают из дока */
-    @AiDoc(description = "Returns the tear-off preview window height.")
-    @WikiMethod(description = "<key:dock.theme.method.tearOffHeightGet>")
+    @AiDoc(summary = "Returns the tear-off preview window height.")
+    @WikiMethod(summary = "<key:dock.theme.method.tearOffHeightGet>")
     @WikiReturn("<key:dock.theme.return.tearOffHeight>")
     public float tearOffHeight() {
         return tearOffHeight;
@@ -618,8 +617,8 @@ public final class DockTheme {
      * @param height высота; 0 или меньше отключает компактный режим
      * @return эта тема
      */
-    @AiDoc(description = "Configures compact preview dimensions while a tab is being torn off from the dock.")
-    @WikiMethod(description = "<key:dock.theme.method.tearOffPreviewSize>")
+    @AiDoc(summary = "Configures compact preview dimensions while a tab is being torn off from the dock.")
+    @WikiMethod(summary = "<key:dock.theme.method.tearOffPreviewSize>")
     @WikiReturn("<key:dock.theme.return.this>")
     public DockTheme tearOffPreviewSize(
             @WikiParameter(description = "<key:dock.theme.param.tearOffWidth>")
@@ -637,16 +636,16 @@ public final class DockTheme {
      *
      * @return {@code true}, если оба размера положительны
      */
-    @AiDoc(description = "Returns true if tear-off compact preview sizing is enabled.")
-    @WikiMethod(description = "<key:dock.theme.method.tearOffPreviewEnabled>")
+    @AiDoc(summary = "Returns true if tear-off compact preview sizing is enabled.")
+    @WikiMethod(summary = "<key:dock.theme.method.tearOffPreviewEnabled>")
     @WikiReturn("<key:dock.theme.return.tearOffPreviewEnabled>")
     public boolean tearOffPreviewEnabled() {
         return tearOffWidth > 0.0f && tearOffHeight > 0.0f;
     }
 
     /** @return сторона квадрата ручки изменения размера окна (и её зоны нажатия) */
-    @AiDoc(description = "Returns the side size of the bottom-right window resize grip.")
-    @WikiMethod(description = "<key:dock.theme.method.gripSizeGet>")
+    @AiDoc(summary = "Returns the side size of the bottom-right window resize grip.")
+    @WikiMethod(summary = "<key:dock.theme.method.gripSizeGet>")
     @WikiReturn("<key:dock.theme.return.gripSize>")
     public float gripSize() {
         return gripSize;
@@ -656,8 +655,8 @@ public final class DockTheme {
      * @param gripSize сторона ручки изменения размера в правом нижнем углу окна, не меньше 6
      * @return эта тема
      */
-    @AiDoc(description = "Sets the side size of the window resize grip.")
-    @WikiMethod(description = "<key:dock.theme.method.gripSizeSet>")
+    @AiDoc(summary = "Sets the side size of the window resize grip.")
+    @WikiMethod(summary = "<key:dock.theme.method.gripSizeSet>")
     @WikiReturn("<key:dock.theme.return.this>")
     public DockTheme gripSize(
             @WikiParameter(description = "<key:dock.theme.param.gripSize>")
@@ -668,8 +667,8 @@ public final class DockTheme {
     }
 
     /** @return рисунок ручки изменения размера окна */
-    @AiDoc(description = "Returns the current window resize grip style.")
-    @WikiMethod(description = "<key:dock.theme.method.resizeGripGet>")
+    @AiDoc(summary = "Returns the current window resize grip style.")
+    @WikiMethod(summary = "<key:dock.theme.method.resizeGripGet>")
     @WikiReturn("<key:dock.theme.return.resizeGrip>")
     public ResizeGripStyle resizeGrip() {
         return resizeGrip;
@@ -683,8 +682,8 @@ public final class DockTheme {
      * @param resizeGrip рисунок ручки; {@code null} означает треугольник
      * @return эта тема
      */
-    @AiDoc(description = "Sets the window resize grip visual style.")
-    @WikiMethod(description = "<key:dock.theme.method.resizeGripSet>")
+    @AiDoc(summary = "Sets the window resize grip visual style.")
+    @WikiMethod(summary = "<key:dock.theme.method.resizeGripSet>")
     @WikiReturn("<key:dock.theme.return.this>")
     public DockTheme resizeGrip(
             @WikiParameter(description = "<key:dock.theme.param.resizeGrip>")

@@ -35,8 +35,7 @@ import java.util.function.Predicate;
  * останавливает всплытие, поэтому из вложенных зон выигрывает самая близкая к указателю. Типы
  * принимаются списком через запятую, {@code |} или пробел; {@code *} принимает всё.</p>
  */
-@AiDoc(
-        description = "Drop target controller attachable to any widget via composition to filter payloads and handle drag enter, over, leave, and drop events."
+@AiDoc(summary = "Drop target controller attachable to any widget via composition to filter payloads and handle drag enter, over, leave, and drop events."
 )
 @WikiPage(
         title = "DropController",
@@ -91,8 +90,8 @@ public final class DropController {
      * @param zone виджет, который принимает payload
      * @return контроллер для fluent-настройки
      */
-    @AiDoc(description = "Attaches a DropController to the specified widget zone.")
-    @WikiMethod(description = "<key:drop.controller.method.attach>")
+    @AiDoc(summary = "Attaches a DropController to the specified widget zone.")
+    @WikiMethod(summary = "<key:drop.controller.method.attach>")
     @WikiReturn("<key:drop.controller.return.controller>")
     public static DropController attach(
             @WikiParameter(description = "<key:drop.controller.param.zone>")
@@ -106,8 +105,8 @@ public final class DropController {
      *
      * @param types типы через запятую, {@code |} или пробел; пусто или {@code *} принимает всё
      */
-    @AiDoc(description = "Restricts accepted payload types by comma/pipe/whitespace delimited string (* accepts all).")
-    @WikiMethod(description = "<key:drop.controller.method.acceptsTypes>")
+    @AiDoc(summary = "Restricts accepted payload types by comma/pipe/whitespace delimited string (* accepts all).")
+    @WikiMethod(summary = "<key:drop.controller.method.acceptsTypes>")
     @WikiReturn("<key:drop.controller.return.this>")
     public DropController accepts(
             @WikiParameter(description = "<key:drop.controller.param.types>")
@@ -128,8 +127,8 @@ public final class DropController {
     /**
      * Добавляет дополнительную проверку payload: зона принимает, только если все проверки истинны.
      */
-    @AiDoc(description = "Adds a custom predicate validation rule for candidate payloads.")
-    @WikiMethod(description = "<key:drop.controller.method.acceptsValidator>")
+    @AiDoc(summary = "Adds a custom predicate validation rule for candidate payloads.")
+    @WikiMethod(summary = "<key:drop.controller.method.acceptsValidator>")
     @WikiReturn("<key:drop.controller.return.this>")
     public DropController accepts(
             @WikiParameter(description = "<key:drop.controller.param.validator>")
@@ -139,8 +138,8 @@ public final class DropController {
         return this;
     }
 
-    @AiDoc(description = "Enables or disables this drop controller.")
-    @WikiMethod(description = "<key:drop.controller.method.enabled>")
+    @AiDoc(summary = "Enables or disables this drop controller.")
+    @WikiMethod(summary = "<key:drop.controller.method.enabled>")
     @WikiReturn("<key:drop.controller.return.this>")
     public DropController enabled(
             @WikiParameter(description = "<key:drop.controller.param.enabled>")
@@ -153,8 +152,8 @@ public final class DropController {
     /**
      * Указатель с подходящим payload вошёл в зону.
      */
-    @AiDoc(description = "Registers a listener called when an accepted payload enters the drop zone.")
-    @WikiMethod(description = "<key:drop.controller.method.onDragEnter>")
+    @AiDoc(summary = "Registers a listener called when an accepted payload enters the drop zone.")
+    @WikiMethod(summary = "<key:drop.controller.method.onDragEnter>")
     @WikiReturn("<key:drop.controller.return.this>")
     public DropController onDragEnter(
             @WikiParameter(description = "<key:drop.controller.param.enterListener>")
@@ -167,8 +166,8 @@ public final class DropController {
     /**
      * Указатель движется над зоной (каждое движение и каждый тик).
      */
-    @AiDoc(description = "Registers a listener called on each movement and frame tick over the drop zone.")
-    @WikiMethod(description = "<key:drop.controller.method.onDragOver>")
+    @AiDoc(summary = "Registers a listener called on each movement and frame tick over the drop zone.")
+    @WikiMethod(summary = "<key:drop.controller.method.onDragOver>")
     @WikiReturn("<key:drop.controller.return.this>")
     public DropController onDragOver(
             @WikiParameter(description = "<key:drop.controller.param.overListener>")
@@ -181,8 +180,8 @@ public final class DropController {
     /**
      * Указатель покинул зону или жест отменён.
      */
-    @AiDoc(description = "Registers a listener called when the drag pointer leaves the drop zone or is cancelled.")
-    @WikiMethod(description = "<key:drop.controller.method.onDragLeave>")
+    @AiDoc(summary = "Registers a listener called when the drag pointer leaves the drop zone or is cancelled.")
+    @WikiMethod(summary = "<key:drop.controller.method.onDragLeave>")
     @WikiReturn("<key:drop.controller.return.this>")
     public DropController onDragLeave(
             @WikiParameter(description = "<key:drop.controller.param.leaveListener>")
@@ -195,8 +194,8 @@ public final class DropController {
     /**
      * Payload отпущен над зоной.
      */
-    @AiDoc(description = "Registers a listener called when an accepted payload is dropped over the zone.")
-    @WikiMethod(description = "<key:drop.controller.method.onDrop>")
+    @AiDoc(summary = "Registers a listener called when an accepted payload is dropped over the zone.")
+    @WikiMethod(summary = "<key:drop.controller.method.onDrop>")
     @WikiReturn("<key:drop.controller.return.this>")
     public DropController onDrop(
             @WikiParameter(description = "<key:drop.controller.param.dropListener>")
@@ -209,8 +208,8 @@ public final class DropController {
     /**
      * @return виджет зоны
      */
-    @AiDoc(description = "Returns the host drop zone widget.")
-    @WikiMethod(description = "<key:drop.controller.method.zone>")
+    @AiDoc(summary = "Returns the host drop zone widget.")
+    @WikiMethod(summary = "<key:drop.controller.method.zone>")
     @WikiReturn("<key:drop.controller.return.zone>")
     public Widget zone() {
         return zone;
@@ -219,8 +218,8 @@ public final class DropController {
     /**
      * @return {@code true}, пока над зоной находится подходящий payload
      */
-    @AiDoc(description = "Returns true while an accepted drag payload is hovering over the zone.")
-    @WikiMethod(description = "<key:drop.controller.method.hovering>")
+    @AiDoc(summary = "Returns true while an accepted drag payload is hovering over the zone.")
+    @WikiMethod(summary = "<key:drop.controller.method.hovering>")
     @WikiReturn("<key:drop.controller.return.hovering>")
     public boolean hovering() {
         return hovering;
@@ -229,8 +228,8 @@ public final class DropController {
     /**
      * Проверяет, принимает ли зона payload.
      */
-    @AiDoc(description = "Tests whether the specified payload matches type and validator requirements.")
-    @WikiMethod(description = "<key:drop.controller.method.acceptsPayload>")
+    @AiDoc(summary = "Tests whether the specified payload matches type and validator requirements.")
+    @WikiMethod(summary = "<key:drop.controller.method.acceptsPayload>")
     @WikiReturn("<key:drop.controller.return.acceptsPayload>")
     public boolean accepts(
             @WikiParameter(description = "<key:drop.controller.param.payload>")
@@ -247,8 +246,8 @@ public final class DropController {
     /**
      * Снимает контроллер с виджета.
      */
-    @AiDoc(description = "Detaches event listeners from the host drop zone widget.")
-    @WikiMethod(description = "<key:drop.controller.method.detach>")
+    @AiDoc(summary = "Detaches event listeners from the host drop zone widget.")
+    @WikiMethod(summary = "<key:drop.controller.method.detach>")
     public void detach() {
         for (EventSubscription subscription : subscriptions) subscription.unsubscribe();
         subscriptions.clear();

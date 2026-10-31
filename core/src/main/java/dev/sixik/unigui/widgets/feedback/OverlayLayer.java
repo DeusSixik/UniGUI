@@ -1,5 +1,14 @@
 package dev.sixik.unigui.widgets.feedback;
 
+
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.layout.PositionType;
@@ -31,6 +40,32 @@ import java.util.Map;
  * Root-level overlay host that renders overlay children above a normal content widget.
  */
 @XmlWidgetName("OverlayLayer")
+@AiDoc(summary = "Top-level overlay host managing modal and non-modal popups, tooltips, context menus, and floating WindowWidget instances.")
+@WikiPage(
+        title = "OverlayLayer",
+        slug = "overlay-layer",
+        category = "<key:feedback.category>",
+        summary = "<key:overlay.layer.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:overlay.layer.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:overlay.layer.example.basic.title>",
+        code = "OverlayLayer overlay = new OverlayLayer(mainContent);\noverlay.addOverlay(toastWidget);"
+)
+@WikiLink(
+        label = "WindowManager",
+        target = "page:window-manager",
+        description = "<key:window.manager.summary>"
+)
+@WikiLink(
+        label = "WindowWidget",
+        target = "page:window-widget",
+        description = "<key:window.widget.summary>"
+)
 public final class OverlayLayer extends PanelWidget {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.OVERLAY_LAYER;
 
@@ -41,42 +76,76 @@ public final class OverlayLayer extends PanelWidget {
     private WidgetRender modalScrimRenderer;
     private int nextOverlayZ = 1;
 
+        @AiDoc(summary = "Constructs an empty OverlayLayer.")
+    @WikiMethod(summary = "<key:overlay.layer.method.ctorDefault>")
     public OverlayLayer() {
     }
 
-    public OverlayLayer(Widget content) {
+        @AiDoc(summary = "Constructs an OverlayLayer hosting the specified base content widget.")
+    @WikiMethod(summary = "<key:overlay.layer.method.ctorContent>")
+    public OverlayLayer(
+            @WikiParameter(description = "<key:overlay.layer.param.content>")
+            Widget content
+    ) {
         content(content);
         applyQueuedMutations();
     }
 
+        @AiDoc(summary = "Returns the primary base content widget hosted underneath all overlays.")
+    @WikiMethod(summary = "<key:overlay.layer.method.contentGet>")
+    @WikiReturn("<key:overlay.layer.return.content>")
     public Widget content() {
         return content;
     }
 
+        @AiDoc(summary = "Returns the WindowManager controller governing floating windows.")
+    @WikiMethod(summary = "<key:overlay.layer.method.windows>")
+    @WikiReturn("<key:overlay.layer.return.windowManager>")
     public WindowManager windows() {
         return windowManager;
     }
 
+        @AiDoc(summary = "Synonym returning the WindowManager controller.")
+    @WikiMethod(summary = "<key:overlay.layer.method.windowManager>")
+    @WikiReturn("<key:overlay.layer.return.windowManager>")
     public WindowManager windowManager() {
         return windowManager;
     }
 
+        @AiDoc(summary = "Returns the mutable background scrim tint color displayed beneath modal dialogs.")
+    @WikiMethod(summary = "<key:overlay.layer.method.modalScrimColor>")
+    @WikiReturn("<key:overlay.layer.return.modalScrimColor>")
     public MutableColor modalScrimColor() {
         return modalScrimColor;
     }
 
+        @AiDoc(summary = "Returns the custom modal scrim background renderer, or null if default.")
+    @WikiMethod(summary = "<key:overlay.layer.method.modalScrimRendererGet>")
+    @WikiReturn("<key:overlay.layer.return.modalScrimRenderer>")
     public WidgetRender modalScrimRenderer() {
         return modalScrimRenderer;
     }
 
-    public OverlayLayer modalScrimRenderer(WidgetRender modalScrimRenderer) {
+        @AiDoc(summary = "Sets a custom modal scrim background renderer.")
+    @WikiMethod(summary = "<key:overlay.layer.method.modalScrimRendererSet>")
+    @WikiReturn("<key:overlay.layer.return.this>")
+    public OverlayLayer modalScrimRenderer(
+            @WikiParameter(description = "<key:overlay.layer.param.modalScrimRenderer>")
+            WidgetRender modalScrimRenderer
+    ) {
         if (this.modalScrimRenderer == modalScrimRenderer) return this;
         this.modalScrimRenderer = modalScrimRenderer;
         invalidate(dev.sixik.unigui.api.core.InvalidationFlags.VISUAL);
         return this;
     }
 
-    public OverlayLayer content(Widget content) {
+        @AiDoc(summary = "Replaces the primary base content widget.")
+    @WikiMethod(summary = "<key:overlay.layer.method.contentSet>")
+    @WikiReturn("<key:overlay.layer.return.this>")
+    public OverlayLayer content(
+            @WikiParameter(description = "<key:overlay.layer.param.content>")
+            Widget content
+    ) {
         if (this.content == content) return this;
         if (this.content != null) {
             removeChild(this.content);
@@ -88,7 +157,13 @@ public final class OverlayLayer extends PanelWidget {
         return this;
     }
 
-    public OverlayLayer addOverlay(Widget overlay) {
+        @AiDoc(summary = "Adds a floating widget to the top of the overlay layer.")
+    @WikiMethod(summary = "<key:overlay.layer.method.addOverlay>")
+    @WikiReturn("<key:overlay.layer.return.this>")
+    public OverlayLayer addOverlay(
+            @WikiParameter(description = "<key:overlay.layer.param.overlay>")
+            Widget overlay
+    ) {
         if (overlay != null && overlay != content) {
             if (overlay instanceof WidgetBase base) {
                 base.layout(style -> style.position(PositionType.ABSOLUTE));
@@ -102,7 +177,13 @@ public final class OverlayLayer extends PanelWidget {
         return this;
     }
 
-    public OverlayLayer removeOverlay(Widget overlay) {
+        @AiDoc(summary = "Removes a floating widget from the overlay layer.")
+    @WikiMethod(summary = "<key:overlay.layer.method.removeOverlay>")
+    @WikiReturn("<key:overlay.layer.return.this>")
+    public OverlayLayer removeOverlay(
+            @WikiParameter(description = "<key:overlay.layer.param.overlay>")
+            Widget overlay
+    ) {
         if (overlay != null && overlay != content) {
             if (overlay instanceof WindowWidget window) {
                 windowManager.unregister(window);
@@ -113,6 +194,9 @@ public final class OverlayLayer extends PanelWidget {
         return this;
     }
 
+        @AiDoc(summary = "Removes all floating overlays currently displayed.")
+    @WikiMethod(summary = "<key:overlay.layer.method.clearOverlays>")
+    @WikiReturn("<key:overlay.layer.return.this>")
     public OverlayLayer clearOverlays() {
         java.util.List<Widget> overlays = new java.util.ArrayList<>();
         for (Widget child : children()) {
@@ -127,6 +211,8 @@ public final class OverlayLayer extends PanelWidget {
     }
 
     @Override
+        @AiDoc(summary = "Flushes pending overlay additions and removals immediately.")
+    @WikiMethod(summary = "<key:overlay.layer.method.applyQueuedMutations>")
     public void applyQueuedMutations() {
         super.applyQueuedMutations();
         enforceOverlayOrder();
