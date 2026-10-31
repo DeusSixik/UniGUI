@@ -1,5 +1,6 @@
 package dev.sixik.unigui.widgets.docking;
 
+import dev.sixik.unigui.api.docs.AiDoc;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
@@ -19,6 +20,9 @@ import java.util.List;
  * что оба выглядят одинаково. Геометрия вкладки (иконка, текст, крестик) считается теми же функциями,
  * которые использует хит-тест, поэтому нарисованное и кликабельное не расходятся.</p>
  */
+@AiDoc(
+        description = "Utility drawing engine responsible for rendering docking chrome: tab strips, tab items, close/collapse buttons, and window frames based on DockTheme."
+)
 public final class DockChrome {
     private static final float HALF_PI = (float) (Math.PI * 0.5);
 

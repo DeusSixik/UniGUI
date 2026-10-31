@@ -1,5 +1,13 @@
 package dev.sixik.unigui.widgets.dnd;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.Transform;
 import dev.sixik.unigui.api.render.Paint;
@@ -16,6 +24,34 @@ import java.util.Objects;
  * обрезаются clip'ами контейнеров, из которых объект тянут.</p>
  */
 @FunctionalInterface
+@AiDoc(
+        description = "Renderer for visual ghost representation of dragged elements displayed in the overlay layer beneath the cursor."
+)
+@WikiPage(
+        title = "DragGhost",
+        slug = "drag-ghost",
+        category = "<key:dnd.category>",
+        summary = "<key:drag.ghost.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:drag.ghost.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:drag.ghost.example.widget.title>",
+        code = "DragGhost ghost = DragGhost.widget(itemWidget, 0.8f);"
+)
+@WikiLink(
+        label = "DragController",
+        target = "page:drag-controller",
+        description = "<key:drag.controller.summary>"
+)
+@WikiLink(
+        label = "DragSession",
+        target = "page:drag-session",
+        description = "<key:drag.session.summary>"
+)
 public interface DragGhost {
     /**
      * Рисует ghost для текущего кадра.
@@ -23,7 +59,14 @@ public interface DragGhost {
      * @param context контекст рендера overlay-слоя
      * @param session активная сессия: смещение и позиция указателя
      */
-    void render(RenderContext context, DragSession session);
+    @AiDoc(description = "Renders the ghost visualization into the overlay render context.")
+    @WikiMethod(description = "<key:drag.ghost.method.render>")
+    void render(
+            @WikiParameter(description = "<key:drag.ghost.param.context>")
+            RenderContext context,
+            @WikiParameter(description = "<key:drag.ghost.param.session>")
+            DragSession session
+    );
 
     /**
      * Ghost, повторяющий живой виджет: его команды воспроизводятся в overlay со сдвигом на
@@ -33,7 +76,15 @@ public interface DragGhost {
      * @param opacity прозрачность ghost'а {@code [0, 1]}
      * @return ghost
      */
-    static DragGhost widget(Widget widget, float opacity) {
+    @AiDoc(description = "Creates a ghost that clones the cached rendering of a live widget with specified opacity.")
+    @WikiMethod(description = "<key:drag.ghost.method.widget>")
+    @WikiReturn("<key:drag.ghost.return.ghost>")
+    static DragGhost widget(
+            @WikiParameter(description = "<key:drag.ghost.param.widget>")
+            Widget widget,
+            @WikiParameter(description = "<key:drag.ghost.param.opacity>")
+            float opacity
+    ) {
         Objects.requireNonNull(widget, "widget");
         float alpha = Math.max(0.0f, Math.min(1.0f, opacity));
         Transform offset = new Transform();
@@ -70,6 +121,9 @@ public interface DragGhost {
      *
      * @return текстовый ghost с полупрозрачным фоном
      */
+    @AiDoc(description = "Creates a lightweight text badge ghost displaying the payload preview text.")
+    @WikiMethod(description = "<key:drag.ghost.method.text>")
+    @WikiReturn("<key:drag.ghost.return.textGhost>")
     static DragGhost text() {
         MutableColor background = MutableColor.rgba(0.12f, 0.14f, 0.18f, 0.88f);
         MutableColor border = MutableColor.rgba(0.30f, 0.60f, 1.0f, 0.95f);

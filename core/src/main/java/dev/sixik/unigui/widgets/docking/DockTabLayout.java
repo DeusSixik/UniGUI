@@ -1,5 +1,7 @@
 package dev.sixik.unigui.widgets.docking;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+
 /**
  * Геометрия одной вкладки в полосе листа.
  *
@@ -13,6 +15,9 @@ package dev.sixik.unigui.widgets.docking;
  * @param width ширина вкладки
  * @param height высота вкладки (высота полосы)
  */
+@AiDoc(
+        description = "Internal geometric layout record representing a single rendered tab in a docking tab strip."
+)
 record DockTabLayout(int index, DockPane pane, float x, float y, float width, float height) {
     /**
      * Проверяет, попадает ли точка во вкладку.

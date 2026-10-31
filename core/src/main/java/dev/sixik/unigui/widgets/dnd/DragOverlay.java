@@ -1,6 +1,7 @@
 package dev.sixik.unigui.widgets.dnd;
 
 import dev.sixik.unigui.api.core.FrameContext;
+import dev.sixik.unigui.api.docs.AiDoc;
 import dev.sixik.unigui.api.input.HitTestChildrenOnly;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.RectView;
@@ -17,6 +18,9 @@ import dev.sixik.unigui.widgets.feedback.OverlayHostAware;
  * <p>Слой занимает весь хост и прозрачен для hit-test ({@link HitTestChildrenOnly}), поэтому
  * не перехватывает указатель. Retained-кэш отключён: содержимое меняется каждый кадр.</p>
  */
+@AiDoc(
+        description = "Internal transparent overlay layer rendering ghost previews and drop indicators above the UI tree during an active drag session."
+)
 final class DragOverlay extends WidgetBase implements OverlayHostAware, HitTestChildrenOnly {
     private static final float INDICATOR_RADIUS = 1.0f;
 

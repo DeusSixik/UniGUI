@@ -1,5 +1,12 @@
 package dev.sixik.unigui.widgets.docking;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.render.DrawScope;
 
@@ -15,6 +22,29 @@ import dev.sixik.unigui.api.render.DrawScope;
  * }</pre>
  */
 @FunctionalInterface
+@AiDoc(
+        description = "Styling and rendering interface for bottom-right window resize grips, including preset TRIANGLE and LINES patterns."
+)
+@WikiPage(
+        title = "ResizeGripStyle",
+        slug = "resize-grip-style",
+        category = "<key:docking.category>",
+        summary = "<key:resize.grip.style.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:resize.grip.style.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:resize.grip.style.example.custom.title>",
+        code = "theme.resizeGrip(ResizeGripStyle.LINES);"
+)
+@WikiLink(
+        label = "DockTheme",
+        target = "page:dock-theme",
+        description = "<key:dock.theme.summary>"
+)
 public interface ResizeGripStyle {
     /**
      * Рисует ручку.
@@ -26,9 +56,25 @@ public interface ResizeGripStyle {
      * @param cornerRadius радиус скругления угла окна; рисунок не должен выходить за скругление
      * @param color цвет, уже выбранный по состоянию (покой, наведение, перетаскивание)
      */
-    void paint(DrawScope draw, float right, float bottom, float size, float cornerRadius, ColorView color);
+    @AiDoc(description = "Paints the custom resize grip into the provided drawing scope.")
+    @WikiMethod(description = "<key:resize.grip.style.method.paint>")
+    void paint(
+            @WikiParameter(description = "<key:resize.grip.style.param.draw>")
+            DrawScope draw,
+            @WikiParameter(description = "<key:resize.grip.style.param.right>")
+            float right,
+            @WikiParameter(description = "<key:resize.grip.style.param.bottom>")
+            float bottom,
+            @WikiParameter(description = "<key:resize.grip.style.param.size>")
+            float size,
+            @WikiParameter(description = "<key:resize.grip.style.param.cornerRadius>")
+            float cornerRadius,
+            @WikiParameter(description = "<key:resize.grip.style.param.color>")
+            ColorView color
+    );
 
     /** Сплошной треугольник в углу, как в Dear ImGui. Значение по умолчанию. */
+    @AiDoc(description = "Solid corner triangle resize grip (ImGui style).")
     ResizeGripStyle TRIANGLE = (draw, right, bottom, size, radius, color) -> {
         float inset = 1.0f;
         float r = Math.max(0.0f, Math.min(radius, size - 2.0f));
@@ -45,30 +91,12 @@ public interface ResizeGripStyle {
     };
 
     /** Три диагональные черточки, как в классических Windows-окнах. */
+    @AiDoc(description = "Three diagonal stripes resize grip (classic Windows style).")
     ResizeGripStyle LINES = (draw, right, bottom, size, radius, color) -> {
         float step = Math.max(3.0f, size / 4.0f);
         for (int i = 1; i <= 3; i++) {
-            float d = step * i;
-            if (d > size - 1.0f) break;
-            draw.line(right - 2.0f, bottom - d, right - d, bottom - 2.0f,
-                    dev.sixik.unigui.api.render.Paint.stroke(color, 1.2f));
+            float offset = step * i;
+            draw.line(right - offset, bottom - 1.0f, right - 1.0f, bottom - offset, color, 1.0f);
         }
-    };
-
-    /** Треугольная сетка из точек. */
-    ResizeGripStyle DOTS = (draw, right, bottom, size, radius, color) -> {
-        float step = Math.max(3.0f, size / 4.0f);
-        float dot = Math.max(1.5f, step * 0.4f);
-        for (int row = 0; row < 3; row++) {
-            for (int col = 0; col <= row; col++) {
-                float cx = right - 3.0f - col * step;
-                float cy = bottom - 3.0f - (row - col) * step;
-                draw.circleFilled(cx - dot * 0.5f, cy - dot * 0.5f, dot, dot, color);
-            }
-        }
-    };
-
-    /** Ручки нет: окно растягивается только за края. */
-    ResizeGripStyle NONE = (draw, right, bottom, size, radius, color) -> {
     };
 }

@@ -1,18 +1,59 @@
 package dev.sixik.unigui.widgets.docking;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 
+@AiDoc(
+        description = "Resolved docking drop intention capturing the target area, preview bounds, and source/target pane identifiers."
+)
+@WikiPage(
+        title = "DockDropIntent",
+        slug = "dock-drop-intent",
+        category = "<key:docking.category>",
+        summary = "<key:dock.drop.intent.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:dock.drop.intent.section.overview.body>",
+        order = 10
+)
+@WikiLink(
+        label = "DockArea",
+        target = "page:dock-area",
+        description = "<key:dock.area.summary>"
+)
+@WikiLink(
+        label = "DockingRoot",
+        target = "page:docking-root",
+        description = "<key:docking.root.summary>"
+)
 public record DockDropIntent(
+        @WikiParameter(description = "<key:dock.drop.intent.param.valid>")
         boolean valid,
+        @WikiParameter(description = "<key:dock.drop.intent.param.sourcePaneId>")
         String sourcePaneId,
+        @WikiParameter(description = "<key:dock.drop.intent.param.targetPaneId>")
         String targetPaneId,
+        @WikiParameter(description = "<key:dock.drop.intent.param.area>")
         DockArea area,
+        @WikiParameter(description = "<key:dock.drop.intent.param.x>")
         float x,
+        @WikiParameter(description = "<key:dock.drop.intent.param.y>")
         float y,
+        @WikiParameter(description = "<key:dock.drop.intent.param.width>")
         float width,
+        @WikiParameter(description = "<key:dock.drop.intent.param.height>")
         float height,
+        @WikiParameter(description = "<key:dock.drop.intent.param.pointerX>")
         float pointerX,
+        @WikiParameter(description = "<key:dock.drop.intent.param.pointerY>")
         float pointerY
 ) {
     private static final DockDropIntent NONE = new DockDropIntent(
@@ -32,30 +73,67 @@ public record DockDropIntent(
         }
     }
 
+    @AiDoc(description = "Returns an invalid empty drop intent representing no drop target.")
+    @WikiMethod(description = "<key:dock.drop.intent.method.none>")
+    @WikiReturn("<key:dock.drop.intent.return.intent>")
     public static DockDropIntent none() {
         return NONE;
     }
 
-    public static DockDropIntent of(String sourcePaneId, String targetPaneId, DockArea area,
-                                    RectView previewBounds, float pointerX, float pointerY) {
+    @AiDoc(description = "Creates a valid dock drop intent for the specified area and bounds.")
+    @WikiMethod(description = "<key:dock.drop.intent.method.of>")
+    @WikiReturn("<key:dock.drop.intent.return.intent>")
+    public static DockDropIntent of(
+            @WikiParameter(description = "<key:dock.drop.intent.param.sourcePaneId>")
+            String sourcePaneId,
+            @WikiParameter(description = "<key:dock.drop.intent.param.targetPaneId>")
+            String targetPaneId,
+            @WikiParameter(description = "<key:dock.drop.intent.param.area>")
+            DockArea area,
+            @WikiParameter(description = "<key:dock.drop.intent.param.previewBounds>")
+            RectView previewBounds,
+            @WikiParameter(description = "<key:dock.drop.intent.param.pointerX>")
+            float pointerX,
+            @WikiParameter(description = "<key:dock.drop.intent.param.pointerY>")
+            float pointerY
+    ) {
         RectView bounds = previewBounds == null ? new MutableRect() : previewBounds;
         return new DockDropIntent(true, sourcePaneId, targetPaneId, area,
                 bounds.x(), bounds.y(), bounds.width(), bounds.height(), pointerX, pointerY);
     }
 
-    public static DockDropIntent floating(String sourcePaneId, float pointerX, float pointerY) {
+    @AiDoc(description = "Creates a floating tear-off drop intent around the pointer.")
+    @WikiMethod(description = "<key:dock.drop.intent.method.floating>")
+    @WikiReturn("<key:dock.drop.intent.return.intent>")
+    public static DockDropIntent floating(
+            @WikiParameter(description = "<key:dock.drop.intent.param.sourcePaneId>")
+            String sourcePaneId,
+            @WikiParameter(description = "<key:dock.drop.intent.param.pointerX>")
+            float pointerX,
+            @WikiParameter(description = "<key:dock.drop.intent.param.pointerY>")
+            float pointerY
+    ) {
         return new DockDropIntent(true, sourcePaneId, "", DockArea.FLOAT,
                 pointerX - 80.0f, pointerY - 11.0f, 160.0f, 96.0f, pointerX, pointerY);
     }
 
+    @AiDoc(description = "Returns true if this intent detaches the pane into a floating window.")
+    @WikiMethod(description = "<key:dock.drop.intent.method.isFloating>")
+    @WikiReturn("<key:dock.drop.intent.return.isFloating>")
     public boolean floating() {
         return valid && area == DockArea.FLOAT;
     }
 
+    @AiDoc(description = "Returns true if this intent adds the pane as a tab.")
+    @WikiMethod(description = "<key:dock.drop.intent.method.isTabbed>")
+    @WikiReturn("<key:dock.drop.intent.return.isTabbed>")
     public boolean tabbed() {
         return valid && (area == DockArea.CENTER || area == DockArea.TAB);
     }
 
+    @AiDoc(description = "Returns true if this intent splits an existing node.")
+    @WikiMethod(description = "<key:dock.drop.intent.method.isSplit>")
+    @WikiReturn("<key:dock.drop.intent.return.isSplit>")
     public boolean split() {
         return valid && area != DockArea.CENTER && area != DockArea.TAB && area != DockArea.FLOAT;
     }

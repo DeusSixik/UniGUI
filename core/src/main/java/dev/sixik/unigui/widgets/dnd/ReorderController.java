@@ -1,5 +1,13 @@
 package dev.sixik.unigui.widgets.dnd;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.event.EventPhase;
 import dev.sixik.unigui.api.event.EventSubscription;
 import dev.sixik.unigui.api.math.ColorView;
@@ -45,6 +53,42 @@ import java.util.function.Predicate;
  * (или лежит в нём глубже), перестановка применяется автоматически ({@link #autoApply(boolean)}).
  * Для внешнего payload индекс вставки только сообщается в событии.</p>
  */
+@AiDoc(
+        description = "Drag reordering controller attachable to container widgets (e.g. VBox, HBox, PanelWidget) supporting insertion lines and automated DOM reordering."
+)
+@WikiPage(
+        title = "ReorderController",
+        slug = "reorder-controller",
+        category = "<key:dnd.category>",
+        summary = "<key:reorder.controller.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:reorder.controller.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:reorder.controller.example.attach.title>",
+        code = "ReorderController.attach(vbox)\n"
+                + "        .orientation(Orientation.VERTICAL)\n"
+                + "        .accepts(\"card\")\n"
+                + "        .onReorder((from, to) -> dataList.add(to, dataList.remove((int) from)));"
+)
+@WikiLink(
+        label = "DragController",
+        target = "page:drag-controller",
+        description = "<key:drag.controller.summary>"
+)
+@WikiLink(
+        label = "DropController",
+        target = "page:drop-controller",
+        description = "<key:drop.controller.summary>"
+)
+@WikiLink(
+        label = "DragSession",
+        target = "page:drag-session",
+        description = "<key:drag.session.summary>"
+)
 public final class ReorderController {
     private static final float DEFAULT_THICKNESS = 2.0f;
 
@@ -57,10 +101,12 @@ public final class ReorderController {
      * @param fromIndex прежний индекс или {@code -1} для внешнего payload
      * @param toIndex   новый индекс среди детей контейнера (после удаления для внутреннего переноса)
      */
+    @AiDoc(description = "Event record describing reorder source, destination indices, and dragged item.")
     public record ReorderEvent(Widget container, DragPayload payload, Widget item, int fromIndex, int toIndex) {
         /**
          * @return {@code true}, если переносили ребёнка этого же контейнера
          */
+        @AiDoc(description = "Returns true if the dragged item was an internal child of this container.")
         public boolean internal() {
             return fromIndex >= 0;
         }
@@ -93,14 +139,26 @@ public final class ReorderController {
      * @param container контейнер, дети которого переупорядочиваются
      * @return контроллер для fluent-настройки
      */
-    public static ReorderController attach(Widget container) {
+    @AiDoc(description = "Attaches a ReorderController to the specified container widget.")
+    @WikiMethod(description = "<key:reorder.controller.method.attach>")
+    @WikiReturn("<key:reorder.controller.return.controller>")
+    public static ReorderController attach(
+            @WikiParameter(description = "<key:reorder.controller.param.container>")
+            Widget container
+    ) {
         return new ReorderController(container);
     }
 
     /**
      * Направление списка (по умолчанию вертикальное).
      */
-    public ReorderController orientation(Orientation orientation) {
+    @AiDoc(description = "Configures orientation (VERTICAL or HORIZONTAL) for reordering calculations.")
+    @WikiMethod(description = "<key:reorder.controller.method.orientation>")
+    @WikiReturn("<key:reorder.controller.return.this>")
+    public ReorderController orientation(
+            @WikiParameter(description = "<key:reorder.controller.param.orientation>")
+            Orientation orientation
+    ) {
         this.orientation = orientation == null ? Orientation.VERTICAL : orientation;
         return this;
     }
@@ -108,7 +166,13 @@ public final class ReorderController {
     /**
      * Принимаемые типы payload через запятую, {@code |} или пробел; {@code *} принимает всё.
      */
-    public ReorderController accepts(String types) {
+    @AiDoc(description = "Restricts accepted payload types by comma/pipe/whitespace delimited string (* accepts all).")
+    @WikiMethod(description = "<key:reorder.controller.method.acceptsTypes>")
+    @WikiReturn("<key:reorder.controller.return.this>")
+    public ReorderController accepts(
+            @WikiParameter(description = "<key:reorder.controller.param.types>")
+            String types
+    ) {
         acceptedTypes.clear();
         String normalized = types == null ? "" : types.trim();
         acceptAll = normalized.isEmpty() || normalized.equals("*");
@@ -124,7 +188,13 @@ public final class ReorderController {
     /**
      * Дополнительная проверка payload.
      */
-    public ReorderController accepts(Predicate<DragPayload> validator) {
+    @AiDoc(description = "Adds custom predicate validation rule for reorder payloads.")
+    @WikiMethod(description = "<key:reorder.controller.method.acceptsValidator>")
+    @WikiReturn("<key:reorder.controller.return.this>")
+    public ReorderController accepts(
+            @WikiParameter(description = "<key:reorder.controller.param.validator>")
+            Predicate<DragPayload> validator
+    ) {
         validators.add(Objects.requireNonNull(validator, "validator"));
         return this;
     }
@@ -132,7 +202,13 @@ public final class ReorderController {
     /**
      * Принимать только элементы этого контейнера (без внешних payload).
      */
-    public ReorderController internalOnly(boolean internalOnly) {
+    @AiDoc(description = "Restricts reordering to internal children of this container only.")
+    @WikiMethod(description = "<key:reorder.controller.method.internalOnly>")
+    @WikiReturn("<key:reorder.controller.return.this>")
+    public ReorderController internalOnly(
+            @WikiParameter(description = "<key:reorder.controller.param.internalOnly>")
+            boolean internalOnly
+    ) {
         this.internalOnly = internalOnly;
         return this;
     }
@@ -140,7 +216,13 @@ public final class ReorderController {
     /**
      * Применять перестановку к {@link PanelWidget} автоматически (по умолчанию да).
      */
-    public ReorderController autoApply(boolean autoApply) {
+    @AiDoc(description = "Enables or disables automatic repositioning of children when container is a PanelWidget.")
+    @WikiMethod(description = "<key:reorder.controller.method.autoApply>")
+    @WikiReturn("<key:reorder.controller.return.this>")
+    public ReorderController autoApply(
+            @WikiParameter(description = "<key:reorder.controller.param.autoApply>")
+            boolean autoApply
+    ) {
         this.autoApply = autoApply;
         return this;
     }
@@ -148,7 +230,13 @@ public final class ReorderController {
     /**
      * Какие дети считаются элементами списка (по умолчанию все, кроме COLLAPSED).
      */
-    public ReorderController itemFilter(Predicate<Widget> itemFilter) {
+    @AiDoc(description = "Configures a predicate filter selecting which child widgets participate in reordering.")
+    @WikiMethod(description = "<key:reorder.controller.method.itemFilter>")
+    @WikiReturn("<key:reorder.controller.return.this>")
+    public ReorderController itemFilter(
+            @WikiParameter(description = "<key:reorder.controller.param.itemFilter>")
+            Predicate<Widget> itemFilter
+    ) {
         this.itemFilter = Objects.requireNonNull(itemFilter, "itemFilter");
         return this;
     }
@@ -160,14 +248,30 @@ public final class ReorderController {
      * @param thickness толщина в пикселях
      * @param inset     отступ линии от краёв контейнера
      */
-    public ReorderController indicator(ColorView color, float thickness, float inset) {
+    @AiDoc(description = "Customizes appearance of the insertion line indicator.")
+    @WikiMethod(description = "<key:reorder.controller.method.indicator>")
+    @WikiReturn("<key:reorder.controller.return.this>")
+    public ReorderController indicator(
+            @WikiParameter(description = "<key:reorder.controller.param.color>")
+            ColorView color,
+            @WikiParameter(description = "<key:reorder.controller.param.thickness>")
+            float thickness,
+            @WikiParameter(description = "<key:reorder.controller.param.inset>")
+            float inset
+    ) {
         if (color != null) indicatorColor.set(color.r(), color.g(), color.b(), color.a());
         this.indicatorThickness = Float.isFinite(thickness) ? Math.max(1.0f, thickness) : DEFAULT_THICKNESS;
         this.indicatorInset = Float.isFinite(inset) ? Math.max(0.0f, inset) : 0.0f;
         return this;
     }
 
-    public ReorderController enabled(boolean enabled) {
+    @AiDoc(description = "Enables or disables this reorder controller.")
+    @WikiMethod(description = "<key:reorder.controller.method.enabled>")
+    @WikiReturn("<key:reorder.controller.return.this>")
+    public ReorderController enabled(
+            @WikiParameter(description = "<key:reorder.controller.param.enabled>")
+            boolean enabled
+    ) {
         this.enabled = enabled;
         return this;
     }
@@ -175,7 +279,13 @@ public final class ReorderController {
     /**
      * Слушатель перестановки с полным событием.
      */
-    public ReorderController onReorder(Consumer<ReorderEvent> listener) {
+    @AiDoc(description = "Registers a listener receiving full ReorderEvent details.")
+    @WikiMethod(description = "<key:reorder.controller.method.onReorderEvent>")
+    @WikiReturn("<key:reorder.controller.return.this>")
+    public ReorderController onReorder(
+            @WikiParameter(description = "<key:reorder.controller.param.eventListener>")
+            Consumer<ReorderEvent> listener
+    ) {
         listeners.add(Objects.requireNonNull(listener, "listener"));
         return this;
     }
@@ -183,7 +293,13 @@ public final class ReorderController {
     /**
      * Слушатель перестановки: {@code (fromIndex, toIndex)}. Для внешнего payload {@code fromIndex = -1}.
      */
-    public ReorderController onReorder(BiConsumer<Integer, Integer> listener) {
+    @AiDoc(description = "Registers a listener receiving indices: fromIndex and toIndex.")
+    @WikiMethod(description = "<key:reorder.controller.method.onReorderIndices>")
+    @WikiReturn("<key:reorder.controller.return.this>")
+    public ReorderController onReorder(
+            @WikiParameter(description = "<key:reorder.controller.param.indicesListener>")
+            BiConsumer<Integer, Integer> listener
+    ) {
         Objects.requireNonNull(listener, "listener");
         listeners.add(event -> listener.accept(event.fromIndex(), event.toIndex()));
         return this;
@@ -192,6 +308,9 @@ public final class ReorderController {
     /**
      * @return контейнер
      */
+    @AiDoc(description = "Returns the container widget managed by this controller.")
+    @WikiMethod(description = "<key:reorder.controller.method.container>")
+    @WikiReturn("<key:reorder.controller.return.container>")
     public Widget container() {
         return container;
     }
@@ -199,6 +318,8 @@ public final class ReorderController {
     /**
      * Снимает контроллер с контейнера.
      */
+    @AiDoc(description = "Detaches event listeners from the container.")
+    @WikiMethod(description = "<key:reorder.controller.method.detach>")
     public void detach() {
         for (EventSubscription subscription : subscriptions) subscription.unsubscribe();
         subscriptions.clear();
@@ -260,84 +381,72 @@ public final class ReorderController {
         return new Insertion(from >= 0 ? item : null, from, raw, to);
     }
 
-    /**
-     * Ребёнок контейнера, внутри которого лежит перетаскиваемый виджет, или {@code null}.
-     */
-    private Widget itemOf(Widget dragged) {
-        for (Widget widget = dragged; widget != null; widget = widget.parent()) {
-            if (widget.parent() == container) return widget;
+    private Widget itemOf(Widget descendant) {
+        for (Widget current = descendant; current != null; current = current.parent()) {
+            if (current.parent() == container) return current;
         }
         return null;
     }
 
     private int rawInsertionIndex(float pointerX, float pointerY) {
-        boolean vertical = orientation == Orientation.VERTICAL;
-        float position = vertical ? pointerY : pointerX;
         List<Widget> children = container.children();
-        int lastItem = -1;
+        int eligibleIndex = 0;
         for (int i = 0; i < children.size(); i++) {
             Widget child = children.get(i);
             if (!itemFilter.test(child)) continue;
             RectView bounds = child.layoutBounds();
-            float center = vertical
-                    ? bounds.y() + bounds.height() * 0.5f
-                    : bounds.x() + bounds.width() * 0.5f;
-            if (position < center) return i;
-            lastItem = i;
+            if (orientation == Orientation.VERTICAL) {
+                float midY = bounds.y() + bounds.height() * 0.5f;
+                if (pointerY < midY) return i;
+            } else {
+                float midX = bounds.x() + bounds.width() * 0.5f;
+                if (pointerX < midX) return i;
+            }
+            eligibleIndex = i + 1;
         }
-        return lastItem + 1;
+        return eligibleIndex;
     }
 
-    /**
-     * Линия вставки посередине зазора между соседями (или у края списка).
-     */
-    private void showIndicator(DragSession session, int raw) {
-        boolean vertical = orientation == Orientation.VERTICAL;
+    private void showIndicator(DragSession session, int rawIndex) {
+        RectView containerBounds = container.layoutBounds();
         List<Widget> children = container.children();
-        Widget previous = null;
-        for (int i = Math.min(raw, children.size()) - 1; i >= 0; i--) {
-            if (itemFilter.test(children.get(i))) {
-                previous = children.get(i);
-                break;
+        List<Widget> eligible = new ArrayList<>();
+        for (Widget child : children) {
+            if (itemFilter.test(child)) eligible.add(child);
+        }
+
+        if (orientation == Orientation.VERTICAL) {
+            float lineY;
+            if (eligible.isEmpty()) {
+                lineY = containerBounds.y() + containerBounds.height() * 0.5f;
+            } else if (rawIndex <= 0) {
+                lineY = eligible.get(0).layoutBounds().y();
+            } else if (rawIndex >= eligible.size()) {
+                lineY = eligible.get(eligible.size() - 1).layoutBounds().bottom();
+            } else {
+                RectView prev = eligible.get(rawIndex - 1).layoutBounds();
+                RectView next = eligible.get(rawIndex).layoutBounds();
+                lineY = (prev.bottom() + next.y()) * 0.5f;
             }
-        }
-        Widget next = null;
-        for (int i = Math.max(raw, 0); i < children.size(); i++) {
-            if (itemFilter.test(children.get(i))) {
-                next = children.get(i);
-                break;
+            float x = containerBounds.x() + indicatorInset;
+            float width = Math.max(0.0f, containerBounds.width() - indicatorInset * 2.0f);
+            session.showIndicator(x, lineY - indicatorThickness * 0.5f, width, indicatorThickness, indicatorColor);
+        } else {
+            float lineX;
+            if (eligible.isEmpty()) {
+                lineX = containerBounds.x() + containerBounds.width() * 0.5f;
+            } else if (rawIndex <= 0) {
+                lineX = eligible.get(0).layoutBounds().x();
+            } else if (rawIndex >= eligible.size()) {
+                lineX = eligible.get(eligible.size() - 1).layoutBounds().right();
+            } else {
+                RectView prev = eligible.get(rawIndex - 1).layoutBounds();
+                RectView next = eligible.get(rawIndex).layoutBounds();
+                lineX = (prev.right() + next.x()) * 0.5f;
             }
+            float y = containerBounds.y() + indicatorInset;
+            float height = Math.max(0.0f, containerBounds.height() - indicatorInset * 2.0f);
+            session.showIndicator(lineX - indicatorThickness * 0.5f, y, indicatorThickness, height, indicatorColor);
         }
-
-        RectView box = container.layoutBounds();
-        float position;
-        if (previous != null && next != null) {
-            position = (end(previous, vertical) + start(next, vertical)) * 0.5f;
-        } else if (next != null) {
-            position = start(next, vertical);
-        } else if (previous != null) {
-            position = end(previous, vertical);
-        } else {
-            position = vertical ? box.y() : box.x();
-        }
-
-        float half = indicatorThickness * 0.5f;
-        if (vertical) {
-            session.showIndicator(box.x() + indicatorInset, position - half,
-                    Math.max(1.0f, box.width() - indicatorInset * 2.0f), indicatorThickness, indicatorColor);
-        } else {
-            session.showIndicator(position - half, box.y() + indicatorInset,
-                    indicatorThickness, Math.max(1.0f, box.height() - indicatorInset * 2.0f), indicatorColor);
-        }
-    }
-
-    private static float start(Widget widget, boolean vertical) {
-        RectView bounds = widget.layoutBounds();
-        return vertical ? bounds.y() : bounds.x();
-    }
-
-    private static float end(Widget widget, boolean vertical) {
-        RectView bounds = widget.layoutBounds();
-        return vertical ? bounds.y() + bounds.height() : bounds.x() + bounds.width();
     }
 }

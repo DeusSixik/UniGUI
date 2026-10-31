@@ -1,5 +1,14 @@
 package dev.sixik.unigui.widgets.dnd;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 /**
  * Immutable payload passed from a drag source to a drop target.
  *
@@ -8,7 +17,44 @@ package dev.sixik.unigui.widgets.dnd;
  * @param preview short label used by drag previews
  * @param data optional in-process data
  */
-public record DragPayload(String id, String type, String preview, Object data) {
+@AiDoc(
+        description = "Immutable transfer payload conveying identifier, type, preview text, and optional user object between drag source and drop target."
+)
+@WikiPage(
+        title = "DragPayload",
+        slug = "drag-payload",
+        category = "<key:dnd.category>",
+        summary = "<key:drag.payload.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:drag.payload.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:drag.payload.example.basic.title>",
+        code = "DragPayload payload = DragPayload.of(\"item-42\", \"item.stack\", \"Iron Ingot\", stackItem);"
+)
+@WikiLink(
+        label = "DragController",
+        target = "page:drag-controller",
+        description = "<key:drag.controller.summary>"
+)
+@WikiLink(
+        label = "DropController",
+        target = "page:drop-controller",
+        description = "<key:drop.controller.summary>"
+)
+public record DragPayload(
+        @WikiParameter(description = "<key:drag.payload.param.id>")
+        String id,
+        @WikiParameter(description = "<key:drag.payload.param.type>")
+        String type,
+        @WikiParameter(description = "<key:drag.payload.param.preview>")
+        String preview,
+        @WikiParameter(description = "<key:drag.payload.param.data>")
+        Object data
+) {
     /**
      * Нормализует компоненты создаваемого payload.
      *
@@ -30,7 +76,16 @@ public record DragPayload(String id, String type, String preview, Object data) {
      * @param type тип для фильтрации drop-target'ом; пустое значение становится {@code generic}
      * @param preview подпись drag-preview; пустое значение заменяется идентификатором
      */
-    public DragPayload(String id, String type, String preview) {
+    @AiDoc(description = "Constructs a drag payload without extra object data.")
+    @WikiMethod(description = "<key:drag.payload.method.ctor.basic>")
+    public DragPayload(
+            @WikiParameter(description = "<key:drag.payload.param.id>")
+            String id,
+            @WikiParameter(description = "<key:drag.payload.param.type>")
+            String type,
+            @WikiParameter(description = "<key:drag.payload.param.preview>")
+            String preview
+    ) {
         this(id, type, preview, null);
     }
 
@@ -42,7 +97,17 @@ public record DragPayload(String id, String type, String preview, Object data) {
      * @param preview подпись drag-preview
      * @return нормализованный неизменяемый payload
      */
-    public static DragPayload of(String id, String type, String preview) {
+    @AiDoc(description = "Factory method to create a payload without extra data.")
+    @WikiMethod(description = "<key:drag.payload.method.of.basic>")
+    @WikiReturn("<key:drag.payload.return.payload>")
+    public static DragPayload of(
+            @WikiParameter(description = "<key:drag.payload.param.id>")
+            String id,
+            @WikiParameter(description = "<key:drag.payload.param.type>")
+            String type,
+            @WikiParameter(description = "<key:drag.payload.param.preview>")
+            String preview
+    ) {
         return new DragPayload(id, type, preview, null);
     }
 
@@ -55,7 +120,19 @@ public record DragPayload(String id, String type, String preview, Object data) {
      * @param data произвольные данные либо {@code null}
      * @return нормализованный неизменяемый payload
      */
-    public static DragPayload of(String id, String type, String preview, Object data) {
+    @AiDoc(description = "Factory method to create a payload with arbitrary in-process data.")
+    @WikiMethod(description = "<key:drag.payload.method.of.data>")
+    @WikiReturn("<key:drag.payload.return.payload>")
+    public static DragPayload of(
+            @WikiParameter(description = "<key:drag.payload.param.id>")
+            String id,
+            @WikiParameter(description = "<key:drag.payload.param.type>")
+            String type,
+            @WikiParameter(description = "<key:drag.payload.param.preview>")
+            String preview,
+            @WikiParameter(description = "<key:drag.payload.param.data>")
+            Object data
+    ) {
         return new DragPayload(id, type, preview, data);
     }
 
@@ -65,7 +142,13 @@ public record DragPayload(String id, String type, String preview, Object data) {
      * @param expectedType точный ожидаемый тип или {@code *} для любого типа
      * @return {@code true}, если тип совпадает либо используется wildcard
      */
-    public boolean matchesType(String expectedType) {
+    @AiDoc(description = "Checks whether the payload type matches the expected filter.")
+    @WikiMethod(description = "<key:drag.payload.method.matchesType>")
+    @WikiReturn("<key:drag.payload.return.matchesType>")
+    public boolean matchesType(
+            @WikiParameter(description = "<key:drag.payload.param.expectedType>")
+            String expectedType
+    ) {
         String normalized = normalize(expectedType, "");
         return normalized.equals("*") || type.equals(normalized);
     }
@@ -75,6 +158,9 @@ public record DragPayload(String id, String type, String preview, Object data) {
      *
      * @return {@code true}, если {@link #data()} не равен {@code null}
      */
+    @AiDoc(description = "Checks whether this payload carries attached data.")
+    @WikiMethod(description = "<key:drag.payload.method.hasData>")
+    @WikiReturn("<key:drag.payload.return.hasData>")
     public boolean hasData() {
         return data != null;
     }
@@ -86,7 +172,13 @@ public record DragPayload(String id, String type, String preview, Object data) {
      * @param <T> ожидаемый тип данных
      * @return приведённые данные либо {@code null}, если данных нет или тип не совпал
      */
-    public <T> T data(Class<T> type) {
+    @AiDoc(description = "Returns the attached data cast to the specified class, or null if absent or type mismatch.")
+    @WikiMethod(description = "<key:drag.payload.method.dataClass>")
+    @WikiReturn("<key:drag.payload.return.dataClass>")
+    public <T> T data(
+            @WikiParameter(description = "<key:drag.payload.param.dataClass>")
+            Class<T> type
+    ) {
         return type != null && type.isInstance(data) ? type.cast(data) : null;
     }
 
@@ -98,7 +190,8 @@ public record DragPayload(String id, String type, String preview, Object data) {
      * @return строка без пробелов по краям либо {@code fallback}
      */
     private static String normalize(String value, String fallback) {
-        String normalized = value == null ? "" : value.trim();
-        return normalized.isEmpty() ? fallback : normalized;
+        if (value == null) return fallback;
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? fallback : trimmed;
     }
 }

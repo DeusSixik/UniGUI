@@ -1,6 +1,14 @@
 package dev.sixik.unigui.widgets.dnd;
 
 import dev.sixik.unigui.api.core.UIContext;
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.event.EventPhase;
 import dev.sixik.unigui.api.event.EventSubscription;
 import dev.sixik.unigui.api.event.PointerMovedEvent;
@@ -44,6 +52,38 @@ import java.util.function.Supplier;
  * <p>Для ghost'а и индикатора дерево должно содержать {@code OverlayLayer}: без него жест работает,
  * но без ghost'а и без покадрового автоскролла.</p>
  */
+@AiDoc(
+        description = "Drag gesture controller attachable to any widget via composition to initiate drag-and-drop operations with ghost previews, threshold handling, and autoscrolling."
+)
+@WikiPage(
+        title = "DragController",
+        slug = "drag-controller",
+        category = "<key:dnd.category>",
+        summary = "<key:drag.controller.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:drag.controller.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:drag.controller.example.attach.title>",
+        code = "DragController.attach(header)\n"
+                + "        .dragged(card)\n"
+                + "        .payload(() -> DragPayload.of(\"card-1\", \"card\", \"Card #1\", data))\n"
+                + "        .threshold(4.0f)\n"
+                + "        .onDragEnd(end -> System.out.println(\"Outcome: \" + end.outcome()));"
+)
+@WikiLink(
+        label = "DropController",
+        target = "page:drop-controller",
+        description = "<key:drop.controller.summary>"
+)
+@WikiLink(
+        label = "DragSession",
+        target = "page:drag-session",
+        description = "<key:drag.session.summary>"
+)
 public final class DragController {
     private static final float DEFAULT_THRESHOLD = 4.0f;
     private static final float DEFAULT_GHOST_OPACITY = 0.75f;
@@ -54,6 +94,7 @@ public final class DragController {
     /**
      * Итог жеста для {@link #onDragEnd(Consumer)}.
      */
+    @AiDoc(description = "Record carrying the finished drag session and the final drag outcome.")
     public record DragEnd(DragSession session, DragOutcome outcome) {
     }
 
@@ -102,7 +143,13 @@ public final class DragController {
      * @param handle виджет, за который тянут (например, заголовок секции)
      * @return контроллер для fluent-настройки
      */
-    public static DragController attach(Widget handle) {
+    @AiDoc(description = "Attaches a new DragController to the specified handle widget.")
+    @WikiMethod(description = "<key:drag.controller.method.attach>")
+    @WikiReturn("<key:drag.controller.return.controller>")
+    public static DragController attach(
+            @WikiParameter(description = "<key:drag.controller.param.handle>")
+            Widget handle
+    ) {
         return new DragController(handle);
     }
 
@@ -111,7 +158,13 @@ public final class DragController {
     /**
      * Что логически перемещается: по умолчанию сам {@code handle}. Например, вся секция при драге за заголовок.
      */
-    public DragController dragged(Widget dragged) {
+    @AiDoc(description = "Specifies the logical widget being dragged (e.g. the entire card when dragged by its header).")
+    @WikiMethod(description = "<key:drag.controller.method.dragged>")
+    @WikiReturn("<key:drag.controller.return.this>")
+    public DragController dragged(
+            @WikiParameter(description = "<key:drag.controller.param.dragged>")
+            Widget dragged
+    ) {
         this.dragged = dragged;
         return this;
     }
@@ -119,7 +172,13 @@ public final class DragController {
     /**
      * Фиксированный payload.
      */
-    public DragController payload(DragPayload payload) {
+    @AiDoc(description = "Configures a static constant payload for the drag gesture.")
+    @WikiMethod(description = "<key:drag.controller.method.payloadConstant>")
+    @WikiReturn("<key:drag.controller.return.this>")
+    public DragController payload(
+            @WikiParameter(description = "<key:drag.controller.param.payload>")
+            DragPayload payload
+    ) {
         Objects.requireNonNull(payload, "payload");
         this.payload = () -> payload;
         return this;
@@ -128,7 +187,13 @@ public final class DragController {
     /**
      * Payload, создаваемый в момент старта жеста. Возврат {@code null} отменяет drag.
      */
-    public DragController payload(Supplier<DragPayload> payload) {
+    @AiDoc(description = "Configures a lazy payload supplier invoked when the drag threshold is exceeded.")
+    @WikiMethod(description = "<key:drag.controller.method.payloadSupplier>")
+    @WikiReturn("<key:drag.controller.return.this>")
+    public DragController payload(
+            @WikiParameter(description = "<key:drag.controller.param.payloadSupplier>")
+            Supplier<DragPayload> payload
+    ) {
         this.payload = payload;
         return this;
     }
@@ -136,12 +201,24 @@ public final class DragController {
     /**
      * Порог движения в UI-пикселях до начала drag (по умолчанию 4).
      */
-    public DragController threshold(float threshold) {
+    @AiDoc(description = "Sets the minimum movement threshold in pixels before the drag session starts.")
+    @WikiMethod(description = "<key:drag.controller.method.threshold>")
+    @WikiReturn("<key:drag.controller.return.this>")
+    public DragController threshold(
+            @WikiParameter(description = "<key:drag.controller.param.threshold>")
+            float threshold
+    ) {
         this.threshold = Float.isFinite(threshold) ? Math.max(0.0f, threshold) : DEFAULT_THRESHOLD;
         return this;
     }
 
-    public DragController enabled(boolean enabled) {
+    @AiDoc(description = "Enables or disables this drag controller.")
+    @WikiMethod(description = "<key:drag.controller.method.enabled>")
+    @WikiReturn("<key:drag.controller.return.this>")
+    public DragController enabled(
+            @WikiParameter(description = "<key:drag.controller.param.enabled>")
+            boolean enabled
+    ) {
         if (!enabled) cancel();
         this.enabled = enabled;
         return this;
@@ -150,7 +227,13 @@ public final class DragController {
     /**
      * Дополнительный фильтр нажатий: {@code false} не даёт начать жест.
      */
-    public DragController filter(Predicate<PointerPressedEvent> filter) {
+    @AiDoc(description = "Sets a predicate filter to selectively reject pointer pressed events.")
+    @WikiMethod(description = "<key:drag.controller.method.filter>")
+    @WikiReturn("<key:drag.controller.return.this>")
+    public DragController filter(
+            @WikiParameter(description = "<key:drag.controller.param.filter>")
+            Predicate<PointerPressedEvent> filter
+    ) {
         this.filter = filter;
         return this;
     }
@@ -158,7 +241,13 @@ public final class DragController {
     /**
      * Собственный ghost.
      */
-    public DragController ghost(DragGhost ghost) {
+    @AiDoc(description = "Configures a custom drag ghost renderer.")
+    @WikiMethod(description = "<key:drag.controller.method.ghostCustom>")
+    @WikiReturn("<key:drag.controller.return.this>")
+    public DragController ghost(
+            @WikiParameter(description = "<key:drag.controller.param.ghost>")
+            DragGhost ghost
+    ) {
         this.ghost = ghost;
         this.ghostWidget = null;
         return this;
@@ -167,7 +256,13 @@ public final class DragController {
     /**
      * Ghost, повторяющий живой виджет (например, заголовок или вся секция).
      */
-    public DragController ghost(Widget widget) {
+    @AiDoc(description = "Configures a ghost that duplicates the visual appearance of the specified widget.")
+    @WikiMethod(description = "<key:drag.controller.method.ghostWidget>")
+    @WikiReturn("<key:drag.controller.return.this>")
+    public DragController ghost(
+            @WikiParameter(description = "<key:drag.controller.param.widget>")
+            Widget widget
+    ) {
         this.ghostWidget = widget;
         this.ghost = null;
         return this;
@@ -176,7 +271,13 @@ public final class DragController {
     /**
      * Прозрачность widget-ghost'а {@code [0, 1]} (по умолчанию 0.75).
      */
-    public DragController ghostOpacity(float opacity) {
+    @AiDoc(description = "Sets the opacity level for the widget ghost preview.")
+    @WikiMethod(description = "<key:drag.controller.method.ghostOpacity>")
+    @WikiReturn("<key:drag.controller.return.this>")
+    public DragController ghostOpacity(
+            @WikiParameter(description = "<key:drag.controller.param.opacity>")
+            float opacity
+    ) {
         this.ghostOpacity = Float.isFinite(opacity) ? Math.max(0.0f, Math.min(1.0f, opacity)) : DEFAULT_GHOST_OPACITY;
         return this;
     }
@@ -185,7 +286,13 @@ public final class DragController {
      * Блокирует ось движения ghost'а: {@link Orientation#VERTICAL} двигает только по вертикали
      * (типично для списка), {@code null} разрешает свободное движение.
      */
-    public DragController lockGhostAxis(Orientation axis) {
+    @AiDoc(description = "Locks ghost movement to a single axis (e.g. VERTICAL for lists) or null for free movement.")
+    @WikiMethod(description = "<key:drag.controller.method.lockGhostAxis>")
+    @WikiReturn("<key:drag.controller.return.this>")
+    public DragController lockGhostAxis(
+            @WikiParameter(description = "<key:drag.controller.param.axis>")
+            Orientation axis
+    ) {
         this.ghostAxis = axis;
         return this;
     }
@@ -193,7 +300,13 @@ public final class DragController {
     /**
      * Прозрачность исходного виджета во время драга; {@code 1} отключает затемнение (по умолчанию 0.45).
      */
-    public DragController sourceOpacity(float opacity) {
+    @AiDoc(description = "Sets the opacity of the source widget while dragging (1.0 disables dimming).")
+    @WikiMethod(description = "<key:drag.controller.method.sourceOpacity>")
+    @WikiReturn("<key:drag.controller.return.this>")
+    public DragController sourceOpacity(
+            @WikiParameter(description = "<key:drag.controller.param.opacity>")
+            float opacity
+    ) {
         this.sourceOpacity = Float.isFinite(opacity) ? Math.max(0.0f, Math.min(1.0f, opacity)) : DEFAULT_SOURCE_OPACITY;
         return this;
     }
@@ -201,7 +314,13 @@ public final class DragController {
     /**
      * Включает или выключает автоскролл у края {@code ScrollView} (по умолчанию включён).
      */
-    public DragController autoScroll(boolean autoScroll) {
+    @AiDoc(description = "Enables or disables automatic scrolling near edges of parent ScrollViews.")
+    @WikiMethod(description = "<key:drag.controller.method.autoScrollEnabled>")
+    @WikiReturn("<key:drag.controller.return.this>")
+    public DragController autoScroll(
+            @WikiParameter(description = "<key:drag.controller.param.autoScroll>")
+            boolean autoScroll
+    ) {
         this.autoScroll = autoScroll;
         return this;
     }
@@ -212,23 +331,49 @@ public final class DragController {
      * @param edge            ширина зоны у края viewport'а в пикселях
      * @param pixelsPerSecond максимальная скорость прокрутки
      */
-    public DragController autoScroll(float edge, float pixelsPerSecond) {
+    @AiDoc(description = "Configures autoscroll edge margin and maximum scroll speed in pixels per second.")
+    @WikiMethod(description = "<key:drag.controller.method.autoScrollConfig>")
+    @WikiReturn("<key:drag.controller.return.this>")
+    public DragController autoScroll(
+            @WikiParameter(description = "<key:drag.controller.param.edge>")
+            float edge,
+            @WikiParameter(description = "<key:drag.controller.param.pixelsPerSecond>")
+            float pixelsPerSecond
+    ) {
         this.autoScrollEdge = Float.isFinite(edge) ? Math.max(0.0f, edge) : DEFAULT_AUTO_SCROLL_EDGE;
         this.autoScrollSpeed = Float.isFinite(pixelsPerSecond) ? Math.max(0.0f, pixelsPerSecond) : DEFAULT_AUTO_SCROLL_SPEED;
         return this;
     }
 
-    public DragController onDragStart(Consumer<DragSession> listener) {
+    @AiDoc(description = "Registers a listener invoked when a drag gesture starts.")
+    @WikiMethod(description = "<key:drag.controller.method.onDragStart>")
+    @WikiReturn("<key:drag.controller.return.this>")
+    public DragController onDragStart(
+            @WikiParameter(description = "<key:drag.controller.param.startListener>")
+            Consumer<DragSession> listener
+    ) {
         startListeners.add(Objects.requireNonNull(listener, "listener"));
         return this;
     }
 
-    public DragController onDragMove(Consumer<DragSession> listener) {
+    @AiDoc(description = "Registers a listener invoked on each pointer movement during drag.")
+    @WikiMethod(description = "<key:drag.controller.method.onDragMove>")
+    @WikiReturn("<key:drag.controller.return.this>")
+    public DragController onDragMove(
+            @WikiParameter(description = "<key:drag.controller.param.moveListener>")
+            Consumer<DragSession> listener
+    ) {
         moveListeners.add(Objects.requireNonNull(listener, "listener"));
         return this;
     }
 
-    public DragController onDragEnd(Consumer<DragEnd> listener) {
+    @AiDoc(description = "Registers a listener invoked when a drag gesture completes or is cancelled.")
+    @WikiMethod(description = "<key:drag.controller.method.onDragEnd>")
+    @WikiReturn("<key:drag.controller.return.this>")
+    public DragController onDragEnd(
+            @WikiParameter(description = "<key:drag.controller.param.endListener>")
+            Consumer<DragEnd> listener
+    ) {
         endListeners.add(Objects.requireNonNull(listener, "listener"));
         return this;
     }
@@ -238,6 +383,9 @@ public final class DragController {
     /**
      * @return виджет, за который тянут
      */
+    @AiDoc(description = "Returns the handle widget.")
+    @WikiMethod(description = "<key:drag.controller.method.handle>")
+    @WikiReturn("<key:drag.controller.return.handle>")
     public Widget handle() {
         return handle;
     }
@@ -245,6 +393,9 @@ public final class DragController {
     /**
      * @return {@code true}, пока идёт drag (порог пройден)
      */
+    @AiDoc(description = "Returns true if currently in an active dragging state past the threshold.")
+    @WikiMethod(description = "<key:drag.controller.method.dragging>")
+    @WikiReturn("<key:drag.controller.return.dragging>")
     public boolean dragging() {
         return state == State.DRAGGING;
     }
@@ -252,6 +403,9 @@ public final class DragController {
     /**
      * @return активная сессия или {@code null}
      */
+    @AiDoc(description = "Returns the active DragSession, or null if idle.")
+    @WikiMethod(description = "<key:drag.controller.method.session>")
+    @WikiReturn("<key:drag.controller.return.session>")
     public DragSession session() {
         return session;
     }
@@ -259,6 +413,8 @@ public final class DragController {
     /**
      * Отменяет текущий жест, если он идёт.
      */
+    @AiDoc(description = "Cancels the active gesture if one is in progress.")
+    @WikiMethod(description = "<key:drag.controller.method.cancel>")
     public void cancel() {
         if (state == State.IDLE) return;
         DragSession current = session;
@@ -274,6 +430,8 @@ public final class DragController {
     /**
      * Снимает контроллер с виджета и отменяет жест.
      */
+    @AiDoc(description = "Detaches event listeners from the handle widget and terminates active gestures.")
+    @WikiMethod(description = "<key:drag.controller.method.detach>")
     public void detach() {
         cancel();
         for (EventSubscription subscription : subscriptions) subscription.unsubscribe();
