@@ -13,6 +13,13 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Supplier;
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 
 /**
  * Динамический реестр команд для {@link AdminConsole}.
@@ -35,6 +42,27 @@ import java.util.function.Supplier;
  * @see CommandDefinition
  * @see ArgumentDefinition
  */
+@AiDoc(
+        summary = "Central registry for console commands with argument completion, alias resolution, and handlers.",
+        purpose = "Manages registered console command handlers and calculates parameter completion candidates.",
+        useWhen = {
+                "Registering custom developer commands for AdminConsole.",
+                "Custom autocomplete suggestion providers for command arguments."
+        },
+        criticalRules = {
+                "Commands can have aliases and typed argument suggestion providers."
+        },
+        related = {"AdminConsole"})
+@WikiPage(
+        title = "<key:admin.command.registry.title>",
+        slug = "admin-command-registry",
+        category = "<key:core.widgets.interaction.category>",
+        summary = "<key:admin.command.registry.summary>",
+        order = 390)
+@WikiSection(
+        title = "<key:admin.command.registry.section.overview.title>",
+        markdown = "<key:admin.command.registry.section.overview.body>",
+        order = 10)
 public final class AdminCommandRegistry {
     private final Map<String, CommandDefinition> commands = new Object2ObjectLinkedOpenHashMap<>();
     private Runnable changeListener = () -> {
@@ -72,6 +100,9 @@ public final class AdminCommandRegistry {
      * @param executor обработчик команды
      * @return этот реестр для fluent-настройки
      */
+    @WikiMethod(
+            title = "<key:admin.command.registry.method.register.title>",
+            summary = "<key:admin.command.registry.method.register.summary>")
     public AdminCommandRegistry register(String name, String description, AdminConsole.CommandExecutor executor) {
         return register(command(name, description).executor(executor).build());
     }
@@ -97,6 +128,9 @@ public final class AdminCommandRegistry {
      * @param name имя команды, начальный {@code /} допускается
      * @return этот реестр для fluent-настройки
      */
+    @WikiMethod(
+            title = "<key:admin.command.registry.method.unregister.title>",
+            summary = "<key:admin.command.registry.method.unregister.summary>")
     public AdminCommandRegistry unregister(String name) {
         if (commands.remove(normalizeCommandName(name)) != null) {
             notifyChanged();
@@ -123,6 +157,9 @@ public final class AdminCommandRegistry {
      * @param name имя команды, начальный {@code /} допускается
      * @return найденная команда или {@code null}
      */
+    @WikiMethod(
+            title = "<key:admin.command.registry.method.find.title>",
+            summary = "<key:admin.command.registry.method.find.summary>")
     public CommandDefinition find(String name) {
         return commands.get(normalizeCommandName(name));
     }
@@ -132,6 +169,9 @@ public final class AdminCommandRegistry {
      *
      * @return неизменяемый список команд
      */
+    @WikiMethod(
+            title = "<key:admin.command.registry.method.commands.title>",
+            summary = "<key:admin.command.registry.method.commands.summary>")
     public List<CommandDefinition> commands() {
         return List.copyOf(commands.values());
     }

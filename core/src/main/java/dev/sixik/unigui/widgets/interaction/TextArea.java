@@ -1,5 +1,13 @@
 package dev.sixik.unigui.widgets.interaction;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
 import dev.sixik.unigui.api.event.Event;
@@ -46,6 +54,31 @@ import java.util.Objects;
 /**
  * Multiline editable text widget for editor surfaces and code-like inputs.
  */
+@AiDoc(
+        summary = "Multi-line text editor with line wrapping, selection, and scrollbar support.",
+        purpose = "Full-featured multi-line text input for notes, logs, and document authoring.",
+        useWhen = {"Multi-line text entries, long comments, description editors."},
+        related = {"TextInput", "CodeEditor"}
+)
+@WikiPage(
+        title = "<key:text.area.title>",
+        slug = "text-area",
+        category = "<key:core.widgets.interaction.category>",
+        summary = "<key:text.area.summary>",
+        order = 170
+)
+@WikiSection(
+        title = "<key:text.area.section.overview.title>",
+        markdown = "<key:text.area.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:text.area.example.basic.title>",
+        code = "<key:text.area.example.basic.code>",
+        order = 10
+)
+@WikiLink(label = "TextInput", target = "page:text-input")
+@WikiLink(label = "CodeEditor", target = "page:code-editor")
 @XmlWidgetName("TextArea")
 public class TextArea extends Box {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TEXT_AREA;

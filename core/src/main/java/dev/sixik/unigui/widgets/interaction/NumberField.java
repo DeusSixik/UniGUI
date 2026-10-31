@@ -1,5 +1,13 @@
 package dev.sixik.unigui.widgets.interaction;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.event.Event;
 import dev.sixik.unigui.api.event.EventListener;
@@ -17,6 +25,31 @@ import dev.sixik.unigui.api.style.StyleIds;
 import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.widgets.WidgetStyles;
 
+@AiDoc(
+        summary = "Numeric input field with validation, step adjustment, and min/max limits.",
+        purpose = "Accepts integer and decimal numbers with drag and arrow key adjustment.",
+        useWhen = {"Inputting coordinates, quantities, dimensions, volume levels."},
+        related = {"TextInput", "Slider"}
+)
+@WikiPage(
+        title = "<key:number.field.title>",
+        slug = "number-field",
+        category = "<key:core.widgets.interaction.category>",
+        summary = "<key:number.field.summary>",
+        order = 130
+)
+@WikiSection(
+        title = "<key:number.field.section.overview.title>",
+        markdown = "<key:number.field.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:number.field.example.basic.title>",
+        code = "<key:number.field.example.basic.code>",
+        order = 10
+)
+@WikiLink(label = "TextInput", target = "page:text-input")
+@WikiLink(label = "Slider", target = "page:slider")
 @XmlWidgetName("NumberField")
 public class NumberField extends TextInput {
     public static final String STYLE_TYPE = StyleIds.Widget.NUMBER_FIELD;
@@ -75,7 +108,10 @@ public class NumberField extends TextInput {
         return this;
     }
 
-    public NumberField range(double min, double max) {
+    @WikiMethod(order = 20, title = "<key:number.field.method.range.title>", summary = "<key:number.field.method.range.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public NumberField range(@WikiParameter(description = "<key:number.field.param.min>") double min,
+                             @WikiParameter(description = "<key:number.field.param.max>") double max) {
         if (max < min) {
             double swap = min;
             min = max;

@@ -1,5 +1,13 @@
 package dev.sixik.unigui.widgets.interaction;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.animation.TransitionSpec;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.layout.LayoutContext;
@@ -21,6 +29,31 @@ import dev.sixik.unigui.api.widget.render.WidgetRole;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.widgets.WidgetStyles;
 
+@AiDoc(
+        summary = "Pill-style sliding switch with animated thumb for on/off configuration.",
+        purpose = "Modern mobile and settings switch replacing checkboxes for instant-toggle preferences.",
+        useWhen = {"Settings screens, configuration dialogs, enabling features."},
+        related = {"Checkbox", "ToggleButton"}
+)
+@WikiPage(
+        title = "<key:toggle.switch.title>",
+        slug = "toggle-switch",
+        category = "<key:core.widgets.interaction.category>",
+        summary = "<key:toggle.switch.summary>",
+        order = 70
+)
+@WikiSection(
+        title = "<key:toggle.switch.section.overview.title>",
+        markdown = "<key:toggle.switch.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:toggle.switch.example.basic.title>",
+        code = "<key:toggle.switch.example.basic.code>",
+        order = 10
+)
+@WikiLink(label = "Checkbox", target = "page:checkbox")
+@WikiLink(label = "ToggleButton", target = "page:toggle-button")
 @XmlWidgetName("ToggleSwitch")
 public class ToggleSwitch extends ToggleButton {
     /** Style type id для StylePack selector/binding. */

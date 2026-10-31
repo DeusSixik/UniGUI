@@ -28,10 +28,43 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 
 /**
  * Code-oriented multiline editor built on top of {@link TextArea}.
  */
+@AiDoc(
+        summary = "Rich code editor widget supporting syntax highlighting, diagnostics, line numbers, and autocompletion.",
+        purpose = "Provides a complete text editing environment for source code, configuration files, and script authoring.",
+        useWhen = {
+                "Editing code or XML/JSON documents within the UI.",
+                "In-game script editors, shader tweak panes, or configuration file viewing."
+        },
+        criticalRules = {
+                "Integrates CodeTokenizer for lexical styling and CodeValidator for real-time error annotations.",
+                "CompletionProvider handles popup suggestion list when typing."
+        },
+        related = {"XmlCodeEditor", "CodeTokenizer", "CodeValidator", "CompletionProvider", "TextArea"})
+@WikiPage(
+        title = "<key:code.editor.title>",
+        slug = "code-editor",
+        category = "<key:core.widgets.interaction.category>",
+        summary = "<key:code.editor.summary>",
+        order = 260)
+@WikiSection(
+        title = "<key:code.editor.section.overview.title>",
+        markdown = "<key:code.editor.section.overview.body>",
+        order = 10)
+@WikiExample(
+        title = "<key:code.editor.example.basic.title>",
+        code = "<key:code.editor.example.basic.code>",
+        order = 10)
 @XmlWidgetName("CodeEditor")
 public class CodeEditor extends TextArea {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.CODE_EDITOR;
@@ -154,6 +187,9 @@ public class CodeEditor extends TextArea {
         return markClean();
     }
 
+    @WikiMethod(
+            title = "<key:code.editor.method.dirty.title>",
+            summary = "<key:code.editor.method.dirty.summary>")
     public boolean dirty() {
         return dirty;
     }
@@ -166,6 +202,9 @@ public class CodeEditor extends TextArea {
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:code.editor.method.mark_clean.title>",
+            summary = "<key:code.editor.method.mark_clean.summary>")
     public CodeEditor markClean() {
         cleanText = text();
         return dirty(false);
@@ -176,6 +215,9 @@ public class CodeEditor extends TextArea {
     }
 
     @XmlAttribute(value = "lineNumbers", category = "Appearance", defaultValue = "true", description = "Whether the line-number gutter is rendered.")
+    @WikiMethod(
+            title = "<key:code.editor.method.line_numbers.title>",
+            summary = "<key:code.editor.method.line_numbers.summary>")
     public CodeEditor lineNumbersVisible(boolean lineNumbersVisible) {
         if (this.lineNumbersVisible == lineNumbersVisible) return this;
         this.lineNumbersVisible = lineNumbersVisible;
@@ -202,6 +244,9 @@ public class CodeEditor extends TextArea {
     }
 
     @XmlAttribute(value = "languagePreset", category = "Behavior", defaultValue = "NONE", description = "Built-in language preset used to install a default tokenizer.")
+    @WikiMethod(
+            title = "<key:code.editor.method.language_preset.title>",
+            summary = "<key:code.editor.method.language_preset.summary>")
     public CodeEditor languagePreset(CodeLanguagePreset languagePreset) {
         CodeLanguagePreset normalized = languagePreset == null ? CodeLanguagePreset.NONE : languagePreset;
         if (this.languagePreset == normalized) {
@@ -263,6 +308,9 @@ public class CodeEditor extends TextArea {
         return tokenizer;
     }
 
+    @WikiMethod(
+            title = "<key:code.editor.method.tokenizer.title>",
+            summary = "<key:code.editor.method.tokenizer.summary>")
     public CodeEditor tokenizer(CodeTokenizer tokenizer) {
         CodeTokenizer normalized = tokenizer == null ? CodeTokenizer.NONE : tokenizer;
         if (this.tokenizer == normalized) return this;
@@ -276,6 +324,9 @@ public class CodeEditor extends TextArea {
         return validator;
     }
 
+    @WikiMethod(
+            title = "<key:code.editor.method.validator.title>",
+            summary = "<key:code.editor.method.validator.summary>")
     public CodeEditor validator(CodeValidator validator) {
         this.validator = validator == null ? CodeValidator.NONE : validator;
         return this;
@@ -285,6 +336,9 @@ public class CodeEditor extends TextArea {
         return completionProvider;
     }
 
+    @WikiMethod(
+            title = "<key:code.editor.method.completion_provider.title>",
+            summary = "<key:code.editor.method.completion_provider.summary>")
     public CodeEditor completionProvider(CompletionProvider completionProvider) {
         this.completionProvider = completionProvider == null ? CompletionProvider.NONE : completionProvider;
         hideCompletionPopup();

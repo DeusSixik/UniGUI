@@ -23,7 +23,40 @@ import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 
+@AiDoc(
+        summary = "Base widget for rendering textures, UV regions, nine-slice borders, and image handles.",
+        purpose = "Displays GPU textures with controllable sampling, UV coordinate mapping, and scaling.",
+        useWhen = {
+                "Rendering item icons, custom GUI backgrounds, or sprite assets.",
+                "Configuring nearest/linear filtering or wrap modes on images."
+        },
+        criticalRules = {
+                "texture() provides TextureHandle reference resolved by graphics backend.",
+                "Supports nine-slice scaling and mipmapped textures."
+        },
+        related = {"ImageView", "TextureHandle", "TextureFilter", "TextureWrap"})
+@WikiPage(
+        title = "<key:texture.widget.title>",
+        slug = "texture-widget",
+        category = "<key:core.widgets.display.category>",
+        summary = "<key:texture.widget.summary>",
+        order = 90)
+@WikiSection(
+        title = "<key:texture.widget.section.overview.title>",
+        markdown = "<key:texture.widget.section.overview.body>",
+        order = 10)
+@WikiExample(
+        title = "<key:texture.widget.example.basic.title>",
+        code = "<key:texture.widget.example.basic.code>",
+        order = 10)
 @XmlWidgetName("TextureWidget")
 public class TextureWidget extends WidgetBase {
     public static final String STYLE_TYPE = StyleIds.Widget.TEXTURE_WIDGET;
@@ -82,6 +115,9 @@ public class TextureWidget extends WidgetBase {
     }
 
     @XmlAttribute(value = "texture", displayName = "Texture", category = "Assets", defaultValue = "", description = "Texture resource id resolved through XmlWidgetOptions.textureResolver.")
+    @WikiMethod(
+            title = "<key:texture.widget.method.texture.title>",
+            summary = "<key:texture.widget.method.texture.summary>")
     public TextureWidget texture(TextureHandle texture) {
         if (this.texture == texture) return this;
         this.texture = texture;
@@ -103,11 +139,17 @@ public class TextureWidget extends WidgetBase {
     }
 
     @XmlAttribute(value = "textureSampling", displayName = "Texture Sampling", category = "Assets", defaultValue = "nearest", description = "Texture filtering mode used by the renderer backend.")
+    @WikiMethod(
+            title = "<key:texture.widget.method.texture_sampling.title>",
+            summary = "<key:texture.widget.method.texture_sampling.summary>")
     public TextureWidget textureSampling(TextureFilter filter) {
         return texture(XmlTextureAttributes.options(texture, options -> options.sampling(filter)));
     }
 
     @XmlAttribute(value = "textureWrap", displayName = "Texture Wrap", category = "Assets", defaultValue = "clamp-to-edge", description = "Texture coordinate wrap mode used by the renderer backend.")
+    @WikiMethod(
+            title = "<key:texture.widget.method.texture_wrap.title>",
+            summary = "<key:texture.widget.method.texture_wrap.summary>")
     public TextureWidget textureWrap(TextureWrap wrap) {
         return texture(XmlTextureAttributes.options(texture, options -> options.wrap(wrap)));
     }

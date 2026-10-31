@@ -1,5 +1,13 @@
 package dev.sixik.unigui.widgets.interaction;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
@@ -10,6 +18,31 @@ import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.api.widget.render.WidgetRole;
 
 /** Compact toolbar-friendly button with optional icon, text and command metadata. */
+@AiDoc(
+        summary = "Square toolbar button displaying an icon with hover feedback and tooltip support.",
+        purpose = "Standard command button for horizontal or vertical toolbars and quick-action palettes.",
+        useWhen = {"Toolbar actions (e.g. Cut, Copy, Undo, Redo, Zoom)."},
+        related = {"Button", "IconButton", "ToggleToolButton"}
+)
+@WikiPage(
+        title = "<key:tool.button.title>",
+        slug = "tool-button",
+        category = "<key:core.widgets.interaction.category>",
+        summary = "<key:tool.button.summary>",
+        order = 30
+)
+@WikiSection(
+        title = "<key:tool.button.section.overview.title>",
+        markdown = "<key:tool.button.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:tool.button.example.basic.title>",
+        code = "<key:tool.button.example.basic.code>",
+        order = 10
+)
+@WikiLink(label = "Button", target = "page:button")
+@WikiLink(label = "ToggleToolButton", target = "page:toggle-tool-button")
 @XmlWidgetName("ToolButton")
 public class ToolButton extends Button {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TOOL_BUTTON;

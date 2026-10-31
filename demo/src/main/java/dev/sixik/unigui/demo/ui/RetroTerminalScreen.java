@@ -110,6 +110,7 @@ public final class RetroTerminalScreen {
         RetroConsole console = new RetroConsole();
         PostProcessingLayer processedRoot = new PostProcessingLayer();
         processedRoot.layout(style -> style.sizePercent(100.0f, 100.0f));
+        processedRoot.postEffect(retroEffect(scaleProvider));
         processedRoot.addChild(root(console));
         UniScreen screen = new UniScreen("Retro Terminal", processedRoot, context)
                 .scaleWithGameGui(false)

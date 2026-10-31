@@ -28,7 +28,40 @@ import it.unimi.dsi.fastutil.floats.FloatArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 
+@AiDoc(
+        summary = "Data visualization chart widget supporting bar and line visualizations, axes, and interactive hover tooltips.",
+        purpose = "Provides full-featured data chart visualization for metrics, histograms, and statistics.",
+        useWhen = {
+                "Statistical reports, recipe yields, or economy transaction history.",
+                "Switching between line graphs and bar histograms."
+        },
+        criticalRules = {
+                "type() selects between Type.LINE and Type.BAR rendering modes.",
+                "axisColor configures coordinate axis line and tick markings."
+        },
+        related = {"Sparkline", "WidgetBase"})
+@WikiPage(
+        title = "<key:chart.title>",
+        slug = "chart",
+        category = "<key:core.widgets.display.category>",
+        summary = "<key:chart.summary>",
+        order = 140)
+@WikiSection(
+        title = "<key:chart.section.overview.title>",
+        markdown = "<key:chart.section.overview.body>",
+        order = 10)
+@WikiExample(
+        title = "<key:chart.example.basic.title>",
+        code = "<key:chart.example.basic.code>",
+        order = 10)
 @XmlWidgetName("Chart")
 public final class Chart extends Sparkline {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.CHART;
@@ -82,6 +115,9 @@ public final class Chart extends Sparkline {
     }
 
     @XmlAttribute(value = "type", category = "Appearance", defaultValue = "line", description = "Chart rendering type.")
+    @WikiMethod(
+            title = "<key:chart.method.type.title>",
+            summary = "<key:chart.method.type.summary>")
     public Chart type(Type type) {
         this.type = type == null ? Type.LINE : type;
         hoveredBarIndex = -1;
@@ -93,10 +129,16 @@ public final class Chart extends Sparkline {
         return type;
     }
 
+    @WikiMethod(
+            title = "<key:chart.method.axis_color.title>",
+            summary = "<key:chart.method.axis_color.summary>")
     public MutableColor axisColor() {
         return axisColor;
     }
 
+    @WikiMethod(
+            title = "<key:chart.method.bar_color.title>",
+            summary = "<key:chart.method.bar_color.summary>")
     public MutableColor barColor() {
         return barColor;
     }

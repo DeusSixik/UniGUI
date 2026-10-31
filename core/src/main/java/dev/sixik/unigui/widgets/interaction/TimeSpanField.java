@@ -1,5 +1,13 @@
 package dev.sixik.unigui.widgets.interaction;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.event.Event;
 import dev.sixik.unigui.api.event.FocusLostEvent;
 import dev.sixik.unigui.api.event.TextInputEvent;
@@ -9,6 +17,30 @@ import dev.sixik.unigui.api.xml.XmlWidgetName;
 import java.time.Duration;
 import java.util.Locale;
 
+@AiDoc(
+        summary = "Time duration input field formatting values into java.time.Duration.",
+        purpose = "Allows users to input durations using concise units like 1h 30m or 45s.",
+        useWhen = {"Specifying timeouts, delay times, cooldowns, task intervals."},
+        related = {"TextField", "TextInput"}
+)
+@WikiPage(
+        title = "<key:time.span.field.title>",
+        slug = "time-span-field",
+        category = "<key:core.widgets.interaction.category>",
+        summary = "<key:time.span.field.summary>",
+        order = 160
+)
+@WikiSection(
+        title = "<key:time.span.field.section.overview.title>",
+        markdown = "<key:time.span.field.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:time.span.field.example.basic.title>",
+        code = "<key:time.span.field.example.basic.code>",
+        order = 10
+)
+@WikiLink(label = "TextField", target = "page:text-field")
 @XmlWidgetName("TimeSpanField")
 public final class TimeSpanField extends TextField {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TIME_SPAN_FIELD;
@@ -24,7 +56,9 @@ public final class TimeSpanField extends TextField {
         return value;
     }
 
-    public TimeSpanField value(Duration value) {
+    @WikiMethod(order = 10, title = "<key:time.span.field.method.value.title>", summary = "<key:time.span.field.method.value.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public TimeSpanField value(@WikiParameter(description = "<key:time.span.field.param.duration>") Duration value) {
         this.value = value == null ? Duration.ZERO : value;
         super.text(format(this.value));
         return this;

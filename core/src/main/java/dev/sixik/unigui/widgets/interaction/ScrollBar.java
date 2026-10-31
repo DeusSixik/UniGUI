@@ -31,7 +31,40 @@ import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.widgets.WidgetStyles;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 
+@AiDoc(
+        summary = "Draggable scrollbar control for scrolling content along horizontal or vertical axes.",
+        purpose = "Provides an interactive scrollbar track and thumb for navigating larger scrollable viewports.",
+        useWhen = {
+                "Scroll large documents, lists, or custom canvas areas.",
+                "Custom scrolling implementation alongside ScrollView."
+        },
+        criticalRules = {
+                "Orientation defines the axis of movement (VERTICAL or HORIZONTAL).",
+                "Thumb size is proportional to pageSize divided by range."
+        },
+        related = {"ScrollView", "VirtualListView", "Slider"})
+@WikiPage(
+        title = "<key:scroll.bar.title>",
+        slug = "scroll-bar",
+        category = "<key:core.widgets.interaction.category>",
+        summary = "<key:scroll.bar.summary>",
+        order = 190)
+@WikiSection(
+        title = "<key:scroll.bar.section.overview.title>",
+        markdown = "<key:scroll.bar.section.overview.body>",
+        order = 10)
+@WikiExample(
+        title = "<key:scroll.bar.example.basic.title>",
+        code = "<key:scroll.bar.example.basic.code>",
+        order = 10)
 @XmlWidgetName("ScrollBar")
 public class ScrollBar extends Box {
     public static final String STYLE_TYPE = StyleIds.Widget.SCROLL_BAR;
@@ -121,11 +154,17 @@ public class ScrollBar extends Box {
         return WidgetStyles.RangeControls.SCROLL_BAR;
     }
 
+    @WikiMethod(
+            title = "<key:scroll.bar.method.orientation.title>",
+            summary = "<key:scroll.bar.method.orientation.summary>")
     public Orientation orientation() {
         return orientation;
     }
 
     @XmlAttribute(value = "orientation", category = "Layout", defaultValue = "vertical", description = "Scrollbar axis.")
+    @WikiMethod(
+            title = "<key:scroll.bar.method.set_orientation.title>",
+            summary = "<key:scroll.bar.method.set_orientation.summary>")
     public ScrollBar orientation(Orientation orientation) {
         Orientation normalized = orientation == null ? Orientation.VERTICAL : orientation;
         if (this.orientation == normalized) return this;
@@ -134,24 +173,39 @@ public class ScrollBar extends Box {
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:scroll.bar.method.min.title>",
+            summary = "<key:scroll.bar.method.min.summary>")
     public float min() {
         return min;
     }
 
     @XmlAttribute(value = "min", category = "Behavior", defaultValue = "0", description = "Minimum scroll value.")
+    @WikiMethod(
+            title = "<key:scroll.bar.method.set_min.title>",
+            summary = "<key:scroll.bar.method.set_min.summary>")
     public ScrollBar min(float min) {
         return range(min, max);
     }
 
+    @WikiMethod(
+            title = "<key:scroll.bar.method.max.title>",
+            summary = "<key:scroll.bar.method.max.summary>")
     public float max() {
         return max;
     }
 
     @XmlAttribute(value = "max", category = "Behavior", defaultValue = "0", description = "Maximum scroll value.")
+    @WikiMethod(
+            title = "<key:scroll.bar.method.set_max.title>",
+            summary = "<key:scroll.bar.method.set_max.summary>")
     public ScrollBar max(float max) {
         return range(min, max);
     }
 
+    @WikiMethod(
+            title = "<key:scroll.bar.method.range.title>",
+            summary = "<key:scroll.bar.method.range.summary>")
     public ScrollBar range(float min, float max) {
         if (max < min) {
             float swap = min;
@@ -166,26 +220,41 @@ public class ScrollBar extends Box {
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:scroll.bar.method.value.title>",
+            summary = "<key:scroll.bar.method.value.summary>")
     public float value() {
         return value;
     }
 
+    @WikiMethod(
+            title = "<key:scroll.bar.method.set_value.title>",
+            summary = "<key:scroll.bar.method.set_value.summary>")
     public ScrollBar value(float value) {
         setValue(value, true);
         return this;
     }
 
     @XmlAttribute(value = "value", category = "Behavior", defaultValue = "0", description = "Initial scroll value without emitting change events during XML load.")
+    @WikiMethod(
+            title = "<key:scroll.bar.method.silent_value.title>",
+            summary = "<key:scroll.bar.method.silent_value.summary>")
     public ScrollBar silentValue(float value) {
         setValue(value, false);
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:scroll.bar.method.page_size.title>",
+            summary = "<key:scroll.bar.method.page_size.summary>")
     public float pageSize() {
         return pageSize;
     }
 
     @XmlAttribute(value = "pageSize", category = "Behavior", defaultValue = "1", description = "Visible page size used to calculate thumb length.")
+    @WikiMethod(
+            title = "<key:scroll.bar.method.set_page_size.title>",
+            summary = "<key:scroll.bar.method.set_page_size.summary>")
     public ScrollBar pageSize(float pageSize) {
         float normalized = Math.max(1.0f, pageSize);
         if (this.pageSize == normalized) return this;
@@ -194,24 +263,39 @@ public class ScrollBar extends Box {
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:scroll.bar.method.step.title>",
+            summary = "<key:scroll.bar.method.step.summary>")
     public float step() {
         return step;
     }
 
     @XmlAttribute(value = "step", category = "Behavior", defaultValue = "16", description = "Keyboard nudge increment.")
+    @WikiMethod(
+            title = "<key:scroll.bar.method.set_step.title>",
+            summary = "<key:scroll.bar.method.set_step.summary>")
     public ScrollBar step(float step) {
         this.step = Math.max(1.0f, step);
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:scroll.bar.method.dragging.title>",
+            summary = "<key:scroll.bar.method.dragging.summary>")
     public boolean dragging() {
         return dragging;
     }
 
+    @WikiMethod(
+            title = "<key:scroll.bar.method.track_color.title>",
+            summary = "<key:scroll.bar.method.track_color.summary>")
     public MutableColor trackColor() {
         return trackColor;
     }
 
+    @WikiMethod(
+            title = "<key:scroll.bar.method.thumb_color.title>",
+            summary = "<key:scroll.bar.method.thumb_color.summary>")
     public MutableColor thumbColor() {
         return thumbColor;
     }
@@ -221,6 +305,9 @@ public class ScrollBar extends Box {
      *
      * @return изменяемый hover-цвет тамба
      */
+    @WikiMethod(
+            title = "<key:scroll.bar.method.thumb_hover_color.title>",
+            summary = "<key:scroll.bar.method.thumb_hover_color.summary>")
     public MutableColor thumbHoverColor() {
         return thumbHoverColor;
     }
@@ -243,6 +330,9 @@ public class ScrollBar extends Box {
      *
      * @return толщина без ховера в пикселях UI-пространства
      */
+    @WikiMethod(
+            title = "<key:scroll.bar.method.idle_thickness.title>",
+            summary = "<key:scroll.bar.method.idle_thickness.summary>")
     public float idleThickness() {
         return idleThickness;
     }
@@ -254,6 +344,9 @@ public class ScrollBar extends Box {
      * @return этот scrollbar для fluent-настройки
      */
     @XmlAttribute(value = "idleThickness", category = "Appearance", defaultValue = "3", description = "Thumb thickness at rest in UI pixels.")
+    @WikiMethod(
+            title = "<key:scroll.bar.method.set_idle_thickness.title>",
+            summary = "<key:scroll.bar.method.set_idle_thickness.summary>")
     public ScrollBar idleThickness(float idleThickness) {
         float normalized = Float.isFinite(idleThickness) ? Math.max(1.0f, idleThickness) : DEFAULT_IDLE_THICKNESS;
         if (this.idleThickness == normalized) return this;
@@ -267,6 +360,9 @@ public class ScrollBar extends Box {
      *
      * @return расширенная толщина в пикселях UI-пространства
      */
+    @WikiMethod(
+            title = "<key:scroll.bar.method.hover_thickness.title>",
+            summary = "<key:scroll.bar.method.hover_thickness.summary>")
     public float hoverThickness() {
         return hoverThickness;
     }
@@ -278,6 +374,9 @@ public class ScrollBar extends Box {
      * @return этот scrollbar для fluent-настройки
      */
     @XmlAttribute(value = "hoverThickness", category = "Appearance", defaultValue = "6", description = "Thumb thickness on hover and drag in UI pixels.")
+    @WikiMethod(
+            title = "<key:scroll.bar.method.set_hover_thickness.title>",
+            summary = "<key:scroll.bar.method.set_hover_thickness.summary>")
     public ScrollBar hoverThickness(float hoverThickness) {
         float normalized = Float.isFinite(hoverThickness) ? Math.max(1.0f, hoverThickness) : DEFAULT_HOVER_THICKNESS;
         if (this.hoverThickness == normalized) return this;
@@ -336,6 +435,9 @@ public class ScrollBar extends Box {
         return preferredLength(length).preferredThickness(thickness);
     }
 
+    @WikiMethod(
+            title = "<key:scroll.bar.method.on_value_changed.title>",
+            summary = "<key:scroll.bar.method.on_value_changed.summary>")
     public EventSubscription onValueChanged(EventListener<? super ScrollBarValueChangedEvent> listener) {
         return on(ScrollBarValueChangedEvent.TYPE, listener);
     }

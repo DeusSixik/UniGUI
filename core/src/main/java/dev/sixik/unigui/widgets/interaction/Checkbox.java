@@ -1,5 +1,13 @@
 package dev.sixik.unigui.widgets.interaction;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.animation.TransitionSpec;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.event.ButtonClickEvent;
@@ -29,6 +37,31 @@ import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.widgets.WidgetStyles;
 
+@AiDoc(
+        summary = "Square checkbox widget with two-state and tri-state (indeterminate) support.",
+        purpose = "Standard form input for binary or partial selection states with animated mark.",
+        useWhen = {"Form selections, terms acceptance, tree node partial selection."},
+        related = {"ToggleSwitch", "RadioButton", "ToggleButton"}
+)
+@WikiPage(
+        title = "<key:checkbox.title>",
+        slug = "checkbox",
+        category = "<key:core.widgets.interaction.category>",
+        summary = "<key:checkbox.summary>",
+        order = 80
+)
+@WikiSection(
+        title = "<key:checkbox.section.overview.title>",
+        markdown = "<key:checkbox.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:checkbox.example.basic.title>",
+        code = "<key:checkbox.example.basic.code>",
+        order = 10
+)
+@WikiLink(label = "ToggleSwitch", target = "page:toggle-switch")
+@WikiLink(label = "RadioButton", target = "page:radio-button")
 @XmlWidgetName("Checkbox")
 public class Checkbox extends ToggleButton {
     /** Style type id для StylePack selector/binding. */

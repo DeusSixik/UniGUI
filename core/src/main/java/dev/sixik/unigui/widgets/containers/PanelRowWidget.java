@@ -1,5 +1,14 @@
 package dev.sixik.unigui.widgets.containers;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
@@ -40,6 +49,37 @@ import java.util.List;
  * row.addRight(applyButton);
  * }</pre>
  */
+@AiDoc(
+        summary = "Two-sided row container that organizes widgets into left-aligned and right-aligned groups.",
+        purpose = "Creates title bars, action toolbars, and list item rows with clear left/right separation of titles and controls.",
+        useWhen = {
+                "A horizontal row needs left-aligned items (titles, icons) and right-aligned items (action buttons, badges).",
+                "Creating toolbar strips or list item rows with left/right justification."
+        },
+        criticalRules = {
+                "Left widgets are laid out sequentially from left to right; right widgets are laid out from right to left.",
+                "left(Widget) and right(Widget) replace the entire group on that side, while addLeft/addRight append items to the groups.",
+                "Overall row height and gaps can be customized per-instance via rowHeight, gap, leftGap, rightGap."
+        },
+        related = {"SettingRow", "HBox", "PanelWidget"},
+        examples = @AiDoc.Example(
+                title = "Toolbar row with left/right groups",
+                code = "PanelRowWidget row = new PanelRowWidget().rowHeight(24.0f).gap(8.0f);\nrow.left(titleLabel);\nrow.addRight(applyButton);"))
+@WikiPage(
+        title = "<key:panel.row.widget.title>",
+        slug = "panel-row-widget",
+        category = "<key:panel.row.widget.category>",
+        summary = "<key:panel.row.widget.summary>",
+        order = 140)
+@WikiSection(title = "<key:panel.row.widget.section.overview.title>",
+        markdown = "<key:panel.row.widget.section.overview.body>", order = 10)
+@WikiSection(title = "<key:panel.row.widget.section.alignment.title>",
+        markdown = "<key:panel.row.widget.section.alignment.body>", order = 20)
+@WikiExample(title = "<key:panel.row.widget.example.toolbar.title>",
+        code = "<key:panel.row.widget.example.toolbar.code>", order = 10)
+@WikiLink(label = "SettingRow", target = "page:setting-row")
+@WikiLink(label = "HBox", target = "page:hbox")
+@WikiLink(label = "PanelWidget", target = "page:panel-widget")
 @XmlWidgetName("PanelRowWidget")
 public class PanelRowWidget extends PanelWidget {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.PANEL_ROW_WIDGET;
@@ -106,7 +146,10 @@ public class PanelRowWidget extends PanelWidget {
      * @param widget новый левый виджет; {@code null} просто очищает группу
      * @return эта строка для fluent-настройки
      */
-    public PanelRowWidget left(Widget widget) {
+    @WikiMethod(order = 10, title = "<key:panel.row.widget.method.left.title>", summary = "<key:panel.row.widget.method.left>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Groups", sectionOrder = 10, order = 10, summary = "Replaces left group with a single widget.")
+    public PanelRowWidget left(@WikiParameter(description = "<key:panel.row.widget.param.left>") Widget widget) {
         clearLeft();
         return addLeft(widget);
     }
@@ -117,7 +160,10 @@ public class PanelRowWidget extends PanelWidget {
      * @param widget новый правый виджет; {@code null} просто очищает группу
      * @return эта строка для fluent-настройки
      */
-    public PanelRowWidget right(Widget widget) {
+    @WikiMethod(order = 20, title = "<key:panel.row.widget.method.right.title>", summary = "<key:panel.row.widget.method.right>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Groups", sectionOrder = 10, order = 20, summary = "Replaces right group with a single widget.")
+    public PanelRowWidget right(@WikiParameter(description = "<key:panel.row.widget.param.right>") Widget widget) {
         clearRight();
         return addRight(widget);
     }
@@ -128,7 +174,10 @@ public class PanelRowWidget extends PanelWidget {
      * @param widget виджет для добавления; {@code null} игнорируется
      * @return эта строка для fluent-настройки
      */
-    public PanelRowWidget addLeft(Widget widget) {
+    @WikiMethod(order = 30, title = "<key:panel.row.widget.method.add_left.title>", summary = "<key:panel.row.widget.method.add_left>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Groups", sectionOrder = 10, order = 30, summary = "Appends widget to left group.")
+    public PanelRowWidget addLeft(@WikiParameter(description = "<key:panel.row.widget.param.child>") Widget widget) {
         return addToSide(widget, leftWidgets, rightWidgets);
     }
 
@@ -138,7 +187,10 @@ public class PanelRowWidget extends PanelWidget {
      * @param widget виджет для добавления; {@code null} игнорируется
      * @return эта строка для fluent-настройки
      */
-    public PanelRowWidget addRight(Widget widget) {
+    @WikiMethod(order = 40, title = "<key:panel.row.widget.method.add_right.title>", summary = "<key:panel.row.widget.method.add_right>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Groups", sectionOrder = 10, order = 40, summary = "Appends widget to right group.")
+    public PanelRowWidget addRight(@WikiParameter(description = "<key:panel.row.widget.param.child>") Widget widget) {
         return addToSide(widget, rightWidgets, leftWidgets);
     }
 
@@ -176,7 +228,10 @@ public class PanelRowWidget extends PanelWidget {
      * @return эта строка для fluent-настройки
      */
     @XmlAttribute(value = "rowHeight", category = "Layout", defaultValue = "24", description = "Preferred row height or auto.")
-    public PanelRowWidget rowHeight(float rowHeight) {
+    @WikiMethod(order = 50, title = "<key:panel.row.widget.method.row_height.title>", summary = "<key:panel.row.widget.method.row_height>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Sizing", sectionOrder = 20, order = 50, summary = "Sets preferred row height in UI pixels.")
+    public PanelRowWidget rowHeight(@WikiParameter(description = "<key:panel.row.widget.param.row_height>") float rowHeight) {
         float normalized = normalizeSizeOrAuto(rowHeight, DEFAULT_ROW_HEIGHT);
         if (this.rowHeight == normalized || bothAuto(this.rowHeight, normalized)) return this;
         this.rowHeight = normalized;
@@ -200,7 +255,10 @@ public class PanelRowWidget extends PanelWidget {
      * @return эта строка для fluent-настройки
      */
     @XmlAttribute(value = "gap", category = "Layout", defaultValue = "8", description = "Gap between left and right widget groups.")
-    public PanelRowWidget gap(float gap) {
+    @WikiMethod(order = 60, title = "<key:panel.row.widget.method.gap.title>", summary = "<key:panel.row.widget.method.gap>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Sizing", sectionOrder = 20, order = 60, summary = "Sets uniform spacing between elements and groups.")
+    public PanelRowWidget gap(@WikiParameter(description = "<key:panel.row.widget.param.gap>") float gap) {
         float normalized = normalizeGap(gap, DEFAULT_GAP);
         if (this.gap == normalized) return this;
         this.gap = normalized;

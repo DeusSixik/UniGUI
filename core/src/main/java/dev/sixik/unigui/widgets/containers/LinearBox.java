@@ -1,5 +1,14 @@
 package dev.sixik.unigui.widgets.containers;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.layout.FlexDirection;
 import dev.sixik.unigui.api.layout.FlexWrap;
@@ -40,6 +49,36 @@ import dev.sixik.unigui.widgets.core.Orientation;
  * @see WrapPanel
  * @see SurfaceWidget
  */
+@AiDoc(
+        summary = "One-dimensional flex container arranging children sequentially along a main axis without wrapping.",
+        purpose = "Synchronizes orientation and spacing into LayoutStyle flex properties. Supports opt-in Surface styling.",
+        useWhen = {
+                "Arrange widgets in a single row or column when orientation can change dynamically.",
+                "Prefer VBox or HBox subclasses for static orientation."
+        },
+        criticalRules = {
+                "Surface rendering is disabled by default; calling background() or border() automatically enables it.",
+                "Changing orientation or spacing updates LayoutStyle and invalidates layout."
+        },
+        related = {"VBox", "HBox", "FlexBox", "WrapPanel", "SurfaceWidget"},
+        examples = @AiDoc.Example(
+                title = "Create LinearBox",
+                code = "LinearBox box = new LinearBox(Orientation.HORIZONTAL).spacing(6.0f);"))
+@WikiPage(
+        title = "<key:linear.box.title>",
+        slug = "linear-box",
+        category = "<key:linear.box.category>",
+        summary = "<key:linear.box.summary>",
+        order = 40)
+@WikiSection(title = "<key:linear.box.section.overview.title>",
+        markdown = "<key:linear.box.section.overview.body>", order = 10)
+@WikiSection(title = "<key:linear.box.section.surface.title>",
+        markdown = "<key:linear.box.section.surface.body>", order = 20)
+@WikiExample(title = "<key:linear.box.example.basic.title>",
+        code = "<key:linear.box.example.basic.code>", order = 10)
+@WikiLink(label = "VBox", target = "page:vbox")
+@WikiLink(label = "HBox", target = "page:hbox")
+@WikiLink(label = "FlexBox", target = "page:flex-box")
 @XmlWidgetName("LinearBox")
 public class LinearBox extends SurfaceWidget<LinearBox> {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.LINEAR_BOX;
@@ -52,7 +91,9 @@ public class LinearBox extends SurfaceWidget<LinearBox> {
      *
      * @param orientation направление раскладки; {@code null} трактуется как {@link Orientation#VERTICAL}
      */
-    public LinearBox(Orientation orientation) {
+    @WikiMethod(order = 10, title = "<key:linear.box.method.ctor.title>", summary = "<key:linear.box.method.ctor.summary>")
+    @AiDoc(section = "Lifecycle", sectionOrder = 10, order = 10, summary = "Creates a LinearBox with the specified orientation.")
+    public LinearBox(@WikiParameter(description = "<key:linear.box.method.orientation.param>") Orientation orientation) {
         this.orientation = orientation == null ? Orientation.VERTICAL : orientation;
         syncLayoutStyle();
         // Поверхность по умолчанию выключена: LinearBox исторически прозрачный
@@ -80,7 +121,10 @@ public class LinearBox extends SurfaceWidget<LinearBox> {
      * @return этот контейнер для fluent-настройки
      */
     @XmlAttribute(value = "orientation", category = "Layout", defaultValue = "vertical", description = "Main axis used to arrange children.")
-    public LinearBox orientation(Orientation orientation) {
+    @WikiMethod(order = 20, title = "<key:linear.box.method.orientation.title>", summary = "<key:linear.box.method.orientation.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Layout", sectionOrder = 20, order = 20, summary = "Sets orientation (HORIZONTAL or VERTICAL) and updates flex direction.")
+    public LinearBox orientation(@WikiParameter(description = "<key:linear.box.method.orientation.param>") Orientation orientation) {
         Orientation normalized = orientation == null ? Orientation.VERTICAL : orientation;
         if (this.orientation == normalized) return this;
         this.orientation = normalized;
@@ -105,7 +149,10 @@ public class LinearBox extends SurfaceWidget<LinearBox> {
      * @return этот контейнер для fluent-настройки
      */
     @XmlAttribute(value = "spacing", category = "Layout", defaultValue = "0", description = "Gap between adjacent children on the main axis.")
-    public LinearBox spacing(float spacing) {
+    @WikiMethod(order = 30, title = "<key:linear.box.method.spacing.title>", summary = "<key:linear.box.method.spacing.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Layout", sectionOrder = 20, order = 30, summary = "Sets uniform gap between adjacent children along main axis.")
+    public LinearBox spacing(@WikiParameter(description = "<key:linear.box.method.spacing.param>") float spacing) {
         if (this.spacing == spacing) return this;
         this.spacing = spacing;
         syncLayoutStyle();

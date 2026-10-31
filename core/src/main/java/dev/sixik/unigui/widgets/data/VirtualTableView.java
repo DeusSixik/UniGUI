@@ -63,11 +63,44 @@ import dev.sixik.unigui.widgets.containers.StackPanel;
 import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.widgets.interaction.ScrollBar;
 import dev.sixik.unigui.widgets.interaction.TextField;
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 
 /**
  * Fixed-row-height virtualized table/data-grid prototype.
  */
 @XmlWidgetName("VirtualTableView")
+@AiDoc(
+        summary = "High-performance virtualized grid/table view widget supporting column resizing, reordering, sorting, and cell editing.",
+        purpose = "Displays high-density tabular data with virtualized row recycling, customizable columns, and cell interactions.",
+        useWhen = {
+                "Presenting multi-column data sheets, inventory manifests, or log tables.",
+                "Interactive tables requiring column sorting, moving, or resizing."
+        },
+        criticalRules = {
+                "Only rows within visible scroll viewport are measured and rendered.",
+                "Columns list determines horizontal cell layout and header order."
+        },
+        related = {"VirtualTableColumn", "VirtualListView", "WidgetBase"})
+@WikiPage(
+        title = "<key:virtual.table.view.title>",
+        slug = "virtual-table-view",
+        category = "<key:core.widgets.data.category>",
+        summary = "<key:virtual.table.view.summary>",
+        order = 30)
+@WikiSection(
+        title = "<key:virtual.table.view.section.overview.title>",
+        markdown = "<key:virtual.table.view.section.overview.body>",
+        order = 10)
+@WikiExample(
+        title = "<key:virtual.table.view.example.basic.title>",
+        code = "<key:virtual.table.view.example.basic.code>",
+        order = 10)
 public class VirtualTableView extends WidgetBase {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.VIRTUAL_TABLE_VIEW;
 
@@ -126,11 +159,17 @@ public class VirtualTableView extends WidgetBase {
         cellEditor.visualOnlyTextChanges(true);
     }
 
+    @WikiMethod(
+            title = "<key:virtual.table.view.method.row_count.title>",
+            summary = "<key:virtual.table.view.method.row_count.summary>")
     public int rowCount() {
         return virtualizer.itemCount();
     }
 
     @XmlAttribute(value = "rowCount", category = "Data", defaultValue = "0", description = "Number of virtual rows exposed by the table.")
+    @WikiMethod(
+            title = "<key:virtual.table.view.method.row_count.title>",
+            summary = "<key:virtual.table.view.method.row_count.summary>")
     public VirtualTableView rowCount(int rowCount) {
         if (virtualizer.itemCount() == Math.max(0, rowCount)) return this;
         List<Integer> oldSelection = selection.selectedIndices();
@@ -146,6 +185,9 @@ public class VirtualTableView extends WidgetBase {
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:virtual.table.view.method.columns.title>",
+            summary = "<key:virtual.table.view.method.columns.summary>")
     public VirtualTableView columns(List<VirtualTableColumn> columns) {
         this.columns.clear();
         if (columns != null) {
@@ -164,6 +206,9 @@ public class VirtualTableView extends WidgetBase {
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:virtual.table.view.method.add_column.title>",
+            summary = "<key:virtual.table.view.method.add_column.summary>")
     public VirtualTableView addColumn(String header, float width) {
         columns.add(new VirtualTableColumn(header, width));
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
@@ -180,11 +225,17 @@ public class VirtualTableView extends WidgetBase {
         return columnsView;
     }
 
+    @WikiMethod(
+            title = "<key:virtual.table.view.method.column_width.title>",
+            summary = "<key:virtual.table.view.method.column_width.summary>")
     public float columnWidth(int columnIndex) {
         int normalized = normalizeColumnIndex(columnIndex);
         return normalized < 0 ? 0.0f : columns.get(normalized).width();
     }
 
+    @WikiMethod(
+            title = "<key:virtual.table.view.method.resize_column.title>",
+            summary = "<key:virtual.table.view.method.resize_column.summary>")
     public VirtualTableView resizeColumn(int columnIndex, float width) {
         setColumnWidth(columnIndex, width, true);
         return this;
@@ -195,6 +246,9 @@ public class VirtualTableView extends WidgetBase {
     }
 
     @XmlAttribute(value = "columnResizeEnabled", category = "Behavior", defaultValue = "true", description = "Whether table columns can be resized by pointer input.")
+    @WikiMethod(
+            title = "<key:virtual.table.view.method.column_resize_enabled.title>",
+            summary = "<key:virtual.table.view.method.column_resize_enabled.summary>")
     public VirtualTableView columnResizeEnabled(boolean columnResizeEnabled) {
         if (this.columnResizeEnabled == columnResizeEnabled) return this;
         this.columnResizeEnabled = columnResizeEnabled;
@@ -210,6 +264,9 @@ public class VirtualTableView extends WidgetBase {
     }
 
     @XmlAttribute(value = "minColumnWidth", category = "Layout", defaultValue = "24", description = "Minimum width applied while resizing columns.")
+    @WikiMethod(
+            title = "<key:virtual.table.view.method.min_column_width.title>",
+            summary = "<key:virtual.table.view.method.min_column_width.summary>")
     public VirtualTableView minColumnWidth(float minColumnWidth) {
         float normalized = Float.isFinite(minColumnWidth) ? Math.max(1.0f, minColumnWidth) : DEFAULT_MIN_COLUMN_WIDTH;
         if (this.minColumnWidth == normalized) return this;
@@ -222,6 +279,9 @@ public class VirtualTableView extends WidgetBase {
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:virtual.table.view.method.move_column.title>",
+            summary = "<key:virtual.table.view.method.move_column.summary>")
     public VirtualTableView moveColumn(int oldIndex, int newIndex) {
         int from = normalizeColumnIndex(oldIndex);
         int to = normalizeColumnIndex(newIndex);

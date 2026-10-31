@@ -29,7 +29,40 @@ import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.WidgetStyles;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 
+@AiDoc(
+        summary = "Range slider control allowing continuous or stepped value adjustment with draggable thumb.",
+        purpose = "Provides an interactive slider input for numerical values within min and max bounds.",
+        useWhen = {
+                "Adjust continuous float or stepped numerical parameters.",
+                "Settings screens for audio volume, field of view, or brightness."
+        },
+        criticalRules = {
+                "Value is automatically clamped between min and max.",
+                "When step > 0, values are quantized to multiples of step."
+        },
+        related = {"ScrollBar", "NumberField", "SliderValueChangedEvent"})
+@WikiPage(
+        title = "<key:slider.title>",
+        slug = "slider",
+        category = "<key:core.widgets.interaction.category>",
+        summary = "<key:slider.summary>",
+        order = 180)
+@WikiSection(
+        title = "<key:slider.section.overview.title>",
+        markdown = "<key:slider.section.overview.body>",
+        order = 10)
+@WikiExample(
+        title = "<key:slider.example.basic.title>",
+        code = "<key:slider.example.basic.code>",
+        order = 10)
 @XmlWidgetName("Slider")
 public class Slider extends Box {
     public static final String STYLE_TYPE = StyleIds.Widget.SLIDER;
@@ -106,6 +139,9 @@ public class Slider extends Box {
         return WidgetStyles.RangeControls.SLIDER;
     }
 
+    @WikiMethod(
+            title = "<key:slider.method.min.title>",
+            summary = "<key:slider.method.min.summary>")
     public float min() {
         return min;
     }
@@ -115,6 +151,9 @@ public class Slider extends Box {
         return range(min, max);
     }
 
+    @WikiMethod(
+            title = "<key:slider.method.max.title>",
+            summary = "<key:slider.method.max.summary>")
     public float max() {
         return max;
     }
@@ -124,7 +163,10 @@ public class Slider extends Box {
         return range(min, max);
     }
 
-    public Slider range(float min, float max) {
+    @WikiMethod(
+            title = "<key:slider.method.range.title>",
+            summary = "<key:slider.method.range.summary>")
+    public Slider range(@WikiParameter(description = "<key:slider.param.min>") float min, @WikiParameter(description = "<key:slider.param.max>") float max) {
         if (max < min) {
             float swap = min;
             min = max;
@@ -138,6 +180,9 @@ public class Slider extends Box {
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:slider.method.get_value.title>",
+            summary = "<key:slider.method.get_value.summary>")
     public float value() {
         return value;
     }
@@ -148,6 +193,9 @@ public class Slider extends Box {
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:slider.method.get_step.title>",
+            summary = "<key:slider.method.get_step.summary>")
     public float step() {
         return step;
     }
@@ -158,27 +206,45 @@ public class Slider extends Box {
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:slider.method.dragging.title>",
+            summary = "<key:slider.method.dragging.summary>")
     public boolean dragging() {
         return dragging;
     }
 
+    @WikiMethod(
+            title = "<key:slider.method.track_color.title>",
+            summary = "<key:slider.method.track_color.summary>")
     public MutableColor trackColor() {
         return trackColor;
     }
 
+    @WikiMethod(
+            title = "<key:slider.method.fill_color.title>",
+            summary = "<key:slider.method.fill_color.summary>")
     public MutableColor fillColor() {
         return fillColor;
     }
 
+    @WikiMethod(
+            title = "<key:slider.method.knob_color.title>",
+            summary = "<key:slider.method.knob_color.summary>")
     public MutableColor knobColor() {
         return knobColor;
     }
 
+    @WikiMethod(
+            title = "<key:slider.method.preferred_width.title>",
+            summary = "<key:slider.method.preferred_width.summary>")
     public float preferredWidth() {
         return preferredWidth;
     }
 
     @XmlAttribute(value = "preferredWidth", category = "Layout", defaultValue = "120", description = "Intrinsic slider width before layout constraints are applied.")
+    @WikiMethod(
+            title = "<key:slider.method.set_preferred_width.title>",
+            summary = "<key:slider.method.set_preferred_width.summary>")
     public Slider preferredWidth(float preferredWidth) {
         float normalized = positiveOr(preferredWidth, DEFAULT_PREFERRED_WIDTH);
         if (this.preferredWidth == normalized) return this;
@@ -187,11 +253,17 @@ public class Slider extends Box {
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:slider.method.preferred_height.title>",
+            summary = "<key:slider.method.preferred_height.summary>")
     public float preferredHeight() {
         return preferredHeight;
     }
 
     @XmlAttribute(value = "preferredHeight", category = "Layout", defaultValue = "18", description = "Intrinsic slider height before layout constraints are applied.")
+    @WikiMethod(
+            title = "<key:slider.method.set_preferred_height.title>",
+            summary = "<key:slider.method.set_preferred_height.summary>")
     public Slider preferredHeight(float preferredHeight) {
         float normalized = positiveOr(preferredHeight, DEFAULT_PREFERRED_HEIGHT);
         if (this.preferredHeight == normalized) return this;
@@ -204,6 +276,9 @@ public class Slider extends Box {
         return preferredWidth(width).preferredHeight(height);
     }
 
+    @WikiMethod(
+            title = "<key:slider.method.on_value_changed.title>",
+            summary = "<key:slider.method.on_value_changed.summary>")
     public EventSubscription onValueChanged(EventListener<? super SliderValueChangedEvent> listener) {
         return on(SliderValueChangedEvent.TYPE, listener);
     }

@@ -1,5 +1,13 @@
 package dev.sixik.unigui.widgets.interaction;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.animation.TransitionSpec;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.event.CheckedChangedEvent;
@@ -28,6 +36,31 @@ import dev.sixik.unigui.api.style.StyleIds;
 import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.widgets.WidgetStyles;
 
+@AiDoc(
+        summary = "Circular option selector for mutually exclusive choices inside a RadioGroup.",
+        purpose = "Allows users to select one option from a set of mutually exclusive values.",
+        useWhen = {"Choosing one difficulty, payment method, render quality setting."},
+        related = {"RadioGroup", "Checkbox"}
+)
+@WikiPage(
+        title = "<key:radio.button.title>",
+        slug = "radio-button",
+        category = "<key:core.widgets.interaction.category>",
+        summary = "<key:radio.button.summary>",
+        order = 90
+)
+@WikiSection(
+        title = "<key:radio.button.section.overview.title>",
+        markdown = "<key:radio.button.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:radio.button.example.basic.title>",
+        code = "<key:radio.button.example.basic.code>",
+        order = 10
+)
+@WikiLink(label = "RadioGroup", target = "page:radio-group")
+@WikiLink(label = "Checkbox", target = "page:checkbox")
 @XmlWidgetName("RadioButton")
 public class RadioButton extends Button {
     /** Style type id для StylePack selector/binding. */
@@ -205,6 +238,8 @@ public class RadioButton extends Button {
         return group;
     }
 
+    @WikiMethod(order = 10, title = "<key:radio.button.method.group.title>", summary = "<key:radio.button.method.group.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
     public RadioButton group(RadioGroup group) {
         if (this.group == group) return this;
         if (this.group != null) {

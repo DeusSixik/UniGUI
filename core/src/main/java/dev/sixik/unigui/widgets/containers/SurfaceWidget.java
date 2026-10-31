@@ -1,5 +1,14 @@
 package dev.sixik.unigui.widgets.containers;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
@@ -66,6 +75,38 @@ import java.util.function.Consumer;
  * @see WidgetRender
  * @see Box
  */
+@AiDoc(
+        summary = "Container with a composable Surface for background color, textures, shaders, borders, and corner radius.",
+        purpose = "Provides full visual chrome (background, border, radius, overlay textures) around child widgets "
+                + "with built-in transition support and Theme/StylePack resolution.",
+        useWhen = {
+                "Create cards, panels, buttons, and custom controls that require backgrounds, borders, or textures.",
+                "Animate visual properties such as background color, border width, or corner radius.",
+                "Render procedural backgrounds using custom GLSL shaders via backgroundShader()."
+        },
+        criticalRules = {
+                "Setting background() or border() automatically enables backgroundVisible(true) / borderVisible(true).",
+                "Order of rendering: custom WidgetRender (if set), then surface chrome, then content and children.",
+                "Custom visual renderers override the default surface chrome entirely."
+        },
+        related = {"Box", "PanelWidget", "Surface", "BackgroundKind"},
+        examples = @AiDoc.Example(
+                title = "Create styled surface",
+                code = "SurfaceWidget<?> surface = new Box()\n        .background(ColorView.ofHex(\"#202225\"))\n        .radius(6.0f);"))
+@WikiPage(
+        title = "<key:surface.widget.title>",
+        slug = "surface-widget",
+        category = "<key:surface.widget.category>",
+        summary = "<key:surface.widget.summary>",
+        order = 20)
+@WikiSection(title = "<key:surface.widget.section.overview.title>",
+        markdown = "<key:surface.widget.section.overview.body>", order = 10)
+@WikiSection(title = "<key:surface.widget.section.layers.title>",
+        markdown = "<key:surface.widget.section.layers.body>", order = 20)
+@WikiExample(title = "<key:surface.widget.example.card.title>",
+        code = "<key:surface.widget.example.card.code>", order = 10)
+@WikiLink(label = "Box", target = "page:box")
+@WikiLink(label = "PanelWidget", target = "page:panel-widget")
 @XmlWidgetName("Surface")
 public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
     /**
@@ -195,6 +236,9 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      *
      * @return поверхность фона и рамки
      */
+    @WikiMethod(order = 80, title = "<key:surface.widget.method.surface.title>", summary = "<key:surface.widget.method.surface.summary>")
+    @WikiReturn("<key:surface.widget.method.surface.return>")
+    @AiDoc(section = "Appearance", sectionOrder = 10, order = 80, summary = "Returns the underlying composable Surface model.")
     public Surface surface() {
         return surface;
     }
@@ -209,7 +253,10 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
     }
 
     @XmlAttribute(value = "background", category = "Appearance", defaultValue = "#00000000", description = "Background color; setting it also enables background rendering.")
-    public T background(ColorView color) {
+    @WikiMethod(order = 15, title = "<key:surface.widget.method.background.title>", summary = "<key:surface.widget.method.background.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Appearance", sectionOrder = 10, order = 15, summary = "Sets background fill color and enables background visibility.")
+    public T background(@WikiParameter(description = "<key:surface.widget.method.background.param>") ColorView color) {
         surface.explicitBackground();
         surface.background().set(color == null ? new MutableColor(0.0f, 0.0f, 0.0f, 0.0f) : color);
         backgroundVisible(true);
@@ -247,7 +294,10 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      * @return этот виджет для fluent-настройки
      */
     @XmlAttribute(value = "backgroundVisible", category = "Appearance", defaultValue = "false", description = "Whether the background is rendered.")
-    public T backgroundVisible(boolean backgroundVisible) {
+    @WikiMethod(order = 10, title = "<key:surface.widget.method.background_visible.title>", summary = "<key:surface.widget.method.background_visible.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Appearance", sectionOrder = 10, order = 10, summary = "Controls whether the surface background is rendered.")
+    public T backgroundVisible(@WikiParameter(description = "<key:surface.widget.method.background_visible.param>") boolean backgroundVisible) {
         surface.backgroundVisible(backgroundVisible);
         return self();
     }
@@ -257,6 +307,9 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      *
      * @return {@code true}, если фон включён
      */
+    @WikiMethod(order = 12, title = "<key:surface.widget.method.get_background_visible.title>", summary = "<key:surface.widget.method.get_background_visible.summary>")
+    @WikiReturn("<key:surface.widget.method.get_background_visible.return>")
+    @AiDoc(section = "Appearance", sectionOrder = 10, order = 12, summary = "Checks if background rendering is active.")
     public boolean backgroundVisible() {
         return surface.backgroundVisible();
     }
@@ -632,14 +685,20 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
     }
 
     @XmlAttribute(value = "border", category = "Appearance", defaultValue = "#FFFFFFFF", description = "Border color; setting it also enables border rendering.")
-    public T border(ColorView color) {
+    @WikiMethod(order = 25, title = "<key:surface.widget.method.border.title>", summary = "<key:surface.widget.method.border.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Appearance", sectionOrder = 10, order = 25, summary = "Sets border stroke color and enables border visibility.")
+    public T border(@WikiParameter(description = "<key:surface.widget.method.border.param>") ColorView color) {
         borderColor(color);
         borderVisible(true);
         return self();
     }
 
     @XmlAttribute(value = "borderColor", category = "Appearance", defaultValue = "#FFFFFFFF", description = "Border color used when border rendering is enabled.")
-    public T borderColor(ColorView color) {
+    @WikiMethod(order = 20, title = "<key:surface.widget.method.border_color.title>", summary = "<key:surface.widget.method.border_color.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Appearance", sectionOrder = 10, order = 20, summary = "Sets border color and enables border visibility.")
+    public T borderColor(@WikiParameter(description = "<key:surface.widget.method.border_color.param>") ColorView color) {
         if (color != null) {
             surface.explicitBorder();
             surface.borderColor().set(color);
@@ -678,7 +737,10 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      * @return этот виджет для fluent-настройки
      */
     @XmlAttribute(value = "borderVisible", category = "Appearance", defaultValue = "false", description = "Whether the border is rendered.")
-    public T borderVisible(boolean borderVisible) {
+    @WikiMethod(order = 30, title = "<key:surface.widget.method.border_visible.title>", summary = "<key:surface.widget.method.border_visible.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Appearance", sectionOrder = 10, order = 30, summary = "Controls whether the border stroke is rendered.")
+    public T borderVisible(@WikiParameter(description = "<key:surface.widget.method.border_visible.param>") boolean borderVisible) {
         surface.borderVisible(borderVisible);
         return self();
     }
@@ -708,7 +770,10 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      * @return этот виджет для fluent-настройки
      */
     @XmlAttribute(value = "borderWidth", category = "Appearance", defaultValue = "1", description = "Border thickness in UI pixels.")
-    public T borderWidth(float borderWidth) {
+    @WikiMethod(order = 40, title = "<key:surface.widget.method.border_width.title>", summary = "<key:surface.widget.method.border_width.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Appearance", sectionOrder = 10, order = 40, summary = "Sets stroke thickness of the border.")
+    public T borderWidth(@WikiParameter(description = "<key:surface.widget.method.border_width.param.width>") float borderWidth) {
         surface.explicitBorder();
         surface.borderWidth(borderWidth);
         return self();
@@ -753,7 +818,10 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      * @return этот виджет для fluent-настройки
      */
     @XmlAttribute(value = "radius", category = "Appearance", defaultValue = "0", description = "Corner radius in UI pixels.")
-    public T radius(float radius) {
+    @WikiMethod(order = 50, title = "<key:surface.widget.method.radius.title>", summary = "<key:surface.widget.method.radius.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Appearance", sectionOrder = 10, order = 50, summary = "Sets corner rounding radius in UI pixels.")
+    public T radius(@WikiParameter(description = "<key:surface.widget.method.radius.param.radius>") float radius) {
         surface.explicitRadius();
         surface.radius(radius);
         return self();
@@ -798,7 +866,10 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      * @return этот виджет для fluent-настройки
      */
     @XmlAttribute(value = "boxVisualEnabled", category = "Appearance", defaultValue = "true", description = "Whether surface rendering is enabled.")
-    public T boxVisualEnabled(boolean boxVisualEnabled) {
+    @WikiMethod(order = 60, title = "<key:surface.widget.method.box_visual_enabled.title>", summary = "<key:surface.widget.method.box_visual_enabled.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Appearance", sectionOrder = 10, order = 60, summary = "Enables or disables all surface visual rendering.")
+    public T boxVisualEnabled(@WikiParameter(description = "<key:surface.widget.method.box_visual_enabled.param>") boolean boxVisualEnabled) {
         if (this.boxVisualEnabled == boxVisualEnabled) return self();
         this.boxVisualEnabled = boxVisualEnabled;
         invalidate(InvalidationFlags.VISUAL);
@@ -838,7 +909,10 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      * @return этот виджет для fluent-настройки
      */
     @XmlAttribute(value = "themeEnabled", category = "Appearance", defaultValue = "true", description = "Whether global theme lookup can override visual values; local styles always apply.")
-    public T themeEnabled(boolean themeEnabled) {
+    @WikiMethod(order = 70, title = "<key:surface.widget.method.theme_enabled.title>", summary = "<key:surface.widget.method.theme_enabled.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Appearance", sectionOrder = 10, order = 70, summary = "Controls whether global Theme styles override surface properties.")
+    public T themeEnabled(@WikiParameter(description = "<key:surface.widget.method.theme_enabled.param>") boolean themeEnabled) {
         if (this.themeEnabled == themeEnabled) return self();
         this.themeEnabled = themeEnabled;
         transitionState = null;

@@ -1,5 +1,7 @@
 package dev.sixik.unigui.widgets.containers;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
 import dev.sixik.unigui.api.event.Event;
@@ -28,6 +30,17 @@ import dev.sixik.unigui.widgets.WidgetStyles;
  *
  * @see SplitPanel
  */
+@AiDoc(
+        summary = "Interactive draggable divider widget embedded between the two panes of a SplitPanel.",
+        purpose = "Provides mouse hover feedback, pointer capture, and drag-to-resize behavior for SplitPanel while visually rendering a split handle.",
+        useWhen = {
+                "Managed internally by SplitPanel; not intended for standalone instantiation in UI hierarchies."
+        },
+        criticalRules = {
+                "Do not instantiate Splitter directly or add it manually to arbitrary containers; it is managed by SplitPanel.",
+                "Captures pointer events during dragging and computes new splitRatio values delegated to its owning SplitPanel."
+        },
+        related = {"SplitPanel"})
 public final class Splitter extends Box {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.SPLITTER;
 

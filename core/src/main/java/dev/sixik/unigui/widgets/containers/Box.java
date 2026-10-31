@@ -1,5 +1,14 @@
 package dev.sixik.unigui.widgets.containers;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.api.widget.visual.BackgroundKind;
 import dev.sixik.unigui.api.widget.visual.Surface;
@@ -34,6 +43,33 @@ import dev.sixik.unigui.api.style.StyleIds;
  * @see WidgetRender
  * @see SurfaceWidget
  */
+@AiDoc(
+        summary = "Standard styled container combining background, texture, shader, border, radius, and child layout.",
+        purpose = "Primary concrete component for rectangular visual surfaces (cards, panels, containers) in UniGUI.",
+        useWhen = {
+                "Wrap elements with a visual background, border, or corner radius.",
+                "Build cards, dialog backgrounds, and decorated containers."
+        },
+        criticalRules = {
+                "Inherits all SurfaceWidget chrome capabilities with surface rendering enabled by default.",
+                "Children layout behaves as stack/overlay unless a specific layout is configured."
+        },
+        related = {"SurfaceWidget", "PanelWidget", "Border", "VBox"},
+        examples = @AiDoc.Example(
+                title = "Create a card",
+                code = "Box card = new Box()\n        .background(ColorView.ofHex(\"#2F3136\"))\n        .radius(4.0f);"))
+@WikiPage(
+        title = "<key:box.title>",
+        slug = "box",
+        category = "<key:box.category>",
+        summary = "<key:box.summary>",
+        order = 30)
+@WikiSection(title = "<key:box.section.overview.title>",
+        markdown = "<key:box.section.overview.body>", order = 10)
+@WikiExample(title = "<key:box.example.card.title>",
+        code = "<key:box.example.card.code>", order = 10)
+@WikiLink(label = "SurfaceWidget", target = "page:surface-widget")
+@WikiLink(label = "Border", target = "page:border")
 @XmlWidgetName("Box")
 public class Box extends SurfaceWidget<Box> {
     /** Style type id для StylePack selector/binding. */
@@ -76,6 +112,8 @@ public class Box extends SurfaceWidget<Box> {
     /**
      * Создаёт пустой box с композируемой поверхностью.
      */
+    @WikiMethod(order = 10, title = "<key:box.method.ctor.title>", summary = "<key:box.method.ctor.summary>")
+    @AiDoc(section = "Lifecycle", sectionOrder = 10, order = 10, summary = "Creates an empty Box container with visual surface enabled.")
     public Box() {
     }
 }

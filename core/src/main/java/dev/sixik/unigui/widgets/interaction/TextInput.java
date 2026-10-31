@@ -1,5 +1,13 @@
 package dev.sixik.unigui.widgets.interaction;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
@@ -39,6 +47,31 @@ import java.util.Objects;
  * exposes the low-level editor model for advanced integrations; callers that
  * mutate it directly must preserve that single-line invariant themselves.</p>
  */
+@AiDoc(
+        summary = "Base single-line text input widget with selection, cursor, and clipboard support.",
+        purpose = "Foundation for all single-line editable text components in UniGUI.",
+        useWhen = {"Building custom single-line text inputs or extending with specialized parsing."},
+        related = {"TextField", "NumberField", "PasswordField", "SearchField", "TextArea"}
+)
+@WikiPage(
+        title = "<key:text.input.title>",
+        slug = "text-input",
+        category = "<key:core.widgets.interaction.category>",
+        summary = "<key:text.input.summary>",
+        order = 110
+)
+@WikiSection(
+        title = "<key:text.input.section.overview.title>",
+        markdown = "<key:text.input.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:text.input.example.basic.title>",
+        code = "<key:text.input.example.basic.code>",
+        order = 10
+)
+@WikiLink(label = "TextField", target = "page:text-field")
+@WikiLink(label = "TextArea", target = "page:text-area")
 @XmlWidgetName("TextInput")
 public class TextInput extends Box {
     public static final String STYLE_TYPE = StyleIds.Widget.TEXT_INPUT;
@@ -127,6 +160,7 @@ public class TextInput extends Box {
     private float textPaddingRight = DEFAULT_TEXT_PADDING_X;
     private boolean explicitTextPadding;
 
+    @WikiMethod(order = 10, title = "<key:text.input.method.ctor.title>", summary = "<key:text.input.method.ctor.summary>")
     public TextInput() {
         mouseCursor(MouseCursor.TEXT);
         boxVisualEnabled(false);
@@ -385,6 +419,7 @@ public class TextInput extends Box {
         return this;
     }
 
+    @WikiMethod(order = 50, title = "<key:text.input.method.on_text_changed.title>", summary = "<key:text.input.method.on_text_changed.summary>")
     public EventSubscription onTextChanged(EventListener<? super TextChangedEvent> listener) {
         return on(TextChangedEvent.TYPE, listener);
     }

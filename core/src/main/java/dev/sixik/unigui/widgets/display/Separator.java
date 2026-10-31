@@ -11,7 +11,40 @@ import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 
+@AiDoc(
+        summary = "Horizontal or vertical divider line widget for visually grouping interface sections.",
+        purpose = "Demarcates visual boundaries between toolbar buttons, menu lists, or layout columns.",
+        useWhen = {
+                "Separating toolbar action groups.",
+                "Dividing headers, body content, and footer toolbars."
+        },
+        criticalRules = {
+                "orientation determines axis (HORIZONTAL expands width, VERTICAL expands height).",
+                "thickness controls stroke line weight in pixels."
+        },
+        related = {"Box", "Orientation", "WidgetBase"})
+@WikiPage(
+        title = "<key:separator.title>",
+        slug = "separator",
+        category = "<key:core.widgets.display.category>",
+        summary = "<key:separator.summary>",
+        order = 60)
+@WikiSection(
+        title = "<key:separator.section.overview.title>",
+        markdown = "<key:separator.section.overview.body>",
+        order = 10)
+@WikiExample(
+        title = "<key:separator.example.basic.title>",
+        code = "<key:separator.example.basic.code>",
+        order = 10)
 @XmlWidgetName("Separator")
 public final class Separator extends WidgetBase {
     public static final String STYLE_TYPE = StyleIds.Widget.SEPARATOR;
@@ -46,6 +79,9 @@ public final class Separator extends WidgetBase {
         color.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
     }
 
+    @WikiMethod(
+            title = "<key:separator.method.color.title>",
+            summary = "<key:separator.method.color.summary>")
     public MutableColor color() {
         return color;
     }
@@ -55,6 +91,9 @@ public final class Separator extends WidgetBase {
     }
 
     @XmlAttribute(value = "orientation", category = "Layout", defaultValue = "horizontal", description = "Axis along which the separator is rendered.")
+    @WikiMethod(
+            title = "<key:separator.method.orientation.title>",
+            summary = "<key:separator.method.orientation.summary>")
     public Separator orientation(Orientation orientation) {
         Orientation normalized = orientation == null ? Orientation.HORIZONTAL : orientation;
         if (this.orientation == normalized) return this;
@@ -68,6 +107,9 @@ public final class Separator extends WidgetBase {
     }
 
     @XmlAttribute(value = "thickness", category = "Appearance", defaultValue = "1", description = "Separator thickness in UI pixels.")
+    @WikiMethod(
+            title = "<key:separator.method.thickness.title>",
+            summary = "<key:separator.method.thickness.summary>")
     public Separator thickness(float thickness) {
         if (this.thickness == thickness) return this;
         this.thickness = thickness;

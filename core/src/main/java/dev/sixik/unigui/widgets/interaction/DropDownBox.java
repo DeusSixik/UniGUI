@@ -28,6 +28,13 @@ import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.widgets.feedback.Popup;
 import dev.sixik.unigui.widgets.WidgetStyles;
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 
 /**
  * Generic drop-down host for arbitrary popup content.
@@ -36,6 +43,32 @@ import dev.sixik.unigui.widgets.WidgetStyles;
  * DropDownBox intentionally owns only the header/open state and a single
  * content widget.</p>
  */
+@AiDoc(
+        summary = "Collapsible container widget with an expandable header button and popup or inline content host.",
+        purpose = "Houses collapsible sections, menus, or custom control panels under a single toggleable header.",
+        useWhen = {
+                "Advanced settings sections that can be folded to save space.",
+                "Custom dropdown menus with complex layouts."
+        },
+        criticalRules = {
+                "Supports both inline expansion and overlay popup modes via useInline() and useOverlay().",
+                "Header button automatically reflects opened state with rotation arrow indicator."
+        },
+        related = {"ComboBox", "Popup", "ScrollView", "LinearBox"})
+@WikiPage(
+        title = "<key:drop.down.box.title>",
+        slug = "drop-down-box",
+        category = "<key:core.widgets.interaction.category>",
+        summary = "<key:drop.down.box.summary>",
+        order = 200)
+@WikiSection(
+        title = "<key:drop.down.box.section.overview.title>",
+        markdown = "<key:drop.down.box.section.overview.body>",
+        order = 10)
+@WikiExample(
+        title = "<key:drop.down.box.example.basic.title>",
+        code = "<key:drop.down.box.example.basic.code>",
+        order = 10)
 @XmlWidgetName("DropDownBox")
 public class DropDownBox extends LinearBox {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.DROP_DOWN_BOX;
@@ -131,10 +164,16 @@ public class DropDownBox extends LinearBox {
         headerButton.chevronUp(opened);
     }
 
+    @WikiMethod(
+            title = "<key:drop.down.box.method.content.title>",
+            summary = "<key:drop.down.box.method.content.summary>")
     public Widget content() {
         return content;
     }
 
+    @WikiMethod(
+            title = "<key:drop.down.box.method.set_content.title>",
+            summary = "<key:drop.down.box.method.set_content.summary>")
     public DropDownBox content(Widget content) {
         if (this.content == content) return this;
         this.content = content;
@@ -146,11 +185,17 @@ public class DropDownBox extends LinearBox {
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:drop.down.box.method.header_text.title>",
+            summary = "<key:drop.down.box.method.header_text.summary>")
     public String headerText() {
         return headerText;
     }
 
     @XmlAttribute(value = "headerText", category = "Content", defaultValue = "Open...", description = "Header button text when the dropdown is closed.")
+    @WikiMethod(
+            title = "<key:drop.down.box.method.set_header_text.title>",
+            summary = "<key:drop.down.box.method.set_header_text.summary>")
     public DropDownBox headerText(String headerText) {
         String normalized = normalize(headerText);
         if (Objects.equals(this.headerText, normalized)) return this;
@@ -161,10 +206,16 @@ public class DropDownBox extends LinearBox {
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:drop.down.box.method.rich_header_text.title>",
+            summary = "<key:drop.down.box.method.rich_header_text.summary>")
     public RichText richHeaderText() {
         return richHeaderText;
     }
 
+    @WikiMethod(
+            title = "<key:drop.down.box.method.set_rich_header_text.title>",
+            summary = "<key:drop.down.box.method.set_rich_header_text.summary>")
     public DropDownBox richHeaderText(RichText headerText) {
         RichText normalized = headerText == null ? RichText.plain("") : headerText;
         if (Objects.equals(this.richHeaderText, normalized)) return this;
@@ -175,18 +226,30 @@ public class DropDownBox extends LinearBox {
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:drop.down.box.method.opened.title>",
+            summary = "<key:drop.down.box.method.opened.summary>")
     public boolean opened() {
         return opened;
     }
 
+    @WikiMethod(
+            title = "<key:drop.down.box.method.open.title>",
+            summary = "<key:drop.down.box.method.open.summary>")
     public DropDownBox open() {
         return opened(true);
     }
 
+    @WikiMethod(
+            title = "<key:drop.down.box.method.close.title>",
+            summary = "<key:drop.down.box.method.close.summary>")
     public DropDownBox close() {
         return opened(false);
     }
 
+    @WikiMethod(
+            title = "<key:drop.down.box.method.toggle.title>",
+            summary = "<key:drop.down.box.method.toggle.summary>")
     public DropDownBox toggle() {
         return opened(!opened);
     }
@@ -217,10 +280,16 @@ public class DropDownBox extends LinearBox {
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:drop.down.box.method.use_inline.title>",
+            summary = "<key:drop.down.box.method.use_inline.summary>")
     public DropDownBox useInline() {
         return dropDownMode(ComboBox.DropDownMode.INLINE);
     }
 
+    @WikiMethod(
+            title = "<key:drop.down.box.method.use_overlay.title>",
+            summary = "<key:drop.down.box.method.use_overlay.summary>")
     public DropDownBox useOverlay() {
         return dropDownMode(ComboBox.DropDownMode.OVERLAY);
     }
@@ -252,23 +321,38 @@ public class DropDownBox extends LinearBox {
         return dropDownPopup;
     }
 
+    @WikiMethod(
+            title = "<key:drop.down.box.method.header_button.title>",
+            summary = "<key:drop.down.box.method.header_button.summary>")
     public Button headerButton() {
         return headerButton;
     }
 
+    @WikiMethod(
+            title = "<key:drop.down.box.method.content_host.title>",
+            summary = "<key:drop.down.box.method.content_host.summary>")
     public Box contentHost() {
         return contentHost;
     }
 
+    @WikiMethod(
+            title = "<key:drop.down.box.method.content_scroll.title>",
+            summary = "<key:drop.down.box.method.content_scroll.summary>")
     public ScrollView contentScroll() {
         return contentScroll;
     }
 
+    @WikiMethod(
+            title = "<key:drop.down.box.method.drop_down_width.title>",
+            summary = "<key:drop.down.box.method.drop_down_width.summary>")
     public float dropDownWidth() {
         return dropDownWidth;
     }
 
     @XmlAttribute(value = "dropDownWidth", category = "Layout", defaultValue = "0", description = "Explicit dropdown width; 0 uses automatic sizing.")
+    @WikiMethod(
+            title = "<key:drop.down.box.method.set_drop_down_width.title>",
+            summary = "<key:drop.down.box.method.set_drop_down_width.summary>")
     public DropDownBox dropDownWidth(float width) {
         float normalized = Float.isFinite(width) ? Math.max(0.0f, width) : 0.0f;
         if (dropDownWidth == normalized && !dropDownMatchesWidgetWidth) return this;
@@ -310,11 +394,17 @@ public class DropDownBox extends LinearBox {
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:drop.down.box.method.max_content_height.title>",
+            summary = "<key:drop.down.box.method.max_content_height.summary>")
     public float maxContentHeight() {
         return maxContentHeight;
     }
 
     @XmlAttribute(value = "maxContentHeight", category = "Layout", defaultValue = "216", description = "Maximum dropdown content height before scrolling is used; 0 disables the cap.")
+    @WikiMethod(
+            title = "<key:drop.down.box.method.set_max_content_height.title>",
+            summary = "<key:drop.down.box.method.set_max_content_height.summary>")
     public DropDownBox maxContentHeight(float height) {
         float normalized = Float.isFinite(height) && height > 0.0f ? height : 0.0f;
         if (maxContentHeight == normalized) return this;

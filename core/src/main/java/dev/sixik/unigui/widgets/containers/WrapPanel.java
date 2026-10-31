@@ -1,5 +1,14 @@
 package dev.sixik.unigui.widgets.containers;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.layout.FlexDirection;
 import dev.sixik.unigui.api.layout.FlexWrap;
@@ -34,6 +43,32 @@ import dev.sixik.unigui.widgets.core.Orientation;
  *
  * @see LinearBox
  */
+@AiDoc(
+        summary = "Flow container wrapping children to a new row or column when space is exceeded.",
+        purpose = "Implements multi-line flex wrapping. Distinguishes item spacing from line spacing.",
+        useWhen = {
+                "Layout tag clouds, chips, media galleries, or dynamic tool palettes that must wrap."
+        },
+        criticalRules = {
+                "FlexWrap is set to WRAP.",
+                "spacing() governs item-to-item gap; lineSpacing() governs line-to-line gap."
+        },
+        related = {"LinearBox", "FlexBox", "PanelWidget"},
+        examples = @AiDoc.Example(
+                title = "Tag cloud",
+                code = "WrapPanel tags = new WrapPanel().spacing(4.0f).lineSpacing(4.0f);"))
+@WikiPage(
+        title = "<key:wrap.panel.title>",
+        slug = "wrap-panel",
+        category = "<key:wrap.panel.category>",
+        summary = "<key:wrap.panel.summary>",
+        order = 100)
+@WikiSection(title = "<key:wrap.panel.section.overview.title>",
+        markdown = "<key:wrap.panel.section.overview.body>", order = 10)
+@WikiExample(title = "<key:wrap.panel.example.chips.title>",
+        code = "<key:wrap.panel.example.chips.code>", order = 10)
+@WikiLink(label = "LinearBox", target = "page:linear-box")
+@WikiLink(label = "FlexBox", target = "page:flex-box")
 @XmlWidgetName("WrapPanel")
 public final class WrapPanel extends PanelWidget {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.WRAP_PANEL;
@@ -45,6 +80,8 @@ public final class WrapPanel extends PanelWidget {
     /**
      * Создаёт горизонтальный wrap-контейнер.
      */
+    @WikiMethod(order = 10, title = "<key:wrap.panel.method.ctor.title>", summary = "<key:wrap.panel.method.ctor.summary>")
+    @AiDoc(section = "Lifecycle", sectionOrder = 10, order = 10, summary = "Creates a WrapPanel with HORIZONTAL orientation.")
     public WrapPanel() {
         syncLayoutStyle();
     }
@@ -65,7 +102,10 @@ public final class WrapPanel extends PanelWidget {
      * @return этот контейнер для fluent-настройки
      */
     @XmlAttribute(value = "orientation", category = "Layout", defaultValue = "horizontal", description = "Main axis used before wrapping children.")
-    public WrapPanel orientation(Orientation orientation) {
+    @WikiMethod(order = 20, title = "<key:wrap.panel.method.orientation.title>", summary = "<key:wrap.panel.method.orientation.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Layout", sectionOrder = 20, order = 20, summary = "Sets flow orientation (HORIZONTAL rows or VERTICAL columns).")
+    public WrapPanel orientation(@WikiParameter(description = "<key:linear.box.method.orientation.param>") Orientation orientation) {
         Orientation normalized = orientation == null ? Orientation.HORIZONTAL : orientation;
         if (this.orientation == normalized) return this;
         this.orientation = normalized;
@@ -90,7 +130,10 @@ public final class WrapPanel extends PanelWidget {
      * @return этот контейнер для fluent-настройки
      */
     @XmlAttribute(value = "spacing", category = "Layout", defaultValue = "0", description = "Gap between children within one wrap line.")
-    public WrapPanel spacing(float spacing) {
+    @WikiMethod(order = 30, title = "<key:wrap.panel.method.spacing.title>", summary = "<key:wrap.panel.method.spacing.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Layout", sectionOrder = 20, order = 30, summary = "Sets spacing between items along flow line.")
+    public WrapPanel spacing(@WikiParameter(description = "<key:wrap.panel.method.spacing.param>") float spacing) {
         float normalized = Float.isFinite(spacing) ? Math.max(0.0f, spacing) : 0.0f;
         if (this.spacing == normalized) return this;
         this.spacing = normalized;
@@ -115,7 +158,10 @@ public final class WrapPanel extends PanelWidget {
      * @return этот контейнер для fluent-настройки
      */
     @XmlAttribute(value = "lineSpacing", category = "Layout", defaultValue = "0", description = "Gap between wrapped lines.")
-    public WrapPanel lineSpacing(float lineSpacing) {
+    @WikiMethod(order = 40, title = "<key:wrap.panel.method.line_spacing.title>", summary = "<key:wrap.panel.method.line_spacing.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Layout", sectionOrder = 20, order = 40, summary = "Sets spacing between wrapped lines/columns.")
+    public WrapPanel lineSpacing(@WikiParameter(description = "<key:wrap.panel.method.line_spacing.param>") float lineSpacing) {
         float normalized = Float.isFinite(lineSpacing) ? Math.max(0.0f, lineSpacing) : 0.0f;
         if (this.lineSpacing == normalized) return this;
         this.lineSpacing = normalized;

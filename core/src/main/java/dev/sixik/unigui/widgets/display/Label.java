@@ -16,6 +16,13 @@ import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 
 /**
  * Short caption text, optionally associated with a focusable control.
@@ -24,6 +31,32 @@ import dev.sixik.unigui.api.xml.XmlWidgetName;
  * when {@link #focusTarget(Widget)} is set, primary click requests focus for
  * that control.</p>
  */
+@AiDoc(
+        summary = "Text caption widget associated with an interactive focus target control or form input.",
+        purpose = "Displays accessible text captions that automatically delegate clicks to focus the target control.",
+        useWhen = {
+                "Form field captions (e.g. labeling TextField, Checkbox, Slider).",
+                "Accessible UI layouts where clicking the label should activate the control."
+        },
+        criticalRules = {
+                "focusTarget determines which widget receives focus when clicked.",
+                "Supports text wrapping and alignment within available bounds."
+        },
+        related = {"TextWidget", "TextField", "Checkbox", "Slider"})
+@WikiPage(
+        title = "<key:label.title>",
+        slug = "label",
+        category = "<key:core.widgets.display.category>",
+        summary = "<key:label.summary>",
+        order = 20)
+@WikiSection(
+        title = "<key:label.section.overview.title>",
+        markdown = "<key:label.section.overview.body>",
+        order = 10)
+@WikiExample(
+        title = "<key:label.example.basic.title>",
+        code = "<key:label.example.basic.code>",
+        order = 10)
 @XmlWidgetName("Label")
 public final class Label extends TextWidget {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.LABEL;
@@ -48,12 +81,18 @@ public final class Label extends TextWidget {
         return focusTarget;
     }
 
+    @WikiMethod(
+            title = "<key:label.method.focus_target.title>",
+            summary = "<key:label.method.focus_target.summary>")
     public Label focusTarget(Widget focusTarget) {
         if (this.focusTarget == focusTarget) return this;
         this.focusTarget = focusTarget;
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:label.method.labeled_control.title>",
+            summary = "<key:label.method.labeled_control.summary>")
     public Label labeledControl(Widget control) {
         return focusTarget(control);
     }
@@ -71,18 +110,27 @@ public final class Label extends TextWidget {
     }
 
     @Override
+    @WikiMethod(
+            title = "<key:label.method.color.title>",
+            summary = "<key:label.method.color.summary>")
     public Label color(ColorView color) {
         super.color(color);
         return this;
     }
 
     @Override
+    @WikiMethod(
+            title = "<key:label.method.text_alignment.title>",
+            summary = "<key:label.method.text_alignment.summary>")
     public Label textAlignment(Alignment alignment) {
         super.textAlignment(alignment);
         return this;
     }
 
     @Override
+    @WikiMethod(
+            title = "<key:label.method.wrap.title>",
+            summary = "<key:label.method.wrap.summary>")
     public Label wrap(boolean wrap) {
         super.wrap(wrap);
         return this;

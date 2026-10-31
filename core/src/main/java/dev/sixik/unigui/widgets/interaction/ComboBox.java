@@ -35,7 +35,40 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 
+@AiDoc(
+        summary = "Selection dropdown widget allowing picking one item from a list.",
+        purpose = "Provides a standard single-selection dropdown list with hover highlighting and popup overlay.",
+        useWhen = {
+                "Select one option from a fixed or dynamic list of text options.",
+                "Quality, resolution, language, or preset selector menus."
+        },
+        criticalRules = {
+                "selectedIndex() returns -1 if nothing is selected.",
+                "Selecting an option automatically closes the dropdown popup and emits selection events."
+        },
+        related = {"DropDownBox", "TreeListPicker", "Button", "Popup"})
+@WikiPage(
+        title = "<key:combo.box.title>",
+        slug = "combo-box",
+        category = "<key:core.widgets.interaction.category>",
+        summary = "<key:combo.box.summary>",
+        order = 210)
+@WikiSection(
+        title = "<key:combo.box.section.overview.title>",
+        markdown = "<key:combo.box.section.overview.body>",
+        order = 10)
+@WikiExample(
+        title = "<key:combo.box.example.basic.title>",
+        code = "<key:combo.box.example.basic.code>",
+        order = 10)
 @XmlWidgetName("ComboBox")
 public class ComboBox extends LinearBox {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.COMBO_BOX;
@@ -167,6 +200,9 @@ public class ComboBox extends LinearBox {
      * @return этот ComboBox для fluent-настройки
      */
     @XmlAttribute(value = "optionHoverBackground", category = "Appearance", defaultValue = "#3D4759EB", description = "Цвет строки при наведении.")
+    @WikiMethod(
+            title = "<key:combo.box.method.hover_bg.title>",
+            summary = "<key:combo.box.method.hover_bg.summary>")
     public ComboBox optionHoverBackground(ColorView color) {
         if (color == null) optionHoverBackground.set(0.0f, 0.0f, 0.0f, 0.0f);
         else optionHoverBackground.set(color);
@@ -200,10 +236,16 @@ public class ComboBox extends LinearBox {
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:combo.box.method.items.title>",
+            summary = "<key:combo.box.method.items.summary>")
     public List<String> items() {
         return Collections.unmodifiableList(items);
     }
 
+    @WikiMethod(
+            title = "<key:combo.box.method.set_items.title>",
+            summary = "<key:combo.box.method.set_items.summary>")
     public ComboBox items(List<String> items) {
         this.items.clear();
         this.richItems.clear();
@@ -251,6 +293,9 @@ public class ComboBox extends LinearBox {
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:combo.box.method.add_item.title>",
+            summary = "<key:combo.box.method.add_item.summary>")
     public ComboBox addItem(String item) {
         addItemInternal(RichText.resolve(item));
         rebuildOptions();
@@ -275,6 +320,9 @@ public class ComboBox extends LinearBox {
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:combo.box.method.remove_item.title>",
+            summary = "<key:combo.box.method.remove_item.summary>")
     public ComboBox removeItem(int index) {
         if (index < 0 || index >= items.size()) return this;
         int oldSelection = selectedIndex;
@@ -295,14 +343,23 @@ public class ComboBox extends LinearBox {
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:combo.box.method.item_count.title>",
+            summary = "<key:combo.box.method.item_count.summary>")
     public int itemCount() {
         return items.size();
     }
 
+    @WikiMethod(
+            title = "<key:combo.box.method.get_selected_index.title>",
+            summary = "<key:combo.box.method.get_selected_index.summary>")
     public int selectedIndex() {
         return selectedIndex;
     }
 
+    @WikiMethod(
+            title = "<key:combo.box.method.selected_item.title>",
+            summary = "<key:combo.box.method.selected_item.summary>")
     public String selectedItem() {
         return selectedIndex >= 0 && selectedIndex < items.size() ? items.get(selectedIndex) : "";
     }
@@ -311,29 +368,47 @@ public class ComboBox extends LinearBox {
         return selectedIndex >= 0 && selectedIndex < richItems.size() ? richItems.get(selectedIndex) : RichText.plain("");
     }
 
-    public ComboBox selectedIndex(int index) {
+    @WikiMethod(
+            title = "<key:combo.box.method.selected_index.title>",
+            summary = "<key:combo.box.method.selected_index.summary>")
+    public ComboBox selectedIndex(@WikiParameter(description = "<key:combo.box.param.index>") int index) {
         setSelectedIndex(index, true);
         return this;
     }
 
     @XmlAttribute(value = "selectedIndex", category = "Behavior", defaultValue = "-1", description = "Initial selected option index without emitting change events during XML load.")
+    @WikiMethod(
+            title = "<key:combo.box.method.silent_selected_index.title>",
+            summary = "<key:combo.box.method.silent_selected_index.summary>")
     public ComboBox silentSelectedIndex(int index) {
         setSelectedIndex(index, false);
         return this;
     }
 
+    @WikiMethod(
+            title = "<key:combo.box.method.opened.title>",
+            summary = "<key:combo.box.method.opened.summary>")
     public boolean opened() {
         return opened;
     }
 
+    @WikiMethod(
+            title = "<key:combo.box.method.open.title>",
+            summary = "<key:combo.box.method.open.summary>")
     public ComboBox open() {
         return opened(true);
     }
 
+    @WikiMethod(
+            title = "<key:combo.box.method.close.title>",
+            summary = "<key:combo.box.method.close.summary>")
     public ComboBox close() {
         return opened(false);
     }
 
+    @WikiMethod(
+            title = "<key:combo.box.method.toggle.title>",
+            summary = "<key:combo.box.method.toggle.summary>")
     public ComboBox toggle() {
         return opened(!opened);
     }

@@ -4,6 +4,9 @@ import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
 import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
 import dev.sixik.unigui.api.docs.WikiExample;
 import dev.sixik.unigui.api.docs.WikiLink;
 import dev.sixik.unigui.api.docs.WikiPage;
@@ -94,6 +97,10 @@ public interface Widget extends EventEmitter {
      *
      * @return UI context с dispatcher, input, theme и debug-сервисами
      */
+    @WikiMethod(section = "<key:widget.base.api.section.lifecycle>", sectionOrder = 60, order = 10,
+            title = "<key:widget.method.ui_context.title>", summary = "<key:widget.method.ui_context.summary>")
+    @WikiReturn("<key:widget.method.ui_context.return>")
+    @AiDoc(section = "Hierarchy", sectionOrder = 10, order = 10, summary = "Returns runtime UIContext with dispatcher, theme, and input subsystems.")
     UIContext uiContext();
 
     /**
@@ -101,6 +108,10 @@ public interface Widget extends EventEmitter {
      *
      * @return parent или {@code null}, если виджет является root или ещё не добавлен в дерево
      */
+    @WikiMethod(section = "<key:widget.base.api.section.lifecycle>", sectionOrder = 60, order = 20,
+            title = "<key:widget.method.parent.title>", summary = "<key:widget.method.parent.summary>")
+    @WikiReturn("<key:widget.method.parent.return>")
+    @AiDoc(section = "Hierarchy", sectionOrder = 10, order = 20, summary = "Returns parent widget in UI tree, or null if root/detached.")
     Widget parent();
 
     /**
@@ -111,6 +122,10 @@ public interface Widget extends EventEmitter {
      *
      * @return дети виджета в порядке обхода
      */
+    @WikiMethod(section = "<key:widget.base.api.section.lifecycle>", sectionOrder = 60, order = 30,
+            title = "<key:widget.method.children.title>", summary = "<key:widget.method.children.summary>")
+    @WikiReturn("<key:widget.method.children.return>")
+    @AiDoc(section = "Hierarchy", sectionOrder = 10, order = 30, summary = "Returns child widgets in layout/traversal order.")
     List<Widget> children();
 
     /**
@@ -118,6 +133,10 @@ public interface Widget extends EventEmitter {
      *
      * @return id или пустая строка, если id не задан
      */
+    @WikiMethod(section = "<key:widget.base.api.section.identity>", sectionOrder = 10, order = 12,
+            title = "<key:widget.method.get_id.title>", summary = "<key:widget.method.get_id.summary>")
+    @WikiReturn("<key:widget.method.get_id.return>")
+    @AiDoc(section = "Identity", sectionOrder = 10, order = 12, summary = "Returns widget identifier string.")
     default String id() {
         return "";
     }
@@ -128,7 +147,11 @@ public interface Widget extends EventEmitter {
      * @param id новый id; реализация может нормализовать {@code null} в пустую строку
      * @return этот виджет для fluent-настройки
      */
-    default Widget id(String id) {
+    @WikiMethod(section = "<key:widget.base.api.section.identity>", sectionOrder = 10, order = 10,
+            title = "<key:widget.method.id.title>", summary = "<key:widget.method.id.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Identity", sectionOrder = 10, order = 10, summary = "Sets runtime identifier for hierarchy lookups and debugging.")
+    default Widget id(@WikiParameter(description = "<key:widget.method.id.param.id>") String id) {
         return this;
     }
 
@@ -137,6 +160,10 @@ public interface Widget extends EventEmitter {
      *
      * @return style id или пустая строка
      */
+    @WikiMethod(section = "<key:widget.base.api.section.identity>", sectionOrder = 10, order = 22,
+            title = "<key:widget.method.get_style_id.title>", summary = "<key:widget.method.get_style_id.summary>")
+    @WikiReturn("<key:widget.method.get_style_id.return>")
+    @AiDoc(section = "Styling", sectionOrder = 20, order = 22, summary = "Returns style pack id assigned to this widget.")
     default String styleId() {
         return "";
     }
@@ -147,7 +174,11 @@ public interface Widget extends EventEmitter {
      * @param styleId id стиля из Theme/StylePack
      * @return этот виджет для fluent-настройки
      */
-    default Widget styleId(String styleId) {
+    @WikiMethod(section = "<key:widget.base.api.section.identity>", sectionOrder = 10, order = 20,
+            title = "<key:widget.method.style_id.title>", summary = "<key:widget.method.style_id.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Styling", sectionOrder = 20, order = 20, summary = "Sets style pack id for Theme resolution.")
+    default Widget styleId(@WikiParameter(description = "<key:widget.method.style_id.param.style_id>") String styleId) {
         return this;
     }
 
@@ -156,6 +187,10 @@ public interface Widget extends EventEmitter {
      *
      * @return read-only или snapshot список классов
      */
+    @WikiMethod(section = "<key:widget.base.api.section.identity>", sectionOrder = 10, order = 32,
+            title = "<key:widget.method.get_style_classes.title>", summary = "<key:widget.method.get_style_classes.summary>")
+    @WikiReturn("<key:widget.method.get_style_classes.return>")
+    @AiDoc(section = "Styling", sectionOrder = 20, order = 32, summary = "Returns list of assigned style classes.")
     default List<String> styleClasses() {
         return List.of();
     }
@@ -166,7 +201,11 @@ public interface Widget extends EventEmitter {
      * @param styleClasses строка классов, например {@code "primary compact"}
      * @return этот виджет для fluent-настройки
      */
-    default Widget styleClass(String styleClasses) {
+    @WikiMethod(section = "<key:widget.base.api.section.identity>", sectionOrder = 10, order = 30,
+            title = "<key:widget.method.style_class.title>", summary = "<key:widget.method.style_class.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Styling", sectionOrder = 20, order = 30, summary = "Sets space/comma separated style classes.")
+    default Widget styleClass(@WikiParameter(description = "<key:widget.method.style_class.param.style_classes>") String styleClasses) {
         return this;
     }
 
@@ -186,7 +225,11 @@ public interface Widget extends EventEmitter {
      * @param styleClass добавляемый class id
      * @return этот виджет для fluent-настройки
      */
-    default Widget addStyleClass(String styleClass) {
+    @WikiMethod(section = "<key:widget.base.api.section.identity>", sectionOrder = 10, order = 34,
+            title = "<key:widget.method.add_style_class.title>", summary = "<key:widget.method.add_style_class.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Styling", sectionOrder = 20, order = 34, summary = "Adds a style class.")
+    default Widget addStyleClass(@WikiParameter(description = "<key:widget.method.add_style_class.param.style_class>") String styleClass) {
         return this;
     }
 
@@ -196,7 +239,11 @@ public interface Widget extends EventEmitter {
      * @param styleClass удаляемый class id
      * @return этот виджет для fluent-настройки
      */
-    default Widget removeStyleClass(String styleClass) {
+    @WikiMethod(section = "<key:widget.base.api.section.identity>", sectionOrder = 10, order = 36,
+            title = "<key:widget.method.remove_style_class.title>", summary = "<key:widget.method.remove_style_class.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Styling", sectionOrder = 20, order = 36, summary = "Removes a style class.")
+    default Widget removeStyleClass(@WikiParameter(description = "<key:widget.method.remove_style_class.param.style_class>") String styleClass) {
         return this;
     }
 
@@ -256,6 +303,10 @@ public interface Widget extends EventEmitter {
      *
      * @return arranged bounds в координатах parent/root, принятых текущей реализацией
      */
+    @WikiMethod(section = "<key:widget.base.api.section.layout>", sectionOrder = 20, order = 10,
+            title = "<key:widget.method.layout_bounds.title>", summary = "<key:widget.method.layout_bounds.summary>")
+    @WikiReturn("<key:widget.base.method.layout_bounds.return>")
+    @AiDoc(section = "Layout", sectionOrder = 30, order = 10, summary = "Returns arranged layout bounds rectangle.")
     RectView layoutBounds();
 
     /**
@@ -263,6 +314,10 @@ public interface Widget extends EventEmitter {
      *
      * @return desired size или {@link LayoutSize#ZERO}, если виджет ещё не измерен
      */
+    @WikiMethod(section = "<key:widget.base.api.section.layout>", sectionOrder = 20, order = 20,
+            title = "<key:widget.method.desired_size.title>", summary = "<key:widget.method.desired_size.summary>")
+    @WikiReturn("<key:widget.base.method.desired_size.return>")
+    @AiDoc(section = "Layout", sectionOrder = 30, order = 20, summary = "Returns desired size from most recent measure pass.")
     default LayoutSize desiredSize() {
         return LayoutSize.ZERO;
     }
@@ -321,6 +376,10 @@ public interface Widget extends EventEmitter {
      *
      * @return bitmask из {@link InvalidationFlags}
      */
+    @WikiMethod(section = "<key:widget.base.api.section.lifecycle>", sectionOrder = 60, order = 40,
+            title = "<key:widget.method.invalidation_flags.title>", summary = "<key:widget.method.invalidation_flags.summary>")
+    @WikiReturn("<key:widget.base.method.invalidation_flags.return>")
+    @AiDoc(section = "Lifecycle", sectionOrder = 50, order = 40, summary = "Returns active bitmask of dirty invalidation flags.")
     int invalidationFlags();
 
     /**
@@ -337,6 +396,10 @@ public interface Widget extends EventEmitter {
      *
      * @return visibility mode
      */
+    @WikiMethod(section = "<key:widget.base.api.section.state>", sectionOrder = 40, order = 10,
+            title = "<key:widget.method.get_visibility.title>", summary = "<key:widget.method.get_visibility.summary>")
+    @WikiReturn("<key:widget.base.method.get_visibility.return>")
+    @AiDoc(section = "State", sectionOrder = 40, order = 10, summary = "Returns current Visibility mode (VISIBLE, HIDDEN, COLLAPSED).")
     default Visibility visibility() {
         return Visibility.VISIBLE;
     }
@@ -346,6 +409,10 @@ public interface Widget extends EventEmitter {
      *
      * @return {@code true} только для {@link Visibility#VISIBLE}
      */
+    @WikiMethod(section = "<key:widget.base.api.section.state>", sectionOrder = 40, order = 12,
+            title = "<key:widget.method.visible.title>", summary = "<key:widget.method.visible.summary>")
+    @WikiReturn("<key:widget.base.method.get_visible.return>")
+    @AiDoc(section = "State", sectionOrder = 40, order = 12, summary = "Checks if widget is VISIBLE.")
     default boolean visible() {
         return visibility() == Visibility.VISIBLE;
     }
@@ -355,6 +422,10 @@ public interface Widget extends EventEmitter {
      *
      * @return {@code true}, если input/focus события не должны игнорироваться disabled-состоянием
      */
+    @WikiMethod(section = "<key:widget.base.api.section.state>", sectionOrder = 40, order = 14,
+            title = "<key:widget.method.enabled.title>", summary = "<key:widget.method.enabled.summary>")
+    @WikiReturn("<key:widget.base.method.get_enabled.return>")
+    @AiDoc(section = "State", sectionOrder = 40, order = 14, summary = "Checks if widget is enabled for interaction.")
     default boolean enabled() {
         return true;
     }
@@ -364,6 +435,10 @@ public interface Widget extends EventEmitter {
      *
      * @return {@code true}, если hover manager считает виджет активным hover target
      */
+    @WikiMethod(section = "<key:widget.base.api.section.state>", sectionOrder = 40, order = 16,
+            title = "<key:widget.method.hovered.title>", summary = "<key:widget.method.hovered.summary>")
+    @WikiReturn("<key:widget.base.method.hovered.return>")
+    @AiDoc(section = "State", sectionOrder = 40, order = 16, summary = "Checks if pointer is hovering over this widget.")
     default boolean hovered() {
         return false;
     }
@@ -400,6 +475,10 @@ public interface Widget extends EventEmitter {
      *
      * @return {@code true}, если focus manager может выбрать этот виджет
      */
+    @WikiMethod(section = "<key:widget.base.api.section.state>", sectionOrder = 40, order = 20,
+            title = "<key:widget.method.focusable.title>", summary = "<key:widget.method.focusable.summary>")
+    @WikiReturn("<key:widget.base.method.get_focusable.return>")
+    @AiDoc(section = "State", sectionOrder = 40, order = 20, summary = "Checks if widget can receive keyboard focus.")
     default boolean focusable() {
         return false;
     }
@@ -462,21 +541,30 @@ public interface Widget extends EventEmitter {
      *
      * @param flags bitmask из {@link InvalidationFlags}
      */
-    void invalidate(int flags);
+    @WikiMethod(section = "<key:widget.base.api.section.lifecycle>", sectionOrder = 60, order = 42,
+            title = "<key:widget.method.invalidate.title>", summary = "<key:widget.method.invalidate.summary>")
+    @AiDoc(section = "Lifecycle", sectionOrder = 50, order = 42, summary = "Marks invalidation flags (VISUAL, LAYOUT, HIERARCHY, etc.).")
+    void invalidate(@WikiParameter(description = "<key:widget.method.invalidate.param.flags>") int flags);
 
     /**
      * Снимает указанные флаги инвалидации после успешного обновления.
      *
      * @param flags bitmask, который был обработан runtime'ом
      */
-    void clearInvalidation(int flags);
+    @WikiMethod(section = "<key:widget.base.api.section.lifecycle>", sectionOrder = 60, order = 44,
+            title = "<key:widget.method.clear_invalidation.title>", summary = "<key:widget.method.clear_invalidation.summary>")
+    @AiDoc(section = "Lifecycle", sectionOrder = 50, order = 44, summary = "Clears processed invalidation flags.")
+    void clearInvalidation(@WikiParameter(description = "<key:widget.method.clear_invalidation.param.flags>") int flags);
 
     /**
      * Измеряет желаемый размер виджета с учётом переданного layout context.
      *
      * @param context constraints, scale и служебные данные layout pass
      */
-    void measure(LayoutContext context);
+    @WikiMethod(section = "<key:widget.base.api.section.layout>", sectionOrder = 20, order = 30,
+            title = "<key:widget.method.measure.title>", summary = "<key:widget.method.measure.summary>")
+    @AiDoc(section = "Layout", sectionOrder = 30, order = 30, summary = "Measures widget desired size under given layout constraints.")
+    void measure(@WikiParameter(description = "<key:widget.method.measure.param.context>") LayoutContext context);
 
     /**
      * Измеряет виджет с пропуском повторных вызовов на чистом поддереве.
@@ -496,14 +584,20 @@ public interface Widget extends EventEmitter {
      *
      * @param bounds финальный прямоугольник виджета
      */
-    void arrange(RectView bounds);
+    @WikiMethod(section = "<key:widget.base.api.section.layout>", sectionOrder = 20, order = 40,
+            title = "<key:widget.method.arrange.title>", summary = "<key:widget.method.arrange.summary>")
+    @AiDoc(section = "Layout", sectionOrder = 30, order = 40, summary = "Positions and dimensions widget in assigned layout rectangle.")
+    void arrange(@WikiParameter(description = "<key:widget.method.arrange.param.bounds>") RectView bounds);
 
     /**
      * Рисует виджет в текущем render context.
      *
      * @param context render context кадра
      */
-    void render(RenderContext context);
+    @WikiMethod(section = "<key:widget.base.api.section.render>", sectionOrder = 50, order = 10,
+            title = "<key:widget.method.render.title>", summary = "<key:widget.method.render.summary>")
+    @AiDoc(section = "Render", sectionOrder = 60, order = 10, summary = "Draws widget into active render context.")
+    void render(@WikiParameter(description = "<key:widget.method.render.param.context>") RenderContext context);
 
     /**
      * Рендерит виджет через retained-фрагмент, если реализация поддерживает такой кэш.
@@ -522,14 +616,20 @@ public interface Widget extends EventEmitter {
      *
      * @param event событие input/runtime pipeline
      */
-    void handle(Event event);
+    @WikiMethod(section = "<key:widget.base.api.section.lifecycle>", sectionOrder = 60, order = 50,
+            title = "<key:widget.method.handle.title>", summary = "<key:widget.method.handle.summary>")
+    @AiDoc(section = "Events", sectionOrder = 70, order = 10, summary = "Dispatches or consumes incoming UI event.")
+    void handle(@WikiParameter(description = "<key:widget.method.handle.param.event>") Event event);
 
     /**
      * Обновляет состояние виджета на каждом кадре.
      *
      * @param frame snapshot текущего кадра
      */
-    default void tick(FrameContext frame) {
+    @WikiMethod(section = "<key:widget.base.api.section.lifecycle>", sectionOrder = 60, order = 60,
+            title = "<key:widget.method.tick.title>", summary = "<key:widget.method.tick.summary>")
+    @AiDoc(section = "Lifecycle", sectionOrder = 50, order = 60, summary = "Updates per-frame state, timers, and animations.")
+    default void tick(@WikiParameter(description = "<key:widget.method.tick.param.frame>") FrameContext frame) {
     }
 
     /**
@@ -538,6 +638,9 @@ public interface Widget extends EventEmitter {
      * <p>Метод должен освобождать только ресурсы, которыми владеет сам виджет. Глобальные renderer,
      * shared texture/font cache и registry очищаются их владельцами.</p>
      */
+    @WikiMethod(section = "<key:widget.base.api.section.lifecycle>", sectionOrder = 60, order = 70,
+            title = "<key:widget.method.dispose.title>", summary = "<key:widget.method.dispose.summary>")
+    @AiDoc(section = "Lifecycle", sectionOrder = 50, order = 70, summary = "Releases widget-owned resources prior to removal.")
     default void dispose() {
     }
 }

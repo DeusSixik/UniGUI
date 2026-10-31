@@ -1,5 +1,13 @@
 package dev.sixik.unigui.widgets.interaction;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.animation.AnimationEasing;
 import dev.sixik.unigui.api.animation.TransitionSpec;
 import dev.sixik.unigui.api.core.InvalidationFlags;
@@ -46,6 +54,36 @@ import java.util.Objects;
  * <p>Порядок отрисовки: custom {@link dev.sixik.unigui.api.widget.render.WidgetRender}
  * (заменяет весь визуал), затем поверхность, затем текст, затем дети.</p>
  */
+@AiDoc(
+        summary = "Interactive push button with composable surface, text, icon, and rich state transitions.",
+        purpose = "Primary button component in UniGUI for user actions, form submits, and toolbar triggers.",
+        useWhen = {"Triggering actions on click, keypress, or gamepad activation."},
+        related = {"HoldButton", "ToolButton", "ToggleButton", "SurfaceWidget"}
+)
+@WikiPage(
+        title = "<key:button.title>",
+        slug = "button",
+        category = "<key:core.widgets.interaction.category>",
+        summary = "<key:button.summary>",
+        order = 10
+)
+@WikiSection(
+        title = "<key:button.section.overview.title>",
+        markdown = "<key:button.section.overview.body>",
+        order = 10
+)
+@WikiSection(
+        title = "<key:button.section.states.title>",
+        markdown = "<key:button.section.states.body>",
+        order = 20
+)
+@WikiExample(
+        title = "<key:button.example.basic.title>",
+        code = "<key:button.example.basic.code>",
+        order = 10
+)
+@WikiLink(label = "HoldButton", target = "page:hold-button")
+@WikiLink(label = "ToggleButton", target = "page:toggle-button")
 @XmlWidgetName("Button")
 public class Button extends SurfaceWidget<Button> {
     public static final String STYLE_TYPE = StyleIds.Widget.BUTTON;
@@ -165,6 +203,7 @@ public class Button extends SurfaceWidget<Button> {
     private MutableColor pressedBackground;
     private TextureLayer pressedTexture;
 
+    @WikiMethod(order = 10, title = "<key:button.method.ctor.title>", summary = "<key:button.method.ctor.summary>")
     public Button() {
         mouseCursor(MouseCursor.POINTER);
         focusable(true);
@@ -187,12 +226,14 @@ public class Button extends SurfaceWidget<Button> {
         return WidgetStyles.Button.DEFAULT;
     }
 
-    public Button(String text) {
+    @WikiMethod(order = 20, title = "<key:button.method.ctor.text.title>", summary = "<key:button.method.ctor.text.summary>")
+    public Button(@WikiParameter(description = "<key:button.param.text>") String text) {
         this();
         text(text);
     }
 
-    public Button(RichText text) {
+    @WikiMethod(order = 30, title = "<key:button.method.ctor.rich_text.title>", summary = "<key:button.method.ctor.rich_text.summary>")
+    public Button(@WikiParameter(description = "<key:button.param.rich_text>") RichText text) {
         this();
         richText(text);
     }
@@ -264,7 +305,9 @@ public class Button extends SurfaceWidget<Button> {
         return fittedRichText;
     }
 
-    public Button richText(RichText richText) {
+    @WikiMethod(order = 50, title = "<key:button.method.rich_text.title>", summary = "<key:button.method.rich_text.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public Button richText(@WikiParameter(description = "<key:button.param.rich_text>") RichText richText) {
         RichText normalized = richText == null ? RichText.plain("") : richText;
         if (Objects.equals(this.richText, normalized)) return this;
         this.richText = normalized;
@@ -421,7 +464,9 @@ public class Button extends SurfaceWidget<Button> {
      * @return эта кнопка для fluent-настройки
      */
     @XmlAttribute(value = "hoverBackground", category = "Appearance", defaultValue = "", description = "Explicit hover background color; empty means themed.")
-    public Button hoverBackground(ColorView color) {
+    @WikiMethod(order = 90, title = "<key:button.method.hover_background.title>", summary = "<key:button.method.hover_background.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public Button hoverBackground(@WikiParameter(description = "<key:button.param.color>") ColorView color) {
         if (color == null) return clearHoverBackground();
         hoverBackground().set(color);
         return this;
@@ -463,7 +508,9 @@ public class Button extends SurfaceWidget<Button> {
      * @return эта кнопка для fluent-настройки
      */
     @XmlAttribute(value = "pressedBackground", category = "Appearance", defaultValue = "", description = "Explicit pressed background color; empty means themed.")
-    public Button pressedBackground(ColorView color) {
+    @WikiMethod(order = 100, title = "<key:button.method.pressed_background.title>", summary = "<key:button.method.pressed_background.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public Button pressedBackground(@WikiParameter(description = "<key:button.param.color>") ColorView color) {
         if (color == null) return clearPressedBackground();
         pressedBackground().set(color);
         return this;
@@ -771,7 +818,8 @@ public class Button extends SurfaceWidget<Button> {
         return this;
     }
 
-    public EventSubscription onClick(EventListener<? super ButtonClickEvent> listener) {
+    @WikiMethod(order = 80, title = "<key:button.method.on_click.title>", summary = "<key:button.method.on_click.summary>")
+    public EventSubscription onClick(@WikiParameter(description = "<key:button.param.listener>") EventListener<? super ButtonClickEvent> listener) {
         return on(ButtonClickEvent.TYPE, listener);
     }
 
