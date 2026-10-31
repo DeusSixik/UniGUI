@@ -34,6 +34,7 @@ java {
 
 def generatedVersionDir = layout.buildDirectory.dir('generated/sources/version/java')
 sourceSets.main.java.srcDir(generatedVersionDir)
+sourceSets.main.java.srcDir('../.minecraft-legacy-backend-shared/src/main/java')
 
 tasks.register('generateVersionSource') {
     def output = generatedVersionDir.map {

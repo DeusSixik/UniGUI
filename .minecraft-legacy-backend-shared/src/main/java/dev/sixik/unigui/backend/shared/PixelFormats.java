@@ -1,26 +1,18 @@
-package dev.sixik.unigui.cleanroom.backend;
+package dev.sixik.unigui.backend.shared;
 
 import java.nio.ByteBuffer;
 import java.util.Objects;
 
-/**
- * Pixel format conversions for texture uploads. No OpenGL, no Minecraft.
- */
-final class CleanroomPixels {
-    private CleanroomPixels() {
+/** Platform-independent pixel format conversions shared by the legacy backends. */
+public final class PixelFormats {
+    private PixelFormats() {
     }
 
     /**
-     * Converts tightly packed RGBA bytes (red first, rows top to bottom) into the {@code 0xAARRGGBB} ints vanilla's
-     * {@code TextureUtil.uploadTexture} expects. The buffer's position and limit are not changed.
-     *
-     * @param width  image width in pixels, positive
-     * @param height image height in pixels, positive
-     * @param rgba   at least {@code width * height * 4} readable bytes starting at the buffer's position
-     * @return a new array of {@code width * height} ARGB pixels
-     * @throws IllegalArgumentException for a non-positive size or a buffer that is too short
+     * Converts tightly packed RGBA bytes (red first, rows top to bottom) to {@code 0xAARRGGBB} pixels.
+     * The buffer's position and limit are not changed.
      */
-    static int[] rgbaToArgb(int width, int height, ByteBuffer rgba) {
+    public static int[] rgbaToArgb(int width, int height, ByteBuffer rgba) {
         Objects.requireNonNull(rgba, "rgba");
         if (width <= 0 || height <= 0) {
             throw new IllegalArgumentException("Texture dimensions must be positive: " + width + "x" + height);
