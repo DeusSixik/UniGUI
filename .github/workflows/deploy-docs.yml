@@ -3,7 +3,6 @@ name: Deploy Documentation
 on:
   push:
     branches:
-      - Main_other
       - main
     paths:
       - 'common/**'

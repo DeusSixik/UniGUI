@@ -11,7 +11,7 @@ permissions:
 
 concurrency:
   group: build-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/Main_other' }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 
 jobs:
@@ -44,10 +44,10 @@ jobs:
 
           echo "old=$OLD new=$NEW ref=${{ github.ref }}"
 
-          # Release only on Main_other, and only when mod_version actually changed.
+          # Release only on main, and only when mod_version actually changed.
           # A manual run or a push without a version diff never publishes a tag.
           RELEASE=false
-          if [ "${{ github.ref }}" = "refs/heads/Main_other" ] && [ -n "$OLD" ] && [ "$OLD" != "$NEW" ]; then
+          if [ "${{ github.ref }}" = "refs/heads/main" ] && [ -n "$OLD" ] && [ "$OLD" != "$NEW" ]; then
             RELEASE=true
           fi
 
