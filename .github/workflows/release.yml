@@ -82,12 +82,29 @@ jobs:
           # Stonecutter writes jars to build/stonecutter/<mc>/<module>/libs.
           # Java 17 for 1.20.1 is fetched by the foojay toolchain resolver.
           ./gradlew \
+            :core:jar \
+            :demo:jar \
             :1.20.1:fabric:build \
             :1.20.1:forge:build \
             :1.21.1:fabric:build \
             :1.21.1:forge:build \
             :1.21.1:neoforge:build \
             --no-daemon
+
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+
+
+      - name: Build Cleanroom 1.12.2
+        shell: bash
+        run: |
+          chmod +x 1.12.2-cleanroom/gradlew
+          cd 1.12.2-cleanroom
+          ./gradlew build --no-daemon
 
 
       - name: Upload build artifacts
@@ -99,6 +116,7 @@ jobs:
             build/stonecutter/*/fabric/libs/*.jar
             build/stonecutter/*/forge/libs/*.jar
             build/stonecutter/*/neoforge/libs/*.jar
+            1.12.2-cleanroom/build/libs/unigui-cleanroom-1.12.2-${{ steps.version.outputs.version }}.jar
           retention-days: 14
 
 
@@ -108,6 +126,7 @@ jobs:
         run: |
           mkdir -p release-files
           shopt -s nullglob
+          mkdir -p release-files/modern release-files/cleanroom
           for f in \
               build/stonecutter/*/fabric/libs/*.jar \
               build/stonecutter/*/forge/libs/*.jar \
@@ -116,8 +135,9 @@ jobs:
             case "$f" in
               *-sources.jar|*-dev.jar|*-dev-shadow.jar|*-all.jar) continue ;;
             esac
-            cp "$f" release-files/
+            cp "$f" release-files/modern/
           done
+          cp "1.12.2-cleanroom/build/libs/unigui-cleanroom-1.12.2-${{ steps.version.outputs.version }}.jar" release-files/cleanroom/
           count=$(find release-files -name '*.jar' | wc -l)
           if [ "$count" -eq 0 ]; then
             echo "No release jars collected" >&2
@@ -135,18 +155,18 @@ jobs:
           name: UniGUI ${{ steps.version.outputs.version }}
           generate_release_notes: true
           prerelease: ${{ steps.version.outputs.prerelease == 'true' }}
-          files: release-files/*.jar
+          files: release-files/**/*.jar
           fail_on_unmatched_files: true
 
 
-      - name: Publish to CurseForge
+      - name: Publish modern versions to CurseForge
         if: steps.version.outputs.release == 'true'
         uses: Kir-Antipov/mc-publish@v3.3
         with:
           curseforge-id: ${{ secrets.CURSEFORGE_PROJECT_ID }}
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
           
-          files: release-files/*.jar
+          files: release-files/modern/*.jar
           
           name: UniGUI ${{ steps.version.outputs.version }}
           version: ${{ steps.version.outputs.version }}
@@ -166,3 +186,56 @@ jobs:
           java: |
             17
             21
+
+
+      - name: Publish Cleanroom 1.12.2 to CurseForge
+        if: steps.version.outputs.release == 'true'
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          curseforge-id: ${{ secrets.CURSEFORGE_PROJECT_ID }}
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+
+          files: release-files/cleanroom/*.jar
+
+          curseforge-name: UniGUI ${{ steps.version.outputs.version }} for Minecraft 1.12.2 (Cleanroom)
+          curseforge-version: ${{ steps.version.outputs.version }}-cleanroom-1.12.2
+          curseforge-version-type: ${{ steps.version.outputs.prerelease == 'true' && 'beta' || 'release' }}
+          curseforge-loaders: forge
+          curseforge-game-versions: 1.12.2
+
+
+      - name: Publish modern versions to Modrinth
+        if: steps.version.outputs.release == 'true'
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+
+          files: release-files/modern/*.jar
+
+          modrinth-name: UniGUI ${{ steps.version.outputs.version }}
+          modrinth-version: ${{ steps.version.outputs.version }}
+          modrinth-version-type: ${{ steps.version.outputs.prerelease == 'true' && 'beta' || 'release' }}
+          modrinth-loaders: |
+            fabric
+            forge
+            neoforge
+          modrinth-game-versions: |
+            1.20.1
+            1.21.1
+
+
+      - name: Publish Cleanroom 1.12.2 to Modrinth
+        if: steps.version.outputs.release == 'true'
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+
+          files: release-files/cleanroom/*.jar
+
+          modrinth-name: UniGUI ${{ steps.version.outputs.version }} for Minecraft 1.12.2 (Cleanroom)
+          modrinth-version: ${{ steps.version.outputs.version }}-cleanroom-1.12.2
+          modrinth-version-type: ${{ steps.version.outputs.prerelease == 'true' && 'beta' || 'release' }}
+          modrinth-loaders: forge
+          modrinth-game-versions: 1.12.2

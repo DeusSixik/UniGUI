@@ -20,6 +20,9 @@
 <p align="center">
   <a href="https://www.curseforge.com/minecraft/mc-mods/uni-gui">
     <img src="https://img.shields.io/curseforge/dt/1649763?style=for-the-badge&logo=curseforge&logoColor=white" alt="CurseForge">
+  </a>  
+<a href="https://modrinth.com/mod/uni-gui">
+    <img src="https://img.shields.io/modrinth/dt/BUW8tvXo?style=for-the-badge&logo=modrinth&label=Modrinth" alt="Modrinth">
   </a>
 </p>
 

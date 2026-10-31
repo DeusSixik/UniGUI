@@ -10,7 +10,7 @@ import org.apache.logging.log4j.Logger;
 /**
  * Cleanroom entry point for the Minecraft 1.12.2 UniGUI module.
  */
-@Mod(modid = UniGuiCleanroom.MOD_ID, name = "UniGUI", version = "1.5.4")
+@Mod(modid = UniGuiCleanroom.MOD_ID, name = "UniGUI", version = UniGuiVersion.MOD_VERSION)
 public final class UniGuiCleanroom {
 
     /** Stable mod identifier declared in {@code mcmod.info}. */
