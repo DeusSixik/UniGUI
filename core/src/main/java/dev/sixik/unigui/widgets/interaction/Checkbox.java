@@ -1,40 +1,22 @@
 package dev.sixik.unigui.widgets.interaction;
 
-import dev.sixik.unigui.api.docs.AiDoc;
-import dev.sixik.unigui.api.docs.WikiExample;
-import dev.sixik.unigui.api.docs.WikiLink;
-import dev.sixik.unigui.api.docs.WikiMethod;
-import dev.sixik.unigui.api.docs.WikiPage;
-import dev.sixik.unigui.api.docs.WikiParameter;
-import dev.sixik.unigui.api.docs.WikiReturn;
-import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.animation.TransitionSpec;
 import dev.sixik.unigui.api.core.InvalidationFlags;
-import dev.sixik.unigui.api.event.ButtonClickEvent;
-import dev.sixik.unigui.api.event.CheckboxStateChangedEvent;
-import dev.sixik.unigui.api.event.CheckedChangedEvent;
-import dev.sixik.unigui.api.event.Event;
-import dev.sixik.unigui.api.event.EventListener;
-import dev.sixik.unigui.api.event.EventPhase;
-import dev.sixik.unigui.api.event.EventSubscription;
-import dev.sixik.unigui.api.event.KeyPressedEvent;
+import dev.sixik.unigui.api.docs.*;
+import dev.sixik.unigui.api.event.*;
 import dev.sixik.unigui.api.input.KeyCodes;
+import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
-import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.style.*;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.CheckboxState;
+import dev.sixik.unigui.api.widget.render.WidgetRole;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
-import dev.sixik.unigui.api.widget.render.WidgetRole;
-import dev.sixik.unigui.api.style.Style;
-import dev.sixik.unigui.api.style.StyleAnimationIds;
-import dev.sixik.unigui.api.style.StyleIds;
-import dev.sixik.unigui.api.style.StyleKeys;
-import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.widgets.WidgetStyles;
 
 @AiDoc(
