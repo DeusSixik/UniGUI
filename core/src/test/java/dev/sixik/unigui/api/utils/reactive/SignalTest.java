@@ -1,6 +1,8 @@
 package dev.sixik.unigui.api.utils.reactive;
 
 import org.junit.jupiter.api.Test;
+import dev.sixik.unigui.widgets.interaction.TextInput;
+import dev.sixik.unigui.widgets.interaction.ToggleButton;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -8,6 +10,39 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class SignalTest {
+    @Test
+    void textBindingIsTwoWayAndDisposedWithWidget() {
+        StringSignal signal = new StringSignal("initial");
+        TextInput input = new TextInput();
+        input.bind(BindingKeys.TEXT_INPUT_TEXT, signal);
+
+        assertEquals("initial", input.text());
+        signal.set("from model");
+        assertEquals("from model", input.text());
+        input.text("from widget");
+        assertEquals("from widget", signal.get());
+
+        input.dispose();
+        signal.set("after dispose");
+        assertEquals("from widget", input.text());
+    }
+
+    @Test
+    void checkedBindingCanBeReplaced() {
+        BooleanSignal first = new BooleanSignal(false);
+        BooleanSignal second = new BooleanSignal(true);
+        ToggleButton button = new ToggleButton();
+        button.bind(BindingKeys.CHECKED, first);
+        button.bind(BindingKeys.CHECKED, second);
+
+        assertEquals(false, first.get());
+        assertEquals(true, button.checked());
+        first.set(false);
+        assertEquals(true, button.checked());
+        button.checked(false);
+        assertEquals(false, second.get());
+    }
+
     @Test
     void subscriptionCanBeClosedIdempotently() {
         IntegerSignal signal = new IntegerSignal(1);

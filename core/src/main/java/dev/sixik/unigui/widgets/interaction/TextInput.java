@@ -5,8 +5,6 @@ import dev.sixik.unigui.api.docs.WikiExample;
 import dev.sixik.unigui.api.docs.WikiLink;
 import dev.sixik.unigui.api.docs.WikiMethod;
 import dev.sixik.unigui.api.docs.WikiPage;
-import dev.sixik.unigui.api.docs.WikiParameter;
-import dev.sixik.unigui.api.docs.WikiReturn;
 import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
@@ -26,6 +24,10 @@ import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextRun;
+import dev.sixik.unigui.api.utils.reactive.BindingData;
+import dev.sixik.unigui.api.utils.reactive.BindingKeys;
+import dev.sixik.unigui.api.utils.reactive.SignalSubscription;
+import dev.sixik.unigui.api.utils.reactive.StringSignal;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.render.WidgetRole;
 import dev.sixik.unigui.api.xml.XmlAttribute;
@@ -422,6 +424,20 @@ public class TextInput extends Box {
     @WikiMethod(order = 50, title = "<key:text.input.method.on_text_changed.title>", summary = "<key:text.input.method.on_text_changed.summary>")
     public EventSubscription onTextChanged(EventListener<? super TextChangedEvent> listener) {
         return on(TextChangedEvent.TYPE, listener);
+    }
+
+    @Override
+    protected <T> SignalSubscription createBinding(BindingData<T> key, T source) {
+        if (key == BindingKeys.TEXT_INPUT_TEXT) {
+            StringSignal text = BindingKeys.TEXT_INPUT_TEXT.cast(source);
+            SignalSubscription signalSubscription = text.subscribe(this::text);
+            EventSubscription widgetSubscription = onTextChanged(event -> text.set(event.newText()));
+            return () -> {
+                widgetSubscription.close();
+                signalSubscription.close();
+            };
+        }
+        return super.createBinding(key, source);
     }
 
     @Override

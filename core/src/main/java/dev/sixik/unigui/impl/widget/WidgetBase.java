@@ -73,6 +73,8 @@ import dev.sixik.unigui.api.xml.XmlWidgetDiagnostic;
 import dev.sixik.unigui.impl.event.FastEventEmitter;
 import dev.sixik.unigui.impl.render.DefaultRenderContext;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
+import dev.sixik.unigui.api.utils.reactive.BindingData;
+import dev.sixik.unigui.api.utils.reactive.SignalSubscription;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
@@ -82,6 +84,7 @@ import java.util.LinkedHashSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Consumer;
 
 @XmlLayoutAttributes
@@ -201,6 +204,7 @@ public abstract class WidgetBase implements Widget {
      * Хранит подписки и отправку событий, связанных с жизненным циклом и вводом виджета.
      */
     private final FastEventEmitter events = new FastEventEmitter();
+    private final Map<BindingData<?>, SignalSubscription> bindings = new HashMap<>();
     /**
      * Единый реестр всех активных анимаций виджета.
      */
@@ -2397,9 +2401,53 @@ public abstract class WidgetBase implements Widget {
     @WikiMethod(section = "<key:widget.base.api.section.lifecycle>", sectionOrder = 60, order = 60,
             title = "<key:widget.base.method.dispose.title>", summary = "<key:widget.base.method.dispose.summary>")
     public void dispose() {
+        for (SignalSubscription binding : bindings.values()) binding.close();
+        bindings.clear();
         restoreTransformEffectOffset();
         animations.clear();
         releaseRenderCache();
+    }
+
+    /**
+     * Привязывает ключ поддерживаемого свойства к сигналу; неподдерживаемые ключи игнорируются.
+     */
+    @WikiMethod(section = "<key:widget.base.api.section.binding>", sectionOrder = 50, order = 10,
+            title = "<key:widget.base.method.bind.title>", summary = "<key:widget.base.method.bind.summary>")
+    @AiDoc(
+            section = "Bindings",
+            sectionOrder = 50,
+            order = 10,
+            summary = "Binds a widget property to a supported signal key and replaces any existing binding for that key.",
+            criticalRules = {
+                    "The signal's current value is applied immediately when the binding is created.",
+                    "A supported binding is bidirectional and is closed automatically when this widget is disposed.",
+                    "Unsupported keys are ignored; a signal whose type does not match the BindingData key is rejected."
+            },
+            related = {"BindingData", "BindingKeys", "SignalSubscription"})
+    @WikiReturn("<key:widget.base.method.bind.return>")
+    public <T> WidgetBase bind(
+            @WikiParameter(description = "<key:widget.base.method.bind.param.key>") BindingData<T> key,
+            @WikiParameter(description = "<key:widget.base.method.bind.param.signal>") T signal) {
+        Objects.requireNonNull(key, "key");
+        if (signal == null || !key.type().isInstance(signal)) {
+            throw new IllegalArgumentException("Signal must be an instance of " + key.type().getName());
+        }
+
+        SignalSubscription previous = bindings.remove(key);
+        if (previous != null) previous.close();
+
+        SignalSubscription binding = createBinding(key, signal);
+        if (binding == null) return this;
+
+        bindings.put(key, binding);
+        return this;
+    }
+
+    /**
+     * Создаёт привязку для ключа, поддерживаемого данным виджетом, или возвращает null, если он не поддерживается.
+     */
+    protected <T> SignalSubscription createBinding(BindingData<T> key, T signal) {
+        return null;
     }
 
     private void releaseRenderCache() {

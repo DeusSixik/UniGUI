@@ -3793,5 +3793,18 @@
   "chart.method.axis_color.title": "Axis Color",
   "chart.method.axis_color.summary": "Returns mutable color of chart coordinate axes.",
   "chart.method.bar_color.title": "Bar Color",
-  "chart.method.bar_color.summary": "Returns mutable color of bars in bar chart mode."
+  "chart.method.bar_color.summary": "Returns mutable color of bars in bar chart mode.",
+  "binding.keys.title": "Signal Binding",
+  "binding.keys.category": "Core/Reactive",
+  "binding.keys.summary": "Connect widget properties to reusable typed signals with bidirectional updates.",
+  "binding.keys.section.overview.title": "Binding model",
+  "binding.keys.section.overview.body": "Call `widget.bind(key, signal)` to connect a supported widget property to a signal. Binding is bidirectional: the signal's current value is applied immediately, later signal changes update the widget, and user edits update the signal. Built-in keys are `BindingKeys.TEXT` for `TextInput` and its subclasses, and `BindingKeys.CHECKED` for `ToggleButton` and its subclasses.\n\nA key is matched by **object identity**, so declare a custom key once and reuse it: `static final BindingData<BooleanSignal> MY_CHECKBOX_VALUE = new BindingData<>(BooleanSignal.class);`. A custom `WidgetBase` subclass handles its keys in `createBinding(...)` and returns `null` for unknown keys. Unsupported keys are ignored; passing a source of the wrong type is an error. Rebinding the same key replaces the previous connection, and `WidgetBase.dispose()` closes active bindings.\n\nSignal callbacks run synchronously on the thread that calls `set()`. Change UI-bound signals on the UI thread.",
+  "binding.keys.example.shared.title": "Share model state between controls",
+  "binding.keys.example.shared.code": "StringSignal name = new StringSignal(\"Ada\");\nTextField editor = new TextField();\nTextField mirror = new TextField();\neditor.bind(BindingKeys.TEXT, name);\nmirror.bind(BindingKeys.TEXT, name);\n\nBooleanSignal enabled = new BooleanSignal(true);\nCheckbox checkbox = new Checkbox(\"Enabled\");\nToggleButton toggle = new ToggleButton(\"Enabled\");\ncheckbox.bind(BindingKeys.CHECKED, enabled);\ntoggle.bind(BindingKeys.CHECKED, enabled);",
+  "widget.base.api.section.binding": "Bindings",
+  "widget.base.method.bind.title": "Bind property to signal",
+  "widget.base.method.bind.summary": "Connects a supported property key to a signal and returns this widget.",
+  "widget.base.method.bind.param.key": "Identity key naming the widget property and expected signal type.",
+  "widget.base.method.bind.param.signal": "Signal that supplies the property's value and receives widget changes.",
+  "widget.base.method.bind.return": "This widget for fluent configuration"
 }

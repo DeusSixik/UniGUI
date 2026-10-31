@@ -2,6 +2,8 @@ package dev.sixik.unigui.api.utils.reactive;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
+import java.util.Objects;
+
 public class LongSignal {
 
     public interface Subscriber {
@@ -50,7 +52,7 @@ public class LongSignal {
      * Registers a listener and immediately sends it the current value.
      */
     public SignalSubscription subscribe(Subscriber subscriber) {
-        java.util.Objects.requireNonNull(subscriber, "subscriber");
+        Objects.requireNonNull(subscriber, "subscriber");
         subscribers.add(subscriber);
         refreshSubscriberSnapshot();
         subscriber.onValueChanged(this.value);

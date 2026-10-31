@@ -72,5 +72,8 @@ public abstract class TitleScreenMixin extends Screen {
         addRenderableWidget(Button.builder(Component.literal("Unity Inspector"), button -> TestModClient.openUnityInspector())
                 .bounds(width - 244, 128, 116, 20)
                 .build());
+        addRenderableWidget(Button.builder(Component.literal("Signal Binding"), button -> TestModClient.openBindingDemo())
+                .bounds(width - 364, 8, 116, 20)
+                .build());
     }
 }

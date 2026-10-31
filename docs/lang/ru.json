@@ -3793,5 +3793,18 @@
   "chart.method.axis_color.title": "Цвет осей",
   "chart.method.axis_color.summary": "Возвращает цвет координатных осей диаграммы.",
   "chart.method.bar_color.title": "Цвет столбцов",
-  "chart.method.bar_color.summary": "Возвращает цвет столбцов в режиме столбчатой диаграммы."
+  "chart.method.bar_color.summary": "Возвращает цвет столбцов в режиме столбчатой диаграммы.",
+  "binding.keys.title": "Привязка сигналов",
+  "binding.keys.category": "Core/Reactive",
+  "binding.keys.summary": "Связывает свойства виджетов с типизированными сигналами и синхронизирует изменения в обе стороны.",
+  "binding.keys.section.overview.title": "Модель привязки",
+  "binding.keys.section.overview.body": "Вызовите `widget.bind(key, signal)`, чтобы связать поддерживаемое свойство виджета с сигналом. Привязка двусторонняя: текущее значение сигнала сразу применяется к виджету, последующие изменения сигнала обновляют виджет, а действия пользователя обновляют сигнал. Встроенный ключ `BindingKeys.TEXT` поддерживается `TextInput` и его наследниками, а `BindingKeys.CHECKED` — `ToggleButton` и его наследниками.\n\nКлючи сравниваются по **идентичности объекта**, поэтому собственный ключ нужно объявить один раз и повторно использовать: `static final BindingData<BooleanSignal> MY_CHECKBOX_VALUE = new BindingData<>(BooleanSignal.class);`. Собственный наследник `WidgetBase` обрабатывает ключи в `createBinding(...)` и возвращает `null` для неизвестных. Неподдерживаемые ключи игнорируются; источник неверного типа считается ошибкой. Повторная привязка того же ключа заменяет прежнюю связь, а `WidgetBase.dispose()` закрывает активные привязки.\n\nCallback-и сигнала вызываются синхронно в потоке, где вызван `set()`. Сигналы, связанные с интерфейсом, изменяйте в UI-потоке.",
+  "binding.keys.example.shared.title": "Общее состояние для нескольких контролов",
+  "binding.keys.example.shared.code": "StringSignal name = new StringSignal(\"Ada\");\nTextField editor = new TextField();\nTextField mirror = new TextField();\neditor.bind(BindingKeys.TEXT, name);\nmirror.bind(BindingKeys.TEXT, name);\n\nBooleanSignal enabled = new BooleanSignal(true);\nCheckbox checkbox = new Checkbox(\"Enabled\");\nToggleButton toggle = new ToggleButton(\"Enabled\");\ncheckbox.bind(BindingKeys.CHECKED, enabled);\ntoggle.bind(BindingKeys.CHECKED, enabled);",
+  "widget.base.api.section.binding": "Привязки",
+  "widget.base.method.bind.title": "Привязать свойство к сигналу",
+  "widget.base.method.bind.summary": "Связывает поддерживаемый ключ свойства с сигналом и возвращает этот виджет.",
+  "widget.base.method.bind.param.key": "Ключ-идентификатор свойства виджета и ожидаемого типа сигнала.",
+  "widget.base.method.bind.param.signal": "Сигнал, который задаёт значение свойства и получает изменения виджета.",
+  "widget.base.method.bind.return": "Этот виджет для дальнейшей fluent-настройки"
 }

@@ -1,6 +1,7 @@
 package dev.sixik.unigui.testmod.client;
 
 import dev.sixik.unigui.demo.ui.DominionScreen;
+import dev.sixik.unigui.demo.ui.BindingDemoScreen;
 import dev.sixik.unigui.demo.ui.DockingWindowsDemoScreen;
 import dev.sixik.unigui.demo.ui.MarkerCullingDemoScreen;
 import dev.sixik.unigui.demo.ui.MarkerScalingDemoScreen;
@@ -39,6 +40,10 @@ public final class TestModClient implements ClientModInitializer {
      */
     public static void openDemo() {
         TestWidgetsScreen.openGui();
+    }
+
+    public static void openBindingDemo() {
+        BindingDemoScreen.open();
     }
 
     public static void openRetroTerminal() {
