@@ -1,0 +1,14 @@
+[
+  {
+    "modid": "${modId}",
+    "name": "${modName}",
+    "description": "UniGUI integration for GTNH (Minecraft 1.7.10).",
+    "version": "${modVersion}",
+    "mcversion": "${minecraftVersion}",
+    "authorList": ["Sixik"],
+    "credits": "",
+    "url": "",
+    "updateUrl": "",
+    "logoFile": ""
+  }
+]

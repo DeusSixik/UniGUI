@@ -1,0 +1,126 @@
+// UniGUI specific build logic for the GTNH 1.7.10 module.
+//
+// `core` and `demo` are version neutral modules of the parent project and are built by the root build (JDK 17).
+// This module consumes their jars, exactly like 1.12.2-cleanroom does, so after any change in `core` run
+// `./gradlew :core:jar :demo:jar` in the repository root first.
+
+import org.gradle.api.Action
+import org.gradle.api.Task
+import org.gradle.api.tasks.compile.JavaCompile
+import org.objectweb.asm.AnnotationVisitor
+import org.objectweb.asm.ClassReader
+import org.objectweb.asm.ClassVisitor
+import org.objectweb.asm.ClassWriter
+import org.objectweb.asm.Opcodes
+
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'org.ow2.asm:asm:9.7.1'
+    }
+}
+
+def rootProperties = new Properties()
+file('../gradle.properties').withInputStream { rootProperties.load(it) }
+def uniguiVersion = rootProperties.getProperty('mod_version')
+if (!uniguiVersion) {
+    throw new GradleException('mod_version is missing from ../gradle.properties')
+}
+
+def archivesName = rootProperties.getProperty('archives_name')
+def coreJar = file("../core/build/libs/${archivesName}-core-${uniguiVersion}.jar")
+def demoJar = file("../demo/build/libs/${archivesName}-demo-${uniguiVersion}.jar")
+
+ext.uniguiVersion = uniguiVersion
+ext.uniguiCoreJar = coreJar
+ext.uniguiDemoJar = demoJar
+
+// ---------------------------------------------------------------------------------------------------------------
+// LWJGL 3
+//
+// lwjgl3ify runs 1.7.10 on LWJGL 3 and, by default, rewrites every `org.lwjgl.*` reference of every loaded class to
+// its LWJGL 2 compatibility shim `org.lwjglx.*`. A mod that wants the real LWJGL 3 API opts out of this rewrite:
+//   * `Lwjgl3ify-Aware: true` in the jar manifest skips all classes of that jar;
+//   * `@me.eigenraven.lwjgl3ify.api.Lwjgl3Aware` on a class skips that class (needed in the dev environment, where
+//     classes come from build/classes and there is no manifest). It is stamped on every class after compileJava.
+// `mainLwjglVersion = 3` makes RetroFuturaGradle compile this module against LWJGL 3.x (the same version
+// lwjgl3ify runs with) instead of LWJGL 2.9.4. Consequences for the source code:
+//   * GL code uses the LWJGL 3 API (`GL.getCapabilities()`, `GL11.glGetIntegerv`, `GL33`, `org.lwjgl.sdl.*`);
+//   * the LWJGL 2 only classes (`Display`, `Mouse`, `Keyboard`, ...) are used through the shim as `org.lwjglx.*`;
+//   * no `org.lwjgl.*` type may appear in the signature of a call into Minecraft or another non-aware mod.
+// ---------------------------------------------------------------------------------------------------------------
+minecraft {
+    mainLwjglVersion = 3
+}
+
+dependencies {
+    // Provides @Lwjgl3Aware and the org.lwjglx shim classes; the runtime copy is added by RetroFuturaGradle's
+    // runClient17/21/25 tasks and by lwjgl3ify itself in a real instance.
+    compileOnly('com.github.GTNewHorizons:lwjgl3ify:3.0.33:dev') { transitive = false }
+
+    implementation files(coreJar)
+    implementation files(demoJar)
+}
+
+/** Stamps {@code @Lwjgl3Aware} on every class compiled by the task (idempotent). */
+class InjectLwjgl3Aware implements Action<Task> {
+    private static final String AWARE_DESC = 'Lme/eigenraven/lwjgl3ify/api/Lwjgl3Aware;'
+
+    @Override
+    void execute(Task task) {
+        File classesDir = ((JavaCompile) task).destinationDirectory.get().asFile
+        if (!classesDir.isDirectory()) return
+        classesDir.eachFileRecurse { File file ->
+            if (!file.name.endsWith('.class') || file.name == 'module-info.class') return
+            ClassReader reader = new ClassReader(file.bytes)
+            if (isAware(reader)) return
+            ClassWriter writer = new ClassWriter(reader, 0)
+            reader.accept(new ClassVisitor(Opcodes.ASM9, writer) {
+                @Override
+                void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
+                    super.visit(version, access, name, signature, superName, interfaces)
+                    AnnotationVisitor annotation = super.visitAnnotation(AWARE_DESC, true)
+                    if (annotation != null) annotation.visitEnd()
+                }
+            }, 0)
+            file.bytes = writer.toByteArray()
+        }
+    }
+
+    private static boolean isAware(ClassReader reader) {
+        boolean[] found = [false]
+        reader.accept(new ClassVisitor(Opcodes.ASM9) {
+            @Override
+            AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
+                if (descriptor == AWARE_DESC) found[0] = true
+                return null
+            }
+        }, ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES)
+        return found[0]
+    }
+}
+
+tasks.named('compileJava') {
+    doLast(new InjectLwjgl3Aware())
+}
+
+tasks.named('jar') {
+    manifest {
+        attributes 'Lwjgl3ify-Aware': 'true'
+    }
+
+    // Ship core and demo inside the mod jar (they are not published anywhere as separate mods).
+    from({ zipTree(coreJar) }) {
+        exclude 'META-INF/MANIFEST.MF', 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA'
+    }
+    from({ zipTree(demoJar) }) {
+        exclude 'META-INF/MANIFEST.MF', 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA'
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+}
