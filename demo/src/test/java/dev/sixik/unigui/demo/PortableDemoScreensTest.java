@@ -16,6 +16,7 @@ import dev.sixik.unigui.demo.ui.SyncBatteryMinigameScreen;
 import dev.sixik.unigui.demo.ui.WireConnectionMinigameScreen;
 import dev.sixik.unigui.demo.ui.unity.UnityInspectorScreen;
 import dev.sixik.unigui.demo.ui_tests.TestWidgetsScreen;
+import dev.sixik.unigui.demo.basic.main_demo.UniGuiDemo;
 import dev.sixik.unigui.widgets.containers.Box;
 import org.junit.jupiter.api.Test;
 
@@ -58,7 +59,8 @@ class PortableDemoScreensTest {
                 SpannerRhythmMinigameScreen::createScreen,
                 SyncBatteryMinigameScreen::createScreen,
                 WireConnectionMinigameScreen::createScreen,
-                UnityInspectorScreen::createScreen);
+                UnityInspectorScreen::createScreen,
+                UniGuiDemo::createScreen);
 
         for (Supplier<UniScreen> factory : factories) {
             UniScreen screen = factory.get();

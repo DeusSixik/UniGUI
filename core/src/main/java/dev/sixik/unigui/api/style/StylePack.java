@@ -8,6 +8,7 @@ import dev.sixik.unigui.api.docs.WikiParameter;
 import dev.sixik.unigui.api.docs.WikiReturn;
 import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.docs.WikiThrows;
+import dev.sixik.unigui.api.math.MutableColor;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -102,6 +103,41 @@ public final class StylePack implements Theme {
     public static StylePack create(
             @WikiParameter(name = "id", description = "<key:style.pack.method.create.id>") String id) {
         return new StylePack(id);
+    }
+
+    /**
+     * Создаёт независимую копию этого pack'а.
+     *
+     * <p>Определения и служебные коллекции копируются, а значения {@link Style} переносятся
+     * в новые {@link MutableStyle} экземпляры с сохранением overrides состояний. Токены,
+     * определения анимаций и renderer id безопасно переиспользуются, так как они неизменяемы.</p>
+     *
+     * @return изменяемая копия этого pack'а
+     */
+    @AiDoc(section = "Creation", sectionOrder = 10, order = 30,
+            summary = "Creates an independent mutable copy of this pack, including state-aware style values.")
+    @WikiMethod(title = "<key:style.pack.method.copy.title>",
+            summary = "<key:style.pack.method.copy.summary>",
+            section = "<key:style.pack.api.section.creation>", sectionOrder = 10, order = 30)
+    @WikiReturn("<key:style.pack.method.copy.return>")
+    public StylePack copy() {
+        StylePack copy = new StylePack(id);
+        copy.tokens = tokens;
+        copy.fallback = copyStyle(fallback);
+        copy.fallbackStyleId = fallbackStyleId;
+        for (StyleDefinition definition : styles.values()) {
+            StyleBackend backend = definition.backend();
+            Style copiedStyle = copyStyle(definition.style());
+            StyleBackend copiedBackend = backend.customRenderer()
+                    ? StyleBackend.custom(backend.rendererId(), copiedStyle)
+                    : StyleBackend.declarative(copiedStyle);
+            copy.styles.put(definition.id(), new StyleDefinition(
+                    definition.id(), definition.selector(), copiedBackend, definition.eventAnimations()));
+        }
+        copy.widgetBindings.putAll(widgetBindings);
+        copy.animations.putAll(animations);
+        copy.version = version;
+        return copy;
     }
 
     /**
@@ -543,6 +579,25 @@ public final class StylePack implements Theme {
         if (added.add(definition.id())) {
             result.add(definition);
         }
+    }
+
+    private static Style copyStyle(Style style) {
+        MutableStyle copy = new MutableStyle();
+        for (Map.Entry<WidgetState, Map<StyleKey<?>, Object>> stateEntry : style.values().entrySet()) {
+            for (Map.Entry<StyleKey<?>, Object> valueEntry : stateEntry.getValue().entrySet()) {
+                copyStyleValue(copy, valueEntry.getKey(), stateEntry.getKey(), valueEntry.getValue());
+            }
+        }
+        return copy;
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static void copyStyleValue(MutableStyle target,
+                                      StyleKey<?> key,
+                                      WidgetState state,
+                                      Object value) {
+        Object copiedValue = value instanceof MutableColor color ? color.copy() : value;
+        target.put((StyleKey) key, state, copiedValue);
     }
 
     private static String normalizeOptional(String value, String fallback) {

@@ -22,6 +22,7 @@ import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.widgets.containers.Box;
+import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.widgets.WidgetStyles;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
@@ -105,6 +106,7 @@ public class ProgressBar extends Box {
     private float min;
     private float max = 1.0f;
     private float value;
+    private Orientation orientation = Orientation.HORIZONTAL;
     private boolean indeterminate;
     private float indeterminateOffset;
     private float indeterminateSpeed = 0.85f;
@@ -253,6 +255,37 @@ public class ProgressBar extends Box {
         return this;
     }
 
+    /**
+     * @return ось полосы: горизонтальная по умолчанию
+     */
+    public Orientation orientation() {
+        return orientation;
+    }
+
+    /**
+     * Задаёт ось полосы. Вертикальная полоса заполняется снизу вверх. Предпочтительные размеры, которые не меняли
+     * вручную, меняются местами, чтобы вертикальная полоса была высокой, а не широкой.
+     *
+     * @param orientation ось или {@code null} (трактуется как горизонтальная)
+     * @return эта полоса
+     */
+    @XmlAttribute(value = "orientation", category = "Layout", defaultValue = "horizontal", description = "Progress bar axis; vertical bars fill from bottom to top.")
+    public ProgressBar orientation(Orientation orientation) {
+        Orientation normalized = orientation == null ? Orientation.HORIZONTAL : orientation;
+        if (this.orientation == normalized) return this;
+        boolean wasVertical = this.orientation == Orientation.VERTICAL;
+        boolean untouched = preferredWidth == (wasVertical ? DEFAULT_PREFERRED_HEIGHT : DEFAULT_PREFERRED_WIDTH)
+                && preferredHeight == (wasVertical ? DEFAULT_PREFERRED_WIDTH : DEFAULT_PREFERRED_HEIGHT);
+        this.orientation = normalized;
+        if (untouched) {
+            boolean vertical = normalized == Orientation.VERTICAL;
+            preferredWidth = vertical ? DEFAULT_PREFERRED_HEIGHT : DEFAULT_PREFERRED_WIDTH;
+            preferredHeight = vertical ? DEFAULT_PREFERRED_WIDTH : DEFAULT_PREFERRED_HEIGHT;
+        }
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
     public MutableColor trackColor() {
         return trackColor;
     }
@@ -320,6 +353,11 @@ public class ProgressBar extends Box {
         float width = Math.max(0.0f, layoutBounds().width());
         float height = layoutBounds().height();
         float progress = progress();
+        if (orientation == Orientation.VERTICAL) {
+            renderVertical(draw, x, y, width, Math.max(0.0f, height), progress);
+            super.renderContent(context);
+            return;
+        }
         float fillWidth = Math.max(0.0f, Math.min(width, width * progress));
         draw.rect(x, y, width, height, Paint.fill(trackColor));
         if (indeterminate) {
@@ -337,6 +375,35 @@ public class ProgressBar extends Box {
             draw.rect(x, y, fillWidth, height, Paint.fill(fillColor));
         }
         super.renderContent(context);
+    }
+
+    /**
+     * Рисует вертикальную полосу: заполнение растёт снизу вверх, неопределённый сегмент едет снизу вверх.
+     *
+     * <pre>
+     *   fillHeight = height * progress
+     *   fillY      = y + height - fillHeight
+     * </pre>
+     */
+    private void renderVertical(DrawScope draw, float x, float y, float width, float height, float progress) {
+        draw.rect(x, y, width, height, Paint.fill(trackColor));
+        if (indeterminate) {
+            float segmentHeight = Math.max(8.0f, height * 0.32f);
+            float travel = height + segmentHeight;
+            float offset = indeterminateOffset - (float) Math.floor(indeterminateOffset);
+            float segmentY = y + height - offset * travel;
+            draw.pushClip(x, y, width, height);
+            try {
+                draw.rect(x, segmentY, width, segmentHeight, Paint.fill(fillColor));
+            } finally {
+                draw.popClip();
+            }
+            return;
+        }
+        float fillHeight = Math.max(0.0f, Math.min(height, height * progress));
+        if (fillHeight > 0.0f) {
+            draw.rect(x, y + height - fillHeight, width, fillHeight, Paint.fill(fillColor));
+        }
     }
 
     @Override

@@ -21,6 +21,7 @@ import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.widgets.WidgetStyles;
 import dev.sixik.unigui.widgets.containers.Box;
+import dev.sixik.unigui.widgets.core.Orientation;
 
 @AiDoc(
         summary = "Range slider control allowing continuous or stepped value adjustment with draggable thumb.",
@@ -104,6 +105,7 @@ public class Slider extends Box {
     private float value;
     private float step;
     private boolean dragging;
+    private Orientation orientation = Orientation.HORIZONTAL;
 
     public Slider() {
         boxVisualEnabled(false);
@@ -196,6 +198,38 @@ public class Slider extends Box {
             summary = "<key:slider.method.dragging.summary>")
     public boolean dragging() {
         return dragging;
+    }
+
+    /**
+     * @return ось слайдера: горизонтальная по умолчанию
+     */
+    public Orientation orientation() {
+        return orientation;
+    }
+
+    /**
+     * Задаёт ось слайдера. Вертикальный слайдер растёт снизу вверх: низ равен {@code min}, верх {@code max};
+     * клавиши Up и Down меняют значение так же, как Right и Left. Предпочтительные размеры, которые не меняли
+     * вручную, меняются местами, чтобы вертикальный слайдер был высоким, а не широким.
+     *
+     * @param orientation ось или {@code null} (трактуется как горизонтальная)
+     * @return этот слайдер
+     */
+    @XmlAttribute(value = "orientation", category = "Layout", defaultValue = "horizontal", description = "Slider axis; vertical sliders grow from bottom to top.")
+    public Slider orientation(Orientation orientation) {
+        Orientation normalized = orientation == null ? Orientation.HORIZONTAL : orientation;
+        if (this.orientation == normalized) return this;
+        boolean wasVertical = this.orientation == Orientation.VERTICAL;
+        boolean untouched = preferredWidth == (wasVertical ? DEFAULT_PREFERRED_HEIGHT : DEFAULT_PREFERRED_WIDTH)
+                && preferredHeight == (wasVertical ? DEFAULT_PREFERRED_WIDTH : DEFAULT_PREFERRED_HEIGHT);
+        this.orientation = normalized;
+        if (untouched) {
+            boolean vertical = normalized == Orientation.VERTICAL;
+            preferredWidth = vertical ? DEFAULT_PREFERRED_HEIGHT : DEFAULT_PREFERRED_WIDTH;
+            preferredHeight = vertical ? DEFAULT_PREFERRED_WIDTH : DEFAULT_PREFERRED_HEIGHT;
+        }
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
     }
 
     @WikiMethod(
@@ -313,13 +347,13 @@ public class Slider extends Box {
                 context.capturePointer(pointer.pointerId(), this);
             }
             dragging = true;
-            updateFromRootX(pointer.rootX());
+            updateFromPointer(pointer.rootX(), pointer.rootY());
             event.cancel();
         } else if (event instanceof PointerMovedEvent pointer && dragging) {
-            updateFromRootX(pointer.rootX());
+            updateFromPointer(pointer.rootX(), pointer.rootY());
             event.cancel();
         } else if (event instanceof PointerReleasedEvent pointer && pointer.button() == PointerButton.PRIMARY && dragging) {
-            updateFromRootX(pointer.rootX());
+            updateFromPointer(pointer.rootX(), pointer.rootY());
             dragging = false;
             UIContext context = uiContext();
             if (context != null) {
@@ -332,6 +366,12 @@ public class Slider extends Box {
                 event.cancel();
             } else if (key.keyCode() == KeyCodes.RIGHT) {
                 nudge(1.0f);
+                event.cancel();
+            } else if (orientation == Orientation.VERTICAL && key.keyCode() == KeyCodes.UP) {
+                nudge(1.0f);
+                event.cancel();
+            } else if (orientation == Orientation.VERTICAL && key.keyCode() == KeyCodes.DOWN) {
+                nudge(-1.0f);
                 event.cancel();
             }
         }
@@ -349,6 +389,11 @@ public class Slider extends Box {
         float y = layoutBounds().y();
         float width = layoutBounds().width();
         float height = Math.max(1.0f, layoutBounds().height());
+        if (orientation == Orientation.VERTICAL) {
+            renderVertical(draw, x, y, Math.max(1.0f, width), height);
+            super.renderContent(context);
+            return;
+        }
         float configuredTrackThickness = styleValue(StyleKeys.TRACK_THICKNESS, DEFAULT_TRACK_THICKNESS);
         float trackHeight = configuredTrackThickness > 0.0f
                 ? Math.max(1.0f, Math.min(configuredTrackThickness, height))
@@ -365,6 +410,29 @@ public class Slider extends Box {
         draw.roundedRectFilled(knobX, y + 2.0f, knobWidth, Math.max(1.0f, height - 4.0f), knobRadius,
                 knobColor);
         super.renderContent(context);
+    }
+
+    /**
+     * Рисует вертикальный слайдер: дорожка по центру, заливка растёт снизу, бегунок поперёк дорожки.
+     *
+     * <pre>
+     *   fillHeight = height * normalizedValue
+     *   knobY      = y + height - fillHeight - knobThickness / 2
+     * </pre>
+     */
+    private void renderVertical(DrawScope draw, float x, float y, float width, float height) {
+        float configured = styleValue(StyleKeys.TRACK_THICKNESS, DEFAULT_TRACK_THICKNESS);
+        float trackWidth = configured > 0.0f
+                ? Math.max(1.0f, Math.min(configured, width))
+                : Math.max(2.0f, Math.min(4.0f, width * 0.25f));
+        float knobThickness = Math.max(1.0f, styleValue(StyleKeys.THUMB_THICKNESS, DEFAULT_KNOB_WIDTH));
+        float knobRadius = Math.max(0.0f, styleValue(StyleKeys.THUMB_RADIUS, 2.0f));
+        float trackX = x + (width - trackWidth) * 0.5f;
+        float fillHeight = height * normalizedValue();
+        draw.roundedRectFilled(trackX, y, trackWidth, height, trackWidth * 0.5f, trackColor);
+        draw.roundedRectFilled(trackX, y + height - fillHeight, trackWidth, fillHeight, trackWidth * 0.5f, fillColor);
+        draw.roundedRectFilled(x + 2.0f, y + height - fillHeight - knobThickness * 0.5f,
+                Math.max(1.0f, width - 4.0f), knobThickness, knobRadius, knobColor);
     }
 
     @Override
@@ -385,6 +453,24 @@ public class Slider extends Box {
 
     private void updateFromRootX(float rootX) {
         updateFromLocalX(rootX - layoutBounds().x());
+    }
+
+    /**
+     * Вертикальный слайдер: нижний край равен {@code min}, верхний {@code max}.
+     *
+     * <pre>
+     *   normalized = 1 - localY / height
+     * </pre>
+     */
+    private void updateFromRootY(float rootY) {
+        float height = Math.max(1.0f, layoutBounds().height());
+        float normalized = clamp(1.0f - (rootY - layoutBounds().y()) / height, 0.0f, 1.0f);
+        setValue(min + normalized * (max - min), true);
+    }
+
+    private void updateFromPointer(float rootX, float rootY) {
+        if (orientation == Orientation.VERTICAL) updateFromRootY(rootY);
+        else updateFromRootX(rootX);
     }
 
     private void nudge(float direction) {

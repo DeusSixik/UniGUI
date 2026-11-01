@@ -436,7 +436,9 @@ public final class UniGuiDemo {
     }
 
     public static void openDemo() {
-        RenderSystem.recordRenderCall(UniGuiDemo::openDemoClient);
+//        RenderSystem.recordRenderCall(UniGuiDemo::openDemoClient);
+        // Системный буфер обмена: без него демо использует MemoryClipboardService, и копирование не выходит за игру.
+        RenderSystem.recordRenderCall(() -> dev.sixik.unigui.demo.basic.main_demo.UniGuiDemo.openGui(new MinecraftClipboardService()));
     }
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
@@ -457,6 +459,12 @@ public final class UniGuiDemo {
                     ComplexUiDemo.openDemo();
                     return 0;
                 })));
+
+        dispatcher.register(Commands.literal("unigui_old")
+                .executes(ctx -> {
+                    RenderSystem.recordRenderCall(() -> UniGuiDemo.openDemoClient());
+                    return 0;
+                }));
     }
 
     private static MinecraftWidgetScreen openScreen(Component title, Widget root, DefaultUIContext context) {

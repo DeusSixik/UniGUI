@@ -110,6 +110,18 @@ public final class StyleKeys {
             StyleKey.of(StyleIds.Key.CHECKBOX_BACKGROUND_COLOR, ColorView.class);
 
     /**
+     * Цвет метки (точки, галочки, крестика) включённого Checkbox. Без значения метка берёт акцентный цвет.
+     */
+    public static final StyleKey<ColorView> CHECKBOX_MARK_COLOR =
+            StyleKey.of(StyleIds.Key.CHECKBOX_MARK_COLOR, ColorView.class);
+
+    /**
+     * Форма метки включённого Checkbox: точка, квадрат, галочка или крестик.
+     */
+    public static final StyleKey<CheckboxMarkShape> CHECKBOX_MARK_SHAPE =
+            StyleKey.of(StyleIds.Key.CHECKBOX_MARK_SHAPE, CheckboxMarkShape.class);
+
+    /**
      * Цвет курсора выбора и маркера hue для ColorPicker.
      */
     public static final StyleKey<ColorView> COLOR_PICKER_SELECTION_COLOR =
@@ -424,6 +436,131 @@ public final class StyleKeys {
      */
     public static final StyleKey<ColorView> TABLE_SORT_INDICATOR_COLOR =
             StyleKey.of(StyleIds.Key.TABLE_SORT_INDICATOR_COLOR, ColorView.class);
+
+    /**
+     * Цвет линии ряда у Sparkline и линейного Chart.
+     */
+    public static final StyleKey<ColorView> PLOT_LINE_COLOR = StyleKey.of(StyleIds.Key.PLOT_LINE_COLOR, ColorView.class);
+
+    /**
+     * Толщина линии ряда в логических пикселях.
+     */
+    public static final StyleKey<Float> PLOT_LINE_WIDTH = StyleKey.of(StyleIds.Key.PLOT_LINE_WIDTH, Float.class);
+
+    /**
+     * Цвет заливки области под линией ряда.
+     */
+    public static final StyleKey<ColorView> PLOT_FILL_COLOR = StyleKey.of(StyleIds.Key.PLOT_FILL_COLOR, ColorView.class);
+
+    /**
+     * Заливается ли область под линией ряда.
+     */
+    public static final StyleKey<Boolean> PLOT_FILL_VISIBLE = StyleKey.of(StyleIds.Key.PLOT_FILL_VISIBLE, Boolean.class);
+
+    /**
+     * Цвет маркера точки данных.
+     */
+    public static final StyleKey<ColorView> PLOT_POINT_COLOR = StyleKey.of(StyleIds.Key.PLOT_POINT_COLOR, ColorView.class);
+
+    /**
+     * Цвет маркера наведённой точки и направляющей.
+     */
+    public static final StyleKey<ColorView> PLOT_POINT_HOVER_COLOR = StyleKey.of(StyleIds.Key.PLOT_POINT_HOVER_COLOR, ColorView.class);
+
+    /**
+     * Радиус маркера точки данных в логических пикселях.
+     */
+    public static final StyleKey<Float> PLOT_POINT_RADIUS = StyleKey.of(StyleIds.Key.PLOT_POINT_RADIUS, Float.class);
+
+    /**
+     * Цвет линий осей и засечек у Chart.
+     */
+    public static final StyleKey<ColorView> PLOT_AXIS_COLOR = StyleKey.of(StyleIds.Key.PLOT_AXIS_COLOR, ColorView.class);
+
+    /**
+     * Цвет горизонтальных линий сетки у Chart.
+     */
+    public static final StyleKey<ColorView> PLOT_GRID_COLOR = StyleKey.of(StyleIds.Key.PLOT_GRID_COLOR, ColorView.class);
+
+    /**
+     * Рисует ли Chart горизонтальную сетку и подписи оси значений.
+     */
+    public static final StyleKey<Boolean> PLOT_GRID_VISIBLE = StyleKey.of(StyleIds.Key.PLOT_GRID_VISIBLE, Boolean.class);
+
+    /**
+     * Цвет столбцов у столбчатого Chart.
+     */
+    public static final StyleKey<ColorView> PLOT_BAR_COLOR = StyleKey.of(StyleIds.Key.PLOT_BAR_COLOR, ColorView.class);
+
+    /**
+     * Цвет наведённого столбца.
+     */
+    public static final StyleKey<ColorView> PLOT_BAR_HOVER_COLOR = StyleKey.of(StyleIds.Key.PLOT_BAR_HOVER_COLOR, ColorView.class);
+
+    /**
+     * Зазор между соседними столбцами в логических пикселях.
+     */
+    public static final StyleKey<Float> PLOT_BAR_GAP = StyleKey.of(StyleIds.Key.PLOT_BAR_GAP, Float.class);
+
+    /**
+     * Радиус скругления свободного конца столбца.
+     */
+    public static final StyleKey<Float> PLOT_BAR_RADIUS = StyleKey.of(StyleIds.Key.PLOT_BAR_RADIUS, Float.class);
+
+    /**
+     * Цвет фона всплывающей подсказки.
+     */
+    public static final StyleKey<ColorView> PLOT_TOOLTIP_BACKGROUND_COLOR = StyleKey.of(StyleIds.Key.PLOT_TOOLTIP_BACKGROUND_COLOR, ColorView.class);
+
+    /**
+     * Цвет рамки всплывающей подсказки.
+     */
+    public static final StyleKey<ColorView> PLOT_TOOLTIP_BORDER_COLOR = StyleKey.of(StyleIds.Key.PLOT_TOOLTIP_BORDER_COLOR, ColorView.class);
+
+    /**
+     * Цвет текста всплывающей подсказки.
+     */
+    public static final StyleKey<ColorView> PLOT_TOOLTIP_TEXT_COLOR = StyleKey.of(StyleIds.Key.PLOT_TOOLTIP_TEXT_COLOR, ColorView.class);
+
+    /**
+     * Цвет заливки узла GraphView.
+     */
+    public static final StyleKey<ColorView> GRAPH_NODE_COLOR = StyleKey.of(StyleIds.Key.GRAPH_NODE_COLOR, ColorView.class);
+
+    /**
+     * Цвет заливки наведённого узла.
+     */
+    public static final StyleKey<ColorView> GRAPH_NODE_HOVER_COLOR = StyleKey.of(StyleIds.Key.GRAPH_NODE_HOVER_COLOR, ColorView.class);
+
+    /**
+     * Цвет обводки узла.
+     */
+    public static final StyleKey<ColorView> GRAPH_NODE_BORDER_COLOR = StyleKey.of(StyleIds.Key.GRAPH_NODE_BORDER_COLOR, ColorView.class);
+
+    /**
+     * Радиус узла в логических пикселях.
+     */
+    public static final StyleKey<Float> GRAPH_NODE_RADIUS = StyleKey.of(StyleIds.Key.GRAPH_NODE_RADIUS, Float.class);
+
+    /**
+     * Цвет линий рёбер и стрелок.
+     */
+    public static final StyleKey<ColorView> GRAPH_EDGE_COLOR = StyleKey.of(StyleIds.Key.GRAPH_EDGE_COLOR, ColorView.class);
+
+    /**
+     * Цвет рёбер, связанных с наведённым узлом.
+     */
+    public static final StyleKey<ColorView> GRAPH_EDGE_HOVER_COLOR = StyleKey.of(StyleIds.Key.GRAPH_EDGE_HOVER_COLOR, ColorView.class);
+
+    /**
+     * Толщина линий рёбер в логических пикселях.
+     */
+    public static final StyleKey<Float> GRAPH_EDGE_WIDTH = StyleKey.of(StyleIds.Key.GRAPH_EDGE_WIDTH, Float.class);
+
+    /**
+     * Длина стрелки направленного ребра в логических пикселях.
+     */
+    public static final StyleKey<Float> GRAPH_ARROW_SIZE = StyleKey.of(StyleIds.Key.GRAPH_ARROW_SIZE, Float.class);
 
     /**
      * Длительность автоматического перехода style-свойств в секундах. Ноль отключает переходы.

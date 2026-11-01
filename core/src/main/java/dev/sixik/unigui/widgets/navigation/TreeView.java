@@ -281,7 +281,13 @@ public class TreeView extends LinearBox {
         return Math.max(0.0f, styleValue(StyleKeys.TREE_INDENT_WIDTH, INDENT_WIDTH));
     }
 
-    private ColorView styledTextColor(TreeViewNode node) {
+    /**
+     * Цвет текста строки узла. Наследник может переопределить, чтобы красить, например, заголовки групп иначе.
+     *
+     * @param node узел строки
+     * @return цвет текста по состоянию узла
+     */
+    protected ColorView styledTextColor(TreeViewNode node) {
         if (!node.selectable()) {
             return styleValue(StyleKeys.TREE_DISABLED_TEXT_COLOR, (ColorView) null);
         }
@@ -611,7 +617,8 @@ public class TreeView extends LinearBox {
     }
 
     void onNodeExpansionChanged(TreeViewNode node) {
-        if (!node.expanded() && selectedNode != node && isDescendantOrSelf(selectedNode, node)) {
+        if (!node.expanded() && selectedNode != node && isDescendantOrSelf(selectedNode, node)
+                && !keepSelectionWhenCollapsed()) {
             setSelectedNode(node.selectable() ? node : null, true);
         }
         if (isBatching()) {
@@ -619,6 +626,19 @@ public class TreeView extends LinearBox {
             return;
         }
         patchExpansionRows(node);
+    }
+
+    /**
+     * Что делать с выбранным узлом, когда его предка свернули.
+     *
+     * <p>По умолчанию выбор переходит на свёрнутого предка (или сбрасывается, если предок не выбираем), чтобы
+     * подсветка не оставалась на скрытой строке. Навигации нужно обратное: страница остаётся открытой, значит
+     * выбранный пункт остаётся выбранным, даже когда его группа свёрнута.</p>
+     *
+     * @return {@code true}, если выбор нужно сохранить
+     */
+    protected boolean keepSelectionWhenCollapsed() {
+        return false;
     }
 
     private void flushPendingRowsRebuild() {
@@ -804,7 +824,7 @@ public class TreeView extends LinearBox {
         if (selectedNode.hasChildren() && selectedNode.expanded()) {
             selectedNode.expanded(false);
         } else if (selectedNode.parent() != null) {
-            select(selectedNode.parent());
+            if (selectedNode.parent().selectable()) select(selectedNode.parent());
         }
     }
 
@@ -887,7 +907,8 @@ public class TreeView extends LinearBox {
             applyComponentStyleDefaults(WidgetStyles.Surface.UNSURFACED);
             layout(style -> style.size(LayoutConstraints.AUTO, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
             onClick(event -> {
-                tree.select(node);
+                // Клик по неселектабельному узлу (заголовок группы) не должен сбрасывать текущий выбор.
+                if (node.selectable()) tree.select(node);
                 if (node.hasChildren()) {
                     node.toggleExpanded();
                 }

@@ -2,40 +2,46 @@ package dev.sixik.unigui.widgets.display;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
-import dev.sixik.unigui.api.event.ChartBarClickEvent;
-import dev.sixik.unigui.api.event.Event;
-import dev.sixik.unigui.api.event.EventPhase;
-import dev.sixik.unigui.api.event.EventListener;
-import dev.sixik.unigui.api.event.EventSubscription;
-import dev.sixik.unigui.api.event.PointerEvent;
-import dev.sixik.unigui.api.event.PointerExitedEvent;
-import dev.sixik.unigui.api.event.PointerMovedEvent;
-import dev.sixik.unigui.api.event.PointerPressedEvent;
-import dev.sixik.unigui.api.input.PointerButton;
-import dev.sixik.unigui.api.layout.Alignment;
-import dev.sixik.unigui.api.math.MutableColor;
-import dev.sixik.unigui.api.render.DrawScope;
-import dev.sixik.unigui.api.render.Paint;
-import dev.sixik.unigui.api.render.RenderContext;
-import dev.sixik.unigui.api.text.RichText;
-import dev.sixik.unigui.api.widget.Visibility;
-import dev.sixik.unigui.api.widget.render.WidgetRender;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
-import dev.sixik.unigui.impl.text.TextEngine;
-import it.unimi.dsi.fastutil.floats.FloatArrayList;
-
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import java.util.Collections;
-import java.util.List;
 import dev.sixik.unigui.api.docs.AiDoc;
 import dev.sixik.unigui.api.docs.WikiExample;
 import dev.sixik.unigui.api.docs.WikiMethod;
 import dev.sixik.unigui.api.docs.WikiPage;
-import dev.sixik.unigui.api.docs.WikiParameter;
-import dev.sixik.unigui.api.docs.WikiReturn;
 import dev.sixik.unigui.api.docs.WikiSection;
+import dev.sixik.unigui.api.event.ChartBarClickEvent;
+import dev.sixik.unigui.api.event.EventListener;
+import dev.sixik.unigui.api.event.EventSubscription;
+import dev.sixik.unigui.api.layout.Alignment;
+import dev.sixik.unigui.api.math.ColorView;
+import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.math.RectView;
+import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.style.Style;
+import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.widgets.WidgetStyles;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+/**
+ * График с осями: линейный или столбчатый, с сеткой, подписями делений, подписями категорий и подсказкой.
+ *
+ * <h2>Шкала</h2>
+ * <p>Ось значений строится по «красивым» числам ({@link PlotSupport#niceScale}): границы кратны шагу вида
+ * {1, 2, 5} * 10^k. Столбчатый график всегда включает ноль, а столбцы растут от нулевой линии вверх (положительные)
+ * или вниз (отрицательные). Область построения делится на {@code n} равных слотов; точка линии и столбец стоят по
+ * центру слота, поэтому подписи категорий совпадают с данными.</p>
+ *
+ * <h2>Стиль</h2>
+ * <p>Оформление берётся из ключей {@code plot.*}, {@code background.*}, {@code border.*} и {@code text.*}; значения
+ * по умолчанию — {@link WidgetStyles.Plot#CHART}. Цвета, изменённые на экземпляре ({@link #barColor()} и другие),
+ * приоритетнее стиля.</p>
+ */
 @AiDoc(
         summary = "Data visualization chart widget supporting bar and line visualizations, axes, and interactive hover tooltips.",
         purpose = "Provides full-featured data chart visualization for metrics, histograms, and statistics.",
@@ -66,29 +72,82 @@ import dev.sixik.unigui.api.docs.WikiSection;
 public final class Chart extends Sparkline {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.CHART;
 
+    /** Ширина по умолчанию в UI-пикселях. */
     public static final float DEFAULT_PREFERRED_WIDTH = 220.0f;
+    /** Высота по умолчанию в UI-пикселях. */
     public static final float DEFAULT_PREFERRED_HEIGHT = 120.0f;
 
+    /** Минимальная высота столбца: нулевое значение остаётся видимой чертой. */
     private static final float ZERO_BAR_HEIGHT = 1.0f;
-    private static final float BAR_HIT_MIN_HEIGHT = 8.0f;
+    /** Внешний отступ области графика от края виджета в UI-пикселях. */
+    private static final float OUTER_PADDING = 6.0f;
+    /** Длина засечки на оси значений в UI-пикселях. */
+    private static final float TICK_LENGTH = 3.0f;
+    /** Зазор между засечкой и подписью в UI-пикселях. */
+    private static final float LABEL_GAP = 3.0f;
+    /** Зазор между столбцом и подписью его значения в UI-пикселях. */
+    private static final float VALUE_GAP = 2.0f;
+    /** Зазор между подсказкой и столбцом в UI-пикселях. */
+    private static final float TOOLTIP_GAP = 6.0f;
 
-    private final MutableColor axisColor = new MutableColor(0.35f, 0.45f, 0.58f, 0.85f);
-    private final MutableColor barColor = new MutableColor(0.25f, 0.72f, 1.0f, 0.55f);
-    private final MutableColor hoveredBarColor = new MutableColor(1.0f, 0.78f, 0.28f, 0.70f);
-    private final MutableColor valueColor = new MutableColor(0.92f, 0.96f, 1.0f, 1.0f);
-    private final MutableColor tooltipBackground = new MutableColor(0.025f, 0.030f, 0.040f, 0.96f);
-    private final MutableColor tooltipBorder = new MutableColor(0.25f, 0.78f, 1.0f, 0.92f);
-    private final FloatArrayList values = new FloatArrayList();
+    private final OverridableColor axisColor = new OverridableColor(
+            new MutableColor(0.35f, 0.45f, 0.58f, 0.85f), this::repaintChart);
+    private final OverridableColor gridColor = new OverridableColor(
+            new MutableColor(0.35f, 0.45f, 0.58f, 0.22f), this::repaintChart);
+    private final OverridableColor barColor = new OverridableColor(
+            new MutableColor(0.25f, 0.72f, 1.0f, 0.72f), this::repaintChart);
+    private final OverridableColor hoveredBarColor = new OverridableColor(
+            new MutableColor(1.0f, 0.78f, 0.28f, 0.88f), this::repaintChart);
+
     private Type type = Type.LINE;
     private boolean barValuesVisible = true;
     private BarValuePlacement barValuePlacement = BarValuePlacement.HEAD;
     private BarRenderer barRenderer;
     private BarValueRenderer barValueRenderer;
     private BarTooltipRenderer barTooltipRenderer;
-    private int hoveredBarIndex = -1;
+    private List<String> categories = List.of();
+    private int categoryVersion;
+
+    // ---- шкала и подписи осей (кэш) ----
+    /** Результат {@link PlotSupport#niceScale}: границы шкалы и шаг. */
+    private final float[] scale = new float[3];
+    /** Шаг шкалы значений. */
+    float tickStep = 1.0f;
+    /** Число делений шкалы, включая крайние. */
+    private int tickCount = 2;
+    private RichText[] tickTexts = new RichText[0];
+    private float[] tickWidths = new float[0];
+    private float tickLabelWidth;
+    private float tickLabelHeight;
+    private float keyTickMin = Float.NaN;
+    private float keyTickMax = Float.NaN;
+    private float keyTickStep = Float.NaN;
+    private float keyTickSize = -1.0f;
+    private RichText[] categoryTexts = new RichText[0];
+    private float[] categoryWidths = new float[0];
+    private float categoryHeight;
+    private int keyCategoryVersion = -1;
+    private float keyCategorySize = -1.0f;
+
+    /** Рабочий массив геометрии столбца: x, верх, ширина, высота, основание. */
+    private final float[] barRect = new float[5];
 
     public Chart() {
         super(DEFAULT_PREFERRED_WIDTH, DEFAULT_PREFERRED_HEIGHT);
+    }
+
+    /**
+     * Возвращает стандартное оформление графика; уступает теме и локальным стилям.
+     *
+     * @return {@link WidgetStyles.Plot#CHART}
+     */
+    @Override
+    protected Style defaultStyle() {
+        return WidgetStyles.Plot.CHART;
+    }
+
+    private void repaintChart() {
+        invalidate(InvalidationFlags.VISUAL);
     }
 
     public enum Type {
@@ -96,22 +155,55 @@ public final class Chart extends Sparkline {
         BAR
     }
 
+    // ------------------------------------------------------------------ данные и настройки
+
+    @Override
     public Chart values(List<? extends Number> values) {
-        this.values.clear();
-        if (values != null) {
-            for (Number value : values) {
-                this.values.add(value == null ? 0.0f : value.floatValue());
-            }
-        }
-        hoveredBarIndex = -1;
         super.values(values);
-        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
 
     @Override
-    public List<Float> values() {
-        return Collections.unmodifiableList(values);
+    public Chart values(float... data) {
+        super.values(data);
+        return this;
+    }
+
+    /**
+     * Задаёт подписи категорий под осью X.
+     *
+     * <p>Подпись {@code i} относится к значению {@code i}. Подписи, не помещающиеся в слот, прореживаются, чтобы не
+     * налезать друг на друга. Название категории также попадает в подсказку.</p>
+     *
+     * @param categories подписи; {@code null} или пустой список скрывает подписи
+     * @return этот график
+     */
+    public Chart categories(List<String> categories) {
+        this.categories = categories == null ? List.of() : Collections.unmodifiableList(new ArrayList<>(categories));
+        categoryVersion++;
+        invalidateTexts();
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Возвращает подписи категорий.
+     *
+     * @return неизменяемый список подписей
+     */
+    public List<String> categories() {
+        return categories;
+    }
+
+    /**
+     * Сбрасывает кэши текстов, зависящих от категорий.
+     *
+     * <p>Текст подсказки кэшируется по {@code dataVersion}; увеличение версии заставляет пересоздать его и
+     * пересчитать раскладку на следующем кадре.</p>
+     */
+    private void invalidateTexts() {
+        dataVersion++;
+        layoutValid = false;
     }
 
     @XmlAttribute(value = "type", category = "Appearance", defaultValue = "line", description = "Chart rendering type.")
@@ -119,8 +211,11 @@ public final class Chart extends Sparkline {
             title = "<key:chart.method.type.title>",
             summary = "<key:chart.method.type.summary>")
     public Chart type(Type type) {
-        this.type = type == null ? Type.LINE : type;
-        hoveredBarIndex = -1;
+        Type normalized = type == null ? Type.LINE : type;
+        if (this.type == normalized) return this;
+        this.type = normalized;
+        hoveredIndex = -1;
+        layoutValid = false;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
@@ -133,30 +228,36 @@ public final class Chart extends Sparkline {
             title = "<key:chart.method.axis_color.title>",
             summary = "<key:chart.method.axis_color.summary>")
     public MutableColor axisColor() {
-        return axisColor;
+        return axisColor.value();
+    }
+
+    /**
+     * Возвращает цвет линий сетки.
+     *
+     * @return изменяемый цвет; изменение переопределяет стиль {@code plot.grid.color}
+     */
+    public MutableColor gridColor() {
+        return gridColor.value();
     }
 
     @WikiMethod(
             title = "<key:chart.method.bar_color.title>",
             summary = "<key:chart.method.bar_color.summary>")
     public MutableColor barColor() {
-        return barColor;
+        return barColor.value();
     }
 
     public MutableColor hoveredBarColor() {
-        return hoveredBarColor;
+        return hoveredBarColor.value();
     }
 
+    /**
+     * Возвращает цвет подписей значений; совпадает с {@link #labelColor()}.
+     *
+     * @return изменяемый цвет подписей
+     */
     public MutableColor valueColor() {
-        return valueColor;
-    }
-
-    public MutableColor tooltipBackground() {
-        return tooltipBackground;
-    }
-
-    public MutableColor tooltipBorder() {
-        return tooltipBorder;
+        return labelColor.value();
     }
 
     @XmlAttribute(value = "barValuesVisible", category = "Appearance", defaultValue = "true", description = "Whether bar value labels are rendered.")
@@ -222,195 +323,401 @@ public final class Chart extends Sparkline {
         return on(ChartBarClickEvent.TYPE, listener);
     }
 
-    @Override
-    public void handle(Event event) {
-        super.handle(event);
-        if (event.isCancelled() || visibility() != Visibility.VISIBLE || type != Type.BAR) return;
-        if (event instanceof PointerEvent pointer && pointer.phase() == EventPhase.CAPTURE) return;
+    // ------------------------------------------------------------------ стиль и раскладка
 
-        if (event instanceof PointerMovedEvent pointer) {
-            int next = hitBar(pointer.rootX(), pointer.rootY());
-            if (next != hoveredBarIndex) {
-                hoveredBarIndex = next;
-                invalidate(InvalidationFlags.VISUAL);
+    @Override
+    void resolveStyle() {
+        super.resolveStyle();
+        PlotPalette p = palette;
+        p.axis = axisColor.resolve(styleValue(StyleKeys.PLOT_AXIS_COLOR, (ColorView) null));
+        p.grid = gridColor.resolve(styleValue(StyleKeys.PLOT_GRID_COLOR, (ColorView) null));
+        p.gridVisible = styleValue(StyleKeys.PLOT_GRID_VISIBLE, true);
+        p.bar = barColor.resolve(styleValue(StyleKeys.PLOT_BAR_COLOR, (ColorView) null));
+        p.barHover = hoveredBarColor.resolve(styleValue(StyleKeys.PLOT_BAR_HOVER_COLOR, (ColorView) null));
+        p.barGap = Math.max(0.0f, styleValue(StyleKeys.PLOT_BAR_GAP, 4.0f));
+        p.barRadius = Math.max(0.0f, styleValue(StyleKeys.PLOT_BAR_RADIUS, 2.0f));
+    }
+
+    /**
+     * Вычисляет шкалу, подписи осей и область построения.
+     *
+     * <p>Границы шкалы берутся из {@link PlotSupport#niceScale}; для столбцов в диапазон включается ноль. Поля
+     * области считаются от измеренных подписей, поэтому текст не обрезается при любом размере шрифта:
+     * <pre>
+     *   left   = pad + tickLabelWidth + TICK_LENGTH + LABEL_GAP        (если сетка включена, иначе pad)
+     *   top    = pad + tickLabelHeight / 2                              (верхняя подпись выступает над линией)
+     *   bottom = pad + categoryHeight                                   (если заданы категории)
+     *   plot   = bounds - (left, top, pad, bottom)
+     * </pre>
+     *
+     * @param context контекст отрисовки; даёт метрики шрифта для замера подписей
+     */
+    @Override
+    void updatePlot(RenderContext context) {
+        PlotPalette p = palette;
+        RectView bounds = layoutBounds();
+        float min = dataMin;
+        float max = dataMax;
+        if (type == Type.BAR) {
+            min = Math.min(0.0f, min);
+            max = Math.max(0.0f, max);
+        }
+        // Число делений зависит от высоты шрифта: около двух строк на деление, чтобы подписи не слипались.
+        float estimatedHeight = Math.max(1.0f, bounds.height() - OUTER_PADDING * 2.0f);
+        int target = Math.max(2, Math.min(8, Math.round(estimatedHeight / (p.textSize * 3.2f))));
+        PlotSupport.niceScale(min, max, target, scale);
+        scaleMin = scale[0];
+        scaleMax = scale[1];
+        tickStep = scale[2];
+        tickCount = Math.max(2, Math.round((scaleMax - scaleMin) / tickStep) + 1);
+
+        refreshTickTexts(context);
+        refreshCategoryTexts(context);
+
+        float left = OUTER_PADDING;
+        float top = OUTER_PADDING;
+        if (p.gridVisible) {
+            left += tickLabelWidth + TICK_LENGTH + LABEL_GAP;
+            top += tickLabelHeight * 0.5f;
+        }
+        float bottom = OUTER_PADDING + categoryHeight;
+        plotX = bounds.x() + left;
+        plotY = bounds.y() + top;
+        plotW = Math.max(0.0f, bounds.width() - left - OUTER_PADDING);
+        plotH = Math.max(0.0f, bounds.height() - top - bottom);
+    }
+
+    private void refreshTickTexts(RenderContext context) {
+        PlotPalette p = palette;
+        if (keyTickMin == scaleMin && keyTickMax == scaleMax && keyTickStep == tickStep
+                && keyTickSize == p.textSize && tickTexts.length >= tickCount) {
+            return;
+        }
+        if (tickTexts.length < tickCount) {
+            tickTexts = new RichText[tickCount];
+            tickWidths = new float[tickCount];
+        }
+        float widest = 0.0f;
+        float tallest = 0.0f;
+        for (int i = 0; i < tickCount; i++) {
+            RichText text = PlotSupport.text(PlotSupport.formatTick(scaleMin + i * tickStep, tickStep), p.textSize);
+            tickTexts[i] = text;
+            tickWidths[i] = PlotSupport.textWidth(context, text);
+            widest = Math.max(widest, tickWidths[i]);
+            tallest = Math.max(tallest, PlotSupport.textHeight(context, text));
+        }
+        tickLabelWidth = widest;
+        tickLabelHeight = tallest;
+        keyTickMin = scaleMin;
+        keyTickMax = scaleMax;
+        keyTickStep = tickStep;
+        keyTickSize = p.textSize;
+    }
+
+    private void refreshCategoryTexts(RenderContext context) {
+        PlotPalette p = palette;
+        int n = categories.size();
+        if (n == 0) {
+            categoryHeight = 0.0f;
+            return;
+        }
+        if (keyCategoryVersion != categoryVersion || keyCategorySize != p.textSize || categoryTexts.length < n) {
+            categoryTexts = new RichText[n];
+            categoryWidths = new float[n];
+            float tallest = 0.0f;
+            for (int i = 0; i < n; i++) {
+                RichText text = PlotSupport.text(categories.get(i), p.textSize);
+                categoryTexts[i] = text;
+                categoryWidths[i] = PlotSupport.textWidth(context, text);
+                tallest = Math.max(tallest, PlotSupport.textHeight(context, text));
             }
-        } else if (event instanceof PointerExitedEvent) {
-            clearHoveredBar();
-        } else if (event instanceof PointerPressedEvent pointer && pointer.button() == PointerButton.PRIMARY) {
-            int hit = hitBar(pointer.rootX(), pointer.rootY());
-            if (hit >= 0) {
-                Bar bar = bar(hit, true);
-                if (bar != null) {
-                    clickBar(bar);
-                    event.cancel();
-                }
-            }
+            categoryHeight = tallest + LABEL_GAP + TICK_LENGTH;
+            keyCategoryVersion = categoryVersion;
+            keyCategorySize = p.textSize;
         }
     }
 
+    /**
+     * Возвращает X точки: центр слота.
+     *
+     * <p>Формула: {@code x = plotX + plotW * (i + 0.5) / n}, где {@code n} — число значений.</p>
+     *
+     * @param index индекс значения
+     * @return координата X центра слота
+     */
     @Override
-    public void render(RenderContext context) {
-        if (visibility() != Visibility.VISIBLE) return;
-        if (layoutBounds().width() <= 0.0f || layoutBounds().height() <= 0.0f) return;
-        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
-        if (renderCustomVisual(draw)) {
-            return;
+    float pointX(int index) {
+        int n = Math.max(1, values.size());
+        return plotX + plotW * (index + 0.5f) / n;
+    }
+
+    /**
+     * Оценивает индекс по X как номер слота: {@code i = floor((x - plotX) / plotW * n)}.
+     *
+     * @param rootX X указателя
+     * @return индекс слота в диапазоне {@code [0, n - 1]}
+     */
+    @Override
+    int guessIndex(float rootX) {
+        int n = values.size();
+        if (n <= 1 || plotW <= 0.0f) return 0;
+        int slot = (int) Math.floor((rootX - plotX) / plotW * n);
+        return Math.max(0, Math.min(n - 1, slot));
+    }
+
+    @Override
+    String tooltipLabel(int index) {
+        String value = PlotSupport.formatValue(values.getFloat(index));
+        if (index < categories.size() && categories.get(index) != null && !categories.get(index).isEmpty()) {
+            return categories.get(index) + ": " + value;
         }
-        float x = layoutBounds().x();
-        float y = layoutBounds().y();
-        float width = layoutBounds().width();
-        float height = layoutBounds().height();
-        draw.rect(x, y, width, height, Paint.stroke(axisColor, 1.0f));
+        return super.tooltipLabel(index);
+    }
+
+    // ------------------------------------------------------------------ отрисовка
+
+    @Override
+    void renderPlot(DrawScope draw) {
+        if (!layoutValid) return;
+        renderAxes(draw);
         if (type == Type.BAR) {
-            renderBarChart(draw);
+            renderBars(draw);
         } else {
-            draw.addLine(x + 4.0f, y + height - 10.0f,
-                    x + width - 4.0f, y + height - 10.0f,
-                    axisColor, 1.0f);
-            draw.addLine(x + 10.0f, y + 4.0f,
-                    x + 10.0f, y + height - 4.0f,
-                    axisColor, 1.0f);
             renderSparklineVisual(draw);
         }
     }
 
-    private void renderBarChart(DrawScope draw) {
-        PlotArea plot = plotArea();
-        draw.addLine(plot.x(), plot.baseline(), plot.x() + plot.width(), plot.baseline(), axisColor, 1.0f);
-        draw.addLine(plot.x() - 4.0f, plot.y(), plot.x() - 4.0f, plot.y() + plot.height(), axisColor, 1.0f);
-        List<Bar> bars = computeBars();
-        if (bars.isEmpty()) return;
+    /**
+     * Рисует сетку, засечки, подписи делений, оси и подписи категорий.
+     *
+     * <p>Деление {@code t} лежит на значении {@code scaleMin + t * tickStep}; его Y даёт {@link #valueY(float)}.
+     * Линия нуля выделяется цветом оси, если шкала пересекает ноль.</p>
+     *
+     * @param draw область рисования
+     */
+    private void renderAxes(DrawScope draw) {
+        PlotPalette p = palette;
+        float left = plotX;
+        float right = plotX + plotW;
+        float bottom = plotY + plotH;
+        RenderContext context = draw.context();
+        if (p.gridVisible) {
+            for (int t = 0; t < tickCount; t++) {
+                float y = valueY(scaleMin + t * tickStep);
+                draw.addLine(left, y, right, y, p.grid, 1.0f);
+                draw.addLine(left - TICK_LENGTH, y, left, y, p.axis, 1.0f);
+                float width = tickWidths[t];
+                float height = PlotSupport.textHeight(context, tickTexts[t]);
+                PlotSupport.drawText(draw, tickTexts[t], left - TICK_LENGTH - LABEL_GAP - width, y - height * 0.5f,
+                        width, height, p.text, Alignment.START, Alignment.CENTER);
+            }
+        }
+        if (scaleMin < 0.0f && scaleMax > 0.0f) {
+            float zero = valueY(0.0f);
+            draw.addLine(left, zero, right, zero, p.axis, 1.0f);
+        }
+        draw.addLine(left, plotY, left, bottom, p.axis, 1.0f);
+        draw.addLine(left, bottom, right, bottom, p.axis, 1.0f);
+        renderCategories(draw);
+    }
 
-        Bar hovered = null;
-        for (Bar bar : bars) {
-            if (bar.hovered()) hovered = bar;
-            renderBar(draw, bar);
+    private void renderCategories(DrawScope draw) {
+        int n = Math.min(categories.size(), values.size());
+        if (n == 0 || plotW <= 0.0f) return;
+        PlotPalette p = palette;
+        float slot = plotW / values.size();
+        float widest = 0.0f;
+        for (int i = 0; i < n; i++) widest = Math.max(widest, categoryWidths[i]);
+        // Подписи прореживаются: показываем каждую k-ю, чтобы соседние не перекрывались.
+        int stride = Math.max(1, (int) Math.ceil((widest + 4.0f) / slot));
+        float y = plotY + plotH + TICK_LENGTH + LABEL_GAP * 0.5f;
+        for (int i = 0; i < n; i += stride) {
+            float width = categoryWidths[i];
+            float height = categoryHeight - TICK_LENGTH - LABEL_GAP;
+            float center = plotX + slot * (i + 0.5f);
+            draw.addLine(center, plotY + plotH, center, plotY + plotH + TICK_LENGTH, p.axis, 1.0f);
+            PlotSupport.drawText(draw, categoryTexts[i], center - width * 0.5f, y, width, height, p.text,
+                    Alignment.CENTER, Alignment.START);
+        }
+    }
+
+    /**
+     * Вычисляет геометрию столбца в {@link #barRect}.
+     *
+     * <p>Формулы (слот шириной {@code s = plotW / n}):
+     * <pre>
+     *   gap      = min(barGap, 0.6 * s)
+     *   width    = max(1, s - gap)
+     *   x        = plotX + i * s + (s - width) / 2
+     *   baseline = valueY(0)
+     *   top      = min(valueY(v), baseline),   height = max(|valueY(v) - baseline|, ZERO_BAR_HEIGHT)
+     * </pre>
+     * Столбец нулевого значения превращается в линию толщиной {@link #ZERO_BAR_HEIGHT} по нулевой линии.
+     *
+     * @param index индекс столбца
+     */
+    private void computeBar(int index) {
+        int n = values.size();
+        float slot = plotW / Math.max(1, n);
+        float gap = Math.min(palette.barGap, slot * 0.6f);
+        float width = Math.max(1.0f, slot - gap);
+        float baseline = valueY(0.0f);
+        float valueY = valueY(values.getFloat(index));
+        float top = Math.min(valueY, baseline);
+        float height = Math.max(Math.abs(valueY - baseline), ZERO_BAR_HEIGHT);
+        if (values.getFloat(index) == 0.0f) top = baseline - ZERO_BAR_HEIGHT * 0.5f;
+        barRect[0] = plotX + index * slot + (slot - width) * 0.5f;
+        barRect[1] = top;
+        barRect[2] = width;
+        barRect[3] = height;
+        barRect[4] = baseline;
+    }
+
+    private Bar barOf(int index, boolean hovered) {
+        computeBar(index);
+        return new Bar(index, values.getFloat(index), barRect[0], barRect[1], barRect[2], barRect[3], barRect[4], hovered);
+    }
+
+    private void renderBars(DrawScope draw) {
+        PlotPalette p = palette;
+        int n = values.size();
+        for (int i = 0; i < n; i++) {
+            float value = values.getFloat(i);
+            if (!Float.isFinite(value)) continue;
+            boolean hovered = i == hoveredIndex;
+            computeBar(i);
+            if (barRenderer != null) {
+                barRenderer.render(draw, new Bar(i, value, barRect[0], barRect[1], barRect[2], barRect[3],
+                        barRect[4], hovered));
+            } else {
+                drawBar(draw, barRect[0], barRect[1], barRect[2], barRect[3], value >= 0.0f,
+                        hovered ? p.barHover : p.bar);
+            }
             if (barValuesVisible && barValuePlacement != BarValuePlacement.NONE) {
-                renderBarValue(draw, bar);
+                renderBarValue(draw, i, hovered);
             }
         }
-        if (hovered != null) {
-            renderBarTooltip(draw, hovered);
+        if (hoveredIndex >= 0 && hoveredIndex < n && Float.isFinite(values.getFloat(hoveredIndex))) {
+            renderTooltip(draw, hoveredIndex);
         }
     }
 
-    private void renderBar(DrawScope draw, Bar bar) {
-        if (barRenderer != null) {
-            barRenderer.render(draw, bar);
+    /**
+     * Рисует столбец; свободный конец скругляется, а конец у нулевой линии остаётся прямым.
+     *
+     * <p>Скругление получается одной командой: скруглённый прямоугольник рисуется на радиус длиннее в сторону
+     * нулевой линии и обрезается областью столбца. Так полупрозрачный цвет не накладывается сам на себя.</p>
+     *
+     * @param draw  область рисования
+     * @param x     левый край столбца
+     * @param top   верхний край столбца
+     * @param width ширина столбца
+     * @param height высота столбца
+     * @param up    {@code true} — столбец растёт вверх от нулевой линии
+     * @param color цвет заливки
+     */
+    private void drawBar(DrawScope draw, float x, float top, float width, float height, boolean up, ColorView color) {
+        float radius = Math.min(palette.barRadius, Math.min(width, height) * 0.5f);
+        if (radius < 0.5f) {
+            draw.rectFilled(x, top, width, height, color);
             return;
         }
-        draw.addRectFilled(bar.x(), bar.y(), bar.width(), bar.height(), bar.hovered() ? hoveredBarColor : barColor);
-        if (bar.value() == 0.0f) {
-            draw.addLine(bar.x(), bar.baseline(), bar.x() + bar.width(), bar.baseline(), hoveredBarColor, 1.25f);
+        draw.pushClip(x, top, width, height);
+        try {
+            if (up) {
+                draw.roundedRectFilled(x, top, width, height + radius, radius, color);
+            } else {
+                draw.roundedRectFilled(x, top - radius, width, height + radius, radius, color);
+            }
+        } finally {
+            draw.popClip();
         }
     }
 
-    private void renderBarValue(DrawScope draw, Bar bar) {
+    private void renderBarValue(DrawScope draw, int index, boolean hovered) {
         if (barValueRenderer != null) {
-            barValueRenderer.render(draw, bar);
+            barValueRenderer.render(draw, barOf(index, hovered));
             return;
         }
-        String text = Sparkline.formatValue(bar.value());
-        float textWidth = Math.max(bar.width() + 8.0f, text.length() * 6.0f);
-        float textHeight = 10.0f;
-        float tx = bar.centerX() - textWidth * 0.5f;
-        float ty = switch (barValuePlacement) {
-            case CENTER -> bar.y() + Math.max(0.0f, bar.height() - textHeight) * 0.5f;
-            case BASE -> bar.value() >= 0.0f ? bar.baseline() - textHeight - 2.0f : bar.baseline() + 2.0f;
-            case BELOW -> bar.baseline() + 2.0f;
-            case HEAD, NONE -> bar.value() >= 0.0f ? bar.y() - textHeight - 2.0f : bar.y() + bar.height() + 2.0f;
+        RenderContext context = draw.context();
+        RichText text = labelText(index);
+        float width = PlotSupport.textWidth(context, text);
+        float height = PlotSupport.textHeight(context, text);
+        float slot = plotW / Math.max(1, values.size());
+        // Подпись шире слота налезла бы на соседние: показываем её только у наведённого столбца.
+        if (width > slot + 2.0f && !hovered) return;
+        float value = values.getFloat(index);
+        float top = barRect[1];
+        float bottom = barRect[1] + barRect[3];
+        float baseline = barRect[4];
+        float y = switch (barValuePlacement) {
+            case CENTER -> top + (barRect[3] - height) * 0.5f;
+            case BASE -> value >= 0.0f ? baseline - height - VALUE_GAP : baseline + VALUE_GAP;
+            case BELOW -> baseline + VALUE_GAP;
+            case HEAD, NONE -> value >= 0.0f ? top - height - VALUE_GAP : bottom + VALUE_GAP;
         };
-        ty = clamp(ty, layoutBounds().y() + 1.0f, layoutBounds().y() + layoutBounds().height() - textHeight - 1.0f);
-        TextEngine.draw(draw.context(), RichText.plain(text), tx, ty, textWidth, textHeight,
-                Paint.fill(valueColor), draw.transform(), Alignment.CENTER, Alignment.CENTER);
+        RectView bounds = layoutBounds();
+        y = PlotSupport.clamp(y, bounds.y() + 1.0f, bounds.y() + bounds.height() - height - 1.0f);
+        float x = barRect[0] + (barRect[2] - width) * 0.5f;
+        PlotSupport.drawText(draw, text, x, y, width, height, palette.text, Alignment.CENTER, Alignment.CENTER);
     }
 
-    private void renderBarTooltip(DrawScope draw, Bar bar) {
-        if (barTooltipRenderer != null) {
-            barTooltipRenderer.render(draw, bar);
+    @Override
+    void renderTooltip(DrawScope draw, int index) {
+        if (type == Type.BAR) {
+            if (barTooltipRenderer != null) {
+                barTooltipRenderer.render(draw, barOf(index, true));
+                return;
+            }
+            // Подсказка привязывается к свободному концу столбца, а не к центру слота линии.
+            computeBar(index);
+            float anchorY = values.getFloat(index) >= 0.0f ? barRect[1] : barRect[1] + barRect[3];
+            drawTooltipAt(draw, index, barRect[0] + barRect[2] * 0.5f, anchorY);
             return;
         }
-        String text = "#" + bar.index() + ": " + Sparkline.formatValue(bar.value());
-        float tooltipWidth = Math.max(48.0f, text.length() * 6.0f + 10.0f);
-        float tooltipHeight = 16.0f;
-        float tx = clamp(bar.centerX() - tooltipWidth * 0.5f,
-                layoutBounds().x(), layoutBounds().x() + layoutBounds().width() - tooltipWidth);
-        float ty = Math.max(layoutBounds().y(), bar.y() - tooltipHeight - 8.0f);
-        draw.roundedRect(tx, ty, tooltipWidth, tooltipHeight, 3.0f, Paint.fill(tooltipBackground));
-        draw.roundedRect(tx, ty, tooltipWidth, tooltipHeight, 3.0f, Paint.stroke(tooltipBorder, 1.0f));
-        draw.addText(text, tx + 5.0f, ty + 3.0f, tooltipWidth - 10.0f, tooltipHeight - 4.0f, valueColor);
+        super.renderTooltip(draw, index);
     }
 
-    private static float clamp(float value, float min, float max) {
-        if (max < min) return min;
-        return Math.max(min, Math.min(max, value));
+    private void drawTooltipAt(DrawScope draw, int index, float anchorX, float anchorY) {
+        PlotPalette p = palette;
+        PlotSupport.drawTooltip(draw, PlotSupport.text(tooltipLabel(index), p.textSize), anchorX, anchorY,
+                TOOLTIP_GAP, layoutBounds(), p.tooltipBackground, p.tooltipBorder, p.tooltipText);
     }
 
-    private List<Bar> computeBars() {
-        if (values.isEmpty()) return List.of();
-        PlotArea plot = plotArea();
-        float gap = 3.0f;
-        float barWidth = Math.max(1.0f, (plot.width() - gap * Math.max(0, values.size() - 1)) / values.size());
-        List<Bar> bars = new ObjectArrayList<>(values.size());
-        for (int i = 0; i < values.size(); i++) {
-            float value = values.getFloat(i);
-            float valueY = plot.valueY(value);
-            float top = Math.min(valueY, plot.baseline());
-            float bottom = Math.max(valueY, plot.baseline());
-            float barHeight = Math.max(ZERO_BAR_HEIGHT, bottom - top);
-            if (value == 0.0f) {
-                top = plot.baseline() - ZERO_BAR_HEIGHT * 0.5f;
-            }
-            float bx = plot.x() + i * (barWidth + gap);
-            bars.add(new Bar(i, value, bx, top, barWidth, barHeight, plot.baseline(), i == hoveredBarIndex));
+    // ------------------------------------------------------------------ события
+
+    @Override
+    boolean interactive() {
+        return type == Type.BAR || super.interactive();
+    }
+
+    /**
+     * Находит столбец под указателем: любой Y внутри области построения в пределах слота.
+     *
+     * <p>Наведение по всему столбцу слота (включая зазор и пустую часть над столбцом) удобнее, чем попадание в
+     * прямоугольник тонкого столбца с маленьким значением.</p>
+     *
+     * @param rootX X указателя
+     * @param rootY Y указателя
+     * @return индекс столбца или {@code -1}
+     */
+    @Override
+    int hitIndex(float rootX, float rootY) {
+        if (type != Type.BAR) return super.hitIndex(rootX, rootY);
+        int n = values.size();
+        if (!layoutValid || n == 0 || plotW <= 0.0f) return -1;
+        if (rootX < plotX || rootX > plotX + plotW || rootY < plotY || rootY > plotY + plotH) return -1;
+        int slot = guessIndex(rootX);
+        return Float.isFinite(values.getFloat(slot)) ? slot : -1;
+    }
+
+    @Override
+    void activate(int index) {
+        if (type != Type.BAR) {
+            super.activate(index);
+            return;
         }
-        return bars;
-    }
-
-    private PlotArea plotArea() {
-        float x = layoutBounds().x();
-        float y = layoutBounds().y();
-        float width = layoutBounds().width();
-        float height = layoutBounds().height();
-        float plotX = x + 14.0f;
-        float plotY = y + 8.0f;
-        float plotWidth = Math.max(0.0f, width - 22.0f);
-        float plotHeight = Math.max(0.0f, height - 22.0f);
-        float min = 0.0f;
-        float max = 0.0f;
-        for (int i = 0; i < values.size(); i++) {
-            float value = values.getFloat(i);
-            min = Math.min(min, value);
-            max = Math.max(max, value);
-        }
-        if (Math.abs(max - min) < 0.0001f) {
-            max = min + 1.0f;
-        }
-        return new PlotArea(plotX, plotY, plotWidth, plotHeight, min, max);
-    }
-
-    private int hitBar(float rootX, float rootY) {
-        for (Bar bar : computeBars()) {
-            float hitY = bar.value() == 0.0f ? bar.baseline() - BAR_HIT_MIN_HEIGHT * 0.5f : bar.y();
-            float hitHeight = Math.max(BAR_HIT_MIN_HEIGHT, bar.height());
-            if (rootX >= bar.x() && rootX <= bar.x() + bar.width()
-                    && rootY >= hitY && rootY <= hitY + hitHeight) {
-                return bar.index();
-            }
-        }
-        return -1;
-    }
-
-    private Bar bar(int index, boolean hovered) {
-        for (Bar bar : computeBars()) {
-            if (bar.index() == index) {
-                return new Bar(bar.index(), bar.value(), bar.x(), bar.y(), bar.width(), bar.height(), bar.baseline(), hovered);
-            }
-        }
-        return null;
-    }
-
-    private ChartBarClickEvent clickBar(Bar bar) {
+        Bar bar = barOf(index, true);
         ChartBarClickEvent event = new ChartBarClickEvent(this,
                 bar.index(), bar.value(), bar.x(), bar.y(), bar.width(), bar.height(), bar.baseline());
         UIContext context = uiContext();
@@ -419,13 +726,6 @@ public final class Chart extends Sparkline {
         } else {
             context.routedEvents().dispatch(event);
         }
-        return event;
-    }
-
-    private void clearHoveredBar() {
-        if (hoveredBarIndex == -1) return;
-        hoveredBarIndex = -1;
-        invalidate(InvalidationFlags.VISUAL);
     }
 
     public enum BarValuePlacement {
@@ -443,17 +743,6 @@ public final class Chart extends Sparkline {
 
         public float centerY() {
             return y + height * 0.5f;
-        }
-    }
-
-    private record PlotArea(float x, float y, float width, float height, float min, float max) {
-        private float baseline() {
-            return valueY(0.0f);
-        }
-
-        private float valueY(float value) {
-            float range = Math.max(0.0001f, max - min);
-            return y + height - ((value - min) / range) * height;
         }
     }
 

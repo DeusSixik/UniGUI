@@ -77,6 +77,14 @@ public final class ContextMenu extends Box implements OverlayHostAware {
     private ContextMenu parentMenu;
     private ContextMenu openSubmenu;
     private boolean open;
+    /**
+     * Слой, из которого меню убрало себя при закрытии; {@code null}, если меню в слое или не было в слое.
+     *
+     * <p>Закрытие отсоединяет меню от {@link OverlayLayer}, чтобы одноразовые меню (например, созданные на каждый
+     * правый клик) не копились в слое. Меню, которое держат по ссылке и открывают повторно, при следующем открытии
+     * возвращается в тот же слой.</p>
+     */
+    private OverlayLayer detachedFrom;
     private boolean closeOnOutsideClick = true;
     private float x;
     private float y;
@@ -401,8 +409,14 @@ public final class ContextMenu extends Box implements OverlayHostAware {
         if (!open) {
             closeSubmenu();
             if (parent() instanceof OverlayLayer layer) {
+                detachedFrom = layer;
                 layer.removeOverlay(this);
             }
+        } else if (detachedFrom != null) {
+            // Удаление из слоя и это добавление ставятся в одну очередь и применяются по порядку, поэтому
+            // повторное открытие в том же кадре, что и закрытие, тоже оставляет меню в слое.
+            detachedFrom.addOverlay(this);
+            detachedFrom = null;
         }
         if (open && selectedItemIndex < 0 && !itemButtons.isEmpty()) {
             selectedItemIndex = 0;
@@ -611,6 +625,7 @@ public final class ContextMenu extends Box implements OverlayHostAware {
         OverlayLayer layer = overlayLayer();
         if (layer != null && submenu.parent() != layer) {
             layer.addOverlay(submenu);
+            submenu.detachedFrom = null;
         } else if (layer == null && submenu.parent() != this) {
             addChild(submenu);
         }
