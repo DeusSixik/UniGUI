@@ -1,146 +1,93 @@
-package dev.sixik.unigui.testmod.client.ui;
+package dev.sixik.unigui.demo.ui.interactive.space_ship_minigame;
 
-import com.mojang.blaze3d.platform.NativeImage;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UnityLikeUIScaleProvider;
-import dev.sixik.unigui.api.debug.DebugFlags;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.input.KeyboardState;
 import dev.sixik.unigui.api.layout.Alignment;
+import dev.sixik.unigui.api.layout.PositionType;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.*;
+import dev.sixik.unigui.api.screen.UniScreen;
 import dev.sixik.unigui.api.text.RichText;
-import dev.sixik.unigui.backend.minecraft_impl.MinecraftClipboardService;
-import dev.sixik.unigui.backend.minecraft_impl.MinecraftFonts;
-import dev.sixik.unigui.backend.minecraft_impl.MinecraftWidgetScreen;
-import dev.sixik.unigui.backend.minecraft_impl.UniGuiTextures;
-import dev.sixik.unigui.impl.core.DefaultUIContext;
+import dev.sixik.unigui.demo.ui.DemoAssets;
 import dev.sixik.unigui.demo.ui.SolarNavigationPostEffects;
 import dev.sixik.unigui.demo.ui.data.*;
+import dev.sixik.unigui.impl.core.DefaultUIContext;
+import dev.sixik.unigui.widgets.effects.PostProcessingLayer;
+import dev.sixik.unigui.widgets.display.CanvasWidget;
+import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 import dev.sixik.unigui.widgets.world.WorldCanvas;
-import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
-import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import net.minecraft.client.Minecraft;
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.phys.Vec3;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.*;
 
 public final class SolarNavigationScreen {
     private static SolarNavigationCanvas currentCanvas;
-    private static final double BLOCK_UI_MAX_DISTANCE_SQ = 16.0D;
 
     private SolarNavigationScreen() {
     }
 
-//    public static void syncQuestMarkers(List<SolarNavigationQuestMarker> questMarkers) {
-//        if (currentCanvas != null) {
-//            currentCanvas.replaceQuestMarkers(questMarkers);
-//        }
-//    }
-//
-//    public static void syncShipState(BlockPos terminalPos, SolarNavigationShipState state) {
-//        if (currentCanvas != null) {
-//            currentCanvas.applyServerState(terminalPos, state);
-//        }
-//    }
-
-    public static void syncAsteroidOffset(BlockPos terminalPos, long asteroidSeed, float offsetX, float offsetY, float velocityX, float velocityY) {
+    public static void syncAsteroidOffset(long asteroidSeed, float offsetX, float offsetY, float velocityX, float velocityY) {
         if (currentCanvas != null) {
-            currentCanvas.applyServerAsteroidOffset(terminalPos, asteroidSeed, offsetX, offsetY, velocityX, velocityY);
+            currentCanvas.applyServerAsteroidOffset(asteroidSeed, offsetX, offsetY, velocityX, velocityY);
         }
     }
-
-//    public static void openGui() {
-//        openGui(0x5EED_51A7L, BlockPos.ZERO, List.of(), List.of(), false, false);
-//    }
-//
-//    public static void openGui(long seed, BlockPos terminalPos) {
-//        openGui(seed, terminalPos, List.of(), List.of(), false, false);
-//    }
-////
-//    public static void openGui(long seed, BlockPos terminalPos, List<SolarNavigationQuestMarker> questMarkers, List<SolarNavigationDockedStation> restoredDockedStations) {
-//        openGui(seed, terminalPos, shipState, questMarkers, restoredDockedStations, false, false);
-//    }
 
     /**
      * Открывает автономный демонстрационный вариант навигации.
      *
-     * <p>Нулевая позиция терминала отключает проверку расстояния до блока, поэтому этот
-     * вариант удобно запускать из тестового меню. В реальном моде следует использовать
-     * перегруженный {@link #openGui(long, BlockPos, SolarNavigationShipState, List, List, boolean, boolean)}.</p>
+     * <p>Экран и игровая логика не зависят от Minecraft API; host отвечает только за backend,
+     * шрифты, текстуры и рендеринг.</p>
      */
     public static void open() {
-        openGui(0x5EED_51A7L, BlockPos.ZERO,
+        createScreen(0x5EED_51A7L,
                 new SolarNavigationShipState(0.0f, 0.0f, 0.0f, 0.0f, 0.0f),
-                List.of(), List.of(), true, true);
+                List.of(), List.of(), true, true).openGui();
     }
 
-    public static void openGui(long seed, BlockPos terminalPos, SolarNavigationShipState shipState, List<SolarNavigationQuestMarker> questMarkers, List<SolarNavigationDockedStation> restoredDockedStations, boolean hasManeuverability, boolean hasStationLocator) {
+    public static UniScreen createScreen(long seed, SolarNavigationShipState shipState,
+                                         List<SolarNavigationQuestMarker> questMarkers,
+                                         List<SolarNavigationDockedStation> restoredDockedStations,
+                                         boolean hasManeuverability, boolean hasStationLocator) {
         UnityLikeUIScaleProvider scaleProvider = new UnityLikeUIScaleProvider()
                 .referenceResolution(1920.0f, 1080.0f)
                 .matchBalanced()
                 .scaleRange(0.60f, 2.50f);
-        DefaultUIContext context = new DefaultUIContext(new MinecraftClipboardService())
-                .scaleProvider(scaleProvider);
-        context.debugFlags(DebugFlags.ALL);
+        DefaultUIContext context = new DefaultUIContext().scaleProvider(scaleProvider);
+//        context.debugFlags(DebugFlags.ALL);
         context.debugOverlaySettings().scale(1.6f);
 
-        SolarNavigationCanvas canvas = new SolarNavigationCanvas(seed, terminalPos, shipState, questMarkers, restoredDockedStations, hasManeuverability, hasStationLocator);
+        SolarNavigationCanvas canvas = new SolarNavigationCanvas(seed, shipState, questMarkers,
+                restoredDockedStations, hasManeuverability, hasStationLocator);
         currentCanvas = canvas;
         canvas.layout(style -> style
                 .align(Alignment.STRETCH, Alignment.STRETCH)
                 .flexGrow(1.0f)
                 .flexShrink(1.0f));
 
+        PostProcessingLayer processedRoot = new PostProcessingLayer();
+        processedRoot.layout(style -> style.sizePercent(100.0f, 100.0f));
+        processedRoot.postEffect(SolarNavigationPostEffects.retroTerminal(scaleProvider, canvas::impactInterference));
+        processedRoot.addChild(canvas);
 
-        MinecraftWidgetScreen screen = new MinecraftWidgetScreen(
-                Component.translatable("screen.stationarenear.solar_navigation.title"), canvas, context) {
-            @Override
-            public void tick() {
-                super.tick();
-                if (shouldCloseBecauseTooFar(terminalPos)) {
-                    onClose();
-                }
-            }
+        OverlayLayer screenRoot = new OverlayLayer(processedRoot);
+        CanvasWidget hud = new CanvasWidget();
+        hud.layout(style -> style.position(PositionType.ABSOLUTE).sizePercent(100.0f, 100.0f));
+        hud.onDraw(renderContext -> {
+            RectView bounds = hud.layoutBounds();
+            canvas.drawHudLayer(new DrawScope(renderContext, hud.transform(), bounds), bounds);
+        });
+        screenRoot.addOverlay(hud);
 
-            @Override
-            public void onClose() {
-                if (currentCanvas == canvas) {
-                    currentCanvas = null;
-                }
-                super.onClose();
-            }
-
-            @Override
-            public boolean isPauseScreen() {
-                return false;
-            }
-        };
-        screen.renderPolicy(UiRenderPolicy.continuous());
-        screen.scaleWithMinecraftGui(false);
-        screen.postEffect(SolarNavigationPostEffects.retroTerminal(scaleProvider, canvas::impactInterference));
-        Minecraft.getInstance().setScreen(screen);
-
-    }
-    private static boolean shouldCloseBecauseTooFar(BlockPos terminalPos) {
-        if (terminalPos.equals(BlockPos.ZERO)) {
-            return false;
-        }
-
-        Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.player == null || minecraft.level == null) {
-            return true;
-        }
-
-        return minecraft.player.distanceToSqr(Vec3.atCenterOf(terminalPos)) > BLOCK_UI_MAX_DISTANCE_SQ;
+        return new UniScreen("Solar Navigation", screenRoot, context)
+                .onClose(() -> {
+                    if (currentCanvas == canvas) currentCanvas = null;
+                })
+                .renderPolicy(UiRenderPolicy.continuous())
+                .scaleWithGameGui(false)
+                .pauseGame(false);
     }
 
     private static final class SolarNavigationCanvas extends WorldCanvas {
@@ -202,16 +149,14 @@ public final class SolarNavigationScreen {
         private static final MutableColor STATION_ROOM_SHADOW = MutableColor.rgba(0.0f, 0.0f, 0.0f, 0.34f);
         private static final MutableColor STAR = MutableColor.rgba(0.88f, 0.96f, 1.0f, 0.55f);
 
-        private final List<Asteroid> asteroids = new ObjectArrayList<>();
-        private final Long2ObjectMap<AsteroidOffset> asteroidOffsets = new Long2ObjectOpenHashMap<>();
-        private final List<Station> stations = new ObjectArrayList<>();
-        private final List<Star> stars = new ObjectArrayList<>();
-        private final List<SolarNavigationQuestMarker> questMarkers = new ObjectArrayList<>();
-        private final LongOpenHashSet dockedStations = new LongOpenHashSet();
-        private final List<DockedStation> activeDockedStations = new ObjectArrayList<>();
+        private final List<Asteroid> asteroids = new ArrayList<>();
+        private final Map<Long, AsteroidOffset> asteroidOffsets = new HashMap<>();
+        private final List<Station> stations = new ArrayList<>();
+        private final List<Star> stars = new ArrayList<>();
+        private final List<SolarNavigationQuestMarker> questMarkers = new ArrayList<>();
+        private final Set<Long> dockedStations = new HashSet<>();
+        private final List<DockedStation> activeDockedStations = new ArrayList<>();
         private final long seed;
-        private final BlockPos terminalPos;
-
         private int generatedMinSectorX = Integer.MIN_VALUE;
         private int generatedMaxSectorX = Integer.MIN_VALUE;
         private int generatedMinSectorY = Integer.MIN_VALUE;
@@ -233,7 +178,7 @@ public final class SolarNavigationScreen {
         private float inputSyncSeconds;
         private int lastInputMask = -1;
         private float dockMessageSeconds;
-        private String dockMessage = net.minecraft.client.resources.language.I18n.get("screen.stationarenear.solar_navigation.find_quest_station");
+        private String dockMessage = "Find and dock at a quest station";
         private float dockingProgressSeconds;
         private float impactInterference;
         private long dockingTargetSeed = Long.MIN_VALUE;
@@ -241,9 +186,8 @@ public final class SolarNavigationScreen {
         private final boolean hasManeuverability;
         private final boolean hasStationLocator;
 
-        private SolarNavigationCanvas(long seed, BlockPos terminalPos, SolarNavigationShipState initialState, List<SolarNavigationQuestMarker> questMarkers, List<SolarNavigationDockedStation> restoredDockedStations, boolean hasManeuverability, boolean hasStationLocator) {
+        private SolarNavigationCanvas(long seed, SolarNavigationShipState initialState, List<SolarNavigationQuestMarker> questMarkers, List<SolarNavigationDockedStation> restoredDockedStations, boolean hasManeuverability, boolean hasStationLocator) {
             this.seed = seed;
-            this.terminalPos = terminalPos;
             this.hasManeuverability = hasManeuverability;
             this.hasStationLocator = hasStationLocator;
             this.questMarkers.addAll(questMarkers);
@@ -293,20 +237,6 @@ public final class SolarNavigationScreen {
             invalidate(InvalidationFlags.VISUAL);
         }
 
-        private void applyServerState(BlockPos terminalPos, SolarNavigationShipState state) {
-            if (!this.terminalPos.equals(terminalPos)) {
-                return;
-            }
-            shipX = state.shipX();
-            shipY = state.shipY();
-            velocityX = state.velocityX();
-            velocityY = state.velocityY();
-            angle = state.angle();
-            if (!renderStateInitialized || distanceSquared(renderShipX, renderShipY, shipX, shipY) > SNAP_DISTANCE * SNAP_DISTANCE) {
-                snapRenderState();
-            }
-        }
-
         private void updateRenderState(float delta) {
             renderShipX = smooth(renderShipX, shipX, POSITION_SMOOTHING, delta);
             renderShipY = smooth(renderShipY, shipY, POSITION_SMOOTHING, delta);
@@ -332,7 +262,6 @@ public final class SolarNavigationScreen {
             }
             inputSyncSeconds = 0.0f;
             lastInputMask = inputMask;
-//            SolarNavigationNetwork.sendInput(terminalPos, inputMask);
         }
 
         private int inputMask(KeyboardState keyboard) {
@@ -526,10 +455,7 @@ public final class SolarNavigationScreen {
             angle = wrapRadians(angle + turnVelocity * delta);
         }
 
-        private void applyServerAsteroidOffset(BlockPos terminalPos, long asteroidSeed, float offsetX, float offsetY, float velocityX, float velocityY) {
-            if (!this.terminalPos.equals(terminalPos)) {
-                return;
-            }
+        private void applyServerAsteroidOffset(long asteroidSeed, float offsetX, float offsetY, float velocityX, float velocityY) {
             AsteroidOffset offset = asteroidOffsets.computeIfAbsent(asteroidSeed, ignored -> new AsteroidOffset());
             float previousSpeed = (float) Math.sqrt(offset.velocityX * offset.velocityX + offset.velocityY * offset.velocityY);
             float newSpeed = (float) Math.sqrt(velocityX * velocityX + velocityY * velocityY);
@@ -632,7 +558,6 @@ public final class SolarNavigationScreen {
                 if (distanceSquared(shipX, shipY, station.x(), station.y()) <= unloadDistanceSq) {
                     continue;
                 }
-//                SolarNavigationNetwork.sendClearDockedStation(new ClearDockedSolarStationPacket(terminalPos, station.name(), station.code(), station.seed()));
                 dockedStations.remove(station.seed());
                 iterator.remove();
             }
@@ -656,7 +581,7 @@ public final class SolarNavigationScreen {
             if (nearest == null) {
                 resetDockingProgress();
                 if (keyboard.wasPressed(KeyCodes.SPACE)) {
-                    dockMessage = net.minecraft.client.resources.language.I18n.get("screen.stationarenear.solar_navigation.no_target");
+                    dockMessage = "No station in docking range";
                     dockMessageSeconds = 1.5f;
                 }
                 return;
@@ -665,7 +590,7 @@ public final class SolarNavigationScreen {
             if (dockedStations.contains(nearest.seed())) {
                 resetDockingProgress();
                 if (keyboard.wasPressed(KeyCodes.SPACE)) {
-                    dockMessage = net.minecraft.client.resources.language.I18n.get("screen.stationarenear.solar_navigation.already_docked", nearest.name());
+                    dockMessage = "Already docked: " + nearest.name();
                     dockMessageSeconds = 1.8f;
                 }
                 return;
@@ -702,10 +627,9 @@ public final class SolarNavigationScreen {
             dockedStations.add(station.seed());
             activeDockedStations.add(new DockedStation(station.seed(), station.name(), station.code(), station.x(), station.y()));
 //            StationDockingOverlay.show(station.name(), station.code(), 8000L);
-//            SolarNavigationNetwork.sendDock(new DockSolarStationPacket(terminalPos, station.name(), station.code(), station.seed(), station.quest(), station.x(), station.y()));
             dockMessage = station.quest()
-                    ? net.minecraft.client.resources.language.I18n.get("screen.stationarenear.solar_navigation.docking_request_quest", station.code())
-                    : net.minecraft.client.resources.language.I18n.get("screen.stationarenear.solar_navigation.docking_request", station.code());
+                    ? "Quest station docked: " + station.code()
+                    : "Station docked: " + station.code();
             dockMessageSeconds = 3.0f;
             velocityX = 0.0f;
             velocityY = 0.0f;
@@ -734,8 +658,16 @@ public final class SolarNavigationScreen {
             drawStations(canvas, draw);
             drawQuestEdgeMarkers(canvas, draw, x, y, w, h);
             drawShip(canvas, draw);
-            drawHud(draw, x, y, w, h);
-            drawDockingProgress(draw, x, y, w, h);
+        }
+
+        private void drawHudLayer(DrawScope draw, RectView bounds) {
+            float x = bounds.x();
+            float y = bounds.y();
+            float width = bounds.width();
+            float height = bounds.height();
+            if (width <= 0.0f || height <= 0.0f) return;
+            drawHud(draw, x, y, width, height);
+            drawDockingProgress(draw, x, y, width, height);
         }
 
         private void drawGrid(WorldCanvas canvas, DrawScope draw, float x, float y, float w, float h) {
@@ -945,17 +877,17 @@ public final class SolarNavigationScreen {
             float panelH = dockMessageSeconds > 0.0f ? 134.0f : 112.0f;
             draw.addRectFilled(panelX, panelY, panelW, panelH, 8.0f, HUD_BG);
             draw.addRect(panelX, panelY, panelW, panelH, 8.0f, HUD_BORDER, 1.25f);
-            text(draw, net.minecraft.client.resources.language.I18n.get("screen.stationarenear.solar_navigation.hud_title"), panelX + 16.0f, panelY + 12.0f, panelW - 32.0f, 18.0f, 14.0f, CYAN);
+            text(draw, "SOLAR NAVIGATION", panelX + 16.0f, panelY + 12.0f, panelW - 32.0f, 18.0f, 14.0f, CYAN);
 
             float speed = (float) Math.sqrt(renderVelocityX * renderVelocityX + renderVelocityY * renderVelocityY);
-            text(draw, net.minecraft.client.resources.language.I18n.get("screen.stationarenear.solar_navigation.controls"), panelX + 16.0f, panelY + 38.0f, panelW - 32.0f, 18.0f, 11.0f, MUTED);
-            text(draw, net.minecraft.client.resources.language.I18n.get("screen.stationarenear.solar_navigation.speed_seed", Math.round(speed), Long.toHexString(seed).toUpperCase()),
+            text(draw, "W/S: thrust    A/D: turn    Hold SPACE: dock", panelX + 16.0f, panelY + 38.0f, panelW - 32.0f, 18.0f, 11.0f, MUTED);
+            text(draw, "SPD " + Math.round(speed) + " u/s    SEED " + Long.toHexString(seed).toUpperCase(),
                     panelX + 16.0f, panelY + 62.0f, panelW - 32.0f, 18.0f, 11.0f, WHITE);
 
             Station nearestQuest = nearestQuestStation();
             if (nearestQuest != null) {
                 float questDistance = (float) Math.sqrt(distanceSquared(shipX, shipY, nearestQuest.x(), nearestQuest.y()));
-                text(draw, net.minecraft.client.resources.language.I18n.get("screen.stationarenear.solar_navigation.quest_dock", nearestQuest.name(), Math.round(questDistance)),
+                text(draw, "QUEST: " + nearestQuest.name() + " / " + Math.round(questDistance) + " u",
                         panelX + 16.0f, panelY + 84.0f, panelW - 32.0f, 18.0f, 11.0f, colorFromArgb(nearestQuest.color()));
             }
             if (dockMessageSeconds > 0.0f) {
@@ -985,7 +917,7 @@ public final class SolarNavigationScreen {
             draw.addRectFilled(barX + 3.0f, barY + 3.0f, fillW, barH - 6.0f, 4.0f,
                     progress >= 1.0f ? CYAN : AMBER);
             text(draw,
-                    net.minecraft.client.resources.language.I18n.get("screen.stationarenear.solar_navigation.docking_progress", dockingTargetName, Math.round(progress * 100.0f)),
+                    "DOCKING AT " + dockingTargetName + "... " + Math.round(progress * 100.0f) + "%",
                     barX + 10.0f,
                     barY + 4.0f,
                     barW - 20.0f,
@@ -1029,7 +961,7 @@ public final class SolarNavigationScreen {
 
         private void text(DrawScope draw, String value, float x, float y, float width, float height,
                           float size, MutableColor color) {
-            RichText text = RichText.of(value, MinecraftFonts.defaultFace(), size, color);
+            RichText text = RichText.of(value, null, size, color);
             draw.addText(text, x, y, width, height, color);
         }
 
@@ -1253,24 +1185,16 @@ public final class SolarNavigationScreen {
                 if (loadAttempted) return;
                 loadAttempted = true;
                 for (int i = 0; i < 6; i++) {
-                    try {
-                        METEORS[i] = load("meteor_" + (i + 1), "meteor_" + (i + 1) + ".png");
-                    } catch (IOException | RuntimeException ignored) {
-                    }
+                    String id = "meteor_" + (i + 1);
+                    METEORS[i] = load(id, id + ".png");
                 }
             }
 
-            private static TextureHandle load(String id, String fileName) throws IOException {
-                String resource = "assets/stationarenear/textures/gui/space/" + fileName;
-                ClassLoader loader = SolarNavigationScreen.class.getClassLoader();
-                try (InputStream stream = loader.getResourceAsStream(resource)) {
-                    if (stream == null) {
-                        throw new IOException("Missing space texture resource: " + resource);
-                    }
-                    return UniGuiTextures.replace("stationarenear:dynamic/space/" + id,
-                            NativeImage.read(stream),
-                            TextureOptions.nearest());
-                }
+            private static TextureHandle load(String id, String fileName) {
+                String resource = "stationarenear:textures/gui/space/" + fileName;
+                TextureHandle texture = DemoAssets.texture("stationarenear:dynamic/space/" + id,
+                        resource, TextureOptions.nearest());
+                return texture.nativeHandle() == null ? null : texture;
             }
         }
     }

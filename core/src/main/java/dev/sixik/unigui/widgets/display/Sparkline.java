@@ -5,7 +5,9 @@ import dev.sixik.unigui.api.core.UIContext;
 import dev.sixik.unigui.api.docs.AiDoc;
 import dev.sixik.unigui.api.docs.WikiExample;
 import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiParameter;
 import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiReturn;
 import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.event.Event;
 import dev.sixik.unigui.api.event.EventListener;
@@ -72,9 +74,14 @@ import java.util.List;
                 "Compact metric dashboards embedded into status bars."
         },
         criticalRules = {
-                "values accepts List of Numbers and scales them automatically between min and max.",
-                "Hovering near a data point highlights the value and displays an interactive tooltip."
+                "Finite values define the vertical range; NaN and infinities split the line into separate runs.",
+                "A series with one value is rendered as one point; a constant series is centered vertically.",
+                "PointMode controls which points are drawn and can be hit-tested; NONE disables point interaction.",
+                "Hovering chooses the nearest point by horizontal coordinate and click emits SparkPointClickEvent."
         },
+        examples = @AiDoc.Example(
+                title = "Show a compact metric trend",
+                code = "new Sparkline().values(List.of(60, 58, 59, 62, 60)).pointMode(Sparkline.PointMode.ALL);"),
         related = {"Chart", "WidgetBase"})
 @WikiPage(
         title = "<key:sparkline.title>",
@@ -92,40 +99,73 @@ import java.util.List;
         order = 10)
 @XmlWidgetName("Sparkline")
 public class Sparkline extends WidgetBase {
+    /**
+     * Style registry id used to resolve this widget's default sparkline style.
+     */
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.SPARKLINE;
 
-    /** Ширина по умолчанию в UI-пикселях. */
+    /**
+     * Ширина по умолчанию в UI-пикселях.
+     */
     public static final float DEFAULT_PREFERRED_WIDTH = 140.0f;
-    /** Высота по умолчанию в UI-пикселях. */
+    /**
+     * Высота по умолчанию в UI-пикселях.
+     */
     public static final float DEFAULT_PREFERRED_HEIGHT = 34.0f;
 
-    /** Прибавка к радиусу маркера наведённой точки в UI-пикселях. */
+    /**
+     * Прибавка к радиусу маркера наведённой точки в UI-пикселях.
+     */
     private static final float HOVER_RADIUS_BONUS = 1.25f;
-    /** Зазор между точкой и подсказкой в UI-пикселях. */
+    /**
+     * Зазор между точкой и подсказкой в UI-пикселях.
+     */
     private static final float TOOLTIP_GAP = 7.0f;
-    /** Зазор между маркером и подписью значения в UI-пикселях. */
+    /**
+     * Зазор между маркером и подписью значения в UI-пикселях.
+     */
     private static final float LABEL_GAP = 3.0f;
-    /** Доля исходной непрозрачности заливки у основания: {@code 0} — полное затухание до прозрачного. */
+    /**
+     * Доля исходной непрозрачности заливки у основания: {@code 0} — полное затухание до прозрачного.
+     */
     private static final float FILL_FADE = 0.0f;
-    /** Доля непрозрачности направляющей относительно цвета наведённой точки. */
+    /**
+     * Доля непрозрачности направляющей относительно цвета наведённой точки.
+     */
     private static final float GUIDE_ALPHA = 0.35f;
 
-    /** Значения ряда; нечисловые значения сохраняются и рисуются как разрыв. */
+    /**
+     * Значения ряда; нечисловые значения сохраняются и рисуются как разрыв.
+     */
     final FloatArrayList values = new FloatArrayList();
-    /** Счётчик версий данных: растёт при каждой смене ряда и сбрасывает кэши. */
+    /**
+     * Счётчик версий данных: растёт при каждой смене ряда и сбрасывает кэши.
+     */
     int dataVersion;
-    /** Минимум конечных значений ряда ({@code 0} для пустого ряда). */
+    /**
+     * Минимум конечных значений ряда ({@code 0} для пустого ряда).
+     */
     float dataMin;
-    /** Максимум конечных значений ряда ({@code 1} для пустого ряда). */
+    /**
+     * Максимум конечных значений ряда ({@code 1} для пустого ряда).
+     */
     float dataMax = 1.0f;
-    /** Индекс минимального значения или {@code -1}. */
+    /**
+     * Индекс минимального значения или {@code -1}.
+     */
     int argMin = -1;
-    /** Индекс максимального значения или {@code -1}. */
+    /**
+     * Индекс максимального значения или {@code -1}.
+     */
     int argMax = -1;
-    /** Число конечных значений в ряду. */
+    /**
+     * Число конечных значений в ряду.
+     */
     int validCount;
 
-    /** Значения стиля, разрешённые на текущем проходе отрисовки. */
+    /**
+     * Значения стиля, разрешённые на текущем проходе отрисовки.
+     */
     final PlotPalette palette = new PlotPalette();
 
     final OverridableColor lineColor = new OverridableColor(
@@ -143,10 +183,14 @@ public class Sparkline extends WidgetBase {
     final OverridableColor tooltipBorder = new OverridableColor(
             new MutableColor(0.25f, 0.78f, 1.0f, 0.92f), this::repaint);
 
-    /** Цвет направляющей: цвет наведённой точки с пониженной непрозрачностью; обновляется на месте. */
+    /**
+     * Цвет направляющей: цвет наведённой точки с пониженной непрозрачностью; обновляется на месте.
+     */
     private final MutableColor guideColor = new MutableColor();
 
-    /** Явная настройка заливки; {@code null} — брать из стиля. */
+    /**
+     * Явная настройка заливки; {@code null} — брать из стиля.
+     */
     private Boolean fillVisibleOverride;
     private PointMode pointMode = PointMode.EXTREMA;
     private boolean pointLabelsVisible;
@@ -157,23 +201,39 @@ public class Sparkline extends WidgetBase {
     private float preferredWidth;
     private float preferredHeight;
 
-    /** Индекс наведённой точки или {@code -1}. */
+    /**
+     * Индекс наведённой точки или {@code -1}.
+     */
     int hoveredIndex = -1;
 
     // ---- кэш раскладки (пересчитывается при смене данных, размера или стиля) ----
-    /** Левый край области построения в координатах отрисовки. */
+    /**
+     * Левый край области построения в координатах отрисовки.
+     */
     float plotX;
-    /** Верхний край области построения. */
+    /**
+     * Верхний край области построения.
+     */
     float plotY;
-    /** Ширина области построения; не отрицательна. */
+    /**
+     * Ширина области построения; не отрицательна.
+     */
     float plotW;
-    /** Высота области построения; не отрицательна. */
+    /**
+     * Высота области построения; не отрицательна.
+     */
     float plotH;
-    /** Значение, соответствующее нижнему краю области построения. */
+    /**
+     * Значение, соответствующее нижнему краю области построения.
+     */
     float scaleMin;
-    /** Значение, соответствующее верхнему краю области построения. */
+    /**
+     * Значение, соответствующее верхнему краю области построения.
+     */
     float scaleMax = 1.0f;
-    /** {@code true}, если кэш точек соответствует ключу ниже. */
+    /**
+     * {@code true}, если кэш точек соответствует ключу ниже.
+     */
     boolean layoutValid;
     private int keyVersion = -1;
     private float keyX;
@@ -182,22 +242,32 @@ public class Sparkline extends WidgetBase {
     private float keyH;
     private float keyMin;
     private float keyMax;
-    /** Опорные точки линии; {@code null} для нечисловых значений. */
+    /**
+     * Опорные точки линии; {@code null} для нечисловых значений.
+     */
     private DrawPoint[] points = new DrawPoint[0];
-    /** Проекции точек на нижний край области построения (основание заливки). */
+    /**
+     * Проекции точек на нижний край области построения (основание заливки).
+     */
     private DrawPoint[] bases = new DrawPoint[0];
-    /** Непрерывные участки без разрывов: {@code runStart[i]..runEnd[i]} включительно. */
+    /**
+     * Непрерывные участки без разрывов: {@code runStart[i]..runEnd[i]} включительно.
+     */
     private int[] runStart = new int[0];
     private int[] runEnd = new int[0];
     private int runCount;
-    /** Полилинии участков для {@link DrawScope#addPolyline}; переиспользуются между пересчётами. */
+    /**
+     * Полилинии участков для {@link DrawScope#addPolyline}; переиспользуются между пересчётами.
+     */
     private final List<ObjectArrayList<DrawPoint>> runLines = new ObjectArrayList<>();
     /**
      * Готовая сетка заливки под линией; строится при смене геометрии или цвета и переиспользуется между кадрами.
      * Команда рисования хранит ссылку на сетку и не изменяет её.
      */
     private DrawMesh fillMesh;
-    /** Цвет, для которого построена {@link #fillMesh}; сравнение по компонентам. */
+    /**
+     * Цвет, для которого построена {@link #fillMesh}; сравнение по компонентам.
+     */
     private float fillKeyR = Float.NaN;
     private float fillKeyG;
     private float fillKeyB;
@@ -212,10 +282,18 @@ public class Sparkline extends WidgetBase {
     private int tooltipVersion = -1;
     private float tooltipSize = -1.0f;
 
+    @AiDoc(summary = "Creates an empty compact trend chart using the default preferred dimensions.")
+    @WikiMethod(title = "Create a sparkline", summary = "Creates an empty sparkline with its default preferred size.", order = 10)
     public Sparkline() {
         this(DEFAULT_PREFERRED_WIDTH, DEFAULT_PREFERRED_HEIGHT);
     }
 
+    /**
+     * Создаёт sparkline с указанным предпочтительным размером.
+     *
+     * @param preferredWidth  предпочтительная ширина в UI-пикселях; неположительное или нечисловое значение заменяется шириной по умолчанию
+     * @param preferredHeight предпочтительная высота в UI-пикселях; неположительное или нечисловое значение заменяется высотой по умолчанию
+     */
     protected Sparkline(float preferredWidth, float preferredHeight) {
         this.preferredWidth = positiveOr(preferredWidth, DEFAULT_PREFERRED_WIDTH);
         this.preferredHeight = positiveOr(preferredHeight, DEFAULT_PREFERRED_HEIGHT);
@@ -240,7 +318,9 @@ public class Sparkline extends WidgetBase {
     @WikiMethod(
             title = "<key:sparkline.method.values.title>",
             summary = "<key:sparkline.method.values.summary>")
-    public Sparkline values(List<? extends Number> values) {
+    @AiDoc(summary = "Replaces the sparkline series from Number values; null clears the series and null entries become zero.", section = "Data", sectionOrder = 10, order = 10)
+    @WikiReturn("This sparkline for fluent configuration.")
+    public Sparkline values(@WikiParameter(name = "values", description = "Values in series order; null clears the series and null entries are treated as zero.") List<? extends Number> values) {
         this.values.clear();
         if (values != null) {
             for (Number value : values) {
@@ -257,7 +337,10 @@ public class Sparkline extends WidgetBase {
      * @param data значения; {@code null} очищает ряд; нечисловые значения рисуются как разрыв линии
      * @return этот виджет
      */
-    public Sparkline values(float... data) {
+    @AiDoc(summary = "Replaces the sparkline series using primitive floats without boxing.", section = "Data", sectionOrder = 10, order = 20)
+    @WikiMethod(title = "Set sparkline values from floats", summary = "Replaces the series without boxing numeric inputs.", section = "Data", sectionOrder = 10, order = 20)
+    @WikiReturn("This sparkline for fluent configuration.")
+    public Sparkline values(@WikiParameter(name = "data", description = "Values in series order; null clears the series and non-finite values create gaps.") float... data) {
         this.values.clear();
         if (data != null) {
             for (float value : data) this.values.add(value);
@@ -271,6 +354,8 @@ public class Sparkline extends WidgetBase {
      *
      * @return неизменяемое представление значений
      */
+    @WikiMethod(title = "Get sparkline values", summary = "Returns the current series as an immutable view.", section = "Data", sectionOrder = 10, order = 30)
+    @WikiReturn("An unmodifiable view of the current float values.")
     public List<Float> values() {
         return Collections.unmodifiableList(values);
     }
@@ -315,6 +400,7 @@ public class Sparkline extends WidgetBase {
     @WikiMethod(
             title = "<key:sparkline.method.line_color.title>",
             summary = "<key:sparkline.method.line_color.summary>")
+    @WikiReturn("The mutable RGBA line color; changing it overrides the style value.")
     public MutableColor lineColor() {
         return lineColor.value();
     }
@@ -322,6 +408,7 @@ public class Sparkline extends WidgetBase {
     @WikiMethod(
             title = "<key:sparkline.method.fill_color.title>",
             summary = "<key:sparkline.method.fill_color.summary>")
+    @WikiReturn("The mutable RGBA fill color used below the line.")
     public MutableColor fillColor() {
         return fillColor.value();
     }
@@ -329,22 +416,31 @@ public class Sparkline extends WidgetBase {
     @WikiMethod(
             title = "<key:sparkline.method.point_color.title>",
             summary = "<key:sparkline.method.point_color.summary>")
+    @WikiReturn("The mutable RGBA color used for data-point markers.")
     public MutableColor pointColor() {
         return pointColor.value();
     }
 
+    @WikiMethod(title = "Get hovered point color", summary = "Returns the mutable color used for the hovered point.", section = "Appearance", sectionOrder = 20, order = 40)
+    @WikiReturn("The mutable RGBA hovered-point color.")
     public MutableColor hoveredPointColor() {
         return hoveredPointColor.value();
     }
 
+    @WikiMethod(title = "Get point label color", summary = "Returns the mutable color used for point value labels.", section = "Appearance", sectionOrder = 20, order = 50)
+    @WikiReturn("The mutable RGBA point-label color.")
     public MutableColor labelColor() {
         return labelColor.value();
     }
 
+    @WikiMethod(title = "Get tooltip background color", summary = "Returns the mutable sparkline tooltip background color.", section = "Appearance", sectionOrder = 20, order = 60)
+    @WikiReturn("The mutable RGBA tooltip background color.")
     public MutableColor tooltipBackground() {
         return tooltipBackground.value();
     }
 
+    @WikiMethod(title = "Get tooltip border color", summary = "Returns the mutable sparkline tooltip border color.", section = "Appearance", sectionOrder = 20, order = 70)
+    @WikiReturn("The mutable RGBA tooltip border color.")
     public MutableColor tooltipBorder() {
         return tooltipBorder.value();
     }
@@ -356,7 +452,9 @@ public class Sparkline extends WidgetBase {
      * @return этот виджет
      */
     @XmlAttribute(value = "fillVisible", category = "Appearance", defaultValue = "true", description = "Whether the sparkline area fill is rendered.")
-    public Sparkline fillVisible(boolean fillVisible) {
+    @WikiMethod(title = "Show sparkline fill", summary = "Enables or disables the area fill beneath the line.", section = "Appearance", sectionOrder = 20, order = 80)
+    @WikiReturn("This sparkline for fluent configuration.")
+    public Sparkline fillVisible(@WikiParameter(name = "fillVisible", description = "True to render the fill; this explicit value overrides the style setting.") boolean fillVisible) {
         if (fillVisibleOverride != null && fillVisibleOverride == fillVisible) return this;
         fillVisibleOverride = fillVisible;
         invalidate(InvalidationFlags.VISUAL);
@@ -364,7 +462,10 @@ public class Sparkline extends WidgetBase {
     }
 
     @XmlAttribute(value = "pointMode", category = "Appearance", defaultValue = "extrema", description = "Which sparkline points are rendered and hit-tested.")
-    public Sparkline pointMode(PointMode pointMode) {
+    @AiDoc(summary = "Controls marker visibility and point hit-testing; null disables point rendering and interaction.", section = "Appearance", sectionOrder = 20, order = 10)
+    @WikiMethod(title = "Set point mode", summary = "Selects which data points are rendered and interactive.", section = "Appearance", sectionOrder = 20, order = 90)
+    @WikiReturn("This sparkline for fluent configuration.")
+    public Sparkline pointMode(@WikiParameter(name = "pointMode", description = "Point mode; null is treated as NONE.") PointMode pointMode) {
         PointMode normalized = pointMode == null ? PointMode.NONE : pointMode;
         if (this.pointMode == normalized) return this;
         this.pointMode = normalized;
@@ -378,12 +479,16 @@ public class Sparkline extends WidgetBase {
      *
      * @return режим показа точек
      */
+    @WikiMethod(title = "Get point mode", summary = "Returns the current marker and hit-testing mode.", section = "Appearance", sectionOrder = 20, order = 100)
+    @WikiReturn("The active point mode.")
     public PointMode pointMode() {
         return pointMode;
     }
 
     @XmlAttribute(value = "pointLabelsVisible", category = "Appearance", defaultValue = "false", description = "Whether point value labels are rendered.")
-    public Sparkline pointLabelsVisible(boolean pointLabelsVisible) {
+    @WikiMethod(title = "Show point labels", summary = "Enables or disables numeric labels beside data points.", section = "Appearance", sectionOrder = 20, order = 110)
+    @WikiReturn("This sparkline for fluent configuration.")
+    public Sparkline pointLabelsVisible(@WikiParameter(name = "pointLabelsVisible", description = "True to render point value labels.") boolean pointLabelsVisible) {
         if (this.pointLabelsVisible == pointLabelsVisible) return this;
         this.pointLabelsVisible = pointLabelsVisible;
         invalidate(InvalidationFlags.VISUAL);
@@ -391,36 +496,48 @@ public class Sparkline extends WidgetBase {
     }
 
     @XmlAttribute(value = "pointLabelPlacement", category = "Appearance", defaultValue = "above", description = "Placement of point value labels.")
-    public Sparkline pointLabelPlacement(PointLabelPlacement pointLabelPlacement) {
+    @WikiMethod(title = "Set point label placement", summary = "Sets where point value labels are placed relative to markers.", section = "Appearance", sectionOrder = 20, order = 120)
+    @WikiReturn("This sparkline for fluent configuration.")
+    public Sparkline pointLabelPlacement(@WikiParameter(name = "pointLabelPlacement", description = "Placement mode; null resets to ABOVE.") PointLabelPlacement pointLabelPlacement) {
         this.pointLabelPlacement = pointLabelPlacement == null ? PointLabelPlacement.ABOVE : pointLabelPlacement;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 
-    public Sparkline pointRenderer(SparkPointRenderer pointRenderer) {
+    @WikiMethod(title = "Customize point rendering", summary = "Installs or clears a custom data-point renderer.", section = "Custom Rendering", sectionOrder = 30, order = 10)
+    @WikiReturn("This sparkline for fluent configuration.")
+    public Sparkline pointRenderer(@WikiParameter(name = "pointRenderer", description = "Custom renderer, or null to use built-in point rendering.") SparkPointRenderer pointRenderer) {
         this.pointRenderer = pointRenderer;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 
-    public Sparkline pointLabelRenderer(SparkPointLabelRenderer pointLabelRenderer) {
+    @WikiMethod(title = "Customize point labels", summary = "Installs or clears a custom point-label renderer.", section = "Custom Rendering", sectionOrder = 30, order = 20)
+    @WikiReturn("This sparkline for fluent configuration.")
+    public Sparkline pointLabelRenderer(@WikiParameter(name = "pointLabelRenderer", description = "Custom renderer, or null to use built-in label rendering.") SparkPointLabelRenderer pointLabelRenderer) {
         this.pointLabelRenderer = pointLabelRenderer;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 
-    public Sparkline pointTooltipRenderer(SparkPointTooltipRenderer pointTooltipRenderer) {
+    @WikiMethod(title = "Customize point tooltips", summary = "Installs or clears a custom tooltip renderer.", section = "Custom Rendering", sectionOrder = 30, order = 30)
+    @WikiReturn("This sparkline for fluent configuration.")
+    public Sparkline pointTooltipRenderer(@WikiParameter(name = "pointTooltipRenderer", description = "Custom renderer, or null to use built-in tooltip rendering.") SparkPointTooltipRenderer pointTooltipRenderer) {
         this.pointTooltipRenderer = pointTooltipRenderer;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 
+    @WikiMethod(title = "Get preferred sparkline width", summary = "Returns the preferred width in UI pixels.", section = "Layout", sectionOrder = 40, order = 10)
+    @WikiReturn("Preferred width in UI pixels.")
     public float preferredWidth() {
         return preferredWidth;
     }
 
     @XmlAttribute(value = "preferredWidth", category = "Layout", defaultValue = "140", description = "Intrinsic sparkline width before layout constraints are applied.")
-    public Sparkline preferredWidth(float preferredWidth) {
+    @WikiMethod(title = "Set preferred sparkline width", summary = "Sets the preferred width in UI pixels.", section = "Layout", sectionOrder = 40, order = 20)
+    @WikiReturn("This sparkline for fluent configuration.")
+    public Sparkline preferredWidth(@WikiParameter(name = "preferredWidth", description = "Preferred width in UI pixels; non-positive or non-finite values use the default.") float preferredWidth) {
         float normalized = positiveOr(preferredWidth, DEFAULT_PREFERRED_WIDTH);
         if (this.preferredWidth == normalized) return this;
         this.preferredWidth = normalized;
@@ -428,12 +545,16 @@ public class Sparkline extends WidgetBase {
         return this;
     }
 
+    @WikiMethod(title = "Get preferred sparkline height", summary = "Returns the preferred height in UI pixels.", section = "Layout", sectionOrder = 40, order = 30)
+    @WikiReturn("Preferred height in UI pixels.")
     public float preferredHeight() {
         return preferredHeight;
     }
 
     @XmlAttribute(value = "preferredHeight", category = "Layout", defaultValue = "34", description = "Intrinsic sparkline height before layout constraints are applied.")
-    public Sparkline preferredHeight(float preferredHeight) {
+    @WikiMethod(title = "Set preferred sparkline height", summary = "Sets the preferred height in UI pixels.", section = "Layout", sectionOrder = 40, order = 40)
+    @WikiReturn("This sparkline for fluent configuration.")
+    public Sparkline preferredHeight(@WikiParameter(name = "preferredHeight", description = "Preferred height in UI pixels; non-positive or non-finite values use the default.") float preferredHeight) {
         float normalized = positiveOr(preferredHeight, DEFAULT_PREFERRED_HEIGHT);
         if (this.preferredHeight == normalized) return this;
         this.preferredHeight = normalized;
@@ -441,11 +562,18 @@ public class Sparkline extends WidgetBase {
         return this;
     }
 
-    public Sparkline preferredSize(float width, float height) {
+    @WikiMethod(title = "Set preferred sparkline size", summary = "Sets preferred width and height in UI pixels.", section = "Layout", sectionOrder = 40, order = 50)
+    @WikiReturn("This sparkline for fluent configuration.")
+    public Sparkline preferredSize(
+            @WikiParameter(name = "width", description = "Preferred width in UI pixels.") float width,
+            @WikiParameter(name = "height", description = "Preferred height in UI pixels.") float height) {
         return preferredWidth(width).preferredHeight(height);
     }
 
-    public EventSubscription onPointClick(EventListener<? super SparkPointClickEvent> listener) {
+    @AiDoc(summary = "Subscribes to clicks on interactive sparkline points.", section = "Interaction", sectionOrder = 50, order = 10)
+    @WikiMethod(title = "Listen for point clicks", summary = "Registers a listener for clicks on data points.", section = "Interaction", sectionOrder = 50, order = 10)
+    @WikiReturn("A subscription handle that can be cancelled.")
+    public EventSubscription onPointClick(@WikiParameter(name = "listener", description = "Listener receiving the clicked point event.") EventListener<? super SparkPointClickEvent> listener) {
         return on(SparkPointClickEvent.TYPE, listener);
     }
 

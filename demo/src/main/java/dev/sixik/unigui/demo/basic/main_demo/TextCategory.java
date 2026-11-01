@@ -30,7 +30,7 @@ final class TextCategory extends DemoCategory {
 
     @Override
     boolean expandedByDefault() {
-        return true;
+        return false;
     }
 
     @Override

@@ -43,6 +43,7 @@ import dev.sixik.unigui.widgets.display.PlotSupport;
 
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+
 import java.util.List;
 import java.util.function.Function;
 
@@ -89,31 +90,53 @@ import java.util.function.Function;
 public class GraphView extends WidgetBase {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.GRAPH_VIEW;
 
-    /** Ширина по умолчанию в UI-пикселях. */
+    /**
+     * Ширина по умолчанию в UI-пикселях.
+     */
     public static final float DEFAULT_PREFERRED_WIDTH = 240.0f;
-    /** Высота по умолчанию в UI-пикселях. */
+    /**
+     * Высота по умолчанию в UI-пикселях.
+     */
     public static final float DEFAULT_PREFERRED_HEIGHT = 130.0f;
 
-    /** Прибавка к радиусу наведённого узла в UI-пикселях. */
+    /**
+     * Прибавка к радиусу наведённого узла в UI-пикселях.
+     */
     private static final float HOVER_RADIUS_BONUS = 1.5f;
-    /** Зазор между окружностью узла и концом ребра в UI-пикселях. */
+    /**
+     * Зазор между окружностью узла и концом ребра в UI-пикселях.
+     */
     private static final float EDGE_GAP = 1.0f;
-    /** Минимальный радиус попадания указателя в узел в UI-пикселях. */
+    /**
+     * Минимальный радиус попадания указателя в узел в UI-пикселях.
+     */
     private static final float MIN_HIT_RADIUS = 8.0f;
-    /** Зазор между узлом и подписью в UI-пикселях. */
+    /**
+     * Зазор между узлом и подписью в UI-пикселях.
+     */
     private static final float LABEL_GAP = 3.0f;
-    /** Зазор между узлом и подсказкой в UI-пикселях. */
+    /**
+     * Зазор между узлом и подсказкой в UI-пикселях.
+     */
     private static final float TOOLTIP_GAP = 6.0f;
-    /** Доля ширины стрелки от её длины. */
+    /**
+     * Доля ширины стрелки от её длины.
+     */
     private static final float ARROW_HALF_WIDTH = 0.45f;
-    /** Запас вокруг узла внутри виджета в UI-пикселях. */
+    /**
+     * Запас вокруг узла внутри виджета в UI-пикселях.
+     */
     private static final float EDGE_INSET = 4.0f;
 
     private final List<Node> nodes = new ObjectArrayList<>();
     private final List<Edge> edges = new ObjectArrayList<>();
-    /** Индекс узла по id; поддерживается в {@link #rebuildIndex()}. */
+    /**
+     * Индекс узла по id; поддерживается в {@link #rebuildIndex()}.
+     */
     private final Object2IntOpenHashMap<String> indexById = new Object2IntOpenHashMap<>();
-    /** Индексы концов рёбер в {@link #nodes}; {@code -1} — узел ещё не добавлен. */
+    /**
+     * Индексы концов рёбер в {@link #nodes}; {@code -1} — узел ещё не добавлен.
+     */
     private int[] edgeFrom = new int[0];
     private int[] edgeTo = new int[0];
 
@@ -246,7 +269,10 @@ public class GraphView extends WidgetBase {
      * @param id идентификатор узла
      * @return этот виджет
      */
-    public GraphView removeNode(String id) {
+    @AiDoc(summary = "Removes a node and every edge that references its identifier.", section = "Graph Data", sectionOrder = 10, order = 30)
+    @WikiMethod(summary = "Removes a node and all incident edges.", section = "Graph Data", sectionOrder = 10, order = 30)
+    @WikiReturn("This graph view for fluent configuration.")
+    public GraphView removeNode(@WikiParameter(name = "id", description = "Node identifier to remove; null or unknown identifiers are ignored.") String id) {
         int index = id == null ? -1 : indexById.getInt(id);
         if (index < 0) return this;
         nodes.remove(index);
@@ -272,6 +298,8 @@ public class GraphView extends WidgetBase {
      *
      * @return число узлов
      */
+    @WikiMethod(summary = "Returns the number of nodes currently in the graph.", section = "Graph Data", sectionOrder = 10, order = 40)
+    @WikiReturn("The current number of nodes.")
     public int nodeCount() {
         return nodes.size();
     }
@@ -281,6 +309,8 @@ public class GraphView extends WidgetBase {
      *
      * @return число рёбер
      */
+    @WikiMethod(summary = "Returns the number of edges, including edges waiting for missing endpoints.", section = "Graph Data", sectionOrder = 10, order = 50)
+    @WikiReturn("The current number of stored edges.")
     public int edgeCount() {
         return edges.size();
     }
@@ -326,6 +356,8 @@ public class GraphView extends WidgetBase {
      *
      * @return изменяемый цвет; изменение переопределяет стиль {@code graph.node.border-color}
      */
+    @WikiMethod(summary = "Returns the mutable color used to outline graph nodes.", section = "Appearance", sectionOrder = 20, order = 10)
+    @WikiReturn("The mutable RGBA node-border color.")
     public MutableColor nodeBorderColor() {
         return nodeBorderColor.value();
     }
@@ -342,6 +374,8 @@ public class GraphView extends WidgetBase {
      *
      * @return изменяемый цвет; изменение переопределяет стиль {@code graph.edge.hover-color}
      */
+    @WikiMethod(summary = "Returns the mutable color used for edges connected to the hovered node.", section = "Appearance", sectionOrder = 20, order = 20)
+    @WikiReturn("The mutable RGBA hovered-edge color.")
     public MutableColor hoveredEdgeColor() {
         return hoveredEdgeColor.value();
     }
@@ -374,7 +408,10 @@ public class GraphView extends WidgetBase {
      * @return этот виджет
      */
     @XmlAttribute(value = "directed", category = "Appearance", defaultValue = "true", description = "Whether edges are drawn with an arrowhead at the target node.")
-    public GraphView directed(boolean directed) {
+    @AiDoc(summary = "Enables or disables target arrowheads for edges.", section = "Appearance", sectionOrder = 20, order = 10)
+    @WikiMethod(summary = "Enables or disables arrowheads at edge targets.", section = "Appearance", sectionOrder = 20, order = 30)
+    @WikiReturn("This graph view for fluent configuration.")
+    public GraphView directed(@WikiParameter(name = "directed", description = "True to draw an arrowhead at each target node.") boolean directed) {
         if (this.directed == directed) return this;
         this.directed = directed;
         invalidate(InvalidationFlags.VISUAL);
@@ -386,6 +423,8 @@ public class GraphView extends WidgetBase {
      *
      * @return {@code true}, если рёбра направленные
      */
+    @WikiMethod(summary = "Returns whether edges are rendered as directed connections.", section = "Appearance", sectionOrder = 20, order = 40)
+    @WikiReturn("True when edge target arrowheads are enabled.")
     public boolean directed() {
         return directed;
     }
@@ -866,7 +905,8 @@ public class GraphView extends WidgetBase {
     }
 
     @AiDoc(summary = "Geometry point data for a rendered node with hover state.")
-    public record NodePoint(int index, String id, float normalizedX, float normalizedY, float x, float y, boolean hovered) {
+    public record NodePoint(int index, String id, float normalizedX, float normalizedY, float x, float y,
+                            boolean hovered) {
     }
 
     @FunctionalInterface

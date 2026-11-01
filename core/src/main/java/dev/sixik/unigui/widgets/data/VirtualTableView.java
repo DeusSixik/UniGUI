@@ -101,7 +101,9 @@ import java.util.function.Consumer;
         criticalRules = {
                 "Only rows within visible scroll viewport are measured and rendered.",
                 "Columns list determines horizontal cell layout and header order.",
-                "Cell providers receive the column modelIndex for data access, which stays stable across reorders."
+                "Cell providers receive the column modelIndex for data access, which stays stable across reorders.",
+                "Row and column API indices refer to the current model or display order as stated by each operation; column reordering does not change modelIndex.",
+                "Editing commits through commitEdit() and can be discarded through cancelEdit(); the widget does not mutate an external data model itself."
         },
         related = {"VirtualTableColumn", "VirtualListView", "WidgetBase"})
 @WikiPage(
@@ -279,6 +281,7 @@ public class VirtualTableView extends WidgetBase {
     @WikiMethod(
             title = "<key:virtual.table.view.method.row_count.title>",
             summary = "<key:virtual.table.view.method.row_count.summary>")
+    @WikiReturn("The number of rows currently exposed by the virtualized table.")
     public int rowCount() {
         return virtualizer.itemCount();
     }
@@ -288,7 +291,9 @@ public class VirtualTableView extends WidgetBase {
     @WikiMethod(
             title = "<key:virtual.table.view.method.row_count.title>",
             summary = "<key:virtual.table.view.method.row_count.summary>")
-    public VirtualTableView rowCount(int rowCount) {
+    @AiDoc(summary = "Sets the number of virtual rows; reducing the count clamps selection and cancels editing on removed rows.", section = "Rows and Columns", sectionOrder = 10, order = 10)
+    @WikiReturn("This table for fluent configuration.")
+    public VirtualTableView rowCount(@WikiParameter(name = "rowCount", description = "New row count; negative values are normalized to zero.") int rowCount) {
         if (virtualizer.itemCount() == Math.max(0, rowCount)) return this;
         List<Integer> oldSelection = selection.selectedIndices();
         virtualizer.itemCount(rowCount);
@@ -313,7 +318,11 @@ public class VirtualTableView extends WidgetBase {
      * @param count число вставляемых строк; неположительное значение игнорируется
      * @return this
      */
-    public VirtualTableView insertRows(int index, int count) {
+    @AiDoc(summary = "Inserts rows at a clamped model index and shifts selection and active-row state; sorting is reset.", section = "Rows and Columns", sectionOrder = 10, order = 20)
+    @WikiMethod(title = "Insert rows", summary = "Inserts a range of rows at a model index.", section = "Rows and Columns", sectionOrder = 10, order = 20)
+    @WikiReturn("This table for fluent configuration.")
+    public VirtualTableView insertRows(@WikiParameter(name = "index", description = "Insertion index, clamped to the range from zero through the current row count.") int index,
+            @WikiParameter(name = "count", description = "Number of rows to insert; non-positive values are ignored.") int count) {
         if (count <= 0) return this;
         int clampedIndex = Math.max(0, Math.min(index, virtualizer.itemCount()));
         List<Integer> oldSelection = selection.selectedIndices();
@@ -339,6 +348,8 @@ public class VirtualTableView extends WidgetBase {
      *
      * @return this
      */
+    @WikiMethod(title = "Append a row", summary = "Appends one row to the table.", section = "Rows and Columns", sectionOrder = 10, order = 30)
+    @WikiReturn("This table for fluent configuration.")
     public VirtualTableView addRow() {
         return insertRows(virtualizer.itemCount(), 1);
     }
@@ -350,7 +361,10 @@ public class VirtualTableView extends WidgetBase {
      * @param count число строк для удаления
      * @return this
      */
-    public VirtualTableView removeRows(int index, int count) {
+    @WikiMethod(title = "Remove rows", summary = "Removes a clamped row range and updates related state.", section = "Rows and Columns", sectionOrder = 10, order = 40)
+    @WikiReturn("This table for fluent configuration.")
+    public VirtualTableView removeRows(@WikiParameter(name = "index", description = "First model row to remove; clamped to an existing row when rows are present.") int index,
+            @WikiParameter(name = "count", description = "Maximum number of rows to remove; non-positive values are ignored.") int count) {
         if (count <= 0 || virtualizer.itemCount() == 0) return this;
         int clampedIndex = Math.max(0, Math.min(index, virtualizer.itemCount() - 1));
         int clampedCount = Math.min(count, virtualizer.itemCount() - clampedIndex);
@@ -401,7 +415,9 @@ public class VirtualTableView extends WidgetBase {
     @WikiMethod(
             title = "<key:virtual.table.view.method.columns.title>",
             summary = "<key:virtual.table.view.method.columns.summary>")
-    public VirtualTableView columns(List<VirtualTableColumn> columns) {
+    @AiDoc(summary = "Replaces the displayed column list; adopted columns receive stable model indices for provider access.", section = "Rows and Columns", sectionOrder = 10, order = 50)
+    @WikiReturn("This table for fluent configuration.")
+    public VirtualTableView columns(@WikiParameter(name = "columns", description = "Columns in display order; null clears all columns and null entries are skipped.") List<VirtualTableColumn> columns) {
         this.columns.clear();
         nextModelIndex = 0;
         if (columns != null) {
@@ -420,7 +436,9 @@ public class VirtualTableView extends WidgetBase {
     @WikiMethod(
             title = "<key:virtual.table.view.method.add_column.title>",
             summary = "<key:virtual.table.view.method.add_column.summary>")
-    public VirtualTableView addColumn(String header, float width) {
+    @WikiReturn("This table for fluent configuration.")
+    public VirtualTableView addColumn(@WikiParameter(name = "header", description = "Text displayed in the column header.") String header,
+            @WikiParameter(name = "width", description = "Initial column width in UI pixels; constrained by the minimum column width.") float width) {
         return insertColumn(columns.size(), new VirtualTableColumn(header, width));
     }
 
@@ -633,7 +651,11 @@ public class VirtualTableView extends WidgetBase {
     public int           sortColumnIndex() { return sortColumnIndex; }
     public SortDirection sortDirection()   { return sortDirection; }
 
-    public VirtualTableView sortBy(int columnIndex, SortDirection direction) {
+    @AiDoc(summary = "Sorts by a displayed column using its configured sort-key provider and direction; NONE clears sorting.", section = "Sorting", sectionOrder = 20, order = 10)
+    @WikiMethod(title = "Sort rows", summary = "Sets the active sort column and direction.", section = "Sorting", sectionOrder = 20, order = 10)
+    @WikiReturn("This table for fluent configuration.")
+    public VirtualTableView sortBy(@WikiParameter(name = "columnIndex", description = "Displayed column index to sort by; ignored when direction is NONE.") int columnIndex,
+            @WikiParameter(name = "direction", description = "Sort direction; null or NONE clears sorting.") SortDirection direction) {
         SortDirection normalizedDirection = direction == null ? SortDirection.NONE : direction;
         int normalizedColumn = normalizedDirection == SortDirection.NONE ? -1 : normalizeColumnIndex(columnIndex);
         if (normalizedColumn < 0) normalizedDirection = SortDirection.NONE;
@@ -707,7 +729,11 @@ public class VirtualTableView extends WidgetBase {
 
     public VirtualTableView beginEdit() { return beginEdit(activeRow, activeColumn); }
 
-    public VirtualTableView beginEdit(int row, int column) {
+    @AiDoc(summary = "Begins editing a valid active cell when editing is enabled; an existing edit is committed first.", section = "Cell Editing", sectionOrder = 30, order = 10)
+    @WikiMethod(title = "Begin cell editing", summary = "Starts editing the requested row and displayed column when editing is enabled.", section = "Cell Editing", sectionOrder = 30, order = 10)
+    @WikiReturn("This table for fluent configuration.")
+    public VirtualTableView beginEdit(@WikiParameter(name = "row", description = "Model row index to edit.") int row,
+            @WikiParameter(name = "column", description = "Displayed column index to edit.") int column) {
         if (!editable) return this;
         int normRow = clampRowOrNone(row);
         int normCol = clampColumnOrNone(column);
@@ -732,6 +758,9 @@ public class VirtualTableView extends WidgetBase {
         return this;
     }
 
+    @AiDoc(summary = "Commits the current editor text by emitting a cell-edit-committed event; the application remains responsible for updating its data model.", section = "Cell Editing", sectionOrder = 30, order = 20)
+    @WikiMethod(title = "Commit cell editing", summary = "Completes the active edit and emits the committed text.", section = "Cell Editing", sectionOrder = 30, order = 20)
+    @WikiReturn("This table for fluent configuration.")
     public VirtualTableView commitEdit() {
         if (!editing()) return this;
         int row = editingRow, col = editingColumn;

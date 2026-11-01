@@ -256,7 +256,8 @@ public final class UniGuiDemo {
                 new DataCategory(),
                 new MediaCategory(),
                 new FeedbackCategory(),
-                new StatusCategory());
+                new StatusCategory(),
+                new DemoAppsCategory());
 
         protected final NavigationView navigation = new NavigationView();
         protected final NotificationView notifications = new NotificationView()

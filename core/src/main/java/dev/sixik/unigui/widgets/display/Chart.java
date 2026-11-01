@@ -5,7 +5,9 @@ import dev.sixik.unigui.api.core.UIContext;
 import dev.sixik.unigui.api.docs.AiDoc;
 import dev.sixik.unigui.api.docs.WikiExample;
 import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiParameter;
 import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiReturn;
 import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.event.ChartBarClickEvent;
 import dev.sixik.unigui.api.event.EventListener;
@@ -51,8 +53,14 @@ import java.util.List;
         },
         criticalRules = {
                 "type() selects between Type.LINE and Type.BAR rendering modes.",
-                "axisColor configures coordinate axis line and tick markings."
+                "axisColor configures coordinate axis line and tick markings.",
+                "Category label at index i belongs to value at index i; missing labels are allowed.",
+                "Bar charts include zero in the value scale, so positive and negative bars share a zero baseline.",
+                "Non-finite values create gaps and do not participate in the plotted scale."
         },
+        examples = @AiDoc.Example(
+                title = "Build a categorized bar chart",
+                code = "new Chart().type(Chart.Type.BAR).values(List.of(12, -4, 18))\n        .categories(List.of(\"A\", \"B\", \"C\"));"),
         related = {"Sparkline", "WidgetBase"})
 @WikiPage(
         title = "<key:chart.title>",
@@ -70,24 +78,43 @@ import java.util.List;
         order = 10)
 @XmlWidgetName("Chart")
 public final class Chart extends Sparkline {
+    /**
+     * Style registry id used to resolve this widget's default chart style.
+     */
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.CHART;
 
-    /** Ширина по умолчанию в UI-пикселях. */
+    /**
+     * Ширина по умолчанию в UI-пикселях.
+     */
     public static final float DEFAULT_PREFERRED_WIDTH = 220.0f;
-    /** Высота по умолчанию в UI-пикселях. */
+    /**
+     * Высота по умолчанию в UI-пикселях.
+     */
     public static final float DEFAULT_PREFERRED_HEIGHT = 120.0f;
 
-    /** Минимальная высота столбца: нулевое значение остаётся видимой чертой. */
+    /**
+     * Минимальная высота столбца: нулевое значение остаётся видимой чертой.
+     */
     private static final float ZERO_BAR_HEIGHT = 1.0f;
-    /** Внешний отступ области графика от края виджета в UI-пикселях. */
+    /**
+     * Внешний отступ области графика от края виджета в UI-пикселях.
+     */
     private static final float OUTER_PADDING = 6.0f;
-    /** Длина засечки на оси значений в UI-пикселях. */
+    /**
+     * Длина засечки на оси значений в UI-пикселях.
+     */
     private static final float TICK_LENGTH = 3.0f;
-    /** Зазор между засечкой и подписью в UI-пикселях. */
+    /**
+     * Зазор между засечкой и подписью в UI-пикселях.
+     */
     private static final float LABEL_GAP = 3.0f;
-    /** Зазор между столбцом и подписью его значения в UI-пикселях. */
+    /**
+     * Зазор между столбцом и подписью его значения в UI-пикселях.
+     */
     private static final float VALUE_GAP = 2.0f;
-    /** Зазор между подсказкой и столбцом в UI-пикселях. */
+    /**
+     * Зазор между подсказкой и столбцом в UI-пикселях.
+     */
     private static final float TOOLTIP_GAP = 6.0f;
 
     private final OverridableColor axisColor = new OverridableColor(
@@ -109,11 +136,17 @@ public final class Chart extends Sparkline {
     private int categoryVersion;
 
     // ---- шкала и подписи осей (кэш) ----
-    /** Результат {@link PlotSupport#niceScale}: границы шкалы и шаг. */
+    /**
+     * Результат {@link PlotSupport#niceScale}: границы шкалы и шаг.
+     */
     private final float[] scale = new float[3];
-    /** Шаг шкалы значений. */
+    /**
+     * Шаг шкалы значений.
+     */
     float tickStep = 1.0f;
-    /** Число делений шкалы, включая крайние. */
+    /**
+     * Число делений шкалы, включая крайние.
+     */
     private int tickCount = 2;
     private RichText[] tickTexts = new RichText[0];
     private float[] tickWidths = new float[0];
@@ -129,9 +162,13 @@ public final class Chart extends Sparkline {
     private int keyCategoryVersion = -1;
     private float keyCategorySize = -1.0f;
 
-    /** Рабочий массив геометрии столбца: x, верх, ширина, высота, основание. */
+    /**
+     * Рабочий массив геометрии столбца: x, верх, ширина, высота, основание.
+     */
     private final float[] barRect = new float[5];
 
+    @AiDoc(summary = "Creates a chart with the default preferred dimensions and line rendering mode.")
+    @WikiMethod(title = "Create a chart", summary = "Creates a chart with its default size and line mode.", order = 10)
     public Chart() {
         super(DEFAULT_PREFERRED_WIDTH, DEFAULT_PREFERRED_HEIGHT);
     }
@@ -150,21 +187,35 @@ public final class Chart extends Sparkline {
         invalidate(InvalidationFlags.VISUAL);
     }
 
+    /**
+     * Rendering modes supported by the chart.
+     */
     public enum Type {
+        /**
+         * Draws values as a connected line.
+         */
         LINE,
+        /**
+         * Draws one bar per value from the shared zero baseline.
+         */
         BAR
     }
 
     // ------------------------------------------------------------------ данные и настройки
 
     @Override
-    public Chart values(List<? extends Number> values) {
+    @AiDoc(summary = "Replaces the chart data from a list of Number values; null clears the data and null elements become zero.", section = "Data", sectionOrder = 10, order = 10)
+    @WikiMethod(title = "Set chart values", summary = "Replaces the plotted values from a Number list.", section = "Data", sectionOrder = 10, order = 10)
+    @WikiReturn("This chart for fluent configuration.")
+    public Chart values(@WikiParameter(name = "values", description = "Values in data order; null clears the series and null entries are treated as zero.") List<? extends Number> values) {
         super.values(values);
         return this;
     }
 
     @Override
-    public Chart values(float... data) {
+    @WikiMethod(title = "Set chart values from floats", summary = "Replaces the plotted values without boxing numeric inputs.", section = "Data", sectionOrder = 10, order = 20)
+    @WikiReturn("This chart for fluent configuration.")
+    public Chart values(@WikiParameter(name = "data", description = "Values in data order; null clears the series and non-finite values create gaps.") float... data) {
         super.values(data);
         return this;
     }
@@ -178,7 +229,10 @@ public final class Chart extends Sparkline {
      * @param categories подписи; {@code null} или пустой список скрывает подписи
      * @return этот график
      */
-    public Chart categories(List<String> categories) {
+    @AiDoc(summary = "Sets optional x-axis labels; category i labels value i and labels may be omitted or left null.", section = "Data", sectionOrder = 10, order = 30)
+    @WikiMethod(title = "Set category labels", summary = "Sets optional labels aligned by index with the plotted values.", section = "Data", sectionOrder = 10, order = 30)
+    @WikiReturn("This chart for fluent configuration.")
+    public Chart categories(@WikiParameter(name = "categories", description = "Category labels in value order; null or an empty list hides labels.") List<String> categories) {
         this.categories = categories == null ? List.of() : Collections.unmodifiableList(new ArrayList<>(categories));
         categoryVersion++;
         invalidateTexts();
@@ -191,6 +245,8 @@ public final class Chart extends Sparkline {
      *
      * @return неизменяемый список подписей
      */
+    @WikiMethod(title = "Get category labels", summary = "Returns the current immutable category-label list.", section = "Data", sectionOrder = 10, order = 40)
+    @WikiReturn("An immutable list of category labels, empty when labels are not configured.")
     public List<String> categories() {
         return categories;
     }
@@ -210,7 +266,9 @@ public final class Chart extends Sparkline {
     @WikiMethod(
             title = "<key:chart.method.type.title>",
             summary = "<key:chart.method.type.summary>")
-    public Chart type(Type type) {
+    @AiDoc(summary = "Selects line or bar rendering; null resets to line mode.", section = "Appearance", sectionOrder = 20, order = 10)
+    @WikiReturn("This chart for fluent configuration.")
+    public Chart type(@WikiParameter(name = "type", description = "Rendering mode; null selects LINE.") Type type) {
         Type normalized = type == null ? Type.LINE : type;
         if (this.type == normalized) return this;
         this.type = normalized;
@@ -220,6 +278,8 @@ public final class Chart extends Sparkline {
         return this;
     }
 
+    @WikiMethod(title = "Get chart type", summary = "Returns the active line or bar rendering mode.", section = "Appearance", sectionOrder = 20, order = 20)
+    @WikiReturn("The current rendering mode; defaults to LINE.")
     public Type type() {
         return type;
     }
@@ -227,6 +287,7 @@ public final class Chart extends Sparkline {
     @WikiMethod(
             title = "<key:chart.method.axis_color.title>",
             summary = "<key:chart.method.axis_color.summary>")
+    @WikiReturn("The mutable RGBA axis color; changing it overrides the style value.")
     public MutableColor axisColor() {
         return axisColor.value();
     }
@@ -243,10 +304,13 @@ public final class Chart extends Sparkline {
     @WikiMethod(
             title = "<key:chart.method.bar_color.title>",
             summary = "<key:chart.method.bar_color.summary>")
+    @WikiReturn("The mutable RGBA bar color; changing it overrides the style value.")
     public MutableColor barColor() {
         return barColor.value();
     }
 
+    @WikiMethod(title = "Get hovered bar color", summary = "Returns the mutable color used for the hovered bar.", section = "Appearance", sectionOrder = 20, order = 50)
+    @WikiReturn("The mutable RGBA hovered-bar color.")
     public MutableColor hoveredBarColor() {
         return hoveredBarColor.value();
     }
@@ -261,7 +325,10 @@ public final class Chart extends Sparkline {
     }
 
     @XmlAttribute(value = "barValuesVisible", category = "Appearance", defaultValue = "true", description = "Whether bar value labels are rendered.")
-    public Chart barValuesVisible(boolean barValuesVisible) {
+    @AiDoc(summary = "Enables or hides numeric labels on bars; this affects only BAR mode.", section = "Appearance", sectionOrder = 20, order = 60)
+    @WikiMethod(title = "Show bar values", summary = "Enables or hides numeric labels rendered on bars.", section = "Appearance", sectionOrder = 20, order = 60)
+    @WikiReturn("This chart for fluent configuration.")
+    public Chart barValuesVisible(@WikiParameter(name = "barValuesVisible", description = "True to render bar value labels.") boolean barValuesVisible) {
         if (this.barValuesVisible == barValuesVisible) return this;
         this.barValuesVisible = barValuesVisible;
         invalidate(InvalidationFlags.VISUAL);
@@ -269,57 +336,79 @@ public final class Chart extends Sparkline {
     }
 
     @XmlAttribute(value = "barValuePlacement", category = "Appearance", defaultValue = "head", description = "Placement of bar value labels.")
-    public Chart barValuePlacement(BarValuePlacement barValuePlacement) {
+    @WikiMethod(title = "Place bar value labels", summary = "Selects where numeric labels appear relative to each bar.", section = "Appearance", sectionOrder = 20, order = 70)
+    @WikiReturn("This chart for fluent configuration.")
+    public Chart barValuePlacement(@WikiParameter(name = "barValuePlacement", description = "Placement mode; null resets to HEAD.") BarValuePlacement barValuePlacement) {
         this.barValuePlacement = barValuePlacement == null ? BarValuePlacement.HEAD : barValuePlacement;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 
-    public Chart barRenderer(BarRenderer barRenderer) {
+    @AiDoc(summary = "Installs an optional callback that replaces the default bar drawing.", section = "Custom Rendering", sectionOrder = 30, order = 10)
+    @WikiMethod(title = "Customize bar rendering", summary = "Installs or clears a custom bar renderer.", section = "Custom Rendering", sectionOrder = 30, order = 10)
+    @WikiReturn("This chart for fluent configuration.")
+    public Chart barRenderer(@WikiParameter(name = "barRenderer", description = "Custom renderer callback, or null to use the built-in bar rendering.") BarRenderer barRenderer) {
         this.barRenderer = barRenderer;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 
-    public Chart barValueRenderer(BarValueRenderer barValueRenderer) {
+    @WikiMethod(title = "Customize bar value labels", summary = "Installs or clears a custom bar-value label renderer.", section = "Custom Rendering", sectionOrder = 30, order = 20)
+    @WikiReturn("This chart for fluent configuration.")
+    public Chart barValueRenderer(@WikiParameter(name = "barValueRenderer", description = "Custom renderer callback, or null to use built-in value labels.") BarValueRenderer barValueRenderer) {
         this.barValueRenderer = barValueRenderer;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 
-    public Chart barTooltipRenderer(BarTooltipRenderer barTooltipRenderer) {
+    @WikiMethod(title = "Customize bar tooltips", summary = "Installs or clears a custom tooltip renderer for hovered bars.", section = "Custom Rendering", sectionOrder = 30, order = 30)
+    @WikiReturn("This chart for fluent configuration.")
+    public Chart barTooltipRenderer(@WikiParameter(name = "barTooltipRenderer", description = "Custom renderer callback, or null to use the built-in tooltip.") BarTooltipRenderer barTooltipRenderer) {
         this.barTooltipRenderer = barTooltipRenderer;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 
     @Override
-    public Chart renderer(WidgetRender renderer) {
+    @WikiMethod(title = "Set chart renderer", summary = "Sets the widget-level renderer used for chart rendering hooks.", section = "Custom Rendering", sectionOrder = 30, order = 40)
+    @WikiReturn("This chart for fluent configuration.")
+    public Chart renderer(@WikiParameter(name = "renderer", description = "Widget renderer callback.") WidgetRender renderer) {
         super.renderer(renderer);
         return this;
     }
 
     @Override
     @XmlAttribute(value = "preferredWidth", category = "Layout", defaultValue = "220", description = "Intrinsic chart width before layout constraints are applied.")
-    public Chart preferredWidth(float preferredWidth) {
+    @WikiMethod(title = "Set preferred chart width", summary = "Sets the preferred chart width in UI pixels.", section = "Layout", sectionOrder = 40, order = 10)
+    @WikiReturn("This chart for fluent configuration.")
+    public Chart preferredWidth(@WikiParameter(name = "preferredWidth", description = "Preferred width in UI pixels; non-positive or non-finite values use the default.") float preferredWidth) {
         super.preferredWidth(preferredWidth);
         return this;
     }
 
     @Override
     @XmlAttribute(value = "preferredHeight", category = "Layout", defaultValue = "120", description = "Intrinsic chart height before layout constraints are applied.")
-    public Chart preferredHeight(float preferredHeight) {
+    @WikiMethod(title = "Set preferred chart height", summary = "Sets the preferred chart height in UI pixels.", section = "Layout", sectionOrder = 40, order = 20)
+    @WikiReturn("This chart for fluent configuration.")
+    public Chart preferredHeight(@WikiParameter(name = "preferredHeight", description = "Preferred height in UI pixels; non-positive or non-finite values use the default.") float preferredHeight) {
         super.preferredHeight(preferredHeight);
         return this;
     }
 
     @Override
-    public Chart preferredSize(float width, float height) {
+    @WikiMethod(title = "Set preferred chart size", summary = "Sets preferred width and height in UI pixels.", section = "Layout", sectionOrder = 40, order = 30)
+    @WikiReturn("This chart for fluent configuration.")
+    public Chart preferredSize(
+            @WikiParameter(name = "width", description = "Preferred width in UI pixels.") float width,
+            @WikiParameter(name = "height", description = "Preferred height in UI pixels.") float height) {
         super.preferredSize(width, height);
         return this;
     }
 
-    public EventSubscription onBarClick(EventListener<? super ChartBarClickEvent> listener) {
+    @AiDoc(summary = "Subscribes to clicks on bars and provides the clicked bar's data and rendered geometry.", section = "Interaction", sectionOrder = 50, order = 10)
+    @WikiMethod(title = "Listen for bar clicks", summary = "Registers a listener for clicks on chart bars.", section = "Interaction", sectionOrder = 50, order = 10)
+    @WikiReturn("A subscription handle that can be cancelled.")
+    public EventSubscription onBarClick(@WikiParameter(name = "listener", description = "Listener receiving the clicked bar event.") EventListener<? super ChartBarClickEvent> listener) {
         return on(ChartBarClickEvent.TYPE, listener);
     }
 
@@ -608,13 +697,13 @@ public final class Chart extends Sparkline {
      * <p>Скругление получается одной командой: скруглённый прямоугольник рисуется на радиус длиннее в сторону
      * нулевой линии и обрезается областью столбца. Так полупрозрачный цвет не накладывается сам на себя.</p>
      *
-     * @param draw  область рисования
-     * @param x     левый край столбца
-     * @param top   верхний край столбца
-     * @param width ширина столбца
+     * @param draw   область рисования
+     * @param x      левый край столбца
+     * @param top    верхний край столбца
+     * @param width  ширина столбца
      * @param height высота столбца
-     * @param up    {@code true} — столбец растёт вверх от нулевой линии
-     * @param color цвет заливки
+     * @param up     {@code true} — столбец растёт вверх от нулевой линии
+     * @param color  цвет заливки
      */
     private void drawBar(DrawScope draw, float x, float top, float width, float height, boolean up, ColorView color) {
         float radius = Math.min(palette.barRadius, Math.min(width, height) * 0.5f);
@@ -736,7 +825,8 @@ public final class Chart extends Sparkline {
         BELOW
     }
 
-    public record Bar(int index, float value, float x, float y, float width, float height, float baseline, boolean hovered) {
+    public record Bar(int index, float value, float x, float y, float width, float height, float baseline,
+                      boolean hovered) {
         public float centerX() {
             return x + width * 0.5f;
         }
