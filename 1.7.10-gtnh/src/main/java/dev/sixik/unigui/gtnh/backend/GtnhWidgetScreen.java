@@ -46,6 +46,9 @@ final class GtnhWidgetScreen extends GuiScreen implements GtnhRenderHost {
     private FontFace defaultFont;
     private KeyboardInputHandler keyboardInputHandler;
     private boolean layoutInitialized;
+    private float lastLayoutWidth;
+    private float lastLayoutHeight;
+    private float lastLayoutScale;
     private boolean closed;
     private long frameIndex;
     private long lastFrameNanos;
@@ -125,7 +128,7 @@ final class GtnhWidgetScreen extends GuiScreen implements GtnhRenderHost {
         }
         boolean layoutChanged;
         try (ProfileScope ignored = uiContext.profiler().scope("layout")) {
-            layoutChanged = updateLayout(logicalWidth, logicalHeight);
+            layoutChanged = updateLayout(logicalWidth, logicalHeight, scale);
         }
         drawList.clear();
         try (ProfileScope ignored = uiContext.profiler().scope("buildDrawList")) {
@@ -181,13 +184,22 @@ final class GtnhWidgetScreen extends GuiScreen implements GtnhRenderHost {
     /**
      * @return {@code true} if layout ran
      */
-    private boolean updateLayout(float logicalWidth, float logicalHeight) {
-        if (layoutInitialized && !InvalidationFlags.has(root.subtreeInvalidationFlags(), InvalidationFlags.LAYOUT))
+    private boolean updateLayout(float logicalWidth, float logicalHeight, float scale) {
+        // Смена масштаба меняет логический размер экрана (width / scale), но не ставит флаг LAYOUT у виджетов.
+        // Без сравнения размера и масштаба корень остаётся разложенным под старый размер до initGui().
+        if (layoutInitialized
+                && Float.compare(logicalWidth, lastLayoutWidth) == 0
+                && Float.compare(logicalHeight, lastLayoutHeight) == 0
+                && Float.compare(scale, lastLayoutScale) == 0
+                && !InvalidationFlags.has(root.subtreeInvalidationFlags(), InvalidationFlags.LAYOUT))
             return false;
         root.measure(new LayoutContext(logicalWidth, logicalHeight));
         root.arrange(new MutableRect(0.0f, 0.0f, logicalWidth, logicalHeight));
         clearLayoutInvalidation(root);
         layoutInitialized = true;
+        lastLayoutWidth = logicalWidth;
+        lastLayoutHeight = logicalHeight;
+        lastLayoutScale = scale;
         return true;
     }
 

@@ -1,5 +1,7 @@
 package dev.sixik.unigui.gtnh.commands;
 
+import dev.sixik.unigui.demo.basic.main_demo.UniGuiDemo;
+import dev.sixik.unigui.gtnh.backend.GtnhClientTasks;
 import dev.sixik.unigui.gtnh.demo.IntegrationLab;
 import dev.sixik.unigui.gtnh.demo.MinecraftLab;
 import dev.sixik.unigui.gtnh.demo.PostEffectLab;
@@ -67,7 +69,9 @@ public class CommandUniGUI extends CommandBase {
             }
             return;
         }
-        sender.addChatMessage(new ChatComponentText(getCommandUsage(sender)));
+//        sender.addChatMessage(new ChatComponentText(getCommandUsage(sender)));
+
+        GtnhClientTasks.post(UniGuiDemo::openGui);
     }
 
     @Override
