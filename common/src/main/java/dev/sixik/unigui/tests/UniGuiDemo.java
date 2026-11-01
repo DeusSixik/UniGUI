@@ -55,8 +55,10 @@ import net.minecraft.world.level.block.Blocks;
 
 import java.time.Duration;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Random;
 
 public final class UniGuiDemo {
     private static final MutableUIScaleProvider SCALE = new MutableUIScaleProvider(2.0f);
@@ -1084,10 +1086,10 @@ public final class UniGuiDemo {
      */
     private static VBox dynamicTableDemo() {
         // backing model: rows × column-model-index → cell text
-        java.util.List<java.util.List<String>> rows = new java.util.ArrayList<>();
-        java.util.Random rng = new java.util.Random(42);
+        List<List<String>> rows = new ArrayList<>();
+        Random rng = new Random(42);
         for (int r = 0; r < 6; r++) {
-            java.util.List<String> row = new java.util.ArrayList<>();
+            List<String> row = new ArrayList<>();
             row.add("Item " + r);
             row.add(switch (rng.nextInt(3)) { case 0 -> "Active"; case 1 -> "Idle"; default -> "Error"; });
             row.add(String.valueOf(rng.nextInt(100)));
@@ -1101,7 +1103,7 @@ public final class UniGuiDemo {
                 .selectionMode(SelectionMode.MULTIPLE)
                 .cellTextProvider((row, modelCol) -> {
                     if (row < 0 || row >= rows.size()) return "";
-                    java.util.List<String> r = rows.get(row);
+                    List<String> r = rows.get(row);
                     if (modelCol < 0 || modelCol >= r.size()) return "";
                     return r.get(modelCol);
                 });
@@ -1111,7 +1113,7 @@ public final class UniGuiDemo {
         tbl.addColumn("Value", 60.0f);
         tbl.sortKeyProvider((row, modelCol) -> {
             if (row < 0 || row >= rows.size()) return "";
-            java.util.List<String> r = rows.get(row);
+            List<String> r = rows.get(row);
             if (modelCol < 0 || modelCol >= r.size()) return "";
             String v = r.get(modelCol);
             if (modelCol == 2) return Integer.valueOf(v);
@@ -1124,7 +1126,7 @@ public final class UniGuiDemo {
         tbl.editable(true);
         tbl.onCellEditCommitted(event -> {
             if (event.row() >= 0 && event.row() < rows.size()) {
-                java.util.List<String> r = rows.get(event.row());
+                List<String> r = rows.get(event.row());
                 int mi = tbl.columns().get(event.column()).modelIndex();
                 while (r.size() <= mi) r.add("");
                 r.set(mi, event.newText());
@@ -1143,7 +1145,7 @@ public final class UniGuiDemo {
         removeRowBtn.layout(style -> style.size(72.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
         addRowBtn.onClick(e -> {
             int idx = rows.size();
-            java.util.List<String> newRow = new java.util.ArrayList<>();
+            List<String> newRow = new ArrayList<>();
             newRow.add("Item " + idx);
             newRow.add(switch (rng.nextInt(3)) { case 0 -> "Active"; case 1 -> "Idle"; default -> "Error"; });
             newRow.add(String.valueOf(rng.nextInt(100)));
@@ -1157,7 +1159,7 @@ public final class UniGuiDemo {
             java.util.List<Integer> sel = tbl.selectedRows();
             if (!sel.isEmpty()) {
                 // remove in descending order
-                sel = new java.util.ArrayList<>(sel);
+                sel = new ArrayList<>(sel);
                 java.util.Collections.sort(sel, java.util.Collections.reverseOrder());
                 for (int r : sel) { rows.remove(r); tbl.removeRow(r); }
                 status.text("Removed " + sel.size() + " selected row(s)");
@@ -1180,7 +1182,7 @@ public final class UniGuiDemo {
         addColBtn.layout(style -> style.size(90.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
         addColBtn.onClick(e -> {
             String name = "Col" + colCounter[0]++;
-            for (java.util.List<String> r : rows) r.add(String.valueOf(rng.nextInt(100)));
+            for (List<String> r : rows) r.add(String.valueOf(rng.nextInt(100)));
             tbl.addColumn(name, 70.0f);
             status.text("Added column " + name);
         });
@@ -1190,7 +1192,7 @@ public final class UniGuiDemo {
             int cols = tbl.columns().size();
             if (cols <= 1) { status.text("Cannot remove last column"); return; }
             int last = cols - 1;
-            for (java.util.List<String> r : rows) {
+            for (List<String> r : rows) {
                 if (r.size() > last) r.remove(last);
             }
             tbl.removeColumn(last);
