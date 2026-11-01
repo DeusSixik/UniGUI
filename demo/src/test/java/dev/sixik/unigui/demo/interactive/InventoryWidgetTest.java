@@ -4,6 +4,7 @@ import dev.sixik.unigui.api.input.InputHandle;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableRect;
+import dev.sixik.unigui.demo.interactive.inventory.*;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import org.junit.jupiter.api.Test;
 

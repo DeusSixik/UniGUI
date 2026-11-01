@@ -1,4 +1,4 @@
-package dev.sixik.unigui.demo.interactive;
+package dev.sixik.unigui.demo.interactive.inventory;
 
 import dev.sixik.unigui.api.event.BaseEvent;
 import dev.sixik.unigui.api.event.EventPhase;

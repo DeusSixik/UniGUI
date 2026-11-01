@@ -1,4 +1,4 @@
-package dev.sixik.unigui.demo.interactive;
+package dev.sixik.unigui.demo.interactive.inventory;
 
 import java.util.function.Predicate;
 

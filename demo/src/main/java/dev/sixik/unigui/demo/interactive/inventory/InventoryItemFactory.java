@@ -1,4 +1,4 @@
-package dev.sixik.unigui.demo.interactive;
+package dev.sixik.unigui.demo.interactive.inventory;
 
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.widgets.display.Label;

@@ -1,4 +1,4 @@
-package dev.sixik.unigui.demo.interactive;
+package dev.sixik.unigui.demo.interactive.inventory;
 
 /**
  * Factories and builders for player, container, and custom inventories.
