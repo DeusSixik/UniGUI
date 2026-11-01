@@ -1044,6 +1044,8 @@ public final class UniGuiDemo {
         table.layout(style -> style.size(LayoutConstraints.AUTO, 150.0f).flexGrow(0).flexShrink(0.0f));
         page.addChild(section("VirtualTableView", table));
 
+        page.addChild(section("VirtualTableView — dynamic rows & columns", dynamicTableDemo()));
+
         WrapPanel visuals = wrap();
         List<Integer> series = List.of(8, 14, 10, 22, 18, 30, 24, 36, 28);
         Chart chart = new Chart().values(series).type(Chart.Type.BAR);
@@ -1071,6 +1073,140 @@ public final class UniGuiDemo {
         visuals.addChild(visualStatus);
         page.addChild(section("Chart / Sparkline / GraphView", visuals));
         return page;
+    }
+
+    /**
+     * Демонстрация таблицы с динамическим добавлением/удалением строк и колонок.
+     *
+     * <p>Каждая колонка получает стабильный modelIndex, который передаётся в провайдер ячеек.
+     * Добавление колонки вставляет новый столбец в порядок отображения; удаление — убирает.
+     * Строки хранятся в {@code List<List<String>>}, индексируемом по modelIndex колонки.</p>
+     */
+    private static VBox dynamicTableDemo() {
+        // backing model: rows × column-model-index → cell text
+        java.util.List<java.util.List<String>> rows = new java.util.ArrayList<>();
+        java.util.Random rng = new java.util.Random(42);
+        for (int r = 0; r < 6; r++) {
+            java.util.List<String> row = new java.util.ArrayList<>();
+            row.add("Item " + r);
+            row.add(switch (rng.nextInt(3)) { case 0 -> "Active"; case 1 -> "Idle"; default -> "Error"; });
+            row.add(String.valueOf(rng.nextInt(100)));
+            rows.add(row);
+        }
+
+        VirtualTableView tbl = new VirtualTableView()
+                .rowCount(rows.size())
+                .rowHeight(22.0f)
+                .headerHeight(22.0f)
+                .selectionMode(SelectionMode.MULTIPLE)
+                .cellTextProvider((row, modelCol) -> {
+                    if (row < 0 || row >= rows.size()) return "";
+                    java.util.List<String> r = rows.get(row);
+                    if (modelCol < 0 || modelCol >= r.size()) return "";
+                    return r.get(modelCol);
+                });
+
+        tbl.addColumn("Name", 120.0f);
+        tbl.addColumn("State", 80.0f);
+        tbl.addColumn("Value", 60.0f);
+        tbl.sortKeyProvider((row, modelCol) -> {
+            if (row < 0 || row >= rows.size()) return "";
+            java.util.List<String> r = rows.get(row);
+            if (modelCol < 0 || modelCol >= r.size()) return "";
+            String v = r.get(modelCol);
+            if (modelCol == 2) return Integer.valueOf(v);
+            return v;
+        });
+
+        tbl.layout(style -> style.size(LayoutConstraints.AUTO, 160.0f).flexGrow(0).flexShrink(0.0f));
+
+        // hook cell edits back into the model
+        tbl.editable(true);
+        tbl.onCellEditCommitted(event -> {
+            if (event.row() >= 0 && event.row() < rows.size()) {
+                java.util.List<String> r = rows.get(event.row());
+                int mi = tbl.columns().get(event.column()).modelIndex();
+                while (r.size() <= mi) r.add("");
+                r.set(mi, event.newText());
+            }
+        });
+
+        Label status = new Label("Add/remove rows and columns; double-click a cell to edit.");
+        status.layout(style -> style.size(LayoutConstraints.AUTO, 16.0f).flexGrow(0).flexShrink(0.0f));
+
+        // ── row controls ──
+        HBox rowControls = new HBox();
+        rowControls.spacing(6.0f);
+        Button addRowBtn = new Button("+ Row");
+        Button removeRowBtn = new Button("– Row");
+        addRowBtn.layout(style -> style.size(72.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
+        removeRowBtn.layout(style -> style.size(72.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
+        addRowBtn.onClick(e -> {
+            int idx = rows.size();
+            java.util.List<String> newRow = new java.util.ArrayList<>();
+            newRow.add("Item " + idx);
+            newRow.add(switch (rng.nextInt(3)) { case 0 -> "Active"; case 1 -> "Idle"; default -> "Error"; });
+            newRow.add(String.valueOf(rng.nextInt(100)));
+            rows.add(newRow);
+            tbl.addRow();
+            tbl.scrollToRow(idx);
+            status.text("Added row " + idx);
+        });
+        removeRowBtn.onClick(e -> {
+            if (rows.isEmpty()) { status.text("No rows to remove"); return; }
+            java.util.List<Integer> sel = tbl.selectedRows();
+            if (!sel.isEmpty()) {
+                // remove in descending order
+                sel = new java.util.ArrayList<>(sel);
+                java.util.Collections.sort(sel, java.util.Collections.reverseOrder());
+                for (int r : sel) { rows.remove(r); tbl.removeRow(r); }
+                status.text("Removed " + sel.size() + " selected row(s)");
+            } else {
+                int last = rows.size() - 1;
+                rows.remove(last);
+                tbl.removeRow(last);
+                status.text("Removed last row");
+            }
+        });
+        rowControls.addChild(addRowBtn);
+        rowControls.addChild(removeRowBtn);
+        rowControls.layout(style -> style.size(LayoutConstraints.AUTO, 22.0f).flexGrow(0).flexShrink(0.0f));
+
+        // ── column controls ──
+        HBox colControls = new HBox();
+        colControls.spacing(6.0f);
+        Button addColBtn = new Button("+ Column");
+        final int[] colCounter = {3};
+        addColBtn.layout(style -> style.size(90.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
+        addColBtn.onClick(e -> {
+            String name = "Col" + colCounter[0]++;
+            for (java.util.List<String> r : rows) r.add(String.valueOf(rng.nextInt(100)));
+            tbl.addColumn(name, 70.0f);
+            status.text("Added column " + name);
+        });
+        Button removeColBtn = new Button("– Column");
+        removeColBtn.layout(style -> style.size(90.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
+        removeColBtn.onClick(e -> {
+            int cols = tbl.columns().size();
+            if (cols <= 1) { status.text("Cannot remove last column"); return; }
+            int last = cols - 1;
+            for (java.util.List<String> r : rows) {
+                if (r.size() > last) r.remove(last);
+            }
+            tbl.removeColumn(last);
+            status.text("Removed last column");
+        });
+        colControls.addChild(addColBtn);
+        colControls.addChild(removeColBtn);
+        colControls.layout(style -> style.size(LayoutConstraints.AUTO, 22.0f).flexGrow(0).flexShrink(0.0f));
+
+        VBox wrapper = new VBox();
+        wrapper.spacing(4.0f);
+        wrapper.addChild(status);
+        wrapper.addChild(rowControls);
+        wrapper.addChild(colControls);
+        wrapper.addChild(tbl);
+        return wrapper;
     }
 
     private static VBox customRendersPage() {

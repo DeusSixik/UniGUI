@@ -208,6 +208,44 @@ public final class WidgetStyles {
     }
 
     /**
+     * Стили виджетов отображения табличных данных.
+     */
+    public static final class Data {
+        /**
+         * Стандартное оформление {@code VirtualTableView}; уступает теме и локальным стилям.
+         *
+         * <p>Фон и рамка самого виджета по умолчанию не рисуются: таблица состоит из шапки и строк.
+         * Достаточно объявить {@code background.visible} и {@code border.visible}, чтобы получить
+         * обрамляющую поверхность.</p>
+         */
+        public static final Style VIRTUAL_TABLE_VIEW = new MutableStyle()
+                .put(StyleKeys.BACKGROUND_VISIBLE, false)
+                .put(StyleKeys.BORDER_VISIBLE, false)
+                .put(StyleKeys.BORDER_WIDTH, 1.0f)
+                .put(StyleKeys.RADIUS, 0.0f)
+                .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.04f, 0.04f, 0.04f, 0.82f))
+                .put(StyleKeys.BORDER_COLOR, MutableColor.rgba(0.25f, 0.25f, 0.25f, 0.65f))
+                .put(StyleKeys.TEXT_COLOR, MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f))
+                .put(StyleKeys.TABLE_HEADER_COLOR, MutableColor.rgba(0.10f, 0.10f, 0.10f, 1.0f))
+                .put(StyleKeys.TABLE_HEADER_HOVER_COLOR, MutableColor.rgba(0.17f, 0.17f, 0.18f, 1.0f))
+                .put(StyleKeys.TABLE_ROW_COLOR, MutableColor.rgba(0.04f, 0.04f, 0.04f, 0.35f))
+                .put(StyleKeys.TABLE_ALTERNATE_ROW_COLOR, MutableColor.rgba(0.08f, 0.08f, 0.08f, 0.35f))
+                .put(StyleKeys.TABLE_HOVER_COLOR, MutableColor.rgba(1.0f, 1.0f, 1.0f, 0.07f))
+                .put(StyleKeys.TABLE_SELECTED_COLOR, MutableColor.rgba(0.18f, 0.45f, 0.75f, 0.42f))
+                .put(StyleKeys.TABLE_GRID_COLOR, MutableColor.rgba(0.25f, 0.25f, 0.25f, 0.65f))
+                .put(StyleKeys.TABLE_GRID_LINES, dev.sixik.unigui.api.style.TableGridLines.BOTH)
+                .put(StyleKeys.TABLE_ACTIVE_CELL_COLOR, MutableColor.rgba(1.0f, 1.0f, 1.0f, 0.72f))
+                .put(StyleKeys.TABLE_CELL_PADDING, 3.0f)
+                .put(StyleKeys.TABLE_SORT_INDICATOR_STYLE, dev.sixik.unigui.api.style.TableSortIndicatorStyle.CHEVRON);
+
+        /**
+         * Запрещает создавать экземпляр пространства имён стилей.
+         */
+        private Data() {
+        }
+    }
+
+    /**
      * Стили элементов навигации и их поверхностей.
      */
     public static final class Navigation {

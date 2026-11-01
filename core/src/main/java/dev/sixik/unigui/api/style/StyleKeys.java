@@ -360,6 +360,72 @@ public final class StyleKeys {
     public static final StyleKey<ColorView> TREE_ICON_COLOR = StyleKey.of(StyleIds.Key.TREE_ICON_COLOR, ColorView.class);
 
     /**
+     * Цвет фона шапки VirtualTableView.
+     */
+    public static final StyleKey<ColorView> TABLE_HEADER_COLOR =
+            StyleKey.of(StyleIds.Key.TABLE_HEADER_COLOR, ColorView.class);
+    /**
+     * Цвет фона заголовка колонки под курсором либо перетаскиваемой колонки.
+     */
+    public static final StyleKey<ColorView> TABLE_HEADER_HOVER_COLOR =
+            StyleKey.of(StyleIds.Key.TABLE_HEADER_HOVER_COLOR, ColorView.class);
+    /**
+     * Цвет текста заголовков колонок; без значения используется {@link #TEXT_COLOR}.
+     */
+    public static final StyleKey<ColorView> TABLE_HEADER_TEXT_COLOR =
+            StyleKey.of(StyleIds.Key.TABLE_HEADER_TEXT_COLOR, ColorView.class);
+    /**
+     * Цвет фона чётных строк таблицы.
+     */
+    public static final StyleKey<ColorView> TABLE_ROW_COLOR =
+            StyleKey.of(StyleIds.Key.TABLE_ROW_COLOR, ColorView.class);
+    /**
+     * Цвет фона нечётных строк таблицы (zebra); прозрачный цвет отключает чередование.
+     */
+    public static final StyleKey<ColorView> TABLE_ALTERNATE_ROW_COLOR =
+            StyleKey.of(StyleIds.Key.TABLE_ALTERNATE_ROW_COLOR, ColorView.class);
+    /**
+     * Цвет подсветки строки под курсором.
+     */
+    public static final StyleKey<ColorView> TABLE_HOVER_COLOR =
+            StyleKey.of(StyleIds.Key.TABLE_HOVER_COLOR, ColorView.class);
+    /**
+     * Цвет фона выбранных строк таблицы.
+     */
+    public static final StyleKey<ColorView> TABLE_SELECTED_COLOR =
+            StyleKey.of(StyleIds.Key.TABLE_SELECTED_COLOR, ColorView.class);
+    /**
+     * Цвет линий сетки и разделителей колонок.
+     */
+    public static final StyleKey<ColorView> TABLE_GRID_COLOR =
+            StyleKey.of(StyleIds.Key.TABLE_GRID_COLOR, ColorView.class);
+    /**
+     * Набор линий сетки между ячейками.
+     */
+    public static final StyleKey<TableGridLines> TABLE_GRID_LINES =
+            StyleKey.of(StyleIds.Key.TABLE_GRID_LINES, TableGridLines.class);
+    /**
+     * Цвет рамки активной ячейки и маркера перетаскиваемой колонки.
+     */
+    public static final StyleKey<ColorView> TABLE_ACTIVE_CELL_COLOR =
+            StyleKey.of(StyleIds.Key.TABLE_ACTIVE_CELL_COLOR, ColorView.class);
+    /**
+     * Горизонтальный внутренний отступ текста в ячейках и заголовках в UI-пикселях.
+     */
+    public static final StyleKey<Float> TABLE_CELL_PADDING =
+            StyleKey.of(StyleIds.Key.TABLE_CELL_PADDING, Float.class);
+    /**
+     * Форма индикатора направления сортировки в заголовке.
+     */
+    public static final StyleKey<TableSortIndicatorStyle> TABLE_SORT_INDICATOR_STYLE =
+            StyleKey.of(StyleIds.Key.TABLE_SORT_INDICATOR_STYLE, TableSortIndicatorStyle.class);
+    /**
+     * Цвет индикатора сортировки; без значения используется цвет текста заголовка.
+     */
+    public static final StyleKey<ColorView> TABLE_SORT_INDICATOR_COLOR =
+            StyleKey.of(StyleIds.Key.TABLE_SORT_INDICATOR_COLOR, ColorView.class);
+
+    /**
      * Длительность автоматического перехода style-свойств в секундах. Ноль отключает переходы.
      */
     public static final StyleKey<Float> TRANSITION_DURATION = StyleKey.of(StyleIds.Key.TRANSITION_DURATION, Float.class);

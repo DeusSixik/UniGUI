@@ -53,6 +53,8 @@ public final class BindingKeys {
 
     public static final BindingData<FloatSignal> SLIDER_VALUE = new BindingData<>(FloatSignal.class);
 
+    public static final BindingData<TypedSignal> COLOR_PICKER_COLOR = new BindingData<>(TypedSignal.class);
+
     private BindingKeys() {
     }
 }

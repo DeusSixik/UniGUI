@@ -42,13 +42,20 @@ public record VirtualTableColumn(String header,
                                  float width,
                                  Alignment horizontalAlignment,
                                  Alignment verticalAlignment,
-                                 TextOverflowMode overflowMode) {
+                                 TextOverflowMode overflowMode,
+                                 int modelIndex) {
+    /**
+     * Значение {@link #modelIndex()}, означающее «индекс ещё не назначен».
+     * Таблица назначает следующий свободный индекс данных при добавлении такой колонки.
+     */
+    public static final int UNASSIGNED = -1;
+
     public VirtualTableColumn(String header, float width) {
-        this(header, RichText.resolve(header), width, Alignment.START, Alignment.CENTER, TextOverflowMode.CLIP);
+        this(header, RichText.resolve(header), width, Alignment.START, Alignment.CENTER, TextOverflowMode.CLIP, UNASSIGNED);
     }
 
     public VirtualTableColumn(RichText header, float width) {
-        this(header == null ? "" : header.plainText(), header, width, Alignment.START, Alignment.CENTER, TextOverflowMode.CLIP);
+        this(header == null ? "" : header.plainText(), header, width, Alignment.START, Alignment.CENTER, TextOverflowMode.CLIP, UNASSIGNED);
     }
 
     public VirtualTableColumn(String header,
@@ -56,7 +63,16 @@ public record VirtualTableColumn(String header,
                               Alignment horizontalAlignment,
                               Alignment verticalAlignment,
                               TextOverflowMode overflowMode) {
-        this(header, RichText.resolve(header), width, horizontalAlignment, verticalAlignment, overflowMode);
+        this(header, RichText.resolve(header), width, horizontalAlignment, verticalAlignment, overflowMode, UNASSIGNED);
+    }
+
+    public VirtualTableColumn(String header,
+                              RichText richHeader,
+                              float width,
+                              Alignment horizontalAlignment,
+                              Alignment verticalAlignment,
+                              TextOverflowMode overflowMode) {
+        this(header, richHeader, width, horizontalAlignment, verticalAlignment, overflowMode, UNASSIGNED);
     }
 
     public VirtualTableColumn {
@@ -67,27 +83,28 @@ public record VirtualTableColumn(String header,
         horizontalAlignment = horizontalAlignment == null ? Alignment.START : horizontalAlignment;
         verticalAlignment = verticalAlignment == null ? Alignment.CENTER : verticalAlignment;
         overflowMode = overflowMode == null ? TextOverflowMode.CLIP : overflowMode;
+        modelIndex = Math.max(UNASSIGNED, modelIndex);
     }
 
     @WikiMethod(
             title = "<key:virtual.table.column.method.width.title>",
             summary = "<key:virtual.table.column.method.width.summary>")
     public VirtualTableColumn width(float width) {
-        return new VirtualTableColumn(header, richHeader, width, horizontalAlignment, verticalAlignment, overflowMode);
+        return new VirtualTableColumn(header, richHeader, width, horizontalAlignment, verticalAlignment, overflowMode, modelIndex);
     }
 
     @WikiMethod(
             title = "<key:virtual.table.column.method.align.title>",
             summary = "<key:virtual.table.column.method.align.summary>")
     public VirtualTableColumn align(Alignment horizontal, Alignment vertical) {
-        return new VirtualTableColumn(header, richHeader, width, horizontal, vertical, overflowMode);
+        return new VirtualTableColumn(header, richHeader, width, horizontal, vertical, overflowMode, modelIndex);
     }
 
     @WikiMethod(
             title = "<key:virtual.table.column.method.overflow_mode.title>",
             summary = "<key:virtual.table.column.method.overflow_mode.summary>")
     public VirtualTableColumn overflowMode(TextOverflowMode overflowMode) {
-        return new VirtualTableColumn(header, richHeader, width, horizontalAlignment, verticalAlignment, overflowMode);
+        return new VirtualTableColumn(header, richHeader, width, horizontalAlignment, verticalAlignment, overflowMode, modelIndex);
     }
 
     @WikiMethod(
@@ -95,6 +112,19 @@ public record VirtualTableColumn(String header,
             summary = "<key:virtual.table.column.method.rich_header.summary>")
     public VirtualTableColumn richHeader(RichText header) {
         RichText normalized = header == null ? RichText.plain("") : header;
-        return new VirtualTableColumn(normalized.plainText(), normalized, width, horizontalAlignment, verticalAlignment, overflowMode);
+        return new VirtualTableColumn(normalized.plainText(), normalized, width, horizontalAlignment, verticalAlignment, overflowMode, modelIndex);
+    }
+
+    /**
+     * Возвращает копию колонки с явным индексом данных.
+     *
+     * <p>Индекс данных передаётся провайдерам ячеек и ключам сортировки и остаётся стабильным при
+     * перемещении колонок и удалении соседних. Колонки с {@link #UNASSIGNED} получают индекс от таблицы.</p>
+     *
+     * @param modelIndex неотрицательный индекс данных либо {@link #UNASSIGNED}
+     * @return новая колонка с заданным индексом данных
+     */
+    public VirtualTableColumn modelIndex(int modelIndex) {
+        return new VirtualTableColumn(header, richHeader, width, horizontalAlignment, verticalAlignment, overflowMode, modelIndex);
     }
 }

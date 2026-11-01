@@ -89,6 +89,19 @@ public final class StyleIds {
         public static final String TREE_DISABLED_TEXT_COLOR = "tree.disabled.text-color";
         public static final String TREE_DISCLOSURE_COLOR = "tree.disclosure.color";
         public static final String TREE_ICON_COLOR = "tree.icon.color";
+        public static final String TABLE_HEADER_COLOR = "table.header.color";
+        public static final String TABLE_HEADER_HOVER_COLOR = "table.header.hover-color";
+        public static final String TABLE_HEADER_TEXT_COLOR = "table.header.text-color";
+        public static final String TABLE_ROW_COLOR = "table.row.color";
+        public static final String TABLE_ALTERNATE_ROW_COLOR = "table.row.alternate-color";
+        public static final String TABLE_HOVER_COLOR = "table.row.hover-color";
+        public static final String TABLE_SELECTED_COLOR = "table.row.selected-color";
+        public static final String TABLE_GRID_COLOR = "table.grid.color";
+        public static final String TABLE_GRID_LINES = "table.grid.lines";
+        public static final String TABLE_ACTIVE_CELL_COLOR = "table.cell.active-color";
+        public static final String TABLE_CELL_PADDING = "table.cell.padding";
+        public static final String TABLE_SORT_INDICATOR_STYLE = "table.sort.style";
+        public static final String TABLE_SORT_INDICATOR_COLOR = "table.sort.color";
         public static final String TRANSITION_DURATION = "transition.duration";
         public static final String TRANSITION_EASING = "transition.easing";
 

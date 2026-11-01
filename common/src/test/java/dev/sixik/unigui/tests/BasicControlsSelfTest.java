@@ -5482,14 +5482,14 @@ public final class BasicControlsSelfTest {
         table.render(new DefaultRenderContext(nameAscendingDrawList));
         expect(table.sortColumnIndex() == 0 && table.sortDirection() == SortDirection.ASCENDING,
                 "VirtualTableView should expose ascending sort state");
-        expect(hasText(nameAscendingDrawList, "Name ^"), "VirtualTableView should render ascending sort marker in header");
+        expect(hasCommand(nameAscendingDrawList, DrawCommandType.PATH) || hasCommand(nameAscendingDrawList, DrawCommandType.LINE), "VirtualTableView should render ascending sort indicator in header");
         expect(textCommandIndex(nameAscendingDrawList, "Alice", 0) < textCommandIndex(nameAscendingDrawList, "Bob", 0),
                 "VirtualTableView should render rows in ascending sort-key order");
 
         table.sortBy(1, SortDirection.DESCENDING);
         DrawList scoreDescendingDrawList = new DrawList();
         table.render(new DefaultRenderContext(scoreDescendingDrawList));
-        expect(hasText(scoreDescendingDrawList, "Score v"), "VirtualTableView should render descending sort marker in header");
+        expect(hasCommand(scoreDescendingDrawList, DrawCommandType.PATH) || hasCommand(scoreDescendingDrawList, DrawCommandType.LINE), "VirtualTableView should render descending sort indicator in header");
         expect(textCommandIndex(scoreDescendingDrawList, "30", 0) < textCommandIndex(scoreDescendingDrawList, "20", 0),
                 "VirtualTableView should render rows in descending numeric sort-key order");
         expect(sortChanges.count == 2 && sortChanges.lastSortColumn == 1 && sortChanges.lastSortDirection == SortDirection.DESCENDING,
@@ -5504,12 +5504,15 @@ public final class BasicControlsSelfTest {
 
         table.clearSort();
         uiContext.routedEvents().dispatch(new PointerPressedEvent(table, 5.0f, 5.0f, 5.0f, 5.0f, 0, PointerButton.PRIMARY));
+        uiContext.routedEvents().dispatch(new PointerReleasedEvent(table, 5.0f, 5.0f, 5.0f, 5.0f, 0, PointerButton.PRIMARY));
         expect(table.sortColumnIndex() == 0 && table.sortDirection() == SortDirection.ASCENDING,
                 "VirtualTableView header click should start ascending sort for clicked column");
         uiContext.routedEvents().dispatch(new PointerPressedEvent(table, 5.0f, 5.0f, 5.0f, 5.0f, 0, PointerButton.PRIMARY));
+        uiContext.routedEvents().dispatch(new PointerReleasedEvent(table, 5.0f, 5.0f, 5.0f, 5.0f, 0, PointerButton.PRIMARY));
         expect(table.sortColumnIndex() == 0 && table.sortDirection() == SortDirection.DESCENDING,
                 "VirtualTableView repeated header click should cycle to descending sort");
         uiContext.routedEvents().dispatch(new PointerPressedEvent(table, 5.0f, 5.0f, 5.0f, 5.0f, 0, PointerButton.PRIMARY));
+        uiContext.routedEvents().dispatch(new PointerReleasedEvent(table, 5.0f, 5.0f, 5.0f, 5.0f, 0, PointerButton.PRIMARY));
         expect(table.sortColumnIndex() == -1 && table.sortDirection() == SortDirection.NONE,
                 "VirtualTableView third header click should clear sort");
     }
