@@ -36,6 +36,9 @@ import dev.sixik.unigui.widgets.docking.DockPane;
 import dev.sixik.unigui.widgets.docking.DockingRoot;
 import dev.sixik.unigui.widgets.feedback.*;
 import dev.sixik.unigui.widgets.graph.*;
+import dev.sixik.unigui.widgets.graph.node.NodeBuilder;
+import dev.sixik.unigui.widgets.graph.node.NodeType;
+import dev.sixik.unigui.widgets.graph.node.PortType;
 import dev.sixik.unigui.widgets.interaction.*;
 import dev.sixik.unigui.widgets.map.MapCanvas;
 import dev.sixik.unigui.widgets.map.MapProjection;
@@ -521,6 +524,7 @@ public final class UniGuiDemo {
         tabs.addTab("Custom Renders", scroll(customRendersPage()));
         tabs.addTab("Animations", scroll(animationsPage()));
         tabs.addTab("Node Graph", nodeGraphPage());
+        tabs.addTab("Blueprint Graph", blueprintGraphPage());
         tabs.addTab("World Canvas", worldCanvasPage());
         tabs.addTab("Map Canvas", mapCanvasPage());
         tabs.addTab("Overlays", overlaysPage());
@@ -1522,6 +1526,82 @@ public final class UniGuiDemo {
         return page;
     }
 
+
+    /**
+     * Blueprint-подобный граф из модульных нод: заголовки цвета категории со стрелкой сворачивания,
+     * exec-пины (квадраты) и data-пины (кружки по типу), inline-поля у свободных входов, регион-комментарий
+     * и миникарта.
+     */
+    private static Widget blueprintGraphPage() {
+        VBox page = page("Blueprint Graph",
+                "Modular nodes: click the header arrow to collapse, drag the region title to move its nodes, drag from pins to connect.");
+
+        Label status = new Label("Blueprint: ready");
+        status.layout(style -> style.size(LayoutConstraints.AUTO, 18.0f).flexGrow(0).flexShrink(0.0f));
+        NodeGraph graph = new NodeGraph()
+                .selectionMode(NodeGraphSelectionMode.MULTIPLE)
+                .minimapEnabled(true);
+        graph.layout(style -> style.flexGrow(1).flexShrink(1.0f));
+
+        graph.portTypes()
+                .register(PortType.data("bool", 0xFFE05252))
+                .register(PortType.data("number", 0xFF5CD6A9))
+                .register(PortType.data("vec3", 0xFFF5D547))
+                .register(PortType.data("string", 0xFFE08BD0))
+                .register(PortType.data("entity", 0xFF5B8DEF))
+                .allowConversion("number", "vec3");
+
+        graph.nodeTypes()
+                .register(NodeType.of("event.start", "Start", "Events", id -> NodeBuilder.node(id)
+                        .color(0xFFD9534F)
+                        .header("Start")
+                        .flowRow(null, "then")
+                        .build()))
+                .register(NodeType.of("npc.create", "Create NPC", "NPC", id -> NodeBuilder.node(id)
+                        .color(0xFF4F9D4F)
+                        .header("Create NPC")
+                        .flowRow("exec", "then")
+                        .input("pos", "Position", "vec3", new TextField("0 64 0"))
+                        .input("name", "Name", "string", new TextField("Villager"))
+                        .output("npc", "Result", "entity")
+                        .build()))
+                .register(NodeType.of("logic.compare", "Less or equal", "Logic", id -> NodeBuilder.node(id)
+                        .color(0xFF8E44AD)
+                        .header("Less or equal")
+                        .input("a", "A", "number")
+                        .input("b", "B", "number", new TextField("5"))
+                        .output("result", "Result", "bool")
+                        .build()))
+                .register(NodeType.of("npc.say", "Say", "NPC", id -> NodeBuilder.node(id)
+                        .color(0xFF2E8B57)
+                        .header("Say")
+                        .flowRow("exec", "then")
+                        .input("who", "Who", "entity")
+                        .input("text", "Text", "string", new TextField("Hello!"))
+                        .build()));
+
+        graph.addRegion("setup", "Spawn setup", 20.0f, 20.0f, 520.0f, 250.0f)
+                .comment("Creates the NPC and greets the player")
+                .color(0xFF3B6EA5);
+        graph.spawn("event.start", "start", 40.0f, 70.0f);
+        graph.spawn("npc.create", "create", 190.0f, 60.0f);
+        graph.spawn("npc.say", "say", 360.0f, 60.0f);
+        graph.spawn("logic.compare", "compare", 190.0f, 330.0f);
+        graph.addConnection("w-start", "start", "then", "create", "exec");
+        graph.addConnection("w-then", "create", "then", "say", "exec");
+        graph.addConnection("w-npc", "create", "npc", "say", "who");
+
+        graph.onItemCollapsed(event -> status.text("Blueprint: " + event.itemId()
+                + (event.collapsed() ? " collapsed" : " expanded")));
+        graph.onRegionChanged(event -> status.text("Blueprint: region " + event.regionId() + " " + event.kind()));
+        graph.onConnectionCreated(event -> status.text("Blueprint: connected "
+                + event.from().itemId() + "." + event.from().portId() + " -> "
+                + event.to().itemId() + "." + event.to().portId()));
+
+        page.addChild(status);
+        page.addChild(graph);
+        return page;
+    }
 
     private static Widget worldCanvasPage() {
         VBox page = page("World Canvas", "Generic pan/zoom viewport with screen-space anchors. Drag empty canvas, Ctrl+wheel zooms.");

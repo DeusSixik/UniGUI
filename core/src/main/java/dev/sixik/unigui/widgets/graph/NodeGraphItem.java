@@ -12,6 +12,9 @@ import dev.sixik.unigui.api.docs.WikiSection;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.widgets.graph.node.NodeLayoutContext;
+import dev.sixik.unigui.widgets.graph.node.NodeModule;
+import dev.sixik.unigui.widgets.graph.node.NodeStyle;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
@@ -31,9 +34,20 @@ import java.util.Objects;
         order = 10
 )
 public final class NodeGraphItem {
+    private static final float MODULAR_BOTTOM_PADDING = 4.0f;
+
     private final String id;
     private final Widget content;
     private final ObjectArrayList<NodeGraphPort> ports = new ObjectArrayList<>();
+    private final ObjectArrayList<NodeModule> modules = new ObjectArrayList<>();
+    private NodeStyle style = new NodeStyle();
+    private String typeId = "";
+    private boolean collapsed;
+    private float[] moduleTop = new float[0];
+    private float[] moduleHeight = new float[0];
+    private boolean[] moduleShown = new boolean[0];
+    private List<Widget> hostedWidgets = List.of();
+    private boolean hostedDirty = true;
     private float x;
     private float y;
     private float width;
@@ -62,6 +76,31 @@ public final class NodeGraphItem {
         this.y = sanitize(y);
     }
 
+    /**
+     * Создаёт модульную ноду без content-виджета. Содержимое собирается из {@link NodeModule}.
+     *
+     * @param id уникальный id ноды
+     */
+    public NodeGraphItem(String id) {
+        this(id, 0.0f, 0.0f);
+    }
+
+    /**
+     * Создаёт модульную ноду без content-виджета в заданной точке.
+     *
+     * @param id уникальный id ноды
+     * @param x X в world-координатах
+     * @param y Y в world-координатах
+     */
+    public NodeGraphItem(String id, float x, float y) {
+        this.id = normalizeId(id);
+        this.content = null;
+        this.x = sanitize(x);
+        this.y = sanitize(y);
+        // Высоту модульной ноды задаёт её содержимое, поэтому растягивание рамкой по умолчанию выключено.
+        this.resizable = false;
+    }
+
     @AiDoc(summary = "Returns the unique identifier of this node item.")
     @WikiMethod(summary = "<key:node.graph.item.method.id>")
     @WikiReturn("<key:node.graph.item.return.id>")
@@ -69,11 +108,314 @@ public final class NodeGraphItem {
         return id;
     }
 
-    @AiDoc(summary = "Returns the content widget hosted inside this node.")
+    @AiDoc(summary = "Returns the content widget hosted inside this node, or null for a modular node built from NodeModules.")
     @WikiMethod(summary = "<key:node.graph.item.method.contentGet>")
     @WikiReturn("<key:node.graph.item.return.content>")
     public dev.sixik.unigui.api.widget.Widget content() {
         return content;
+    }
+
+    /**
+     * @return {@code true}, если нода собрана из модулей и не имеет единого content-виджета
+     */
+    public boolean modular() {
+        return content == null;
+    }
+
+    /**
+     * Добавляет модуль в конец ноды и вызывает {@link NodeModule#attach(NodeGraphItem)}.
+     *
+     * @param module модуль; {@code null} игнорируется
+     * @return эта нода
+     * @throws IllegalStateException если нода создана с content-виджетом
+     * @throws IllegalArgumentException если модуль с таким id уже есть
+     */
+    public NodeGraphItem addModule(NodeModule module) {
+        if (module == null) return this;
+        if (content != null) {
+            throw new IllegalStateException("A content-widget node cannot host modules: " + id);
+        }
+        if (module(module.id()) != null) {
+            throw new IllegalArgumentException("Duplicate node module id: " + module.id());
+        }
+        modules.add(module);
+        module.attach(this);
+        if (owner != null) {
+            for (Widget widget : module.allWidgets()) {
+                owner.adoptModuleWidget(widget);
+            }
+        }
+        refreshModules();
+        return this;
+    }
+
+    /**
+     * Удаляет модуль и его порты.
+     *
+     * @param moduleId id модуля
+     * @return эта нода
+     */
+    public NodeGraphItem removeModule(String moduleId) {
+        NodeModule module = module(moduleId);
+        if (module == null) return this;
+        module.detach(this);
+        modules.remove(module);
+        for (Widget widget : module.allWidgets()) {
+            widget.dispose();
+        }
+        refreshModules();
+        return this;
+    }
+
+    /** @return модули сверху вниз, только для чтения */
+    public List<NodeModule> modules() {
+        return Collections.unmodifiableList(modules);
+    }
+
+    /**
+     * @param moduleId id модуля
+     * @return модуль или {@code null}
+     */
+    public NodeModule module(String moduleId) {
+        if (moduleId == null) return null;
+        for (int i = 0, size = modules.size(); i < size; i++) {
+            NodeModule module = modules.get(i);
+            if (module.id().equals(moduleId)) return module;
+        }
+        return null;
+    }
+
+    /**
+     * @param type класс модуля
+     * @param <T> тип модуля
+     * @return первый модуль этого класса или {@code null}
+     */
+    public <T extends NodeModule> T module(Class<T> type) {
+        for (int i = 0, size = modules.size(); i < size; i++) {
+            NodeModule module = modules.get(i);
+            if (type.isInstance(module)) return type.cast(module);
+        }
+        return null;
+    }
+
+    /** @return стиль модульной ноды */
+    public NodeStyle style() {
+        return style;
+    }
+
+    /**
+     * Заменяет стиль ноды.
+     *
+     * @param style новый стиль; {@code null} возвращает стиль по умолчанию
+     * @return эта нода
+     */
+    public NodeGraphItem style(NodeStyle style) {
+        this.style = style == null ? new NodeStyle() : style;
+        invalidateOwner(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /** @return id типа из {@code NodeTypeRegistry} или пустая строка */
+    public String typeId() {
+        return typeId;
+    }
+
+    /**
+     * @param typeId id типа ноды; нужен для сохранения и восстановления модульных нод
+     * @return эта нода
+     */
+    public NodeGraphItem typeId(String typeId) {
+        this.typeId = typeId == null ? "" : typeId;
+        return this;
+    }
+
+    /** @return {@code true}, если нода свёрнута до заголовка */
+    public boolean collapsed() {
+        return collapsed;
+    }
+
+    /**
+     * Сворачивает или разворачивает ноду. Свёрнутая нода показывает только модули с
+     * {@link NodeModule#visibleWhenCollapsed()}; провода скрытых портов приходят на край заголовка.
+     *
+     * @param collapsed {@code true}, чтобы свернуть
+     * @return эта нода
+     */
+    public NodeGraphItem collapsed(boolean collapsed) {
+        if (this.collapsed == collapsed) return this;
+        this.collapsed = collapsed;
+        refreshModules();
+        if (owner != null) {
+            owner.itemCollapsedChanged(this);
+        }
+        return this;
+    }
+
+    /** @return эта нода */
+    public NodeGraphItem toggleCollapsed() {
+        return collapsed(!collapsed);
+    }
+
+    /**
+     * Сообщает, что набор видимых виджетов модулей изменился. Модули вызывают это, когда меняют результат
+     * {@link NodeModule#widgets()}.
+     */
+    public void refreshModules() {
+        hostedDirty = true;
+        if (owner != null) {
+            owner.itemHostedChanged();
+        }
+        invalidateOwner(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+    }
+
+    /**
+     * @return виджеты, участвующие в раскладке, рендере и hit-test: content-виджет или виджеты видимых модулей
+     */
+    public List<Widget> hostedWidgets() {
+        if (content != null) {
+            if (hostedDirty) {
+                hostedWidgets = List.of(content);
+                hostedDirty = false;
+            }
+            return hostedWidgets;
+        }
+        if (hostedDirty) {
+            ObjectArrayList<Widget> widgets = new ObjectArrayList<>();
+            for (int i = 0, size = modules.size(); i < size; i++) {
+                NodeModule module = modules.get(i);
+                if (collapsed && !module.visibleWhenCollapsed()) continue;
+                widgets.addAll(module.widgets());
+            }
+            hostedWidgets = Collections.unmodifiableList(widgets);
+            hostedDirty = false;
+        }
+        return hostedWidgets;
+    }
+
+    /** @return все виджеты ноды, включая скрытые; нужны для dispose и UI-контекста */
+    public List<Widget> allWidgets() {
+        if (content != null) return List.of(content);
+        ObjectArrayList<Widget> widgets = new ObjectArrayList<>();
+        for (int i = 0, size = modules.size(); i < size; i++) {
+            widgets.addAll(modules.get(i).allWidgets());
+        }
+        return widgets;
+    }
+
+    /**
+     * Добавляет порт и привязывает его к модулю: при сворачивании ноды его провод уходит на край заголовка.
+     *
+     * @param port порт
+     * @param module модуль-владелец порта
+     * @return этот порт
+     */
+    public NodeGraphPort addPort(NodeGraphPort port, NodeModule module) {
+        addPort(port);
+        port.module(module);
+        return port;
+    }
+
+    /**
+     * @param port порт этой ноды
+     * @return {@code true}, если маркер порта нужно рисовать и можно за него хватать
+     */
+    public boolean portShown(NodeGraphPort port) {
+        if (port == null || !port.visible()) return false;
+        if (!collapsed || port.module() == null) return true;
+        return port.module().visibleWhenCollapsed();
+    }
+
+    int moduleCount() {
+        return modules.size();
+    }
+
+    NodeModule moduleAt(int index) {
+        return modules.get(index);
+    }
+
+    boolean moduleShown(int index) {
+        return index < moduleShown.length && moduleShown[index];
+    }
+
+    float moduleTop(int index) {
+        return moduleTop[index];
+    }
+
+    float moduleHeight(int index) {
+        return moduleHeight[index];
+    }
+
+    /**
+     * Измеряет модули и вычисляет размер ноды. Виджеты модулей должны быть измерены заранее.
+     */
+    void measureModules(NodeLayoutContext context) {
+        int count = modules.size();
+        if (moduleTop.length != count) {
+            moduleTop = new float[count];
+            moduleHeight = new float[count];
+            moduleShown = new boolean[count];
+        }
+        float natural = style.minWidth();
+        for (int i = 0; i < count; i++) {
+            NodeModule module = modules.get(i);
+            boolean shown = !collapsed || module.visibleWhenCollapsed();
+            moduleShown[i] = shown;
+            if (shown) natural = Math.max(natural, module.measureWidth(context));
+        }
+        float nodeWidth = autoWidth() ? natural : Math.max(width, natural);
+        float cursor = 0.0f;
+        int shownCount = 0;
+        for (int i = 0; i < count; i++) {
+            if (!moduleShown[i]) continue;
+            float height = Math.max(0.0f, modules.get(i).measureHeight(context, nodeWidth));
+            moduleTop[i] = cursor;
+            moduleHeight[i] = height;
+            cursor += height;
+            shownCount++;
+        }
+        if (shownCount > 1) cursor += MODULAR_BOTTOM_PADDING;
+        arrangedSize(nodeWidth, Math.max(1.0f, cursor));
+    }
+
+    /** Размещает виджеты и якоря портов; вызывать после {@link #measureModules}. */
+    void arrangeModules(NodeLayoutContext context) {
+        float nodeWidth = arrangedWidth;
+        float headerCenter = 0.0f;
+        boolean headerFound = false;
+        for (int i = 0, size = modules.size(); i < size; i++) {
+            if (!moduleShown(i)) continue;
+            if (!headerFound) {
+                headerCenter = moduleTop[i] + moduleHeight[i] * 0.5f;
+                headerFound = true;
+            }
+            modules.get(i).arrange(context, 0.0f, moduleTop[i], nodeWidth, moduleHeight[i]);
+        }
+        if (!collapsed) return;
+        for (int i = 0, size = ports.size(); i < size; i++) {
+            NodeGraphPort port = ports.get(i);
+            NodeModule module = port.module();
+            if (module == null || module.visibleWhenCollapsed()) continue;
+            port.anchor(port.side() == NodeGraphPortSide.RIGHT ? nodeWidth : 0.0f, headerCenter);
+        }
+    }
+
+    /** Передаёт нажатие модулю под курсором. */
+    boolean pressModule(float localX, float localY) {
+        for (int i = 0, size = modules.size(); i < size; i++) {
+            if (!moduleShown(i)) continue;
+            float top = moduleTop[i];
+            float height = moduleHeight[i];
+            if (localY < top || localY > top + height) continue;
+            return modules.get(i).onPress(localX, localY, 0.0f, top, arrangedWidth, height);
+        }
+        return false;
+    }
+
+    /** Уведомляет модуль порта об изменении числа соединений. */
+    void portConnectionsChanged(NodeGraphPort port) {
+        NodeModule module = port.module();
+        if (module == null) return;
+        module.onPortConnectionsChanged(port, port.connectionCount());
     }
 
     @AiDoc(summary = "Creates and attaches a port with specified ID, direction kind, side, and offset.")

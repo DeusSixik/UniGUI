@@ -31,13 +31,15 @@ public record NodeGraphSnapshot(
         List<NodeGraphItemSnapshot> items,
         List<NodeGraphConnectionSnapshot> connections,
         List<String> selectedItemIds,
-        List<String> selectedConnectionIds
+        List<String> selectedConnectionIds,
+        List<NodeGraphRegionSnapshot> regions
 ) {
     public NodeGraphSnapshot {
         items = items == null ? List.of() : List.copyOf(items);
         connections = connections == null ? List.of() : List.copyOf(connections);
         selectedItemIds = selectedItemIds == null ? List.of() : List.copyOf(selectedItemIds);
         selectedConnectionIds = selectedConnectionIds == null ? List.of() : List.copyOf(selectedConnectionIds);
+        regions = regions == null ? List.of() : List.copyOf(regions);
     }
 }
 

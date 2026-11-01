@@ -11,6 +11,7 @@ import dev.sixik.unigui.api.docs.WikiReturn;
 import dev.sixik.unigui.api.docs.WikiSection;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.widgets.graph.node.NodeModule;
 
 /**
  * Pin/port descriptor for a {@link NodeGraphItem}.
@@ -39,6 +40,12 @@ public final class NodeGraphPort {
     private String type = "";
     private boolean enabled = true;
     private boolean visible = true;
+    private boolean anchored;
+    private float anchorX;
+    private float anchorY;
+    private int capacity;
+    private int connectionCount;
+    private NodeModule module;
     private NodeGraphItem owner;
 
     @AiDoc(summary = "Constructs a NodeGraphPort with ID, direction kind, visual edge side, and pixel offset.")
@@ -175,6 +182,84 @@ public final class NodeGraphPort {
         this.visible = visible;
         invalidateOwner(InvalidationFlags.VISUAL);
         return this;
+    }
+
+    /**
+     * @return {@code true}, если порт привязан к точке ноды модулем; иначе положение считается по
+     * {@link #side()} и {@link #offset()}
+     */
+    public boolean anchored() {
+        return anchored;
+    }
+
+    /** @return X якоря относительно ноды в world-единицах; имеет смысл при {@link #anchored()} */
+    public float anchorX() {
+        return anchorX;
+    }
+
+    /** @return Y якоря относительно ноды в world-единицах; имеет смысл при {@link #anchored()} */
+    public float anchorY() {
+        return anchorY;
+    }
+
+    /**
+     * Привязывает порт к точке ноды. Вызывается модулями при раскладке.
+     *
+     * @param x X относительно ноды
+     * @param y Y относительно ноды
+     * @return этот порт
+     */
+    public NodeGraphPort anchor(float x, float y) {
+        float nextX = Float.isFinite(x) ? x : 0.0f;
+        float nextY = Float.isFinite(y) ? y : 0.0f;
+        if (anchored && anchorX == nextX && anchorY == nextY) return this;
+        anchored = true;
+        anchorX = nextX;
+        anchorY = nextY;
+        invalidateOwner(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * @return максимум одновременных соединений порта; {@code 0} — без ограничения
+     */
+    public int capacity() {
+        return capacity;
+    }
+
+    /**
+     * Ограничивает число соединений порта. При переполнении граф удаляет самые старые соединения
+     * порта, как Blueprint при подключении нового провода к data-входу.
+     *
+     * @param capacity максимум соединений, {@code 0} — без ограничения
+     * @return этот порт
+     */
+    public NodeGraphPort capacity(int capacity) {
+        this.capacity = Math.max(0, capacity);
+        return this;
+    }
+
+    /** @return текущее число соединений порта */
+    public int connectionCount() {
+        return connectionCount;
+    }
+
+    /** @return {@code true}, если к порту подключён хотя бы один провод */
+    public boolean connected() {
+        return connectionCount > 0;
+    }
+
+    /** @return модуль, создавший порт, или {@code null} для портов, добавленных вручную */
+    public NodeModule module() {
+        return module;
+    }
+
+    void module(NodeModule module) {
+        this.module = module;
+    }
+
+    void connectionCount(int connectionCount) {
+        this.connectionCount = Math.max(0, connectionCount);
     }
 
     NodeGraphItem owner() {

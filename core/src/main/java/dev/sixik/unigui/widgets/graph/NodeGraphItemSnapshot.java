@@ -35,12 +35,15 @@ public record NodeGraphItemSnapshot(
         boolean movable,
         boolean resizable,
         boolean visible,
-        List<NodeGraphPortSnapshot> ports
+        List<NodeGraphPortSnapshot> ports,
+        String typeId,
+        boolean collapsed
 ) {
     public NodeGraphItemSnapshot {
         id = id == null ? "" : id;
         contentType = contentType == null ? "" : contentType;
         ports = ports == null ? List.of() : List.copyOf(ports);
+        typeId = typeId == null ? "" : typeId;
     }
 }
 

@@ -47,7 +47,7 @@ public interface NodeGraphConnectionPolicy {
         if (!canEnd(toPort.kind())) {
             return NodeGraphConnectionValidation.invalid("Target port cannot accept a connection");
         }
-        if (!fromPort.type().isEmpty() && !toPort.type().isEmpty() && !fromPort.type().equals(toPort.type())) {
+        if (!graph.portTypes().canConnect(fromPort.type(), toPort.type())) {
             return NodeGraphConnectionValidation.invalid("Port type mismatch");
         }
         if (graph.hasConnection(from, to)) {

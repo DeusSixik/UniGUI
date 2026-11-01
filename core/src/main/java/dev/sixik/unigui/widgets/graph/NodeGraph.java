@@ -22,6 +22,8 @@ import dev.sixik.unigui.api.event.NodeGraphConnectionDragEndedEvent;
 import dev.sixik.unigui.api.event.NodeGraphConnectionDragStartedEvent;
 import dev.sixik.unigui.api.event.NodeGraphConnectionRemovedEvent;
 import dev.sixik.unigui.api.event.NodeGraphConnectionSelectionChangedEvent;
+import dev.sixik.unigui.api.event.NodeGraphItemCollapsedEvent;
+import dev.sixik.unigui.api.event.NodeGraphRegionChangedEvent;
 import dev.sixik.unigui.api.event.NodeGraphItemMoveEndedEvent;
 import dev.sixik.unigui.api.event.NodeGraphItemMoveStartedEvent;
 import dev.sixik.unigui.api.event.NodeGraphItemMovedEvent;
@@ -69,6 +71,15 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import dev.sixik.unigui.widgets.containers.StackPanel;
+import dev.sixik.unigui.widgets.graph.node.NodeLayoutContext;
+import dev.sixik.unigui.widgets.graph.node.NodeModule;
+import dev.sixik.unigui.widgets.graph.node.NodePaintContext;
+import dev.sixik.unigui.widgets.graph.node.NodeStyle;
+import dev.sixik.unigui.widgets.graph.node.NodeType;
+import dev.sixik.unigui.widgets.graph.node.NodeTypeRegistry;
+import dev.sixik.unigui.widgets.graph.node.PortShape;
+import dev.sixik.unigui.widgets.graph.node.PortType;
+import dev.sixik.unigui.widgets.graph.node.PortTypeRegistry;
 
 @AiDoc(summary = "Interactive 2D node graph canvas supporting movable nodes, pin connections, pan, zoom, grid snapping, and selection.")
 @WikiPage(
@@ -145,6 +156,24 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     private final MutableColor selectionBoxBorderColor = new MutableColor(0.25f, 0.78f, 1.0f, 0.80f);
     private final MutableColor resizeHandleColor = new MutableColor(0.25f, 0.78f, 1.0f, 0.95f);
 
+    private final ObjectArrayList<NodeGraphRegion> regions = new ObjectArrayList<>();
+    private final List<NodeGraphRegion> regionsView = Collections.unmodifiableList(regions);
+    private final PortTypeRegistry portTypes = new PortTypeRegistry();
+    private final NodeTypeRegistry nodeTypes = new NodeTypeRegistry();
+    private final MutableColor shadowColor = new MutableColor(0.0f, 0.0f, 0.0f, 0.28f);
+    private final MutableColor minimapBackgroundColor = new MutableColor(0.07f, 0.07f, 0.08f, 0.88f);
+    private final MutableColor minimapBorderColor = new MutableColor(0.45f, 0.47f, 0.55f, 0.9f);
+    private final MutableColor minimapViewportColor = new MutableColor(1.0f, 1.0f, 1.0f, 0.85f);
+    private boolean minimapEnabled;
+    private float minimapWidth = 160.0f;
+    private float minimapHeight = 100.0f;
+    private float minimapMargin = 12.0f;
+    private int nextItemId = 1;
+    private int nextRegionId = 1;
+    private final ItemLayout itemLayout = new ItemLayout();
+    private final ItemPaint itemPaint = new ItemPaint();
+    private final float[] wirePoints = new float[NodeGraphWires.BUFFER_SIZE];
+    private int wireCount;
     private NodeGraphConnectionPolicy connectionPolicy = NodeGraphConnectionPolicy.DEFAULT;
     private NodeGraphSelectionMode selectionMode = NodeGraphSelectionMode.SINGLE;
     private final Viewport2D viewport = new Viewport2D();
@@ -249,8 +278,11 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     @WikiReturn("<key:node.graph.return.self>")
     public NodeGraph clearItems() {
         for (NodeGraphItem item : itemSnapshot()) {
+            List<Widget> widgets = item.allWidgets();
             detach(item);
-            item.content().dispose();
+            for (Widget widget : widgets) {
+                widget.dispose();
+            }
         }
         items.clear();
         logicalItems.clear();
@@ -352,6 +384,8 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         if (!validation.valid()) {
             throw new IllegalArgumentException(validation.reason());
         }
+        enforceCapacity(connection.from());
+        enforceCapacity(connection.to());
         connections.add(connection);
         markConnectionsDirty();
         attach(connection);
@@ -435,6 +469,278 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return validation == null ? NodeGraphConnectionValidation.invalid("Connection rejected") : validation;
     }
 
+    /**
+     * @return реестр типов портов: цвета, формы и правила совместимости соединений
+     */
+    public PortTypeRegistry portTypes() {
+        return portTypes;
+    }
+
+    /**
+     * @return каталог типов нод для меню добавления и восстановления из сохранения
+     */
+    public NodeTypeRegistry nodeTypes() {
+        return nodeTypes;
+    }
+
+    /**
+     * Создаёт ноду зарегистрированного типа с автоматическим id и добавляет её в граф.
+     *
+     * @param typeId id типа из {@link #nodeTypes()}
+     * @param x X в world-координатах
+     * @param y Y в world-координатах
+     * @return созданная нода или {@code null}, если тип не зарегистрирован
+     */
+    public NodeGraphItem spawn(String typeId, float x, float y) {
+        NodeType type = nodeTypes.get(typeId);
+        if (type == null) return null;
+        String itemId;
+        do {
+            itemId = type.id() + "-" + nextItemId++;
+        } while (item(itemId) != null);
+        return spawn(typeId, itemId, x, y);
+    }
+
+    /**
+     * Создаёт ноду зарегистрированного типа с заданным id и добавляет её в граф.
+     *
+     * @param typeId id типа из {@link #nodeTypes()}
+     * @param itemId id создаваемой ноды
+     * @param x X в world-координатах
+     * @param y Y в world-координатах
+     * @return созданная нода или {@code null}, если тип не зарегистрирован
+     */
+    public NodeGraphItem spawn(String typeId, String itemId, float x, float y) {
+        NodeType type = nodeTypes.get(typeId);
+        if (type == null) return null;
+        NodeGraphItem created = type.create(itemId);
+        created.position(x, y);
+        addItem(created);
+        return created;
+    }
+
+    /**
+     * Создаёт регион-комментарий и добавляет его на холст.
+     *
+     * @param id id региона; пустая строка даёт автоматический id
+     * @param title заголовок
+     * @param x X в world-координатах
+     * @param y Y в world-координатах
+     * @param width ширина
+     * @param height высота
+     * @return созданный регион
+     */
+    public NodeGraphRegion addRegion(String id, String title, float x, float y, float width, float height) {
+        String normalized = id == null ? "" : id.trim();
+        if (normalized.isEmpty()) {
+            do {
+                normalized = "region-" + nextRegionId++;
+            } while (region(normalized) != null);
+        }
+        NodeGraphRegion region = new NodeGraphRegion(normalized, title, x, y, width, height);
+        addRegion(region);
+        return region;
+    }
+
+    /**
+     * Добавляет готовый регион на холст.
+     *
+     * @param region регион; {@code null} игнорируется
+     * @return этот граф
+     * @throws IllegalArgumentException если id занят или регион принадлежит другому графу
+     */
+    public NodeGraph addRegion(NodeGraphRegion region) {
+        if (region == null || regions.contains(region)) return this;
+        if (region.owner() != null && region.owner() != this) {
+            throw new IllegalArgumentException("NodeGraphRegion already belongs to another NodeGraph");
+        }
+        if (region(region.id()) != null) {
+            throw new IllegalArgumentException("Duplicate NodeGraph region id: " + region.id());
+        }
+        regions.add(region);
+        region.owner(this);
+        for (Widget widget : List.of(region.titleLabel(), region.commentLabel())) {
+            adoptModuleWidget(widget);
+        }
+        childrenViewDirty = true;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        dispatch(new NodeGraphRegionChangedEvent(this, region.id(), NodeGraphRegionChangedEvent.Kind.ADDED,
+                region.x(), region.y(), region.width(), region.height()));
+        return this;
+    }
+
+    /**
+     * @param region удаляемый регион
+     * @return этот граф
+     */
+    public NodeGraph removeRegion(NodeGraphRegion region) {
+        if (region == null || !regions.remove(region)) return this;
+        releaseRegion(region);
+        childrenViewDirty = true;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        dispatch(new NodeGraphRegionChangedEvent(this, region.id(), NodeGraphRegionChangedEvent.Kind.REMOVED,
+                region.x(), region.y(), region.width(), region.height()));
+        return this;
+    }
+
+    /**
+     * @param id id региона
+     * @return этот граф
+     */
+    public NodeGraph removeRegion(String id) {
+        NodeGraphRegion region = region(id);
+        return region == null ? this : removeRegion(region);
+    }
+
+    /**
+     * @param id id региона
+     * @return регион или {@code null}
+     */
+    public NodeGraphRegion region(String id) {
+        if (id == null) return null;
+        for (int i = 0, size = regions.size(); i < size; i++) {
+            NodeGraphRegion region = regions.get(i);
+            if (region.id().equals(id)) return region;
+        }
+        return null;
+    }
+
+    /** @return регионы снизу вверх, только для чтения */
+    public List<NodeGraphRegion> regions() {
+        return regionsView;
+    }
+
+    /**
+     * Удаляет все регионы; ноды остаются.
+     *
+     * @return этот граф
+     */
+    public NodeGraph clearRegions() {
+        for (NodeGraphRegion region : regions.toArray(new NodeGraphRegion[0])) {
+            regions.remove(region);
+            releaseRegion(region);
+        }
+        childrenViewDirty = true;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /** @return выделенный регион или {@code null} */
+    public NodeGraphRegion selectedRegion() {
+        for (int i = 0, size = regions.size(); i < size; i++) {
+            if (regions.get(i).selected()) return regions.get(i);
+        }
+        return null;
+    }
+
+    /**
+     * Выделяет регион и снимает остальные выделения регионов.
+     *
+     * @param region регион или {@code null}, чтобы снять выделение
+     * @return этот граф
+     */
+    public NodeGraph selectRegion(NodeGraphRegion region) {
+        for (int i = 0, size = regions.size(); i < size; i++) {
+            regions.get(i).selectedInternal(regions.get(i) == region);
+        }
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /** @return {@code true}, если в углу холста рисуется миникарта */
+    public boolean minimapEnabled() {
+        return minimapEnabled;
+    }
+
+    /**
+     * Включает миникарту в правом нижнем углу: обзор всех нод и регионов, клик и перетаскивание
+     * по ней двигают видимое окно.
+     *
+     * @param minimapEnabled {@code true}, чтобы показать
+     * @return этот граф
+     */
+    public NodeGraph minimapEnabled(boolean minimapEnabled) {
+        if (this.minimapEnabled == minimapEnabled) return this;
+        this.minimapEnabled = minimapEnabled;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * @param width ширина миникарты в пикселях
+     * @param height высота миникарты в пикселях
+     * @return этот граф
+     */
+    public NodeGraph minimapSize(float width, float height) {
+        this.minimapWidth = positiveOr(width, this.minimapWidth);
+        this.minimapHeight = positiveOr(height, this.minimapHeight);
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /** @return live-цвет фона миникарты */
+    public MutableColor minimapBackgroundColor() {
+        return minimapBackgroundColor;
+    }
+
+    /** @return live-цвет рамки миникарты */
+    public MutableColor minimapBorderColor() {
+        return minimapBorderColor;
+    }
+
+    /** @return live-цвет рамки видимого окна на миникарте */
+    public MutableColor minimapViewportColor() {
+        return minimapViewportColor;
+    }
+
+    /**
+     * @param listener слушатель сворачивания и разворачивания нод
+     * @return подписка
+     */
+    public EventSubscription onItemCollapsed(EventListener<? super NodeGraphItemCollapsedEvent> listener) {
+        return on(NodeGraphItemCollapsedEvent.TYPE, listener);
+    }
+
+    /**
+     * @param listener слушатель изменений регионов
+     * @return подписка
+     */
+    public EventSubscription onRegionChanged(EventListener<? super NodeGraphRegionChangedEvent> listener) {
+        return on(NodeGraphRegionChangedEvent.TYPE, listener);
+    }
+
+    void itemCollapsedChanged(NodeGraphItem item) {
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        dispatch(new NodeGraphItemCollapsedEvent(this, item.id(), item.collapsed()));
+    }
+
+    void itemHostedChanged() {
+        childrenViewDirty = true;
+    }
+
+    void regionHostedChanged() {
+        childrenViewDirty = true;
+    }
+
+    void adoptModuleWidget(Widget widget) {
+        if (widget instanceof WidgetBase base) {
+            base.setParentInternal(this);
+            base.setUiContextInternal(uiContext());
+        }
+    }
+
+    private void releaseRegion(NodeGraphRegion region) {
+        for (Widget widget : List.of(region.titleLabel(), region.commentLabel())) {
+            if (widget instanceof WidgetBase base) {
+                base.setParentInternal(null);
+                base.setUiContextInternal(null);
+            }
+            widget.dispose();
+        }
+        region.selectedInternal(false);
+        region.owner(null);
+    }
+
     @AiDoc(summary = "Captures a full serializable snapshot of the node graph.")
     @WikiMethod(summary = "<key:node.graph.method.snapshot>")
     @WikiReturn("<key:node.graph.return.snapshot>")
@@ -459,7 +765,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
             }
             itemSnapshots.add(new NodeGraphItemSnapshot(
                     item.id(),
-                    item.content().getClass().getName(),
+                    item.modular() ? "" : item.content().getClass().getName(),
                     item.x(),
                     item.y(),
                     item.width(),
@@ -468,7 +774,19 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
                     item.movable(),
                     item.resizable(),
                     item.visible(),
-                    portSnapshots));
+                    portSnapshots,
+                    item.typeId(),
+                    item.collapsed()));
+        }
+
+        List<NodeGraphRegionSnapshot> regionSnapshots = new ObjectArrayList<>(regions.size());
+        for (int i = 0, size = regions.size(); i < size; i++) {
+            NodeGraphRegion region = regions.get(i);
+            MutableColor color = region.color();
+            int argb = (Math.round(color.a() * 255.0f) << 24) | (Math.round(color.r() * 255.0f) << 16)
+                    | (Math.round(color.g() * 255.0f) << 8) | Math.round(color.b() * 255.0f);
+            regionSnapshots.add(new NodeGraphRegionSnapshot(region.id(), region.title(), region.comment(), argb,
+                    region.x(), region.y(), region.width(), region.height(), region.movable(), region.resizable()));
         }
 
         List<NodeGraphConnectionSnapshot> connectionSnapshots = new ObjectArrayList<>(connections.size());
@@ -490,7 +808,8 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
                 itemSnapshots,
                 connectionSnapshots,
                 selectedItemIds(),
-                selectedConnectionIds());
+                selectedConnectionIds(),
+                regionSnapshots);
     }
 
     @AiDoc(summary = "Restores graph items, connections, and viewport from a serialized snapshot using a widget resolver.")
@@ -500,8 +819,37 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         if (snapshot == null) return this;
         NodeGraphWidgetResolver safeResolver = resolver == null ? (itemId, contentType) -> null : resolver;
         clearItems();
+        clearRegions();
+
+        for (NodeGraphRegionSnapshot regionSnapshot : snapshot.regions()) {
+            NodeGraphRegion region = addRegion(regionSnapshot.id(), regionSnapshot.title(),
+                    regionSnapshot.x(), regionSnapshot.y(), regionSnapshot.width(), regionSnapshot.height());
+            region.comment(regionSnapshot.comment())
+                    .color(regionSnapshot.argb())
+                    .movable(regionSnapshot.movable())
+                    .resizable(regionSnapshot.resizable());
+        }
 
         for (NodeGraphItemSnapshot itemSnapshot : snapshot.items()) {
+            NodeType restoredType = itemSnapshot.contentType().isEmpty() ? nodeTypes.get(itemSnapshot.typeId()) : null;
+            if (restoredType != null) {
+                NodeGraphItem modular = restoredType.create(itemSnapshot.id());
+                modular.position(itemSnapshot.x(), itemSnapshot.y())
+                        .size(itemSnapshot.width(), itemSnapshot.height())
+                        .selectable(itemSnapshot.selectable())
+                        .movable(itemSnapshot.movable())
+                        .resizable(itemSnapshot.resizable())
+                        .visible(itemSnapshot.visible());
+                modular.collapsed(itemSnapshot.collapsed());
+                addItem(modular);
+                for (NodeGraphPortSnapshot portSnapshot : itemSnapshot.ports()) {
+                    NodeGraphPort port = modular.port(portSnapshot.id());
+                    if (port != null) {
+                        port.enabled(portSnapshot.enabled()).visible(portSnapshot.visible());
+                    }
+                }
+                continue;
+            }
             Widget content = safeResolver.resolve(itemSnapshot.id(), itemSnapshot.contentType());
             if (content == null) continue;
             NodeGraphItem item = addItem(itemSnapshot.id(), content, itemSnapshot.x(), itemSnapshot.y());
@@ -560,15 +908,14 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     public List<Widget> children() {
         if (childrenViewDirty) {
             NodeGraphItem[] snapshot = itemSnapshot();
-            if (snapshot.length == 0) {
-                childrenView = Collections.emptyList();
-            } else {
-                List<Widget> children = new ObjectArrayList<>(snapshot.length);
-                for (NodeGraphItem item : snapshot) {
-                    children.add(item.content());
-                }
-                childrenView = Collections.unmodifiableList(children);
+            List<Widget> children = new ObjectArrayList<>(snapshot.length);
+            for (NodeGraphItem item : snapshot) {
+                children.addAll(item.hostedWidgets());
             }
+            for (int i = 0, size = regions.size(); i < size; i++) {
+                children.addAll(regions.get(i).widgets());
+            }
+            childrenView = children.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(children);
             childrenViewDirty = false;
         }
         return childrenView;
@@ -614,25 +961,36 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     @Override
     public HitTestPoint mapHitTestPointForChild(Widget child, float x, float y) {
         if (!scaleContentWithZoom || zoom() == 1.0f || child == null) return null;
-        NodeGraphItem item = itemForContent(child);
-        if (item == null) return null;
-        float itemX = worldToRootX(item.x());
-        float itemY = worldToRootY(item.y());
+        float[] pivot = zoomPivot(child);
+        if (pivot == null) return null;
         return new HitTestPoint(
-                itemX + (x - itemX) / zoom(),
-                itemY + (y - itemY) / zoom());
+                pivot[0] + (x - pivot[0]) / zoom(),
+                pivot[1] + (y - pivot[1]) / zoom());
+    }
+
+    /** @return корневые координаты точки масштабирования для виджета ноды или региона; {@code null}, если виджет чужой */
+    private float[] zoomPivot(Widget child) {
+        NodeGraphItem item = itemForContent(child);
+        if (item != null) {
+            return new float[]{worldToRootX(item.x()), worldToRootY(item.y())};
+        }
+        for (Widget current = child; current != null && current != this; current = current.parent()) {
+            NodeGraphRegion region = regionForContent(current);
+            if (region != null) {
+                return new float[]{worldToRootX(region.x()), worldToRootY(region.y())};
+            }
+        }
+        return null;
     }
 
     @Override
     public RectView renderedBoundsForChild(Widget child, RectView bounds) {
         if (!scaleContentWithZoom || zoom() == 1.0f || child == null || bounds == null) return null;
-        NodeGraphItem item = itemForContent(child);
-        if (item == null) return null;
-        float itemX = worldToRootX(item.x());
-        float itemY = worldToRootY(item.y());
+        float[] pivot = zoomPivot(child);
+        if (pivot == null) return null;
         return new MutableRect(
-                itemX + (bounds.x() - itemX) * zoom(),
-                itemY + (bounds.y() - itemY) * zoom(),
+                pivot[0] + (bounds.x() - pivot[0]) * zoom(),
+                pivot[1] + (bounds.y() - pivot[1]) * zoom(),
                 bounds.width() * zoom(),
                 bounds.height() * zoom());
     }
@@ -641,8 +999,17 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     public void setUiContextInternal(UIContext uiContext) {
         super.setUiContextInternal(uiContext);
         for (NodeGraphItem item : itemSnapshot()) {
-            if (item.content() instanceof WidgetBase base) {
-                base.setUiContextInternal(uiContext);
+            for (Widget widget : item.allWidgets()) {
+                if (widget instanceof WidgetBase base) {
+                    base.setUiContextInternal(uiContext);
+                }
+            }
+        }
+        for (int i = 0, size = regions.size(); i < size; i++) {
+            for (Widget widget : List.of(regions.get(i).titleLabel(), regions.get(i).commentLabel())) {
+                if (widget instanceof WidgetBase base) {
+                    base.setUiContextInternal(uiContext);
+                }
             }
         }
     }
@@ -1380,12 +1747,26 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         LayoutContext childContext = new LayoutContext(
                 Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY);
         for (NodeGraphItem item : itemSnapshot()) {
-            if (!item.visible() || item.content().visibility() == Visibility.COLLAPSED) continue;
+            if (!item.visible()) continue;
+            if (item.modular()) {
+                for (Widget widget : item.hostedWidgets()) {
+                    widget.measure(childContext);
+                }
+                itemLayout.item = item;
+                item.measureModules(itemLayout);
+                continue;
+            }
+            if (item.content().visibility() == Visibility.COLLAPSED) continue;
             item.content().measure(childContext);
             float padding = itemContentPadding * 2.0f;
             float width = item.autoWidth() ? StackPanel.preferredWidth(item.content(), 0.0f) + padding : item.width();
             float height = item.autoHeight() ? StackPanel.preferredHeight(item.content(), 0.0f) + padding : item.height();
             item.arrangedSize(Math.max(MIN_ITEM_SIZE, width), Math.max(MIN_ITEM_SIZE, height));
+        }
+        for (int i = 0, size = regions.size(); i < size; i++) {
+            for (Widget widget : regions.get(i).widgets()) {
+                widget.measure(childContext);
+            }
         }
         setDesiredSize(resolveDesiredSize(context, preferredWidth, preferredHeight));
     }
@@ -1402,8 +1783,14 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         if (visibility() != Visibility.VISIBLE) return;
         super.tick(frame);
         for (NodeGraphItem item : itemSnapshot()) {
-            if (item.visible() && item.content().visibility() == Visibility.VISIBLE) {
-                item.content().tick(frame);
+            if (!item.visible()) continue;
+            for (Widget widget : item.hostedWidgets()) {
+                if (widget.visibility() == Visibility.VISIBLE) widget.tick(frame);
+            }
+        }
+        for (int i = 0, size = regions.size(); i < size; i++) {
+            for (Widget widget : regions.get(i).widgets()) {
+                if (widget.visibility() == Visibility.VISIBLE) widget.tick(frame);
             }
         }
     }
@@ -1425,8 +1812,14 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
                 custom.render(draw, this);
             } else {
                 renderBackground(draw);
+                renderRegions(context, draw);
+                renderConnections(draw);
             }
             for (NodeGraphItem item : itemSnapshot()) {
+                if (item.modular()) {
+                    if (item.visible()) renderModularItem(context, draw, item);
+                    continue;
+                }
                 Widget content = item.content();
                 if (!item.visible() || content.visibility() != Visibility.VISIBLE) continue;
                 if (scaleContentWithZoom && zoom() != 1.0f) {
@@ -1509,25 +1902,32 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     @Override
     public void dispose() {
         clearItems();
+        clearRegions();
         super.dispose();
     }
 
     private void attach(NodeGraphItem item) {
         item.owner(this);
-        if (item.content() instanceof WidgetBase base) {
-            base.setParentInternal(this);
-            base.setUiContextInternal(uiContext());
+        for (Widget widget : item.allWidgets()) {
+            adoptModuleWidget(widget);
+        }
+        for (NodeGraphPort port : item.ports()) {
+            updatePortCount(port.ref());
         }
     }
 
     private void attach(NodeGraphConnection connection) {
         connection.owner(this);
+        updatePortCount(connection.from());
+        updatePortCount(connection.to());
     }
 
     private void detach(NodeGraphItem item) {
-        if (item.content() instanceof WidgetBase base) {
-            base.setParentInternal(null);
-            base.setUiContextInternal(null);
+        for (Widget widget : item.allWidgets()) {
+            if (widget instanceof WidgetBase base) {
+                base.setParentInternal(null);
+                base.setUiContextInternal(null);
+            }
         }
         item.owner(null);
         item.selectedInternal(false);
@@ -1536,13 +1936,70 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     private void detach(NodeGraphConnection connection) {
         connection.owner(null);
         connection.selectedInternal(false);
+        updatePortCount(connection.from());
+        updatePortCount(connection.to());
     }
 
+    /** Пересчитывает число соединений порта и уведомляет его модуль. */
+    private void updatePortCount(NodeGraphPortRef ref) {
+        NodeGraphPort port = port(ref);
+        if (port == null) return;
+        int count = 0;
+        Object[] raw = connections.elements();
+        for (int i = 0, size = connections.size(); i < size; i++) {
+            NodeGraphConnection connection = (NodeGraphConnection) raw[i];
+            if (connection.from().equals(ref) || connection.to().equals(ref)) count++;
+        }
+        if (port.connectionCount() == count) return;
+        port.connectionCount(count);
+        NodeGraphItem owner = item(ref.itemId());
+        if (owner != null) owner.portConnectionsChanged(port);
+    }
+
+    /** Освобождает место на порту с ограниченной ёмкостью, удаляя самые старые его соединения. */
+    private void enforceCapacity(NodeGraphPortRef ref) {
+        NodeGraphPort port = port(ref);
+        if (port == null || port.capacity() <= 0) return;
+        while (port.connectionCount() >= port.capacity()) {
+            NodeGraphConnection oldest = null;
+            Object[] raw = connections.elements();
+            for (int i = 0, size = connections.size(); i < size; i++) {
+                NodeGraphConnection connection = (NodeGraphConnection) raw[i];
+                if (connection.from().equals(ref) || connection.to().equals(ref)) {
+                    oldest = connection;
+                    break;
+                }
+            }
+            if (oldest == null) return;
+            removeConnection(oldest);
+        }
+    }
+
+    /** @return нода, которой принадлежит виджет или один из его предков внутри ноды */
     private NodeGraphItem itemForContent(Widget content) {
-        Object[] rawItems = items.elements();
-        for (int itemIndex = 0, itemSize = items.size(); itemIndex < itemSize; itemIndex++) {
-            NodeGraphItem item = (NodeGraphItem) rawItems[itemIndex];
-            if (item.content() == content) return item;
+        for (Widget current = content; current != null && current != this; current = current.parent()) {
+            Object[] rawItems = items.elements();
+            for (int itemIndex = 0, itemSize = items.size(); itemIndex < itemSize; itemIndex++) {
+                NodeGraphItem item = (NodeGraphItem) rawItems[itemIndex];
+                if (hosts(item, current)) return item;
+            }
+        }
+        return null;
+    }
+
+    private static boolean hosts(NodeGraphItem item, Widget widget) {
+        List<Widget> hosted = item.hostedWidgets();
+        for (int i = 0, size = hosted.size(); i < size; i++) {
+            if (hosted.get(i) == widget) return true;
+        }
+        return false;
+    }
+
+    /** @return регион, которому принадлежит виджет заголовка или комментария */
+    private NodeGraphRegion regionForContent(Widget content) {
+        for (int i = 0, size = regions.size(); i < size; i++) {
+            NodeGraphRegion region = regions.get(i);
+            if (region.titleLabel() == content || region.commentLabel() == content) return region;
         }
         return null;
     }
@@ -1567,7 +2024,14 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
 
     private void arrangeItems() {
         if (layoutBounds().width() <= 0.0f && layoutBounds().height() <= 0.0f) return;
+        arrangeRegions();
         for (NodeGraphItem item : itemSnapshot()) {
+            if (item.modular()) {
+                if (!item.visible()) continue;
+                itemLayout.item = item;
+                item.arrangeModules(itemLayout);
+                continue;
+            }
             Widget content = item.content();
             if (!item.visible() || content.visibility() == Visibility.COLLAPSED) continue;
             float width = item.arrangedWidth() > 0.0f
@@ -1601,6 +2065,23 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         }
     }
 
+    /** Размещает заголовок и комментарий каждого региона в world-единицах от его угла. */
+    private void arrangeRegions() {
+        for (int i = 0, size = regions.size(); i < size; i++) {
+            NodeGraphRegion region = regions.get(i);
+            float originX = worldToRootX(region.x());
+            float originY = worldToRootY(region.y());
+            float textWidth = Math.max(0.0f, region.width() - NodeGraphRegion.TEXT_INSET * 2.0f);
+            StackPanel.arrangeChild(region.titleLabel(), originX + NodeGraphRegion.TEXT_INSET, originY,
+                    textWidth, NodeGraphRegion.HEADER_HEIGHT);
+            if (!region.comment().isEmpty()) {
+                float commentTop = NodeGraphRegion.HEADER_HEIGHT + 4.0f;
+                StackPanel.arrangeChild(region.commentLabel(), originX + NodeGraphRegion.TEXT_INSET,
+                        originY + commentTop, textWidth, Math.max(0.0f, region.height() - commentTop - 4.0f));
+            }
+        }
+    }
+
     private void handlePointerPressed(PointerPressedEvent pointer, Event sourceEvent) {
         if (pointer.button() == PointerButton.MIDDLE && panningEnabled) {
             startPan(pointer);
@@ -1608,6 +2089,13 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
             return;
         }
         if (pointer.button() != PointerButton.PRIMARY) return;
+
+        NodeGraphMinimap map = minimapGeometry();
+        if (map != null && map.contains(pointer.rootX(), pointer.rootY())) {
+            startMinimapDrag(map, pointer);
+            sourceEvent.cancel();
+            return;
+        }
 
         PortHit portHit = hitPort(pointer.rootX(), pointer.rootY());
         if (portHit != null) {
@@ -1625,6 +2113,13 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
             return;
         }
 
+        NodeGraphRegion resizeRegion = hitRegionResizeHandle(pointer.rootX(), pointer.rootY());
+        if (resizeRegion != null) {
+            startRegionDrag(DragKind.REGION_RESIZE, resizeRegion, pointer);
+            sourceEvent.cancel();
+            return;
+        }
+
         NodeGraphConnection connection = hitConnection(pointer.rootX(), pointer.rootY());
         if (connection != null) {
             selectConnection(connection);
@@ -1637,12 +2132,27 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
             item = itemForContent(pointer.target());
         }
         if (item == null) {
+            NodeGraphRegion region = hitRegionHeader(pointer.rootX(), pointer.rootY());
+            if (region != null) {
+                clearSelection();
+                clearConnectionSelection();
+                selectRegion(region);
+                if (region.movable()) startRegionDrag(DragKind.REGION, region, pointer);
+                sourceEvent.cancel();
+                return;
+            }
             clearSelection();
             clearConnectionSelection();
+            selectRegion(null);
             if (lassoSelectionEnabled && selectionMode == NodeGraphSelectionMode.MULTIPLE) {
                 startLasso(pointer);
                 sourceEvent.cancel();
             }
+            return;
+        }
+        selectRegion(null);
+        if (item.modular() && pressItemModule(item, pointer)) {
+            sourceEvent.cancel();
             return;
         }
         if (item.selectable()) {
@@ -1671,6 +2181,12 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
                 moveViewport(pointer);
             } else if (dragState.kind == DragKind.RESIZE) {
                 resizeDraggedItem(pointer);
+            } else if (dragState.kind == DragKind.REGION) {
+                moveDraggedRegion(pointer);
+            } else if (dragState.kind == DragKind.REGION_RESIZE) {
+                resizeDraggedRegion(pointer);
+            } else if (dragState.kind == DragKind.MINIMAP) {
+                centerOnMinimap(dragState.minimap, pointer.rootX(), pointer.rootY());
             }
             return;
         }
@@ -1706,6 +2222,116 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         setHoveredItem(hitItem(pointer.rootX(), pointer.rootY()));
         invalidate(InvalidationFlags.VISUAL);
         sourceEvent.cancel();
+    }
+
+    /** Передаёт нажатие модулю под курсором (стрелка сворачивания в заголовке). */
+    private boolean pressItemModule(NodeGraphItem item, PointerPressedEvent pointer) {
+        float localX = (pointer.rootX() - worldToRootX(item.x())) / zoom();
+        float localY = (pointer.rootY() - worldToRootY(item.y())) / zoom();
+        return item.pressModule(localX, localY);
+    }
+
+    private void captureDragPointer(int pointerId) {
+        UIContext context = uiContext();
+        if (context != null) {
+            context.capturePointer(pointerId, this);
+        }
+    }
+
+    private void startMinimapDrag(NodeGraphMinimap map, PointerPressedEvent pointer) {
+        dragState = new DragState(DragKind.MINIMAP, null, pointer.pointerId(), pointer.rootX(), pointer.rootY(),
+                0.0f, 0.0f, 0.0f, 0.0f, viewportX(), viewportY());
+        dragState.minimap = map;
+        captureDragPointer(pointer.pointerId());
+        centerOnMinimap(map, pointer.rootX(), pointer.rootY());
+    }
+
+    /** Центрирует видимое окно на точке миникарты. */
+    private void centerOnMinimap(NodeGraphMinimap map, float rootX, float rootY) {
+        if (map == null) return;
+        float worldX = map.toWorldX(rootX);
+        float worldY = map.toWorldY(rootY);
+        viewport(layoutBounds().width() * 0.5f - worldX * zoom(),
+                layoutBounds().height() * 0.5f - worldY * zoom());
+    }
+
+    /**
+     * Начинает перетаскивание или растягивание региона. При перетаскивании запоминает ноды внутри региона:
+     * они едут вместе с ним.
+     */
+    private void startRegionDrag(DragKind kind, NodeGraphRegion region, PointerPressedEvent pointer) {
+        dragState = new DragState(kind, null, pointer.pointerId(), pointer.rootX(), pointer.rootY(),
+                region.x(), region.y(), region.width(), region.height(), viewportX(), viewportY());
+        dragState.region = region;
+        if (kind == DragKind.REGION) {
+            List<NodeGraphItem> members = region.containedItems(this);
+            dragState.members = members.toArray(new NodeGraphItem[0]);
+            dragState.memberStart = new float[members.size() * 2];
+            for (int i = 0; i < dragState.members.length; i++) {
+                dragState.memberStart[i * 2] = dragState.members[i].x();
+                dragState.memberStart[i * 2 + 1] = dragState.members[i].y();
+            }
+        }
+        captureDragPointer(pointer.pointerId());
+        invalidate(InvalidationFlags.VISUAL);
+    }
+
+    private void moveDraggedRegion(PointerMovedEvent pointer) {
+        NodeGraphRegion region = dragState.region;
+        float dx = (pointer.rootX() - dragState.startRootX) / zoom();
+        float dy = (pointer.rootY() - dragState.startRootY) / zoom();
+        region.position(dragState.startX + dx, dragState.startY + dy);
+        for (int i = 0; i < dragState.members.length; i++) {
+            NodeGraphItem member = dragState.members[i];
+            float oldX = member.x();
+            float oldY = member.y();
+            member.position(dragState.memberStart[i * 2] + dx, dragState.memberStart[i * 2 + 1] + dy);
+            if (oldX != member.x() || oldY != member.y()) {
+                dispatch(new NodeGraphItemMovedEvent(this, member.id(), oldX, oldY, member.x(), member.y(), pointer.pointerId()));
+            }
+        }
+        arrangeItems();
+        dispatch(new NodeGraphRegionChangedEvent(this, region.id(), NodeGraphRegionChangedEvent.Kind.MOVED,
+                region.x(), region.y(), region.width(), region.height()));
+    }
+
+    private void resizeDraggedRegion(PointerMovedEvent pointer) {
+        NodeGraphRegion region = dragState.region;
+        region.size(dragState.startWidth + (pointer.rootX() - dragState.startRootX) / zoom(),
+                dragState.startHeight + (pointer.rootY() - dragState.startRootY) / zoom());
+        arrangeItems();
+        dispatch(new NodeGraphRegionChangedEvent(this, region.id(), NodeGraphRegionChangedEvent.Kind.RESIZED,
+                region.x(), region.y(), region.width(), region.height()));
+    }
+
+    /** @return верхний регион, чья полоса заголовка под курсором */
+    private NodeGraphRegion hitRegionHeader(float rootX, float rootY) {
+        for (int i = regions.size() - 1; i >= 0; i--) {
+            NodeGraphRegion region = regions.get(i);
+            float x = worldToRootX(region.x());
+            float y = worldToRootY(region.y());
+            if (rootX >= x && rootX <= x + region.width() * zoom()
+                    && rootY >= y && rootY <= y + NodeGraphRegion.HEADER_HEIGHT * zoom()) {
+                return region;
+            }
+        }
+        return null;
+    }
+
+    /** @return выделенный регион, у которого курсор над правым нижним углом */
+    private NodeGraphRegion hitRegionResizeHandle(float rootX, float rootY) {
+        if (!resizeEnabled) return null;
+        for (int i = regions.size() - 1; i >= 0; i--) {
+            NodeGraphRegion region = regions.get(i);
+            if (!region.selected() || !region.resizable()) continue;
+            float right = worldToRootX(region.x()) + region.width() * zoom();
+            float bottom = worldToRootY(region.y()) + region.height() * zoom();
+            if (rootX >= right - RESIZE_HANDLE_SIZE && rootX <= right
+                    && rootY >= bottom - RESIZE_HANDLE_SIZE && rootY <= bottom) {
+                return region;
+            }
+        }
+        return null;
     }
 
     private void startItemDrag(NodeGraphItem item, PointerPressedEvent pointer) {
@@ -1932,6 +2558,8 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         } else if (key.keyCode() == KeyCodes.DELETE || key.keyCode() == KeyCodes.BACKSPACE) {
             removeSelectedConnections();
             removeSelectedItems();
+            NodeGraphRegion selectedRegion = selectedRegion();
+            if (selectedRegion != null) removeRegion(selectedRegion);
             handled = true;
         } else if (key.keyCode() == KeyCodes.LEFT || key.keyCode() == KeyCodes.RIGHT
                 || key.keyCode() == KeyCodes.UP || key.keyCode() == KeyCodes.DOWN) {
@@ -2026,7 +2654,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
             Object[] rawPorts = ports.elements();
             for (int portIndex = 0, portSize = ports.size(); portIndex < portSize; portIndex++) {
                 NodeGraphPort port = (NodeGraphPort) rawPorts[portIndex];
-                if (!port.visible()) continue;
+                if (!item.portShown(port)) continue;
                 PortPoint point = portPoint(item, port);
                 float dx = rootX - point.x();
                 float dy = rootY - point.y();
@@ -2041,10 +2669,8 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     private NodeGraphConnection hitConnection(float rootX, float rootY) {
         for (int i = connections.size() - 1; i >= 0; i--) {
             NodeGraphConnection connection = connections.get(i);
-            ConnectionPoints points = connectionPoints(connection);
-            if (points == null) continue;
-            if (distanceToSegment(rootX, rootY, points.startX(), points.startY(), points.endX(), points.endY())
-                    <= CONNECTION_HIT_RADIUS) {
+            if (!wireCurve(connection)) continue;
+            if (NodeGraphWires.distance(rootX, rootY, wirePoints, wireCount) <= CONNECTION_HIT_RADIUS) {
                 return connection;
             }
         }
@@ -2052,6 +2678,10 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     }
 
     private PortPoint portPoint(NodeGraphItem item, NodeGraphPort port) {
+        if (item.modular() && port.anchored()) {
+            return new PortPoint(worldToRootX(item.x()) + port.anchorX() * zoom(),
+                    worldToRootY(item.y()) + port.anchorY() * zoom());
+        }
         float width = itemScreenWidth(item);
         float height = itemScreenHeight(item);
         float x = worldToRootX(item.x());
@@ -2069,17 +2699,6 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
             }
         }
         return new PortPoint(x, y);
-    }
-
-    private ConnectionPoints connectionPoints(NodeGraphConnection connection) {
-        NodeGraphItem fromItem = item(connection.fromItemId());
-        NodeGraphItem toItem = item(connection.toItemId());
-        NodeGraphPort fromPort = port(connection.from());
-        NodeGraphPort toPort = port(connection.to());
-        if (fromItem == null || toItem == null || fromPort == null || toPort == null) return null;
-        PortPoint from = portPoint(fromItem, fromPort);
-        PortPoint to = portPoint(toItem, toPort);
-        return new ConnectionPoints(from.x(), from.y(), to.x(), to.y());
     }
 
     private void setHoveredPort(PortHit portHit) {
@@ -2149,15 +2768,240 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         if (width <= 0.0f || height <= 0.0f) return;
         draw.rect(x, y, width, height, Paint.fill(backgroundColor));
         drawGraphGrid(draw, x, y, width, height);
-        for (NodeGraphConnection connection : connections) {
-            if (!connection.enabled()) continue;
-            ConnectionPoints points = connectionPoints(connection);
-            if (points == null) continue;
-            boolean highlighted = connection.selected() || Objects.equals(hoveredConnectionId, connection.id());
-            ColorView color = highlighted ? selectedConnectionColor : connectionColor;
-            draw.addLine(points.startX(), points.startY(), points.endX(), points.endY(),
-                    color, highlighted ? 2.0f : 1.0f);
+    }
+
+    /** Рисует регионы-комментарии под проводами и нодами: заливка, рамка, полоса заголовка и тексты. */
+    private void renderRegions(RenderContext context, DrawScope draw) {
+        float z = zoom();
+        for (int i = 0, size = regions.size(); i < size; i++) {
+            NodeGraphRegion region = regions.get(i);
+            float x = worldToRootX(region.x());
+            float y = worldToRootY(region.y());
+            float width = region.width() * z;
+            float height = region.height() * z;
+            float header = NodeGraphRegion.HEADER_HEIGHT * z;
+            MutableColor base = region.color();
+            draw.rect(x, y, width, height, Paint.fill(new MutableColor(base.r(), base.g(), base.b(), 0.14f)));
+            draw.rect(x, y, width, header, Paint.fill(new MutableColor(base.r(), base.g(), base.b(), 0.42f)));
+            draw.rect(x, y, width, height, Paint.stroke(
+                    region.selected() ? selectedItemBorderColor : new MutableColor(base.r(), base.g(), base.b(), 0.75f),
+                    region.selected() ? 2.0f : 1.0f));
+            if (region.selected() && region.resizable()) {
+                float handle = 8.0f * Math.max(0.75f, z);
+                draw.rect(x + width - handle, y + height - handle, handle, handle, Paint.fill(resizeHandleColor));
+            }
+            DrawList drawList = context.drawList();
+            int sizeBefore = drawList.size();
+            for (Widget widget : region.widgets()) {
+                if (widget.visibility() == Visibility.VISIBLE) renderChildWithInheritedTransform(context, widget);
+            }
+            if (scaleContentWithZoom && z != 1.0f) {
+                applyContentZoom(drawList.commands(), sizeBefore, x, y, z);
+            }
         }
+    }
+
+    /** Рисует все провода кривыми Безье под нодами. */
+    private void renderConnections(DrawScope draw) {
+        Object[] raw = connections.elements();
+        for (int i = 0, size = connections.size(); i < size; i++) {
+            NodeGraphConnection connection = (NodeGraphConnection) raw[i];
+            NodeGraphPort fromPort = port(connection.from());
+            if (fromPort == null || !wireCurve(connection)) continue;
+            boolean highlighted = connection.selected() || Objects.equals(hoveredConnectionId, connection.id());
+            PortType type = portTypes.get(fromPort.type());
+            ColorView color;
+            if (!connection.enabled()) {
+                color = new MutableColor(0.5f, 0.5f, 0.5f, 0.35f);
+            } else if (connection.selected()) {
+                color = selectedConnectionColor;
+            } else if (fromPort.type().isEmpty()) {
+                color = connectionColor;
+            } else if (highlighted) {
+                color = brighter(type.color());
+            } else {
+                color = type.color();
+            }
+            float thickness = (type.flow() ? 2.5f : 2.0f) * Math.max(0.7f, Math.min(1.6f, zoom()));
+            if (highlighted) thickness += 1.0f;
+            NodeGraphWires.stroke(draw, wirePoints, wireCount, color, thickness);
+        }
+    }
+
+    private static MutableColor brighter(ColorView color) {
+        return new MutableColor(Math.min(1.0f, color.r() + 0.25f), Math.min(1.0f, color.g() + 0.25f),
+                Math.min(1.0f, color.b() + 0.25f), color.a());
+    }
+
+    /** Строит полилинию провода в {@code wirePoints}; возвращает {@code false}, если порт не найден. */
+    private boolean wireCurve(NodeGraphConnection connection) {
+        NodeGraphItem fromItem = item(connection.fromItemId());
+        NodeGraphItem toItem = item(connection.toItemId());
+        NodeGraphPort fromPort = port(connection.from());
+        NodeGraphPort toPort = port(connection.to());
+        if (fromItem == null || toItem == null || fromPort == null || toPort == null) return false;
+        PortPoint from = portPoint(fromItem, fromPort);
+        PortPoint to = portPoint(toItem, toPort);
+        wireCount = NodeGraphWires.build(from.x(), from.y(), fromPort.side(), to.x(), to.y(), toPort.side(),
+                zoom(), wirePoints);
+        return true;
+    }
+
+    /** Рисует модульную ноду целиком: тень, тело, фон модулей, виджеты, рамку и порты. */
+    private void renderModularItem(RenderContext context, DrawScope draw, NodeGraphItem item) {
+        float z = zoom();
+        float x = worldToRootX(item.x());
+        float y = worldToRootY(item.y());
+        float width = item.arrangedWidth() * z;
+        float height = item.arrangedHeight() * z;
+        RectView bounds = layoutBounds();
+        if (x > bounds.x() + bounds.width() || x + width < bounds.x()
+                || y > bounds.y() + bounds.height() || y + height < bounds.y()) {
+            return;
+        }
+        NodeStyle style = item.style();
+        float radius = style.cornerRadius() * z;
+        boolean hovered = Objects.equals(hoveredItemId, item.id());
+        boolean dragging = dragState != null && dragState.kind == DragKind.ITEM && dragState.item == item;
+        draw.roundedRect(x + 2.0f * z, y + 3.0f * z, width, height, radius, Paint.fill(shadowColor));
+        draw.roundedRect(x, y, width, height, radius, Paint.fill(style.body()));
+
+        itemPaint.bind(draw, item, x, y, hovered || dragging);
+        for (int i = 0, count = item.moduleCount(); i < count; i++) {
+            if (!item.moduleShown(i)) continue;
+            item.moduleAt(i).paintBackground(itemPaint, 0.0f, item.moduleTop(i),
+                    item.arrangedWidth(), item.moduleHeight(i));
+        }
+
+        DrawList drawList = context.drawList();
+        int sizeBefore = drawList.size();
+        for (Widget widget : item.hostedWidgets()) {
+            if (widget.visibility() == Visibility.VISIBLE) renderChildWithInheritedTransform(context, widget);
+        }
+        if (z != 1.0f) applyContentZoom(drawList.commands(), sizeBefore, x, y, z);
+
+        ColorView border = item.selected() ? selectedItemBorderColor
+                : hovered || dragging ? hoveredItemBorderColor : style.border();
+        draw.roundedRect(x, y, width, height, radius,
+                Paint.stroke(border, item.selected() || dragging ? 2.0f : 1.0f));
+
+        NodeGraphPortRef hoveredRef = hoveredPort;
+        for (NodeGraphPort port : item.ports()) {
+            if (!item.portShown(port)) continue;
+            PortPoint point = portPoint(item, port);
+            drawPort(draw, item, port, point.x(), point.y(),
+                    hoveredRef.itemId().equals(item.id()) && hoveredRef.portId().equals(port.id()));
+        }
+    }
+
+    /** Рисует маркер порта: форма и цвет по {@link PortType}, заливка у подключённого, контур у свободного. */
+    private void drawPort(DrawScope draw, NodeGraphItem item, NodeGraphPort port, float x, float y, boolean hovered) {
+        PortType type = portTypes.get(port.type());
+        float radius = screenPortRadius() * (hovered ? 1.25f : 1.0f);
+        ColorView color = hovered ? brighter(type.color()) : type.color();
+        ColorView hole = item.modular() ? item.style().body() : backgroundColor;
+        boolean filled = port.connected();
+        switch (type.shape()) {
+            case SQUARE -> {
+                if (filled) {
+                    draw.rect(x - radius, y - radius, radius * 2.0f, radius * 2.0f, Paint.fill(color));
+                } else {
+                    draw.rect(x - radius, y - radius, radius * 2.0f, radius * 2.0f, Paint.fill(hole));
+                    draw.rect(x - radius, y - radius, radius * 2.0f, radius * 2.0f, Paint.stroke(color, 1.5f));
+                }
+            }
+            case DIAMOND -> polygonPort(draw, x, y, radius * 1.25f, color, hole, filled, 4);
+            case TRIANGLE -> polygonPort(draw, x, y, radius * 1.2f, color, hole, filled, 3);
+            default -> {
+                if (filled) {
+                    draw.addCircleFilled(x, y, radius, color, 16);
+                } else {
+                    draw.addCircleFilled(x, y, radius, hole, 16);
+                    draw.addCircle(x, y, radius, color, 16, 1.5f);
+                }
+            }
+        }
+    }
+
+    private static void polygonPort(DrawScope draw, float x, float y, float radius,
+                                    ColorView color, ColorView hole, boolean filled, int corners) {
+        polygonPath(draw, x, y, radius, corners);
+        draw.pathFillConvex(filled ? color : hole);
+        if (!filled) {
+            polygonPath(draw, x, y, radius, corners);
+            draw.pathStroke(color, true, 1.5f);
+        }
+    }
+
+    private static void polygonPath(DrawScope draw, float x, float y, float radius, int corners) {
+        draw.pathClear();
+        // Ромб и треугольник направлены вправо, как стрелка вывода.
+        double start = corners == 3 ? 0.0 : Math.PI * 0.5;
+        for (int i = 0; i < corners; i++) {
+            double angle = start + Math.PI * 2.0 * i / corners;
+            draw.pathLineTo(x + (float) Math.cos(angle) * radius, y + (float) Math.sin(angle) * radius);
+        }
+    }
+
+    /** Рисует миникарту: обзор нод и регионов и рамку видимого окна. */
+    private void renderMinimap(DrawScope draw) {
+        NodeGraphMinimap map = minimapGeometry();
+        if (map == null) return;
+        draw.roundedRect(map.x, map.y, map.width, map.height, 4.0f, Paint.fill(minimapBackgroundColor));
+        for (int i = 0, size = regions.size(); i < size; i++) {
+            NodeGraphRegion region = regions.get(i);
+            MutableColor base = region.color();
+            draw.rect(map.toScreenX(region.x()), map.toScreenY(region.y()),
+                    map.scale(region.width()), map.scale(region.height()),
+                    Paint.fill(new MutableColor(base.r(), base.g(), base.b(), 0.35f)));
+        }
+        for (NodeGraphItem item : items) {
+            if (!item.visible()) continue;
+            ColorView color = item.modular() ? item.style().header() : itemBorderColor;
+            draw.rect(map.toScreenX(item.x()), map.toScreenY(item.y()),
+                    Math.max(2.0f, map.scale(item.arrangedWidth())), Math.max(2.0f, map.scale(item.arrangedHeight())),
+                    Paint.fill(color));
+        }
+        float viewX = map.toScreenX(-viewportX() / zoom());
+        float viewY = map.toScreenY(-viewportY() / zoom());
+        draw.rect(viewX, viewY, map.scale(layoutBounds().width() / zoom()), map.scale(layoutBounds().height() / zoom()),
+                Paint.stroke(minimapViewportColor, 1.0f));
+        draw.roundedRect(map.x, map.y, map.width, map.height, 4.0f, Paint.stroke(minimapBorderColor, 1.0f));
+    }
+
+    /** @return геометрия миникарты на этот кадр или {@code null}, если она выключена или холст пуст */
+    private NodeGraphMinimap minimapGeometry() {
+        if (!minimapEnabled) return null;
+        float minX = Float.POSITIVE_INFINITY;
+        float minY = Float.POSITIVE_INFINITY;
+        float maxX = Float.NEGATIVE_INFINITY;
+        float maxY = Float.NEGATIVE_INFINITY;
+        for (NodeGraphItem item : items) {
+            if (!item.visible()) continue;
+            minX = Math.min(minX, item.x());
+            minY = Math.min(minY, item.y());
+            maxX = Math.max(maxX, item.x() + item.arrangedWidth());
+            maxY = Math.max(maxY, item.y() + item.arrangedHeight());
+        }
+        for (int i = 0, size = regions.size(); i < size; i++) {
+            NodeGraphRegion region = regions.get(i);
+            minX = Math.min(minX, region.x());
+            minY = Math.min(minY, region.y());
+            maxX = Math.max(maxX, region.x() + region.width());
+            maxY = Math.max(maxY, region.y() + region.height());
+        }
+        float viewLeft = -viewportX() / zoom();
+        float viewTop = -viewportY() / zoom();
+        minX = Math.min(Float.isFinite(minX) ? minX : viewLeft, viewLeft);
+        minY = Math.min(Float.isFinite(minY) ? minY : viewTop, viewTop);
+        maxX = Math.max(Float.isFinite(maxX) ? maxX : viewLeft, viewLeft + layoutBounds().width() / zoom());
+        maxY = Math.max(Float.isFinite(maxY) ? maxY : viewTop, viewTop + layoutBounds().height() / zoom());
+        float width = Math.min(minimapWidth, layoutBounds().width() - minimapMargin * 2.0f);
+        float height = Math.min(minimapHeight, layoutBounds().height() - minimapMargin * 2.0f);
+        if (width <= 8.0f || height <= 8.0f) return null;
+        float x = layoutBounds().x() + layoutBounds().width() - minimapMargin - width;
+        float y = layoutBounds().y() + layoutBounds().height() - minimapMargin - height;
+        return new NodeGraphMinimap(x, y, width, height, minX, minY, maxX, maxY);
     }
 
     private void renderForeground(DrawScope draw) {
@@ -2165,7 +3009,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         float height = layoutBounds().height();
         if (width <= 0.0f || height <= 0.0f) return;
         for (NodeGraphItem item : items) {
-            if (!item.visible()) continue;
+            if (!item.visible() || item.modular()) continue;
             float itemX = worldToRootX(item.x());
             float itemY = worldToRootY(item.y());
             float itemWidth = itemScreenWidth(item);
@@ -2186,14 +3030,18 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
             }
         }
         if (connectionDragState != null) {
-            draw.addLine(connectionDragState.startRootX, connectionDragState.startRootY,
-                    connectionDragState.endRootX, connectionDragState.endRootY,
+            NodeGraphPort dragPort = port(connectionDragState.from());
+            NodeGraphPortSide startSide = dragPort == null ? NodeGraphPortSide.RIGHT : dragPort.side();
+            wireCount = NodeGraphWires.build(connectionDragState.startRootX, connectionDragState.startRootY, startSide,
+                    connectionDragState.endRootX, connectionDragState.endRootY, NodeGraphWires.opposite(startSide),
+                    zoom(), wirePoints);
+            NodeGraphWires.stroke(draw, wirePoints, wireCount,
                     connectionDragState.valid ? connectionPreviewColor : invalidConnectionPreviewColor,
-                    connectionDragState.valid ? 2.0f : 1.5f);
+                    connectionDragState.valid ? 2.5f : 2.0f);
         }
         float portRadius = screenPortRadius();
         for (NodeGraphItem item : items) {
-            if (!item.visible()) continue;
+            if (!item.visible() || item.modular()) continue;
             ObjectArrayList<NodeGraphPort> ports = item.rawPorts();
             Object[] rawPorts = ports.elements();
             for (int portIndex = 0, portSize = ports.size(); portIndex < portSize; portIndex++) {
@@ -2216,6 +3064,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
             draw.rect(rect.x(), rect.y(), rect.width(), rect.height(),
                     Paint.stroke(selectionBoxBorderColor, 1.0f));
         }
+        renderMinimap(draw);
     }
 
     private void drawGraphGrid(DrawScope draw, float x, float y, float width, float height) {
@@ -2376,10 +3225,115 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     private enum DragKind {
         ITEM,
         PAN,
-        RESIZE
+        RESIZE,
+        REGION,
+        REGION_RESIZE,
+        MINIMAP
+    }
+
+    /** Раскладка модулей ноды: мост между {@link NodeModule} и геометрией графа. */
+    private final class ItemLayout implements NodeLayoutContext {
+        private NodeGraphItem item;
+
+        @Override
+        public NodeGraphItem item() {
+            return item;
+        }
+
+        @Override
+        public NodeStyle style() {
+            return item.style();
+        }
+
+        @Override
+        public float preferredWidth(Widget widget) {
+            return StackPanel.preferredWidth(widget, 0.0f);
+        }
+
+        @Override
+        public float preferredHeight(Widget widget) {
+            return StackPanel.preferredHeight(widget, 0.0f);
+        }
+
+        @Override
+        public void place(Widget widget, float x, float y, float width, float height) {
+            // Виджеты раскладываются в world-единицах от угла ноды; зум накладывается при рендере.
+            StackPanel.arrangeChild(widget, worldToRootX(item.x()) + x, worldToRootY(item.y()) + y, width, height);
+        }
+
+        @Override
+        public void anchor(NodeGraphPort port, float x, float y) {
+            port.anchor(x, y);
+        }
+    }
+
+    /** Контекст рисования декора модулей: перевод node-local координат в экранные. */
+    private final class ItemPaint implements NodePaintContext {
+        private DrawScope draw;
+        private NodeGraphItem item;
+        private float originX;
+        private float originY;
+        private boolean hovered;
+
+        private void bind(DrawScope draw, NodeGraphItem item, float originX, float originY, boolean hovered) {
+            this.draw = draw;
+            this.item = item;
+            this.originX = originX;
+            this.originY = originY;
+            this.hovered = hovered;
+        }
+
+        @Override
+        public DrawScope draw() {
+            return draw;
+        }
+
+        @Override
+        public NodeGraphItem item() {
+            return item;
+        }
+
+        @Override
+        public NodeStyle style() {
+            return item.style();
+        }
+
+        @Override
+        public float zoom() {
+            return NodeGraph.this.zoom();
+        }
+
+        @Override
+        public boolean hovered() {
+            return hovered;
+        }
+
+        @Override
+        public boolean selected() {
+            return item.selected();
+        }
+
+        @Override
+        public float x(float localX) {
+            return originX + localX * NodeGraph.this.zoom();
+        }
+
+        @Override
+        public float y(float localY) {
+            return originY + localY * NodeGraph.this.zoom();
+        }
+
+        @Override
+        public float scale(float length) {
+            return length * NodeGraph.this.zoom();
+        }
     }
 
     private static final class DragState {
+        private NodeGraphRegion region;
+        private NodeGraphItem[] members = new NodeGraphItem[0];
+        private float[] memberStart = new float[0];
+        private NodeGraphMinimap minimap;
         private final DragKind kind;
         private final NodeGraphItem item;
         private final int pointerId;
@@ -2465,9 +3419,6 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     }
 
     private record PortPoint(float x, float y) {
-    }
-
-    private record ConnectionPoints(float startX, float startY, float endX, float endY) {
     }
 
     private record ConnectionTargetValidation(NodeGraphConnectionValidation validation) {
