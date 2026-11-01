@@ -5,6 +5,8 @@ import dev.sixik.unigui.cleanroom.demo.MinecraftLab;
 import dev.sixik.unigui.cleanroom.demo.PostEffectLab;
 import dev.sixik.unigui.cleanroom.demo.TextLab;
 import dev.sixik.unigui.cleanroom.demo.TextureLab;
+import dev.sixik.unigui.demo.basic.main_demo.UniGuiDemo;
+import net.minecraft.client.Minecraft;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.CommandException;
 import net.minecraft.command.ICommand;
@@ -65,5 +67,6 @@ public class CommandUniGUI extends CommandBase implements ICommand {
             return;
         }
 
+        Minecraft.getMinecraft().addScheduledTask(() -> UniGuiDemo.openGui());
     }
 }
