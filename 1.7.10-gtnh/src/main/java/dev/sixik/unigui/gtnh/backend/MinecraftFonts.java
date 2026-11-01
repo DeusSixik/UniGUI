@@ -20,7 +20,9 @@ public final class MinecraftFonts {
     }
 
     /**
-     * Makes the vanilla font the process-wide default face of the font registry.
+     * Makes the vanilla font the process-wide default face of the font registry, so {@code Fonts.defaultFace()}
+     * returns it. Opt-in: the backend does not call this at startup, and without it {@code Fonts.defaultFace()}
+     * is the system face from {@code DefaultFontRegistry.registerSystem}.
      *
      * @return the vanilla face
      */

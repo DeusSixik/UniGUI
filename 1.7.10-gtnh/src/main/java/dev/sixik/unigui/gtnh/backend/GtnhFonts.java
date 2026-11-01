@@ -127,6 +127,9 @@ public final class GtnhFonts {
     }
 
     private static FontFace load(String id, ResourceLocation location) throws IOException {
+        // The registry makes the first registered face its default. Create the system default first, so a custom
+        // font never becomes Fonts.defaultFace() by accident.
+        Fonts.global().defaultFace();
         IResource resource = Minecraft.getMinecraft().getResourceManager().getResource(location);
         try (InputStream input = resource.getInputStream()) {
             return DefaultFontRegistry.global().register(id, input.readAllBytes());

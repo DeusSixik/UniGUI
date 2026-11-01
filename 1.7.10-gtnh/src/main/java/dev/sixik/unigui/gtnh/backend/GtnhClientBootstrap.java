@@ -36,8 +36,9 @@ public final class GtnhClientBootstrap {
         GtnhUiRuntimeBackend current = new GtnhUiRuntimeBackend();
         backend = current;
         GtnhClientTasks.markClientThread();
-        // The vanilla font is the default face (A3); registering custom fonts must not replace it.
-        MinecraftFonts.useVanillaAsDefault();
+        // Fonts.defaultFace() stays the system face (DefaultFontRegistry.registerSystem), as in the modern backend.
+        // The vanilla font is opt-in: MinecraftFonts.defaultFace() / MinecraftFonts.useVanillaAsDefault().
+        // Screens without an explicit default font still fall back to the vanilla face.
         DemoAssets.provider(GtnhDemoAssets::load);
         UniGuiRuntime.install(current);
         MinecraftForge.EVENT_BUS.register(new GtnhClientEvents());
