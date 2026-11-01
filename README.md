@@ -1,218 +1,163 @@
 <p align="center">
-  <img src="./.idea/icon.png" alt="UniGUI logo" width="160">
+  <img src="./.idea/icon.png" alt="UniGUI logo" width="144">
 </p>
 
 <h1 align="center">UniGUI</h1>
 
 <p align="center">
-  <b>A retained UI toolkit for Minecraft mods.</b><br>
-  Build screens as a widget tree. The Minecraft renderer is just one backend.
+  A retained-mode UI toolkit for Minecraft mods.<br>
+  Build interfaces from widgets, then render them in screens, overlays, and HUD layers.
 </p>
 
 <p align="center">
-  <a href="https://www.minecraft.net/">
-    <img src="https://img.shields.io/badge/Minecraft-1.7.10%20|1.12.2%20|%201.20.1%20|%201.21.1-5D9E3D?style=for-the-badge&logo=minecraft&logoColor=white" alt="Minecraft versions">  </a>
-  <a href="https://fabricmc.net/">
-    <img src="https://img.shields.io/badge/Fabric%20|%20Forge%20|%20NeoForge-Supported-6366f1?style=for-the-badge&logo=java&logoColor=white" alt="Loaders">
-  </a>
+  <img src="https://img.shields.io/badge/Minecraft-1.7.10%20%7C%201.12.2%20%7C%201.20.1%20%7C%201.21.1-5D9E3D?style=for-the-badge&logo=minecraft&logoColor=white" alt="Minecraft versions">
+  <img src="https://img.shields.io/badge/Fabric%20%7C%20Forge%20%7C%20NeoForge%20%7C%20GTNH%20%7C%20Cleanroom-supported-6366f1?style=for-the-badge&logo=java&logoColor=white" alt="Supported platforms">
 </p>
 
 <p align="center">
-  <a href="https://www.curseforge.com/minecraft/mc-mods/uni-gui">
-    <img src="https://img.shields.io/curseforge/dt/1649763?style=for-the-badge&logo=curseforge&logoColor=white" alt="CurseForge">
-  </a>  
-<a href="https://modrinth.com/mod/uni-gui">
-    <img src="https://img.shields.io/modrinth/dt/BUW8tvXo?style=for-the-badge&logo=modrinth&label=Modrinth" alt="Modrinth">
-  </a>
+  <a href="https://www.curseforge.com/minecraft/mc-mods/uni-gui"><img src="https://img.shields.io/curseforge/dt/1649763?style=for-the-badge&logo=curseforge&logoColor=white" alt="CurseForge downloads"></a>
+  <a href="https://modrinth.com/mod/uni-gui"><img src="https://img.shields.io/modrinth/dt/BUW8tvXo?style=for-the-badge&logo=modrinth&label=Modrinth" alt="Modrinth downloads"></a>
 </p>
 
 <p align="center">
-  <a href="https://jitpack.io/#DeusSixik/UniGui">
-    <img src="https://img.shields.io/badge/JitPack-DeusSixik/UniGui-000000?style=for-the-badge&logo=gradle&logoColor=white" alt="JitPack">
-  </a>  
-  <a href="https://www.gnu.org/licenses/lgpl-3.0.html">
-    <img src="https://img.shields.io/badge/License-LGPL--3.0-242629?style=for-the-badge&logo=shield&logoColor=white" alt="License">
-  </a>
-  <a href="https://deussixik.github.io/UniGUI/">
-    <img src="https://img.shields.io/badge/Documentation-Read%20Now-242629?style=for-the-badge&logo=gitbook&logoColor=white" alt="Documentation">
-  </a>
+  <a href="https://jitpack.io/#DeusSixik/UniGui"><img src="https://img.shields.io/badge/JitPack-DeusSixik%2FUniGui-000000?style=for-the-badge&logo=gradle&logoColor=white" alt="JitPack"></a>
+  <a href="https://www.gnu.org/licenses/lgpl-3.0.html"><img src="https://img.shields.io/badge/License-LGPL--3.0-242629?style=for-the-badge&logo=shield&logoColor=white" alt="LGPL-3.0 license"></a>
+  <a href="https://deussixik.github.io/UniGUI/"><img src="https://img.shields.io/badge/Documentation-Read%20Now-242629?style=for-the-badge&logo=gitbook&logoColor=white" alt="Documentation"></a>
 </p>
 
----
+UniGUI is a Java UI library for building custom interfaces in Minecraft mods. Instead of drawing each control by hand,
+you compose a retained widget tree: UniGUI handles layout, input, focus, and drawing, while your mod defines the screen
+and behavior. The shared `core` module contains the UI logic; version-specific backends connect it to Minecraft
+rendering and input.
 
-Vanilla `Screen` drawing is immediate: every widget paints itself, every frame, straight into the Minecraft GUI. UniGUI
-does the opposite.
+The library includes common controls and layout containers, text and data widgets, menus and overlays, plus larger
+components such as docking workspaces, node graphs, map canvases, and a code editor. It also provides Minecraft-specific
+widgets for item, block, and entity previews, item and texture pickers, and vanilla tooltips. Their available data and
+behavior can differ slightly between Minecraft versions to match each version's APIs.
 
-You compose a tree of retained widgets — layout, input, focus and animation live on the tree. Once a frame is ready, the
-tree emits a list of draw commands. Those commands are grouped into batch buckets and flushed by a backend. The public
-API never imports a Minecraft renderer type, so a different host can consume the same list without rewriting widgets.
+UniGUI renders inside Minecraft's render context and uses the game's rendering pipeline. This keeps its drawing
+integrated with Minecraft and avoids the compatibility problems that can come from rendering through a separate
+graphics context. The same widgets can be used in standalone screens, over existing Minecraft screens, or as
+interactive HUD elements.
 
-Today the shipping backend is Minecraft. `MinecraftWidgetScreen` is a normal `Screen`: it owns the widget tree, routes
-mouse and keyboard, and can follow the vanilla GUI scale or ignore it. Static screens can skip redraws. Animated ones,
-shader canvases and editor previews stay on a continuous policy.
+## Showcase
 
-```java
-VBox page = new VBox();
-page.
+### In-game widget demo
 
-spacing(8.0f);
+Explore the widget catalog in a live Minecraft screen. In the demo client, run `/unigui` to open it.
 
-Label title = new Label("Recipe Machine");
-Button craft = new Button("Craft");
-craft.
+<div align="center">
+  <img src="docs/assets/ui/in_game_demo_ui.png" alt="UniGUI widget demo running in Minecraft" width="50%">
+  <p><em>UniGUI widget demo running in Minecraft</em></p>
+</div>
 
-onClick(event ->title.
+### Screen and HUD overlays
 
-text("Queued"));
+UniGUI can render natively across Minecraft's render layers. Use it to build a complete `UniScreen`, add interactive
+overlays to existing Minecraft screens, or draw HUD elements. Input continues to work through the UniGUI widgets in each
+of these contexts.
 
-        page.
+<div align="center">
+  <img src="docs/assets/ui/screen_and_hud_overlay.png" alt="UniGUI screen and HUD overlays in Minecraft" width="50%">
+  <p><em>UniGUI screen and HUD overlays in Minecraft</em></p>
+</div>
 
-addChild(title);
-page.
+### Retro terminal
 
-addChild(craft);
+A terminal interface inspired by classic DOS consoles, built with UniGUI widgets.
 
-MinecraftWidgetScreen screen = new MinecraftWidgetScreen(Component.literal("Craft"), page);
-screen.
+<div align="center">
+  <img src="docs/assets/ui/retro_terminal_ui.png" alt="Retro terminal interface" width="50%">
+  <p><em>Retro terminal interface</em></p>
+</div>
 
-independentUiScale(2.0f);
-screen.
+### Solar navigation
 
-renderPolicy(UiRenderPolicy.vsync());
-        Minecraft.
+A small spacecraft navigation game with a map, markers, and cockpit-style panels.
 
-getInstance().
+<div align="center">
+  <img src="docs/assets/ui/solar_navigation_ui.png" alt="Solar navigation game interface" width="50%">
+  <p><em>Solar navigation game interface</em></p>
+</div>
 
-setScreen(screen);
-```
+### Unity UI port
 
-## What you get
+A partial recreation of the Unity interface, demonstrating how UniGUI can support structurally complex model interfaces.
 
-**Layout.** `HBox`, `VBox`, `GridBox`, `WrapPanel`, `DockPanel`, `SplitPanel`, `ScrollView`, `StackPanel`. Flex grow and
-shrink, alignment, margins, docking.
-
-**Controls.** Buttons, toggles, checkboxes (including tri-state), sliders, text fields, password and search fields,
-number fields, combo boxes, radio groups, date, color and duration pickers.
-
-**Text.** Vanilla font faces and an SDF face in the same line. `RichText` runs carry their own font, size and color, and
-can embed custom inline draws. Overflow can clip, shrink to fit, or marquee on hover.
-
-**Data.** `VirtualListView` and `VirtualTableView` build only the visible rows. Selection is single or multiple. `Chart`
-and `Sparkline` cover the small visualizations.
-
-**Overlays.** Popups, context menus, tooltips, toasts and floating windows sit on an `OverlayLayer` and do not push the
-layout underneath them.
-
-**Bigger surfaces.**
-
-| Widget                                            | What it is                                                 |
-|---------------------------------------------------|------------------------------------------------------------|
-| `TabControl`, `Accordion`, `Carousel`, `TreeView` | Navigation that keeps its pages instead of rebuilding them |
-| `DockingRoot`                                     | Drag-and-drop panes, splits and layout snapshots           |
-| `NodeGraph`                                       | Nodes, typed ports, connections, pan and zoom              |
-| `MapCanvas`                                       | A projected map: pan, zoom, markers, custom backgrounds    |
-| `WorldCanvas`                                     | World-space anchors, ribbons and screen-space layers       |
-| `CodeEditor`                                      | Tokenized text, completions, diagnostics                   |
-| XML                                               | Declarative screens, named widget lookup, hot reload       |
-
-**Minecraft-native widgets.** Item, block and entity previews, item and texture pickers, vanilla tooltips. They live
-next to the rest of the tree; they are not a second UI system.
-
-**Rendering extras.** Custom GLSL through `ShaderHandle`, screen-wide and per-layer post effects, and subtree caches for
-parts of the tree that do not change every frame.
-
-Render policies on a screen:
-
-| Policy          | When                               |
-|-----------------|------------------------------------|
-| `continuous()`  | Animations, shaders, live previews |
-| `onDirty()`     | Redraw only after an invalidation  |
-| `vsync()`       | Follow the window refresh          |
-| `fixedFps(fps)` | A hard cap                         |
-
-## Try it
-
-`TestMod` is a Fabric client that drops UniGUI screens onto the Minecraft title screen. Run the client for `1.20.1` or
-`1.21.1`, then use the buttons in the top-right.
-
-| Button                                  | What opens                                                                           |
-|-----------------------------------------|--------------------------------------------------------------------------------------|
-| UniGUI Demo                             | The widget catalog: controls, text, layout, virtualized data, graphs, maps, overlays |
-| Retro Terminal                          | A terminal-styled screen                                                             |
-| Level Map                               | `MapCanvas` over a station layout                                                    |
-| Solar Navigation                        | A full navigation UI: procedural map, markers, docked-station panels                 |
-| Docking Windows                         | A draggable docking workspace                                                        |
-| Plug, Wrench, Wire, Sync, Spanner, Fork | Small interaction minigames built only from widgets                                  |
-| Tutorial                                | A scripted walkthrough                                                               |
-| Post Effect Test                        | Layer and screen post-processing                                                     |
-| Marker Culling / Marker Scaling         | Marker volume behavior on a map                                                      |
-| Ribbon Roads                            | `WorldCanvas` ribbons                                                                |
-
-The same catalog is also a command inside the demo screen:
-
-```text
-/unigui
-/unigui animations
-/unigui complex
-```
-
-The **Debug** toggle on the demo header turns on the profiler overlay plus draw-command and batch counters, so you can
-see what a frame actually submitted.
+<div align="center">
+  <img src="docs/assets/ui/unity_ui.png" alt="Unity-inspired interface built with UniGUI" width="50%">
+  <p><em>Unity-inspired interface built with UniGUI</em></p>
+</div>
 
 ## Use it in a mod
 
-Published from [JitPack](https://jitpack.io/#DeusSixik/UniGui). Full coordinates, version rules and the wrapper fallback
-are in [`docs/JITPACK.md`](docs/old/JITPACK.md).
+UniGUI's widget tree, layout, input, and draw-command APIs live in the Minecraft-independent `core` module. The
+Minecraft-specific modules provide rendering and platform integration for their respective versions and loaders. For
+Minecraft 1.7.10 and 1.12.2, add `core`. For Minecraft 1.18 and newer, add both `core` and the matching version of
+`common`; add the loader backend for your platform as well.
+
+Artifacts are available from [JitPack](https://jitpack.io/#DeusSixik/UniGui). Add JitPack to your repositories and use
+the same UniGUI release tag for each module. For example, for Minecraft 1.21.1:
 
 ```groovy
 repositories {
     maven { url = uri("https://jitpack.io") }
-    maven { url = uri("https://maven.fabricmc.net/") } // Fabric artifacts only
 }
 
 dependencies {
+    implementation "com.github.DeusSixik.UniGui:unigui-core:<TAG>"
     implementation "com.github.DeusSixik.UniGui:unigui-common-1.21.1:<TAG>"
-    modImplementation "com.github.DeusSixik.UniGui:unigui-fabric-1.21.1:<TAG>"
 }
 ```
 
-Swap the platform artifact for the loader you ship: `unigui-forge-*`, or `unigui-neoforge-1.21.1`. Depend on
-`unigui-common-*` for the API, and on exactly one platform module for the Minecraft backend.
+Replace `<TAG>` with the release tag you want to use. For 1.7.10 and 1.12.2, keep only the `unigui-core` dependency;
+for other 1.18+ versions, use the matching `unigui-common-<minecraft-version>` artifact. Check the [JitPack project
+page](https://jitpack.io/#DeusSixik/UniGui) for available builds and platform backend artifacts.
 
-| Minecraft | Java | Platforms               |
-|-----------|------|-------------------------|
-| 1.20.1    | 17   | Fabric, Forge           |
-| 1.21.1    | 21   | Fabric, Forge, NeoForge |
+When developing inside a checkout of UniGUI, depend on the shared module directly:
 
-Both profiles are built with Stonecutter. From the repo root:
-
-```powershell
-.\gradlew.bat :1.20.1:fabric:build
-.\gradlew.bat :1.21.1:fabric:build
-.\gradlew.bat :1.21.1:neoforge:build
+```groovy
+dependencies {
+    implementation project(':core')
+}
 ```
 
-Launch the sandbox client:
+For a Minecraft mod, also add the platform backend that matches its Minecraft version and loader. The 1.7.10 and 1.12.2
+integrations are GTNH and Cleanroom builds respectively; they are not generic Forge artifacts.
+
+| Minecraft | Module / platform projects              | Notes                                             |
+|-----------|-----------------------------------------|---------------------------------------------------|
+| 1.7.10    | `1.7.10-gtnh`                           | GTNH-based build; requires Java 21 or newer.      |
+| 1.12.2    | `1.12.2-cleanroom`                      | Cleanroom-based build.                            |
+| 1.20.1    | `common`, `fabric`, `forge`             | Stonecutter profile; Fabric and Forge.            |
+| 1.21.1    | `common`, `fabric`, `forge`, `neoforge` | Stonecutter profile; Fabric, Forge, and NeoForge. |
+
+The legacy 1.7.10 and 1.12.2 projects consume the `core` and `demo` jars from the repository build. When working from
+source, build those modules first, then build the corresponding legacy project.
+
+## Layout
+
+```text
+core/                  Minecraft-independent widget, layout, input, and rendering APIs
+demo/                  Reusable demo screens and examples built on core
+common/                Minecraft integration shared by the modern version profiles
+fabric/ forge/          Fabric and Forge platform entrypoints
+neoforge/              NeoForge platform entrypoint (1.21.1)
+TestMod/                Modern Fabric sandbox and in-game demo
+1.7.10-gtnh/            GTNH 1.7.10 backend and integration
+1.12.2-cleanroom/       Cleanroom 1.12.2 backend and integration
+docs/                   Documentation sources and UI images
+```
+
+The modern Minecraft projects use [Stonecutter](https://stonecutter.kikugie.dev/). For example, build the 1.21.1 Fabric
+sandbox with:
 
 ```powershell
 .\gradlew.bat :1.21.1:TestMod:runClient
 ```
 
-## Layout
-
-```text
-common/     widgets, layout, XML, draw commands   (no Minecraft renderer types)
-fabric/     Fabric entrypoint
-forge/      Forge entrypoint
-neoforge/   NeoForge entrypoint, 1.21.1 only
-TestMod/    Fabric sandbox: title-screen buttons and the demo screens
-```
-
-Deeper design notes live under [`docs/`](docs): architecture, XML, text and the code editor, render state, HUD and post
-effects.
-
-Wiki pages for the website are generated from API annotations as Markdown. See [
-`docs/wiki-generation.md`](docs/wiki-generation.md) for annotations, media paths and the Gradle task.
+The demo client exposes the widget catalog and examples in game. Documentation for the generated API wiki is in [
+`docs/wiki-generation.md`](docs/wiki-generation.md).
 
 ## License
 

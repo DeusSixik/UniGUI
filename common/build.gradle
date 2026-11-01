@@ -22,6 +22,12 @@ dependencies {
     modCompileOnly "net.fabricmc:fabric-loader:${versionProject.fabric_loader_version}"
 }
 
+tasks.matching { it.name.startsWith('transformProduction') }.configureEach {
+    doFirst {
+        project.file('.gradle/.architectury-transformer').mkdirs()
+    }
+}
+
 tasks.withType(Test).configureEach {
     useJUnitPlatform()
 }
