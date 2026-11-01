@@ -76,14 +76,18 @@ public final class InventoryWidget extends PanelWidget {
         return height;
     }
 
-    /** Uses a stretchable texture for this panel's background. */
+    /**
+     * Uses a stretchable texture for this panel's background.
+     */
     public InventoryWidget backgroundTexture(TextureHandle texture) {
         backgroundTexture = texture;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 
-    /** Uses a texture for every slot in this inventory. */
+    /**
+     * Uses a texture for every slot in this inventory.
+     */
     public InventoryWidget slotTexture(TextureHandle texture) {
         slotTexture = texture;
         for (InventorySlotWidget slot : slots.values()) slot.texture(slotTexture);
@@ -91,7 +95,9 @@ public final class InventoryWidget extends PanelWidget {
         return this;
     }
 
-    /** Controls whether this inventory draws its own surface and title. */
+    /**
+     * Controls whether this inventory draws its own surface and title.
+     */
     public InventoryWidget surfaceVisible(boolean visible) {
         surfaceVisible = visible;
         invalidate(InvalidationFlags.VISUAL);

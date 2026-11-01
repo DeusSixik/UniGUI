@@ -8,7 +8,9 @@ import dev.sixik.unigui.api.widget.Widget;
 
 import java.util.Objects;
 
-/** Emitted by an inventory whenever one of its slot stacks changes. */
+/**
+ * Emitted by an inventory whenever one of its slot stacks changes.
+ */
 public final class InventorySlotChangedEvent extends BaseEvent implements RoutableWidgetEvent {
     public static final EventType<InventorySlotChangedEvent> TYPE = EventType.create("inventory.slot.changed");
 
@@ -36,26 +38,44 @@ public final class InventorySlotChangedEvent extends BaseEvent implements Routab
     }
 
     @Override
-    public EventType<InventorySlotChangedEvent> type() { return TYPE; }
+    public EventType<InventorySlotChangedEvent> type() {
+        return TYPE;
+    }
 
     @Override
-    public Widget target() { return inventory; }
+    public Widget target() {
+        return inventory;
+    }
 
     @Override
-    public Widget currentTarget() { return currentTarget; }
+    public Widget currentTarget() {
+        return currentTarget;
+    }
 
     @Override
-    public EventPhase phase() { return phase; }
+    public EventPhase phase() {
+        return phase;
+    }
 
-    public InventoryWidget inventory() { return inventory; }
+    public InventoryWidget inventory() {
+        return inventory;
+    }
 
-    public InventorySlotWidget slot() { return slot; }
+    public InventorySlotWidget slot() {
+        return slot;
+    }
 
-    public String slotId() { return slot.id(); }
+    public String slotId() {
+        return slot.id();
+    }
 
-    public InventoryStack oldStack() { return oldStack; }
+    public InventoryStack oldStack() {
+        return oldStack;
+    }
 
-    public InventoryStack newStack() { return newStack; }
+    public InventoryStack newStack() {
+        return newStack;
+    }
 
     @Override
     public InventorySlotChangedEvent routeTo(Widget currentTarget, EventPhase phase) {

@@ -62,7 +62,9 @@ public final class InventorySlotWidget extends PanelWidget {
         return item;
     }
 
-    /** Sets the background texture used by this slot. */
+    /**
+     * Sets the background texture used by this slot.
+     */
     public InventorySlotWidget texture(TextureHandle texture) {
         this.texture = texture;
         invalidate(InvalidationFlags.VISUAL);
@@ -122,8 +124,8 @@ public final class InventorySlotWidget extends PanelWidget {
             next.presentation(InventoryItemFactory.Presentation.IN_SLOT);
             next.layout(style -> style.position(dev.sixik.unigui.api.layout.PositionType.STATIC)
                     .left(0.0f).top(0.0f).sizePercent(100.0f, 100.0f).align(
-                    dev.sixik.unigui.api.layout.Alignment.STRETCH,
-                    dev.sixik.unigui.api.layout.Alignment.STRETCH));
+                            dev.sixik.unigui.api.layout.Alignment.STRETCH,
+                            dev.sixik.unigui.api.layout.Alignment.STRETCH));
             addChild(next);
             applyQueuedMutations();
         }

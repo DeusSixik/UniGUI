@@ -2,32 +2,23 @@ package dev.sixik.unigui.demo.interactive;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
-import dev.sixik.unigui.api.event.Event;
-import dev.sixik.unigui.api.event.EventPhase;
-import dev.sixik.unigui.api.event.KeyPressedEvent;
-import dev.sixik.unigui.api.event.PointerEvent;
-import dev.sixik.unigui.api.event.PointerMovedEvent;
-import dev.sixik.unigui.api.event.PointerPressedEvent;
-import dev.sixik.unigui.api.event.PointerReleasedEvent;
+import dev.sixik.unigui.api.event.*;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.PositionType;
 import dev.sixik.unigui.api.math.MutableColor;
-import dev.sixik.unigui.api.render.DrawScope;
-import dev.sixik.unigui.api.render.Paint;
-import dev.sixik.unigui.api.render.RenderContext;
-import dev.sixik.unigui.api.render.SliceBorders;
-import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.math.MutableRect;
+import dev.sixik.unigui.api.render.*;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.containers.PanelWidget;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/** Full-screen composition root that coordinates pointer and stack operations across inventories. */
+/**
+ * Full-screen composition root that coordinates pointer and stack operations across inventories.
+ */
 public final class InventoryWorkspace extends PanelWidget {
     private static final MutableColor BACKGROUND = MutableColor.rgba(0.035f, 0.045f, 0.060f, 0.56f);
     private static final MutableColor TEXTURE_TINT = MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f);
@@ -43,10 +34,13 @@ public final class InventoryWorkspace extends PanelWidget {
     private boolean centerInventories;
     private TextureHandle backgroundTexture;
 
-    /** Adds and positions an inventory panel; all panels in this workspace share one cursor and controller. */
+    /**
+     * Adds and positions an inventory panel; all panels in this workspace share one cursor and controller.
+     */
     public InventoryWorkspace inventory(InventoryWidget inventory, float x, float y) {
         if (inventory == null) throw new NullPointerException("inventory");
-        if (inventories.contains(inventory)) throw new IllegalArgumentException("Inventory already attached: " + inventory.id());
+        if (inventories.contains(inventory))
+            throw new IllegalArgumentException("Inventory already attached: " + inventory.id());
         inventories.add(inventory);
         inventoryPositions.add(new MutableRect(x, y, inventory.inventoryWidth(), inventory.inventoryHeight()));
         inventory.workspace(this);
@@ -57,24 +51,34 @@ public final class InventoryWorkspace extends PanelWidget {
         return this;
     }
 
-    /** Centers the complete inventory group in the workspace while preserving its relative layout. */
+    /**
+     * Centers the complete inventory group in the workspace while preserving its relative layout.
+     */
     public InventoryWorkspace centerInventories(boolean center) {
         centerInventories = center;
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
 
-    /** Sets the shared background texture drawn behind all attached inventories. */
+    /**
+     * Sets the shared background texture drawn behind all attached inventories.
+     */
     public InventoryWorkspace backgroundTexture(TextureHandle texture) {
         backgroundTexture = texture;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 
-    /** Returns the widget currently carried by the pointer, if any. */
-    public InventoryItemWidget carriedItem() { return carried; }
+    /**
+     * Returns the widget currently carried by the pointer, if any.
+     */
+    public InventoryItemWidget carriedItem() {
+        return carried;
+    }
 
-    /** Applies a click operation directly, useful for game integration and tests. */
+    /**
+     * Applies a click operation directly, useful for game integration and tests.
+     */
     public void clickSlot(InventorySlotWidget slot, PointerButton button, boolean shift) {
         if (slot == null || slot.inventory() == null || !inventories.contains(slot.inventory())) return;
         if (shift) quickMove(slot);
@@ -401,15 +405,17 @@ public final class InventoryWorkspace extends PanelWidget {
 
     private float contentWidth() {
         float extent = 0.0f;
-        for (InventoryWidget inventory : inventories) extent = Math.max(extent,
-                inventory.layoutBounds().x() + inventory.inventoryWidth());
+        for (InventoryWidget inventory : inventories)
+            extent = Math.max(extent,
+                    inventory.layoutBounds().x() + inventory.inventoryWidth());
         return extent;
     }
 
     private float contentHeight() {
         float extent = 0.0f;
-        for (InventoryWidget inventory : inventories) extent = Math.max(extent,
-                inventory.layoutBounds().y() + inventory.inventoryHeight());
+        for (InventoryWidget inventory : inventories)
+            extent = Math.max(extent,
+                    inventory.layoutBounds().y() + inventory.inventoryHeight());
         return extent;
     }
 }

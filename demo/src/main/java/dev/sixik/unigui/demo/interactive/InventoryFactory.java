@@ -1,21 +1,29 @@
 package dev.sixik.unigui.demo.interactive;
 
-/** Factories and builders for player, container, and custom inventories. */
+/**
+ * Factories and builders for player, container, and custom inventories.
+ */
 public final class InventoryFactory {
     private InventoryFactory() {
     }
 
-    /** Creates an empty inventory builder with explicit panel dimensions. */
+    /**
+     * Creates an empty inventory builder with explicit panel dimensions.
+     */
     public static Builder inventory(String id, String title, float width, float height) {
         return new Builder(new InventoryWidget(id, title, width, height));
     }
 
-    /** Creates a Minecraft-like storage inventory with main slots and a hotbar. */
+    /**
+     * Creates a Minecraft-like storage inventory with main slots and a hotbar.
+     */
     public static InventoryWidget playerInventory() {
         return playerInventory("player", "Inventory");
     }
 
-    /** Creates a Minecraft-like storage inventory with the supplied id and title. */
+    /**
+     * Creates a Minecraft-like storage inventory with the supplied id and title.
+     */
     public static InventoryWidget playerInventory(String id, String title) {
         InventoryWidget inventory = new InventoryWidget(id, title, 318.0f, 178.0f);
         inventory.grid("main", 12.0f, 34.0f, 9, 3, 30.0f, 3.0f);
@@ -30,12 +38,16 @@ public final class InventoryFactory {
         return inventory;
     }
 
-    /** Creates a rectangular container inventory such as a chest. */
+    /**
+     * Creates a rectangular container inventory such as a chest.
+     */
     public static InventoryWidget container(String id, String title, int columns, int rows) {
         return container(id, title, columns, rows, 30.0f, 3.0f);
     }
 
-    /** Creates a container inventory with customized slot size and spacing. */
+    /**
+     * Creates a container inventory with customized slot size and spacing.
+     */
     public static InventoryWidget container(String id, String title, int columns, int rows,
                                             float slotSize, float gap) {
         if (columns < 1 || rows < 1) throw new IllegalArgumentException("grid dimensions must be positive");
@@ -45,35 +57,54 @@ public final class InventoryFactory {
                 .grid("container", 12.0f, 34.0f, columns, rows, slotSize, gap);
     }
 
-    /** Fluent helper for arbitrary panel compositions. */
+    /**
+     * Fluent helper for arbitrary panel compositions.
+     */
     public static final class Builder {
         private final InventoryWidget inventory;
 
-        private Builder(InventoryWidget inventory) { this.inventory = inventory; }
+        private Builder(InventoryWidget inventory) {
+            this.inventory = inventory;
+        }
 
-        /** Adds a named slot at panel-local coordinates. */
-        public Builder slot(String id, float x, float y) { inventory.slot(id, x, y); return this; }
+        /**
+         * Adds a named slot at panel-local coordinates.
+         */
+        public Builder slot(String id, float x, float y) {
+            inventory.slot(id, x, y);
+            return this;
+        }
 
-        /** Adds a preconfigured slot at panel-local coordinates. */
+        /**
+         * Adds a preconfigured slot at panel-local coordinates.
+         */
         public Builder slot(String id, float x, float y, InventorySlotWidget slot) {
             inventory.slot(id, x, y, slot);
             return this;
         }
 
-        /** Adds a rectangular slot grid. */
+        /**
+         * Adds a rectangular slot grid.
+         */
         public Builder grid(String prefix, float x, float y, int columns, int rows, float size, float gap) {
             inventory.grid(prefix, x, y, columns, rows, size, gap);
             return this;
         }
 
-        /** Places any widget at panel-local coordinates. */
+        /**
+         * Places any widget at panel-local coordinates.
+         */
         public Builder widget(dev.sixik.unigui.api.widget.Widget widget,
                               float x, float y, float width, float height) {
             inventory.widget(widget, x, y, width, height);
             return this;
         }
 
-        /** Returns the assembled inventory panel. */
-        public InventoryWidget build() { return inventory; }
+        /**
+         * Returns the assembled inventory panel.
+         */
+        public InventoryWidget build() {
+            return inventory;
+        }
     }
 }

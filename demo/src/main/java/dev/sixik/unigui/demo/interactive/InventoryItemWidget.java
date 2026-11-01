@@ -14,7 +14,9 @@ import dev.sixik.unigui.widgets.containers.PanelWidget;
 import java.util.Objects;
 import java.util.function.Supplier;
 
-/** Widget presentation of an item stack, movable between a slot and the cursor layer. */
+/**
+ * Widget presentation of an item stack, movable between a slot and the cursor layer.
+ */
 public final class InventoryItemWidget extends PanelWidget {
     private static final MutableColor TAKEN_BORDER = MutableColor.rgba(0.95f, 0.91f, 0.72f, 0.95f);
     private static final MutableColor COUNT_COLOR = MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f);
@@ -53,20 +55,32 @@ public final class InventoryItemWidget extends PanelWidget {
         updateContentVisibility();
     }
 
-    /** Returns the current immutable stack value. */
-    public InventoryStack stack() { return stack; }
+    /**
+     * Returns the current immutable stack value.
+     */
+    public InventoryStack stack() {
+        return stack;
+    }
 
-    /** Replaces the stack value displayed by this item widget. */
+    /**
+     * Replaces the stack value displayed by this item widget.
+     */
     public InventoryItemWidget stack(InventoryStack stack) {
         this.stack = Objects.requireNonNull(stack, "stack");
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 
-    /** Returns the current visual state. */
-    public InventoryItemFactory.Presentation presentation() { return presentation; }
+    /**
+     * Returns the current visual state.
+     */
+    public InventoryItemFactory.Presentation presentation() {
+        return presentation;
+    }
 
-    /** Selects the in-slot or cursor-taken visual. */
+    /**
+     * Selects the in-slot or cursor-taken visual.
+     */
     public InventoryItemWidget presentation(InventoryItemFactory.Presentation presentation) {
         this.presentation = presentation == null ? InventoryItemFactory.Presentation.IN_SLOT : presentation;
         updateContentVisibility();

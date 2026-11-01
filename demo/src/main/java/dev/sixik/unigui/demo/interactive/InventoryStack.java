@@ -6,7 +6,9 @@ import java.util.Objects;
  * Immutable stack value used by the backend-neutral inventory UI.
  */
 public record InventoryStack(String itemId, String label, int count, int maxCount, int colorArgb) {
-    /** Creates a stack whose visual is supplied separately by an item widget. */
+    /**
+     * Creates a stack whose visual is supplied separately by an item widget.
+     */
     public InventoryStack(String itemId, int count, int maxCount) {
         this(itemId, "", count, maxCount, 0xFFFFFFFF);
     }
