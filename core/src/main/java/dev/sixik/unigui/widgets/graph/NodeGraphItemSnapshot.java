@@ -37,13 +37,15 @@ public record NodeGraphItemSnapshot(
         boolean visible,
         List<NodeGraphPortSnapshot> ports,
         String typeId,
-        boolean collapsed
+        boolean collapsed,
+        java.util.Map<String, String> state
 ) {
     public NodeGraphItemSnapshot {
         id = id == null ? "" : id;
         contentType = contentType == null ? "" : contentType;
         ports = ports == null ? List.of() : List.copyOf(ports);
         typeId = typeId == null ? "" : typeId;
+        state = state == null ? java.util.Map.of() : java.util.Map.copyOf(state);
     }
 }
 

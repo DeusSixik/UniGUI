@@ -1,6 +1,8 @@
 package dev.sixik.unigui.widgets.graph.node;
 
 import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.math.MutableColor;
 
 /**
@@ -21,7 +23,9 @@ import dev.sixik.unigui.api.math.MutableColor;
                 "Use `copy()` before customizing a shared template."
         },
         related = {"NodeBuilder", "HeaderModule", "NodeModule"})
-public final class NodeStyle {
+@WikiPage(title = "NodeStyle", slug = "node-style", category = "<key:graph.category>", summary = "<key:node.style.summary>")
+@WikiSection(title = "<key:wiki.section.overview.title>", markdown = "<key:node.style.overview>", order = 10)
+public class NodeStyle {
     private final MutableColor header = NodeColors.argb(0xFF3A6EA5);
     private final MutableColor body = NodeColors.argb(0xFF262626);
     private final MutableColor border = NodeColors.argb(0xFF3E3E42);

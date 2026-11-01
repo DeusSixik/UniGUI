@@ -2,6 +2,8 @@ package dev.sixik.unigui.widgets.graph;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.widget.Widget;
@@ -19,7 +21,7 @@ import java.util.List;
  * целиком лежащие внутри региона, едут вместе с ним.</p>
  */
 @AiDoc(
-        summary = "Comment region on the graph canvas: colored frame with a title bar and optional comment text that carries the nodes inside it.",
+        summary = "Comment region on the graph canvas: colored frame with a title bar and optional comment text (shown on hover) that carries the nodes and regions inside it.",
         purpose = "Groups and annotates parts of a node graph, like Blueprint comment boxes or Shader Graph groups.",
         useWhen = {
                 "Wrap a set of nodes with a labelled colored area via `NodeGraph.addRegion`.",
@@ -28,17 +30,28 @@ import java.util.List;
         criticalRules = {
                 "Geometry is in world coordinates and follows pan and zoom.",
                 "Only the title bar and the bottom-right corner are interactive; the body lets pointer events through.",
-                "A node moves with the region only when its whole rectangle lies inside the region at drag start."
+                "A node or region moves with the region only when its whole rectangle lies inside the region at drag start.",
+                "The comment text is not drawn in the body: a speech-bubble icon marks the title bar and the text appears while the pointer is over it."
         },
         related = {"NodeGraph", "NodeGraphItem"})
-public final class NodeGraphRegion {
-    /** Высота заголовка региона в world-единицах. */
+@WikiPage(title = "NodeGraphRegion", slug = "node-graph-region", category = "<key:graph.category>", summary = "<key:node.graph.region.summary>")
+@WikiSection(title = "<key:wiki.section.overview.title>", markdown = "<key:node.graph.region.overview>", order = 10)
+public class NodeGraphRegion {
+    /**
+     * Высота заголовка региона в world-единицах.
+     */
     public static final float HEADER_HEIGHT = 24.0f;
-    /** Минимальная ширина региона. */
+    /**
+     * Минимальная ширина региона.
+     */
     public static final float MIN_WIDTH = 96.0f;
-    /** Минимальная высота региона. */
+    /**
+     * Минимальная высота региона.
+     */
     public static final float MIN_HEIGHT = 56.0f;
-    /** Внутренний горизонтальный отступ текста. */
+    /**
+     * Внутренний горизонтальный отступ текста.
+     */
     static final float TEXT_INSET = 8.0f;
 
     private final String id;
@@ -56,11 +69,11 @@ public final class NodeGraphRegion {
     private NodeGraph owner;
 
     /**
-     * @param id уникальный id региона
-     * @param title заголовок
-     * @param x X в world-координатах
-     * @param y Y в world-координатах
-     * @param width ширина
+     * @param id     уникальный id региона
+     * @param title  заголовок
+     * @param x      X в world-координатах
+     * @param y      Y в world-координатах
+     * @param width  ширина
      * @param height высота
      */
     public NodeGraphRegion(String id, String title, float x, float y, float width, float height) {
@@ -75,12 +88,16 @@ public final class NodeGraphRegion {
         color.onChanged(this::invalidateOwnerVisual);
     }
 
-    /** @return id региона */
+    /**
+     * @return id региона
+     */
     public String id() {
         return id;
     }
 
-    /** @return заголовок */
+    /**
+     * @return заголовок
+     */
     public String title() {
         return titleLabel.text();
     }
@@ -95,7 +112,9 @@ public final class NodeGraphRegion {
         return this;
     }
 
-    /** @return текст комментария под заголовком; пустая строка, если его нет */
+    /**
+     * @return текст комментария под заголовком; пустая строка, если его нет
+     */
     public String comment() {
         return comment;
     }
@@ -114,7 +133,9 @@ public final class NodeGraphRegion {
         return this;
     }
 
-    /** @return live-цвет региона; заливка и рамка берутся из него с разной прозрачностью */
+    /**
+     * @return live-цвет региона; заливка и рамка берутся из него с разной прозрачностью
+     */
     public MutableColor color() {
         return color;
     }
@@ -129,22 +150,30 @@ public final class NodeGraphRegion {
         return this;
     }
 
-    /** @return X в world-координатах */
+    /**
+     * @return X в world-координатах
+     */
     public float x() {
         return x;
     }
 
-    /** @return Y в world-координатах */
+    /**
+     * @return Y в world-координатах
+     */
     public float y() {
         return y;
     }
 
-    /** @return ширина */
+    /**
+     * @return ширина
+     */
     public float width() {
         return width;
     }
 
-    /** @return высота */
+    /**
+     * @return высота
+     */
     public float height() {
         return height;
     }
@@ -165,7 +194,7 @@ public final class NodeGraphRegion {
     }
 
     /**
-     * @param width ширина, не меньше {@link #MIN_WIDTH}
+     * @param width  ширина, не меньше {@link #MIN_WIDTH}
      * @param height высота, не меньше {@link #MIN_HEIGHT}
      * @return этот регион
      */
@@ -179,7 +208,9 @@ public final class NodeGraphRegion {
         return this;
     }
 
-    /** @return {@code true}, если регион можно двигать за заголовок */
+    /**
+     * @return {@code true}, если регион можно двигать за заголовок
+     */
     public boolean movable() {
         return movable;
     }
@@ -193,7 +224,9 @@ public final class NodeGraphRegion {
         return this;
     }
 
-    /** @return {@code true}, если регион можно растягивать */
+    /**
+     * @return {@code true}, если регион можно растягивать
+     */
     public boolean resizable() {
         return resizable;
     }
@@ -208,7 +241,9 @@ public final class NodeGraphRegion {
         return this;
     }
 
-    /** @return {@code true}, если регион выделен */
+    /**
+     * @return {@code true}, если регион выделен
+     */
     public boolean selected() {
         return selected;
     }
@@ -237,6 +272,30 @@ public final class NodeGraphRegion {
         return result;
     }
 
+    /**
+     * @param other другой регион графа
+     * @return {@code true}, если другой регион целиком лежит внутри этого (вложенный регион)
+     */
+    public boolean containsRegion(NodeGraphRegion other) {
+        if (other == null || other == this) return false;
+        return other.x >= x && other.y >= y
+                && other.x + other.width <= x + width
+                && other.y + other.height <= y + height;
+    }
+
+    /**
+     * @param graph граф, в котором регион лежит
+     * @return регионы, которые едут вместе с этим регионом
+     */
+    public List<NodeGraphRegion> containedRegions(NodeGraph graph) {
+        List<NodeGraphRegion> result = new ArrayList<>();
+        if (graph == null) return result;
+        for (NodeGraphRegion other : graph.regions()) {
+            if (containsRegion(other)) result.add(other);
+        }
+        return result;
+    }
+
     Label titleLabel() {
         return titleLabel;
     }
@@ -245,9 +304,11 @@ public final class NodeGraphRegion {
         return commentLabel;
     }
 
-    /** @return виджеты, которые регион сейчас показывает */
+    /**
+     * @return виджеты, которые регион показывает всегда; комментарий рисуется отдельно, при наведении
+     */
     List<Widget> widgets() {
-        return comment.isEmpty() ? List.of(titleLabel) : List.of(titleLabel, commentLabel);
+        return List.of(titleLabel);
     }
 
     NodeGraph owner() {

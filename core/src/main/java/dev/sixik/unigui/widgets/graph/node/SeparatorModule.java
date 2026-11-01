@@ -1,6 +1,8 @@
 package dev.sixik.unigui.widgets.graph.node;
 
 import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.Paint;
 
@@ -13,7 +15,9 @@ import dev.sixik.unigui.api.render.Paint;
         useWhen = {"Split a node body into labelled sections."},
         criticalRules = {"Fixed height of 6 world units; no widgets or ports."},
         related = {"NodeModule", "NodeBuilder"})
-public final class SeparatorModule implements NodeModule {
+@WikiPage(title = "SeparatorModule", slug = "separator-module", category = "<key:graph.category>", summary = "<key:separator.module.summary>")
+@WikiSection(title = "<key:wiki.section.overview.title>", markdown = "<key:separator.module.overview>", order = 10)
+public class SeparatorModule implements NodeModule {
     private static final float HEIGHT = 6.0f;
 
     private final String id;

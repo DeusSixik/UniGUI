@@ -39,6 +39,12 @@ import dev.sixik.unigui.widgets.graph.*;
 import dev.sixik.unigui.widgets.graph.node.NodeBuilder;
 import dev.sixik.unigui.widgets.graph.node.NodeType;
 import dev.sixik.unigui.widgets.graph.node.PortType;
+import dev.sixik.unigui.widgets.graph.node.ValueEditors;
+import dev.sixik.unigui.widgets.graph.runtime.GraphExecutionException;
+import dev.sixik.unigui.widgets.graph.runtime.GraphExecutor;
+import dev.sixik.unigui.widgets.graph.runtime.GraphIssue;
+import dev.sixik.unigui.widgets.graph.runtime.GraphResult;
+import dev.sixik.unigui.widgets.graph.runtime.NodeBehavior;
 import dev.sixik.unigui.widgets.interaction.*;
 import dev.sixik.unigui.widgets.map.MapCanvas;
 import dev.sixik.unigui.widgets.map.MapProjection;
@@ -1534,7 +1540,11 @@ public final class UniGuiDemo {
      */
     private static Widget blueprintGraphPage() {
         VBox page = page("Blueprint Graph",
-                "Modular nodes: click the header arrow to collapse, drag the region title to move its nodes, drag from pins to connect.");
+                "Right-click empty space or press Space for the node palette (categories form a tree); drop a wire into empty space to add a connected node. "
+                        + "Right-click a node: undo/redo, duplicate, group, align, spread. Right-click a region title (or press F2): rename, comment, group. "
+                        + "Hold Ctrl to snap to the grid; Shift+click or Shift+drag selects several nodes. Double-click a wire inserts a reroute. "
+                        + "Header arrow collapses, region title carries its nodes and nested regions; hover a title with the bubble icon to read its comment. "
+                        + "Keys: Ctrl+Z/Y undo/redo, Ctrl+C/V/D copy/paste/duplicate, F frame, Home frame all, C group, R reroute a selected wire.");
 
         Label status = new Label("Blueprint: ready");
         status.layout(style -> style.size(LayoutConstraints.AUTO, 18.0f).flexGrow(0).flexShrink(0.0f));
@@ -1561,28 +1571,32 @@ public final class UniGuiDemo {
                         .color(0xFF4F9D4F)
                         .header("Create NPC")
                         .flowRow("exec", "then")
-                        .input("pos", "Position", "vec3", new TextField("0 64 0"))
-                        .input("name", "Name", "string", new TextField("Villager"))
+                        .input("pos", "Position", "vec3", ValueEditors.vector(3, 0, 64, 0))
+                        .input("name", "Name", "string", ValueEditors.text("Villager"))
                         .output("npc", "Result", "entity")
                         .build()))
                 .register(NodeType.of("logic.compare", "Less or equal", "Logic", id -> NodeBuilder.node(id)
                         .color(0xFF8E44AD)
                         .header("Less or equal")
-                        .input("a", "A", "number")
-                        .input("b", "B", "number", new TextField("5"))
+                        .requiredInput("a", "A", "number")
+                        .input("b", "B", "number", ValueEditors.number(5))
                         .output("result", "Result", "bool")
                         .build()))
-                .register(NodeType.of("npc.say", "Say", "NPC", id -> NodeBuilder.node(id)
+                .register(NodeType.of("npc.say", "Say", "NPC/Dialogue", id -> NodeBuilder.node(id)
                         .color(0xFF2E8B57)
                         .header("Say")
                         .flowRow("exec", "then")
                         .input("who", "Who", "entity")
-                        .input("text", "Text", "string", new TextField("Hello!"))
+                        .input("text", "Text", "string", ValueEditors.text("Hello!"))
+                        .input("loud", "Shout", "bool", ValueEditors.bool(false))
                         .build()));
 
         graph.addRegion("setup", "Spawn setup", 20.0f, 20.0f, 520.0f, 250.0f)
                 .comment("Creates the NPC and greets the player")
                 .color(0xFF3B6EA5);
+        graph.addRegion("dialogue", "Dialogue", 345.0f, 44.0f, 190.0f, 216.0f)
+                .comment("Nested region: it moves with 'Spawn setup'. Select it and press Group to wrap it again.")
+                .color(0xFFA5703B);
         graph.spawn("event.start", "start", 40.0f, 70.0f);
         graph.spawn("npc.create", "create", 190.0f, 60.0f);
         graph.spawn("npc.say", "say", 360.0f, 60.0f);
@@ -1594,13 +1608,70 @@ public final class UniGuiDemo {
         graph.onItemCollapsed(event -> status.text("Blueprint: " + event.itemId()
                 + (event.collapsed() ? " collapsed" : " expanded")));
         graph.onRegionChanged(event -> status.text("Blueprint: region " + event.regionId() + " " + event.kind()));
+        graph.onValueChanged(event -> status.text("Blueprint: " + event.itemId() + "." + event.portId()
+                + " = " + event.serialized()));
         graph.onConnectionCreated(event -> status.text("Blueprint: connected "
                 + event.from().itemId() + "." + event.from().portId() + " -> "
                 + event.to().itemId() + "." + event.to().portId()));
 
+        HBox tools = new HBox();
+        tools.spacing(6.0f);
+        tools.layout(style -> style.size(LayoutConstraints.AUTO, 24.0f).flexGrow(0).flexShrink(0.0f));
+        tools.addChild(graphToolButton("Frame all", () -> {
+            graph.frameAll();
+            status.text("Blueprint: framed all");
+        }));
+        Button snap = graphToolButton("Snap: Ctrl", null);
+        snap.onClick(event -> {
+            graph.snapToGrid(!graph.snapToGrid());
+            snap.text(graph.snapToGrid() ? "Snap: always" : "Snap: Ctrl");
+        });
+        tools.addChild(snap);
+
+        List<String> sayLog = new ArrayList<>();
+        // Поведения нод: что граф делает при запуске. Редакторы входов дают значения по умолчанию.
+        GraphExecutor executor = new GraphExecutor()
+                .register("event.start", NodeBehavior.exec(context -> context.continueWith("then")))
+                .register("npc.create", NodeBehavior.exec(context -> {
+                    double[] at = context.vector("pos");
+                    context.output("npc", context.text("name") + "@" + (at == null ? "?" : at[0] + "," + at[1] + "," + at[2]));
+                    context.continueWith("then");
+                }))
+                .register("logic.compare", NodeBehavior.pure(context ->
+                        context.output("result", context.number("a") <= context.number("b"))))
+                .register("npc.say", NodeBehavior.exec(context -> {
+                    String line = context.text("who") + " says " + context.text("text");
+                    sayLog.add(context.bool("loud") ? line.toUpperCase(Locale.ROOT) : line);
+                    context.continueWith("then");
+                }));
+        tools.addChild(graphToolButton("Run", () -> {
+            sayLog.clear();
+            try {
+                GraphResult result = executor.fire(graph.model(), "start");
+                status.text("Blueprint run (" + result.steps() + " steps): " + String.join(" | ", sayLog));
+            } catch (GraphExecutionException failure) {
+                status.text("Blueprint run failed: " + failure.getMessage());
+            }
+        }));
+        tools.addChild(graphToolButton("Validate", () -> {
+            List<GraphIssue> issues = graph.validate(executor);
+            status.text(issues.isEmpty()
+                    ? "Blueprint: graph is valid"
+                    : "Blueprint: " + issues.size() + " issue(s), first: " + issues.get(0).message()
+                    + " [" + issues.get(0).itemId() + "]");
+        }));
+
         page.addChild(status);
+        page.addChild(tools);
         page.addChild(graph);
         return page;
+    }
+
+    private static Button graphToolButton(String text, Runnable action) {
+        Button button = new Button(text);
+        button.layout(style -> style.size(86.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
+        if (action != null) button.onClick(event -> action.run());
+        return button;
     }
 
     private static Widget worldCanvasPage() {

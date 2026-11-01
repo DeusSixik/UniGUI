@@ -1,6 +1,8 @@
 package dev.sixik.unigui.widgets.graph.node;
 
 import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
 
@@ -24,7 +26,9 @@ import java.util.Objects;
                 "Instances are immutable; `shape(...)` and `displayName(...)` return copies."
         },
         related = {"PortTypeRegistry", "PortShape", "NodeGraphPort"})
-public final class PortType {
+@WikiPage(title = "PortType", slug = "port-type", category = "<key:graph.category>", summary = "<key:port.type.summary>")
+@WikiSection(title = "<key:wiki.section.overview.title>", markdown = "<key:port.type.overview>", order = 10)
+public class PortType {
     private final String id;
     private final String displayName;
     private final int argb;
@@ -32,7 +36,7 @@ public final class PortType {
     private final boolean flow;
     private final MutableColor color;
 
-    private PortType(String id, String displayName, int argb, PortShape shape, boolean flow) {
+    protected PortType(String id, String displayName, int argb, PortShape shape, boolean flow) {
         this.id = Objects.requireNonNull(id, "id");
         this.displayName = displayName == null || displayName.isBlank() ? id : displayName;
         this.argb = argb;

@@ -17,7 +17,9 @@ public final class NodeGraphRegionChangedEvent extends BaseEvent implements Rout
         ADDED,
         REMOVED,
         MOVED,
-        RESIZED
+        RESIZED,
+        /** Изменился заголовок или комментарий. */
+        EDITED
     }
 
     private final Widget target;

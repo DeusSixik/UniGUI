@@ -1,6 +1,8 @@
 package dev.sixik.unigui.widgets.graph.node;
 
 import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiSection;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -25,7 +27,9 @@ import java.util.Map;
                 "Search is case-insensitive; prefix matches rank before substring matches."
         },
         related = {"NodeType", "NodeBuilder"})
-public final class NodeTypeRegistry {
+@WikiPage(title = "NodeTypeRegistry", slug = "node-type-registry", category = "<key:graph.category>", summary = "<key:node.type.registry.summary>")
+@WikiSection(title = "<key:wiki.section.overview.title>", markdown = "<key:node.type.registry.overview>", order = 10)
+public class NodeTypeRegistry {
     private final Map<String, NodeType> types = new LinkedHashMap<>();
 
     /**

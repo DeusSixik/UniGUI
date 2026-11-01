@@ -1,6 +1,8 @@
 package dev.sixik.unigui.widgets.graph.node;
 
 import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiSection;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -40,7 +42,9 @@ import java.util.Set;
                                         .allowConversion("float", "vec3");
                                 """)
         })
-public final class PortTypeRegistry {
+@WikiPage(title = "PortTypeRegistry", slug = "port-type-registry", category = "<key:graph.category>", summary = "<key:port.type.registry.summary>")
+@WikiSection(title = "<key:wiki.section.overview.title>", markdown = "<key:port.type.registry.overview>", order = 10)
+public class PortTypeRegistry {
     /**
      * Тип потока выполнения по умолчанию.
      */

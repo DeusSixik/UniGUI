@@ -1,85 +1,39 @@
 package dev.sixik.unigui.widgets.graph;
 
 
-import dev.sixik.unigui.api.docs.AiDoc;
-import dev.sixik.unigui.api.docs.WikiExample;
-import dev.sixik.unigui.api.docs.WikiLink;
-import dev.sixik.unigui.api.docs.WikiMethod;
-import dev.sixik.unigui.api.docs.WikiPage;
-import dev.sixik.unigui.api.docs.WikiParameter;
-import dev.sixik.unigui.api.docs.WikiReturn;
-import dev.sixik.unigui.api.docs.WikiSection;
-
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
-import dev.sixik.unigui.api.event.Event;
+import dev.sixik.unigui.api.docs.*;
+import dev.sixik.unigui.api.event.*;
 import dev.sixik.unigui.api.event.EventListener;
-import dev.sixik.unigui.api.event.EventPhase;
-import dev.sixik.unigui.api.event.EventSubscription;
-import dev.sixik.unigui.api.event.NodeGraphConnectionCreatedEvent;
-import dev.sixik.unigui.api.event.NodeGraphConnectionDragEndedEvent;
-import dev.sixik.unigui.api.event.NodeGraphConnectionDragStartedEvent;
-import dev.sixik.unigui.api.event.NodeGraphConnectionRemovedEvent;
-import dev.sixik.unigui.api.event.NodeGraphConnectionSelectionChangedEvent;
-import dev.sixik.unigui.api.event.NodeGraphItemCollapsedEvent;
-import dev.sixik.unigui.api.event.NodeGraphRegionChangedEvent;
-import dev.sixik.unigui.api.event.NodeGraphItemMoveEndedEvent;
-import dev.sixik.unigui.api.event.NodeGraphItemMoveStartedEvent;
-import dev.sixik.unigui.api.event.NodeGraphItemMovedEvent;
-import dev.sixik.unigui.api.event.NodeGraphItemRemovedEvent;
-import dev.sixik.unigui.api.event.NodeGraphItemResizeEndedEvent;
-import dev.sixik.unigui.api.event.NodeGraphItemResizeStartedEvent;
-import dev.sixik.unigui.api.event.NodeGraphItemResizedEvent;
-import dev.sixik.unigui.api.event.NodeGraphItemSelectionChangedEvent;
-import dev.sixik.unigui.api.event.NodeGraphViewportChangedEvent;
-import dev.sixik.unigui.api.event.KeyPressedEvent;
-import dev.sixik.unigui.api.event.PointerEvent;
-import dev.sixik.unigui.api.event.PointerExitedEvent;
-import dev.sixik.unigui.api.event.PointerMovedEvent;
-import dev.sixik.unigui.api.event.PointerPressedEvent;
-import dev.sixik.unigui.api.event.PointerReleasedEvent;
-import dev.sixik.unigui.api.event.ScrollEvent;
 import dev.sixik.unigui.api.input.HitTestCoordinateMapper;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.input.KeyModifiers;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
-import dev.sixik.unigui.api.math.MutableColor;
-import dev.sixik.unigui.api.math.MutableRect;
-import dev.sixik.unigui.api.math.RectView;
-import dev.sixik.unigui.api.math.ColorView;
-import dev.sixik.unigui.api.render.DrawCommand;
-import dev.sixik.unigui.api.render.DrawCommandType;
-import dev.sixik.unigui.api.render.DrawList;
-import dev.sixik.unigui.api.render.DrawScope;
-import dev.sixik.unigui.api.render.Paint;
-import dev.sixik.unigui.api.render.RenderContext;
-import dev.sixik.unigui.api.math.Transform;
+import dev.sixik.unigui.api.math.*;
+import dev.sixik.unigui.api.render.*;
+import dev.sixik.unigui.api.viewport.Viewport2D;
 import dev.sixik.unigui.api.widget.RenderedBoundsMapper;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.viewport.Viewport2D;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
-import dev.sixik.unigui.api.widget.render.WidgetRender;
-
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
 import dev.sixik.unigui.widgets.containers.StackPanel;
-import dev.sixik.unigui.widgets.graph.node.NodeLayoutContext;
-import dev.sixik.unigui.widgets.graph.node.NodeModule;
-import dev.sixik.unigui.widgets.graph.node.NodePaintContext;
-import dev.sixik.unigui.widgets.graph.node.NodeStyle;
-import dev.sixik.unigui.widgets.graph.node.NodeType;
-import dev.sixik.unigui.widgets.graph.node.NodeTypeRegistry;
-import dev.sixik.unigui.widgets.graph.node.PortShape;
-import dev.sixik.unigui.widgets.graph.node.PortType;
-import dev.sixik.unigui.widgets.graph.node.PortTypeRegistry;
+import dev.sixik.unigui.widgets.feedback.ContextMenu;
+import dev.sixik.unigui.widgets.feedback.OverlayLayer;
+import dev.sixik.unigui.widgets.graph.node.*;
+import dev.sixik.unigui.widgets.graph.runtime.GraphExecutor;
+import dev.sixik.unigui.widgets.graph.runtime.GraphIssue;
+import dev.sixik.unigui.widgets.graph.runtime.GraphModel;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+
+import java.util.*;
+import java.util.function.LongSupplier;
 
 @AiDoc(summary = "Interactive 2D node graph canvas supporting movable nodes, pin connections, pan, zoom, grid snapping, and selection.")
 @WikiPage(
@@ -113,7 +67,7 @@ import dev.sixik.unigui.widgets.graph.node.PortTypeRegistry;
         description = "<key:node.graph.connection.summary>"
 )
 @XmlWidgetName("NodeGraph")
-public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapper, RenderedBoundsMapper {
+public class NodeGraph extends WidgetBase implements HitTestCoordinateMapper, RenderedBoundsMapper {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.NODE_GRAPH;
 
     public static final float DEFAULT_PREFERRED_WIDTH = 320.0f;
@@ -160,6 +114,8 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     private final List<NodeGraphRegion> regionsView = Collections.unmodifiableList(regions);
     private final PortTypeRegistry portTypes = new PortTypeRegistry();
     private final NodeTypeRegistry nodeTypes = new NodeTypeRegistry();
+    private final MutableColor errorBorderColor = new MutableColor(0.88f, 0.32f, 0.32f, 1.0f);
+    private final MutableColor warningBorderColor = new MutableColor(0.92f, 0.66f, 0.20f, 1.0f);
     private final MutableColor shadowColor = new MutableColor(0.0f, 0.0f, 0.0f, 0.28f);
     private final MutableColor minimapBackgroundColor = new MutableColor(0.07f, 0.07f, 0.08f, 0.88f);
     private final MutableColor minimapBorderColor = new MutableColor(0.45f, 0.47f, 0.55f, 0.9f);
@@ -170,6 +126,25 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     private float minimapMargin = 12.0f;
     private int nextItemId = 1;
     private int nextRegionId = 1;
+    private static final float COMMENT_ICON_ROOM = 22.0f;
+    private static final float COMMENT_MIN_WIDTH = 160.0f;
+    private static final float COMMENT_MAX_WIDTH = 320.0f;
+    private static final float COMMENT_PADDING = 6.0f;
+    private final NodeGraphHistory history = new NodeGraphHistory(this);
+    private static final float DOUBLE_CLICK_DISTANCE = 6.0f;
+    private int doubleClickMillis = 350;
+    private LongSupplier clock = System::currentTimeMillis;
+    private String lastWireClickId = "";
+    private long lastWireClickMillis;
+    private float lastWireClickX;
+    private float lastWireClickY;
+    private NodePalette palette;
+    private boolean nodePaletteEnabled = true;
+    private boolean nodeContextMenuEnabled = true;
+    private boolean snapToGrid;
+    private NodeGraphClipboard clipboard = NodeGraphClipboard.EMPTY;
+    private float lastPointerRootX = Float.NaN;
+    private float lastPointerRootY = Float.NaN;
     private final ItemLayout itemLayout = new ItemLayout();
     private final ItemPaint itemPaint = new ItemPaint();
     private final float[] wirePoints = new float[NodeGraphWires.BUFFER_SIZE];
@@ -192,6 +167,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     private float itemContentPadding = DEFAULT_ITEM_CONTENT_PADDING;
     private boolean bringToFrontOnSelect = true;
     private String hoveredItemId = "";
+    private NodeGraphRegion hoveredRegion;
     private NodeGraphPortRef hoveredPort = new NodeGraphPortRef("", "");
     private String hoveredConnectionId = "";
     private int nextConnectionId = 1;
@@ -221,6 +197,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         selectionBoxBorderColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         resizeHandleColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         focusable(true);
+        nodeTypes.register(RerouteModule.dataType()).register(RerouteModule.flowType());
     }
 
     @AiDoc(summary = "Creates and places a new node item with the given ID, content widget, and canvas coordinates.")
@@ -246,6 +223,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         markLogicalItemsDirty();
         attach(item);
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        history.record(NodeGraphHistory.Operation.of(() -> removeItem(item), () -> addItem(item)));
         return this;
     }
 
@@ -262,6 +240,8 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         detach(item);
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         dispatch(new NodeGraphItemRemovedEvent(this, removedId));
+        // Провода ноды записались раньше (removeConnectionsForItem), поэтому при отмене нода вернётся первой.
+        history.record(NodeGraphHistory.Operation.of(() -> addItem(item), () -> removeItem(item)));
         return this;
     }
 
@@ -277,6 +257,8 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     @WikiMethod(summary = "<key:node.graph.method.clearItems>")
     @WikiReturn("<key:node.graph.return.self>")
     public NodeGraph clearItems() {
+        // Шаги истории держат ссылки на уничтожаемые ноды и провода, поэтому после очистки они бесполезны.
+        history.clear();
         for (NodeGraphItem item : itemSnapshot()) {
             List<Widget> widgets = item.allWidgets();
             detach(item);
@@ -391,6 +373,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         attach(connection);
         invalidate(InvalidationFlags.VISUAL);
         dispatch(new NodeGraphConnectionCreatedEvent(this, connection.id(), connection.from(), connection.to(), connection.type()));
+        history.record(NodeGraphHistory.Operation.of(() -> removeConnection(connection), () -> addConnection(connection)));
         return connection;
     }
 
@@ -411,6 +394,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         detach(connection);
         invalidate(InvalidationFlags.VISUAL);
         dispatch(new NodeGraphConnectionRemovedEvent(this, connection.id(), connection.from(), connection.to()));
+        history.record(NodeGraphHistory.Operation.of(() -> addConnection(connection), () -> removeConnection(connection)));
         return this;
     }
 
@@ -470,6 +454,422 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     }
 
     /**
+     * @return максимальный интервал двойного клика по проводу в миллисекундах; {@code 0} — выключено
+     */
+    public int doubleClickMillis() {
+        return doubleClickMillis;
+    }
+
+    /**
+     * Двойной клик по проводу вставляет в него reroute. Граф сам измеряет интервал: события указателя не несут
+     * счётчика кликов.
+     *
+     * @param millis интервал между двумя нажатиями; {@code 0} выключает вставку по двойному клику
+     * @return этот граф
+     */
+    public NodeGraph doubleClickMillis(int millis) {
+        this.doubleClickMillis = Math.max(0, millis);
+        return this;
+    }
+
+    /**
+     * Подменяет часы двойного клика; нужен тестам, чтобы не зависеть от реального времени.
+     */
+    NodeGraph clock(LongSupplier clock) {
+        this.clock = clock == null ? System::currentTimeMillis : clock;
+        return this;
+    }
+
+    /**
+     * @return {@code true}, если ПКМ, пробел и отпускание провода в пустом месте открывают палитру нод
+     */
+    public boolean nodePaletteEnabled() {
+        return nodePaletteEnabled;
+    }
+
+    /**
+     * Включает или выключает палитру нод: ПКМ по пустому месту и Space открывают её, провод, отпущенный в пустом
+     * месте, открывает её с типами, совместимыми с этим проводом. Палитра работает только внутри
+     * {@code OverlayLayer}.
+     *
+     * @param nodePaletteEnabled {@code true}, чтобы включить
+     * @return этот граф
+     */
+    public NodeGraph nodePaletteEnabled(boolean nodePaletteEnabled) {
+        this.nodePaletteEnabled = nodePaletteEnabled;
+        if (!nodePaletteEnabled && palette != null) palette.close();
+        return this;
+    }
+
+    /**
+     * @return палитра нод этого графа; создаётся при первом обращении и ищет по {@link #nodeTypes()}
+     */
+    public NodePalette nodePalette() {
+        if (palette == null) palette = new NodePalette(nodeTypes);
+        return palette;
+    }
+
+    /**
+     * Открывает палитру нод в точке. Выбранная нода создаётся под этой точкой и выделяется.
+     *
+     * @param rootX X в root-координатах
+     * @param rootY Y в root-координатах
+     * @return {@code true}, если палитра открыта; {@code false}, если палитра выключена или граф не лежит в
+     * {@code OverlayLayer}
+     */
+    public boolean openNodePalette(float rootX, float rootY) {
+        OverlayLayer layer = nodePaletteHost();
+        if (layer == null) return false;
+        float worldX = viewport.screenToWorldX(rootX - layoutBounds().x());
+        float worldY = viewport.screenToWorldY(rootY - layoutBounds().y());
+        NodePalette opened = nodePalette();
+        opened.expandAll(false).filter(null).onPick(type -> history.transact("Add node", () -> {
+            NodeGraphItem created = spawn(type.id(), worldX, worldY);
+            if (created != null) selectOnly(created);
+        }));
+        showPalette(layer, opened, rootX, rootY);
+        return true;
+    }
+
+    /**
+     * Открывает палитру с типами, у которых есть вход, совместимый с выходом {@code from}. Выбранная нода создаётся в
+     * точке и подключается к этому выходу.
+     *
+     * @param from  выход, из которого тянули провод
+     * @param rootX X в root-координатах
+     * @param rootY Y в root-координатах
+     * @return {@code true}, если палитра открыта
+     */
+    public boolean openNodePaletteFromPort(NodeGraphPortRef from, float rootX, float rootY) {
+        NodeGraphPort source = port(from);
+        OverlayLayer layer = nodePaletteHost();
+        if (source == null || layer == null) return false;
+        float worldX = viewport.screenToWorldX(rootX - layoutBounds().x());
+        float worldY = viewport.screenToWorldY(rootY - layoutBounds().y());
+        String sourceType = source.type();
+        NodePalette opened = nodePalette();
+        // Отфильтрованный список короткий: группы сразу развёрнуты, чтобы не прятать подходящие ноды.
+        opened.expandAll(true).filter(type -> type.acceptsConnectionFrom(sourceType, portTypes)).onPick(type ->
+                history.transact("Add node", () -> {
+                    NodeGraphItem created = spawn(type.id(), worldX, worldY);
+                    if (created == null) return;
+                    String inputId = type.firstCompatibleInput(sourceType, portTypes);
+                    if (inputId != null) {
+                        try {
+                            addConnection("", from, new NodeGraphPortRef(created.id(), inputId));
+                        } catch (IllegalArgumentException rejected) {
+                            // Политика соединений может отклонить пару; нода всё равно остаётся созданной.
+                        }
+                    }
+                    selectOnly(created);
+                }));
+        showPalette(layer, opened, rootX, rootY);
+        return true;
+    }
+
+    /**
+     * Открывает палитру там, где последний раз был курсор над графом, а если его не было — в центре графа.
+     */
+    protected boolean openNodePaletteAtPointer() {
+        float rootX = Float.isNaN(lastPointerRootX) ? layoutBounds().x() + layoutBounds().width() * 0.5f : lastPointerRootX;
+        float rootY = Float.isNaN(lastPointerRootY) ? layoutBounds().y() + layoutBounds().height() * 0.5f : lastPointerRootY;
+        return openNodePalette(rootX, rootY);
+    }
+
+    private void showPalette(OverlayLayer layer, NodePalette opened, float rootX, float rootY) {
+        layer.applyQueuedMutations();
+        if (opened.parent() != layer) layer.addOverlay(opened);
+        opened.openAt(rootX, rootY);
+        invalidate(InvalidationFlags.VISUAL);
+    }
+
+    private OverlayLayer nodePaletteHost() {
+        return nodePaletteEnabled ? overlayHost() : null;
+    }
+
+    protected OverlayLayer overlayHost() {
+        for (Widget current = parent(); current != null; current = current.parent()) {
+            if (current instanceof OverlayLayer layer) return layer;
+        }
+        return null;
+    }
+
+    /**
+     * Оставляет выделенной только одну ноду.
+     */
+    protected void selectOnly(NodeGraphItem item) {
+        clearSelection();
+        clearConnectionSelection();
+        selectRegion(null);
+        selectItem(item);
+    }
+
+    /**
+     * Снимает неизменяемую модель графа без виджетов для проверки и исполнения.
+     *
+     * @return модель на момент вызова
+     */
+    public GraphModel model() {
+        return GraphModel.from(this);
+    }
+
+    /**
+     * Проверяет граф и помечает ноды с проблемами (красная или янтарная рамка).
+     *
+     * @param executor исполнитель, чьи поведения определяют чистые ноды и известные типы
+     * @return найденные проблемы
+     */
+    public List<GraphIssue> validate(GraphExecutor executor) {
+        List<GraphIssue> issues = executor.validate(model());
+        showIssues(issues);
+        return issues;
+    }
+
+    /**
+     * Показывает проблемы на нодах, заменяя прежние пометки.
+     *
+     * @param issues проблемы; ноды без проблем теряют пометку
+     * @return этот граф
+     */
+    public NodeGraph showIssues(List<GraphIssue> issues) {
+        Map<String, List<GraphIssue>> byNode = new HashMap<>();
+        for (GraphIssue issue : issues) {
+            byNode.computeIfAbsent(issue.itemId(), id -> new ArrayList<>()).add(issue);
+        }
+        for (NodeGraphItem item : items) {
+            List<GraphIssue> own = byNode.get(item.id());
+            if (own == null) {
+                item.issues(0, null);
+                continue;
+            }
+            boolean error = own.stream().anyMatch(issue -> issue.severity() == GraphIssue.Severity.ERROR);
+            item.issues(error ? 2 : 1, own.stream().map(GraphIssue::message).toList());
+        }
+        return this;
+    }
+
+    /**
+     * Снимает все пометки проблем с нод.
+     *
+     * @return этот граф
+     */
+    public NodeGraph clearIssues() {
+        return showIssues(List.of());
+    }
+
+    /**
+     * @return история изменений для undo/redo
+     */
+    public NodeGraphHistory history() {
+        return history;
+    }
+
+    /**
+     * Отменяет последний записанный шаг.
+     *
+     * @return {@code true}, если шаг был отменён
+     */
+    public boolean undo() {
+        return history.undo();
+    }
+
+    /**
+     * Повторяет последний отменённый шаг.
+     *
+     * @return {@code true}, если шаг был повторён
+     */
+    public boolean redo() {
+        return history.redo();
+    }
+
+    /**
+     * Выполняет изменения как один шаг истории.
+     *
+     * @param name   название шага
+     * @param action изменения графа
+     * @return этот граф
+     */
+    public NodeGraph transact(String name, Runnable action) {
+        history.transact(name, action);
+        return this;
+    }
+
+    /**
+     * @return {@code true}, если ноды и регионы притягиваются к сетке при перетаскивании
+     */
+    public boolean snapToGrid() {
+        return snapToGrid;
+    }
+
+    /**
+     * Включает притягивание нод и регионов к сетке {@link #gridSize()} при перетаскивании мышью.
+     *
+     * <p>По умолчанию привязки нет, и она включается, пока зажат Ctrl. Если включить её здесь, Ctrl работает
+     * наоборот: привязка действует всегда, а при зажатом Ctrl временно отключается.</p>
+     *
+     * @param snapToGrid {@code true}, чтобы привязка действовала всегда
+     * @return этот граф
+     */
+    public NodeGraph snapToGrid(boolean snapToGrid) {
+        this.snapToGrid = snapToGrid;
+        return this;
+    }
+
+    /**
+     * Копирует выделенные ноды зарегистрированных типов и провода между ними в буфер графа.
+     *
+     * @return буфер; пустой, если копировать нечего
+     */
+    public NodeGraphClipboard copySelection() {
+        NodeGraphClipboard copied = NodeGraphEditing.copy(this);
+        if (!copied.isEmpty()) clipboard = copied;
+        return copied;
+    }
+
+    /**
+     * @return буфер, заполненный последним {@link #copySelection()}
+     */
+    public NodeGraphClipboard clipboard() {
+        return clipboard;
+    }
+
+    /**
+     * Вставляет буфер графа левым верхним углом группы в точку.
+     *
+     * @param x X в world-координатах
+     * @param y Y в world-координатах
+     * @return вставленные ноды, они же выделены
+     */
+    public List<NodeGraphItem> paste(float x, float y) {
+        return NodeGraphEditing.paste(this, clipboard, x, y);
+    }
+
+    /**
+     * Вставляет произвольный буфер, например скопированный в другом графе.
+     *
+     * @param source буфер
+     * @param x      X в world-координатах
+     * @param y      Y в world-координатах
+     * @return вставленные ноды, они же выделены
+     */
+    public List<NodeGraphItem> paste(NodeGraphClipboard source, float x, float y) {
+        return NodeGraphEditing.paste(this, source, x, y);
+    }
+
+    /**
+     * Вставляет буфер графа под курсором; если курсор ещё не двигался над графом, со сдвигом от оригинала.
+     *
+     * @return вставленные ноды
+     */
+    public List<NodeGraphItem> pasteAtPointer() {
+        if (clipboard.isEmpty()) return new ObjectArrayList<>();
+        if (Float.isNaN(lastPointerRootX)) {
+            return paste(clipboard.minX() + 24.0f, clipboard.minY() + 24.0f);
+        }
+        return paste(viewport.screenToWorldX(lastPointerRootX - layoutBounds().x()),
+                viewport.screenToWorldY(lastPointerRootY - layoutBounds().y()));
+    }
+
+    /**
+     * Дублирует выделенные ноды со сдвигом, не трогая буфер.
+     *
+     * @return созданные ноды, они же выделены
+     */
+    public List<NodeGraphItem> duplicateSelection() {
+        return NodeGraphEditing.duplicate(this);
+    }
+
+    /**
+     * Выравнивает выделенные ноды по общей рамке одним шагом истории.
+     *
+     * @param mode способ выравнивания
+     * @return {@code true}, если хоть одна нода сдвинулась
+     */
+    public boolean alignSelected(NodeGraphAlign mode) {
+        return NodeGraphEditing.align(this, mode);
+    }
+
+    /**
+     * Равномерно распределяет выделенные ноды между крайними.
+     *
+     * @param horizontal {@code true} — по горизонтали, {@code false} — по вертикали
+     * @return {@code true}, если хоть одна нода сдвинулась
+     */
+    public boolean distributeSelected(boolean horizontal) {
+        return NodeGraphEditing.distribute(this, horizontal);
+    }
+
+    /**
+     * Оборачивает выделенные ноды в регион «Comment».
+     *
+     * @return созданный регион или {@code null}, если ничего не выделено
+     */
+    public NodeGraphRegion groupSelected() {
+        return groupSelected("Comment");
+    }
+
+    /**
+     * Оборачивает выделенные ноды в регион с заданным заголовком.
+     *
+     * @param title заголовок региона
+     * @return созданный регион или {@code null}, если ничего не выделено
+     */
+    public NodeGraphRegion groupSelected(String title) {
+        return NodeGraphEditing.group(this, title);
+    }
+
+    /**
+     * Подбирает положение и зум так, чтобы в окне были все ноды и регионы.
+     */
+    public NodeGraph frameAll() {
+        NodeGraphEditing.frameAll(this);
+        return this;
+    }
+
+    /**
+     * Подбирает положение и зум под выделенное; без выделения — под весь граф.
+     */
+    public NodeGraph frameSelection() {
+        NodeGraphEditing.frameSelection(this);
+        return this;
+    }
+
+    /**
+     * Вставляет reroute в провод.
+     *
+     * @param connectionId id провода
+     * @param worldX       X центра reroute в world-координатах
+     * @param worldY       Y центра reroute в world-координатах
+     * @return созданный reroute или {@code null}, если провода нет
+     */
+    public NodeGraphItem insertReroute(String connectionId, float worldX, float worldY) {
+        return NodeGraphEditing.insertReroute(this, connection(connectionId), worldX, worldY);
+    }
+
+    /**
+     * Вставляет reroute в середину провода по его текущей отрисованной форме.
+     *
+     * @param connection провод
+     * @return созданный reroute или {@code null}, если порты провода не найдены
+     */
+    public NodeGraphItem insertRerouteAtMidpoint(NodeGraphConnection connection) {
+        if (connection == null || !wireCurve(connection)) return null;
+        int middle = wireCount / 2;
+        float rootX = wirePoints[middle * 2];
+        float rootY = wirePoints[middle * 2 + 1];
+        return NodeGraphEditing.insertReroute(this, connection,
+                viewport.screenToWorldX(rootX - layoutBounds().x()),
+                viewport.screenToWorldY(rootY - layoutBounds().y()));
+    }
+
+    private NodeGraphConnection firstSelectedConnection() {
+        for (NodeGraphConnection connection : connections) {
+            if (connection.selected()) return connection;
+        }
+        return null;
+    }
+
+    /**
      * @return реестр типов портов: цвета, формы и правила совместимости соединений
      */
     public PortTypeRegistry portTypes() {
@@ -487,18 +887,29 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
      * Создаёт ноду зарегистрированного типа с автоматическим id и добавляет её в граф.
      *
      * @param typeId id типа из {@link #nodeTypes()}
-     * @param x X в world-координатах
-     * @param y Y в world-координатах
+     * @param x      X в world-координатах
+     * @param y      Y в world-координатах
      * @return созданная нода или {@code null}, если тип не зарегистрирован
      */
     public NodeGraphItem spawn(String typeId, float x, float y) {
         NodeType type = nodeTypes.get(typeId);
         if (type == null) return null;
-        String itemId;
+        return spawn(typeId, generateItemId(type.id()), x, y);
+    }
+
+    /**
+     * Подбирает свободный id ноды вида {@code prefix-N}.
+     *
+     * @param prefix начало id, обычно id типа ноды
+     * @return id, которого нет среди нод графа
+     */
+    public String generateItemId(String prefix) {
+        String base = prefix == null || prefix.isBlank() ? "node" : prefix;
+        String id;
         do {
-            itemId = type.id() + "-" + nextItemId++;
-        } while (item(itemId) != null);
-        return spawn(typeId, itemId, x, y);
+            id = base + "-" + nextItemId++;
+        } while (item(id) != null);
+        return id;
     }
 
     /**
@@ -506,8 +917,8 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
      *
      * @param typeId id типа из {@link #nodeTypes()}
      * @param itemId id создаваемой ноды
-     * @param x X в world-координатах
-     * @param y Y в world-координатах
+     * @param x      X в world-координатах
+     * @param y      Y в world-координатах
      * @return созданная нода или {@code null}, если тип не зарегистрирован
      */
     public NodeGraphItem spawn(String typeId, String itemId, float x, float y) {
@@ -522,11 +933,11 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     /**
      * Создаёт регион-комментарий и добавляет его на холст.
      *
-     * @param id id региона; пустая строка даёт автоматический id
-     * @param title заголовок
-     * @param x X в world-координатах
-     * @param y Y в world-координатах
-     * @param width ширина
+     * @param id     id региона; пустая строка даёт автоматический id
+     * @param title  заголовок
+     * @param x      X в world-координатах
+     * @param y      Y в world-координатах
+     * @param width  ширина
      * @param height высота
      * @return созданный регион
      */
@@ -566,6 +977,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         dispatch(new NodeGraphRegionChangedEvent(this, region.id(), NodeGraphRegionChangedEvent.Kind.ADDED,
                 region.x(), region.y(), region.width(), region.height()));
+        history.record(NodeGraphHistory.Operation.of(() -> removeRegion(region), () -> addRegion(region)));
         return this;
     }
 
@@ -575,11 +987,13 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
      */
     public NodeGraph removeRegion(NodeGraphRegion region) {
         if (region == null || !regions.remove(region)) return this;
-        releaseRegion(region);
+        // Виджеты региона не освобождаются: отмена удаления вернёт тот же регион.
+        releaseRegion(region, false);
         childrenViewDirty = true;
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         dispatch(new NodeGraphRegionChangedEvent(this, region.id(), NodeGraphRegionChangedEvent.Kind.REMOVED,
                 region.x(), region.y(), region.width(), region.height()));
+        history.record(NodeGraphHistory.Operation.of(() -> addRegion(region), () -> removeRegion(region)));
         return this;
     }
 
@@ -605,7 +1019,9 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return null;
     }
 
-    /** @return регионы снизу вверх, только для чтения */
+    /**
+     * @return регионы снизу вверх, только для чтения
+     */
     public List<NodeGraphRegion> regions() {
         return regionsView;
     }
@@ -618,14 +1034,16 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     public NodeGraph clearRegions() {
         for (NodeGraphRegion region : regions.toArray(new NodeGraphRegion[0])) {
             regions.remove(region);
-            releaseRegion(region);
+            releaseRegion(region, true);
         }
         childrenViewDirty = true;
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
 
-    /** @return выделенный регион или {@code null} */
+    /**
+     * @return выделенный регион или {@code null}
+     */
     public NodeGraphRegion selectedRegion() {
         for (int i = 0, size = regions.size(); i < size; i++) {
             if (regions.get(i).selected()) return regions.get(i);
@@ -647,7 +1065,9 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return this;
     }
 
-    /** @return {@code true}, если в углу холста рисуется миникарта */
+    /**
+     * @return {@code true}, если в углу холста рисуется миникарта
+     */
     public boolean minimapEnabled() {
         return minimapEnabled;
     }
@@ -667,7 +1087,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     }
 
     /**
-     * @param width ширина миникарты в пикселях
+     * @param width  ширина миникарты в пикселях
      * @param height высота миникарты в пикселях
      * @return этот граф
      */
@@ -678,17 +1098,23 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return this;
     }
 
-    /** @return live-цвет фона миникарты */
+    /**
+     * @return live-цвет фона миникарты
+     */
     public MutableColor minimapBackgroundColor() {
         return minimapBackgroundColor;
     }
 
-    /** @return live-цвет рамки миникарты */
+    /**
+     * @return live-цвет рамки миникарты
+     */
     public MutableColor minimapBorderColor() {
         return minimapBorderColor;
     }
 
-    /** @return live-цвет рамки видимого окна на миникарте */
+    /**
+     * @return live-цвет рамки видимого окна на миникарте
+     */
     public MutableColor minimapViewportColor() {
         return minimapViewportColor;
     }
@@ -710,8 +1136,24 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     }
 
     void itemCollapsedChanged(NodeGraphItem item) {
+        boolean now = item.collapsed();
+        history.record(NodeGraphHistory.Operation.of(() -> item.collapsed(!now), () -> item.collapsed(now)));
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         dispatch(new NodeGraphItemCollapsedEvent(this, item.id(), item.collapsed()));
+    }
+
+    void itemValueChanged(NodeGraphItem item, String portId) {
+        ValueEditor editor = item.editor(portId);
+        dispatch(new NodeGraphValueChangedEvent(this, item.id(), portId,
+                editor == null ? null : editor.value(), editor == null ? "" : editor.serialize()));
+    }
+
+    /**
+     * @param listener слушатель изменений значений входов нод
+     * @return подписка
+     */
+    public EventSubscription onValueChanged(EventListener<? super NodeGraphValueChangedEvent> listener) {
+        return on(NodeGraphValueChangedEvent.TYPE, listener);
     }
 
     void itemHostedChanged() {
@@ -729,13 +1171,13 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         }
     }
 
-    private void releaseRegion(NodeGraphRegion region) {
+    private void releaseRegion(NodeGraphRegion region, boolean dispose) {
         for (Widget widget : List.of(region.titleLabel(), region.commentLabel())) {
             if (widget instanceof WidgetBase base) {
                 base.setParentInternal(null);
                 base.setUiContextInternal(null);
             }
-            widget.dispose();
+            if (dispose) widget.dispose();
         }
         region.selectedInternal(false);
         region.owner(null);
@@ -776,7 +1218,8 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
                     item.visible(),
                     portSnapshots,
                     item.typeId(),
-                    item.collapsed()));
+                    item.collapsed(),
+                    item.saveState()));
         }
 
         List<NodeGraphRegionSnapshot> regionSnapshots = new ObjectArrayList<>(regions.size());
@@ -841,6 +1284,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
                         .resizable(itemSnapshot.resizable())
                         .visible(itemSnapshot.visible());
                 modular.collapsed(itemSnapshot.collapsed());
+                modular.loadState(itemSnapshot.state());
                 addItem(modular);
                 for (NodeGraphPortSnapshot portSnapshot : itemSnapshot.ports()) {
                     NodeGraphPort port = modular.port(portSnapshot.id());
@@ -968,7 +1412,9 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
                 pivot[1] + (y - pivot[1]) / zoom());
     }
 
-    /** @return корневые координаты точки масштабирования для виджета ноды или региона; {@code null}, если виджет чужой */
+    /**
+     * @return корневые координаты точки масштабирования для виджета ноды или региона; {@code null}, если виджет чужой
+     */
     private float[] zoomPivot(Widget child) {
         NodeGraphItem item = itemForContent(child);
         if (item != null) {
@@ -1838,6 +2284,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
                 custom.render(draw, this);
             } else {
                 renderForeground(draw);
+                renderRegionComment(context, draw);
             }
         } finally {
             if (pushedClip) {
@@ -1895,12 +2342,14 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
                 setHoveredItem(null);
                 setHoveredPort(null);
                 setHoveredConnection(null);
+                setHoveredRegion(null);
             }
         }
     }
 
     @Override
     public void dispose() {
+        if (palette != null) palette.close();
         clearItems();
         clearRegions();
         super.dispose();
@@ -1940,7 +2389,9 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         updatePortCount(connection.to());
     }
 
-    /** Пересчитывает число соединений порта и уведомляет его модуль. */
+    /**
+     * Пересчитывает число соединений порта и уведомляет его модуль.
+     */
     private void updatePortCount(NodeGraphPortRef ref) {
         NodeGraphPort port = port(ref);
         if (port == null) return;
@@ -1956,7 +2407,9 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         if (owner != null) owner.portConnectionsChanged(port);
     }
 
-    /** Освобождает место на порту с ограниченной ёмкостью, удаляя самые старые его соединения. */
+    /**
+     * Освобождает место на порту с ограниченной ёмкостью, удаляя самые старые его соединения.
+     */
     private void enforceCapacity(NodeGraphPortRef ref) {
         NodeGraphPort port = port(ref);
         if (port == null || port.capacity() <= 0) return;
@@ -1975,7 +2428,9 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         }
     }
 
-    /** @return нода, которой принадлежит виджет или один из его предков внутри ноды */
+    /**
+     * @return нода, которой принадлежит виджет или один из его предков внутри ноды
+     */
     private NodeGraphItem itemForContent(Widget content) {
         for (Widget current = content; current != null && current != this; current = current.parent()) {
             Object[] rawItems = items.elements();
@@ -1995,7 +2450,9 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return false;
     }
 
-    /** @return регион, которому принадлежит виджет заголовка или комментария */
+    /**
+     * @return регион, которому принадлежит виджет заголовка или комментария
+     */
     private NodeGraphRegion regionForContent(Widget content) {
         for (int i = 0, size = regions.size(); i < size; i++) {
             NodeGraphRegion region = regions.get(i);
@@ -2065,27 +2522,29 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         }
     }
 
-    /** Размещает заголовок и комментарий каждого региона в world-единицах от его угла. */
+    /**
+     * Размещает заголовок и комментарий каждого региона в world-единицах от его угла.
+     */
     private void arrangeRegions() {
         for (int i = 0, size = regions.size(); i < size; i++) {
             NodeGraphRegion region = regions.get(i);
             float originX = worldToRootX(region.x());
             float originY = worldToRootY(region.y());
-            float textWidth = Math.max(0.0f, region.width() - NodeGraphRegion.TEXT_INSET * 2.0f);
+            float iconRoom = region.comment().isEmpty() ? 0.0f : COMMENT_ICON_ROOM;
+            float textWidth = Math.max(0.0f, region.width() - NodeGraphRegion.TEXT_INSET * 2.0f - iconRoom);
             StackPanel.arrangeChild(region.titleLabel(), originX + NodeGraphRegion.TEXT_INSET, originY,
                     textWidth, NodeGraphRegion.HEADER_HEIGHT);
-            if (!region.comment().isEmpty()) {
-                float commentTop = NodeGraphRegion.HEADER_HEIGHT + 4.0f;
-                StackPanel.arrangeChild(region.commentLabel(), originX + NodeGraphRegion.TEXT_INSET,
-                        originY + commentTop, textWidth, Math.max(0.0f, region.height() - commentTop - 4.0f));
-            }
         }
     }
 
-    private void handlePointerPressed(PointerPressedEvent pointer, Event sourceEvent) {
+    protected void handlePointerPressed(PointerPressedEvent pointer, Event sourceEvent) {
         if (pointer.button() == PointerButton.MIDDLE && panningEnabled) {
             startPan(pointer);
             sourceEvent.cancel();
+            return;
+        }
+        if (pointer.button() == PointerButton.SECONDARY) {
+            handleSecondaryPress(pointer, sourceEvent);
             return;
         }
         if (pointer.button() != PointerButton.PRIMARY) return;
@@ -2120,15 +2579,27 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
             return;
         }
 
-        NodeGraphConnection connection = hitConnection(pointer.rootX(), pointer.rootY());
-        if (connection != null) {
-            selectConnection(connection);
-            sourceEvent.cancel();
-            return;
-        }
-
+        // Провода рисуются под нодами, поэтому провод, идущий под нодой, не получает клик в области ноды.
         NodeGraphItem item = hitItem(pointer.rootX(), pointer.rootY());
         if (item == null) {
+            NodeGraphConnection connection = hitConnection(pointer.rootX(), pointer.rootY());
+            if (connection != null) {
+                if (registerWireClick(connection, pointer)) {
+                    // Двойной клик по проводу вставляет reroute прямо под курсором.
+                    NodeGraphItem reroute = NodeGraphEditing.insertReroute(this, connection,
+                            viewport.screenToWorldX(pointer.rootX() - layoutBounds().x()),
+                            viewport.screenToWorldY(pointer.rootY() - layoutBounds().y()));
+                    if (reroute != null) selectOnly(reroute);
+                    sourceEvent.cancel();
+                    return;
+                }
+                // Клик выделяет объекты одного вида: иначе Delete удалил бы и ноду, и провод.
+                clearSelection();
+                selectRegion(null);
+                selectConnection(connection);
+                sourceEvent.cancel();
+                return;
+            }
             item = itemForContent(pointer.target());
         }
         if (item == null) {
@@ -2141,11 +2612,13 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
                 sourceEvent.cancel();
                 return;
             }
-            clearSelection();
+            // Shift оставляет текущее выделение и рамка добавляет к нему новые ноды.
+            boolean additive = shiftHeld() && selectionMode == NodeGraphSelectionMode.MULTIPLE;
+            if (!additive) clearSelection();
             clearConnectionSelection();
             selectRegion(null);
             if (lassoSelectionEnabled && selectionMode == NodeGraphSelectionMode.MULTIPLE) {
-                startLasso(pointer);
+                startLasso(pointer, additive);
                 sourceEvent.cancel();
             }
             return;
@@ -2155,17 +2628,302 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
             sourceEvent.cancel();
             return;
         }
+        NodeGraphItem collapseTo = null;
         if (item.selectable()) {
-            selectItem(item);
             clearConnectionSelection();
+            if (shiftHeld() && selectionMode == NodeGraphSelectionMode.MULTIPLE) {
+                // Shift+клик добавляет ноду в выделение или убирает её оттуда; убранную нода не тащится.
+                if (item.selected()) {
+                    deselectItem(item);
+                    sourceEvent.cancel();
+                    return;
+                }
+                selectItem(item, true);
+            } else if (item.selected() && selectedItemIds().size() > 1) {
+                // Нажатие на ноду из выделенной группы не сбрасывает группу, чтобы её можно было тащить целиком;
+                // если мышь не сдвинется, выделение схлопнется до этой ноды при отпускании.
+                collapseTo = item;
+            } else {
+                selectItem(item);
+            }
         }
         if (itemDraggingEnabled && item.movable()) {
             startItemDrag(item, pointer);
+            if (dragState != null) dragState.collapseTo = collapseTo;
+            sourceEvent.cancel();
+        } else if (collapseTo != null) {
+            selectItem(collapseTo);
+        }
+    }
+
+    /**
+     * ПКМ: по ноде открывает меню действий, по пустому месту — палитру нод; по порту, проводу и заголовку региона
+     * пока ничего не делает.
+     */
+    private void handleSecondaryPress(PointerPressedEvent pointer, Event sourceEvent) {
+        float rootX = pointer.rootX();
+        float rootY = pointer.rootY();
+        if (hitPort(rootX, rootY) != null) return;
+        NodeGraphItem node = hitItem(rootX, rootY);
+        if (node != null) {
+            // Как в проводниках: ПКМ по невыделенной ноде выделяет её, а по выделенной сохраняет всю группу.
+            if (!node.selected() && node.selectable()) selectOnly(node);
+            if (openNodeMenu(rootX, rootY)) sourceEvent.cancel();
+            return;
+        }
+        NodeGraphRegion region = hitRegionHeader(rootX, rootY);
+        if (region != null) {
+            if (!region.selected()) {
+                clearSelection();
+                clearConnectionSelection();
+                selectRegion(region);
+            }
+            if (openRegionMenu(rootX, rootY)) sourceEvent.cancel();
+            return;
+        }
+        boolean empty = hitConnection(rootX, rootY) == null;
+        if (empty && openNodePalette(rootX, rootY)) {
             sourceEvent.cancel();
         }
     }
 
-    private void handlePointerMoved(PointerMovedEvent pointer) {
+    /**
+     * Открывает меню действий над выделенным регионом: Undo, Redo, Group (обернуть регионом-родителем), Delete.
+     *
+     * @param rootX X в root-координатах
+     * @param rootY Y в root-координатах
+     * @return {@code true}, если меню открыто
+     */
+    public boolean openRegionMenu(float rootX, float rootY) {
+        OverlayLayer layer = overlayHost();
+        if (layer == null || !nodeContextMenuEnabled) return false;
+        ContextMenu menu = buildRegionMenu(selectedRegion());
+        layer.applyQueuedMutations();
+        layer.addOverlay(menu);
+        menu.openAt(rootX, rootY);
+        return true;
+    }
+
+    /**
+     * Собирает меню региона. Переопределите, чтобы добавить или убрать пункты.
+     *
+     * @param region выбранный регион; может быть {@code null}
+     * @return новое меню
+     */
+    protected ContextMenu buildRegionMenu(NodeGraphRegion region) {
+        ContextMenu menu = new ContextMenu();
+        addMenuItem(menu, "Undo", history.canUndo(), this::undo);
+        addMenuItem(menu, "Redo", history.canRedo(), this::redo);
+        menu.separator();
+        addMenuItem(menu, "Rename", region != null,
+                () -> openRegionEditor(region, RegionEditor.Mode.TITLE));
+        addMenuItem(menu, "Comment...", region != null,
+                () -> openRegionEditor(region, RegionEditor.Mode.COMMENT));
+        menu.separator();
+        addMenuItem(menu, "Group", region != null, () -> groupSelected());
+        addMenuItem(menu, "Delete", region != null, () -> history.transact("Delete region", () -> removeRegion(region)));
+        return menu;
+    }
+
+    /**
+     * Открывает редактор названия или комментария региона рядом с его заголовком. Нужен {@code OverlayLayer}.
+     *
+     * @param region регион графа; {@code null} ничего не открывает
+     * @param mode   что редактировать
+     * @return {@code true}, если редактор открыт
+     */
+    public boolean openRegionEditor(NodeGraphRegion region, RegionEditor.Mode mode) {
+        OverlayLayer layer = overlayHost();
+        if (layer == null || region == null || !regions.contains(region)) return false;
+        boolean title = mode != RegionEditor.Mode.COMMENT;
+        float rootX = worldToRootX(region.x());
+        float rootY = worldToRootY(region.y());
+        float zoom = zoom();
+        RegionEditor editor = new RegionEditor(title ? RegionEditor.Mode.TITLE : RegionEditor.Mode.COMMENT,
+                title ? region.title() : region.comment(), region.width() * zoom,
+                text -> {
+                    if (title) renameRegion(region, text);
+                    else commentRegion(region, text);
+                });
+        layer.applyQueuedMutations();
+        layer.addOverlay(editor);
+        // Название открывается поверх заголовка, комментарий под ним.
+        editor.openAt(rootX, title ? rootY : rootY + NodeGraphRegion.HEADER_HEIGHT * zoom);
+        return true;
+    }
+
+    /**
+     * Переименовывает регион одним шагом истории.
+     *
+     * @param region регион графа
+     * @param title  новый заголовок; пустой допустим
+     * @return {@code true}, если заголовок изменился
+     */
+    public boolean renameRegion(NodeGraphRegion region, String title) {
+        if (region == null || !regions.contains(region)) return false;
+        String from = region.title();
+        String to = title == null ? "" : title;
+        if (from.equals(to)) return false;
+        history.transact("Rename region", () -> {
+            applyRegionTitle(region, to);
+            history.record(NodeGraphHistory.Operation.of(
+                    () -> applyRegionTitle(region, from), () -> applyRegionTitle(region, to)));
+        });
+        return true;
+    }
+
+    /**
+     * Меняет комментарий региона одним шагом истории.
+     *
+     * @param region  регион графа
+     * @param comment новый комментарий; пустая строка убирает его
+     * @return {@code true}, если комментарий изменился
+     */
+    public boolean commentRegion(NodeGraphRegion region, String comment) {
+        if (region == null || !regions.contains(region)) return false;
+        String from = region.comment();
+        String to = comment == null ? "" : comment;
+        if (from.equals(to)) return false;
+        history.transact("Edit region comment", () -> {
+            applyRegionComment(region, to);
+            history.record(NodeGraphHistory.Operation.of(
+                    () -> applyRegionComment(region, from), () -> applyRegionComment(region, to)));
+        });
+        return true;
+    }
+
+    private void applyRegionTitle(NodeGraphRegion region, String title) {
+        region.title(title);
+        arrangeRegions();
+        dispatch(new NodeGraphRegionChangedEvent(this, region.id(), NodeGraphRegionChangedEvent.Kind.EDITED,
+                region.x(), region.y(), region.width(), region.height()));
+    }
+
+    private void applyRegionComment(NodeGraphRegion region, String comment) {
+        region.comment(comment);
+        arrangeRegions();
+        dispatch(new NodeGraphRegionChangedEvent(this, region.id(), NodeGraphRegionChangedEvent.Kind.EDITED,
+                region.x(), region.y(), region.width(), region.height()));
+    }
+
+    /**
+     * @return {@code true}, если ПКМ по ноде открывает меню действий
+     */
+    public boolean nodeContextMenuEnabled() {
+        return nodeContextMenuEnabled;
+    }
+
+    /**
+     * Включает или выключает меню действий по ПКМ на ноде. Меню работает только внутри {@code OverlayLayer}.
+     *
+     * @param nodeContextMenuEnabled {@code true}, чтобы включить
+     * @return этот граф
+     */
+    public NodeGraph nodeContextMenuEnabled(boolean nodeContextMenuEnabled) {
+        this.nodeContextMenuEnabled = nodeContextMenuEnabled;
+        return this;
+    }
+
+    /**
+     * Открывает меню действий над выделенными нодами: Undo, Redo, Duplicate, Group, подменю Align (Left, Right,
+     * Top, Bottom) и Spread (Horizontally, Vertically). Недоступные сейчас пункты отключены.
+     *
+     * @param rootX X в root-координатах
+     * @param rootY Y в root-координатах
+     * @return {@code true}, если меню открыто; {@code false}, если оно выключено или граф не лежит в
+     * {@code OverlayLayer}
+     */
+    public boolean openNodeMenu(float rootX, float rootY) {
+        OverlayLayer layer = overlayHost();
+        if (layer == null || !nodeContextMenuEnabled) return false;
+        ContextMenu menu = buildNodeMenu();
+        layer.applyQueuedMutations();
+        layer.addOverlay(menu);
+        menu.openAt(rootX, rootY);
+        return true;
+    }
+
+    protected ContextMenu buildNodeMenu() {
+        List<NodeGraphItem> selected = NodeGraphEditing.selectedItems(this);
+        long movable = selected.stream().filter(NodeGraphItem::movable).count();
+        ContextMenu menu = new ContextMenu();
+        addMenuItem(menu, "Undo", history.canUndo(), this::undo);
+        addMenuItem(menu, "Redo", history.canRedo(), this::redo);
+        menu.separator();
+        addMenuItem(menu, "Duplicate", !NodeGraphEditing.copy(this).isEmpty(), this::duplicateSelection);
+        addMenuItem(menu, "Group", !selected.isEmpty() || selectedRegion() != null, () -> groupSelected());
+
+        ContextMenu align = new ContextMenu();
+        boolean canAlign = movable >= 2;
+        addMenuItem(align, "Left", canAlign, () -> alignSelected(NodeGraphAlign.LEFT));
+        addMenuItem(align, "Right", canAlign, () -> alignSelected(NodeGraphAlign.RIGHT));
+        addMenuItem(align, "Top", canAlign, () -> alignSelected(NodeGraphAlign.TOP));
+        addMenuItem(align, "Bottom", canAlign, () -> alignSelected(NodeGraphAlign.BOTTOM));
+        menu.separator();
+        menu.submenu("Align", align);
+        if (!canAlign) menu.itemButton(menu.itemCount() - 1).enabled(false);
+
+        ContextMenu spread = new ContextMenu();
+        boolean canSpread = movable >= 3;
+        addMenuItem(spread, "Horizontally", canSpread, () -> distributeSelected(true));
+        addMenuItem(spread, "Vertically", canSpread, () -> distributeSelected(false));
+        menu.submenu("Spread", spread);
+        if (!canSpread) menu.itemButton(menu.itemCount() - 1).enabled(false);
+        return menu;
+    }
+
+    private static void addMenuItem(ContextMenu menu, String text, boolean enabled, Runnable action) {
+        menu.item(text, action);
+        if (!enabled) menu.itemButton(menu.itemCount() - 1).enabled(false);
+    }
+
+    /**
+     * Запоминает нажатие по проводу и сообщает, является ли оно вторым в двойном клике.
+     *
+     * @return {@code true}, если это двойной клик по тому же проводу рядом с первым нажатием
+     */
+    private boolean registerWireClick(NodeGraphConnection connection, PointerPressedEvent pointer) {
+        long now = clock.getAsLong();
+        boolean doubleClick = doubleClickMillis > 0
+                && connection.id().equals(lastWireClickId)
+                && now - lastWireClickMillis <= doubleClickMillis
+                && Math.hypot(pointer.rootX() - lastWireClickX, pointer.rootY() - lastWireClickY) <= DOUBLE_CLICK_DISTANCE;
+        lastWireClickId = doubleClick ? "" : connection.id();
+        lastWireClickMillis = now;
+        lastWireClickX = pointer.rootX();
+        lastWireClickY = pointer.rootY();
+        return doubleClick;
+    }
+
+    private void deselectItem(NodeGraphItem item) {
+        List<String> oldSelection = selectedItemIds();
+        item.selectedInternal(false);
+        emitSelectionChanged(oldSelection);
+        invalidate(InvalidationFlags.VISUAL);
+    }
+
+    private boolean keyHeld(int keyCode) {
+        UIContext context = uiContext();
+        return context != null && context.keyboard().isDown(keyCode);
+    }
+
+    /**
+     * @return {@code true}, пока зажат любой из Ctrl
+     */
+    private boolean ctrlHeld() {
+        return keyHeld(KeyCodes.LEFT_CONTROL) || keyHeld(KeyCodes.RIGHT_CONTROL);
+    }
+
+    /**
+     * @return {@code true}, пока зажат любой из Shift
+     */
+    private boolean shiftHeld() {
+        return keyHeld(KeyCodes.LEFT_SHIFT) || keyHeld(KeyCodes.RIGHT_SHIFT);
+    }
+
+    protected void handlePointerMoved(PointerMovedEvent pointer) {
+        lastPointerRootX = pointer.rootX();
+        lastPointerRootY = pointer.rootY();
         if (lassoState != null && lassoState.pointerId == pointer.pointerId()) {
             moveLasso(pointer);
             return;
@@ -2192,11 +2950,28 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         }
         PortHit portHit = hitPort(pointer.rootX(), pointer.rootY());
         setHoveredPort(portHit);
-        setHoveredConnection(portHit == null ? hitConnection(pointer.rootX(), pointer.rootY()) : null);
-        setHoveredItem(portHit == null ? hitItem(pointer.rootX(), pointer.rootY()) : null);
+        NodeGraphItem hoveredNode = portHit == null ? hitItem(pointer.rootX(), pointer.rootY()) : null;
+        // Под нодой провод не подсвечивается: клик туда достанется ноде.
+        setHoveredConnection(portHit == null && hoveredNode == null
+                ? hitConnection(pointer.rootX(), pointer.rootY()) : null);
+        setHoveredItem(hoveredNode);
+        setHoveredRegion(portHit == null && hoveredNode == null ? hitRegionHeader(pointer.rootX(), pointer.rootY()) : null);
     }
 
-    private void handlePointerReleased(PointerReleasedEvent pointer, Event sourceEvent) {
+    /**
+     * @return регион, над заголовком которого сейчас курсор; для него показан комментарий
+     */
+    NodeGraphRegion hoveredRegion() {
+        return hoveredRegion;
+    }
+
+    private void setHoveredRegion(NodeGraphRegion region) {
+        if (hoveredRegion == region) return;
+        hoveredRegion = region;
+        invalidate(InvalidationFlags.VISUAL);
+    }
+
+    protected void handlePointerReleased(PointerReleasedEvent pointer, Event sourceEvent) {
         if (lassoState != null && lassoState.pointerId == pointer.pointerId()) {
             finishLasso(pointer, sourceEvent);
             return;
@@ -2219,16 +2994,155 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
             dispatch(new NodeGraphItemResizeEndedEvent(this, ended.item.id(), ended.startWidth, ended.startHeight,
                     ended.item.arrangedWidth(), ended.item.arrangedHeight(), pointer.pointerId()));
         }
+        recordDragHistory(ended);
+        if (ended.kind == DragKind.ITEM && ended.collapseTo != null
+                && ended.item.x() == ended.startX && ended.item.y() == ended.startY) {
+            // Клик без движения по ноде из выделенной группы оставляет выделенной только её.
+            selectItem(ended.collapseTo);
+        }
         setHoveredItem(hitItem(pointer.rootX(), pointer.rootY()));
         invalidate(InvalidationFlags.VISUAL);
         sourceEvent.cancel();
     }
 
-    /** Передаёт нажатие модулю под курсором (стрелка сворачивания в заголовке). */
+    /**
+     * Записывает в историю завершённое перетаскивание: перенос ноды, растягивание, перенос региона вместе с
+     * нодами и растягивание региона. Промежуточные положения не записываются, шаг один на жест.
+     */
+    private void recordDragHistory(DragState ended) {
+        switch (ended.kind) {
+            case ITEM -> {
+                NodeGraphItem[] members = ended.members;
+                float[] from = ended.memberStart;
+                float[] to = new float[from.length];
+                boolean moved = false;
+                for (int i = 0; i < members.length; i++) {
+                    to[i * 2] = members[i].x();
+                    to[i * 2 + 1] = members[i].y();
+                    moved |= to[i * 2] != from[i * 2] || to[i * 2 + 1] != from[i * 2 + 1];
+                }
+                if (!moved) return;
+                history.transact(members.length > 1 ? "Move nodes" : "Move node", () -> {
+                    for (int i = 0; i < members.length; i++) {
+                        NodeGraphItem member = members[i];
+                        float fromX = from[i * 2];
+                        float fromY = from[i * 2 + 1];
+                        float toX = to[i * 2];
+                        float toY = to[i * 2 + 1];
+                        history.record(NodeGraphHistory.Operation.of(
+                                () -> moveItemTo(member, fromX, fromY), () -> moveItemTo(member, toX, toY)));
+                    }
+                });
+            }
+            case RESIZE -> {
+                NodeGraphItem item = ended.item;
+                float fromW = ended.startWidth;
+                float fromH = ended.startHeight;
+                float toW = item.arrangedWidth();
+                float toH = item.arrangedHeight();
+                if (fromW == toW && fromH == toH) return;
+                history.transact("Resize node", () -> history.record(NodeGraphHistory.Operation.of(
+                        () -> resizeItemTo(item, fromW, fromH), () -> resizeItemTo(item, toW, toH))));
+            }
+            case REGION -> {
+                NodeGraphRegion region = ended.region;
+                NodeGraphItem[] members = ended.members;
+                float[] fromItems = ended.memberStart;
+                float[] toItems = new float[fromItems.length];
+                for (int i = 0; i < members.length; i++) {
+                    toItems[i * 2] = members[i].x();
+                    toItems[i * 2 + 1] = members[i].y();
+                }
+                NodeGraphRegion[] nested = ended.regionMembers;
+                float[] fromNested = ended.regionStart;
+                float[] toNested = new float[fromNested.length];
+                for (int i = 0; i < nested.length; i++) {
+                    toNested[i * 2] = nested[i].x();
+                    toNested[i * 2 + 1] = nested[i].y();
+                }
+                float fromX = ended.startX;
+                float fromY = ended.startY;
+                float toX = region.x();
+                float toY = region.y();
+                if (fromX == toX && fromY == toY) return;
+                history.transact("Move region", () -> history.record(NodeGraphHistory.Operation.of(
+                        () -> moveRegionWithItems(region, fromX, fromY, members, fromItems, nested, fromNested),
+                        () -> moveRegionWithItems(region, toX, toY, members, toItems, nested, toNested))));
+            }
+            case REGION_RESIZE -> {
+                NodeGraphRegion region = ended.region;
+                float fromW = ended.startWidth;
+                float fromH = ended.startHeight;
+                float toW = region.width();
+                float toH = region.height();
+                if (fromW == toW && fromH == toH) return;
+                history.transact("Resize region", () -> history.record(NodeGraphHistory.Operation.of(
+                        () -> resizeRegionTo(region, fromW, fromH), () -> resizeRegionTo(region, toW, toH))));
+            }
+            default -> {
+                // Панорамирование и миникарта в историю не попадают.
+            }
+        }
+    }
+
+    /**
+     * Перемещает ноду и сообщает об этом слушателям; используется отменой и повтором.
+     */
+    void moveItemTo(NodeGraphItem item, float x, float y) {
+        float oldX = item.x();
+        float oldY = item.y();
+        item.position(x, y);
+        arrangeItems();
+        if (oldX != item.x() || oldY != item.y()) {
+            dispatch(new NodeGraphItemMovedEvent(this, item.id(), oldX, oldY, item.x(), item.y(), -1));
+        }
+    }
+
+    private void resizeItemTo(NodeGraphItem item, float width, float height) {
+        float oldWidth = item.arrangedWidth();
+        float oldHeight = item.arrangedHeight();
+        item.size(width, height);
+        item.arrangedSize(width, height);
+        arrangeItems();
+        if (oldWidth != width || oldHeight != height) {
+            dispatch(new NodeGraphItemResizedEvent(this, item.id(), oldWidth, oldHeight, width, height, -1));
+        }
+    }
+
+    private void moveRegionWithItems(NodeGraphRegion region, float x, float y,
+                                     NodeGraphItem[] members, float[] positions,
+                                     NodeGraphRegion[] nested, float[] nestedPositions) {
+        region.position(x, y);
+        for (int i = 0; i < members.length; i++) {
+            moveItemTo(members[i], positions[i * 2], positions[i * 2 + 1]);
+        }
+        for (int i = 0; i < nested.length; i++) {
+            nested[i].position(nestedPositions[i * 2], nestedPositions[i * 2 + 1]);
+            dispatch(new NodeGraphRegionChangedEvent(this, nested[i].id(), NodeGraphRegionChangedEvent.Kind.MOVED,
+                    nested[i].x(), nested[i].y(), nested[i].width(), nested[i].height()));
+        }
+        arrangeItems();
+        dispatch(new NodeGraphRegionChangedEvent(this, region.id(), NodeGraphRegionChangedEvent.Kind.MOVED,
+                region.x(), region.y(), region.width(), region.height()));
+    }
+
+    private void resizeRegionTo(NodeGraphRegion region, float width, float height) {
+        region.size(width, height);
+        arrangeItems();
+        dispatch(new NodeGraphRegionChangedEvent(this, region.id(), NodeGraphRegionChangedEvent.Kind.RESIZED,
+                region.x(), region.y(), region.width(), region.height()));
+    }
+
+    /**
+     * Передаёт нажатие модулю под курсором (стрелка сворачивания в заголовке).
+     */
     private boolean pressItemModule(NodeGraphItem item, PointerPressedEvent pointer) {
         float localX = (pointer.rootX() - worldToRootX(item.x())) / zoom();
         float localY = (pointer.rootY() - worldToRootY(item.y())) / zoom();
-        return item.pressModule(localX, localY);
+        boolean[] handled = new boolean[1];
+        history.transact(item.collapsed() ? "Expand node" : "Collapse node",
+                () -> handled[0] = item.pressModule(localX, localY));
+        return handled[0];
     }
 
     private void captureDragPointer(int pointerId) {
@@ -2246,7 +3160,9 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         centerOnMinimap(map, pointer.rootX(), pointer.rootY());
     }
 
-    /** Центрирует видимое окно на точке миникарты. */
+    /**
+     * Центрирует видимое окно на точке миникарты.
+     */
     private void centerOnMinimap(NodeGraphMinimap map, float rootX, float rootY) {
         if (map == null) return;
         float worldX = map.toWorldX(rootX);
@@ -2271,6 +3187,13 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
                 dragState.memberStart[i * 2] = dragState.members[i].x();
                 dragState.memberStart[i * 2 + 1] = dragState.members[i].y();
             }
+            List<NodeGraphRegion> nested = region.containedRegions(this);
+            dragState.regionMembers = nested.toArray(new NodeGraphRegion[0]);
+            dragState.regionStart = new float[nested.size() * 2];
+            for (int i = 0; i < dragState.regionMembers.length; i++) {
+                dragState.regionStart[i * 2] = dragState.regionMembers[i].x();
+                dragState.regionStart[i * 2 + 1] = dragState.regionMembers[i].y();
+            }
         }
         captureDragPointer(pointer.pointerId());
         invalidate(InvalidationFlags.VISUAL);
@@ -2278,9 +3201,11 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
 
     private void moveDraggedRegion(PointerMovedEvent pointer) {
         NodeGraphRegion region = dragState.region;
-        float dx = (pointer.rootX() - dragState.startRootX) / zoom();
-        float dy = (pointer.rootY() - dragState.startRootY) / zoom();
-        region.position(dragState.startX + dx, dragState.startY + dy);
+        region.position(snap(dragState.startX + (pointer.rootX() - dragState.startRootX) / zoom()),
+                snap(dragState.startY + (pointer.rootY() - dragState.startRootY) / zoom()));
+        // Ноды едут на тот же сдвиг, что и притянутый к сетке регион, чтобы сохранить взаимное положение.
+        float dx = region.x() - dragState.startX;
+        float dy = region.y() - dragState.startY;
         for (int i = 0; i < dragState.members.length; i++) {
             NodeGraphItem member = dragState.members[i];
             float oldX = member.x();
@@ -2290,6 +3215,12 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
                 dispatch(new NodeGraphItemMovedEvent(this, member.id(), oldX, oldY, member.x(), member.y(), pointer.pointerId()));
             }
         }
+        for (int i = 0; i < dragState.regionMembers.length; i++) {
+            NodeGraphRegion nested = dragState.regionMembers[i];
+            nested.position(dragState.regionStart[i * 2] + dx, dragState.regionStart[i * 2 + 1] + dy);
+            dispatch(new NodeGraphRegionChangedEvent(this, nested.id(), NodeGraphRegionChangedEvent.Kind.MOVED,
+                    nested.x(), nested.y(), nested.width(), nested.height()));
+        }
         arrangeItems();
         dispatch(new NodeGraphRegionChangedEvent(this, region.id(), NodeGraphRegionChangedEvent.Kind.MOVED,
                 region.x(), region.y(), region.width(), region.height()));
@@ -2297,17 +3228,20 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
 
     private void resizeDraggedRegion(PointerMovedEvent pointer) {
         NodeGraphRegion region = dragState.region;
-        region.size(dragState.startWidth + (pointer.rootX() - dragState.startRootX) / zoom(),
-                dragState.startHeight + (pointer.rootY() - dragState.startRootY) / zoom());
+        region.size(snap(dragState.startWidth + (pointer.rootX() - dragState.startRootX) / zoom()),
+                snap(dragState.startHeight + (pointer.rootY() - dragState.startRootY) / zoom()));
         arrangeItems();
         dispatch(new NodeGraphRegionChangedEvent(this, region.id(), NodeGraphRegionChangedEvent.Kind.RESIZED,
                 region.x(), region.y(), region.width(), region.height()));
     }
 
-    /** @return верхний регион, чья полоса заголовка под курсором */
-    private NodeGraphRegion hitRegionHeader(float rootX, float rootY) {
-        for (int i = regions.size() - 1; i >= 0; i--) {
-            NodeGraphRegion region = regions.get(i);
+    /**
+     * @return верхний регион, чья полоса заголовка под курсором
+     */
+    protected NodeGraphRegion hitRegionHeader(float rootX, float rootY) {
+        List<NodeGraphRegion> ordered = regionsByArea();
+        for (int i = ordered.size() - 1; i >= 0; i--) {
+            NodeGraphRegion region = ordered.get(i);
             float x = worldToRootX(region.x());
             float y = worldToRootY(region.y());
             if (rootX >= x && rootX <= x + region.width() * zoom()
@@ -2318,11 +3252,14 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return null;
     }
 
-    /** @return выделенный регион, у которого курсор над правым нижним углом */
+    /**
+     * @return выделенный регион, у которого курсор над правым нижним углом
+     */
     private NodeGraphRegion hitRegionResizeHandle(float rootX, float rootY) {
         if (!resizeEnabled) return null;
-        for (int i = regions.size() - 1; i >= 0; i--) {
-            NodeGraphRegion region = regions.get(i);
+        List<NodeGraphRegion> ordered = regionsByArea();
+        for (int i = ordered.size() - 1; i >= 0; i--) {
+            NodeGraphRegion region = ordered.get(i);
             if (!region.selected() || !region.resizable()) continue;
             float right = worldToRootX(region.x()) + region.width() * zoom();
             float bottom = worldToRootY(region.y()) + region.height() * zoom();
@@ -2337,6 +3274,23 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     private void startItemDrag(NodeGraphItem item, PointerPressedEvent pointer) {
         dragState = new DragState(DragKind.ITEM, item, pointer.pointerId(), pointer.rootX(), pointer.rootY(),
                 item.x(), item.y(), item.arrangedWidth(), item.arrangedHeight(), viewportX(), viewportY());
+        // Выделенная нода тащит за собой всю выделенную группу; невыделенная едет одна.
+        List<NodeGraphItem> group = new ArrayList<>();
+        if (item.selected()) {
+            for (NodeGraphItem other : itemSnapshot()) {
+                if (other.selected() && other.movable()) group.add(other);
+            }
+        }
+        if (!group.contains(item)) {
+            group.clear();
+            group.add(item);
+        }
+        dragState.members = group.toArray(new NodeGraphItem[0]);
+        dragState.memberStart = new float[group.size() * 2];
+        for (int i = 0; i < dragState.members.length; i++) {
+            dragState.memberStart[i * 2] = dragState.members[i].x();
+            dragState.memberStart[i * 2 + 1] = dragState.members[i].y();
+        }
         UIContext context = uiContext();
         if (context != null) {
             context.capturePointer(pointer.pointerId(), this);
@@ -2366,8 +3320,11 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         invalidate(InvalidationFlags.VISUAL);
     }
 
-    private void startLasso(PointerPressedEvent pointer) {
+    private void startLasso(PointerPressedEvent pointer, boolean additive) {
         lassoState = new LassoState(pointer.pointerId(), pointer.rootX(), pointer.rootY(), pointer.rootX(), pointer.rootY());
+        if (additive) {
+            lassoState.base.addAll(selectedItemIds());
+        }
         UIContext context = uiContext();
         if (context != null) {
             context.capturePointer(pointer.pointerId(), this);
@@ -2404,7 +3361,10 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         ConnectionTargetValidation validation = validateConnectionDragTarget(target);
         NodeGraphConnection created = null;
         if (validation.validation.valid() && target != null) {
-            created = addConnection(normalizeConnectionId(""), ended.from(), target.ref());
+            NodeGraphConnection[] holder = new NodeGraphConnection[1];
+            NodeGraphPortRef targetRef = target.ref();
+            history.transact("Connect", () -> holder[0] = addConnection(normalizeConnectionId(""), ended.from(), targetRef));
+            created = holder[0];
         }
         connectionDragState = null;
         UIContext context = uiContext();
@@ -2421,19 +3381,44 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
                 pointer.pointerId()));
         invalidate(InvalidationFlags.VISUAL);
         sourceEvent.cancel();
+        // Провод отпустили в пустом месте: предлагаем создать ноду с совместимым входом и сразу подключить её.
+        if (target == null && hitItem(pointer.rootX(), pointer.rootY()) == null) {
+            openNodePaletteFromPort(ended.from(), pointer.rootX(), pointer.rootY());
+        }
     }
 
     private void moveDraggedItem(PointerMovedEvent pointer) {
-        NodeGraphItem item = dragState.item;
-        float oldX = item.x();
-        float oldY = item.y();
-        float nextX = dragState.startX + (pointer.rootX() - dragState.startRootX) / zoom();
-        float nextY = dragState.startY + (pointer.rootY() - dragState.startRootY) / zoom();
-        item.position(nextX, nextY);
-        arrangeItems();
-        if (oldX != item.x() || oldY != item.y()) {
-            dispatch(new NodeGraphItemMovedEvent(this, item.id(), oldX, oldY, item.x(), item.y(), pointer.pointerId()));
+        float nextX = snap(dragState.startX + (pointer.rootX() - dragState.startRootX) / zoom());
+        float nextY = snap(dragState.startY + (pointer.rootY() - dragState.startRootY) / zoom());
+        // Группа едет на сдвиг перетаскиваемой ноды, уже притянутой к сетке: взаимное положение сохраняется.
+        float shiftX = nextX - dragState.startX;
+        float shiftY = nextY - dragState.startY;
+        for (int i = 0; i < dragState.members.length; i++) {
+            NodeGraphItem member = dragState.members[i];
+            float oldX = member.x();
+            float oldY = member.y();
+            member.position(dragState.memberStart[i * 2] + shiftX, dragState.memberStart[i * 2 + 1] + shiftY);
+            if (oldX != member.x() || oldY != member.y()) {
+                dispatch(new NodeGraphItemMovedEvent(this, member.id(), oldX, oldY, member.x(), member.y(), pointer.pointerId()));
+            }
         }
+        arrangeItems();
+    }
+
+    /**
+     * Привязка работает, пока зажат Ctrl; включённый {@link #snapToGrid(boolean)} инвертирует это: тогда привязка
+     * действует всегда, а Ctrl временно её отключает.
+     */
+    protected boolean snapActive() {
+        return snapToGrid != ctrlHeld();
+    }
+
+    /**
+     * Притягивает значение к сетке, если привязка активна.
+     */
+    protected float snap(float value) {
+        if (!snapActive() || gridSize <= 0.0f) return value;
+        return Math.round(value / gridSize) * gridSize;
     }
 
     private void moveViewport(PointerMovedEvent pointer) {
@@ -2485,6 +3470,10 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         Rect lasso = lassoRect();
         List<String> oldSelection = selectedItemIds();
         clearSelectionInternal(false);
+        for (String id : lassoState.base) {
+            NodeGraphItem kept = item(id);
+            if (kept != null) kept.selectedInternal(true);
+        }
         Object[] rawItems = items.elements();
         for (int itemIndex = 0, itemSize = items.size(); itemIndex < itemSize; itemIndex++) {
             NodeGraphItem item = (NodeGraphItem) rawItems[itemIndex];
@@ -2500,7 +3489,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         emitSelectionChanged(oldSelection);
     }
 
-    private void handleScroll(ScrollEvent scroll, Event sourceEvent) {
+    protected void handleScroll(ScrollEvent scroll, Event sourceEvent) {
         if (scroll.phase() == EventPhase.CAPTURE) return;
 
         boolean handled = false;
@@ -2548,18 +3537,51 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         dispatch(new NodeGraphViewportChangedEvent(this, oldX, oldY, oldZoom, viewportX(), viewportY(), zoom()));
     }
 
-    private void handleKeyPressed(KeyPressedEvent key, Event sourceEvent) {
+    protected void handleKeyPressed(KeyPressedEvent key, Event sourceEvent) {
         if (!keyboardEditingEnabled || key.phase() == EventPhase.CAPTURE) return;
+        // Нажатия из поля ввода или кнопки внутри ноды графу не принадлежат: TextInput гасит только клавиши
+        // редактирования, а буквы и пробел всплывают, и набор текста вызывал бы горячие клавиши графа.
+        if (key.target() != this) return;
 
         boolean handled = false;
-        if (KeyModifiers.has(key.modifiers(), KeyModifiers.CONTROL) && key.keyCode() == KeyCodes.A) {
+        boolean control = KeyModifiers.has(key.modifiers(), KeyModifiers.CONTROL);
+        boolean shift = KeyModifiers.has(key.modifiers(), KeyModifiers.SHIFT);
+        int code = key.keyCode();
+        if (control && code == KeyCodes.A) {
             selectAllItems();
             handled = true;
+        } else if (control && code == KeyCodes.Z) {
+            handled = shift ? history.redo() : history.undo();
+        } else if (control && code == KeyCodes.Y) {
+            handled = history.redo();
+        } else if (control && code == KeyCodes.C) {
+            handled = !copySelection().isEmpty();
+        } else if (control && code == KeyCodes.V) {
+            handled = !pasteAtPointer().isEmpty();
+        } else if (control && code == KeyCodes.D) {
+            handled = !duplicateSelection().isEmpty();
+        } else if (!control && code == KeyCodes.F) {
+            frameSelection();
+            handled = true;
+        } else if (!control && code == KeyCodes.F2) {
+            handled = openRegionEditor(selectedRegion(), RegionEditor.Mode.TITLE);
+        } else if (!control && code == KeyCodes.HOME) {
+            frameAll();
+            handled = true;
+        } else if (!control && code == KeyCodes.C) {
+            handled = groupSelected() != null;
+        } else if (!control && code == KeyCodes.R) {
+            NodeGraphConnection selectedWire = firstSelectedConnection();
+            handled = selectedWire != null && insertRerouteAtMidpoint(selectedWire) != null;
+        } else if (!control && code == KeyCodes.SPACE) {
+            handled = openNodePaletteAtPointer();
         } else if (key.keyCode() == KeyCodes.DELETE || key.keyCode() == KeyCodes.BACKSPACE) {
-            removeSelectedConnections();
-            removeSelectedItems();
-            NodeGraphRegion selectedRegion = selectedRegion();
-            if (selectedRegion != null) removeRegion(selectedRegion);
+            history.transact("Delete", () -> {
+                removeSelectedConnections();
+                removeSelectedItems();
+                NodeGraphRegion selectedRegion = selectedRegion();
+                if (selectedRegion != null) removeRegion(selectedRegion);
+            });
             handled = true;
         } else if (key.keyCode() == KeyCodes.LEFT || key.keyCode() == KeyCodes.RIGHT
                 || key.keyCode() == KeyCodes.UP || key.keyCode() == KeyCodes.DOWN) {
@@ -2578,6 +3600,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     private void selectAllItems() {
         List<String> oldSelection = selectedItemIds();
         clearConnectionSelection();
+        selectRegion(null);
         clearSelectionInternal(false);
         if (selectionMode == NodeGraphSelectionMode.NONE) {
             emitSelectionChanged(oldSelection);
@@ -2594,6 +3617,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         emitSelectionChanged(oldSelection);
         invalidate(InvalidationFlags.VISUAL);
     }
+
     private void removeSelectedItems() {
         for (NodeGraphItem item : logicalItemSnapshot()) {
             if (item.selected()) {
@@ -2604,17 +3628,23 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
 
     private void moveSelectedItems(float dx, float dy, int pointerId) {
         if (dx == 0.0f && dy == 0.0f) return;
-        for (NodeGraphItem item : itemSnapshot()) {
-            if (!item.selected() || !item.movable()) continue;
-            float oldX = item.x();
-            float oldY = item.y();
-            item.position(oldX + dx, oldY + dy);
-            dispatch(new NodeGraphItemMovedEvent(this, item.id(), oldX, oldY, item.x(), item.y(), pointerId));
-        }
-        arrangeItems();
+        history.transact("Move nodes", () -> {
+            for (NodeGraphItem item : itemSnapshot()) {
+                if (!item.selected() || !item.movable()) continue;
+                float oldX = item.x();
+                float oldY = item.y();
+                item.position(oldX + dx, oldY + dy);
+                dispatch(new NodeGraphItemMovedEvent(this, item.id(), oldX, oldY, item.x(), item.y(), pointerId));
+                float newX = item.x();
+                float newY = item.y();
+                history.record(NodeGraphHistory.Operation.of(
+                        () -> moveItemTo(item, oldX, oldY), () -> moveItemTo(item, newX, newY)));
+            }
+            arrangeItems();
+        });
     }
 
-    private NodeGraphItem hitItem(float rootX, float rootY) {
+    protected NodeGraphItem hitItem(float rootX, float rootY) {
         for (int i = items.size() - 1; i >= 0; i--) {
             NodeGraphItem item = items.get(i);
             if (!item.visible()) continue;
@@ -2666,7 +3696,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return null;
     }
 
-    private NodeGraphConnection hitConnection(float rootX, float rootY) {
+    protected NodeGraphConnection hitConnection(float rootX, float rootY) {
         for (int i = connections.size() - 1; i >= 0; i--) {
             NodeGraphConnection connection = connections.get(i);
             if (!wireCurve(connection)) continue;
@@ -2760,7 +3790,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         dispatch(new NodeGraphConnectionSelectionChangedEvent(this, oldSelection, next));
     }
 
-    private void renderBackground(DrawScope draw) {
+    protected void renderBackground(DrawScope draw) {
         float x = layoutBounds().x();
         float y = layoutBounds().y();
         float width = layoutBounds().width();
@@ -2770,11 +3800,14 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         drawGraphGrid(draw, x, y, width, height);
     }
 
-    /** Рисует регионы-комментарии под проводами и нодами: заливка, рамка, полоса заголовка и тексты. */
-    private void renderRegions(RenderContext context, DrawScope draw) {
+    /**
+     * Рисует регионы-комментарии под проводами и нодами: заливка, рамка, полоса заголовка и тексты.
+     */
+    protected void renderRegions(RenderContext context, DrawScope draw) {
         float z = zoom();
-        for (int i = 0, size = regions.size(); i < size; i++) {
-            NodeGraphRegion region = regions.get(i);
+        List<NodeGraphRegion> ordered = regionsByArea();
+        for (int i = 0, size = ordered.size(); i < size; i++) {
+            NodeGraphRegion region = ordered.get(i);
             float x = worldToRootX(region.x());
             float y = worldToRootY(region.y());
             float width = region.width() * z;
@@ -2790,6 +3823,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
                 float handle = 8.0f * Math.max(0.75f, z);
                 draw.rect(x + width - handle, y + height - handle, handle, handle, Paint.fill(resizeHandleColor));
             }
+            if (!region.comment().isEmpty()) drawCommentIcon(draw, x, y, width, header, z, region == hoveredRegion);
             DrawList drawList = context.drawList();
             int sizeBefore = drawList.size();
             for (Widget widget : region.widgets()) {
@@ -2801,21 +3835,83 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         }
     }
 
-    /** Рисует все провода кривыми Безье под нодами. */
-    private void renderConnections(DrawScope draw) {
+    /**
+     * Значок «есть комментарий» в правой части заголовка региона: белый пузырь с тремя точками.
+     */
+    protected void drawCommentIcon(DrawScope draw, float x, float y, float width, float header, float z, boolean lit) {
+        float w = 13.0f * z;
+        float h = 9.0f * z;
+        float left = x + width - w - 8.0f * z;
+        float top = y + (header - h - 2.0f * z) * 0.5f;
+        MutableColor fill = new MutableColor(1.0f, 1.0f, 1.0f, lit ? 1.0f : 0.78f);
+        draw.roundedRect(left, top, w, h, 2.5f * z, Paint.fill(fill));
+        draw.rect(left + 2.5f * z, top + h - 0.5f * z, 3.0f * z, 2.5f * z, Paint.fill(fill));
+        MutableColor dot = new MutableColor(0.12f, 0.14f, 0.18f, 0.9f);
+        float dotSize = Math.max(1.0f, 1.6f * z);
+        for (int i = 0; i < 3; i++) {
+            draw.rect(left + (2.5f + i * 3.4f) * z, top + (h - dotSize) * 0.5f, dotSize, dotSize, Paint.fill(dot));
+        }
+    }
+
+    /**
+     * Рисует поверх всего комментарий региона, над заголовком которого сейчас курсор.
+     */
+    protected void renderRegionComment(RenderContext context, DrawScope draw) {
+        NodeGraphRegion region = hoveredRegion;
+        if (region == null || region.comment().isEmpty() || dragState != null || lassoState != null
+                || connectionDragState != null || !regions.contains(region)) {
+            return;
+        }
+        float z = zoom();
+        boolean scaled = scaleContentWithZoom && z != 1.0f;
+        float s = scaleContentWithZoom ? z : 1.0f;
+        float boxWidth = Math.max(COMMENT_MIN_WIDTH, Math.min(COMMENT_MAX_WIDTH, region.width()));
+        Widget label = region.commentLabel();
+        label.measure(new LayoutContext(boxWidth - COMMENT_PADDING * 2.0f, Float.POSITIVE_INFINITY));
+        float textHeight = Math.max(14.0f, label.desiredSize().height());
+        float boxHeight = textHeight + COMMENT_PADDING * 2.0f;
+        float x = worldToRootX(region.x());
+        float y = worldToRootY(region.y()) + (NodeGraphRegion.HEADER_HEIGHT + 4.0f) * z;
+        MutableColor base = region.color();
+        draw.roundedRect(x, y, boxWidth * s, boxHeight * s, 4.0f * s,
+                Paint.fill(new MutableColor(0.09f, 0.10f, 0.12f, 0.96f)));
+        draw.roundedRect(x, y, boxWidth * s, boxHeight * s, 4.0f * s,
+                Paint.stroke(new MutableColor(base.r(), base.g(), base.b(), 0.9f), 1.0f));
+        StackPanel.arrangeChild(label, x + COMMENT_PADDING, y + COMMENT_PADDING,
+                boxWidth - COMMENT_PADDING * 2.0f, textHeight);
+        DrawList drawList = context.drawList();
+        int sizeBefore = drawList.size();
+        if (label.visibility() == Visibility.VISIBLE) renderChildWithInheritedTransform(context, label);
+        if (scaled) applyContentZoom(drawList.commands(), sizeBefore, x, y, z);
+    }
+
+    /**
+     * @return регионы от больших к малым: вложенный регион всегда рисуется и ловит курсор поверх внешнего
+     */
+    private List<NodeGraphRegion> regionsByArea() {
+        List<NodeGraphRegion> sorted = new ArrayList<>(regions);
+        sorted.sort((a, b) -> Float.compare(b.width() * b.height(), a.width() * a.height()));
+        return sorted;
+    }
+
+    /**
+     * Рисует все провода кривыми Безье под нодами.
+     */
+    protected void renderConnections(DrawScope draw) {
         Object[] raw = connections.elements();
         for (int i = 0, size = connections.size(); i < size; i++) {
             NodeGraphConnection connection = (NodeGraphConnection) raw[i];
             NodeGraphPort fromPort = port(connection.from());
             if (fromPort == null || !wireCurve(connection)) continue;
             boolean highlighted = connection.selected() || Objects.equals(hoveredConnectionId, connection.id());
-            PortType type = portTypes.get(fromPort.type());
+            String effectiveType = NodeGraphEditing.effectiveType(this, fromPort);
+            PortType type = portTypes.get(effectiveType);
             ColorView color;
             if (!connection.enabled()) {
                 color = new MutableColor(0.5f, 0.5f, 0.5f, 0.35f);
             } else if (connection.selected()) {
                 color = selectedConnectionColor;
-            } else if (fromPort.type().isEmpty()) {
+            } else if (effectiveType.isEmpty()) {
                 color = connectionColor;
             } else if (highlighted) {
                 color = brighter(type.color());
@@ -2833,7 +3929,9 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
                 Math.min(1.0f, color.b() + 0.25f), color.a());
     }
 
-    /** Строит полилинию провода в {@code wirePoints}; возвращает {@code false}, если порт не найден. */
+    /**
+     * Строит полилинию провода в {@code wirePoints}; возвращает {@code false}, если порт не найден.
+     */
     private boolean wireCurve(NodeGraphConnection connection) {
         NodeGraphItem fromItem = item(connection.fromItemId());
         NodeGraphItem toItem = item(connection.toItemId());
@@ -2847,8 +3945,10 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return true;
     }
 
-    /** Рисует модульную ноду целиком: тень, тело, фон модулей, виджеты, рамку и порты. */
-    private void renderModularItem(RenderContext context, DrawScope draw, NodeGraphItem item) {
+    /**
+     * Рисует модульную ноду целиком: тень, тело, фон модулей, виджеты, рамку и порты.
+     */
+    protected void renderModularItem(RenderContext context, DrawScope draw, NodeGraphItem item) {
         float z = zoom();
         float x = worldToRootX(item.x());
         float y = worldToRootY(item.y());
@@ -2881,9 +3981,11 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         if (z != 1.0f) applyContentZoom(drawList.commands(), sizeBefore, x, y, z);
 
         ColorView border = item.selected() ? selectedItemBorderColor
-                : hovered || dragging ? hoveredItemBorderColor : style.border();
-        draw.roundedRect(x, y, width, height, radius,
-                Paint.stroke(border, item.selected() || dragging ? 2.0f : 1.0f));
+                : hovered || dragging ? hoveredItemBorderColor
+                : item.issueLevel() == 2 ? errorBorderColor
+                : item.issueLevel() == 1 ? warningBorderColor : style.border();
+        boolean emphasized = item.selected() || dragging || item.issueLevel() > 0;
+        draw.roundedRect(x, y, width, height, radius, Paint.stroke(border, emphasized ? 2.0f : 1.0f));
 
         NodeGraphPortRef hoveredRef = hoveredPort;
         for (NodeGraphPort port : item.ports()) {
@@ -2894,9 +3996,11 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         }
     }
 
-    /** Рисует маркер порта: форма и цвет по {@link PortType}, заливка у подключённого, контур у свободного. */
-    private void drawPort(DrawScope draw, NodeGraphItem item, NodeGraphPort port, float x, float y, boolean hovered) {
-        PortType type = portTypes.get(port.type());
+    /**
+     * Рисует маркер порта: форма и цвет по {@link PortType}, заливка у подключённого, контур у свободного.
+     */
+    protected void drawPort(DrawScope draw, NodeGraphItem item, NodeGraphPort port, float x, float y, boolean hovered) {
+        PortType type = portTypes.get(NodeGraphEditing.effectiveType(this, port));
         float radius = screenPortRadius() * (hovered ? 1.25f : 1.0f);
         ColorView color = hovered ? brighter(type.color()) : type.color();
         ColorView hole = item.modular() ? item.style().body() : backgroundColor;
@@ -2943,8 +4047,10 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         }
     }
 
-    /** Рисует миникарту: обзор нод и регионов и рамку видимого окна. */
-    private void renderMinimap(DrawScope draw) {
+    /**
+     * Рисует миникарту: обзор нод и регионов и рамку видимого окна.
+     */
+    protected void renderMinimap(DrawScope draw) {
         NodeGraphMinimap map = minimapGeometry();
         if (map == null) return;
         draw.roundedRect(map.x, map.y, map.width, map.height, 4.0f, Paint.fill(minimapBackgroundColor));
@@ -2969,7 +4075,9 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         draw.roundedRect(map.x, map.y, map.width, map.height, 4.0f, Paint.stroke(minimapBorderColor, 1.0f));
     }
 
-    /** @return геометрия миникарты на этот кадр или {@code null}, если она выключена или холст пуст */
+    /**
+     * @return геометрия миникарты на этот кадр или {@code null}, если она выключена или холст пуст
+     */
     private NodeGraphMinimap minimapGeometry() {
         if (!minimapEnabled) return null;
         float minX = Float.POSITIVE_INFINITY;
@@ -3004,7 +4112,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return new NodeGraphMinimap(x, y, width, height, minX, minY, maxX, maxY);
     }
 
-    private void renderForeground(DrawScope draw) {
+    protected void renderForeground(DrawScope draw) {
         float width = layoutBounds().width();
         float height = layoutBounds().height();
         if (width <= 0.0f || height <= 0.0f) return;
@@ -3051,7 +4159,8 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
                 boolean hoveredPort = hoveredPort().equals(new NodeGraphPortRef(item.id(), port.id()));
                 ColorView color = hoveredPort ? hoveredPortColor : portColor;
                 draw.addCircleFilled(point.x(), point.y(), portRadius, color, 12);
-                draw.addCircle(point.x(), point.y(), portRadius + 1.0f,
+                // Зазор кольца масштабируется вместе с портом, иначе при отдалении порт «толстеет» относительно ноды.
+                draw.addCircle(point.x(), point.y(), portRadius + nodeContentScale(),
                         canStartConnection(port) || canEndConnection(port) ? connectionPreviewColor : itemBorderColor,
                         12,
                         hoveredPort ? 1.5f : 1.0f);
@@ -3067,7 +4176,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         renderMinimap(draw);
     }
 
-    private void drawGraphGrid(DrawScope draw, float x, float y, float width, float height) {
+    protected void drawGraphGrid(DrawScope draw, float x, float y, float width, float height) {
         float step = Math.max(2.0f, gridSize * zoom());
         float majorStep = step * 4.0f;
         float startX = x + positiveModulo(viewportX(), step);
@@ -3096,7 +4205,7 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return result < 0.0f ? result + modulo : result;
     }
 
-    private <T extends Event> T dispatch(T event) {
+    protected <T extends Event> T dispatch(T event) {
         UIContext context = uiContext();
         if (context == null || !(event instanceof dev.sixik.unigui.api.event.WidgetEvent widgetEvent)) {
             emit(event);
@@ -3106,23 +4215,23 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return event;
     }
 
-    private float viewportX() {
+    protected float viewportX() {
         return viewport.x();
     }
 
-    private float viewportY() {
+    protected float viewportY() {
         return viewport.y();
     }
 
-    private float zoom() {
+    protected float zoom() {
         return viewport.zoom();
     }
 
-    private float worldToRootX(float worldX) {
+    protected float worldToRootX(float worldX) {
         return layoutBounds().x() + viewport.worldToScreenX(worldX);
     }
 
-    private float worldToRootY(float worldY) {
+    protected float worldToRootY(float worldY) {
         return layoutBounds().y() + viewport.worldToScreenY(worldY);
     }
 
@@ -3148,12 +4257,12 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         return scaleContentWithZoom ? zoom() : 1.0f;
     }
 
-    private boolean canStartConnection(NodeGraphPort port) {
+    protected boolean canStartConnection(NodeGraphPort port) {
         return port != null && port.enabled() && port.visible()
                 && (port.kind() == NodeGraphPortKind.OUTPUT || port.kind() == NodeGraphPortKind.BIDIRECTIONAL);
     }
 
-    private boolean canEndConnection(NodeGraphPort port) {
+    protected boolean canEndConnection(NodeGraphPort port) {
         return port != null && port.enabled() && port.visible()
                 && (port.kind() == NodeGraphPortKind.INPUT || port.kind() == NodeGraphPortKind.BIDIRECTIONAL);
     }
@@ -3231,7 +4340,9 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         MINIMAP
     }
 
-    /** Раскладка модулей ноды: мост между {@link NodeModule} и геометрией графа. */
+    /**
+     * Раскладка модулей ноды: мост между {@link NodeModule} и геометрией графа.
+     */
     private final class ItemLayout implements NodeLayoutContext {
         private NodeGraphItem item;
 
@@ -3267,7 +4378,9 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
         }
     }
 
-    /** Контекст рисования декора модулей: перевод node-local координат в экранные. */
+    /**
+     * Контекст рисования декора модулей: перевод node-local координат в экранные.
+     */
     private final class ItemPaint implements NodePaintContext {
         private DrawScope draw;
         private NodeGraphItem item;
@@ -3330,9 +4443,15 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     }
 
     private static final class DragState {
+        /**
+         * Нода, к которой схлопнется выделение группы, если мышь отпустили без движения.
+         */
+        private NodeGraphItem collapseTo;
         private NodeGraphRegion region;
         private NodeGraphItem[] members = new NodeGraphItem[0];
         private float[] memberStart = new float[0];
+        private NodeGraphRegion[] regionMembers = new NodeGraphRegion[0];
+        private float[] regionStart = new float[0];
         private NodeGraphMinimap minimap;
         private final DragKind kind;
         private final NodeGraphItem item;
@@ -3364,6 +4483,10 @@ public final class NodeGraph extends WidgetBase implements HitTestCoordinateMapp
     }
 
     private static final class LassoState {
+        /**
+         * Ноды, выделенные до рамки при добавлении через Shift: они остаются выделенными.
+         */
+        private final java.util.Set<String> base = new java.util.LinkedHashSet<>();
         private final int pointerId;
         private final float startRootX;
         private final float startRootY;

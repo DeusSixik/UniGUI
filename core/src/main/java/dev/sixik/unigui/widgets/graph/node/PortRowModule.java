@@ -1,6 +1,8 @@
 package dev.sixik.unigui.widgets.graph.node;
 
 import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.widgets.display.Label;
@@ -11,6 +13,7 @@ import dev.sixik.unigui.widgets.graph.NodeGraphPortSide;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Строка ноды с входом слева, выходом справа, подписями и inline-полем значения.
@@ -33,7 +36,9 @@ import java.util.List;
                 "Ports are created when the module is attached to a node."
         },
         related = {"NodeModule", "NodeBuilder", "PortType", "NodeGraphPort"})
-public final class PortRowModule implements NodeModule {
+@WikiPage(title = "PortRowModule", slug = "port-row-module", category = "<key:graph.category>", summary = "<key:port.row.module.summary>")
+@WikiSection(title = "<key:wiki.section.overview.title>", markdown = "<key:port.row.module.overview>", order = 10)
+public class PortRowModule implements NodeModule {
     private static final float LABEL_INSET = 8.0f;
     private static final float GAP = 6.0f;
     private static final float DEFAULT_INLINE_WIDTH = 84.0f;
@@ -50,12 +55,14 @@ public final class PortRowModule implements NodeModule {
     private final Label inLabel;
     private final Label outLabel;
     private Widget inline;
+    private ValueEditor editor;
+    private boolean required;
     private float inlineWidth = DEFAULT_INLINE_WIDTH;
     private NodeGraphPort in;
     private NodeGraphPort out;
     private NodeGraphItem item;
 
-    private PortRowModule(String id, String inId, String inLabel, String inType,
+    protected PortRowModule(String id, String inId, String inLabel, String inType,
                           String outId, String outLabel, String outType, boolean flow) {
         this.id = id;
         this.inId = inId;
@@ -135,6 +142,28 @@ public final class PortRowModule implements NodeModule {
     }
 
     /**
+     * Задаёт типизированный редактор значения входа. Его виджет показывается, пока вход не подключён, значение
+     * доступно через {@code NodeGraphItem.value(portId)} и сохраняется вместе с нодой. Вызывать до добавления
+     * в ноду.
+     *
+     * @param valueEditor редактор или {@code null}, чтобы убрать
+     * @return этот модуль
+     */
+    public PortRowModule editor(ValueEditor valueEditor) {
+        this.editor = valueEditor;
+        if (valueEditor == null) {
+            this.inline = null;
+            return this;
+        }
+        this.inline = valueEditor.widget();
+        this.inlineWidth = valueEditor.preferredWidth();
+        valueEditor.onChange(() -> {
+            if (item != null && inId != null) item.notifyValueChanged(inId);
+        });
+        return this;
+    }
+
+    /**
      * Задаёт ширину inline-редактора. Она фиксирована и не зависит от содержимого: набор текста не должен
      * менять размер ноды.
      *
@@ -143,6 +172,19 @@ public final class PortRowModule implements NodeModule {
      */
     public PortRowModule inlineWidth(float width) {
         if (Float.isFinite(width) && width > 0.0f) this.inlineWidth = width;
+        return this;
+    }
+
+    /**
+     * Помечает вход обязательным: валидатор сообщит об ошибке, если у него нет ни провода, ни значения по
+     * умолчанию. Можно вызывать и до, и после добавления в ноду.
+     *
+     * @param required {@code true} для обязательного входа
+     * @return этот модуль
+     */
+    public PortRowModule required(boolean required) {
+        this.required = required;
+        if (in != null) in.required(required);
         return this;
     }
 
@@ -189,7 +231,8 @@ public final class PortRowModule implements NodeModule {
         if (inId != null) {
             in = new NodeGraphPort(inId, NodeGraphPortKind.INPUT, NodeGraphPortSide.LEFT, 0.5f)
                     .type(inType)
-                    .capacity(flow ? 0 : 1);
+                    .capacity(flow ? 0 : 1)
+                    .required(required);
             item.addPort(in, this);
         }
         if (outId != null) {
@@ -207,6 +250,22 @@ public final class PortRowModule implements NodeModule {
         in = null;
         out = null;
         this.item = null;
+    }
+
+    @Override
+    public ValueEditor editor(String portId) {
+        return portId != null && portId.equals(inId) ? editor : null;
+    }
+
+    @Override
+    public void saveState(Map<String, String> out) {
+        if (editor != null) out.put("value", editor.serialize());
+    }
+
+    @Override
+    public void loadState(Map<String, String> state) {
+        String saved = state.get("value");
+        if (editor != null && saved != null) editor.deserialize(saved);
     }
 
     @Override

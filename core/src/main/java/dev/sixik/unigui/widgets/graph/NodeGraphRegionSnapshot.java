@@ -1,5 +1,8 @@
 package dev.sixik.unigui.widgets.graph;
 
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 /**
  * Сериализуемое состояние региона-комментария графа.
  *
@@ -14,6 +17,8 @@ package dev.sixik.unigui.widgets.graph;
  * @param movable можно ли двигать
  * @param resizable можно ли растягивать
  */
+@WikiPage(title = "NodeGraphRegionSnapshot", slug = "node-graph-region-snapshot", category = "<key:graph.category>", summary = "<key:node.graph.region.snapshot.summary>")
+@WikiSection(title = "<key:wiki.section.overview.title>", markdown = "<key:node.graph.region.snapshot.overview>", order = 10)
 public record NodeGraphRegionSnapshot(
         String id,
         String title,

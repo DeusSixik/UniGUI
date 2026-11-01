@@ -1,8 +1,14 @@
 package dev.sixik.unigui.widgets.graph.node;
 
 import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.widgets.graph.NodeGraphItem;
+import dev.sixik.unigui.widgets.graph.NodeGraphPort;
+import dev.sixik.unigui.widgets.graph.NodeGraphPortKind;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
 
@@ -24,14 +30,27 @@ import java.util.function.Function;
                 "`create` stamps the node with this type's id."
         },
         related = {"NodeTypeRegistry", "NodeBuilder", "NodeGraphItem"})
-public final class NodeType {
+@WikiPage(title = "NodeType", slug = "node-type", category = "<key:graph.category>", summary = "<key:node.type.summary>")
+@WikiSection(title = "<key:wiki.section.overview.title>", markdown = "<key:node.type.overview>", order = 10)
+public class NodeType {
     private final String id;
     private final String title;
     private final String category;
     private final String description;
     private final Function<String, NodeGraphItem> factory;
+    private volatile List<PortSketch> ports;
 
-    private NodeType(String id, String title, String category, String description,
+    /**
+     * Краткое описание порта типа ноды, достаточное, чтобы решить, можно ли к нему подключиться.
+     *
+     * @param id   id порта
+     * @param kind направление порта
+     * @param type id типа порта
+     */
+    public record PortSketch(String id, NodeGraphPortKind kind, String type) {
+    }
+
+    protected NodeType(String id, String title, String category, String description,
                      Function<String, NodeGraphItem> factory) {
         this.id = Objects.requireNonNull(id, "id");
         this.title = title == null || title.isBlank() ? id : title;
@@ -69,6 +88,54 @@ public final class NodeType {
         NodeGraphItem item = Objects.requireNonNull(factory.apply(itemId), "factory returned null for " + id);
         item.typeId(id);
         return item;
+    }
+
+    /**
+     * Порты ноды этого типа. Узнаются один раз по пробной ноде из фабрики и кэшируются, поэтому фабрика должна быть
+     * дешёвой и без побочных эффектов.
+     *
+     * @return порты в порядке модулей; пустой список, если фабрика не смогла собрать ноду
+     */
+    public List<PortSketch> ports() {
+        List<PortSketch> known = ports;
+        if (known != null) return known;
+        List<PortSketch> sketched = new ArrayList<>();
+        try {
+            NodeGraphItem probe = factory.apply("__probe__");
+            if (probe != null) {
+                for (NodeGraphPort port : probe.ports()) {
+                    sketched.add(new PortSketch(port.id(), port.kind(), port.type()));
+                }
+            }
+        } catch (RuntimeException failure) {
+            sketched.clear();
+        }
+        ports = List.copyOf(sketched);
+        return ports;
+    }
+
+    /**
+     * Проверяет, есть ли у ноды этого типа вход, к которому можно подключить выход заданного типа.
+     *
+     * @param sourceType id типа порта-источника
+     * @param types      реестр типов с правилами совместимости
+     * @return {@code true}, если найден совместимый входной порт
+     */
+    public boolean acceptsConnectionFrom(String sourceType, PortTypeRegistry types) {
+        return firstCompatibleInput(sourceType, types) != null;
+    }
+
+    /**
+     * @param sourceType id типа порта-источника
+     * @param types      реестр типов
+     * @return id первого входного порта, совместимого с источником, или {@code null}
+     */
+    public String firstCompatibleInput(String sourceType, PortTypeRegistry types) {
+        for (PortSketch port : ports()) {
+            boolean input = port.kind() == NodeGraphPortKind.INPUT || port.kind() == NodeGraphPortKind.BIDIRECTIONAL;
+            if (input && types.canConnect(sourceType, port.type())) return port.id();
+        }
+        return null;
     }
 
     /**

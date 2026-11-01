@@ -24,7 +24,7 @@ import dev.sixik.unigui.api.core.InvalidationFlags;
         markdown = "<key:node.graph.connection.section.overview.body>",
         order = 10
 )
-public final class NodeGraphConnection {
+public class NodeGraphConnection {
     private final String id;
     private final NodeGraphPortRef from;
     private final NodeGraphPortRef to;

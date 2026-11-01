@@ -1,6 +1,8 @@
 package dev.sixik.unigui.widgets.graph.node;
 
 import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
@@ -34,7 +36,9 @@ import java.util.List;
                 "Disable the arrow with `collapsible(false)` for nodes that must stay expanded."
         },
         related = {"NodeModule", "NodeStyle", "NodeGraphItem", "NodeBuilder"})
-public final class HeaderModule implements NodeModule {
+@WikiPage(title = "HeaderModule", slug = "header-module", category = "<key:graph.category>", summary = "<key:header.module.summary>")
+@WikiSection(title = "<key:wiki.section.overview.title>", markdown = "<key:header.module.overview>", order = 10)
+public class HeaderModule implements NodeModule {
     /**
      * Id модуля заголовка.
      */

@@ -320,6 +320,11 @@ public final class OverlayLayer extends PanelWidget {
                     && contextMenu.closeOnOutsideClick()
                     && !contextMenu.isMenuInteractionTarget(target)) {
                 contextMenu.close();
+            } else if (child instanceof OverlayDismissable dismissable
+                    && dismissable.isOpenOverlay()
+                    && dismissable.dismissOnOutsideClick()
+                    && !dismissable.isInteractionTarget(target)) {
+                dismissable.dismiss();
             }
         }
     }

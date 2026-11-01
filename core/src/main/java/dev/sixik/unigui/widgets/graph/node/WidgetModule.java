@@ -1,6 +1,8 @@
 package dev.sixik.unigui.widgets.graph.node;
 
 import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.widgets.interaction.TextArea;
 import dev.sixik.unigui.widgets.interaction.TextInput;
@@ -28,7 +30,9 @@ import java.util.List;
                 "The widget is zoomed together with the node."
         },
         related = {"NodeModule", "NodeBuilder"})
-public final class WidgetModule implements NodeModule {
+@WikiPage(title = "WidgetModule", slug = "widget-module", category = "<key:graph.category>", summary = "<key:widget.module.summary>")
+@WikiSection(title = "<key:wiki.section.overview.title>", markdown = "<key:widget.module.overview>", order = 10)
+public class WidgetModule implements NodeModule {
     private static final float VERTICAL_INSET = 2.0f;
     private static final float DEFAULT_EDITOR_WIDTH = 140.0f;
     private static final float DEFAULT_AREA_HEIGHT = 72.0f;

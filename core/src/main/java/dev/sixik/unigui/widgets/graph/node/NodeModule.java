@@ -1,11 +1,14 @@
 package dev.sixik.unigui.widgets.graph.node;
 
 import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.widgets.graph.NodeGraphItem;
 import dev.sixik.unigui.widgets.graph.NodeGraphPort;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Строительный блок ноды: полоса, которая раскладывается сверху вниз внутри тела ноды.
@@ -32,6 +35,8 @@ import java.util.List;
                 "Return a new list from `widgets()` only when it changes: the graph caches the visible widget list until `NodeGraphItem.refreshModules()`."
         },
         related = {"NodeGraphItem", "NodeBuilder", "HeaderModule", "PortRowModule", "WidgetModule", "SeparatorModule"})
+@WikiPage(title = "NodeModule", slug = "node-module", category = "<key:graph.category>", summary = "<key:node.module.summary>")
+@WikiSection(title = "<key:wiki.section.overview.title>", markdown = "<key:node.module.overview>", order = 10)
 public interface NodeModule {
     /**
      * @return id, уникальный внутри ноды
@@ -119,6 +124,30 @@ public interface NodeModule {
      * @param connections текущее число соединений
      */
     default void onPortConnectionsChanged(NodeGraphPort port, int connections) {
+    }
+
+    /**
+     * Записывает сохраняемое состояние модуля (значения полей) в текстовом виде.
+     *
+     * @param out куда писать пары «ключ — значение»; ключи уникальны только внутри модуля
+     */
+    default void saveState(Map<String, String> out) {
+    }
+
+    /**
+     * Восстанавливает состояние, записанное {@link #saveState(Map)}. Не должен порождать события изменения.
+     *
+     * @param state пары «ключ — значение» этого модуля; неизвестные ключи игнорируются
+     */
+    default void loadState(Map<String, String> state) {
+    }
+
+    /**
+     * @param portId id входа этого модуля
+     * @return редактор значения входа или {@code null}, если у входа его нет
+     */
+    default ValueEditor editor(String portId) {
+        return null;
     }
 
     /**

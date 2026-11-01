@@ -1,5 +1,7 @@
 package dev.sixik.unigui.widgets.graph.node;
 
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.widgets.graph.NodeGraphItem;
 import dev.sixik.unigui.widgets.graph.NodeGraphPort;
@@ -8,6 +10,8 @@ import dev.sixik.unigui.widgets.graph.NodeGraphPort;
  * Сервисы раскладки, которые граф даёт модулю. Все координаты — world-единицы относительно левого
  * верхнего угла ноды, то есть не зависят от зума и панорамирования.
  */
+@WikiPage(title = "NodeLayoutContext", slug = "node-layout-context", category = "<key:graph.category>", summary = "<key:node.layout.context.summary>")
+@WikiSection(title = "<key:wiki.section.overview.title>", markdown = "<key:node.layout.context.overview>", order = 10)
 public interface NodeLayoutContext {
     /**
      * @return нода, которую раскладывают

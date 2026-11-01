@@ -1,16 +1,7 @@
 package dev.sixik.unigui.widgets.graph;
 
 
-
-
-import dev.sixik.unigui.api.docs.AiDoc;
-import dev.sixik.unigui.api.docs.WikiExample;
-import dev.sixik.unigui.api.docs.WikiLink;
-import dev.sixik.unigui.api.docs.WikiMethod;
-import dev.sixik.unigui.api.docs.WikiPage;
-import dev.sixik.unigui.api.docs.WikiParameter;
-import dev.sixik.unigui.api.docs.WikiReturn;
-import dev.sixik.unigui.api.docs.WikiSection;
+import dev.sixik.unigui.api.docs.*;
 
 @AiDoc(summary = "Strategy interface defining rules and compatibility validation for forming connections between ports.")
 @WikiPage(
@@ -49,6 +40,10 @@ public interface NodeGraphConnectionPolicy {
         }
         if (!graph.portTypes().canConnect(fromPort.type(), toPort.type())) {
             return NodeGraphConnectionValidation.invalid("Port type mismatch");
+        }
+        String rerouteConflict = NodeGraphEditing.rerouteConflict(graph, fromPort, toPort);
+        if (rerouteConflict != null) {
+            return NodeGraphConnectionValidation.invalid(rerouteConflict);
         }
         if (graph.hasConnection(from, to)) {
             return NodeGraphConnectionValidation.invalid("Connection already exists");

@@ -1,6 +1,9 @@
 package dev.sixik.unigui.widgets.graph.node;
 
 import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.widgets.graph.NodeGraphItem;
 
@@ -40,11 +43,14 @@ import java.util.function.Consumer;
                                         .build();
                                 """)
         })
-public final class NodeBuilder {
+@WikiPage(title = "NodeBuilder", slug = "node-builder", category = "<key:graph.category>", summary = "<key:node.builder.summary>")
+@WikiSection(title = "<key:wiki.section.overview.title>", markdown = "<key:node.builder.overview>", order = 10)
+@WikiExample(title = "<key:node.builder.example.title>", code = "NodeGraphItem node = NodeBuilder.node(\"spawn\")\n        .header(\"Create NPC\")\n        .flowRow(\"in\", \"out\")\n        .input(\"name\", \"Name\", \"string\", nameEditor)\n        .output(\"entity\", \"Entity\", \"entity\")\n        .build();")
+public class NodeBuilder {
     private final NodeGraphItem item;
     private int separators;
 
-    private NodeBuilder(NodeGraphItem item) {
+    protected NodeBuilder(NodeGraphItem item) {
         this.item = item;
     }
 
@@ -138,7 +144,7 @@ public final class NodeBuilder {
      * @return этот сборщик
      */
     public NodeBuilder input(String portId, String label, String type) {
-        return input(portId, label, type, null);
+        return input(portId, label, type, (Widget) null);
     }
 
     /**
@@ -152,6 +158,34 @@ public final class NodeBuilder {
      */
     public NodeBuilder input(String portId, String label, String type, Widget editor) {
         item.addModule(PortRowModule.input(portId, label, type).inline(editor));
+        return this;
+    }
+
+    /**
+     * Добавляет строку с входом и типизированным редактором значения по умолчанию.
+     *
+     * @param portId id порта
+     * @param label  подпись
+     * @param type   id типа
+     * @param editor редактор значения; виден пока вход не подключён
+     * @return этот сборщик
+     */
+    public NodeBuilder input(String portId, String label, String type, ValueEditor editor) {
+        item.addModule(PortRowModule.input(portId, label, type).editor(editor));
+        return this;
+    }
+
+    /**
+     * Добавляет строку с обязательным входом без значения по умолчанию: пока вход не подключён, граф
+     * невалиден.
+     *
+     * @param portId id порта
+     * @param label  подпись
+     * @param type   id типа
+     * @return этот сборщик
+     */
+    public NodeBuilder requiredInput(String portId, String label, String type) {
+        item.addModule(PortRowModule.input(portId, label, type).required(true));
         return this;
     }
 

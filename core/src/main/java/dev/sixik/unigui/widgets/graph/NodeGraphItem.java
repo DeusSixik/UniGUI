@@ -15,10 +15,14 @@ import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.widgets.graph.node.NodeLayoutContext;
 import dev.sixik.unigui.widgets.graph.node.NodeModule;
 import dev.sixik.unigui.widgets.graph.node.NodeStyle;
+import dev.sixik.unigui.widgets.graph.node.ValueEditor;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 @AiDoc(summary = "Node item container placed in a NodeGraph canvas hosting a content widget and pin ports.")
@@ -33,7 +37,7 @@ import java.util.Objects;
         markdown = "<key:node.graph.item.section.overview.body>",
         order = 10
 )
-public final class NodeGraphItem {
+public class NodeGraphItem {
     private static final float MODULAR_BOTTOM_PADDING = 4.0f;
 
     private final String id;
@@ -48,6 +52,8 @@ public final class NodeGraphItem {
     private boolean[] moduleShown = new boolean[0];
     private List<Widget> hostedWidgets = List.of();
     private boolean hostedDirty = true;
+    private int issueLevel;
+    private List<String> issueMessages = List.of();
     private float x;
     private float y;
     private float width;
@@ -89,8 +95,8 @@ public final class NodeGraphItem {
      * Создаёт модульную ноду без content-виджета в заданной точке.
      *
      * @param id уникальный id ноды
-     * @param x X в world-координатах
-     * @param y Y в world-координатах
+     * @param x  X в world-координатах
+     * @param y  Y в world-координатах
      */
     public NodeGraphItem(String id, float x, float y) {
         this.id = normalizeId(id);
@@ -127,7 +133,7 @@ public final class NodeGraphItem {
      *
      * @param module модуль; {@code null} игнорируется
      * @return эта нода
-     * @throws IllegalStateException если нода создана с content-виджетом
+     * @throws IllegalStateException    если нода создана с content-виджетом
      * @throws IllegalArgumentException если модуль с таким id уже есть
      */
     public NodeGraphItem addModule(NodeModule module) {
@@ -167,7 +173,9 @@ public final class NodeGraphItem {
         return this;
     }
 
-    /** @return модули сверху вниз, только для чтения */
+    /**
+     * @return модули сверху вниз, только для чтения
+     */
     public List<NodeModule> modules() {
         return Collections.unmodifiableList(modules);
     }
@@ -187,7 +195,7 @@ public final class NodeGraphItem {
 
     /**
      * @param type класс модуля
-     * @param <T> тип модуля
+     * @param <T>  тип модуля
      * @return первый модуль этого класса или {@code null}
      */
     public <T extends NodeModule> T module(Class<T> type) {
@@ -198,7 +206,9 @@ public final class NodeGraphItem {
         return null;
     }
 
-    /** @return стиль модульной ноды */
+    /**
+     * @return стиль модульной ноды
+     */
     public NodeStyle style() {
         return style;
     }
@@ -215,7 +225,9 @@ public final class NodeGraphItem {
         return this;
     }
 
-    /** @return id типа из {@code NodeTypeRegistry} или пустая строка */
+    /**
+     * @return id типа из {@code NodeTypeRegistry} или пустая строка
+     */
     public String typeId() {
         return typeId;
     }
@@ -229,7 +241,41 @@ public final class NodeGraphItem {
         return this;
     }
 
-    /** @return {@code true}, если нода свёрнута до заголовка */
+    /**
+     * @return {@code 0} — без проблем, {@code 1} — предупреждения, {@code 2} — ошибки; от этого зависит цвет
+     * рамки ноды
+     */
+    public int issueLevel() {
+        return issueLevel;
+    }
+
+    /**
+     * @return тексты проблем, найденных проверкой графа, для подсказки
+     */
+    public List<String> issueMessages() {
+        return issueMessages;
+    }
+
+    /**
+     * Помечает ноду проблемами проверки: рамка окрашивается в красный (ошибка) или янтарный (предупреждение).
+     *
+     * @param level    {@code 0} снимает пометку, {@code 1} предупреждение, {@code 2} ошибка
+     * @param messages тексты проблем
+     * @return эта нода
+     */
+    public NodeGraphItem issues(int level, List<String> messages) {
+        int normalized = Math.max(0, Math.min(2, level));
+        List<String> copy = messages == null || normalized == 0 ? List.of() : List.copyOf(messages);
+        if (issueLevel == normalized && issueMessages.equals(copy)) return this;
+        issueLevel = normalized;
+        issueMessages = copy;
+        invalidateOwner(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * @return {@code true}, если нода свёрнута до заголовка
+     */
     public boolean collapsed() {
         return collapsed;
     }
@@ -251,7 +297,9 @@ public final class NodeGraphItem {
         return this;
     }
 
-    /** @return эта нода */
+    /**
+     * @return эта нода
+     */
     public NodeGraphItem toggleCollapsed() {
         return collapsed(!collapsed);
     }
@@ -292,7 +340,9 @@ public final class NodeGraphItem {
         return hostedWidgets;
     }
 
-    /** @return все виджеты ноды, включая скрытые; нужны для dispose и UI-контекста */
+    /**
+     * @return все виджеты ноды, включая скрытые; нужны для dispose и UI-контекста
+     */
     public List<Widget> allWidgets() {
         if (content != null) return List.of(content);
         ObjectArrayList<Widget> widgets = new ObjectArrayList<>();
@@ -303,9 +353,96 @@ public final class NodeGraphItem {
     }
 
     /**
+     * @param portId id входа
+     * @return редактор значения входа или {@code null}, если у входа его нет
+     */
+    public ValueEditor editor(String portId) {
+        for (int i = 0, size = modules.size(); i < size; i++) {
+            ValueEditor editor = modules.get(i).editor(portId);
+            if (editor != null) return editor;
+        }
+        return null;
+    }
+
+    /**
+     * @param portId id входа с редактором значения
+     * @return текущее значение входа или {@code null}, если у входа нет редактора
+     */
+    public Object value(String portId) {
+        ValueEditor editor = editor(portId);
+        return editor == null ? null : editor.value();
+    }
+
+    /**
+     * Задаёт значение входа; редактор и слушатели графа получат уведомление, если значение изменилось.
+     *
+     * @param portId id входа с редактором значения
+     * @param value  новое значение типа, подходящего редактору
+     * @return эта нода
+     * @throws IllegalArgumentException если у входа нет редактора или тип значения не подходит
+     */
+    public NodeGraphItem value(String portId, Object value) {
+        ValueEditor editor = editor(portId);
+        if (editor == null) {
+            throw new IllegalArgumentException("Input has no value editor: " + id + "." + portId);
+        }
+        editor.value(value);
+        return this;
+    }
+
+    /**
+     * Собирает сохраняемое состояние всех модулей: ключи имеют вид {@code moduleId/key}.
+     *
+     * @return состояние в текстовом виде; для ноды с content-виджетом пустое
+     */
+    public Map<String, String> saveState() {
+        Map<String, String> state = new LinkedHashMap<>();
+        for (int i = 0, size = modules.size(); i < size; i++) {
+            NodeModule module = modules.get(i);
+            Map<String, String> own = new LinkedHashMap<>();
+            module.saveState(own);
+            for (Map.Entry<String, String> entry : own.entrySet()) {
+                state.put(module.id() + "/" + entry.getKey(), entry.getValue());
+            }
+        }
+        return state;
+    }
+
+    /**
+     * Восстанавливает состояние, собранное {@link #saveState()}, без событий изменения. Неизвестные модули и
+     * ключи игнорируются: состояние можно применять к ноде другой версии.
+     *
+     * @param state пары «moduleId/key — значение»; {@code null} игнорируется
+     * @return эта нода
+     */
+    public NodeGraphItem loadState(Map<String, String> state) {
+        if (state == null || state.isEmpty()) return this;
+        for (int i = 0, size = modules.size(); i < size; i++) {
+            NodeModule module = modules.get(i);
+            String prefix = module.id() + "/";
+            Map<String, String> own = new LinkedHashMap<>();
+            for (Map.Entry<String, String> entry : state.entrySet()) {
+                if (entry.getKey().startsWith(prefix))
+                    own.put(entry.getKey().substring(prefix.length()), entry.getValue());
+            }
+            if (!own.isEmpty()) module.loadState(own);
+        }
+        return this;
+    }
+
+    /**
+     * Сообщает графу, что значение входа изменилось. Модули вызывают это из слушателей своих редакторов.
+     *
+     * @param portId id входа
+     */
+    public void notifyValueChanged(String portId) {
+        if (owner != null) owner.itemValueChanged(this, portId);
+    }
+
+    /**
      * Добавляет порт и привязывает его к модулю: при сворачивании ноды его провод уходит на край заголовка.
      *
-     * @param port порт
+     * @param port   порт
      * @param module модуль-владелец порта
      * @return этот порт
      */
@@ -377,7 +514,9 @@ public final class NodeGraphItem {
         arrangedSize(nodeWidth, Math.max(1.0f, cursor));
     }
 
-    /** Размещает виджеты и якоря портов; вызывать после {@link #measureModules}. */
+    /**
+     * Размещает виджеты и якоря портов; вызывать после {@link #measureModules}.
+     */
     void arrangeModules(NodeLayoutContext context) {
         float nodeWidth = arrangedWidth;
         float headerCenter = 0.0f;
@@ -399,7 +538,9 @@ public final class NodeGraphItem {
         }
     }
 
-    /** Передаёт нажатие модулю под курсором. */
+    /**
+     * Передаёт нажатие модулю под курсором.
+     */
     boolean pressModule(float localX, float localY) {
         for (int i = 0, size = modules.size(); i < size; i++) {
             if (!moduleShown(i)) continue;
@@ -411,7 +552,9 @@ public final class NodeGraphItem {
         return false;
     }
 
-    /** Уведомляет модуль порта об изменении числа соединений. */
+    /**
+     * Уведомляет модуль порта об изменении числа соединений.
+     */
     void portConnectionsChanged(NodeGraphPort port) {
         NodeModule module = port.module();
         if (module == null) return;

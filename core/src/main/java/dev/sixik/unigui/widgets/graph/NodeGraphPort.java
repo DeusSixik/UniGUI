@@ -1,16 +1,8 @@
 package dev.sixik.unigui.widgets.graph;
 
 
-import dev.sixik.unigui.api.docs.AiDoc;
-import dev.sixik.unigui.api.docs.WikiExample;
-import dev.sixik.unigui.api.docs.WikiLink;
-import dev.sixik.unigui.api.docs.WikiMethod;
-import dev.sixik.unigui.api.docs.WikiPage;
-import dev.sixik.unigui.api.docs.WikiParameter;
-import dev.sixik.unigui.api.docs.WikiReturn;
-import dev.sixik.unigui.api.docs.WikiSection;
-
 import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.api.docs.*;
 import dev.sixik.unigui.widgets.graph.node.NodeModule;
 
 /**
@@ -32,7 +24,7 @@ import dev.sixik.unigui.widgets.graph.node.NodeModule;
         markdown = "<key:node.graph.port.section.overview.body>",
         order = 10
 )
-public final class NodeGraphPort {
+public class NodeGraphPort {
     private final String id;
     private NodeGraphPortKind kind;
     private NodeGraphPortSide side;
@@ -44,6 +36,7 @@ public final class NodeGraphPort {
     private float anchorX;
     private float anchorY;
     private int capacity;
+    private boolean required;
     private int connectionCount;
     private NodeModule module;
     private NodeGraphItem owner;
@@ -192,12 +185,16 @@ public final class NodeGraphPort {
         return anchored;
     }
 
-    /** @return X якоря относительно ноды в world-единицах; имеет смысл при {@link #anchored()} */
+    /**
+     * @return X якоря относительно ноды в world-единицах; имеет смысл при {@link #anchored()}
+     */
     public float anchorX() {
         return anchorX;
     }
 
-    /** @return Y якоря относительно ноды в world-единицах; имеет смысл при {@link #anchored()} */
+    /**
+     * @return Y якоря относительно ноды в world-единицах; имеет смысл при {@link #anchored()}
+     */
     public float anchorY() {
         return anchorY;
     }
@@ -239,17 +236,41 @@ public final class NodeGraphPort {
         return this;
     }
 
-    /** @return текущее число соединений порта */
+    /**
+     * @return {@code true}, если вход обязателен: без провода или значения по умолчанию граф невалиден
+     */
+    public boolean required() {
+        return required;
+    }
+
+    /**
+     * Помечает вход обязательным; проверку делает {@code GraphValidator}.
+     *
+     * @param required {@code true} для обязательного входа
+     * @return этот порт
+     */
+    public NodeGraphPort required(boolean required) {
+        this.required = required;
+        return this;
+    }
+
+    /**
+     * @return текущее число соединений порта
+     */
     public int connectionCount() {
         return connectionCount;
     }
 
-    /** @return {@code true}, если к порту подключён хотя бы один провод */
+    /**
+     * @return {@code true}, если к порту подключён хотя бы один провод
+     */
     public boolean connected() {
         return connectionCount > 0;
     }
 
-    /** @return модуль, создавший порт, или {@code null} для портов, добавленных вручную */
+    /**
+     * @return модуль, создавший порт, или {@code null} для портов, добавленных вручную
+     */
     public NodeModule module() {
         return module;
     }
