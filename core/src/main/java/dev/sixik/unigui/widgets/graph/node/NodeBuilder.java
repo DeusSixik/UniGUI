@@ -2,7 +2,10 @@ package dev.sixik.unigui.widgets.graph.node;
 
 import dev.sixik.unigui.api.docs.AiDoc;
 import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiParameter;
 import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiReturn;
 import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.widgets.graph.NodeGraphItem;
@@ -43,7 +46,7 @@ import java.util.function.Consumer;
                                         .build();
                                 """)
         })
-@WikiPage(title = "NodeBuilder", slug = "node-builder", category = "<key:graph.category>", summary = "<key:node.builder.summary>")
+@WikiPage(title = "NodeBuilder", slug = "node-builder", category = "<key:graph.widget.category>", summary = "<key:node.builder.summary>")
 @WikiSection(title = "<key:wiki.section.overview.title>", markdown = "<key:node.builder.overview>", order = 10)
 @WikiExample(title = "<key:node.builder.example.title>", code = "NodeGraphItem node = NodeBuilder.node(\"spawn\")\n        .header(\"Create NPC\")\n        .flowRow(\"in\", \"out\")\n        .input(\"name\", \"Name\", \"string\", nameEditor)\n        .output(\"entity\", \"Entity\", \"entity\")\n        .build();")
 public class NodeBuilder {
@@ -58,7 +61,9 @@ public class NodeBuilder {
      * @param id id ноды
      * @return новый сборщик
      */
-    public static NodeBuilder node(String id) {
+    @WikiMethod(order = 10, summary = "<key:node.builder.method.node>")
+    @WikiReturn("<key:node.builder.return.builder>")
+    public static NodeBuilder node(@WikiParameter(name = "id", description = "<key:node.builder.param.id>") String id) {
         return new NodeBuilder(new NodeGraphItem(id));
     }
 
@@ -67,7 +72,10 @@ public class NodeBuilder {
      * @param y Y в world-координатах
      * @return этот сборщик
      */
-    public NodeBuilder at(float x, float y) {
+    @WikiMethod(order = 20, summary = "<key:node.builder.method.at>")
+    @WikiReturn("<key:node.builder.return.self>")
+    public NodeBuilder at(@WikiParameter(name = "x", description = "<key:node.builder.param.x>") float x,
+                          @WikiParameter(name = "y", description = "<key:node.builder.param.y>") float y) {
         item.position(x, y);
         return this;
     }
@@ -76,7 +84,9 @@ public class NodeBuilder {
      * @param typeId id типа ноды для сохранения и восстановления
      * @return этот сборщик
      */
-    public NodeBuilder type(String typeId) {
+    @WikiMethod(order = 30, summary = "<key:node.builder.method.type>")
+    @WikiReturn("<key:node.builder.return.self>")
+    public NodeBuilder type(@WikiParameter(name = "typeId", description = "<key:node.builder.param.typeId>") String typeId) {
         item.typeId(typeId);
         return this;
     }
@@ -85,7 +95,9 @@ public class NodeBuilder {
      * @param style стиль ноды
      * @return этот сборщик
      */
-    public NodeBuilder style(NodeStyle style) {
+    @WikiMethod(order = 40, summary = "<key:node.builder.method.style>")
+    @WikiReturn("<key:node.builder.return.self>")
+    public NodeBuilder style(@WikiParameter(name = "style", description = "<key:node.builder.param.style>") NodeStyle style) {
         item.style(style);
         return this;
     }
@@ -94,7 +106,9 @@ public class NodeBuilder {
      * @param argb цвет заголовка {@code 0xAARRGGBB}
      * @return этот сборщик
      */
-    public NodeBuilder color(int argb) {
+    @WikiMethod(order = 50, summary = "<key:node.builder.method.color>")
+    @WikiReturn("<key:node.builder.return.self>")
+    public NodeBuilder color(@WikiParameter(name = "argb", description = "<key:node.builder.param.argb>") int argb) {
         item.style().headerColor(argb);
         return this;
     }
@@ -105,7 +119,9 @@ public class NodeBuilder {
      * @param title название ноды
      * @return этот сборщик
      */
-    public NodeBuilder header(String title) {
+    @WikiMethod(order = 60, summary = "<key:node.builder.method.header>")
+    @WikiReturn("<key:node.builder.return.self>")
+    public NodeBuilder header(@WikiParameter(name = "title", description = "<key:node.builder.param.title>") String title) {
         return header(title, null);
     }
 
@@ -116,7 +132,10 @@ public class NodeBuilder {
      * @param configure настройка заголовка до добавления; может быть {@code null}
      * @return этот сборщик
      */
-    public NodeBuilder header(String title, Consumer<HeaderModule> configure) {
+    @WikiMethod(order = 61, summary = "<key:node.builder.method.headerConfigure>")
+    @WikiReturn("<key:node.builder.return.self>")
+    public NodeBuilder header(@WikiParameter(name = "title", description = "<key:node.builder.param.title>") String title,
+                              @WikiParameter(name = "configure", description = "<key:node.builder.param.headerConfigure>") Consumer<HeaderModule> configure) {
         HeaderModule header = new HeaderModule(title);
         if (configure != null) configure.accept(header);
         item.addModule(header);
@@ -130,7 +149,10 @@ public class NodeBuilder {
      * @param outPortId id выхода потока или {@code null}
      * @return этот сборщик
      */
-    public NodeBuilder flowRow(String inPortId, String outPortId) {
+    @WikiMethod(order = 70, summary = "<key:node.builder.method.flowRow>")
+    @WikiReturn("<key:node.builder.return.self>")
+    public NodeBuilder flowRow(@WikiParameter(name = "inPortId", description = "<key:node.builder.param.inPortId>") String inPortId,
+                               @WikiParameter(name = "outPortId", description = "<key:node.builder.param.outPortId>") String outPortId) {
         item.addModule(PortRowModule.flow(inPortId, outPortId));
         return this;
     }
@@ -143,7 +165,11 @@ public class NodeBuilder {
      * @param type   id типа
      * @return этот сборщик
      */
-    public NodeBuilder input(String portId, String label, String type) {
+    @WikiMethod(order = 80, summary = "<key:node.builder.method.input>")
+    @WikiReturn("<key:node.builder.return.self>")
+    public NodeBuilder input(@WikiParameter(name = "portId", description = "<key:node.builder.param.portId>") String portId,
+                             @WikiParameter(name = "label", description = "<key:node.builder.param.label>") String label,
+                             @WikiParameter(name = "type", description = "<key:node.builder.param.portType>") String type) {
         return input(portId, label, type, (Widget) null);
     }
 
@@ -156,7 +182,12 @@ public class NodeBuilder {
      * @param editor редактор, виден пока вход не подключён; может быть {@code null}
      * @return этот сборщик
      */
-    public NodeBuilder input(String portId, String label, String type, Widget editor) {
+    @WikiMethod(order = 81, summary = "<key:node.builder.method.inputWidgetEditor>")
+    @WikiReturn("<key:node.builder.return.self>")
+    public NodeBuilder input(@WikiParameter(name = "portId", description = "<key:node.builder.param.portId>") String portId,
+                             @WikiParameter(name = "label", description = "<key:node.builder.param.label>") String label,
+                             @WikiParameter(name = "type", description = "<key:node.builder.param.portType>") String type,
+                             @WikiParameter(name = "editor", description = "<key:node.builder.param.widgetEditor>") Widget editor) {
         item.addModule(PortRowModule.input(portId, label, type).inline(editor));
         return this;
     }
@@ -170,7 +201,12 @@ public class NodeBuilder {
      * @param editor редактор значения; виден пока вход не подключён
      * @return этот сборщик
      */
-    public NodeBuilder input(String portId, String label, String type, ValueEditor editor) {
+    @WikiMethod(order = 82, summary = "<key:node.builder.method.inputValueEditor>")
+    @WikiReturn("<key:node.builder.return.self>")
+    public NodeBuilder input(@WikiParameter(name = "portId", description = "<key:node.builder.param.portId>") String portId,
+                             @WikiParameter(name = "label", description = "<key:node.builder.param.label>") String label,
+                             @WikiParameter(name = "type", description = "<key:node.builder.param.portType>") String type,
+                             @WikiParameter(name = "editor", description = "<key:node.builder.param.valueEditor>") ValueEditor editor) {
         item.addModule(PortRowModule.input(portId, label, type).editor(editor));
         return this;
     }
@@ -184,7 +220,11 @@ public class NodeBuilder {
      * @param type   id типа
      * @return этот сборщик
      */
-    public NodeBuilder requiredInput(String portId, String label, String type) {
+    @WikiMethod(order = 90, summary = "<key:node.builder.method.requiredInput>")
+    @WikiReturn("<key:node.builder.return.self>")
+    public NodeBuilder requiredInput(@WikiParameter(name = "portId", description = "<key:node.builder.param.portId>") String portId,
+                                     @WikiParameter(name = "label", description = "<key:node.builder.param.label>") String label,
+                                     @WikiParameter(name = "type", description = "<key:node.builder.param.portType>") String type) {
         item.addModule(PortRowModule.input(portId, label, type).required(true));
         return this;
     }
@@ -197,7 +237,11 @@ public class NodeBuilder {
      * @param type   id типа
      * @return этот сборщик
      */
-    public NodeBuilder output(String portId, String label, String type) {
+    @WikiMethod(order = 100, summary = "<key:node.builder.method.output>")
+    @WikiReturn("<key:node.builder.return.self>")
+    public NodeBuilder output(@WikiParameter(name = "portId", description = "<key:node.builder.param.portId>") String portId,
+                              @WikiParameter(name = "label", description = "<key:node.builder.param.label>") String label,
+                              @WikiParameter(name = "type", description = "<key:node.builder.param.portType>") String type) {
         item.addModule(PortRowModule.output(portId, label, type));
         return this;
     }
@@ -213,8 +257,14 @@ public class NodeBuilder {
      * @param outType   тип выхода
      * @return этот сборщик
      */
-    public NodeBuilder row(String inPortId, String inLabel, String inType,
-                           String outPortId, String outLabel, String outType) {
+    @WikiMethod(order = 110, summary = "<key:node.builder.method.row>")
+    @WikiReturn("<key:node.builder.return.self>")
+    public NodeBuilder row(@WikiParameter(name = "inPortId", description = "<key:node.builder.param.inPortId>") String inPortId,
+                           @WikiParameter(name = "inLabel", description = "<key:node.builder.param.inLabel>") String inLabel,
+                           @WikiParameter(name = "inType", description = "<key:node.builder.param.portType>") String inType,
+                           @WikiParameter(name = "outPortId", description = "<key:node.builder.param.outPortId>") String outPortId,
+                           @WikiParameter(name = "outLabel", description = "<key:node.builder.param.outLabel>") String outLabel,
+                           @WikiParameter(name = "outType", description = "<key:node.builder.param.portType>") String outType) {
         item.addModule(PortRowModule.row(inPortId, inLabel, inType, outPortId, outLabel, outType));
         return this;
     }
@@ -226,7 +276,10 @@ public class NodeBuilder {
      * @param widget виджет
      * @return этот сборщик
      */
-    public NodeBuilder widget(String id, Widget widget) {
+    @WikiMethod(order = 120, summary = "<key:node.builder.method.widget>")
+    @WikiReturn("<key:node.builder.return.self>")
+    public NodeBuilder widget(@WikiParameter(name = "id", description = "<key:node.builder.param.moduleId>") String id,
+                              @WikiParameter(name = "widget", description = "<key:node.builder.param.widget>") Widget widget) {
         item.addModule(new WidgetModule(id, widget));
         return this;
     }
@@ -236,6 +289,8 @@ public class NodeBuilder {
      *
      * @return этот сборщик
      */
+    @WikiMethod(order = 130, summary = "<key:node.builder.method.separator>")
+    @WikiReturn("<key:node.builder.return.self>")
     public NodeBuilder separator() {
         item.addModule(new SeparatorModule("separator-" + separators++));
         return this;
@@ -247,7 +302,9 @@ public class NodeBuilder {
      * @param module модуль
      * @return этот сборщик
      */
-    public NodeBuilder module(NodeModule module) {
+    @WikiMethod(order = 140, summary = "<key:node.builder.method.module>")
+    @WikiReturn("<key:node.builder.return.self>")
+    public NodeBuilder module(@WikiParameter(name = "module", description = "<key:node.builder.param.module>") NodeModule module) {
         item.addModule(module);
         return this;
     }
@@ -256,7 +313,9 @@ public class NodeBuilder {
      * @param collapsed начальное состояние сворачивания
      * @return этот сборщик
      */
-    public NodeBuilder collapsed(boolean collapsed) {
+    @WikiMethod(order = 150, summary = "<key:node.builder.method.collapsed>")
+    @WikiReturn("<key:node.builder.return.self>")
+    public NodeBuilder collapsed(@WikiParameter(name = "collapsed", description = "<key:node.builder.param.collapsed>") boolean collapsed) {
         item.collapsed(collapsed);
         return this;
     }
@@ -264,6 +323,8 @@ public class NodeBuilder {
     /**
      * @return собранная нода
      */
+    @WikiMethod(order = 160, summary = "<key:node.builder.method.build>")
+    @WikiReturn("<key:node.builder.return.item>")
     public NodeGraphItem build() {
         return item;
     }

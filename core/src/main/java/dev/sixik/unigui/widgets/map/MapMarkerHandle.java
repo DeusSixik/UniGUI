@@ -35,7 +35,7 @@ import dev.sixik.unigui.widgets.interaction.Button;
 @WikiPage(
         title = "MapMarkerHandle",
         slug = "map-marker-handle",
-        category = "<key:map.category>",
+        category = "<key:core.widgets.map.support.category>",
         summary = "<key:map.marker.handle.summary>"
 )
 @WikiSection(

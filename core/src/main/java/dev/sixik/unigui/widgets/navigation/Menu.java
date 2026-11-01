@@ -20,7 +20,7 @@ import java.util.List;
 @WikiPage(
         title = "Menu",
         slug = "menu",
-        category = "<key:navigation.category>",
+        category = "<key:core.widgets.navigation.support.category>",
         summary = "<key:menu.summary>"
 )
 @WikiSection(

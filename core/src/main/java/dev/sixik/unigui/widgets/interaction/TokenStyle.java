@@ -23,7 +23,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
 @WikiPage(
         title = "<key:token.style.title>",
         slug = "token-style",
-        category = "<key:core.widgets.interaction.category>",
+        category = "<key:core.widgets.interaction.support.category>",
         summary = "<key:token.style.summary>",
         order = 320)
 @WikiSection(

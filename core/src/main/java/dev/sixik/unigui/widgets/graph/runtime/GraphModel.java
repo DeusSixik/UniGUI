@@ -37,7 +37,7 @@ import java.util.Map;
                 "Flow ports are the ports whose type is a flow type of the graph's PortTypeRegistry."
         },
         related = {"GraphExecutor", "GraphValidator", "NodeGraph"})
-@WikiPage(title = "GraphModel", slug = "graph-model", category = "<key:graph.category>", summary = "<key:graph.model.summary>")
+@WikiPage(title = "GraphModel", slug = "graph-model", category = "<key:graph.runtime.category>", summary = "<key:graph.model.summary>")
 @WikiSection(title = "<key:wiki.section.overview.title>", markdown = "<key:graph.model.overview>", order = 10)
 public class GraphModel {
     /**

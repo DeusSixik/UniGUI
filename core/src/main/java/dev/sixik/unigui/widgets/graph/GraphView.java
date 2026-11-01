@@ -43,7 +43,7 @@ import java.util.function.Function;
 @WikiPage(
         title = "GraphView",
         slug = "graph-view",
-        category = "<key:graph.category>",
+        category = "<key:graph.widget.category>",
         summary = "<key:graph.view.summary>"
 )
 @WikiSection(

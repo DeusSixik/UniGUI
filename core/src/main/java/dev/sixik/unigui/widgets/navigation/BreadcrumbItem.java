@@ -18,7 +18,7 @@ import java.util.Objects;
 @WikiPage(
         title = "BreadcrumbItem",
         slug = "breadcrumb-item",
-        category = "<key:navigation.category>",
+        category = "<key:core.widgets.navigation.support.category>",
         summary = "<key:breadcrumb.item.summary>"
 )
 @WikiSection(

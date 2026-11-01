@@ -25,7 +25,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
                 "Throwing from a behavior aborts the run with GraphExecutionException naming the node."
         },
         related = {"NodeContext", "GraphExecutor"})
-@WikiPage(title = "NodeBehavior", slug = "node-behavior", category = "<key:graph.category>", summary = "<key:node.behavior.summary>")
+@WikiPage(title = "NodeBehavior", slug = "node-behavior", category = "<key:graph.runtime.category>", summary = "<key:node.behavior.summary>")
 @WikiSection(title = "<key:wiki.section.overview.title>", markdown = "<key:node.behavior.overview>", order = 10)
 @FunctionalInterface
 public interface NodeBehavior {

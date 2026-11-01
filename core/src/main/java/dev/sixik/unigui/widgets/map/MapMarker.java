@@ -36,7 +36,7 @@ import dev.sixik.unigui.widgets.display.Label;
 @WikiPage(
         title = "MapMarker",
         slug = "map-marker",
-        category = "<key:map.category>",
+        category = "<key:map.widget.category>",
         summary = "<key:map.marker.summary>"
 )
 @WikiSection(

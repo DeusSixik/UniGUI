@@ -22,7 +22,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
 @WikiPage(
         title = "<key:code.diagnostic.title>",
         slug = "code-diagnostic",
-        category = "<key:core.widgets.interaction.category>",
+        category = "<key:core.widgets.interaction.support.category>",
         summary = "<key:code.diagnostic.summary>",
         order = 340)
 @WikiSection(

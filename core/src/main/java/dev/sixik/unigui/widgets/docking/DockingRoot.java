@@ -78,7 +78,7 @@ import dev.sixik.unigui.api.style.Style;
 @WikiPage(
         title = "DockingRoot",
         slug = "docking-root",
-        category = "<key:docking.category>",
+        category = "<key:docking.widget.category>",
         summary = "<key:docking.root.summary>"
 )
 @WikiSection(

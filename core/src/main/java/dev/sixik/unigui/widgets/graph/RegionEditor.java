@@ -51,7 +51,7 @@ import java.util.function.Consumer;
                 "The commit callback runs after the editor has closed."
         },
         related = {"NodeGraph", "NodeGraphRegion", "OverlayLayer"})
-@WikiPage(title = "RegionEditor", slug = "region-editor", category = "<key:graph.category>", summary = "<key:region.editor.summary>")
+@WikiPage(title = "RegionEditor", slug = "region-editor", category = "<key:graph.widget.category>", summary = "<key:region.editor.summary>")
 @WikiSection(title = "<key:wiki.section.overview.title>", markdown = "<key:region.editor.overview>", order = 10)
 public class RegionEditor extends Box implements OverlayHostAware, OverlayDismissable {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.CONTEXT_MENU;

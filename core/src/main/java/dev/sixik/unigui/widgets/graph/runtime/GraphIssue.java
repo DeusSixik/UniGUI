@@ -11,7 +11,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
  * @param portId   id порта или пустая строка, если проблема относится ко всей ноде
  * @param message  описание для пользователя
  */
-@WikiPage(title = "GraphIssue", slug = "graph-issue", category = "<key:graph.category>", summary = "<key:graph.issue.summary>")
+@WikiPage(title = "GraphIssue", slug = "graph-issue", category = "<key:graph.runtime.category>", summary = "<key:graph.issue.summary>")
 @WikiSection(title = "<key:wiki.section.overview.title>", markdown = "<key:graph.issue.overview>", order = 10)
 public record GraphIssue(Severity severity, String itemId, String portId, String message) {
     /**

@@ -31,7 +31,7 @@ import dev.sixik.unigui.widgets.docking.DockingRoot;
 @WikiPage(
         title = "<key:dock.side.title>",
         slug = "dock-side",
-        category = "<key:dock.side.category>",
+        category = "<key:core.widgets.containers.support.category>",
         summary = "<key:dock.side.summary>",
         order = 125)
 @WikiSection(

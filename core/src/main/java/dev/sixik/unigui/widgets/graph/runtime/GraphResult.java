@@ -11,7 +11,7 @@ import java.util.Map;
  * @param steps   сколько исполняемых нод отработало, включая повторы в циклах
  * @param outputs выходы исполняемых нод: id ноды -> id порта -> последнее опубликованное значение
  */
-@WikiPage(title = "GraphResult", slug = "graph-result", category = "<key:graph.category>", summary = "<key:graph.result.summary>")
+@WikiPage(title = "GraphResult", slug = "graph-result", category = "<key:graph.runtime.category>", summary = "<key:graph.result.summary>")
 @WikiSection(title = "<key:wiki.section.overview.title>", markdown = "<key:graph.result.overview>", order = 10)
 public record GraphResult(int steps, Map<String, Map<String, Object>> outputs) {
     /**

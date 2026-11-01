@@ -74,7 +74,7 @@ import java.util.function.Predicate;
                 "Clicking or pressing Enter on a group toggles it and never closes the palette."
         },
         related = {"NodePaletteModel", "NodeTypeRegistry", "NodeGraph", "OverlayLayer"})
-@WikiPage(title = "NodePalette", slug = "node-palette", category = "<key:graph.category>", summary = "<key:node.palette.summary>")
+@WikiPage(title = "NodePalette", slug = "node-palette", category = "<key:graph.widget.category>", summary = "<key:node.palette.summary>")
 @WikiSection(title = "<key:wiki.section.overview.title>", markdown = "<key:node.palette.overview>", order = 10)
 public class NodePalette extends Box implements OverlayHostAware, OverlayDismissable {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.CONTEXT_MENU;

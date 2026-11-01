@@ -21,7 +21,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
                 "Pure nodes are re-evaluated for every consuming exec step, so they must not keep state."
         },
         related = {"NodeBehavior", "GraphExecutor", "GraphModel"})
-@WikiPage(title = "NodeContext", slug = "node-context", category = "<key:graph.category>", summary = "<key:node.context.summary>")
+@WikiPage(title = "NodeContext", slug = "node-context", category = "<key:graph.runtime.category>", summary = "<key:node.context.summary>")
 @WikiSection(title = "<key:wiki.section.overview.title>", markdown = "<key:node.context.overview>", order = 10)
 public interface NodeContext {
     /**

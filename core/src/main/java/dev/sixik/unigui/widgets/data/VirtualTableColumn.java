@@ -26,7 +26,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
 @WikiPage(
         title = "<key:virtual.table.column.title>",
         slug = "virtual-table-column",
-        category = "<key:core.widgets.data.category>",
+        category = "<key:core.widgets.data.support.category>",
         summary = "<key:virtual.table.column.summary>",
         order = 20)
 @WikiSection(

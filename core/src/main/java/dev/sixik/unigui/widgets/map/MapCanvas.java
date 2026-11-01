@@ -69,7 +69,7 @@ import dev.sixik.unigui.widgets.interaction.Button;
 @WikiPage(
         title = "MapCanvas",
         slug = "map-canvas",
-        category = "<key:map.category>",
+        category = "<key:map.widget.category>",
         summary = "<key:map.canvas.summary>"
 )
 @WikiSection(

@@ -23,7 +23,7 @@ import java.util.List;
 @WikiPage(
         title = "WindowManager",
         slug = "window-manager",
-        category = "<key:feedback.category>",
+        category = "<key:core.widgets.feedback.support.category>",
         summary = "<key:window.manager.summary>"
 )
 @WikiSection(

@@ -1,6 +1,9 @@
 
 - [ ] Auto test framework
 
+# Widgets Style
+- [ ] Переработать базовый визуальный стиль библиотека чтобы она смотрелась более современно 
+
 # Widgets API
 - [ ] add Signal support for widgets
 - [ ] in world widget render
@@ -10,3 +13,7 @@
 
 # Render API
 - [ ] Метод для виджетов `renderToTexture()` как в Unigine который позволяет зарендерить виджет или дерево виджетов в текстуру для работы с ней в шейдера и т.п
+
+# Wiki
+- [ ] Сделать больше примеров
+- [ ] Добавить раздел `Get started`

@@ -93,7 +93,7 @@ import java.util.List;
 @WikiPage(
         title = "WorldCanvas",
         slug = "world-canvas",
-        category = "<key:world.category>",
+        category = "<key:world.widget.category>",
         summary = "<key:world.canvas.summary>"
 )
 @WikiSection(

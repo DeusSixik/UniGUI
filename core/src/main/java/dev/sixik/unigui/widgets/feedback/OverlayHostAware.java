@@ -12,7 +12,7 @@ import dev.sixik.unigui.api.math.RectView;
 @WikiPage(
         title = "OverlayHostAware",
         slug = "overlay-host-aware",
-        category = "<key:feedback.category>",
+        category = "<key:core.widgets.feedback.support.category>",
         summary = "<key:overlay.host.aware.summary>"
 )
 @WikiSection(

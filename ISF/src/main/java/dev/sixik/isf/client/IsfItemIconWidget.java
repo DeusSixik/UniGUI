@@ -44,7 +44,7 @@ final class IsfItemIconWidget extends WidgetBase {
         // ванильный путь с декорациями).
         if (stack.getCount() <= 1
                 && context.backend() instanceof MinecraftGuiRenderBackend minecraftBackend) {
-            TextureHandle cachedq = minecraftBackend.cachedItemPreviewTexture(stack, size);
+            TextureHandle cached = minecraftBackend.cachedItemPreviewTexture(stack, size);
             if (cached != null) {
                 context.texture(cached, x, y, size, size, Paint.fill(
                         MutableColor.rgba(1.0f, 1.0f, 1.0f, opacity)));

@@ -43,7 +43,7 @@ import dev.sixik.unigui.api.viewport.ViewportPoint;
 @WikiPage(
         title = "MapProjection",
         slug = "map-projection",
-        category = "<key:map.category>",
+        category = "<key:core.widgets.map.support.category>",
         summary = "<key:map.projection.summary>"
 )
 @WikiSection(

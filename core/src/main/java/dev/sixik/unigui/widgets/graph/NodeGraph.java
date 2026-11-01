@@ -39,7 +39,7 @@ import java.util.function.LongSupplier;
 @WikiPage(
         title = "NodeGraph",
         slug = "node-graph",
-        category = "<key:graph.category>",
+        category = "<key:graph.widget.category>",
         summary = "<key:node.graph.summary>"
 )
 @WikiSection(

@@ -35,7 +35,7 @@ import java.util.function.Predicate;
                 "A required input is satisfied by a wire or by an editor default."
         },
         related = {"GraphExecutor", "GraphModel", "GraphIssue"})
-@WikiPage(title = "GraphValidator", slug = "graph-validator", category = "<key:graph.category>", summary = "<key:graph.validator.summary>")
+@WikiPage(title = "GraphValidator", slug = "graph-validator", category = "<key:graph.runtime.category>", summary = "<key:graph.validator.summary>")
 @WikiSection(title = "<key:wiki.section.overview.title>", markdown = "<key:graph.validator.overview>", order = 10)
 public final class GraphValidator {
     private GraphValidator() {

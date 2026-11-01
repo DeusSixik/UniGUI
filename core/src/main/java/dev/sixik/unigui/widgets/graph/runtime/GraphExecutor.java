@@ -51,7 +51,7 @@ import java.util.Set;
                                 GraphResult result = executor.fire(graph.model(), "start");
                                 """)
         })
-@WikiPage(title = "GraphExecutor", slug = "graph-executor", category = "<key:graph.category>", summary = "<key:graph.executor.summary>")
+@WikiPage(title = "GraphExecutor", slug = "graph-executor", category = "<key:graph.runtime.category>", summary = "<key:graph.executor.summary>")
 @WikiSection(title = "<key:wiki.section.overview.title>", markdown = "<key:graph.executor.overview>", order = 10)
 @WikiExample(title = "<key:graph.executor.example.title>", code = "GraphExecutor executor = new GraphExecutor()\n        .register(\"event.start\", NodeBehavior.exec(context -> context.continueWith(\"next\")))\n        .register(\"value.add\", NodeBehavior.pure(context ->\n                context.output(\"sum\", context.number(\"left\") + context.number(\"right\"))));\nGraphResult result = executor.fire(graph.model(), \"start\");")
 public class GraphExecutor {

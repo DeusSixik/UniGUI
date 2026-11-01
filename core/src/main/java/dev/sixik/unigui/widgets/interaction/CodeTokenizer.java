@@ -24,7 +24,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
 @WikiPage(
         title = "<key:code.tokenizer.title>",
         slug = "code-tokenizer",
-        category = "<key:core.widgets.interaction.category>",
+        category = "<key:core.widgets.interaction.support.category>",
         summary = "<key:code.tokenizer.summary>",
         order = 300)
 @WikiSection(

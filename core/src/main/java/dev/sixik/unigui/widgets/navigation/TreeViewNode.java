@@ -24,7 +24,7 @@ import dev.sixik.unigui.widgets.interaction.Button;
 @WikiPage(
         title = "TreeViewNode",
         slug = "tree-view-node",
-        category = "<key:navigation.category>",
+        category = "<key:core.widgets.navigation.support.category>",
         summary = "<key:tree.view.node.summary>"
 )
 @WikiSection(
