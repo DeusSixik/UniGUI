@@ -8,6 +8,7 @@ import dev.sixik.unigui.demo.ui.MarkerScalingDemoScreen;
 import dev.sixik.unigui.demo.ui.ForkInSocketMinigameScreen;
 import dev.sixik.unigui.testmod.client.ui.LevelMapScreen;
 import dev.sixik.unigui.testmod.client.ui.LoadingScreenDemo;
+import dev.sixik.unigui.testmod.client.ui.InventoryDemoScreen;
 import dev.sixik.unigui.demo.ui.OverlayRenderDemo;
 import dev.sixik.unigui.demo.ui.PlugSocketMinigameScreen;
 import dev.sixik.unigui.demo.ui.PostProcessingLayerTestScreen;
@@ -108,5 +109,9 @@ public final class TestModClient implements ClientModInitializer {
 
     public static void openUnityInspector() {
         UnityInspectorScreen.open();
+    }
+
+    public static void openInventoryDemo() {
+        InventoryDemoScreen.open();
     }
 }
