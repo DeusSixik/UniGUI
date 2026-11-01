@@ -110,6 +110,24 @@ public final class StyleKeys {
             StyleKey.of(StyleIds.Key.CHECKBOX_BACKGROUND_COLOR, ColorView.class);
 
     /**
+     * Цвет курсора выбора и маркера hue для ColorPicker.
+     */
+    public static final StyleKey<ColorView> COLOR_PICKER_SELECTION_COLOR =
+            StyleKey.of(StyleIds.Key.COLOR_PICKER_SELECTION_COLOR, ColorView.class);
+
+    /**
+     * Цвет рамки цветовой плоскости ColorPicker.
+     */
+    public static final StyleKey<ColorView> COLOR_PICKER_PLANE_BORDER_COLOR =
+            StyleKey.of(StyleIds.Key.COLOR_PICKER_PLANE_BORDER_COLOR, ColorView.class);
+
+    /**
+     * Цвет рамок preview/current/original swatches ColorPicker.
+     */
+    public static final StyleKey<ColorView> COLOR_PICKER_SWATCH_BORDER_COLOR =
+            StyleKey.of(StyleIds.Key.COLOR_PICKER_SWATCH_BORDER_COLOR, ColorView.class);
+
+    /**
      * Цвет placeholder-текста в input-like виджетах.
      */
     public static final StyleKey<ColorView> PLACEHOLDER_COLOR = StyleKey.of(StyleIds.Key.PLACEHOLDER_COLOR, ColorView.class);

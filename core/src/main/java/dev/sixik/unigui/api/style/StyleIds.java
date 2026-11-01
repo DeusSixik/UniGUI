@@ -38,6 +38,9 @@ public final class StyleIds {
         public static final String TEXT_TRACKING = "text.tracking";
         public static final String TEXT_TRANSFORM = "text.transform";
         public static final String CHECKBOX_BACKGROUND_COLOR = "checkbox.background.color";
+        public static final String COLOR_PICKER_SELECTION_COLOR = "color-picker.selection.color";
+        public static final String COLOR_PICKER_PLANE_BORDER_COLOR = "color-picker.plane.border-color";
+        public static final String COLOR_PICKER_SWATCH_BORDER_COLOR = "color-picker.swatch.border-color";
         public static final String PLACEHOLDER_COLOR = "placeholder.color";
         public static final String CARET_COLOR = "caret.color";
         public static final String FOCUS_RING_COLOR = "focus.ring.color";

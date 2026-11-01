@@ -2,17 +2,8 @@ package dev.sixik.unigui.widgets.interaction;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
-import dev.sixik.unigui.api.event.ColorChangedEvent;
-import dev.sixik.unigui.api.event.Event;
-import dev.sixik.unigui.api.event.EventPhase;
-import dev.sixik.unigui.api.event.EventListener;
-import dev.sixik.unigui.api.event.EventSubscription;
-import dev.sixik.unigui.api.event.FocusLostEvent;
-import dev.sixik.unigui.api.event.PointerEvent;
-import dev.sixik.unigui.api.event.PointerMovedEvent;
-import dev.sixik.unigui.api.event.PointerPressedEvent;
-import dev.sixik.unigui.api.event.PointerReleasedEvent;
-import dev.sixik.unigui.api.event.TextInputEvent;
+import dev.sixik.unigui.api.docs.*;
+import dev.sixik.unigui.api.event.*;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
@@ -21,26 +12,23 @@ import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
-import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.widgets.containers.HBox;
 import dev.sixik.unigui.widgets.containers.LinearBox;
-import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.widgets.display.Label;
+import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 import dev.sixik.unigui.widgets.feedback.Popup;
-import dev.sixik.unigui.api.docs.AiDoc;
-import dev.sixik.unigui.api.docs.WikiExample;
-import dev.sixik.unigui.api.docs.WikiMethod;
-import dev.sixik.unigui.api.docs.WikiPage;
-import dev.sixik.unigui.api.docs.WikiParameter;
-import dev.sixik.unigui.api.docs.WikiReturn;
-import dev.sixik.unigui.api.docs.WikiSection;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+
+import java.util.List;
 
 @AiDoc(
         summary = "Interactive color selection control providing RGBA sliders, hex input, and popup palette.",
@@ -72,26 +60,29 @@ import dev.sixik.unigui.api.docs.WikiSection;
 public final class ColorPicker extends LinearBox {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.COLOR_PICKER;
 
-    private static final float PICKER_WIDTH = 224.0f;
-    private static final float COLOR_PLANE_HEIGHT = 128.0f;
+    private static final float PICKER_WIDTH = 304.0f;
+    private static final float COLOR_PLANE_SIZE = 196.0f;
+    private static final float HUE_BAR_WIDTH = 18.0f;
     private static final float ROW_HEIGHT = 20.0f;
     private static final float CHANNEL_FIELD_WIDTH = 42.0f;
     private static final float CHANNEL_LABEL_WIDTH = 18.0f;
-    private static final float CHANNEL_SLIDER_WIDTH = 154.0f;
-    private static final float HSV_LABEL_WIDTH = 42.0f;
-    private static final float HSV_SLIDER_WIDTH = 176.0f;
+    private static final float CHANNEL_SLIDER_WIDTH = 184.0f;
 
     private final MutableColor color = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private final Button preview = new Button("");
     private final Popup popup = new Popup();
     private final VBox pickerPanel = new VBox();
-    private final HBox modeRow = new HBox();
-    private final Button hsvModeButton = new Button("HSV");
-    private final Button argbModeButton = new Button("ARGB");
+    private final HBox rgbRow = new HBox();
+    private final HBox colorRow = new HBox();
+    private final VBox swatchColumn = new VBox();
+    private final Button currentSwatch = new Button("");
+    private final Button originalSwatch = new Button("");
+    private final TextField hexField = new HexField();
+    private final HBox hexRow = new HBox();
     private final VBox hsvPanel = new VBox();
     private final VBox argbPanel = new VBox();
     private final ColorPlane colorPlane = new ColorPlane();
-    private final Slider hueSlider = new Slider().range(0.0f, 360.0f).step(1.0f).value(0.0f);
+    private final HueBar hueBar = new HueBar();
     private final ChannelField alpha = channelField();
     private final ChannelField red = channelField();
     private final ChannelField green = channelField();
@@ -100,6 +91,10 @@ public final class ColorPicker extends LinearBox {
     private final Slider redSlider = channelSlider();
     private final Slider greenSlider = channelSlider();
     private final Slider blueSlider = channelSlider();
+    private final List<Label> styleLabels = new ObjectArrayList<>();
+    private final Label hueReadout = styledLabel("H: 0");
+    private final Label saturationReadout = styledLabel("S: 0");
+    private final Label valueReadout = styledLabel("V: 255");
     private OverlayLayer explicitOverlayLayer;
     private OverlayLayer attachedOverlayLayer;
     private Type type = Type.HSV;
@@ -107,6 +102,7 @@ public final class ColorPicker extends LinearBox {
     private float hue;
     private float saturation;
     private float value = 1.0f;
+    private MutableColor originalColor = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
 
     public ColorPicker() {
         super(Orientation.VERTICAL);
@@ -124,17 +120,12 @@ public final class ColorPicker extends LinearBox {
         red.onTextChanged(event -> updateFromFields(false));
         green.onTextChanged(event -> updateFromFields(false));
         blue.onTextChanged(event -> updateFromFields(false));
+        hexField.onTextChanged(event -> updateFromHex());
 
         alphaSlider.onValueChanged(event -> updateChannelFromSlider(alpha, event.newValue()));
         redSlider.onValueChanged(event -> updateChannelFromSlider(red, event.newValue()));
         greenSlider.onValueChanged(event -> updateChannelFromSlider(green, event.newValue()));
         blueSlider.onValueChanged(event -> updateChannelFromSlider(blue, event.newValue()));
-        hueSlider.onValueChanged(event -> {
-            if (syncing) return;
-            hue = event.newValue();
-            updateFromHsv();
-        });
-
         buildPickerPanel();
         popup.anchor(preview);
         popup.content(pickerPanel);
@@ -143,6 +134,28 @@ public final class ColorPicker extends LinearBox {
 
         syncFieldsAndSliders();
         type(Type.HSV);
+    }
+
+    @Override
+    protected void applyTheme() {
+        super.applyTheme();
+        ColorView textColor = styleValue(StyleKeys.TEXT_COLOR, (ColorView) null);
+        if (textColor != null) {
+            for (Label label : styleLabels) label.color(textColor);
+            alpha.textColor().set(textColor);
+            red.textColor().set(textColor);
+            green.textColor().set(textColor);
+            blue.textColor().set(textColor);
+            hexField.textColor().set(textColor);
+        }
+
+        ColorView swatchBorder = styleValue(StyleKeys.COLOR_PICKER_SWATCH_BORDER_COLOR,
+                styleValue(StyleKeys.BORDER_COLOR, (ColorView) null));
+        if (swatchBorder != null) {
+            preview.borderColor().set(swatchBorder);
+            currentSwatch.borderColor().set(swatchBorder);
+            originalSwatch.borderColor().set(swatchBorder);
+        }
     }
 
     @WikiMethod(
@@ -212,7 +225,6 @@ public final class ColorPicker extends LinearBox {
     public ColorPicker type(Type type) {
         Type normalized = type == null ? Type.HSV : type;
         this.type = normalized;
-        syncModeButtons();
         hsvPanel.visibility(normalized == Type.HSV ? Visibility.VISIBLE : Visibility.COLLAPSED);
         argbPanel.visibility(normalized == Type.ARGB ? Visibility.VISIBLE : Visibility.COLLAPSED);
         pickerPanel.invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
@@ -275,6 +287,10 @@ public final class ColorPicker extends LinearBox {
     private void togglePopup() {
         syncPopupAttachment();
         if (attachedOverlayLayer == null) return;
+        if (!popup.opened()) {
+            originalColor.set(color);
+            updateSwatches();
+        }
         popup.toggle();
     }
 
@@ -310,30 +326,51 @@ public final class ColorPicker extends LinearBox {
     }
 
     private void buildPickerPanel() {
-        pickerPanel.spacing(6.0f);
+        pickerPanel.spacing(4.0f);
         pickerPanel.layout(style -> style.size(PICKER_WIDTH, LayoutConstraints.AUTO).flexGrow(0).flexShrink(0.0f));
 
-        hsvModeButton.layout(style -> style.size(58.0f, 20.0f).flexGrow(0).flexShrink(0.0f));
-        argbModeButton.layout(style -> style.size(66.0f, 20.0f).flexGrow(0).flexShrink(0.0f));
-        hsvModeButton.radius(3.0f);
-        argbModeButton.radius(3.0f);
-        hsvModeButton.onClick(event -> type(Type.HSV));
-        argbModeButton.onClick(event -> type(Type.ARGB));
+        rgbRow.spacing(4.0f);
+        rgbRow.layout(style -> style.flexGrow(0).flexShrink(0.0f));
+        rgbRow.addChild(channelValue("R", red));
+        rgbRow.addChild(channelValue("G", green));
+        rgbRow.addChild(channelValue("B", blue));
 
-        modeRow.spacing(4.0f);
-        modeRow.layout(style -> style.flexGrow(0).flexShrink(0.0f));
-        Label modeLabel = new Label("Type");
-        modeLabel.layout(style -> style.size(44.0f, 20.0f).flexGrow(0).flexShrink(0.0f));
-        modeRow.addChild(modeLabel);
-        modeRow.addChild(hsvModeButton);
-        modeRow.addChild(argbModeButton);
+        hexRow.spacing(6.0f);
+        hexRow.layout(style -> style.flexGrow(0).flexShrink(0.0f));
+        Label hexLabel = styledLabel("HEX");
+        hexLabel.layout(style -> style.size(34.0f, ROW_HEIGHT).flexGrow(0).flexShrink(0.0f));
+        hexField.maxLength(9);
+        hexField.layout(style -> style.size(104.0f, ROW_HEIGHT).flexGrow(0).flexShrink(0.0f));
+        hexRow.addChild(hexLabel);
+        hexRow.addChild(hexField);
 
-        hsvPanel.spacing(5.0f);
+        hsvPanel.spacing(4.0f);
         hsvPanel.layout(style -> style.flexGrow(0).flexShrink(0.0f));
-        colorPlane.layout(style -> style.size(PICKER_WIDTH, COLOR_PLANE_HEIGHT).flexGrow(0).flexShrink(0.0f));
-        hueSlider.layout(style -> style.size(HSV_SLIDER_WIDTH, ROW_HEIGHT).flexGrow(0).flexShrink(0.0f));
-        hsvPanel.addChild(colorPlane);
-        hsvPanel.addChild(sliderRow("Hue", hueSlider));
+        colorRow.spacing(5.0f);
+        colorRow.layout(style -> style.flexGrow(0).flexShrink(0.0f));
+        colorPlane.layout(style -> style.size(COLOR_PLANE_SIZE, COLOR_PLANE_SIZE).flexGrow(0).flexShrink(0.0f));
+        hueBar.layout(style -> style.size(HUE_BAR_WIDTH, COLOR_PLANE_SIZE).flexGrow(0).flexShrink(0.0f));
+        swatchColumn.spacing(3.0f);
+        swatchColumn.layout(style -> style.size(72.0f, COLOR_PLANE_SIZE).flexGrow(0).flexShrink(0.0f));
+        currentSwatch.layout(style -> style.size(72.0f, 60.0f).flexGrow(0).flexShrink(0.0f));
+        originalSwatch.layout(style -> style.size(72.0f, 60.0f).flexGrow(0).flexShrink(0.0f));
+        currentSwatch.radius(1.0f);
+        originalSwatch.radius(1.0f);
+        originalSwatch.onClick(event -> setColor(
+                originalColor.r(), originalColor.g(), originalColor.b(), originalColor.a(), true));
+        Label currentLabel = styledLabel("Current");
+        Label originalLabel = styledLabel("Original");
+        currentLabel.layout(style -> style.size(72.0f, 14.0f).flexGrow(0).flexShrink(0.0f));
+        originalLabel.layout(style -> style.size(72.0f, 14.0f).flexGrow(0).flexShrink(0.0f));
+        swatchColumn.addChild(currentLabel);
+        swatchColumn.addChild(currentSwatch);
+        swatchColumn.addChild(originalLabel);
+        swatchColumn.addChild(originalSwatch);
+        colorRow.addChild(colorPlane);
+        colorRow.addChild(hueBar);
+        colorRow.addChild(swatchColumn);
+        hsvPanel.addChild(colorRow);
+        hsvPanel.addChild(hsvValueRow());
 
         argbPanel.spacing(5.0f);
         argbPanel.layout(style -> style.flexGrow(0).flexShrink(0.0f));
@@ -342,20 +379,32 @@ public final class ColorPicker extends LinearBox {
         argbPanel.addChild(channelRow("G", green, greenSlider));
         argbPanel.addChild(channelRow("B", blue, blueSlider));
 
-        pickerPanel.addChild(modeRow);
+        pickerPanel.addChild(rgbRow);
+        pickerPanel.addChild(hexRow);
         pickerPanel.addChild(hsvPanel);
         pickerPanel.addChild(argbPanel);
     }
 
-    private void syncModeButtons() {
-        styleModeButton(hsvModeButton, type == Type.HSV);
-        styleModeButton(argbModeButton, type == Type.ARGB);
+    private HBox channelValue(String label, ChannelField field) {
+        HBox value = new HBox();
+        value.spacing(3.0f);
+        value.layout(style -> style.flexGrow(1).flexShrink(0.0f));
+        Label name = styledLabel(label);
+        name.layout(style -> style.size(14.0f, ROW_HEIGHT).flexGrow(0).flexShrink(0.0f));
+        field.layout(style -> style.flexGrow(1).flexShrink(1.0f));
+        value.addChild(name);
+        value.addChild(field);
+        return value;
     }
 
-    private static void styleModeButton(Button button, boolean selected) {
-        button.background(MutableColor.rgba(selected ? 0.18f : 0.07f, selected ? 0.45f : 0.08f, selected ? 0.75f : 0.10f, 1.0f));
-        button.borderColor(MutableColor.rgba(selected ? 0.35f : 0.18f, selected ? 0.85f : 0.25f, selected ? 1.0f : 0.32f, selected ? 0.95f : 0.70f));
-        button.textColor(MutableColor.rgba(selected ? 0.95f : 0.72f, selected ? 0.98f : 0.82f, 1.0f, 1.0f));
+    private HBox hsvValueRow() {
+        HBox row = new HBox();
+        row.spacing(4.0f);
+        row.layout(style -> style.flexGrow(0).flexShrink(0.0f));
+        row.addChild(hueReadout);
+        row.addChild(saturationReadout);
+        row.addChild(valueReadout);
+        return row;
     }
 
     private void updateFromFields(boolean normalizeText) {
@@ -375,6 +424,24 @@ public final class ColorPicker extends LinearBox {
         }
         invalidate(InvalidationFlags.VISUAL);
         dispatchColorChanged(oldColor);
+    }
+
+    private void updateFromHex() {
+        if (syncing) return;
+        String text = hexField.text();
+        if (text == null) return;
+        String digits = text.startsWith("#") ? text.substring(1) : text;
+        if (digits.length() != 6 && digits.length() != 8) return;
+        try {
+            long parsed = Long.parseLong(digits, 16);
+            int r = (int) ((parsed >>> (digits.length() == 8 ? 24 : 16)) & 0xFF);
+            int g = (int) ((parsed >>> (digits.length() == 8 ? 16 : 8)) & 0xFF);
+            int b = (int) ((parsed >>> (digits.length() == 8 ? 8 : 0)) & 0xFF);
+            int a = digits.length() == 8 ? (int) (parsed & 0xFF) : 255;
+            setColor(r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f, true);
+        } catch (NumberFormatException ignored) {
+            // Incomplete text remains editable until it forms a complete hex color.
+        }
     }
 
     private void updateChannelFromSlider(ChannelField field, float value) {
@@ -433,6 +500,7 @@ public final class ColorPicker extends LinearBox {
             red.value255(channel(color.r()));
             green.value255(channel(color.g()));
             blue.value255(channel(color.b()));
+            hexField.text(formatHex(color));
             syncHsvFromColor();
             syncSlidersUnchecked();
         } finally {
@@ -455,7 +523,10 @@ public final class ColorPicker extends LinearBox {
         redSlider.value(red.value255());
         greenSlider.value(green.value255());
         blueSlider.value(blue.value255());
-        hueSlider.value(Math.round(hue));
+        hueBar.invalidate(InvalidationFlags.VISUAL);
+        hueReadout.text("H: " + Math.round(hue));
+        saturationReadout.text("S: " + Math.round(saturation * 255.0f));
+        valueReadout.text("V: " + Math.round(value * 255.0f));
         colorPlane.invalidate(InvalidationFlags.VISUAL);
     }
 
@@ -469,8 +540,43 @@ public final class ColorPicker extends LinearBox {
 
     private void updatePreview() {
         preview.background().set(color);
-        preview.borderColor().set(0.85f, 0.90f, 1.0f, 0.85f);
+        currentSwatch.background().set(color);
+        MutableColor swatchBorder = swatchBorderColor();
+        preview.borderColor().set(swatchBorder);
         preview.textColor().set(1.0f, 1.0f, 1.0f, 0.0f);
+        if (!syncing) {
+            syncing = true;
+            try {
+                hexField.text(formatHex(color));
+            } finally {
+                syncing = false;
+            }
+        }
+        updateSwatches();
+    }
+
+    private void updateSwatches() {
+        currentSwatch.background().set(color);
+        originalSwatch.background().set(originalColor);
+        MutableColor border = swatchBorderColor();
+        currentSwatch.borderColor().set(border);
+        originalSwatch.borderColor().set(border);
+    }
+
+    private MutableColor swatchBorderColor() {
+        ColorView border = styleValue(StyleKeys.COLOR_PICKER_SWATCH_BORDER_COLOR,
+                styleValue(StyleKeys.BORDER_COLOR, MutableColor.rgba(0.85f, 0.90f, 1.0f, 0.85f)));
+        return MutableColor.rgba(border.r(), border.g(), border.b(), border.a());
+    }
+
+    private ColorView selectionColor() {
+        return styleValue(StyleKeys.COLOR_PICKER_SELECTION_COLOR,
+                styleValue(StyleKeys.ACCENT_COLOR, MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f)));
+    }
+
+    private static String formatHex(ColorView color) {
+        return String.format(java.util.Locale.ROOT, "#%02X%02X%02X%02X",
+                channel(color.r()), channel(color.g()), channel(color.b()), channel(color.a()));
     }
 
     private ChannelField channelField() {
@@ -485,27 +591,22 @@ public final class ColorPicker extends LinearBox {
         return slider;
     }
 
-    private static HBox sliderRow(String label, Slider slider) {
-        HBox row = new HBox();
-        row.spacing(6.0f);
-        row.layout(style -> style.flexGrow(0).flexShrink(0.0f));
-        Label text = new Label(label);
-        text.layout(style -> style.size(HSV_LABEL_WIDTH, ROW_HEIGHT).flexGrow(0).flexShrink(0.0f));
-        row.addChild(text);
-        row.addChild(slider);
-        return row;
-    }
-
-    private static HBox channelRow(String label, ChannelField field, Slider slider) {
+    private HBox channelRow(String label, ChannelField field, Slider slider) {
         HBox row = new HBox();
         row.spacing(5.0f);
         row.layout(style -> style.flexGrow(0).flexShrink(0.0f));
-        Label text = new Label(label);
+        Label text = styledLabel(label);
         text.layout(style -> style.size(CHANNEL_LABEL_WIDTH, ROW_HEIGHT).flexGrow(0).flexShrink(0.0f));
         row.addChild(text);
         row.addChild(field);
         row.addChild(slider);
         return row;
+    }
+
+    private Label styledLabel(String text) {
+        Label label = new Label(text);
+        styleLabels.add(label);
+        return label;
     }
 
     private static int channel(float value) {
@@ -650,12 +751,35 @@ public final class ColorPicker extends LinearBox {
         }
     }
 
+    private final class HexField extends TextField {
+        private HexField() {
+            maxLength(9);
+            text("#FFFFFFFF");
+        }
+
+        @Override
+        protected String sanitizeTextInput(String text) {
+            StringBuilder builder = new StringBuilder(Math.min(text.length(), 9));
+            text.codePoints()
+                    .filter(codePoint -> codePoint == '#' && builder.isEmpty() || isHexDigit(codePoint))
+                    .limit(9)
+                    .forEach(builder::appendCodePoint);
+            return builder.toString();
+        }
+
+        private boolean isHexDigit(int codePoint) {
+            return codePoint >= '0' && codePoint <= '9'
+                    || codePoint >= 'a' && codePoint <= 'f'
+                    || codePoint >= 'A' && codePoint <= 'F';
+        }
+    }
+
     private final class ColorPlane extends WidgetBase {
         private boolean dragging;
 
         @Override
         public void measure(dev.sixik.unigui.api.layout.LayoutContext context) {
-            setDesiredSize(resolveDesiredSize(context, PICKER_WIDTH, COLOR_PLANE_HEIGHT));
+            setDesiredSize(resolveDesiredSize(context, COLOR_PLANE_SIZE, COLOR_PLANE_SIZE));
         }
 
         @Override
@@ -718,13 +842,16 @@ public final class ColorPicker extends LinearBox {
                 float x2 = x + width * rightT;
                 draw.addRectFilledMultiColor(x1, y, x2 - x1, height, topLeft, topRight, black, black);
             }
-            draw.rect(x, y, width, height,
-                    Paint.stroke(MutableColor.rgba(0.85f, 0.92f, 1.0f, enabled() ? 0.75f : 0.35f), 1.0f));
+            ColorView planeBorder = styleValue(StyleKeys.COLOR_PICKER_PLANE_BORDER_COLOR,
+                    styleValue(StyleKeys.BORDER_COLOR,
+                            MutableColor.rgba(0.85f, 0.92f, 1.0f, enabled() ? 0.75f : 0.35f)));
+            draw.rect(x, y, width, height, Paint.stroke(planeBorder, 1.0f));
             float cx = x + saturation * width;
             float cy = y + (1.0f - value) * height;
             float radius = dragging || hovered() ? 4.5f : 4.0f;
+            ColorView selection = selectionColor();
             draw.addCircle(cx, cy, radius, MutableColor.rgba(0.0f, 0.0f, 0.0f, enabled() ? 0.90f : 0.45f), 16, 2.0f);
-            draw.addCircle(cx, cy, Math.max(1.0f, radius - 1.0f), MutableColor.rgba(1.0f, 1.0f, 1.0f, enabled() ? 0.95f : 0.45f), 16, 1.0f);
+            draw.addCircle(cx, cy, Math.max(1.0f, radius - 1.0f), selection, 16, 1.0f);
         }
 
         private void update(float rootX, float rootY) {
@@ -735,5 +862,66 @@ public final class ColorPicker extends LinearBox {
             updateFromHsv();
         }
 
+    }
+
+    private final class HueBar extends WidgetBase {
+        private boolean dragging;
+
+        @Override
+        public void measure(dev.sixik.unigui.api.layout.LayoutContext context) {
+            setDesiredSize(resolveDesiredSize(context, HUE_BAR_WIDTH, COLOR_PLANE_SIZE));
+        }
+
+        @Override
+        public void handle(Event event) {
+            if (event instanceof PointerEvent pointer && pointer.phase() == EventPhase.CAPTURE) return;
+            if (event instanceof PointerPressedEvent pointer && pointer.button() == PointerButton.PRIMARY) {
+                dragging = true;
+                update(pointer.rootY());
+                UIContext context = uiContext();
+                if (context != null) context.capturePointer(pointer.pointerId(), this);
+                event.cancel();
+            } else if (event instanceof PointerMovedEvent pointer && dragging) {
+                update(pointer.rootY());
+                event.cancel();
+            } else if (event instanceof PointerReleasedEvent pointer && pointer.button() == PointerButton.PRIMARY && dragging) {
+                update(pointer.rootY());
+                dragging = false;
+                UIContext context = uiContext();
+                if (context != null) context.releasePointer(pointer.pointerId(), this);
+                event.cancel();
+            }
+        }
+
+        @Override
+        public void render(RenderContext context) {
+            float x = layoutBounds().x();
+            float y = layoutBounds().y();
+            float width = layoutBounds().width();
+            float height = layoutBounds().height();
+            if (width <= 0.0f || height <= 0.0f) return;
+            DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+            for (int i = 0; i < 36; i++) {
+                float top = i / 36.0f;
+                float bottom = (i + 1) / 36.0f;
+                MutableColor topColor = hueColor(top * 360.0f);
+                MutableColor bottomColor = hueColor(bottom * 360.0f);
+                draw.addRectFilledMultiColor(x, y + height * top, width, height / 36.0f + 1.0f,
+                        topColor, topColor, bottomColor, bottomColor);
+            }
+            float markerY = y + hue / 360.0f * height;
+            draw.addLine(x - 2.0f, markerY, x + width + 2.0f, markerY, selectionColor(), 2.0f);
+        }
+
+        private void update(float rootY) {
+            float height = Math.max(1.0f, layoutBounds().height());
+            hue = clamp01((rootY - layoutBounds().y()) / height) * 360.0f;
+            updateFromHsv();
+        }
+    }
+
+    private static MutableColor hueColor(float hue) {
+        float[] rgb = hsvToRgb(hue, 1.0f, 1.0f);
+        return MutableColor.rgba(rgb[0], rgb[1], rgb[2], 1.0f);
     }
 }
