@@ -1,26 +1,49 @@
-
+# Core
 - [ ] Auto test framework
 
 # Widgets Style
-- [ ] Переработать базовый визуальный стиль библиотека чтобы она смотрелась более современно 
+- [ ] Rework the library's base visual style to look more modern
 
 # Widgets API
-- [ ] add Signal support for widgets
-- [ ] in world widget render
-- [ ] 3D widget render (Like [Noesis GUI](https://www.noesisengine.com/xamltoy/8ab948fb3b5a3edaaee5bb6cd7017a8b))
-- [ ] Better style pack & style API. Он должен позволять создавать большую часть вещей без написание кода рендера у виджета
-- [ ] Вывести XAML API из Legacy состояния. Оптимизировать, добавить примеры и доработать action bindings
+- [ ] Add Signal support for widgets
+- [ ] In-world widget rendering
+- [ ] 3D widget rendering (like [Noesis GUI](https://www.noesisengine.com/xamltoy/8ab948fb3b5a3edaaee5bb6cd7017a8b))
+- [ ] Support for rendering 3D elements inside UI
+- [ ] Better style pack & style API. It should allow building most things without writing custom render code for a widget
+- [ ] Bring the XAML API out of its Legacy state: optimize it, add examples, and finish action bindings
+
+# Serialization
+- [ ] Rework and extend widget serialization. Design it so that any serialization language can be plugged in: XAML (priority), Java, JS (KubeJS), ZS (CraftTweaker)
+
+# Asset Packs
+- [ ] Assets Pack mechanism: UI as serializable data packaged into a single archive containing assets, fonts, shaders, and the UI code itself (like Unity AssetBundle)
+
+# Tooling
+- [ ] In-game UI editor, in the spirit of the Unity / Unreal Engine editors (UMG Designer, UI Toolkit Builder), running directly inside Minecraft ***(Required (Assets Pack & XAML API))***
+  - Viewport: WYSIWYG canvas with selection, move/resize/anchor gizmos, snapping and guides, zoom/pan, and resolution/GUI-scale presets
+  - Hierarchy panel: widget tree with drag & drop reparenting, reordering, visibility/lock toggles, and search
+  - Palette: list of all registered widgets, drag onto the canvas to instantiate
+  - Inspector (Details panel): edit widget properties and layout style (`LayoutStyle`), with type-aware editors (color, font, enum, number, texture picker) and per-property reset to default
+  - Style editor: edit style packs and the style API visually, with live preview
+  - Bindings editor: wire up Signals, action bindings, and events without code
+  - Asset browser: manage textures, fonts, and shaders from the Assets Pack
+  - Undo/redo: command-based history for all edits
+  - Live preview and hot reload: edits apply instantly in the running game, plus a play mode to test interactions without leaving the editor
+  - Serialization integration: open and save UI through the serialization layer (XAML first), and export to an Assets Pack
+  - Dogfooding: the editor is built with UniGUI itself, which doubles as a large-scale test of the library
 
 # Text & Layout
-- [ ] Замер текста не совпадает с отрисовкой. `TextWidget.measure()` (и ещё ~16 виджетов в `core/.../widgets`) вызывает `TextEngine.measureTextHeight/measureLineWidth/wrapLines` без шрифта бэкенда и берёт запасную метрику (`fallbackLineHeight`, 10px на строку при размере 10), а рендер использует `backend.defaultTextFace()` (в тесте 12.6px на строку, +26%). Из-за этого у многострочных `Label` и автовысоты высота занижена: в `ScrollView` низ контента нельзя прокрутить, нижняя строка обрезается. `LayoutContext` знает только `availableWidth/Height`, шрифта в нём нет.
-  - Решение: передавать шрифт бэкенда в замер (через `LayoutContext` или `UIContext`) вместо запасной метрики. Глобальный default face для замера проще, но это глобальное состояние.
-  - Риск: изменятся размеры всего, что измеряется по тексту (кнопки без заданной высоты, строки `TreeView`, `Toast`, поля ввода), и могут поехать раскладки в демо и `TestMod`. Вероятно, упадут тесты с точными числами (`BasicControlsSelfTest`). Сначала прогнать полный набор тестов с пробной правкой и посмотреть, сколько упадёт.
-  - Обход сейчас: задавать многострочному тексту явный шрифт `label.font(Fonts.defaultFace(), size)` (так сделано для кода в `DemoCategory.samplePanel`). Добавить предупреждение об этом в вики/документацию `TextWidget`.
+- [ ] Text measurement does not match rendering. `TextWidget.measure()` (and ~16 other widgets in `core/.../widgets`) calls `TextEngine.measureTextHeight/measureLineWidth/wrapLines` without the backend font and falls back to a default metric (`fallbackLineHeight`, 10px per line at size 10), while rendering uses `backend.defaultTextFace()` (12.6px per line in the test, +26%). As a result, multiline `Label`s and auto-height containers are measured too short: in a `ScrollView` the bottom of the content can't be scrolled to, and the last line is clipped. `LayoutContext` only knows `availableWidth/Height` and has no font.
+  - Solution: pass the backend font into measurement (via `LayoutContext` or `UIContext`) instead of the fallback metric. A global default face for measurement is simpler, but it is global state.
+  - Risk: the size of everything measured by text will change (buttons without an explicit height, `TreeView` rows, `Toast`, input fields), and layouts in the demos and `TestMod` may shift. Tests with exact numbers (`BasicControlsSelfTest`) will likely fail. First run the full test suite with a trial change and see how many fail.
+  - Current workaround: set an explicit font on multiline text, `label.font(Fonts.defaultFace(), size)` (done for code in `DemoCategory.samplePanel`). Add a warning about this to the `TextWidget` wiki/docs.
 
 # Render API
-- [ ] Метод для виджетов `renderToTexture()` как в Unigine который позволяет зарендерить виджет или дерево виджетов в текстуру для работы с ней в шейдера и т.п
-- [ ] Screen overwrite. Механизм который позволяет полностью заменить экран Minecraft на экран UniGUI
+- [ ] `renderToTexture()` method for widgets, like in Unigine: renders a widget or a widget tree into a texture for use in shaders, etc.
+
+# Layer API (Minecraft Integration)
+- [ ] Screen overwrite: a mechanism to fully replace a Minecraft screen with a UniGUI screen
 
 # Wiki
-- [ ] Сделать больше примеров
-- [ ] Добавить раздел `Get started`
+- [ ] Add more examples
+- [ ] Add a `Get started` section

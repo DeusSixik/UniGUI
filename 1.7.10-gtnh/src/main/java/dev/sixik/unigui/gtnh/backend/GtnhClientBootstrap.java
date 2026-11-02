@@ -7,7 +7,9 @@ import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import dev.sixik.unigui.api.backend.UniGuiRuntime;
 import dev.sixik.unigui.demo.ui.DemoAssets;
+import dev.sixik.unigui.demo.ui.minecraft.DemoMinecraft;
 import dev.sixik.unigui.gtnh.commands.CommandUniGUI;
+import dev.sixik.unigui.gtnh.demo.GtnhMinecraftDemoHost;
 import dev.sixik.unigui.gtnh.commands.GtnhDemoLauncher;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.client.ClientCommandHandler;
@@ -40,6 +42,7 @@ public final class GtnhClientBootstrap {
         // The vanilla font is opt-in: MinecraftFonts.defaultFace() / MinecraftFonts.useVanillaAsDefault().
         // Screens without an explicit default font still fall back to the vanilla face.
         DemoAssets.provider(GtnhDemoAssets::load);
+        DemoMinecraft.host(new GtnhMinecraftDemoHost());
         UniGuiRuntime.install(current);
         MinecraftForge.EVENT_BUS.register(new GtnhClientEvents());
         ClientCommandHandler.instance.registerCommand(new CommandUniGUI());

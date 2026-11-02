@@ -14,11 +14,14 @@ import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.event.EventSubscription;
 import dev.sixik.unigui.api.event.PointerEnteredEvent;
+import dev.sixik.unigui.api.event.PointerEvent;
 import dev.sixik.unigui.api.event.PointerExitedEvent;
+import dev.sixik.unigui.api.event.PointerMovedEvent;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.Overflow;
 import dev.sixik.unigui.api.layout.PositionType;
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
@@ -77,6 +80,11 @@ public class Tooltip extends Box implements OverlayHostAware {
     private RichText richText = RichText.plain("");
     private EventSubscription anchorEnteredSubscription;
     private EventSubscription anchorExitedSubscription;
+    private EventSubscription anchorMovedSubscription;
+    private boolean followPointer;
+    private boolean pointerKnown;
+    /** Последняя позиция курсора над якорем в координатах корня окна; нулевой прямоугольник служит «якорем» размещения. */
+    private final MutableRect pointerAnchor = new MutableRect(0.0f, 0.0f, 0.0f, 0.0f);
     private float offsetX = 8.0f;
     private float offsetY = 10.0f;
     private float maxWidth = DEFAULT_MAX_WIDTH;
@@ -160,6 +168,7 @@ public class Tooltip extends Box implements OverlayHostAware {
         if (this.anchor == anchor) return this;
         unsubscribeFromAnchor();
         this.anchor = anchor;
+        pointerKnown = false;
         lastAnchorX = Float.NaN;
         lastAnchorY = Float.NaN;
         lastAnchorWidth = Float.NaN;
@@ -231,6 +240,35 @@ public class Tooltip extends Box implements OverlayHostAware {
         offsetY = normalizedY;
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
+    }
+
+    /**
+     * Включает или выключает размещение подсказки у курсора.
+     *
+     * <p>По умолчанию подсказка стоит под границами якоря и не зависит от мыши. В режиме следования она
+     * ставится относительно последней позиции курсора над якорем ({@link #offset(float, float)} задаёт сдвиг от
+     * курсора), как ванильная подсказка. Пока курсор над якорем не наблюдался, используются границы якоря. Позиция
+     * берётся из координат указателя, а не из границ виджета, поэтому не зависит от прокрутки и пересчёта layout.</p>
+     *
+     * @param followPointer {@code true} — размещать у курсора
+     * @return эта подсказка
+     */
+    public Tooltip followPointer(boolean followPointer) {
+        if (this.followPointer == followPointer) return this;
+        this.followPointer = followPointer;
+        lastAnchorX = Float.NaN;
+        lastAnchorY = Float.NaN;
+        lastAnchorWidth = Float.NaN;
+        lastAnchorHeight = Float.NaN;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * @return {@code true}, если подсказка размещается у курсора, а не под якорем
+     */
+    public boolean followPointer() {
+        return followPointer;
     }
 
         @AiDoc(summary = "Returns the maximum tooltip wrap width.")
@@ -346,7 +384,7 @@ public class Tooltip extends Box implements OverlayHostAware {
         float width = desiredSize().width();
         float height = desiredSize().height();
         mutableLayoutBounds().set(AbsoluteLayoutEngine.placeBelow(
-                bounds, anchor.layoutBounds(), width, height, offsetX, offsetY, true, true));
+                bounds, placementAnchor(), width, height, offsetX, offsetY, true, true));
         rememberAnchorBounds();
     }
 
@@ -361,7 +399,7 @@ public class Tooltip extends Box implements OverlayHostAware {
         super.tick(frame);
         if (anchor == null || visibility() == dev.sixik.unigui.api.widget.Visibility.COLLAPSED) return;
         if (!isEffectivelyVisible(anchor)) return;
-        RectView anchorBounds = anchor.layoutBounds();
+        RectView anchorBounds = placementAnchor();
         if (anchorBounds == null) return;
         if (Float.compare(anchorBounds.x(), lastAnchorX) == 0
                 && Float.compare(anchorBounds.y(), lastAnchorY) == 0
@@ -378,8 +416,22 @@ public class Tooltip extends Box implements OverlayHostAware {
         rememberAnchorBounds();
     }
 
+    /**
+     * Прямоугольник, относительно которого размещается подсказка: нулевой прямоугольник в точке курсора в режиме
+     * следования или границы якоря.
+     */
+    private RectView placementAnchor() {
+        if (followPointer && pointerKnown) return pointerAnchor;
+        return anchor == null ? null : anchor.layoutBounds();
+    }
+
+    private void rememberPointer(PointerEvent event) {
+        pointerAnchor.set(event.rootX(), event.rootY(), 0.0f, 0.0f);
+        pointerKnown = true;
+    }
+
     private void rememberAnchorBounds() {
-        RectView anchorBounds = anchor == null ? null : anchor.layoutBounds();
+        RectView anchorBounds = placementAnchor();
         if (anchorBounds == null) {
             lastAnchorX = Float.NaN;
             lastAnchorY = Float.NaN;
@@ -468,8 +520,11 @@ public class Tooltip extends Box implements OverlayHostAware {
 
     private void subscribeToAnchor() {
         if (anchor == null) return;
-        anchorEnteredSubscription = anchor.on(PointerEnteredEvent.TYPE,
-                event -> invalidate(InvalidationFlags.VISUAL));
+        anchorEnteredSubscription = anchor.on(PointerEnteredEvent.TYPE, event -> {
+            rememberPointer(event);
+            invalidate(InvalidationFlags.VISUAL);
+        });
+        anchorMovedSubscription = anchor.on(PointerMovedEvent.TYPE, this::rememberPointer);
         anchorExitedSubscription = anchor.on(PointerExitedEvent.TYPE,
                 event -> invalidate(InvalidationFlags.VISUAL));
     }
@@ -482,6 +537,10 @@ public class Tooltip extends Box implements OverlayHostAware {
         if (anchorExitedSubscription != null) {
             anchorExitedSubscription.unsubscribe();
             anchorExitedSubscription = null;
+        }
+        if (anchorMovedSubscription != null) {
+            anchorMovedSubscription.unsubscribe();
+            anchorMovedSubscription = null;
         }
     }
 

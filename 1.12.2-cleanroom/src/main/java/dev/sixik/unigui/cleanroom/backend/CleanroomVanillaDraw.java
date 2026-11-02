@@ -64,6 +64,7 @@ final class CleanroomVanillaDraw {
             // Uniform scale: GL_RESCALE_NORMAL only corrects uniform scaling, and 3D blocks are lit by their normals.
             GlStateManager.scale(scale, scale, scale);
             GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
+            GlStateManager.enableTexture2D();
             CleanroomGlState.clearDepth();
             GlStateManager.enableDepth();
             GlStateManager.depthFunc(GL11.GL_LEQUAL);
@@ -102,6 +103,7 @@ final class CleanroomVanillaDraw {
             GlStateManager.translate(x, y, 0.0f);
             GlStateManager.scale(scale, scale, scale);
             GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
+            GlStateManager.enableTexture2D();
             minecraft.getRenderItem().renderItemOverlayIntoGUI(minecraft.fontRenderer, stack, 0, 0, null);
         } catch (RuntimeException | LinkageError e) {
             failed(stack, e, matrixDepth + 1);
@@ -131,6 +133,8 @@ final class CleanroomVanillaDraw {
         int matrixDepth = matrixDepth();
         try {
             GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
+            // Vanilla renderers never enable texturing: UniGUI's untextured shapes leave it off (see GtnhVanillaDraw on 1.7.10).
+            GlStateManager.enableTexture2D();
             CleanroomGlState.clearDepth();
             GlStateManager.enableDepth();
             GlStateManager.depthFunc(GL11.GL_LEQUAL);
@@ -182,6 +186,7 @@ final class CleanroomVanillaDraw {
         boolean forItem = stack != null && !stack.isEmpty();
         try {
             GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
+            GlStateManager.enableTexture2D();
             if (forItem) GuiUtils.preItemToolTip(stack);
             // Forge listeners of the tooltip events may edit the list; the caller's copy stays untouched.
             GuiUtils.drawHoveringText(forItem ? stack : ItemStack.EMPTY, new ArrayList<>(lines), mouseX, mouseY,

@@ -35,7 +35,7 @@ import java.util.Locale;
 
 public final class UniGuiDemo {
 
-    private static final FloatSignal SCALE = new FloatSignal(1f);
+    private static final FloatSignal SCALE = new FloatSignal(1.5f);
 
     private UniGuiDemo() {
     }
@@ -204,7 +204,9 @@ public final class UniGuiDemo {
      * Кладёт галерею в {@link OverlayLayer} и добавляет в него стек уведомлений, чтобы {@link Toast} было где показать.
      */
     private static OverlayLayer host(GalleryTemplate gallery) {
-        return new OverlayLayer(gallery).addOverlay(gallery.notifications);
+        OverlayLayer layer = new OverlayLayer(gallery);
+        gallery.overlay = layer;
+        return layer.addOverlay(gallery.notifications);
     }
 
     /**
@@ -255,6 +257,7 @@ public final class UniGuiDemo {
                 new NavigationWidgetsCategory(),
                 new DataCategory(),
                 new MediaCategory(),
+                new MinecraftCategory(),
                 new FeedbackCategory(),
                 new StatusCategory(),
                 new DemoAppsCategory());
@@ -264,6 +267,13 @@ public final class UniGuiDemo {
                 .placement(NotificationView.Placement.BOTTOM_RIGHT)
                 .duration(1.8f)
                 .maxVisible(3);
+        /**
+         * Слой, в который галерея вложена: категории размещают в нём всплывающие подсказки и окна выбора.
+         * Заполняется в {@link #host(GalleryTemplate)}; {@code null}, пока галерея не помещена в слой.
+         */
+        protected OverlayLayer overlay;
+        /** Оверлеи текущей страницы (подсказки предметов): снимаются с корня при её перестройке. */
+        private final List<Widget> pageOverlays = new ArrayList<>();
         protected final VBox article = new VBox();
         protected final List<Slider> accentTargets = new ArrayList<>();
         protected final Label breadcrumb = new Label("BASIC INPUT");
@@ -344,7 +354,7 @@ public final class UniGuiDemo {
             footer.backgroundVisible(true);
             footer.background().set(SIDEBAR_HEADER);
             footer.layout(style -> style.widthPercent(100.0f).padding(12.0f, 14.0f).flexGrow(0.0f).flexShrink(0.0f));
-            footer.addChild(label("UniGUI  ·  Interactive controls", color(164, 187, 203)));
+            footer.addChild(label("ctrl + shift + p - open profiler", color(164, 187, 203)));
             sidebar.addChild(footer);
             return sidebar;
         }
@@ -465,7 +475,30 @@ public final class UniGuiDemo {
             refreshArticle(category, control);
         }
 
+        /**
+         * Кладёт виджет в корневой {@link OverlayLayer} окна и привязывает его к текущей странице.
+         *
+         * <p>Подсказка, лежащая в корне, рисуется поверх всего интерфейса и не обрезается прокруткой страницы.
+         * Без привязки к странице подсказки прежних сборок оставались бы в корне навсегда: каждый переход по
+         * навигации добавлял бы новый набор, а подсказки уже удалённых иконок продолжали бы жить.</p>
+         *
+         * @param widget оверлей страницы; ничего не делает, пока галерея не помещена в слой
+         */
+        protected void addPageOverlay(Widget widget) {
+            if (widget == null || overlay == null) return;
+            overlay.addOverlay(widget);
+            pageOverlays.add(widget);
+        }
+
+        private void clearPageOverlays() {
+            if (overlay != null) {
+                for (Widget widget : pageOverlays) overlay.removeOverlay(widget);
+            }
+            pageOverlays.clear();
+        }
+
         private void refreshArticle(DemoCategory category, DemoCategory.Control control) {
+            clearPageOverlays();
             article.clearChildren();
             accentTargets.clear();
             Label title = label(control.title(), color(255, 255, 255));
